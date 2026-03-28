@@ -1,16 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { usePages } from "@/hooks/usePages";
 import { createPage } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import { formatRelativeDate } from "@/lib/utils/dates";
+import { usePages } from "@/hooks/usePages";
 import QuickSearch from "./QuickSearch";
+import PageTree from "./PageTree";
 
 export default function Sidebar() {
   const router = useRouter();
-  const { pages, refresh } = usePages();
-  const currentPageId = useWorkspaceStore((s) => s.currentPageId);
+  const { refresh } = usePages();
   const sidebarOpen = useWorkspaceStore((s) => s.sidebarOpen);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
 
@@ -70,38 +69,9 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Page list */}
+      {/* Page tree */}
       <nav className="flex-1 overflow-y-auto px-2">
-        {pages.length === 0 ? (
-          <p className="px-3 py-4 text-xs text-zinc-400 text-center">
-            No pages yet. Create your first page!
-          </p>
-        ) : (
-          <ul className="space-y-0.5">
-            {pages.map((page) => (
-              <li key={page.id}>
-                <button
-                  onClick={() => router.push(`/page/${page.id}`)}
-                  className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-left transition-colors ${
-                    currentPageId === page.id
-                      ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
-                      : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                  }`}
-                >
-                  <span className="shrink-0 w-5 text-center">
-                    {page.icon || "📄"}
-                  </span>
-                  <span className="truncate flex-1">
-                    {page.title || "Untitled"}
-                  </span>
-                  <span className="text-[10px] text-zinc-400 shrink-0">
-                    {formatRelativeDate(page.updated_at)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <PageTree />
       </nav>
     </aside>
   );
