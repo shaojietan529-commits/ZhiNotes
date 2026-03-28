@@ -27,7 +27,7 @@ function AppContent() {
       >
         <div className="max-w-2xl text-center px-8">
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
-            ZhiNotes
+            Zhinote
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 mb-6">
             Your offline-first knowledge management system

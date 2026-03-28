@@ -39,7 +39,7 @@ export default function Sidebar() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
         <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          ZhiNotes
+          Zhinote
         </h1>
         <button
           onClick={toggleSidebar}

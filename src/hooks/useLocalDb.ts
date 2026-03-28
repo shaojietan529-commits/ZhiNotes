@@ -14,10 +14,10 @@ export function useLocalDb() {
     getDb()
       .then(() => {
         setDbReady(true);
-        console.log("[ZhiNotes] Database ready");
+        console.log("[Zhinote] Database ready");
       })
       .catch((err) => {
-        console.error("[ZhiNotes] Failed to initialize database:", err);
+        console.error("[Zhinote] Failed to initialize database:", err);
       });
   }, [dbReady, setDbReady]);
 

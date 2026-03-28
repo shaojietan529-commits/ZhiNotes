@@ -36,13 +36,13 @@ async function initializeDb(): Promise<SqliteDb> {
   if (sqlite3.oo1.OpfsDb) {
     try {
       db = new sqlite3.oo1.OpfsDb("/zhinotes.db") as unknown as SqliteDb;
-      console.log("[ZhiNotes] SQLite initialized with OPFS persistence");
+      console.log("[Zhinote] SQLite initialized with OPFS persistence");
     } catch (e) {
-      console.warn("[ZhiNotes] OPFS not available, using in-memory DB:", e);
+      console.warn("[Zhinote] OPFS not available, using in-memory DB:", e);
       db = new sqlite3.oo1.DB(":memory:") as unknown as SqliteDb;
     }
   } else {
-    console.warn("[ZhiNotes] OPFS not supported, using in-memory DB");
+    console.warn("[Zhinote] OPFS not supported, using in-memory DB");
     db = new sqlite3.oo1.DB(":memory:") as unknown as SqliteDb;
   }
 
