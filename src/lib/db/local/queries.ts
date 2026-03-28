@@ -228,3 +228,298 @@ export async function getBacklinks(
     [pageId]
   ) as unknown as Page[];
 }
+
+// ─── Databases ───────────────────────────────────────────────
+
+import type {
+  Database,
+  DatabaseField,
+  DatabaseRow,
+  DatabaseView,
+} from "@/lib/utils/types";
+
+export async function createDatabase(opts: {
+  title: string;
+  parentPageId?: string;
+  icon?: string;
+}): Promise<Database> {
+  const db = await getDb();
+  const now = nowISO();
+  const id = generateId();
+
+  if (opts.parentPageId) {
+    db.run(
+      `INSERT INTO databases (id, owner_id, parent_page_id, title, icon, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, DEFAULT_OWNER_ID, opts.parentPageId, opts.title, opts.icon ?? "🗄️", now, now]
+    );
+  } else {
+    db.run(
+      `INSERT INTO databases (id, owner_id, title, icon, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, DEFAULT_OWNER_ID, opts.title, opts.icon ?? "🗄️", now, now]
+    );
+  }
+
+  // Create a default table view
+  const viewId = generateId();
+  db.run(
+    `INSERT INTO database_views (id, database_id, owner_id, name, view_type, config, position, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [viewId, id, DEFAULT_OWNER_ID, "Table", "table", "{}", 0, now, now]
+  );
+
+  // Create a default "Name" field
+  const fieldId = generateId();
+  db.run(
+    `INSERT INTO database_fields (id, database_id, owner_id, name, field_type, position, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [fieldId, id, DEFAULT_OWNER_ID, "Name", "text", 0, now, now]
+  );
+
+  return getDatabase(id) as Promise<Database>;
+}
+
+export async function getDatabase(id: string): Promise<Database | null> {
+  const db = await getDb();
+  const rows = db.query(
+    "SELECT * FROM databases WHERE id = ? AND deleted_at IS NULL",
+    [id]
+  ) as unknown as Database[];
+  return rows[0] || null;
+}
+
+export async function getAllDatabases(): Promise<Database[]> {
+  const db = await getDb();
+  return db.query(
+    "SELECT * FROM databases WHERE deleted_at IS NULL ORDER BY updated_at DESC"
+  ) as unknown as Database[];
+}
+
+export async function updateDatabase(
+  id: string,
+  updates: Partial<Pick<Database, "title" | "icon" | "description">>
+): Promise<Database | null> {
+  const db = await getDb();
+  const now = nowISO();
+  const setClauses: string[] = ["updated_at = ?"];
+  const values: unknown[] = [now];
+
+  if (updates.title !== undefined) { setClauses.push("title = ?"); values.push(updates.title); }
+  if (updates.icon !== undefined) { setClauses.push("icon = ?"); values.push(updates.icon); }
+  if (updates.description !== undefined) { setClauses.push("description = ?"); values.push(updates.description); }
+
+  values.push(id);
+  db.run(`UPDATE databases SET ${setClauses.join(", ")} WHERE id = ?`, values);
+  return getDatabase(id);
+}
+
+export async function deleteDatabase(id: string): Promise<void> {
+  const db = await getDb();
+  const now = nowISO();
+  db.run("UPDATE databases SET deleted_at = ?, updated_at = ? WHERE id = ?", [now, now, id]);
+}
+
+// ─── Database Fields ─────────────────────────────────────────
+
+export async function getFields(databaseId: string): Promise<DatabaseField[]> {
+  const db = await getDb();
+  return db.query(
+    "SELECT * FROM database_fields WHERE database_id = ? AND deleted_at IS NULL ORDER BY position ASC",
+    [databaseId]
+  ) as unknown as DatabaseField[];
+}
+
+export async function addField(databaseId: string, opts: {
+  name: string;
+  fieldType: string;
+  config?: string;
+}): Promise<DatabaseField> {
+  const db = await getDb();
+  const now = nowISO();
+  const id = generateId();
+
+  // Position after last field
+  const existing = db.query(
+    "SELECT MAX(position) as max_pos FROM database_fields WHERE database_id = ? AND deleted_at IS NULL",
+    [databaseId]
+  );
+  const position = ((existing[0]?.max_pos as number) || 0) + 1;
+
+  db.run(
+    `INSERT INTO database_fields (id, database_id, owner_id, name, field_type, config, position, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, databaseId, DEFAULT_OWNER_ID, opts.name, opts.fieldType, opts.config ?? null, position, now, now]
+  );
+
+  const rows = db.query("SELECT * FROM database_fields WHERE id = ?", [id]) as unknown as DatabaseField[];
+  return rows[0];
+}
+
+export async function updateField(
+  id: string,
+  updates: Partial<Pick<DatabaseField, "name" | "field_type" | "config" | "position">>
+): Promise<void> {
+  const db = await getDb();
+  const now = nowISO();
+  const setClauses: string[] = ["updated_at = ?"];
+  const values: unknown[] = [now];
+
+  if (updates.name !== undefined) { setClauses.push("name = ?"); values.push(updates.name); }
+  if (updates.field_type !== undefined) { setClauses.push("field_type = ?"); values.push(updates.field_type); }
+  if (updates.config !== undefined) { setClauses.push("config = ?"); values.push(updates.config); }
+  if (updates.position !== undefined) { setClauses.push("position = ?"); values.push(updates.position); }
+
+  values.push(id);
+  db.run(`UPDATE database_fields SET ${setClauses.join(", ")} WHERE id = ?`, values);
+}
+
+export async function deleteField(id: string): Promise<void> {
+  const db = await getDb();
+  const now = nowISO();
+  db.run("UPDATE database_fields SET deleted_at = ?, updated_at = ? WHERE id = ?", [now, now, id]);
+}
+
+// ─── Database Rows ───────────────────────────────────────────
+
+export async function getRows(databaseId: string): Promise<(DatabaseRow & { page: Page })[]> {
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT dr.*, p.title as page_title, p.icon as page_icon, p.created_at as page_created_at, p.updated_at as page_updated_at
+     FROM database_rows dr
+     INNER JOIN pages p ON p.id = dr.page_id
+     WHERE dr.database_id = ? AND dr.deleted_at IS NULL AND p.deleted_at IS NULL
+     ORDER BY dr.position ASC`,
+    [databaseId]
+  ) as unknown as (DatabaseRow & { page_title: string; page_icon: string; page_created_at: string; page_updated_at: string })[];
+
+  return rows.map((r) => ({
+    ...r,
+    page: {
+      id: r.page_id,
+      title: r.page_title,
+      icon: r.page_icon,
+      created_at: r.page_created_at,
+      updated_at: r.page_updated_at,
+    } as Page,
+  }));
+}
+
+export async function addRow(databaseId: string, opts?: {
+  title?: string;
+  fieldValues?: Record<string, unknown>;
+}): Promise<DatabaseRow> {
+  const db = await getDb();
+  const now = nowISO();
+
+  // Create a page for this row
+  const page = await createPage({ title: opts?.title ?? "Untitled" });
+
+  // Position after last row
+  const existing = db.query(
+    "SELECT MAX(position) as max_pos FROM database_rows WHERE database_id = ? AND deleted_at IS NULL",
+    [databaseId]
+  );
+  const position = ((existing[0]?.max_pos as number) || 0) + 1;
+
+  const id = generateId();
+  const fieldValues = JSON.stringify(opts?.fieldValues ?? {});
+
+  db.run(
+    `INSERT INTO database_rows (id, database_id, page_id, owner_id, field_values, position, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, databaseId, page.id, DEFAULT_OWNER_ID, fieldValues, position, now, now]
+  );
+
+  const rows = db.query("SELECT * FROM database_rows WHERE id = ?", [id]) as unknown as DatabaseRow[];
+  return rows[0];
+}
+
+export async function updateRow(
+  id: string,
+  updates: { fieldValues?: Record<string, unknown>; position?: number }
+): Promise<void> {
+  const db = await getDb();
+  const now = nowISO();
+  const setClauses: string[] = ["updated_at = ?"];
+  const values: unknown[] = [now];
+
+  if (updates.fieldValues !== undefined) {
+    setClauses.push("field_values = ?");
+    values.push(JSON.stringify(updates.fieldValues));
+  }
+  if (updates.position !== undefined) {
+    setClauses.push("position = ?");
+    values.push(updates.position);
+  }
+
+  values.push(id);
+  db.run(`UPDATE database_rows SET ${setClauses.join(", ")} WHERE id = ?`, values);
+}
+
+export async function deleteRow(id: string): Promise<void> {
+  const db = await getDb();
+  const now = nowISO();
+  // Get the page_id to soft-delete the page too
+  const rows = db.query("SELECT page_id FROM database_rows WHERE id = ?", [id]) as unknown as { page_id: string }[];
+  if (rows[0]) {
+    db.run("UPDATE pages SET deleted_at = ?, updated_at = ? WHERE id = ?", [now, now, rows[0].page_id]);
+  }
+  db.run("UPDATE database_rows SET deleted_at = ?, updated_at = ? WHERE id = ?", [now, now, id]);
+}
+
+// ─── Database Views ──────────────────────────────────────────
+
+export async function getViews(databaseId: string): Promise<DatabaseView[]> {
+  const db = await getDb();
+  return db.query(
+    "SELECT * FROM database_views WHERE database_id = ? AND deleted_at IS NULL ORDER BY position ASC",
+    [databaseId]
+  ) as unknown as DatabaseView[];
+}
+
+export async function addView(databaseId: string, opts: {
+  name: string;
+  viewType: DatabaseView["view_type"];
+}): Promise<DatabaseView> {
+  const db = await getDb();
+  const now = nowISO();
+  const id = generateId();
+
+  const existing = db.query(
+    "SELECT MAX(position) as max_pos FROM database_views WHERE database_id = ? AND deleted_at IS NULL",
+    [databaseId]
+  );
+  const position = ((existing[0]?.max_pos as number) || 0) + 1;
+
+  db.run(
+    `INSERT INTO database_views (id, database_id, owner_id, name, view_type, config, position, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, databaseId, DEFAULT_OWNER_ID, opts.name, opts.viewType, "{}", position, now, now]
+  );
+
+  const rows = db.query("SELECT * FROM database_views WHERE id = ?", [id]) as unknown as DatabaseView[];
+  return rows[0];
+}
+
+export async function updateView(
+  id: string,
+  updates: Partial<Pick<DatabaseView, "name" | "config">>
+): Promise<void> {
+  const db = await getDb();
+  const now = nowISO();
+  const setClauses: string[] = ["updated_at = ?"];
+  const values: unknown[] = [now];
+
+  if (updates.name !== undefined) { setClauses.push("name = ?"); values.push(updates.name); }
+  if (updates.config !== undefined) { setClauses.push("config = ?"); values.push(updates.config); }
+
+  values.push(id);
+  db.run(`UPDATE database_views SET ${setClauses.join(", ")} WHERE id = ?`, values);
+}
+
+export async function deleteView(id: string): Promise<void> {
+  const db = await getDb();
+  const now = nowISO();
+  db.run("UPDATE database_views SET deleted_at = ?, updated_at = ? WHERE id = ?", [now, now, id]);
+}
