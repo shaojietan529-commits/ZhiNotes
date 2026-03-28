@@ -18,6 +18,9 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-text-style";
 import Mention from "@tiptap/extension-mention";
 import WikiLinkSuggestion from "./extensions/WikiLinkSuggestion";
+import { SlashCommandExtension } from "./extensions/SlashCommandExtension";
+import { KeyboardShortcuts } from "./extensions/KeyboardShortcuts";
+import { InlineDatabaseNode } from "./extensions/InlineDatabaseNode";
 import {
   useEffect,
   useRef,
@@ -33,6 +36,7 @@ interface EditorProps {
 
 export interface EditorRef {
   insertSubPageLink: (childId: string, childTitle: string) => string | undefined;
+  insertInlineDatabase: (databaseId: string) => string | undefined;
   getHTML: () => string;
 }
 
@@ -94,6 +98,9 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         }),
         TextStyle,
         Color,
+        SlashCommandExtension,
+        KeyboardShortcuts,
+        InlineDatabaseNode,
         Mention.configure({
           HTMLAttributes: {
             class:
@@ -166,6 +173,11 @@ const Editor = forwardRef<EditorRef, EditorProps>(
           })
           .run();
         // Return current HTML so caller can save immediately
+        return editor.getHTML();
+      },
+      insertInlineDatabase(databaseId: string) {
+        if (!editor) return;
+        editor.chain().focus().insertInlineDatabase(databaseId).run();
         return editor.getHTML();
       },
       getHTML() {

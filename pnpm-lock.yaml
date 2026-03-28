@@ -11,6 +11,9 @@ importers:
       '@sqlite.org/sqlite-wasm':
         specifier: 3.51.2-build8
         version: 3.51.2-build8
+      '@tiptap/core':
+        specifier: ^3.21.0
+        version: 3.21.0(@tiptap/pm@3.21.0)
       '@tiptap/extension-collaboration':
         specifier: ^3.21.0
         version: 3.21.0(@tiptap/core@3.21.0(@tiptap/pm@3.21.0))(@tiptap/pm@3.21.0)(@tiptap/y-tiptap@3.0.2(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.7)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30))(yjs@13.6.30)

@@ -235,3 +235,21 @@ body {
     background: #1e3a5f;
   }
 }
+
+/* Inline database in editor */
+.tiptap div[data-type="inline-database"] {
+  margin: 1em 0;
+}
+
+/* Horizontal rule */
+.tiptap hr {
+  border: none;
+  border-top: 1px solid #d4d4d8;
+  margin: 1.5em 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tiptap hr {
+    border-color: #3f3f46;
+  }
+}
