@@ -8,11 +8,11 @@ import type { Page } from "@/lib/utils/types";
 export async function listPages(parentId: string | null = null): Promise<Page[]> {
   const db = await getDb();
   if (parentId === null) {
-    return db.selectObjects(
+    return db.query(
       "SELECT * FROM pages WHERE parent_id IS NULL AND deleted_at IS NULL ORDER BY updated_at DESC"
     ) as unknown as Page[];
   }
-  return db.selectObjects(
+  return db.query(
     "SELECT * FROM pages WHERE parent_id = ? AND deleted_at IS NULL ORDER BY position ASC, updated_at DESC",
     [parentId]
   ) as unknown as Page[];
@@ -20,14 +20,14 @@ export async function listPages(parentId: string | null = null): Promise<Page[]>
 
 export async function getAllPages(): Promise<Page[]> {
   const db = await getDb();
-  return db.selectObjects(
+  return db.query(
     "SELECT * FROM pages WHERE deleted_at IS NULL ORDER BY updated_at DESC"
   ) as unknown as Page[];
 }
 
 export async function getPage(id: string): Promise<Page | null> {
   const db = await getDb();
-  const rows = db.selectObjects(
+  const rows = db.query(
     "SELECT * FROM pages WHERE id = ? AND deleted_at IS NULL",
     [id]
   ) as unknown as Page[];
@@ -47,13 +47,13 @@ export async function createPage(opts?: {
   const parentId = opts?.parentId ?? null;
   let position = 0;
   if (parentId) {
-    const siblings = db.selectObjects(
+    const siblings = db.query(
       "SELECT MAX(position) as max_pos FROM pages WHERE parent_id = ? AND deleted_at IS NULL",
       [parentId]
     );
     position = ((siblings[0]?.max_pos as number) || 0) + 1;
   } else {
-    const siblings = db.selectObjects(
+    const siblings = db.query(
       "SELECT MAX(position) as max_pos FROM pages WHERE parent_id IS NULL AND deleted_at IS NULL"
     );
     position = ((siblings[0]?.max_pos as number) || 0) + 1;
@@ -62,14 +62,14 @@ export async function createPage(opts?: {
   // Compute depth
   let depth = 0;
   if (parentId) {
-    const parent = db.selectObjects(
+    const parent = db.query(
       "SELECT depth FROM pages WHERE id = ?",
       [parentId]
     );
     depth = ((parent[0]?.depth as number) || 0) + 1;
   }
 
-  db.exec(
+  db.run(
     `INSERT INTO pages (id, owner_id, parent_id, title, icon, position, depth, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
@@ -130,7 +130,7 @@ export async function updatePage(
   }
 
   values.push(id);
-  db.exec(
+  db.run(
     `UPDATE pages SET ${setClauses.join(", ")} WHERE id = ? AND deleted_at IS NULL`,
     values
   );
@@ -141,7 +141,7 @@ export async function updatePage(
 export async function deletePage(id: string): Promise<void> {
   const db = await getDb();
   const now = nowISO();
-  db.exec(
+  db.run(
     "UPDATE pages SET deleted_at = ?, updated_at = ? WHERE id = ?",
     [now, now, id]
   );
@@ -150,7 +150,7 @@ export async function deletePage(id: string): Promise<void> {
 export async function searchPages(query: string): Promise<Page[]> {
   const db = await getDb();
   const pattern = `%${query}%`;
-  return db.selectObjects(
+  return db.query(
     `SELECT * FROM pages
      WHERE deleted_at IS NULL
        AND (title LIKE ? OR content_text LIKE ?)
