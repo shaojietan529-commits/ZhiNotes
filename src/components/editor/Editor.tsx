@@ -31,7 +31,8 @@ interface EditorProps {
 }
 
 export interface EditorRef {
-  insertSubPageLink: (childId: string, childTitle: string) => void;
+  insertSubPageLink: (childId: string, childTitle: string) => string | undefined;
+  getHTML: () => string;
 }
 
 const Editor = forwardRef<EditorRef, EditorProps>(
@@ -136,6 +137,11 @@ const Editor = forwardRef<EditorRef, EditorProps>(
             ],
           })
           .run();
+        // Return current HTML so caller can save immediately
+        return editor.getHTML();
+      },
+      getHTML() {
+        return editor?.getHTML() ?? "";
       },
     }));
 

@@ -77,12 +77,16 @@ function PageContent({ pageId }: { pageId: string }) {
       const child = await createPage({ parentId: pageId });
       await refresh();
       // Insert a link to the sub-page in the parent editor
-      editorRef.current?.insertSubPageLink(child.id, child.title);
+      const html = editorRef.current?.insertSubPageLink(child.id, child.title);
+      // Save immediately before navigating away (don't wait for debounce)
+      if (html) {
+        await update({ content_text: html });
+      }
       router.push(`/page/${child.id}`);
     } catch (err) {
       console.error("[Zhinote] Failed to create sub-page:", err);
     }
-  }, [pageId, refresh, router]);
+  }, [pageId, refresh, router, update]);
 
   if (loading) {
     return (
