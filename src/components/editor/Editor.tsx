@@ -16,6 +16,7 @@ export default function Editor({ pageId, initialContent, onUpdate }: EditorProps
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
