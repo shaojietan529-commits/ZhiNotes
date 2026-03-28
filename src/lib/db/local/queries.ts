@@ -42,9 +42,11 @@ export async function createPage(opts?: {
   const db = await getDb();
   const now = nowISO();
   const id = generateId();
+  const title = opts?.title ?? "Untitled";
+  const parentId = opts?.parentId ?? null;
+  const icon = opts?.icon ?? null;
 
   // Compute position: place after last sibling
-  const parentId = opts?.parentId ?? null;
   let position = 0;
   if (parentId) {
     const siblings = db.query(
@@ -69,21 +71,33 @@ export async function createPage(opts?: {
     depth = ((parent[0]?.depth as number) || 0) + 1;
   }
 
-  db.run(
-    `INSERT INTO pages (id, owner_id, parent_id, title, icon, position, depth, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      DEFAULT_OWNER_ID,
-      parentId,
-      opts?.title ?? "Untitled",
-      opts?.icon ?? null,
-      position,
-      depth,
-      now,
-      now,
-    ]
-  );
+  // SQLite WASM doesn't handle JS null in bind params well,
+  // so we build the SQL dynamically for nullable columns
+  if (parentId && icon) {
+    db.run(
+      `INSERT INTO pages (id, owner_id, parent_id, title, icon, position, depth, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, DEFAULT_OWNER_ID, parentId, title, icon, position, depth, now, now]
+    );
+  } else if (parentId) {
+    db.run(
+      `INSERT INTO pages (id, owner_id, parent_id, title, position, depth, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, DEFAULT_OWNER_ID, parentId, title, position, depth, now, now]
+    );
+  } else if (icon) {
+    db.run(
+      `INSERT INTO pages (id, owner_id, title, icon, position, depth, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, DEFAULT_OWNER_ID, title, icon, position, depth, now, now]
+    );
+  } else {
+    db.run(
+      `INSERT INTO pages (id, owner_id, title, position, depth, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, DEFAULT_OWNER_ID, title, position, depth, now, now]
+    );
+  }
 
   return (await getPage(id))!;
 }

@@ -14,9 +14,13 @@ export default function Sidebar() {
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
 
   const handleNewPage = async () => {
-    const page = await createPage();
-    await refresh();
-    router.push(`/page/${page.id}`);
+    try {
+      const page = await createPage();
+      await refresh();
+      router.push(`/page/${page.id}`);
+    } catch (err) {
+      console.error("[Zhinote] Failed to create page:", err);
+    }
   };
 
   if (!sidebarOpen) {
