@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import DatabaseProvider from "./DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import Editor from "@/components/editor/Editor";
+import type { EditorRef } from "@/components/editor/Editor";
 import DateDisplay from "@/components/shared/DateDisplay";
 import Breadcrumb from "@/components/shared/Breadcrumb";
 import IconPicker from "@/components/shared/IconPicker";
@@ -23,6 +24,7 @@ export default function PageShell({ pageId }: { pageId: string }) {
 
 function PageContent({ pageId }: { pageId: string }) {
   const router = useRouter();
+  const editorRef = useRef<EditorRef>(null);
   const { page, loading, update, remove } = usePage(pageId);
   const { refresh } = usePages();
   const setCurrentPageId = useWorkspaceStore((s) => s.setCurrentPageId);
@@ -47,8 +49,10 @@ function PageContent({ pageId }: { pageId: string }) {
   );
 
   const handleContentUpdate = useCallback(
-    async (text: string) => {
-      await update({ content_text: text });
+    async (html: string, text: string) => {
+      // Save HTML as content_html (stored in content_text field for now)
+      // and plain text for search indexing
+      await update({ content_text: html });
       refresh();
     },
     [update, refresh]
@@ -69,9 +73,15 @@ function PageContent({ pageId }: { pageId: string }) {
   }, [remove, refresh, router]);
 
   const handleAddSubPage = useCallback(async () => {
-    const child = await createPage({ parentId: pageId });
-    await refresh();
-    router.push(`/page/${child.id}`);
+    try {
+      const child = await createPage({ parentId: pageId });
+      await refresh();
+      // Insert a link to the sub-page in the parent editor
+      editorRef.current?.insertSubPageLink(child.id, child.title);
+      router.push(`/page/${child.id}`);
+    } catch (err) {
+      console.error("[Zhinote] Failed to create sub-page:", err);
+    }
   }, [pageId, refresh, router]);
 
   if (loading) {
@@ -151,8 +161,9 @@ function PageContent({ pageId }: { pageId: string }) {
             </div>
           </div>
 
-          {/* Editor */}
+          {/* Editor - now loads/saves HTML */}
           <Editor
+            ref={editorRef}
             pageId={pageId}
             initialContent={page.content_text}
             onUpdate={handleContentUpdate}
