@@ -5,162 +5,217 @@ import { useRouter } from "next/navigation";
 import { getAllPages } from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 
-interface SubPageTreeProps {
+interface PagePositionTreeProps {
   pageId: string;
 }
 
-interface TreeNode {
-  page: Page;
-  children: TreeNode[];
-}
-
-function buildTree(allPages: Page[], parentId: string): TreeNode[] {
-  const children = allPages.filter((p) => p.parent_id === parentId);
-  return children.map((child) => ({
-    page: child,
-    children: buildTree(allPages, child.id),
-  }));
-}
-
-function TreeItem({
-  node,
-  level,
-  onNavigate,
-}: {
-  node: TreeNode;
-  level: number;
-  onNavigate: (id: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = node.children.length > 0;
-
-  return (
-    <li>
-      <div
-        className="flex items-center gap-1.5 group"
-        style={{ paddingLeft: `${level * 20}px` }}
-      >
-        {/* Tree connector line */}
-        {level > 0 && (
-          <span className="text-zinc-300 dark:text-zinc-600 text-xs select-none">
-            └
-          </span>
-        )}
-
-        {/* Expand/collapse */}
-        {hasChildren ? (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="w-4 h-4 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 shrink-0"
-          >
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className={`transition-transform ${expanded ? "rotate-90" : ""}`}
-            >
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </button>
-        ) : (
-          <span className="w-4 shrink-0" />
-        )}
-
-        {/* Page link */}
-        <button
-          onClick={() => onNavigate(node.page.id)}
-          className="flex items-center gap-1.5 py-1 px-1.5 rounded text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-100"
-        >
-          <span className="shrink-0">{node.page.icon || "📄"}</span>
-          <span className="truncate max-w-[300px]">
-            {node.page.title || "Untitled"}
-          </span>
-        </button>
-
-        {/* Child count badge */}
-        {hasChildren && (
-          <span className="text-[10px] text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-full px-1.5">
-            {node.children.length}
-          </span>
-        )}
-      </div>
-
-      {/* Children */}
-      {expanded && hasChildren && (
-        <ul>
-          {node.children.map((child) => (
-            <TreeItem
-              key={child.page.id}
-              node={child}
-              level={level + 1}
-              onNavigate={onNavigate}
-            />
-          ))}
-        </ul>
-      )}
-    </li>
-  );
-}
-
-export default function SubPageTree({ pageId }: SubPageTreeProps) {
+/**
+ * Shows the current page's position in the hierarchy:
+ * - Parent (if any)
+ *   - Siblings (same level, current page highlighted)
+ *     - Children of current page
+ */
+export default function PagePositionTree({ pageId }: PagePositionTreeProps) {
   const router = useRouter();
-  const [tree, setTree] = useState<TreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<{
+    parent: Page | null;
+    siblings: Page[];
+    children: Page[];
+    grandchildren: Map<string, Page[]>;
+  } | null>(null);
 
   useEffect(() => {
     async function load() {
       const allPages = await getAllPages();
-      const nodes = buildTree(allPages, pageId);
-      setTree(nodes);
-      setLoading(false);
+      const currentPage = allPages.find((p) => p.id === pageId);
+      if (!currentPage) return;
+
+      const parentId = currentPage.parent_id;
+      const parent = parentId
+        ? allPages.find((p) => p.id === parentId) || null
+        : null;
+
+      // Siblings = pages with same parent (including current page)
+      const siblings = allPages.filter(
+        (p) => p.parent_id === parentId
+      );
+
+      // Children of current page
+      const children = allPages.filter((p) => p.parent_id === pageId);
+
+      // Grandchildren (children of children)
+      const grandchildren = new Map<string, Page[]>();
+      for (const child of children) {
+        const gc = allPages.filter((p) => p.parent_id === child.id);
+        if (gc.length > 0) {
+          grandchildren.set(child.id, gc);
+        }
+      }
+
+      setData({ parent, siblings, children, grandchildren });
     }
     load();
   }, [pageId]);
 
-  if (loading) return null;
-  if (tree.length === 0) return null;
+  if (!data) return null;
 
-  const totalDescendants = countDescendants(tree);
+  const { parent, siblings, children, grandchildren } = data;
+
+  // Don't show if this is a lone top-level page with no children
+  if (!parent && siblings.length <= 1 && children.length === 0) return null;
+
+  const navigate = (id: string) => router.push(`/page/${id}`);
 
   return (
     <div className="mt-8 mb-4 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
-        <div className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-          </svg>
-          Sub-pages
-        </div>
-        <span className="text-xs text-zinc-400">
-          {totalDescendants} page{totalDescendants !== 1 ? "s" : ""}
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="text-zinc-500"
+        >
+          <path d="M21 12H9M21 6H9M21 18H9M5 12H3M5 6H3M5 18H3" />
+        </svg>
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Page Structure
         </span>
       </div>
 
-      {/* Tree */}
-      <div className="px-3 py-2">
-        <ul>
-          {tree.map((node) => (
-            <TreeItem
-              key={node.page.id}
-              node={node}
+      <div className="px-3 py-3">
+        {/* Parent level */}
+        {parent && (
+          <div className="mb-1">
+            <PageRow
+              page={parent}
               level={0}
-              onNavigate={(id) => router.push(`/page/${id}`)}
+              isCurrent={false}
+              isAncestor={true}
+              onClick={() => navigate(parent.id)}
             />
-          ))}
-        </ul>
+          </div>
+        )}
+
+        {/* Siblings level (including current page) */}
+        <div className={parent ? "ml-5" : ""}>
+          {siblings.map((sibling) => {
+            const isCurrent = sibling.id === pageId;
+            return (
+              <div key={sibling.id}>
+                <PageRow
+                  page={sibling}
+                  level={0}
+                  isCurrent={isCurrent}
+                  isAncestor={false}
+                  onClick={() => navigate(sibling.id)}
+                />
+
+                {/* Children - only show under the current page */}
+                {isCurrent && children.length > 0 && (
+                  <div className="ml-5">
+                    {children.map((child) => {
+                      const gc = grandchildren.get(child.id);
+                      return (
+                        <div key={child.id}>
+                          <PageRow
+                            page={child}
+                            level={0}
+                            isCurrent={false}
+                            isAncestor={false}
+                            childCount={gc?.length}
+                            onClick={() => navigate(child.id)}
+                          />
+                          {/* Grandchildren */}
+                          {gc && (
+                            <div className="ml-5">
+                              {gc.map((grandchild) => (
+                                <PageRow
+                                  key={grandchild.id}
+                                  page={grandchild}
+                                  level={0}
+                                  isCurrent={false}
+                                  isAncestor={false}
+                                  dimmed
+                                  onClick={() => navigate(grandchild.id)}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-function countDescendants(nodes: TreeNode[]): number {
-  let count = 0;
-  for (const node of nodes) {
-    count += 1 + countDescendants(node.children);
-  }
-  return count;
+function PageRow({
+  page,
+  level,
+  isCurrent,
+  isAncestor,
+  dimmed,
+  childCount,
+  onClick,
+}: {
+  page: Page;
+  level: number;
+  isCurrent: boolean;
+  isAncestor: boolean;
+  dimmed?: boolean;
+  childCount?: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-1.5 py-1 px-2 rounded text-sm text-left transition-colors ${
+        isCurrent
+          ? "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-medium border border-blue-200 dark:border-blue-800"
+          : isAncestor
+            ? "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            : dimmed
+              ? "text-zinc-400 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs"
+              : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+      }`}
+      style={{ paddingLeft: `${level * 20 + 8}px` }}
+    >
+      {/* Connector */}
+      <span className="text-zinc-300 dark:text-zinc-600 select-none text-xs w-3">
+        {isCurrent ? "▸" : isAncestor ? "" : "├"}
+      </span>
+
+      {/* Icon */}
+      <span className="shrink-0">{page.icon || "📄"}</span>
+
+      {/* Title */}
+      <span className="truncate flex-1">
+        {page.title || "Untitled"}
+      </span>
+
+      {/* Current page indicator */}
+      {isCurrent && (
+        <span className="text-[10px] text-blue-500 dark:text-blue-400 bg-blue-100 dark:bg-blue-900 rounded px-1.5 shrink-0">
+          current
+        </span>
+      )}
+
+      {/* Child count */}
+      {childCount && childCount > 0 && (
+        <span className="text-[10px] text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-full px-1.5 shrink-0">
+          {childCount}
+        </span>
+      )}
+    </button>
+  );
 }
