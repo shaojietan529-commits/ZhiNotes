@@ -8,6 +8,7 @@ import type { EditorRef } from "@/components/editor/Editor";
 import DateDisplay from "@/components/shared/DateDisplay";
 import Breadcrumb from "@/components/shared/Breadcrumb";
 import IconPicker from "@/components/shared/IconPicker";
+import SubPageTree from "@/components/shared/SubPageTree";
 import { usePage } from "@/hooks/usePage";
 import { usePages } from "@/hooks/usePages";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -164,6 +165,9 @@ function PageContent({ pageId }: { pageId: string }) {
               </div>
             </div>
           </div>
+
+          {/* Sub-page tree */}
+          <SubPageTree pageId={pageId} />
 
           {/* Editor - now loads/saves HTML */}
           <Editor
