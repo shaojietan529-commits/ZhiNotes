@@ -173,3 +173,58 @@ export async function searchPages(query: string): Promise<Page[]> {
     [pattern, pattern]
   ) as unknown as Page[];
 }
+
+// ─── Wiki Links ──────────────────────────────────────────────
+
+export async function updateWikiLinks(
+  sourcePageId: string,
+  targetPageIds: string[]
+): Promise<void> {
+  const db = await getDb();
+  const now = nowISO();
+
+  // Get existing links for this source page
+  const existing = db.query(
+    "SELECT id, target_page_id FROM wiki_links WHERE source_page_id = ? AND deleted_at IS NULL",
+    [sourcePageId]
+  ) as unknown as { id: string; target_page_id: string }[];
+
+  const existingTargets = new Set(existing.map((l) => l.target_page_id));
+  const newTargets = new Set(targetPageIds);
+
+  // Soft-delete links that were removed
+  for (const link of existing) {
+    if (!newTargets.has(link.target_page_id)) {
+      db.run(
+        "UPDATE wiki_links SET deleted_at = ? WHERE id = ?",
+        [now, link.id]
+      );
+    }
+  }
+
+  // Insert new links
+  for (const targetId of targetPageIds) {
+    if (!existingTargets.has(targetId)) {
+      const id = generateId();
+      db.run(
+        "INSERT INTO wiki_links (id, source_page_id, target_page_id, owner_id, created_at) VALUES (?, ?, ?, ?, ?)",
+        [id, sourcePageId, targetId, DEFAULT_OWNER_ID, now]
+      );
+    }
+  }
+}
+
+export async function getBacklinks(
+  pageId: string
+): Promise<Page[]> {
+  const db = await getDb();
+  return db.query(
+    `SELECT p.* FROM pages p
+     INNER JOIN wiki_links wl ON wl.source_page_id = p.id
+     WHERE wl.target_page_id = ?
+       AND wl.deleted_at IS NULL
+       AND p.deleted_at IS NULL
+     ORDER BY p.updated_at DESC`,
+    [pageId]
+  ) as unknown as Page[];
+}

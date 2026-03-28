@@ -201,3 +201,37 @@ body {
     color: #fef9c3;
   }
 }
+
+/* Wiki links (mention nodes) */
+.tiptap .wiki-link,
+.tiptap a[data-type="mention"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 0.875em;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.tiptap .wiki-link:hover,
+.tiptap a[data-type="mention"]:hover {
+  background: #dbeafe;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tiptap .wiki-link,
+  .tiptap a[data-type="mention"] {
+    background: #172554;
+    color: #93c5fd;
+  }
+  .tiptap .wiki-link:hover,
+  .tiptap a[data-type="mention"]:hover {
+    background: #1e3a5f;
+  }
+}

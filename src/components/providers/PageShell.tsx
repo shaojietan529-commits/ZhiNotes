@@ -9,10 +9,12 @@ import DateDisplay from "@/components/shared/DateDisplay";
 import Breadcrumb from "@/components/shared/Breadcrumb";
 import IconPicker from "@/components/shared/IconPicker";
 import PagePositionTree from "@/components/shared/SubPageTree";
+import Backlinks from "@/components/shared/Backlinks";
 import { usePage } from "@/hooks/usePage";
 import { usePages } from "@/hooks/usePages";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useRouter } from "next/navigation";
+import { updateWikiLinks } from "@/lib/db/local/queries";
 import { createPage } from "@/lib/db/local/queries";
 
 export default function PageShell({ pageId }: { pageId: string }) {
@@ -50,13 +52,13 @@ function PageContent({ pageId }: { pageId: string }) {
   );
 
   const handleContentUpdate = useCallback(
-    async (html: string, text: string) => {
-      // Save HTML as content_html (stored in content_text field for now)
-      // and plain text for search indexing
+    async (html: string, text: string, linkedPageIds: string[]) => {
       await update({ content_text: html });
+      // Update wiki link relationships in the database
+      await updateWikiLinks(pageId, linkedPageIds);
       refresh();
     },
-    [update, refresh]
+    [update, refresh, pageId]
   );
 
   const handleIconChange = useCallback(
@@ -176,6 +178,9 @@ function PageContent({ pageId }: { pageId: string }) {
             initialContent={page.content_text}
             onUpdate={handleContentUpdate}
           />
+
+          {/* Backlinks - pages that link to this page */}
+          <Backlinks pageId={pageId} />
         </div>
       </main>
     </div>

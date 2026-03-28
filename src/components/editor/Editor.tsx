@@ -16,10 +16,11 @@ import TaskItem from "@tiptap/extension-task-item";
 import Highlight from "@tiptap/extension-highlight";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-text-style";
+import Mention from "@tiptap/extension-mention";
+import WikiLinkSuggestion from "./extensions/WikiLinkSuggestion";
 import {
   useEffect,
   useRef,
-  useCallback,
   useImperativeHandle,
   forwardRef,
 } from "react";
@@ -27,7 +28,7 @@ import {
 interface EditorProps {
   pageId: string;
   initialContent?: string | null;
-  onUpdate?: (html: string, text: string) => void;
+  onUpdate?: (html: string, text: string, linkedPageIds: string[]) => void;
 }
 
 export interface EditorRef {
@@ -93,6 +94,26 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         }),
         TextStyle,
         Color,
+        Mention.configure({
+          HTMLAttributes: {
+            class:
+              "wiki-link inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 text-sm font-medium cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors no-underline",
+          },
+          suggestion: WikiLinkSuggestion,
+          renderHTML({ options, node }) {
+            return [
+              "a",
+              {
+                ...options.HTMLAttributes,
+                href: `/page/${node.attrs.id}`,
+                "data-type": "mention",
+                "data-id": node.attrs.id,
+                "data-label": node.attrs.label,
+              },
+              `📄 ${node.attrs.label ?? node.attrs.id}`,
+            ];
+          },
+        }),
       ],
       content: initialContent || "",
       editorProps: {
@@ -106,7 +127,14 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         saveTimerRef.current = setTimeout(() => {
           const html = ed.getHTML();
           const text = ed.getText();
-          onUpdate?.(html, text);
+          // Extract linked page IDs from mention nodes
+          const linkedPageIds: string[] = [];
+          ed.state.doc.descendants((node) => {
+            if (node.type.name === "mention" && node.attrs.id) {
+              linkedPageIds.push(node.attrs.id);
+            }
+          });
+          onUpdate?.(html, text, linkedPageIds);
         }, 1000);
       },
     });
