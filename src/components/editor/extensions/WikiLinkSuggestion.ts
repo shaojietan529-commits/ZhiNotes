@@ -8,7 +8,7 @@ import { searchPages, getAllPages } from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 
 const WikiLinkSuggestion: Omit<SuggestionOptions<Page>, "editor"> = {
-  char: "[[",
+  char: "//",
   allowSpaces: true,
 
   items: async ({ query }) => {
