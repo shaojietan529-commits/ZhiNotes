@@ -1,7 +1,7 @@
 import { getDb } from "./client";
 import { generateId, DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import { nowISO } from "@/lib/utils/dates";
-import type { Page } from "@/lib/utils/types";
+import type { Page, PageVersion } from "@/lib/utils/types";
 
 // ─── Pages ───────────────────────────────────────────────────
 
@@ -522,4 +522,73 @@ export async function deleteView(id: string): Promise<void> {
   const db = await getDb();
   const now = nowISO();
   db.run("UPDATE database_views SET deleted_at = ?, updated_at = ? WHERE id = ?", [now, now, id]);
+}
+
+// ─── Page Versions ───────────────────────────────────────────
+
+export async function getVersions(pageId: string): Promise<PageVersion[]> {
+  const db = await getDb();
+  return db.query(
+    "SELECT * FROM page_versions WHERE page_id = ? ORDER BY version_num DESC",
+    [pageId]
+  ) as unknown as PageVersion[];
+}
+
+export async function getVersion(id: string): Promise<PageVersion | null> {
+  const db = await getDb();
+  const rows = db.query(
+    "SELECT * FROM page_versions WHERE id = ?",
+    [id]
+  ) as unknown as PageVersion[];
+  return rows[0] || null;
+}
+
+export async function getLatestVersion(
+  pageId: string
+): Promise<PageVersion | null> {
+  const db = await getDb();
+  const rows = db.query(
+    "SELECT * FROM page_versions WHERE page_id = ? ORDER BY version_num DESC LIMIT 1",
+    [pageId]
+  ) as unknown as PageVersion[];
+  return rows[0] || null;
+}
+
+export async function createVersion(
+  pageId: string,
+  opts: { title: string; contentHtml: string; summary: string }
+): Promise<PageVersion> {
+  const db = await getDb();
+  const now = nowISO();
+  const id = generateId();
+
+  // Next version number = current max + 1
+  const maxRows = db.query(
+    "SELECT MAX(version_num) as max_num FROM page_versions WHERE page_id = ?",
+    [pageId]
+  );
+  const versionNum = ((maxRows[0]?.max_num as number) || 0) + 1;
+
+  // Store empty strings instead of NULL to avoid SQLite WASM null-bind issues
+  db.run(
+    `INSERT INTO page_versions (id, page_id, owner_id, version_num, title, content_text, summary, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      pageId,
+      DEFAULT_OWNER_ID,
+      versionNum,
+      opts.title || "Untitled",
+      opts.contentHtml || "",
+      opts.summary || "",
+      now,
+    ]
+  );
+
+  return (await getVersion(id))!;
+}
+
+export async function deleteVersion(id: string): Promise<void> {
+  const db = await getDb();
+  db.run("DELETE FROM page_versions WHERE id = ?", [id]);
 }

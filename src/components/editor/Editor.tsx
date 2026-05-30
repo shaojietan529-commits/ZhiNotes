@@ -37,6 +37,7 @@ interface EditorProps {
 export interface EditorRef {
   insertSubPageLink: (childId: string, childTitle: string) => string | undefined;
   insertInlineDatabase: (databaseId: string) => string | undefined;
+  setContent: (html: string) => void;
   getHTML: () => string;
 }
 
@@ -179,6 +180,9 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         if (!editor) return;
         editor.chain().focus().insertInlineDatabase(databaseId).run();
         return editor.getHTML();
+      },
+      setContent(html: string) {
+        editor?.commands.setContent(html || "");
       },
       getHTML() {
         return editor?.getHTML() ?? "";

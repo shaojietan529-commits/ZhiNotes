@@ -12,10 +12,15 @@ import PagePositionTree from "@/components/shared/SubPageTree";
 import Backlinks from "@/components/shared/Backlinks";
 import { usePage } from "@/hooks/usePage";
 import { usePages } from "@/hooks/usePages";
+import { useVersions } from "@/hooks/useVersions";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useRouter } from "next/navigation";
 import { updateWikiLinks } from "@/lib/db/local/queries";
 import { createPage } from "@/lib/db/local/queries";
+import { maybeSnapshot, manualSnapshot } from "@/lib/comparison/versioning";
+import HoverSummary from "@/components/comparison/HoverSummary";
+import VersionHistoryPanel from "@/components/comparison/VersionHistoryPanel";
+import type { PageVersion } from "@/lib/utils/types";
 
 export default function PageShell({ pageId }: { pageId: string }) {
   return (
@@ -30,8 +35,10 @@ function PageContent({ pageId }: { pageId: string }) {
   const editorRef = useRef<EditorRef>(null);
   const { page, loading, update, remove } = usePage(pageId);
   const { refresh } = usePages();
+  const { versions, refresh: refreshVersions } = useVersions(pageId);
   const setCurrentPageId = useWorkspaceStore((s) => s.setCurrentPageId);
   const [title, setTitle] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     setCurrentPageId(pageId);
@@ -56,9 +63,54 @@ function PageContent({ pageId }: { pageId: string }) {
       await update({ content_text: html });
       // Update wiki link relationships in the database
       await updateWikiLinks(pageId, linkedPageIds);
+      // Capture an automatic version snapshot when changes are significant
+      const created = await maybeSnapshot(pageId, title || "Untitled", html);
+      if (created) refreshVersions();
       refresh();
     },
-    [update, refresh, pageId]
+    [update, refresh, refreshVersions, pageId, title]
+  );
+
+  const handleSaveVersion = useCallback(async () => {
+    const html = editorRef.current?.getHTML() ?? page?.content_text ?? "";
+    const label = window.prompt(
+      "Name this version (optional, e.g. “Q3 earnings update”):"
+    );
+    // A null return means the user cancelled the prompt
+    if (label === null) return;
+    await manualSnapshot(pageId, title || "Untitled", html, label);
+    await refreshVersions();
+    setShowHistory(true);
+  }, [pageId, title, page, refreshVersions]);
+
+  const handleCompareVersion = useCallback(
+    (version: PageVersion) => {
+      router.push(`/page/${pageId}/compare?from=${version.id}`);
+    },
+    [router, pageId]
+  );
+
+  const handleRestoreVersion = useCallback(
+    async (version: PageVersion) => {
+      const ok = window.confirm(
+        `Restore this page to v${version.version_num}? Your current content will be saved as a version first.`
+      );
+      if (!ok) return;
+      const currentHtml = editorRef.current?.getHTML() ?? page?.content_text ?? "";
+      await manualSnapshot(pageId, title || "Untitled", currentHtml, "Before restore");
+      const restored = version.content_text || "";
+      await update({ content_text: restored });
+      editorRef.current?.setContent(restored);
+      await manualSnapshot(
+        pageId,
+        title || "Untitled",
+        restored,
+        `Restored from v${version.version_num}`
+      );
+      await refreshVersions();
+      refresh();
+    },
+    [pageId, title, page, update, refreshVersions, refresh]
   );
 
   const handleIconChange = useCallback(
@@ -158,6 +210,28 @@ function PageContent({ pageId }: { pageId: string }) {
                   + Sub-page
                 </button>
                 <button
+                  onClick={handleSaveVersion}
+                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                  title="Save a named version snapshot"
+                >
+                  📌 Save version
+                </button>
+                <div className="group relative">
+                  <button
+                    onClick={() => setShowHistory((s) => !s)}
+                    className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                    title="View version history"
+                  >
+                    🕘 History
+                    {versions.length > 0 && (
+                      <span className="ml-1 text-zinc-300 dark:text-zinc-600">
+                        ({versions.length})
+                      </span>
+                    )}
+                  </button>
+                  <HoverSummary versions={versions} />
+                </div>
+                <button
                   onClick={handleDelete}
                   className="text-xs text-zinc-400 hover:text-red-500 transition-colors"
                   title="Delete page"
@@ -170,6 +244,16 @@ function PageContent({ pageId }: { pageId: string }) {
 
           {/* Sub-page tree */}
           <PagePositionTree pageId={pageId} />
+
+          {/* Version history panel (toggled) */}
+          {showHistory && (
+            <VersionHistoryPanel
+              versions={versions}
+              onCompare={handleCompareVersion}
+              onRestore={handleRestoreVersion}
+              onClose={() => setShowHistory(false)}
+            />
+          )}
 
           {/* Editor - now loads/saves HTML */}
           <Editor
