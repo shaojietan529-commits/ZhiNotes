@@ -14,8 +14,11 @@ import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPa
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { usePages } from "@/hooks/usePages";
 import {
+  addRow,
   createPage,
   getAllDatabases,
+  getFields,
+  getRows,
   updatePage,
 } from "@/lib/db/local/queries";
 import { FILE_PREVIEW_ACCEPT } from "@/components/editor/filePreviewUpload";
@@ -40,6 +43,10 @@ import {
   type ReportFormatConfirmationStatus,
   type ReportFormatPlaybook,
 } from "@/lib/reports/reportFormatPlaybook";
+import {
+  buildReportTrackerIntakeDraft,
+  findExistingReportTrackerRow,
+} from "@/lib/reports/reportTrackerIntake";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -110,6 +117,12 @@ function ReportsDashboard() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingIntake, setExportingIntake] = useState(false);
   const [exportingFormatPlaybook, setExportingFormatPlaybook] = useState(false);
+  const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
+    null
+  );
+  const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
+    null
+  );
   const reportFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -216,6 +229,65 @@ function ReportsDashboard() {
       window.alert("报告格式 Playbook 导出失败，请查看控制台。");
     } finally {
       setExportingFormatPlaybook(false);
+    }
+  };
+
+  const handleCreateTrackerRow = async (item: ReportIntakeItem) => {
+    const tracker = reportTrackers[0];
+    if (!tracker) {
+      window.alert("请先创建报告跟踪表，再把报告入库。");
+      return;
+    }
+
+    setTrackerIntakeBusyId(item.id);
+    setTrackerIntakeMessage(null);
+    try {
+      const [trackerFields, trackerRows] = await Promise.all([
+        getFields(tracker.id),
+        getRows(tracker.id),
+      ]);
+      const existingRow = findExistingReportTrackerRow(
+        trackerRows,
+        trackerFields,
+        item.page_id
+      );
+      if (existingRow) {
+        setTrackerIntakeMessage(
+          `已存在 tracker row：${existingRow.row_title}。已打开报告跟踪表继续补 relation。`
+        );
+        router.push(
+          `/database/${tracker.id}?q=${encodeURIComponent(item.page_title)}`
+        );
+        return;
+      }
+
+      const draft = buildReportTrackerIntakeDraft(item, trackerFields);
+      const hasReportPageRelation = draft.mapped_fields.some(
+        (field) => field.mapped_value === "report-page-relation"
+      );
+      if (!hasReportPageRelation) {
+        window.alert(
+          "当前报告跟踪表缺少 Report page relation 字段，请先补字段后再入库。"
+        );
+        return;
+      }
+
+      await addRow(tracker.id, {
+        title: draft.row_title,
+        fieldValues: draft.field_values,
+        contentText: draft.row_page_content,
+      });
+      setTrackerIntakeMessage(
+        `已创建 tracker row：${draft.row_title}。已打开报告跟踪表继续补 relation。`
+      );
+      router.push(
+        `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}`
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to create report tracker row:", err);
+      window.alert("报告入库失败，请查看控制台。");
+    } finally {
+      setTrackerIntakeBusyId(null);
     }
   };
 
@@ -383,6 +455,58 @@ function ReportsDashboard() {
           ) : (
             <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
               还没有待处理报告文件。点击“上传报告文件”后，新页面会自动进入这个本地 intake 队列。
+            </p>
+          )}
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                报告入库台
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把单个 intake 文件创建成报告跟踪表 row，并自动填入 Report page relation、
+                Format、Status、Source 和 Key takeaways。点击后只做本地单条写入，
+                不读取报告正文、文件文本或文件 bytes，不上传、不同步、不调用 AI。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span
+                className={`rounded-md px-2 py-1 ${
+                  reportTrackers.length > 0
+                    ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                    : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                }`}
+              >
+                {reportTrackers.length > 0 ? "Tracker ready" : "缺报告跟踪表"}
+              </span>
+              <span className="rounded-md bg-blue-50 px-2 py-1 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                本地单条写入
+              </span>
+            </div>
+          </div>
+          {trackerIntakeMessage && (
+            <p className="mt-3 rounded-md bg-green-50 px-3 py-2 text-xs leading-5 text-green-700 dark:bg-green-950 dark:text-green-300">
+              {trackerIntakeMessage}
+            </p>
+          )}
+          {reportIntake.items.length > 0 ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {reportIntake.items.slice(0, 6).map((item) => (
+                <ReportTrackerIntakeCard
+                  key={item.id}
+                  item={item}
+                  trackerReady={reportTrackers.length > 0}
+                  busy={trackerIntakeBusyId === item.id}
+                  onCreate={() => void handleCreateTrackerRow(item)}
+                  onOpen={() => router.push(`/page/${item.page_id}`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+              还没有可入库的报告文件。先上传报告文件或创建包含 file-preview 的报告页。
             </p>
           )}
         </section>
@@ -671,6 +795,79 @@ function ReportIntakeItemCard({
       >
         打开报告页
       </button>
+    </article>
+  );
+}
+
+function ReportTrackerIntakeCard({
+  item,
+  trackerReady,
+  busy,
+  onCreate,
+  onOpen,
+}: {
+  item: ReportIntakeItem;
+  trackerReady: boolean;
+  busy: boolean;
+  onCreate: () => void;
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.file_name}
+          </div>
+          <div className="mt-1 truncate text-zinc-400">
+            {item.page_title} · {item.file_size_label}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <IntakePriorityPill priority={item.priority} />
+          <IntakeStagePill stage={item.stage} />
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {item.file_kind}
+        </span>
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {item.preview_support}
+        </span>
+        {item.relation_gaps.map((gap) => (
+          <span
+            key={gap}
+            className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          >
+            缺 {gap}
+          </span>
+        ))}
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        将创建一条本地 report tracker row，写入 Report page relation、Format、
+        Status、Source 和 Key takeaways。
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        本地单条写入；不读取报告正文、file text、file bytes、tokens 或 credentials。
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onCreate}
+          disabled={!trackerReady || busy}
+          className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
+        >
+          {busy ? "创建中..." : "创建 tracker row"}
+        </button>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开报告页
+        </button>
+      </div>
     </article>
   );
 }

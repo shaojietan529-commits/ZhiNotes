@@ -8,6 +8,7 @@ const root = process.cwd();
 const files = {
   capabilities: "src/lib/files/filePreviewCapabilities.ts",
   intake: "src/lib/reports/reportIntake.ts",
+  trackerIntake: "src/lib/reports/reportTrackerIntake.ts",
   formatPlaybook: "src/lib/reports/reportFormatPlaybook.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
   localStore: "src/lib/files/localStore.ts",
@@ -121,6 +122,7 @@ function assertIncludes(sourceLabel, source, snippet, message) {
 function run() {
   const capabilities = readProjectFile(files.capabilities);
   const intake = readProjectFile(files.intake);
+  const trackerIntake = readProjectFile(files.trackerIntake);
   const formatPlaybook = readProjectFile(files.formatPlaybook);
   const upload = readProjectFile(files.upload);
   const localStore = readProjectFile(files.localStore);
@@ -235,6 +237,59 @@ function run() {
     "Report intake must expose a reusable builder."
   );
   assertIncludes(
+    files.trackerIntake,
+    trackerIntake,
+    'format: "zhinote-report-tracker-intake-draft"',
+    "Report tracker intake must define a local row draft format."
+  );
+  assertIncludes(
+    files.trackerIntake,
+    trackerIntake,
+    "buildReportTrackerIntakeDraft",
+    "Report tracker intake must expose a reusable draft builder."
+  );
+  assertIncludes(
+    files.trackerIntake,
+    trackerIntake,
+    "findExistingReportTrackerRow",
+    "Report tracker intake must avoid duplicate report-page rows."
+  );
+  for (const snippet of [
+    "local_row_draft_only: true",
+    "reads_report_intake_item: true",
+    "reads_database_fields: true",
+    "reads_page_text: false",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "includes_report_text: false",
+    "includes_file_bytes: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.trackerIntake,
+      trackerIntake,
+      snippet,
+      "Report tracker intake draft must preserve local-only privacy boundaries."
+    );
+  }
+  for (const fieldName of [
+    "Report page",
+    "Format",
+    "Status",
+    "Source",
+    "Key takeaways",
+  ]) {
+    assertIncludes(
+      files.trackerIntake,
+      trackerIntake,
+      fieldName,
+      `Report tracker intake must map ${fieldName}.`
+    );
+  }
+  assertIncludes(
     files.formatPlaybook,
     formatPlaybook,
     'format: "zhinote-report-format-playbook"',
@@ -308,6 +363,36 @@ function run() {
   assertIncludes(
     files.reportsShell,
     reportsShell,
+    "buildReportTrackerIntakeDraft",
+    "Reports module must build tracker intake drafts."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    "findExistingReportTrackerRow",
+    "Reports module must check existing tracker rows before writing."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    "报告入库台",
+    "Reports module must render the tracker intake desk."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    "创建 tracker row",
+    "Reports module must expose a tracker-row creation action."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    "本地单条写入",
+    "Reports module must label tracker intake as a single local write."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
     "buildReportFormatPlaybook",
     "Reports module must build the format playbook."
   );
@@ -342,6 +427,7 @@ function run() {
           0
         ),
         intake_stages: requiredIntakeStages.length,
+        tracker_intake_fields: 5,
         format_actions: requiredFormatActions.length,
         local_only: true,
       },

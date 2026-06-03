@@ -25,8 +25,9 @@ Current module foundation:
   fields, template rows, CSV export, XLSX export, confirmed
   spreadsheet-to-database import, and a schema/view/row-count dashboard.
 - Report Library: beta module at `/modules/reports` for local HTML reports,
-  Markdown notes, PDFs, Office files, notebooks, archives, takeaways, linked
-  companies, linked meetings, and a local report tracker database.
+  Markdown notes, PDFs, Office files, notebooks, archives, takeaways, local
+  tracker-row intake, linked companies, linked meetings, and a local report
+  tracker database.
 - Company Research: beta module at `/modules/company-research` for company
   profiles, investment memos, earnings reviews, valuation assumptions, linked
   reports, linked meetings, and a local tracker database.
@@ -271,6 +272,12 @@ Current local actions:
   metadata-only, or be retained for download. It uses intake metadata only and
   does not read file bytes, converted file text, page body text, call AI, connect
   cloud services, load external resources, or upload data.
+- Use the report intake desk to create one local report tracker row from an
+  intake file. The intake action maps Report page relation, Format, Status,
+  Source, and Key takeaways, checks for an existing tracker row first, and then
+  opens the tracker for manual company/meeting/memo relation cleanup. It is a
+  local single write and does not read report text, file text, file bytes, sync,
+  upload, or call AI.
 - Open reports from the sidebar Platform section or Cmd/Ctrl+K.
 
 The current Report Library module is local-only. It does not upload reports,

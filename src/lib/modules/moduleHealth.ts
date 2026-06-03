@@ -129,7 +129,7 @@ function buildHealthAreas(): ModuleHealthArea[] {
       phase: "phase-1",
       module_ids: ["reports"],
       evidence:
-        "Report Library is beta and covers local HTML reports, Markdown notes, PDF, Office files, notebooks, archives, local file storage, takeaways, and linked trackers.",
+        "Report Library is beta and covers local HTML reports, Markdown notes, PDF, Office files, notebooks, archives, local file storage, takeaways, local tracker-row intake, and linked trackers.",
       next_action:
         "Move more preview types from contract to polished in-page rendering and add safer report-to-company linking workflows.",
       privacy_boundary:
