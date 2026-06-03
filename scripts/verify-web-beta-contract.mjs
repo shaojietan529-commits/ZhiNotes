@@ -19,6 +19,7 @@ const files = {
   conflictResolution: "src/lib/sync/syncConflictResolution.ts",
   remoteBaselineRequest: "src/lib/sync/remoteBaselineRequest.ts",
   remoteBaselineStaging: "src/lib/sync/remoteBaselineStaging.ts",
+  remoteBaselineStageSchema: "src/lib/sync/remoteBaselineStageSchema.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -174,6 +175,9 @@ function run() {
   const conflictResolution = readProjectFile(files.conflictResolution);
   const remoteBaselineRequest = readProjectFile(files.remoteBaselineRequest);
   const remoteBaselineStaging = readProjectFile(files.remoteBaselineStaging);
+  const remoteBaselineStageSchema = readProjectFile(
+    files.remoteBaselineStageSchema
+  );
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -198,6 +202,7 @@ function run() {
     [files.conflictResolution, conflictResolution],
     [files.remoteBaselineRequest, remoteBaselineRequest],
     [files.remoteBaselineStaging, remoteBaselineStaging],
+    [files.remoteBaselineStageSchema, remoteBaselineStageSchema],
     [files.syncOptInGate, syncOptInGate],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
@@ -914,6 +919,205 @@ function run() {
     );
   }
   assertSourceIncludes(
+    files.remoteBaselineStageSchema,
+    remoteBaselineStageSchema,
+    'format: "zhinote-remote-baseline-stage-schema-contract"',
+    "Remote baseline stage schema must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.remoteBaselineStageSchema,
+    remoteBaselineStageSchema,
+    "buildRemoteBaselineStageSchemaContract",
+    "Remote baseline stage schema must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      "can_create_stage_schema_now: false",
+      "Remote baseline stage schema must not create schema yet.",
+    ],
+    [
+      "can_persist_cursor_proof_now: false",
+      "Remote baseline stage schema must not persist cursor proof.",
+    ],
+    [
+      "can_apply_sql_now: false",
+      "Remote baseline stage schema must not apply SQL.",
+    ],
+    [
+      "can_stage_remote_metadata_now: false",
+      "Remote baseline stage schema must not stage remote metadata.",
+    ],
+    [
+      "can_apply_staged_rows_now: false",
+      "Remote baseline stage schema must not apply staged rows.",
+    ],
+    [
+      'disabled_apply_path: "/api/cloud/migrations/apply"',
+      "Remote baseline stage schema must keep migration apply disabled.",
+    ],
+    [
+      "creates_database_migration: false",
+      "Remote baseline stage schema must not create migrations.",
+    ],
+    ["applies_sql: false", "Remote baseline stage schema must not apply SQL."],
+    [
+      "connects_cloud_database: false",
+      "Remote baseline stage schema must not connect cloud database.",
+    ],
+    [
+      "writes_server_data: false",
+      "Remote baseline stage schema must not write server data.",
+    ],
+    [
+      "writes_workspace_data: false",
+      "Remote baseline stage schema must not write workspace data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Remote baseline stage schema must not upload workspace data.",
+    ],
+    [
+      "reads_remote_data: false",
+      "Remote baseline stage schema must not read remote data.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Remote baseline stage schema must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Remote baseline stage schema must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Remote baseline stage schema must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Remote baseline stage schema must not read file bytes.",
+    ],
+    [
+      "permits_payload_columns: false",
+      "Remote baseline stage schema must not permit payload columns.",
+    ],
+    [
+      "persists_cursor_proof: false",
+      "Remote baseline stage schema must not persist cursor proof.",
+    ],
+    [
+      "stages_remote_rows: false",
+      "Remote baseline stage schema must not stage remote rows.",
+    ],
+    [
+      "acknowledges_remote_rows: false",
+      "Remote baseline stage schema must not acknowledge remote rows.",
+    ],
+    [
+      "applies_remote_changes: false",
+      "Remote baseline stage schema must not apply remote changes.",
+    ],
+    [
+      "requires_owner_confirmation_before_apply: true",
+      "Remote baseline stage schema must require owner confirmation.",
+    ],
+    [
+      "requires_disposable_database_replay: true",
+      "Remote baseline stage schema must require disposable database replay.",
+    ],
+    [
+      "requires_rls_workspace_scope: true",
+      "Remote baseline stage schema must require RLS workspace scope.",
+    ],
+    [
+      "requires_payload_column_denylist: true",
+      "Remote baseline stage schema must require payload denylist.",
+    ],
+    [
+      "requires_cursor_monotonicity_proof: true",
+      "Remote baseline stage schema must require cursor monotonicity proof.",
+    ],
+    [
+      "requires_idempotency_proof: true",
+      "Remote baseline stage schema must require idempotency proof.",
+    ],
+    [
+      "requires_audit_event_before_stage: true",
+      "Remote baseline stage schema must require audit event.",
+    ],
+    [
+      "requires_permission_check_before_stage: true",
+      "Remote baseline stage schema must require permission check.",
+    ],
+    [
+      'table_name: "remote_baseline_stage"',
+      "Remote baseline stage schema must define the stage table.",
+    ],
+    [
+      'table_name: "remote_baseline_cursor_proof"',
+      "Remote baseline stage schema must define cursor proof table.",
+    ],
+    [
+      "remote_baseline_stage_status_check",
+      "Remote baseline stage schema must define stage status check.",
+    ],
+    [
+      "remote_baseline_stage_no_payload_columns",
+      "Remote baseline stage schema must define payload column denylist.",
+    ],
+    [
+      "remote_baseline_cursor_batch_unique",
+      "Remote baseline stage schema must define cursor idempotency uniqueness.",
+    ],
+    [
+      "idx_remote_baseline_stage_workspace_cursor",
+      "Remote baseline stage schema must define workspace cursor index.",
+    ],
+    [
+      "page_body_text",
+      "Remote baseline stage schema must explicitly forbid page body text.",
+    ],
+    [
+      "database_cell_values",
+      "Remote baseline stage schema must explicitly forbid database values.",
+    ],
+    [
+      "comment_body",
+      "Remote baseline stage schema must explicitly forbid comment bodies.",
+    ],
+    [
+      "file_bytes",
+      "Remote baseline stage schema must explicitly forbid file bytes.",
+    ],
+    [
+      "signed_download_url",
+      "Remote baseline stage schema must explicitly forbid signed download URLs.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.remoteBaselineStageSchema,
+      remoteBaselineStageSchema,
+      snippet,
+      message
+    );
+  }
+  for (const gateId of [
+    "stage-schema-draft",
+    "cursor-proof-draft",
+    "payload-column-denylist",
+    "rls-workspace-scope",
+    "permission-check-before-stage",
+    "audit-event-before-stage",
+    "migration-apply-disabled",
+    "rollback-before-apply",
+  ]) {
+    assertSourceIncludes(
+      files.remoteBaselineStageSchema,
+      remoteBaselineStageSchema,
+      `"${gateId}"`,
+      `Remote baseline stage schema gate ${gateId} must remain available.`
+    );
+  }
+  assertSourceIncludes(
     files.syncShell,
     syncShell,
     "buildSyncConflictResolutionContract",
@@ -1027,6 +1231,46 @@ function run() {
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      "buildRemoteBaselineStageSchemaContract",
+      "Sync UI must build the remote baseline stage schema contract.",
+    ],
+    [
+      "handleExportRemoteBaselineStageSchema",
+      "Sync UI must export the remote baseline stage schema contract.",
+    ],
+    [
+      "Remote baseline stage schema and cursor proof",
+      "Sync UI must render the remote baseline stage schema panel.",
+    ],
+    [
+      "Export stage schema",
+      "Sync UI must expose the remote baseline stage schema export action.",
+    ],
+    [
+      "RemoteBaselineStageSchemaTableCard",
+      "Sync UI must render stage schema table draft.",
+    ],
+    [
+      "RemoteBaselineCursorProofCard",
+      "Sync UI must render cursor proof draft.",
+    ],
+    [
+      "RemoteBaselineStageSchemaGateRow",
+      "Sync UI must render schema proof gates.",
+    ],
+    [
+      "RemoteBaselineStageSchemaSqlRow",
+      "Sync UI must render schema SQL draft rows.",
+    ],
+    [
+      "Final schema enablement",
+      "Sync UI must render final schema enablement conditions.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
@@ -1074,6 +1318,7 @@ function run() {
     conflict_resolution_checks: 50,
     remote_baseline_checks: 43,
     remote_baseline_staging_checks: 49,
+    remote_baseline_stage_schema_checks: 55,
     warnings: warnings.length,
   };
 

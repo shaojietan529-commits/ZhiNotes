@@ -152,6 +152,11 @@ import {
   type RemoteBaselineStagingStatus,
 } from "@/lib/sync/remoteBaselineStaging";
 import {
+  buildRemoteBaselineStageSchemaContract,
+  type RemoteBaselineStageSchemaContract,
+  type RemoteBaselineStageSchemaStatus,
+} from "@/lib/sync/remoteBaselineStageSchema";
+import {
   buildSyncOptInGateReport,
   type SyncOptInGateReport,
   type SyncOptInGateStatus,
@@ -195,6 +200,7 @@ type SyncQueueAction =
   | "conflict-review-ui"
   | "remote-baseline"
   | "remote-baseline-staging"
+  | "remote-baseline-stage-schema"
   | "opt-in-gate"
   | "sync-confirmation"
   | "rollback-plan"
@@ -654,6 +660,21 @@ function SyncDashboard() {
       remoteBaselineRequest,
       syncConflictResolution,
       syncReplayTestPlan,
+      workspaceIdentity,
+    ]
+  );
+  const remoteBaselineStageSchema = useMemo(
+    () =>
+      buildRemoteBaselineStageSchemaContract({
+        workspaceIdentity,
+        baselineStaging: remoteBaselineStaging,
+        permissionDecisionReport,
+        auditTrailPolicy,
+      }),
+    [
+      auditTrailPolicy,
+      permissionDecisionReport,
+      remoteBaselineStaging,
       workspaceIdentity,
     ]
   );
@@ -1562,6 +1583,29 @@ function SyncDashboard() {
       console.error("[Zhinote] Failed to export remote baseline staging:", err);
       window.alert(
         "Remote baseline staging export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportRemoteBaselineStageSchema = () => {
+    setBusyQueueAction("remote-baseline-stage-schema");
+    try {
+      downloadJsonFile(
+        `zhinote-remote-baseline-stage-schema-${fileSafeTimestamp()}.json`,
+        {
+          ...remoteBaselineStageSchema,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export remote baseline stage schema:",
+        err
+      );
+      window.alert(
+        "Remote baseline stage schema export failed. Please check the console."
       );
     } finally {
       setBusyQueueAction(null);
@@ -2705,6 +2749,16 @@ function SyncDashboard() {
                   ? "Exporting..."
                   : "Export baseline staging"}
               </button>
+              <button
+                type="button"
+                onClick={handleExportRemoteBaselineStageSchema}
+                disabled={busyQueueAction === "remote-baseline-stage-schema"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyQueueAction === "remote-baseline-stage-schema"
+                  ? "Exporting..."
+                  : "Export stage schema"}
+              </button>
             </div>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
@@ -2977,6 +3031,115 @@ function SyncDashboard() {
                 {remoteBaselineStaging.fields.map((field) => (
                   <RemoteBaselineStageFieldRow key={field.field} field={field} />
                 ))}
+              </div>
+            </ContractPanel>
+          </ContractPanel>
+          <ContractPanel
+            title="Remote baseline stage schema and cursor proof"
+            className="mt-4"
+          >
+            <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl">
+                Local schema and cursor proof draft for remote_baseline_stage.
+                It defines metadata-only columns, forbidden payload columns,
+                cursor monotonicity rules, idempotency rules, and SQL review
+                statements. SQL apply, cursor persistence, stage writes, and
+                remote apply remain disabled.
+              </p>
+              <span className="w-fit rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
+                {remoteBaselineStageSchema.schema_status}
+              </span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+              <ResolutionSummaryCard
+                label="Stage table"
+                value={remoteBaselineStageSchema.stage_table.table_name}
+                detail={remoteBaselineStageSchema.stage_table.create_status}
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Cursor proof"
+                value={remoteBaselineStageSchema.cursor_proof.table_name}
+                detail={remoteBaselineStageSchema.cursor_proof.persist_status}
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Allowed cols"
+                value={remoteBaselineStageSchema.summary.allowed_columns}
+                detail="Metadata only"
+                status="planned"
+              />
+              <ResolutionSummaryCard
+                label="Forbidden"
+                value={remoteBaselineStageSchema.summary.forbidden_columns}
+                detail="Payload columns"
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="SQL draft"
+                value={remoteBaselineStageSchema.summary.sql_statements}
+                detail="Apply disabled"
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Gates"
+                value={remoteBaselineStageSchema.summary.gates}
+                detail="Schema proof"
+                status="manual-confirmation"
+              />
+              <ResolutionSummaryCard
+                label="Blocked"
+                value={remoteBaselineStageSchema.summary.blocked}
+                detail="Must prove first"
+                status="blocked"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <ContractPanel title="Stage schema draft">
+                <RemoteBaselineStageSchemaTableCard
+                  table={remoteBaselineStageSchema.stage_table}
+                />
+              </ContractPanel>
+              <ContractPanel title="Cursor proof draft">
+                <RemoteBaselineCursorProofCard
+                  proof={remoteBaselineStageSchema.cursor_proof}
+                />
+              </ContractPanel>
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <ContractPanel title="Schema proof gates">
+                <div className="space-y-2">
+                  {remoteBaselineStageSchema.gates.map((gate) => (
+                    <RemoteBaselineStageSchemaGateRow
+                      key={gate.id}
+                      gate={gate}
+                    />
+                  ))}
+                </div>
+              </ContractPanel>
+              <ContractPanel title="SQL draft">
+                <div className="space-y-2">
+                  {remoteBaselineStageSchema.sql_draft.map((statement) => (
+                    <RemoteBaselineStageSchemaSqlRow
+                      key={statement.id}
+                      statement={statement}
+                    />
+                  ))}
+                </div>
+              </ContractPanel>
+            </div>
+            <ContractPanel title="Final schema enablement" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-2">
+                {remoteBaselineStageSchema.final_enablement_conditions.map(
+                  (condition) => (
+                    <div
+                      key={condition}
+                      className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+                    >
+                      {condition}
+                    </div>
+                  )
+                )}
               </div>
             </ContractPanel>
           </ContractPanel>
@@ -7259,6 +7422,239 @@ function RemoteBaselineStageFieldRow({
         {field.reason}
       </p>
     </article>
+  );
+}
+
+function RemoteBaselineStageSchemaTableCard({
+  table,
+}: {
+  table: RemoteBaselineStageSchemaContract["stage_table"];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {table.table_name}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            Retention: {table.retention}. Create status: {table.create_status}.
+          </p>
+        </div>
+        <RemoteBaselineStageSchemaStatusPill status={table.status} />
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <RemoteBaselineSchemaColumnGroup
+          title="Allowed columns"
+          columns={table.allowed_columns}
+        />
+        <RemoteBaselineSchemaColumnGroup
+          title="Forbidden columns"
+          columns={table.forbidden_columns}
+        />
+      </div>
+      <div className="mt-3 grid gap-2">
+        {table.indexes.map((index) => (
+          <div
+            key={index.name}
+            className="rounded-md bg-white px-3 py-2 dark:bg-zinc-950"
+          >
+            <div className="font-mono text-[10px] text-zinc-700 dark:text-zinc-200">
+              {index.name}
+            </div>
+            <div className="mt-1 text-[10px] text-zinc-400">
+              {index.columns.join(", ")}
+            </div>
+            <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+              {index.purpose}
+            </p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 space-y-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+        {table.constraints.map((constraint) => (
+          <div
+            key={constraint.name}
+            className="rounded-md bg-white px-3 py-2 dark:bg-zinc-950"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="font-mono text-[10px] text-zinc-700 dark:text-zinc-200">
+                {constraint.name}
+              </div>
+              <RemoteBaselineStageSchemaStatusPill
+                status={constraint.status}
+              />
+            </div>
+            <div className="mt-1 font-mono text-[10px] text-zinc-400">
+              {constraint.expression}
+            </div>
+            <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+              {constraint.purpose}
+            </p>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function RemoteBaselineSchemaColumnGroup({
+  title,
+  columns,
+}: {
+  title: string;
+  columns: RemoteBaselineStageSchemaContract["stage_table"]["allowed_columns"];
+}) {
+  return (
+    <div>
+      <div className="text-[10px] font-semibold text-zinc-400">{title}</div>
+      <div className="mt-1 space-y-1">
+        {columns.map((column) => (
+          <div
+            key={column.name}
+            className={`rounded px-2 py-1 ${
+              column.status === "forbidden"
+                ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                : "bg-white text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+            }`}
+          >
+            <div className="font-mono text-[10px]">
+              {column.name} · {column.sql_type}
+            </div>
+            <div className="mt-1 text-[10px] leading-4">{column.purpose}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RemoteBaselineCursorProofCard({
+  proof,
+}: {
+  proof: RemoteBaselineStageSchemaContract["cursor_proof"];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {proof.table_name}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            Persist status: {proof.persist_status}
+          </p>
+        </div>
+        <RemoteBaselineStageSchemaStatusPill status={proof.status} />
+      </div>
+      <RemoteBaselineSchemaColumnGroup
+        title="Required cursor columns"
+        columns={proof.required_columns}
+      />
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <div>
+          <div className="text-[10px] font-semibold text-zinc-400">
+            Monotonic rules
+          </div>
+          <ul className="mt-1 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {proof.monotonic_rules.map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <div className="text-[10px] font-semibold text-zinc-400">
+            Idempotency rules
+          </div>
+          <ul className="mt-1 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {proof.idempotency_rules.map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function RemoteBaselineStageSchemaGateRow({
+  gate,
+}: {
+  gate: RemoteBaselineStageSchemaContract["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {gate.evidence}
+          </p>
+        </div>
+        <RemoteBaselineStageSchemaStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineStageSchemaSqlRow({
+  statement,
+}: {
+  statement: RemoteBaselineStageSchemaContract["sql_draft"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {statement.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {statement.id}
+          </div>
+        </div>
+        <RemoteBaselineStageSchemaStatusPill status={statement.status} />
+      </div>
+      <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-white p-2 font-mono text-[10px] leading-4 text-zinc-600 dark:bg-zinc-950 dark:text-zinc-300">
+        {statement.sql}
+      </pre>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        Apply status: {statement.apply_status}. {statement.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineStageSchemaStatusPill({
+  status,
+}: {
+  status: RemoteBaselineStageSchemaStatus;
+}) {
+  const labels: Record<RemoteBaselineStageSchemaStatus, string> = {
+    drafted: "Drafted",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "blocked"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

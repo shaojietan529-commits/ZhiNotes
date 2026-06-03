@@ -546,6 +546,12 @@ Current local actions:
   staging, acknowledgement, apply, workspace writes, and uploads remain
   disabled; payload fields such as page body text, database values, comment
   bodies, file bytes, and signed download URLs remain forbidden.
+- Review and export a local remote baseline stage schema and cursor proof
+  contract. The contract drafts `remote_baseline_stage` and
+  `remote_baseline_cursor_proof` SQL, indexes, constraints, payload-column
+  denylist, cursor monotonicity rules, and idempotency rules. It does not create
+  migrations, apply SQL, connect a cloud database, persist cursor proof, stage
+  rows, acknowledge rows, write workspace data, or upload anything.
 - Review and export a local workspace identity with anonymous browser-local
   workspace and device ids for future sync metadata. The identity is not an
   account and does not connect cloud services or include note text/file content.
