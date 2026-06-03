@@ -269,10 +269,10 @@ function buildLaunchTracks(
       title: "Audit trail and retention",
       status: input.auditTrailPolicy ? "partial" : "blocked",
       evidence: input.auditTrailPolicy
-        ? `Audit policy covers ${input.auditTrailPolicy.summary.events} event types and ${input.auditTrailPolicy.summary.blocked} blocked audit gates; server audit writes remain disabled.`
+        ? `Audit policy covers ${input.auditTrailPolicy.summary.events} event types and ${input.auditTrailPolicy.summary.blocked} blocked audit gates; the sync UI also exports a metadata-only audit event envelope, and server audit writes remain disabled.`
         : "No audit trail policy exists for auth, sync, restore, AI, permission, file, export, or admin actions.",
       required_action:
-        "Implement authenticated audit_events writes, redaction, retention, owner-only audit export, and incident review before private beta.",
+        "Implement authenticated audit_events writes only after envelope redaction, retention, owner-only audit export, and incident review are proven before private beta.",
     },
     {
       id: "deployment-gates",

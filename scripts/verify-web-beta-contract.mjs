@@ -29,6 +29,7 @@ const files = {
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
+  auditEventEnvelope: "src/lib/security/auditEventEnvelope.ts",
   typedConfirmation: "src/lib/security/typedConfirmation.ts",
   highRiskActionRegistry: "src/lib/security/highRiskActionRegistry.ts",
   webBetaReadiness: "src/lib/sync/webBetaReadiness.ts",
@@ -203,6 +204,7 @@ function run() {
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
+  const auditEventEnvelope = readProjectFile(files.auditEventEnvelope);
   const typedConfirmation = readProjectFile(files.typedConfirmation);
   const highRiskActionRegistry = readProjectFile(files.highRiskActionRegistry);
   const webBetaReadiness = readProjectFile(files.webBetaReadiness);
@@ -236,6 +238,7 @@ function run() {
     [files.syncOptInGate, syncOptInGate],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
+    [files.auditEventEnvelope, auditEventEnvelope],
     [files.typedConfirmation, typedConfirmation],
     [files.highRiskActionRegistry, highRiskActionRegistry],
     [files.webBetaReadiness, webBetaReadiness],
@@ -332,6 +335,208 @@ function run() {
     "buildWebBetaEnvironmentPreflight",
     "GET /api/web-beta/environment-preflight"
   );
+  assertSourceIncludes(
+    files.auditEventEnvelope,
+    auditEventEnvelope,
+    'format: "zhinote-audit-event-envelope-contract"',
+    "Audit event envelope must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.auditEventEnvelope,
+    auditEventEnvelope,
+    "buildAuditEventEnvelopeContract",
+    "Audit event envelope must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'contract_status: "local-redaction-envelope-only"',
+      "Audit event envelope must remain local redaction-only.",
+    ],
+    [
+      "can_export_envelope_now: true",
+      "Audit event envelope may only be exported locally.",
+    ],
+    [
+      "can_record_server_audit_event_now: false",
+      "Audit event envelope must not record server audit events.",
+    ],
+    [
+      "can_read_request_body_now: false",
+      "Audit event envelope must not read request bodies.",
+    ],
+    [
+      "can_write_audit_events_table_now: false",
+      "Audit event envelope must not write audit_events.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Audit event envelope must not upload workspace data.",
+    ],
+    [
+      'disabled_endpoint: "/api/audit/events"',
+      "Audit event envelope must keep audit endpoint disabled.",
+    ],
+    [
+      "metadata_only_envelope: true",
+      "Audit event envelope must stay metadata-only.",
+    ],
+    [
+      "endpoint_disabled: true",
+      "Audit event envelope must preserve disabled endpoint boundary.",
+    ],
+    [
+      "reads_request_body: false",
+      "Audit event envelope must not read request bodies.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Audit event envelope must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Audit event envelope must not read database values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Audit event envelope must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Audit event envelope must not read file bytes.",
+    ],
+    [
+      "reads_prompt_text: false",
+      "Audit event envelope must not read prompt text.",
+    ],
+    [
+      "reads_model_raw_output: false",
+      "Audit event envelope must not read raw AI output.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Audit event envelope must not read secrets.",
+    ],
+    [
+      "exposes_secret_values: false",
+      "Audit event envelope must not expose secrets.",
+    ],
+    [
+      "writes_server_audit_log: false",
+      "Audit event envelope must not write server audit logs.",
+    ],
+    [
+      "writes_workspace_data: false",
+      "Audit event envelope must not write workspace data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Audit event envelope must not upload workspace data.",
+    ],
+    [
+      "requires_authenticated_actor: true",
+      "Audit event envelope must require authenticated actor.",
+    ],
+    [
+      "requires_workspace_membership: true",
+      "Audit event envelope must require workspace membership.",
+    ],
+    [
+      "requires_permission_decision: true",
+      "Audit event envelope must require permission decision.",
+    ],
+    [
+      "requires_redaction_before_write: true",
+      "Audit event envelope must require redaction before writes.",
+    ],
+    [
+      "requires_retention_policy: true",
+      "Audit event envelope must require retention policy.",
+    ],
+    [
+      "event_id",
+      "Audit event envelope must include allowed event id.",
+    ],
+    [
+      "metadata_counts",
+      "Audit event envelope must include count-only metadata.",
+    ],
+    [
+      "metadata_hashes",
+      "Audit event envelope must include hash-only metadata.",
+    ],
+    [
+      "permission_decision_id",
+      "Audit event envelope must link permission decisions.",
+    ],
+    [
+      "confirmation_receipt_id",
+      "Audit event envelope must link confirmations.",
+    ],
+    [
+      "retention_class",
+      "Audit event envelope must include retention class.",
+    ],
+    [
+      "page_body_text",
+      "Audit event envelope must forbid page body text.",
+    ],
+    [
+      "database_cell_values",
+      "Audit event envelope must forbid database values.",
+    ],
+    [
+      "comment_body",
+      "Audit event envelope must forbid comment bodies.",
+    ],
+    [
+      "file_bytes",
+      "Audit event envelope must forbid file bytes.",
+    ],
+    [
+      "backup_payload",
+      "Audit event envelope must forbid backup payloads.",
+    ],
+    [
+      "prompt_text",
+      "Audit event envelope must forbid prompt text.",
+    ],
+    [
+      "model_raw_output",
+      "Audit event envelope must forbid raw AI output.",
+    ],
+    ["token", "Audit event envelope must forbid tokens."],
+    ["cookie", "Audit event envelope must forbid cookies."],
+    [
+      "signed_download_url",
+      "Audit event envelope must forbid signed URLs.",
+    ],
+    [
+      "raw_request_body",
+      "Audit event envelope must forbid raw request bodies.",
+    ],
+    [
+      "environment_value",
+      "Audit event envelope must forbid environment values.",
+    ],
+    [
+      "endpoint-disabled",
+      "Audit event envelope must include endpoint disabled redaction check.",
+    ],
+    [
+      "allowed-field-envelope",
+      "Audit event envelope must include allowed-field check.",
+    ],
+    [
+      "permission-decision-link",
+      "Audit event envelope must include permission decision check.",
+    ],
+    [
+      "content-field-denylist",
+      "Audit event envelope must include content denylist check.",
+    ],
+  ]) {
+    assertSourceIncludes(files.auditEventEnvelope, auditEventEnvelope, snippet, message);
+  }
   assertSourceIncludes(
     files.workspaceIdentity,
     workspaceIdentity,
@@ -2295,6 +2500,42 @@ function run() {
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      "buildAuditEventEnvelopeContract",
+      "Sync UI must build the audit event envelope contract.",
+    ],
+    [
+      "handleExportAuditEventEnvelope",
+      "Sync UI must export the audit event envelope contract.",
+    ],
+    [
+      "Audit event envelope",
+      "Sync UI must render the audit event envelope panel.",
+    ],
+    [
+      "Export audit envelope",
+      "Sync UI must expose the audit envelope export action.",
+    ],
+    [
+      "AuditEnvelopeTemplateRow",
+      "Sync UI must render audit envelope template rows.",
+    ],
+    [
+      "AuditEnvelopeRedactionCheckRow",
+      "Sync UI must render audit envelope redaction rows.",
+    ],
+    [
+      "AuditEnvelopeGateRow",
+      "Sync UI must render audit envelope gates.",
+    ],
+    [
+      "audit-envelope",
+      "Sync UI must track audit envelope export state separately.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
@@ -2348,6 +2589,7 @@ function run() {
     remote_baseline_replay_fixture_checks: 48,
     remote_baseline_replay_harness_checks: 54,
     remote_baseline_replay_runner_checks: 52,
+    audit_event_envelope_checks: 52,
     warnings: warnings.length,
   };
 

@@ -44,6 +44,11 @@ import {
   type AuditTrailStatus,
 } from "@/lib/security/auditTrailPolicy";
 import {
+  buildAuditEventEnvelopeContract,
+  type AuditEventEnvelopeContract,
+  type AuditEventEnvelopeStatus,
+} from "@/lib/security/auditEventEnvelope";
+import {
   buildPermissionDecisionReport,
   type PermissionDecisionReport,
   type PermissionDecisionStatus,
@@ -251,6 +256,7 @@ type WebBetaContractAction =
   | "launch-checklist"
   | "environment-preflight"
   | "audit-policy"
+  | "audit-envelope"
   | "permission-decisions"
   | "account-session"
   | "high-risk-registry"
@@ -597,6 +603,16 @@ function SyncDashboard() {
         auditTrailPolicy,
       }),
     [auditTrailPolicy]
+  );
+  const auditEventEnvelopeContract = useMemo(
+    () =>
+      buildAuditEventEnvelopeContract({
+        workspaceIdentity,
+        auditTrailPolicy,
+        permissionDecisionReport,
+        syncSummary,
+      }),
+    [auditTrailPolicy, permissionDecisionReport, syncSummary, workspaceIdentity]
   );
   const highRiskActionRegistry = useMemo(
     () => buildHighRiskActionRegistryReport(),
@@ -2235,6 +2251,26 @@ function SyncDashboard() {
     } catch (err) {
       console.error("[Zhinote] Failed to export audit policy:", err);
       window.alert("Audit policy export failed. Please check the console.");
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportAuditEventEnvelope = () => {
+    setBusyContractAction("audit-envelope");
+    try {
+      downloadJsonFile(
+        `zhinote-audit-event-envelope-${fileSafeTimestamp()}.json`,
+        {
+          ...auditEventEnvelopeContract,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export audit event envelope:", err);
+      window.alert(
+        "Audit event envelope export failed. Please check the console."
+      );
     } finally {
       setBusyContractAction(null);
     }
@@ -3972,6 +4008,79 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
           </div>
+          <ContractPanel title="Audit event envelope" className="mt-4">
+            <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl">
+                Local redaction contract for future audit writes. It defines
+                the metadata-only event shape before `/api/audit/events` can
+                read request bodies or write server audit rows. Page text,
+                database values, comment bodies, file bytes, prompts, model
+                raw output, tokens, cookies, signed URLs, and environment values
+                remain forbidden.
+              </p>
+              <button
+                type="button"
+                onClick={handleExportAuditEventEnvelope}
+                disabled={busyContractAction === "audit-envelope"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyContractAction === "audit-envelope"
+                  ? "Exporting..."
+                  : "Export audit envelope"}
+              </button>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-4">
+              <IdentityMetric
+                label="Allowed fields"
+                value={`${auditEventEnvelopeContract.summary.allowed_fields}`}
+                detail="Metadata only"
+              />
+              <IdentityMetric
+                label="Forbidden fields"
+                value={`${auditEventEnvelopeContract.summary.forbidden_fields}`}
+                detail="Payload blocked"
+              />
+              <IdentityMetric
+                label="Redaction checks"
+                value={`${auditEventEnvelopeContract.summary.redaction_checks}`}
+                detail="Before write"
+              />
+              <IdentityMetric
+                label="Blocked"
+                value={`${auditEventEnvelopeContract.summary.blocked}`}
+                detail="Endpoint disabled"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+              <ContractPanel title="Envelope templates">
+                <div className="space-y-2">
+                  {auditEventEnvelopeContract.templates.map((template) => (
+                    <AuditEnvelopeTemplateRow
+                      key={template.id}
+                      template={template}
+                    />
+                  ))}
+                </div>
+              </ContractPanel>
+              <ContractPanel title="Redaction checks">
+                <div className="space-y-2">
+                  {auditEventEnvelopeContract.redaction_checks.map((check) => (
+                    <AuditEnvelopeRedactionCheckRow
+                      key={check.id}
+                      check={check}
+                    />
+                  ))}
+                </div>
+              </ContractPanel>
+            </div>
+            <ContractPanel title="Envelope gates" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-2">
+                {auditEventEnvelopeContract.gates.map((gate) => (
+                  <AuditEnvelopeGateRow key={gate.id} gate={gate} />
+                ))}
+              </div>
+            </ContractPanel>
+          </ContractPanel>
           <ContractPanel title="Audit payload policy" className="mt-4">
             <div className="grid gap-2 md:grid-cols-2">
               {auditTrailPolicy.fields.map((field) => (
@@ -5982,6 +6091,100 @@ function AuditGateRow({
   );
 }
 
+function AuditEnvelopeTemplateRow({
+  template,
+}: {
+  template: AuditEventEnvelopeContract["templates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {template.title}
+          </div>
+          <div className="mt-1 text-[11px] uppercase tracking-wide text-zinc-400">
+            {template.category} · {template.endpoint_status}
+          </div>
+        </div>
+        <AuditEnvelopeStatusPill status={template.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {template.trigger}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {template.allowed_metadata.slice(0, 6).map((field) => (
+          <span
+            key={field}
+            className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {field}
+          </span>
+        ))}
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        Forbidden payload classes: {template.forbidden_payloads.length}
+      </p>
+    </article>
+  );
+}
+
+function AuditEnvelopeRedactionCheckRow({
+  check,
+}: {
+  check: AuditEventEnvelopeContract["redaction_checks"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {check.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {check.id}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {check.evidence}
+          </p>
+        </div>
+        <AuditEnvelopeStatusPill status={check.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {check.failure_condition}
+      </p>
+    </article>
+  );
+}
+
+function AuditEnvelopeGateRow({
+  gate,
+}: {
+  gate: AuditEventEnvelopeContract["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {gate.evidence}
+          </p>
+        </div>
+        <AuditEnvelopeStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
 function AuditFieldRow({
   field,
 }: {
@@ -6014,6 +6217,31 @@ function AuditFieldRow({
 
 function AuditStatusPill({ status }: { status: AuditTrailStatus }) {
   const labels: Record<AuditTrailStatus, string> = {
+    planned: "Planned",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "planned"
+      ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function AuditEnvelopeStatusPill({
+  status,
+}: {
+  status: AuditEventEnvelopeStatus;
+}) {
+  const labels: Record<AuditEventEnvelopeStatus, string> = {
     planned: "Planned",
     "manual-confirmation": "Confirm",
     blocked: "Blocked",

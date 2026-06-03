@@ -134,7 +134,7 @@ export function buildWebBetaReadinessReport(
       status: "ready",
       category: "local",
       evidence:
-        "Backup JSON, workspace ZIP, Markdown export, sync queue export, sync replay test plan export, disposable replay confirmation receipt export, empty-fixture replay package export, disposable replay harness preflight export, disabled replay runner skeleton export, restore rollback plan export, restore write-back contract export, permission policy export, permission decision export, account session boundary export, environment preflight export, cloud schema migration plan export, cloud migration SQL draft export, launch checklist export, contract export, and readiness export are available locally.",
+        "Backup JSON, workspace ZIP, Markdown export, sync queue export, sync replay test plan export, disposable replay confirmation receipt export, empty-fixture replay package export, disposable replay harness preflight export, disabled replay runner skeleton export, audit event envelope export, restore rollback plan export, restore write-back contract export, permission policy export, permission decision export, account session boundary export, environment preflight export, cloud schema migration plan export, cloud migration SQL draft export, launch checklist export, contract export, and readiness export are available locally.",
       nextAction:
         "Keep this as the escape hatch before any user opts into beta sync.",
     },
@@ -371,10 +371,10 @@ export function buildWebBetaReadinessReport(
       status: input.auditTrailPolicy ? "partial" : "blocked",
       category: "security",
       evidence: input.auditTrailPolicy
-        ? `A local audit policy covers ${input.auditTrailPolicy.summary.events} event types and ${input.auditTrailPolicy.summary.required_before_private_beta} audit gates; server audit writes remain disabled.`
+        ? `A local audit policy covers ${input.auditTrailPolicy.summary.events} event types and ${input.auditTrailPolicy.summary.required_before_private_beta} audit gates; the sync UI also exports a metadata-only audit event envelope, and server audit writes remain disabled.`
         : "No local audit trail policy exists for auth, export, restore, sync, sharing, permission, file, AI, or admin actions.",
       nextAction:
-        "Implement authenticated audit_events writes, redaction, retention, owner-only audit export, and incident review before private beta.",
+        "Implement authenticated audit_events writes only after envelope redaction, retention, owner-only audit export, and incident review are proven before private beta.",
     },
     {
       id: "deployment-target-contract",

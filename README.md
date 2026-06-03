@@ -665,6 +665,12 @@ Current local actions:
   logging. The policy covers auth, export, restore, sync, sharing, permission,
   file, AI, and admin actions, but keeps page text, prompt text, file bytes,
   signed URLs, tokens, and secret values out of audit rows.
+- Review and export a local audit event envelope contract. The contract defines
+  the future metadata-only shape for `/api/audit/events`: ids, counts, hashes,
+  statuses, permission decisions, confirmation receipts, and retention class are
+  allowed; page text, database values, comments, files, prompts, raw AI output,
+  backup payloads, request bodies, signed URLs, tokens, cookies, and environment
+  values stay forbidden. The endpoint remains disabled.
 - Inspect disabled local Web Beta API stubs for auth session, login start,
   logout, workspace list, workspace create, workspace bootstrap, sync push, sync
   pull, sync replay test, restore preview, restore apply, file presign,
@@ -716,7 +722,8 @@ The first cloud phase is a private alpha, not full sync:
   receipt is audit evidence only and does not turn on cloud push.
 - `npm run verify:web-beta` checks the local Web Beta contract before launch:
   environment keys, guarded API route files, local module routes, the deployment
-  target contract, smoke test plan, and Supabase migration tables.
+  target contract, audit event envelope, smoke test plan, and Supabase migration
+  tables.
 - `npm run verify:web-beta:smoke` checks the preview smoke-test checklist before
   launch: expected pages, disabled/gated high-risk API routes, local-only
   privacy boundaries, Cloud Alpha disabled defaults, private file storage

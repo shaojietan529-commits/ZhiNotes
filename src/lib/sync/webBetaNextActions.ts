@@ -223,9 +223,9 @@ function buildActions(
       gate: gatesById.get("audit-trail-policy"),
       fallbackTitle: "Implement audit events",
       fallbackEvidence:
-        "Audit policy exists locally, but server audit writes and retention are disabled.",
+        "Audit policy and metadata-only audit event envelope exist locally, but server audit writes and retention are disabled.",
       fallbackAction:
-        "Implement authenticated audit_events writes, redaction, retention, owner-only export, and incident review.",
+        "Implement authenticated audit_events writes only after envelope validation rejects forbidden payloads, then add retention, owner-only export, and incident review.",
       status: "ready-to-build",
       unlocks: "Traceability for login, export, restore, sync, file, AI, permission, and admin actions.",
     }),
