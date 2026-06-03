@@ -158,9 +158,9 @@ function buildActions(
       gate: gatesById.get("permission-policy"),
       fallbackTitle: "Implement server permission checks",
       fallbackEvidence:
-        "Local role decisions, a metadata-only permission check envelope, and a dedicated disabled /api/permissions/check schema guard exist, but server endpoints do not enforce roles.",
+        "Local role decisions, a metadata-only permission check envelope, local validator fixtures, and a dedicated disabled /api/permissions/check schema guard exist, but server endpoints do not enforce roles.",
       fallbackAction:
-        "Move Owner, Researcher, and Viewer decisions into authenticated server checks only after the route rejects forbidden payloads and high-risk actions stay owner-confirmed.",
+        "Move Owner, Researcher, and Viewer decisions into authenticated server checks only after the route runs validator-backed forbidden payload rejection and high-risk actions stay owner-confirmed.",
       status: "ready-to-build",
       unlocks: "Safe auth routes, sync push/pull, restore, file access, sharing, and AI gates.",
     }),

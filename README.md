@@ -622,6 +622,10 @@ Current local actions:
   environment values stay forbidden. The endpoint remains disabled and returns a
   dedicated 501 permission-check schema guard instead of executable allow/deny
   decisions.
+- Review local permission request validator fixtures. The validator accepts a
+  metadata-only request and rejects fixed samples containing page text, nested
+  prompt text, tokens, unknown payload fields, or missing actor metadata. It
+  reports only field names and rejection paths, not raw request values.
 - Review and export a local high-risk action registry. The registry centralizes
   typed confirmation phrases and coverage for cloud sync, disposable replay,
   restore write-back, AI execution, HTML external resources, spreadsheet bulk
@@ -685,8 +689,8 @@ Current local actions:
   pull, sync replay test, restore preview, restore apply, file presign,
   permission check, audit events, and cloud migration apply. These routes return
   disabled responses unless explicitly enabled; the permission check route uses
-  a dedicated metadata-only schema guard. They do not upload local notes, files,
-  databases, backups, or sync queue rows.
+  a dedicated metadata-only schema guard and local validator fixture report.
+  They do not upload local notes, files, databases, backups, or sync queue rows.
 - Review and export a local Web Beta readiness report that summarizes local
   evidence, manual confirmation points, and blocked launch gates. The report
   does not create accounts, connect cloud services, upload notes, sync files,
@@ -733,7 +737,8 @@ The first cloud phase is a private alpha, not full sync:
 - `npm run verify:web-beta` checks the local Web Beta contract before launch:
   environment keys, guarded API route files, local module routes, the deployment
   target contract, audit event envelope, permission check envelope, permission
-  check API disabled schema, smoke test plan, and Supabase migration tables.
+  check API disabled schema, permission request validator fixtures, smoke test
+  plan, and Supabase migration tables.
 - `npm run verify:web-beta:smoke` checks the preview smoke-test checklist before
   launch: expected pages, disabled/gated high-risk API routes, local-only
   privacy boundaries, Cloud Alpha disabled defaults, private file storage

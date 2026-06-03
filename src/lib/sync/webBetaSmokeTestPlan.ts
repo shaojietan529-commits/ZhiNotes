@@ -133,7 +133,7 @@ function buildSmokeTestCases(
       status: "ready-to-run",
       title: "Local verification bundle",
       evidence:
-        "Run lint, verify:web-beta, verify:replay-harness, and production build before any preview deployment is reviewed; verify:web-beta checks the audit event envelope and permission check envelope, and replay harness verification checks the disabled runner skeleton.",
+        "Run lint, verify:web-beta, verify:replay-harness, and production build before any preview deployment is reviewed; verify:web-beta checks the audit event envelope, permission check envelope, permission request validator fixtures, and replay harness verification checks the disabled runner skeleton.",
       pass_condition:
         "npm run lint, npm run verify:web-beta, npm run verify:replay-harness, and npm run build all pass on the deployment branch.",
       failure_response:

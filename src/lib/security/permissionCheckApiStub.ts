@@ -5,6 +5,10 @@ import {
   type PermissionCheckField,
 } from "@/lib/security/permissionCheckEnvelope";
 import {
+  buildPermissionCheckValidatorReport,
+  type PermissionCheckValidatorReport,
+} from "@/lib/security/permissionCheckRequestValidator";
+import {
   buildWebBetaApiStubResponse,
   type WebBetaApiStubResponse,
 } from "@/lib/sync/webBetaApiStubs";
@@ -56,6 +60,7 @@ export interface PermissionCheckApiDisabledResponse {
     schema_status: "planned-decision-only";
     allowed_fields: PermissionCheckField[];
   };
+  local_validator_report: PermissionCheckValidatorReport;
   disabled_response_contract: {
     http_status: 501;
     returns_permission_result: false;
@@ -119,6 +124,7 @@ export function buildPermissionCheckApiDisabledResponse(): PermissionCheckApiDis
       schema_status: "planned-decision-only",
       allowed_fields: buildPermissionCheckResponseFields(),
     },
+    local_validator_report: buildPermissionCheckValidatorReport(),
     disabled_response_contract: {
       http_status: 501,
       returns_permission_result: false,

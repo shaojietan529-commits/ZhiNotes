@@ -32,6 +32,8 @@ const files = {
   auditEventEnvelope: "src/lib/security/auditEventEnvelope.ts",
   permissionCheckEnvelope: "src/lib/security/permissionCheckEnvelope.ts",
   permissionCheckApiStub: "src/lib/security/permissionCheckApiStub.ts",
+  permissionCheckRequestValidator:
+    "src/lib/security/permissionCheckRequestValidator.ts",
   permissionCheckRoute: "src/app/api/permissions/check/route.ts",
   typedConfirmation: "src/lib/security/typedConfirmation.ts",
   highRiskActionRegistry: "src/lib/security/highRiskActionRegistry.ts",
@@ -216,6 +218,9 @@ function run() {
   const auditEventEnvelope = readProjectFile(files.auditEventEnvelope);
   const permissionCheckEnvelope = readProjectFile(files.permissionCheckEnvelope);
   const permissionCheckApiStub = readProjectFile(files.permissionCheckApiStub);
+  const permissionCheckRequestValidator = readProjectFile(
+    files.permissionCheckRequestValidator
+  );
   const permissionCheckRoute = readProjectFile(files.permissionCheckRoute);
   const typedConfirmation = readProjectFile(files.typedConfirmation);
   const highRiskActionRegistry = readProjectFile(files.highRiskActionRegistry);
@@ -253,6 +258,7 @@ function run() {
     [files.auditEventEnvelope, auditEventEnvelope],
     [files.permissionCheckEnvelope, permissionCheckEnvelope],
     [files.permissionCheckApiStub, permissionCheckApiStub],
+    [files.permissionCheckRequestValidator, permissionCheckRequestValidator],
     [files.permissionCheckRoute, permissionCheckRoute],
     [files.typedConfirmation, typedConfirmation],
     [files.highRiskActionRegistry, highRiskActionRegistry],
@@ -967,6 +973,147 @@ function run() {
       message
     );
   }
+  assertSourceIncludes(
+    files.permissionCheckRequestValidator,
+    permissionCheckRequestValidator,
+    'format: "zhinote-permission-check-request-validation"',
+    "Permission check request validator must expose a stable validation format."
+  );
+  assertSourceIncludes(
+    files.permissionCheckRequestValidator,
+    permissionCheckRequestValidator,
+    "validatePermissionCheckMetadataRequest",
+    "Permission check request validator must expose a reusable metadata-only validator."
+  );
+  assertSourceIncludes(
+    files.permissionCheckRequestValidator,
+    permissionCheckRequestValidator,
+    "buildPermissionCheckValidatorReport",
+    "Permission check request validator must expose a local fixture report."
+  );
+  assertSourceIncludes(
+    files.permissionCheckRequestValidator,
+    permissionCheckRequestValidator,
+    "PERMISSION_CHECK_REQUEST_VALIDATOR_FIXTURES",
+    "Permission check request validator must keep fixed local fixtures."
+  );
+  for (const [snippet, message] of [
+    [
+      "metadata-only-accepted",
+      "Permission check request validator must accept metadata-only fixture shape.",
+    ],
+    [
+      "rejected-forbidden-payload",
+      "Permission check request validator must reject private payload fields.",
+    ],
+    [
+      "rejected-unknown-field",
+      "Permission check request validator must reject unknown top-level fields.",
+    ],
+    [
+      "rejected-invalid-shape",
+      "Permission check request validator must reject missing or invalid metadata.",
+    ],
+    [
+      "can_execute_permission_now: false",
+      "Permission check request validator must not execute permissions.",
+    ],
+    [
+      "echoes_values: false",
+      "Permission check request validator must not echo request values.",
+    ],
+    [
+      "stores_raw_request: false",
+      "Permission check request validator must not store raw requests.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Permission check request validator must not read page text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Permission check request validator must not read database values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Permission check request validator must not read comments.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Permission check request validator must not read file bytes.",
+    ],
+    [
+      "reads_prompt_text: false",
+      "Permission check request validator must not read prompt text.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Permission check request validator must not read secrets.",
+    ],
+    [
+      "exposes_secret_values: false",
+      "Permission check request validator must not expose secrets.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Permission check request validator must not upload workspace data.",
+    ],
+    [
+      "returns_raw_values: false",
+      "Permission check request validator must not return raw values.",
+    ],
+    [
+      "page-body-text-blocked",
+      "Permission check request validator must include page text rejection fixture.",
+    ],
+    [
+      "nested-prompt-text-blocked",
+      "Permission check request validator must include nested prompt rejection fixture.",
+    ],
+    [
+      "token-blocked",
+      "Permission check request validator must include token rejection fixture.",
+    ],
+    [
+      "unknown-payload-field-blocked",
+      "Permission check request validator must include unknown payload rejection fixture.",
+    ],
+    [
+      "missing-actor-blocked",
+      "Permission check request validator must include missing actor rejection fixture.",
+    ],
+    [
+      "collectForbiddenFieldPaths",
+      "Permission check request validator must inspect nested field names.",
+    ],
+    [
+      "buildPermissionCheckRequestFields",
+      "Permission check request validator must reuse the envelope request field list.",
+    ],
+    [
+      "buildPermissionCheckForbiddenFields",
+      "Permission check request validator must reuse the envelope forbidden field list.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.permissionCheckRequestValidator,
+      permissionCheckRequestValidator,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.permissionCheckApiStub,
+    permissionCheckApiStub,
+    "buildPermissionCheckValidatorReport",
+    "Permission check API stub must include the local validator report."
+  );
+  assertSourceIncludes(
+    files.permissionCheckApiStub,
+    permissionCheckApiStub,
+    "local_validator_report",
+    "Permission check API stub must expose local validator fixture results."
+  );
   assertSourceIncludes(
     files.permissionCheckRoute,
     permissionCheckRoute,
@@ -3008,6 +3155,10 @@ function run() {
       "Sync UI must build the permission check envelope contract.",
     ],
     [
+      "buildPermissionCheckValidatorReport",
+      "Sync UI must build the permission check validator report.",
+    ],
+    [
       "handleExportPermissionCheckEnvelope",
       "Sync UI must export the permission check envelope contract.",
     ],
@@ -3030,6 +3181,18 @@ function run() {
     [
       "PermissionCheckFieldRow",
       "Sync UI must render permission check fields.",
+    ],
+    [
+      "Permission request validator",
+      "Sync UI must render the permission check request validator panel.",
+    ],
+    [
+      "PermissionCheckValidatorFixtureRow",
+      "Sync UI must render permission check validator fixture rows.",
+    ],
+    [
+      "Validator cases",
+      "Sync UI must render permission validator coverage metric.",
     ],
     [
       "permission-check-envelope",
@@ -3093,7 +3256,8 @@ function run() {
     remote_baseline_replay_runner_checks: 52,
     audit_event_envelope_checks: 52,
     permission_check_envelope_checks: 68,
-    permission_check_api_stub_checks: 44,
+    permission_check_api_stub_checks: 46,
+    permission_check_request_validator_checks: 28,
     warnings: warnings.length,
   };
 

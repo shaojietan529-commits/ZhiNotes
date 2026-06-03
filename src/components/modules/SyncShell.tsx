@@ -59,6 +59,11 @@ import {
   type PermissionCheckEnvelopeStatus,
 } from "@/lib/security/permissionCheckEnvelope";
 import {
+  buildPermissionCheckValidatorReport,
+  type PermissionCheckRequestValidationStatus,
+  type PermissionCheckValidatorReport,
+} from "@/lib/security/permissionCheckRequestValidator";
+import {
   buildHighRiskActionRegistryReport,
   getHighRiskRequiredPhrase,
   type HighRiskActionCoverage,
@@ -628,6 +633,10 @@ function SyncDashboard() {
         auditEventEnvelope: auditEventEnvelopeContract,
       }),
     [auditEventEnvelopeContract, permissionDecisionReport, workspaceIdentity]
+  );
+  const permissionCheckValidatorReport = useMemo(
+    () => buildPermissionCheckValidatorReport(),
+    []
   );
   const highRiskActionRegistry = useMemo(
     () => buildHighRiskActionRegistryReport(),
@@ -5165,7 +5174,7 @@ function SyncDashboard() {
                   : "Export permission envelope"}
               </button>
             </div>
-            <div className="mt-3 grid gap-2 md:grid-cols-4">
+            <div className="mt-3 grid gap-2 md:grid-cols-5">
               <IdentityMetric
                 label="Request fields"
                 value={`${permissionCheckEnvelopeContract.summary.request_allowed_fields}`}
@@ -5185,6 +5194,11 @@ function SyncDashboard() {
                 label="Blocked"
                 value={`${permissionCheckEnvelopeContract.summary.blocked}`}
                 detail="Endpoint disabled"
+              />
+              <IdentityMetric
+                label="Validator cases"
+                value={`${permissionCheckValidatorReport.summary.passed}/${permissionCheckValidatorReport.summary.fixtures}`}
+                detail="Local fixtures"
               />
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
@@ -5211,6 +5225,43 @@ function SyncDashboard() {
                 {permissionCheckEnvelopeContract.request_fields.map((field) => (
                   <PermissionCheckFieldRow key={field.field} field={field} />
                 ))}
+              </div>
+            </ContractPanel>
+            <ContractPanel
+              title="Permission request validator"
+              className="mt-4"
+            >
+              <div className="grid gap-2 md:grid-cols-3">
+                <IdentityMetric
+                  label="Accepted"
+                  value={`${permissionCheckValidatorReport.summary.accepted}`}
+                  detail="Metadata only"
+                />
+                <IdentityMetric
+                  label="Forbidden"
+                  value={`${permissionCheckValidatorReport.summary.rejected_forbidden_payload}`}
+                  detail="Private payload"
+                />
+                <IdentityMetric
+                  label="Other rejects"
+                  value={`${
+                    permissionCheckValidatorReport.summary
+                      .rejected_unknown_field +
+                    permissionCheckValidatorReport.summary
+                      .rejected_invalid_shape
+                  }`}
+                  detail="Schema guard"
+                />
+              </div>
+              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                {permissionCheckValidatorReport.fixture_results.map(
+                  (fixture) => (
+                    <PermissionCheckValidatorFixtureRow
+                      key={fixture.id}
+                      fixture={fixture}
+                    />
+                  )
+                )}
               </div>
             </ContractPanel>
           </ContractPanel>
@@ -6539,6 +6590,42 @@ function PermissionCheckFieldRow({
   );
 }
 
+function PermissionCheckValidatorFixtureRow({
+  fixture,
+}: {
+  fixture: PermissionCheckValidatorReport["fixture_results"][number];
+}) {
+  const detailItems = [
+    ...fixture.forbidden_field_paths.map((item) => `Forbidden: ${item}`),
+    ...fixture.unknown_field_names.map((item) => `Unknown: ${item}`),
+    ...fixture.missing_required_fields.map((item) => `Missing: ${item}`),
+    ...fixture.invalid_field_names.map((item) => `Invalid: ${item}`),
+  ];
+
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {fixture.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {fixture.id}
+          </div>
+        </div>
+        <PermissionCheckValidationStatusPill status={fixture.actual_status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        Expected {fixture.expected_status};{" "}
+        {fixture.passed ? "fixture passed" : "fixture failed"}.
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {detailItems.length > 0 ? detailItems.join(" · ") : "No private fields detected."}
+      </p>
+    </article>
+  );
+}
+
 function PermissionDecisionStatusPill({
   status,
 }: {
@@ -6557,6 +6644,32 @@ function PermissionDecisionStatusPill({
       : status === "needs-confirmation"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function PermissionCheckValidationStatusPill({
+  status,
+}: {
+  status: PermissionCheckRequestValidationStatus;
+}) {
+  const labels: Record<PermissionCheckRequestValidationStatus, string> = {
+    "metadata-only-accepted": "Accepted",
+    "rejected-forbidden-payload": "Payload blocked",
+    "rejected-unknown-field": "Unknown blocked",
+    "rejected-invalid-shape": "Invalid blocked",
+  };
+
+  const className =
+    status === "metadata-only-accepted"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "rejected-forbidden-payload"
+        ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+        : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
