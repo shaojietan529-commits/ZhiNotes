@@ -193,6 +193,9 @@ Current local actions:
   gates; `/api/ai/run` is a disabled local stub and does not read request bodies,
   call model providers, upload workspace data, or store AI output.
 - Draft an AI request locally with selected page titles and privacy gates.
+- Type the local AI outbound confirmation phrase and export a high-risk
+  confirmation receipt. The receipt does not include page body text, prompt
+  text, file bytes, tokens, or secrets, and it does not enable `/api/ai/run`.
 - Inspect local file readiness by stored file type.
 
 The current AI Workbench module does not call AI, upload selected pages, send
@@ -268,6 +271,10 @@ Current local actions:
   permission check, audit event, second confirmation, disabled apply endpoint,
   and failed-restore recovery proof; it does not restore, overwrite, delete,
   upload, sync, or write workspace data.
+- Type the local restore write-back confirmation phrase and export a high-risk
+  confirmation receipt. The receipt records only local confirmation metadata and
+  restore scope counts; it does not restore, overwrite, delete, upload, sync, or
+  enable `/api/backup/restore-apply`.
 - Review a local permission policy draft for Owner, Researcher, and Viewer
   roles across pages, databases, files, reports, portfolio, AI, and sync.
 - Export the local permission policy draft as JSON. The export does not create

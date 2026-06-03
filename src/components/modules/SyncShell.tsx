@@ -152,6 +152,7 @@ type SyncQueueAction =
   | "sync-confirmation"
   | "rollback-plan"
   | "restore-writeback"
+  | "restore-confirmation"
   | "replay-test-plan";
 type PermissionPolicyAction = "policy";
 type CloudAlphaAction =
@@ -346,6 +347,8 @@ function SyncDashboard() {
   const [cloudMessage, setCloudMessage] =
     useState<CloudAlphaMessage | null>(null);
   const [syncConfirmationPhrase, setSyncConfirmationPhrase] = useState("");
+  const [restoreConfirmationPhrase, setRestoreConfirmationPhrase] =
+    useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -578,6 +581,31 @@ function SyncDashboard() {
       restorePreview,
       restoreRollbackPlan,
       syncReplayTestPlan,
+      workspaceIdentity,
+    ]
+  );
+  const restoreConfirmationReceipt = useMemo(
+    () =>
+      buildHighRiskConfirmationReceipt({
+        actionId: "restore-writeback",
+        requiredPhrase: "ENABLE RESTORE WRITEBACK",
+        typedPhrase: restoreConfirmationPhrase,
+        actorLabel:
+          cloudSession?.user?.email ?? cloudSession?.user?.id ?? null,
+        localWorkspaceId: workspaceIdentity?.workspace_id ?? null,
+        scopeSummary: restorePreview
+          ? `${restorePreview.counts.activePages} active pages; ${restorePreview.counts.deletedPages} trash pages; ${restorePreview.counts.databases} databases; ${restorePreview.counts.databaseRows} database rows; ${restorePreview.counts.uploadedFiles} uploaded file records.`
+          : "No restore backup preview loaded.",
+        riskSummary:
+          "A future restore write-back can overwrite or add local workspace pages, databases, comments, versions, files, favorites, and locks after explicit enablement.",
+        destinationSummary: workspaceIdentity
+          ? `Local browser workspace ${workspaceIdentity.workspace_id}`
+          : "No local workspace identity available.",
+      }),
+    [
+      cloudSession,
+      restoreConfirmationPhrase,
+      restorePreview,
       workspaceIdentity,
     ]
   );
@@ -1333,6 +1361,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Restore write-back contract failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportRestoreConfirmationReceipt = () => {
+    setBusyQueueAction("restore-confirmation");
+    try {
+      downloadJsonFile(
+        `zhinote-restore-confirmation-receipt-${fileSafeTimestamp()}.json`,
+        {
+          ...restoreConfirmationReceipt,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export restore confirmation receipt:",
+        err
+      );
+      window.alert(
+        "Restore confirmation receipt failed. Please check the console."
       );
     } finally {
       setBusyQueueAction(null);
@@ -2476,6 +2527,59 @@ function SyncDashboard() {
               {restoreWritebackContract.gates.map((gate) => (
                 <RestoreWritebackGateRow key={gate.id} gate={gate} />
               ))}
+            </div>
+          </div>
+          <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+            <label
+              htmlFor="restore-confirmation-phrase"
+              className="text-xs font-semibold text-zinc-900 dark:text-zinc-100"
+            >
+              输入恢复写入确认短语
+            </label>
+            <div className="mt-2 flex flex-col gap-2 lg:flex-row">
+              <input
+                id="restore-confirmation-phrase"
+                value={restoreConfirmationPhrase}
+                onChange={(event) =>
+                  setRestoreConfirmationPhrase(event.target.value)
+                }
+                placeholder={restoreConfirmationReceipt.required_phrase}
+                className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-zinc-100"
+              />
+              <button
+                type="button"
+                onClick={handleExportRestoreConfirmationReceipt}
+                disabled={busyQueueAction === "restore-confirmation"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyQueueAction === "restore-confirmation"
+                  ? "Exporting..."
+                  : "Export restore receipt"}
+              </button>
+            </div>
+            <p className="mt-2 text-[11px] leading-5 text-zinc-400 dark:text-zinc-500">
+              即使短语匹配，当前仍不会恢复、覆盖或删除任何数据；/api/backup/restore-apply disabled. 收据只记录本地确认状态和范围摘要。
+            </p>
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              <IdentityMetric
+                label="Phrase match"
+                value={
+                  restoreConfirmationReceipt.typed_phrase_matches
+                    ? "Yes"
+                    : "No"
+                }
+                detail={restoreConfirmationReceipt.status}
+              />
+              <IdentityMetric
+                label="Receipt boundary"
+                value="Local only"
+                detail="No restore, write, delete, or upload"
+              />
+              <IdentityMetric
+                label="Destination"
+                value={restoreConfirmationReceipt.destination_summary}
+                detail="Current browser workspace"
+              />
             </div>
           </div>
         </section>

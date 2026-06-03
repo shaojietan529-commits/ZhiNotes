@@ -118,6 +118,7 @@ https://your-vercel-domain.vercel.app/auth/callback
 - `POST /api/workspaces` 可以创建空 workspace 和 owner membership。
 - workspace bootstrap 可以返回当前用户 role。
 - Cloud sync owner confirmation phrase 可以在本地生成 receipt，但 receipt 不会开启 push。
+- AI 外发和 restore write-back confirmation phrase 可以在本地生成 receipt，但 receipt 不会开启 `/api/ai/run` 或 `/api/backup/restore-apply`。
 
 ## 后续云同步顺序
 
@@ -130,3 +131,4 @@ https://your-vercel-domain.vercel.app/auth/callback
 7. Private Storage signed upload/download。
 8. Permission check 和 audit events。
 9. Restore rollback 和 write-back。
+10. AI provider、retention、final payload preview 和 typed confirmation receipt。

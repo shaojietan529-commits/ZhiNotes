@@ -17,6 +17,7 @@ import {
   type AiExecutionGateStatus,
   type AiExecutionPolicy,
 } from "@/lib/ai/aiExecutionPolicy";
+import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -103,6 +104,9 @@ function AiWorkbenchDashboard() {
   const [exportingPayloadPreview, setExportingPayloadPreview] = useState(false);
   const [exportingExecutionPolicy, setExportingExecutionPolicy] =
     useState(false);
+  const [exportingConfirmationReceipt, setExportingConfirmationReceipt] =
+    useState(false);
+  const [aiConfirmationPhrase, setAiConfirmationPhrase] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -161,6 +165,20 @@ function AiWorkbenchDashboard() {
     () => buildAiExecutionPolicy({ payloadPreview: aiPayloadPreview }),
     [aiPayloadPreview]
   );
+  const aiConfirmationReceipt = useMemo(
+    () =>
+      buildHighRiskConfirmationReceipt({
+        actionId: "ai-external-run",
+        requiredPhrase: "ENABLE AI EXTERNAL RUN",
+        typedPhrase: aiConfirmationPhrase,
+        scopeSummary: `${selectedWorkflow.title}; ${aiPayloadPreview.summary.selected_pages} selected pages; ${aiPayloadPreview.summary.files_available} available local files; prompt text included in receipt: no.`,
+        riskSummary:
+          "A future AI run can send selected page text, prompt text, and approved file content to an external model provider after explicit enablement.",
+        destinationSummary:
+          "No AI provider selected; /api/ai/run is disabled and does not read request bodies.",
+      }),
+    [aiConfirmationPhrase, aiPayloadPreview, selectedWorkflow]
+  );
 
   const togglePage = (pageId: string) => {
     setSelectedPageIds((current) =>
@@ -203,6 +221,24 @@ function AiWorkbenchDashboard() {
       window.alert("AI execution policy export failed. Please check the console.");
     } finally {
       setExportingExecutionPolicy(false);
+    }
+  };
+
+  const handleExportConfirmationReceipt = () => {
+    setExportingConfirmationReceipt(true);
+    try {
+      downloadJsonFile(
+        `zhinote-ai-confirmation-receipt-${fileSafeTimestamp()}.json`,
+        {
+          ...aiConfirmationReceipt,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export AI confirmation receipt:", err);
+      window.alert("AI confirmation receipt export failed. Please check the console.");
+    } finally {
+      setExportingConfirmationReceipt(false);
     }
   };
 
@@ -469,6 +505,64 @@ function AiWorkbenchDashboard() {
               {aiExecutionPolicy.gates.map((gate) => (
                 <ExecutionGateRow key={gate.id} gate={gate} />
               ))}
+            </div>
+            <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+              <label
+                htmlFor="ai-confirmation-phrase"
+                className="text-xs font-semibold text-zinc-900 dark:text-zinc-100"
+              >
+                输入 AI 外发确认短语
+              </label>
+              <div className="mt-2 flex flex-col gap-2 lg:flex-row">
+                <input
+                  id="ai-confirmation-phrase"
+                  value={aiConfirmationPhrase}
+                  onChange={(event) =>
+                    setAiConfirmationPhrase(event.target.value)
+                  }
+                  placeholder={aiConfirmationReceipt.required_phrase}
+                  className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-zinc-100"
+                />
+                <button
+                  type="button"
+                  onClick={handleExportConfirmationReceipt}
+                  disabled={exportingConfirmationReceipt}
+                  className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  {exportingConfirmationReceipt
+                    ? "Exporting..."
+                    : "Export AI receipt"}
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] leading-5 text-zinc-400 dark:text-zinc-500">
+                即使短语匹配，当前仍不会调用 AI；/api/ai/run disabled. 收据不包含页面正文、prompt 正文、文件内容、token 或 secret。
+              </p>
+              <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <ExecutionMetric
+                  label="Phrase match"
+                  value={
+                    aiConfirmationReceipt.typed_phrase_matches ? "Yes" : "No"
+                  }
+                  detail={aiConfirmationReceipt.status}
+                  status={
+                    aiConfirmationReceipt.typed_phrase_matches
+                      ? "planned"
+                      : "manual-confirmation"
+                  }
+                />
+                <ExecutionMetric
+                  label="Receipt"
+                  value="Local only"
+                  detail="No model call"
+                  status="planned"
+                />
+                <ExecutionMetric
+                  label="Destination"
+                  value="/api/ai/run"
+                  detail="Disabled local stub"
+                  status="blocked"
+                />
+              </div>
             </div>
           </div>
 
