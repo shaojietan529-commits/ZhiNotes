@@ -292,9 +292,9 @@ Current local actions:
   and privacy boundaries, but excludes page text and file bytes and does not
   upload anything.
 - Review and export a local cloud sync opt-in gate. The gate checks local cloud
-  workspace link, payload preview, high-risk table scope, conflict baseline,
-  disabled push API, and required owner confirmation phrase before any future
-  upload flow can exist.
+  workspace link, bootstrap membership proof, payload preview, high-risk table
+  scope, conflict baseline, disabled push API, and required owner confirmation
+  phrase before any future upload flow can exist.
 - Type the local private-alpha sync confirmation phrase and export a high-risk
   confirmation receipt. The receipt records only local confirmation metadata
   and still does not upload, write, delete, call AI, include page text, include
@@ -421,6 +421,8 @@ The first cloud phase is a private alpha, not full sync:
   implementations.
 - Local workspace linking requires a current bootstrap proof for the selected
   cloud workspace and can export a metadata-only local link receipt.
+- The cloud sync opt-in gate treats a cloud workspace id alone as insufficient;
+  it also requires recorded bootstrap proof with push/pull still disabled.
 - Cloud routes stay disabled unless `ZHINOTES_CLOUD_ENABLED=true`.
 - Auth routes that create or mutate sessions also require
   `ZHINOTES_ALLOW_CLOUD_WRITES=true`.

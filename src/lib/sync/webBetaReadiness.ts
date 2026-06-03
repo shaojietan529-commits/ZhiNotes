@@ -73,6 +73,14 @@ export interface WebBetaReadinessReport {
     pending_sync_rows: number;
     workspace_id: string | null;
     device_id: string | null;
+    cloud_status: LocalWorkspaceIdentity["cloud_status"] | "missing";
+    cloud_workspace_id: string | null;
+    cloud_role: LocalWorkspaceIdentity["cloud_role"] | null;
+    cloud_bootstrap_checked_at: string | null;
+    cloud_bootstrap_module_count: number | null;
+    cloud_sync_push_enabled: boolean;
+    cloud_sync_pull_enabled: boolean;
+    cloud_link_proof_status: "present" | "missing";
     workspace_identity_status: "present" | "missing";
     sync_payload_preview_status: "present" | "missing";
     conflict_review_status: "present" | "missing";
@@ -107,6 +115,14 @@ export function buildWebBetaReadinessReport(
   const cloudGateCount = DEPLOYMENT_GATES.filter(
     (gate) => gate.status === "blocked"
   ).length;
+  const linked = input.workspaceIdentity?.cloud_status === "linked-alpha";
+  const hasCloudLinkProof = Boolean(
+    linked &&
+      input.workspaceIdentity?.cloud_bootstrap_checked_at &&
+      typeof input.workspaceIdentity.cloud_bootstrap_module_count === "number" &&
+      !input.workspaceIdentity.cloud_sync_push_enabled &&
+      !input.workspaceIdentity.cloud_sync_pull_enabled
+  );
 
   const gates: WebBetaReadinessGate[] = [
     {
@@ -138,6 +154,19 @@ export function buildWebBetaReadinessReport(
         : "No local workspace identity is available, so future sync batches cannot be tied to a stable local workspace/device.",
       nextAction:
         "Keep this identity local until the user explicitly opts into account login and cloud sync.",
+    },
+    {
+      id: "cloud-link-proof",
+      title: "Cloud workspace link proof",
+      status: hasCloudLinkProof ? "partial" : "blocked",
+      category: "cloud",
+      evidence: hasCloudLinkProof
+        ? `Local workspace is linked to cloud workspace ${input.workspaceIdentity?.cloud_workspace_id} as ${input.workspaceIdentity?.cloud_role}; bootstrap proof ${input.workspaceIdentity?.cloud_bootstrap_checked_at} records ${input.workspaceIdentity?.cloud_bootstrap_module_count} modules and push/pull disabled.`
+        : linked
+          ? "Local workspace has a cloud workspace id, but no valid bootstrap proof with push/pull disabled is recorded."
+          : "Local workspace is not linked to a cloud workspace and has no bootstrap membership proof.",
+      nextAction:
+        "Run Cloud Alpha session check, workspace bootstrap, and local link receipt before any future cloud sync opt-in.",
     },
     {
       id: "account-session-boundary",
@@ -243,8 +272,10 @@ export function buildWebBetaReadinessReport(
       title: "Cloud auth and workspace identity",
       status: "blocked",
       category: "cloud",
-      evidence: input.accountSessionBoundary
-        ? "A local account/session boundary exists, but login, session refresh, workspace membership, and server-side role enforcement remain disabled."
+      evidence: hasCloudLinkProof
+        ? "Cloud Alpha can record account/workspace link metadata after bootstrap proof, but session refresh, server-side role enforcement, and sync membership checks are still incomplete."
+        : input.accountSessionBoundary
+          ? "A local account/session boundary exists, but login, session refresh, workspace membership, and server-side role enforcement remain disabled."
         : input.workspaceIdentity
           ? "A local anonymous workspace/device identity exists, but no login, session refresh, workspace membership, or server-side role enforcement exists yet."
           : "No login, session refresh, workspace membership, server-side role enforcement, or local identity exists yet.",
@@ -372,6 +403,20 @@ export function buildWebBetaReadinessReport(
       pending_sync_rows: pendingRows,
       workspace_id: input.workspaceIdentity?.workspace_id ?? null,
       device_id: input.workspaceIdentity?.device_id ?? null,
+      cloud_status: input.workspaceIdentity?.cloud_status ?? "missing",
+      cloud_workspace_id: input.workspaceIdentity?.cloud_workspace_id ?? null,
+      cloud_role: input.workspaceIdentity?.cloud_role ?? null,
+      cloud_bootstrap_checked_at:
+        input.workspaceIdentity?.cloud_bootstrap_checked_at ?? null,
+      cloud_bootstrap_module_count:
+        input.workspaceIdentity?.cloud_bootstrap_module_count ?? null,
+      cloud_sync_push_enabled: Boolean(
+        input.workspaceIdentity?.cloud_sync_push_enabled
+      ),
+      cloud_sync_pull_enabled: Boolean(
+        input.workspaceIdentity?.cloud_sync_pull_enabled
+      ),
+      cloud_link_proof_status: hasCloudLinkProof ? "present" : "missing",
       workspace_identity_status: input.workspaceIdentity ? "present" : "missing",
       sync_payload_preview_status: input.syncPayloadPreview
         ? "present"

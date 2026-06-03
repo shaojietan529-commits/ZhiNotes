@@ -1975,6 +1975,35 @@ function SyncDashboard() {
                   detail={`${syncOptInGate.payload_scope.high_risk_tables} high-risk table groups`}
                 />
                 <IdentityMetric
+                  label="Bootstrap proof"
+                  value={
+                    syncOptInGate.workspace_identity.bootstrap_checked_at
+                      ? "Present"
+                      : "Missing"
+                  }
+                  detail={
+                    syncOptInGate.workspace_identity.bootstrap_checked_at
+                      ? `${formatDate(
+                          syncOptInGate.workspace_identity
+                            .bootstrap_checked_at
+                        )}; ${syncOptInGate.workspace_identity.bootstrap_module_count ?? 0} modules`
+                      : "Run workspace bootstrap before link"
+                  }
+                />
+                <IdentityMetric
+                  label="Sync flags"
+                  value={`push ${
+                    syncOptInGate.workspace_identity.sync_push_enabled
+                      ? "on"
+                      : "off"
+                  } / pull ${
+                    syncOptInGate.workspace_identity.sync_pull_enabled
+                      ? "on"
+                      : "off"
+                  }`}
+                  detail="Must stay off before first sync"
+                />
+                <IdentityMetric
                   label="Uploads"
                   value="Disabled"
                   detail="No notes, files, or rows uploaded"

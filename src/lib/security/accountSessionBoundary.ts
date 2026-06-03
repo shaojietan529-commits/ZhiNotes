@@ -59,6 +59,13 @@ export interface AccountSessionBoundary {
     workspace_identity_available: boolean;
     workspace_id: string | null;
     device_id: string | null;
+    cloud_status: LocalWorkspaceIdentity["cloud_status"] | "missing";
+    cloud_workspace_id: string | null;
+    cloud_role: LocalWorkspaceIdentity["cloud_role"] | null;
+    bootstrap_checked_at: string | null;
+    bootstrap_module_count: number | null;
+    sync_push_enabled: boolean;
+    sync_pull_enabled: boolean;
     auth_disabled_routes: number;
   };
   summary: {
@@ -77,7 +84,10 @@ export interface AccountSessionBoundary {
 export function buildAccountSessionBoundary(
   input: AccountSessionBoundaryInput
 ): AccountSessionBoundary {
-  const phases = buildAccountSessionPhases(input.authApiStubs);
+  const phases = buildAccountSessionPhases(
+    input.authApiStubs,
+    input.workspaceIdentity
+  );
   const gates = buildAccountSessionGates(input);
   const fields = buildAccountSessionFieldRules();
 
@@ -107,6 +117,17 @@ export function buildAccountSessionBoundary(
       workspace_identity_available: Boolean(input.workspaceIdentity),
       workspace_id: input.workspaceIdentity?.workspace_id ?? null,
       device_id: input.workspaceIdentity?.device_id ?? null,
+      cloud_status: input.workspaceIdentity?.cloud_status ?? "missing",
+      cloud_workspace_id: input.workspaceIdentity?.cloud_workspace_id ?? null,
+      cloud_role: input.workspaceIdentity?.cloud_role ?? null,
+      bootstrap_checked_at:
+        input.workspaceIdentity?.cloud_bootstrap_checked_at ?? null,
+      bootstrap_module_count:
+        input.workspaceIdentity?.cloud_bootstrap_module_count ?? null,
+      sync_push_enabled: Boolean(
+        input.workspaceIdentity?.cloud_sync_push_enabled
+      ),
+      sync_pull_enabled: Boolean(input.workspaceIdentity?.cloud_sync_pull_enabled),
       auth_disabled_routes: input.authApiStubs.length,
     },
     summary: {
@@ -127,10 +148,17 @@ export function buildAccountSessionBoundary(
 }
 
 function buildAccountSessionPhases(
-  authApiStubs: WebBetaApiStub[]
+  authApiStubs: WebBetaApiStub[],
+  workspaceIdentity: LocalWorkspaceIdentity | null
 ): AccountSessionPhase[] {
   const authRouteMap = new Map(
     authApiStubs.map((stub) => [stub.id, stub.path] as const)
+  );
+  const linked = workspaceIdentity?.cloud_status === "linked-alpha";
+  const hasBootstrapProof = Boolean(
+    linked &&
+      workspaceIdentity?.cloud_bootstrap_checked_at &&
+      typeof workspaceIdentity.cloud_bootstrap_module_count === "number"
   );
 
   return [
@@ -189,10 +217,13 @@ function buildAccountSessionPhases(
       title: "Local workspace to cloud account link",
       status: "manual-confirmation",
       disabled_route: null,
-      current_boundary:
-        "No local workspace is linked to a cloud account, and no local notes are uploaded.",
+      current_boundary: linked
+        ? hasBootstrapProof
+          ? `Local workspace is linked to cloud workspace ${workspaceIdentity?.cloud_workspace_id} with bootstrap proof at ${workspaceIdentity?.cloud_bootstrap_checked_at}; no local notes are uploaded.`
+          : `Local workspace is linked to cloud workspace ${workspaceIdentity?.cloud_workspace_id}, but no bootstrap proof is recorded; no local notes are uploaded.`
+        : "No local workspace is linked to a cloud account, and no local notes are uploaded.",
       required_before_enablement:
-        "Show owner confirmation, backup export prompt, sync payload preview, and conflict policy before linking local data to an account.",
+        "Require bootstrap membership proof, owner confirmation, backup export prompt, sync payload preview, and conflict policy before linking local data to an account.",
     },
   ];
 }
@@ -223,8 +254,10 @@ function buildAccountSessionGates(
       id: "workspace-membership",
       title: "Workspace membership enforcement",
       status: "blocked",
-      evidence: input.workspaceIdentity
-        ? `Local workspace ${input.workspaceIdentity.workspace_id} exists, but no cloud membership or server role check exists.`
+      evidence: input.workspaceIdentity?.cloud_bootstrap_checked_at
+        ? `Local workspace ${input.workspaceIdentity.workspace_id} has a bootstrap proof for cloud workspace ${input.workspaceIdentity.cloud_workspace_id}, but sync, restore, file, permission, audit, and AI endpoints still need server-side membership checks.`
+        : input.workspaceIdentity
+          ? `Local workspace ${input.workspaceIdentity.workspace_id} exists, but no bootstrap proof or server role check is recorded.`
         : "No local workspace identity or cloud membership exists.",
       required_action:
         "Require workspace membership checks before bootstrap, sync, restore, file, permission, audit, or AI endpoints.",
@@ -233,10 +266,11 @@ function buildAccountSessionGates(
       id: "local-link-confirmation",
       title: "Local-to-cloud link confirmation",
       status: "manual-confirmation",
-      evidence:
-        "Local workspace data remains browser-local and unlinked to any account.",
+      evidence: input.workspaceIdentity?.cloud_status === "linked-alpha"
+        ? `Local workspace link metadata is stored for cloud workspace ${input.workspaceIdentity.cloud_workspace_id}; workspace data remains browser-local and is not uploaded.`
+        : "Local workspace data remains browser-local and unlinked to any account.",
       required_action:
-        "Require owner confirmation, backup export, sync payload preview, and rollback path before linking local data to a cloud account.",
+        "Require bootstrap proof, owner confirmation, backup export, sync payload preview, and rollback path before linking local data to a cloud account.",
     },
     {
       id: "audit-permission-integration",

@@ -13,6 +13,11 @@ const files = {
   environmentPreflight: "src/lib/sync/webBetaEnvironmentPreflight.ts",
   launchChecklist: "src/lib/sync/webBetaLaunchChecklist.ts",
   routePreflight: "src/lib/sync/webBetaRoutePreflight.ts",
+  syncOptInGate: "src/lib/sync/syncOptInGate.ts",
+  workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
+  accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
+  webBetaReadiness: "src/lib/sync/webBetaReadiness.ts",
+  syncShell: "src/components/modules/SyncShell.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
 };
 
@@ -115,6 +120,12 @@ function assertRouteGuard(routeFile, expectedSnippet, routeLabel) {
   }
 }
 
+function assertSourceIncludes(sourceLabel, source, expectedSnippet, message) {
+  if (!source.includes(expectedSnippet)) {
+    fail(`${sourceLabel} missing ${expectedSnippet}: ${message}`);
+  }
+}
+
 function assertAllPresent(label, expected, actual, formatMissing) {
   const actualSet = new Set(actual);
   for (const item of expected) {
@@ -151,6 +162,11 @@ function run() {
   const environmentPreflight = readProjectFile(files.environmentPreflight);
   const launchChecklist = readProjectFile(files.launchChecklist);
   const routePreflight = readProjectFile(files.routePreflight);
+  const syncOptInGate = readProjectFile(files.syncOptInGate);
+  const workspaceIdentity = readProjectFile(files.workspaceIdentity);
+  const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
+  const webBetaReadiness = readProjectFile(files.webBetaReadiness);
+  const syncShell = readProjectFile(files.syncShell);
   const migration = readProjectFile(files.migration);
 
   const requiredEnvKeys = extractQuotedValues(environmentPreflight, "key");
@@ -164,6 +180,11 @@ function run() {
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
     [files.routePreflight, routePreflight],
+    [files.syncOptInGate, syncOptInGate],
+    [files.workspaceIdentity, workspaceIdentity],
+    [files.accountSessionBoundary, accountSessionBoundary],
+    [files.webBetaReadiness, webBetaReadiness],
+    [files.syncShell, syncShell],
   ]) {
     assertNoLegacySingularEnv(source, label);
   }
@@ -209,6 +230,48 @@ function run() {
     "buildWebBetaEnvironmentPreflight",
     "GET /api/web-beta/environment-preflight"
   );
+  assertSourceIncludes(
+    files.workspaceIdentity,
+    workspaceIdentity,
+    "validateBootstrapProof(input)",
+    "Local cloud workspace linking must validate bootstrap proof."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "!bootstrapProofMatchesSelection",
+    "Sync UI must disable local cloud linking without a matching bootstrap proof."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildLocalWorkspaceCloudLinkReceipt",
+    "Sync UI must export metadata-only cloud link receipts."
+  );
+  assertSourceIncludes(
+    files.syncOptInGate,
+    syncOptInGate,
+    'id: "bootstrap-proof"',
+    "Sync opt-in gate must include bootstrap membership proof."
+  );
+  assertSourceIncludes(
+    files.syncOptInGate,
+    syncOptInGate,
+    "cloud_bootstrap_checked_at",
+    "Sync opt-in gate must expose bootstrap proof metadata."
+  );
+  assertSourceIncludes(
+    files.accountSessionBoundary,
+    accountSessionBoundary,
+    "bootstrap_checked_at",
+    "Account/session boundary must include bootstrap proof evidence."
+  );
+  assertSourceIncludes(
+    files.webBetaReadiness,
+    webBetaReadiness,
+    'id: "cloud-link-proof"',
+    "Web Beta readiness must include cloud link proof gate."
+  );
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
@@ -249,6 +312,7 @@ function run() {
     page_routes: expectedPageRoutes.length,
     migration_contract_tables: contractTables.length,
     migration_tables: migrationTables.length,
+    link_proof_contract_checks: 7,
     warnings: warnings.length,
   };
 

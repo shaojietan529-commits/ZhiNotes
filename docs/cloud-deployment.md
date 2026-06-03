@@ -131,6 +131,9 @@ https://your-vercel-domain.vercel.app/auth/callback
 - 本地 workspace 连接云 workspace 前，必须先用当前 session 对选中的
   workspace 完成 bootstrap membership 检查，并导出/保留 metadata-only
   link receipt。
+- Cloud sync opt-in gate 必须同时看到 linked workspace、bootstrap proof、
+  payload preview、conflict baseline、disabled push API 和 owner confirmation
+  phrase；只有 cloud workspace id 不足以进入同步。
 - Cloud sync owner confirmation phrase 可以在本地生成 receipt，但 receipt 不会开启 push。
 - AI 外发和 restore write-back confirmation phrase 可以在本地生成 receipt，但 receipt 不会开启 `/api/ai/run` 或 `/api/backup/restore-apply`。
 - HTML 外部资源加载 confirmation phrase 可以在本地生成 receipt，但默认仍阻止远程资源，且 receipt 不包含报告正文、URL 列表、token 或文件 bytes。

@@ -40,6 +40,10 @@ export interface SyncOptInGateReport {
     cloud_status: LocalWorkspaceIdentity["cloud_status"] | "missing";
     cloud_workspace_id: string | null;
     cloud_role: LocalWorkspaceIdentity["cloud_role"] | null;
+    bootstrap_checked_at: string | null;
+    bootstrap_module_count: number | null;
+    sync_push_enabled: boolean;
+    sync_pull_enabled: boolean;
   };
   payload_scope: {
     pending_count: number;
@@ -88,6 +92,14 @@ export function buildSyncOptInGateReport(
       cloud_status: input.workspaceIdentity?.cloud_status ?? "missing",
       cloud_workspace_id: input.workspaceIdentity?.cloud_workspace_id ?? null,
       cloud_role: input.workspaceIdentity?.cloud_role ?? null,
+      bootstrap_checked_at:
+        input.workspaceIdentity?.cloud_bootstrap_checked_at ?? null,
+      bootstrap_module_count:
+        input.workspaceIdentity?.cloud_bootstrap_module_count ?? null,
+      sync_push_enabled: Boolean(
+        input.workspaceIdentity?.cloud_sync_push_enabled
+      ),
+      sync_pull_enabled: Boolean(input.workspaceIdentity?.cloud_sync_pull_enabled),
     },
     payload_scope: {
       pending_count: input.syncPayloadPreview.summary.pending_count,
@@ -124,6 +136,15 @@ export function buildSyncOptInGateReport(
 function buildGates(input: SyncOptInGateInput): SyncOptInGateRow[] {
   const identity = input.workspaceIdentity;
   const linked = identity?.cloud_status === "linked-alpha";
+  const hasBootstrapProof = Boolean(
+    linked &&
+      identity?.cloud_bootstrap_checked_at &&
+      typeof identity.cloud_bootstrap_module_count === "number"
+  );
+  const bootstrapKeepsSyncDisabled =
+    hasBootstrapProof &&
+    !identity?.cloud_sync_push_enabled &&
+    !identity?.cloud_sync_pull_enabled;
   const hasPendingRows = input.syncPayloadPreview.summary.pending_count > 0;
   const needsRemoteBaseline =
     input.conflictReview.summary.needs_remote_baseline > 0;
@@ -145,12 +166,24 @@ function buildGates(input: SyncOptInGateInput): SyncOptInGateRow[] {
     {
       id: "cloud-link",
       title: "Cloud workspace link",
-      status: linked ? "ready" : "blocked",
+      status: linked ? "manual-confirmation" : "blocked",
       evidence: linked
-        ? `Linked to cloud workspace ${identity?.cloud_workspace_id} as ${identity?.cloud_role}.`
+        ? `Linked locally to cloud workspace ${identity?.cloud_workspace_id} as ${identity?.cloud_role}; bootstrap proof is checked separately.`
         : "The local browser workspace is not linked to a cloud workspace id.",
       required_action:
         "Use Cloud Alpha to log in, list or create a workspace, run bootstrap, then connect the local workspace.",
+    },
+    {
+      id: "bootstrap-proof",
+      title: "Bootstrap membership proof",
+      status: bootstrapKeepsSyncDisabled ? "ready" : "blocked",
+      evidence: bootstrapKeepsSyncDisabled
+        ? `Bootstrap membership proof was recorded at ${identity?.cloud_bootstrap_checked_at}; module count ${identity?.cloud_bootstrap_module_count}; push and pull remain disabled.`
+        : hasBootstrapProof
+          ? "Bootstrap proof exists, but it does not prove both sync push and pull remain disabled."
+          : "No bootstrap membership proof is recorded for the linked cloud workspace.",
+      required_action:
+        "Run workspace bootstrap with the current session before treating the local cloud link as eligible for any future sync opt-in flow.",
     },
     {
       id: "payload-preview",
