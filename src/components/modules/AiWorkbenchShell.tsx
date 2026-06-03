@@ -17,6 +17,7 @@ import {
   type AiExecutionGateStatus,
   type AiExecutionPolicy,
 } from "@/lib/ai/aiExecutionPolicy";
+import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
@@ -169,7 +170,7 @@ function AiWorkbenchDashboard() {
     () =>
       buildHighRiskConfirmationReceipt({
         actionId: "ai-external-run",
-        requiredPhrase: "ENABLE AI EXTERNAL RUN",
+        requiredPhrase: getHighRiskRequiredPhrase("ai-external-run"),
         typedPhrase: aiConfirmationPhrase,
         scopeSummary: `${selectedWorkflow.title}; ${aiPayloadPreview.summary.selected_pages} selected pages; ${aiPayloadPreview.summary.files_available} available local files; prompt text included in receipt: no.`,
         riskSummary:

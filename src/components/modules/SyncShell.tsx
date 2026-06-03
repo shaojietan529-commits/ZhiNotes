@@ -34,7 +34,6 @@ import {
 } from "@/lib/files/localStore";
 import {
   PERMISSION_ROLES,
-  RISKY_PERMISSION_ACTIONS,
   buildPermissionPolicySnapshot,
   getRolePermissionMatrix,
   type PermissionRoleId,
@@ -49,6 +48,12 @@ import {
   type PermissionDecisionReport,
   type PermissionDecisionStatus,
 } from "@/lib/security/permissionDecision";
+import {
+  buildHighRiskActionRegistryReport,
+  getHighRiskRequiredPhrase,
+  type HighRiskActionCoverage,
+  type HighRiskActionRegistryReport,
+} from "@/lib/security/highRiskActionRegistry";
 import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 import {
   buildAccountSessionBoundary,
@@ -174,6 +179,7 @@ type WebBetaContractAction =
   | "audit-policy"
   | "permission-decisions"
   | "account-session"
+  | "high-risk-registry"
   | "migration-sql";
 type ReadinessStatus = "Ready" | "Partial" | "Missing" | "Needs confirmation";
 
@@ -508,6 +514,10 @@ function SyncDashboard() {
       }),
     [auditTrailPolicy]
   );
+  const highRiskActionRegistry = useMemo(
+    () => buildHighRiskActionRegistryReport(),
+    []
+  );
   const syncReplayTestPlan = useMemo(
     () =>
       buildSyncReplayTestPlan({
@@ -588,7 +598,7 @@ function SyncDashboard() {
     () =>
       buildHighRiskConfirmationReceipt({
         actionId: "restore-writeback",
-        requiredPhrase: "ENABLE RESTORE WRITEBACK",
+        requiredPhrase: getHighRiskRequiredPhrase("restore-writeback"),
         typedPhrase: restoreConfirmationPhrase,
         actorLabel:
           cloudSession?.user?.email ?? cloudSession?.user?.id ?? null,
@@ -1402,6 +1412,29 @@ function SyncDashboard() {
       window.alert("Permission policy export failed. Please check the console.");
     } finally {
       setBusyPermissionAction(null);
+    }
+  };
+
+  const handleExportHighRiskActionRegistry = () => {
+    setBusyContractAction("high-risk-registry");
+    try {
+      downloadJsonFile(
+        `zhinote-high-risk-action-registry-${fileSafeTimestamp()}.json`,
+        {
+          ...highRiskActionRegistry,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export high-risk action registry:",
+        err
+      );
+      window.alert(
+        "High-risk action registry export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
     }
   };
 
@@ -3136,22 +3169,51 @@ function SyncDashboard() {
           </div>
 
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Confirmation rules
-            </h2>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  High-risk action registry
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  Local registry for typed confirmations across sync, restore,
+                  AI, file preview, database import, sharing, and delete
+                  workflows. Exporting it does not enable any action.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportHighRiskActionRegistry}
+                disabled={busyContractAction === "high-risk-registry"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyContractAction === "high-risk-registry"
+                  ? "Exporting..."
+                  : "Export registry"}
+              </button>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              <HighRiskRegistrySummaryCard
+                label="Actions"
+                value={highRiskActionRegistry.summary.actions}
+                detail="Registered gates"
+              />
+              <HighRiskRegistrySummaryCard
+                label="Receipts"
+                value={highRiskActionRegistry.summary.local_receipt_available}
+                detail="Local receipt ready"
+              />
+              <HighRiskRegistrySummaryCard
+                label="Planned"
+                value={highRiskActionRegistry.summary.planned}
+                detail="Reserved gates"
+              />
+            </div>
             <div className="mt-3 space-y-2">
-              {RISKY_PERMISSION_ACTIONS.map((action) => (
-                <div
-                  key={action.id}
-                  className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800"
-                >
-                  <div className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                    {action.title}
-                  </div>
-                  <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                    {action.detail}
-                  </p>
-                </div>
+              {highRiskActionRegistry.actions.map((action) => (
+                <HighRiskActionRegistryRow
+                  key={action.action_id}
+                  action={action}
+                />
               ))}
             </div>
           </div>
@@ -4152,6 +4214,89 @@ function PermissionDecisionStatusPill({
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[status]}
+    </span>
+  );
+}
+
+function HighRiskRegistrySummaryCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function HighRiskActionRegistryRow({
+  action,
+}: {
+  action: HighRiskActionRegistryReport["actions"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {action.title}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+              {action.category}
+            </span>
+            <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+              {action.module_surface}
+            </span>
+          </div>
+        </div>
+        <HighRiskCoveragePill coverage={action.coverage} />
+      </div>
+      <div className="mt-2 rounded-md bg-zinc-50 px-2 py-1 font-mono text-[11px] text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+        {action.required_phrase}
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {action.current_boundary}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {action.can_execute_today
+          ? "Can execute today only after typed confirmation and visible local review."
+          : "Reserved or blocked until missing server, audit, rollback, or permission controls exist."}
+      </p>
+    </article>
+  );
+}
+
+function HighRiskCoveragePill({
+  coverage,
+}: {
+  coverage: HighRiskActionCoverage;
+}) {
+  const labels: Record<HighRiskActionCoverage, string> = {
+    "local-receipt-available": "Receipt",
+    planned: "Planned",
+    blocked: "Blocked",
+  };
+
+  const className =
+    coverage === "local-receipt-available"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : coverage === "planned"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[coverage]}
     </span>
   );
 }

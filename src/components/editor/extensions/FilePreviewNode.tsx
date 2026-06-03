@@ -25,6 +25,7 @@ import { convertNotebookToHtml } from "@/lib/files/notebook";
 import { convertOdpToHtml, convertOdtToHtml } from "@/lib/files/openDocument";
 import { convertPptxToHtml } from "@/lib/files/presentation";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
+import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 
 export interface FilePreviewAttrs {
@@ -48,8 +49,11 @@ const PREVIEW_CSP =
   "default-src 'none'; img-src data: blob:; media-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; frame-src data: blob:; child-src data: blob:; connect-src 'none';";
 const SPREADSHEET_DATABASE_ROW_LIMIT = 500;
 const SPREADSHEET_DATABASE_COLUMN_LIMIT = 50;
-const BULK_IMPORT_CONFIRMATION_PHRASE = "ENABLE BULK IMPORT";
-const EXTERNAL_RESOURCE_CONFIRMATION_PHRASE = "ENABLE EXTERNAL RESOURCES";
+const BULK_IMPORT_CONFIRMATION_PHRASE =
+  getHighRiskRequiredPhrase("bulk-import");
+const EXTERNAL_RESOURCE_CONFIRMATION_PHRASE = getHighRiskRequiredPhrase(
+  "external-resource-load"
+);
 const FILE_KIND_LABELS: Record<PageFileKind, string> = {
   html: "HTML",
   markdown: "Markdown",

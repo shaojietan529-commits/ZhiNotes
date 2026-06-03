@@ -121,6 +121,7 @@ https://your-vercel-domain.vercel.app/auth/callback
 - AI 外发和 restore write-back confirmation phrase 可以在本地生成 receipt，但 receipt 不会开启 `/api/ai/run` 或 `/api/backup/restore-apply`。
 - HTML 外部资源加载 confirmation phrase 可以在本地生成 receipt，但默认仍阻止远程资源，且 receipt 不包含报告正文、URL 列表、token 或文件 bytes。
 - Spreadsheet bulk import confirmation phrase 可以在本地生成 receipt；导入仍只写入本地浏览器数据库，receipt 不包含 cell values 或文件 bytes。
+- High-risk action registry 可以在本地导出，集中列出 typed confirmation phrase、覆盖状态和缺失控制；registry 不开启任何高风险动作。
 
 ## 后续云同步顺序
 
@@ -136,3 +137,4 @@ https://your-vercel-domain.vercel.app/auth/callback
 10. AI provider、retention、final payload preview 和 typed confirmation receipt。
 11. HTML/Report external resource allowlist、typed confirmation receipt 和审计事件。
 12. Spreadsheet/database bulk import confirmation、rollback plan 和 audit events。
+13. High-risk action registry 和模块接入规范。

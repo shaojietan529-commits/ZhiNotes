@@ -1,6 +1,11 @@
+import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 import type { LocalWorkspaceIdentity } from "@/lib/sync/workspaceIdentity";
 import type { SyncConflictReviewReport } from "@/lib/sync/syncConflictReview";
 import type { SyncPayloadPreview } from "@/lib/sync/syncPayloadPreview";
+
+const CLOUD_SYNC_CONFIRMATION_PHRASE = getHighRiskRequiredPhrase(
+  "cloud-sync-first-push"
+);
 
 export type SyncOptInGateStatus =
   | "ready"
@@ -101,7 +106,7 @@ export function buildSyncOptInGateReport(
       push_api_disabled: true,
     },
     confirmation: {
-      required_phrase: "ENABLE PRIVATE ALPHA SYNC",
+      required_phrase: CLOUD_SYNC_CONFIRMATION_PHRASE,
       current_ui_collects_phrase: Boolean(input.currentUiCollectsPhrase),
     },
     summary: {
@@ -191,7 +196,7 @@ function buildGates(input: SyncOptInGateInput): SyncOptInGateRow[] {
         ? "The UI collects the required private-alpha sync phrase, but no upload implementation consumes it."
         : "No UI currently collects the required private-alpha sync phrase.",
       required_action:
-        "Before first real upload, require the owner to type ENABLE PRIVATE ALPHA SYNC after reviewing exact scope and destination.",
+        `Before first real upload, require the owner to type ${CLOUD_SYNC_CONFIRMATION_PHRASE} after reviewing exact scope and destination.`,
     },
   ];
 }

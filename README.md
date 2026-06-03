@@ -295,6 +295,11 @@ Current local actions:
   Owner, Researcher, and Viewer role/resource/action combinations plus high-risk
   scenarios, but does not create users, grant access, revoke access, enforce
   server permissions, read page text, read file bytes, or upload workspace data.
+- Review and export a local high-risk action registry. The registry centralizes
+  typed confirmation phrases and coverage for cloud sync, restore write-back,
+  AI execution, HTML external resources, spreadsheet bulk import, future bulk
+  delete, and future sharing. Exporting it does not enable any action or include
+  workspace content.
 - Review and export a local Web Beta contract draft covering account login,
   cloud tables, sync APIs, conflict policies, deployment gates, and privacy
   confirmations. The export does not create accounts, connect cloud services,
@@ -400,6 +405,8 @@ The current app is local-first:
   they can be enabled for a trusted preview.
 - Spreadsheet-to-database bulk import requires a typed local confirmation
   receipt before it creates database fields or rows.
+- High-risk confirmation phrases are also visible in a local registry on the
+  Sync module so future modules can reuse the same policy.
 - Embed blocks do not load external iframes until the user clicks to load them.
 - Backup export is local-only, but the exported JSON may contain private data.
 
