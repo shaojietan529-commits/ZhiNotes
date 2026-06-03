@@ -3,6 +3,7 @@ import type { CloudSchemaMigrationPlan } from "@/lib/sync/cloudSchemaMigrationPl
 import type { WebBetaLaunchChecklist } from "@/lib/sync/webBetaLaunchChecklist";
 import type { WebBetaEnvironmentPreflight } from "@/lib/sync/webBetaEnvironmentPreflight";
 import type { WebBetaDeploymentTarget } from "@/lib/sync/webBetaDeploymentTarget";
+import type { WebBetaSmokeTestPlan } from "@/lib/sync/webBetaSmokeTestPlan";
 
 export type WebBetaContractStatus =
   | "local-draft"
@@ -404,6 +405,7 @@ export function buildWebBetaContractSnapshot(input?: {
   webBetaLaunchChecklist?: WebBetaLaunchChecklist | null;
   webBetaEnvironmentPreflight?: WebBetaEnvironmentPreflight | null;
   webBetaDeploymentTarget?: WebBetaDeploymentTarget | null;
+  webBetaSmokeTestPlan?: WebBetaSmokeTestPlan | null;
 }) {
   return {
     format: "zhinote-web-beta-contract",
@@ -418,6 +420,7 @@ export function buildWebBetaContractSnapshot(input?: {
     web_beta_environment_preflight:
       input?.webBetaEnvironmentPreflight ?? null,
     web_beta_deployment_target: input?.webBetaDeploymentTarget ?? null,
+    web_beta_smoke_test_plan: input?.webBetaSmokeTestPlan ?? null,
     sync_api_contracts: SYNC_API_CONTRACTS,
     disabled_api_stubs: WEB_BETA_API_STUBS,
     conflict_policies: CONFLICT_POLICIES,

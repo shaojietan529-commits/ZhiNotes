@@ -105,6 +105,11 @@ import {
   buildWebBetaDeploymentTarget,
   type WebBetaDeploymentTarget,
 } from "@/lib/sync/webBetaDeploymentTarget";
+import {
+  buildWebBetaSmokeTestPlan,
+  type WebBetaSmokeTestPlan,
+  type WebBetaSmokeTestStatus,
+} from "@/lib/sync/webBetaSmokeTestPlan";
 import type {
   WebBetaEnvironmentCheckStatus,
   WebBetaEnvironmentPreflight,
@@ -202,6 +207,7 @@ type WebBetaContractAction =
   | "migration-sql"
   | "next-actions"
   | "deployment-target"
+  | "smoke-test-plan"
   | "route-preflight";
 type ReadinessStatus = "Ready" | "Partial" | "Missing" | "Needs confirmation";
 
@@ -773,6 +779,21 @@ function SyncDashboard() {
   const webBetaRoutePreflight = useMemo(
     () => buildWebBetaRoutePreflightReport(webBetaLaunchChecklist),
     [webBetaLaunchChecklist]
+  );
+  const webBetaSmokeTestPlan = useMemo(
+    () =>
+      buildWebBetaSmokeTestPlan({
+        deploymentTarget: webBetaDeploymentTarget,
+        routePreflight: webBetaRoutePreflight,
+        readinessReport: webBetaReadinessReport,
+        environmentPreflight,
+      }),
+    [
+      environmentPreflight,
+      webBetaDeploymentTarget,
+      webBetaReadinessReport,
+      webBetaRoutePreflight,
+    ]
   );
   const webBetaNextActionPlan = useMemo(
     () =>
@@ -1557,6 +1578,7 @@ function SyncDashboard() {
           webBetaLaunchChecklist,
           webBetaEnvironmentPreflight: environmentPreflight,
           webBetaDeploymentTarget,
+          webBetaSmokeTestPlan,
         }),
         exported_at: new Date().toISOString(),
       });
@@ -1655,6 +1677,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Web beta route preflight export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportWebBetaSmokeTestPlan = () => {
+    setBusyContractAction("smoke-test-plan");
+    try {
+      downloadJsonFile(
+        `zhinote-web-beta-smoke-test-plan-${fileSafeTimestamp()}.json`,
+        {
+          ...webBetaSmokeTestPlan,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export web beta smoke test plan:",
+        err
+      );
+      window.alert(
+        "Web beta smoke test plan export failed. Please check the console."
       );
     } finally {
       setBusyContractAction(null);
@@ -3359,6 +3404,65 @@ function SyncDashboard() {
             <div className="mt-4 grid gap-2 xl:grid-cols-2">
               {webBetaRoutePreflight.checks.map((check) => (
                 <RoutePreflightRow key={check.id} check={check} />
+              ))}
+            </div>
+          </ContractPanel>
+
+          <ContractPanel title="Smoke test plan" className="mt-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                Local smoke test plan for a future preview deployment. It
+                defines pre-deploy checks, preview route checks, auth callback
+                checks, disabled cloud defaults, private storage boundaries,
+                rollback, observability, and narrow-layout review without
+                running tests or sending network requests.
+              </p>
+              <button
+                type="button"
+                onClick={handleExportWebBetaSmokeTestPlan}
+                disabled={busyContractAction === "smoke-test-plan"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyContractAction === "smoke-test-plan"
+                  ? "Exporting..."
+                  : "Export smoke test plan"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
+              <SmokeTestSummaryCard
+                label="Cases"
+                value={webBetaSmokeTestPlan.summary.cases}
+                detail="Preview checks"
+                status="ready-to-run"
+              />
+              <SmokeTestSummaryCard
+                label="Automated"
+                value={webBetaSmokeTestPlan.summary.automated}
+                detail="Command/checkable"
+                status="ready-to-run"
+              />
+              <SmokeTestSummaryCard
+                label="Manual"
+                value={webBetaSmokeTestPlan.summary.manual}
+                detail="Owner review"
+                status="manual-confirmation"
+              />
+              <SmokeTestSummaryCard
+                label="Blocked"
+                value={webBetaSmokeTestPlan.summary.blocked}
+                detail="Cloud/setup gaps"
+                status="blocked"
+              />
+              <SmokeTestSummaryCard
+                label="Boundary"
+                value="No run"
+                detail="Plan export only"
+                status="manual-confirmation"
+              />
+            </div>
+            <div className="mt-4 grid gap-2 xl:grid-cols-2">
+              {webBetaSmokeTestPlan.cases.map((testCase) => (
+                <SmokeTestCaseRow key={testCase.id} testCase={testCase} />
               ))}
             </div>
           </ContractPanel>
@@ -5762,6 +5866,92 @@ function RoutePreflightStatusPill({
     status === "covered"
       ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : status === "status-mismatch"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function SmokeTestSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: WebBetaSmokeTestStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <SmokeTestStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function SmokeTestCaseRow({
+  testCase,
+}: {
+  testCase: WebBetaSmokeTestPlan["cases"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {testCase.title}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+              {testCase.phase}
+            </span>
+            <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-400 dark:bg-zinc-800">
+              {testCase.mode}
+            </span>
+          </div>
+        </div>
+        <SmokeTestStatusPill status={testCase.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {testCase.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {testCase.pass_condition}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {testCase.failure_response}
+      </p>
+    </article>
+  );
+}
+
+function SmokeTestStatusPill({
+  status,
+}: {
+  status: WebBetaSmokeTestStatus;
+}) {
+  const labels: Record<WebBetaSmokeTestStatus, string> = {
+    "ready-to-run": "Ready",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "ready-to-run"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 

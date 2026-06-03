@@ -425,6 +425,12 @@ Current local actions:
   routes, and the environment preflight endpoint against the launch checklist,
   but it does not send network requests, connect cloud services, upload data,
   read page bodies, or read file bytes.
+- Review and export a local Web Beta smoke test plan. The plan defines
+  pre-deploy checks, preview route checks, auth callback checks, disabled cloud
+  defaults, private storage boundaries, Cloudflare edge staging, rollback,
+  observability, and narrow-layout review; it does not run tests, send network
+  requests, deploy the app, create accounts, connect services, read secrets,
+  write server data, or upload workspace data.
 - Review and export a local Web Beta next-action plan. The plan turns readiness
   and launch blockers into ordered P0/P1/P2 build work, but does not deploy the
   app, create accounts, connect cloud services, upload workspace data, read page
@@ -484,7 +490,7 @@ The first cloud phase is a private alpha, not full sync:
   receipt is audit evidence only and does not turn on cloud push.
 - `npm run verify:web-beta` checks the local Web Beta contract before launch:
   environment keys, guarded API route files, local module routes, the deployment
-  target contract, and Supabase migration tables.
+  target contract, smoke test plan, and Supabase migration tables.
 
 See `docs/cloud-deployment.md` for the deployment checklist.
 

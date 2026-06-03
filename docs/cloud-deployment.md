@@ -20,6 +20,19 @@
 - 该合同只在本地生成和导出；不会创建云资源、部署应用、读取 secret、连接
   云服务、写 server data 或上传 workspace data。
 
+`src/lib/sync/webBetaSmokeTestPlan.ts` 记录 preview 部署后的检查计划：
+
+- pre-deploy：`lint`、`verify:web-beta`、production build、route contract。
+- preview routes：`/modules/sync`、模块页、`/auth/callback`、窄屏布局。
+- cloud defaults：cloud flag 默认关闭时，登录、workspace、sync、file、
+  audit、permissions、restore 仍必须是 gated/disabled。
+- data safety：文件同步、private storage、payload preview、外部资源、AI 和
+  restore write-back 不得在 smoke test 中上传私有内容。
+- edge and rollback：Cloudflare staging、provider rollback、migration rollback、
+  incident path 和 observability 必须在 private beta 前确认。
+- 该计划只生成本地 checklist；不会运行测试、发送网络请求、部署、创建账号、
+  连接云服务、读取 secret、写 server data 或上传 workspace data。
+
 当前目标不是一次性做完整云同步，而是先上线一个安全的 private alpha：
 
 1. Vercel 托管 Next.js 前端。
@@ -131,8 +144,12 @@ https://your-vercel-domain.vercel.app/auth/callback
 
 - `npm run lint` 通过。
 - `npm run verify:web-beta` 通过，确认环境变量、Web Beta API route、模块
-  route、Supabase migration 表结构和本地合同对齐。
+  route、deployment target、smoke test plan、Supabase migration 表结构和
+  本地合同对齐。
 - `npm run build` 通过。
+- Sync 模块里的 `Smoke test plan` 已导出或人工复核，且 preview route、auth
+  callback、disabled cloud defaults、private storage disabled、Cloudflare edge
+  staging、rollback 和 observability 都有明确通过条件。
 - Supabase migration 已在测试 project 跑通。
 - Vercel 环境变量已配置，但生产写入开关默认可先保持 false。
 - 登录 magic link 在测试邮箱上跑通。

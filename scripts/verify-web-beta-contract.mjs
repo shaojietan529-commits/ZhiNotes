@@ -11,6 +11,7 @@ const files = {
   apiStubs: "src/lib/sync/webBetaApiStubs.ts",
   contract: "src/lib/sync/webBetaContract.ts",
   deploymentTarget: "src/lib/sync/webBetaDeploymentTarget.ts",
+  smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   environmentPreflight: "src/lib/sync/webBetaEnvironmentPreflight.ts",
   launchChecklist: "src/lib/sync/webBetaLaunchChecklist.ts",
   routePreflight: "src/lib/sync/webBetaRoutePreflight.ts",
@@ -161,6 +162,7 @@ function run() {
   const apiStubs = readProjectFile(files.apiStubs);
   const contract = readProjectFile(files.contract);
   const deploymentTarget = readProjectFile(files.deploymentTarget);
+  const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const environmentPreflight = readProjectFile(files.environmentPreflight);
   const launchChecklist = readProjectFile(files.launchChecklist);
   const routePreflight = readProjectFile(files.routePreflight);
@@ -180,6 +182,7 @@ function run() {
     [files.apiStubs, apiStubs],
     [files.contract, contract],
     [files.deploymentTarget, deploymentTarget],
+    [files.smokeTestPlan, smokeTestPlan],
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
     [files.routePreflight, routePreflight],
@@ -356,6 +359,78 @@ function run() {
     "Deployment target",
     "Sync UI must render the deployment target panel."
   );
+  assertSourceIncludes(
+    files.smokeTestPlan,
+    smokeTestPlan,
+    'format: "zhinote-web-beta-smoke-test-plan"',
+    "Smoke test plan must expose a stable export format."
+  );
+  for (const [snippet, message] of [
+    ["runs_tests: false", "Smoke test plan must not run tests."],
+    [
+      "sends_network_requests: false",
+      "Smoke test plan must not send network requests.",
+    ],
+    ["deploys_app: false", "Smoke test plan must not deploy the app."],
+    [
+      "creates_accounts: false",
+      "Smoke test plan must not create accounts.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Smoke test plan must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Smoke test plan must not upload workspace data.",
+    ],
+    [
+      "exposes_secret_values: false",
+      "Smoke test plan must not expose secret values.",
+    ],
+    [
+      "requires_owner_confirmation_before_preview: true",
+      "Smoke test plan must require owner confirmation before preview.",
+    ],
+    [
+      'id: "cloud-alpha-disabled-defaults"',
+      "Smoke test plan must check disabled cloud defaults.",
+    ],
+    [
+      'id: "private-file-storage-remains-disabled"',
+      "Smoke test plan must keep private file storage disabled until proven.",
+    ],
+    [
+      'id: "cloudflare-edge-staging"',
+      "Smoke test plan must include Cloudflare edge staging review.",
+    ],
+  ]) {
+    assertSourceIncludes(files.smokeTestPlan, smokeTestPlan, snippet, message);
+  }
+  assertSourceIncludes(
+    files.contract,
+    contract,
+    "web_beta_smoke_test_plan",
+    "Web Beta contract export must include the smoke test plan."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildWebBetaSmokeTestPlan",
+    "Sync UI must build the smoke test plan."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportWebBetaSmokeTestPlan",
+    "Sync UI must export the smoke test plan."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Smoke test plan",
+    "Sync UI must render the smoke test plan panel."
+  );
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
@@ -398,6 +473,7 @@ function run() {
     migration_tables: migrationTables.length,
     link_proof_contract_checks: 7,
     deployment_target_checks: 16,
+    smoke_test_plan_checks: 16,
     warnings: warnings.length,
   };
 
