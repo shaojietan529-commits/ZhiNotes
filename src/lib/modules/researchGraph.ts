@@ -37,12 +37,93 @@ export interface ResearchGraph {
   counts: Record<ResearchAssetKind, number>;
 }
 
+export interface ResearchGraphReport {
+  format: "zhinote-research-graph-report";
+  format_version: 1;
+  report_status: "local-graph-summary";
+  privacy_note: string;
+  boundary: {
+    reads_page_text_for_classification: boolean;
+    includes_page_text: boolean;
+    includes_database_row_values: boolean;
+    includes_file_bytes: boolean;
+    uploads_data: boolean;
+    writes_workspace_data: boolean;
+  };
+  summary: {
+    assets: number;
+    connected_assets: number;
+    relation_links: number;
+    unlinked_assets: number;
+    company: number;
+    report: number;
+    meeting: number;
+    portfolio: number;
+    databases: number;
+    relation_fields: number;
+  };
+  assets: Array<{
+    id: string;
+    kind: ResearchAssetKind;
+    kind_label: string;
+    title: string;
+    icon: string | null;
+    updated_at: string;
+    connected: boolean;
+    relation_count: number;
+  }>;
+  relation_links: Array<{
+    id: string;
+    source_id: string;
+    source_title: string;
+    source_kind: ResearchAssetKind;
+    source_kind_label: string;
+    target_id: string;
+    target_title: string;
+    target_kind: ResearchAssetKind;
+    target_kind_label: string;
+    field_name: string;
+    field_label: string;
+    database_title: string;
+  }>;
+  unlinked_assets: Array<{
+    id: string;
+    kind: ResearchAssetKind;
+    kind_label: string;
+    title: string;
+    updated_at: string;
+  }>;
+  database_surfaces: Array<{
+    database_id: string;
+    title: string;
+    kind: ResearchAssetKind | null;
+    kind_label: string | null;
+    relation_fields: number;
+    rows: number;
+  }>;
+  coverage: Array<{
+    kind: ResearchAssetKind;
+    label: string;
+    assets: number;
+    connected_assets: number;
+    unlinked_assets: number;
+    relation_links: number;
+  }>;
+}
+
 const KIND_LABELS: Record<ResearchAssetKind, string> = {
   company: "公司",
   report: "报告",
   meeting: "会议",
   portfolio: "组合",
 };
+
+const RESEARCH_ASSET_KINDS: ResearchAssetKind[] = [
+  "company",
+  "report",
+  "meeting",
+  "portfolio",
+];
 
 const RELATION_FIELD_LABELS: Array<[string, string]> = [
   ["company page", "公司页面"],
@@ -251,6 +332,112 @@ export function buildResearchGraph(
       meeting: assets.filter((asset) => asset.kind === "meeting").length,
       portfolio: assets.filter((asset) => asset.kind === "portfolio").length,
     },
+  };
+}
+
+export function buildResearchGraphReport(
+  graph: ResearchGraph,
+  snapshots: ResearchDatabaseSnapshot[]
+): ResearchGraphReport {
+  const relationCounts = new Map<string, number>();
+  for (const link of graph.relationLinks) {
+    relationCounts.set(link.source.id, (relationCounts.get(link.source.id) ?? 0) + 1);
+    relationCounts.set(link.target.id, (relationCounts.get(link.target.id) ?? 0) + 1);
+  }
+
+  const connectedAssetIds = new Set(relationCounts.keys());
+  const databaseSurfaces = snapshots.map((snapshot) => {
+    const kind = classifyResearchDatabase(snapshot.database);
+    const relationFields = snapshot.fields.filter(
+      (field) => field.field_type === "relation"
+    );
+
+    return {
+      database_id: snapshot.database.id,
+      title: snapshot.database.title,
+      kind,
+      kind_label: kind ? getResearchAssetKindLabel(kind) : null,
+      relation_fields: relationFields.length,
+      rows: snapshot.rows.length,
+    };
+  });
+
+  return {
+    format: "zhinote-research-graph-report",
+    format_version: 1,
+    report_status: "local-graph-summary",
+    privacy_note:
+      "This report is generated locally and excludes page bodies, database row values, uploaded file bytes, prompts, tokens, and cloud data.",
+    boundary: {
+      reads_page_text_for_classification: true,
+      includes_page_text: false,
+      includes_database_row_values: false,
+      includes_file_bytes: false,
+      uploads_data: false,
+      writes_workspace_data: false,
+    },
+    summary: {
+      assets: graph.assets.length,
+      connected_assets: connectedAssetIds.size,
+      relation_links: graph.relationLinks.length,
+      unlinked_assets: graph.unlinkedAssets.length,
+      company: graph.counts.company,
+      report: graph.counts.report,
+      meeting: graph.counts.meeting,
+      portfolio: graph.counts.portfolio,
+      databases: databaseSurfaces.length,
+      relation_fields: databaseSurfaces.reduce(
+        (total, surface) => total + surface.relation_fields,
+        0
+      ),
+    },
+    assets: graph.assets.map((asset) => ({
+      id: asset.id,
+      kind: asset.kind,
+      kind_label: getResearchAssetKindLabel(asset.kind),
+      title: asset.title,
+      icon: asset.icon,
+      updated_at: asset.updatedAt,
+      connected: connectedAssetIds.has(asset.id),
+      relation_count: relationCounts.get(asset.id) ?? 0,
+    })),
+    relation_links: graph.relationLinks.map((link) => ({
+      id: link.id,
+      source_id: link.source.id,
+      source_title: link.source.title,
+      source_kind: link.source.kind,
+      source_kind_label: getResearchAssetKindLabel(link.source.kind),
+      target_id: link.target.id,
+      target_title: link.target.title,
+      target_kind: link.target.kind,
+      target_kind_label: getResearchAssetKindLabel(link.target.kind),
+      field_name: link.fieldName,
+      field_label: getResearchRelationFieldLabel(link.fieldName),
+      database_title: link.databaseTitle,
+    })),
+    unlinked_assets: graph.unlinkedAssets.map((asset) => ({
+      id: asset.id,
+      kind: asset.kind,
+      kind_label: getResearchAssetKindLabel(asset.kind),
+      title: asset.title,
+      updated_at: asset.updatedAt,
+    })),
+    database_surfaces: databaseSurfaces,
+    coverage: RESEARCH_ASSET_KINDS.map((kind) => {
+      const assets = graph.assets.filter((asset) => asset.kind === kind);
+      return {
+        kind,
+        label: getResearchAssetKindLabel(kind),
+        assets: assets.length,
+        connected_assets: assets.filter((asset) => connectedAssetIds.has(asset.id))
+          .length,
+        unlinked_assets: graph.unlinkedAssets.filter((asset) => asset.kind === kind)
+          .length,
+        relation_links: graph.relationLinks.filter(
+          (link) => link.source.kind === kind || link.target.kind === kind
+        ).length,
+      };
+    }),
   };
 }
 

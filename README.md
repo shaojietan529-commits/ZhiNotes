@@ -102,6 +102,10 @@ Current relation scope:
 - Table and form views support editing relations.
 - List and gallery views display relation titles.
 - CSV export writes related page titles, not internal ids.
+- Company, report, meeting, and portfolio modules share a local research graph
+  panel. It can export a graph report with asset titles, module coverage,
+  relation fields, and links, without including page bodies, database row
+  values, uploaded file bytes, prompts, tokens, or cloud data.
 
 ## Company Research Module
 

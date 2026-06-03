@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import {
   buildResearchGraph,
+  buildResearchGraphReport,
   classifyResearchDatabase,
   getResearchAssetKindLabel,
   getResearchRelationFieldLabel,
@@ -12,6 +13,7 @@ import {
   type ResearchAsset,
   type ResearchAssetKind,
   type ResearchDatabaseSnapshot,
+  type ResearchGraphReport,
   type ResearchRelationLink,
 } from "@/lib/modules/researchGraph";
 import type { Database, Page } from "@/lib/utils/types";
@@ -36,6 +38,7 @@ export default function ResearchConnectionsPanel({
 }: ResearchConnectionsPanelProps) {
   const router = useRouter();
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
+  const [exportingGraphReport, setExportingGraphReport] = useState(false);
 
   const researchDatabases = useMemo(
     () => databases.filter((database) => classifyResearchDatabase(database)),
@@ -69,6 +72,10 @@ export default function ResearchConnectionsPanel({
     () => buildResearchGraph(pages, snapshots),
     [pages, snapshots]
   );
+  const graphReport = useMemo(
+    () => buildResearchGraphReport(graph, snapshots),
+    [graph, snapshots]
+  );
   const focusLinks = useMemo(
     () =>
       graph.relationLinks
@@ -95,6 +102,21 @@ export default function ResearchConnectionsPanel({
     graph.relationLinks.flatMap((link) => [link.source.id, link.target.id])
   ).size;
 
+  const handleExportGraphReport = () => {
+    setExportingGraphReport(true);
+    try {
+      downloadJsonFile(`zhinote-research-graph-${fileSafeTimestamp()}.json`, {
+        ...graphReport,
+        exported_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to export research graph report:", err);
+      window.alert("研究图谱报告导出失败，请查看控制台。");
+    } finally {
+      setExportingGraphReport(false);
+    }
+  };
+
   return (
     <section className="space-y-3">
       <div className="flex flex-col gap-2 border-b border-zinc-200 pb-3 dark:border-zinc-800 md:flex-row md:items-end md:justify-between">
@@ -106,15 +128,26 @@ export default function ResearchConnectionsPanel({
             跨模块关联图谱
           </h2>
         </div>
-        <div className="text-xs text-zinc-400">
-          {researchDatabases.length} 个本地跟踪表
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-zinc-400">
+            {researchDatabases.length} 个本地跟踪表
+          </span>
+          <button
+            type="button"
+            onClick={handleExportGraphReport}
+            disabled={exportingGraphReport}
+            className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            {exportingGraphReport ? "正在导出..." : "导出图谱报告"}
+          </button>
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-5">
         <Metric label="已识别资产" value={graph.assets.length} />
         <Metric label="已连接资产" value={connectedAssetCount} />
         <Metric label="Relation 连接" value={relationCount} />
+        <Metric label="Relation 字段" value={graphReport.summary.relation_fields} />
         <Metric label="待补全关联" value={graph.unlinkedAssets.length} />
       </div>
 
@@ -133,7 +166,7 @@ export default function ResearchConnectionsPanel({
             }
           />
           <CoveragePanel
-            counts={graph.counts}
+            coverage={graphReport.coverage}
             onOpenModule={(kind) => router.push(MODULE_ROUTES[kind])}
           />
         </div>
@@ -314,34 +347,35 @@ function CompletionGuidePanel({
 }
 
 function CoveragePanel({
-  counts,
+  coverage,
   onOpenModule,
 }: {
-  counts: Record<ResearchAssetKind, number>;
+  coverage: ResearchGraphReport["coverage"];
   onOpenModule: (kind: ResearchAssetKind) => void;
 }) {
-  const kinds: ResearchAssetKind[] = ["company", "report", "meeting", "portfolio"];
-
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
       <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         模块覆盖
       </h3>
       <div className="mt-3 space-y-2">
-        {kinds.map((kind) => (
+        {coverage.map((item) => (
           <div
-            key={kind}
+            key={item.kind}
             className="flex items-center justify-between gap-3 rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800"
           >
             <div>
               <div className="text-sm text-zinc-800 dark:text-zinc-200">
-                {getResearchAssetKindLabel(kind)}
+                {item.label}
               </div>
-              <div className="text-xs text-zinc-400">{counts[kind]} 个资产</div>
+              <div className="text-xs text-zinc-400">
+                {item.assets} 个资产 · {item.connected_assets} 已连接 ·{" "}
+                {item.unlinked_assets} 待补
+              </div>
             </div>
             <button
               type="button"
-              onClick={() => onOpenModule(kind)}
+              onClick={() => onOpenModule(item.kind)}
               className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
             >
               打开
@@ -433,4 +467,22 @@ function AssetButton({
       {asset.title}
     </button>
   );
+}
+
+function downloadJsonFile(fileName: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function fileSafeTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
 }
