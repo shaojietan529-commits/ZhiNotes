@@ -27,6 +27,11 @@ import {
   type FilePreviewCapability,
   type FilePreviewSupportLevel,
 } from "@/lib/files/filePreviewCapabilities";
+import {
+  buildFilePreviewReadinessReport,
+  type FilePreviewReadinessReport,
+  type FilePreviewReadinessStatus,
+} from "@/lib/files/filePreviewReadiness";
 import { createFilePreviewBlockHtml } from "@/lib/files/filePreviewBlock";
 import { savePageFile, type StoredPageFile } from "@/lib/files/localStore";
 import { executeModuleStarter } from "@/lib/modules/actions";
@@ -117,6 +122,8 @@ function ReportsDashboard() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingIntake, setExportingIntake] = useState(false);
   const [exportingFormatPlaybook, setExportingFormatPlaybook] = useState(false);
+  const [exportingPreviewReadiness, setExportingPreviewReadiness] =
+    useState(false);
   const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
     null
   );
@@ -144,6 +151,10 @@ function ReportsDashboard() {
   const reportFormatPlaybook = useMemo(
     () => buildReportFormatPlaybook(reportIntake),
     [reportIntake]
+  );
+  const filePreviewReadiness = useMemo(
+    () => buildFilePreviewReadinessReport(),
+    []
   );
 
   const reportsModule = PLATFORM_MODULES.find((module) => module.id === "reports");
@@ -229,6 +240,24 @@ function ReportsDashboard() {
       window.alert("报告格式 Playbook 导出失败，请查看控制台。");
     } finally {
       setExportingFormatPlaybook(false);
+    }
+  };
+
+  const handleExportPreviewReadiness = () => {
+    setExportingPreviewReadiness(true);
+    try {
+      downloadJsonFile(
+        `zhinote-file-preview-readiness-${fileSafeTimestamp()}.json`,
+        {
+          ...filePreviewReadiness,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export file preview readiness:", err);
+      window.alert("文件预览 readiness 导出失败，请查看控制台。");
+    } finally {
+      setExportingPreviewReadiness(false);
     }
   };
 
@@ -642,6 +671,102 @@ function ReportsDashboard() {
                 HTML 报告预览默认阻止外部资源。未来如果要启用 AI 总结或 Web 同步，
                 必须先经过明确确认。
               </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                原生预览 readiness
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                汇总当前多格式文件在 ZhiNotes page 里的本地展示能力。这个报告只读取格式能力元数据，
+                不读取文件 bytes、文件文本或页面正文，也不会上传、同步或调用 AI。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportPreviewReadiness}
+              disabled={exportingPreviewReadiness}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingPreviewReadiness ? "导出中..." : "导出 readiness"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <IntakeMetric
+              label="格式组"
+              value={filePreviewReadiness.summary.capability_groups}
+              detail="Capability"
+            />
+            <IntakeMetric
+              label="扩展名"
+              value={filePreviewReadiness.summary.extension_patterns}
+              detail="Accepted"
+            />
+            <IntakeMetric
+              label="原生"
+              value={filePreviewReadiness.summary.native_routes}
+              detail="Native"
+            />
+            <IntakeMetric
+              label="转换"
+              value={filePreviewReadiness.summary.converted_routes}
+              detail="Local"
+            />
+            <IntakeMetric
+              label="元数据"
+              value={filePreviewReadiness.summary.metadata_routes}
+              detail="Review"
+            />
+            <IntakeMetric
+              label="Ready"
+              value={filePreviewReadiness.summary.ready_routes}
+              detail={filePreviewReadiness.readiness_verdict}
+            />
+            <IntakeMetric
+              label="需确认"
+              value={filePreviewReadiness.summary.manual_confirmation_routes}
+              detail="Before write"
+            />
+            <IntakeMetric
+              label="阻塞"
+              value={filePreviewReadiness.summary.blocked_routes}
+              detail="Gaps"
+            />
+          </div>
+          <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+              推荐原生格式：
+            </span>{" "}
+            报告用 {filePreviewReadiness.recommended_native_format.report}，
+            笔记用 {filePreviewReadiness.recommended_native_format.note}，
+            数据库导入用 {filePreviewReadiness.recommended_native_format.database}。
+            {filePreviewReadiness.recommended_native_format.rationale}
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Readiness gates
+              </div>
+              {filePreviewReadiness.gates.map((gate) => (
+                <FilePreviewReadinessGateRow key={gate.id} gate={gate} />
+              ))}
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Format routes
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {filePreviewReadiness.routes.map((route) => (
+                  <FilePreviewReadinessRouteCard
+                    key={route.id}
+                    route={route}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -1135,6 +1260,80 @@ function FormatCapabilityCard({
   );
 }
 
+function FilePreviewReadinessGateRow({
+  gate,
+}: {
+  gate: FilePreviewReadinessReport["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+        </div>
+        <FilePreviewReadinessPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function FilePreviewReadinessRouteCard({
+  route,
+}: {
+  route: FilePreviewReadinessReport["routes"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          {route.label}
+        </h3>
+        <SupportPill level={route.support_level} />
+        <FilePreviewReadinessPill status={route.readiness_status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {route.extensions.map((extension) => (
+          <span
+            key={extension}
+            className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+          >
+            {extension}
+          </span>
+        ))}
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {route.native_display}
+      </p>
+      <div className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+        <p>可编辑导入：{route.editable_import}</p>
+        <p>数据库导入：{route.database_import}</p>
+        <p>隐私边界：{route.privacy_boundary}</p>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {route.requires_confirmation
+          ? "需要确认或复核后再写入/放开。"
+          : "可在本地直接预览或保留。"}
+      </p>
+      {route.gap && (
+        <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-amber-600 dark:border-zinc-800 dark:text-amber-300">
+          {route.gap}
+        </p>
+      )}
+    </article>
+  );
+}
+
 function SupportPill({ level }: { level: FilePreviewSupportLevel }) {
   const labels: Record<FilePreviewSupportLevel, string> = {
     native: "原生预览",
@@ -1154,6 +1353,30 @@ function SupportPill({ level }: { level: FilePreviewSupportLevel }) {
   return (
     <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
       {labels[level]}
+    </span>
+  );
+}
+
+function FilePreviewReadinessPill({
+  status,
+}: {
+  status: FilePreviewReadinessStatus;
+}) {
+  const labels: Record<FilePreviewReadinessStatus, string> = {
+    ready: "Ready",
+    "manual-confirmation": "确认",
+    blocked: "Blocked",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[status]}
     </span>
   );
 }

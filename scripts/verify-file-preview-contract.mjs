@@ -10,6 +10,7 @@ const files = {
   intake: "src/lib/reports/reportIntake.ts",
   trackerIntake: "src/lib/reports/reportTrackerIntake.ts",
   formatPlaybook: "src/lib/reports/reportFormatPlaybook.ts",
+  readiness: "src/lib/files/filePreviewReadiness.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
   localStore: "src/lib/files/localStore.ts",
   previewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
@@ -81,6 +82,19 @@ const requiredCapabilities = [
     extensions: [".ipynb"],
     snippets: ["convertNotebookToHtml", "handleImportNotebook"],
   },
+  {
+    id: "media-and-text",
+    kind: "image",
+    extensions: ["image/*", "audio/*", "video/*", ".txt", ".json", ".opml"],
+    snippets: [
+      'file.kind === "image"',
+      'file.kind === "audio"',
+      'file.kind === "video"',
+      'file.kind === "text"',
+      'file.kind === "opml"',
+      "convertOpmlToHtml",
+    ],
+  },
 ];
 
 const failures = [];
@@ -124,6 +138,7 @@ function run() {
   const intake = readProjectFile(files.intake);
   const trackerIntake = readProjectFile(files.trackerIntake);
   const formatPlaybook = readProjectFile(files.formatPlaybook);
+  const readiness = readProjectFile(files.readiness);
   const upload = readProjectFile(files.upload);
   const localStore = readProjectFile(files.localStore);
   const previewNode = readProjectFile(files.previewNode);
@@ -343,6 +358,67 @@ function run() {
     "Report format playbook must expose a reusable builder."
   );
   assertIncludes(
+    files.readiness,
+    readiness,
+    'format: "zhinote-file-preview-readiness-report"',
+    "File preview readiness must define a local export format."
+  );
+  assertIncludes(
+    files.readiness,
+    readiness,
+    "buildFilePreviewReadinessReport",
+    "File preview readiness must expose a reusable builder."
+  );
+  for (const snippet of [
+    'report_status: "local-file-preview-readiness-only"',
+    'readiness_verdict: "ready-with-local-boundaries"',
+    'canonical_container: "zhinote-page"',
+    'preferred_native_report_format: "html"',
+    'preferred_written_note_format: "markdown"',
+    'preferred_database_source_format: "spreadsheet"',
+    "can_preview_files_locally_now: true",
+    "can_upload_files_now: false",
+    "can_load_external_resources_now: false",
+    "can_run_ai_on_files_now: false",
+    "can_sync_files_now: false",
+    "can_bulk_import_without_confirmation_now: false",
+    "local_report_only: true",
+    "reads_capability_metadata: true",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "reads_page_body_text: false",
+    "loads_external_resources: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.readiness,
+      readiness,
+      snippet,
+      "File preview readiness must preserve local-only privacy boundaries."
+    );
+  }
+  for (const snippet of [
+    "FILE_PREVIEW_CAPABILITIES",
+    'support_level === "converted"',
+    "capability.limitation",
+    '"local-preview-coverage"',
+    '"html-external-resources"',
+    '"spreadsheet-database-import"',
+    '"editable-conversion-review"',
+    '"legacy-office-gap"',
+    '"cloud-ai-boundary"',
+  ]) {
+    assertIncludes(
+      files.readiness,
+      readiness,
+      snippet,
+      "File preview readiness must map capability routes and safety gates."
+    );
+  }
+  assertIncludes(
     files.reportsShell,
     reportsShell,
     "buildReportIntakeReport",
@@ -408,6 +484,22 @@ function run() {
     "导出 Playbook",
     "Reports module must export the format playbook."
   );
+  for (const snippet of [
+    "buildFilePreviewReadinessReport",
+    "handleExportPreviewReadiness",
+    "原生预览 readiness",
+    "导出 readiness",
+    "FilePreviewReadinessGateRow",
+    "FilePreviewReadinessRouteCard",
+    "FilePreviewReadinessPill",
+  ]) {
+    assertIncludes(
+      files.reportsShell,
+      reportsShell,
+      snippet,
+      "Reports module must render and export file preview readiness."
+    );
+  }
 
   if (failures.length > 0) {
     console.error("File preview contract verification failed");
@@ -429,6 +521,7 @@ function run() {
         intake_stages: requiredIntakeStages.length,
         tracker_intake_fields: 5,
         format_actions: requiredFormatActions.length,
+        readiness_gates: 6,
         local_only: true,
       },
       null,
