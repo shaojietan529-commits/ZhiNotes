@@ -11,7 +11,8 @@
     "verify:database": "node scripts/verify-database-contract.mjs",
     "verify:file-preview": "node scripts/verify-file-preview-contract.mjs",
     "verify:research-workflow": "node scripts/verify-research-workflow-contract.mjs",
-    "verify:web-beta": "node scripts/verify-web-beta-contract.mjs"
+    "verify:web-beta": "node scripts/verify-web-beta-contract.mjs",
+    "verify:web-beta:smoke": "node scripts/verify-web-beta-smoke-tests.mjs"
   },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "3.51.2-build8",

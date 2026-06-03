@@ -491,6 +491,10 @@ The first cloud phase is a private alpha, not full sync:
 - `npm run verify:web-beta` checks the local Web Beta contract before launch:
   environment keys, guarded API route files, local module routes, the deployment
   target contract, smoke test plan, and Supabase migration tables.
+- `npm run verify:web-beta:smoke` checks the preview smoke-test checklist before
+  launch: expected pages, disabled/gated high-risk API routes, local-only
+  privacy boundaries, Cloud Alpha disabled defaults, private file storage
+  disabled state, Cloudflare staging review, and Sync UI export wiring.
 
 See `docs/cloud-deployment.md` for the deployment checklist.
 

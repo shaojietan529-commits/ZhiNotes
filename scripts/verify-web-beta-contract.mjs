@@ -12,6 +12,7 @@ const files = {
   contract: "src/lib/sync/webBetaContract.ts",
   deploymentTarget: "src/lib/sync/webBetaDeploymentTarget.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
+  smokeTestVerifier: "scripts/verify-web-beta-smoke-tests.mjs",
   environmentPreflight: "src/lib/sync/webBetaEnvironmentPreflight.ts",
   launchChecklist: "src/lib/sync/webBetaLaunchChecklist.ts",
   routePreflight: "src/lib/sync/webBetaRoutePreflight.ts",
@@ -163,6 +164,7 @@ function run() {
   const contract = readProjectFile(files.contract);
   const deploymentTarget = readProjectFile(files.deploymentTarget);
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
+  const smokeTestVerifier = readProjectFile(files.smokeTestVerifier);
   const environmentPreflight = readProjectFile(files.environmentPreflight);
   const launchChecklist = readProjectFile(files.launchChecklist);
   const routePreflight = readProjectFile(files.routePreflight);
@@ -183,6 +185,7 @@ function run() {
     [files.contract, contract],
     [files.deploymentTarget, deploymentTarget],
     [files.smokeTestPlan, smokeTestPlan],
+    [files.smokeTestVerifier, smokeTestVerifier],
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
     [files.routePreflight, routePreflight],
@@ -431,6 +434,24 @@ function run() {
     "Smoke test plan",
     "Sync UI must render the smoke test plan panel."
   );
+  assertSourceIncludes(
+    files.smokeTestVerifier,
+    smokeTestVerifier,
+    "Web Beta smoke test verification passed",
+    "Smoke test verifier must expose a pass/fail CLI result."
+  );
+  assertSourceIncludes(
+    files.smokeTestVerifier,
+    smokeTestVerifier,
+    "gatedOrDisabledApiRoutes",
+    "Smoke test verifier must check high-risk API route guards."
+  );
+  assertSourceIncludes(
+    files.smokeTestVerifier,
+    smokeTestVerifier,
+    "requiredBoundarySnippets",
+    "Smoke test verifier must check local-only privacy boundaries."
+  );
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
@@ -474,6 +495,7 @@ function run() {
     link_proof_contract_checks: 7,
     deployment_target_checks: 16,
     smoke_test_plan_checks: 16,
+    smoke_test_verifier_checks: 3,
     warnings: warnings.length,
   };
 

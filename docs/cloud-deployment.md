@@ -146,6 +146,9 @@ https://your-vercel-domain.vercel.app/auth/callback
 - `npm run verify:web-beta` 通过，确认环境变量、Web Beta API route、模块
   route、deployment target、smoke test plan、Supabase migration 表结构和
   本地合同对齐。
+- `npm run verify:web-beta:smoke` 通过，确认 preview smoke checklist、页面
+  route、高风险 API 默认 disabled/gated、local-only 隐私边界和 Sync UI 导出
+  入口对齐。
 - `npm run build` 通过。
 - Sync 模块里的 `Smoke test plan` 已导出或人工复核，且 preview route、auth
   callback、disabled cloud defaults、private storage disabled、Cloudflare edge
