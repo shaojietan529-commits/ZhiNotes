@@ -167,6 +167,11 @@ import {
   type RemoteBaselineReplayFixtureStatus,
 } from "@/lib/sync/remoteBaselineReplayFixture";
 import {
+  buildRemoteBaselineReplayHarnessPreflight,
+  type RemoteBaselineReplayHarnessPreflight,
+  type RemoteBaselineReplayHarnessStatus,
+} from "@/lib/sync/remoteBaselineReplayHarness";
+import {
   buildSyncOptInGateReport,
   type SyncOptInGateReport,
   type SyncOptInGateStatus,
@@ -214,6 +219,7 @@ type SyncQueueAction =
   | "remote-baseline-stage-replay"
   | "remote-baseline-replay-confirmation"
   | "remote-baseline-replay-fixture"
+  | "remote-baseline-replay-harness"
   | "opt-in-gate"
   | "sync-confirmation"
   | "rollback-plan"
@@ -745,6 +751,25 @@ function SyncDashboard() {
       }),
     [
       remoteBaselineReplayConfirmationReceipt,
+      remoteBaselineStageReplay,
+      remoteBaselineStageSchema,
+      workspaceIdentity,
+    ]
+  );
+  const remoteBaselineReplayHarnessPreflight = useMemo(
+    () =>
+      buildRemoteBaselineReplayHarnessPreflight({
+        workspaceIdentity,
+        stageSchema: remoteBaselineStageSchema,
+        stageReplay: remoteBaselineStageReplay,
+        fixturePackage: remoteBaselineReplayFixturePackage,
+        permissionDecisionReport,
+        auditTrailPolicy,
+      }),
+    [
+      auditTrailPolicy,
+      permissionDecisionReport,
+      remoteBaselineReplayFixturePackage,
       remoteBaselineStageReplay,
       remoteBaselineStageSchema,
       workspaceIdentity,
@@ -1747,6 +1772,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Remote baseline replay fixture export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportRemoteBaselineReplayHarnessPreflight = () => {
+    setBusyQueueAction("remote-baseline-replay-harness");
+    try {
+      downloadJsonFile(
+        `zhinote-remote-baseline-replay-harness-${fileSafeTimestamp()}.json`,
+        {
+          ...remoteBaselineReplayHarnessPreflight,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export remote baseline replay harness preflight:",
+        err
+      );
+      window.alert(
+        "Remote baseline replay harness export failed. Please check the console."
       );
     } finally {
       setBusyQueueAction(null);
@@ -3489,6 +3537,86 @@ function SyncDashboard() {
                   )
                 )}
               </div>
+            </ContractPanel>
+            <ContractPanel
+              title="Disposable replay harness preflight"
+              className="mt-4"
+            >
+              <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
+                <p className="max-w-3xl">
+                  Local dry-run checklist that connects the confirmation
+                  receipt, empty fixture package, stage schema, and replay/RLS
+                  proof contract. It does not run a harness, connect a database,
+                  apply SQL, write server data, stage remote rows, or upload
+                  workspace data.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleExportRemoteBaselineReplayHarnessPreflight}
+                  disabled={busyQueueAction === "remote-baseline-replay-harness"}
+                  className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  {busyQueueAction === "remote-baseline-replay-harness"
+                    ? "Exporting..."
+                    : "Export harness preflight"}
+                </button>
+              </div>
+              <div className="mt-3 grid gap-2 md:grid-cols-4">
+                <IdentityMetric
+                  label="Steps"
+                  value={`${remoteBaselineReplayHarnessPreflight.summary.steps}`}
+                  detail="Dry-run only"
+                />
+                <IdentityMetric
+                  label="Assertions"
+                  value={`${remoteBaselineReplayHarnessPreflight.summary.assertions}`}
+                  detail="Local checks"
+                />
+                <IdentityMetric
+                  label="Ready checks"
+                  value={`${remoteBaselineReplayHarnessPreflight.summary.ready}`}
+                  detail="Can inspect now"
+                />
+                <IdentityMetric
+                  label="Blocked"
+                  value={`${remoteBaselineReplayHarnessPreflight.summary.blocked}`}
+                  detail="No runner yet"
+                />
+              </div>
+              <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+                <ContractPanel title="Harness dry-run steps">
+                  <div className="space-y-2">
+                    {remoteBaselineReplayHarnessPreflight.steps.map((step) => (
+                      <RemoteBaselineReplayHarnessStepRow
+                        key={step.id}
+                        step={step}
+                      />
+                    ))}
+                  </div>
+                </ContractPanel>
+                <ContractPanel title="Harness assertions">
+                  <div className="space-y-2">
+                    {remoteBaselineReplayHarnessPreflight.assertions.map(
+                      (assertion) => (
+                        <RemoteBaselineReplayHarnessAssertionRow
+                          key={assertion.id}
+                          assertion={assertion}
+                        />
+                      )
+                    )}
+                  </div>
+                </ContractPanel>
+              </div>
+              <ContractPanel title="Harness gates" className="mt-4">
+                <div className="grid gap-2 md:grid-cols-2">
+                  {remoteBaselineReplayHarnessPreflight.gates.map((gate) => (
+                    <RemoteBaselineReplayHarnessGateRow
+                      key={gate.id}
+                      gate={gate}
+                    />
+                  ))}
+                </div>
+              </ContractPanel>
             </ContractPanel>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
               <ContractPanel title="Disposable replay scenarios">
@@ -8151,6 +8279,90 @@ function RemoteBaselineReplayFixtureValidationRow({
   );
 }
 
+function RemoteBaselineReplayHarnessStepRow({
+  step,
+}: {
+  step: RemoteBaselineReplayHarnessPreflight["steps"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {step.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {step.id} · {step.runner_status}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {step.expected_evidence}
+          </p>
+        </div>
+        <RemoteBaselineReplayHarnessStatusPill status={step.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        Input: {step.input_source}. Blocked until: {step.blocked_until}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineReplayHarnessAssertionRow({
+  assertion,
+}: {
+  assertion: RemoteBaselineReplayHarnessPreflight["assertions"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {assertion.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {assertion.id}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {assertion.assertion}
+          </p>
+        </div>
+        <RemoteBaselineReplayHarnessStatusPill status={assertion.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {assertion.evidence}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineReplayHarnessGateRow({
+  gate,
+}: {
+  gate: RemoteBaselineReplayHarnessPreflight["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {gate.evidence}
+          </p>
+        </div>
+        <RemoteBaselineReplayHarnessStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
 function RemoteBaselineRlsProofRow({
   proof,
 }: {
@@ -8244,6 +8456,31 @@ function RemoteBaselineReplayFixtureStatusPill({
   status: RemoteBaselineReplayFixtureStatus;
 }) {
   const labels: Record<RemoteBaselineReplayFixtureStatus, string> = {
+    ready: "Ready",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function RemoteBaselineReplayHarnessStatusPill({
+  status,
+}: {
+  status: RemoteBaselineReplayHarnessStatus;
+}) {
+  const labels: Record<RemoteBaselineReplayHarnessStatus, string> = {
     ready: "Ready",
     "manual-confirmation": "Confirm",
     blocked: "Blocked",

@@ -22,6 +22,7 @@ const files = {
   remoteBaselineStageSchema: "src/lib/sync/remoteBaselineStageSchema.ts",
   remoteBaselineStageReplay: "src/lib/sync/remoteBaselineStageReplay.ts",
   remoteBaselineReplayFixture: "src/lib/sync/remoteBaselineReplayFixture.ts",
+  remoteBaselineReplayHarness: "src/lib/sync/remoteBaselineReplayHarness.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -188,6 +189,9 @@ function run() {
   const remoteBaselineReplayFixture = readProjectFile(
     files.remoteBaselineReplayFixture
   );
+  const remoteBaselineReplayHarness = readProjectFile(
+    files.remoteBaselineReplayHarness
+  );
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -217,6 +221,7 @@ function run() {
     [files.remoteBaselineStageSchema, remoteBaselineStageSchema],
     [files.remoteBaselineStageReplay, remoteBaselineStageReplay],
     [files.remoteBaselineReplayFixture, remoteBaselineReplayFixture],
+    [files.remoteBaselineReplayHarness, remoteBaselineReplayHarness],
     [files.syncOptInGate, syncOptInGate],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
@@ -1529,6 +1534,195 @@ function run() {
     );
   }
   assertSourceIncludes(
+    files.remoteBaselineReplayHarness,
+    remoteBaselineReplayHarness,
+    'format: "zhinote-remote-baseline-replay-harness-preflight"',
+    "Remote baseline replay harness must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.remoteBaselineReplayHarness,
+    remoteBaselineReplayHarness,
+    "buildRemoteBaselineReplayHarnessPreflight",
+    "Remote baseline replay harness must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'preflight_status: "local-harness-preflight-only"',
+      "Remote baseline replay harness must stay local-only.",
+    ],
+    [
+      "can_run_harness_now: false",
+      "Remote baseline replay harness must not run harness.",
+    ],
+    [
+      "can_connect_database_now: false",
+      "Remote baseline replay harness must not connect databases.",
+    ],
+    [
+      "can_apply_sql_now: false",
+      "Remote baseline replay harness must not apply SQL.",
+    ],
+    [
+      "can_write_server_data_now: false",
+      "Remote baseline replay harness must not write server data.",
+    ],
+    [
+      "can_stage_remote_rows_now: false",
+      "Remote baseline replay harness must not stage remote rows.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Remote baseline replay harness must not upload workspace data.",
+    ],
+    [
+      'disabled_replay_endpoint: "/api/sync/replay-test"',
+      "Remote baseline replay harness must keep replay endpoint disabled.",
+    ],
+    [
+      'disabled_apply_path: "/api/cloud/migrations/apply"',
+      "Remote baseline replay harness must keep migration apply disabled.",
+    ],
+    [
+      "local_preflight_only: true",
+      "Remote baseline replay harness must remain local preflight only.",
+    ],
+    [
+      "dry_run_only: true",
+      "Remote baseline replay harness must remain dry-run only.",
+    ],
+    [
+      "uses_empty_fixture_package: true",
+      "Remote baseline replay harness must depend on empty fixture package.",
+    ],
+    [
+      "starts_network_request: false",
+      "Remote baseline replay harness must not start network requests.",
+    ],
+    [
+      "creates_disposable_database: false",
+      "Remote baseline replay harness must not create disposable database.",
+    ],
+    [
+      "connects_cloud_database: false",
+      "Remote baseline replay harness must not connect cloud database.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Remote baseline replay harness must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Remote baseline replay harness must not read database values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Remote baseline replay harness must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Remote baseline replay harness must not read file bytes.",
+    ],
+    [
+      "stages_remote_rows: false",
+      "Remote baseline replay harness must not stage remote rows.",
+    ],
+    [
+      "acknowledges_remote_rows: false",
+      "Remote baseline replay harness must not acknowledge remote rows.",
+    ],
+    [
+      "requires_owner_confirmation_receipt: true",
+      "Remote baseline replay harness must require owner confirmation receipt.",
+    ],
+    [
+      "requires_empty_fixture_package: true",
+      "Remote baseline replay harness must require empty fixture package.",
+    ],
+    [
+      "requires_payload_denylist: true",
+      "Remote baseline replay harness must require payload denylist.",
+    ],
+    [
+      "requires_permission_check_stub: true",
+      "Remote baseline replay harness must require permission check stub.",
+    ],
+    [
+      "requires_redacted_audit_event: true",
+      "Remote baseline replay harness must require redacted audit event.",
+    ],
+    [
+      "requires_rls_assertion_plan: true",
+      "Remote baseline replay harness must require RLS assertion plan.",
+    ],
+    [
+      "requires_rollback_assertion_plan: true",
+      "Remote baseline replay harness must require rollback assertion plan.",
+    ],
+    [
+      "load-empty-fixture-package",
+      "Remote baseline replay harness must include fixture loading step.",
+    ],
+    [
+      "verify-owner-receipt",
+      "Remote baseline replay harness must include owner receipt verification step.",
+    ],
+    [
+      "review-stage-schema-sql",
+      "Remote baseline replay harness must include schema SQL review step.",
+    ],
+    [
+      "plan-up-down-replay",
+      "Remote baseline replay harness must include up/down replay plan.",
+    ],
+    [
+      "plan-rls-isolation",
+      "Remote baseline replay harness must include RLS isolation plan.",
+    ],
+    [
+      "plan-cursor-idempotency",
+      "Remote baseline replay harness must include cursor idempotency plan.",
+    ],
+    [
+      "plan-rollback-proof",
+      "Remote baseline replay harness must include rollback proof plan.",
+    ],
+    [
+      "fixture-has-zero-payload",
+      "Remote baseline replay harness must assert zero fixture payload.",
+    ],
+    [
+      "denylist-covers-private-content",
+      "Remote baseline replay harness must assert denylist coverage.",
+    ],
+    [
+      "permission-check-not-live",
+      "Remote baseline replay harness must keep permission checks non-live.",
+    ],
+    [
+      "audit-event-not-live",
+      "Remote baseline replay harness must keep audit events non-live.",
+    ],
+    [
+      "disposable-database-gate",
+      "Remote baseline replay harness must keep disposable database gate.",
+    ],
+    [
+      "network-disabled-gate",
+      "Remote baseline replay harness must keep network disabled gate.",
+    ],
+    [
+      "rollback-before-apply-gate",
+      "Remote baseline replay harness must keep rollback before apply gate.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.remoteBaselineReplayHarness,
+      remoteBaselineReplayHarness,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
     files.syncShell,
     syncShell,
     "buildSyncConflictResolutionContract",
@@ -1771,6 +1965,38 @@ function run() {
       "payload_column_denylist",
       "Sync UI must render payload denylist from the empty-fixture package.",
     ],
+    [
+      "buildRemoteBaselineReplayHarnessPreflight",
+      "Sync UI must build the disposable replay harness preflight.",
+    ],
+    [
+      "handleExportRemoteBaselineReplayHarnessPreflight",
+      "Sync UI must export the disposable replay harness preflight.",
+    ],
+    [
+      "Disposable replay harness preflight",
+      "Sync UI must render the disposable replay harness preflight panel.",
+    ],
+    [
+      "Export harness preflight",
+      "Sync UI must expose the disposable replay harness export action.",
+    ],
+    [
+      "RemoteBaselineReplayHarnessStepRow",
+      "Sync UI must render harness step rows.",
+    ],
+    [
+      "RemoteBaselineReplayHarnessAssertionRow",
+      "Sync UI must render harness assertion rows.",
+    ],
+    [
+      "RemoteBaselineReplayHarnessGateRow",
+      "Sync UI must render harness gate rows.",
+    ],
+    [
+      "remote-baseline-replay-harness",
+      "Sync UI must track harness export state separately.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
@@ -1824,6 +2050,7 @@ function run() {
     remote_baseline_stage_schema_checks: 55,
     remote_baseline_stage_replay_checks: 67,
     remote_baseline_replay_fixture_checks: 48,
+    remote_baseline_replay_harness_checks: 54,
     warnings: warnings.length,
   };
 

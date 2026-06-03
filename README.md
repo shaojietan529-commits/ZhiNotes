@@ -569,6 +569,12 @@ Current local actions:
   page text, database row values, comment bodies, file bytes, tokens, cookies,
   real remote rows, or signed URLs, and it still does not run replay or enable
   `/api/sync/replay-test`.
+- Review and export a local disposable replay harness preflight. The preflight
+  connects the replay confirmation receipt, empty-fixture package, stage schema,
+  and replay/RLS proof contract into a dry-run checklist. It does not create or
+  connect a database, apply SQL, start network requests, write server data,
+  stage remote rows, acknowledge cursors, upload workspace data, or enable
+  `/api/sync/replay-test`.
 - Review and export a local workspace identity with anonymous browser-local
   workspace and device ids for future sync metadata. The identity is not an
   account and does not connect cloud services or include note text/file content.
