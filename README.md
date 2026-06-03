@@ -94,6 +94,30 @@ ids, routes, starter coverage, data surfaces, and extension slot coverage
 without reading page text, database rows, uploaded file bytes, prompts, tokens,
 or cloud data.
 
+## Research Workflow Schema
+
+The shared research workflow schema lives in:
+
+```txt
+src/lib/modules/researchWorkflow.ts
+```
+
+It defines the core investable asset kinds used across modules:
+
+- Company: company home, investment memo, earnings review, valuation
+  assumptions, related reports, and related meetings.
+- Report: local report page, file preview, review status, key takeaways,
+  company relation, meeting relation, and memo relation.
+- Meeting: meeting note, transcript page, action items, company relation, and
+  report relation.
+- Portfolio: watchlist or position tracker, sizing fields, conviction, thesis,
+  risk notes, and relations back to company, report, and meeting assets.
+
+The research graph, company module, and meetings module now read this shared
+schema for module routes, expected relation kinds, key tracker fields, workflow
+stages, and local privacy boundaries. This keeps new investment research
+modules from inventing incompatible relationship models.
+
 ## Database Relations
 
 Databases support a local `relation` field type. A relation field stores page
@@ -463,6 +487,7 @@ Useful checks:
 npm run lint
 npm run verify:database
 npm run verify:file-preview
+npm run verify:research-workflow
 npm run verify:web-beta
 npm run build
 ```

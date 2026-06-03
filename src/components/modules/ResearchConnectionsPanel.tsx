@@ -16,6 +16,7 @@ import {
   type ResearchGraphReport,
   type ResearchRelationLink,
 } from "@/lib/modules/researchGraph";
+import { getResearchModuleRoute } from "@/lib/modules/researchWorkflow";
 import type { Database, Page } from "@/lib/utils/types";
 
 interface ResearchConnectionsPanelProps {
@@ -23,13 +24,6 @@ interface ResearchConnectionsPanelProps {
   databases: Database[];
   focusKind: ResearchAssetKind;
 }
-
-const MODULE_ROUTES: Record<ResearchAssetKind, string> = {
-  company: "/modules/company-research",
-  report: "/modules/reports",
-  meeting: "/modules/meetings",
-  portfolio: "/modules/portfolio",
-};
 
 export default function ResearchConnectionsPanel({
   pages,
@@ -167,7 +161,7 @@ export default function ResearchConnectionsPanel({
           />
           <CoveragePanel
             coverage={graphReport.coverage}
-            onOpenModule={(kind) => router.push(MODULE_ROUTES[kind])}
+            onOpenModule={(kind) => router.push(getResearchModuleRoute(kind))}
           />
         </div>
       </div>

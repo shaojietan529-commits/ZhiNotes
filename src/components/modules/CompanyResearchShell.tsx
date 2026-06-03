@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
+import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { usePages } from "@/hooks/usePages";
 import { getAllDatabases } from "@/lib/db/local/queries";
 import { executeModuleStarter } from "@/lib/modules/actions";
@@ -226,6 +227,8 @@ function CompanyResearchDashboard() {
             </div>
           </div>
         </section>
+
+        <ResearchWorkflowSchemaPanel kind="company" />
 
         <ResearchConnectionsPanel
           pages={pages}

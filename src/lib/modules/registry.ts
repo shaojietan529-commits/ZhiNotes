@@ -111,14 +111,14 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     title: "投研数据库",
     shortTitle: "数据库",
     description:
-      "本地表格、看板、日历、画廊、时间线、表单、动态流视图和 CSV 工作流。",
+      "本地表格、看板、日历、画廊、时间线、表单、动态流视图和 CSV/XLSX 工作流。",
     category: "Data",
     status: "active",
     route: null,
     icon: "DB",
     capabilities: [
       "表格/列表/看板视图",
-      "CSV 导出",
+      "CSV/XLSX 导出",
       "表格文件导入",
       "数据库模板",
     ],

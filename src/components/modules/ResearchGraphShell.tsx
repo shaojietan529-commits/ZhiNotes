@@ -26,15 +26,9 @@ import {
   type ResearchGraphSchemaGap,
   type ResearchRelationLink,
 } from "@/lib/modules/researchGraph";
+import { getResearchModuleRoute } from "@/lib/modules/researchWorkflow";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database } from "@/lib/utils/types";
-
-const MODULE_ROUTES: Record<ResearchAssetKind, string> = {
-  company: "/modules/company-research",
-  report: "/modules/reports",
-  meeting: "/modules/meetings",
-  portfolio: "/modules/portfolio",
-};
 
 interface SchemaFieldCreationResult {
   id: string;
@@ -268,7 +262,7 @@ function ResearchGraphDashboard() {
         <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
           <CoveragePanel
             coverage={graphReport.coverage}
-            onOpenModule={(kind) => router.push(MODULE_ROUTES[kind])}
+            onOpenModule={(kind) => router.push(getResearchModuleRoute(kind))}
           />
           <BoundaryPanel report={graphReport} />
         </section>
@@ -291,7 +285,7 @@ function ResearchGraphDashboard() {
           totalActions={graphReport.completion_plan.actions.length}
           missingTargets={graphReport.completion_plan.missing_targets}
           onOpenDatabaseRoute={(route) => router.push(route)}
-          onOpenModule={(kind) => router.push(MODULE_ROUTES[kind])}
+          onOpenModule={(kind) => router.push(getResearchModuleRoute(kind))}
         />
 
         <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">

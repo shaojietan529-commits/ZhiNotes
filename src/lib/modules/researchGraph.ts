@@ -5,8 +5,16 @@ import type {
   DatabaseRow,
   Page,
 } from "@/lib/utils/types";
+import {
+  RESEARCH_ASSET_KINDS,
+  getExpectedRelationKinds,
+  getResearchAssetKindLabel,
+  getResearchModuleRoute,
+  type ResearchAssetKind,
+} from "@/lib/modules/researchWorkflow";
 
-export type ResearchAssetKind = "company" | "report" | "meeting" | "portfolio";
+export type { ResearchAssetKind } from "@/lib/modules/researchWorkflow";
+export { getResearchAssetKindLabel } from "@/lib/modules/researchWorkflow";
 
 export interface ResearchDatabaseSnapshot {
   database: Database;
@@ -173,34 +181,6 @@ export interface ResearchGraphReport {
   schema_gaps: ResearchGraphSchemaGap[];
 }
 
-const KIND_LABELS: Record<ResearchAssetKind, string> = {
-  company: "公司",
-  report: "报告",
-  meeting: "会议",
-  portfolio: "组合",
-};
-
-const RESEARCH_ASSET_KINDS: ResearchAssetKind[] = [
-  "company",
-  "report",
-  "meeting",
-  "portfolio",
-];
-
-const MODULE_ROUTES: Record<ResearchAssetKind, string> = {
-  company: "/modules/company-research",
-  report: "/modules/reports",
-  meeting: "/modules/meetings",
-  portfolio: "/modules/portfolio",
-};
-
-const EXPECTED_RELATION_KINDS: Record<ResearchAssetKind, ResearchAssetKind[]> = {
-  company: ["report", "meeting"],
-  report: ["company", "meeting"],
-  meeting: ["company", "report"],
-  portfolio: ["company", "report", "meeting"],
-};
-
 const RELATION_FIELD_LABELS: Array<[string, string]> = [
   ["company page", "公司页面"],
   ["report page", "报告页面"],
@@ -219,10 +199,6 @@ const RELATION_FIELD_LABELS: Array<[string, string]> = [
   ["转录稿", "转录稿"],
   ["备忘录", "备忘录"],
 ];
-
-export function getResearchAssetKindLabel(kind: ResearchAssetKind) {
-  return KIND_LABELS[kind];
-}
 
 export function getResearchRelationFieldLabel(fieldName: string) {
   const normalized = normalizeText(fieldName);
@@ -569,7 +545,7 @@ export function buildResearchGraphCompletionPlan(
       kind,
       kind_label: getResearchAssetKindLabel(kind),
       unlinked_assets: unlinkedAssets,
-      recommended_module_route: MODULE_ROUTES[kind],
+      recommended_module_route: getResearchModuleRoute(kind),
       reason: `缺少可用于补全${getResearchAssetKindLabel(kind)}关系的本地跟踪表或 relation 字段。`,
     };
   }).filter(
@@ -636,7 +612,7 @@ export function buildResearchGraphSchemaGaps(
         .filter((kind): kind is ResearchAssetKind => Boolean(kind))
     );
 
-    return EXPECTED_RELATION_KINDS[databaseKind]
+    return getExpectedRelationKinds(databaseKind)
       .filter((kind) => !presentRelationKinds.has(kind))
       .map((missingKind) => {
         const suggestedFieldName = getSuggestedRelationFieldName(
