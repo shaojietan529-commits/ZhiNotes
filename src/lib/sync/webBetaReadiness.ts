@@ -337,10 +337,10 @@ export function buildWebBetaReadinessReport(
       status: input.conflictReview ? "partial" : "blocked",
       category: "conflict",
       evidence: input.conflictReview
-        ? `A local conflict review scaffold covers ${input.conflictReview.summary.surfaces} surfaces, and sync UI now keeps side-by-side review plus remote baseline request, staging, and schema/cursor proof planning local-only. It still does not read remote data or merge changes.`
+        ? `A local conflict review scaffold covers ${input.conflictReview.summary.surfaces} surfaces, and sync UI now keeps side-by-side review plus remote baseline request, staging, schema/cursor proof, and disposable replay/RLS proof planning local-only. It still does not read remote data or merge changes.`
         : "Conflict policies exist for pages, database rows, files, comments, permissions, and restore, but no review UI is implemented.",
       nextAction:
-        "Replay remote_baseline_stage schema and cursor proof on disposable data, prove RLS and rollback, and require owner confirmation before supporting multi-device editing.",
+        "Run disposable replay/RLS proof on empty workspace fixtures, prove rollback, and require owner confirmation before supporting multi-device editing.",
     },
     {
       id: "private-file-storage",

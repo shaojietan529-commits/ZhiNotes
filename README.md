@@ -552,6 +552,12 @@ Current local actions:
   denylist, cursor monotonicity rules, and idempotency rules. It does not create
   migrations, apply SQL, connect a cloud database, persist cursor proof, stage
   rows, acknowledge rows, write workspace data, or upload anything.
+- Review and export a local remote baseline disposable replay and RLS proof
+  contract. The contract defines empty-workspace replay scenarios, payload
+  denylist checks, workspace read/write isolation, cursor proof isolation,
+  idempotency replay, and rollback proof. Replay, database connection, SQL
+  apply, server writes, metadata staging, acknowledgements, and remote applies
+  remain disabled.
 - Review and export a local workspace identity with anonymous browser-local
   workspace and device ids for future sync metadata. The identity is not an
   account and does not connect cloud services or include note text/file content.

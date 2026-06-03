@@ -20,6 +20,7 @@ const files = {
   remoteBaselineRequest: "src/lib/sync/remoteBaselineRequest.ts",
   remoteBaselineStaging: "src/lib/sync/remoteBaselineStaging.ts",
   remoteBaselineStageSchema: "src/lib/sync/remoteBaselineStageSchema.ts",
+  remoteBaselineStageReplay: "src/lib/sync/remoteBaselineStageReplay.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -178,6 +179,9 @@ function run() {
   const remoteBaselineStageSchema = readProjectFile(
     files.remoteBaselineStageSchema
   );
+  const remoteBaselineStageReplay = readProjectFile(
+    files.remoteBaselineStageReplay
+  );
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -203,6 +207,7 @@ function run() {
     [files.remoteBaselineRequest, remoteBaselineRequest],
     [files.remoteBaselineStaging, remoteBaselineStaging],
     [files.remoteBaselineStageSchema, remoteBaselineStageSchema],
+    [files.remoteBaselineStageReplay, remoteBaselineStageReplay],
     [files.syncOptInGate, syncOptInGate],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
@@ -1118,6 +1123,208 @@ function run() {
     );
   }
   assertSourceIncludes(
+    files.remoteBaselineStageReplay,
+    remoteBaselineStageReplay,
+    'format: "zhinote-remote-baseline-stage-replay-contract"',
+    "Remote baseline stage replay must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.remoteBaselineStageReplay,
+    remoteBaselineStageReplay,
+    "buildRemoteBaselineStageReplayContract",
+    "Remote baseline stage replay must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    ["can_run_replay_now: false", "Remote baseline stage replay must not run replay."],
+    [
+      "can_connect_disposable_database_now: false",
+      "Remote baseline stage replay must not connect disposable database.",
+    ],
+    ["can_apply_sql_now: false", "Remote baseline stage replay must not apply SQL."],
+    [
+      "can_write_server_data_now: false",
+      "Remote baseline stage replay must not write server data.",
+    ],
+    [
+      "can_stage_remote_metadata_now: false",
+      "Remote baseline stage replay must not stage remote metadata.",
+    ],
+    [
+      'disabled_apply_path: "/api/cloud/migrations/apply"',
+      "Remote baseline stage replay must keep migration apply disabled.",
+    ],
+    [
+      'disabled_replay_endpoint: "/api/sync/replay-test"',
+      "Remote baseline stage replay must keep replay endpoint disabled.",
+    ],
+    [
+      "uses_disposable_data_only: true",
+      "Remote baseline stage replay must use disposable data only.",
+    ],
+    [
+      "creates_disposable_database: false",
+      "Remote baseline stage replay must not create disposable database.",
+    ],
+    [
+      "connects_cloud_database: false",
+      "Remote baseline stage replay must not connect cloud database.",
+    ],
+    ["applies_sql: false", "Remote baseline stage replay must not apply SQL."],
+    [
+      "writes_server_data: false",
+      "Remote baseline stage replay must not write server data.",
+    ],
+    [
+      "writes_workspace_data: false",
+      "Remote baseline stage replay must not write workspace data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Remote baseline stage replay must not upload workspace data.",
+    ],
+    [
+      "reads_remote_data: false",
+      "Remote baseline stage replay must not read remote data.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Remote baseline stage replay must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Remote baseline stage replay must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Remote baseline stage replay must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Remote baseline stage replay must not read file bytes.",
+    ],
+    [
+      "stages_remote_rows: false",
+      "Remote baseline stage replay must not stage remote rows.",
+    ],
+    [
+      "acknowledges_remote_rows: false",
+      "Remote baseline stage replay must not acknowledge remote rows.",
+    ],
+    [
+      "applies_remote_changes: false",
+      "Remote baseline stage replay must not apply remote changes.",
+    ],
+    [
+      "requires_owner_confirmation_before_replay: true",
+      "Remote baseline stage replay must require owner confirmation.",
+    ],
+    [
+      "requires_empty_workspace_fixture: true",
+      "Remote baseline stage replay must require empty workspace fixture.",
+    ],
+    [
+      "requires_payload_denylist_assertion: true",
+      "Remote baseline stage replay must require payload denylist assertion.",
+    ],
+    [
+      "requires_rls_workspace_isolation_proof: true",
+      "Remote baseline stage replay must require RLS proof.",
+    ],
+    [
+      "requires_cursor_monotonicity_proof: true",
+      "Remote baseline stage replay must require cursor monotonicity proof.",
+    ],
+    [
+      "requires_idempotency_replay_proof: true",
+      "Remote baseline stage replay must require idempotency proof.",
+    ],
+    [
+      "requires_down_migration_rollback_proof: true",
+      "Remote baseline stage replay must require rollback proof.",
+    ],
+    [
+      "requires_audit_event_before_replay: true",
+      "Remote baseline stage replay must require audit event.",
+    ],
+    [
+      "requires_permission_check_before_replay: true",
+      "Remote baseline stage replay must require permission check.",
+    ],
+    [
+      "workspace-read-isolation",
+      "Remote baseline stage replay must include workspace read isolation proof.",
+    ],
+    [
+      "workspace-write-isolation",
+      "Remote baseline stage replay must include workspace write isolation proof.",
+    ],
+    [
+      "cursor-proof-isolation",
+      "Remote baseline stage replay must include cursor proof isolation proof.",
+    ],
+    [
+      "payload-denylist-schema-check",
+      "Remote baseline stage replay must include payload denylist scenario.",
+    ],
+    [
+      "cursor-monotonicity",
+      "Remote baseline stage replay must include cursor monotonicity scenario.",
+    ],
+    [
+      "idempotent-batch-replay",
+      "Remote baseline stage replay must include idempotency scenario.",
+    ],
+    [
+      "down-migration-rollback",
+      "Remote baseline stage replay must include down migration rollback scenario.",
+    ],
+    [
+      "page_body_text",
+      "Remote baseline stage replay must explicitly forbid page body text.",
+    ],
+    [
+      "database_cell_values",
+      "Remote baseline stage replay must explicitly forbid database values.",
+    ],
+    [
+      "comment_body",
+      "Remote baseline stage replay must explicitly forbid comment bodies.",
+    ],
+    [
+      "file_bytes",
+      "Remote baseline stage replay must explicitly forbid file bytes.",
+    ],
+    [
+      "signed_download_url",
+      "Remote baseline stage replay must explicitly forbid signed download URLs.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.remoteBaselineStageReplay,
+      remoteBaselineStageReplay,
+      snippet,
+      message
+    );
+  }
+  for (const gateId of [
+    "owner-confirmation-before-replay",
+    "disposable-database-available",
+    "schema-sql-reviewed",
+    "payload-denylist-proof",
+    "rls-policy-proof",
+    "cursor-proof-replay",
+    "permission-check-before-replay",
+    "audit-event-before-replay",
+    "rollback-proof",
+  ]) {
+    assertSourceIncludes(
+      files.remoteBaselineStageReplay,
+      remoteBaselineStageReplay,
+      `"${gateId}"`,
+      `Remote baseline stage replay gate ${gateId} must remain available.`
+    );
+  }
+  assertSourceIncludes(
     files.syncShell,
     syncShell,
     "buildSyncConflictResolutionContract",
@@ -1271,6 +1478,46 @@ function run() {
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      "buildRemoteBaselineStageReplayContract",
+      "Sync UI must build the remote baseline stage replay contract.",
+    ],
+    [
+      "handleExportRemoteBaselineStageReplay",
+      "Sync UI must export the remote baseline stage replay contract.",
+    ],
+    [
+      "Remote baseline disposable replay and RLS proof",
+      "Sync UI must render the remote baseline stage replay panel.",
+    ],
+    [
+      "Export stage replay",
+      "Sync UI must expose the remote baseline stage replay export action.",
+    ],
+    [
+      "RemoteBaselineStageReplayScenarioRow",
+      "Sync UI must render replay scenarios.",
+    ],
+    [
+      "RemoteBaselineStageReplayGateRow",
+      "Sync UI must render replay gates.",
+    ],
+    [
+      "RemoteBaselineRlsProofRow",
+      "Sync UI must render RLS proof rows.",
+    ],
+    [
+      "RemoteBaselineRollbackProofRow",
+      "Sync UI must render rollback proof rows.",
+    ],
+    [
+      "Final replay enablement",
+      "Sync UI must render final replay enablement conditions.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
@@ -1319,6 +1566,7 @@ function run() {
     remote_baseline_checks: 43,
     remote_baseline_staging_checks: 49,
     remote_baseline_stage_schema_checks: 55,
+    remote_baseline_stage_replay_checks: 57,
     warnings: warnings.length,
   };
 

@@ -217,10 +217,10 @@ function buildLaunchTracks(
       title: "Conflict review",
       status: input.conflictReview ? "partial" : "blocked",
       evidence: input.conflictReview
-        ? `Conflict scaffold covers ${input.conflictReview.summary.surfaces} surfaces, and sync UI includes local-only side-by-side, baseline request, staging, and schema/cursor proof contracts. It still does not read remote baselines.`
+        ? `Conflict scaffold covers ${input.conflictReview.summary.surfaces} surfaces, and sync UI includes local-only side-by-side, baseline request, staging, schema/cursor proof, and disposable replay/RLS proof contracts. It still does not read remote baselines.`
         : "No local conflict review scaffold is available.",
       required_action:
-        "Replay remote_baseline_stage schema and cursor proof on disposable data, prove RLS and rollback, and require owner confirmation before multi-device editing.",
+        "Run disposable replay/RLS proof on empty workspace fixtures, prove rollback, and require owner confirmation before multi-device editing.",
     },
     {
       id: "restore-and-rollback",

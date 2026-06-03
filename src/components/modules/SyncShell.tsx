@@ -157,6 +157,11 @@ import {
   type RemoteBaselineStageSchemaStatus,
 } from "@/lib/sync/remoteBaselineStageSchema";
 import {
+  buildRemoteBaselineStageReplayContract,
+  type RemoteBaselineStageReplayContract,
+  type RemoteBaselineStageReplayStatus,
+} from "@/lib/sync/remoteBaselineStageReplay";
+import {
   buildSyncOptInGateReport,
   type SyncOptInGateReport,
   type SyncOptInGateStatus,
@@ -201,6 +206,7 @@ type SyncQueueAction =
   | "remote-baseline"
   | "remote-baseline-staging"
   | "remote-baseline-stage-schema"
+  | "remote-baseline-stage-replay"
   | "opt-in-gate"
   | "sync-confirmation"
   | "rollback-plan"
@@ -675,6 +681,21 @@ function SyncDashboard() {
       auditTrailPolicy,
       permissionDecisionReport,
       remoteBaselineStaging,
+      workspaceIdentity,
+    ]
+  );
+  const remoteBaselineStageReplay = useMemo(
+    () =>
+      buildRemoteBaselineStageReplayContract({
+        workspaceIdentity,
+        stageSchema: remoteBaselineStageSchema,
+        permissionDecisionReport,
+        auditTrailPolicy,
+      }),
+    [
+      auditTrailPolicy,
+      permissionDecisionReport,
+      remoteBaselineStageSchema,
       workspaceIdentity,
     ]
   );
@@ -1606,6 +1627,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Remote baseline stage schema export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportRemoteBaselineStageReplay = () => {
+    setBusyQueueAction("remote-baseline-stage-replay");
+    try {
+      downloadJsonFile(
+        `zhinote-remote-baseline-stage-replay-${fileSafeTimestamp()}.json`,
+        {
+          ...remoteBaselineStageReplay,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export remote baseline stage replay:",
+        err
+      );
+      window.alert(
+        "Remote baseline stage replay export failed. Please check the console."
       );
     } finally {
       setBusyQueueAction(null);
@@ -2759,6 +2803,16 @@ function SyncDashboard() {
                   ? "Exporting..."
                   : "Export stage schema"}
               </button>
+              <button
+                type="button"
+                onClick={handleExportRemoteBaselineStageReplay}
+                disabled={busyQueueAction === "remote-baseline-stage-replay"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyQueueAction === "remote-baseline-stage-replay"
+                  ? "Exporting..."
+                  : "Export stage replay"}
+              </button>
             </div>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
@@ -3131,6 +3185,122 @@ function SyncDashboard() {
             <ContractPanel title="Final schema enablement" className="mt-4">
               <div className="grid gap-2 md:grid-cols-2">
                 {remoteBaselineStageSchema.final_enablement_conditions.map(
+                  (condition) => (
+                    <div
+                      key={condition}
+                      className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+                    >
+                      {condition}
+                    </div>
+                  )
+                )}
+              </div>
+            </ContractPanel>
+          </ContractPanel>
+          <ContractPanel
+            title="Remote baseline disposable replay and RLS proof"
+            className="mt-4"
+          >
+            <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl">
+                Local replay contract for proving the stage schema on
+                disposable data. It covers up/down SQL replay, payload denylist,
+                RLS workspace isolation, cursor monotonicity, idempotency, and
+                rollback. Replay, database connection, SQL apply, writes, and
+                staging remain disabled.
+              </p>
+              <span className="w-fit rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
+                {remoteBaselineStageReplay.replay_status}
+              </span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+              <ResolutionSummaryCard
+                label="Scenarios"
+                value={remoteBaselineStageReplay.summary.scenarios}
+                detail="Disposable only"
+                status="manual-confirmation"
+              />
+              <ResolutionSummaryCard
+                label="RLS proofs"
+                value={remoteBaselineStageReplay.summary.rls_proofs}
+                detail="Workspace isolation"
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Rollback"
+                value={remoteBaselineStageReplay.summary.rollback_proofs}
+                detail="Down path"
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Gates"
+                value={remoteBaselineStageReplay.summary.gates}
+                detail="Replay gates"
+                status="manual-confirmation"
+              />
+              <ResolutionSummaryCard
+                label="Blocked"
+                value={remoteBaselineStageReplay.summary.blocked}
+                detail="Must prove first"
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Apply"
+                value="Disabled"
+                detail="/api/cloud/migrations/apply"
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Replay"
+                value="Disabled"
+                detail="/api/sync/replay-test"
+                status="blocked"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <ContractPanel title="Disposable replay scenarios">
+                <div className="space-y-2">
+                  {remoteBaselineStageReplay.scenarios.map((scenario) => (
+                    <RemoteBaselineStageReplayScenarioRow
+                      key={scenario.id}
+                      scenario={scenario}
+                    />
+                  ))}
+                </div>
+              </ContractPanel>
+              <ContractPanel title="Replay gates">
+                <div className="space-y-2">
+                  {remoteBaselineStageReplay.gates.map((gate) => (
+                    <RemoteBaselineStageReplayGateRow
+                      key={gate.id}
+                      gate={gate}
+                    />
+                  ))}
+                </div>
+              </ContractPanel>
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <ContractPanel title="RLS proof matrix">
+                <div className="space-y-2">
+                  {remoteBaselineStageReplay.rls_proofs.map((proof) => (
+                    <RemoteBaselineRlsProofRow key={proof.id} proof={proof} />
+                  ))}
+                </div>
+              </ContractPanel>
+              <ContractPanel title="Rollback proof plan">
+                <div className="space-y-2">
+                  {remoteBaselineStageReplay.rollback_proofs.map((proof) => (
+                    <RemoteBaselineRollbackProofRow
+                      key={proof.id}
+                      proof={proof}
+                    />
+                  ))}
+                </div>
+              </ContractPanel>
+            </div>
+            <ContractPanel title="Final replay enablement" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-2">
+                {remoteBaselineStageReplay.final_enablement_conditions.map(
                   (condition) => (
                     <div
                       key={condition}
@@ -7640,6 +7810,155 @@ function RemoteBaselineStageSchemaStatusPill({
 }) {
   const labels: Record<RemoteBaselineStageSchemaStatus, string> = {
     drafted: "Drafted",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "blocked"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function RemoteBaselineStageReplayScenarioRow({
+  scenario,
+}: {
+  scenario: RemoteBaselineStageReplayContract["scenarios"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {scenario.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {scenario.id}
+          </div>
+        </div>
+        <RemoteBaselineStageReplayStatusPill status={scenario.status} />
+      </div>
+      <div className="mt-2 rounded-md bg-white px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-300">
+        Fixture: {scenario.fixture_scope}
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        Expected: {scenario.expected_result}
+      </p>
+      <p className="mt-2 leading-5 text-red-700 dark:text-red-300">
+        Forbidden: {scenario.forbidden_result}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {scenario.evidence}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineStageReplayGateRow({
+  gate,
+}: {
+  gate: RemoteBaselineStageReplayContract["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {gate.evidence}
+          </p>
+        </div>
+        <RemoteBaselineStageReplayStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineRlsProofRow({
+  proof,
+}: {
+  proof: RemoteBaselineStageReplayContract["rls_proofs"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {proof.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {proof.id} · {proof.policy_target}
+          </div>
+        </div>
+        <RemoteBaselineStageReplayStatusPill status={proof.status} />
+      </div>
+      <p className="mt-2 leading-5 text-green-700 dark:text-green-300">
+        Allow: {proof.allow_rule}
+      </p>
+      <p className="mt-2 leading-5 text-red-700 dark:text-red-300">
+        Deny: {proof.deny_rule}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {proof.proof_method}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineRollbackProofRow({
+  proof,
+}: {
+  proof: RemoteBaselineStageReplayContract["rollback_proofs"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {proof.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {proof.id}
+          </div>
+        </div>
+        <RemoteBaselineStageReplayStatusPill status={proof.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        Scope: {proof.rollback_scope}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        Recovery: {proof.expected_recovery}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        Blocked until: {proof.blocked_until}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineStageReplayStatusPill({
+  status,
+}: {
+  status: RemoteBaselineStageReplayStatus;
+}) {
+  const labels: Record<RemoteBaselineStageReplayStatus, string> = {
+    planned: "Planned",
     "manual-confirmation": "Confirm",
     blocked: "Blocked",
   };

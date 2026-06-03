@@ -195,11 +195,11 @@ function buildActions(
       phase: "sync",
       priority: "p1",
       gate: gatesById.get("conflict-resolution"),
-      fallbackTitle: "Replay remote baseline stage schema",
+      fallbackTitle: "Run disposable remote baseline replay",
       fallbackEvidence:
-        "Conflict policies, side-by-side preview, remote baseline request/staging contracts, and local schema/cursor proof contract exist, but no disposable schema replay or RLS proof is implemented.",
+        "Conflict policies, side-by-side preview, remote baseline request/staging/schema contracts, and disposable replay/RLS proof contract exist, but no actual empty-fixture replay has run.",
       fallbackAction:
-        "Replay remote_baseline_stage and remote_baseline_cursor_proof drafts on disposable data, prove payload denylist, RLS scope, cursor monotonicity, idempotency, and rollback while keeping apply disabled.",
+        "Run disposable replay with empty workspace fixtures to prove payload denylist, RLS scope, cursor monotonicity, idempotency, and rollback while keeping apply disabled.",
       status: "ready-to-build",
       unlocks: "Multi-device editing without silent overwrites.",
     }),
