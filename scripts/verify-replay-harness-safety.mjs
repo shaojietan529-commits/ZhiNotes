@@ -9,6 +9,7 @@ const root = process.cwd();
 const files = {
   packageJson: "package.json",
   harness: "src/lib/sync/remoteBaselineReplayHarness.ts",
+  runner: "src/lib/sync/remoteBaselineReplayRunner.ts",
   fixture: "src/lib/sync/remoteBaselineReplayFixture.ts",
   stageReplay: "src/lib/sync/remoteBaselineStageReplay.ts",
   stageSchema: "src/lib/sync/remoteBaselineStageSchema.ts",
@@ -45,6 +46,7 @@ function assertExcludes(sourceLabel, source, snippet, message) {
 function run() {
   const packageJson = JSON.parse(readProjectFile(files.packageJson));
   const harness = readProjectFile(files.harness);
+  const runner = readProjectFile(files.runner);
   const fixture = readProjectFile(files.fixture);
   const stageReplay = readProjectFile(files.stageReplay);
   const stageSchema = readProjectFile(files.stageSchema);
@@ -140,6 +142,235 @@ function run() {
 
   for (const [snippet, message] of [
     [
+      'format: "zhinote-remote-baseline-replay-runner-skeleton"',
+      "Runner skeleton must keep a stable export format.",
+    ],
+    [
+      'runner_status: "disabled-runner-skeleton-only"',
+      "Runner skeleton must remain disabled.",
+    ],
+    [
+      "can_export_runner_skeleton_now: true",
+      "Runner skeleton may only be exported locally.",
+    ],
+    ["can_run_runner_now: false", "Runner must not be runnable."],
+    ["can_connect_database_now: false", "Runner must not connect databases."],
+    [
+      "can_create_disposable_database_now: false",
+      "Runner must not create disposable databases.",
+    ],
+    ["can_apply_sql_now: false", "Runner must not apply SQL."],
+    [
+      "can_start_network_request_now: false",
+      "Runner must not start network requests.",
+    ],
+    [
+      "can_write_server_data_now: false",
+      "Runner must not write server data.",
+    ],
+    [
+      "can_stage_remote_rows_now: false",
+      "Runner must not stage remote rows.",
+    ],
+    [
+      "can_acknowledge_remote_rows_now: false",
+      "Runner must not acknowledge remote rows.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Runner must not upload workspace data.",
+    ],
+    [
+      'disabled_replay_endpoint: "/api/sync/replay-test"',
+      "Runner must keep replay endpoint disabled.",
+    ],
+    [
+      'disabled_apply_path: "/api/cloud/migrations/apply"',
+      "Runner must keep migration apply disabled.",
+    ],
+    [
+      "local_skeleton_only: true",
+      "Runner must remain a local skeleton.",
+    ],
+    [
+      "runner_disabled_by_default: true",
+      "Runner must stay disabled by default.",
+    ],
+    ["export_only: true", "Runner must only support local export."],
+    ["dry_run_only: true", "Runner must remain dry-run only."],
+    [
+      "uses_empty_fixture_package: true",
+      "Runner must depend on empty fixture package.",
+    ],
+    [
+      "starts_network_request: false",
+      "Runner must not start network requests.",
+    ],
+    [
+      "creates_disposable_database: false",
+      "Runner must not create databases.",
+    ],
+    [
+      "connects_cloud_database: false",
+      "Runner must not connect cloud database.",
+    ],
+    ["applies_sql: false", "Runner must not apply SQL."],
+    ["writes_server_data: false", "Runner must not write server data."],
+    [
+      "writes_workspace_data: false",
+      "Runner must not write workspace data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Runner must not upload workspace data.",
+    ],
+    ["reads_remote_data: false", "Runner must not read remote data."],
+    [
+      "reads_page_body_text: false",
+      "Runner must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Runner must not read database values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Runner must not read comment bodies.",
+    ],
+    ["reads_file_bytes: false", "Runner must not read file bytes."],
+    ["includes_tokens: false", "Runner must not include tokens."],
+    ["includes_cookies: false", "Runner must not include cookies."],
+    [
+      "stages_remote_rows: false",
+      "Runner must not stage remote rows.",
+    ],
+    [
+      "acknowledges_remote_rows: false",
+      "Runner must not acknowledge remote rows.",
+    ],
+    [
+      "applies_remote_changes: false",
+      "Runner must not apply remote changes.",
+    ],
+    [
+      "uses_production_workspace: false",
+      "Runner must not use production workspace data.",
+    ],
+    [
+      "reads_environment_values: false",
+      "Runner must not read environment values.",
+    ],
+    [
+      "uses_runtime_secrets: false",
+      "Runner must not use runtime secrets.",
+    ],
+    [
+      "requires_owner_confirmation_receipt: true",
+      "Runner must require owner confirmation.",
+    ],
+    [
+      "requires_empty_fixture_package: true",
+      "Runner must require empty fixtures.",
+    ],
+    [
+      "requires_payload_denylist: true",
+      "Runner must require payload denylist.",
+    ],
+    [
+      "requires_permission_check_stub: true",
+      "Runner must require permission check stub.",
+    ],
+    [
+      "requires_redacted_audit_event: true",
+      "Runner must require redacted audit event.",
+    ],
+    [
+      "requires_rls_assertion_plan: true",
+      "Runner must require RLS assertion plan.",
+    ],
+    [
+      "requires_rollback_assertion_plan: true",
+      "Runner must require rollback assertion plan.",
+    ],
+    [
+      "requires_owner_approval_to_enable: true",
+      "Runner must require owner approval before enablement.",
+    ],
+    [
+      "export-runner-skeleton",
+      "Runner must expose a local export entrypoint.",
+    ],
+    [
+      "verify-replay-harness",
+      "Runner must point to the local safety verifier.",
+    ],
+    [
+      "disabled-replay-route",
+      "Runner must keep replay route disabled.",
+    ],
+    [
+      "disabled-migration-apply-route",
+      "Runner must keep migration apply route disabled.",
+    ],
+    [
+      "load-harness-preflight",
+      "Runner must load the harness preflight first.",
+    ],
+    [
+      "verify-fixture-zero-payload",
+      "Runner must verify zero fixture payload.",
+    ],
+    [
+      "verify-owner-confirmation",
+      "Runner must verify owner confirmation.",
+    ],
+    [
+      "open-disposable-database-connection",
+      "Runner must keep disposable database connection blocked.",
+    ],
+    ["apply-up-sql", "Runner must keep SQL apply blocked."],
+    [
+      "run-rls-isolation",
+      "Runner must keep RLS proof as a blocked phase.",
+    ],
+    [
+      "run-cursor-idempotency",
+      "Runner must keep cursor idempotency as a blocked phase.",
+    ],
+    [
+      "run-down-migration-rollback",
+      "Runner must keep rollback as a blocked phase.",
+    ],
+    [
+      "emit-redacted-audit-event",
+      "Runner must keep audit emission blocked.",
+    ],
+    [
+      "missing-owner-confirmation",
+      "Runner must refuse replay without owner confirmation.",
+    ],
+    [
+      "no-disposable-database",
+      "Runner must refuse database work without disposable database.",
+    ],
+    [
+      "permission-check-disabled",
+      "Runner must refuse mutation while permission checks are disabled.",
+    ],
+    [
+      "audit-write-disabled",
+      "Runner must refuse audit writes while audit is disabled.",
+    ],
+    [
+      "private-payload-denylist",
+      "Runner must preserve private payload denylist refusal.",
+    ],
+  ]) {
+    assertIncludes(files.runner, runner, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
       'format: "zhinote-remote-baseline-replay-fixture-package"',
       "Fixture package must keep a stable export format.",
     ],
@@ -186,6 +417,7 @@ function run() {
 
   for (const [sourceLabel, source] of [
     [files.harness, harness],
+    [files.runner, runner],
     [files.fixture, fixture],
   ]) {
     for (const [snippet, message] of [
@@ -286,6 +518,36 @@ function run() {
       "Sync UI must render harness gate rows.",
     ],
     [
+      files.syncShell,
+      syncShell,
+      "Disabled replay runner skeleton",
+      "Sync UI must render runner skeleton panel.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "Export runner skeleton",
+      "Sync UI must expose runner skeleton export action.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "RemoteBaselineReplayRunnerEntryPointRow",
+      "Sync UI must render runner entrypoint rows.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "RemoteBaselineReplayRunnerPhaseRow",
+      "Sync UI must render runner phase rows.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "RemoteBaselineReplayRunnerRefusalRow",
+      "Sync UI must render runner refusal rows.",
+    ],
+    [
       files.smokeTestPlan,
       smokeTestPlan,
       "npm run verify:replay-harness",
@@ -303,8 +565,9 @@ function run() {
 
   const summary = {
     harness_boundary_checks: 49,
+    runner_boundary_checks: 74,
     fixture_boundary_checks: 23,
-    route_and_ui_checks: 8,
+    route_and_ui_checks: 13,
     documentation_checks: 2,
   };
 

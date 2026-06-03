@@ -25,6 +25,7 @@ const files = {
   remoteBaselineStageReplay: "src/lib/sync/remoteBaselineStageReplay.ts",
   remoteBaselineReplayFixture: "src/lib/sync/remoteBaselineReplayFixture.ts",
   remoteBaselineReplayHarness: "src/lib/sync/remoteBaselineReplayHarness.ts",
+  remoteBaselineReplayRunner: "src/lib/sync/remoteBaselineReplayRunner.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -196,6 +197,9 @@ function run() {
   const remoteBaselineReplayHarness = readProjectFile(
     files.remoteBaselineReplayHarness
   );
+  const remoteBaselineReplayRunner = readProjectFile(
+    files.remoteBaselineReplayRunner
+  );
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -228,6 +232,7 @@ function run() {
     [files.remoteBaselineStageReplay, remoteBaselineStageReplay],
     [files.remoteBaselineReplayFixture, remoteBaselineReplayFixture],
     [files.remoteBaselineReplayHarness, remoteBaselineReplayHarness],
+    [files.remoteBaselineReplayRunner, remoteBaselineReplayRunner],
     [files.syncOptInGate, syncOptInGate],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
@@ -1776,6 +1781,211 @@ function run() {
     );
   }
   assertSourceIncludes(
+    files.remoteBaselineReplayRunner,
+    remoteBaselineReplayRunner,
+    'format: "zhinote-remote-baseline-replay-runner-skeleton"',
+    "Remote baseline replay runner must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.remoteBaselineReplayRunner,
+    remoteBaselineReplayRunner,
+    "buildRemoteBaselineReplayRunnerSkeleton",
+    "Remote baseline replay runner must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'runner_status: "disabled-runner-skeleton-only"',
+      "Remote baseline replay runner must stay disabled.",
+    ],
+    [
+      "can_export_runner_skeleton_now: true",
+      "Remote baseline replay runner may only be exported locally.",
+    ],
+    [
+      "can_run_runner_now: false",
+      "Remote baseline replay runner must not run.",
+    ],
+    [
+      "can_connect_database_now: false",
+      "Remote baseline replay runner must not connect databases.",
+    ],
+    [
+      "can_create_disposable_database_now: false",
+      "Remote baseline replay runner must not create disposable databases.",
+    ],
+    [
+      "can_apply_sql_now: false",
+      "Remote baseline replay runner must not apply SQL.",
+    ],
+    [
+      "can_start_network_request_now: false",
+      "Remote baseline replay runner must not start network requests.",
+    ],
+    [
+      "can_write_server_data_now: false",
+      "Remote baseline replay runner must not write server data.",
+    ],
+    [
+      "can_stage_remote_rows_now: false",
+      "Remote baseline replay runner must not stage remote rows.",
+    ],
+    [
+      "can_acknowledge_remote_rows_now: false",
+      "Remote baseline replay runner must not acknowledge rows.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Remote baseline replay runner must not upload workspace data.",
+    ],
+    [
+      'disabled_replay_endpoint: "/api/sync/replay-test"',
+      "Remote baseline replay runner must keep replay endpoint disabled.",
+    ],
+    [
+      'disabled_apply_path: "/api/cloud/migrations/apply"',
+      "Remote baseline replay runner must keep migration apply disabled.",
+    ],
+    [
+      "local_skeleton_only: true",
+      "Remote baseline replay runner must remain a local skeleton.",
+    ],
+    [
+      "runner_disabled_by_default: true",
+      "Remote baseline replay runner must stay disabled by default.",
+    ],
+    [
+      "export_only: true",
+      "Remote baseline replay runner must stay export-only.",
+    ],
+    [
+      "starts_network_request: false",
+      "Remote baseline replay runner must not start network requests.",
+    ],
+    [
+      "creates_disposable_database: false",
+      "Remote baseline replay runner must not create disposable databases.",
+    ],
+    [
+      "connects_cloud_database: false",
+      "Remote baseline replay runner must not connect cloud database.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Remote baseline replay runner must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Remote baseline replay runner must not read database values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Remote baseline replay runner must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Remote baseline replay runner must not read file bytes.",
+    ],
+    [
+      "includes_tokens: false",
+      "Remote baseline replay runner must not include tokens.",
+    ],
+    [
+      "includes_cookies: false",
+      "Remote baseline replay runner must not include cookies.",
+    ],
+    [
+      "stages_remote_rows: false",
+      "Remote baseline replay runner must not stage rows.",
+    ],
+    [
+      "acknowledges_remote_rows: false",
+      "Remote baseline replay runner must not acknowledge rows.",
+    ],
+    [
+      "uses_production_workspace: false",
+      "Remote baseline replay runner must not use production workspace data.",
+    ],
+    [
+      "reads_environment_values: false",
+      "Remote baseline replay runner must not read environment values.",
+    ],
+    [
+      "uses_runtime_secrets: false",
+      "Remote baseline replay runner must not use runtime secrets.",
+    ],
+    [
+      "requires_owner_confirmation_receipt: true",
+      "Remote baseline replay runner must require owner confirmation.",
+    ],
+    [
+      "requires_empty_fixture_package: true",
+      "Remote baseline replay runner must require empty fixture package.",
+    ],
+    [
+      "requires_payload_denylist: true",
+      "Remote baseline replay runner must require payload denylist.",
+    ],
+    [
+      "requires_permission_check_stub: true",
+      "Remote baseline replay runner must require permission check stub.",
+    ],
+    [
+      "requires_redacted_audit_event: true",
+      "Remote baseline replay runner must require redacted audit event.",
+    ],
+    [
+      "requires_rls_assertion_plan: true",
+      "Remote baseline replay runner must require RLS proof plan.",
+    ],
+    [
+      "requires_rollback_assertion_plan: true",
+      "Remote baseline replay runner must require rollback proof plan.",
+    ],
+    [
+      "requires_owner_approval_to_enable: true",
+      "Remote baseline replay runner must require owner approval before enablement.",
+    ],
+    [
+      "export-runner-skeleton",
+      "Remote baseline replay runner must keep local export entrypoint.",
+    ],
+    [
+      "verify-replay-harness",
+      "Remote baseline replay runner must keep safety verifier entrypoint.",
+    ],
+    [
+      "open-disposable-database-connection",
+      "Remote baseline replay runner must keep database connection blocked.",
+    ],
+    [
+      "apply-up-sql",
+      "Remote baseline replay runner must keep SQL apply blocked.",
+    ],
+    [
+      "run-rls-isolation",
+      "Remote baseline replay runner must keep RLS proof blocked.",
+    ],
+    [
+      "run-cursor-idempotency",
+      "Remote baseline replay runner must keep cursor proof blocked.",
+    ],
+    [
+      "run-down-migration-rollback",
+      "Remote baseline replay runner must keep rollback blocked.",
+    ],
+    [
+      "private-payload-denylist",
+      "Remote baseline replay runner must keep payload denylist refusal.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.remoteBaselineReplayRunner,
+      remoteBaselineReplayRunner,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
     files.syncShell,
     syncShell,
     "buildSyncConflictResolutionContract",
@@ -2050,6 +2260,38 @@ function run() {
       "remote-baseline-replay-harness",
       "Sync UI must track harness export state separately.",
     ],
+    [
+      "buildRemoteBaselineReplayRunnerSkeleton",
+      "Sync UI must build the disabled replay runner skeleton.",
+    ],
+    [
+      "handleExportRemoteBaselineReplayRunnerSkeleton",
+      "Sync UI must export the disabled replay runner skeleton.",
+    ],
+    [
+      "Disabled replay runner skeleton",
+      "Sync UI must render the disabled replay runner panel.",
+    ],
+    [
+      "Export runner skeleton",
+      "Sync UI must expose the disabled replay runner export action.",
+    ],
+    [
+      "RemoteBaselineReplayRunnerEntryPointRow",
+      "Sync UI must render replay runner entrypoint rows.",
+    ],
+    [
+      "RemoteBaselineReplayRunnerPhaseRow",
+      "Sync UI must render replay runner phase rows.",
+    ],
+    [
+      "RemoteBaselineReplayRunnerRefusalRow",
+      "Sync UI must render replay runner refusal rows.",
+    ],
+    [
+      "remote-baseline-replay-runner",
+      "Sync UI must track runner skeleton export state separately.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
@@ -2105,6 +2347,7 @@ function run() {
     remote_baseline_stage_replay_checks: 67,
     remote_baseline_replay_fixture_checks: 48,
     remote_baseline_replay_harness_checks: 54,
+    remote_baseline_replay_runner_checks: 52,
     warnings: warnings.length,
   };
 

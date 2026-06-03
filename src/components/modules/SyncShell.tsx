@@ -172,6 +172,11 @@ import {
   type RemoteBaselineReplayHarnessStatus,
 } from "@/lib/sync/remoteBaselineReplayHarness";
 import {
+  buildRemoteBaselineReplayRunnerSkeleton,
+  type RemoteBaselineReplayRunnerSkeleton,
+  type RemoteBaselineReplayRunnerStatus,
+} from "@/lib/sync/remoteBaselineReplayRunner";
+import {
   buildSyncOptInGateReport,
   type SyncOptInGateReport,
   type SyncOptInGateStatus,
@@ -220,6 +225,7 @@ type SyncQueueAction =
   | "remote-baseline-replay-confirmation"
   | "remote-baseline-replay-fixture"
   | "remote-baseline-replay-harness"
+  | "remote-baseline-replay-runner"
   | "opt-in-gate"
   | "sync-confirmation"
   | "rollback-plan"
@@ -772,6 +778,25 @@ function SyncDashboard() {
       remoteBaselineReplayFixturePackage,
       remoteBaselineStageReplay,
       remoteBaselineStageSchema,
+      workspaceIdentity,
+    ]
+  );
+  const remoteBaselineReplayRunnerSkeleton = useMemo(
+    () =>
+      buildRemoteBaselineReplayRunnerSkeleton({
+        workspaceIdentity,
+        harnessPreflight: remoteBaselineReplayHarnessPreflight,
+        fixturePackage: remoteBaselineReplayFixturePackage,
+        stageReplay: remoteBaselineStageReplay,
+        permissionDecisionReport,
+        auditTrailPolicy,
+      }),
+    [
+      auditTrailPolicy,
+      permissionDecisionReport,
+      remoteBaselineReplayFixturePackage,
+      remoteBaselineReplayHarnessPreflight,
+      remoteBaselineStageReplay,
       workspaceIdentity,
     ]
   );
@@ -1795,6 +1820,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Remote baseline replay harness export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportRemoteBaselineReplayRunnerSkeleton = () => {
+    setBusyQueueAction("remote-baseline-replay-runner");
+    try {
+      downloadJsonFile(
+        `zhinote-remote-baseline-replay-runner-${fileSafeTimestamp()}.json`,
+        {
+          ...remoteBaselineReplayRunnerSkeleton,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export remote baseline replay runner skeleton:",
+        err
+      );
+      window.alert(
+        "Remote baseline replay runner skeleton export failed. Please check the console."
       );
     } finally {
       setBusyQueueAction(null);
@@ -3615,6 +3663,89 @@ function SyncDashboard() {
                       gate={gate}
                     />
                   ))}
+                </div>
+              </ContractPanel>
+            </ContractPanel>
+            <ContractPanel
+              title="Disabled replay runner skeleton"
+              className="mt-4"
+            >
+              <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
+                <p className="max-w-3xl">
+                  Local-only runner map for the future disposable replay test.
+                  The export lists entrypoints, phases, and refusal reasons, but
+                  the runner is disabled by default: it cannot connect a
+                  database, start network requests, apply SQL, write server
+                  data, stage remote rows, acknowledge cursors, or upload
+                  workspace data.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleExportRemoteBaselineReplayRunnerSkeleton}
+                  disabled={busyQueueAction === "remote-baseline-replay-runner"}
+                  className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  {busyQueueAction === "remote-baseline-replay-runner"
+                    ? "Exporting..."
+                    : "Export runner skeleton"}
+                </button>
+              </div>
+              <div className="mt-3 grid gap-2 md:grid-cols-4">
+                <IdentityMetric
+                  label="Entry points"
+                  value={`${remoteBaselineReplayRunnerSkeleton.summary.entrypoints}`}
+                  detail="Export only"
+                />
+                <IdentityMetric
+                  label="Phases"
+                  value={`${remoteBaselineReplayRunnerSkeleton.summary.phases}`}
+                  detail="Runner disabled"
+                />
+                <IdentityMetric
+                  label="Refusals"
+                  value={`${remoteBaselineReplayRunnerSkeleton.summary.refusal_reasons}`}
+                  detail="Run blocked"
+                />
+                <IdentityMetric
+                  label="Blocked"
+                  value={`${remoteBaselineReplayRunnerSkeleton.summary.blocked}`}
+                  detail="No live replay"
+                />
+              </div>
+              <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+                <ContractPanel title="Runner entrypoints">
+                  <div className="space-y-2">
+                    {remoteBaselineReplayRunnerSkeleton.entrypoints.map(
+                      (entrypoint) => (
+                        <RemoteBaselineReplayRunnerEntryPointRow
+                          key={entrypoint.id}
+                          entrypoint={entrypoint}
+                        />
+                      )
+                    )}
+                  </div>
+                </ContractPanel>
+                <ContractPanel title="Runner phases">
+                  <div className="space-y-2">
+                    {remoteBaselineReplayRunnerSkeleton.phases.map((phase) => (
+                      <RemoteBaselineReplayRunnerPhaseRow
+                        key={phase.id}
+                        phase={phase}
+                      />
+                    ))}
+                  </div>
+                </ContractPanel>
+              </div>
+              <ContractPanel title="Runner refusal reasons" className="mt-4">
+                <div className="grid gap-2 md:grid-cols-2">
+                  {remoteBaselineReplayRunnerSkeleton.refusal_reasons.map(
+                    (reason) => (
+                      <RemoteBaselineReplayRunnerRefusalRow
+                        key={reason.id}
+                        reason={reason}
+                      />
+                    )
+                  )}
                 </div>
               </ContractPanel>
             </ContractPanel>
@@ -8363,6 +8494,91 @@ function RemoteBaselineReplayHarnessGateRow({
   );
 }
 
+function RemoteBaselineReplayRunnerEntryPointRow({
+  entrypoint,
+}: {
+  entrypoint: RemoteBaselineReplayRunnerSkeleton["entrypoints"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {entrypoint.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {entrypoint.id} · {entrypoint.entry_kind}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {entrypoint.evidence}
+          </p>
+        </div>
+        <RemoteBaselineReplayRunnerStatusPill status={entrypoint.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        Target: {entrypoint.target}. Allowed now:{" "}
+        {entrypoint.allowed_now ? "yes" : "no"}.
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineReplayRunnerPhaseRow({
+  phase,
+}: {
+  phase: RemoteBaselineReplayRunnerSkeleton["phases"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {phase.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {phase.id} · {phase.runner_stage}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {phase.expected_evidence}
+          </p>
+        </div>
+        <RemoteBaselineReplayRunnerStatusPill status={phase.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        Input: {phase.input_source}. Blocked until: {phase.blocked_until}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineReplayRunnerRefusalRow({
+  reason,
+}: {
+  reason: RemoteBaselineReplayRunnerSkeleton["refusal_reasons"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {reason.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {reason.id} · refuses {reason.refused_action}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {reason.evidence}
+          </p>
+        </div>
+        <RemoteBaselineReplayRunnerStatusPill status={reason.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {reason.required_before_enablement}
+      </p>
+    </article>
+  );
+}
+
 function RemoteBaselineRlsProofRow({
   proof,
 }: {
@@ -8481,6 +8697,31 @@ function RemoteBaselineReplayHarnessStatusPill({
   status: RemoteBaselineReplayHarnessStatus;
 }) {
   const labels: Record<RemoteBaselineReplayHarnessStatus, string> = {
+    ready: "Ready",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function RemoteBaselineReplayRunnerStatusPill({
+  status,
+}: {
+  status: RemoteBaselineReplayRunnerStatus;
+}) {
+  const labels: Record<RemoteBaselineReplayRunnerStatus, string> = {
     ready: "Ready",
     "manual-confirmation": "Confirm",
     blocked: "Blocked",

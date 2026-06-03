@@ -575,6 +575,11 @@ Current local actions:
   connect a database, apply SQL, start network requests, write server data,
   stage remote rows, acknowledge cursors, upload workspace data, or enable
   `/api/sync/replay-test`.
+- Review and export a local disabled replay runner skeleton. The skeleton maps
+  future runner entrypoints, phases, and refusal reasons, but all execution
+  paths remain blocked: no database creation or connection, no network request,
+  no SQL apply, no server write, no remote row staging, no acknowledgement, no
+  private payload read, and no workspace upload.
 - Review and export a local workspace identity with anonymous browser-local
   workspace and device ids for future sync metadata. The identity is not an
   account and does not connect cloud services or include note text/file content.
@@ -718,8 +723,8 @@ The first cloud phase is a private alpha, not full sync:
   disabled state, Cloudflare staging review, and Sync UI export wiring.
 - `npm run verify:replay-harness` checks the disposable replay harness safety
   boundary: replay and apply endpoints stay disabled, fixture payload stays
-  empty, no network/database/file-write execution appears in the harness, and
-  the Sync UI keeps the harness preflight export visible.
+  empty, no network/database/file-write execution appears in the harness or
+  disabled runner skeleton, and the Sync UI keeps both exports visible.
 
 See `docs/cloud-deployment.md` for the deployment checklist.
 

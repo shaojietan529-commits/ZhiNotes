@@ -217,10 +217,10 @@ function buildLaunchTracks(
       title: "Conflict review",
       status: input.conflictReview ? "partial" : "blocked",
       evidence: input.conflictReview
-        ? `Conflict scaffold covers ${input.conflictReview.summary.surfaces} surfaces, and sync UI includes local-only side-by-side, baseline request, staging, schema/cursor proof, disposable replay/RLS proof contracts, disposable replay confirmation receipt, empty-fixture replay package, and harness preflight. It still does not read remote baselines.`
+        ? `Conflict scaffold covers ${input.conflictReview.summary.surfaces} surfaces, and sync UI includes local-only side-by-side, baseline request, staging, schema/cursor proof, disposable replay/RLS proof contracts, disposable replay confirmation receipt, empty-fixture replay package, harness preflight, and disabled runner skeleton. It still does not read remote baselines.`
         : "No local conflict review scaffold is available.",
       required_action:
-        "Export owner confirmation, empty-fixture package, and harness preflight, run disposable replay/RLS proof on empty workspace fixtures, prove rollback, and require owner confirmation before multi-device editing.",
+        "Export owner confirmation, empty-fixture package, harness preflight, and disabled runner skeleton, run disposable replay/RLS proof on empty workspace fixtures, prove rollback, and require owner confirmation before multi-device editing.",
     },
     {
       id: "restore-and-rollback",
@@ -243,12 +243,12 @@ function buildLaunchTracks(
       status: input.syncPayloadPreview ? "partial" : "manual-confirmation",
       evidence:
         input.syncPayloadPreview && input.permissionDecisionReport
-          ? `Sync payload preview covers ${input.syncPayloadPreview.summary.pending_count} pending rows and permission decisions flag ${input.permissionDecisionReport.summary.needs_confirmation} local actions for manual confirmation. Disposable replay has its own local confirmation receipt, empty-fixture package, and harness preflight before any empty-data replay.`
+          ? `Sync payload preview covers ${input.syncPayloadPreview.summary.pending_count} pending rows and permission decisions flag ${input.permissionDecisionReport.summary.needs_confirmation} local actions for manual confirmation. Disposable replay has its own local confirmation receipt, empty-fixture package, harness preflight, and disabled runner skeleton before any empty-data replay.`
           : input.syncPayloadPreview
             ? `Sync payload preview covers ${input.syncPayloadPreview.summary.pending_count} pending rows without page text or file bytes.`
             : "No local sync payload preview is available.",
       required_action:
-        "Make payload preview, replay receipts, empty-fixture packages, and harness preflights mandatory before cloud sync, disposable replay, AI execution, external asset loading, sharing, or bulk delete.",
+        "Make payload preview, replay receipts, empty-fixture packages, harness preflights, and disabled runner skeletons mandatory before cloud sync, disposable replay, AI execution, external asset loading, sharing, or bulk delete.",
     },
     {
       id: "environment-preflight",
