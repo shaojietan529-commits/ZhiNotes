@@ -13,6 +13,7 @@ const files = {
   companyPlaybook: "src/lib/company/companyResearchPlaybook.ts",
   meetingFollowUp: "src/lib/meetings/meetingFollowUp.ts",
   meetingPlaybook: "src/lib/meetings/meetingResearchPlaybook.ts",
+  meetingTrackerIntake: "src/lib/meetings/meetingTrackerIntake.ts",
   portfolioReview: "src/lib/portfolio/portfolioReview.ts",
   connectionsPanel: "src/components/modules/ResearchConnectionsPanel.tsx",
   graphShell: "src/components/modules/ResearchGraphShell.tsx",
@@ -113,6 +114,7 @@ function run() {
   const companyPlaybook = readProjectFile(files.companyPlaybook);
   const meetingFollowUp = readProjectFile(files.meetingFollowUp);
   const meetingPlaybook = readProjectFile(files.meetingPlaybook);
+  const meetingTrackerIntake = readProjectFile(files.meetingTrackerIntake);
   const portfolioReview = readProjectFile(files.portfolioReview);
   const connectionsPanel = readProjectFile(files.connectionsPanel);
   const graphShell = readProjectFile(files.graphShell);
@@ -341,6 +343,58 @@ function run() {
     );
   }
   assertIncludes(
+    files.meetingTrackerIntake,
+    meetingTrackerIntake,
+    'format: "zhinote-meeting-tracker-intake-draft"',
+    "Meeting tracker intake must define a local row draft format."
+  );
+  assertIncludes(
+    files.meetingTrackerIntake,
+    meetingTrackerIntake,
+    "buildMeetingTrackerIntakeDraft",
+    "Meeting tracker intake must expose a reusable draft builder."
+  );
+  assertIncludes(
+    files.meetingTrackerIntake,
+    meetingTrackerIntake,
+    "findExistingMeetingTrackerRow",
+    "Meeting tracker intake must avoid duplicate meeting-note rows."
+  );
+  for (const snippet of [
+    "local_row_draft_only: true",
+    "reads_meeting_follow_up_item: true",
+    "reads_database_fields: true",
+    "reads_page_text: false",
+    "reads_transcript_text: false",
+    "reads_recording_bytes: false",
+    "includes_participant_details: false",
+    "includes_meeting_passcodes: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.meetingTrackerIntake,
+      meetingTrackerIntake,
+      snippet,
+      "Meeting tracker intake draft must preserve local-only privacy boundaries."
+    );
+  }
+  for (const fieldName of [
+    "Meeting note",
+    "Status",
+    "Follow-up needed",
+    "Action items",
+  ]) {
+    assertIncludes(
+      files.meetingTrackerIntake,
+      meetingTrackerIntake,
+      fieldName,
+      `Meeting tracker intake must map ${fieldName}.`
+    );
+  }
+  assertIncludes(
     files.portfolioReview,
     portfolioReview,
     'format: "zhinote-portfolio-review-report"',
@@ -474,6 +528,36 @@ function run() {
   assertIncludes(
     files.meetingsShell,
     meetingsShell,
+    "buildMeetingTrackerIntakeDraft",
+    "Meetings module must build local tracker intake drafts."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    "findExistingMeetingTrackerRow",
+    "Meetings module must check existing tracker rows before writing."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    "会议入库台",
+    "Meetings module must render the tracker intake desk."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    "创建 tracker row",
+    "Meetings module must expose a tracker-row creation action."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    "本地单条写入",
+    "Meetings module must label tracker intake as a single local write."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
     "会议 follow-up 队列",
     "Meetings module must render the follow-up queue."
   );
@@ -598,6 +682,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "meeting intake desk",
+    "README must document meeting tracker intake."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "portfolio review radar",
     "README must document portfolio review reporting."
   );
@@ -628,6 +718,7 @@ function run() {
         company_coverage_areas: requiredCompanyCoverageAreas.length,
         meeting_follow_up_stages: requiredMeetingFollowUpStages.length,
         meeting_playbook_actions: 7,
+        meeting_tracker_intake_fields: 4,
         portfolio_review_areas: requiredPortfolioReviewAreas.length,
         shared_routes: true,
         local_only: true,

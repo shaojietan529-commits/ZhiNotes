@@ -7,7 +7,12 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { usePages } from "@/hooks/usePages";
-import { getAllDatabases } from "@/lib/db/local/queries";
+import {
+  addRow,
+  getAllDatabases,
+  getFields,
+  getRows,
+} from "@/lib/db/local/queries";
 import {
   buildMeetingFollowUpReport,
   getMeetingFollowUpStageLabel,
@@ -20,6 +25,11 @@ import {
   type MeetingResearchPlaybook,
   type MeetingResearchPlaybookStatus,
 } from "@/lib/meetings/meetingResearchPlaybook";
+import {
+  buildMeetingTrackerIntakeDraft,
+  findExistingMeetingTrackerRow,
+  type MeetingTrackerFollowUpItem,
+} from "@/lib/meetings/meetingTrackerIntake";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -90,6 +100,12 @@ function MeetingsDashboard() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingFollowUp, setExportingFollowUp] = useState(false);
   const [exportingPlaybook, setExportingPlaybook] = useState(false);
+  const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
+    null
+  );
+  const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     void getAllDatabases()
@@ -168,6 +184,69 @@ function MeetingsDashboard() {
     }
   };
 
+  const handleCreateTrackerRow = async (item: MeetingTrackerFollowUpItem) => {
+    const tracker = meetingTrackers[0];
+    if (!tracker) {
+      window.alert("请先创建会议跟踪表，再把会议入库。");
+      return;
+    }
+
+    setTrackerIntakeBusyId(item.id);
+    setTrackerIntakeMessage(null);
+    try {
+      const [trackerFields, trackerRows] = await Promise.all([
+        getFields(tracker.id),
+        getRows(tracker.id),
+      ]);
+      const existingRow = findExistingMeetingTrackerRow(
+        trackerRows,
+        trackerFields,
+        item.page_id
+      );
+      if (existingRow) {
+        setTrackerIntakeMessage(
+          `已存在 tracker row：${existingRow.row_title}。已打开跟踪表继续补 relation。`
+        );
+        router.push(
+          `/database/${tracker.id}?q=${encodeURIComponent(
+            item.page_title
+          )}&focus=${item.page_id}`
+        );
+        return;
+      }
+
+      const draft = buildMeetingTrackerIntakeDraft(item, trackerFields);
+      const hasMeetingNoteRelation = draft.mapped_fields.some(
+        (field) => field.mapped_value === "meeting-note-relation"
+      );
+      if (!hasMeetingNoteRelation) {
+        window.alert(
+          "当前会议跟踪表缺少 Meeting note relation 字段，请先补字段后再入库。"
+        );
+        return;
+      }
+
+      await addRow(tracker.id, {
+        title: draft.row_title,
+        fieldValues: draft.field_values,
+        contentText: draft.row_page_content,
+      });
+      setTrackerIntakeMessage(
+        `已创建 tracker row：${draft.row_title}。已打开跟踪表继续补 relation。`
+      );
+      router.push(
+        `/database/${tracker.id}?q=${encodeURIComponent(
+          draft.row_title
+        )}&focus=${item.page_id}`
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to create meeting tracker row:", err);
+      window.alert("会议入库失败，请查看控制台。");
+    } finally {
+      setTrackerIntakeBusyId(null);
+    }
+  };
+
   return (
     <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -230,6 +309,58 @@ function MeetingsDashboard() {
               )}
             </div>
           </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                会议入库台
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把单个会议页创建成会议跟踪表 row，并自动填入 Meeting note relation、
+                Status、Follow-up needed 和 Action items。点击后只做本地单条写入，
+                不会自动入会、录音、发布、同步、上传或调用 AI。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span
+                className={`rounded-md px-2 py-1 ${
+                  meetingTrackers.length > 0
+                    ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                    : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                }`}
+              >
+                {meetingTrackers.length > 0 ? "Tracker ready" : "缺会议跟踪表"}
+              </span>
+              <span className="rounded-md bg-blue-50 px-2 py-1 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                本地单条写入
+              </span>
+            </div>
+          </div>
+          {trackerIntakeMessage && (
+            <p className="mt-3 rounded-md bg-green-50 px-3 py-2 text-xs leading-5 text-green-700 dark:bg-green-950 dark:text-green-300">
+              {trackerIntakeMessage}
+            </p>
+          )}
+          {meetingFollowUp.items.length > 0 ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {meetingFollowUp.items.slice(0, 6).map((item) => (
+                <MeetingTrackerIntakeCard
+                  key={item.id}
+                  item={item}
+                  trackerReady={meetingTrackers.length > 0}
+                  busy={trackerIntakeBusyId === item.id}
+                  onCreate={() => void handleCreateTrackerRow(item)}
+                  onOpen={() => router.push(item.route)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+              还没有可入库的会议页。先新建会议纪要，再把它创建成会议跟踪表 row。
+            </p>
+          )}
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -630,6 +761,66 @@ function MeetingFollowUpItemCard({
       >
         打开会议页
       </button>
+    </article>
+  );
+}
+
+function MeetingTrackerIntakeCard({
+  item,
+  trackerReady,
+  busy,
+  onCreate,
+  onOpen,
+}: {
+  item: MeetingTrackerFollowUpItem;
+  trackerReady: boolean;
+  busy: boolean;
+  onCreate: () => void;
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.page_title}
+          </div>
+          <div className="mt-1 text-zinc-400">
+            {getMeetingFollowUpStageLabel(item.stage)}
+          </div>
+        </div>
+        <FollowUpPriorityPill priority={item.priority} />
+      </div>
+      <div className="mt-3 grid gap-1 sm:grid-cols-2">
+        <FollowUpFlag label="Transcript" ready={item.has_transcript} />
+        <FollowUpFlag label="Action items" ready={item.has_action_items} />
+        <FollowUpFlag label="Company" ready={item.has_company_link} />
+        <FollowUpFlag label="Report" ready={item.has_report_link} />
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        将创建一条本地 tracker row，写入 Meeting note relation、状态、
+        follow-up 标记和下一步动作。
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        本地单条写入；不导出 transcript text、录音 bytes、参会人详情或 meeting passcodes。
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onCreate}
+          disabled={!trackerReady || busy}
+          className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
+        >
+          {busy ? "创建中..." : "创建 tracker row"}
+        </button>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开会议页
+        </button>
+      </div>
     </article>
   );
 }

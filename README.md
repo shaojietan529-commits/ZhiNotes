@@ -36,7 +36,7 @@ Current module foundation:
   tracker database.
 - Meetings and Calls: beta module at `/modules/meetings` for meeting notes,
   transcripts, action items, follow-ups, linked company pages, linked reports,
-  and a local meeting tracker database.
+  local tracker-row intake, and a local meeting tracker database.
 - Research Graph: beta module at `/modules/research-graph` for a local map of
   company, report, meeting, and portfolio relation coverage, with manually
   confirmed local schema helpers.
@@ -349,6 +349,12 @@ Current local actions:
   action items, company/report relations, meeting tracker setup, and follow-up
   cadence without exporting page text, transcript text, recording bytes,
   participant details, meeting passcodes, or database row values.
+- Use the meeting intake desk to create one local meeting tracker row from a
+  meeting note. The intake action maps Meeting note relation, Status,
+  Follow-up needed, and Action items, checks for an existing tracker row first,
+  and then opens the tracker for manual relation cleanup. It is a local single
+  write and does not sync, upload, publish notes, join calls, record audio, or
+  call AI.
 - Open meetings from the sidebar Platform section or Cmd/Ctrl+K.
 
 The current Meetings module is a local research workspace. It does not join

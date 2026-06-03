@@ -155,7 +155,7 @@ function buildHealthAreas(): ModuleHealthArea[] {
       phase: "phase-3",
       module_ids: ["meetings"],
       evidence:
-        "Meetings module is beta with meeting notes, transcript attachment surfaces, action items, follow-ups, company links, report links, and meeting tracker presets.",
+        "Meetings module is beta with meeting notes, transcript attachment surfaces, action items, follow-ups, local tracker-row intake, company links, report links, and meeting tracker presets.",
       next_action:
         "Connect meeting assistant imports, transcript parsing, action item follow-up, and company/report relation capture.",
       privacy_boundary:
