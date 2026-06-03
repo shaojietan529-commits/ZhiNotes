@@ -111,6 +111,11 @@ import {
   type SyncConflictSeverity,
 } from "@/lib/sync/syncConflictReview";
 import {
+  buildSyncOptInGateReport,
+  type SyncOptInGateReport,
+  type SyncOptInGateStatus,
+} from "@/lib/sync/syncOptInGate";
+import {
   buildSyncReplayTestPlan,
   type SyncReplayTestPlan,
   type SyncReplayTestStatus,
@@ -142,6 +147,7 @@ type SyncQueueAction =
   | "queue"
   | "payload-preview"
   | "conflict-review"
+  | "opt-in-gate"
   | "rollback-plan"
   | "restore-writeback"
   | "replay-test-plan";
@@ -444,6 +450,16 @@ function SyncDashboard() {
         syncPayloadPreview,
       }),
     [syncPayloadPreview, workspaceIdentity]
+  );
+  const syncOptInGate = useMemo(
+    () =>
+      buildSyncOptInGateReport({
+        workspaceIdentity,
+        syncPayloadPreview,
+        conflictReview: syncConflictReview,
+        pushApiPath: "/api/sync/push",
+      }),
+    [syncConflictReview, syncPayloadPreview, workspaceIdentity]
   );
   const auditTrailPolicy = useMemo(
     () =>
@@ -1198,6 +1214,21 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncOptInGate = () => {
+    setBusyQueueAction("opt-in-gate");
+    try {
+      downloadJsonFile(`zhinote-sync-opt-in-gate-${fileSafeTimestamp()}.json`, {
+        ...syncOptInGate,
+        exported_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to export sync opt-in gate:", err);
+      window.alert("Sync opt-in gate export failed. Please check the console.");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncReplayTestPlan = () => {
     setBusyQueueAction("replay-test-plan");
     try {
@@ -1553,6 +1584,101 @@ function SyncDashboard() {
               detail={metric.detail}
             />
           ))}
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Cloud sync opt-in gate
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                Local safety gate before any future cloud push can enter an
+                owner confirmation flow. It checks cloud workspace link,
+                payload preview, sensitivity, conflict baseline, disabled push
+                API, and explicit opt-in wording without uploading data.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportSyncOptInGate}
+              disabled={busyQueueAction === "opt-in-gate"}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {busyQueueAction === "opt-in-gate"
+                ? "Exporting..."
+                : "Export opt-in gate"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-5">
+            <SyncOptInSummaryCard
+              label="Verdict"
+              value="Blocked"
+              detail="Push API remains disabled"
+              status="blocked"
+            />
+            <SyncOptInSummaryCard
+              label="Ready"
+              value={syncOptInGate.summary.ready}
+              detail="Satisfied gates"
+              status="ready"
+            />
+            <SyncOptInSummaryCard
+              label="Confirm"
+              value={syncOptInGate.summary.manual_confirmation}
+              detail="Needs owner review"
+              status="manual-confirmation"
+            />
+            <SyncOptInSummaryCard
+              label="Blocked"
+              value={syncOptInGate.summary.blocked}
+              detail="Must be resolved first"
+              status="blocked"
+            />
+            <SyncOptInSummaryCard
+              label="Phrase"
+              value={syncOptInGate.confirmation.required_phrase}
+              detail="Not collected yet"
+              status="manual-confirmation"
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+            <div className="grid gap-2 md:grid-cols-2">
+              {syncOptInGate.gates.map((gate) => (
+                <SyncOptInGateRow key={gate.id} gate={gate} />
+              ))}
+            </div>
+            <ContractPanel title="Opt-in boundary">
+              <div className="grid gap-2 md:grid-cols-2">
+                <IdentityMetric
+                  label="Cloud workspace"
+                  value={
+                    syncOptInGate.workspace_identity.cloud_workspace_id ??
+                    "Not linked"
+                  }
+                  detail={
+                    syncOptInGate.workspace_identity.cloud_role ??
+                    "No cloud role"
+                  }
+                />
+                <IdentityMetric
+                  label="Pending rows"
+                  value={String(syncOptInGate.payload_scope.pending_count)}
+                  detail={`${syncOptInGate.payload_scope.high_risk_tables} high-risk table groups`}
+                />
+                <IdentityMetric
+                  label="Uploads"
+                  value="Disabled"
+                  detail="No notes, files, or rows uploaded"
+                />
+                <IdentityMetric
+                  label="Push route"
+                  value="/api/sync/push"
+                  detail="Disabled local stub"
+                />
+              </div>
+            </ContractPanel>
+          </div>
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -3338,6 +3464,79 @@ function CloudAlphaTonePill({ tone }: { tone: CloudAlphaMessageTone }) {
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[tone]}
+    </span>
+  );
+}
+
+function SyncOptInSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: SyncOptInGateStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <SyncOptInStatusPill status={status} />
+      </div>
+      <div className="mt-2 break-all text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function SyncOptInGateRow({
+  gate,
+}: {
+  gate: SyncOptInGateReport["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {gate.title}
+        </div>
+        <SyncOptInStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function SyncOptInStatusPill({
+  status,
+}: {
+  status: SyncOptInGateStatus;
+}) {
+  const labels: Record<SyncOptInGateStatus, string> = {
+    ready: "Ready",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
     </span>
   );
 }

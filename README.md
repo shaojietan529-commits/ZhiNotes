@@ -230,6 +230,10 @@ Current local actions:
   preview summarizes pending tables, operations, changed fields, risk levels,
   and privacy boundaries, but excludes page text and file bytes and does not
   upload anything.
+- Review and export a local cloud sync opt-in gate. The gate checks local cloud
+  workspace link, payload preview, high-risk table scope, conflict baseline,
+  disabled push API, and required owner confirmation phrase before any future
+  upload flow can exist.
 - Review and export a local sync replay test plan for future push/pull replay.
   The plan covers payload preview, server acknowledgement, pull cursors,
   conflict baseline review, retry/idempotency, high-risk gates, and rollback,

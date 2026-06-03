@@ -121,10 +121,11 @@ https://your-vercel-domain.vercel.app/auth/callback
 ## 后续云同步顺序
 
 1. Workspace bootstrap QA 和 local workspace link 确认。
-2. Pages/databases 云端最小 CRUD。
-3. Sync payload preview 二次确认。
-4. `sync_log` push acknowledgement。
-5. Pull cursor 和冲突标记。
-6. Private Storage signed upload/download。
-7. Permission check 和 audit events。
-8. Restore rollback 和 write-back。
+2. Cloud sync opt-in gate：确认 linked workspace、payload preview、conflict baseline、disabled push API、owner confirmation phrase。
+3. Pages/databases 云端最小 CRUD。
+4. Sync payload preview 二次确认。
+5. `sync_log` push acknowledgement。
+6. Pull cursor 和冲突标记。
+7. Private Storage signed upload/download。
+8. Permission check 和 audit events。
+9. Restore rollback 和 write-back。
