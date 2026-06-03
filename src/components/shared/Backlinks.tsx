@@ -2,30 +2,54 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getBacklinks } from "@/lib/db/local/queries";
+import { getAllPages, getBacklinks } from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 
 interface BacklinksProps {
   pageId: string;
+  pageTitle: string;
 }
 
-export default function Backlinks({ pageId }: BacklinksProps) {
+type ReferencePage = Page & { mentionExcerpt?: string };
+
+export default function Backlinks({ pageId, pageTitle }: BacklinksProps) {
   const router = useRouter();
   const [links, setLinks] = useState<Page[]>([]);
+  const [unlinkedMentions, setUnlinkedMentions] = useState<ReferencePage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
-      const backlinks = await getBacklinks(pageId);
+      setLoading(true);
+      const [backlinks, pages] = await Promise.all([
+        getBacklinks(pageId),
+        getAllPages(),
+      ]);
+      if (cancelled) return;
+
+      const backlinkIds = new Set(backlinks.map((page) => page.id));
+      const mentions = findUnlinkedMentions(
+        pages,
+        pageId,
+        pageTitle,
+        backlinkIds
+      );
       setLinks(backlinks);
+      setUnlinkedMentions(mentions);
       setLoading(false);
     }
     load();
-  }, [pageId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pageId, pageTitle]);
 
   if (loading) return null;
-  if (links.length === 0) return null;
+  if (links.length === 0 && unlinkedMentions.length === 0) return null;
 
   return (
     <div className="mt-10 pt-6 border-t border-zinc-200 dark:border-zinc-700">
@@ -42,30 +66,119 @@ export default function Backlinks({ pageId }: BacklinksProps) {
           <path d="M9 17H7A5 5 0 017 7h2M15 7h2a5 5 0 010 10h-2M8 12h8" />
         </svg>
         <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          Backlinks
+          References
         </h3>
         <span className="text-xs text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-full px-1.5">
-          {links.length}
+          {links.length + unlinkedMentions.length}
         </span>
       </div>
+      {links.length > 0 && (
+        <ReferenceSection
+          title="Backlinks"
+          pages={links}
+          onNavigate={(id) => router.push(`/page/${id}`)}
+        />
+      )}
+      {unlinkedMentions.length > 0 && (
+        <ReferenceSection
+          title="Unlinked mentions"
+          pages={unlinkedMentions}
+          onNavigate={(id) => router.push(`/page/${id}`)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ReferenceSection({
+  title,
+  pages,
+  onNavigate,
+}: {
+  title: string;
+  pages: ReferencePage[];
+  onNavigate: (id: string) => void;
+}) {
+  return (
+    <div className="mb-4 last:mb-0">
+      <p className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+        {title}
+      </p>
       <ul className="space-y-1">
-        {links.map((page) => (
+        {pages.map((page) => (
           <li key={page.id}>
             <button
-              onClick={() => router.push(`/page/${page.id}`)}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors group"
+              onClick={() => onNavigate(page.id)}
+              className="group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
             >
               <span className="shrink-0">{page.icon || "📄"}</span>
-              <span className="truncate flex-1 text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
+              <span className="flex-1 truncate text-zinc-700 group-hover:text-zinc-900 dark:text-zinc-300 dark:group-hover:text-zinc-100">
                 {page.title || "Untitled"}
               </span>
-              <span className="text-[10px] text-zinc-400 shrink-0">
+              <span className="shrink-0 text-[10px] text-zinc-400">
                 {formatRelativeDate(page.updated_at)}
               </span>
             </button>
+            {page.mentionExcerpt && (
+              <p className="ml-10 mr-3 -mt-1 truncate pb-1 text-xs text-zinc-400">
+                {page.mentionExcerpt}
+              </p>
+            )}
           </li>
         ))}
       </ul>
     </div>
   );
+}
+
+function findUnlinkedMentions(
+  pages: Page[],
+  currentPageId: string,
+  currentPageTitle: string,
+  backlinkIds: Set<string>
+): ReferencePage[] {
+  const title = currentPageTitle.trim();
+  if (title.length < 3 || title.toLowerCase() === "untitled") return [];
+
+  const titlePattern = new RegExp(escapeRegExp(title), "i");
+  const mentions: ReferencePage[] = [];
+
+  for (const page of pages) {
+    if (page.id === currentPageId || backlinkIds.has(page.id)) continue;
+
+    const text = stripHtml(page.content_text ?? "");
+    if (!titlePattern.test(text)) continue;
+
+    mentions.push({
+      ...page,
+      mentionExcerpt: buildMentionExcerpt(text, title),
+    });
+
+    if (mentions.length >= 8) break;
+  }
+
+  return mentions;
+}
+
+function buildMentionExcerpt(text: string, title: string) {
+  const index = text.toLowerCase().indexOf(title.toLowerCase());
+  if (index < 0) return "";
+  const start = Math.max(0, index - 52);
+  const end = Math.min(text.length, index + title.length + 72);
+  const prefix = start > 0 ? "... " : "";
+  const suffix = end < text.length ? " ..." : "";
+  return `${prefix}${text.slice(start, end)}${suffix}`;
+}
+
+function stripHtml(html: string) {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

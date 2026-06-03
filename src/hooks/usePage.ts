@@ -28,7 +28,9 @@ export function usePage(pageId: string | null) {
   }, [pageId, dbReady]);
 
   useEffect(() => {
-    load();
+    queueMicrotask(() => {
+      load();
+    });
   }, [load]);
 
   const update = useCallback(

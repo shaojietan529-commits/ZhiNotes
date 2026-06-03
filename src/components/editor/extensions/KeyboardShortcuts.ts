@@ -1,4 +1,6 @@
-import { Extension } from "@tiptap/core";
+import { Extension, type Editor } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { promptForLink } from "./linkHelpers";
 
 /**
  * Notion-compatible keyboard shortcuts for Zhinote.
@@ -26,6 +28,12 @@ export const KeyboardShortcuts = Extension.create({
         this.editor.chain().focus().toggleHeading({ level: 2 }).run(),
       "Mod-Shift-3": () =>
         this.editor.chain().focus().toggleHeading({ level: 3 }).run(),
+      // Browsers may report Cmd/Ctrl+Shift+3 as "#" instead of "3".
+      "Mod-#": () =>
+        this.editor.chain().focus().toggleHeading({ level: 3 }).run(),
+      // macOS may reserve Cmd+Shift+3 for screenshots, so keep a browser-safe fallback.
+      "Mod-Alt-3": () =>
+        this.editor.chain().focus().toggleHeading({ level: 3 }).run(),
       "Mod-Shift-4": () =>
         this.editor.chain().focus().toggleTaskList().run(),
       "Mod-Shift-5": () =>
@@ -33,14 +41,15 @@ export const KeyboardShortcuts = Extension.create({
       "Mod-Shift-6": () =>
         this.editor.chain().focus().toggleOrderedList().run(),
       "Mod-Shift-7": () =>
-        // Notion uses this for toggle list; we use blockquote as closest match
-        this.editor.chain().focus().toggleBlockquote().run(),
+        this.editor.chain().focus().insertToggleBlock().run(),
       "Mod-Shift-8": () =>
         this.editor.chain().focus().toggleCodeBlock().run(),
       "Mod-Shift-9": () =>
         this.editor.chain().focus().toggleBlockquote().run(),
 
       // ── Text Formatting ───────────────────────────────────────
+      "Mod-k": () => promptForLink(this.editor),
+
       "Mod-Shift-h": () =>
         this.editor.chain().focus().toggleHighlight().run(),
       "Mod-Shift-s": () =>
@@ -57,53 +66,17 @@ export const KeyboardShortcuts = Extension.create({
         this.editor.chain().focus().setTextAlign("justify").run(),
 
       // ── Block Operations ──────────────────────────────────────
-      "Mod-d": () => {
-        // Duplicate current block (Notion: Cmd+D)
-        const { state } = this.editor;
-        const { $from } = state.selection;
-        // Find the top-level block node
-        const pos = $from.before(1);
-        const node = state.doc.nodeAt(pos);
-        if (node) {
-          const endPos = pos + node.nodeSize;
-          this.editor
-            .chain()
-            .focus()
-            .insertContentAt(endPos, node.toJSON())
-            .run();
-        }
-        return true;
-      },
+      "Mod-d": () => this.editor.chain().focus().duplicateCurrentBlock().run(),
 
-      "Mod-Shift-d": () => {
-        // Alternative duplicate shortcut
-        const { state } = this.editor;
-        const { $from } = state.selection;
-        const pos = $from.before(1);
-        const node = state.doc.nodeAt(pos);
-        if (node) {
-          const endPos = pos + node.nodeSize;
-          this.editor
-            .chain()
-            .focus()
-            .insertContentAt(endPos, node.toJSON())
-            .run();
-        }
-        return true;
-      },
+      "Mod-Shift-d": () =>
+        this.editor.chain().focus().duplicateCurrentBlock().run(),
 
-      "Mod-Backspace": () => {
-        // Delete entire block (Notion: Cmd+Shift+Delete / Cmd+Backspace)
-        const { state } = this.editor;
-        const { $from } = state.selection;
-        const pos = $from.before(1);
-        const node = state.doc.nodeAt(pos);
-        if (node) {
-          const endPos = pos + node.nodeSize;
-          this.editor.chain().focus().deleteRange({ from: pos, to: endPos }).run();
-        }
-        return true;
-      },
+      "Mod-Backspace": () =>
+        this.editor.chain().focus().deleteCurrentBlock().run(),
+      "Mod-Shift-ArrowUp": () =>
+        this.editor.chain().focus().moveCurrentBlockUp().run(),
+      "Mod-Shift-ArrowDown": () =>
+        this.editor.chain().focus().moveCurrentBlockDown().run(),
 
       // ── Navigation & Structure ────────────────────────────────
       "Mod-Enter": () => {
@@ -130,9 +103,34 @@ export const KeyboardShortcuts = Extension.create({
         return false;
       },
 
+      "Mod-Alt-t": () => toggleAllToggleBlocks(this.editor),
+
       // ── Horizontal Rule ───────────────────────────────────────
       "Mod-Shift-minus": () =>
         this.editor.chain().focus().setHorizontalRule().run(),
     };
   },
 });
+
+function toggleAllToggleBlocks(editor: Editor) {
+  const toggleBlocks: Array<{ node: ProseMirrorNode; pos: number }> = [];
+
+  editor.state.doc.descendants((node, pos) => {
+    if (node.type.name === "toggleBlock") {
+      toggleBlocks.push({ node, pos });
+    }
+    return true;
+  });
+
+  if (toggleBlocks.length === 0) return false;
+
+  const shouldOpen = toggleBlocks.some(({ node }) => !Boolean(node.attrs.open ?? true));
+  let tr = editor.state.tr;
+  for (const { node, pos } of toggleBlocks) {
+    tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, open: shouldOpen }, node.marks);
+  }
+
+  editor.view.dispatch(tr.scrollIntoView());
+  editor.view.focus();
+  return true;
+}

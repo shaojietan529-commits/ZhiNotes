@@ -16,13 +16,16 @@ export function useVersions(pageId: string | null) {
       setLoading(false);
       return;
     }
+    setLoading(true);
     const v = await getVersions(pageId);
     setVersions(v);
     setLoading(false);
   }, [pageId, dbReady]);
 
   useEffect(() => {
-    load();
+    queueMicrotask(() => {
+      load();
+    });
   }, [load]);
 
   return { versions, loading, refresh: load };

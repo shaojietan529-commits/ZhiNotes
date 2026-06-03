@@ -35,12 +35,14 @@ function CompareContent({ pageId }: { pageId: string }) {
   useEffect(() => {
     if (versionsLoading || versions.length === 0) return;
     const requested = searchParams.get("from");
-    if (requested && versions.some((v) => v.id === requested)) {
-      setFromId(requested);
-    } else {
-      // Default: the most recent saved version vs current live content
-      setFromId(versions[0].id);
-    }
+    queueMicrotask(() => {
+      if (requested && versions.some((v) => v.id === requested)) {
+        setFromId(requested);
+      } else {
+        // Default: the most recent saved version vs current live content
+        setFromId(versions[0].id);
+      }
+    });
   }, [versionsLoading, versions, searchParams]);
 
   const resolveHtml = useCallback(

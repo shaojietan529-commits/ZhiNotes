@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { DatabaseField, DatabaseRow } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
+import RelationFieldEditor from "@/components/database/RelationFieldEditor";
+import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 
 interface TableViewProps {
   fields: DatabaseField[];
@@ -12,6 +14,10 @@ interface TableViewProps {
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
+  onOpenPage: (pageId: string) => void;
+  relationPages: Page[];
+  focusPageId?: string;
+  focusPage?: Page | null;
 }
 
 export default function TableView({
@@ -21,6 +27,10 @@ export default function TableView({
   onUpdateRow,
   onDeleteRow,
   onOpenRow,
+  onOpenPage,
+  relationPages,
+  focusPageId,
+  focusPage,
 }: TableViewProps) {
   return (
     <div className="overflow-x-auto">
@@ -35,11 +45,11 @@ export default function TableView({
                 key={field.id}
                 className="text-left px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 min-w-[140px]"
               >
-                {field.name}
+                {getDatabaseFieldDisplayName(field)}
               </th>
             ))}
             <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 w-20">
-              Created
+              创建
             </th>
             <th className="w-8" />
           </tr>
@@ -54,6 +64,10 @@ export default function TableView({
               onUpdate={(fieldValues) => onUpdateRow(row.id, fieldValues)}
               onDelete={() => onDeleteRow(row.id)}
               onOpen={() => onOpenRow(row.page_id)}
+              onOpenPage={onOpenPage}
+              relationPages={relationPages}
+              focusPage={focusPage}
+              focused={row.page_id === focusPageId}
             />
           ))}
         </tbody>
@@ -67,7 +81,7 @@ export default function TableView({
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 5v14M5 12h14" />
         </svg>
-        New row
+        新建行
       </button>
     </div>
   );
@@ -80,6 +94,10 @@ function TableRow({
   onUpdate,
   onDelete,
   onOpen,
+  onOpenPage,
+  relationPages,
+  focusPage,
+  focused,
 }: {
   row: DatabaseRow & { page: Page };
   index: number;
@@ -87,6 +105,10 @@ function TableRow({
   onUpdate: (fieldValues: Record<string, unknown>) => void;
   onDelete: () => void;
   onOpen: () => void;
+  onOpenPage: (pageId: string) => void;
+  relationPages: Page[];
+  focusPage?: Page | null;
+  focused: boolean;
 }) {
   const fieldValues: Record<string, unknown> =
     typeof row.field_values === "string"
@@ -98,7 +120,13 @@ function TableRow({
   };
 
   return (
-    <tr className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 group">
+    <tr
+      className={`group border-b border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900 ${
+        focused
+          ? "bg-blue-50 ring-1 ring-inset ring-blue-200 dark:bg-blue-950/30 dark:ring-blue-900"
+          : ""
+      }`}
+    >
       <td className="px-3 py-1.5 text-zinc-400 text-xs">{index}</td>
       {fields.map((field, i) => (
         <td key={field.id} className="px-3 py-1.5">
@@ -108,12 +136,15 @@ function TableRow({
               onClick={onOpen}
               className="text-left text-blue-600 dark:text-blue-400 hover:underline font-medium"
             >
-              {row.page?.title || "Untitled"}
+              {row.page?.title || "未命名页面"}
             </button>
           ) : (
             <CellEditor
               field={field}
               value={fieldValues[field.id]}
+              relationPages={relationPages}
+              focusPage={focusPage}
+              onOpenPage={onOpenPage}
               onChange={(val) => handleCellChange(field.id, val)}
             />
           )}
@@ -126,7 +157,7 @@ function TableRow({
         <button
           onClick={onDelete}
           className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 text-xs transition-opacity"
-          title="Delete row"
+          title="删除行"
         >
           x
         </button>
@@ -139,10 +170,16 @@ function CellEditor({
   field,
   value,
   onChange,
+  onOpenPage,
+  relationPages,
+  focusPage,
 }: {
   field: DatabaseField;
   value: unknown;
   onChange: (value: unknown) => void;
+  onOpenPage: (pageId: string) => void;
+  relationPages: Page[];
+  focusPage?: Page | null;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -157,7 +194,7 @@ function CellEditor({
     );
   }
 
-  if (field.field_type === "select") {
+  if (field.field_type === "select" || field.field_type === "status") {
     const config = field.config ? JSON.parse(field.config) : {};
     const options: string[] = config.options || [];
     return (
@@ -235,6 +272,18 @@ function CellEditor({
       >
         —
       </button>
+    );
+  }
+
+  if (field.field_type === "relation") {
+    return (
+      <RelationFieldEditor
+        value={value}
+        pages={relationPages}
+        onOpenPage={onOpenPage}
+        onChange={onChange}
+        preferredPage={focusPage}
+      />
     );
   }
 

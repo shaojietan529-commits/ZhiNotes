@@ -74,7 +74,16 @@ export interface DatabaseView {
   database_id: string;
   owner_id: string;
   name: string;
-  view_type: "table" | "list" | "kanban" | "calendar";
+  view_type:
+    | "table"
+    | "list"
+    | "kanban"
+    | "calendar"
+    | "gallery"
+    | "timeline"
+    | "chart"
+    | "form"
+    | "feed";
   config: string;
   position: number;
   created_at: string;
@@ -89,6 +98,32 @@ export interface WikiLink {
   target_page_id: string;
   owner_id: string;
   created_at: string;
+  deleted_at: string | null;
+  sync_version: number;
+}
+
+export interface PageComment {
+  id: string;
+  page_id: string;
+  owner_id: string;
+  body: string;
+  resolved: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  sync_version: number;
+}
+
+export interface BlockComment {
+  id: string;
+  page_id: string;
+  block_ref: string;
+  anchor_text: string;
+  owner_id: string;
+  body: string;
+  resolved: number;
+  created_at: string;
+  updated_at: string;
   deleted_at: string | null;
   sync_version: number;
 }

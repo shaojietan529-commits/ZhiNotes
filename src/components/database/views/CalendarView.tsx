@@ -27,10 +27,10 @@ export default function CalendarView({
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay();
 
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
   const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
+    "一月", "二月", "三月", "四月", "五月", "六月",
+    "七月", "八月", "九月", "十月", "十一月", "十二月",
   ];
 
   // Map rows to dates
@@ -62,10 +62,10 @@ export default function CalendarView({
     return (
       <div className="text-center py-8">
         <p className="text-sm text-zinc-400 mb-2">
-          Calendar view requires a Date field.
+          日历视图需要一个日期字段。
         </p>
         <p className="text-xs text-zinc-400">
-          Add a Date field to use Calendar view.
+          请先添加日期字段，再使用日历视图。
         </p>
       </div>
     );
@@ -89,7 +89,7 @@ export default function CalendarView({
             </svg>
           </button>
           <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-            {monthNames[month]} {year}
+            {year}年{monthNames[month]}
           </h3>
           <button
             onClick={nextMonth}
@@ -104,7 +104,7 @@ export default function CalendarView({
           onClick={today}
           className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 px-2 py-1 rounded border border-zinc-200 dark:border-zinc-700"
         >
-          Today
+          今天
         </button>
       </div>
 
@@ -154,7 +154,7 @@ export default function CalendarView({
                       onClick={() => onOpenRow(row.page_id)}
                       className="w-full text-left text-[10px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 truncate mb-0.5"
                     >
-                      {row.page?.title || "Untitled"}
+                      {row.page?.title || "未命名页面"}
                     </button>
                   ))}
                 </>

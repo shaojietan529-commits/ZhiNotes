@@ -116,6 +116,36 @@ export const CREATE_TABLES_SQL = `
   CREATE INDEX IF NOT EXISTS idx_links_source ON wiki_links(source_page_id);
   CREATE INDEX IF NOT EXISTS idx_links_target ON wiki_links(target_page_id);
 
+  CREATE TABLE IF NOT EXISTS page_comments (
+    id            TEXT PRIMARY KEY,
+    page_id       TEXT NOT NULL REFERENCES pages(id),
+    owner_id      TEXT NOT NULL REFERENCES users(id),
+    body          TEXT NOT NULL,
+    resolved      INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    deleted_at    TEXT,
+    sync_version  INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_comments_page ON page_comments(page_id, resolved, created_at);
+
+  CREATE TABLE IF NOT EXISTS block_comments (
+    id            TEXT PRIMARY KEY,
+    page_id       TEXT NOT NULL REFERENCES pages(id),
+    block_ref     TEXT NOT NULL,
+    anchor_text   TEXT NOT NULL,
+    owner_id      TEXT NOT NULL REFERENCES users(id),
+    body          TEXT NOT NULL,
+    resolved      INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    deleted_at    TEXT,
+    sync_version  INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_block_comments_page ON block_comments(page_id, resolved, created_at);
+
   CREATE TABLE IF NOT EXISTS sync_log (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     table_name    TEXT NOT NULL,

@@ -22,7 +22,9 @@ const WikiLinkList = forwardRef<WikiLinkListRef, WikiLinkListProps>(
     const [selectedIndex, setSelectedIndex] = useState(0);
 
     useEffect(() => {
-      setSelectedIndex(0);
+      queueMicrotask(() => {
+        setSelectedIndex(0);
+      });
     }, [items]);
 
     useImperativeHandle(ref, () => ({

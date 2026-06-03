@@ -7,13 +7,17 @@ import {
   useState,
   useRef,
 } from "react";
+import type { Editor } from "@tiptap/core";
+
+type SlashCommandRange = { from: number; to: number };
 
 export interface SlashCommandItem {
   title: string;
   description: string;
   icon: string;
   category: string;
-  command: (props: { editor: any; range: any }) => void;
+  aliases?: string[];
+  command: (props: { editor: Editor; range: SlashCommandRange }) => void | Promise<void>;
 }
 
 export interface SlashCommandListRef {
@@ -31,7 +35,9 @@ const SlashCommandList = forwardRef<SlashCommandListRef, SlashCommandListProps>(
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-      setSelectedIndex(0);
+      queueMicrotask(() => {
+        setSelectedIndex(0);
+      });
     }, [items]);
 
     // Scroll selected item into view
@@ -46,6 +52,10 @@ const SlashCommandList = forwardRef<SlashCommandListRef, SlashCommandListProps>(
 
     useImperativeHandle(ref, () => ({
       onKeyDown(event: KeyboardEvent) {
+        if (items.length === 0) {
+          return ["ArrowUp", "ArrowDown", "Enter"].includes(event.key);
+        }
+
         if (event.key === "ArrowUp") {
           setSelectedIndex((i) => (i + items.length - 1) % items.length);
           return true;
@@ -68,13 +78,10 @@ const SlashCommandList = forwardRef<SlashCommandListRef, SlashCommandListProps>(
     if (items.length === 0) {
       return (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg p-3 text-sm text-zinc-400">
-          No commands found
+          没有找到命令
         </div>
       );
     }
-
-    // Group items by category
-    let lastCategory = "";
 
     return (
       <div
@@ -82,8 +89,8 @@ const SlashCommandList = forwardRef<SlashCommandListRef, SlashCommandListProps>(
         className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg overflow-hidden max-h-80 overflow-y-auto w-72"
       >
         {items.map((item, index) => {
-          const showCategory = item.category !== lastCategory;
-          lastCategory = item.category;
+          const showCategory =
+            index === 0 || item.category !== items[index - 1]?.category;
 
           return (
             <div key={`${item.category}-${item.title}`}>
@@ -95,6 +102,7 @@ const SlashCommandList = forwardRef<SlashCommandListRef, SlashCommandListProps>(
               <button
                 data-index={index}
                 onClick={() => command(item)}
+                onMouseEnter={() => setSelectedIndex(index)}
                 className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
                   index === selectedIndex
                     ? "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300"

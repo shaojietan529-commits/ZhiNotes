@@ -4,8 +4,6 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { createPage } from "@/lib/db/local/queries";
-import { listPages } from "@/lib/db/local/queries";
-import { formatRelativeDate } from "@/lib/utils/dates";
 import { usePages } from "@/hooks/usePages";
 import type { Page } from "@/lib/utils/types";
 
@@ -85,7 +83,7 @@ function PageTreeItem({
 
         {/* Title */}
         <span className="truncate flex-1 ml-1">
-          {page.title || "Untitled"}
+          {page.title || "未命名"}
         </span>
 
         {/* Actions (visible on hover) */}
@@ -93,7 +91,7 @@ function PageTreeItem({
           <button
             onClick={handleAddChild}
             className="shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
-            title="Add sub-page"
+            title="添加子页面"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 5v14M5 12h14" />
@@ -140,7 +138,7 @@ export default function PageTree() {
   if (pages.length === 0) {
     return (
       <p className="px-3 py-4 text-xs text-zinc-400 text-center">
-        No pages yet. Create your first page!
+        还没有页面，先创建一个页面。
       </p>
     );
   }

@@ -33,17 +33,28 @@ async function initializeDb(): Promise<SqliteDb> {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let rawDb: any;
+  const createFallbackDb = () => {
+    if (sqlite3.oo1.JsStorageDb) {
+      try {
+        console.warn("[Zhinote] OPFS not available, using localStorage DB");
+        return new sqlite3.oo1.JsStorageDb("local");
+      } catch (e) {
+        console.warn("[Zhinote] localStorage DB not available, using in-memory DB:", e);
+      }
+    }
+    return new sqlite3.oo1.DB(":memory:");
+  };
+
   if (sqlite3.oo1.OpfsDb) {
     try {
       rawDb = new sqlite3.oo1.OpfsDb("/zhinote.db");
       console.log("[Zhinote] SQLite initialized with OPFS persistence");
     } catch (e) {
-      console.warn("[Zhinote] OPFS not available, using in-memory DB:", e);
-      rawDb = new sqlite3.oo1.DB(":memory:");
+      console.warn("[Zhinote] OPFS initialization failed:", e);
+      rawDb = createFallbackDb();
     }
   } else {
-    console.warn("[Zhinote] OPFS not supported, using in-memory DB");
-    rawDb = new sqlite3.oo1.DB(":memory:");
+    rawDb = createFallbackDb();
   }
 
   // Wrap the raw db with a consistent API

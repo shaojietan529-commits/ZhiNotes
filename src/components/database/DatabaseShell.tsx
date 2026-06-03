@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { usePages } from "@/hooks/usePages";
 import {
   getDatabase,
   getFields,
@@ -12,24 +13,60 @@ import {
   updateRow,
   deleteRow,
   deleteField,
+  updateField,
   addView,
+  updateView,
   updateDatabase,
 } from "@/lib/db/local/queries";
 import type { Database, DatabaseField, DatabaseRow, DatabaseView } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
+import { exportDatabaseAsCsv } from "@/lib/export/databaseExport";
+import { NOTE_TEMPLATES, type NoteTemplate } from "@/lib/templates/noteTemplates";
 import TableView from "./views/TableView";
 import ListView from "./views/ListView";
 import KanbanView from "./views/KanbanView";
 import CalendarView from "./views/CalendarView";
+import GalleryView from "./views/GalleryView";
+import TimelineView from "./views/TimelineView";
+import ChartView from "./views/ChartView";
+import FormView from "./views/FormView";
+import FeedView from "./views/FeedView";
+import { stringifyRelationValue } from "@/lib/database/relationValues";
+import {
+  getDatabaseFieldDisplayName,
+  getDatabaseFieldTypeLabel,
+  getDatabaseViewDisplayName,
+  getDatabaseViewTypeLabel,
+} from "@/lib/database/display";
+import {
+  buildFieldConfig,
+  DATABASE_FIELD_TYPES,
+  formatFieldOptions,
+  isSelectLikeFieldType,
+} from "@/lib/database/fields";
 
 interface DatabaseShellProps {
   databaseId: string;
 }
 
 type RowWithPage = DatabaseRow & { page: Page };
+type SortDirection = "asc" | "desc";
+interface DatabaseViewConfig {
+  rowSearch: string;
+  filterFieldId: string;
+  filterValue: string;
+  sortKey: string;
+  sortDirection: SortDirection;
+  hiddenFieldIds: string[];
+  chartGroupFieldId: string;
+}
 
 export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { pages: workspacePages } = usePages();
+  const initialRowSearch = searchParams.get("q") ?? "";
+  const focusPageId = searchParams.get("focus") ?? "";
   const [database, setDatabase] = useState<Database | null>(null);
   const [fields, setFields] = useState<DatabaseField[]>([]);
   const [rows, setRows] = useState<RowWithPage[]>([]);
@@ -37,6 +74,24 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
+  const [rowSearch, setRowSearch] = useState(initialRowSearch);
+  const [filterFieldId, setFilterFieldId] = useState("all");
+  const [filterValue, setFilterValue] = useState("");
+  const [sortKey, setSortKey] = useState("position");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [hiddenFieldIds, setHiddenFieldIds] = useState<string[]>([]);
+  const [chartGroupFieldId, setChartGroupFieldId] = useState("");
+
+  const applyViewConfig = useCallback((configValue: string) => {
+    const config = parseDatabaseViewConfig(configValue);
+    setRowSearch(initialRowSearch || config.rowSearch);
+    setFilterFieldId(config.filterFieldId);
+    setFilterValue(config.filterValue);
+    setSortKey(config.sortKey);
+    setSortDirection(config.sortDirection);
+    setHiddenFieldIds(config.hiddenFieldIds);
+    setChartGroupFieldId(config.chartGroupFieldId);
+  }, [initialRowSearch]);
 
   const reload = useCallback(async () => {
     const [db, f, r, v] = await Promise.all([
@@ -50,12 +105,17 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     setRows(r);
     setViews(v);
     if (db) setTitle(db.title);
-    if (v.length > 0 && !activeViewId) setActiveViewId(v[0].id);
+    if (v.length > 0 && !activeViewId) {
+      setActiveViewId(v[0].id);
+      applyViewConfig(v[0].config);
+    }
     setLoading(false);
-  }, [databaseId, activeViewId]);
+  }, [databaseId, activeViewId, applyViewConfig]);
 
   useEffect(() => {
-    reload();
+    queueMicrotask(() => {
+      reload();
+    });
   }, [reload]);
 
   const handleTitleChange = useCallback(
@@ -67,8 +127,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   );
 
   const handleAddField = useCallback(
-    async (name: string, fieldType: string) => {
-      await addField(databaseId, { name, fieldType });
+    async (name: string, fieldType: string, config?: string) => {
+      await addField(databaseId, { name, fieldType, config });
       reload();
     },
     [databaseId, reload]
@@ -82,10 +142,51 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [reload]
   );
 
+  const handleUpdateField = useCallback(
+    async (
+      fieldId: string,
+      updates: Partial<
+        Pick<DatabaseField, "name" | "field_type" | "config">
+      >
+    ) => {
+      await updateField(fieldId, updates);
+      reload();
+    },
+    [reload]
+  );
+
   const handleAddRow = useCallback(async () => {
     await addRow(databaseId);
     reload();
   }, [databaseId, reload]);
+
+  const handleAddAndOpenRow = useCallback(async () => {
+    const row = await addRow(databaseId);
+    await reload();
+    router.push(`/page/${row.page_id}`);
+  }, [databaseId, reload, router]);
+
+  const handleCreateRow = useCallback(
+    async (rowTitle: string, fieldValues: Record<string, unknown>) => {
+      await addRow(databaseId, {
+        title: rowTitle,
+        fieldValues,
+      });
+      reload();
+    },
+    [databaseId, reload]
+  );
+
+  const handleAddTemplateRow = useCallback(
+    async (template: NoteTemplate) => {
+      await addRow(databaseId, {
+        title: template.title,
+        contentText: template.html,
+      });
+      reload();
+    },
+    [databaseId, reload]
+  );
 
   const handleUpdateRow = useCallback(
     async (rowId: string, fieldValues: Record<string, unknown>) => {
@@ -119,6 +220,52 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [router]
   );
 
+  const handleOpenPage = useCallback(
+    (pageId: string) => {
+      router.push(`/page/${pageId}`);
+    },
+    [router]
+  );
+
+  const activeView = views.find((v) => v.id === activeViewId) || views[0];
+  const visibleFields = useMemo(
+    () => getVisibleFields(fields, hiddenFieldIds),
+    [fields, hiddenFieldIds]
+  );
+  const focusPage = useMemo(
+    () =>
+      focusPageId
+        ? rows.find((row) => row.page_id === focusPageId)?.page ??
+          workspacePages.find((page) => page.id === focusPageId) ??
+          null
+        : null,
+    [focusPageId, rows, workspacePages]
+  );
+
+  const visibleRows = useMemo(
+    () =>
+      getVisibleRows({
+        rows,
+        fields,
+        relationPages: workspacePages,
+        search: rowSearch,
+        filterFieldId,
+        filterValue,
+        sortKey,
+        sortDirection,
+      }),
+    [
+      rows,
+      fields,
+      workspacePages,
+      rowSearch,
+      filterFieldId,
+      filterValue,
+      sortKey,
+      sortDirection,
+    ]
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -128,18 +275,24 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   }
 
   if (!database) {
-    return <p className="text-zinc-400 text-sm">Database not found.</p>;
+    return <p className="text-zinc-400 text-sm">数据库不存在。</p>;
   }
 
-  const activeView = views.find((v) => v.id === activeViewId) || views[0];
-
-  const viewProps = {
+  const allFieldViewProps = {
     fields,
-    rows,
+    rows: visibleRows,
     onAddRow: handleAddRow,
     onUpdateRow: handleUpdateRow,
     onDeleteRow: handleDeleteRow,
     onOpenRow: handleOpenRow,
+    onOpenPage: handleOpenPage,
+    relationPages: workspacePages,
+    focusPageId,
+    focusPage,
+  };
+  const visibleFieldViewProps = {
+    ...allFieldViewProps,
+    fields: visibleFields,
   };
 
   return (
@@ -151,9 +304,27 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           type="text"
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
-          placeholder="Database title"
+          placeholder="数据库标题"
           className="text-2xl font-bold bg-transparent border-none outline-none text-zinc-900 dark:text-zinc-100 placeholder-zinc-300 dark:placeholder-zinc-600 flex-1"
         />
+        <button
+          type="button"
+          onClick={handleAddAndOpenRow}
+          className="rounded bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          title="新建一条记录，并立即打开它的页面"
+        >
+          新建并打开
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            exportDatabaseAsCsv(database, fields, visibleRows, workspacePages)
+          }
+          className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          title="导出当前可见行为 CSV"
+        >
+          CSV
+        </button>
       </div>
 
       {/* View tabs + add view */}
@@ -161,7 +332,10 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         {views.map((view) => (
           <button
             key={view.id}
-            onClick={() => setActiveViewId(view.id)}
+            onClick={() => {
+              setActiveViewId(view.id);
+              applyViewConfig(view.config);
+            }}
             className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${
               activeView?.id === view.id
                 ? "bg-white dark:bg-zinc-800 border border-b-0 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-medium -mb-px"
@@ -172,7 +346,12 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
             {view.view_type === "list" && "☰ "}
             {view.view_type === "kanban" && "▥ "}
             {view.view_type === "calendar" && "📅 "}
-            {view.name}
+            {view.view_type === "gallery" && "▦ "}
+            {view.view_type === "timeline" && "↔ "}
+            {view.view_type === "chart" && "▤ "}
+            {view.view_type === "form" && "□ "}
+            {view.view_type === "feed" && "☷ "}
+            {getDatabaseViewDisplayName(view)}
           </button>
         ))}
         {/* Add view dropdown */}
@@ -181,21 +360,22 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
       {/* Field management bar */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <span className="text-xs text-zinc-400">Fields:</span>
+        <span className="text-xs text-zinc-400">字段：</span>
         {fields.map((field) => (
           <span
             key={field.id}
             className="inline-flex items-center gap-1 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded px-2 py-0.5"
           >
-            {field.name}
+            {getDatabaseFieldDisplayName(field)}
             <span className="text-zinc-400 dark:text-zinc-500">
-              ({field.field_type})
+              ({getDatabaseFieldTypeLabel(field.field_type)})
             </span>
-            {field.name !== "Name" && (
+            <FieldSettingsButton field={field} onUpdate={handleUpdateField} />
+            {field.position !== 0 && (
               <button
                 onClick={() => handleDeleteField(field.id)}
                 className="text-zinc-400 hover:text-red-500 ml-0.5"
-                title="Delete field"
+                title="删除字段"
               >
                 x
               </button>
@@ -203,36 +383,473 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           </span>
         ))}
         <AddFieldButton onAdd={handleAddField} />
+        <DatabaseTemplateButton onSelect={handleAddTemplateRow} />
       </div>
 
+      <DatabaseViewControls
+        activeViewType={activeView?.view_type}
+        fields={fields}
+        rowSearch={rowSearch}
+        initialRowSearch={initialRowSearch}
+        onRowSearchChange={setRowSearch}
+        filterFieldId={filterFieldId}
+        onFilterFieldChange={setFilterFieldId}
+        filterValue={filterValue}
+        onFilterValueChange={setFilterValue}
+        sortKey={sortKey}
+        onSortKeyChange={setSortKey}
+        sortDirection={sortDirection}
+        onSortDirectionChange={setSortDirection}
+        hiddenFieldIds={hiddenFieldIds}
+        onHiddenFieldIdsChange={setHiddenFieldIds}
+        chartGroupFieldId={chartGroupFieldId}
+        onChartGroupFieldChange={setChartGroupFieldId}
+        onSaveView={async () => {
+          if (!activeView) return;
+          await updateView(activeView.id, {
+            config: JSON.stringify({
+              rowSearch,
+              filterFieldId,
+              filterValue,
+              sortKey,
+              sortDirection,
+              hiddenFieldIds,
+              chartGroupFieldId,
+            }),
+          });
+          reload();
+        }}
+        visibleCount={visibleRows.length}
+        totalCount={rows.length}
+      />
+
+      {focusPageId && (
+        <div className="mb-4 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300">
+          正在补全关系：
+          <span className="font-medium">
+            {focusPage?.title || "指定页面"}
+          </span>
+          。请在本表的 relation 字段里搜索并选择相关页面；如果没有对应行，先新建或打开正确的行。
+        </div>
+      )}
+
       {/* Active view */}
-      {activeView?.view_type === "table" && <TableView {...viewProps} />}
-      {activeView?.view_type === "list" && <ListView {...viewProps} />}
-      {activeView?.view_type === "kanban" && <KanbanView {...viewProps} fields={fields} rows={rows} onUpdateRow={handleUpdateRow} onAddRow={handleAddRow} onDeleteRow={handleDeleteRow} onOpenRow={handleOpenRow} />}
-      {activeView?.view_type === "calendar" && <CalendarView {...viewProps} />}
+      {activeView?.view_type === "table" && <TableView {...visibleFieldViewProps} />}
+      {activeView?.view_type === "list" && <ListView {...visibleFieldViewProps} />}
+      {activeView?.view_type === "kanban" && <KanbanView {...allFieldViewProps} />}
+      {activeView?.view_type === "calendar" && <CalendarView {...allFieldViewProps} />}
+      {activeView?.view_type === "gallery" && <GalleryView {...visibleFieldViewProps} />}
+      {activeView?.view_type === "timeline" && <TimelineView {...allFieldViewProps} />}
+      {activeView?.view_type === "chart" && (
+        <ChartView
+          fields={fields}
+          rows={visibleRows}
+          chartGroupFieldId={chartGroupFieldId}
+          relationPages={workspacePages}
+          onOpenRow={handleOpenRow}
+        />
+      )}
+      {activeView?.view_type === "form" && (
+        <FormView
+          fields={visibleFields}
+          relationPages={workspacePages}
+          onOpenPage={handleOpenPage}
+          onCreateRow={handleCreateRow}
+        />
+      )}
+      {activeView?.view_type === "feed" && <FeedView {...allFieldViewProps} />}
     </div>
   );
 }
 
-function AddFieldButton({ onAdd }: { onAdd: (name: string, type: string) => void }) {
+function DatabaseViewControls({
+  activeViewType,
+  fields,
+  rowSearch,
+  initialRowSearch,
+  onRowSearchChange,
+  filterFieldId,
+  onFilterFieldChange,
+  filterValue,
+  onFilterValueChange,
+  sortKey,
+  onSortKeyChange,
+  sortDirection,
+  onSortDirectionChange,
+  hiddenFieldIds,
+  onHiddenFieldIdsChange,
+  chartGroupFieldId,
+  onChartGroupFieldChange,
+  onSaveView,
+  visibleCount,
+  totalCount,
+}: {
+  activeViewType?: DatabaseView["view_type"];
+  fields: DatabaseField[];
+  rowSearch: string;
+  initialRowSearch: string;
+  onRowSearchChange: (value: string) => void;
+  filterFieldId: string;
+  onFilterFieldChange: (value: string) => void;
+  filterValue: string;
+  onFilterValueChange: (value: string) => void;
+  sortKey: string;
+  onSortKeyChange: (value: string) => void;
+  sortDirection: SortDirection;
+  onSortDirectionChange: (value: SortDirection) => void;
+  hiddenFieldIds: string[];
+  onHiddenFieldIdsChange: (value: string[]) => void;
+  chartGroupFieldId: string;
+  onChartGroupFieldChange: (value: string) => void;
+  onSaveView: () => void;
+  visibleCount: number;
+  totalCount: number;
+}) {
+  const hasControls =
+    rowSearch ||
+    filterValue ||
+    sortKey !== "position" ||
+    hiddenFieldIds.length > 0 ||
+    chartGroupFieldId;
+  const chartableFields = fields.filter(isChartableField);
+
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2 border-y border-zinc-100 py-2 text-xs dark:border-zinc-800">
+      <input
+        type="search"
+        value={rowSearch}
+        onChange={(event) => onRowSearchChange(event.target.value)}
+        placeholder="搜索行"
+        className="h-8 w-44 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500"
+      />
+      {initialRowSearch && rowSearch === initialRowSearch && (
+        <span className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+          来自关联补全
+        </span>
+      )}
+      <select
+        value={filterFieldId}
+        onChange={(event) => onFilterFieldChange(event.target.value)}
+        aria-label="筛选字段"
+        className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+      >
+        <option value="all">所有字段</option>
+        {fields.map((field) => (
+          <option key={field.id} value={field.id}>
+            {getDatabaseFieldDisplayName(field)}
+          </option>
+        ))}
+      </select>
+      <input
+        type="text"
+        value={filterValue}
+        onChange={(event) => onFilterValueChange(event.target.value)}
+        placeholder="筛选包含"
+        className="h-8 w-40 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500"
+      />
+      <select
+        value={sortKey}
+        onChange={(event) => onSortKeyChange(event.target.value)}
+        aria-label="排序行"
+        className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+      >
+        <option value="position">手动排序</option>
+        <option value="name">名称</option>
+        <option value="created">创建时间</option>
+        <option value="updated">更新时间</option>
+        {fields.slice(1).map((field) => (
+          <option key={field.id} value={`field:${field.id}`}>
+            {getDatabaseFieldDisplayName(field)}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={() =>
+          onSortDirectionChange(sortDirection === "asc" ? "desc" : "asc")
+        }
+        className="h-8 rounded border border-zinc-200 px-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        title="切换排序方向"
+      >
+        {sortDirection === "asc" ? "升序" : "降序"}
+      </button>
+      <DatabasePropertiesButton
+        fields={fields}
+        hiddenFieldIds={hiddenFieldIds}
+        onHiddenFieldIdsChange={onHiddenFieldIdsChange}
+      />
+      {activeViewType === "chart" && (
+        <select
+          value={chartGroupFieldId}
+          onChange={(event) => onChartGroupFieldChange(event.target.value)}
+          aria-label="图表分组字段"
+          className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+        >
+          <option value="">自动分组</option>
+          {chartableFields.map((field) => (
+            <option key={field.id} value={field.id}>
+              图表：{getDatabaseFieldDisplayName(field)}
+            </option>
+          ))}
+        </select>
+      )}
+      <span className="text-zinc-400">
+        {visibleCount}/{totalCount}
+      </span>
+      <button
+        type="button"
+        onClick={onSaveView}
+        className="h-8 rounded border border-zinc-200 px-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        保存视图
+      </button>
+      {hasControls && (
+        <button
+          type="button"
+          onClick={() => {
+            onRowSearchChange("");
+            onFilterFieldChange("all");
+            onFilterValueChange("");
+            onSortKeyChange("position");
+            onSortDirectionChange("asc");
+            onHiddenFieldIdsChange([]);
+            onChartGroupFieldChange("");
+          }}
+          className="h-8 rounded px-2 text-xs text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        >
+          清除
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DatabasePropertiesButton({
+  fields,
+  hiddenFieldIds,
+  onHiddenFieldIdsChange,
+}: {
+  fields: DatabaseField[];
+  hiddenFieldIds: string[];
+  onHiddenFieldIdsChange: (value: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const hiddenFieldSet = new Set(hiddenFieldIds);
+  const visibleCount = fields.filter(
+    (field) => field.position === 0 || !hiddenFieldSet.has(field.id)
+  ).length;
+
+  const toggleField = (field: DatabaseField) => {
+    if (field.position === 0) return;
+    if (hiddenFieldSet.has(field.id)) {
+      onHiddenFieldIdsChange(hiddenFieldIds.filter((id) => id !== field.id));
+      return;
+    }
+    onHiddenFieldIdsChange([...hiddenFieldIds, field.id]);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="h-8 rounded border border-zinc-200 px-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        title="选择当前视图显示哪些属性"
+      >
+        属性 {visibleCount}/{fields.length}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          <div className="mb-2 px-1 text-[11px] font-medium text-zinc-400">
+            当前视图显示的属性
+          </div>
+          <div className="max-h-64 space-y-1 overflow-y-auto">
+            {fields.map((field) => {
+              const checked =
+                field.position === 0 || !hiddenFieldSet.has(field.id);
+              return (
+                <label
+                  key={field.id}
+                  className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={field.position === 0}
+                    onChange={() => toggleField(field)}
+                    className="rounded border-zinc-300"
+                  />
+                  <span className="min-w-0 flex-1 truncate">
+                    {getDatabaseFieldDisplayName(field)}
+                  </span>
+                  <span className="shrink-0 text-[11px] text-zinc-400">
+                    {getDatabaseFieldTypeLabel(field.field_type)}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => onHiddenFieldIdsChange([])}
+            className="mt-2 rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+          >
+            全部显示
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FieldSettingsButton({
+  field,
+  onUpdate,
+}: {
+  field: DatabaseField;
+  onUpdate: (
+    fieldId: string,
+    updates: Partial<Pick<DatabaseField, "name" | "field_type" | "config">>
+  ) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(getDatabaseFieldDisplayName(field));
+  const [type, setType] = useState(field.field_type);
+  const [options, setOptions] = useState(formatFieldOptions(field));
+  const isTitleField = field.position === 0;
+
+  useEffect(() => {
+    setName(getDatabaseFieldDisplayName(field));
+    setType(field.field_type);
+    setOptions(formatFieldOptions(field));
+  }, [field]);
+
+  const handleSave = () => {
+    const nextName = name.trim() || getDatabaseFieldDisplayName(field);
+    const nextType = isTitleField ? field.field_type : type;
+    onUpdate(field.id, {
+      name: nextName,
+      field_type: nextType,
+      config: buildFieldConfig(nextType, options),
+    });
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="rounded px-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+        title="编辑字段属性"
+      >
+        ⋯
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-72 rounded-lg border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+                字段设置
+              </p>
+              <p className="mt-0.5 text-[11px] text-zinc-400">
+                已有单元格值会保留，只改变字段解释方式。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded px-1 text-xs text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+            >
+              关闭
+            </button>
+          </div>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-zinc-500">
+              字段名
+            </span>
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+          </label>
+          <label className="mt-3 block">
+            <span className="mb-1 block text-[11px] font-medium text-zinc-500">
+              类型
+            </span>
+            <select
+              value={type}
+              disabled={isTitleField}
+              onChange={(event) => setType(event.target.value)}
+              className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-zinc-400 disabled:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            >
+              {DATABASE_FIELD_TYPES.map((fieldType) => (
+                <option key={fieldType.value} value={fieldType.value}>
+                  {fieldType.label}
+                </option>
+              ))}
+            </select>
+            {isTitleField && (
+              <span className="mt-1 block text-[11px] text-zinc-400">
+                名称字段负责打开页面，类型固定为文本。
+              </span>
+            )}
+          </label>
+          {isSelectLikeFieldType(type) && (
+            <label className="mt-3 block">
+              <span className="mb-1 block text-[11px] font-medium text-zinc-500">
+                选项，用英文逗号分隔
+              </span>
+              <input
+                type="text"
+                value={options}
+                onChange={(event) => setOptions(event.target.value)}
+                placeholder="未开始, 进行中, 已完成"
+                className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              />
+            </label>
+          )}
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="rounded bg-zinc-900 px-2 py-1 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            >
+              保存
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddFieldButton({
+  onAdd,
+}: {
+  onAdd: (name: string, type: string, config?: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState("text");
-
-  const fieldTypes = [
-    { value: "text", label: "Text" },
-    { value: "number", label: "Number" },
-    { value: "select", label: "Select" },
-    { value: "date", label: "Date" },
-    { value: "checkbox", label: "Checkbox" },
-    { value: "url", label: "URL" },
-  ];
+  const [options, setOptions] = useState("未开始, 进行中, 已完成");
 
   const handleSubmit = () => {
     if (!name.trim()) return;
-    onAdd(name.trim(), type);
+    const config = buildFieldConfig(type, options) ?? undefined;
+    onAdd(name.trim(), type, config);
     setName("");
     setType("text");
+    setOptions("未开始, 进行中, 已完成");
     setOpen(false);
   };
 
@@ -242,19 +859,19 @@ function AddFieldButton({ onAdd }: { onAdd: (name: string, type: string) => void
         onClick={() => setOpen(true)}
         className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 px-2 py-0.5 rounded border border-dashed border-zinc-300 dark:border-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
       >
-        + Field
+        + 字段
       </button>
     );
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       <input
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-        placeholder="Field name"
+        placeholder="字段名"
         autoFocus
         className="text-xs px-2 py-0.5 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-24 outline-none"
       />
@@ -263,18 +880,70 @@ function AddFieldButton({ onAdd }: { onAdd: (name: string, type: string) => void
         onChange={(e) => setType(e.target.value)}
         className="text-xs px-1 py-0.5 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none"
       >
-        {fieldTypes.map((ft) => (
+        {DATABASE_FIELD_TYPES.map((ft) => (
           <option key={ft.value} value={ft.value}>
             {ft.label}
           </option>
         ))}
       </select>
+      {isSelectLikeFieldType(type) && (
+        <input
+          type="text"
+          value={options}
+          onChange={(e) => setOptions(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          placeholder="选项"
+          className="text-xs px-2 py-0.5 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-48 outline-none"
+        />
+      )}
       <button onClick={handleSubmit} className="text-xs text-blue-500 hover:text-blue-600">
-        Add
+        添加
       </button>
       <button onClick={() => setOpen(false)} className="text-xs text-zinc-400 hover:text-zinc-600">
-        Cancel
+        取消
       </button>
+    </div>
+  );
+}
+
+function DatabaseTemplateButton({
+  onSelect,
+}: {
+  onSelect: (template: NoteTemplate) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 px-2 py-0.5 rounded border border-dashed border-zinc-300 dark:border-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
+      >
+        + 模板行
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-56 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          {NOTE_TEMPLATES.map((template) => (
+            <button
+              key={template.title}
+              type="button"
+              onClick={() => {
+                onSelect(template);
+                setOpen(false);
+              }}
+              className="w-full px-3 py-2 text-left hover:bg-zinc-50 dark:hover:bg-zinc-700"
+            >
+              <span className="block text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                {template.title}
+              </span>
+              <span className="block text-[11px] text-zinc-400">
+                {template.description}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -287,10 +956,15 @@ function AddViewButton({
   const [open, setOpen] = useState(false);
 
   const viewTypes: { type: DatabaseView["view_type"]; label: string; icon: string }[] = [
-    { type: "table", label: "Table", icon: "⊞" },
-    { type: "list", label: "List", icon: "☰" },
-    { type: "kanban", label: "Kanban", icon: "▥" },
-    { type: "calendar", label: "Calendar", icon: "📅" },
+    { type: "table", label: getDatabaseViewTypeLabel("table"), icon: "⊞" },
+    { type: "list", label: getDatabaseViewTypeLabel("list"), icon: "☰" },
+    { type: "kanban", label: getDatabaseViewTypeLabel("kanban"), icon: "▥" },
+    { type: "calendar", label: getDatabaseViewTypeLabel("calendar"), icon: "📅" },
+    { type: "gallery", label: getDatabaseViewTypeLabel("gallery"), icon: "▦" },
+    { type: "timeline", label: getDatabaseViewTypeLabel("timeline"), icon: "↔" },
+    { type: "chart", label: getDatabaseViewTypeLabel("chart"), icon: "▤" },
+    { type: "form", label: getDatabaseViewTypeLabel("form"), icon: "□" },
+    { type: "feed", label: getDatabaseViewTypeLabel("feed"), icon: "☷" },
   ];
 
   return (
@@ -299,7 +973,7 @@ function AddViewButton({
         onClick={() => setOpen(!open)}
         className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 px-2 py-1.5"
       >
-        + View
+        + 视图
       </button>
       {open && (
         <div className="absolute top-full left-0 mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-50 py-1 w-36">
@@ -320,4 +994,194 @@ function AddViewButton({
       )}
     </div>
   );
+}
+
+function getVisibleRows({
+  rows,
+  fields,
+  relationPages,
+  search,
+  filterFieldId,
+  filterValue,
+  sortKey,
+  sortDirection,
+}: {
+  rows: RowWithPage[];
+  fields: DatabaseField[];
+  relationPages: Page[];
+  search: string;
+  filterFieldId: string;
+  filterValue: string;
+  sortKey: string;
+  sortDirection: SortDirection;
+}) {
+  const normalizedSearch = search.trim().toLowerCase();
+  const normalizedFilter = filterValue.trim().toLowerCase();
+  const filtered = rows.filter((row) => {
+    const rowText = getRowSearchText(row, fields, relationPages).toLowerCase();
+    if (normalizedSearch && !rowText.includes(normalizedSearch)) return false;
+    if (!normalizedFilter) return true;
+
+    if (filterFieldId === "all") {
+      return rowText.includes(normalizedFilter);
+    }
+
+    const field = fields.find((item) => item.id === filterFieldId);
+    if (!field) return true;
+
+    return getRowFieldText(row, field, relationPages)
+      .toLowerCase()
+      .includes(normalizedFilter);
+  });
+
+  const sorted = [...filtered].sort((left, right) => {
+    const comparison = compareRows(left, right, fields, relationPages, sortKey);
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
+
+  return sorted;
+}
+
+function compareRows(
+  left: RowWithPage,
+  right: RowWithPage,
+  fields: DatabaseField[],
+  relationPages: Page[],
+  sortKey: string
+) {
+  if (sortKey === "position") return left.position - right.position;
+  if (sortKey === "name") return compareValues(left.page?.title, right.page?.title);
+  if (sortKey === "created") return compareValues(left.created_at, right.created_at);
+  if (sortKey === "updated") return compareValues(left.updated_at, right.updated_at);
+
+  if (sortKey.startsWith("field:")) {
+    const fieldId = sortKey.slice("field:".length);
+    const field = fields.find((item) => item.id === fieldId);
+    if (!field) return 0;
+    if (field.field_type === "relation") {
+      return compareValues(
+        getRowFieldText(left, field, relationPages),
+        getRowFieldText(right, field, relationPages)
+      );
+    }
+    return compareValues(getRowFieldValue(left, field), getRowFieldValue(right, field));
+  }
+
+  return 0;
+}
+
+function compareValues(left: unknown, right: unknown) {
+  const leftText = stringifyValue(left);
+  const rightText = stringifyValue(right);
+  const leftNumber = Number(leftText);
+  const rightNumber = Number(rightText);
+
+  if (leftText && rightText && Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
+    return leftNumber - rightNumber;
+  }
+
+  return leftText.localeCompare(rightText, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function getRowSearchText(
+  row: RowWithPage,
+  fields: DatabaseField[],
+  relationPages: Page[]
+) {
+  return [
+    row.page?.title ?? "",
+    row.created_at,
+    row.updated_at,
+    ...fields.map((field) => getRowFieldText(row, field, relationPages)),
+  ].join(" ");
+}
+
+function getRowFieldText(
+  row: RowWithPage,
+  field: DatabaseField,
+  relationPages: Page[]
+) {
+  if (field.position === 0 || field.name === "Name") {
+    return row.page?.title ?? "";
+  }
+  const value = getRowFieldValue(row, field);
+  if (field.field_type === "relation") {
+    return stringifyRelationValue(value, relationPages);
+  }
+  return stringifyValue(value);
+}
+
+function getRowFieldValue(row: RowWithPage, field: DatabaseField) {
+  const values = parseFieldValues(row.field_values);
+  return values[field.id];
+}
+
+function parseFieldValues(fieldValues: string) {
+  try {
+    return JSON.parse(fieldValues || "{}") as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function stringifyValue(value: unknown) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  return String(value);
+}
+
+function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
+  const fallback: DatabaseViewConfig = {
+    rowSearch: "",
+    filterFieldId: "all",
+    filterValue: "",
+    sortKey: "position",
+    sortDirection: "asc",
+    hiddenFieldIds: [],
+    chartGroupFieldId: "",
+  };
+
+  try {
+    const parsed = JSON.parse(config || "{}") as Partial<DatabaseViewConfig>;
+    return {
+      rowSearch: typeof parsed.rowSearch === "string" ? parsed.rowSearch : "",
+      filterFieldId:
+        typeof parsed.filterFieldId === "string" ? parsed.filterFieldId : "all",
+      filterValue: typeof parsed.filterValue === "string" ? parsed.filterValue : "",
+      sortKey: typeof parsed.sortKey === "string" ? parsed.sortKey : "position",
+      sortDirection: parsed.sortDirection === "desc" ? "desc" : "asc",
+      hiddenFieldIds: parseStringArray(parsed.hiddenFieldIds),
+      chartGroupFieldId:
+        typeof parsed.chartGroupFieldId === "string" ? parsed.chartGroupFieldId : "",
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function getVisibleFields(fields: DatabaseField[], hiddenFieldIds: string[]) {
+  const hiddenFieldSet = new Set(hiddenFieldIds);
+  return fields.filter(
+    (field) => field.position === 0 || !hiddenFieldSet.has(field.id)
+  );
+}
+
+function isChartableField(field: DatabaseField) {
+  return [
+    "status",
+    "select",
+    "relation",
+    "date",
+    "checkbox",
+    "number",
+  ].includes(field.field_type);
+}
+
+function parseStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }

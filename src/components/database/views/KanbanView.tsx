@@ -16,19 +16,19 @@ interface KanbanViewProps {
 export default function KanbanView({
   fields,
   rows,
-  onAddRow,
-  onUpdateRow,
   onDeleteRow,
   onOpenRow,
 }: KanbanViewProps) {
-  // Find the first select field to use as the grouping column
-  const groupField = fields.find((f) => f.field_type === "select");
+  // Use Status first, then fall back to the first Select field.
+  const groupField =
+    fields.find((f) => f.field_type === "status") ||
+    fields.find((f) => f.field_type === "select");
 
   const columns = useMemo(() => {
     if (!groupField) return [];
     const config = groupField.config ? JSON.parse(groupField.config) : {};
     const options: string[] = config.options || [];
-    // Always include "No status" column
+    // Keep rows without a value visible in their own column.
     return ["", ...options];
   }, [groupField]);
 
@@ -53,10 +53,10 @@ export default function KanbanView({
     return (
       <div className="text-center py-8">
         <p className="text-sm text-zinc-400 mb-2">
-          Kanban view requires a Select field.
+          看板视图需要一个状态或单选字段。
         </p>
         <p className="text-xs text-zinc-400">
-          Add a Select field with options to use Kanban view.
+          请先添加带选项的状态或单选字段，再使用看板视图。
         </p>
       </div>
     );
@@ -72,7 +72,7 @@ export default function KanbanView({
           {/* Column header */}
           <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              {col || "No status"}
+              {col || "无状态"}
             </span>
             <span className="text-xs text-zinc-400">
               {groupedRows[col]?.length || 0}
@@ -90,7 +90,7 @@ export default function KanbanView({
                   onClick={() => onOpenRow(row.page_id)}
                   className="text-sm font-medium text-zinc-900 dark:text-zinc-100 text-left w-full hover:text-blue-600 dark:hover:text-blue-400"
                 >
-                  {row.page?.title || "Untitled"}
+                  {row.page?.title || "未命名页面"}
                 </button>
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-[10px] text-zinc-400">
@@ -99,8 +99,9 @@ export default function KanbanView({
                   <button
                     onClick={() => onDeleteRow(row.id)}
                     className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-400 hover:text-red-500 transition-opacity"
+                    title="删除行"
                   >
-                    Delete
+                    删除
                   </button>
                 </div>
               </div>

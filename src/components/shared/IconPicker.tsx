@@ -14,9 +14,14 @@ const EMOJI_LIST = [
 interface IconPickerProps {
   currentIcon: string | null;
   onSelect: (icon: string) => void;
+  disabled?: boolean;
 }
 
-export default function IconPicker({ currentIcon, onSelect }: IconPickerProps) {
+export default function IconPicker({
+  currentIcon,
+  onSelect,
+  disabled = false,
+}: IconPickerProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -36,8 +41,11 @@ export default function IconPicker({ currentIcon, onSelect }: IconPickerProps) {
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen(!open)}
-        className="text-3xl hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md p-1 transition-colors"
+        onClick={() => {
+          if (!disabled) setOpen(!open);
+        }}
+        disabled={disabled}
+        className="text-3xl hover:bg-zinc-100 disabled:cursor-default disabled:hover:bg-transparent dark:hover:bg-zinc-800 dark:disabled:hover:bg-transparent rounded-md p-1 transition-colors"
         title="Change icon"
       >
         {currentIcon || "📄"}
