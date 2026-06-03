@@ -204,6 +204,11 @@ Current local actions:
 - Create an investment memo from the Investment Memo template.
 - Create an earnings review from the Earnings Review template.
 - Create a company tracker database with local fields and views.
+- Review and export a local company coverage radar. The coverage report checks
+  company home pages, investment memos, earnings reviews, valuation assumptions,
+  key metrics, related reports, related meetings, and tracker database coverage
+  without exporting page text, database row values, file bytes, holdings, or
+  investment plans.
 - Open company research from the sidebar Platform section or Cmd/Ctrl+K.
 
 ## Report Library Module

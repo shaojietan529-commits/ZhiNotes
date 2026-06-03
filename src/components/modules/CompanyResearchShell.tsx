@@ -8,6 +8,12 @@ import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPa
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { usePages } from "@/hooks/usePages";
 import { getAllDatabases } from "@/lib/db/local/queries";
+import {
+  buildCompanyCoverageReport,
+  getCoverageAreaLabel,
+  type CompanyCoverageReport,
+  type CompanyCoverageStatus,
+} from "@/lib/company/companyCoverage";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -90,6 +96,7 @@ function CompanyResearchDashboard() {
   const { pages, refresh } = usePages();
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [exportingCoverage, setExportingCoverage] = useState(false);
 
   useEffect(() => {
     void getAllDatabases()
@@ -105,12 +112,19 @@ function CompanyResearchDashboard() {
   );
   const companyPages = useMemo(() => getCompanyPages(pages), [pages]);
   const memoPages = useMemo(
-    () => pages.filter((page) => pageMatches(page, ["investment memo"])),
+    () =>
+      pages.filter((page) =>
+        pageMatches(page, ["investment memo", "投资备忘录", "投资假设"])
+      ),
     [pages]
   );
   const earningsPages = useMemo(
-    () => pages.filter((page) => pageMatches(page, ["earnings review"])),
+    () => pages.filter((page) => pageMatches(page, ["earnings review", "业绩复盘"])),
     [pages]
+  );
+  const companyCoverage = useMemo(
+    () => buildCompanyCoverageReport(pages, databases),
+    [databases, pages]
   );
 
   const companyModule = PLATFORM_MODULES.find(
@@ -132,6 +146,21 @@ function CompanyResearchDashboard() {
       window.alert("公司研究动作失败，请查看控制台。");
     } finally {
       setBusyAction(null);
+    }
+  };
+
+  const handleExportCoverage = () => {
+    setExportingCoverage(true);
+    try {
+      downloadJsonFile(`zhinote-company-coverage-${fileSafeTimestamp()}.json`, {
+        ...companyCoverage,
+        exported_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to export company coverage:", err);
+      window.alert("Company coverage export failed. Please check the console.");
+    } finally {
+      setExportingCoverage(false);
     }
   };
 
@@ -198,6 +227,108 @@ function CompanyResearchDashboard() {
               )}
             </div>
           </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                公司覆盖雷达
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                本地扫描公司研究页面和数据库元数据，检查公司主页、投资 memo、
+                业绩复盘、估值假设、关键指标、相关报告、相关会议和公司跟踪表是否齐备。
+                导出不会包含页面正文、数据库 row 值、文件 bytes、持仓或投资计划。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportCoverage}
+              disabled={exportingCoverage}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingCoverage ? "Exporting..." : "Export coverage"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-7">
+            <CoverageMetric
+              label="覆盖面"
+              value={companyCoverage.summary.coverage_areas}
+              detail="Research areas"
+              status="ready"
+            />
+            <CoverageMetric
+              label="Ready"
+              value={companyCoverage.summary.ready}
+              detail="Has structure"
+              status="ready"
+            />
+            <CoverageMetric
+              label="Missing"
+              value={companyCoverage.summary.missing}
+              detail="Needs setup"
+              status="missing"
+            />
+            <CoverageMetric
+              label="公司页"
+              value={companyCoverage.summary.company_pages}
+              detail="Home pages"
+              status={
+                companyCoverage.summary.company_pages > 0 ? "ready" : "missing"
+              }
+            />
+            <CoverageMetric
+              label="Memo"
+              value={companyCoverage.summary.investment_memos}
+              detail="Thesis docs"
+              status={
+                companyCoverage.summary.investment_memos > 0
+                  ? "ready"
+                  : "missing"
+              }
+            />
+            <CoverageMetric
+              label="业绩复盘"
+              value={companyCoverage.summary.earnings_reviews}
+              detail="Reviews"
+              status={
+                companyCoverage.summary.earnings_reviews > 0
+                  ? "ready"
+                  : "missing"
+              }
+            />
+            <CoverageMetric
+              label="待补齐"
+              value={companyCoverage.summary.candidates_needing_work}
+              detail="Company pages"
+              status={
+                companyCoverage.summary.candidates_needing_work > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            {companyCoverage.areas.map((area) => (
+              <CompanyCoverageAreaCard key={area.id} area={area} />
+            ))}
+          </div>
+          {companyCoverage.candidates.length > 0 ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {companyCoverage.candidates.slice(0, 6).map((candidate) => (
+                <CompanyCoverageCandidateCard
+                  key={candidate.id}
+                  candidate={candidate}
+                  onOpen={() => router.push(candidate.route)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+              暂无需要补齐的公司页。新建公司研究页后，这里会提示缺少的 memo、业绩复盘、
+              估值、指标、报告或会议结构。
+            </p>
+          )}
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -271,6 +402,121 @@ function Metric({ label, value }: { label: string; value: number }) {
         {value}
       </div>
     </div>
+  );
+}
+
+function CoverageMetric({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: CompanyCoverageStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <CompanyCoverageStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function CompanyCoverageAreaCard({
+  area,
+}: {
+  area: CompanyCoverageReport["areas"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {area.title}
+        </div>
+        <CompanyCoverageStatusPill status={area.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {area.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        {area.next_action}
+      </p>
+    </article>
+  );
+}
+
+function CompanyCoverageCandidateCard({
+  candidate,
+  onOpen,
+}: {
+  candidate: CompanyCoverageReport["candidates"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {candidate.title}
+          </div>
+          <div className="mt-1 text-zinc-400">
+            缺少 {candidate.missing_sections.length} 个结构面
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开
+        </button>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {candidate.missing_sections.map((areaId) => (
+          <span
+            key={areaId}
+            className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          >
+            {getCoverageAreaLabel(areaId)}
+          </span>
+        ))}
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {candidate.next_action}
+      </p>
+    </article>
+  );
+}
+
+function CompanyCoverageStatusPill({
+  status,
+}: {
+  status: CompanyCoverageStatus;
+}) {
+  const labels: Record<CompanyCoverageStatus, string> = {
+    ready: "Ready",
+    partial: "Partial",
+    missing: "Missing",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "partial"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
@@ -395,4 +641,22 @@ function formatUpdated(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "最近更新";
   return `更新于 ${date.toLocaleDateString()}`;
+}
+
+function downloadJsonFile(fileName: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function fileSafeTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
 }

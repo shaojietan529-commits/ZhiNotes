@@ -9,6 +9,7 @@ const files = {
   packageJson: "package.json",
   workflow: "src/lib/modules/researchWorkflow.ts",
   graph: "src/lib/modules/researchGraph.ts",
+  companyCoverage: "src/lib/company/companyCoverage.ts",
   connectionsPanel: "src/components/modules/ResearchConnectionsPanel.tsx",
   graphShell: "src/components/modules/ResearchGraphShell.tsx",
   schemaPanel: "src/components/modules/ResearchWorkflowSchemaPanel.tsx",
@@ -52,6 +53,17 @@ const requiredKinds = [
   },
 ];
 
+const requiredCompanyCoverageAreas = [
+  "company-home",
+  "investment-memo",
+  "earnings-review",
+  "valuation",
+  "key-metrics",
+  "related-reports",
+  "related-meetings",
+  "tracker-database",
+];
+
 const failures = [];
 
 function readProjectFile(relativePath) {
@@ -73,6 +85,7 @@ function run() {
   const packageJson = readProjectFile(files.packageJson);
   const workflow = readProjectFile(files.workflow);
   const graph = readProjectFile(files.graph);
+  const companyCoverage = readProjectFile(files.companyCoverage);
   const connectionsPanel = readProjectFile(files.connectionsPanel);
   const graphShell = readProjectFile(files.graphShell);
   const schemaPanel = readProjectFile(files.schemaPanel);
@@ -115,6 +128,45 @@ function run() {
     "Research graph must preserve the existing asset-label export for callers."
   );
   assertIncludes(
+    files.companyCoverage,
+    companyCoverage,
+    'format: "zhinote-company-coverage-report"',
+    "Company coverage must define a local export format."
+  );
+  assertIncludes(
+    files.companyCoverage,
+    companyCoverage,
+    "buildCompanyCoverageReport",
+    "Company coverage must expose a reusable builder."
+  );
+  for (const snippet of [
+    "local_report_only: true",
+    "reads_local_page_html: true",
+    "reads_database_metadata: true",
+    "includes_page_text: false",
+    "includes_database_row_values: false",
+    "reads_file_bytes: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.companyCoverage,
+      companyCoverage,
+      snippet,
+      "Company coverage must preserve local-only boundaries."
+    );
+  }
+  for (const area of requiredCompanyCoverageAreas) {
+    assertIncludes(
+      files.companyCoverage,
+      companyCoverage,
+      `id: "${area}"`,
+      `Company coverage must keep area ${area}.`
+    );
+  }
+  assertIncludes(
     files.connectionsPanel,
     connectionsPanel,
     "getResearchModuleRoute",
@@ -137,6 +189,24 @@ function run() {
     companyShell,
     'ResearchWorkflowSchemaPanel kind="company"',
     "Company module must show its object model."
+  );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
+    "buildCompanyCoverageReport",
+    "Company module must build the company coverage report."
+  );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
+    "公司覆盖雷达",
+    "Company module must render the coverage radar."
+  );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
+    "Export coverage",
+    "Company module must export the coverage report."
   );
   assertIncludes(
     files.reportsShell,
@@ -217,6 +287,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "company coverage radar",
+    "README must document company coverage reporting."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "npm run verify:research-workflow",
     "README useful checks must include the research workflow verifier."
   );
@@ -238,6 +314,7 @@ function run() {
           (total, item) => total + item.relationKinds.length,
           0
         ),
+        company_coverage_areas: requiredCompanyCoverageAreas.length,
         shared_routes: true,
         local_only: true,
       },
