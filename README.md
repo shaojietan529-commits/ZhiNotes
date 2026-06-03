@@ -127,6 +127,8 @@ Current local actions:
   right local database with `q` and `focus` parameters prefilled.
 - Review relation schema gaps, such as a company tracker missing related-report
   or related-meeting relation fields.
+- Create one missing local relation field from a schema gap after a manual
+  browser confirmation.
 - Use the database relation completion assistant after that jump to manually
   add the focused asset to one local relation field at a time.
 - Open source pages, target pages, source modules, and tracker databases.
@@ -136,7 +138,9 @@ Current local actions:
 The current Research Graph module is read-only. It does not edit pages, create
 database rows, call AI, sync data, or upload workspace content. Relation
 completion from a database page is a separate manual click that writes only the
-selected local row and selected local relation field.
+selected local row and selected local relation field. Creating a missing
+schema-gap field is also manual and only adds one local `relation` field to the
+selected local database.
 
 ## Company Research Module
 

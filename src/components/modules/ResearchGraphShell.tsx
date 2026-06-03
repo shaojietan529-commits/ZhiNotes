@@ -1,17 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { usePages } from "@/hooks/usePages";
-import { getAllDatabases, getFields, getRows } from "@/lib/db/local/queries";
+import {
+  addField,
+  getAllDatabases,
+  getFields,
+  getRows,
+} from "@/lib/db/local/queries";
 import {
   buildResearchGraph,
   buildResearchGraphReport,
   classifyResearchDatabase,
   getResearchAssetKindLabel,
   getResearchRelationFieldLabel,
+  inferResearchKindFromRelationField,
   type ResearchAsset,
   type ResearchGraphCompletionAction,
   type ResearchAssetKind,
@@ -61,6 +67,7 @@ function ResearchGraphDashboard() {
   const [databases, setDatabases] = useState<Database[]>([]);
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [exportingGraphReport, setExportingGraphReport] = useState(false);
+  const [schemaGapBusyId, setSchemaGapBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     void getAllDatabases()
@@ -75,16 +82,15 @@ function ResearchGraphDashboard() {
     [databases]
   );
 
+  const reloadSnapshots = useCallback(async () => {
+    const nextSnapshots = await loadResearchDatabaseSnapshots(researchDatabases);
+    setSnapshots(nextSnapshots);
+  }, [researchDatabases]);
+
   useEffect(() => {
     let cancelled = false;
 
-    void Promise.all(
-      researchDatabases.map(async (database) => ({
-        database,
-        fields: await getFields(database.id),
-        rows: await getRows(database.id),
-      }))
-    )
+    void loadResearchDatabaseSnapshots(researchDatabases)
       .then((nextSnapshots) => {
         if (!cancelled) setSnapshots(nextSnapshots);
       })
@@ -133,6 +139,37 @@ function ResearchGraphDashboard() {
       window.alert("研究图谱报告导出失败，请查看控制台。");
     } finally {
       setExportingGraphReport(false);
+    }
+  };
+
+  const handleCreateSchemaGapField = async (gap: ResearchGraphSchemaGap) => {
+    const confirmed = window.confirm(
+      `在「${gap.database_title}」里创建 relation 字段「${gap.suggested_field_name}」？\n\n这只会修改本地数据库结构，不会写入行数据、同步或上传。`
+    );
+    if (!confirmed) return;
+
+    setSchemaGapBusyId(gap.id);
+    try {
+      const latestFields = await getFields(gap.database_id);
+      const alreadyCovered = latestFields.some(
+        (field) =>
+          field.field_type === "relation" &&
+          inferResearchKindFromRelationField(field.name) ===
+            gap.missing_relation_kind
+      );
+
+      if (!alreadyCovered) {
+        await addField(gap.database_id, {
+          name: gap.suggested_field_name,
+          fieldType: "relation",
+        });
+      }
+      await reloadSnapshots();
+    } catch (err) {
+      console.error("[Zhinote] Failed to create relation field:", err);
+      window.alert("relation 字段创建失败，请查看控制台。");
+    } finally {
+      setSchemaGapBusyId(null);
     }
   };
 
@@ -198,6 +235,8 @@ function ResearchGraphDashboard() {
           gaps={schemaGaps}
           totalGaps={graphReport.schema_gaps.length}
           onOpenDatabaseRoute={(route) => router.push(route)}
+          busyGapId={schemaGapBusyId}
+          onCreateField={(gap) => void handleCreateSchemaGapField(gap)}
         />
 
         <CompletionPlanPanel
@@ -353,10 +392,14 @@ function SchemaGapPanel({
   gaps,
   totalGaps,
   onOpenDatabaseRoute,
+  busyGapId,
+  onCreateField,
 }: {
   gaps: ResearchGraphSchemaGap[];
   totalGaps: number;
   onOpenDatabaseRoute: (route: string) => void;
+  busyGapId: string | null;
+  onCreateField: (gap: ResearchGraphSchemaGap) => void;
 }) {
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -367,6 +410,7 @@ function SchemaGapPanel({
           </h2>
           <p className="mt-1 text-xs leading-5 text-zinc-400">
             检查公司、报告、会议和组合跟踪表是否具备最低 relation 字段结构。
+            创建字段前会二次确认。
           </p>
         </div>
         <span className="text-xs text-zinc-400">{totalGaps} 个缺口</span>
@@ -398,6 +442,14 @@ function SchemaGapPanel({
                 className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
                 打开表
+              </button>
+              <button
+                type="button"
+                disabled={busyGapId === gap.id}
+                onClick={() => onCreateField(gap)}
+                className="shrink-0 rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+              >
+                {busyGapId === gap.id ? "创建中..." : "创建字段"}
               </button>
             </article>
           ))}
@@ -734,4 +786,14 @@ function downloadJsonFile(fileName: string, value: unknown) {
 
 function fileSafeTimestamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function loadResearchDatabaseSnapshots(databases: Database[]) {
+  return Promise.all(
+    databases.map(async (database) => ({
+      database,
+      fields: await getFields(database.id),
+      rows: await getRows(database.id),
+    }))
+  );
 }
