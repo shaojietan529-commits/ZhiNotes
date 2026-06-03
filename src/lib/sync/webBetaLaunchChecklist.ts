@@ -217,10 +217,10 @@ function buildLaunchTracks(
       title: "Conflict review",
       status: input.conflictReview ? "partial" : "blocked",
       evidence: input.conflictReview
-        ? `Conflict scaffold covers ${input.conflictReview.summary.surfaces} surfaces, and sync UI includes local-only side-by-side, baseline request, staging, schema/cursor proof, disposable replay/RLS proof contracts, and disposable replay confirmation receipt. It still does not read remote baselines.`
+        ? `Conflict scaffold covers ${input.conflictReview.summary.surfaces} surfaces, and sync UI includes local-only side-by-side, baseline request, staging, schema/cursor proof, disposable replay/RLS proof contracts, disposable replay confirmation receipt, and empty-fixture replay package. It still does not read remote baselines.`
         : "No local conflict review scaffold is available.",
       required_action:
-        "Export owner confirmation, run disposable replay/RLS proof on empty workspace fixtures, prove rollback, and require owner confirmation before multi-device editing.",
+        "Export owner confirmation and empty-fixture package, run disposable replay/RLS proof on empty workspace fixtures, prove rollback, and require owner confirmation before multi-device editing.",
     },
     {
       id: "restore-and-rollback",
@@ -243,12 +243,12 @@ function buildLaunchTracks(
       status: input.syncPayloadPreview ? "partial" : "manual-confirmation",
       evidence:
         input.syncPayloadPreview && input.permissionDecisionReport
-          ? `Sync payload preview covers ${input.syncPayloadPreview.summary.pending_count} pending rows and permission decisions flag ${input.permissionDecisionReport.summary.needs_confirmation} local actions for manual confirmation. Disposable replay has its own local confirmation receipt before any empty-data replay.`
+          ? `Sync payload preview covers ${input.syncPayloadPreview.summary.pending_count} pending rows and permission decisions flag ${input.permissionDecisionReport.summary.needs_confirmation} local actions for manual confirmation. Disposable replay has its own local confirmation receipt and empty-fixture package before any empty-data replay.`
           : input.syncPayloadPreview
             ? `Sync payload preview covers ${input.syncPayloadPreview.summary.pending_count} pending rows without page text or file bytes.`
             : "No local sync payload preview is available.",
       required_action:
-        "Make payload preview and replay receipts mandatory before cloud sync, disposable replay, AI execution, external asset loading, sharing, or bulk delete.",
+        "Make payload preview, replay receipts, and empty-fixture packages mandatory before cloud sync, disposable replay, AI execution, external asset loading, sharing, or bulk delete.",
     },
     {
       id: "environment-preflight",

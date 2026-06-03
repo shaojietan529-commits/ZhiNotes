@@ -21,6 +21,7 @@ const files = {
   remoteBaselineStaging: "src/lib/sync/remoteBaselineStaging.ts",
   remoteBaselineStageSchema: "src/lib/sync/remoteBaselineStageSchema.ts",
   remoteBaselineStageReplay: "src/lib/sync/remoteBaselineStageReplay.ts",
+  remoteBaselineReplayFixture: "src/lib/sync/remoteBaselineReplayFixture.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -184,6 +185,9 @@ function run() {
   const remoteBaselineStageReplay = readProjectFile(
     files.remoteBaselineStageReplay
   );
+  const remoteBaselineReplayFixture = readProjectFile(
+    files.remoteBaselineReplayFixture
+  );
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -212,6 +216,7 @@ function run() {
     [files.remoteBaselineStaging, remoteBaselineStaging],
     [files.remoteBaselineStageSchema, remoteBaselineStageSchema],
     [files.remoteBaselineStageReplay, remoteBaselineStageReplay],
+    [files.remoteBaselineReplayFixture, remoteBaselineReplayFixture],
     [files.syncOptInGate, syncOptInGate],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
@@ -1359,6 +1364,171 @@ function run() {
     assertSourceIncludes(file, source, snippet, message);
   }
   assertSourceIncludes(
+    files.remoteBaselineReplayFixture,
+    remoteBaselineReplayFixture,
+    'format: "zhinote-remote-baseline-replay-fixture-package"',
+    "Remote baseline replay fixture must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.remoteBaselineReplayFixture,
+    remoteBaselineReplayFixture,
+    "buildRemoteBaselineReplayFixturePackage",
+    "Remote baseline replay fixture must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'package_status: "local-empty-fixture-package-only"',
+      "Remote baseline replay fixture must stay local-only.",
+    ],
+    [
+      "can_export_fixture_now: true",
+      "Remote baseline replay fixture must allow local export.",
+    ],
+    [
+      "can_run_replay_now: false",
+      "Remote baseline replay fixture must not run replay.",
+    ],
+    [
+      "can_connect_database_now: false",
+      "Remote baseline replay fixture must not connect databases.",
+    ],
+    [
+      "can_apply_sql_now: false",
+      "Remote baseline replay fixture must not apply SQL.",
+    ],
+    [
+      "can_stage_remote_rows_now: false",
+      "Remote baseline replay fixture must not stage remote rows.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Remote baseline replay fixture must not upload workspace data.",
+    ],
+    [
+      'disabled_replay_endpoint: "/api/sync/replay-test"',
+      "Remote baseline replay fixture must keep replay endpoint disabled.",
+    ],
+    [
+      "empty_workspace_fixture: true",
+      "Remote baseline replay fixture must use empty workspace fixtures.",
+    ],
+    [
+      "metadata_only_fixture: true",
+      "Remote baseline replay fixture must remain metadata-only.",
+    ],
+    [
+      "creates_database: false",
+      "Remote baseline replay fixture must not create databases.",
+    ],
+    [
+      "starts_network_request: false",
+      "Remote baseline replay fixture must not start network requests.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Remote baseline replay fixture must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Remote baseline replay fixture must not read database values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Remote baseline replay fixture must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Remote baseline replay fixture must not read file bytes.",
+    ],
+    [
+      "includes_page_body_text: false",
+      "Remote baseline replay fixture must not include page body text.",
+    ],
+    [
+      "includes_database_row_values: false",
+      "Remote baseline replay fixture must not include database values.",
+    ],
+    [
+      "includes_comment_bodies: false",
+      "Remote baseline replay fixture must not include comment bodies.",
+    ],
+    [
+      "includes_file_bytes: false",
+      "Remote baseline replay fixture must not include file bytes.",
+    ],
+    [
+      "includes_tokens: false",
+      "Remote baseline replay fixture must not include tokens.",
+    ],
+    [
+      "includes_cookies: false",
+      "Remote baseline replay fixture must not include cookies.",
+    ],
+    [
+      "stage_seed_rows: 0",
+      "Remote baseline replay fixture must export zero stage seed rows.",
+    ],
+    [
+      "cursor_proof_seed_rows: 0",
+      "Remote baseline replay fixture must export zero cursor proof seed rows.",
+    ],
+    [
+      "requires_owner_confirmation_receipt: true",
+      "Remote baseline replay fixture must require owner confirmation receipt.",
+    ],
+    [
+      "requires_phrase_match_before_real_replay: true",
+      "Remote baseline replay fixture must require phrase match before real replay.",
+    ],
+    [
+      "fixture-workspace-a-empty",
+      "Remote baseline replay fixture must include workspace A empty fixture.",
+    ],
+    [
+      "fixture-workspace-b-empty",
+      "Remote baseline replay fixture must include workspace B empty fixture.",
+    ],
+    [
+      "payload_column_denylist",
+      "Remote baseline replay fixture must export payload denylist.",
+    ],
+    [
+      "owner-confirmation-receipt",
+      "Remote baseline replay fixture must validate owner confirmation receipt.",
+    ],
+    [
+      "empty-workspace-fixtures",
+      "Remote baseline replay fixture must validate empty workspace fixtures.",
+    ],
+    [
+      "empty-fixture-users",
+      "Remote baseline replay fixture must validate anonymous fixture users.",
+    ],
+    [
+      "zero-stage-seed-rows",
+      "Remote baseline replay fixture must validate zero stage rows.",
+    ],
+    [
+      "zero-cursor-proof-seed-rows",
+      "Remote baseline replay fixture must validate zero cursor rows.",
+    ],
+    [
+      "payload-column-denylist",
+      "Remote baseline replay fixture must validate payload denylist.",
+    ],
+    [
+      "replay-endpoint-disabled",
+      "Remote baseline replay fixture must validate disabled replay endpoint.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.remoteBaselineReplayFixture,
+      remoteBaselineReplayFixture,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
     files.syncShell,
     syncShell,
     "buildSyncConflictResolutionContract",
@@ -1573,6 +1743,34 @@ function run() {
       'getHighRiskRequiredPhrase(\n          "remote-baseline-stage-replay"',
       "Sync UI must read the disposable replay confirmation phrase from the registry.",
     ],
+    [
+      "buildRemoteBaselineReplayFixturePackage",
+      "Sync UI must build the disposable replay empty-fixture package.",
+    ],
+    [
+      "handleExportRemoteBaselineReplayFixturePackage",
+      "Sync UI must export the disposable replay empty-fixture package.",
+    ],
+    [
+      "Empty-fixture replay package",
+      "Sync UI must render the disposable replay empty-fixture panel.",
+    ],
+    [
+      "Export empty fixture",
+      "Sync UI must expose the disposable replay empty-fixture export action.",
+    ],
+    [
+      "RemoteBaselineReplayFixtureValidationRow",
+      "Sync UI must render empty-fixture validation rows.",
+    ],
+    [
+      "remote-baseline-replay-fixture",
+      "Sync UI must track empty-fixture export state separately.",
+    ],
+    [
+      "payload_column_denylist",
+      "Sync UI must render payload denylist from the empty-fixture package.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
@@ -1625,6 +1823,7 @@ function run() {
     remote_baseline_staging_checks: 49,
     remote_baseline_stage_schema_checks: 55,
     remote_baseline_stage_replay_checks: 67,
+    remote_baseline_replay_fixture_checks: 48,
     warnings: warnings.length,
   };
 

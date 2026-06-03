@@ -162,6 +162,11 @@ import {
   type RemoteBaselineStageReplayStatus,
 } from "@/lib/sync/remoteBaselineStageReplay";
 import {
+  buildRemoteBaselineReplayFixturePackage,
+  type RemoteBaselineReplayFixturePackage,
+  type RemoteBaselineReplayFixtureStatus,
+} from "@/lib/sync/remoteBaselineReplayFixture";
+import {
   buildSyncOptInGateReport,
   type SyncOptInGateReport,
   type SyncOptInGateStatus,
@@ -208,6 +213,7 @@ type SyncQueueAction =
   | "remote-baseline-stage-schema"
   | "remote-baseline-stage-replay"
   | "remote-baseline-replay-confirmation"
+  | "remote-baseline-replay-fixture"
   | "opt-in-gate"
   | "sync-confirmation"
   | "rollback-plan"
@@ -726,6 +732,21 @@ function SyncDashboard() {
       cloudSession,
       remoteBaselineReplayConfirmationPhrase,
       remoteBaselineStageReplay,
+      workspaceIdentity,
+    ]
+  );
+  const remoteBaselineReplayFixturePackage = useMemo(
+    () =>
+      buildRemoteBaselineReplayFixturePackage({
+        workspaceIdentity,
+        stageSchema: remoteBaselineStageSchema,
+        stageReplay: remoteBaselineStageReplay,
+        replayConfirmationReceipt: remoteBaselineReplayConfirmationReceipt,
+      }),
+    [
+      remoteBaselineReplayConfirmationReceipt,
+      remoteBaselineStageReplay,
+      remoteBaselineStageSchema,
       workspaceIdentity,
     ]
   );
@@ -1703,6 +1724,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Remote baseline replay confirmation receipt failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportRemoteBaselineReplayFixturePackage = () => {
+    setBusyQueueAction("remote-baseline-replay-fixture");
+    try {
+      downloadJsonFile(
+        `zhinote-remote-baseline-replay-fixture-${fileSafeTimestamp()}.json`,
+        {
+          ...remoteBaselineReplayFixturePackage,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export remote baseline replay fixture package:",
+        err
+      );
+      window.alert(
+        "Remote baseline replay fixture export failed. Please check the console."
       );
     } finally {
       setBusyQueueAction(null);
@@ -3379,6 +3423,71 @@ function SyncDashboard() {
                   value="/api/sync/replay-test"
                   detail="Still disabled"
                 />
+              </div>
+            </ContractPanel>
+            <ContractPanel title="Empty-fixture replay package" className="mt-4">
+              <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
+                <p className="max-w-3xl">
+                  Local package for the next disposable replay step. It
+                  contains empty workspace fixtures, anonymous fixture users,
+                  zero staged rows, zero cursor rows, and a payload denylist.
+                  Exporting it does not connect a database, run replay, apply
+                  SQL, write server data, or upload workspace data.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleExportRemoteBaselineReplayFixturePackage}
+                  disabled={busyQueueAction === "remote-baseline-replay-fixture"}
+                  className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  {busyQueueAction === "remote-baseline-replay-fixture"
+                    ? "Exporting..."
+                    : "Export empty fixture"}
+                </button>
+              </div>
+              <div className="mt-3 grid gap-2 md:grid-cols-4">
+                <IdentityMetric
+                  label="Fixture workspaces"
+                  value={`${remoteBaselineReplayFixturePackage.summary.fixture_workspaces}`}
+                  detail="Empty only"
+                />
+                <IdentityMetric
+                  label="Stage rows"
+                  value={`${remoteBaselineReplayFixturePackage.summary.stage_seed_rows}`}
+                  detail="No remote rows"
+                />
+                <IdentityMetric
+                  label="Cursor rows"
+                  value={`${remoteBaselineReplayFixturePackage.summary.cursor_proof_seed_rows}`}
+                  detail="No ack movement"
+                />
+                <IdentityMetric
+                  label="Denylist fields"
+                  value={`${remoteBaselineReplayFixturePackage.summary.forbidden_payload_columns}`}
+                  detail="Payload blocked"
+                />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1">
+                {remoteBaselineReplayFixturePackage.payload_column_denylist
+                  .slice(0, 12)
+                  .map((field) => (
+                    <span
+                      key={field}
+                      className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+                    >
+                      {field}
+                    </span>
+                  ))}
+              </div>
+              <div className="mt-4 grid gap-2 md:grid-cols-2">
+                {remoteBaselineReplayFixturePackage.validation_checks.map(
+                  (check) => (
+                    <RemoteBaselineReplayFixtureValidationRow
+                      key={check.id}
+                      check={check}
+                    />
+                  )
+                )}
               </div>
             </ContractPanel>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
@@ -8014,6 +8123,34 @@ function RemoteBaselineStageReplayGateRow({
   );
 }
 
+function RemoteBaselineReplayFixtureValidationRow({
+  check,
+}: {
+  check: RemoteBaselineReplayFixturePackage["validation_checks"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {check.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {check.id}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {check.evidence}
+          </p>
+        </div>
+        <RemoteBaselineReplayFixtureStatusPill status={check.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {check.failure_condition}
+      </p>
+    </article>
+  );
+}
+
 function RemoteBaselineRlsProofRow({
   proof,
 }: {
@@ -8093,6 +8230,31 @@ function RemoteBaselineStageReplayStatusPill({
       : status === "manual-confirmation"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function RemoteBaselineReplayFixtureStatusPill({
+  status,
+}: {
+  status: RemoteBaselineReplayFixtureStatus;
+}) {
+  const labels: Record<RemoteBaselineReplayFixtureStatus, string> = {
+    ready: "Ready",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>

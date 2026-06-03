@@ -563,6 +563,12 @@ Current local actions:
   future empty-workspace replay and still does not connect a database, apply
   SQL, stage remote rows, write server data, read private workspace content,
   upload anything, or enable `/api/sync/replay-test`.
+- Review and export a local empty-fixture replay package. The package contains
+  only empty disposable workspace metadata, anonymous fixture users, zero stage
+  rows, zero cursor rows, and a payload-column denylist. It does not include
+  page text, database row values, comment bodies, file bytes, tokens, cookies,
+  real remote rows, or signed URLs, and it still does not run replay or enable
+  `/api/sync/replay-test`.
 - Review and export a local workspace identity with anonymous browser-local
   workspace and device ids for future sync metadata. The identity is not an
   account and does not connect cloud services or include note text/file content.
