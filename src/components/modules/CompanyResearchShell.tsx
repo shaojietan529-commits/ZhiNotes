@@ -14,6 +14,11 @@ import {
   type CompanyCoverageReport,
   type CompanyCoverageStatus,
 } from "@/lib/company/companyCoverage";
+import {
+  buildCompanyResearchPlaybook,
+  type CompanyResearchPlaybook,
+  type CompanyResearchPlaybookStatus,
+} from "@/lib/company/companyResearchPlaybook";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -97,6 +102,7 @@ function CompanyResearchDashboard() {
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingCoverage, setExportingCoverage] = useState(false);
+  const [exportingPlaybook, setExportingPlaybook] = useState(false);
 
   useEffect(() => {
     void getAllDatabases()
@@ -125,6 +131,10 @@ function CompanyResearchDashboard() {
   const companyCoverage = useMemo(
     () => buildCompanyCoverageReport(pages, databases),
     [databases, pages]
+  );
+  const companyPlaybook = useMemo(
+    () => buildCompanyResearchPlaybook(companyCoverage),
+    [companyCoverage]
   );
 
   const companyModule = PLATFORM_MODULES.find(
@@ -161,6 +171,24 @@ function CompanyResearchDashboard() {
       window.alert("Company coverage export failed. Please check the console.");
     } finally {
       setExportingCoverage(false);
+    }
+  };
+
+  const handleExportPlaybook = () => {
+    setExportingPlaybook(true);
+    try {
+      downloadJsonFile(
+        `zhinote-company-research-playbook-${fileSafeTimestamp()}.json`,
+        {
+          ...companyPlaybook,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export company playbook:", err);
+      window.alert("公司研究 Playbook 导出失败，请查看控制台。");
+    } finally {
+      setExportingPlaybook(false);
     }
   };
 
@@ -331,6 +359,123 @@ function CompanyResearchDashboard() {
           )}
         </section>
 
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                公司研究 Playbook
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把覆盖雷达转成行动队列：先补公司主页，再补投资 memo、业绩复盘、
+                估值假设、关键指标、相关报告、相关会议和公司跟踪表。导出只包含结构状态，
+                不包含页面正文、数据库 row values、持仓或交易计划。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportPlaybook}
+              disabled={exportingPlaybook}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingPlaybook ? "导出中..." : "导出 Playbook"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <CoverageMetric
+              label="步骤"
+              value={companyPlaybook.summary.workflow_steps}
+              detail="Workflow"
+              status="partial"
+            />
+            <CoverageMetric
+              label="Ready"
+              value={companyPlaybook.summary.ready_steps}
+              detail="已覆盖"
+              status="ready"
+            />
+            <CoverageMetric
+              label="Missing"
+              value={companyPlaybook.summary.missing_steps}
+              detail="待补齐"
+              status={
+                companyPlaybook.summary.missing_steps > 0 ? "missing" : "ready"
+              }
+            />
+            <CoverageMetric
+              label="需确认"
+              value={companyPlaybook.summary.manual_confirmation_steps}
+              detail="复盘动作"
+              status="partial"
+            />
+            <CoverageMetric
+              label="行动队列"
+              value={companyPlaybook.summary.action_queue_items}
+              detail="Next actions"
+              status={
+                companyPlaybook.summary.action_queue_items > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+            <CoverageMetric
+              label="候选公司"
+              value={companyPlaybook.summary.candidate_companies}
+              detail="Needs work"
+              status={
+                companyPlaybook.summary.candidate_companies > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+            <CoverageMetric
+              label="跟踪表"
+              value={companyPlaybook.summary.tracker_databases}
+              detail="Local DB"
+              status={
+                companyPlaybook.summary.tracker_databases > 0
+                  ? "ready"
+                  : "missing"
+              }
+            />
+            <CoverageMetric
+              label="关系门"
+              value={companyPlaybook.summary.relation_gates}
+              detail="Reports/meetings"
+              status={
+                companyPlaybook.summary.relation_gates > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                行动队列
+              </div>
+              {companyPlaybook.action_queue.length > 0 ? (
+                companyPlaybook.action_queue.map((item) => (
+                  <CompanyPlaybookActionCard key={item.id} item={item} />
+                ))
+              ) : (
+                <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  当前没有结构性缺口。下一步可以维护 relation 值、复盘节奏和最新结论。
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                研究步骤
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {companyPlaybook.steps.map((step) => (
+                  <CompanyPlaybookStepCard key={step.id} step={step} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -496,6 +641,74 @@ function CompanyCoverageCandidateCard({
   );
 }
 
+function CompanyPlaybookActionCard({
+  item,
+}: {
+  item: CompanyResearchPlaybook["action_queue"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {item.reason}
+          </p>
+        </div>
+        <CompanyPlaybookStatusPill status={item.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        {item.applies_to.map((areaId) => (
+          <span
+            key={areaId}
+            className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"
+          >
+            {getCoverageAreaLabel(areaId)}
+          </span>
+        ))}
+        <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          去：{item.suggested_destination}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function CompanyPlaybookStepCard({
+  step,
+}: {
+  step: CompanyResearchPlaybook["steps"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {step.title}
+          </h3>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {step.evidence}
+          </p>
+        </div>
+        <CompanyPlaybookStatusPill status={step.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {getSurfaceLabel(step.surface)}
+        </span>
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {step.next_action}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400">
+        {step.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
 function CompanyCoverageStatusPill({
   status,
 }: {
@@ -518,6 +731,48 @@ function CompanyCoverageStatusPill({
       {labels[status]}
     </span>
   );
+}
+
+function CompanyPlaybookStatusPill({
+  status,
+}: {
+  status: CompanyResearchPlaybookStatus;
+}) {
+  const labels: Record<CompanyResearchPlaybookStatus, string> = {
+    ready: "Ready",
+    partial: "Partial",
+    missing: "Missing",
+    "manual-confirmation": "需确认",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "partial"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : status === "manual-confirmation"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function getSurfaceLabel(surface: CompanyResearchPlaybook["steps"][number]["surface"]) {
+  const labels: Record<
+    CompanyResearchPlaybook["steps"][number]["surface"],
+    string
+  > = {
+    page: "页面",
+    database: "数据库",
+    file: "文件",
+    relation: "Relation",
+    analysis: "分析结构",
+  };
+
+  return labels[surface];
 }
 
 function StarterButton({

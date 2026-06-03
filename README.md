@@ -237,7 +237,16 @@ Current local actions:
   key metrics, related reports, related meetings, and tracker database coverage
   without exporting page text, database row values, file bytes, holdings, or
   investment plans.
+- Review and export a local company research playbook. The playbook converts
+  coverage gaps into an action queue for company home, investment memo, earnings
+  review, valuation assumptions, key metrics, related reports, related meetings,
+  tracker database setup, and review cadence.
 - Open company research from the sidebar Platform section or Cmd/Ctrl+K.
+
+The company research playbook is local-only. It reads the coverage report and
+shared workflow schema, but it does not read or export page text, database row
+values, file bytes, holdings, trading plans, cloud data, AI prompts, tokens, or
+credentials.
 
 ## Report Library Module
 

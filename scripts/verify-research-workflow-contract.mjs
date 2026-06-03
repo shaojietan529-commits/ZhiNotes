@@ -10,6 +10,7 @@ const files = {
   workflow: "src/lib/modules/researchWorkflow.ts",
   graph: "src/lib/modules/researchGraph.ts",
   companyCoverage: "src/lib/company/companyCoverage.ts",
+  companyPlaybook: "src/lib/company/companyResearchPlaybook.ts",
   meetingFollowUp: "src/lib/meetings/meetingFollowUp.ts",
   portfolioReview: "src/lib/portfolio/portfolioReview.ts",
   connectionsPanel: "src/components/modules/ResearchConnectionsPanel.tsx",
@@ -108,6 +109,7 @@ function run() {
   const workflow = readProjectFile(files.workflow);
   const graph = readProjectFile(files.graph);
   const companyCoverage = readProjectFile(files.companyCoverage);
+  const companyPlaybook = readProjectFile(files.companyPlaybook);
   const meetingFollowUp = readProjectFile(files.meetingFollowUp);
   const portfolioReview = readProjectFile(files.portfolioReview);
   const connectionsPanel = readProjectFile(files.connectionsPanel);
@@ -163,6 +165,56 @@ function run() {
     "buildCompanyCoverageReport",
     "Company coverage must expose a reusable builder."
   );
+  assertIncludes(
+    files.companyPlaybook,
+    companyPlaybook,
+    'format: "zhinote-company-research-playbook"',
+    "Company research playbook must define a local export format."
+  );
+  assertIncludes(
+    files.companyPlaybook,
+    companyPlaybook,
+    "buildCompanyResearchPlaybook",
+    "Company research playbook must expose a reusable builder."
+  );
+  for (const snippet of [
+    "local_playbook_only: true",
+    "reads_company_coverage_report: true",
+    "reads_research_workflow_schema: true",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "includes_database_row_values: false",
+    "includes_file_bytes: false",
+    "includes_holdings: false",
+    "includes_trading_plans: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.companyPlaybook,
+      companyPlaybook,
+      snippet,
+      "Company research playbook must preserve local-only privacy boundaries."
+    );
+  }
+  for (const actionId of [
+    "create-company-home",
+    "create-investment-memo",
+    "create-earnings-review",
+    "build-assumption-and-metrics",
+    "link-research-context",
+    "create-company-tracker",
+    "review-company-candidates",
+  ]) {
+    assertIncludes(
+      files.companyPlaybook,
+      companyPlaybook,
+      actionId,
+      `Company research playbook must keep action ${actionId}.`
+    );
+  }
   for (const snippet of [
     "local_report_only: true",
     "reads_local_page_html: true",
@@ -312,14 +364,32 @@ function run() {
   assertIncludes(
     files.companyShell,
     companyShell,
+    "buildCompanyResearchPlaybook",
+    "Company module must build the company research playbook."
+  );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
     "公司覆盖雷达",
     "Company module must render the coverage radar."
   );
   assertIncludes(
     files.companyShell,
     companyShell,
+    "公司研究 Playbook",
+    "Company module must render the research playbook panel."
+  );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
     "Export coverage",
     "Company module must export the coverage report."
+  );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
+    "导出 Playbook",
+    "Company module must export the research playbook."
   );
   assertIncludes(
     files.reportsShell,
