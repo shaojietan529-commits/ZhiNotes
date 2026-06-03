@@ -219,6 +219,10 @@ Current local actions:
 - Create a report note from the Research Report template.
 - Create a report tracker database with local relation fields and views.
 - Track report pages, local file preview pages, HTML reports, companies, meetings, and memos.
+- Review and export a local report intake queue. The queue is built from
+  page-level file preview block attributes and shows file kind, priority,
+  workflow stage, relation gaps, and next action without reading file bytes,
+  calling AI, connecting cloud services, or uploading data.
 - Open reports from the sidebar Platform section or Cmd/Ctrl+K.
 
 The current Report Library module is local-only. It does not upload reports,

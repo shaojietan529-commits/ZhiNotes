@@ -7,6 +7,7 @@ import process from "node:process";
 const root = process.cwd();
 const files = {
   capabilities: "src/lib/files/filePreviewCapabilities.ts",
+  intake: "src/lib/reports/reportIntake.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
   localStore: "src/lib/files/localStore.ts",
   previewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
@@ -82,6 +83,14 @@ const requiredCapabilities = [
 
 const failures = [];
 
+const requiredIntakeStages = [
+  "captured",
+  "source-triage",
+  "reading-review",
+  "database-review",
+  "linking",
+];
+
 function readProjectFile(relativePath) {
   const absolutePath = path.join(root, relativePath);
   if (!existsSync(absolutePath)) {
@@ -103,6 +112,7 @@ function assertIncludes(sourceLabel, source, snippet, message) {
 
 function run() {
   const capabilities = readProjectFile(files.capabilities);
+  const intake = readProjectFile(files.intake);
   const upload = readProjectFile(files.upload);
   const localStore = readProjectFile(files.localStore);
   const previewNode = readProjectFile(files.previewNode);
@@ -177,6 +187,62 @@ function run() {
     "格式支持矩阵",
     "Reports module must expose a reader-facing support matrix."
   );
+  assertIncludes(
+    files.intake,
+    intake,
+    'format: "zhinote-report-intake-report"',
+    "Report intake must define a local export format."
+  );
+  for (const snippet of [
+    "local_report_only: true",
+    "reads_local_page_html: true",
+    "extracts_file_preview_attributes_only: true",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.intake,
+      intake,
+      snippet,
+      "Report intake must preserve local-only boundaries."
+    );
+  }
+  for (const stage of requiredIntakeStages) {
+    assertIncludes(
+      files.intake,
+      intake,
+      `id: "${stage}"`,
+      `Report intake must keep workflow stage ${stage}.`
+    );
+  }
+  assertIncludes(
+    files.intake,
+    intake,
+    "buildReportIntakeReport",
+    "Report intake must expose a reusable builder."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    "buildReportIntakeReport",
+    "Reports module must build the intake report."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    "报告 intake 队列",
+    "Reports module must render the intake queue panel."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    "Export intake",
+    "Reports module must export the intake report."
+  );
 
   if (failures.length > 0) {
     console.error("File preview contract verification failed");
@@ -195,6 +261,7 @@ function run() {
           (count, item) => count + item.extensions.length,
           0
         ),
+        intake_stages: requiredIntakeStages.length,
         local_only: true,
       },
       null,

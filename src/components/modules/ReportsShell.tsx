@@ -28,6 +28,12 @@ import { createFilePreviewBlockHtml } from "@/lib/files/filePreviewBlock";
 import { savePageFile, type StoredPageFile } from "@/lib/files/localStore";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
+import {
+  buildReportIntakeReport,
+  type ReportIntakeItem,
+  type ReportIntakePriority,
+  type ReportIntakeStage,
+} from "@/lib/reports/reportIntake";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -96,6 +102,7 @@ function ReportsDashboard() {
   const { pages, refresh } = usePages();
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [exportingIntake, setExportingIntake] = useState(false);
   const reportFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -113,6 +120,7 @@ function ReportsDashboard() {
     () => databases.filter(isReportTrackerDatabase),
     [databases]
   );
+  const reportIntake = useMemo(() => buildReportIntakeReport(pages), [pages]);
 
   const reportsModule = PLATFORM_MODULES.find((module) => module.id === "reports");
   const trackerStarter = reportsModule?.starter ?? null;
@@ -164,6 +172,21 @@ function ReportsDashboard() {
       );
     } finally {
       setBusyAction(null);
+    }
+  };
+
+  const handleExportIntake = () => {
+    setExportingIntake(true);
+    try {
+      downloadJsonFile(`zhinote-report-intake-${fileSafeTimestamp()}.json`, {
+        ...reportIntake,
+        exported_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to export report intake:", err);
+      window.alert("Report intake export failed. Please check the console.");
+    } finally {
+      setExportingIntake(false);
     }
   };
 
@@ -243,6 +266,96 @@ function ReportsDashboard() {
               )}
             </div>
           </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                报告 intake 队列
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                从本地 page 的 file-preview block 元数据生成待处理报告队列，
+                用来判断格式、优先级、下一步动作和关联缺口。这个报告不读取文件 bytes、
+                不调用 AI、不连接云服务。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportIntake}
+              disabled={exportingIntake}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingIntake ? "Exporting..." : "Export intake"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-7">
+            <IntakeMetric
+              label="待处理"
+              value={reportIntake.summary.intake_items}
+              detail="File blocks"
+            />
+            <IntakeMetric
+              label="高优先级"
+              value={reportIntake.summary.high_priority}
+              detail="Review first"
+            />
+            <IntakeMetric
+              label="格式类型"
+              value={reportIntake.summary.unique_file_kinds}
+              detail="Kinds"
+            />
+            <IntakeMetric
+              label="HTML"
+              value={reportIntake.summary.html_reports}
+              detail="Reports"
+            />
+            <IntakeMetric
+              label="表格候选"
+              value={reportIntake.summary.spreadsheet_candidates}
+              detail="DB import"
+            />
+            <IntakeMetric
+              label="页面扫描"
+              value={reportIntake.summary.pages_scanned}
+              detail="Local only"
+            />
+            <IntakeMetric
+              label="队列阶段"
+              value={reportIntake.lanes.length}
+              detail="Workflow"
+            />
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+            {reportIntake.lanes.map((lane) => (
+              <article
+                key={lane.id}
+                className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900"
+              >
+                <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {lane.title}
+                </div>
+                <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                  {lane.description}
+                </p>
+              </article>
+            ))}
+          </div>
+          {reportIntake.items.length > 0 ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {reportIntake.items.slice(0, 8).map((item) => (
+                <ReportIntakeItemCard
+                  key={item.id}
+                  item={item}
+                  onOpen={() => router.push(`/page/${item.page_id}`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+              还没有待处理报告文件。点击“上传报告文件”后，新页面会自动进入这个本地 intake 队列。
+            </p>
+          )}
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -353,6 +466,117 @@ function Metric({ label, value }: { label: string; value: number }) {
         {value}
       </div>
     </div>
+  );
+}
+
+function IntakeMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function ReportIntakeItemCard({
+  item,
+  onOpen,
+}: {
+  item: ReportIntakeItem;
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.file_name}
+          </div>
+          <div className="mt-1 truncate text-zinc-400">
+            {item.page_title} · {item.file_size_label}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <IntakePriorityPill priority={item.priority} />
+          <IntakeStagePill stage={item.stage} />
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {item.file_kind}
+        </span>
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {item.preview_support}
+        </span>
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          gaps: {item.relation_gaps.join(", ")}
+        </span>
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {item.next_action}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        {item.privacy_boundary}
+      </p>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-3 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        打开报告页
+      </button>
+    </article>
+  );
+}
+
+function IntakePriorityPill({
+  priority,
+}: {
+  priority: ReportIntakePriority;
+}) {
+  const labels: Record<ReportIntakePriority, string> = {
+    high: "High",
+    medium: "Medium",
+    low: "Low",
+  };
+  const className =
+    priority === "high"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : priority === "medium"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[priority]}
+    </span>
+  );
+}
+
+function IntakeStagePill({ stage }: { stage: ReportIntakeStage }) {
+  const labels: Record<ReportIntakeStage, string> = {
+    captured: "Captured",
+    "source-triage": "Triage",
+    "reading-review": "Review",
+    "database-review": "Database",
+    linking: "Linking",
+  };
+
+  return (
+    <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+      {labels[stage]}
+    </span>
   );
 }
 
@@ -648,4 +872,22 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function downloadJsonFile(fileName: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function fileSafeTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
 }
