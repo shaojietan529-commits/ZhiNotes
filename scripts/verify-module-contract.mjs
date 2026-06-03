@@ -12,6 +12,7 @@ const files = {
   actions: "src/lib/modules/actions.ts",
   manifest: "src/lib/modules/moduleManifest.ts",
   onboarding: "src/lib/modules/moduleOnboarding.ts",
+  health: "src/lib/modules/moduleHealth.ts",
   dashboard: "src/components/modules/ModuleDashboard.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
@@ -57,6 +58,19 @@ const requiredOnboardingSteps = [
   "high-risk-action-gates",
   "module-docs",
   "module-verification",
+];
+
+const requiredHealthAreas = [
+  "module-platform",
+  "notes",
+  "databases",
+  "files-reports",
+  "company-research",
+  "meetings",
+  "portfolio",
+  "research-graph",
+  "ai",
+  "web-beta",
 ];
 
 const requiredBoundarySnippets = [
@@ -129,6 +143,7 @@ function run() {
   const actions = readProjectFile(files.actions);
   const manifest = readProjectFile(files.manifest);
   const onboarding = readProjectFile(files.onboarding);
+  const health = readProjectFile(files.health);
   const dashboard = readProjectFile(files.dashboard);
   const sidebar = readProjectFile(files.sidebar);
   const quickSearch = readProjectFile(files.quickSearch);
@@ -228,12 +243,38 @@ function run() {
       "Module onboarding contract must preserve local-only boundaries."
     );
   }
+  for (const snippet of [
+    "local_report_only: true",
+    "reads_registry_metadata_only: true",
+    "reads_page_text: false",
+    "reads_database_rows: false",
+    "reads_file_bytes: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.health,
+      health,
+      snippet,
+      "Module health report must preserve local-only boundaries."
+    );
+  }
   for (const step of requiredOnboardingSteps) {
     assertIncludes(
       files.onboarding,
       onboarding,
       `id: "${step}"`,
       `Module onboarding contract must keep step ${step}.`
+    );
+  }
+  for (const area of requiredHealthAreas) {
+    assertIncludes(
+      files.health,
+      health,
+      `id: "${area}"`,
+      `Module health report must map product goal area ${area}.`
     );
   }
 
@@ -252,14 +293,32 @@ function run() {
   assertIncludes(
     files.dashboard,
     dashboard,
+    "buildModuleHealthReport",
+    "Module center must build the module health report."
+  );
+  assertIncludes(
+    files.dashboard,
+    dashboard,
     "新模块接入清单",
     "Module center must render the onboarding panel."
   );
   assertIncludes(
     files.dashboard,
     dashboard,
+    "平台目标健康度",
+    "Module center must render the module health panel."
+  );
+  assertIncludes(
+    files.dashboard,
+    dashboard,
     "Export onboarding",
     "Module center must export the onboarding contract."
+  );
+  assertIncludes(
+    files.dashboard,
+    dashboard,
+    "Export health",
+    "Module center must export the module health report."
   );
   assertIncludes(
     files.sidebar,
@@ -282,6 +341,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "module health",
+    "README must document module health reporting."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "npm run verify:modules",
     "README must document module verification."
   );
@@ -292,6 +357,7 @@ function run() {
     extension_slots: requiredSlots.length,
     starter_types: requiredStarterTypes.length,
     onboarding_steps: requiredOnboardingSteps.length,
+    health_areas: requiredHealthAreas.length,
     boundary_checks: requiredBoundarySnippets.length,
   };
 

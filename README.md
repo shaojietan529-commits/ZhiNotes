@@ -101,10 +101,18 @@ high-risk action gates, documentation, and verification. It does not create
 modules, write workspace data, read private content, connect cloud services,
 upload data, or enable AI.
 
+The module center can export a local module health report. The report maps the
+product goal areas to registry-backed modules: module platform, notes,
+databases, files/reports, company research, meetings, portfolio, research graph,
+AI, and Web Beta. It shows which areas are ready, partial, or blocked without
+reading page text, database rows, file bytes, prompts, credentials, or cloud
+data.
+
 Run `npm run verify:modules` before treating a new module as part of the
 platform. The verifier checks registry fields, unique module ids, route files,
 extension slots, starter presets, local-only onboarding boundaries, sidebar
-navigation, command palette wiring, and the module center export surfaces.
+navigation, command palette wiring, module health coverage, and the module
+center export surfaces.
 
 ## Research Workflow Schema
 
