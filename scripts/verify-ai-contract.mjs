@@ -10,6 +10,7 @@ const files = {
   workflow: "src/lib/ai/aiWorkflowContract.ts",
   payloadPreview: "src/lib/ai/aiPayloadPreview.ts",
   executionPolicy: "src/lib/ai/aiExecutionPolicy.ts",
+  researchRunbook: "src/lib/ai/aiResearchRunbook.ts",
   aiShell: "src/components/modules/AiWorkbenchShell.tsx",
   aiRoute: "src/app/api/ai/run/route.ts",
   highRiskRegistry: "src/lib/security/highRiskActionRegistry.ts",
@@ -24,6 +25,17 @@ const requiredPolicyGates = [
   "file-content-confirmation",
   "retention-policy",
   "permission-and-audit",
+];
+const requiredRunbookSteps = [
+  "scope-research-task",
+  "context-page-selection",
+  "context-file-selection",
+  "payload-final-preview",
+  "sensitive-finance-exclusions",
+  "provider-and-model-policy",
+  "owner-final-confirmation",
+  "permission-audit-events",
+  "output-retention-save-policy",
 ];
 
 const failures = [];
@@ -48,6 +60,7 @@ function run() {
   const workflow = readProjectFile(files.workflow);
   const payloadPreview = readProjectFile(files.payloadPreview);
   const executionPolicy = readProjectFile(files.executionPolicy);
+  const researchRunbook = readProjectFile(files.researchRunbook);
   const aiShell = readProjectFile(files.aiShell);
   const aiRoute = readProjectFile(files.aiRoute);
   const highRiskRegistry = readProjectFile(files.highRiskRegistry);
@@ -70,6 +83,12 @@ function run() {
     aiShell,
     "@/lib/ai/aiWorkflowContract",
     "AI Workbench must consume the shared workflow contract."
+  );
+  assertIncludes(
+    files.aiShell,
+    aiShell,
+    "@/lib/ai/aiResearchRunbook",
+    "AI Workbench must consume the shared research runbook contract."
   );
   assertIncludes(
     files.aiShell,
@@ -130,6 +149,54 @@ function run() {
     "Disabled AI route must not call providers."
   );
   assertIncludes(
+    files.researchRunbook,
+    researchRunbook,
+    "format: \"zhinote-ai-research-runbook\"",
+    "AI research runbook must use a stable export format."
+  );
+  assertIncludes(
+    files.researchRunbook,
+    researchRunbook,
+    "can_run_ai_now: false",
+    "AI research runbook must not enable AI execution."
+  );
+  assertIncludes(
+    files.researchRunbook,
+    researchRunbook,
+    "includes_page_body_text: false",
+    "AI research runbook must exclude page body text."
+  );
+  assertIncludes(
+    files.researchRunbook,
+    researchRunbook,
+    "includes_prompt_text: false",
+    "AI research runbook must exclude prompt text."
+  );
+  assertIncludes(
+    files.researchRunbook,
+    researchRunbook,
+    "includes_file_bytes: false",
+    "AI research runbook must exclude file bytes."
+  );
+  assertIncludes(
+    files.researchRunbook,
+    researchRunbook,
+    "includes_holdings_or_trading_plans: false",
+    "AI research runbook must exclude holdings and trading plans by default."
+  );
+  assertIncludes(
+    files.researchRunbook,
+    researchRunbook,
+    "includes_client_info: false",
+    "AI research runbook must exclude client information by default."
+  );
+  assertIncludes(
+    files.researchRunbook,
+    researchRunbook,
+    "includes_tokens_or_secrets: false",
+    "AI research runbook must exclude tokens and secrets."
+  );
+  assertIncludes(
     files.aiRoute,
     aiRoute,
     "buildAiRunDisabledResponse",
@@ -142,6 +209,15 @@ function run() {
       executionPolicy,
       `id: "${gateId}"`,
       `AI execution policy gate ${gateId} must exist.`
+    );
+  }
+
+  for (const stepId of requiredRunbookSteps) {
+    assertIncludes(
+      files.researchRunbook,
+      researchRunbook,
+      `id: "${stepId}"`,
+      `AI research runbook step ${stepId} must exist.`
     );
   }
 
@@ -166,6 +242,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "AI Research Runbook",
+    "README must document the AI research runbook."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "npm run verify:ai",
     "README useful checks must include the AI verifier."
   );
@@ -184,6 +266,7 @@ function run() {
       {
         workflows: requiredWorkflows.length,
         execution_gates: requiredPolicyGates.length,
+        research_runbook_steps: requiredRunbookSteps.length,
         run_endpoint_disabled: true,
         local_only: true,
       },

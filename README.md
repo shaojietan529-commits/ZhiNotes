@@ -39,9 +39,10 @@ Current module foundation:
 - Research Graph: beta module at `/modules/research-graph` for a local map of
   company, report, meeting, and portfolio relation coverage, with manually
   confirmed local schema helpers.
-- AI Workbench: planned local staging module at `/modules/ai` for summaries,
-  Q&A, comparison, report generation, research frameworks, explicit context
-  selection, request drafts, and privacy gates.
+- AI Workbench: beta local staging module at `/modules/ai` for summaries, Q&A,
+  comparison, report generation, research frameworks, explicit context
+  selection, request drafts, payload previews, execution policy, research
+  runbooks, and privacy gates.
 - Web Sync and Permissions: planned web-beta readiness module at `/modules/sync`
   for local backup exports, sync queue visibility, restore planning, permission
   checklist, and privacy boundaries.
@@ -320,6 +321,12 @@ Current local actions:
   final payload, page context, file content, retention, permission, and audit
   gates; `/api/ai/run` is a disabled local stub and does not read request bodies,
   call model providers, upload workspace data, or store AI output.
+- Review and export a local AI research runbook. The runbook turns the selected
+  workflow into an approval queue covering task scope, page context, file
+  context, final payload preview, sensitive finance exclusions, provider/model
+  policy, owner confirmation, permission audit events, and output retention. It
+  excludes page body text, prompt text, file bytes, holdings, trading plans,
+  client information, tokens, and secrets.
 - Draft an AI request locally with selected page titles and privacy gates.
 - Type the local AI outbound confirmation phrase and export a high-risk
   confirmation receipt. The receipt does not include page body text, prompt
@@ -345,6 +352,21 @@ this contract to build local request drafts, but `/api/ai/run` remains a
 disabled stub. Payload previews, execution policies, and high-risk confirmation
 receipts exclude page body text, prompt text, file bytes, tokens, and secrets
 until the user explicitly confirms the final outbound boundary.
+
+### AI Research Runbook
+
+The local AI research runbook contract lives in:
+
+```txt
+src/lib/ai/aiResearchRunbook.ts
+```
+
+It defines the pre-execution approval queue for future AI research runs. The
+current runbook is local-only, keeps `/api/ai/run` disabled, and does not include
+page body text, prompt text, file bytes, holdings, trading plans, client
+information, tokens, or secrets. AI execution should stay blocked until provider,
+final payload, sensitive finance scope, permission audit, retention, and output
+save/delete policies are explicit.
 
 ## Web Sync and Permissions Module
 

@@ -23,6 +23,10 @@ import {
   type AiWorkflowId,
   type AiWorkflowSpec,
 } from "@/lib/ai/aiWorkflowContract";
+import {
+  buildAiResearchRunbook,
+  type AiResearchRunbook,
+} from "@/lib/ai/aiResearchRunbook";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -70,6 +74,8 @@ function AiWorkbenchDashboard() {
   const [researchQuestion, setResearchQuestion] = useState("");
   const [exportingPayloadPreview, setExportingPayloadPreview] = useState(false);
   const [exportingExecutionPolicy, setExportingExecutionPolicy] =
+    useState(false);
+  const [exportingResearchRunbook, setExportingResearchRunbook] =
     useState(false);
   const [exportingConfirmationReceipt, setExportingConfirmationReceipt] =
     useState(false);
@@ -131,6 +137,15 @@ function AiWorkbenchDashboard() {
     () => buildAiExecutionPolicy({ payloadPreview: aiPayloadPreview }),
     [aiPayloadPreview]
   );
+  const aiResearchRunbook = useMemo(
+    () =>
+      buildAiResearchRunbook({
+        workflow: selectedWorkflow,
+        payloadPreview: aiPayloadPreview,
+        executionPolicy: aiExecutionPolicy,
+      }),
+    [aiExecutionPolicy, aiPayloadPreview, selectedWorkflow]
+  );
   const aiConfirmationReceipt = useMemo(
     () =>
       buildHighRiskConfirmationReceipt({
@@ -187,6 +202,24 @@ function AiWorkbenchDashboard() {
       window.alert("AI execution policy 导出失败，请查看控制台。");
     } finally {
       setExportingExecutionPolicy(false);
+    }
+  };
+
+  const handleExportResearchRunbook = () => {
+    setExportingResearchRunbook(true);
+    try {
+      downloadJsonFile(
+        `zhinote-ai-research-runbook-${fileSafeTimestamp()}.json`,
+        {
+          ...aiResearchRunbook,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export AI research runbook:", err);
+      window.alert("AI research runbook 导出失败，请查看控制台。");
+    } finally {
+      setExportingResearchRunbook(false);
     }
   };
 
@@ -530,6 +563,78 @@ function AiWorkbenchDashboard() {
             </div>
           </div>
 
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  AI 研究 Runbook
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  本地 AI 研究运行手册。它把任务范围、上下文确认、payload
+                  预览、provider 政策、审计和输出保存串成审批队列。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportResearchRunbook}
+                disabled={exportingResearchRunbook}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {exportingResearchRunbook ? "导出中..." : "导出 Runbook"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
+              <ExecutionMetric
+                label="步骤"
+                value={aiResearchRunbook.summary.steps}
+                detail="端到端流程"
+                status="planned"
+              />
+              <ExecutionMetric
+                label="阻塞"
+                value={aiResearchRunbook.summary.blocked_steps}
+                detail="执行前必须解决"
+                status="blocked"
+              />
+              <ExecutionMetric
+                label="确认"
+                value={aiResearchRunbook.summary.manual_confirmation_steps}
+                detail="需要 owner 确认"
+                status="manual-confirmation"
+              />
+              <ExecutionMetric
+                label="审批队列"
+                value={aiResearchRunbook.summary.approval_queue_items}
+                detail="本地待确认"
+                status="manual-confirmation"
+              />
+              <ExecutionMetric
+                label="敏感边界"
+                value="已排除"
+                detail="持仓/交易/客户/token"
+                status="planned"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  审批队列
+                </div>
+                {aiResearchRunbook.approval_queue.map((approval) => (
+                  <RunbookApprovalRow key={approval.id} approval={approval} />
+                ))}
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  执行步骤
+                </div>
+                {aiResearchRunbook.steps.map((step) => (
+                  <RunbookStepRow key={step.id} step={step} />
+                ))}
+              </div>
+            </div>
+          </div>
+
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               文件准备度
@@ -731,6 +836,85 @@ function ExecutionGateRow({
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function RunbookApprovalRow({
+  approval,
+}: {
+  approval: AiResearchRunbook["approval_queue"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {approval.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {approval.reason}
+          </p>
+        </div>
+        <ExecutionStatusPill status={approval.status} />
+      </div>
+    </article>
+  );
+}
+
+function RunbookStepRow({
+  step,
+}: {
+  step: AiResearchRunbook["steps"][number];
+}) {
+  const phaseLabels: Record<
+    AiResearchRunbook["steps"][number]["phase"],
+    string
+  > = {
+    scope: "范围",
+    context: "上下文",
+    payload: "Payload",
+    provider: "Provider",
+    confirmation: "确认",
+    audit: "审计",
+    output: "输出",
+  };
+  const ownerLabels: Record<
+    AiResearchRunbook["steps"][number]["owner"],
+    string
+  > = {
+    researcher: "研究员",
+    system: "系统",
+    "future-provider": "未来 Provider",
+  };
+
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {step.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {step.evidence}
+          </p>
+        </div>
+        <ExecutionStatusPill status={step.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          {phaseLabels[step.phase]}
+        </span>
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          {ownerLabels[step.owner]}
+        </span>
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          {step.blocks_ai_run ? "阻塞 AI 执行" : "可选"}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {step.required_decision}
       </p>
     </article>
   );
