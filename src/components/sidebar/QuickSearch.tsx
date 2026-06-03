@@ -230,6 +230,13 @@ export default function QuickSearch() {
     router.push("/modules/reports");
   };
 
+  const handleOpenResearchGraph = () => {
+    setOpen(false);
+    setQuery("");
+    setResults([]);
+    router.push("/modules/research-graph");
+  };
+
   const handleOpenAiWorkbench = () => {
     setOpen(false);
     setQuery("");
@@ -550,6 +557,25 @@ export default function QuickSearch() {
       category: "Database",
       aliases: ["report", "tracker", "library", "database", "files", "报告", "跟踪表"],
       run: () => void handleCreateReportTracker(),
+    },
+    {
+      id: "research-graph-module",
+      title: "研究图谱",
+      description: "打开跨模块投研关系总览",
+      icon: "MAP",
+      category: "Workspace",
+      aliases: [
+        "graph",
+        "map",
+        "relation",
+        "research graph",
+        "research map",
+        "link",
+        "图谱",
+        "关系",
+        "关联",
+      ],
+      run: handleOpenResearchGraph,
     },
     {
       id: "ai-workbench-module",

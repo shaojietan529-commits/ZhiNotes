@@ -1,0 +1,511 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import DatabaseProvider from "@/components/providers/DatabaseProvider";
+import Sidebar from "@/components/sidebar/Sidebar";
+import { usePages } from "@/hooks/usePages";
+import { getAllDatabases, getFields, getRows } from "@/lib/db/local/queries";
+import {
+  buildResearchGraph,
+  buildResearchGraphReport,
+  classifyResearchDatabase,
+  getResearchAssetKindLabel,
+  getResearchRelationFieldLabel,
+  type ResearchAsset,
+  type ResearchAssetKind,
+  type ResearchDatabaseSnapshot,
+  type ResearchGraphReport,
+  type ResearchRelationLink,
+} from "@/lib/modules/researchGraph";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
+import type { Database } from "@/lib/utils/types";
+
+const MODULE_ROUTES: Record<ResearchAssetKind, string> = {
+  company: "/modules/company-research",
+  report: "/modules/reports",
+  meeting: "/modules/meetings",
+  portfolio: "/modules/portfolio",
+};
+
+export default function ResearchGraphShell() {
+  return (
+    <DatabaseProvider>
+      <ResearchGraphContent />
+    </DatabaseProvider>
+  );
+}
+
+function ResearchGraphContent() {
+  const sidebarOpen = useWorkspaceStore((s) => s.sidebarOpen);
+
+  return (
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar />
+      <main
+        className={`flex-1 overflow-y-auto bg-zinc-50 dark:bg-zinc-950 ${
+          sidebarOpen ? "" : "pl-0"
+        }`}
+      >
+        <ResearchGraphDashboard />
+      </main>
+    </div>
+  );
+}
+
+function ResearchGraphDashboard() {
+  const router = useRouter();
+  const { pages } = usePages();
+  const [databases, setDatabases] = useState<Database[]>([]);
+  const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
+  const [exportingGraphReport, setExportingGraphReport] = useState(false);
+
+  useEffect(() => {
+    void getAllDatabases()
+      .then(setDatabases)
+      .catch((err) => {
+        console.error("[Zhinote] Failed to load research graph databases:", err);
+      });
+  }, []);
+
+  const researchDatabases = useMemo(
+    () => databases.filter((database) => classifyResearchDatabase(database)),
+    [databases]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void Promise.all(
+      researchDatabases.map(async (database) => ({
+        database,
+        fields: await getFields(database.id),
+        rows: await getRows(database.id),
+      }))
+    )
+      .then((nextSnapshots) => {
+        if (!cancelled) setSnapshots(nextSnapshots);
+      })
+      .catch((err) => {
+        console.error("[Zhinote] Failed to load research graph snapshots:", err);
+        if (!cancelled) setSnapshots([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [researchDatabases]);
+
+  const graph = useMemo(
+    () => buildResearchGraph(pages, snapshots),
+    [pages, snapshots]
+  );
+  const graphReport = useMemo(
+    () => buildResearchGraphReport(graph, snapshots),
+    [graph, snapshots]
+  );
+  const recentLinks = graph.relationLinks.slice(0, 12);
+  const unlinkedAssets = graph.unlinkedAssets.slice(0, 12);
+
+  const handleExportGraphReport = () => {
+    setExportingGraphReport(true);
+    try {
+      downloadJsonFile(`zhinote-research-graph-${fileSafeTimestamp()}.json`, {
+        ...graphReport,
+        exported_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to export research graph report:", err);
+      window.alert("研究图谱报告导出失败，请查看控制台。");
+    } finally {
+      setExportingGraphReport(false);
+    }
+  };
+
+  return (
+    <div className="w-full px-6 py-6 lg:px-10">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+        <header className="border-b border-zinc-200 pb-5 dark:border-zinc-800">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+                投研模块
+              </p>
+              <h1 className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+                研究图谱
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                集中查看公司、报告、会议和组合之间的本地 relation 连接，
+                找到已经串起来的研究资产和还需要补关系的空白点。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => router.push("/modules")}
+                className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                所有模块
+              </button>
+              <button
+                type="button"
+                onClick={handleExportGraphReport}
+                disabled={exportingGraphReport}
+                className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+              >
+                {exportingGraphReport ? "正在导出..." : "导出图谱报告"}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <section className="grid gap-3 md:grid-cols-5">
+          <Metric label="已识别资产" value={graphReport.summary.assets} />
+          <Metric label="已连接资产" value={graphReport.summary.connected_assets} />
+          <Metric label="Relation 连接" value={graphReport.summary.relation_links} />
+          <Metric label="Relation 字段" value={graphReport.summary.relation_fields} />
+          <Metric label="待补全资产" value={graphReport.summary.unlinked_assets} />
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <CoveragePanel
+            coverage={graphReport.coverage}
+            onOpenModule={(kind) => router.push(MODULE_ROUTES[kind])}
+          />
+          <BoundaryPanel report={graphReport} />
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <RelationLinksPanel
+            links={recentLinks}
+            total={graph.relationLinks.length}
+            onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
+          />
+          <UnlinkedAssetsPanel
+            assets={unlinkedAssets}
+            total={graph.unlinkedAssets.length}
+            onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
+          />
+        </section>
+
+        <DatabaseSurfacePanel
+          surfaces={graphReport.database_surfaces}
+          onOpenDatabase={(databaseId) => router.push(`/database/${databaseId}`)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="mt-1 text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function CoveragePanel({
+  coverage,
+  onOpenModule,
+}: {
+  coverage: ResearchGraphReport["coverage"];
+  onOpenModule: (kind: ResearchAssetKind) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        模块覆盖
+      </h2>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {coverage.map((item) => {
+          const rate = item.assets
+            ? Math.round((item.connected_assets / item.assets) * 100)
+            : 0;
+
+          return (
+            <article
+              key={item.kind}
+              className="rounded-md border border-zinc-100 p-3 dark:border-zinc-800"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    {item.label}
+                  </h3>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    {item.assets} 个资产 · {item.connected_assets} 已连接
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenModule(item.kind)}
+                  className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  打开
+                </button>
+              </div>
+              <div className="mt-3 h-1.5 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
+                <div
+                  className="h-full rounded bg-zinc-900 dark:bg-zinc-100"
+                  style={{ width: `${rate}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-zinc-400">
+                {rate}% 覆盖 · {item.unlinked_assets} 待补 ·{" "}
+                {item.relation_links} 条连接
+              </p>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function BoundaryPanel({ report }: { report: ResearchGraphReport }) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        本地边界
+      </h2>
+      <div className="mt-3 grid gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 sm:grid-cols-2">
+        <BoundaryItem
+          label="读取正文用于分类"
+          value={report.boundary.reads_page_text_for_classification ? "是" : "否"}
+        />
+        <BoundaryItem
+          label="导出页面正文"
+          value={report.boundary.includes_page_text ? "是" : "否"}
+        />
+        <BoundaryItem
+          label="导出表格行值"
+          value={report.boundary.includes_database_row_values ? "是" : "否"}
+        />
+        <BoundaryItem
+          label="导出文件字节"
+          value={report.boundary.includes_file_bytes ? "是" : "否"}
+        />
+        <BoundaryItem
+          label="上传数据"
+          value={report.boundary.uploads_data ? "是" : "否"}
+        />
+        <BoundaryItem
+          label="写入工作区"
+          value={report.boundary.writes_workspace_data ? "是" : "否"}
+        />
+      </div>
+      <p className="mt-3 text-xs leading-5 text-zinc-400">
+        导出报告只包含标题、类型、连接字段、覆盖统计和本地页面 id。
+      </p>
+    </section>
+  );
+}
+
+function BoundaryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <span>{label}</span>
+      <span className="font-medium text-zinc-800 dark:text-zinc-200">{value}</span>
+    </div>
+  );
+}
+
+function RelationLinksPanel({
+  links,
+  total,
+  onOpenPage,
+}: {
+  links: ResearchRelationLink[];
+  total: number;
+  onOpenPage: (pageId: string) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          最近连接
+        </h2>
+        <span className="text-xs text-zinc-400">{total} 条</span>
+      </div>
+      {links.length === 0 ? (
+        <p className="mt-3 text-xs leading-5 text-zinc-400">
+          暂无 relation 连接。先在公司、报告、会议或组合跟踪表里添加 relation 字段。
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {links.map((link) => (
+            <li
+              key={link.id}
+              className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800"
+            >
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <AssetButton asset={link.source} onOpenPage={onOpenPage} />
+                <span className="text-xs text-zinc-400">
+                  通过 {getResearchRelationFieldLabel(link.fieldName)}
+                </span>
+                <AssetButton asset={link.target} onOpenPage={onOpenPage} />
+              </div>
+              <p className="mt-1 text-xs text-zinc-400">
+                来自 {link.databaseTitle}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function UnlinkedAssetsPanel({
+  assets,
+  total,
+  onOpenPage,
+}: {
+  assets: ResearchAsset[];
+  total: number;
+  onOpenPage: (pageId: string) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          待补全资产
+        </h2>
+        <span className="text-xs text-zinc-400">{total} 个</span>
+      </div>
+      {assets.length === 0 ? (
+        <p className="mt-3 text-xs leading-5 text-zinc-400">
+          暂无待补全资产。
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {assets.map((asset) => (
+            <li
+              key={asset.id}
+              className="flex items-center justify-between gap-3 rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800"
+            >
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                  {asset.icon ? `${asset.icon} ` : ""}
+                  {asset.title}
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  {getResearchAssetKindLabel(asset.kind)} ·{" "}
+                  {formatUpdated(asset.updatedAt)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onOpenPage(asset.id)}
+                className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                打开
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function DatabaseSurfacePanel({
+  surfaces,
+  onOpenDatabase,
+}: {
+  surfaces: ResearchGraphReport["database_surfaces"];
+  onOpenDatabase: (databaseId: string) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          本地跟踪表
+        </h2>
+        <span className="text-xs text-zinc-400">{surfaces.length} 个</span>
+      </div>
+      {surfaces.length === 0 ? (
+        <p className="mt-3 text-xs leading-5 text-zinc-400">
+          暂无已识别的投研跟踪表。可以先从公司研究、报告库、会议或组合模块创建模板表。
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          {surfaces.map((surface) => (
+            <article
+              key={surface.database_id}
+              className="flex items-center justify-between gap-3 rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800"
+            >
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                  {surface.title || "未命名跟踪表"}
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  {surface.kind_label ?? "未分类"} · {surface.rows} 行 ·{" "}
+                  {surface.relation_fields} 个 relation 字段
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onOpenDatabase(surface.database_id)}
+                className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                打开
+              </button>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AssetButton({
+  asset,
+  onOpenPage,
+}: {
+  asset: ResearchAsset;
+  onOpenPage: (pageId: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpenPage(asset.id)}
+      className="min-w-0 max-w-[220px] truncate text-left text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+      title={asset.title}
+    >
+      {asset.icon ? `${asset.icon} ` : ""}
+      {asset.title}
+    </button>
+  );
+}
+
+function formatUpdated(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "未知时间";
+  return date.toLocaleDateString("zh-CN", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function downloadJsonFile(fileName: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function fileSafeTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}

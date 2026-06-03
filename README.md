@@ -35,6 +35,8 @@ Current module foundation:
 - Meetings and Calls: beta module at `/modules/meetings` for meeting notes,
   transcripts, action items, follow-ups, linked company pages, linked reports,
   and a local meeting tracker database.
+- Research Graph: beta module at `/modules/research-graph` for a local,
+  read-only map of company, report, meeting, and portfolio relation coverage.
 - AI Workbench: planned local staging module at `/modules/ai` for summaries,
   Q&A, comparison, report generation, research frameworks, explicit context
   selection, request drafts, and privacy gates.
@@ -106,6 +108,26 @@ Current relation scope:
   panel. It can export a graph report with asset titles, module coverage,
   relation fields, and links, without including page bodies, database row
   values, uploaded file bytes, prompts, tokens, or cloud data.
+
+## Research Graph Module
+
+Open the research graph module at:
+
+```txt
+http://localhost:3000/modules/research-graph
+```
+
+Current local actions:
+
+- View company, report, meeting, and portfolio asset coverage in one place.
+- Review recent relation links across local research trackers.
+- Identify local assets that still need structured relation fields.
+- Open source pages, target pages, source modules, and tracker databases.
+- Export a local graph report without page bodies, database row values, file
+  bytes, prompts, tokens, or cloud data.
+
+The current Research Graph module is read-only. It does not edit pages, create
+database rows, call AI, sync data, or upload workspace content.
 
 ## Company Research Module
 
