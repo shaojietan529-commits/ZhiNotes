@@ -15,6 +15,7 @@ import type { PermissionDecisionReport } from "@/lib/security/permissionDecision
 import type { AccountSessionBoundary } from "@/lib/security/accountSessionBoundary";
 import type { CloudMigrationSqlDraft } from "@/lib/sync/cloudMigrationSqlDraft";
 import type { SyncReplayTestPlan } from "@/lib/sync/syncReplayTestPlan";
+import type { WebBetaDeploymentTarget } from "@/lib/sync/webBetaDeploymentTarget";
 
 export type WebBetaReadinessStatus =
   | "ready"
@@ -46,6 +47,7 @@ export interface WebBetaReadinessInput {
   accountSessionBoundary: AccountSessionBoundary | null;
   cloudMigrationSqlDraft: CloudMigrationSqlDraft | null;
   syncReplayTestPlan: SyncReplayTestPlan | null;
+  deploymentTarget: WebBetaDeploymentTarget | null;
 }
 
 export interface WebBetaReadinessGate {
@@ -94,6 +96,7 @@ export interface WebBetaReadinessReport {
     account_session_boundary_status: "present" | "missing";
     cloud_migration_sql_draft_status: "present" | "missing";
     sync_replay_test_plan_status: "present" | "missing";
+    deployment_target_status: "present" | "missing";
     disabled_api_stubs: number;
   };
   summary: {
@@ -374,6 +377,17 @@ export function buildWebBetaReadinessReport(
         "Implement authenticated audit_events writes, redaction, retention, owner-only audit export, and incident review before private beta.",
     },
     {
+      id: "deployment-target-contract",
+      title: "Deployment target contract",
+      status: input.deploymentTarget ? "partial" : "blocked",
+      category: "cloud",
+      evidence: input.deploymentTarget
+        ? `Deployment target selects ${input.deploymentTarget.selected_strategy.first_web_alpha} for the first Web Alpha, ${input.deploymentTarget.selected_strategy.cloud_backend} for cloud data, and ${input.deploymentTarget.summary.blocked} blocked deployment items remain.`
+        : "No deployment target contract exists for Web Alpha hosting, cloud backend, edge layer, secrets, or rollback.",
+      nextAction:
+        "Use the target contract to decide provider setup, preview deployment, secrets, rollback, and owner confirmation before going live.",
+    },
+    {
       id: "deployment-gate-contract",
       title: "Deployment gate contract",
       status: "partial",
@@ -452,6 +466,7 @@ export function buildWebBetaReadinessReport(
       sync_replay_test_plan_status: input.syncReplayTestPlan
         ? "present"
         : "missing",
+      deployment_target_status: input.deploymentTarget ? "present" : "missing",
       disabled_api_stubs: WEB_BETA_API_STUBS.length,
     },
     summary,

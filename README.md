@@ -415,6 +415,11 @@ Current local actions:
   deployment gates, and observability into one preflight view; it does not
   deploy the app, create accounts, connect cloud services, write server data,
   or upload workspace data.
+- Review and export a local Web Beta deployment target. The target keeps Vercel
+  as the first Next.js Web Alpha host, Supabase as the cloud data plane, and
+  Cloudflare as the DNS/CDN/WAF layer before any future Pages or Workers runtime
+  review; it does not deploy the app, create cloud resources, connect services,
+  read secrets, write server data, or upload workspace data.
 - Review and export a local route/API preflight report. The report checks
   workspace routes, module routes, disabled API stubs, Cloud Alpha metadata
   routes, and the environment preflight endpoint against the launch checklist,
@@ -478,8 +483,8 @@ The first cloud phase is a private alpha, not full sync:
 - The cloud sync confirmation phrase can produce a local receipt, but the
   receipt is audit evidence only and does not turn on cloud push.
 - `npm run verify:web-beta` checks the local Web Beta contract before launch:
-  environment keys, guarded API route files, local module routes, and Supabase
-  migration tables.
+  environment keys, guarded API route files, local module routes, the deployment
+  target contract, and Supabase migration tables.
 
 See `docs/cloud-deployment.md` for the deployment checklist.
 

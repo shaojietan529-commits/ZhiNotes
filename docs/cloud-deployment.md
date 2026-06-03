@@ -8,6 +8,18 @@
 - 云后端：Supabase
 - 可选边缘层：Cloudflare DNS / CDN / WAF
 
+## 部署目标合同
+
+`src/lib/sync/webBetaDeploymentTarget.ts` 记录当前平台策略：
+
+- 第一阶段 Web Alpha：Vercel 托管当前 Next.js 应用和 route handlers。
+- 第一阶段云后端：Supabase Auth、Postgres、RLS、Private Storage。
+- Cloudflare 第一阶段定位：DNS、CDN、WAF、rate limit、安全 header。
+- Cloudflare Pages / Workers：作为后续可选项保留，必须先证明 Next.js
+  route、auth callback、环境变量、Supabase 调用、审计和 rollback 都兼容。
+- 该合同只在本地生成和导出；不会创建云资源、部署应用、读取 secret、连接
+  云服务、写 server data 或上传 workspace data。
+
 当前目标不是一次性做完整云同步，而是先上线一个安全的 private alpha：
 
 1. Vercel 托管 Next.js 前端。

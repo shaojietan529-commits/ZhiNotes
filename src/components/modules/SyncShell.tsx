@@ -101,6 +101,10 @@ import {
   type WebBetaRoutePreflightReport,
   type WebBetaRoutePreflightStatus,
 } from "@/lib/sync/webBetaRoutePreflight";
+import {
+  buildWebBetaDeploymentTarget,
+  type WebBetaDeploymentTarget,
+} from "@/lib/sync/webBetaDeploymentTarget";
 import type {
   WebBetaEnvironmentCheckStatus,
   WebBetaEnvironmentPreflight,
@@ -197,6 +201,7 @@ type WebBetaContractAction =
   | "high-risk-registry"
   | "migration-sql"
   | "next-actions"
+  | "deployment-target"
   | "route-preflight";
 type ReadinessStatus = "Ready" | "Partial" | "Missing" | "Needs confirmation";
 
@@ -672,6 +677,10 @@ function SyncDashboard() {
       permissionDecisionReport,
     ]
   );
+  const webBetaDeploymentTarget = useMemo(
+    () => buildWebBetaDeploymentTarget(),
+    []
+  );
   const webBetaLaunchChecklist = useMemo(
     () =>
       buildWebBetaLaunchChecklist({
@@ -735,6 +744,7 @@ function SyncDashboard() {
         accountSessionBoundary,
         cloudMigrationSqlDraft,
         syncReplayTestPlan,
+        deploymentTarget: webBetaDeploymentTarget,
       }),
     [
       accountSessionBoundary,
@@ -754,6 +764,7 @@ function SyncDashboard() {
       syncPayloadPreview,
       syncReplayTestPlan,
       webBetaLaunchChecklist,
+      webBetaDeploymentTarget,
       environmentPreflight,
       permissionDecisionReport,
       workspaceIdentity,
@@ -1545,6 +1556,7 @@ function SyncDashboard() {
           cloudSchemaMigrationPlan,
           webBetaLaunchChecklist,
           webBetaEnvironmentPreflight: environmentPreflight,
+          webBetaDeploymentTarget,
         }),
         exported_at: new Date().toISOString(),
       });
@@ -1597,6 +1609,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Web beta launch checklist export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportWebBetaDeploymentTarget = () => {
+    setBusyContractAction("deployment-target");
+    try {
+      downloadJsonFile(
+        `zhinote-web-beta-deployment-target-${fileSafeTimestamp()}.json`,
+        {
+          ...webBetaDeploymentTarget,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export web beta deployment target:",
+        err
+      );
+      window.alert(
+        "Web beta deployment target export failed. Please check the console."
       );
     } finally {
       setBusyContractAction(null);
@@ -3124,6 +3159,74 @@ function SyncDashboard() {
                 Environment preflight has not loaded yet.
               </p>
             )}
+          </ContractPanel>
+
+          <ContractPanel title="Deployment target" className="mt-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                Local deployment target for the first Web Alpha. It keeps
+                Vercel as the current Next.js app host, Supabase as the cloud
+                data plane, and Cloudflare as DNS/CDN/WAF before any future
+                Worker runtime review.
+              </p>
+              <button
+                type="button"
+                onClick={handleExportWebBetaDeploymentTarget}
+                disabled={busyContractAction === "deployment-target"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyContractAction === "deployment-target"
+                  ? "Exporting..."
+                  : "Export deployment target"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
+              <DeploymentTargetSummaryCard
+                label="App host"
+                value={webBetaDeploymentTarget.selected_strategy.first_web_alpha}
+                detail="First Web Alpha"
+                status="planned"
+              />
+              <DeploymentTargetSummaryCard
+                label="Backend"
+                value={webBetaDeploymentTarget.selected_strategy.cloud_backend}
+                detail="Auth, Postgres, storage"
+                status="planned"
+              />
+              <DeploymentTargetSummaryCard
+                label="Edge"
+                value={webBetaDeploymentTarget.selected_strategy.edge_layer}
+                detail="DNS, CDN, WAF"
+                status="manual-confirmation"
+              />
+              <DeploymentTargetSummaryCard
+                label="Blocked"
+                value={webBetaDeploymentTarget.summary.blocked}
+                detail="Must clear before beta"
+                status="blocked"
+              />
+              <DeploymentTargetSummaryCard
+                label="Boundary"
+                value="No deploy"
+                detail="Contract export only"
+                status="local-draft"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+              <div className="space-y-2">
+                {webBetaDeploymentTarget.providers.map((provider) => (
+                  <DeploymentProviderRow
+                    key={provider.id}
+                    provider={provider}
+                  />
+                ))}
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {webBetaDeploymentTarget.tracks.map((track) => (
+                  <DeploymentTrackRow key={track.id} track={track} />
+                ))}
+              </div>
+            </div>
           </ContractPanel>
 
           <ContractPanel title="Web Beta launch checklist" className="mt-4">
@@ -5432,6 +5535,82 @@ function LaunchSummaryCard({
       </div>
       <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
     </div>
+  );
+}
+
+function DeploymentTargetSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: WebBetaContractStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <ContractStatusPill status={status} />
+      </div>
+      <div className="mt-2 break-words text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function DeploymentProviderRow({
+  provider,
+}: {
+  provider: WebBetaDeploymentTarget["providers"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {provider.id}
+          </div>
+          <div className="mt-1 text-[11px] uppercase text-zinc-400">
+            {provider.role}
+          </div>
+        </div>
+        <ContractStatusPill status={provider.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {provider.purpose}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {provider.blocker}
+      </p>
+    </article>
+  );
+}
+
+function DeploymentTrackRow({
+  track,
+}: {
+  track: WebBetaDeploymentTarget["tracks"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {track.title}
+        </div>
+        <ContractStatusPill status={track.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {track.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {track.required_action}
+      </p>
+    </article>
   );
 }
 

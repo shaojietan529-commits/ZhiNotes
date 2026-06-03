@@ -10,6 +10,7 @@ const files = {
   envExample: ".env.example",
   apiStubs: "src/lib/sync/webBetaApiStubs.ts",
   contract: "src/lib/sync/webBetaContract.ts",
+  deploymentTarget: "src/lib/sync/webBetaDeploymentTarget.ts",
   environmentPreflight: "src/lib/sync/webBetaEnvironmentPreflight.ts",
   launchChecklist: "src/lib/sync/webBetaLaunchChecklist.ts",
   routePreflight: "src/lib/sync/webBetaRoutePreflight.ts",
@@ -159,6 +160,7 @@ function run() {
   const envExample = readProjectFile(files.envExample);
   const apiStubs = readProjectFile(files.apiStubs);
   const contract = readProjectFile(files.contract);
+  const deploymentTarget = readProjectFile(files.deploymentTarget);
   const environmentPreflight = readProjectFile(files.environmentPreflight);
   const launchChecklist = readProjectFile(files.launchChecklist);
   const routePreflight = readProjectFile(files.routePreflight);
@@ -177,6 +179,7 @@ function run() {
     [files.envExample, envExample],
     [files.apiStubs, apiStubs],
     [files.contract, contract],
+    [files.deploymentTarget, deploymentTarget],
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
     [files.routePreflight, routePreflight],
@@ -272,6 +275,87 @@ function run() {
     'id: "cloud-link-proof"',
     "Web Beta readiness must include cloud link proof gate."
   );
+  assertSourceIncludes(
+    files.deploymentTarget,
+    deploymentTarget,
+    'first_web_alpha: "vercel-nextjs"',
+    "Deployment target must keep the current Next.js app host decision explicit."
+  );
+  assertSourceIncludes(
+    files.deploymentTarget,
+    deploymentTarget,
+    'cloud_backend: "supabase-cloud"',
+    "Deployment target must identify Supabase as the first cloud backend."
+  );
+  assertSourceIncludes(
+    files.deploymentTarget,
+    deploymentTarget,
+    'edge_layer: "cloudflare-dns-cdn-waf"',
+    "Deployment target must preserve Cloudflare as the planned edge layer."
+  );
+  assertSourceIncludes(
+    files.deploymentTarget,
+    deploymentTarget,
+    'id: "cloudflare-pages"',
+    "Deployment target must track Cloudflare Pages as a future/runtime compatibility option."
+  );
+  assertSourceIncludes(
+    files.deploymentTarget,
+    deploymentTarget,
+    'id: "cloudflare-workers"',
+    "Deployment target must track Cloudflare Workers as a future/runtime compatibility option."
+  );
+  for (const [snippet, message] of [
+    ["deploys_app: false", "Deployment target must not deploy the app."],
+    [
+      "creates_cloud_resources: false",
+      "Deployment target must not create cloud resources.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Deployment target must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Deployment target must not upload workspace data.",
+    ],
+    [
+      "requires_owner_confirmation_before_deploy: true",
+      "Deployment target must require owner confirmation before deploy.",
+    ],
+  ]) {
+    assertSourceIncludes(files.deploymentTarget, deploymentTarget, snippet, message);
+  }
+  assertSourceIncludes(
+    files.contract,
+    contract,
+    "web_beta_deployment_target",
+    "Web Beta contract export must include the deployment target."
+  );
+  assertSourceIncludes(
+    files.webBetaReadiness,
+    webBetaReadiness,
+    'id: "deployment-target-contract"',
+    "Web Beta readiness must include deployment target readiness."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildWebBetaDeploymentTarget",
+    "Sync UI must build the deployment target contract."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportWebBetaDeploymentTarget",
+    "Sync UI must export the deployment target contract."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Deployment target",
+    "Sync UI must render the deployment target panel."
+  );
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
@@ -313,6 +397,7 @@ function run() {
     migration_contract_tables: contractTables.length,
     migration_tables: migrationTables.length,
     link_proof_contract_checks: 7,
+    deployment_target_checks: 16,
     warnings: warnings.length,
   };
 
