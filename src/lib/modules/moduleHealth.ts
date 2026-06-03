@@ -142,9 +142,9 @@ function buildHealthAreas(): ModuleHealthArea[] {
       phase: "phase-3",
       module_ids: ["company-research"],
       evidence:
-        "Company Research is beta with company pages, investment memo templates, earnings review templates, valuation assumptions, reports, meetings, and tracker presets.",
+        "Company Research is beta with company pages, investment memo templates, earnings review templates, valuation assumptions, reports, meetings, local tracker-row intake, and tracker presets.",
       next_action:
-        "Add richer company home dashboards, KPI sections, valuation assumption tables, and earnings review workflows.",
+        "Add richer company home dashboards, KPI sections, valuation assumption tables, earnings review workflows, and safer report/meeting relation cleanup.",
       privacy_boundary:
         "Company module links local research assets only and should not infer holdings or unpublished financial details.",
     },

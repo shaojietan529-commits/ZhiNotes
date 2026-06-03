@@ -30,7 +30,8 @@ Current module foundation:
   tracker database.
 - Company Research: beta module at `/modules/company-research` for company
   profiles, investment memos, earnings reviews, valuation assumptions, linked
-  reports, linked meetings, and a local tracker database.
+  reports, linked meetings, local tracker-row intake, and a local tracker
+  database.
 - Portfolio and Watchlist: beta module at `/modules/portfolio` for local
   position memos, watchlists, sizing discipline, catalyst review, risk notes,
   linked company pages, linked reports, linked meetings, and a local portfolio
@@ -242,12 +243,19 @@ Current local actions:
   coverage gaps into an action queue for company home, investment memo, earnings
   review, valuation assumptions, key metrics, related reports, related meetings,
   tracker database setup, and review cadence.
+- Use the company intake desk to create one local company tracker row from a
+  company research page. The intake action maps Company page relation, Status,
+  Thesis, identifiable Ticker, valuation assumptions, and key metrics, checks
+  for an existing tracker row first, and then opens the tracker for manual
+  report/meeting relation cleanup. It is a local single write and does not read
+  page text, database row values, file bytes, holdings, trading plans, sync,
+  upload, or call AI.
 - Open company research from the sidebar Platform section or Cmd/Ctrl+K.
 
-The company research playbook is local-only. It reads the coverage report and
-shared workflow schema, but it does not read or export page text, database row
-values, file bytes, holdings, trading plans, cloud data, AI prompts, tokens, or
-credentials.
+The company research playbook and company intake desk are local-only. They read
+coverage structure and tracker field schema, but they do not read or export page
+text, database row values, file bytes, holdings, trading plans, cloud data, AI
+prompts, tokens, or credentials.
 
 ## Report Library Module
 

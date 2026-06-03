@@ -11,6 +11,7 @@ const files = {
   graph: "src/lib/modules/researchGraph.ts",
   companyCoverage: "src/lib/company/companyCoverage.ts",
   companyPlaybook: "src/lib/company/companyResearchPlaybook.ts",
+  companyTrackerIntake: "src/lib/company/companyTrackerIntake.ts",
   meetingFollowUp: "src/lib/meetings/meetingFollowUp.ts",
   meetingPlaybook: "src/lib/meetings/meetingResearchPlaybook.ts",
   meetingTrackerIntake: "src/lib/meetings/meetingTrackerIntake.ts",
@@ -112,6 +113,7 @@ function run() {
   const graph = readProjectFile(files.graph);
   const companyCoverage = readProjectFile(files.companyCoverage);
   const companyPlaybook = readProjectFile(files.companyPlaybook);
+  const companyTrackerIntake = readProjectFile(files.companyTrackerIntake);
   const meetingFollowUp = readProjectFile(files.meetingFollowUp);
   const meetingPlaybook = readProjectFile(files.meetingPlaybook);
   const meetingTrackerIntake = readProjectFile(files.meetingTrackerIntake);
@@ -217,6 +219,61 @@ function run() {
       companyPlaybook,
       actionId,
       `Company research playbook must keep action ${actionId}.`
+    );
+  }
+  assertIncludes(
+    files.companyTrackerIntake,
+    companyTrackerIntake,
+    'format: "zhinote-company-tracker-intake-draft"',
+    "Company tracker intake must define a local row draft format."
+  );
+  assertIncludes(
+    files.companyTrackerIntake,
+    companyTrackerIntake,
+    "buildCompanyTrackerIntakeDraft",
+    "Company tracker intake must expose a reusable draft builder."
+  );
+  assertIncludes(
+    files.companyTrackerIntake,
+    companyTrackerIntake,
+    "findExistingCompanyTrackerRow",
+    "Company tracker intake must avoid duplicate company-page rows."
+  );
+  for (const snippet of [
+    "local_row_draft_only: true",
+    "reads_company_coverage_candidate: true",
+    "reads_database_fields: true",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "includes_database_row_values: false",
+    "includes_file_bytes: false",
+    "includes_holdings: false",
+    "includes_trading_plans: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.companyTrackerIntake,
+      companyTrackerIntake,
+      snippet,
+      "Company tracker intake draft must preserve local-only privacy boundaries."
+    );
+  }
+  for (const fieldName of [
+    "Company page",
+    "Ticker",
+    "Status",
+    "Thesis",
+    "Valuation assumptions",
+    "Key metrics",
+  ]) {
+    assertIncludes(
+      files.companyTrackerIntake,
+      companyTrackerIntake,
+      fieldName,
+      `Company tracker intake must map ${fieldName}.`
     );
   }
   for (const snippet of [
@@ -480,6 +537,36 @@ function run() {
   assertIncludes(
     files.companyShell,
     companyShell,
+    "buildCompanyTrackerIntakeDraft",
+    "Company module must build local tracker intake drafts."
+  );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
+    "findExistingCompanyTrackerRow",
+    "Company module must check existing tracker rows before writing."
+  );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
+    "公司入库台",
+    "Company module must render the tracker intake desk."
+  );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
+    "创建 tracker row",
+    "Company module must expose a tracker-row creation action."
+  );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
+    "本地单条写入",
+    "Company module must label tracker intake as a single local write."
+  );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
     "公司覆盖雷达",
     "Company module must render the coverage radar."
   );
@@ -670,6 +757,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "company intake desk",
+    "README must document company tracker intake."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "meeting follow-up queue",
     "README must document meeting follow-up reporting."
   );
@@ -716,6 +809,7 @@ function run() {
           0
         ),
         company_coverage_areas: requiredCompanyCoverageAreas.length,
+        company_tracker_intake_fields: 6,
         meeting_follow_up_stages: requiredMeetingFollowUpStages.length,
         meeting_playbook_actions: 7,
         meeting_tracker_intake_fields: 4,
