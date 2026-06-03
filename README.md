@@ -619,7 +619,9 @@ Current local actions:
   confirmation receipt, audit envelope, idempotency, decision status, and reason
   codes are allowed; page text, database values, comments, files, prompts, raw
   AI output, backup payloads, request bodies, signed URLs, tokens, cookies, and
-  environment values stay forbidden. The endpoint remains disabled.
+  environment values stay forbidden. The endpoint remains disabled and returns a
+  dedicated 501 permission-check schema guard instead of executable allow/deny
+  decisions.
 - Review and export a local high-risk action registry. The registry centralizes
   typed confirmation phrases and coverage for cloud sync, disposable replay,
   restore write-back, AI execution, HTML external resources, spreadsheet bulk
@@ -682,8 +684,9 @@ Current local actions:
   logout, workspace list, workspace create, workspace bootstrap, sync push, sync
   pull, sync replay test, restore preview, restore apply, file presign,
   permission check, audit events, and cloud migration apply. These routes return
-  disabled responses unless explicitly enabled and do not upload local notes,
-  files, databases, backups, or sync queue rows.
+  disabled responses unless explicitly enabled; the permission check route uses
+  a dedicated metadata-only schema guard. They do not upload local notes, files,
+  databases, backups, or sync queue rows.
 - Review and export a local Web Beta readiness report that summarizes local
   evidence, manual confirmation points, and blocked launch gates. The report
   does not create accounts, connect cloud services, upload notes, sync files,
@@ -729,8 +732,8 @@ The first cloud phase is a private alpha, not full sync:
   receipt is audit evidence only and does not turn on cloud push.
 - `npm run verify:web-beta` checks the local Web Beta contract before launch:
   environment keys, guarded API route files, local module routes, the deployment
-  target contract, audit event envelope, permission check envelope, smoke test
-  plan, and Supabase migration tables.
+  target contract, audit event envelope, permission check envelope, permission
+  check API disabled schema, smoke test plan, and Supabase migration tables.
 - `npm run verify:web-beta:smoke` checks the preview smoke-test checklist before
   launch: expected pages, disabled/gated high-risk API routes, local-only
   privacy boundaries, Cloud Alpha disabled defaults, private file storage

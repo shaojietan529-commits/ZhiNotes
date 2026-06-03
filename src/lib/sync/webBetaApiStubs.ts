@@ -182,9 +182,9 @@ export const WEB_BETA_API_STUBS: WebBetaApiStub[] = [
     purpose:
       "Future endpoint for server-side checks before export, restore, sync, sharing, AI, or admin actions.",
     future_requirement:
-      "Enable only after authenticated users, workspace roles, resource policies, and audit events exist.",
+      "Enable only after authenticated users, workspace roles, resource policies, metadata-only schema validation, high-risk confirmations, forbidden payload rejection, and audit events exist.",
     privacy_boundary:
-      "The current stub does not read page text, file content, database rows, or action payload bodies.",
+      "The current dedicated disabled response does not read page text, file content, database rows, prompts, secrets, or action payload bodies.",
   },
   {
     id: "audit-events",

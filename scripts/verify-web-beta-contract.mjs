@@ -31,6 +31,8 @@ const files = {
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
   auditEventEnvelope: "src/lib/security/auditEventEnvelope.ts",
   permissionCheckEnvelope: "src/lib/security/permissionCheckEnvelope.ts",
+  permissionCheckApiStub: "src/lib/security/permissionCheckApiStub.ts",
+  permissionCheckRoute: "src/app/api/permissions/check/route.ts",
   typedConfirmation: "src/lib/security/typedConfirmation.ts",
   highRiskActionRegistry: "src/lib/security/highRiskActionRegistry.ts",
   webBetaReadiness: "src/lib/sync/webBetaReadiness.ts",
@@ -143,6 +145,12 @@ function assertSourceIncludes(sourceLabel, source, expectedSnippet, message) {
   }
 }
 
+function assertSourceExcludes(sourceLabel, source, forbiddenSnippet, message) {
+  if (source.includes(forbiddenSnippet)) {
+    fail(`${sourceLabel} must not include ${forbiddenSnippet}: ${message}`);
+  }
+}
+
 function assertAllPresent(label, expected, actual, formatMissing) {
   const actualSet = new Set(actual);
   for (const item of expected) {
@@ -207,6 +215,8 @@ function run() {
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
   const auditEventEnvelope = readProjectFile(files.auditEventEnvelope);
   const permissionCheckEnvelope = readProjectFile(files.permissionCheckEnvelope);
+  const permissionCheckApiStub = readProjectFile(files.permissionCheckApiStub);
+  const permissionCheckRoute = readProjectFile(files.permissionCheckRoute);
   const typedConfirmation = readProjectFile(files.typedConfirmation);
   const highRiskActionRegistry = readProjectFile(files.highRiskActionRegistry);
   const webBetaReadiness = readProjectFile(files.webBetaReadiness);
@@ -242,6 +252,8 @@ function run() {
     [files.accountSessionBoundary, accountSessionBoundary],
     [files.auditEventEnvelope, auditEventEnvelope],
     [files.permissionCheckEnvelope, permissionCheckEnvelope],
+    [files.permissionCheckApiStub, permissionCheckApiStub],
+    [files.permissionCheckRoute, permissionCheckRoute],
     [files.typedConfirmation, typedConfirmation],
     [files.highRiskActionRegistry, highRiskActionRegistry],
     [files.webBetaReadiness, webBetaReadiness],
@@ -313,6 +325,12 @@ function run() {
 
     if (isCloudAlphaStub(stub.id)) {
       assertRouteGuard(routeFile, `cloudNotConfiguredResponse("${stub.id}")`, routeLabel);
+    } else if (stub.id === "permission-check") {
+      assertRouteGuard(
+        routeFile,
+        "buildPermissionCheckApiDisabledResponse",
+        routeLabel
+      );
     } else {
       assertRouteGuard(
         routeFile,
@@ -766,6 +784,225 @@ function run() {
       message
     );
   }
+  assertSourceIncludes(
+    files.permissionCheckEnvelope,
+    permissionCheckEnvelope,
+    "buildPermissionCheckRequestFields",
+    "Permission check envelope must export reusable request fields for the route stub."
+  );
+  assertSourceIncludes(
+    files.permissionCheckEnvelope,
+    permissionCheckEnvelope,
+    "buildPermissionCheckResponseFields",
+    "Permission check envelope must export reusable response fields for the route stub."
+  );
+  assertSourceIncludes(
+    files.permissionCheckEnvelope,
+    permissionCheckEnvelope,
+    "buildPermissionCheckForbiddenFields",
+    "Permission check envelope must export reusable forbidden fields for the route stub."
+  );
+  assertSourceIncludes(
+    files.permissionCheckApiStub,
+    permissionCheckApiStub,
+    'format: "zhinote-permission-check-api-disabled"',
+    "Permission check API stub must expose a stable disabled response format."
+  );
+  assertSourceIncludes(
+    files.permissionCheckApiStub,
+    permissionCheckApiStub,
+    "buildPermissionCheckApiDisabledResponse",
+    "Permission check API stub must expose a reusable disabled response builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'api_id: "permission-check"',
+      "Permission check API stub must identify the permission-check route.",
+    ],
+    [
+      'path: "/api/permissions/check"',
+      "Permission check API stub must bind to /api/permissions/check.",
+    ],
+    [
+      'method: "POST"',
+      "Permission check API stub must document the POST method.",
+    ],
+    [
+      'stub_status: "disabled-local-stub"',
+      "Permission check API stub must stay disabled by default.",
+    ],
+    [
+      "can_enforce_permissions_now: false",
+      "Permission check API stub must not enforce permissions.",
+    ],
+    [
+      "can_read_request_body_now: false",
+      "Permission check API stub must not read request bodies.",
+    ],
+    [
+      "can_create_users_now: false",
+      "Permission check API stub must not create users.",
+    ],
+    [
+      "can_grant_access_now: false",
+      "Permission check API stub must not grant access.",
+    ],
+    [
+      "can_revoke_access_now: false",
+      "Permission check API stub must not revoke access.",
+    ],
+    [
+      "can_write_server_audit_log_now: false",
+      "Permission check API stub must not write audit logs.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Permission check API stub must not upload workspace data.",
+    ],
+    [
+      'base_stub: buildWebBetaApiStubResponse("permission-check")',
+      "Permission check API stub must remain tied to the global disabled API stub registry.",
+    ],
+    [
+      "no_request_argument: true",
+      "Permission check API stub must document that the route does not accept a request object.",
+    ],
+    [
+      "reads_request_body: false",
+      "Permission check API stub must keep body reads disabled.",
+    ],
+    [
+      "metadata_only_request: true",
+      "Permission check API stub must keep the planned request metadata-only.",
+    ],
+    [
+      "executes_actions: false",
+      "Permission check API stub must not execute protected actions.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Permission check API stub must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Permission check API stub must not read database values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Permission check API stub must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Permission check API stub must not read file bytes.",
+    ],
+    [
+      "reads_prompt_text: false",
+      "Permission check API stub must not read prompt text.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Permission check API stub must not read secrets.",
+    ],
+    [
+      "schema_status: \"planned-metadata-only\"",
+      "Permission check API stub must expose planned metadata-only request schema status.",
+    ],
+    [
+      "allowed_fields: buildPermissionCheckRequestFields()",
+      "Permission check API stub must reuse permission envelope request fields.",
+    ],
+    [
+      "forbidden_fields: buildPermissionCheckForbiddenFields()",
+      "Permission check API stub must reuse permission envelope forbidden fields.",
+    ],
+    [
+      "schema_status: \"planned-decision-only\"",
+      "Permission check API stub must expose planned decision-only response schema status.",
+    ],
+    [
+      "allowed_fields: buildPermissionCheckResponseFields()",
+      "Permission check API stub must reuse permission envelope response fields.",
+    ],
+    [
+      "http_status: 501",
+      "Permission check API stub must keep the disabled HTTP status explicit.",
+    ],
+    [
+      "returns_permission_result: false",
+      "Permission check API stub must not return executable permission results.",
+    ],
+    [
+      "returns_allow_decision: false",
+      "Permission check API stub must not return allow decisions.",
+    ],
+    [
+      "returns_deny_decision: false",
+      "Permission check API stub must not return deny decisions.",
+    ],
+    [
+      "authenticated-actor",
+      "Permission check API stub must include authenticated actor gate.",
+    ],
+    [
+      "workspace-membership",
+      "Permission check API stub must include workspace membership gate.",
+    ],
+    [
+      "metadata-only-schema-validation",
+      "Permission check API stub must include metadata-only schema validation gate.",
+    ],
+    [
+      "high-risk-confirmation",
+      "Permission check API stub must include high-risk confirmation gate.",
+    ],
+    [
+      "audit-event-envelope",
+      "Permission check API stub must include audit event gate.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.permissionCheckApiStub,
+      permissionCheckApiStub,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.permissionCheckRoute,
+    permissionCheckRoute,
+    "buildPermissionCheckApiDisabledResponse",
+    "Permission check route must use the dedicated disabled permission response."
+  );
+  assertSourceIncludes(
+    files.permissionCheckRoute,
+    permissionCheckRoute,
+    "WEB_BETA_API_STUB_HTTP_STATUS",
+    "Permission check route must keep the disabled Web Beta HTTP status."
+  );
+  assertSourceIncludes(
+    files.permissionCheckRoute,
+    permissionCheckRoute,
+    "export async function POST()",
+    "Permission check route must not accept a Request argument while disabled."
+  );
+  assertSourceExcludes(
+    files.permissionCheckRoute,
+    permissionCheckRoute,
+    ".json()",
+    "Permission check route must not parse request bodies while disabled."
+  );
+  assertSourceExcludes(
+    files.permissionCheckRoute,
+    permissionCheckRoute,
+    "NextRequest",
+    "Permission check route must not accept NextRequest while disabled."
+  );
+  assertSourceIncludes(
+    files.smokeTestVerifier,
+    smokeTestVerifier,
+    "buildPermissionCheckApiDisabledResponse",
+    "Smoke tests must require the dedicated permission check disabled response."
+  );
   assertSourceIncludes(
     files.workspaceIdentity,
     workspaceIdentity,
@@ -2844,7 +3081,7 @@ function run() {
     link_proof_contract_checks: 7,
     deployment_target_checks: 16,
     smoke_test_plan_checks: 16,
-    smoke_test_verifier_checks: 4,
+    smoke_test_verifier_checks: 5,
     replay_harness_safety_script_checks: 7,
     conflict_resolution_checks: 50,
     remote_baseline_checks: 43,
@@ -2855,7 +3092,8 @@ function run() {
     remote_baseline_replay_harness_checks: 54,
     remote_baseline_replay_runner_checks: 52,
     audit_event_envelope_checks: 52,
-    permission_check_envelope_checks: 65,
+    permission_check_envelope_checks: 68,
+    permission_check_api_stub_checks: 44,
     warnings: warnings.length,
   };
 

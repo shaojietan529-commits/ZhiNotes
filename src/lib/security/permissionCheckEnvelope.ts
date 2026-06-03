@@ -115,9 +115,9 @@ export interface PermissionCheckEnvelopeContract {
 export function buildPermissionCheckEnvelopeContract(
   input: PermissionCheckEnvelopeInput
 ): PermissionCheckEnvelopeContract {
-  const requestFields = buildRequestFields();
-  const responseFields = buildResponseFields();
-  const forbiddenFields = buildForbiddenFields();
+  const requestFields = buildPermissionCheckRequestFields();
+  const responseFields = buildPermissionCheckResponseFields();
+  const forbiddenFields = buildPermissionCheckForbiddenFields();
   const scenarios = buildScenarios();
   const gates = buildGates(input);
   const statuses = [
@@ -206,7 +206,7 @@ export function buildPermissionCheckEnvelopeContract(
   };
 }
 
-function buildRequestFields(): PermissionCheckField[] {
+export function buildPermissionCheckRequestFields(): PermissionCheckField[] {
   return [
     field("request_id", "allowed", "opaque id", "Deduplicates one permission check request."),
     field("workspace_id", "allowed", "workspace uuid", "Scopes the check to one cloud workspace."),
@@ -223,7 +223,7 @@ function buildRequestFields(): PermissionCheckField[] {
   ];
 }
 
-function buildResponseFields(): PermissionCheckField[] {
+export function buildPermissionCheckResponseFields(): PermissionCheckField[] {
   return [
     field("decision_id", "allowed", "server-generated id", "Identifies one server decision."),
     field("allowed", "allowed", "boolean", "Primary decision result."),
@@ -236,7 +236,7 @@ function buildResponseFields(): PermissionCheckField[] {
   ];
 }
 
-function buildForbiddenFields(): PermissionCheckField[] {
+export function buildPermissionCheckForbiddenFields(): PermissionCheckField[] {
   return [
     field("page_body_text", "forbidden", "raw text", "Permission checks must not inspect note content."),
     field("block_text", "forbidden", "raw text", "Block text is private workspace content."),
