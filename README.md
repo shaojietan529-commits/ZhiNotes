@@ -106,9 +106,9 @@ Current relation scope:
 - CSV export writes related page titles, not internal ids.
 - Company, report, meeting, and portfolio modules share a local research graph
   panel. It can export a graph report with asset titles, module coverage,
-  relation fields, links, and completion suggestions, without including page
-  bodies, database row values, uploaded file bytes, prompts, tokens, or cloud
-  data.
+  relation fields, links, completion suggestions, and relation schema gaps,
+  without including page bodies, database row values, uploaded file bytes,
+  prompts, tokens, or cloud data.
 
 ## Research Graph Module
 
@@ -125,6 +125,8 @@ Current local actions:
 - Identify local assets that still need structured relation fields.
 - Review suggested completion targets for unlinked assets and jump into the
   right local database with `q` and `focus` parameters prefilled.
+- Review relation schema gaps, such as a company tracker missing related-report
+  or related-meeting relation fields.
 - Use the database relation completion assistant after that jump to manually
   add the focused asset to one local relation field at a time.
 - Open source pages, target pages, source modules, and tracker databases.

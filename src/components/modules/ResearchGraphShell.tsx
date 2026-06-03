@@ -17,6 +17,7 @@ import {
   type ResearchAssetKind,
   type ResearchDatabaseSnapshot,
   type ResearchGraphReport,
+  type ResearchGraphSchemaGap,
   type ResearchRelationLink,
 } from "@/lib/modules/researchGraph";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -108,6 +109,7 @@ function ResearchGraphDashboard() {
   const recentLinks = graph.relationLinks.slice(0, 12);
   const unlinkedAssets = graph.unlinkedAssets.slice(0, 12);
   const completionActions = graphReport.completion_plan.actions.slice(0, 10);
+  const schemaGaps = graphReport.schema_gaps.slice(0, 8);
   const completionActionByAssetId = useMemo(
     () =>
       new Map(
@@ -171,7 +173,7 @@ function ResearchGraphDashboard() {
           </div>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-6">
+        <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
           <Metric label="已识别资产" value={graphReport.summary.assets} />
           <Metric label="已连接资产" value={graphReport.summary.connected_assets} />
           <Metric label="Relation 连接" value={graphReport.summary.relation_links} />
@@ -181,6 +183,7 @@ function ResearchGraphDashboard() {
             label="补关系建议"
             value={graphReport.summary.completion_actions}
           />
+          <Metric label="结构缺口" value={graphReport.summary.schema_gaps} />
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
@@ -190,6 +193,12 @@ function ResearchGraphDashboard() {
           />
           <BoundaryPanel report={graphReport} />
         </section>
+
+        <SchemaGapPanel
+          gaps={schemaGaps}
+          totalGaps={graphReport.schema_gaps.length}
+          onOpenDatabaseRoute={(route) => router.push(route)}
+        />
 
         <CompletionPlanPanel
           actions={completionActions}
@@ -337,6 +346,64 @@ function BoundaryItem({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <span className="font-medium text-zinc-800 dark:text-zinc-200">{value}</span>
     </div>
+  );
+}
+
+function SchemaGapPanel({
+  gaps,
+  totalGaps,
+  onOpenDatabaseRoute,
+}: {
+  gaps: ResearchGraphSchemaGap[];
+  totalGaps: number;
+  onOpenDatabaseRoute: (route: string) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            关系结构检查
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">
+            检查公司、报告、会议和组合跟踪表是否具备最低 relation 字段结构。
+          </p>
+        </div>
+        <span className="text-xs text-zinc-400">{totalGaps} 个缺口</span>
+      </div>
+
+      {gaps.length === 0 ? (
+        <p className="mt-3 text-xs leading-5 text-zinc-400">
+          暂无结构缺口。当前已识别跟踪表的 relation 字段覆盖了基础投研连接。
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-2 lg:grid-cols-2">
+          {gaps.map((gap) => (
+            <article
+              key={gap.id}
+              className="flex items-center justify-between gap-3 rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800"
+            >
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                  {gap.database_title}
+                </h3>
+                <p className="mt-1 text-xs text-zinc-400">
+                  缺少 {gap.missing_relation_label} relation · 建议字段：
+                  {gap.suggested_field_name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onOpenDatabaseRoute(gap.database_route)}
+                className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                打开表
+              </button>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

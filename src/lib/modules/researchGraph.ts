@@ -80,6 +80,20 @@ export interface ResearchGraphCompletionPlan {
   missing_targets: ResearchGraphMissingCompletionTarget[];
 }
 
+export interface ResearchGraphSchemaGap {
+  id: string;
+  database_id: string;
+  database_title: string;
+  database_kind: ResearchAssetKind;
+  database_kind_label: string;
+  missing_relation_kind: ResearchAssetKind;
+  missing_relation_label: string;
+  suggested_field_name: string;
+  suggested_field_label: string;
+  database_route: string;
+  reason: string;
+}
+
 export interface ResearchGraphReport {
   format: "zhinote-research-graph-report";
   format_version: 1;
@@ -106,6 +120,7 @@ export interface ResearchGraphReport {
     relation_fields: number;
     completion_actions: number;
     missing_completion_targets: number;
+    schema_gaps: number;
   };
   assets: Array<{
     id: string;
@@ -155,6 +170,7 @@ export interface ResearchGraphReport {
     relation_links: number;
   }>;
   completion_plan: ResearchGraphCompletionPlan;
+  schema_gaps: ResearchGraphSchemaGap[];
 }
 
 const KIND_LABELS: Record<ResearchAssetKind, string> = {
@@ -176,6 +192,13 @@ const MODULE_ROUTES: Record<ResearchAssetKind, string> = {
   report: "/modules/reports",
   meeting: "/modules/meetings",
   portfolio: "/modules/portfolio",
+};
+
+const EXPECTED_RELATION_KINDS: Record<ResearchAssetKind, ResearchAssetKind[]> = {
+  company: ["report", "meeting"],
+  report: ["company", "meeting"],
+  meeting: ["company", "report"],
+  portfolio: ["company", "report", "meeting"],
 };
 
 const RELATION_FIELD_LABELS: Array<[string, string]> = [
@@ -416,6 +439,7 @@ export function buildResearchGraphReport(
   });
 
   const completionPlan = buildResearchGraphCompletionPlan(graph, snapshots);
+  const schemaGaps = buildResearchGraphSchemaGaps(snapshots);
 
   return {
     format: "zhinote-research-graph-report",
@@ -447,6 +471,7 @@ export function buildResearchGraphReport(
       ),
       completion_actions: completionPlan.actions.length,
       missing_completion_targets: completionPlan.missing_targets.length,
+      schema_gaps: schemaGaps.length,
     },
     assets: graph.assets.map((asset) => ({
       id: asset.id,
@@ -496,6 +521,7 @@ export function buildResearchGraphReport(
       };
     }),
     completion_plan: completionPlan,
+    schema_gaps: schemaGaps,
   };
 }
 
@@ -596,6 +622,45 @@ function buildCompletionTargets(
   });
 }
 
+export function buildResearchGraphSchemaGaps(
+  snapshots: ResearchDatabaseSnapshot[]
+): ResearchGraphSchemaGap[] {
+  return snapshots.flatMap((snapshot) => {
+    const databaseKind = classifyResearchDatabase(snapshot.database);
+    if (!databaseKind) return [];
+
+    const presentRelationKinds = new Set(
+      snapshot.fields
+        .filter((field) => field.field_type === "relation")
+        .map((field) => inferResearchKindFromRelationField(field.name))
+        .filter((kind): kind is ResearchAssetKind => Boolean(kind))
+    );
+
+    return EXPECTED_RELATION_KINDS[databaseKind]
+      .filter((kind) => !presentRelationKinds.has(kind))
+      .map((missingKind) => {
+        const suggestedFieldName = getSuggestedRelationFieldName(
+          databaseKind,
+          missingKind
+        );
+
+        return {
+          id: `${snapshot.database.id}:${missingKind}`,
+          database_id: snapshot.database.id,
+          database_title: snapshot.database.title,
+          database_kind: databaseKind,
+          database_kind_label: getResearchAssetKindLabel(databaseKind),
+          missing_relation_kind: missingKind,
+          missing_relation_label: getResearchAssetKindLabel(missingKind),
+          suggested_field_name: suggestedFieldName,
+          suggested_field_label: getResearchRelationFieldLabel(suggestedFieldName),
+          database_route: `/database/${snapshot.database.id}`,
+          reason: `${getResearchAssetKindLabel(databaseKind)}跟踪表缺少指向${getResearchAssetKindLabel(missingKind)}的 relation 字段。`,
+        };
+      });
+  });
+}
+
 function buildDatabaseCompletionRoute(databaseId: string, asset: ResearchAsset) {
   const params = new URLSearchParams({
     q: asset.title,
@@ -613,6 +678,17 @@ function sortCompletionActions(
     RESEARCH_ASSET_KINDS.indexOf(b.asset_kind);
   if (kindDelta !== 0) return kindDelta;
   return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+}
+
+function getSuggestedRelationFieldName(
+  sourceKind: ResearchAssetKind,
+  targetKind: ResearchAssetKind
+) {
+  if (targetKind === "company") return "Company page";
+  if (targetKind === "report") return "Related reports";
+  if (targetKind === "meeting") return "Related meetings";
+  if (targetKind === "portfolio") return "Related portfolio";
+  return `${getResearchAssetKindLabel(sourceKind)} relation`;
 }
 
 function createAsset(page: Page, kind: ResearchAssetKind): ResearchAsset {
