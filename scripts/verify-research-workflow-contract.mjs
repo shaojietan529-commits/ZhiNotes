@@ -13,7 +13,9 @@ const files = {
   graphShell: "src/components/modules/ResearchGraphShell.tsx",
   schemaPanel: "src/components/modules/ResearchWorkflowSchemaPanel.tsx",
   companyShell: "src/components/modules/CompanyResearchShell.tsx",
+  reportsShell: "src/components/modules/ReportsShell.tsx",
   meetingsShell: "src/components/modules/MeetingsShell.tsx",
+  portfolioShell: "src/components/modules/PortfolioShell.tsx",
   registry: "src/lib/modules/registry.ts",
   moduleActions: "src/lib/modules/actions.ts",
   readme: "README.md",
@@ -75,7 +77,9 @@ function run() {
   const graphShell = readProjectFile(files.graphShell);
   const schemaPanel = readProjectFile(files.schemaPanel);
   const companyShell = readProjectFile(files.companyShell);
+  const reportsShell = readProjectFile(files.reportsShell);
   const meetingsShell = readProjectFile(files.meetingsShell);
+  const portfolioShell = readProjectFile(files.portfolioShell);
   const registry = readProjectFile(files.registry);
   const moduleActions = readProjectFile(files.moduleActions);
   const readme = readProjectFile(files.readme);
@@ -135,10 +139,22 @@ function run() {
     "Company module must show its object model."
   );
   assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    'ResearchWorkflowSchemaPanel kind="report"',
+    "Reports module must show its object model."
+  );
+  assertIncludes(
     files.meetingsShell,
     meetingsShell,
     'ResearchWorkflowSchemaPanel kind="meeting"',
     "Meetings module must show its object model."
+  );
+  assertIncludes(
+    files.portfolioShell,
+    portfolioShell,
+    'ResearchWorkflowSchemaPanel kind="portfolio"',
+    "Portfolio module must show its object model."
   );
 
   for (const requirement of requiredKinds) {

@@ -113,10 +113,11 @@ It defines the core investable asset kinds used across modules:
 - Portfolio: watchlist or position tracker, sizing fields, conviction, thesis,
   risk notes, and relations back to company, report, and meeting assets.
 
-The research graph, company module, and meetings module now read this shared
-schema for module routes, expected relation kinds, key tracker fields, workflow
-stages, and local privacy boundaries. This keeps new investment research
-modules from inventing incompatible relationship models.
+The research graph, company module, report module, meetings module, and
+portfolio module now read this shared schema for module routes, expected
+relation kinds, key tracker fields, workflow stages, and local privacy
+boundaries. This keeps new investment research modules from inventing
+incompatible relationship models.
 
 ## Database Relations
 

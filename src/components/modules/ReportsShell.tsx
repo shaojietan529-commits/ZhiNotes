@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
+import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { usePages } from "@/hooks/usePages";
 import {
   createPage,
@@ -272,6 +273,8 @@ function ReportsDashboard() {
             </div>
           </div>
         </section>
+
+        <ResearchWorkflowSchemaPanel kind="report" />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
