@@ -11,6 +11,7 @@ const files = {
   graph: "src/lib/modules/researchGraph.ts",
   companyCoverage: "src/lib/company/companyCoverage.ts",
   meetingFollowUp: "src/lib/meetings/meetingFollowUp.ts",
+  portfolioReview: "src/lib/portfolio/portfolioReview.ts",
   connectionsPanel: "src/components/modules/ResearchConnectionsPanel.tsx",
   graphShell: "src/components/modules/ResearchGraphShell.tsx",
   schemaPanel: "src/components/modules/ResearchWorkflowSchemaPanel.tsx",
@@ -73,6 +74,18 @@ const requiredMeetingFollowUpStages = [
   "done",
 ];
 
+const requiredPortfolioReviewAreas = [
+  "position-memo",
+  "watchlist",
+  "sizing-discipline",
+  "conviction",
+  "catalyst",
+  "risk-notes",
+  "thesis",
+  "research-links",
+  "tracker-database",
+];
+
 const failures = [];
 
 function readProjectFile(relativePath) {
@@ -96,6 +109,7 @@ function run() {
   const graph = readProjectFile(files.graph);
   const companyCoverage = readProjectFile(files.companyCoverage);
   const meetingFollowUp = readProjectFile(files.meetingFollowUp);
+  const portfolioReview = readProjectFile(files.portfolioReview);
   const connectionsPanel = readProjectFile(files.connectionsPanel);
   const graphShell = readProjectFile(files.graphShell);
   const schemaPanel = readProjectFile(files.schemaPanel);
@@ -219,6 +233,53 @@ function run() {
     );
   }
   assertIncludes(
+    files.portfolioReview,
+    portfolioReview,
+    'format: "zhinote-portfolio-review-report"',
+    "Portfolio review must define a local export format."
+  );
+  assertIncludes(
+    files.portfolioReview,
+    portfolioReview,
+    "buildPortfolioReviewReport",
+    "Portfolio review must expose a reusable builder."
+  );
+  for (const snippet of [
+    "local_report_only: true",
+    "reads_local_page_html: true",
+    "reads_database_metadata: true",
+    "includes_page_text: false",
+    "includes_page_titles: false",
+    "includes_database_row_values: false",
+    "includes_position_names: false",
+    "includes_tickers: false",
+    "includes_weights: false",
+    "includes_trading_plans: false",
+    "includes_transactions: false",
+    "reads_file_bytes: false",
+    "connects_brokerage_accounts: false",
+    "fetches_prices: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.portfolioReview,
+      portfolioReview,
+      snippet,
+      "Portfolio review must preserve local-only privacy boundaries."
+    );
+  }
+  for (const area of requiredPortfolioReviewAreas) {
+    assertIncludes(
+      files.portfolioReview,
+      portfolioReview,
+      `id: "${area}"`,
+      `Portfolio review must keep area ${area}.`
+    );
+  }
+  assertIncludes(
     files.connectionsPanel,
     connectionsPanel,
     "getResearchModuleRoute",
@@ -296,6 +357,24 @@ function run() {
     'ResearchWorkflowSchemaPanel kind="portfolio"',
     "Portfolio module must show its object model."
   );
+  assertIncludes(
+    files.portfolioShell,
+    portfolioShell,
+    "buildPortfolioReviewReport",
+    "Portfolio module must build the review report."
+  );
+  assertIncludes(
+    files.portfolioShell,
+    portfolioShell,
+    "组合复盘雷达",
+    "Portfolio module must render the review radar."
+  );
+  assertIncludes(
+    files.portfolioShell,
+    portfolioShell,
+    "Export review",
+    "Portfolio module must export the review report."
+  );
 
   for (const requirement of requiredKinds) {
     assertIncludes(
@@ -369,6 +448,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "portfolio review radar",
+    "README must document portfolio review reporting."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "npm run verify:research-workflow",
     "README useful checks must include the research workflow verifier."
   );
@@ -392,6 +477,7 @@ function run() {
         ),
         company_coverage_areas: requiredCompanyCoverageAreas.length,
         meeting_follow_up_stages: requiredMeetingFollowUpStages.length,
+        portfolio_review_areas: requiredPortfolioReviewAreas.length,
         shared_routes: true,
         local_only: true,
       },

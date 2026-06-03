@@ -10,6 +10,12 @@ import { usePages } from "@/hooks/usePages";
 import { getAllDatabases } from "@/lib/db/local/queries";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
+import {
+  buildPortfolioReviewReport,
+  getPortfolioReviewAreaLabel,
+  type PortfolioReviewReport,
+  type PortfolioReviewStatus,
+} from "@/lib/portfolio/portfolioReview";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -76,6 +82,7 @@ function PortfolioDashboard() {
   const { pages, refresh } = usePages();
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [exportingReview, setExportingReview] = useState(false);
 
   useEffect(() => {
     void getAllDatabases()
@@ -91,6 +98,10 @@ function PortfolioDashboard() {
   );
   const positionPages = useMemo(() => getPositionPages(pages), [pages]);
   const watchlistPages = useMemo(() => getWatchlistPages(pages), [pages]);
+  const portfolioReview = useMemo(
+    () => buildPortfolioReviewReport(pages, databases),
+    [databases, pages]
+  );
 
   const portfolioModule = PLATFORM_MODULES.find((module) => module.id === "portfolio");
   const trackerStarter = portfolioModule?.starter ?? null;
@@ -109,6 +120,21 @@ function PortfolioDashboard() {
       window.alert("组合动作失败，请查看控制台。");
     } finally {
       setBusyAction(null);
+    }
+  };
+
+  const handleExportReview = () => {
+    setExportingReview(true);
+    try {
+      downloadJsonFile(`zhinote-portfolio-review-${fileSafeTimestamp()}.json`, {
+        ...portfolioReview,
+        exported_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to export portfolio review:", err);
+      window.alert("Portfolio review export failed. Please check the console.");
+    } finally {
+      setExportingReview(false);
     }
   };
 
@@ -175,6 +201,111 @@ function PortfolioDashboard() {
               )}
             </div>
           </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                组合复盘雷达
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                本地扫描组合页面和数据库元数据，检查持仓 memo、观察名单、仓位纪律、
+                确信度、催化剂、风险笔记、投资假设、研究关联和组合跟踪表结构。
+                导出不会包含页面标题、ticker、权重、持仓名、交易计划或交易记录。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportReview}
+              disabled={exportingReview}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingReview ? "Exporting..." : "Export review"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-7">
+            <ReviewMetric
+              label="复盘面"
+              value={portfolioReview.summary.review_areas}
+              detail="Review areas"
+              status="ready"
+            />
+            <ReviewMetric
+              label="Ready"
+              value={portfolioReview.summary.ready}
+              detail="Has structure"
+              status="ready"
+            />
+            <ReviewMetric
+              label="Missing"
+              value={portfolioReview.summary.missing}
+              detail="Needs setup"
+              status={
+                portfolioReview.summary.missing > 0 ? "missing" : "ready"
+              }
+            />
+            <ReviewMetric
+              label="Memo"
+              value={portfolioReview.summary.portfolio_memos}
+              detail="Local only"
+              status={
+                portfolioReview.summary.portfolio_memos > 0
+                  ? "ready"
+                  : "missing"
+              }
+            />
+            <ReviewMetric
+              label="观察名单"
+              value={portfolioReview.summary.watchlist_pages}
+              detail="Ideas"
+              status={
+                portfolioReview.summary.watchlist_pages > 0
+                  ? "ready"
+                  : "missing"
+              }
+            />
+            <ReviewMetric
+              label="跟踪表"
+              value={portfolioReview.summary.tracker_databases}
+              detail="Metadata"
+              status={
+                portfolioReview.summary.tracker_databases > 0
+                  ? "ready"
+                  : "missing"
+              }
+            />
+            <ReviewMetric
+              label="待复盘"
+              value={portfolioReview.summary.items_needing_review}
+              detail="Redacted"
+              status={
+                portfolioReview.summary.items_needing_review > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {portfolioReview.areas.map((area) => (
+              <PortfolioReviewAreaCard key={area.id} area={area} />
+            ))}
+          </div>
+          {portfolioReview.items.length > 0 ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {portfolioReview.items.slice(0, 6).map((item) => (
+                <PortfolioReviewItemCard
+                  key={item.id}
+                  item={item}
+                  onOpen={() => router.push(item.route)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+              暂无需要复盘的组合结构缺口。新建持仓备忘录或观察名单后，这里会用脱敏标签提示缺少的结构面。
+            </p>
+          )}
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -248,6 +379,121 @@ function Metric({ label, value }: { label: string; value: number }) {
         {value}
       </div>
     </div>
+  );
+}
+
+function ReviewMetric({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: PortfolioReviewStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <PortfolioReviewStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function PortfolioReviewAreaCard({
+  area,
+}: {
+  area: PortfolioReviewReport["areas"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {area.title}
+        </div>
+        <PortfolioReviewStatusPill status={area.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {area.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        {area.next_action}
+      </p>
+    </article>
+  );
+}
+
+function PortfolioReviewItemCard({
+  item,
+  onOpen,
+}: {
+  item: PortfolioReviewReport["items"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.label}
+          </div>
+          <div className="mt-1 text-zinc-400">
+            已隐藏页面标题、ticker、持仓名和权重
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开
+        </button>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {item.missing_areas.map((areaId) => (
+          <span
+            key={areaId}
+            className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          >
+            {getPortfolioReviewAreaLabel(areaId)}
+          </span>
+        ))}
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {item.next_action}
+      </p>
+    </article>
+  );
+}
+
+function PortfolioReviewStatusPill({
+  status,
+}: {
+  status: PortfolioReviewStatus;
+}) {
+  const labels: Record<PortfolioReviewStatus, string> = {
+    ready: "Ready",
+    partial: "Partial",
+    missing: "Missing",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "partial"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
@@ -379,4 +625,22 @@ function formatUpdated(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "最近更新";
   return `更新于 ${date.toLocaleDateString()}`;
+}
+
+function downloadJsonFile(fileName: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function fileSafeTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
 }

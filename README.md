@@ -265,6 +265,11 @@ Current local actions:
 - Track position status, watchlist ideas, sizing, conviction, catalysts, thesis,
   risk notes, linked company pages, linked reports, linked meetings, and linked
   memos.
+- Review and export a local portfolio review radar. The review report checks
+  position memo, watchlist, sizing discipline, conviction, catalyst, risk notes,
+  thesis, research links, and tracker coverage without exporting page text,
+  page titles, position names, tickers, weights, holdings, trading plans,
+  transactions, or database row values.
 - Open Portfolio from the sidebar Platform section or Cmd/Ctrl+K.
 
 The current Portfolio module is local-only. It does not fetch prices, connect
