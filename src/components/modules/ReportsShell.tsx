@@ -32,6 +32,12 @@ import {
   type FilePreviewReadinessReport,
   type FilePreviewReadinessStatus,
 } from "@/lib/files/filePreviewReadiness";
+import {
+  FILE_PREVIEW_ACTION_RECEIPT_EVENT,
+  listFilePreviewActionReceipts,
+  type FilePreviewActionKind,
+  type FilePreviewActionReceipt,
+} from "@/lib/files/filePreviewActionReceipts";
 import { createFilePreviewBlockHtml } from "@/lib/files/filePreviewBlock";
 import { savePageFile, type StoredPageFile } from "@/lib/files/localStore";
 import { executeModuleStarter } from "@/lib/modules/actions";
@@ -124,6 +130,11 @@ function ReportsDashboard() {
   const [exportingFormatPlaybook, setExportingFormatPlaybook] = useState(false);
   const [exportingPreviewReadiness, setExportingPreviewReadiness] =
     useState(false);
+  const [exportingFileActionReceipts, setExportingFileActionReceipts] =
+    useState(false);
+  const [fileActionReceipts, setFileActionReceipts] = useState<
+    FilePreviewActionReceipt[]
+  >([]);
   const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
     null
   );
@@ -138,6 +149,21 @@ function ReportsDashboard() {
       .catch((err) => {
         console.error("[Zhinote] Failed to load report databases:", err);
       });
+  }, []);
+
+  useEffect(() => {
+    const refreshReceipts = () => {
+      setFileActionReceipts(listFilePreviewActionReceipts());
+    };
+
+    refreshReceipts();
+    window.addEventListener(FILE_PREVIEW_ACTION_RECEIPT_EVENT, refreshReceipts);
+    return () => {
+      window.removeEventListener(
+        FILE_PREVIEW_ACTION_RECEIPT_EVENT,
+        refreshReceipts
+      );
+    };
   }, []);
 
   const reportPages = useMemo(() => getReportPages(pages), [pages]);
@@ -155,6 +181,10 @@ function ReportsDashboard() {
   const filePreviewReadiness = useMemo(
     () => buildFilePreviewReadinessReport(),
     []
+  );
+  const fileActionReceiptSummary = useMemo(
+    () => summarizeFileActionReceipts(fileActionReceipts),
+    [fileActionReceipts]
   );
 
   const reportsModule = PLATFORM_MODULES.find((module) => module.id === "reports");
@@ -258,6 +288,29 @@ function ReportsDashboard() {
       window.alert("文件预览 readiness 导出失败，请查看控制台。");
     } finally {
       setExportingPreviewReadiness(false);
+    }
+  };
+
+  const handleExportFileActionReceipts = () => {
+    setExportingFileActionReceipts(true);
+    try {
+      downloadJsonFile(
+        `zhinote-file-preview-action-receipts-${fileSafeTimestamp()}.json`,
+        {
+          format: "zhinote-file-preview-action-receipt-history",
+          format_version: 1,
+          exported_at: new Date().toISOString(),
+          history_status: "local-metadata-only",
+          privacy_note:
+            "Exported locally from browser receipt history. Receipts do not include file names, file bytes, file text, page body text, spreadsheet cell values, tokens, credentials, prompts, cloud data, or AI output.",
+          receipts: fileActionReceipts,
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export file action receipts:", err);
+      window.alert("文件动作 receipts 导出失败，请查看控制台。");
+    } finally {
+      setExportingFileActionReceipts(false);
     }
   };
 
@@ -769,6 +822,72 @@ function ReportsDashboard() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                文件动作 receipts
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                本地记录最近的文件导入、表格入库和 HTML 外部资源开关动作。
+                receipt 只保存动作元数据，不保存文件名、正文、bytes、表格值、token 或凭证。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportFileActionReceipts}
+              disabled={
+                exportingFileActionReceipts || fileActionReceipts.length === 0
+              }
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingFileActionReceipts ? "导出中..." : "导出 receipts"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-5">
+            <IntakeMetric
+              label="总数"
+              value={fileActionReceiptSummary.total}
+              detail="Local"
+            />
+            <IntakeMetric
+              label="可编辑导入"
+              value={fileActionReceiptSummary.editable_import}
+              detail="Page writes"
+            />
+            <IntakeMetric
+              label="数据库导入"
+              value={fileActionReceiptSummary.database_import}
+              detail="Rows"
+            />
+            <IntakeMetric
+              label="资源开关"
+              value={fileActionReceiptSummary.external_resource_changes}
+              detail="HTML"
+            />
+            <IntakeMetric
+              label="敏感内容"
+              value={0}
+              detail="Excluded"
+            />
+          </div>
+          {fileActionReceipts.length > 0 ? (
+            <div className="mt-4 grid gap-2 lg:grid-cols-2">
+              {fileActionReceipts.slice(0, 6).map((receipt) => (
+                <FileActionReceiptCard
+                  key={receipt.receipt_id}
+                  receipt={receipt}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+              还没有文件动作 receipt。上传文件后，在 page 里执行“导入为可编辑块”、
+              “导入为数据库”或切换 HTML 外部资源，这里会自动出现本地记录。
+            </p>
+          )}
         </section>
 
         <ResearchWorkflowSchemaPanel kind="report" />
@@ -1334,6 +1453,54 @@ function FilePreviewReadinessRouteCard({
   );
 }
 
+function FileActionReceiptCard({
+  receipt,
+}: {
+  receipt: FilePreviewActionReceipt;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          {getFileActionLabel(receipt.action_kind)}
+        </h3>
+        <FileActionReceiptPill actionKind={receipt.action_kind} />
+      </div>
+      <div className="mt-2 grid gap-2 leading-5 text-zinc-500 dark:text-zinc-400 md:grid-cols-2">
+        <span>格式：{receipt.file.kind}</span>
+        <span>扩展：{receipt.file.extension || "unknown"}</span>
+        <span>大小：{receipt.file.size_label}</span>
+        <span>
+          本地写入：
+          {receipt.boundary.action_may_write_local_workspace_data ? "是" : "否"}
+        </span>
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {formatReceiptDate(receipt.created_at)} · 不含文件名、正文、bytes 或表格值。
+      </p>
+    </article>
+  );
+}
+
+function FileActionReceiptPill({
+  actionKind,
+}: {
+  actionKind: FilePreviewActionKind;
+}) {
+  const className =
+    actionKind === "database-import"
+      ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+      : actionKind === "editable-import"
+        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+        : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {actionKind}
+    </span>
+  );
+}
+
 function SupportPill({ level }: { level: FilePreviewSupportLevel }) {
   const labels: Record<FilePreviewSupportLevel, string> = {
     native: "原生预览",
@@ -1385,6 +1552,43 @@ function countCapabilities(level: FilePreviewSupportLevel) {
   return FILE_PREVIEW_CAPABILITIES.filter(
     (capability) => capability.support_level === level
   ).length;
+}
+
+function summarizeFileActionReceipts(receipts: FilePreviewActionReceipt[]) {
+  return {
+    total: receipts.length,
+    editable_import: receipts.filter(
+      (receipt) => receipt.action_kind === "editable-import"
+    ).length,
+    database_import: receipts.filter(
+      (receipt) => receipt.action_kind === "database-import"
+    ).length,
+    external_resource_changes: receipts.filter((receipt) =>
+      receipt.action_kind.startsWith("external-resource-")
+    ).length,
+  };
+}
+
+function getFileActionLabel(actionKind: FilePreviewActionKind) {
+  const labels: Record<FilePreviewActionKind, string> = {
+    "editable-import": "导入为可编辑块",
+    "database-import": "导入为数据库",
+    "external-resource-enable": "开启 HTML 外部资源",
+    "external-resource-disable": "关闭 HTML 外部资源",
+  };
+  return labels[actionKind];
+}
+
+function formatReceiptDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("zh-CN", {
+    hour12: false,
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function WorkflowCard({ title, detail }: { title: string; detail: string }) {

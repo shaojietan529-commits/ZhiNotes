@@ -11,6 +11,7 @@ const files = {
   trackerIntake: "src/lib/reports/reportTrackerIntake.ts",
   formatPlaybook: "src/lib/reports/reportFormatPlaybook.ts",
   readiness: "src/lib/files/filePreviewReadiness.ts",
+  actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
   localStore: "src/lib/files/localStore.ts",
   previewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
@@ -139,6 +140,7 @@ function run() {
   const trackerIntake = readProjectFile(files.trackerIntake);
   const formatPlaybook = readProjectFile(files.formatPlaybook);
   const readiness = readProjectFile(files.readiness);
+  const actionReceipts = readProjectFile(files.actionReceipts);
   const upload = readProjectFile(files.upload);
   const localStore = readProjectFile(files.localStore);
   const previewNode = readProjectFile(files.previewNode);
@@ -419,6 +421,47 @@ function run() {
     );
   }
   assertIncludes(
+    files.actionReceipts,
+    actionReceipts,
+    'format: "zhinote-file-preview-action-receipt"',
+    "File preview action receipts must define a local export format."
+  );
+  assertIncludes(
+    files.actionReceipts,
+    actionReceipts,
+    'receipt_status: "local-file-action-metadata-only"',
+    "File preview action receipts must remain metadata-only."
+  );
+  for (const snippet of [
+    "buildFilePreviewActionReceipt",
+    "appendFilePreviewActionReceipt",
+    "listFilePreviewActionReceipts",
+    "FILE_PREVIEW_ACTION_RECEIPT_EVENT",
+    '"editable-import"',
+    '"database-import"',
+    '"external-resource-enable"',
+    '"external-resource-disable"',
+    "stored_in_browser_local_storage: true",
+    "includes_file_name: false",
+    "includes_file_bytes: false",
+    "includes_file_text: false",
+    "includes_page_body_text: false",
+    "includes_spreadsheet_cell_values: false",
+    "includes_tokens_or_credentials: false",
+    "uploads_data: false",
+    "calls_external_service: false",
+    "writes_server_audit_log: false",
+    "receipt_writes_workspace_data: false",
+    "action_may_write_local_workspace_data",
+  ]) {
+    assertIncludes(
+      files.actionReceipts,
+      actionReceipts,
+      snippet,
+      "File preview action receipts must preserve metadata-only local boundaries."
+    );
+  }
+  assertIncludes(
     files.reportsShell,
     reportsShell,
     "buildReportIntakeReport",
@@ -500,6 +543,45 @@ function run() {
       "Reports module must render and export file preview readiness."
     );
   }
+  for (const snippet of [
+    "listFilePreviewActionReceipts",
+    "FILE_PREVIEW_ACTION_RECEIPT_EVENT",
+    "handleExportFileActionReceipts",
+    "文件动作 receipts",
+    "导出 receipts",
+    "zhinote-file-preview-action-receipt-history",
+    "history_status: \"local-metadata-only\"",
+    "不保存文件名、正文、bytes、表格值、token 或凭证",
+    "summarizeFileActionReceipts",
+    "FileActionReceiptCard",
+  ]) {
+    assertIncludes(
+      files.reportsShell,
+      reportsShell,
+      snippet,
+      "Reports module must render local file action receipt history."
+    );
+  }
+  for (const snippet of [
+    "appendFilePreviewActionReceipt",
+    "buildFilePreviewActionReceipt",
+    "recordActionReceipt",
+    "handleExportLastActionReceipt",
+    "最近文件动作 receipt",
+    "导出动作 receipt",
+    "不含文件名、正文、bytes 或表格值",
+    '"editable-import"',
+    '"database-import"',
+    '"external-resource-enable"',
+    '"external-resource-disable"',
+  ]) {
+    assertIncludes(
+      files.previewNode,
+      previewNode,
+      snippet,
+      "File preview node must create and expose local action receipts."
+    );
+  }
 
   if (failures.length > 0) {
     console.error("File preview contract verification failed");
@@ -522,6 +604,7 @@ function run() {
         tracker_intake_fields: 5,
         format_actions: requiredFormatActions.length,
         readiness_gates: 6,
+        action_receipt_kinds: 4,
         local_only: true,
       },
       null,

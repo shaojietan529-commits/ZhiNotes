@@ -27,6 +27,12 @@ import { convertPptxToHtml } from "@/lib/files/presentation";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
+import {
+  appendFilePreviewActionReceipt,
+  buildFilePreviewActionReceipt,
+  type FilePreviewActionKind,
+  type FilePreviewActionReceipt,
+} from "@/lib/files/filePreviewActionReceipts";
 
 export interface FilePreviewAttrs {
   fileId: string;
@@ -93,6 +99,9 @@ function FilePreviewComponent({
   const [externalResourcePhrase, setExternalResourcePhrase] = useState("");
   const [exportingExternalReceipt, setExportingExternalReceipt] =
     useState(false);
+  const [lastActionReceipt, setLastActionReceipt] =
+    useState<FilePreviewActionReceipt | null>(null);
+  const [exportingActionReceipt, setExportingActionReceipt] = useState(false);
   const [convertedPreview, setConvertedPreview] = useState<ConvertedPreview>({
     status: "idle",
   });
@@ -252,6 +261,46 @@ function FilePreviewComponent({
     [attrs.size, bulkImportPhrase]
   );
 
+  const recordActionReceipt = (
+    actionKind: FilePreviewActionKind,
+    details: Partial<
+      Pick<
+        FilePreviewActionReceipt["action"],
+        | "writes_page_content"
+        | "creates_database"
+        | "creates_database_rows"
+        | "changes_preview_network_boundary"
+        | "external_resources_allowed"
+        | "confirmation_required"
+        | "confirmation_matched"
+        | "rows_written"
+        | "fields_written"
+        | "note"
+      >
+    > = {}
+  ) => {
+    if (!file) return null;
+
+    const receipt = buildFilePreviewActionReceipt({
+      file,
+      action_kind: actionKind,
+      writes_page_content: details.writes_page_content,
+      creates_database: details.creates_database,
+      creates_database_rows: details.creates_database_rows,
+      changes_preview_network_boundary:
+        details.changes_preview_network_boundary,
+      external_resources_allowed: details.external_resources_allowed,
+      confirmation_required: details.confirmation_required,
+      confirmation_matched: details.confirmation_matched,
+      rows_written: details.rows_written,
+      fields_written: details.fields_written,
+      note: details.note,
+    });
+    appendFilePreviewActionReceipt(receipt);
+    setLastActionReceipt(receipt);
+    return receipt;
+  };
+
   const handleImportMarkdown = () => {
     if (!file || file.kind !== "markdown") return;
     const pos = typeof getPos === "function" ? getPos() : null;
@@ -261,6 +310,10 @@ function FilePreviewComponent({
       .focus()
       .insertContentAt(pos + node.nodeSize, markdownToHtml(file.textContent ?? ""))
       .run();
+    recordActionReceipt("editable-import", {
+      writes_page_content: true,
+      note: "Markdown converted locally and inserted after the file preview block.",
+    });
   };
 
   const handleImportOpml = () => {
@@ -272,6 +325,10 @@ function FilePreviewComponent({
       .focus()
       .insertContentAt(pos + node.nodeSize, convertOpmlToHtml(file.textContent ?? ""))
       .run();
+    recordActionReceipt("editable-import", {
+      writes_page_content: true,
+      note: "OPML converted locally and inserted as editable outline blocks.",
+    });
   };
 
   const handleImportRtf = () => {
@@ -283,6 +340,10 @@ function FilePreviewComponent({
       .focus()
       .insertContentAt(pos + node.nodeSize, convertRtfToHtml(file.textContent ?? ""))
       .run();
+    recordActionReceipt("editable-import", {
+      writes_page_content: true,
+      note: "RTF converted locally and inserted as editable text blocks.",
+    });
   };
 
   const handleImportNotebook = () => {
@@ -297,6 +358,10 @@ function FilePreviewComponent({
         convertNotebookToHtml(file.textContent ?? "")
       )
       .run();
+    recordActionReceipt("editable-import", {
+      writes_page_content: true,
+      note: "Notebook cells converted locally and inserted as editable blocks.",
+    });
   };
 
   const handleImportText = () => {
@@ -311,6 +376,10 @@ function FilePreviewComponent({
         renderTextFileAsCodeBlock(file.name, file.textContent ?? "")
       )
       .run();
+    recordActionReceipt("editable-import", {
+      writes_page_content: true,
+      note: "Text file inserted locally as an editable code block.",
+    });
   };
 
   const handleImportHtml = () => {
@@ -328,6 +397,12 @@ function FilePreviewComponent({
       .focus()
       .insertContentAt(pos + node.nodeSize, extractEditableHtml(file.textContent ?? ""))
       .run();
+    recordActionReceipt("editable-import", {
+      writes_page_content: true,
+      confirmation_required: true,
+      confirmation_matched: true,
+      note: "HTML sanitized locally and inserted as editable blocks after user confirmation.",
+    });
   };
 
   const handleImportConverted = async () => {
@@ -354,6 +429,12 @@ function FilePreviewComponent({
               ? await convertPresentationToHtml(file)
               : await convertEpubToHtml(await dataUrlToArrayBuffer(file.dataUrl));
       editor.chain().focus().insertContentAt(pos + node.nodeSize, html).run();
+      recordActionReceipt("editable-import", {
+        writes_page_content: true,
+        confirmation_required: true,
+        confirmation_matched: true,
+        note: `${getFileKindLabel(file.kind)} converted locally and inserted as editable blocks.`,
+      });
     } catch (err) {
       window.alert(
         err instanceof Error
@@ -435,6 +516,16 @@ function FilePreviewComponent({
         );
       }
 
+      recordActionReceipt("database-import", {
+        creates_database: true,
+        creates_database_rows: true,
+        confirmation_required: true,
+        confirmation_matched: bulkImportReceipt.typed_phrase_matches,
+        rows_written: importedRows.length,
+        fields_written: table.headers.length,
+        note: "Spreadsheet rows imported into a new local database after typed confirmation.",
+      });
+
       router.push(`/database/${database.id}`);
     } catch (err) {
       window.alert(
@@ -461,7 +552,40 @@ function FilePreviewComponent({
       );
       if (!ok) return;
     }
-    updateAttributes({ allowExternalResources: !allowExternalResources });
+    const nextAllowExternalResources = !allowExternalResources;
+    updateAttributes({ allowExternalResources: nextAllowExternalResources });
+    recordActionReceipt(
+      nextAllowExternalResources
+        ? "external-resource-enable"
+        : "external-resource-disable",
+      {
+        changes_preview_network_boundary: true,
+        external_resources_allowed: nextAllowExternalResources,
+        confirmation_required: nextAllowExternalResources,
+        confirmation_matched: nextAllowExternalResources
+          ? externalResourceReceipt.typed_phrase_matches
+          : true,
+        note: nextAllowExternalResources
+          ? "HTML preview external resources enabled after typed confirmation."
+          : "HTML preview external resources blocked again locally.",
+      }
+    );
+  };
+
+  const handleExportLastActionReceipt = () => {
+    if (!lastActionReceipt) return;
+    setExportingActionReceipt(true);
+    try {
+      downloadJsonFile(
+        `zhinote-file-preview-action-receipt-${fileSafeTimestamp()}.json`,
+        lastActionReceipt
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export file action receipt:", err);
+      window.alert("文件动作 receipt 导出失败，请查看控制台。");
+    } finally {
+      setExportingActionReceipt(false);
+    }
   };
 
   const handleExportExternalResourceReceipt = () => {
@@ -733,6 +857,41 @@ function FilePreviewComponent({
           </div>
         )}
 
+        {lastActionReceipt && (
+          <div className="border-b border-emerald-100 bg-emerald-50/70 px-3 py-3 dark:border-emerald-950 dark:bg-emerald-950/30">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <div className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                  最近文件动作 receipt
+                </div>
+                <p className="mt-1 text-[11px] leading-5 text-emerald-800 dark:text-emerald-200">
+                  {getFilePreviewActionLabel(lastActionReceipt.action_kind)} ·{" "}
+                  {formatFileActionReceiptTime(lastActionReceipt.created_at)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportLastActionReceipt}
+                disabled={exportingActionReceipt}
+                className="w-fit rounded-md border border-emerald-200 bg-white px-3 py-2 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-60 dark:border-emerald-900 dark:bg-zinc-950 dark:text-emerald-300 dark:hover:bg-emerald-950"
+              >
+                {exportingActionReceipt ? "导出中..." : "导出动作 receipt"}
+              </button>
+            </div>
+            <div className="mt-2 grid gap-2 text-[11px] leading-5 text-emerald-800 dark:text-emerald-200 md:grid-cols-4">
+              <span>格式：{getFileKindLabel(lastActionReceipt.file.kind)}</span>
+              <span>大小：{lastActionReceipt.file.size_label}</span>
+              <span>
+                本地写入：{" "}
+                {lastActionReceipt.boundary.action_may_write_local_workspace_data
+                  ? "是"
+                  : "否"}
+              </span>
+              <span>不含文件名、正文、bytes 或表格值。</span>
+            </div>
+          </div>
+        )}
+
         {loading && (
           <div className="flex h-32 items-center justify-center text-sm text-zinc-400">
             正在加载文件...
@@ -816,6 +975,28 @@ function supportsEditableConvertedImport(file: StoredPageFile) {
 
 function getFileKindLabel(kind: PageFileKind) {
   return FILE_KIND_LABELS[kind] ?? kind;
+}
+
+function getFilePreviewActionLabel(actionKind: FilePreviewActionKind) {
+  const labels: Record<FilePreviewActionKind, string> = {
+    "editable-import": "导入为可编辑块",
+    "database-import": "导入为数据库",
+    "external-resource-enable": "开启 HTML 外部资源",
+    "external-resource-disable": "关闭 HTML 外部资源",
+  };
+  return labels[actionKind];
+}
+
+function formatFileActionReceiptTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("zh-CN", {
+    hour12: false,
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function FilePreviewBody({
