@@ -137,6 +137,11 @@ import {
   type SyncConflictSeverity,
 } from "@/lib/sync/syncConflictReview";
 import {
+  buildSyncConflictResolutionContract,
+  type SyncConflictResolutionContract,
+  type SyncConflictResolutionStatus,
+} from "@/lib/sync/syncConflictResolution";
+import {
   buildSyncOptInGateReport,
   type SyncOptInGateReport,
   type SyncOptInGateStatus,
@@ -176,6 +181,7 @@ type SyncQueueAction =
   | "queue"
   | "payload-preview"
   | "conflict-review"
+  | "conflict-resolution"
   | "opt-in-gate"
   | "sync-confirmation"
   | "rollback-plan"
@@ -562,6 +568,23 @@ function SyncDashboard() {
       permissionDecisionReport,
       syncConflictReview,
       syncPayloadPreview,
+      workspaceIdentity,
+    ]
+  );
+  const syncConflictResolution = useMemo(
+    () =>
+      buildSyncConflictResolutionContract({
+        workspaceIdentity,
+        conflictReview: syncConflictReview,
+        replayTestPlan: syncReplayTestPlan,
+        permissionDecisionReport,
+        auditTrailPolicy,
+      }),
+    [
+      auditTrailPolicy,
+      permissionDecisionReport,
+      syncConflictReview,
+      syncReplayTestPlan,
       workspaceIdentity,
     ]
   );
@@ -1406,6 +1429,29 @@ function SyncDashboard() {
     } catch (err) {
       console.error("[Zhinote] Failed to export sync conflict review:", err);
       window.alert("Sync conflict review failed. Please check the console.");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportSyncConflictResolution = () => {
+    setBusyQueueAction("conflict-resolution");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-conflict-resolution-${fileSafeTimestamp()}.json`,
+        {
+          ...syncConflictResolution,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export sync conflict resolution:",
+        err
+      );
+      window.alert(
+        "Sync conflict resolution export failed. Please check the console."
+      );
     } finally {
       setBusyQueueAction(null);
     }
@@ -2490,6 +2536,98 @@ function SyncDashboard() {
               <ConflictSurfaceRow key={surface.id} surface={surface} />
             ))}
           </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Conflict resolution contract
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                Local contract for future conflict decisions. It maps each
+                conflict surface to allowed manual actions such as keep local,
+                accept remote, manual merge, append-only, keep both, or skip
+                and flag. It does not read remote data, merge changes, write
+                workspace data, update permissions, run restore, or acknowledge
+                remote rows.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportSyncConflictResolution}
+              disabled={busyQueueAction === "conflict-resolution"}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {busyQueueAction === "conflict-resolution"
+                ? "Exporting..."
+                : "Export resolution"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-6">
+            <ResolutionSummaryCard
+              label="Surfaces"
+              value={syncConflictResolution.summary.surfaces}
+              detail="Resolution plans"
+              status="manual-confirmation"
+            />
+            <ResolutionSummaryCard
+              label="Options"
+              value={syncConflictResolution.summary.options}
+              detail="Manual actions"
+              status="planned"
+            />
+            <ResolutionSummaryCard
+              label="Apply"
+              value="Disabled"
+              detail="/api/sync/pull"
+              status="blocked"
+            />
+            <ResolutionSummaryCard
+              label="Blocked"
+              value={syncConflictResolution.summary.blocked_gates}
+              detail="Must be built first"
+              status="blocked"
+            />
+            <ResolutionSummaryCard
+              label="Confirm"
+              value={syncConflictResolution.summary.manual_confirmation_gates}
+              detail="Owner review"
+              status="manual-confirmation"
+            />
+            <ResolutionSummaryCard
+              label="Boundary"
+              value="No merge"
+              detail="No writes/uploads"
+              status="planned"
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+            <ContractPanel title="Surface resolution plans">
+              <div className="space-y-2">
+                {syncConflictResolution.surface_plans.map((surface) => (
+                  <ResolutionSurfacePlanRow
+                    key={surface.surface_id}
+                    surface={surface}
+                  />
+                ))}
+              </div>
+            </ContractPanel>
+            <ContractPanel title="Resolution gates">
+              <div className="space-y-2">
+                {syncConflictResolution.gates.map((gate) => (
+                  <ResolutionGateRow key={gate.id} gate={gate} />
+                ))}
+              </div>
+            </ContractPanel>
+          </div>
+          <ContractPanel title="Manual resolution options" className="mt-4">
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {syncConflictResolution.options.map((option) => (
+                <ResolutionOptionRow key={option.id} option={option} />
+              ))}
+            </div>
+          </ContractPanel>
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -6209,6 +6347,163 @@ function ConflictSeverityPill({
   return (
     <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
       {severity}
+    </span>
+  );
+}
+
+function ResolutionSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: SyncConflictResolutionStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <ResolutionStatusPill status={status} />
+      </div>
+      <div className="mt-2 break-all text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function ResolutionSurfacePlanRow({
+  surface,
+}: {
+  surface: SyncConflictResolutionContract["surface_plans"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {surface.surface}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <ResolutionStatusPill status={surface.status} />
+            <ConflictSeverityPill severity={surface.severity} />
+          </div>
+        </div>
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          {surface.apply_status}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        Default: {surface.default_action}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {surface.allowed_actions.map((action) => (
+          <span
+            key={action}
+            className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {action}
+          </span>
+        ))}
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {surface.review_contract}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {surface.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function ResolutionGateRow({
+  gate,
+}: {
+  gate: SyncConflictResolutionContract["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {gate.evidence}
+          </p>
+        </div>
+        <ResolutionStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function ResolutionOptionRow({
+  option,
+}: {
+  option: SyncConflictResolutionContract["options"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {option.label}
+          </div>
+          <div className="mt-1 font-mono text-[11px] text-zinc-400">
+            {option.id}
+          </div>
+        </div>
+        <ResolutionStatusPill status={option.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {option.applies_to.map((surfaceId) => (
+          <span
+            key={surfaceId}
+            className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {surfaceId}
+          </span>
+        ))}
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {option.required_evidence}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {option.risk_note} Write status: {option.write_status}.
+      </p>
+    </article>
+  );
+}
+
+function ResolutionStatusPill({
+  status,
+}: {
+  status: SyncConflictResolutionStatus;
+}) {
+  const labels: Record<SyncConflictResolutionStatus, string> = {
+    planned: "Planned",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "blocked"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
     </span>
   );
 }

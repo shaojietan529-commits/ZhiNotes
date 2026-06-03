@@ -16,6 +16,7 @@ const files = {
   environmentPreflight: "src/lib/sync/webBetaEnvironmentPreflight.ts",
   launchChecklist: "src/lib/sync/webBetaLaunchChecklist.ts",
   routePreflight: "src/lib/sync/webBetaRoutePreflight.ts",
+  conflictResolution: "src/lib/sync/syncConflictResolution.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -168,6 +169,7 @@ function run() {
   const environmentPreflight = readProjectFile(files.environmentPreflight);
   const launchChecklist = readProjectFile(files.launchChecklist);
   const routePreflight = readProjectFile(files.routePreflight);
+  const conflictResolution = readProjectFile(files.conflictResolution);
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -189,6 +191,7 @@ function run() {
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
     [files.routePreflight, routePreflight],
+    [files.conflictResolution, conflictResolution],
     [files.syncOptInGate, syncOptInGate],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
@@ -452,6 +455,124 @@ function run() {
     "requiredBoundarySnippets",
     "Smoke test verifier must check local-only privacy boundaries."
   );
+  assertSourceIncludes(
+    files.conflictResolution,
+    conflictResolution,
+    'format: "zhinote-sync-conflict-resolution-contract"',
+    "Sync conflict resolution must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.conflictResolution,
+    conflictResolution,
+    "buildSyncConflictResolutionContract",
+    "Sync conflict resolution must expose a reusable builder."
+  );
+  assertSourceIncludes(
+    files.conflictResolution,
+    conflictResolution,
+    "can_apply_resolution_now: false",
+    "Sync conflict resolution must not allow applying resolutions."
+  );
+  for (const [snippet, message] of [
+    ["local_contract_only: true", "Conflict resolution must be local-only."],
+    ["reads_remote_data: false", "Conflict resolution must not read remote data."],
+    ["reads_page_body_text: false", "Conflict resolution must not read page bodies."],
+    [
+      "reads_database_row_values: false",
+      "Conflict resolution must not read database row values.",
+    ],
+    ["reads_comment_bodies: false", "Conflict resolution must not read comment bodies."],
+    ["reads_file_bytes: false", "Conflict resolution must not read file bytes."],
+    ["merges_changes: false", "Conflict resolution must not merge changes."],
+    [
+      "applies_remote_changes: false",
+      "Conflict resolution must not apply remote changes.",
+    ],
+    [
+      "writes_workspace_data: false",
+      "Conflict resolution must not write workspace data.",
+    ],
+    ["updates_permissions: false", "Conflict resolution must not update permissions."],
+    ["runs_restore: false", "Conflict resolution must not run restore."],
+    [
+      "uploads_workspace_data: false",
+      "Conflict resolution must not upload workspace data.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Conflict resolution must not connect cloud services.",
+    ],
+    [
+      "acknowledges_remote_rows: false",
+      "Conflict resolution must not acknowledge remote rows.",
+    ],
+    [
+      "requires_side_by_side_review: true",
+      "Conflict resolution must require side-by-side review.",
+    ],
+    [
+      "requires_owner_confirmation_before_apply: true",
+      "Conflict resolution must require owner confirmation before apply.",
+    ],
+    [
+      "requires_audit_event_before_apply: true",
+      "Conflict resolution must require audit before apply.",
+    ],
+    [
+      "requires_rollback_snapshot_before_apply: true",
+      "Conflict resolution must require rollback snapshot before apply.",
+    ],
+  ]) {
+    assertSourceIncludes(files.conflictResolution, conflictResolution, snippet, message);
+  }
+  for (const actionId of [
+    "keep-local",
+    "accept-remote",
+    "manual-merge",
+    "append-only",
+    "keep-both",
+    "skip-and-flag",
+  ]) {
+    assertSourceIncludes(
+      files.conflictResolution,
+      conflictResolution,
+      `"${actionId}"`,
+      `Conflict resolution action ${actionId} must remain available.`
+    );
+  }
+  for (const gateId of [
+    "remote-baseline-loaded",
+    "side-by-side-review-ui",
+    "permission-check-before-apply",
+    "rollback-snapshot-before-apply",
+    "audit-event-before-apply",
+    "disabled-apply-path",
+  ]) {
+    assertSourceIncludes(
+      files.conflictResolution,
+      conflictResolution,
+      `id: "${gateId}"`,
+      `Conflict resolution gate ${gateId} must remain available.`
+    );
+  }
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildSyncConflictResolutionContract",
+    "Sync UI must build the conflict resolution contract."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportSyncConflictResolution",
+    "Sync UI must export the conflict resolution contract."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Conflict resolution contract",
+    "Sync UI must render the conflict resolution panel."
+  );
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
@@ -496,6 +617,7 @@ function run() {
     deployment_target_checks: 16,
     smoke_test_plan_checks: 16,
     smoke_test_verifier_checks: 3,
+    conflict_resolution_checks: 34,
     warnings: warnings.length,
   };
 

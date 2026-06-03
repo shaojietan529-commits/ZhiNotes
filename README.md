@@ -522,6 +522,13 @@ Current local actions:
   sync. The scaffold maps page, database, file, comment, permission, and restore
   conflicts to review actions, but does not read remote data, merge changes,
   write workspace data, or upload anything.
+- Review and export a local conflict resolution contract for future sync apply.
+  The contract maps keep-local, accept-remote, manual-merge, append-only,
+  keep-both, and skip-and-flag actions to page, database, file, comment,
+  permission, and restore conflict surfaces. All apply paths remain disabled; it
+  does not read remote data, page bodies, row values, comment bodies, or file
+  bytes, and it does not merge, write, update permissions, run restore, upload,
+  connect cloud services, or acknowledge remote rows.
 - Review and export a local workspace identity with anonymous browser-local
   workspace and device ids for future sync metadata. The identity is not an
   account and does not connect cloud services or include note text/file content.
