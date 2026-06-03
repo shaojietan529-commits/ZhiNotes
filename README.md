@@ -234,6 +234,10 @@ Current local actions:
   workspace link, payload preview, high-risk table scope, conflict baseline,
   disabled push API, and required owner confirmation phrase before any future
   upload flow can exist.
+- Type the local private-alpha sync confirmation phrase and export a high-risk
+  confirmation receipt. The receipt records only local confirmation metadata
+  and still does not upload, write, delete, call AI, include page text, include
+  file bytes, or enable the disabled sync push API.
 - Review and export a local sync replay test plan for future push/pull replay.
   The plan covers payload preview, server acknowledgement, pull cursors,
   conflict baseline review, retry/idempotency, high-risk gates, and rollback,
@@ -341,6 +345,8 @@ The first cloud phase is a private alpha, not full sync:
 - Sync, file presign, permissions, audit, and restore write-back remain disabled
   until payload preview, permission checks, conflict handling, and rollback proof
   are implemented.
+- The cloud sync confirmation phrase can produce a local receipt, but the
+  receipt is audit evidence only and does not turn on cloud push.
 
 See `docs/cloud-deployment.md` for the deployment checklist.
 

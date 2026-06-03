@@ -117,11 +117,12 @@ https://your-vercel-domain.vercel.app/auth/callback
 - `GET /api/workspaces` 可以列出当前用户可访问的 workspace metadata。
 - `POST /api/workspaces` 可以创建空 workspace 和 owner membership。
 - workspace bootstrap 可以返回当前用户 role。
+- Cloud sync owner confirmation phrase 可以在本地生成 receipt，但 receipt 不会开启 push。
 
 ## 后续云同步顺序
 
 1. Workspace bootstrap QA 和 local workspace link 确认。
-2. Cloud sync opt-in gate：确认 linked workspace、payload preview、conflict baseline、disabled push API、owner confirmation phrase。
+2. Cloud sync opt-in gate：确认 linked workspace、payload preview、conflict baseline、disabled push API、owner confirmation phrase 和本地 confirmation receipt。
 3. Pages/databases 云端最小 CRUD。
 4. Sync payload preview 二次确认。
 5. `sync_log` push acknowledgement。

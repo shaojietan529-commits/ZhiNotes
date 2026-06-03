@@ -12,6 +12,7 @@ export interface SyncOptInGateInput {
   syncPayloadPreview: SyncPayloadPreview;
   conflictReview: SyncConflictReviewReport;
   pushApiPath: string;
+  currentUiCollectsPhrase?: boolean;
 }
 
 export interface SyncOptInGateRow {
@@ -53,7 +54,7 @@ export interface SyncOptInGateReport {
   };
   confirmation: {
     required_phrase: string;
-    current_ui_collects_phrase: false;
+    current_ui_collects_phrase: boolean;
   };
   summary: {
     gates: number;
@@ -101,7 +102,7 @@ export function buildSyncOptInGateReport(
     },
     confirmation: {
       required_phrase: "ENABLE PRIVATE ALPHA SYNC",
-      current_ui_collects_phrase: false,
+      current_ui_collects_phrase: Boolean(input.currentUiCollectsPhrase),
     },
     summary: {
       gates: gates.length,
@@ -123,6 +124,7 @@ function buildGates(input: SyncOptInGateInput): SyncOptInGateRow[] {
     input.conflictReview.summary.needs_remote_baseline > 0;
   const hasHighRiskTables =
     input.syncPayloadPreview.summary.high_risk_tables > 0;
+  const currentUiCollectsPhrase = Boolean(input.currentUiCollectsPhrase);
 
   return [
     {
@@ -185,8 +187,9 @@ function buildGates(input: SyncOptInGateInput): SyncOptInGateRow[] {
       id: "owner-confirmation",
       title: "Owner opt-in confirmation",
       status: "manual-confirmation",
-      evidence:
-        "No UI currently collects the required private-alpha sync phrase.",
+      evidence: currentUiCollectsPhrase
+        ? "The UI collects the required private-alpha sync phrase, but no upload implementation consumes it."
+        : "No UI currently collects the required private-alpha sync phrase.",
       required_action:
         "Before first real upload, require the owner to type ENABLE PRIVATE ALPHA SYNC after reviewing exact scope and destination.",
     },

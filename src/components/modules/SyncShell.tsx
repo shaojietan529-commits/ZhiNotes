@@ -49,6 +49,7 @@ import {
   type PermissionDecisionReport,
   type PermissionDecisionStatus,
 } from "@/lib/security/permissionDecision";
+import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 import {
   buildAccountSessionBoundary,
   type AccountSessionBoundary,
@@ -148,6 +149,7 @@ type SyncQueueAction =
   | "payload-preview"
   | "conflict-review"
   | "opt-in-gate"
+  | "sync-confirmation"
   | "rollback-plan"
   | "restore-writeback"
   | "replay-test-plan";
@@ -343,6 +345,7 @@ function SyncDashboard() {
     useState<CloudAlphaAction | null>(null);
   const [cloudMessage, setCloudMessage] =
     useState<CloudAlphaMessage | null>(null);
+  const [syncConfirmationPhrase, setSyncConfirmationPhrase] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -458,8 +461,33 @@ function SyncDashboard() {
         syncPayloadPreview,
         conflictReview: syncConflictReview,
         pushApiPath: "/api/sync/push",
+        currentUiCollectsPhrase: true,
       }),
     [syncConflictReview, syncPayloadPreview, workspaceIdentity]
+  );
+  const syncConfirmationReceipt = useMemo(
+    () =>
+      buildHighRiskConfirmationReceipt({
+        actionId: "cloud-sync-first-push",
+        requiredPhrase: syncOptInGate.confirmation.required_phrase,
+        typedPhrase: syncConfirmationPhrase,
+        actorLabel:
+          cloudSession?.user?.email ?? cloudSession?.user?.id ?? null,
+        localWorkspaceId: workspaceIdentity?.workspace_id ?? null,
+        cloudWorkspaceId: workspaceIdentity?.cloud_workspace_id ?? null,
+        scopeSummary: `${syncOptInGate.payload_scope.pending_count} pending sync rows; ${syncOptInGate.payload_scope.high_risk_tables} high-risk table groups; page text included: no; file bytes included: no.`,
+        riskSummary:
+          "First cloud sync can transmit private research metadata and later workspace content after explicit enablement.",
+        destinationSummary: workspaceIdentity?.cloud_workspace_id
+          ? `Supabase workspace ${workspaceIdentity.cloud_workspace_id}`
+          : "No cloud workspace linked.",
+      }),
+    [
+      cloudSession,
+      syncConfirmationPhrase,
+      syncOptInGate,
+      workspaceIdentity,
+    ]
   );
   const auditTrailPolicy = useMemo(
     () =>
@@ -1229,6 +1257,29 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncConfirmationReceipt = () => {
+    setBusyQueueAction("sync-confirmation");
+    try {
+      downloadJsonFile(
+        `zhinote-high-risk-confirmation-${fileSafeTimestamp()}.json`,
+        {
+          ...syncConfirmationReceipt,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export sync confirmation receipt:",
+        err
+      );
+      window.alert(
+        "Sync confirmation receipt export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncReplayTestPlan = () => {
     setBusyQueueAction("replay-test-plan");
     try {
@@ -1638,7 +1689,7 @@ function SyncDashboard() {
             <SyncOptInSummaryCard
               label="Phrase"
               value={syncOptInGate.confirmation.required_phrase}
-              detail="Not collected yet"
+              detail="Collected locally"
               status="manual-confirmation"
             />
           </div>
@@ -1676,6 +1727,59 @@ function SyncDashboard() {
                   value="/api/sync/push"
                   detail="Disabled local stub"
                 />
+              </div>
+              <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                <label
+                  htmlFor="sync-confirmation-phrase"
+                  className="text-xs font-semibold text-zinc-900 dark:text-zinc-100"
+                >
+                  输入确认短语
+                </label>
+                <div className="mt-2 flex flex-col gap-2 lg:flex-row">
+                  <input
+                    id="sync-confirmation-phrase"
+                    value={syncConfirmationPhrase}
+                    onChange={(event) =>
+                      setSyncConfirmationPhrase(event.target.value)
+                    }
+                    placeholder={syncOptInGate.confirmation.required_phrase}
+                    className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-zinc-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleExportSyncConfirmationReceipt}
+                    disabled={busyQueueAction === "sync-confirmation"}
+                    className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  >
+                    {busyQueueAction === "sync-confirmation"
+                      ? "Exporting..."
+                      : "Export confirmation receipt"}
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] leading-5 text-zinc-400 dark:text-zinc-500">
+                  即使短语匹配，当前仍不会上传；push API disabled. 收据只记录本地确认状态，不包含页面正文、文件内容、token 或 secret。
+                </p>
+                <div className="mt-3 grid gap-2 md:grid-cols-3">
+                  <IdentityMetric
+                    label="Phrase match"
+                    value={
+                      syncConfirmationReceipt.typed_phrase_matches
+                        ? "Yes"
+                        : "No"
+                    }
+                    detail={syncConfirmationReceipt.status}
+                  />
+                  <IdentityMetric
+                    label="Receipt boundary"
+                    value="Local only"
+                    detail="No upload, write, delete, or AI call"
+                  />
+                  <IdentityMetric
+                    label="Destination"
+                    value={syncConfirmationReceipt.destination_summary}
+                    detail="Reviewed before future upload"
+                  />
+                </div>
               </div>
             </ContractPanel>
           </div>
