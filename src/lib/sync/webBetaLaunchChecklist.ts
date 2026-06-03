@@ -157,10 +157,10 @@ function buildLaunchTracks(
       title: "Auth and server-side permissions",
       status: "blocked",
       evidence: input.permissionDecisionReport
-        ? `${input.disabledApiStubs} Web Beta API routes are disabled stubs; local permission decisions cover ${input.permissionDecisionReport.summary.matrix_decisions} role/resource/action combinations, but server enforcement is disabled.`
+        ? `${input.disabledApiStubs} Web Beta API routes are disabled stubs; local permission decisions cover ${input.permissionDecisionReport.summary.matrix_decisions} role/resource/action combinations and the sync UI exports a metadata-only permission check envelope, but server enforcement is disabled.`
         : `${input.disabledApiStubs} Web Beta API routes are disabled stubs; auth/session routes do not create sessions.`,
       required_action:
-        "Choose auth provider, session storage, workspace membership model, and server-side role enforcement.",
+        "Choose auth provider, session storage, workspace membership model, permission envelope validation, and server-side role enforcement.",
     },
     {
       id: "account-session-boundary",

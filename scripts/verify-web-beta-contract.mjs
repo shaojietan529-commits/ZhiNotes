@@ -30,6 +30,7 @@ const files = {
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
   auditEventEnvelope: "src/lib/security/auditEventEnvelope.ts",
+  permissionCheckEnvelope: "src/lib/security/permissionCheckEnvelope.ts",
   typedConfirmation: "src/lib/security/typedConfirmation.ts",
   highRiskActionRegistry: "src/lib/security/highRiskActionRegistry.ts",
   webBetaReadiness: "src/lib/sync/webBetaReadiness.ts",
@@ -205,6 +206,7 @@ function run() {
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
   const auditEventEnvelope = readProjectFile(files.auditEventEnvelope);
+  const permissionCheckEnvelope = readProjectFile(files.permissionCheckEnvelope);
   const typedConfirmation = readProjectFile(files.typedConfirmation);
   const highRiskActionRegistry = readProjectFile(files.highRiskActionRegistry);
   const webBetaReadiness = readProjectFile(files.webBetaReadiness);
@@ -239,6 +241,7 @@ function run() {
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
     [files.auditEventEnvelope, auditEventEnvelope],
+    [files.permissionCheckEnvelope, permissionCheckEnvelope],
     [files.typedConfirmation, typedConfirmation],
     [files.highRiskActionRegistry, highRiskActionRegistry],
     [files.webBetaReadiness, webBetaReadiness],
@@ -536,6 +539,232 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.auditEventEnvelope, auditEventEnvelope, snippet, message);
+  }
+  assertSourceIncludes(
+    files.permissionCheckEnvelope,
+    permissionCheckEnvelope,
+    'format: "zhinote-permission-check-envelope-contract"',
+    "Permission check envelope must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.permissionCheckEnvelope,
+    permissionCheckEnvelope,
+    "buildPermissionCheckEnvelopeContract",
+    "Permission check envelope must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'contract_status: "local-permission-envelope-only"',
+      "Permission check envelope must remain local-only.",
+    ],
+    [
+      "can_export_permission_envelope_now: true",
+      "Permission check envelope may only be exported locally.",
+    ],
+    [
+      "can_enforce_permissions_now: false",
+      "Permission check envelope must not enforce permissions.",
+    ],
+    [
+      "can_read_request_body_now: false",
+      "Permission check envelope must not read request bodies.",
+    ],
+    [
+      "can_create_users_now: false",
+      "Permission check envelope must not create users.",
+    ],
+    [
+      "can_grant_access_now: false",
+      "Permission check envelope must not grant access.",
+    ],
+    [
+      "can_revoke_access_now: false",
+      "Permission check envelope must not revoke access.",
+    ],
+    [
+      "can_write_server_audit_log_now: false",
+      "Permission check envelope must not write audit logs.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Permission check envelope must not upload workspace data.",
+    ],
+    [
+      'disabled_endpoint: "/api/permissions/check"',
+      "Permission check envelope must keep permission endpoint disabled.",
+    ],
+    [
+      "metadata_only_request: true",
+      "Permission check envelope must stay metadata-only.",
+    ],
+    [
+      "reads_request_body: false",
+      "Permission check envelope must not read request bodies.",
+    ],
+    [
+      "creates_users: false",
+      "Permission check envelope must not create users.",
+    ],
+    [
+      "grants_access: false",
+      "Permission check envelope must not grant access.",
+    ],
+    [
+      "revokes_access: false",
+      "Permission check envelope must not revoke access.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Permission check envelope must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Permission check envelope must not read database values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Permission check envelope must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Permission check envelope must not read file bytes.",
+    ],
+    [
+      "reads_prompt_text: false",
+      "Permission check envelope must not read prompt text.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Permission check envelope must not read secrets.",
+    ],
+    [
+      "exposes_secret_values: false",
+      "Permission check envelope must not expose secrets.",
+    ],
+    [
+      "writes_server_audit_log: false",
+      "Permission check envelope must not write audit logs.",
+    ],
+    [
+      "writes_workspace_data: false",
+      "Permission check envelope must not write workspace data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Permission check envelope must not upload workspace data.",
+    ],
+    [
+      "requires_authenticated_actor: true",
+      "Permission check envelope must require authenticated actor.",
+    ],
+    [
+      "requires_workspace_membership: true",
+      "Permission check envelope must require workspace membership.",
+    ],
+    [
+      "requires_role_membership_lookup: true",
+      "Permission check envelope must require role lookup.",
+    ],
+    [
+      "requires_high_risk_confirmation: true",
+      "Permission check envelope must require high-risk confirmation.",
+    ],
+    [
+      "requires_audit_event_envelope: true",
+      "Permission check envelope must require audit envelope.",
+    ],
+    ["request_id", "Permission check envelope must include request id."],
+    ["actor_user_id", "Permission check envelope must include actor id."],
+    ["actor_role_id", "Permission check envelope must include actor role."],
+    ["resource_type", "Permission check envelope must include resource type."],
+    ["action_id", "Permission check envelope must include action id."],
+    [
+      "confirmation_receipt_id",
+      "Permission check envelope must include confirmation receipt id.",
+    ],
+    [
+      "audit_event_envelope_id",
+      "Permission check envelope must link audit envelope.",
+    ],
+    ["decision_id", "Permission check envelope must include decision id."],
+    ["allowed", "Permission check envelope must include allow result."],
+    [
+      "decision_status",
+      "Permission check envelope must include decision status.",
+    ],
+    [
+      "page_body_text",
+      "Permission check envelope must forbid page body text.",
+    ],
+    [
+      "database_cell_values",
+      "Permission check envelope must forbid database values.",
+    ],
+    [
+      "comment_body",
+      "Permission check envelope must forbid comment bodies.",
+    ],
+    [
+      "file_bytes",
+      "Permission check envelope must forbid file bytes.",
+    ],
+    [
+      "backup_payload",
+      "Permission check envelope must forbid backup payload.",
+    ],
+    [
+      "prompt_text",
+      "Permission check envelope must forbid prompt text.",
+    ],
+    [
+      "model_raw_output",
+      "Permission check envelope must forbid raw AI output.",
+    ],
+    ["token", "Permission check envelope must forbid tokens."],
+    ["cookie", "Permission check envelope must forbid cookies."],
+    [
+      "signed_download_url",
+      "Permission check envelope must forbid signed URLs.",
+    ],
+    [
+      "raw_request_body",
+      "Permission check envelope must forbid raw request bodies.",
+    ],
+    [
+      "environment_value",
+      "Permission check envelope must forbid environment values.",
+    ],
+    [
+      "owner-cloud-sync-check",
+      "Permission check envelope must include owner cloud sync scenario.",
+    ],
+    [
+      "researcher-cloud-sync-deny",
+      "Permission check envelope must include researcher denial scenario.",
+    ],
+    [
+      "viewer-ai-run-deny",
+      "Permission check envelope must include viewer AI denial scenario.",
+    ],
+    [
+      "endpoint-disabled",
+      "Permission check envelope must include endpoint disabled gate.",
+    ],
+    [
+      "role-membership-lookup",
+      "Permission check envelope must include role membership gate.",
+    ],
+    [
+      "audit-envelope-before-result",
+      "Permission check envelope must include audit envelope gate.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.permissionCheckEnvelope,
+      permissionCheckEnvelope,
+      snippet,
+      message
+    );
   }
   assertSourceIncludes(
     files.workspaceIdentity,
@@ -2536,6 +2765,42 @@ function run() {
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      "buildPermissionCheckEnvelopeContract",
+      "Sync UI must build the permission check envelope contract.",
+    ],
+    [
+      "handleExportPermissionCheckEnvelope",
+      "Sync UI must export the permission check envelope contract.",
+    ],
+    [
+      "Permission check envelope",
+      "Sync UI must render the permission check envelope panel.",
+    ],
+    [
+      "Export permission envelope",
+      "Sync UI must expose the permission envelope export action.",
+    ],
+    [
+      "PermissionCheckScenarioRow",
+      "Sync UI must render permission check scenario rows.",
+    ],
+    [
+      "PermissionCheckGateRow",
+      "Sync UI must render permission check gates.",
+    ],
+    [
+      "PermissionCheckFieldRow",
+      "Sync UI must render permission check fields.",
+    ],
+    [
+      "permission-check-envelope",
+      "Sync UI must track permission envelope export state separately.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
@@ -2590,6 +2855,7 @@ function run() {
     remote_baseline_replay_harness_checks: 54,
     remote_baseline_replay_runner_checks: 52,
     audit_event_envelope_checks: 52,
+    permission_check_envelope_checks: 65,
     warnings: warnings.length,
   };
 

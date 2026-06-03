@@ -158,9 +158,9 @@ function buildActions(
       gate: gatesById.get("permission-policy"),
       fallbackTitle: "Implement server permission checks",
       fallbackEvidence:
-        "Local role decisions exist, but server endpoints do not enforce roles.",
+        "Local role decisions and a metadata-only permission check envelope exist, but server endpoints do not enforce roles.",
       fallbackAction:
-        "Move Owner, Researcher, and Viewer decisions into authenticated server checks and keep high-risk actions owner-confirmed.",
+        "Move Owner, Researcher, and Viewer decisions into authenticated server checks only after envelope validation rejects forbidden payloads and high-risk actions stay owner-confirmed.",
       status: "ready-to-build",
       unlocks: "Safe auth routes, sync push/pull, restore, file access, sharing, and AI gates.",
     }),

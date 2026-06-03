@@ -54,6 +54,11 @@ import {
   type PermissionDecisionStatus,
 } from "@/lib/security/permissionDecision";
 import {
+  buildPermissionCheckEnvelopeContract,
+  type PermissionCheckEnvelopeContract,
+  type PermissionCheckEnvelopeStatus,
+} from "@/lib/security/permissionCheckEnvelope";
+import {
   buildHighRiskActionRegistryReport,
   getHighRiskRequiredPhrase,
   type HighRiskActionCoverage,
@@ -258,6 +263,7 @@ type WebBetaContractAction =
   | "audit-policy"
   | "audit-envelope"
   | "permission-decisions"
+  | "permission-check-envelope"
   | "account-session"
   | "high-risk-registry"
   | "migration-sql"
@@ -613,6 +619,15 @@ function SyncDashboard() {
         syncSummary,
       }),
     [auditTrailPolicy, permissionDecisionReport, syncSummary, workspaceIdentity]
+  );
+  const permissionCheckEnvelopeContract = useMemo(
+    () =>
+      buildPermissionCheckEnvelopeContract({
+        workspaceIdentity,
+        permissionDecisionReport,
+        auditEventEnvelope: auditEventEnvelopeContract,
+      }),
+    [auditEventEnvelopeContract, permissionDecisionReport, workspaceIdentity]
   );
   const highRiskActionRegistry = useMemo(
     () => buildHighRiskActionRegistryReport(),
@@ -2290,6 +2305,29 @@ function SyncDashboard() {
       console.error("[Zhinote] Failed to export permission decisions:", err);
       window.alert(
         "Permission decision export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportPermissionCheckEnvelope = () => {
+    setBusyContractAction("permission-check-envelope");
+    try {
+      downloadJsonFile(
+        `zhinote-permission-check-envelope-${fileSafeTimestamp()}.json`,
+        {
+          ...permissionCheckEnvelopeContract,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export permission check envelope:",
+        err
+      );
+      window.alert(
+        "Permission check envelope export failed. Please check the console."
       );
     } finally {
       setBusyContractAction(null);
@@ -5106,6 +5144,76 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
           </div>
+          <ContractPanel title="Permission check envelope" className="mt-4">
+            <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl">
+                Local contract for the future server-side permission check. It
+                defines metadata-only request and response fields before
+                `/api/permissions/check` can read request bodies or enforce
+                roles. Page text, database values, comments, files, prompts,
+                tokens, cookies, signed URLs, and environment values remain
+                forbidden.
+              </p>
+              <button
+                type="button"
+                onClick={handleExportPermissionCheckEnvelope}
+                disabled={busyContractAction === "permission-check-envelope"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyContractAction === "permission-check-envelope"
+                  ? "Exporting..."
+                  : "Export permission envelope"}
+              </button>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-4">
+              <IdentityMetric
+                label="Request fields"
+                value={`${permissionCheckEnvelopeContract.summary.request_allowed_fields}`}
+                detail="Metadata only"
+              />
+              <IdentityMetric
+                label="Response fields"
+                value={`${permissionCheckEnvelopeContract.summary.response_allowed_fields}`}
+                detail="Decision only"
+              />
+              <IdentityMetric
+                label="Forbidden"
+                value={`${permissionCheckEnvelopeContract.summary.forbidden_fields}`}
+                detail="Payload blocked"
+              />
+              <IdentityMetric
+                label="Blocked"
+                value={`${permissionCheckEnvelopeContract.summary.blocked}`}
+                detail="Endpoint disabled"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+              <ContractPanel title="Permission check scenarios">
+                <div className="space-y-2">
+                  {permissionCheckEnvelopeContract.scenarios.map((scenario) => (
+                    <PermissionCheckScenarioRow
+                      key={scenario.id}
+                      scenario={scenario}
+                    />
+                  ))}
+                </div>
+              </ContractPanel>
+              <ContractPanel title="Permission check gates">
+                <div className="space-y-2">
+                  {permissionCheckEnvelopeContract.gates.map((gate) => (
+                    <PermissionCheckGateRow key={gate.id} gate={gate} />
+                  ))}
+                </div>
+              </ContractPanel>
+            </div>
+            <ContractPanel title="Permission request fields" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-2">
+                {permissionCheckEnvelopeContract.request_fields.map((field) => (
+                  <PermissionCheckFieldRow key={field.field} field={field} />
+                ))}
+              </div>
+            </ContractPanel>
+          </ContractPanel>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
@@ -6339,6 +6447,98 @@ function PermissionDecisionGateRow({
   );
 }
 
+function PermissionCheckScenarioRow({
+  scenario,
+}: {
+  scenario: PermissionCheckEnvelopeContract["scenarios"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {scenario.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {scenario.role_id} · {scenario.resource_id} · {scenario.action_id}
+          </div>
+        </div>
+        <PermissionCheckStatusPill status={scenario.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        Expected: {scenario.expected_decision}. Confirmation:{" "}
+        {scenario.required_confirmation ? "required" : "not required"}.
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {scenario.required_evidence}
+      </p>
+    </article>
+  );
+}
+
+function PermissionCheckGateRow({
+  gate,
+}: {
+  gate: PermissionCheckEnvelopeContract["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {gate.evidence}
+          </p>
+        </div>
+        <PermissionCheckStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function PermissionCheckFieldRow({
+  field,
+}: {
+  field: PermissionCheckEnvelopeContract["request_fields"][number];
+}) {
+  const allowed = field.status === "allowed";
+
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {field.field}
+          </div>
+          <div className="mt-1 text-[10px] text-zinc-400">
+            {field.value_shape}
+          </div>
+        </div>
+        <span
+          className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${
+            allowed
+              ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+              : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+          }`}
+        >
+          {allowed ? "Allowed" : "Forbidden"}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {field.purpose}
+      </p>
+    </article>
+  );
+}
+
 function PermissionDecisionStatusPill({
   status,
 }: {
@@ -6355,6 +6555,31 @@ function PermissionDecisionStatusPill({
     status === "local-allowed"
       ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : status === "needs-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function PermissionCheckStatusPill({
+  status,
+}: {
+  status: PermissionCheckEnvelopeStatus;
+}) {
+  const labels: Record<PermissionCheckEnvelopeStatus, string> = {
+    planned: "Planned",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "planned"
+      ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+      : status === "manual-confirmation"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 

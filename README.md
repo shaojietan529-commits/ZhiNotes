@@ -613,6 +613,13 @@ Current local actions:
   Owner, Researcher, and Viewer role/resource/action combinations plus high-risk
   scenarios, but does not create users, grant access, revoke access, enforce
   server permissions, read page text, read file bytes, or upload workspace data.
+- Review and export a local permission check envelope contract. The contract
+  defines the future metadata-only request and response shape for
+  `/api/permissions/check`: actor, role, resource, action, risk class,
+  confirmation receipt, audit envelope, idempotency, decision status, and reason
+  codes are allowed; page text, database values, comments, files, prompts, raw
+  AI output, backup payloads, request bodies, signed URLs, tokens, cookies, and
+  environment values stay forbidden. The endpoint remains disabled.
 - Review and export a local high-risk action registry. The registry centralizes
   typed confirmation phrases and coverage for cloud sync, disposable replay,
   restore write-back, AI execution, HTML external resources, spreadsheet bulk
@@ -722,8 +729,8 @@ The first cloud phase is a private alpha, not full sync:
   receipt is audit evidence only and does not turn on cloud push.
 - `npm run verify:web-beta` checks the local Web Beta contract before launch:
   environment keys, guarded API route files, local module routes, the deployment
-  target contract, audit event envelope, smoke test plan, and Supabase migration
-  tables.
+  target contract, audit event envelope, permission check envelope, smoke test
+  plan, and Supabase migration tables.
 - `npm run verify:web-beta:smoke` checks the preview smoke-test checklist before
   launch: expected pages, disabled/gated high-risk API routes, local-only
   privacy boundaries, Cloud Alpha disabled defaults, private file storage
