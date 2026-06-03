@@ -36,6 +36,16 @@ const MODULE_ROUTES: Record<ResearchAssetKind, string> = {
   portfolio: "/modules/portfolio",
 };
 
+interface SchemaFieldCreationResult {
+  id: string;
+  databaseTitle: string;
+  fieldName: string;
+  relationLabel: string;
+  created: boolean;
+  createdAt: string;
+  nextRoute: string;
+}
+
 export default function ResearchGraphShell() {
   return (
     <DatabaseProvider>
@@ -68,6 +78,8 @@ function ResearchGraphDashboard() {
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [exportingGraphReport, setExportingGraphReport] = useState(false);
   const [schemaGapBusyId, setSchemaGapBusyId] = useState<string | null>(null);
+  const [schemaFieldCreationResult, setSchemaFieldCreationResult] =
+    useState<SchemaFieldCreationResult | null>(null);
 
   useEffect(() => {
     void getAllDatabases()
@@ -132,6 +144,26 @@ function ResearchGraphDashboard() {
     try {
       downloadJsonFile(`zhinote-research-graph-${fileSafeTimestamp()}.json`, {
         ...graphReport,
+        local_schema_field_action: schemaFieldCreationResult
+          ? {
+              status: schemaFieldCreationResult.created
+                ? "created"
+                : "already-present",
+              database_title: schemaFieldCreationResult.databaseTitle,
+              field_name: schemaFieldCreationResult.fieldName,
+              relation_target: schemaFieldCreationResult.relationLabel,
+              action_at: schemaFieldCreationResult.createdAt,
+              boundary: {
+                local_only: true,
+                writes_field_schema: schemaFieldCreationResult.created,
+                writes_rows: false,
+                includes_page_text: false,
+                includes_database_row_values: false,
+                includes_file_bytes: false,
+                uploads_data: false,
+              },
+            }
+          : null,
         exported_at: new Date().toISOString(),
       });
     } catch (err) {
@@ -151,12 +183,13 @@ function ResearchGraphDashboard() {
     setSchemaGapBusyId(gap.id);
     try {
       const latestFields = await getFields(gap.database_id);
-      const alreadyCovered = latestFields.some(
+      const coveringField = latestFields.find(
         (field) =>
           field.field_type === "relation" &&
           inferResearchKindFromRelationField(field.name) ===
             gap.missing_relation_kind
       );
+      const alreadyCovered = Boolean(coveringField);
 
       if (!alreadyCovered) {
         await addField(gap.database_id, {
@@ -164,6 +197,15 @@ function ResearchGraphDashboard() {
           fieldType: "relation",
         });
       }
+      setSchemaFieldCreationResult({
+        id: gap.id,
+        databaseTitle: gap.database_title,
+        fieldName: coveringField?.name ?? gap.suggested_field_name,
+        relationLabel: gap.missing_relation_label,
+        created: !alreadyCovered,
+        createdAt: new Date().toISOString(),
+        nextRoute: gap.database_route,
+      });
       await reloadSnapshots();
     } catch (err) {
       console.error("[Zhinote] Failed to create relation field:", err);
@@ -237,6 +279,11 @@ function ResearchGraphDashboard() {
           onOpenDatabaseRoute={(route) => router.push(route)}
           busyGapId={schemaGapBusyId}
           onCreateField={(gap) => void handleCreateSchemaGapField(gap)}
+        />
+
+        <SchemaFieldCreationResultPanel
+          result={schemaFieldCreationResult}
+          onOpenDatabase={(route) => router.push(route)}
         />
 
         <CompletionPlanPanel
@@ -455,6 +502,51 @@ function SchemaGapPanel({
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+function SchemaFieldCreationResultPanel({
+  result,
+  onOpenDatabase,
+}: {
+  result: SchemaFieldCreationResult | null;
+  onOpenDatabase: (route: string) => void;
+}) {
+  if (!result) return null;
+
+  return (
+    <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-300">
+            本地结构动作
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-emerald-950 dark:text-emerald-50">
+            {result.created ? "已创建 relation 字段" : "字段已存在，已刷新图谱"}
+          </h2>
+          <p className="mt-2 text-xs leading-5 text-emerald-800 dark:text-emerald-200">
+            {result.databaseTitle} · {result.fieldName} · 指向
+            {result.relationLabel}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-emerald-700 dark:text-emerald-300">
+            这是本地结构动作，不包含页面正文、表格行值、文件内容、同步或上传。
+            下一步可以打开对应数据库，手动补充具体 relation 值。
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          <span className="text-xs text-emerald-700 dark:text-emerald-300">
+            {formatDateTime(result.createdAt)}
+          </span>
+          <button
+            type="button"
+            onClick={() => onOpenDatabase(result.nextRoute)}
+            className="rounded-md border border-emerald-300 bg-white px-3 py-2 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100 dark:hover:bg-emerald-900"
+          >
+            打开数据库
+          </button>
+        </div>
+      </div>
     </section>
   );
 }
@@ -767,6 +859,17 @@ function formatUpdated(value: string) {
   return date.toLocaleDateString("zh-CN", {
     month: "short",
     day: "numeric",
+  });
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "未知时间";
+  return date.toLocaleString("zh-CN", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 

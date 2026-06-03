@@ -35,8 +35,9 @@ Current module foundation:
 - Meetings and Calls: beta module at `/modules/meetings` for meeting notes,
   transcripts, action items, follow-ups, linked company pages, linked reports,
   and a local meeting tracker database.
-- Research Graph: beta module at `/modules/research-graph` for a local,
-  read-only map of company, report, meeting, and portfolio relation coverage.
+- Research Graph: beta module at `/modules/research-graph` for a local map of
+  company, report, meeting, and portfolio relation coverage, with manually
+  confirmed local schema helpers.
 - AI Workbench: planned local staging module at `/modules/ai` for summaries,
   Q&A, comparison, report generation, research frameworks, explicit context
   selection, request drafts, and privacy gates.
@@ -129,18 +130,19 @@ Current local actions:
   or related-meeting relation fields.
 - Create one missing local relation field from a schema gap after a manual
   browser confirmation.
+- Show the latest local schema-field creation result and include that action
+  receipt in the exported graph report without row values or page bodies.
 - Use the database relation completion assistant after that jump to manually
   add the focused asset to one local relation field at a time.
 - Open source pages, target pages, source modules, and tracker databases.
 - Export a local graph report without page bodies, database row values, file
   bytes, prompts, tokens, or cloud data.
 
-The current Research Graph module is read-only. It does not edit pages, create
-database rows, call AI, sync data, or upload workspace content. Relation
+The current Research Graph module does not edit pages, create database rows,
+call AI, sync data, or upload workspace content. Its only write path is a
+manually confirmed local relation-field creation from a schema gap. Relation
 completion from a database page is a separate manual click that writes only the
-selected local row and selected local relation field. Creating a missing
-schema-gap field is also manual and only adds one local `relation` field to the
-selected local database.
+selected local row and selected local relation field.
 
 ## Company Research Module
 
