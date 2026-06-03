@@ -27,6 +27,10 @@ import {
   buildAiResearchRunbook,
   type AiResearchRunbook,
 } from "@/lib/ai/aiResearchRunbook";
+import {
+  buildAiOutputReviewContract,
+  type AiOutputReviewContract,
+} from "@/lib/ai/aiOutputReview";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -77,6 +81,7 @@ function AiWorkbenchDashboard() {
     useState(false);
   const [exportingResearchRunbook, setExportingResearchRunbook] =
     useState(false);
+  const [exportingOutputReview, setExportingOutputReview] = useState(false);
   const [exportingConfirmationReceipt, setExportingConfirmationReceipt] =
     useState(false);
   const [aiConfirmationPhrase, setAiConfirmationPhrase] = useState("");
@@ -145,6 +150,21 @@ function AiWorkbenchDashboard() {
         executionPolicy: aiExecutionPolicy,
       }),
     [aiExecutionPolicy, aiPayloadPreview, selectedWorkflow]
+  );
+  const aiOutputReview = useMemo(
+    () =>
+      buildAiOutputReviewContract({
+        workflow: selectedWorkflow,
+        payloadPreview: aiPayloadPreview,
+        executionPolicy: aiExecutionPolicy,
+        researchRunbook: aiResearchRunbook,
+      }),
+    [
+      aiExecutionPolicy,
+      aiPayloadPreview,
+      aiResearchRunbook,
+      selectedWorkflow,
+    ]
   );
   const aiConfirmationReceipt = useMemo(
     () =>
@@ -220,6 +240,24 @@ function AiWorkbenchDashboard() {
       window.alert("AI research runbook 导出失败，请查看控制台。");
     } finally {
       setExportingResearchRunbook(false);
+    }
+  };
+
+  const handleExportOutputReview = () => {
+    setExportingOutputReview(true);
+    try {
+      downloadJsonFile(
+        `zhinote-ai-output-review-${fileSafeTimestamp()}.json`,
+        {
+          ...aiOutputReview,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export AI output review:", err);
+      window.alert("AI output review 导出失败，请查看控制台。");
+    } finally {
+      setExportingOutputReview(false);
     }
   };
 
@@ -635,6 +673,87 @@ function AiWorkbenchDashboard() {
             </div>
           </div>
 
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  AI 输出接收合同
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  定义未来 AI 输出进入页面、数据库或报告前的本地审批门槛。
+                  当前不读取 AI 输出正文，不创建页面，不覆盖页面，不更新数据库。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportOutputReview}
+                disabled={exportingOutputReview}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {exportingOutputReview ? "导出中..." : "导出输出合同"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-6">
+              <ExecutionMetric
+                label="保存目标"
+                value={aiOutputReview.summary.destinations}
+                detail="候选输出去向"
+                status="manual-confirmation"
+              />
+              <ExecutionMetric
+                label="写入路径"
+                value={aiOutputReview.summary.disabled_write_paths}
+                detail="当前全部禁用"
+                status="blocked"
+              />
+              <ExecutionMetric
+                label="门禁"
+                value={aiOutputReview.summary.acceptance_gates}
+                detail="保存前检查"
+                status="manual-confirmation"
+              />
+              <ExecutionMetric
+                label="阻塞"
+                value={aiOutputReview.summary.blocked_gates}
+                detail="需先实现"
+                status="blocked"
+              />
+              <ExecutionMetric
+                label="正文"
+                value="不读取"
+                detail="不含 AI output"
+                status="planned"
+              />
+              <ExecutionMetric
+                label="覆盖"
+                value="禁止"
+                detail="不自动覆盖页面"
+                status="blocked"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  保存前门禁
+                </div>
+                {aiOutputReview.acceptance_gates.map((gate) => (
+                  <OutputReviewGateRow key={gate.id} gate={gate} />
+                ))}
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  输出去向
+                </div>
+                {aiOutputReview.destinations.map((destination) => (
+                  <OutputDestinationRow
+                    key={destination.id}
+                    destination={destination}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               文件准备度
@@ -915,6 +1034,67 @@ function RunbookStepRow({
       </div>
       <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
         {step.required_decision}
+      </p>
+    </article>
+  );
+}
+
+function OutputReviewGateRow({
+  gate,
+}: {
+  gate: AiOutputReviewContract["acceptance_gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {gate.evidence}
+          </p>
+        </div>
+        <ExecutionStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+      <p className="mt-2 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+        {gate.blocks_output_save ? "阻塞输出保存" : "不阻塞输出保存"}
+      </p>
+    </article>
+  );
+}
+
+function OutputDestinationRow({
+  destination,
+}: {
+  destination: AiOutputReviewContract["destinations"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {destination.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {destination.default_behavior}
+          </p>
+        </div>
+        <ExecutionStatusPill status={destination.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          {destination.write_status}
+        </span>
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          {destination.id}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {destination.required_confirmation}
       </p>
     </article>
   );

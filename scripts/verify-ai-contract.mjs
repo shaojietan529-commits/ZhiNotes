@@ -11,6 +11,7 @@ const files = {
   payloadPreview: "src/lib/ai/aiPayloadPreview.ts",
   executionPolicy: "src/lib/ai/aiExecutionPolicy.ts",
   researchRunbook: "src/lib/ai/aiResearchRunbook.ts",
+  outputReview: "src/lib/ai/aiOutputReview.ts",
   aiShell: "src/components/modules/AiWorkbenchShell.tsx",
   aiRoute: "src/app/api/ai/run/route.ts",
   highRiskRegistry: "src/lib/security/highRiskActionRegistry.ts",
@@ -37,6 +38,22 @@ const requiredRunbookSteps = [
   "permission-audit-events",
   "output-retention-save-policy",
 ];
+const requiredOutputDestinations = [
+  "new-page-draft",
+  "append-to-existing-page",
+  "database-row-draft",
+  "report-page-draft",
+  "download-only",
+];
+const requiredOutputGates = [
+  "ai-run-completed",
+  "output-text-preview",
+  "source-attribution-review",
+  "hallucination-risk-check",
+  "sensitive-content-scan",
+  "retention-delete-policy",
+  "permission-audit-before-write",
+];
 
 const failures = [];
 
@@ -61,6 +78,7 @@ function run() {
   const payloadPreview = readProjectFile(files.payloadPreview);
   const executionPolicy = readProjectFile(files.executionPolicy);
   const researchRunbook = readProjectFile(files.researchRunbook);
+  const outputReview = readProjectFile(files.outputReview);
   const aiShell = readProjectFile(files.aiShell);
   const aiRoute = readProjectFile(files.aiRoute);
   const highRiskRegistry = readProjectFile(files.highRiskRegistry);
@@ -89,6 +107,12 @@ function run() {
     aiShell,
     "@/lib/ai/aiResearchRunbook",
     "AI Workbench must consume the shared research runbook contract."
+  );
+  assertIncludes(
+    files.aiShell,
+    aiShell,
+    "@/lib/ai/aiOutputReview",
+    "AI Workbench must consume the shared output review contract."
   );
   assertIncludes(
     files.aiShell,
@@ -222,6 +246,95 @@ function run() {
   }
 
   assertIncludes(
+    files.outputReview,
+    outputReview,
+    'format: "zhinote-ai-output-review-contract"',
+    "AI output review must use a stable export format."
+  );
+  assertIncludes(
+    files.outputReview,
+    outputReview,
+    "buildAiOutputReviewContract",
+    "AI output review must expose a reusable builder."
+  );
+  assertIncludes(
+    files.outputReview,
+    outputReview,
+    "can_save_ai_output_now: false",
+    "AI output review must not allow saving AI output yet."
+  );
+  assertIncludes(
+    files.outputReview,
+    outputReview,
+    "can_overwrite_workspace_now: false",
+    "AI output review must not allow workspace overwrite."
+  );
+  for (const snippet of [
+    "local_contract_only: true",
+    "calls_model_provider: false",
+    "reads_ai_output_text: false",
+    "includes_ai_output_text: false",
+    "reads_page_body_text: false",
+    "includes_page_body_text: false",
+    "includes_prompt_text: false",
+    "includes_file_bytes: false",
+    "includes_holdings_or_trading_plans: false",
+    "includes_client_info: false",
+    "includes_tokens_or_secrets: false",
+    "writes_workspace_data: false",
+    "creates_pages: false",
+    "overwrites_pages: false",
+    "updates_databases: false",
+    "uploads_output: false",
+    "syncs_output: false",
+    "requires_manual_output_preview: true",
+    "requires_source_attribution: true",
+    "requires_retention_decision: true",
+    "requires_audit_event_before_write: true",
+  ]) {
+    assertIncludes(
+      files.outputReview,
+      outputReview,
+      snippet,
+      "AI output review must preserve local-only output boundaries."
+    );
+  }
+  for (const destinationId of requiredOutputDestinations) {
+    assertIncludes(
+      files.outputReview,
+      outputReview,
+      `id: "${destinationId}"`,
+      `AI output review destination ${destinationId} must exist.`
+    );
+  }
+  for (const gateId of requiredOutputGates) {
+    assertIncludes(
+      files.outputReview,
+      outputReview,
+      `id: "${gateId}"`,
+      `AI output review gate ${gateId} must exist.`
+    );
+  }
+  assertIncludes(
+    files.aiShell,
+    aiShell,
+    "AI 输出接收合同",
+    "AI Workbench must render the output review contract."
+  );
+  assertIncludes(
+    files.aiShell,
+    aiShell,
+    "不读取 AI 输出正文",
+    "AI Workbench must explain output text is not read."
+  );
+  assertIncludes(
+    files.aiShell,
+    aiShell,
+    "不自动覆盖页面",
+    "AI Workbench must block automatic page overwrite."
+  );
+
+  assertIncludes(
     files.highRiskRegistry,
     highRiskRegistry,
     '"ai-external-run"',
@@ -248,6 +361,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "AI Output Review Contract",
+    "README must document the AI output review contract."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "npm run verify:ai",
     "README useful checks must include the AI verifier."
   );
@@ -267,6 +386,8 @@ function run() {
         workflows: requiredWorkflows.length,
         execution_gates: requiredPolicyGates.length,
         research_runbook_steps: requiredRunbookSteps.length,
+        output_destinations: requiredOutputDestinations.length,
+        output_review_gates: requiredOutputGates.length,
         run_endpoint_disabled: true,
         local_only: true,
       },

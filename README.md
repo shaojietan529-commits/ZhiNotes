@@ -410,6 +410,13 @@ Current local actions:
   policy, owner confirmation, permission audit events, and output retention. It
   excludes page body text, prompt text, file bytes, holdings, trading plans,
   client information, tokens, and secrets.
+- Review and export a local AI output review contract. The contract defines how
+  future AI output may enter ZhiNotes as a new page draft, append-only page
+  update, database row draft, report page draft, or download-only result, but
+  all write paths remain disabled. It does not read AI output text, create
+  pages, overwrite pages, update databases, upload output, sync output, or
+  include page body text, prompt text, file bytes, holdings, trading plans,
+  client information, tokens, or secrets.
 - Draft an AI request locally with selected page titles and privacy gates.
 - Type the local AI outbound confirmation phrase and export a high-risk
   confirmation receipt. The receipt does not include page body text, prompt
@@ -417,9 +424,10 @@ Current local actions:
 - Inspect local file readiness by stored file type.
 
 The current AI Workbench module does not call AI, upload selected pages, send
-files, load external providers, or save generated output. AI execution should be
-enabled only after provider, context, payload preview, retention, and permission
-rules are explicit.
+files, load external providers, save generated output, or write AI output back
+into pages/databases. AI execution and AI output write-back should be enabled
+only after provider, context, payload preview, source attribution, retention,
+permission, audit, and deletion rules are explicit.
 
 ### AI Workflow Contract
 
@@ -450,6 +458,22 @@ page body text, prompt text, file bytes, holdings, trading plans, client
 information, tokens, or secrets. AI execution should stay blocked until provider,
 final payload, sensitive finance scope, permission audit, retention, and output
 save/delete policies are explicit.
+
+### AI Output Review Contract
+
+The local AI output review contract lives in:
+
+```txt
+src/lib/ai/aiOutputReview.ts
+```
+
+It defines the post-generation gates before any future AI output can be saved
+into ZhiNotes. The current contract is local-only, does not read AI output text,
+does not create pages, does not overwrite pages, does not update databases, and
+does not sync or upload output. New page drafts, append-only page updates,
+database row drafts, report page drafts, and download-only results all require
+manual preview, source attribution, sensitive-content review, retention policy,
+permission checks, and audit events before write-back can be enabled.
 
 ## Web Sync and Permissions Module
 

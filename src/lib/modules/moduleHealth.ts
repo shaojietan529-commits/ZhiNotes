@@ -194,11 +194,11 @@ function buildHealthAreas(): ModuleHealthArea[] {
       phase: "phase-5",
       module_ids: ["ai-workbench"],
       evidence:
-        "AI Workbench is planned with local request staging, payload preview, disabled /api/ai/run, and privacy gates, but live AI execution remains disabled.",
+        "AI Workbench is planned with local request staging, payload preview, output review contracts, disabled /api/ai/run, and privacy gates, but live AI execution remains disabled.",
       next_action:
-        "Implement provider selection, context picker, final payload preview, retention policy, audit events, and owner confirmation before enabling AI execution.",
+        "Implement provider selection, final payload preview, source attribution, retention policy, audit events, and owner confirmation before enabling AI execution or output write-back.",
       privacy_boundary:
-        "AI must never receive page text, file bytes, prompts, or private research context until the user confirms the exact payload.",
+        "AI must never receive page text, file bytes, prompts, or private research context, and AI output must never overwrite workspace data until the user confirms the exact payload and save target.",
     },
     {
       id: "web-beta",
