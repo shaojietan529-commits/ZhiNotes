@@ -13,6 +13,7 @@ import {
   getResearchAssetKindLabel,
   getResearchRelationFieldLabel,
   type ResearchAsset,
+  type ResearchGraphCompletionAction,
   type ResearchAssetKind,
   type ResearchDatabaseSnapshot,
   type ResearchGraphReport,
@@ -106,6 +107,17 @@ function ResearchGraphDashboard() {
   );
   const recentLinks = graph.relationLinks.slice(0, 12);
   const unlinkedAssets = graph.unlinkedAssets.slice(0, 12);
+  const completionActions = graphReport.completion_plan.actions.slice(0, 10);
+  const completionActionByAssetId = useMemo(
+    () =>
+      new Map(
+        graphReport.completion_plan.actions.map((action) => [
+          action.asset_id,
+          action,
+        ])
+      ),
+    [graphReport.completion_plan.actions]
+  );
 
   const handleExportGraphReport = () => {
     setExportingGraphReport(true);
@@ -159,12 +171,16 @@ function ResearchGraphDashboard() {
           </div>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-5">
+        <section className="grid gap-3 md:grid-cols-6">
           <Metric label="已识别资产" value={graphReport.summary.assets} />
           <Metric label="已连接资产" value={graphReport.summary.connected_assets} />
           <Metric label="Relation 连接" value={graphReport.summary.relation_links} />
           <Metric label="Relation 字段" value={graphReport.summary.relation_fields} />
           <Metric label="待补全资产" value={graphReport.summary.unlinked_assets} />
+          <Metric
+            label="补关系建议"
+            value={graphReport.summary.completion_actions}
+          />
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
@@ -175,6 +191,14 @@ function ResearchGraphDashboard() {
           <BoundaryPanel report={graphReport} />
         </section>
 
+        <CompletionPlanPanel
+          actions={completionActions}
+          totalActions={graphReport.completion_plan.actions.length}
+          missingTargets={graphReport.completion_plan.missing_targets}
+          onOpenDatabaseRoute={(route) => router.push(route)}
+          onOpenModule={(kind) => router.push(MODULE_ROUTES[kind])}
+        />
+
         <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           <RelationLinksPanel
             links={recentLinks}
@@ -184,7 +208,9 @@ function ResearchGraphDashboard() {
           <UnlinkedAssetsPanel
             assets={unlinkedAssets}
             total={graph.unlinkedAssets.length}
+            actionByAssetId={completionActionByAssetId}
             onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
+            onCompleteAction={(action) => router.push(action.database_route)}
           />
         </section>
 
@@ -314,6 +340,106 @@ function BoundaryItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function CompletionPlanPanel({
+  actions,
+  totalActions,
+  missingTargets,
+  onOpenDatabaseRoute,
+  onOpenModule,
+}: {
+  actions: ResearchGraphCompletionAction[];
+  totalActions: number;
+  missingTargets: ResearchGraphReport["completion_plan"]["missing_targets"];
+  onOpenDatabaseRoute: (route: string) => void;
+  onOpenModule: (kind: ResearchAssetKind) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            补关系建议
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">
+            这些建议只打开目标数据库并聚焦资产，不会自动写入 relation。
+          </p>
+        </div>
+        <span className="text-xs text-zinc-400">{totalActions} 条建议</span>
+      </div>
+
+      {actions.length === 0 ? (
+        <p className="mt-3 text-xs leading-5 text-zinc-400">
+          暂无可执行补关系建议。
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-2 lg:grid-cols-2">
+          {actions.map((action) => (
+            <article
+              key={action.id}
+              className="flex items-center justify-between gap-3 rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800"
+            >
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                  {action.asset_title}
+                </h3>
+                <p className="mt-1 text-xs text-zinc-400">
+                  {action.asset_kind_label} → {action.target_database_title}
+                </p>
+                {action.relation_field_labels.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {action.relation_field_labels.map((fieldLabel) => (
+                      <span
+                        key={fieldLabel}
+                        className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                      >
+                        {fieldLabel}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => onOpenDatabaseRoute(action.database_route)}
+                className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                去补关系
+              </button>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {missingTargets.length > 0 && (
+        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900 dark:bg-amber-950">
+          <h3 className="text-xs font-semibold text-amber-800 dark:text-amber-200">
+            还缺补全入口
+          </h3>
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            {missingTargets.map((target) => (
+              <div
+                key={target.kind}
+                className="flex items-center justify-between gap-3 text-xs text-amber-700 dark:text-amber-300"
+              >
+                <span>
+                  {target.kind_label}：{target.unlinked_assets} 个资产需要先建跟踪表或 relation 字段
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onOpenModule(target.kind)}
+                  className="shrink-0 rounded-md border border-amber-300 px-2 py-1 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900"
+                >
+                  打开模块
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function RelationLinksPanel({
   links,
   total,
@@ -363,11 +489,15 @@ function RelationLinksPanel({
 function UnlinkedAssetsPanel({
   assets,
   total,
+  actionByAssetId,
   onOpenPage,
+  onCompleteAction,
 }: {
   assets: ResearchAsset[];
   total: number;
+  actionByAssetId: Map<string, ResearchGraphCompletionAction>;
   onOpenPage: (pageId: string) => void;
+  onCompleteAction: (action: ResearchGraphCompletionAction) => void;
 }) {
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -384,32 +514,61 @@ function UnlinkedAssetsPanel({
       ) : (
         <ul className="mt-3 space-y-2">
           {assets.map((asset) => (
-            <li
+            <UnlinkedAssetItem
               key={asset.id}
-              className="flex items-center justify-between gap-3 rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800"
-            >
-              <div className="min-w-0">
-                <h3 className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                  {asset.icon ? `${asset.icon} ` : ""}
-                  {asset.title}
-                </h3>
-                <p className="text-xs text-zinc-400">
-                  {getResearchAssetKindLabel(asset.kind)} ·{" "}
-                  {formatUpdated(asset.updatedAt)}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onOpenPage(asset.id)}
-                className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                打开
-              </button>
-            </li>
+              asset={asset}
+              completionAction={actionByAssetId.get(asset.id) ?? null}
+              onOpenPage={onOpenPage}
+              onCompleteAction={onCompleteAction}
+            />
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+function UnlinkedAssetItem({
+  asset,
+  completionAction,
+  onOpenPage,
+  onCompleteAction,
+}: {
+  asset: ResearchAsset;
+  completionAction: ResearchGraphCompletionAction | null;
+  onOpenPage: (pageId: string) => void;
+  onCompleteAction: (action: ResearchGraphCompletionAction) => void;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-3 rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="min-w-0">
+        <h3 className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
+          {asset.icon ? `${asset.icon} ` : ""}
+          {asset.title}
+        </h3>
+        <p className="text-xs text-zinc-400">
+          {getResearchAssetKindLabel(asset.kind)} · {formatUpdated(asset.updatedAt)}
+        </p>
+      </div>
+      <div className="flex shrink-0 gap-1">
+        {completionAction && (
+          <button
+            type="button"
+            onClick={() => onCompleteAction(completionAction)}
+            className="rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            补关系
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => onOpenPage(asset.id)}
+          className="rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开
+        </button>
+      </div>
+    </li>
   );
 }
 

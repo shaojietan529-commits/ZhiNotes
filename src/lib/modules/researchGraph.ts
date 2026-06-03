@@ -37,6 +37,49 @@ export interface ResearchGraph {
   counts: Record<ResearchAssetKind, number>;
 }
 
+export interface ResearchGraphCompletionTarget {
+  kind: ResearchAssetKind;
+  kind_label: string;
+  database_id: string;
+  database_title: string;
+  database_kind: ResearchAssetKind | null;
+  database_kind_label: string | null;
+  relation_field_names: string[];
+  relation_field_labels: string[];
+  reason: string;
+}
+
+export interface ResearchGraphCompletionAction {
+  id: string;
+  asset_id: string;
+  asset_title: string;
+  asset_kind: ResearchAssetKind;
+  asset_kind_label: string;
+  updated_at: string;
+  target_database_id: string;
+  target_database_title: string;
+  target_database_kind: ResearchAssetKind | null;
+  target_database_kind_label: string | null;
+  relation_field_names: string[];
+  relation_field_labels: string[];
+  database_route: string;
+  reason: string;
+}
+
+export interface ResearchGraphMissingCompletionTarget {
+  kind: ResearchAssetKind;
+  kind_label: string;
+  unlinked_assets: number;
+  recommended_module_route: string;
+  reason: string;
+}
+
+export interface ResearchGraphCompletionPlan {
+  targets: ResearchGraphCompletionTarget[];
+  actions: ResearchGraphCompletionAction[];
+  missing_targets: ResearchGraphMissingCompletionTarget[];
+}
+
 export interface ResearchGraphReport {
   format: "zhinote-research-graph-report";
   format_version: 1;
@@ -61,6 +104,8 @@ export interface ResearchGraphReport {
     portfolio: number;
     databases: number;
     relation_fields: number;
+    completion_actions: number;
+    missing_completion_targets: number;
   };
   assets: Array<{
     id: string;
@@ -109,6 +154,7 @@ export interface ResearchGraphReport {
     unlinked_assets: number;
     relation_links: number;
   }>;
+  completion_plan: ResearchGraphCompletionPlan;
 }
 
 const KIND_LABELS: Record<ResearchAssetKind, string> = {
@@ -124,6 +170,13 @@ const RESEARCH_ASSET_KINDS: ResearchAssetKind[] = [
   "meeting",
   "portfolio",
 ];
+
+const MODULE_ROUTES: Record<ResearchAssetKind, string> = {
+  company: "/modules/company-research",
+  report: "/modules/reports",
+  meeting: "/modules/meetings",
+  portfolio: "/modules/portfolio",
+};
 
 const RELATION_FIELD_LABELS: Array<[string, string]> = [
   ["company page", "公司页面"],
@@ -362,6 +415,8 @@ export function buildResearchGraphReport(
     };
   });
 
+  const completionPlan = buildResearchGraphCompletionPlan(graph, snapshots);
+
   return {
     format: "zhinote-research-graph-report",
     format_version: 1,
@@ -390,6 +445,8 @@ export function buildResearchGraphReport(
         (total, surface) => total + surface.relation_fields,
         0
       ),
+      completion_actions: completionPlan.actions.length,
+      missing_completion_targets: completionPlan.missing_targets.length,
     },
     assets: graph.assets.map((asset) => ({
       id: asset.id,
@@ -438,7 +495,124 @@ export function buildResearchGraphReport(
         ).length,
       };
     }),
+    completion_plan: completionPlan,
   };
+}
+
+export function buildResearchGraphCompletionPlan(
+  graph: ResearchGraph,
+  snapshots: ResearchDatabaseSnapshot[]
+): ResearchGraphCompletionPlan {
+  const targets = buildCompletionTargets(snapshots);
+  const targetsByKind = new Map<ResearchAssetKind, ResearchGraphCompletionTarget[]>();
+  for (const target of targets) {
+    const current = targetsByKind.get(target.kind) ?? [];
+    targetsByKind.set(target.kind, [...current, target]);
+  }
+
+  const actions: ResearchGraphCompletionAction[] = [];
+  for (const asset of graph.unlinkedAssets) {
+    const target = targetsByKind.get(asset.kind)?.[0];
+    if (!target) continue;
+
+    actions.push({
+      id: `${asset.id}:${target.database_id}`,
+      asset_id: asset.id,
+      asset_title: asset.title,
+      asset_kind: asset.kind,
+      asset_kind_label: getResearchAssetKindLabel(asset.kind),
+      updated_at: asset.updatedAt,
+      target_database_id: target.database_id,
+      target_database_title: target.database_title,
+      target_database_kind: target.database_kind,
+      target_database_kind_label: target.database_kind_label,
+      relation_field_names: target.relation_field_names,
+      relation_field_labels: target.relation_field_labels,
+      database_route: buildDatabaseCompletionRoute(target.database_id, asset),
+      reason: target.reason,
+    });
+  }
+
+  const missingTargets = RESEARCH_ASSET_KINDS.map((kind) => {
+    const unlinkedAssets = graph.unlinkedAssets.filter(
+      (asset) => asset.kind === kind
+    ).length;
+    if (unlinkedAssets === 0 || targetsByKind.has(kind)) return null;
+
+    return {
+      kind,
+      kind_label: getResearchAssetKindLabel(kind),
+      unlinked_assets: unlinkedAssets,
+      recommended_module_route: MODULE_ROUTES[kind],
+      reason: `缺少可用于补全${getResearchAssetKindLabel(kind)}关系的本地跟踪表或 relation 字段。`,
+    };
+  }).filter(
+    (target): target is ResearchGraphMissingCompletionTarget => Boolean(target)
+  );
+
+  return {
+    targets,
+    actions: actions.sort(sortCompletionActions),
+    missing_targets: missingTargets,
+  };
+}
+
+function buildCompletionTargets(
+  snapshots: ResearchDatabaseSnapshot[]
+): ResearchGraphCompletionTarget[] {
+  return snapshots.flatMap((snapshot) => {
+    const databaseKind = classifyResearchDatabase(snapshot.database);
+    const relationFields = snapshot.fields.filter(
+      (field) => field.field_type === "relation"
+    );
+
+    return RESEARCH_ASSET_KINDS.map((kind) => {
+      const fieldsForKind = relationFields.filter(
+        (field) => inferResearchKindFromRelationField(field.name) === kind
+      );
+
+      if (databaseKind !== kind && fieldsForKind.length === 0) return null;
+
+      const fieldNames = fieldsForKind.map((field) => field.name);
+      return {
+        kind,
+        kind_label: getResearchAssetKindLabel(kind),
+        database_id: snapshot.database.id,
+        database_title: snapshot.database.title,
+        database_kind: databaseKind,
+        database_kind_label: databaseKind
+          ? getResearchAssetKindLabel(databaseKind)
+          : null,
+        relation_field_names: fieldNames,
+        relation_field_labels: fieldNames.map(getResearchRelationFieldLabel),
+        reason:
+          databaseKind === kind
+            ? `${getResearchAssetKindLabel(kind)}自己的跟踪表可以作为补全入口。`
+            : `这个跟踪表已有指向${getResearchAssetKindLabel(kind)}的 relation 字段。`,
+      };
+    }).filter(
+      (target): target is ResearchGraphCompletionTarget => Boolean(target)
+    );
+  });
+}
+
+function buildDatabaseCompletionRoute(databaseId: string, asset: ResearchAsset) {
+  const params = new URLSearchParams({
+    q: asset.title,
+    focus: asset.id,
+  });
+  return `/database/${databaseId}?${params.toString()}`;
+}
+
+function sortCompletionActions(
+  a: ResearchGraphCompletionAction,
+  b: ResearchGraphCompletionAction
+) {
+  const kindDelta =
+    RESEARCH_ASSET_KINDS.indexOf(a.asset_kind) -
+    RESEARCH_ASSET_KINDS.indexOf(b.asset_kind);
+  if (kindDelta !== 0) return kindDelta;
+  return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
 }
 
 function createAsset(page: Page, kind: ResearchAssetKind): ResearchAsset {

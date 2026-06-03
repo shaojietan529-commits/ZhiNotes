@@ -106,8 +106,9 @@ Current relation scope:
 - CSV export writes related page titles, not internal ids.
 - Company, report, meeting, and portfolio modules share a local research graph
   panel. It can export a graph report with asset titles, module coverage,
-  relation fields, and links, without including page bodies, database row
-  values, uploaded file bytes, prompts, tokens, or cloud data.
+  relation fields, links, and completion suggestions, without including page
+  bodies, database row values, uploaded file bytes, prompts, tokens, or cloud
+  data.
 
 ## Research Graph Module
 
@@ -122,12 +123,15 @@ Current local actions:
 - View company, report, meeting, and portfolio asset coverage in one place.
 - Review recent relation links across local research trackers.
 - Identify local assets that still need structured relation fields.
+- Review suggested completion targets for unlinked assets and jump into the
+  right local database with `q` and `focus` parameters prefilled.
 - Open source pages, target pages, source modules, and tracker databases.
 - Export a local graph report without page bodies, database row values, file
   bytes, prompts, tokens, or cloud data.
 
 The current Research Graph module is read-only. It does not edit pages, create
-database rows, call AI, sync data, or upload workspace content.
+database rows, write relation values, call AI, sync data, or upload workspace
+content.
 
 ## Company Research Module
 
