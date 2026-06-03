@@ -18,6 +18,7 @@ const files = {
   routePreflight: "src/lib/sync/webBetaRoutePreflight.ts",
   conflictResolution: "src/lib/sync/syncConflictResolution.ts",
   remoteBaselineRequest: "src/lib/sync/remoteBaselineRequest.ts",
+  remoteBaselineStaging: "src/lib/sync/remoteBaselineStaging.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -172,6 +173,7 @@ function run() {
   const routePreflight = readProjectFile(files.routePreflight);
   const conflictResolution = readProjectFile(files.conflictResolution);
   const remoteBaselineRequest = readProjectFile(files.remoteBaselineRequest);
+  const remoteBaselineStaging = readProjectFile(files.remoteBaselineStaging);
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -195,6 +197,7 @@ function run() {
     [files.routePreflight, routePreflight],
     [files.conflictResolution, conflictResolution],
     [files.remoteBaselineRequest, remoteBaselineRequest],
+    [files.remoteBaselineStaging, remoteBaselineStaging],
     [files.syncOptInGate, syncOptInGate],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
@@ -746,6 +749,171 @@ function run() {
     );
   }
   assertSourceIncludes(
+    files.remoteBaselineStaging,
+    remoteBaselineStaging,
+    'format: "zhinote-remote-baseline-staging-contract"',
+    "Remote baseline staging must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.remoteBaselineStaging,
+    remoteBaselineStaging,
+    "buildRemoteBaselineStagingContract",
+    "Remote baseline staging must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      "can_stage_remote_metadata_now: false",
+      "Remote baseline staging must not stage metadata yet.",
+    ],
+    [
+      "can_persist_stage_store_now: false",
+      "Remote baseline staging must not persist a stage store.",
+    ],
+    [
+      "can_apply_staged_rows_now: false",
+      "Remote baseline staging must not apply staged rows.",
+    ],
+    [
+      'disabled_source_endpoint: "/api/sync/pull"',
+      "Remote baseline staging must use the disabled sync pull endpoint.",
+    ],
+    [
+      'disabled_stage_table: "remote_baseline_stage"',
+      "Remote baseline staging must name the disabled stage table.",
+    ],
+    [
+      "uses_placeholder_metadata: true",
+      "Remote baseline staging must use placeholder metadata only.",
+    ],
+    [
+      "starts_network_request: false",
+      "Remote baseline staging must not start network requests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Remote baseline staging must not connect cloud services.",
+    ],
+    [
+      "reads_remote_data: false",
+      "Remote baseline staging must not read remote data.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Remote baseline staging must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Remote baseline staging must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Remote baseline staging must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Remote baseline staging must not read file bytes.",
+    ],
+    [
+      "persists_stage_store: false",
+      "Remote baseline staging must not persist stage data.",
+    ],
+    [
+      "stages_remote_rows: false",
+      "Remote baseline staging must not stage remote rows.",
+    ],
+    [
+      "acknowledges_remote_rows: false",
+      "Remote baseline staging must not acknowledge remote rows.",
+    ],
+    [
+      "applies_remote_changes: false",
+      "Remote baseline staging must not apply remote changes.",
+    ],
+    [
+      "writes_workspace_data: false",
+      "Remote baseline staging must not write workspace data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Remote baseline staging must not upload workspace data.",
+    ],
+    [
+      "requires_remote_baseline_request_contract: true",
+      "Remote baseline staging must require the request contract.",
+    ],
+    [
+      "requires_cursor_proof: true",
+      "Remote baseline staging must require cursor proof.",
+    ],
+    [
+      "requires_side_by_side_review_surface: true",
+      "Remote baseline staging must require side-by-side review surface.",
+    ],
+    [
+      "requires_permission_check_before_stage: true",
+      "Remote baseline staging must require permission check.",
+    ],
+    [
+      "requires_audit_event_before_stage: true",
+      "Remote baseline staging must require audit event.",
+    ],
+    [
+      "requires_rollback_snapshot_before_apply: true",
+      "Remote baseline staging must require rollback before apply.",
+    ],
+    [
+      "requires_owner_confirmation_before_apply: true",
+      "Remote baseline staging must require owner confirmation before apply.",
+    ],
+    [
+      'staging_table: "remote_baseline_stage"',
+      "Remote baseline staging must route to the planned stage table.",
+    ],
+    [
+      'target_review_lane: "remote"',
+      "Remote baseline staging must target the Remote review lane.",
+    ],
+    [
+      "page_body_text",
+      "Remote baseline staging must explicitly forbid page body text.",
+    ],
+    [
+      "database_cell_values",
+      "Remote baseline staging must explicitly forbid database values.",
+    ],
+    [
+      "comment_body",
+      "Remote baseline staging must explicitly forbid comment bodies.",
+    ],
+    [
+      "file_bytes",
+      "Remote baseline staging must explicitly forbid file bytes.",
+    ],
+    [
+      "signed_download_url",
+      "Remote baseline staging must explicitly forbid signed download URLs.",
+    ],
+  ]) {
+    assertSourceIncludes(files.remoteBaselineStaging, remoteBaselineStaging, snippet, message);
+  }
+  for (const gateId of [
+    "baseline-request-contract",
+    "stage-store-schema",
+    "cursor-proof-before-stage",
+    "permission-check-before-stage",
+    "audit-event-before-stage",
+    "side-by-side-remote-lane",
+    "rollback-before-apply",
+    "owner-confirmation-before-apply",
+  ]) {
+    assertSourceIncludes(
+      files.remoteBaselineStaging,
+      remoteBaselineStaging,
+      `id: "${gateId}"`,
+      `Remote baseline staging gate ${gateId} must remain available.`
+    );
+  }
+  assertSourceIncludes(
     files.syncShell,
     syncShell,
     "buildSyncConflictResolutionContract",
@@ -823,6 +991,42 @@ function run() {
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      "buildRemoteBaselineStagingContract",
+      "Sync UI must build the remote baseline staging contract.",
+    ],
+    [
+      "handleExportRemoteBaselineStaging",
+      "Sync UI must export the remote baseline staging contract.",
+    ],
+    [
+      "Remote baseline staging contract",
+      "Sync UI must render the remote baseline staging panel.",
+    ],
+    [
+      "Export baseline staging",
+      "Sync UI must expose the remote baseline staging export action.",
+    ],
+    [
+      "RemoteBaselineStageStoreCard",
+      "Sync UI must render the remote baseline stage store boundary.",
+    ],
+    [
+      "RemoteBaselineStageSurfaceRow",
+      "Sync UI must render remote-lane surface staging rows.",
+    ],
+    [
+      "RemoteBaselineStageGateRow",
+      "Sync UI must render remote baseline staging gates.",
+    ],
+    [
+      "RemoteBaselineStageFieldRow",
+      "Sync UI must render remote baseline staging field boundaries.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
@@ -869,6 +1073,7 @@ function run() {
     smoke_test_verifier_checks: 3,
     conflict_resolution_checks: 50,
     remote_baseline_checks: 43,
+    remote_baseline_staging_checks: 49,
     warnings: warnings.length,
   };
 

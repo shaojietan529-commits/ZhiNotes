@@ -540,6 +540,12 @@ Current local actions:
   no acknowledgement, no apply, no workspace write, and no upload. Page bodies,
   database values, comment bodies, file bytes, and signed download URLs remain
   forbidden until explicit review gates are implemented.
+- Review and export a local remote baseline staging contract. The contract
+  defines a future `remote_baseline_stage` metadata store and maps staged
+  metadata only to the Remote lane of the side-by-side review UI. Persistence,
+  staging, acknowledgement, apply, workspace writes, and uploads remain
+  disabled; payload fields such as page body text, database values, comment
+  bodies, file bytes, and signed download URLs remain forbidden.
 - Review and export a local workspace identity with anonymous browser-local
   workspace and device ids for future sync metadata. The identity is not an
   account and does not connect cloud services or include note text/file content.

@@ -217,10 +217,10 @@ function buildLaunchTracks(
       title: "Conflict review",
       status: input.conflictReview ? "partial" : "blocked",
       evidence: input.conflictReview
-        ? `Conflict scaffold covers ${input.conflictReview.summary.surfaces} surfaces but does not read remote baselines.`
+        ? `Conflict scaffold covers ${input.conflictReview.summary.surfaces} surfaces, and sync UI includes local-only side-by-side, baseline request, and baseline staging contracts. It still does not read remote baselines.`
         : "No local conflict review scaffold is available.",
       required_action:
-        "Add remote baseline detection and side-by-side conflict resolution before multi-device editing.",
+        "Add metadata-only remote_baseline_stage schema, cursor proof, rollback proof, and owner confirmation before multi-device editing.",
     },
     {
       id: "restore-and-rollback",

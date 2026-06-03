@@ -147,6 +147,11 @@ import {
   type RemoteBaselineRequestStatus,
 } from "@/lib/sync/remoteBaselineRequest";
 import {
+  buildRemoteBaselineStagingContract,
+  type RemoteBaselineStagingContract,
+  type RemoteBaselineStagingStatus,
+} from "@/lib/sync/remoteBaselineStaging";
+import {
   buildSyncOptInGateReport,
   type SyncOptInGateReport,
   type SyncOptInGateStatus,
@@ -189,6 +194,7 @@ type SyncQueueAction =
   | "conflict-resolution"
   | "conflict-review-ui"
   | "remote-baseline"
+  | "remote-baseline-staging"
   | "opt-in-gate"
   | "sync-confirmation"
   | "rollback-plan"
@@ -628,6 +634,25 @@ function SyncDashboard() {
       permissionDecisionReport,
       syncConflictResolution,
       syncConflictReview,
+      syncReplayTestPlan,
+      workspaceIdentity,
+    ]
+  );
+  const remoteBaselineStaging = useMemo(
+    () =>
+      buildRemoteBaselineStagingContract({
+        workspaceIdentity,
+        baselineRequest: remoteBaselineRequest,
+        conflictResolution: syncConflictResolution,
+        replayTestPlan: syncReplayTestPlan,
+        permissionDecisionReport,
+        auditTrailPolicy,
+      }),
+    [
+      auditTrailPolicy,
+      permissionDecisionReport,
+      remoteBaselineRequest,
+      syncConflictResolution,
       syncReplayTestPlan,
       workspaceIdentity,
     ]
@@ -1517,6 +1542,26 @@ function SyncDashboard() {
       console.error("[Zhinote] Failed to export remote baseline request:", err);
       window.alert(
         "Remote baseline request export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportRemoteBaselineStaging = () => {
+    setBusyQueueAction("remote-baseline-staging");
+    try {
+      downloadJsonFile(
+        `zhinote-remote-baseline-staging-${fileSafeTimestamp()}.json`,
+        {
+          ...remoteBaselineStaging,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export remote baseline staging:", err);
+      window.alert(
+        "Remote baseline staging export failed. Please check the console."
       );
     } finally {
       setBusyQueueAction(null);
@@ -2650,6 +2695,16 @@ function SyncDashboard() {
                   ? "Exporting..."
                   : "Export baseline request"}
               </button>
+              <button
+                type="button"
+                onClick={handleExportRemoteBaselineStaging}
+                disabled={busyQueueAction === "remote-baseline-staging"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyQueueAction === "remote-baseline-staging"
+                  ? "Exporting..."
+                  : "Export baseline staging"}
+              </button>
             </div>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
@@ -2829,6 +2884,98 @@ function SyncDashboard() {
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {remoteBaselineRequest.fields.map((field) => (
                   <RemoteBaselineFieldRow key={field.field} field={field} />
+                ))}
+              </div>
+            </ContractPanel>
+          </ContractPanel>
+          <ContractPanel
+            title="Remote baseline staging contract"
+            className="mt-4"
+          >
+            <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl">
+                Local contract for the future staging step between
+                metadata-only pull and the side-by-side review UI. It defines a
+                planned remote_baseline_stage store and maps staged metadata to
+                the Remote lane only. Staging, persistence, acknowledgement,
+                apply, writes, and uploads remain disabled.
+              </p>
+              <span className="w-fit rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
+                {remoteBaselineStaging.staging_status}
+              </span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+              <ResolutionSummaryCard
+                label="Stage store"
+                value={remoteBaselineStaging.disabled_stage_table}
+                detail={remoteBaselineStaging.stage_store.write_status}
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Surfaces"
+                value={remoteBaselineStaging.summary.stage_surfaces}
+                detail="Remote lane maps"
+                status="manual-confirmation"
+              />
+              <ResolutionSummaryCard
+                label="Blocked"
+                value={remoteBaselineStaging.summary.blocked}
+                detail="Must stay disabled"
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Allowed fields"
+                value={remoteBaselineStaging.summary.allowed_fields}
+                detail="Metadata only"
+                status="planned"
+              />
+              <ResolutionSummaryCard
+                label="Forbidden"
+                value={remoteBaselineStaging.summary.forbidden_fields}
+                detail="Payload body"
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Persist"
+                value="Disabled"
+                detail="No stage writes"
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Apply"
+                value="Disabled"
+                detail="Review only"
+                status="blocked"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <ContractPanel title="Stage store boundary">
+                <RemoteBaselineStageStoreCard
+                  store={remoteBaselineStaging.stage_store}
+                />
+              </ContractPanel>
+              <ContractPanel title="Staging gates">
+                <div className="space-y-2">
+                  {remoteBaselineStaging.gates.map((gate) => (
+                    <RemoteBaselineStageGateRow key={gate.id} gate={gate} />
+                  ))}
+                </div>
+              </ContractPanel>
+            </div>
+            <ContractPanel title="Remote-lane surface staging" className="mt-4">
+              <div className="grid gap-2 xl:grid-cols-2">
+                {remoteBaselineStaging.surface_stages.map((surface) => (
+                  <RemoteBaselineStageSurfaceRow
+                    key={surface.surface_id}
+                    surface={surface}
+                  />
+                ))}
+              </div>
+            </ContractPanel>
+            <ContractPanel title="Staging field boundary" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {remoteBaselineStaging.fields.map((field) => (
+                  <RemoteBaselineStageFieldRow key={field.field} field={field} />
                 ))}
               </div>
             </ContractPanel>
@@ -6663,6 +6810,9 @@ function ResolutionGateRow({
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
             {gate.title}
           </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
           <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
             {gate.evidence}
           </p>
@@ -6864,6 +7014,9 @@ function RemoteBaselineGateRow({
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
             {gate.title}
           </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
           <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
             {gate.evidence}
           </p>
@@ -6901,6 +7054,236 @@ function RemoteBaselineFieldRow({
         {field.reason}
       </p>
     </article>
+  );
+}
+
+function RemoteBaselineStageStoreCard({
+  store,
+}: {
+  store: RemoteBaselineStagingContract["stage_store"];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {store.table_name}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            Retention: {store.retention}
+          </p>
+        </div>
+        <RemoteBaselineStageStatusPill status={store.status} />
+      </div>
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        <div>
+          <div className="text-[10px] font-semibold text-zinc-400">
+            Allowed columns
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {store.allowed_columns.map((field) => (
+              <span
+                key={field}
+                className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                {field}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] font-semibold text-zinc-400">
+            Forbidden columns
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {store.forbidden_columns.map((field) => (
+              <span
+                key={field}
+                className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300"
+              >
+                {field}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <div className="text-[10px] font-semibold text-zinc-400">
+          Required indexes
+        </div>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {store.required_indexes.map((field) => (
+            <span
+              key={field}
+              className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+            >
+              {field}
+            </span>
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function RemoteBaselineStageSurfaceRow({
+  surface,
+}: {
+  surface: RemoteBaselineStagingContract["surface_stages"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {surface.surface}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <RemoteBaselineStageStatusPill status={surface.status} />
+            <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+              {surface.target_review_lane} lane
+            </span>
+          </div>
+        </div>
+        <span className="w-fit rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
+          {surface.stage_status}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        Target review surface: {surface.target_review_surface}. Source:
+        {` ${surface.source_contract}`}.
+      </p>
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        <div>
+          <div className="text-[10px] font-semibold text-zinc-400">
+            Metadata fields
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {surface.allowed_metadata_fields.map((field) => (
+              <span
+                key={field}
+                className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                {field}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] font-semibold text-zinc-400">
+            Rejected payload
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {surface.forbidden_payload_fields.map((field) => (
+              <span
+                key={field}
+                className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300"
+              >
+                {field}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <div className="text-[10px] font-semibold text-zinc-400">
+          Validation
+        </div>
+        <ul className="mt-1 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+          {surface.validation_steps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ul>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {surface.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineStageGateRow({
+  gate,
+}: {
+  gate: RemoteBaselineStagingContract["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {gate.evidence}
+          </p>
+        </div>
+        <RemoteBaselineStageStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineStageFieldRow({
+  field,
+}: {
+  field: RemoteBaselineStagingContract["fields"][number];
+}) {
+  const className =
+    field.status === "allowed"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">
+            {field.field}
+          </div>
+          <div className="mt-1 text-[10px] text-zinc-400">
+            {field.target}
+          </div>
+        </div>
+        <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+          {field.status}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {field.reason}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineStageStatusPill({
+  status,
+}: {
+  status: RemoteBaselineStagingStatus;
+}) {
+  const labels: Record<RemoteBaselineStagingStatus, string> = {
+    planned: "Planned",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "blocked"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

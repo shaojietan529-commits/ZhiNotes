@@ -195,11 +195,11 @@ function buildActions(
       phase: "sync",
       priority: "p1",
       gate: gatesById.get("conflict-resolution"),
-      fallbackTitle: "Stage remote baseline into conflict review UI",
+      fallbackTitle: "Add remote baseline stage schema and cursor proof",
       fallbackEvidence:
-        "Conflict policies, side-by-side preview, and remote baseline request contract exist, but no authenticated metadata-only baseline staging is implemented.",
+        "Conflict policies, side-by-side preview, remote baseline request contract, and local staging contract exist, but no remote_baseline_stage schema or cursor proof is implemented.",
       fallbackAction:
-        "Implement metadata-only remote baseline staging for pages, database rows, files, comments, permissions, and restore conflicts while keeping apply disabled.",
+        "Add metadata-only remote_baseline_stage schema and cursor proof for pages, database rows, files, comments, permissions, and restore conflicts while keeping apply disabled.",
       status: "ready-to-build",
       unlocks: "Multi-device editing without silent overwrites.",
     }),
