@@ -31,7 +31,16 @@ import TimelineView from "./views/TimelineView";
 import ChartView from "./views/ChartView";
 import FormView from "./views/FormView";
 import FeedView from "./views/FeedView";
-import { stringifyRelationValue } from "@/lib/database/relationValues";
+import {
+  normalizeRelationValue,
+  stringifyRelationValue,
+} from "@/lib/database/relationValues";
+import {
+  classifyResearchPage,
+  getResearchAssetKindLabel,
+  getResearchRelationFieldLabel,
+  inferResearchKindFromRelationField,
+} from "@/lib/modules/researchGraph";
 import {
   getDatabaseFieldDisplayName,
   getDatabaseFieldTypeLabel,
@@ -81,6 +90,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [hiddenFieldIds, setHiddenFieldIds] = useState<string[]>([]);
   const [chartGroupFieldId, setChartGroupFieldId] = useState("");
+  const [relationCompletionBusyId, setRelationCompletionBusyId] =
+    useState<string | null>(null);
 
   const applyViewConfig = useCallback((configValue: string) => {
     const config = parseDatabaseViewConfig(configValue);
@@ -265,6 +276,38 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       sortDirection,
     ]
   );
+  const relationCompletionFields = useMemo(
+    () => getRelationCompletionFields(fields, focusPage),
+    [fields, focusPage]
+  );
+  const relationCompletionRows = useMemo(
+    () => getRelationCompletionRows(rows, visibleRows, focusPageId),
+    [focusPageId, rows, visibleRows]
+  );
+
+  const handleAddFocusRelation = useCallback(
+    async (row: RowWithPage, field: DatabaseField) => {
+      if (!focusPageId) return;
+      const actionId = `${row.id}:${field.id}`;
+      setRelationCompletionBusyId(actionId);
+      try {
+        const fieldValues = parseFieldValues(row.field_values);
+        const currentIds = normalizeRelationValue(fieldValues[field.id]);
+        if (!currentIds.includes(focusPageId)) {
+          await updateRow(row.id, {
+            fieldValues: {
+              ...fieldValues,
+              [field.id]: [...currentIds, focusPageId],
+            },
+          });
+        }
+        await reload();
+      } finally {
+        setRelationCompletionBusyId(null);
+      }
+    },
+    [focusPageId, reload]
+  );
 
   if (loading) {
     return (
@@ -431,6 +474,17 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           </span>
           。请在本表的 relation 字段里搜索并选择相关页面；如果没有对应行，先新建或打开正确的行。
         </div>
+      )}
+
+      {focusPageId && focusPage && (
+        <RelationCompletionAssistant
+          focusPage={focusPage}
+          rows={relationCompletionRows}
+          fields={relationCompletionFields}
+          busyId={relationCompletionBusyId}
+          onAddRelation={(row, field) => void handleAddFocusRelation(row, field)}
+          onOpenRow={(pageId) => router.push(`/page/${pageId}`)}
+        />
       )}
 
       {/* Active view */}
@@ -621,6 +675,133 @@ function DatabaseViewControls({
         </button>
       )}
     </div>
+  );
+}
+
+function RelationCompletionAssistant({
+  focusPage,
+  rows,
+  fields,
+  busyId,
+  onAddRelation,
+  onOpenRow,
+}: {
+  focusPage: Page;
+  rows: RowWithPage[];
+  fields: DatabaseField[];
+  busyId: string | null;
+  onAddRelation: (row: RowWithPage, field: DatabaseField) => void;
+  onOpenRow: (pageId: string) => void;
+}) {
+  const focusKind = classifyResearchPage(focusPage);
+
+  return (
+    <section className="mb-4 rounded-lg border border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-zinc-950">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Relation 补全助手
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            当前聚焦：{focusPage.icon ? `${focusPage.icon} ` : ""}
+            {focusPage.title || "未命名页面"}
+            {focusKind ? ` · ${getResearchAssetKindLabel(focusKind)}` : ""}。
+            点击按钮后只会把这个页面加入所选行的 relation 字段。
+          </p>
+        </div>
+        <span className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+          本地单条写入
+        </span>
+      </div>
+
+      {fields.length === 0 ? (
+        <p className="mt-3 text-xs leading-5 text-zinc-400">
+          当前数据库没有可用的 relation 字段。请先添加 relation 字段，再补关系。
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="mt-3 text-xs leading-5 text-zinc-400">
+          没有找到候选行。可以先清除搜索、创建新行，或打开正确的跟踪表。
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-2 lg:grid-cols-2">
+          {rows.map((row) => (
+            <RelationCompletionRow
+              key={row.id}
+              row={row}
+              fields={fields}
+              focusPageId={focusPage.id}
+              busyId={busyId}
+              onAddRelation={onAddRelation}
+              onOpenRow={onOpenRow}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function RelationCompletionRow({
+  row,
+  fields,
+  focusPageId,
+  busyId,
+  onAddRelation,
+  onOpenRow,
+}: {
+  row: RowWithPage;
+  fields: DatabaseField[];
+  focusPageId: string;
+  busyId: string | null;
+  onAddRelation: (row: RowWithPage, field: DatabaseField) => void;
+  onOpenRow: (pageId: string) => void;
+}) {
+  const fieldValues = parseFieldValues(row.field_values);
+
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
+            {row.page?.title || "未命名行"}
+          </h3>
+          <p className="mt-1 text-xs text-zinc-400">
+            选择字段后加入当前聚焦页面
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onOpenRow(row.page_id)}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开行
+        </button>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {fields.map((field) => {
+          const actionId = `${row.id}:${field.id}`;
+          const existingIds = normalizeRelationValue(fieldValues[field.id]);
+          const alreadyLinked = existingIds.includes(focusPageId);
+
+          return (
+            <button
+              key={field.id}
+              type="button"
+              disabled={alreadyLinked || busyId === actionId}
+              onClick={() => onAddRelation(row, field)}
+              className="rounded-md border border-blue-200 px-2 py-1 text-xs text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-default disabled:border-zinc-200 disabled:text-zinc-400 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950 dark:disabled:border-zinc-800 dark:disabled:text-zinc-500"
+              title={getDatabaseFieldDisplayName(field)}
+            >
+              {alreadyLinked
+                ? `${getResearchRelationFieldLabel(field.name)} 已有`
+                : busyId === actionId
+                  ? "加入中..."
+                  : `加入 ${getResearchRelationFieldLabel(field.name)}`}
+            </button>
+          );
+        })}
+      </div>
+    </article>
   );
 }
 
@@ -994,6 +1175,39 @@ function AddViewButton({
       )}
     </div>
   );
+}
+
+function getRelationCompletionFields(
+  fields: DatabaseField[],
+  focusPage: Page | null
+) {
+  const relationFields = fields.filter((field) => field.field_type === "relation");
+  if (!focusPage) return relationFields;
+
+  const focusKind = classifyResearchPage(focusPage);
+  if (!focusKind) return relationFields;
+
+  const preferredFields = relationFields.filter(
+    (field) => inferResearchKindFromRelationField(field.name) === focusKind
+  );
+  return preferredFields.length > 0 ? preferredFields : relationFields;
+}
+
+function getRelationCompletionRows(
+  rows: RowWithPage[],
+  visibleRows: RowWithPage[],
+  focusPageId: string
+) {
+  const nextRows = new Map<string, RowWithPage>();
+  const focusedRow = rows.find((row) => row.page_id === focusPageId);
+  if (focusedRow) nextRows.set(focusedRow.id, focusedRow);
+
+  const sourceRows = visibleRows.length > 0 ? visibleRows : rows;
+  for (const row of sourceRows.slice(0, 5)) {
+    nextRows.set(row.id, row);
+  }
+
+  return Array.from(nextRows.values()).slice(0, 5);
 }
 
 function getVisibleRows({

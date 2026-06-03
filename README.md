@@ -125,13 +125,16 @@ Current local actions:
 - Identify local assets that still need structured relation fields.
 - Review suggested completion targets for unlinked assets and jump into the
   right local database with `q` and `focus` parameters prefilled.
+- Use the database relation completion assistant after that jump to manually
+  add the focused asset to one local relation field at a time.
 - Open source pages, target pages, source modules, and tracker databases.
 - Export a local graph report without page bodies, database row values, file
   bytes, prompts, tokens, or cloud data.
 
 The current Research Graph module is read-only. It does not edit pages, create
-database rows, write relation values, call AI, sync data, or upload workspace
-content.
+database rows, call AI, sync data, or upload workspace content. Relation
+completion from a database page is a separate manual click that writes only the
+selected local row and selected local relation field.
 
 ## Company Research Module
 
