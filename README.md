@@ -360,9 +360,9 @@ Current local actions:
   page text, read file bytes, or upload workspace data.
 - Review and export a local Web Beta environment preflight. The preflight checks
   whether auth, database, file storage, deployment, security, and observability
-  environment variables are present, but never exposes secret values, connects
-  cloud services, creates accounts, writes server data, or uploads workspace
-  data.
+  environment variables from `.env.example` are present, but never exposes
+  secret values, connects cloud services, creates accounts, writes server data,
+  or uploads workspace data.
 - Review and export a local Web Beta launch checklist. The checklist connects
   product readiness, auth, cloud schema, file storage, sync replay, conflict
   review, restore rollback, restore write-back, payload confirmation,

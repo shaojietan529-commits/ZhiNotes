@@ -62,61 +62,61 @@ export interface WebBetaEnvironmentPreflight {
 export const WEB_BETA_ENVIRONMENT_REQUIREMENTS: WebBetaEnvironmentRequirement[] =
   [
     {
-      key: "ZHINOTE_AUTH_PROVIDER",
-      label: "Auth provider",
-      group: "auth",
+      key: "ZHINOTES_CLOUD_ENABLED",
+      label: "Cloud route enable flag",
+      group: "deployment",
       required: true,
-      purpose: "Provider identifier for private beta login.",
+      purpose: "Explicit switch for allowing guarded cloud routes to talk to Supabase.",
       privacy_boundary:
-        "Provider name only; no user email, password, token, or cookie value should be exposed.",
+        "Boolean flag only; it must not include user, token, or workspace content.",
     },
     {
-      key: "ZHINOTE_SESSION_SECRET",
-      label: "Session secret",
-      group: "auth",
+      key: "ZHINOTES_ALLOW_CLOUD_WRITES",
+      label: "Cloud write enable flag",
+      group: "security",
       required: true,
-      purpose: "Server-side secret for signing encrypted beta sessions.",
+      purpose: "Separate write gate for login start, logout, workspace create, and future write APIs.",
       privacy_boundary:
-        "Presence check only; the secret value must never be returned to the browser.",
+        "Boolean flag only; keeping it false prevents cloud writes even when read config is present.",
     },
     {
-      key: "ZHINOTE_DATABASE_URL",
-      label: "Cloud database URL",
+      key: "NEXT_PUBLIC_SUPABASE_URL",
+      label: "Supabase project URL",
       group: "database",
       required: true,
-      purpose: "Primary cloud database connection string for beta workspaces.",
+      purpose: "Supabase project URL for Auth and PostgREST calls.",
       privacy_boundary:
-        "Presence check only; connection strings and credentials must never be exposed.",
+        "Presence check only; do not return project-specific values in exported reports.",
     },
     {
-      key: "ZHINOTE_DATABASE_MIGRATION_URL",
-      label: "Migration database URL",
+      key: "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      label: "Supabase anon key",
+      group: "auth",
+      required: true,
+      purpose: "Public Supabase anon key used with user Bearer tokens for Auth and workspace metadata.",
+      privacy_boundary:
+        "Presence check only; key values must never be included in browser-visible preflight exports.",
+    },
+    {
+      key: "SUPABASE_SERVICE_ROLE_KEY",
+      label: "Supabase service role key",
       group: "database",
-      required: false,
-      purpose: "Optional isolated migration connection for deployment pipelines.",
+      required: true,
+      purpose: "Server-only key reserved for migrations, bootstrap checks, and future privileged maintenance.",
       privacy_boundary:
-        "Presence check only; migration credentials must stay server-side.",
+        "Presence check only; the service role key must never be returned to the browser or committed.",
     },
     {
-      key: "ZHINOTE_FILE_STORAGE_PROVIDER",
-      label: "File storage provider",
+      key: "SUPABASE_STORAGE_BUCKET",
+      label: "Private storage bucket",
       group: "storage",
       required: true,
-      purpose: "Private storage provider for reports, PDFs, Office files, archives, and notebooks.",
-      privacy_boundary:
-        "Provider name only; no storage keys or private bucket credentials should be exposed.",
-    },
-    {
-      key: "ZHINOTE_FILE_STORAGE_BUCKET",
-      label: "Private file bucket",
-      group: "storage",
-      required: true,
-      purpose: "Private bucket/container for synced file metadata and file bytes.",
+      purpose: "Private Supabase Storage bucket for future synced report and document files.",
       privacy_boundary:
         "Presence check only; bucket policy and credentials must stay private.",
     },
     {
-      key: "ZHINOTE_APP_BASE_URL",
+      key: "NEXT_PUBLIC_APP_URL",
       label: "App base URL",
       group: "deployment",
       required: true,
@@ -125,16 +125,16 @@ export const WEB_BETA_ENVIRONMENT_REQUIREMENTS: WebBetaEnvironmentRequirement[] 
         "Presence check only; no user-specific link or token should be exposed.",
     },
     {
-      key: "ZHINOTE_ALLOWED_ORIGIN",
-      label: "Allowed browser origin",
+      key: "ZHINOTES_AUTH_REDIRECT_ORIGINS",
+      label: "Auth redirect allowlist",
       group: "security",
       required: true,
-      purpose: "Allowed origin for web beta requests and future CSRF/CORS checks.",
+      purpose: "Allowed browser origins for Supabase magic-link redirects and future CSRF/CORS checks.",
       privacy_boundary:
         "Presence check only; do not expose request tokens or session cookies.",
     },
     {
-      key: "ZHINOTE_AUDIT_RETENTION_DAYS",
+      key: "ZHINOTES_AUDIT_RETENTION_DAYS",
       label: "Audit retention days",
       group: "observability",
       required: true,
@@ -143,7 +143,7 @@ export const WEB_BETA_ENVIRONMENT_REQUIREMENTS: WebBetaEnvironmentRequirement[] 
         "Presence check only; audit events should avoid full research payloads.",
     },
     {
-      key: "ZHINOTE_ERROR_MONITORING_DSN",
+      key: "ZHINOTES_ERROR_MONITORING_DSN",
       label: "Error monitoring DSN",
       group: "observability",
       required: false,

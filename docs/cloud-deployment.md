@@ -38,8 +38,11 @@ ZHINOTES_ALLOW_CLOUD_WRITES=true
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
+SUPABASE_STORAGE_BUCKET=workspace-files
 NEXT_PUBLIC_APP_URL=https://your-vercel-domain.vercel.app
 ZHINOTES_AUTH_REDIRECT_ORIGINS=https://your-vercel-domain.vercel.app
+ZHINOTES_AUDIT_RETENTION_DAYS=365
+ZHINOTES_ERROR_MONITORING_DSN=...
 ```
 
 ## Supabase 初始步骤
@@ -56,6 +59,12 @@ supabase/migrations/0001_zhinotes_cloud_foundation.sql
 
 ```txt
 workspace-files
+```
+
+并保持环境变量：
+
+```txt
+SUPABASE_STORAGE_BUCKET=workspace-files
 ```
 
 5. 配置 Auth redirect URL：
