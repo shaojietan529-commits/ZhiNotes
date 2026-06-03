@@ -21,7 +21,8 @@ Current module foundation:
 
 - Notes and Pages: block editor, page tree, backlinks, comments, version history.
 - Research Databases: table, list, kanban, calendar, gallery, timeline, form,
-  feed, and local page relation fields.
+  feed, local page relation fields, template rows, CSV export, XLSX export,
+  and confirmed spreadsheet-to-database import.
 - Report Library: beta module at `/modules/reports` for local HTML reports,
   Markdown notes, PDFs, Office files, notebooks, archives, takeaways, linked
   companies, linked meetings, and a local report tracker database.
@@ -97,14 +98,14 @@ or cloud data.
 
 Databases support a local `relation` field type. A relation field stores page
 ids locally, displays them as clickable page chips in table/form workflows, and
-exports them to CSV as page titles.
+exports them to CSV/XLSX as page titles.
 
 Current relation scope:
 
 - Relation targets are local pages.
 - Table and form views support editing relations.
 - List and gallery views display relation titles.
-- CSV export writes related page titles, not internal ids.
+- CSV and XLSX export write related page titles, not internal ids.
 - Company, report, meeting, and portfolio modules share a local research graph
   panel. It can export a graph report with asset titles, module coverage,
   relation fields, links, completion suggestions, and relation schema gaps,
@@ -460,6 +461,7 @@ Useful checks:
 
 ```bash
 npm run lint
+npm run verify:database
 npm run verify:file-preview
 npm run verify:web-beta
 npm run build

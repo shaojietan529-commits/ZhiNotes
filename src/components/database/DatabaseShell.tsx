@@ -20,7 +20,10 @@ import {
 } from "@/lib/db/local/queries";
 import type { Database, DatabaseField, DatabaseRow, DatabaseView } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
-import { exportDatabaseAsCsv } from "@/lib/export/databaseExport";
+import {
+  exportDatabaseAsCsv,
+  exportDatabaseAsXlsx,
+} from "@/lib/export/databaseExport";
 import { NOTE_TEMPLATES, type NoteTemplate } from "@/lib/templates/noteTemplates";
 import TableView from "./views/TableView";
 import ListView from "./views/ListView";
@@ -276,6 +279,17 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       sortDirection,
     ]
   );
+
+  const handleExportXlsx = useCallback(async () => {
+    if (!database) return;
+    try {
+      await exportDatabaseAsXlsx(database, fields, visibleRows, workspacePages);
+    } catch (err) {
+      console.error("[Zhinote] Failed to export database XLSX:", err);
+      window.alert("Excel 导出失败，请查看控制台。");
+    }
+  }, [database, fields, visibleRows, workspacePages]);
+
   const relationCompletionFields = useMemo(
     () => getRelationCompletionFields(fields, focusPage),
     [fields, focusPage]
@@ -367,6 +381,14 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           title="导出当前可见行为 CSV"
         >
           CSV
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleExportXlsx()}
+          className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          title="导出当前可见行为 Excel 文件"
+        >
+          XLSX
         </button>
       </div>
 

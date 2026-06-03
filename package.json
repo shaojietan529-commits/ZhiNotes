@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "verify:database": "node scripts/verify-database-contract.mjs",
     "verify:file-preview": "node scripts/verify-file-preview-contract.mjs",
     "verify:web-beta": "node scripts/verify-web-beta-contract.mjs"
   },

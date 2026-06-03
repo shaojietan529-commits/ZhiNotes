@@ -13,16 +13,8 @@ export function exportDatabaseAsCsv(
   rows: RowWithPage[],
   relationPages: Page[] = []
 ) {
-  const header = fields.map((field) => getDatabaseFieldDisplayName(field));
-  const csvRows = rows.map((row) => {
-    const values = parseFieldValues(row.field_values);
-    return fields.map((field, index) => {
-      if (index === 0) return row.page?.title || "";
-      return stringifyCell(values[field.id], field, relationPages);
-    });
-  });
-
-  const csv = [header, ...csvRows]
+  const table = buildDatabaseExportTable(fields, rows, relationPages);
+  const csv = table
     .map((row) => row.map(escapeCsvCell).join(","))
     .join("\n");
 
@@ -31,6 +23,44 @@ export function exportDatabaseAsCsv(
     "text/csv;charset=utf-8",
     csv
   );
+}
+
+export async function exportDatabaseAsXlsx(
+  database: Database,
+  fields: DatabaseField[],
+  rows: RowWithPage[],
+  relationPages: Page[] = []
+) {
+  const XLSX = await import("xlsx");
+  const table = buildDatabaseExportTable(fields, rows, relationPages);
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet(table);
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    safeSheetName(database.title || "Rows")
+  );
+  XLSX.writeFile(workbook, `${safeFileName(database.title || "数据库")}.xlsx`, {
+    compression: true,
+  });
+}
+
+function buildDatabaseExportTable(
+  fields: DatabaseField[],
+  rows: RowWithPage[],
+  relationPages: Page[]
+) {
+  const header = fields.map((field) => getDatabaseFieldDisplayName(field));
+  const body = rows.map((row) => {
+    const values = parseFieldValues(row.field_values);
+    return fields.map((field, index) => {
+      if (index === 0) return row.page?.title || "";
+      return stringifyCell(values[field.id], field, relationPages);
+    });
+  });
+
+  return [header, ...body];
 }
 
 function parseFieldValues(fieldValues: string) {
@@ -64,5 +94,14 @@ function safeFileName(value: string) {
       .replace(/[^\w\s.-]/g, "")
       .replace(/\s+/g, "-")
       .slice(0, 80) || "数据库"
+  );
+}
+
+function safeSheetName(value: string) {
+  return (
+    value
+      .trim()
+      .replace(/[:\\/?*[\]]/g, "")
+      .slice(0, 31) || "Rows"
   );
 }
