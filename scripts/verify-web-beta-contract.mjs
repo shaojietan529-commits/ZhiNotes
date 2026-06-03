@@ -17,6 +17,7 @@ const files = {
   launchChecklist: "src/lib/sync/webBetaLaunchChecklist.ts",
   routePreflight: "src/lib/sync/webBetaRoutePreflight.ts",
   conflictResolution: "src/lib/sync/syncConflictResolution.ts",
+  remoteBaselineRequest: "src/lib/sync/remoteBaselineRequest.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -170,6 +171,7 @@ function run() {
   const launchChecklist = readProjectFile(files.launchChecklist);
   const routePreflight = readProjectFile(files.routePreflight);
   const conflictResolution = readProjectFile(files.conflictResolution);
+  const remoteBaselineRequest = readProjectFile(files.remoteBaselineRequest);
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -192,6 +194,7 @@ function run() {
     [files.launchChecklist, launchChecklist],
     [files.routePreflight, routePreflight],
     [files.conflictResolution, conflictResolution],
+    [files.remoteBaselineRequest, remoteBaselineRequest],
     [files.syncOptInGate, syncOptInGate],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
@@ -594,6 +597,155 @@ function run() {
     assertSourceIncludes(files.conflictResolution, conflictResolution, snippet, message);
   }
   assertSourceIncludes(
+    files.remoteBaselineRequest,
+    remoteBaselineRequest,
+    'format: "zhinote-remote-baseline-request-contract"',
+    "Remote baseline request must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.remoteBaselineRequest,
+    remoteBaselineRequest,
+    "buildRemoteBaselineRequestContract",
+    "Remote baseline request must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      "can_request_remote_baseline_now: false",
+      "Remote baseline request must not be enabled yet.",
+    ],
+    [
+      "can_stage_remote_rows_now: false",
+      "Remote baseline request must not stage remote rows yet.",
+    ],
+    [
+      "can_apply_remote_rows_now: false",
+      "Remote baseline request must not apply remote rows.",
+    ],
+    [
+      "starts_network_request: false",
+      "Remote baseline request must not start network requests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Remote baseline request must not connect cloud services.",
+    ],
+    [
+      "reads_remote_data: false",
+      "Remote baseline request must not read remote data.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Remote baseline request must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Remote baseline request must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Remote baseline request must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Remote baseline request must not read file bytes.",
+    ],
+    [
+      "stages_remote_rows: false",
+      "Remote baseline request must not stage remote rows.",
+    ],
+    [
+      "acknowledges_remote_rows: false",
+      "Remote baseline request must not acknowledge remote rows.",
+    ],
+    [
+      "applies_remote_changes: false",
+      "Remote baseline request must not apply remote changes.",
+    ],
+    [
+      "writes_workspace_data: false",
+      "Remote baseline request must not write workspace data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Remote baseline request must not upload workspace data.",
+    ],
+    [
+      "requires_authenticated_session: true",
+      "Remote baseline request must require authenticated session before enablement.",
+    ],
+    [
+      "requires_workspace_membership: true",
+      "Remote baseline request must require workspace membership.",
+    ],
+    [
+      "requires_side_by_side_review_staging: true",
+      "Remote baseline request must require side-by-side staging.",
+    ],
+    [
+      "requires_permission_check_before_fetch: true",
+      "Remote baseline request must require permission check.",
+    ],
+    [
+      "requires_audit_event_before_fetch: true",
+      "Remote baseline request must require audit event.",
+    ],
+    [
+      "requires_owner_confirmation_before_apply: true",
+      "Remote baseline request must require owner confirmation before apply.",
+    ],
+    [
+      'endpoint: "/api/sync/pull"',
+      "Remote baseline request must target the disabled sync pull endpoint.",
+    ],
+    [
+      'query_mode: "baseline"',
+      "Remote baseline request must use baseline query mode.",
+    ],
+    [
+      'response_handling: "stage-for-review-only"',
+      "Remote baseline response must be staged for review only.",
+    ],
+    [
+      "page_body_text",
+      "Remote baseline request must explicitly forbid page body text.",
+    ],
+    [
+      "database_cell_values",
+      "Remote baseline request must explicitly forbid database cell values.",
+    ],
+    [
+      "comment_body",
+      "Remote baseline request must explicitly forbid comment bodies.",
+    ],
+    [
+      "file_bytes",
+      "Remote baseline request must explicitly forbid file bytes.",
+    ],
+    [
+      "signed_download_url",
+      "Remote baseline request must explicitly forbid signed download URLs.",
+    ],
+  ]) {
+    assertSourceIncludes(files.remoteBaselineRequest, remoteBaselineRequest, snippet, message);
+  }
+  for (const gateId of [
+    "cloud-workspace-link",
+    "auth-session-boundary",
+    "sync-pull-endpoint-disabled",
+    "remote-cursor-contract",
+    "side-by-side-staging-target",
+    "permission-check-before-fetch",
+    "audit-event-before-fetch",
+    "owner-confirmation-before-apply",
+  ]) {
+    assertSourceIncludes(
+      files.remoteBaselineRequest,
+      remoteBaselineRequest,
+      `id: "${gateId}"`,
+      `Remote baseline gate ${gateId} must remain available.`
+    );
+  }
+  assertSourceIncludes(
     files.syncShell,
     syncShell,
     "buildSyncConflictResolutionContract",
@@ -635,6 +787,38 @@ function run() {
     [
       "Apply disabled",
       "Sync UI must keep conflict apply disabled in the preview.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "buildRemoteBaselineRequestContract",
+      "Sync UI must build the remote baseline request contract.",
+    ],
+    [
+      "handleExportRemoteBaselineRequest",
+      "Sync UI must export the remote baseline request contract.",
+    ],
+    [
+      "Remote baseline request contract",
+      "Sync UI must render the remote baseline request panel.",
+    ],
+    [
+      "Export baseline request",
+      "Sync UI must expose the remote baseline export action.",
+    ],
+    [
+      "RemoteBaselineSurfaceRow",
+      "Sync UI must render remote baseline surface rows.",
+    ],
+    [
+      "RemoteBaselineGateRow",
+      "Sync UI must render remote baseline gates.",
+    ],
+    [
+      "RemoteBaselineFieldRow",
+      "Sync UI must render remote baseline field boundaries.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
@@ -684,6 +868,7 @@ function run() {
     smoke_test_plan_checks: 16,
     smoke_test_verifier_checks: 3,
     conflict_resolution_checks: 50,
+    remote_baseline_checks: 43,
     warnings: warnings.length,
   };
 

@@ -195,11 +195,11 @@ function buildActions(
       phase: "sync",
       priority: "p1",
       gate: gatesById.get("conflict-resolution"),
-      fallbackTitle: "Build conflict review UI",
+      fallbackTitle: "Stage remote baseline into conflict review UI",
       fallbackEvidence:
-        "Conflict policies exist, but no remote baseline fetch or conflict resolution UI is implemented.",
+        "Conflict policies, side-by-side preview, and remote baseline request contract exist, but no authenticated metadata-only baseline staging is implemented.",
       fallbackAction:
-        "Add remote baseline detection and side-by-side resolution for pages, database rows, files, comments, permissions, and restore conflicts.",
+        "Implement metadata-only remote baseline staging for pages, database rows, files, comments, permissions, and restore conflicts while keeping apply disabled.",
       status: "ready-to-build",
       unlocks: "Multi-device editing without silent overwrites.",
     }),

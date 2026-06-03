@@ -534,6 +534,12 @@ Current local actions:
   surface, but every action remains disabled. The preview uses placeholder
   evidence only and does not contact cloud services, read page bodies, row
   values, comment bodies, file bytes, write workspace data, or upload anything.
+- Review and export a local remote baseline request contract. The contract
+  defines the future `/api/sync/pull` baseline fetch as metadata-only and keeps
+  it disabled: no network request, no cloud connection, no remote row staging,
+  no acknowledgement, no apply, no workspace write, and no upload. Page bodies,
+  database values, comment bodies, file bytes, and signed download URLs remain
+  forbidden until explicit review gates are implemented.
 - Review and export a local workspace identity with anonymous browser-local
   workspace and device ids for future sync metadata. The identity is not an
   account and does not connect cloud services or include note text/file content.

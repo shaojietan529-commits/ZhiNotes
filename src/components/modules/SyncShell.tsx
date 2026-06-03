@@ -142,6 +142,11 @@ import {
   type SyncConflictResolutionStatus,
 } from "@/lib/sync/syncConflictResolution";
 import {
+  buildRemoteBaselineRequestContract,
+  type RemoteBaselineRequestContract,
+  type RemoteBaselineRequestStatus,
+} from "@/lib/sync/remoteBaselineRequest";
+import {
   buildSyncOptInGateReport,
   type SyncOptInGateReport,
   type SyncOptInGateStatus,
@@ -183,6 +188,7 @@ type SyncQueueAction =
   | "conflict-review"
   | "conflict-resolution"
   | "conflict-review-ui"
+  | "remote-baseline"
   | "opt-in-gate"
   | "sync-confirmation"
   | "rollback-plan"
@@ -604,6 +610,27 @@ function SyncDashboard() {
         ),
       }),
     [workspaceIdentity]
+  );
+  const remoteBaselineRequest = useMemo(
+    () =>
+      buildRemoteBaselineRequestContract({
+        workspaceIdentity,
+        conflictReview: syncConflictReview,
+        conflictResolution: syncConflictResolution,
+        replayTestPlan: syncReplayTestPlan,
+        accountSessionBoundary,
+        permissionDecisionReport,
+        auditTrailPolicy,
+      }),
+    [
+      accountSessionBoundary,
+      auditTrailPolicy,
+      permissionDecisionReport,
+      syncConflictResolution,
+      syncConflictReview,
+      syncReplayTestPlan,
+      workspaceIdentity,
+    ]
   );
   const restoreRollbackPlan = useMemo(
     () =>
@@ -1471,6 +1498,26 @@ function SyncDashboard() {
     } catch (err) {
       console.error("[Zhinote] Failed to export sync review UI:", err);
       window.alert("Sync review UI export failed. Please check the console.");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportRemoteBaselineRequest = () => {
+    setBusyQueueAction("remote-baseline");
+    try {
+      downloadJsonFile(
+        `zhinote-remote-baseline-request-${fileSafeTimestamp()}.json`,
+        {
+          ...remoteBaselineRequest,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export remote baseline request:", err);
+      window.alert(
+        "Remote baseline request export failed. Please check the console."
+      );
     } finally {
       setBusyQueueAction(null);
     }
@@ -2593,6 +2640,16 @@ function SyncDashboard() {
                   ? "Exporting..."
                   : "Export review UI"}
               </button>
+              <button
+                type="button"
+                onClick={handleExportRemoteBaselineRequest}
+                disabled={busyQueueAction === "remote-baseline"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyQueueAction === "remote-baseline"
+                  ? "Exporting..."
+                  : "Export baseline request"}
+              </button>
             </div>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
@@ -2670,6 +2727,111 @@ function SyncDashboard() {
                 </div>
               ))}
             </div>
+          </ContractPanel>
+          <ContractPanel title="Remote baseline request contract" className="mt-4">
+            <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl">
+                Local contract for the future remote baseline fetch. It defines
+                the metadata-only pull scope before cloud data can be staged
+                into the Base / Local / Remote review lanes. The endpoint is
+                still disabled and no network request is started.
+              </p>
+              <span className="w-fit rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
+                {remoteBaselineRequest.request_status}
+              </span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+              <ResolutionSummaryCard
+                label="Endpoint"
+                value={remoteBaselineRequest.request_scope.endpoint}
+                detail={remoteBaselineRequest.method}
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Surfaces"
+                value={remoteBaselineRequest.summary.surface_requests}
+                detail="Metadata plans"
+                status="manual-confirmation"
+              />
+              <ResolutionSummaryCard
+                label="Need baseline"
+                value={
+                  remoteBaselineRequest.local_evidence.surfaces_needing_baseline
+                }
+                detail="Conflict surfaces"
+                status="manual-confirmation"
+              />
+              <ResolutionSummaryCard
+                label="Blocked gates"
+                value={remoteBaselineRequest.summary.blocked}
+                detail="Must stay disabled"
+                status="blocked"
+              />
+              <ResolutionSummaryCard
+                label="Allowed fields"
+                value={remoteBaselineRequest.summary.allowed_fields}
+                detail="Metadata only"
+                status="planned"
+              />
+              <ResolutionSummaryCard
+                label="Forbidden"
+                value={remoteBaselineRequest.summary.forbidden_fields}
+                detail="Private payload"
+                status="blocked"
+              />
+            </div>
+            <div className="mt-4 grid gap-2 md:grid-cols-4">
+              <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+                <div className="text-[10px] text-zinc-400">Query mode</div>
+                <div className="mt-1 font-mono text-[11px] text-zinc-700 dark:text-zinc-200">
+                  {remoteBaselineRequest.request_scope.query_mode}
+                </div>
+              </div>
+              <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+                <div className="text-[10px] text-zinc-400">Cursor source</div>
+                <div className="mt-1 font-mono text-[11px] text-zinc-700 dark:text-zinc-200">
+                  {remoteBaselineRequest.request_scope.cursor_source}
+                </div>
+              </div>
+              <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+                <div className="text-[10px] text-zinc-400">Response handling</div>
+                <div className="mt-1 font-mono text-[11px] text-zinc-700 dark:text-zinc-200">
+                  {remoteBaselineRequest.request_scope.response_handling}
+                </div>
+              </div>
+              <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-950 dark:text-red-300">
+                <div className="text-[10px]">Network</div>
+                <div className="mt-1 font-medium">
+                  No network request is started
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <ContractPanel title="Baseline surface requests">
+                <div className="space-y-2">
+                  {remoteBaselineRequest.surface_requests.map((request) => (
+                    <RemoteBaselineSurfaceRow
+                      key={request.surface_id}
+                      request={request}
+                    />
+                  ))}
+                </div>
+              </ContractPanel>
+              <ContractPanel title="Baseline gates">
+                <div className="space-y-2">
+                  {remoteBaselineRequest.gates.map((gate) => (
+                    <RemoteBaselineGateRow key={gate.id} gate={gate} />
+                  ))}
+                </div>
+              </ContractPanel>
+            </div>
+            <ContractPanel title="Baseline field boundary" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {remoteBaselineRequest.fields.map((field) => (
+                  <RemoteBaselineFieldRow key={field.field} field={field} />
+                ))}
+              </div>
+            </ContractPanel>
           </ContractPanel>
           <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
             <ContractPanel title="Surface resolution plans">
@@ -6624,6 +6786,146 @@ function ResolutionReviewLaneCard({
         {lane.privacy_boundary}
       </p>
     </div>
+  );
+}
+
+function RemoteBaselineSurfaceRow({
+  request,
+}: {
+  request: RemoteBaselineRequestContract["surface_requests"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {request.surface}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <RemoteBaselineStatusPill status={request.status} />
+            <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+              {request.query_mode}
+            </span>
+          </div>
+        </div>
+        <span className="w-fit rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
+          {request.request_status}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {request.staging_target}
+      </p>
+      <div className="mt-2">
+        <div className="text-[10px] font-semibold text-zinc-400">
+          Allowed remote metadata
+        </div>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {request.required_remote_metadata.map((field) => (
+            <span
+              key={field}
+              className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+            >
+              {field}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="mt-2">
+        <div className="text-[10px] font-semibold text-zinc-400">
+          Forbidden payload
+        </div>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {request.forbidden_remote_payload.map((field) => (
+            <span
+              key={field}
+              className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300"
+            >
+              {field}
+            </span>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {request.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineGateRow({
+  gate,
+}: {
+  gate: RemoteBaselineRequestContract["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {gate.evidence}
+          </p>
+        </div>
+        <RemoteBaselineStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineFieldRow({
+  field,
+}: {
+  field: RemoteBaselineRequestContract["fields"][number];
+}) {
+  const className =
+    field.status === "allowed"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-2">
+        <div className="font-mono text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">
+          {field.field}
+        </div>
+        <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+          {field.status}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {field.reason}
+      </p>
+    </article>
+  );
+}
+
+function RemoteBaselineStatusPill({
+  status,
+}: {
+  status: RemoteBaselineRequestStatus;
+}) {
+  const labels: Record<RemoteBaselineRequestStatus, string> = {
+    planned: "Planned",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "blocked"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
