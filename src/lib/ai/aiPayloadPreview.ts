@@ -84,7 +84,7 @@ export function buildAiPayloadPreview(
     preview_status: "local-preview-only",
     can_run_ai_now: false,
     privacy_note:
-      "Generated locally. This AI payload preview does not call model providers, upload page content, upload file bytes, include page body text, include file bytes, or share workspace data.",
+      "本地生成。这个 AI payload 预览不会调用模型 provider、上传页面内容、上传文件 bytes、包含页面正文、包含文件 bytes 或分享 workspace 数据。",
     boundary: {
       local_preview_only: true,
       calls_model_provider: false,
@@ -152,21 +152,21 @@ function buildApprovals(
   files: AiPayloadFileContext[]
 ) {
   const approvals = [
-    "Choose model provider and destination before any outbound AI request.",
-    "Confirm retention policy and whether prompts/outputs may be stored.",
-    "Preview final payload immediately before sending to AI.",
+    "任何 AI 外发前，先选择模型 provider、目标服务和账号边界。",
+    "确认 retention policy，以及 prompt/output 是否可以被保存。",
+    "发送给 AI 前，必须立即预览最终 payload。",
   ];
 
   if (input.selectedPages.length > 0) {
-    approvals.push("Confirm page body text inclusion for selected pages.");
+    approvals.push("确认已选页面的正文是否允许进入 AI payload。");
   }
 
   if (files.length > 0) {
-    approvals.push("Confirm each file kind before including file content.");
+    approvals.push("每一种文件类型进入 AI payload 前都需要单独确认。");
   }
 
   if (input.question.trim().length > 0) {
-    approvals.push("Confirm the research question text before sending.");
+    approvals.push("发送前确认研究问题文本。");
   }
 
   return approvals;

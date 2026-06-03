@@ -292,6 +292,21 @@ files, load external providers, or save generated output. AI execution should be
 enabled only after provider, context, payload preview, retention, and permission
 rules are explicit.
 
+### AI Workflow Contract
+
+The local AI workflow contract lives in:
+
+```txt
+src/lib/ai/aiWorkflowContract.ts
+```
+
+It defines five staged workflows: research summary, research Q&A, report draft,
+document comparison, and research framework generation. The AI Workbench reads
+this contract to build local request drafts, but `/api/ai/run` remains a
+disabled stub. Payload previews, execution policies, and high-risk confirmation
+receipts exclude page body text, prompt text, file bytes, tokens, and secrets
+until the user explicitly confirms the final outbound boundary.
+
 ## Web Sync and Permissions Module
 
 Open the web-beta readiness module at:
@@ -486,6 +501,7 @@ Useful checks:
 
 ```bash
 npm run lint
+npm run verify:ai
 npm run verify:database
 npm run verify:file-preview
 npm run verify:research-workflow

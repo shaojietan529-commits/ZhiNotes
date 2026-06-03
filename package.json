@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "verify:ai": "node scripts/verify-ai-contract.mjs",
     "verify:database": "node scripts/verify-database-contract.mjs",
     "verify:file-preview": "node scripts/verify-file-preview-contract.mjs",
     "verify:research-workflow": "node scripts/verify-research-workflow-contract.mjs",

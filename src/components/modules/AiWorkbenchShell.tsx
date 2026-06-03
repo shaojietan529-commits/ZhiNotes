@@ -17,56 +17,22 @@ import {
   type AiExecutionGateStatus,
   type AiExecutionPolicy,
 } from "@/lib/ai/aiExecutionPolicy";
+import {
+  AI_WORKFLOWS,
+  getAiWorkflowSpec,
+  type AiWorkflowId,
+  type AiWorkflowSpec,
+} from "@/lib/ai/aiWorkflowContract";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
-type AiWorkflowId = "summary" | "qa" | "report" | "compare" | "framework";
-
-const AI_WORKFLOWS: Array<{
-  id: AiWorkflowId;
-  title: string;
-  detail: string;
-  output: string;
-}> = [
-  {
-    id: "summary",
-    title: "Research summary",
-    detail: "Condense selected notes, reports, and meeting context.",
-    output: "Summary brief",
-  },
-  {
-    id: "qa",
-    title: "Research Q&A",
-    detail: "Answer a focused question against explicit local context.",
-    output: "Answer with cited local inputs",
-  },
-  {
-    id: "report",
-    title: "Report draft",
-    detail: "Stage a memo or report generation request from selected material.",
-    output: "Draft structure",
-  },
-  {
-    id: "compare",
-    title: "Compare documents",
-    detail: "Prepare side-by-side comparison for reports, notes, or files.",
-    output: "Diff and deltas",
-  },
-  {
-    id: "framework",
-    title: "Research framework",
-    detail: "Turn a topic into a reusable investment research checklist.",
-    output: "Framework template",
-  },
-];
-
 const PRIVACY_GATES = [
-  "AI calls are disabled in this local module.",
-  "Only explicitly selected pages should become AI context.",
-  "Uploaded files and HTML reports require separate confirmation before use.",
-  "External providers, model choice, and retention rules must be confirmed before any outbound request.",
+  "当前模块不调用 AI，/api/ai/run 是禁用的本地 stub。",
+  "只有显式勾选的页面才会进入候选上下文。",
+  "上传文件和 HTML 报告进入 AI 前需要单独确认。",
+  "外部 provider、模型、账号边界和 retention 规则必须先确认。",
 ];
 
 export default function AiWorkbenchShell() {
@@ -124,7 +90,7 @@ function AiWorkbenchDashboard() {
         setStoredFiles(loadedFiles);
       } catch (err) {
         console.error("[Zhinote] Failed to load AI workbench surfaces:", err);
-        if (mounted) setLoadError("Could not load all local AI surfaces.");
+        if (mounted) setLoadError("无法加载全部本地 AI 工作台资源。");
       }
     }
 
@@ -140,8 +106,7 @@ function AiWorkbenchDashboard() {
     () => pages.filter((page) => selectedPageIds.includes(page.id)),
     [pages, selectedPageIds]
   );
-  const selectedWorkflow = AI_WORKFLOWS.find((workflow) => workflow.id === workflowId)
-    ?? AI_WORKFLOWS[0];
+  const selectedWorkflow = getAiWorkflowSpec(workflowId);
   const fileSummary = useMemo(() => summarizeFiles(storedFiles), [storedFiles]);
   const requestDraft = useMemo(
     () =>
@@ -174,9 +139,9 @@ function AiWorkbenchDashboard() {
         typedPhrase: aiConfirmationPhrase,
         scopeSummary: `${selectedWorkflow.title}; ${aiPayloadPreview.summary.selected_pages} selected pages; ${aiPayloadPreview.summary.files_available} available local files; prompt text included in receipt: no.`,
         riskSummary:
-          "A future AI run can send selected page text, prompt text, and approved file content to an external model provider after explicit enablement.",
+          "未来 AI 执行可能把已确认的页面正文、prompt 文本和获批文件内容发送到外部模型 provider。",
         destinationSummary:
-          "No AI provider selected; /api/ai/run is disabled and does not read request bodies.",
+          "尚未选择 AI provider；/api/ai/run 仍禁用且不读取 request body。",
       }),
     [aiConfirmationPhrase, aiPayloadPreview, selectedWorkflow]
   );
@@ -201,7 +166,7 @@ function AiWorkbenchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export AI payload preview:", err);
-      window.alert("AI payload preview export failed. Please check the console.");
+      window.alert("AI payload preview 导出失败，请查看控制台。");
     } finally {
       setExportingPayloadPreview(false);
     }
@@ -219,7 +184,7 @@ function AiWorkbenchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export AI execution policy:", err);
-      window.alert("AI execution policy export failed. Please check the console.");
+      window.alert("AI execution policy 导出失败，请查看控制台。");
     } finally {
       setExportingExecutionPolicy(false);
     }
@@ -237,7 +202,7 @@ function AiWorkbenchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export AI confirmation receipt:", err);
-      window.alert("AI confirmation receipt export failed. Please check the console.");
+      window.alert("AI confirmation receipt 导出失败，请查看控制台。");
     } finally {
       setExportingConfirmationReceipt(false);
     }
@@ -250,15 +215,14 @@ function AiWorkbenchDashboard() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-                Automation module
+                自动化模块
               </p>
               <h1 className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
-                AI Workbench
+                AI 工作台
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                Stage AI research workflows locally with explicit context,
-                privacy gates, and request drafts before any external model is
-                connected.
+                在连接任何外部模型前，先在本地暂存 AI 投研任务、显式上下文、
+                隐私边界和请求草稿。
               </p>
             </div>
             <button
@@ -266,7 +230,7 @@ function AiWorkbenchDashboard() {
               onClick={() => router.push("/modules")}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              All modules
+              所有模块
             </button>
           </div>
         </header>
@@ -278,16 +242,16 @@ function AiWorkbenchDashboard() {
         )}
 
         <section className="grid gap-3 md:grid-cols-4">
-          <Metric label="Pages" value={pages.length} />
-          <Metric label="Databases" value={databases.length} />
-          <Metric label="Files" value={storedFiles.length} />
-          <Metric label="Selected context" value={selectedPages.length} />
+          <Metric label="页面" value={pages.length} />
+          <Metric label="数据库" value={databases.length} />
+          <Metric label="文件" value={storedFiles.length} />
+          <Metric label="已选上下文" value={selectedPages.length} />
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Workflow
+              AI 工作流
             </h2>
             <div className="mt-3 grid gap-2 md:grid-cols-2">
               {AI_WORKFLOWS.map((workflow) => (
@@ -318,7 +282,7 @@ function AiWorkbenchDashboard() {
 
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Privacy gates
+              隐私门禁
             </h2>
             <div className="mt-3 space-y-3">
               {PRIVACY_GATES.map((gate) => (
@@ -336,7 +300,7 @@ function AiWorkbenchDashboard() {
         <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Local context
+              本地上下文
             </h2>
             <div className="mt-3 space-y-2">
               {recentPages.length > 0 ? (
@@ -351,7 +315,7 @@ function AiWorkbenchDashboard() {
                 ))
               ) : (
                 <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  No local pages yet.
+                  还没有本地页面。
                 </p>
               )}
             </div>
@@ -359,12 +323,12 @@ function AiWorkbenchDashboard() {
 
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Request draft
+              请求草稿
             </h2>
             <textarea
               value={researchQuestion}
               onChange={(event) => setResearchQuestion(event.target.value)}
-              placeholder="Research question, memo objective, or comparison focus"
+              placeholder="研究问题、memo 目标或对比重点"
               className="mt-3 min-h-24 w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-zinc-600"
             />
             <div className="mt-3 rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
@@ -378,7 +342,7 @@ function AiWorkbenchDashboard() {
                 disabled
                 className="cursor-not-allowed rounded-md border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-400 dark:border-zinc-800"
               >
-                Run AI disabled
+                AI 执行已禁用
               </button>
               <span className="rounded-md bg-zinc-100 px-2 py-2 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                 {selectedWorkflow.output}
@@ -392,11 +356,10 @@ function AiWorkbenchDashboard() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  AI payload preview
+                  AI payload 预览
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  Local metadata-only preview. Page body text, file bytes,
-                  prompt text, and model calls remain excluded.
+                  本地 metadata-only 预览。页面正文、文件 bytes、prompt 正文和模型调用仍被排除。
                 </p>
               </div>
               <button
@@ -405,38 +368,38 @@ function AiWorkbenchDashboard() {
                 disabled={exportingPayloadPreview}
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
-                {exportingPayloadPreview ? "Exporting..." : "Export preview"}
+                {exportingPayloadPreview ? "导出中..." : "导出预览"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <PayloadMetric
-                label="Pages"
+                label="页面"
                 value={aiPayloadPreview.summary.selected_pages}
-                detail="Selected context"
+                detail="已选上下文"
                 tone="high"
               />
               <PayloadMetric
-                label="Files"
+                label="文件"
                 value={aiPayloadPreview.summary.files_available}
-                detail="Available, excluded"
+                detail="可用但排除"
                 tone={aiPayloadPreview.summary.files_available > 0 ? "high" : "low"}
               />
               <PayloadMetric
                 label="Prompt"
-                value={aiPayloadPreview.prompt.provided ? "Drafted" : "Empty"}
-                detail={`${aiPayloadPreview.prompt.character_count} chars`}
+                value={aiPayloadPreview.prompt.provided ? "已草拟" : "空"}
+                detail={`${aiPayloadPreview.prompt.character_count} 字符`}
                 tone={aiPayloadPreview.prompt.provided ? "medium" : "low"}
               />
               <PayloadMetric
-                label="Approvals"
+                label="确认项"
                 value={aiPayloadPreview.summary.approvals_required}
-                detail="Before AI execution"
+                detail="执行前必须确认"
                 tone="medium"
               />
               <PayloadMetric
-                label="Boundary"
-                value="No send"
-                detail="Local preview only"
+                label="边界"
+                value="不发送"
+                detail="仅本地预览"
                 tone="low"
               />
             </div>
@@ -454,11 +417,11 @@ function AiWorkbenchDashboard() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  AI execution policy
+                  AI 执行策略
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  Local policy for enabling AI later. The run endpoint is
-                  disabled and does not read request bodies or call providers.
+                  未来启用 AI 前的本地策略。当前 run endpoint 已禁用，
+                  不读取 request body，也不调用 provider。
                 </p>
               </div>
               <button
@@ -467,38 +430,38 @@ function AiWorkbenchDashboard() {
                 disabled={exportingExecutionPolicy}
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
-                {exportingExecutionPolicy ? "Exporting..." : "Export policy"}
+                {exportingExecutionPolicy ? "导出中..." : "导出策略"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <ExecutionMetric
-                label="Gates"
+                label="门禁"
                 value={aiExecutionPolicy.summary.gates}
-                detail="Before AI can run"
+                detail="AI 执行前"
                 status="planned"
               />
               <ExecutionMetric
-                label="Blocked"
+                label="阻塞"
                 value={aiExecutionPolicy.summary.blocked}
-                detail="Provider and audit gaps"
+                detail="Provider 和审计缺口"
                 status="blocked"
               />
               <ExecutionMetric
-                label="Confirm"
+                label="确认"
                 value={aiExecutionPolicy.summary.manual_confirmation}
-                detail="User approval gates"
+                detail="用户确认门禁"
                 status="manual-confirmation"
               />
               <ExecutionMetric
                 label="Endpoint"
                 value="/api/ai/run"
-                detail="Disabled local stub"
+                detail="禁用本地 stub"
                 status="blocked"
               />
               <ExecutionMetric
-                label="Boundary"
-                value="No model"
-                detail="No provider call"
+                label="边界"
+                value="无模型"
+                detail="不调用 provider"
                 status="planned"
               />
             </div>
@@ -531,8 +494,8 @@ function AiWorkbenchDashboard() {
                   className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   {exportingConfirmationReceipt
-                    ? "Exporting..."
-                    : "Export AI receipt"}
+                    ? "导出中..."
+                    : "导出 AI receipt"}
                 </button>
               </div>
               <p className="mt-2 text-[11px] leading-5 text-zinc-400 dark:text-zinc-500">
@@ -540,9 +503,9 @@ function AiWorkbenchDashboard() {
               </p>
               <div className="mt-3 grid gap-2 md:grid-cols-3">
                 <ExecutionMetric
-                  label="Phrase match"
+                  label="短语匹配"
                   value={
-                    aiConfirmationReceipt.typed_phrase_matches ? "Yes" : "No"
+                    aiConfirmationReceipt.typed_phrase_matches ? "是" : "否"
                   }
                   detail={aiConfirmationReceipt.status}
                   status={
@@ -553,14 +516,14 @@ function AiWorkbenchDashboard() {
                 />
                 <ExecutionMetric
                   label="Receipt"
-                  value="Local only"
-                  detail="No model call"
+                  value="仅本地"
+                  detail="不调用模型"
                   status="planned"
                 />
                 <ExecutionMetric
-                  label="Destination"
+                  label="目标"
                   value="/api/ai/run"
-                  detail="Disabled local stub"
+                  detail="禁用本地 stub"
                   status="blocked"
                 />
               </div>
@@ -569,7 +532,7 @@ function AiWorkbenchDashboard() {
 
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              File readiness
+              文件准备度
             </h2>
             {fileSummary.kinds.length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -584,19 +547,18 @@ function AiWorkbenchDashboard() {
               </div>
             ) : (
               <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                No uploaded files are stored locally yet.
+                还没有本地存储的上传文件。
               </p>
             )}
           </div>
 
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Connection boundary
+              连接边界
             </h2>
             <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-              Model provider, selected context, outbound payload preview, usage
-              logging, and retention policy remain required before AI execution
-              can be enabled.
+              AI 执行启用前仍必须确认模型 provider、已选上下文、外发 payload
+              预览、使用日志和 retention policy。
             </p>
           </div>
         </section>
@@ -654,7 +616,7 @@ function PayloadPreviewPanel({ preview }: { preview: AiPayloadPreview }) {
     <div className="space-y-2">
       <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
         <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-          Selected pages
+          已选页面
         </div>
         {preview.selected_pages.length > 0 ? (
           <div className="mt-2 space-y-1">
@@ -672,13 +634,13 @@ function PayloadPreviewPanel({ preview }: { preview: AiPayloadPreview }) {
           </div>
         ) : (
           <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-            No page body text is selected or included.
+            未选择或包含任何页面正文。
           </p>
         )}
       </div>
       <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
         <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-          Available files
+          可用文件
         </div>
         {preview.available_files.length > 0 ? (
           <div className="mt-2 space-y-1">
@@ -696,7 +658,7 @@ function PayloadPreviewPanel({ preview }: { preview: AiPayloadPreview }) {
           </div>
         ) : (
           <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-            No file bytes are available or included.
+            没有可用或已包含的文件 bytes。
           </p>
         )}
       </div>
@@ -705,6 +667,11 @@ function PayloadPreviewPanel({ preview }: { preview: AiPayloadPreview }) {
 }
 
 function PayloadRiskPill({ risk }: { risk: AiPayloadRisk }) {
+  const labels: Record<AiPayloadRisk, string> = {
+    low: "低",
+    medium: "中",
+    high: "高",
+  };
   const className =
     risk === "high"
       ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
@@ -714,7 +681,7 @@ function PayloadRiskPill({ risk }: { risk: AiPayloadRisk }) {
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
-      {risk}
+      {labels[risk]}
     </span>
   );
 }
@@ -775,9 +742,9 @@ function ExecutionStatusPill({
   status: AiExecutionGateStatus;
 }) {
   const labels: Record<AiExecutionGateStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "规划",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -823,7 +790,7 @@ function ContextPageRow({
         onClick={onOpen}
         className="shrink-0 rounded-md px-2 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
       >
-        Open
+        打开
       </button>
     </div>
   );
@@ -847,29 +814,32 @@ function buildRequestDraft({
   selectedPages,
   question,
 }: {
-  workflow: (typeof AI_WORKFLOWS)[number];
+  workflow: AiWorkflowSpec;
   selectedPages: Page[];
   question: string;
 }) {
   const pageLines = selectedPages.length
     ? selectedPages
-        .map((page) => `- ${page.title || "Untitled"} (${page.id})`)
+        .map((page) => `- ${page.title || "未命名页面"} (${page.id})`)
         .join("\n")
-    : "- No pages selected";
-  const objective = question.trim() || "Not specified";
+    : "- 未选择页面";
+  const objective = question.trim() || "未指定";
 
   return [
-    `Workflow: ${workflow.title}`,
-    `Expected output: ${workflow.output}`,
-    `Objective: ${objective}`,
+    `工作流：${workflow.title}`,
+    `预期输出：${workflow.output}`,
+    `目标：${objective}`,
     "",
-    "Selected local context:",
+    "已选本地上下文：",
     pageLines,
     "",
-    "Privacy gates:",
-    "- Preview outbound payload before sending",
-    "- Confirm model provider and retention policy",
-    "- Keep files and HTML reports excluded unless separately approved",
+    "建议 prompt 结构：",
+    ...workflow.prompt_sections.map((section) => `- ${section}`),
+    "",
+    "隐私门禁：",
+    "- 发送前预览最终 outbound payload",
+    "- 确认模型 provider、账号边界和 retention policy",
+    "- 文件和 HTML 报告默认排除，除非单独确认",
   ].join("\n");
 }
 

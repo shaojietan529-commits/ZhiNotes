@@ -72,7 +72,7 @@ export function buildAiExecutionPolicy(
     can_run_ai_now: false,
     disabled_endpoint: "/api/ai/run",
     privacy_note:
-      "Generated locally. This AI execution policy does not call model providers, read page body text, read file bytes, upload workspace data, store AI output, or share notes.",
+      "本地生成。这个 AI 执行策略不会调用模型 provider、读取页面正文、读取文件 bytes、上传 workspace 数据、保存 AI 输出或分享笔记。",
     boundary: {
       local_policy_only: true,
       calls_model_provider: false,
@@ -109,12 +109,12 @@ export function buildAiRunDisabledResponse(): AiRunDisabledResponse {
     uploads_file_bytes: false,
     stores_ai_output: false,
     privacy_note:
-      "This local route is disabled. It does not read request bodies, call model providers, upload page content, upload file bytes, store AI output, or share workspace data.",
+      "这个本地 route 已禁用。它不会读取 request body、调用模型 provider、上传页面内容、上传文件 bytes、保存 AI 输出或分享 workspace 数据。",
     required_before_enablement: [
-      "Choose model provider and account boundary.",
-      "Confirm final outbound payload preview.",
-      "Confirm retention and logging policy.",
-      "Add server-side permission checks and audit events.",
+      "选择模型 provider 和账号边界。",
+      "确认最终 outbound payload 预览。",
+      "确认 retention 和 logging policy。",
+      "增加 server-side permission checks 和 audit events。",
     ],
   };
 }
@@ -123,57 +123,57 @@ function buildExecutionGates(payloadPreview: AiPayloadPreview): AiExecutionGate[
   return [
     {
       id: "provider-selection",
-      title: "Model provider selection",
+      title: "模型 provider 选择",
       status: "blocked",
-      evidence: "No AI provider, model, destination, or account boundary exists.",
+      evidence: "尚未定义 AI provider、模型、目标服务或账号边界。",
       required_action:
-        "Choose provider, model, destination, billing boundary, and data processing terms before any outbound request.",
+        "任何外发请求前，先选择 provider、模型、目标服务、计费边界和数据处理条款。",
     },
     {
       id: "final-payload-preview",
-      title: "Final payload preview",
+      title: "最终 payload 预览",
       status: "manual-confirmation",
-      evidence: `${payloadPreview.summary.approvals_required} payload approvals are currently required.`,
+      evidence: `当前需要 ${payloadPreview.summary.approvals_required} 个 payload 确认项。`,
       required_action:
-        "Show the exact final payload and require explicit confirmation immediately before sending.",
+        "发送前展示精确最终 payload，并要求显式确认。",
     },
     {
       id: "page-context-confirmation",
-      title: "Page context confirmation",
+      title: "页面上下文确认",
       status:
         payloadPreview.summary.selected_pages > 0
           ? "manual-confirmation"
           : "planned",
-      evidence: `${payloadPreview.summary.selected_pages} pages are selected as possible context, but page body text is excluded.`,
+      evidence: `${payloadPreview.summary.selected_pages} 个页面被选为候选上下文，但页面正文仍被排除。`,
       required_action:
-        "Confirm selected page body inclusion and citation behavior before page text can enter an AI request.",
+        "页面正文进入 AI request 前，先确认正文包含范围和引用方式。",
     },
     {
       id: "file-content-confirmation",
-      title: "File content confirmation",
+      title: "文件内容确认",
       status:
         payloadPreview.summary.files_available > 0
           ? "manual-confirmation"
           : "planned",
-      evidence: `${payloadPreview.summary.files_available} local files are available, but file bytes are excluded.`,
+      evidence: `${payloadPreview.summary.files_available} 个本地文件可用，但文件 bytes 仍被排除。`,
       required_action:
-        "Confirm file kind, file name, byte inclusion, and retention before file content can enter an AI request.",
+        "文件内容进入 AI request 前，先确认文件类型、文件名、bytes 包含范围和 retention。",
     },
     {
       id: "retention-policy",
-      title: "Retention and logging policy",
+      title: "Retention 和 logging policy",
       status: "blocked",
-      evidence: "No retention, prompt storage, output storage, or deletion policy exists.",
+      evidence: "尚未定义 retention、prompt storage、output storage 或 deletion policy。",
       required_action:
-        "Define prompt retention, output retention, local save behavior, and deletion workflow.",
+        "定义 prompt retention、output retention、本地保存行为和删除流程。",
     },
     {
       id: "permission-and-audit",
-      title: "Permission and audit checks",
+      title: "权限和审计检查",
       status: "blocked",
-      evidence: "No server-side AI permission check or AI audit event exists.",
+      evidence: "尚未实现 server-side AI permission check 或 AI audit event。",
       required_action:
-        "Require role checks and audit events before enabling AI execution in Web Beta.",
+        "Web Beta 启用 AI 执行前，必须加入角色检查和 audit event。",
     },
   ];
 }
