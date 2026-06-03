@@ -20,6 +20,8 @@ export type SyncConflictResolutionActionId =
   | "keep-both"
   | "skip-and-flag";
 
+export type SyncConflictReviewLaneId = "base" | "local" | "remote";
+
 export interface SyncConflictResolutionInput {
   workspaceIdentity: LocalWorkspaceIdentity | null;
   conflictReview: SyncConflictReviewReport;
@@ -58,6 +60,60 @@ export interface SyncConflictResolutionGate {
   status: SyncConflictResolutionStatus;
   evidence: string;
   required_action: string;
+}
+
+export interface SyncConflictReviewLane {
+  id: SyncConflictReviewLaneId;
+  title: string;
+  status: SyncConflictResolutionStatus;
+  source: string;
+  evidence_placeholder: string;
+  privacy_boundary: string;
+}
+
+export interface SyncConflictReviewActionButton {
+  id: SyncConflictResolutionActionId;
+  label: string;
+  enabled: false;
+  disabled_reason: string;
+}
+
+export interface SyncConflictReviewSurfaceUi {
+  surface_id: string;
+  surface: string;
+  status: SyncConflictResolutionStatus;
+  severity: SyncConflictSurface["severity"];
+  lanes: SyncConflictReviewLane[];
+  action_buttons: SyncConflictReviewActionButton[];
+  selected_action: null;
+  can_apply_now: false;
+  apply_disabled_reason: string;
+  confirmation_required: true;
+  rollback_snapshot_required: true;
+  audit_event_required: true;
+}
+
+export interface SyncConflictReviewUiContract {
+  status: "local-side-by-side-preview-only";
+  route: "/modules/sync";
+  can_select_actions_now: false;
+  can_apply_actions_now: false;
+  privacy_note: string;
+  boundary: {
+    local_ui_only: true;
+    uses_placeholder_evidence: true;
+    reads_remote_data: false;
+    reads_page_body_text: false;
+    reads_database_row_values: false;
+    reads_comment_bodies: false;
+    reads_file_bytes: false;
+    writes_workspace_data: false;
+    uploads_workspace_data: false;
+    action_buttons_disabled: true;
+  };
+  lane_order: SyncConflictReviewLaneId[];
+  surface_reviews: SyncConflictReviewSurfaceUi[];
+  checklist: string[];
 }
 
 export interface SyncConflictResolutionContract {
@@ -104,7 +160,9 @@ export interface SyncConflictResolutionContract {
     manual_confirmation_gates: number;
     high_severity_surfaces: number;
     remote_baseline_required: number;
+    side_by_side_surfaces: number;
   };
+  review_ui: SyncConflictReviewUiContract;
   options: SyncConflictResolutionOption[];
   surface_plans: SyncConflictResolutionSurfacePlan[];
   gates: SyncConflictResolutionGate[];
@@ -116,6 +174,7 @@ export function buildSyncConflictResolutionContract(
 ): SyncConflictResolutionContract {
   const options = buildResolutionOptions();
   const surfacePlans = input.conflictReview.surfaces.map(buildSurfacePlan);
+  const reviewUi = buildSideBySideReviewUi(surfacePlans);
   const gates = buildResolutionGates(input);
 
   return {
@@ -169,7 +228,9 @@ export function buildSyncConflictResolutionContract(
       ).length,
       remote_baseline_required:
         input.conflictReview.summary.needs_remote_baseline,
+      side_by_side_surfaces: reviewUi.surface_reviews.length,
     },
+    review_ui: reviewUi,
     options,
     surface_plans: surfacePlans,
     gates,
@@ -182,6 +243,131 @@ export function buildSyncConflictResolutionContract(
       "Failed apply and retry behavior is proven in disposable beta sync replay tests.",
     ],
   };
+}
+
+function buildSideBySideReviewUi(
+  surfacePlans: SyncConflictResolutionSurfacePlan[]
+): SyncConflictReviewUiContract {
+  return {
+    status: "local-side-by-side-preview-only",
+    route: "/modules/sync",
+    can_select_actions_now: false,
+    can_apply_actions_now: false,
+    privacy_note:
+      "Rendered locally as a side-by-side preview. It uses placeholders for base, local, and remote evidence. It does not read remote data, page text, database row values, comment bodies, or file bytes, and all action buttons remain disabled.",
+    boundary: {
+      local_ui_only: true,
+      uses_placeholder_evidence: true,
+      reads_remote_data: false,
+      reads_page_body_text: false,
+      reads_database_row_values: false,
+      reads_comment_bodies: false,
+      reads_file_bytes: false,
+      writes_workspace_data: false,
+      uploads_workspace_data: false,
+      action_buttons_disabled: true,
+    },
+    lane_order: ["base", "local", "remote"],
+    surface_reviews: surfacePlans.map(buildSurfaceReviewUi),
+    checklist: [
+      "Show base, local, and remote evidence in three lanes before any conflict action is enabled.",
+      "Keep action selection disabled until remote baseline, rollback snapshot, permission check, and audit event exist.",
+      "Never load page body text, row values, comment bodies, or file bytes into this preview contract.",
+      "Require owner confirmation before apply, especially for permissions and restore conflicts.",
+    ],
+  };
+}
+
+function buildSurfaceReviewUi(
+  surface: SyncConflictResolutionSurfacePlan
+): SyncConflictReviewSurfaceUi {
+  return {
+    surface_id: surface.surface_id,
+    surface: surface.surface,
+    status: surface.status,
+    severity: surface.severity,
+    lanes: buildReviewLanes(surface),
+    action_buttons: surface.allowed_actions.map((actionId) =>
+      buildReviewActionButton(actionId)
+    ),
+    selected_action: null,
+    can_apply_now: false,
+    apply_disabled_reason:
+      "Apply is disabled until exact base/local/remote evidence, rollback snapshot, permission check, audit event, and owner confirmation are available.",
+    confirmation_required: true,
+    rollback_snapshot_required: true,
+    audit_event_required: true,
+  };
+}
+
+function buildReviewLanes(
+  surface: SyncConflictResolutionSurfacePlan
+): SyncConflictReviewLane[] {
+  return [
+    {
+      id: "base",
+      title: "Base",
+      status: "blocked",
+      source: "Last common version",
+      evidence_placeholder:
+        "Base version id, checksum, updated_at, and source device will appear here after baseline fetch.",
+      privacy_boundary:
+        "No page text, row values, comment bodies, or file bytes are loaded into the preview.",
+    },
+    {
+      id: "local",
+      title: "Local",
+      status: "manual-confirmation",
+      source: surface.active_local_tables.length
+        ? surface.active_local_tables.join(", ")
+        : "No pending local table rows",
+      evidence_placeholder:
+        "Local pending metadata, version id, checksum, and affected table group will appear here.",
+      privacy_boundary:
+        "Local evidence is metadata-only until the user opens a dedicated review surface.",
+    },
+    {
+      id: "remote",
+      title: "Remote",
+      status: "blocked",
+      source: "Remote latest not fetched",
+      evidence_placeholder:
+        "Remote latest version id, checksum, updated_at, and author metadata will appear here after auth.",
+      privacy_boundary:
+        "No cloud service is contacted and no remote rows are acknowledged by this preview.",
+    },
+  ];
+}
+
+function buildReviewActionButton(
+  id: SyncConflictResolutionActionId
+): SyncConflictReviewActionButton {
+  return {
+    id,
+    label: getActionLabel(id),
+    enabled: false,
+    disabled_reason:
+      "Disabled until side-by-side evidence, rollback, permissions, audit, and owner confirmation gates pass.",
+  };
+}
+
+function getActionLabel(id: SyncConflictResolutionActionId) {
+  switch (id) {
+    case "keep-local":
+      return "保留本地";
+    case "accept-remote":
+      return "使用远端";
+    case "manual-merge":
+      return "手动合并";
+    case "append-only":
+      return "只追加";
+    case "keep-both":
+      return "保留两份";
+    case "skip-and-flag":
+      return "跳过并标记";
+    default:
+      return id;
+  }
 }
 
 function buildResolutionOptions(): SyncConflictResolutionOption[] {
@@ -367,11 +553,11 @@ function buildResolutionGates(
     {
       id: "side-by-side-review-ui",
       title: "Side-by-side review UI",
-      status: "blocked",
+      status: "planned",
       evidence:
-        "No dedicated conflict resolution route exists for local/base/remote review.",
+        "/modules/sync renders a local base/local/remote side-by-side preview, with placeholder evidence and disabled action buttons.",
       required_action:
-        "Add review screens for page, database, file, comment, permission, and restore conflicts.",
+        "Wire authenticated remote baseline fetch and exact local/base/remote evidence into the review surface before enabling action selection.",
     },
     {
       id: "permission-check-before-apply",

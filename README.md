@@ -529,6 +529,11 @@ Current local actions:
   does not read remote data, page bodies, row values, comment bodies, or file
   bytes, and it does not merge, write, update permissions, run restore, upload,
   connect cloud services, or acknowledge remote rows.
+- Review and export a local side-by-side conflict review UI contract. The sync
+  module now renders Base, Local, and Remote preview lanes for each conflict
+  surface, but every action remains disabled. The preview uses placeholder
+  evidence only and does not contact cloud services, read page bodies, row
+  values, comment bodies, file bytes, write workspace data, or upload anything.
 - Review and export a local workspace identity with anonymous browser-local
   workspace and device ids for future sync metadata. The identity is not an
   account and does not connect cloud services or include note text/file content.

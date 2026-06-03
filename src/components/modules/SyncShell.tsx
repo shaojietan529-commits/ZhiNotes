@@ -182,6 +182,7 @@ type SyncQueueAction =
   | "payload-preview"
   | "conflict-review"
   | "conflict-resolution"
+  | "conflict-review-ui"
   | "opt-in-gate"
   | "sync-confirmation"
   | "rollback-plan"
@@ -1457,6 +1458,24 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncConflictReviewUi = () => {
+    setBusyQueueAction("conflict-review-ui");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-conflict-review-ui-${fileSafeTimestamp()}.json`,
+        {
+          ...syncConflictResolution.review_ui,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export sync review UI:", err);
+      window.alert("Sync review UI export failed. Please check the console.");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncOptInGate = () => {
     setBusyQueueAction("opt-in-gate");
     try {
@@ -2553,23 +2572,41 @@ function SyncDashboard() {
                 remote rows.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleExportSyncConflictResolution}
-              disabled={busyQueueAction === "conflict-resolution"}
-              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              {busyQueueAction === "conflict-resolution"
-                ? "Exporting..."
-                : "Export resolution"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleExportSyncConflictResolution}
+                disabled={busyQueueAction === "conflict-resolution"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyQueueAction === "conflict-resolution"
+                  ? "Exporting..."
+                  : "Export resolution"}
+              </button>
+              <button
+                type="button"
+                onClick={handleExportSyncConflictReviewUi}
+                disabled={busyQueueAction === "conflict-review-ui"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyQueueAction === "conflict-review-ui"
+                  ? "Exporting..."
+                  : "Export review UI"}
+              </button>
+            </div>
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-6">
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
             <ResolutionSummaryCard
               label="Surfaces"
               value={syncConflictResolution.summary.surfaces}
               detail="Resolution plans"
               status="manual-confirmation"
+            />
+            <ResolutionSummaryCard
+              label="Review UI"
+              value={syncConflictResolution.summary.side_by_side_surfaces}
+              detail="Side-by-side preview"
+              status="planned"
             />
             <ResolutionSummaryCard
               label="Options"
@@ -2602,6 +2639,38 @@ function SyncDashboard() {
               status="planned"
             />
           </div>
+          <ContractPanel title="Side-by-side conflict review" className="mt-4">
+            <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 md:flex-row md:items-start md:justify-between">
+              <p className="max-w-3xl">
+                Local preview for base, local, and remote evidence lanes. It
+                uses placeholders only, keeps every action disabled, and does
+                not contact cloud services or load private content.
+              </p>
+              <span className="w-fit rounded-md bg-blue-50 px-2 py-1 text-[10px] text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                {syncConflictResolution.review_ui.status}
+              </span>
+            </div>
+            <div className="mt-3 space-y-3">
+              {syncConflictResolution.review_ui.surface_reviews.map(
+                (review) => (
+                  <ResolutionReviewSurfaceRow
+                    key={review.surface_id}
+                    review={review}
+                  />
+                )
+              )}
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              {syncConflictResolution.review_ui.checklist.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </ContractPanel>
           <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
             <ContractPanel title="Surface resolution plans">
               <div className="space-y-2">
@@ -6480,6 +6549,81 @@ function ResolutionOptionRow({
         {option.risk_note} Write status: {option.write_status}.
       </p>
     </article>
+  );
+}
+
+function ResolutionReviewSurfaceRow({
+  review,
+}: {
+  review: SyncConflictResolutionContract["review_ui"]["surface_reviews"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-3 text-xs dark:bg-zinc-900">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {review.surface}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <ResolutionStatusPill status={review.status} />
+            <ConflictSeverityPill severity={review.severity} />
+          </div>
+        </div>
+        <span className="w-fit rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          Apply disabled
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 lg:grid-cols-3">
+        {review.lanes.map((lane) => (
+          <ResolutionReviewLaneCard key={lane.id} lane={lane} />
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {review.action_buttons.map((action) => (
+          <button
+            key={action.id}
+            type="button"
+            disabled
+            title={action.disabled_reason}
+            className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-left text-[10px] text-zinc-400 opacity-70 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-500"
+          >
+            <span className="font-medium">{action.label}</span>
+            <span className="ml-1 font-mono">{action.id}</span>
+          </button>
+        ))}
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {review.apply_disabled_reason}
+      </p>
+    </article>
+  );
+}
+
+function ResolutionReviewLaneCard({
+  lane,
+}: {
+  lane: SyncConflictResolutionContract["review_ui"]["surface_reviews"][number]["lanes"][number];
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {lane.title}
+          </div>
+          <div className="mt-1 text-[10px] text-zinc-400">
+            {lane.source}
+          </div>
+        </div>
+        <ResolutionStatusPill status={lane.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {lane.evidence_placeholder}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {lane.privacy_boundary}
+      </p>
+    </div>
   );
 }
 

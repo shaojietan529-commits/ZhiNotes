@@ -555,6 +555,44 @@ function run() {
       `Conflict resolution gate ${gateId} must remain available.`
     );
   }
+  for (const [snippet, message] of [
+    [
+      'status: "local-side-by-side-preview-only"',
+      "Conflict review UI must expose a local side-by-side preview status.",
+    ],
+    ['route: "/modules/sync"', "Conflict review UI must live in the sync module."],
+    [
+      "can_select_actions_now: false",
+      "Conflict review UI must not allow action selection yet.",
+    ],
+    [
+      "can_apply_actions_now: false",
+      "Conflict review UI must not allow apply yet.",
+    ],
+    [
+      "uses_placeholder_evidence: true",
+      "Conflict review UI must use placeholder evidence only.",
+    ],
+    [
+      "action_buttons_disabled: true",
+      "Conflict review UI action buttons must remain disabled.",
+    ],
+    ['lane_order: ["base", "local", "remote"]', "Conflict review UI must keep base/local/remote lane order."],
+    [
+      "buildSideBySideReviewUi",
+      "Conflict resolution builder must include side-by-side review UI planning.",
+    ],
+    [
+      "buildSurfaceReviewUi",
+      "Conflict resolution builder must create review surfaces.",
+    ],
+    [
+      "buildReviewActionButton",
+      "Conflict resolution builder must create disabled review action buttons.",
+    ],
+  ]) {
+    assertSourceIncludes(files.conflictResolution, conflictResolution, snippet, message);
+  }
   assertSourceIncludes(
     files.syncShell,
     syncShell,
@@ -573,6 +611,34 @@ function run() {
     "Conflict resolution contract",
     "Sync UI must render the conflict resolution panel."
   );
+  for (const [snippet, message] of [
+    [
+      "handleExportSyncConflictReviewUi",
+      "Sync UI must export the side-by-side conflict review UI contract.",
+    ],
+    [
+      "Side-by-side conflict review",
+      "Sync UI must render the side-by-side conflict review preview.",
+    ],
+    [
+      "Export review UI",
+      "Sync UI must expose the review UI export action.",
+    ],
+    [
+      "ResolutionReviewSurfaceRow",
+      "Sync UI must render per-surface conflict review rows.",
+    ],
+    [
+      "ResolutionReviewLaneCard",
+      "Sync UI must render base/local/remote lane cards.",
+    ],
+    [
+      "Apply disabled",
+      "Sync UI must keep conflict apply disabled in the preview.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
@@ -617,7 +683,7 @@ function run() {
     deployment_target_checks: 16,
     smoke_test_plan_checks: 16,
     smoke_test_verifier_checks: 3,
-    conflict_resolution_checks: 34,
+    conflict_resolution_checks: 50,
     warnings: warnings.length,
   };
 
