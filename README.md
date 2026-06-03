@@ -229,6 +229,12 @@ Current local actions:
   page-level file preview block attributes and shows file kind, priority,
   workflow stage, relation gaps, and next action without reading file bytes,
   calling AI, connecting cloud services, or uploading data.
+- Review and export a local report format playbook. The playbook groups intake
+  items by format and recommends whether each kind should stay as native
+  preview, become editable page content, enter a database import path, remain
+  metadata-only, or be retained for download. It uses intake metadata only and
+  does not read file bytes, converted file text, page body text, call AI, connect
+  cloud services, load external resources, or upload data.
 - Open reports from the sidebar Platform section or Cmd/Ctrl+K.
 
 The current Report Library module is local-only. It does not upload reports,
@@ -238,6 +244,13 @@ The report module includes a local format support matrix for HTML reports,
 Markdown/MDX, PDF, Excel/CSV/ODS, Word/ODT, PowerPoint/ODP, RTF, EPUB, ZIP,
 Jupyter notebooks, media, text, code, and OPML. Legacy `.doc` and `.ppt` files
 are saved locally and downloadable, but conversion requires `.docx` or `.pptx`.
+
+The native format strategy is now explicit: a ZhiNotes page is the canonical
+research container; HTML is the preferred native preview format for
+AI-generated visual reports; Markdown is the preferred editable source format
+for written notes; spreadsheets become local database candidates only after
+typed confirmation; original files remain attached in local browser storage for
+auditability.
 
 HTML report previews block external resources by default. A user must type the
 local external-resource confirmation phrase before enabling remote images,

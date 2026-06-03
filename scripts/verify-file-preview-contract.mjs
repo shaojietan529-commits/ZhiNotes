@@ -8,6 +8,7 @@ const root = process.cwd();
 const files = {
   capabilities: "src/lib/files/filePreviewCapabilities.ts",
   intake: "src/lib/reports/reportIntake.ts",
+  formatPlaybook: "src/lib/reports/reportFormatPlaybook.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
   localStore: "src/lib/files/localStore.ts",
   previewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
@@ -90,6 +91,13 @@ const requiredIntakeStages = [
   "database-review",
   "linking",
 ];
+const requiredFormatActions = [
+  "native-preview",
+  "editable-import",
+  "database-import",
+  "metadata-review",
+  "download-retain",
+];
 
 function readProjectFile(relativePath) {
   const absolutePath = path.join(root, relativePath);
@@ -113,6 +121,7 @@ function assertIncludes(sourceLabel, source, snippet, message) {
 function run() {
   const capabilities = readProjectFile(files.capabilities);
   const intake = readProjectFile(files.intake);
+  const formatPlaybook = readProjectFile(files.formatPlaybook);
   const upload = readProjectFile(files.upload);
   const localStore = readProjectFile(files.localStore);
   const previewNode = readProjectFile(files.previewNode);
@@ -226,6 +235,59 @@ function run() {
     "Report intake must expose a reusable builder."
   );
   assertIncludes(
+    files.formatPlaybook,
+    formatPlaybook,
+    'format: "zhinote-report-format-playbook"',
+    "Report format playbook must define a local export format."
+  );
+  for (const snippet of [
+    "local_playbook_only: true",
+    "reads_report_intake_metadata: true",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "reads_page_body_text: false",
+    "writes_workspace_data: false",
+    "loads_external_resources: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.formatPlaybook,
+      formatPlaybook,
+      snippet,
+      "Report format playbook must preserve local-only boundaries."
+    );
+  }
+  for (const action of requiredFormatActions) {
+    assertIncludes(
+      files.formatPlaybook,
+      formatPlaybook,
+      action,
+      `Report format playbook must keep action ${action}.`
+    );
+  }
+  for (const snippet of [
+    'canonical_container: "zhinote-page"',
+    'primary_generated_report_format: "html"',
+    'primary_written_note_format: "markdown"',
+    'database_source_format: "spreadsheet"',
+    'editable_page_format: "tiptap-html"',
+  ]) {
+    assertIncludes(
+      files.formatPlaybook,
+      formatPlaybook,
+      snippet,
+      "Report format playbook must document the native format strategy."
+    );
+  }
+  assertIncludes(
+    files.formatPlaybook,
+    formatPlaybook,
+    "buildReportFormatPlaybook",
+    "Report format playbook must expose a reusable builder."
+  );
+  assertIncludes(
     files.reportsShell,
     reportsShell,
     "buildReportIntakeReport",
@@ -242,6 +304,24 @@ function run() {
     reportsShell,
     "Export intake",
     "Reports module must export the intake report."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    "buildReportFormatPlaybook",
+    "Reports module must build the format playbook."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    "格式处理 Playbook",
+    "Reports module must render the format playbook panel."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    "导出 Playbook",
+    "Reports module must export the format playbook."
   );
 
   if (failures.length > 0) {
@@ -262,6 +342,7 @@ function run() {
           0
         ),
         intake_stages: requiredIntakeStages.length,
+        format_actions: requiredFormatActions.length,
         local_only: true,
       },
       null,

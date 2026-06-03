@@ -34,6 +34,12 @@ import {
   type ReportIntakePriority,
   type ReportIntakeStage,
 } from "@/lib/reports/reportIntake";
+import {
+  buildReportFormatPlaybook,
+  type ReportFormatAction,
+  type ReportFormatConfirmationStatus,
+  type ReportFormatPlaybook,
+} from "@/lib/reports/reportFormatPlaybook";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -103,6 +109,7 @@ function ReportsDashboard() {
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingIntake, setExportingIntake] = useState(false);
+  const [exportingFormatPlaybook, setExportingFormatPlaybook] = useState(false);
   const reportFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -121,6 +128,10 @@ function ReportsDashboard() {
     [databases]
   );
   const reportIntake = useMemo(() => buildReportIntakeReport(pages), [pages]);
+  const reportFormatPlaybook = useMemo(
+    () => buildReportFormatPlaybook(reportIntake),
+    [reportIntake]
+  );
 
   const reportsModule = PLATFORM_MODULES.find((module) => module.id === "reports");
   const trackerStarter = reportsModule?.starter ?? null;
@@ -187,6 +198,24 @@ function ReportsDashboard() {
       window.alert("Report intake export failed. Please check the console.");
     } finally {
       setExportingIntake(false);
+    }
+  };
+
+  const handleExportFormatPlaybook = () => {
+    setExportingFormatPlaybook(true);
+    try {
+      downloadJsonFile(
+        `zhinote-report-format-playbook-${fileSafeTimestamp()}.json`,
+        {
+          ...reportFormatPlaybook,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export report format playbook:", err);
+      window.alert("报告格式 Playbook 导出失败，请查看控制台。");
+    } finally {
+      setExportingFormatPlaybook(false);
     }
   };
 
@@ -356,6 +385,112 @@ function ReportsDashboard() {
               还没有待处理报告文件。点击“上传报告文件”后，新页面会自动进入这个本地 intake 队列。
             </p>
           )}
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                格式处理 Playbook
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把 intake 队列里的格式拆成处理路线：HTML 报告优先原生预览，
+                Markdown 笔记优先可编辑导入，表格走数据库候选，其它文件保留本地原件和复核步骤。
+                这个 Playbook 不读取文件 bytes、文件文本或页面正文。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportFormatPlaybook}
+              disabled={exportingFormatPlaybook}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingFormatPlaybook ? "导出中..." : "导出 Playbook"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <IntakeMetric
+              label="路线"
+              value={reportFormatPlaybook.summary.format_routes}
+              detail="Format kinds"
+            />
+            <IntakeMetric
+              label="原生预览"
+              value={reportFormatPlaybook.summary.native_preview_routes}
+              detail="HTML/PDF/media"
+            />
+            <IntakeMetric
+              label="可编辑导入"
+              value={reportFormatPlaybook.summary.editable_import_routes}
+              detail="Markdown/docs"
+            />
+            <IntakeMetric
+              label="数据库候选"
+              value={reportFormatPlaybook.summary.database_import_routes}
+              detail="Spreadsheet"
+            />
+            <IntakeMetric
+              label="元数据复核"
+              value={reportFormatPlaybook.summary.metadata_review_routes}
+              detail="Archive/unknown"
+            />
+            <IntakeMetric
+              label="确认项"
+              value={reportFormatPlaybook.summary.confirmation_queue_items}
+              detail="Before risky actions"
+            />
+            <IntakeMetric
+              label="HTML"
+              value={reportFormatPlaybook.summary.html_reports}
+              detail="Native target"
+            />
+            <IntakeMetric
+              label="Markdown"
+              value={reportFormatPlaybook.summary.markdown_notes}
+              detail="Editable target"
+            />
+          </div>
+          <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+              原生格式策略：
+            </span>{" "}
+            ZhiNotes page 是统一容器；HTML 作为 AI 可视化报告的首选原生预览格式，
+            Markdown 作为自己写笔记的首选可编辑源格式，Excel/CSV/ODS 在确认后进入本地数据库，
+            原始文件继续保留在本地附件里。
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                确认队列
+              </div>
+              {reportFormatPlaybook.confirmation_queue.length > 0 ? (
+                reportFormatPlaybook.confirmation_queue.map((confirmation) => (
+                  <FormatConfirmationRow
+                    key={confirmation.id}
+                    confirmation={confirmation}
+                  />
+                ))
+              ) : (
+                <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  当前没有需要确认的格式动作。上传 HTML、表格或可转换文件后会自动生成确认队列。
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                格式路线
+              </div>
+              {reportFormatPlaybook.routes.length > 0 ? (
+                reportFormatPlaybook.routes.map((route) => (
+                  <FormatRouteCard key={route.id} route={route} />
+                ))
+              ) : (
+                <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  还没有格式路线。上传报告文件后，这里会按文件类型生成处理 Playbook。
+                </p>
+              )}
+            </div>
+          </div>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -540,6 +675,97 @@ function ReportIntakeItemCard({
   );
 }
 
+function FormatConfirmationRow({
+  confirmation,
+}: {
+  confirmation: ReportFormatPlaybook["confirmation_queue"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {confirmation.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {confirmation.reason}
+          </p>
+        </div>
+        <ConfirmationPill status={confirmation.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        {confirmation.applies_to_kinds.map((kind) => (
+          <span
+            key={kind}
+            className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500"
+          >
+            {kind}
+          </span>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function FormatRouteCard({
+  route,
+}: {
+  route: ReportFormatPlaybook["routes"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          {route.label}
+        </h3>
+        <ActionPill action={route.recommended_action} />
+        <ConfirmationPill status={route.confirmation_status} />
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {route.item_count} files
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {route.page_handling}
+      </p>
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <RouteDetail label="预览" value={route.native_preview} />
+        <RouteDetail label="可编辑" value={route.editable_import} />
+        <RouteDetail label="数据库" value={route.database_import} />
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        {route.confirmation_reason}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {route.relation_target.map((target) => (
+          <span
+            key={target}
+            className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+          >
+            关联：{target}
+          </span>
+        ))}
+        {route.sample_file_names.map((fileName) => (
+          <span
+            key={fileName}
+            className="max-w-full truncate rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+          >
+            {fileName}
+          </span>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function RouteDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-zinc-50 px-2 py-2 dark:bg-zinc-900">
+      <div className="text-[10px] font-semibold text-zinc-400">{label}</div>
+      <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">{value}</p>
+    </div>
+  );
+}
+
 function IntakePriorityPill({
   priority,
 }: {
@@ -560,6 +786,56 @@ function IntakePriorityPill({
   return (
     <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
       {labels[priority]}
+    </span>
+  );
+}
+
+function ActionPill({ action }: { action: ReportFormatAction }) {
+  const labels: Record<ReportFormatAction, string> = {
+    "native-preview": "原生预览",
+    "editable-import": "可编辑导入",
+    "database-import": "数据库导入",
+    "metadata-review": "元数据复核",
+    "download-retain": "保留下载",
+  };
+  const className =
+    action === "native-preview"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : action === "editable-import"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : action === "database-import"
+          ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+          : action === "metadata-review"
+            ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+            : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[action]}
+    </span>
+  );
+}
+
+function ConfirmationPill({
+  status,
+}: {
+  status: ReportFormatConfirmationStatus;
+}) {
+  const labels: Record<ReportFormatConfirmationStatus, string> = {
+    required: "必须确认",
+    recommended: "建议复核",
+    "not-needed": "无需确认",
+  };
+  const className =
+    status === "required"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : status === "recommended"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[status]}
     </span>
   );
 }
