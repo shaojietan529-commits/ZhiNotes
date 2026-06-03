@@ -85,6 +85,11 @@ This keeps new research modules from being hard-coded into one page. A future
 module should first register itself, then add only the UI, commands, blocks, or
 data views it needs.
 
+The module center can export a local module manifest. The manifest checks module
+ids, routes, starter coverage, data surfaces, and extension slot coverage
+without reading page text, database rows, uploaded file bytes, prompts, tokens,
+or cloud data.
+
 ## Database Relations
 
 Databases support a local `relation` field type. A relation field stores page

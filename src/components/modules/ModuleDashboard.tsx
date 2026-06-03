@@ -13,6 +13,11 @@ import {
   type ModuleStatus,
   type PlatformModule,
 } from "@/lib/modules/registry";
+import {
+  buildModuleManifestReport,
+  type ModuleManifestGateStatus,
+  type ModuleManifestReport,
+} from "@/lib/modules/moduleManifest";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import {
   DEFAULT_APP_LANGUAGE_LABEL,
@@ -26,9 +31,11 @@ export default function ModuleDashboard() {
   const router = useRouter();
   const { pages, refresh } = usePages();
   const [databases, setDatabases] = useState<Database[]>([]);
+  const [exportingManifest, setExportingManifest] = useState(false);
   const activeModules = useMemo(() => getModulesByStatus("active"), []);
   const betaModules = useMemo(() => getModulesByStatus("beta"), []);
   const plannedModules = useMemo(() => getModulesByStatus("planned"), []);
+  const moduleManifest = useMemo(() => buildModuleManifestReport(), []);
 
   useEffect(() => {
     void getAllDatabases()
@@ -59,6 +66,21 @@ export default function ModuleDashboard() {
     }
     await refresh();
     router.push(result.route);
+  };
+
+  const handleExportManifest = () => {
+    setExportingManifest(true);
+    try {
+      downloadJsonFile(`zhinote-module-manifest-${fileSafeTimestamp()}.json`, {
+        ...moduleManifest,
+        exported_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to export module manifest:", err);
+      window.alert("Module manifest export failed. Please check the console.");
+    } finally {
+      setExportingManifest(false);
+    }
   };
 
   return (
@@ -96,6 +118,14 @@ export default function ModuleDashboard() {
               >
                 新建数据库
               </button>
+              <button
+                type="button"
+                onClick={handleExportManifest}
+                disabled={exportingManifest}
+                className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {exportingManifest ? "正在导出..." : "导出 manifest"}
+              </button>
             </div>
           </div>
         </header>
@@ -106,6 +136,66 @@ export default function ModuleDashboard() {
           <Metric label="已启用模块" value={activeModules.length} />
           <Metric label="Beta 模块" value={betaModules.length} />
           <Metric label="规划中模块" value={plannedModules.length} />
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                模块系统 manifest
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                本地模块合同，只描述模块 id、route、starter、data surfaces
+                和 extension slots。导出不会读取页面正文、数据库 rows、文件 bytes
+                或任何云端数据。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportManifest}
+              disabled={exportingManifest}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingManifest ? "Exporting..." : "Export manifest"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-6">
+            <ManifestMetric
+              label="Modules"
+              value={moduleManifest.summary.modules}
+              detail="Registered"
+            />
+            <ManifestMetric
+              label="Routes"
+              value={moduleManifest.summary.routable}
+              detail="Module pages"
+            />
+            <ManifestMetric
+              label="Starters"
+              value={moduleManifest.summary.starters}
+              detail="Local actions"
+            />
+            <ManifestMetric
+              label="Slots"
+              value={moduleManifest.summary.extension_slots}
+              detail="Extension points"
+            />
+            <ManifestMetric
+              label="Surfaces"
+              value={moduleManifest.summary.unique_data_surfaces}
+              detail="Data contracts"
+            />
+            <ManifestMetric
+              label="Gates"
+              value={moduleManifest.summary.ready}
+              detail={`${moduleManifest.summary.partial} partial`}
+            />
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {moduleManifest.gates.map((gate) => (
+              <ModuleManifestGateRow key={gate.id} gate={gate} />
+            ))}
+          </div>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
@@ -186,6 +276,74 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
+function ManifestMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function ModuleManifestGateRow({
+  gate,
+}: {
+  gate: ModuleManifestReport["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {gate.title}
+        </div>
+        <ModuleManifestGatePill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function ModuleManifestGatePill({
+  status,
+}: {
+  status: ModuleManifestGateStatus;
+}) {
+  const labels: Record<ModuleManifestGateStatus, string> = {
+    ready: "Ready",
+    partial: "Partial",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "partial"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
 function ModuleCard({
   module,
   onOpen,
@@ -262,4 +420,22 @@ function ModuleCard({
       )}
     </article>
   );
+}
+
+function downloadJsonFile(fileName: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function fileSafeTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
 }
