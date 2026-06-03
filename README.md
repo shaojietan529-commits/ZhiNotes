@@ -369,6 +369,11 @@ Current local actions:
   deployment gates, and observability into one preflight view; it does not
   deploy the app, create accounts, connect cloud services, write server data,
   or upload workspace data.
+- Review and export a local route/API preflight report. The report checks
+  workspace routes, module routes, disabled API stubs, Cloud Alpha metadata
+  routes, and the environment preflight endpoint against the launch checklist,
+  but it does not send network requests, connect cloud services, upload data,
+  read page bodies, or read file bytes.
 - Review and export a local Web Beta next-action plan. The plan turns readiness
   and launch blockers into ordered P0/P1/P2 build work, but does not deploy the
   app, create accounts, connect cloud services, upload workspace data, read page

@@ -10,6 +10,8 @@ import type { PermissionDecisionReport } from "@/lib/security/permissionDecision
 import type { AccountSessionBoundary } from "@/lib/security/accountSessionBoundary";
 import type { CloudMigrationSqlDraft } from "@/lib/sync/cloudMigrationSqlDraft";
 import type { SyncReplayTestPlan } from "@/lib/sync/syncReplayTestPlan";
+import { WEB_BETA_API_STUBS } from "@/lib/sync/webBetaApiStubs";
+import type { WebBetaApiStubId } from "@/lib/sync/webBetaApiStubs";
 
 export type WebBetaLaunchStatus =
   | "ready"
@@ -47,9 +49,10 @@ export interface WebBetaLaunchTrack {
 }
 
 export interface WebBetaRouteCheck {
+  method: "GET" | "POST";
   route: string;
   surface: "workspace" | "module" | "api";
-  status: "local-route" | "disabled-stub" | "blocked";
+  status: "local-route" | "disabled-stub" | "cloud-alpha-gated" | "blocked";
   required_action: string;
 }
 
@@ -86,6 +89,7 @@ export interface WebBetaLaunchChecklist {
     blocked: number;
     local_routes: number;
     disabled_stub_routes: number;
+    cloud_alpha_gated_routes: number;
   };
   tracks: WebBetaLaunchTrack[];
   routes: WebBetaRouteCheck[];
@@ -292,98 +296,81 @@ function buildLaunchTracks(
 
 function buildRouteChecks(): WebBetaRouteCheck[] {
   return [
-    route("/", "workspace", "local-route", "Keep homepage loading locally."),
+    route("GET", "/", "workspace", "local-route", "Keep homepage loading locally."),
     route(
+      "GET",
       "/modules",
       "module",
       "local-route",
       "Verify module hub lists all registered modules."
     ),
     route(
+      "GET",
       "/modules/company-research",
       "module",
       "local-route",
       "Verify company research module remains local-first."
     ),
     route(
+      "GET",
       "/modules/meetings",
       "module",
       "local-route",
       "Verify meetings module does not join calls or publish notes."
     ),
     route(
+      "GET",
       "/modules/reports",
       "module",
       "local-route",
       "Verify report module keeps file previews local."
     ),
     route(
+      "GET",
       "/modules/portfolio",
       "module",
       "local-route",
       "Verify portfolio module does not connect brokers."
     ),
     route(
+      "GET",
+      "/modules/research-graph",
+      "module",
+      "local-route",
+      "Verify research graph renders local relation coverage and schema helpers."
+    ),
+    route(
+      "GET",
       "/modules/ai",
       "module",
       "local-route",
       "Verify AI module remains request staging only."
     ),
     route(
+      "GET",
       "/modules/sync",
       "module",
       "local-route",
       "Verify Web Beta readiness dashboard renders launch gates."
     ),
-    route(
-      "/api/auth/session",
-      "api",
-      "disabled-stub",
-      "Keep disabled until auth provider and session model are selected."
+    ...WEB_BETA_API_STUBS.map((stub) =>
+      route(
+        stub.method,
+        stub.path,
+        "api",
+        isCloudAlphaApiStub(stub.id) ? "cloud-alpha-gated" : "disabled-stub",
+        stub.future_requirement
+      )
     ),
     route(
-      "/api/sync/push",
-      "api",
-      "disabled-stub",
-      "Keep disabled until payload preview, auth, and server persistence exist."
-    ),
-    route(
-      "/api/sync/replay-test",
-      "api",
-      "disabled-stub",
-      "Keep disabled until auth, permission checks, payload preview, conflict UI, retry/idempotency, audit events, rollback proof, and disposable test data exist."
-    ),
-    route(
+      "POST",
       "/api/ai/run",
       "api",
       "disabled-stub",
       "Keep disabled until provider, final payload preview, retention, permission, and audit gates are enabled."
     ),
     route(
-      "/api/audit/events",
-      "api",
-      "disabled-stub",
-      "Keep disabled until authenticated actor identity, redaction, retention, permission checks, and server audit storage exist."
-    ),
-    route(
-      "/api/cloud/migrations/apply",
-      "api",
-      "disabled-stub",
-      "Keep disabled until SQL review, disposable database replay, rollback proof, migration lock, backup snapshot, audit events, and owner approval exist."
-    ),
-    route(
-      "/api/backup/restore-preview",
-      "api",
-      "disabled-stub",
-      "Keep disabled until restore preview and rollback write-back are proven."
-    ),
-    route(
-      "/api/backup/restore-apply",
-      "api",
-      "disabled-stub",
-      "Keep disabled until rollback snapshot, permission check, audit event, sync replay safety, second confirmation, and failed-restore rollback proof exist."
-    ),
-    route(
+      "GET",
       "/api/web-beta/environment-preflight",
       "api",
       "local-route",
@@ -393,17 +380,30 @@ function buildRouteChecks(): WebBetaRouteCheck[] {
 }
 
 function route(
+  method: WebBetaRouteCheck["method"],
   path: string,
   surface: WebBetaRouteCheck["surface"],
   status: WebBetaRouteCheck["status"],
   requiredAction: string
 ): WebBetaRouteCheck {
   return {
+    method,
     route: path,
     surface,
     status,
     required_action: requiredAction,
   };
+}
+
+function isCloudAlphaApiStub(id: WebBetaApiStubId) {
+  return (
+    id === "auth-session" ||
+    id === "auth-login-start" ||
+    id === "auth-logout" ||
+    id === "workspace-list" ||
+    id === "workspace-create" ||
+    id === "workspace-bootstrap"
+  );
 }
 
 function summarizeLaunchChecklist(
@@ -431,6 +431,9 @@ function summarizeLaunchChecklist(
         .length,
       disabled_stub_routes: routes.filter(
         (item) => item.status === "disabled-stub"
+      ).length,
+      cloud_alpha_gated_routes: routes.filter(
+        (item) => item.status === "cloud-alpha-gated"
       ).length,
     }
   );
