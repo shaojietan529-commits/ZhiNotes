@@ -34,6 +34,7 @@ const files = {
   permissionCheckApiStub: "src/lib/security/permissionCheckApiStub.ts",
   permissionCheckRequestValidator:
     "src/lib/security/permissionCheckRequestValidator.ts",
+  permissionServerTestMatrix: "src/lib/security/permissionServerTestMatrix.ts",
   permissionCheckRoute: "src/app/api/permissions/check/route.ts",
   typedConfirmation: "src/lib/security/typedConfirmation.ts",
   highRiskActionRegistry: "src/lib/security/highRiskActionRegistry.ts",
@@ -221,6 +222,9 @@ function run() {
   const permissionCheckRequestValidator = readProjectFile(
     files.permissionCheckRequestValidator
   );
+  const permissionServerTestMatrix = readProjectFile(
+    files.permissionServerTestMatrix
+  );
   const permissionCheckRoute = readProjectFile(files.permissionCheckRoute);
   const typedConfirmation = readProjectFile(files.typedConfirmation);
   const highRiskActionRegistry = readProjectFile(files.highRiskActionRegistry);
@@ -259,6 +263,7 @@ function run() {
     [files.permissionCheckEnvelope, permissionCheckEnvelope],
     [files.permissionCheckApiStub, permissionCheckApiStub],
     [files.permissionCheckRequestValidator, permissionCheckRequestValidator],
+    [files.permissionServerTestMatrix, permissionServerTestMatrix],
     [files.permissionCheckRoute, permissionCheckRoute],
     [files.typedConfirmation, typedConfirmation],
     [files.highRiskActionRegistry, highRiskActionRegistry],
@@ -1113,6 +1118,159 @@ function run() {
     permissionCheckApiStub,
     "local_validator_report",
     "Permission check API stub must expose local validator fixture results."
+  );
+  assertSourceIncludes(
+    files.permissionServerTestMatrix,
+    permissionServerTestMatrix,
+    'format: "zhinote-server-permission-enforcement-test-matrix"',
+    "Permission server test matrix must expose a stable matrix format."
+  );
+  assertSourceIncludes(
+    files.permissionServerTestMatrix,
+    permissionServerTestMatrix,
+    "buildPermissionServerTestMatrix",
+    "Permission server test matrix must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'matrix_status: "local-server-test-contract-only"',
+      "Permission server test matrix must remain local-only.",
+    ],
+    [
+      "can_run_server_permission_tests_now: false",
+      "Permission server test matrix must not run server tests yet.",
+    ],
+    [
+      "can_enforce_permissions_now: false",
+      "Permission server test matrix must not enforce permissions.",
+    ],
+    [
+      "can_read_request_body_now: false",
+      "Permission server test matrix must not read request bodies.",
+    ],
+    [
+      "no_server_execution: true",
+      "Permission server test matrix must not execute server behavior.",
+    ],
+    [
+      "metadata_only_request: true",
+      "Permission server test matrix must use metadata-only request fixtures.",
+    ],
+    [
+      "stores_raw_request: false",
+      "Permission server test matrix must not store raw request values.",
+    ],
+    [
+      "returns_raw_values: false",
+      "Permission server test matrix must not return raw values.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Permission server test matrix must not read page text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Permission server test matrix must not read database values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Permission server test matrix must not read comments.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Permission server test matrix must not read file bytes.",
+    ],
+    [
+      "reads_prompt_text: false",
+      "Permission server test matrix must not read prompt text.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Permission server test matrix must not read secrets.",
+    ],
+    [
+      "writes_server_audit_log: false",
+      "Permission server test matrix must not write audit logs.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Permission server test matrix must not upload workspace data.",
+    ],
+    [
+      "owner-cloud-sync-confirmed",
+      "Permission server test matrix must include owner cloud sync confirmation case.",
+    ],
+    [
+      "researcher-cloud-sync-denied",
+      "Permission server test matrix must include researcher cloud sync denial case.",
+    ],
+    [
+      "viewer-export-page-read-only",
+      "Permission server test matrix must include viewer read-only export case.",
+    ],
+    [
+      "viewer-edit-portfolio-denied",
+      "Permission server test matrix must include viewer portfolio denial case.",
+    ],
+    [
+      "viewer-ai-run-denied",
+      "Permission server test matrix must include viewer AI denial case.",
+    ],
+    [
+      "researcher-ai-run-confirmed",
+      "Permission server test matrix must include researcher AI confirmation case.",
+    ],
+    [
+      "owner-admin-confirmed",
+      "Permission server test matrix must include owner admin confirmation case.",
+    ],
+    [
+      "page-body-payload-rejected",
+      "Permission server test matrix must include page body payload rejection case.",
+    ],
+    [
+      "prompt-payload-rejected",
+      "Permission server test matrix must include prompt payload rejection case.",
+    ],
+    [
+      "validatePermissionCheckMetadataRequest",
+      "Permission server test matrix must reuse metadata-only request validation.",
+    ],
+    [
+      "evaluatePermissionDecision",
+      "Permission server test matrix must reuse local permission decisions.",
+    ],
+    [
+      "expected_http_status_after_enablement",
+      "Permission server test matrix must define future HTTP expectations.",
+    ],
+    [
+      "allow-after-confirmation",
+      "Permission server test matrix must cover confirmation-based allows.",
+    ],
+    [
+      "reject-request",
+      "Permission server test matrix must cover request rejection.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.permissionServerTestMatrix,
+      permissionServerTestMatrix,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.permissionCheckApiStub,
+    permissionCheckApiStub,
+    "buildPermissionServerTestMatrix",
+    "Permission check API stub must include the local server test matrix."
+  );
+  assertSourceIncludes(
+    files.permissionCheckApiStub,
+    permissionCheckApiStub,
+    "local_server_test_matrix",
+    "Permission check API stub must expose the local server test matrix."
   );
   assertSourceIncludes(
     files.permissionCheckRoute,
@@ -3159,6 +3317,10 @@ function run() {
       "Sync UI must build the permission check validator report.",
     ],
     [
+      "buildPermissionServerTestMatrix",
+      "Sync UI must build the permission server test matrix.",
+    ],
+    [
       "handleExportPermissionCheckEnvelope",
       "Sync UI must export the permission check envelope contract.",
     ],
@@ -3193,6 +3355,18 @@ function run() {
     [
       "Validator cases",
       "Sync UI must render permission validator coverage metric.",
+    ],
+    [
+      "Server permission test matrix",
+      "Sync UI must render the server permission test matrix panel.",
+    ],
+    [
+      "PermissionServerMatrixCaseRow",
+      "Sync UI must render server permission matrix case rows.",
+    ],
+    [
+      "Server cases",
+      "Sync UI must render server permission matrix coverage metric.",
     ],
     [
       "permission-check-envelope",
@@ -3258,6 +3432,7 @@ function run() {
     permission_check_envelope_checks: 68,
     permission_check_api_stub_checks: 46,
     permission_check_request_validator_checks: 28,
+    permission_server_test_matrix_checks: 32,
     warnings: warnings.length,
   };
 

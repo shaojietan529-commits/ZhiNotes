@@ -64,6 +64,12 @@ import {
   type PermissionCheckValidatorReport,
 } from "@/lib/security/permissionCheckRequestValidator";
 import {
+  buildPermissionServerTestMatrix,
+  type PermissionServerExpectedDecision,
+  type PermissionServerMatrixCaseStatus,
+  type PermissionServerTestMatrix,
+} from "@/lib/security/permissionServerTestMatrix";
+import {
   buildHighRiskActionRegistryReport,
   getHighRiskRequiredPhrase,
   type HighRiskActionCoverage,
@@ -636,6 +642,10 @@ function SyncDashboard() {
   );
   const permissionCheckValidatorReport = useMemo(
     () => buildPermissionCheckValidatorReport(),
+    []
+  );
+  const permissionServerTestMatrix = useMemo(
+    () => buildPermissionServerTestMatrix(),
     []
   );
   const highRiskActionRegistry = useMemo(
@@ -5174,7 +5184,7 @@ function SyncDashboard() {
                   : "Export permission envelope"}
               </button>
             </div>
-            <div className="mt-3 grid gap-2 md:grid-cols-5">
+            <div className="mt-3 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
               <IdentityMetric
                 label="Request fields"
                 value={`${permissionCheckEnvelopeContract.summary.request_allowed_fields}`}
@@ -5199,6 +5209,11 @@ function SyncDashboard() {
                 label="Validator cases"
                 value={`${permissionCheckValidatorReport.summary.passed}/${permissionCheckValidatorReport.summary.fixtures}`}
                 detail="Local fixtures"
+              />
+              <IdentityMetric
+                label="Server cases"
+                value={`${permissionServerTestMatrix.summary.cases}`}
+                detail="Future tests"
               />
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
@@ -5262,6 +5277,41 @@ function SyncDashboard() {
                     />
                   )
                 )}
+              </div>
+            </ContractPanel>
+            <ContractPanel title="Server permission test matrix" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-4">
+                <IdentityMetric
+                  label="Allow"
+                  value={`${
+                    permissionServerTestMatrix.summary.allow_read_only +
+                    permissionServerTestMatrix.summary.allow_after_confirmation
+                  }`}
+                  detail="With gates"
+                />
+                <IdentityMetric
+                  label="Deny"
+                  value={`${permissionServerTestMatrix.summary.denied}`}
+                  detail="403 cases"
+                />
+                <IdentityMetric
+                  label="Reject"
+                  value={`${permissionServerTestMatrix.summary.rejected_request}`}
+                  detail="422 payload"
+                />
+                <IdentityMetric
+                  label="Confirm"
+                  value={`${permissionServerTestMatrix.summary.manual_confirmation}`}
+                  detail="High risk"
+                />
+              </div>
+              <div className="mt-3 grid gap-2 xl:grid-cols-3">
+                {permissionServerTestMatrix.cases.map((testCase) => (
+                  <PermissionServerMatrixCaseRow
+                    key={testCase.id}
+                    testCase={testCase}
+                  />
+                ))}
               </div>
             </ContractPanel>
           </ContractPanel>
@@ -6626,6 +6676,43 @@ function PermissionCheckValidatorFixtureRow({
   );
 }
 
+function PermissionServerMatrixCaseRow({
+  testCase,
+}: {
+  testCase: PermissionServerTestMatrix["cases"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {testCase.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {testCase.role_id} · {testCase.resource_id} ·{" "}
+            {testCase.action_id}
+          </div>
+        </div>
+        <PermissionServerDecisionPill
+          decision={testCase.expected_server_decision}
+        />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <PermissionServerCaseStatusPill status={testCase.case_status} />
+        <span className="rounded-md bg-zinc-100 px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          HTTP {testCase.expected_http_status_after_enablement}
+        </span>
+        <span className="rounded-md bg-zinc-100 px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {testCase.request_validation_status}
+        </span>
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {testCase.acceptance_criteria[0]}
+      </p>
+    </article>
+  );
+}
+
 function PermissionDecisionStatusPill({
   status,
 }: {
@@ -6647,6 +6734,57 @@ function PermissionDecisionStatusPill({
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function PermissionServerDecisionPill({
+  decision,
+}: {
+  decision: PermissionServerExpectedDecision;
+}) {
+  const labels: Record<PermissionServerExpectedDecision, string> = {
+    "allow-read-only": "Allow",
+    "allow-after-confirmation": "Confirm",
+    deny: "Deny",
+    "reject-request": "Reject",
+  };
+
+  const className =
+    decision === "allow-read-only"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : decision === "allow-after-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[decision]}
+    </span>
+  );
+}
+
+function PermissionServerCaseStatusPill({
+  status,
+}: {
+  status: PermissionServerMatrixCaseStatus;
+}) {
+  const labels: Record<PermissionServerMatrixCaseStatus, string> = {
+    planned: "Planned",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "planned"
+      ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[status]}
     </span>
   );

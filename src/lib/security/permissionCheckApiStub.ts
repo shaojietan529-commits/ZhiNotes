@@ -9,6 +9,10 @@ import {
   type PermissionCheckValidatorReport,
 } from "@/lib/security/permissionCheckRequestValidator";
 import {
+  buildPermissionServerTestMatrix,
+  type PermissionServerTestMatrix,
+} from "@/lib/security/permissionServerTestMatrix";
+import {
   buildWebBetaApiStubResponse,
   type WebBetaApiStubResponse,
 } from "@/lib/sync/webBetaApiStubs";
@@ -61,6 +65,7 @@ export interface PermissionCheckApiDisabledResponse {
     allowed_fields: PermissionCheckField[];
   };
   local_validator_report: PermissionCheckValidatorReport;
+  local_server_test_matrix: PermissionServerTestMatrix;
   disabled_response_contract: {
     http_status: 501;
     returns_permission_result: false;
@@ -125,6 +130,7 @@ export function buildPermissionCheckApiDisabledResponse(): PermissionCheckApiDis
       allowed_fields: buildPermissionCheckResponseFields(),
     },
     local_validator_report: buildPermissionCheckValidatorReport(),
+    local_server_test_matrix: buildPermissionServerTestMatrix(),
     disabled_response_contract: {
       http_status: 501,
       returns_permission_result: false,
