@@ -132,6 +132,12 @@ Current local actions:
 The current Report Library module is local-only. It does not upload reports,
 call AI, sync files, or load external resources by itself.
 
+HTML report previews block external resources by default. A user must type the
+local external-resource confirmation phrase before enabling remote images,
+scripts, styles, frames, fonts, media, or network endpoints for a trusted HTML
+file preview. The exported receipt records only local confirmation metadata and
+does not include report text, URL lists, tokens, or file bytes.
+
 ## Portfolio and Watchlist Module
 
 Open the portfolio module at:
@@ -384,6 +390,8 @@ The current app is local-first:
 
 - Uploaded files are stored in local browser storage.
 - HTML report previews block external resources by default.
+- HTML external resources require a typed local confirmation receipt before
+  they can be enabled for a trusted preview.
 - Embed blocks do not load external iframes until the user clicks to load them.
 - Backup export is local-only, but the exported JSON may contain private data.
 

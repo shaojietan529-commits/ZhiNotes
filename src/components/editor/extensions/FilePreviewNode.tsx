@@ -25,6 +25,7 @@ import { convertNotebookToHtml } from "@/lib/files/notebook";
 import { convertOdpToHtml, convertOdtToHtml } from "@/lib/files/openDocument";
 import { convertPptxToHtml } from "@/lib/files/presentation";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
+import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 
 export interface FilePreviewAttrs {
   fileId: string;
@@ -47,6 +48,7 @@ const PREVIEW_CSP =
   "default-src 'none'; img-src data: blob:; media-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; frame-src data: blob:; child-src data: blob:; connect-src 'none';";
 const SPREADSHEET_DATABASE_ROW_LIMIT = 500;
 const SPREADSHEET_DATABASE_COLUMN_LIMIT = 50;
+const EXTERNAL_RESOURCE_CONFIRMATION_PHRASE = "ENABLE EXTERNAL RESOURCES";
 const FILE_KIND_LABELS: Record<PageFileKind, string> = {
   html: "HTML",
   markdown: "Markdown",
@@ -80,6 +82,9 @@ function FilePreviewComponent({
   const [expanded, setExpanded] = useState(attrs.kind === "html");
   const [importing, setImporting] = useState(false);
   const [databaseImporting, setDatabaseImporting] = useState(false);
+  const [externalResourcePhrase, setExternalResourcePhrase] = useState("");
+  const [exportingExternalReceipt, setExportingExternalReceipt] =
+    useState(false);
   const [convertedPreview, setConvertedPreview] = useState<ConvertedPreview>({
     status: "idle",
   });
@@ -192,6 +197,24 @@ function FilePreviewComponent({
     file?.kind === "epub" ||
     file?.kind === "archive";
   const heightClass = expanded ? "h-[720px]" : "h-[360px]";
+  const externalResourceReceipt = useMemo(
+    () =>
+      buildHighRiskConfirmationReceipt({
+        actionId: "external-resource-load",
+        requiredPhrase: EXTERNAL_RESOURCE_CONFIRMATION_PHRASE,
+        typedPhrase: externalResourcePhrase,
+        scopeSummary: `HTML file preview block; size ${formatFileSize(
+          attrs.size
+        )}; external resources currently ${
+          allowExternalResources ? "allowed" : "blocked"
+        }; file name included: no; HTML content included: no.`,
+        riskSummary:
+          "Allowing external resources can let the HTML report request remote images, scripts, styles, frames, fonts, media, or network endpoints referenced by the file.",
+        destinationSummary:
+          "Remote resources referenced by the HTML document; exact URLs are not listed in this local receipt.",
+      }),
+    [allowExternalResources, attrs.size, externalResourcePhrase]
+  );
 
   const handleImportMarkdown = () => {
     if (!file || file.kind !== "markdown") return;
@@ -378,12 +401,42 @@ function FilePreviewComponent({
 
   const handleToggleExternalResources = () => {
     if (!allowExternalResources) {
+      if (!externalResourceReceipt.typed_phrase_matches) {
+        window.alert(
+          `请输入确认短语 ${EXTERNAL_RESOURCE_CONFIRMATION_PHRASE} 后再开启外部资源。`
+        );
+        return;
+      }
+
       const ok = window.confirm(
-        "要允许这个 HTML 报告加载外部图片、脚本和样式吗？这些资源可能来自互联网，只建议对可信文件开启。"
+        "要允许这个 HTML 报告加载外部图片、脚本、样式和其他远程资源吗？这些请求可能访问互联网，只建议对可信文件开启。"
       );
       if (!ok) return;
     }
     updateAttributes({ allowExternalResources: !allowExternalResources });
+  };
+
+  const handleExportExternalResourceReceipt = () => {
+    setExportingExternalReceipt(true);
+    try {
+      downloadJsonFile(
+        `zhinote-external-resource-confirmation-${fileSafeTimestamp()}.json`,
+        {
+          ...externalResourceReceipt,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export external resource confirmation:",
+        err
+      );
+      window.alert(
+        "External resource confirmation export failed. Please check the console."
+      );
+    } finally {
+      setExportingExternalReceipt(false);
+    }
   };
 
   return (
@@ -522,6 +575,51 @@ function FilePreviewComponent({
             </a>
           )}
         </div>
+
+        {attrs.kind === "html" && (
+          <div className="border-b border-amber-100 bg-amber-50/70 px-3 py-3 dark:border-amber-950 dark:bg-amber-950/30">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
+              <div className="min-w-0 flex-1">
+                <label
+                  htmlFor={`external-resource-phrase-${attrs.fileId}`}
+                  className="text-xs font-semibold text-amber-900 dark:text-amber-200"
+                >
+                  外部资源确认短语
+                </label>
+                <input
+                  id={`external-resource-phrase-${attrs.fileId}`}
+                  value={externalResourcePhrase}
+                  onChange={(event) =>
+                    setExternalResourcePhrase(event.target.value)
+                  }
+                  placeholder={EXTERNAL_RESOURCE_CONFIRMATION_PHRASE}
+                  className="mt-1 w-full rounded-md border border-amber-200 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-amber-500 dark:border-amber-900 dark:bg-zinc-950 dark:text-zinc-100"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleExportExternalResourceReceipt}
+                disabled={exportingExternalReceipt}
+                className="w-fit rounded-md border border-amber-200 bg-white px-3 py-2 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-wait disabled:opacity-60 dark:border-amber-900 dark:bg-zinc-950 dark:text-amber-300 dark:hover:bg-amber-950"
+              >
+                {exportingExternalReceipt
+                  ? "Exporting..."
+                  : "Export resource receipt"}
+              </button>
+            </div>
+            <div className="mt-2 grid gap-2 text-[11px] leading-5 text-amber-800 dark:text-amber-200 md:grid-cols-3">
+              <span>
+                Phrase match:{" "}
+                {externalResourceReceipt.typed_phrase_matches ? "Yes" : "No"}
+              </span>
+              <span>
+                Current state:{" "}
+                {allowExternalResources ? "External resources allowed" : "Blocked by default"}
+              </span>
+              <span>No report text, URLs, tokens, or file bytes in receipt.</span>
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div className="flex h-32 items-center justify-center text-sm text-zinc-400">
@@ -1525,6 +1623,24 @@ async function convertPresentationToHtml(file: StoredPageFile) {
 async function dataUrlToArrayBuffer(dataUrl: string) {
   const response = await fetch(dataUrl);
   return response.arrayBuffer();
+}
+
+function downloadJsonFile(fileName: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function fileSafeTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
 declare module "@tiptap/core" {

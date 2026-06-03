@@ -119,6 +119,7 @@ https://your-vercel-domain.vercel.app/auth/callback
 - workspace bootstrap 可以返回当前用户 role。
 - Cloud sync owner confirmation phrase 可以在本地生成 receipt，但 receipt 不会开启 push。
 - AI 外发和 restore write-back confirmation phrase 可以在本地生成 receipt，但 receipt 不会开启 `/api/ai/run` 或 `/api/backup/restore-apply`。
+- HTML 外部资源加载 confirmation phrase 可以在本地生成 receipt，但默认仍阻止远程资源，且 receipt 不包含报告正文、URL 列表、token 或文件 bytes。
 
 ## 后续云同步顺序
 
@@ -132,3 +133,4 @@ https://your-vercel-domain.vercel.app/auth/callback
 8. Permission check 和 audit events。
 9. Restore rollback 和 write-back。
 10. AI provider、retention、final payload preview 和 typed confirmation receipt。
+11. HTML/Report external resource allowlist、typed confirmation receipt 和审计事件。
