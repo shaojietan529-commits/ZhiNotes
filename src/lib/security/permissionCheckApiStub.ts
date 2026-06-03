@@ -13,6 +13,10 @@ import {
   type PermissionServerTestMatrix,
 } from "@/lib/security/permissionServerTestMatrix";
 import {
+  buildPermissionServerReadinessReport,
+  type PermissionServerReadinessReport,
+} from "@/lib/security/permissionServerReadiness";
+import {
   buildWebBetaApiStubResponse,
   type WebBetaApiStubResponse,
 } from "@/lib/sync/webBetaApiStubs";
@@ -66,6 +70,7 @@ export interface PermissionCheckApiDisabledResponse {
   };
   local_validator_report: PermissionCheckValidatorReport;
   local_server_test_matrix: PermissionServerTestMatrix;
+  local_server_readiness_report: PermissionServerReadinessReport;
   disabled_response_contract: {
     http_status: 501;
     returns_permission_result: false;
@@ -81,6 +86,9 @@ export interface PermissionCheckApiDisabledResponse {
 }
 
 export function buildPermissionCheckApiDisabledResponse(): PermissionCheckApiDisabledResponse {
+  const localValidatorReport = buildPermissionCheckValidatorReport();
+  const localServerTestMatrix = buildPermissionServerTestMatrix();
+
   return {
     format: "zhinote-permission-check-api-disabled",
     format_version: 1,
@@ -129,8 +137,12 @@ export function buildPermissionCheckApiDisabledResponse(): PermissionCheckApiDis
       schema_status: "planned-decision-only",
       allowed_fields: buildPermissionCheckResponseFields(),
     },
-    local_validator_report: buildPermissionCheckValidatorReport(),
-    local_server_test_matrix: buildPermissionServerTestMatrix(),
+    local_validator_report: localValidatorReport,
+    local_server_test_matrix: localServerTestMatrix,
+    local_server_readiness_report: buildPermissionServerReadinessReport({
+      validatorReport: localValidatorReport,
+      serverTestMatrix: localServerTestMatrix,
+    }),
     disabled_response_contract: {
       http_status: 501,
       returns_permission_result: false,

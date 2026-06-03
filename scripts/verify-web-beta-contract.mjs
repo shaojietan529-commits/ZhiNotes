@@ -35,6 +35,7 @@ const files = {
   permissionCheckRequestValidator:
     "src/lib/security/permissionCheckRequestValidator.ts",
   permissionServerTestMatrix: "src/lib/security/permissionServerTestMatrix.ts",
+  permissionServerReadiness: "src/lib/security/permissionServerReadiness.ts",
   permissionCheckRoute: "src/app/api/permissions/check/route.ts",
   typedConfirmation: "src/lib/security/typedConfirmation.ts",
   highRiskActionRegistry: "src/lib/security/highRiskActionRegistry.ts",
@@ -225,6 +226,9 @@ function run() {
   const permissionServerTestMatrix = readProjectFile(
     files.permissionServerTestMatrix
   );
+  const permissionServerReadiness = readProjectFile(
+    files.permissionServerReadiness
+  );
   const permissionCheckRoute = readProjectFile(files.permissionCheckRoute);
   const typedConfirmation = readProjectFile(files.typedConfirmation);
   const highRiskActionRegistry = readProjectFile(files.highRiskActionRegistry);
@@ -264,6 +268,7 @@ function run() {
     [files.permissionCheckApiStub, permissionCheckApiStub],
     [files.permissionCheckRequestValidator, permissionCheckRequestValidator],
     [files.permissionServerTestMatrix, permissionServerTestMatrix],
+    [files.permissionServerReadiness, permissionServerReadiness],
     [files.permissionCheckRoute, permissionCheckRoute],
     [files.typedConfirmation, typedConfirmation],
     [files.highRiskActionRegistry, highRiskActionRegistry],
@@ -1271,6 +1276,143 @@ function run() {
     permissionCheckApiStub,
     "local_server_test_matrix",
     "Permission check API stub must expose the local server test matrix."
+  );
+  assertSourceIncludes(
+    files.permissionServerReadiness,
+    permissionServerReadiness,
+    'format: "zhinote-server-permission-readiness-report"',
+    "Permission server readiness report must expose a stable format."
+  );
+  assertSourceIncludes(
+    files.permissionServerReadiness,
+    permissionServerReadiness,
+    "buildPermissionServerReadinessReport",
+    "Permission server readiness report must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'report_status: "local-readiness-report-only"',
+      "Permission server readiness report must remain local-only.",
+    ],
+    [
+      'readiness_verdict: "not-ready"',
+      "Permission server readiness report must not claim readiness.",
+    ],
+    [
+      "can_enable_permission_endpoint_now: false",
+      "Permission server readiness report must not enable the permission endpoint.",
+    ],
+    [
+      "can_run_server_permission_tests_now: false",
+      "Permission server readiness report must not run server permission tests.",
+    ],
+    [
+      "can_enforce_permissions_now: false",
+      "Permission server readiness report must not enforce permissions.",
+    ],
+    [
+      "can_read_request_body_now: false",
+      "Permission server readiness report must not read request bodies.",
+    ],
+    [
+      "no_server_execution: true",
+      "Permission server readiness report must not execute server behavior.",
+    ],
+    [
+      "reads_request_body: false",
+      "Permission server readiness report must not read request bodies.",
+    ],
+    [
+      "stores_raw_request: false",
+      "Permission server readiness report must not store raw requests.",
+    ],
+    [
+      "returns_raw_values: false",
+      "Permission server readiness report must not return raw values.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Permission server readiness report must not read page text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Permission server readiness report must not read database values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Permission server readiness report must not read comments.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Permission server readiness report must not read file bytes.",
+    ],
+    [
+      "reads_prompt_text: false",
+      "Permission server readiness report must not read prompt text.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Permission server readiness report must not read secrets.",
+    ],
+    [
+      "writes_server_audit_log: false",
+      "Permission server readiness report must not write audit logs.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Permission server readiness report must not upload workspace data.",
+    ],
+    [
+      "metadata-validator",
+      "Permission server readiness report must include metadata validator gate.",
+    ],
+    [
+      "server-matrix-coverage",
+      "Permission server readiness report must include server matrix gate.",
+    ],
+    [
+      "authenticated-actor",
+      "Permission server readiness report must include authenticated actor gate.",
+    ],
+    [
+      "workspace-membership",
+      "Permission server readiness report must include workspace membership gate.",
+    ],
+    [
+      "audit-envelope-linkage",
+      "Permission server readiness report must include audit envelope linkage gate.",
+    ],
+    [
+      "high-risk-confirmation",
+      "Permission server readiness report must include high-risk confirmation gate.",
+    ],
+    [
+      "input.validatorReport.summary.failed === 0",
+      "Permission server readiness report must require validator fixtures to pass.",
+    ],
+    [
+      "input.serverTestMatrix.summary.cases >= 9",
+      "Permission server readiness report must require server matrix coverage.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.permissionServerReadiness,
+      permissionServerReadiness,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.permissionCheckApiStub,
+    permissionCheckApiStub,
+    "buildPermissionServerReadinessReport",
+    "Permission check API stub must include the local server readiness report."
+  );
+  assertSourceIncludes(
+    files.permissionCheckApiStub,
+    permissionCheckApiStub,
+    "local_server_readiness_report",
+    "Permission check API stub must expose the local server readiness report."
   );
   assertSourceIncludes(
     files.permissionCheckRoute,
@@ -3369,6 +3511,22 @@ function run() {
       "Sync UI must render server permission matrix coverage metric.",
     ],
     [
+      "buildPermissionServerReadinessReport",
+      "Sync UI must build the server permission readiness report.",
+    ],
+    [
+      "Server permission readiness",
+      "Sync UI must render the server permission readiness panel.",
+    ],
+    [
+      "PermissionServerReadinessGateRow",
+      "Sync UI must render server permission readiness gates.",
+    ],
+    [
+      "Ready gates",
+      "Sync UI must render server permission readiness metrics.",
+    ],
+    [
       "permission-check-envelope",
       "Sync UI must track permission envelope export state separately.",
     ],
@@ -3433,6 +3591,7 @@ function run() {
     permission_check_api_stub_checks: 46,
     permission_check_request_validator_checks: 28,
     permission_server_test_matrix_checks: 32,
+    permission_server_readiness_checks: 29,
     warnings: warnings.length,
   };
 

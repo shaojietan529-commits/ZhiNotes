@@ -134,7 +134,7 @@ export function buildWebBetaReadinessReport(
       status: "ready",
       category: "local",
       evidence:
-        "Backup JSON, workspace ZIP, Markdown export, sync queue export, sync replay test plan export, disposable replay confirmation receipt export, empty-fixture replay package export, disposable replay harness preflight export, disabled replay runner skeleton export, audit event envelope export, permission check envelope export, permission-check API disabled schema, permission request validator fixtures, server permission test matrix, restore rollback plan export, restore write-back contract export, permission policy export, permission decision export, account session boundary export, environment preflight export, cloud schema migration plan export, cloud migration SQL draft export, launch checklist export, contract export, and readiness export are available locally.",
+        "Backup JSON, workspace ZIP, Markdown export, sync queue export, sync replay test plan export, disposable replay confirmation receipt export, empty-fixture replay package export, disposable replay harness preflight export, disabled replay runner skeleton export, audit event envelope export, permission check envelope export, permission-check API disabled schema, permission request validator fixtures, server permission test matrix, server permission readiness report, restore rollback plan export, restore write-back contract export, permission policy export, permission decision export, account session boundary export, environment preflight export, cloud schema migration plan export, cloud migration SQL draft export, launch checklist export, contract export, and readiness export are available locally.",
       nextAction:
         "Keep this as the escape hatch before any user opts into beta sync.",
     },
@@ -239,10 +239,10 @@ export function buildWebBetaReadinessReport(
       status: input.permissionDecisionReport ? "partial" : "blocked",
       category: "security",
       evidence: input.permissionDecisionReport
-        ? `Owner, Researcher, and Viewer decisions cover ${input.permissionDecisionReport.summary.matrix_decisions} role/resource/action combinations and ${input.permissionDecisionReport.summary.high_risk_scenarios} high-risk scenarios; the sync UI exports a metadata-only permission check envelope, local validator fixtures reject forbidden payload fields, a server permission test matrix covers future allow/deny/reject cases, and /api/permissions/check returns a dedicated disabled schema guard, but server enforcement is disabled.`
+        ? `Owner, Researcher, and Viewer decisions cover ${input.permissionDecisionReport.summary.matrix_decisions} role/resource/action combinations and ${input.permissionDecisionReport.summary.high_risk_scenarios} high-risk scenarios; the sync UI exports a metadata-only permission check envelope, local validator fixtures reject forbidden payload fields, a server permission test matrix covers future allow/deny/reject cases, a server permission readiness report summarizes blocked gates, and /api/permissions/check returns a dedicated disabled schema guard, but server enforcement is disabled.`
         : "Owner, Researcher, and Viewer roles are modeled locally, but no permission decision report is available.",
       nextAction:
-        "Move role checks to authenticated server endpoints only after the dedicated permission route runs validator-backed forbidden payload rejection, high-risk confirmations, audit envelope linkage, and server permission matrix tests before private beta.",
+        "Move role checks to authenticated server endpoints only after the dedicated permission route runs validator-backed forbidden payload rejection, high-risk confirmations, audit envelope linkage, server permission matrix tests, and readiness gates before private beta.",
     },
     {
       id: "high-risk-confirmations",

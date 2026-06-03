@@ -630,6 +630,10 @@ Current local actions:
   server-side allow, deny, confirmation, and payload-rejection cases for Owner,
   Researcher, and Viewer before `/api/permissions/check` can enforce anything.
   It does not run server tests or enable permissions.
+- Review the local server permission readiness report. The report combines the
+  validator fixtures and server test matrix into blocked/ready gates for auth,
+  workspace membership, audit linkage, high-risk confirmations, and route-level
+  integration tests. The verdict remains not ready.
 - Review and export a local high-risk action registry. The registry centralizes
   typed confirmation phrases and coverage for cloud sync, disposable replay,
   restore write-back, AI execution, HTML external resources, spreadsheet bulk
@@ -693,9 +697,9 @@ Current local actions:
   pull, sync replay test, restore preview, restore apply, file presign,
   permission check, audit events, and cloud migration apply. These routes return
   disabled responses unless explicitly enabled; the permission check route uses
-  a dedicated metadata-only schema guard, local validator fixture report, and
-  server permission test matrix. They do not upload local notes, files,
-  databases, backups, or sync queue rows.
+  a dedicated metadata-only schema guard, local validator fixture report, server
+  permission test matrix, and server permission readiness report. They do not
+  upload local notes, files, databases, backups, or sync queue rows.
 - Review and export a local Web Beta readiness report that summarizes local
   evidence, manual confirmation points, and blocked launch gates. The report
   does not create accounts, connect cloud services, upload notes, sync files,
@@ -743,7 +747,8 @@ The first cloud phase is a private alpha, not full sync:
   environment keys, guarded API route files, local module routes, the deployment
   target contract, audit event envelope, permission check envelope, permission
   check API disabled schema, permission request validator fixtures, server
-  permission test matrix, smoke test plan, and Supabase migration tables.
+  permission test matrix, server permission readiness report, smoke test plan,
+  and Supabase migration tables.
 - `npm run verify:web-beta:smoke` checks the preview smoke-test checklist before
   launch: expected pages, disabled/gated high-risk API routes, local-only
   privacy boundaries, Cloud Alpha disabled defaults, private file storage

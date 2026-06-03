@@ -157,10 +157,10 @@ function buildLaunchTracks(
       title: "Auth and server-side permissions",
       status: "blocked",
       evidence: input.permissionDecisionReport
-        ? `${input.disabledApiStubs} Web Beta API routes are disabled stubs; local permission decisions cover ${input.permissionDecisionReport.summary.matrix_decisions} role/resource/action combinations, the sync UI exports a metadata-only permission check envelope, local validator fixtures reject forbidden payload fields, a server permission test matrix covers future allow/deny/reject cases, and /api/permissions/check returns a dedicated disabled schema guard, but server enforcement is disabled.`
+        ? `${input.disabledApiStubs} Web Beta API routes are disabled stubs; local permission decisions cover ${input.permissionDecisionReport.summary.matrix_decisions} role/resource/action combinations, the sync UI exports a metadata-only permission check envelope, local validator fixtures reject forbidden payload fields, a server permission test matrix covers future allow/deny/reject cases, a server permission readiness report summarizes blocked gates, and /api/permissions/check returns a dedicated disabled schema guard, but server enforcement is disabled.`
         : `${input.disabledApiStubs} Web Beta API routes are disabled stubs; auth/session routes do not create sessions.`,
       required_action:
-        "Choose auth provider, session storage, workspace membership model, permission envelope validation, route-level forbidden-payload rejection tests, server permission matrix tests, and server-side role enforcement.",
+        "Choose auth provider, session storage, workspace membership model, permission envelope validation, route-level forbidden-payload rejection tests, server permission matrix tests, readiness gates, and server-side role enforcement.",
     },
     {
       id: "account-session-boundary",

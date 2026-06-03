@@ -70,6 +70,11 @@ import {
   type PermissionServerTestMatrix,
 } from "@/lib/security/permissionServerTestMatrix";
 import {
+  buildPermissionServerReadinessReport,
+  type PermissionServerReadinessReport,
+  type PermissionServerReadinessStatus,
+} from "@/lib/security/permissionServerReadiness";
+import {
   buildHighRiskActionRegistryReport,
   getHighRiskRequiredPhrase,
   type HighRiskActionCoverage,
@@ -647,6 +652,14 @@ function SyncDashboard() {
   const permissionServerTestMatrix = useMemo(
     () => buildPermissionServerTestMatrix(),
     []
+  );
+  const permissionServerReadinessReport = useMemo(
+    () =>
+      buildPermissionServerReadinessReport({
+        validatorReport: permissionCheckValidatorReport,
+        serverTestMatrix: permissionServerTestMatrix,
+      }),
+    [permissionCheckValidatorReport, permissionServerTestMatrix]
   );
   const highRiskActionRegistry = useMemo(
     () => buildHighRiskActionRegistryReport(),
@@ -5314,6 +5327,38 @@ function SyncDashboard() {
                 ))}
               </div>
             </ContractPanel>
+            <ContractPanel title="Server permission readiness" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-4">
+                <IdentityMetric
+                  label="Verdict"
+                  value={permissionServerReadinessReport.readiness_verdict}
+                  detail="Endpoint disabled"
+                />
+                <IdentityMetric
+                  label="Ready gates"
+                  value={`${permissionServerReadinessReport.summary.ready}`}
+                  detail={`${permissionServerReadinessReport.summary.gates} total`}
+                />
+                <IdentityMetric
+                  label="Blocked gates"
+                  value={`${permissionServerReadinessReport.summary.blocked}`}
+                  detail="Before beta"
+                />
+                <IdentityMetric
+                  label="Confirm gates"
+                  value={`${permissionServerReadinessReport.summary.manual_confirmation}`}
+                  detail="High risk"
+                />
+              </div>
+              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                {permissionServerReadinessReport.gates.map((gate) => (
+                  <PermissionServerReadinessGateRow
+                    key={gate.id}
+                    gate={gate}
+                  />
+                ))}
+              </div>
+            </ContractPanel>
           </ContractPanel>
         </section>
 
@@ -6713,6 +6758,34 @@ function PermissionServerMatrixCaseRow({
   );
 }
 
+function PermissionServerReadinessGateRow({
+  gate,
+}: {
+  gate: PermissionServerReadinessReport["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+        </div>
+        <PermissionServerReadinessStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
 function PermissionDecisionStatusPill({
   status,
 }: {
@@ -6729,6 +6802,31 @@ function PermissionDecisionStatusPill({
     status === "local-allowed"
       ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : status === "needs-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function PermissionServerReadinessStatusPill({
+  status,
+}: {
+  status: PermissionServerReadinessStatus;
+}) {
+  const labels: Record<PermissionServerReadinessStatus, string> = {
+    ready: "Ready",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 
