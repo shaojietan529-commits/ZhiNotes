@@ -20,9 +20,10 @@ while research workflows can be added as modules.
 Current module foundation:
 
 - Notes and Pages: block editor, page tree, backlinks, comments, version history.
-- Research Databases: table, list, kanban, calendar, gallery, timeline, form,
-  feed, local page relation fields, template rows, CSV export, XLSX export,
-  and confirmed spreadsheet-to-database import.
+- Research Databases: active module at `/modules/databases` for table, list,
+  kanban, calendar, gallery, timeline, chart, form, feed, local page relation
+  fields, template rows, CSV export, XLSX export, confirmed
+  spreadsheet-to-database import, and a schema/view/row-count dashboard.
 - Report Library: beta module at `/modules/reports` for local HTML reports,
   Markdown notes, PDFs, Office files, notebooks, archives, takeaways, linked
   companies, linked meetings, and a local report tracker database.
@@ -139,6 +140,32 @@ portfolio module now read this shared schema for module routes, expected
 relation kinds, key tracker fields, workflow stages, and local privacy
 boundaries. This keeps new investment research modules from inventing
 incompatible relationship models.
+
+## Research Databases Module
+
+Open the database module at:
+
+```txt
+http://localhost:3000/modules/databases
+```
+
+Current local actions:
+
+- Create a blank local research database.
+- Create company, report, meeting, or portfolio tracker databases from module
+  presets.
+- Review and export a local database module dashboard. The dashboard summarizes
+  database titles, descriptions, field counts, view coverage, relation fields,
+  template-row readiness, export readiness, and row counts.
+- Review coverage for table, list, kanban, calendar, gallery, timeline, chart,
+  form, and feed views.
+- Open any local database from the module list.
+
+The database module dashboard reads schema, view metadata, and row counts only.
+It does not read database row values, page bodies, file bytes, prompts, tokens,
+cloud data, or private research content. CSV/XLSX exports remain inside the
+individual database page because those exports intentionally include current
+visible row values.
 
 ## Database Relations
 

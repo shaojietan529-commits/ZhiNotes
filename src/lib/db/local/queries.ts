@@ -928,6 +928,16 @@ export async function getRows(databaseId: string): Promise<(DatabaseRow & { page
   }));
 }
 
+export async function getDatabaseRowCount(databaseId: string): Promise<number> {
+  const db = await getDb();
+  const rows = db.query(
+    "SELECT COUNT(*) as count FROM database_rows WHERE database_id = ? AND deleted_at IS NULL",
+    [databaseId]
+  ) as unknown as { count: number }[];
+
+  return Number(rows[0]?.count ?? 0);
+}
+
 export async function addRow(databaseId: string, opts?: {
   title?: string;
   fieldValues?: Record<string, unknown>;
