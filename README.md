@@ -138,6 +138,12 @@ scripts, styles, frames, fonts, media, or network endpoints for a trusted HTML
 file preview. The exported receipt records only local confirmation metadata and
 does not include report text, URL lists, tokens, or file bytes.
 
+Spreadsheet file previews can be imported into a new local database, but this
+bulk import path now requires a typed local confirmation phrase before creating
+fields or rows. The exported receipt records only local confirmation metadata,
+row/column limits, and file size; it does not include spreadsheet cell values or
+file bytes.
+
 ## Portfolio and Watchlist Module
 
 Open the portfolio module at:
@@ -392,6 +398,8 @@ The current app is local-first:
 - HTML report previews block external resources by default.
 - HTML external resources require a typed local confirmation receipt before
   they can be enabled for a trusted preview.
+- Spreadsheet-to-database bulk import requires a typed local confirmation
+  receipt before it creates database fields or rows.
 - Embed blocks do not load external iframes until the user clicks to load them.
 - Backup export is local-only, but the exported JSON may contain private data.
 

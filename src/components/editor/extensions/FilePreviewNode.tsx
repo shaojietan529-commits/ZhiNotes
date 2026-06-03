@@ -48,6 +48,7 @@ const PREVIEW_CSP =
   "default-src 'none'; img-src data: blob:; media-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; frame-src data: blob:; child-src data: blob:; connect-src 'none';";
 const SPREADSHEET_DATABASE_ROW_LIMIT = 500;
 const SPREADSHEET_DATABASE_COLUMN_LIMIT = 50;
+const BULK_IMPORT_CONFIRMATION_PHRASE = "ENABLE BULK IMPORT";
 const EXTERNAL_RESOURCE_CONFIRMATION_PHRASE = "ENABLE EXTERNAL RESOURCES";
 const FILE_KIND_LABELS: Record<PageFileKind, string> = {
   html: "HTML",
@@ -82,6 +83,9 @@ function FilePreviewComponent({
   const [expanded, setExpanded] = useState(attrs.kind === "html");
   const [importing, setImporting] = useState(false);
   const [databaseImporting, setDatabaseImporting] = useState(false);
+  const [bulkImportPhrase, setBulkImportPhrase] = useState("");
+  const [exportingBulkImportReceipt, setExportingBulkImportReceipt] =
+    useState(false);
   const [externalResourcePhrase, setExternalResourcePhrase] = useState("");
   const [exportingExternalReceipt, setExportingExternalReceipt] =
     useState(false);
@@ -215,6 +219,22 @@ function FilePreviewComponent({
       }),
     [allowExternalResources, attrs.size, externalResourcePhrase]
   );
+  const bulkImportReceipt = useMemo(
+    () =>
+      buildHighRiskConfirmationReceipt({
+        actionId: "bulk-import",
+        requiredPhrase: BULK_IMPORT_CONFIRMATION_PHRASE,
+        typedPhrase: bulkImportPhrase,
+        scopeSummary: `Spreadsheet file preview block; max imported rows ${SPREADSHEET_DATABASE_ROW_LIMIT}; max imported columns ${SPREADSHEET_DATABASE_COLUMN_LIMIT}; size ${formatFileSize(
+          attrs.size
+        )}; file name included: no; cell values included: no.`,
+        riskSummary:
+          "Bulk spreadsheet import creates a new local database, local fields, and local database rows from spreadsheet data after explicit confirmation.",
+        destinationSummary:
+          "Current local browser workspace; this import does not upload to cloud or external services.",
+      }),
+    [attrs.size, bulkImportPhrase]
+  );
 
   const handleImportMarkdown = () => {
     if (!file || file.kind !== "markdown") return;
@@ -332,6 +352,13 @@ function FilePreviewComponent({
   const handleImportSpreadsheetDatabase = async () => {
     if (!file || file.kind !== "spreadsheet") return;
 
+    if (!bulkImportReceipt.typed_phrase_matches) {
+      window.alert(
+        `请输入确认短语 ${BULK_IMPORT_CONFIRMATION_PHRASE} 后再批量导入为数据库。`
+      );
+      return;
+    }
+
     setDatabaseImporting(true);
     try {
       const table = await readSpreadsheetTable(file);
@@ -342,6 +369,12 @@ function FilePreviewComponent({
         return;
       }
 
+      const importedRows = table.rows.slice(0, SPREADSHEET_DATABASE_ROW_LIMIT);
+      const ok = window.confirm(
+        `要把这个表格批量导入为新数据库吗？将创建 1 个本地数据库、最多 ${table.headers.length} 个字段和 ${importedRows.length} 行。原始文件保留在本地，不会上传。`
+      );
+      if (!ok) return;
+
       const database = await createDatabase({
         title: spreadsheetDatabaseTitle(file.name),
       });
@@ -351,7 +384,6 @@ function FilePreviewComponent({
         await updateField(nameField.id, { name: table.headers[0] || "名称" });
       }
 
-      const importedRows = table.rows.slice(0, SPREADSHEET_DATABASE_ROW_LIMIT);
       const dataFields = [];
       for (let columnIndex = 1; columnIndex < table.headers.length; columnIndex += 1) {
         const values = importedRows.map((row) => stringifySpreadsheetCell(row[columnIndex]));
@@ -436,6 +468,26 @@ function FilePreviewComponent({
       );
     } finally {
       setExportingExternalReceipt(false);
+    }
+  };
+
+  const handleExportBulkImportReceipt = () => {
+    setExportingBulkImportReceipt(true);
+    try {
+      downloadJsonFile(
+        `zhinote-bulk-import-confirmation-${fileSafeTimestamp()}.json`,
+        {
+          ...bulkImportReceipt,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export bulk import confirmation:", err);
+      window.alert(
+        "Bulk import confirmation export failed. Please check the console."
+      );
+    } finally {
+      setExportingBulkImportReceipt(false);
     }
   };
 
@@ -575,6 +627,49 @@ function FilePreviewComponent({
             </a>
           )}
         </div>
+
+        {attrs.kind === "spreadsheet" && (
+          <div className="border-b border-blue-100 bg-blue-50/70 px-3 py-3 dark:border-blue-950 dark:bg-blue-950/30">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
+              <div className="min-w-0 flex-1">
+                <label
+                  htmlFor={`bulk-import-phrase-${attrs.fileId}`}
+                  className="text-xs font-semibold text-blue-900 dark:text-blue-200"
+                >
+                  批量导入确认短语
+                </label>
+                <input
+                  id={`bulk-import-phrase-${attrs.fileId}`}
+                  value={bulkImportPhrase}
+                  onChange={(event) => setBulkImportPhrase(event.target.value)}
+                  placeholder={BULK_IMPORT_CONFIRMATION_PHRASE}
+                  className="mt-1 w-full rounded-md border border-blue-200 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-blue-500 dark:border-blue-900 dark:bg-zinc-950 dark:text-zinc-100"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleExportBulkImportReceipt}
+                disabled={exportingBulkImportReceipt}
+                className="w-fit rounded-md border border-blue-200 bg-white px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:border-blue-900 dark:bg-zinc-950 dark:text-blue-300 dark:hover:bg-blue-950"
+              >
+                {exportingBulkImportReceipt
+                  ? "Exporting..."
+                  : "Export import receipt"}
+              </button>
+            </div>
+            <div className="mt-2 grid gap-2 text-[11px] leading-5 text-blue-800 dark:text-blue-200 md:grid-cols-3">
+              <span>
+                Phrase match:{" "}
+                {bulkImportReceipt.typed_phrase_matches ? "Yes" : "No"}
+              </span>
+              <span>
+                Limit: up to {SPREADSHEET_DATABASE_ROW_LIMIT} rows and{" "}
+                {SPREADSHEET_DATABASE_COLUMN_LIMIT} columns
+              </span>
+              <span>No spreadsheet cell values or file bytes in receipt.</span>
+            </div>
+          </div>
+        )}
 
         {attrs.kind === "html" && (
           <div className="border-b border-amber-100 bg-amber-50/70 px-3 py-3 dark:border-amber-950 dark:bg-amber-950/30">
