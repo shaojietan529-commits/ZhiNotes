@@ -90,6 +90,12 @@ import {
   type WebBetaLaunchChecklist,
   type WebBetaLaunchStatus,
 } from "@/lib/sync/webBetaLaunchChecklist";
+import {
+  buildWebBetaNextActionPlan,
+  type WebBetaNextActionPlan,
+  type WebBetaNextActionPriority,
+  type WebBetaNextActionStatus,
+} from "@/lib/sync/webBetaNextActions";
 import type {
   WebBetaEnvironmentCheckStatus,
   WebBetaEnvironmentPreflight,
@@ -180,7 +186,8 @@ type WebBetaContractAction =
   | "permission-decisions"
   | "account-session"
   | "high-risk-registry"
-  | "migration-sql";
+  | "migration-sql"
+  | "next-actions";
 type ReadinessStatus = "Ready" | "Partial" | "Missing" | "Needs confirmation";
 
 type CloudAlphaMessageTone = "info" | "success" | "warning" | "error";
@@ -739,6 +746,16 @@ function SyncDashboard() {
       permissionDecisionReport,
       workspaceIdentity,
     ]
+  );
+  const webBetaNextActionPlan = useMemo(
+    () =>
+      buildWebBetaNextActionPlan({
+        readinessReport: webBetaReadinessReport,
+        launchChecklist: webBetaLaunchChecklist,
+        environmentPreflight,
+        deploymentGates: DEPLOYMENT_GATES,
+      }),
+    [environmentPreflight, webBetaLaunchChecklist, webBetaReadinessReport]
   );
   const backupScope = useMemo(
     () => [
@@ -1557,6 +1574,29 @@ function SyncDashboard() {
     } catch (err) {
       console.error("[Zhinote] Failed to export web beta readiness:", err);
       window.alert("Web beta readiness export failed. Please check the console.");
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportWebBetaNextActionPlan = () => {
+    setBusyContractAction("next-actions");
+    try {
+      downloadJsonFile(
+        `zhinote-web-beta-next-actions-${fileSafeTimestamp()}.json`,
+        {
+          ...webBetaNextActionPlan,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export web beta next action plan:",
+        err
+      );
+      window.alert(
+        "Web beta next action plan export failed. Please check the console."
+      );
     } finally {
       setBusyContractAction(null);
     }
@@ -2989,6 +3029,63 @@ function SyncDashboard() {
                   />
                 ))}
               </div>
+            </div>
+          </ContractPanel>
+
+          <ContractPanel title="Web Beta next actions" className="mt-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                Local action plan that turns readiness and launch blockers into
+                ordered build work. It does not deploy, connect cloud services,
+                create accounts, upload workspace data, or read private content.
+              </p>
+              <button
+                type="button"
+                onClick={handleExportWebBetaNextActionPlan}
+                disabled={busyContractAction === "next-actions"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyContractAction === "next-actions"
+                  ? "Exporting..."
+                  : "Export next actions"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
+              <NextActionSummaryCard
+                label="Actions"
+                value={webBetaNextActionPlan.summary.actions}
+                detail="Ordered work items"
+                status="ready-to-build"
+              />
+              <NextActionSummaryCard
+                label="P0"
+                value={webBetaNextActionPlan.summary.p0}
+                detail="Must finish first"
+                priority="p0"
+              />
+              <NextActionSummaryCard
+                label="Ready"
+                value={webBetaNextActionPlan.summary.ready_to_build}
+                detail="Can start locally"
+                status="ready-to-build"
+              />
+              <NextActionSummaryCard
+                label="Decision"
+                value={webBetaNextActionPlan.summary.needs_owner_decision}
+                detail="Needs owner choice"
+                status="needs-owner-decision"
+              />
+              <NextActionSummaryCard
+                label="Missing env"
+                value={webBetaNextActionPlan.summary.missing_environment_required}
+                detail="Required settings"
+                status="blocked-by-missing-cloud"
+              />
+            </div>
+            <div className="mt-4 grid gap-2 xl:grid-cols-2">
+              {webBetaNextActionPlan.actions.map((action) => (
+                <NextActionRow key={action.id} action={action} />
+              ))}
             </div>
           </ContractPanel>
 
@@ -5121,6 +5218,118 @@ function LaunchRouteRow({
         {routeCheck.required_action}
       </p>
     </article>
+  );
+}
+
+function NextActionSummaryCard({
+  label,
+  value,
+  detail,
+  priority,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  priority?: WebBetaNextActionPriority;
+  status?: WebBetaNextActionStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        {priority ? (
+          <NextActionPriorityPill priority={priority} />
+        ) : status ? (
+          <NextActionStatusPill status={status} />
+        ) : null}
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function NextActionRow({
+  action,
+}: {
+  action: WebBetaNextActionPlan["actions"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {action.title}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <NextActionPriorityPill priority={action.priority} />
+            <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+              {action.phase}
+            </span>
+            <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-400 dark:bg-zinc-800">
+              {action.source}
+            </span>
+          </div>
+        </div>
+        <NextActionStatusPill status={action.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {action.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {action.required_action}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        Unlocks: {action.unlocks}
+      </p>
+    </article>
+  );
+}
+
+function NextActionPriorityPill({
+  priority,
+}: {
+  priority: WebBetaNextActionPriority;
+}) {
+  const className =
+    priority === "p0"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : priority === "p1"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {priority.toUpperCase()}
+    </span>
+  );
+}
+
+function NextActionStatusPill({
+  status,
+}: {
+  status: WebBetaNextActionStatus;
+}) {
+  const labels: Record<WebBetaNextActionStatus, string> = {
+    "ready-to-build": "Ready",
+    "needs-owner-decision": "Decision",
+    "blocked-by-missing-cloud": "Blocked",
+  };
+
+  const className =
+    status === "ready-to-build"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "needs-owner-decision"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
