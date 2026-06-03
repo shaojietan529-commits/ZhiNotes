@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "verify:web-beta": "node scripts/verify-web-beta-contract.mjs"
   },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "3.51.2-build8",

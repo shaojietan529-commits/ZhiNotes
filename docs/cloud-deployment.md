@@ -118,6 +118,8 @@ https://your-vercel-domain.vercel.app/auth/callback
 可以上 Vercel private alpha 的条件：
 
 - `npm run lint` 通过。
+- `npm run verify:web-beta` 通过，确认环境变量、Web Beta API route、模块
+  route、Supabase migration 表结构和本地合同对齐。
 - `npm run build` 通过。
 - Supabase migration 已在测试 project 跑通。
 - Vercel 环境变量已配置，但生产写入开关默认可先保持 false。

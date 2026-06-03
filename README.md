@@ -426,6 +426,9 @@ The first cloud phase is a private alpha, not full sync:
   are implemented.
 - The cloud sync confirmation phrase can produce a local receipt, but the
   receipt is audit evidence only and does not turn on cloud push.
+- `npm run verify:web-beta` checks the local Web Beta contract before launch:
+  environment keys, guarded API route files, local module routes, and Supabase
+  migration tables.
 
 See `docs/cloud-deployment.md` for the deployment checklist.
 
@@ -447,6 +450,7 @@ Useful checks:
 
 ```bash
 npm run lint
+npm run verify:web-beta
 npm run build
 ```
 
