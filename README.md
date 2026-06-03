@@ -34,8 +34,8 @@ Current module foundation:
   database.
 - Portfolio and Watchlist: beta module at `/modules/portfolio` for local
   position memos, watchlists, sizing discipline, catalyst review, risk notes,
-  linked company pages, linked reports, linked meetings, and a local portfolio
-  tracker database.
+  linked company pages, linked reports, linked meetings, local tracker-row
+  intake, and a local portfolio tracker database.
 - Meetings and Calls: beta module at `/modules/meetings` for meeting notes,
   transcripts, action items, follow-ups, linked company pages, linked reports,
   local tracker-row intake, and a local meeting tracker database.
@@ -335,11 +335,19 @@ Current local actions:
   thesis, research links, and tracker coverage without exporting page text,
   page titles, position names, tickers, weights, holdings, trading plans,
   transactions, or database row values.
+- Use the portfolio intake desk to create one local portfolio tracker row from
+  a position memo or watchlist page. The intake action maps Related memo
+  relation, Status, Conviction, Thesis, and Risk notes, checks for an existing
+  tracker row first, and then opens the tracker for manual company/report/meeting
+  relation cleanup. It uses redacted labels and does not read page text, page
+  titles, database row values, position names, tickers, weights, holdings,
+  trading plans, transactions, sync, upload, brokerage accounts, prices, or AI.
 - Open Portfolio from the sidebar Platform section or Cmd/Ctrl+K.
 
 The current Portfolio module is local-only. It does not fetch prices, connect
 brokerage accounts, sync holdings, import transactions, or send position data
-externally.
+externally. Tracker intake uses redacted local structure until the user manually
+fills sensitive portfolio details inside the tracker.
 
 ## Meetings Module
 

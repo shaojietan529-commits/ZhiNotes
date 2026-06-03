@@ -7,7 +7,12 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { usePages } from "@/hooks/usePages";
-import { getAllDatabases } from "@/lib/db/local/queries";
+import {
+  addRow,
+  getAllDatabases,
+  getFields,
+  getRows,
+} from "@/lib/db/local/queries";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import {
@@ -16,6 +21,11 @@ import {
   type PortfolioReviewReport,
   type PortfolioReviewStatus,
 } from "@/lib/portfolio/portfolioReview";
+import {
+  buildPortfolioTrackerIntakeDraft,
+  findExistingPortfolioTrackerRow,
+  type PortfolioTrackerIntakeItem,
+} from "@/lib/portfolio/portfolioTrackerIntake";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -83,6 +93,12 @@ function PortfolioDashboard() {
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingReview, setExportingReview] = useState(false);
+  const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
+    null
+  );
+  const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     void getAllDatabases()
@@ -101,6 +117,15 @@ function PortfolioDashboard() {
   const portfolioReview = useMemo(
     () => buildPortfolioReviewReport(pages, databases),
     [databases, pages]
+  );
+  const portfolioTrackerIntakeItems = useMemo(
+    () =>
+      buildPortfolioTrackerIntakeItems(
+        positionPages,
+        watchlistPages,
+        portfolioReview
+      ),
+    [portfolioReview, positionPages, watchlistPages]
   );
 
   const portfolioModule = PLATFORM_MODULES.find((module) => module.id === "portfolio");
@@ -135,6 +160,69 @@ function PortfolioDashboard() {
       window.alert("Portfolio review export failed. Please check the console.");
     } finally {
       setExportingReview(false);
+    }
+  };
+
+  const handleCreateTrackerRow = async (item: PortfolioTrackerIntakeItem) => {
+    const tracker = portfolioTrackers[0];
+    if (!tracker) {
+      window.alert("请先创建组合跟踪表，再把组合资产入库。");
+      return;
+    }
+
+    setTrackerIntakeBusyId(item.page_id);
+    setTrackerIntakeMessage(null);
+    try {
+      const [trackerFields, trackerRows] = await Promise.all([
+        getFields(tracker.id),
+        getRows(tracker.id),
+      ]);
+      const existingRow = findExistingPortfolioTrackerRow(
+        trackerRows,
+        trackerFields,
+        item.page_id
+      );
+      if (existingRow) {
+        setTrackerIntakeMessage(
+          "已存在 tracker row。已打开组合跟踪表继续补 relation 和复盘字段。"
+        );
+        router.push(
+          `/database/${tracker.id}?q=${encodeURIComponent(
+            item.redacted_label
+          )}&focus=${item.page_id}`
+        );
+        return;
+      }
+
+      const draft = buildPortfolioTrackerIntakeDraft(item, trackerFields);
+      const hasRelatedMemoRelation = draft.mapped_fields.some(
+        (field) => field.mapped_value === "related-memo-relation"
+      );
+      if (!hasRelatedMemoRelation) {
+        window.alert(
+          "当前组合跟踪表缺少 Related memo relation 字段，请先补字段后再入库。"
+        );
+        return;
+      }
+
+      await addRow(tracker.id, {
+        title: draft.row_title,
+        fieldValues: draft.field_values,
+        contentText: draft.row_page_content,
+      });
+      setTrackerIntakeMessage(
+        "已创建脱敏 tracker row。已打开组合跟踪表继续补 relation 和复盘字段。"
+      );
+      router.push(
+        `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
+          item.page_id
+        }`
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to create portfolio tracker row:", err);
+      window.alert("组合入库失败，请查看控制台。");
+    } finally {
+      setTrackerIntakeBusyId(null);
     }
   };
 
@@ -201,6 +289,62 @@ function PortfolioDashboard() {
               )}
             </div>
           </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                组合入库台
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把本地持仓 memo 或观察名单页面创建成组合跟踪表 row，并自动填入
+                Related memo relation、Status、Conviction、Thesis 和 Risk notes。
+                点击后只做本地单条写入，不读取页面正文、页面标题、数据库 row values、
+                ticker、权重、持仓名、交易计划或交易记录，不连接券商或价格源。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span
+                className={`rounded-md px-2 py-1 ${
+                  portfolioTrackers.length > 0
+                    ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                    : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                }`}
+              >
+                {portfolioTrackers.length > 0 ? "Tracker ready" : "缺组合跟踪表"}
+              </span>
+              <span className="rounded-md bg-blue-50 px-2 py-1 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                本地单条写入
+              </span>
+              <span className="rounded-md bg-zinc-100 px-2 py-1 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                脱敏标签
+              </span>
+            </div>
+          </div>
+          {trackerIntakeMessage && (
+            <p className="mt-3 rounded-md bg-green-50 px-3 py-2 text-xs leading-5 text-green-700 dark:bg-green-950 dark:text-green-300">
+              {trackerIntakeMessage}
+            </p>
+          )}
+          {portfolioTrackerIntakeItems.length > 0 ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {portfolioTrackerIntakeItems.slice(0, 6).map((item) => (
+                <PortfolioTrackerIntakeCard
+                  key={item.page_id}
+                  item={item}
+                  trackerReady={portfolioTrackers.length > 0}
+                  busy={trackerIntakeBusyId === item.page_id}
+                  onCreate={() => void handleCreateTrackerRow(item)}
+                  onOpen={() => router.push(`/page/${item.page_id}`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+              还没有可入库的持仓 memo 或观察名单页面。先新建组合资产，再把它创建成组合跟踪表 row。
+            </p>
+          )}
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -473,6 +617,80 @@ function PortfolioReviewItemCard({
   );
 }
 
+function PortfolioTrackerIntakeCard({
+  item,
+  trackerReady,
+  busy,
+  onCreate,
+  onOpen,
+}: {
+  item: PortfolioTrackerIntakeItem;
+  trackerReady: boolean;
+  busy: boolean;
+  onCreate: () => void;
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.redacted_label}
+          </div>
+          <div className="mt-1 text-zinc-400">
+            {item.source_kind === "watchlist" ? "观察名单" : "持仓 memo"} ·
+            已隐藏页面标题、ticker、持仓名和权重
+          </div>
+        </div>
+        <PortfolioReviewStatusPill
+          status={item.missing_areas.length > 0 ? "missing" : "ready"}
+        />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {item.missing_areas.length > 0 ? (
+          item.missing_areas.map((areaId) => (
+            <span
+              key={areaId}
+              className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+            >
+              缺 {getPortfolioReviewAreaLabel(areaId)}
+            </span>
+          ))
+        ) : (
+          <span className="rounded bg-green-50 px-1.5 py-0.5 text-[10px] text-green-700 dark:bg-green-950 dark:text-green-300">
+            Ready
+          </span>
+        )}
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        将创建一条本地 portfolio tracker row，写入 Related memo relation、
+        Status、Conviction、Thesis 和 Risk notes。
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        本地单条写入；不读取页面正文、页面标题、ticker、权重、持仓名、交易计划、
+        交易记录、券商账户或价格源。
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onCreate}
+          disabled={!trackerReady || busy}
+          className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
+        >
+          {busy ? "创建中..." : "创建 tracker row"}
+        </button>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开来源页
+        </button>
+      </div>
+    </article>
+  );
+}
+
 function PortfolioReviewStatusPill({
   status,
 }: {
@@ -602,6 +820,39 @@ function getWatchlistPages(pages: Page[]) {
   return pages.filter((page) =>
     pageMatches(page, ["watchlist", "next catalyst", "conviction", "观察名单"])
   );
+}
+
+function buildPortfolioTrackerIntakeItems(
+  positionPages: Page[],
+  watchlistPages: Page[],
+  review: PortfolioReviewReport
+): PortfolioTrackerIntakeItem[] {
+  const reviewItemMap = new Map(review.items.map((item) => [item.id, item]));
+  const sourceMap = new Map<
+    string,
+    { page: Page; source_kind: PortfolioTrackerIntakeItem["source_kind"] }
+  >();
+
+  for (const page of watchlistPages) {
+    sourceMap.set(page.id, { page, source_kind: "watchlist" });
+  }
+  for (const page of positionPages) {
+    sourceMap.set(page.id, { page, source_kind: "position" });
+  }
+
+  return Array.from(sourceMap.values()).map(({ page, source_kind }, index) => {
+    const reviewItem = reviewItemMap.get(page.id);
+    return {
+      page_id: page.id,
+      redacted_label: reviewItem?.label ?? `本地组合资产 ${index + 1}`,
+      source_kind,
+      missing_areas: reviewItem?.missing_areas ?? [],
+      next_action:
+        reviewItem?.next_action ??
+        "结构已覆盖基础组合复盘面，下一步补 relation 值和最新复盘结论。",
+      updated_at: page.updated_at,
+    };
+  });
 }
 
 function pageMatches(page: Page, terms: string[]) {

@@ -168,7 +168,7 @@ function buildHealthAreas(): ModuleHealthArea[] {
       phase: "phase-3",
       module_ids: ["portfolio"],
       evidence:
-        "Portfolio module is beta with position memos, watchlists, sizing discipline, catalysts, risk notes, and links to company/report/meeting assets.",
+        "Portfolio module is beta with position memos, watchlists, sizing discipline, catalysts, risk notes, local tracker-row intake, and links to company/report/meeting assets.",
       next_action:
         "Add portfolio dashboards, catalyst reminders, thesis drift tracking, and risk review templates without broker connections by default.",
       privacy_boundary:

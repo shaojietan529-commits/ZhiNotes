@@ -16,6 +16,7 @@ const files = {
   meetingPlaybook: "src/lib/meetings/meetingResearchPlaybook.ts",
   meetingTrackerIntake: "src/lib/meetings/meetingTrackerIntake.ts",
   portfolioReview: "src/lib/portfolio/portfolioReview.ts",
+  portfolioTrackerIntake: "src/lib/portfolio/portfolioTrackerIntake.ts",
   connectionsPanel: "src/components/modules/ResearchConnectionsPanel.tsx",
   graphShell: "src/components/modules/ResearchGraphShell.tsx",
   schemaPanel: "src/components/modules/ResearchWorkflowSchemaPanel.tsx",
@@ -118,6 +119,7 @@ function run() {
   const meetingPlaybook = readProjectFile(files.meetingPlaybook);
   const meetingTrackerIntake = readProjectFile(files.meetingTrackerIntake);
   const portfolioReview = readProjectFile(files.portfolioReview);
+  const portfolioTrackerIntake = readProjectFile(files.portfolioTrackerIntake);
   const connectionsPanel = readProjectFile(files.connectionsPanel);
   const graphShell = readProjectFile(files.graphShell);
   const schemaPanel = readProjectFile(files.schemaPanel);
@@ -499,6 +501,66 @@ function run() {
     );
   }
   assertIncludes(
+    files.portfolioTrackerIntake,
+    portfolioTrackerIntake,
+    'format: "zhinote-portfolio-tracker-intake-draft"',
+    "Portfolio tracker intake must define a local row draft format."
+  );
+  assertIncludes(
+    files.portfolioTrackerIntake,
+    portfolioTrackerIntake,
+    "buildPortfolioTrackerIntakeDraft",
+    "Portfolio tracker intake must expose a reusable draft builder."
+  );
+  assertIncludes(
+    files.portfolioTrackerIntake,
+    portfolioTrackerIntake,
+    "findExistingPortfolioTrackerRow",
+    "Portfolio tracker intake must avoid duplicate related-memo rows."
+  );
+  for (const snippet of [
+    "local_row_draft_only: true",
+    "reads_portfolio_review_item: true",
+    "reads_database_fields: true",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "includes_page_titles: false",
+    "includes_database_row_values: false",
+    "includes_position_names: false",
+    "includes_tickers: false",
+    "includes_weights: false",
+    "includes_holdings: false",
+    "includes_trading_plans: false",
+    "includes_transactions: false",
+    "connects_brokerage_accounts: false",
+    "fetches_prices: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.portfolioTrackerIntake,
+      portfolioTrackerIntake,
+      snippet,
+      "Portfolio tracker intake draft must preserve local-only privacy boundaries."
+    );
+  }
+  for (const fieldName of [
+    "Related memo",
+    "Status",
+    "Conviction",
+    "Thesis",
+    "Risk notes",
+  ]) {
+    assertIncludes(
+      files.portfolioTrackerIntake,
+      portfolioTrackerIntake,
+      fieldName,
+      `Portfolio tracker intake must map ${fieldName}.`
+    );
+  }
+  assertIncludes(
     files.connectionsPanel,
     connectionsPanel,
     "getResearchModuleRoute",
@@ -681,6 +743,36 @@ function run() {
   assertIncludes(
     files.portfolioShell,
     portfolioShell,
+    "buildPortfolioTrackerIntakeDraft",
+    "Portfolio module must build local tracker intake drafts."
+  );
+  assertIncludes(
+    files.portfolioShell,
+    portfolioShell,
+    "findExistingPortfolioTrackerRow",
+    "Portfolio module must check existing tracker rows before writing."
+  );
+  assertIncludes(
+    files.portfolioShell,
+    portfolioShell,
+    "组合入库台",
+    "Portfolio module must render the tracker intake desk."
+  );
+  assertIncludes(
+    files.portfolioShell,
+    portfolioShell,
+    "脱敏标签",
+    "Portfolio module must show redacted tracker intake labels."
+  );
+  assertIncludes(
+    files.portfolioShell,
+    portfolioShell,
+    "本地单条写入",
+    "Portfolio module must label tracker intake as a single local write."
+  );
+  assertIncludes(
+    files.portfolioShell,
+    portfolioShell,
     "组合复盘雷达",
     "Portfolio module must render the review radar."
   );
@@ -787,6 +879,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "portfolio intake desk",
+    "README must document portfolio tracker intake."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "npm run verify:research-workflow",
     "README useful checks must include the research workflow verifier."
   );
@@ -814,6 +912,7 @@ function run() {
         meeting_playbook_actions: 7,
         meeting_tracker_intake_fields: 4,
         portfolio_review_areas: requiredPortfolioReviewAreas.length,
+        portfolio_tracker_intake_fields: 5,
         shared_routes: true,
         local_only: true,
       },
