@@ -280,7 +280,8 @@ function buildWorkflowSteps(
       id: "spreadsheet-import",
       title: "表格导入",
       status: "manual-confirmation",
-      evidence: "Excel/CSV/ODS 文件可在文件预览中进入本地数据库导入路径。",
+      evidence:
+        "Excel/CSV/ODS 文件可从数据库页面追加导入当前数据库，也可在文件预览中创建新数据库。",
       local_boundary: "批量写入前需要 typed confirmation receipt。",
     },
   ];

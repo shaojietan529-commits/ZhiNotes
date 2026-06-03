@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  type ChangeEvent,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePages } from "@/hooks/usePages";
 import {
@@ -56,10 +63,25 @@ import {
   formatFieldOptions,
   isSelectLikeFieldType,
 } from "@/lib/database/fields";
+import {
+  applyDatabaseImportPreview,
+  buildDatabaseImportPreview,
+  DATABASE_DIRECT_IMPORT_COLUMN_LIMIT,
+  DATABASE_DIRECT_IMPORT_ROW_LIMIT,
+  type DatabaseImportColumnPlan,
+  type DatabaseImportPreview,
+  type DatabaseImportReceipt,
+} from "@/lib/database/databaseImport";
+import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 
 interface DatabaseShellProps {
   databaseId: string;
 }
+
+const DATABASE_IMPORT_ACCEPT =
+  ".xlsx,.xls,.csv,.tsv,.ods,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,text/tab-separated-values,application/vnd.oasis.opendocument.spreadsheet";
+const DATABASE_IMPORT_CONFIRMATION_PHRASE =
+  getHighRiskRequiredPhrase("bulk-import");
 
 type RowWithPage = DatabaseRow & { page: Page };
 type SortDirection = "asc" | "desc";
@@ -95,6 +117,15 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [chartGroupFieldId, setChartGroupFieldId] = useState("");
   const [relationCompletionBusyId, setRelationCompletionBusyId] =
     useState<string | null>(null);
+  const [databaseImportPreview, setDatabaseImportPreview] =
+    useState<DatabaseImportPreview | null>(null);
+  const [databaseImportPhrase, setDatabaseImportPhrase] = useState("");
+  const [databaseImportBusy, setDatabaseImportBusy] = useState(false);
+  const [databaseImportReceipt, setDatabaseImportReceipt] =
+    useState<DatabaseImportReceipt | null>(null);
+  const [exportingDatabaseImportReceipt, setExportingDatabaseImportReceipt] =
+    useState(false);
+  const databaseImportInputRef = useRef<HTMLInputElement | null>(null);
 
   const applyViewConfig = useCallback((configValue: string) => {
     const config = parseDatabaseViewConfig(configValue);
@@ -290,6 +321,89 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     }
   }, [database, fields, visibleRows, workspacePages]);
 
+  const handleChooseDatabaseImportFile = useCallback(() => {
+    databaseImportInputRef.current?.click();
+  }, []);
+
+  const handleDatabaseImportFileSelected = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0] ?? null;
+      event.target.value = "";
+      if (!file) return;
+
+      setDatabaseImportBusy(true);
+      setDatabaseImportReceipt(null);
+      try {
+        const preview = await buildDatabaseImportPreview(file, fields);
+        setDatabaseImportPreview(preview);
+        setDatabaseImportPhrase("");
+      } catch (err) {
+        console.error("[Zhinote] Failed to preview database import:", err);
+        window.alert(
+          err instanceof Error
+            ? err.message
+            : "这个文件无法生成数据库导入预览。"
+        );
+      } finally {
+        setDatabaseImportBusy(false);
+      }
+    },
+    [fields]
+  );
+
+  const handleApplyDatabaseImport = useCallback(async () => {
+    if (!databaseImportPreview) return;
+
+    if (databaseImportPhrase.trim() !== DATABASE_IMPORT_CONFIRMATION_PHRASE) {
+      window.alert(
+        `请输入确认短语 ${DATABASE_IMPORT_CONFIRMATION_PHRASE} 后再导入当前数据库。`
+      );
+      return;
+    }
+
+    const ok = window.confirm(
+      `要把这个表格追加导入当前数据库吗？将写入 ${databaseImportPreview.summary.rows_planned} 行，并创建 ${databaseImportPreview.summary.new_fields_planned} 个缺失字段。原文件不会上传。`
+    );
+    if (!ok) return;
+
+    setDatabaseImportBusy(true);
+    try {
+      const receipt = await applyDatabaseImportPreview(
+        databaseId,
+        databaseImportPreview,
+        DATABASE_IMPORT_CONFIRMATION_PHRASE,
+        databaseImportPhrase
+      );
+      setDatabaseImportReceipt(receipt);
+      setDatabaseImportPreview(null);
+      setDatabaseImportPhrase("");
+      await reload();
+    } catch (err) {
+      console.error("[Zhinote] Failed to apply database import:", err);
+      window.alert(
+        err instanceof Error ? err.message : "导入当前数据库失败，请查看控制台。"
+      );
+    } finally {
+      setDatabaseImportBusy(false);
+    }
+  }, [databaseId, databaseImportPhrase, databaseImportPreview, reload]);
+
+  const handleExportDatabaseImportReceipt = useCallback(() => {
+    if (!databaseImportReceipt) return;
+    setExportingDatabaseImportReceipt(true);
+    try {
+      downloadJsonFile(
+        `zhinote-database-import-receipt-${fileSafeTimestamp()}.json`,
+        databaseImportReceipt
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export database import receipt:", err);
+      window.alert("数据库导入 receipt 导出失败，请查看控制台。");
+    } finally {
+      setExportingDatabaseImportReceipt(false);
+    }
+  }, [databaseImportReceipt]);
+
   const relationCompletionFields = useMemo(
     () => getRelationCompletionFields(fields, focusPage),
     [fields, focusPage]
@@ -355,7 +469,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   return (
     <div>
       {/* Database header */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="text-2xl">{database.icon || "🗄️"}</span>
         <input
           type="text"
@@ -390,6 +504,22 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         >
           XLSX
         </button>
+        <button
+          type="button"
+          onClick={handleChooseDatabaseImportFile}
+          disabled={databaseImportBusy}
+          className="rounded border border-blue-200 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-wait disabled:opacity-60 dark:border-blue-900 dark:text-blue-400 dark:hover:bg-blue-950 dark:hover:text-blue-300"
+          title="把 CSV / Excel / ODS 追加导入当前数据库"
+        >
+          {databaseImportBusy ? "处理中..." : "导入"}
+        </button>
+        <input
+          ref={databaseImportInputRef}
+          type="file"
+          accept={DATABASE_IMPORT_ACCEPT}
+          className="hidden"
+          onChange={(event) => void handleDatabaseImportFileSelected(event)}
+        />
       </div>
 
       {/* View tabs + add view */}
@@ -487,6 +617,29 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         visibleCount={visibleRows.length}
         totalCount={rows.length}
       />
+
+      {databaseImportPreview && (
+        <DatabaseImportPreviewPanel
+          preview={databaseImportPreview}
+          confirmationPhrase={databaseImportPhrase}
+          requiredPhrase={DATABASE_IMPORT_CONFIRMATION_PHRASE}
+          busy={databaseImportBusy}
+          onConfirmationPhraseChange={setDatabaseImportPhrase}
+          onCancel={() => {
+            setDatabaseImportPreview(null);
+            setDatabaseImportPhrase("");
+          }}
+          onApply={() => void handleApplyDatabaseImport()}
+        />
+      )}
+
+      {databaseImportReceipt && (
+        <DatabaseImportReceiptPanel
+          receipt={databaseImportReceipt}
+          exporting={exportingDatabaseImportReceipt}
+          onExport={handleExportDatabaseImportReceipt}
+        />
+      )}
 
       {focusPageId && (
         <div className="mb-4 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300">
@@ -761,6 +914,170 @@ function RelationCompletionAssistant({
       )}
     </section>
   );
+}
+
+function DatabaseImportPreviewPanel({
+  preview,
+  confirmationPhrase,
+  requiredPhrase,
+  busy,
+  onConfirmationPhraseChange,
+  onCancel,
+  onApply,
+}: {
+  preview: DatabaseImportPreview;
+  confirmationPhrase: string;
+  requiredPhrase: string;
+  busy: boolean;
+  onConfirmationPhraseChange: (value: string) => void;
+  onCancel: () => void;
+  onApply: () => void;
+}) {
+  const phraseMatches = confirmationPhrase.trim() === requiredPhrase;
+
+  return (
+    <section className="mb-4 rounded-lg border border-blue-100 bg-blue-50/70 p-3 dark:border-blue-900 dark:bg-blue-950/30">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-blue-950 dark:text-blue-100">
+            追加导入当前数据库
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-blue-800 dark:text-blue-200">
+            本地预览 {preview.source.file_name} / {preview.source.sheet_name}：
+            将写入 {preview.summary.rows_planned} 行，匹配{" "}
+            {preview.summary.existing_fields_matched} 个字段，新增{" "}
+            {preview.summary.new_fields_planned} 个字段。不会上传、不会调用 AI。
+          </p>
+        </div>
+        <span className="w-fit rounded bg-white px-2 py-1 text-xs text-blue-700 dark:bg-zinc-950 dark:text-blue-300">
+          上限 {DATABASE_DIRECT_IMPORT_ROW_LIMIT} 行 /{" "}
+          {DATABASE_DIRECT_IMPORT_COLUMN_LIMIT} 列
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-4">
+        <ImportMetric label="可导入行" value={preview.summary.rows_planned} />
+        <ImportMetric label="可导入列" value={preview.summary.planned_columns} />
+        <ImportMetric label="新增字段" value={preview.summary.new_fields_planned} />
+        <ImportMetric
+          label="已匹配字段"
+          value={preview.summary.existing_fields_matched}
+        />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {preview.columns.map((column) => (
+          <span
+            key={`${column.source_column_index}:${column.source_header}`}
+            className="rounded bg-white px-2 py-1 text-[11px] text-blue-700 dark:bg-zinc-950 dark:text-blue-300"
+          >
+            {column.source_header} {"->"} {column.target_field_name} ·{" "}
+            {getImportColumnStatusLabel(column.target_status)}
+          </span>
+        ))}
+      </div>
+      {(preview.source.truncated_rows || preview.source.truncated_columns) && (
+        <p className="mt-3 rounded bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          文件较大，当前只导入前 {DATABASE_DIRECT_IMPORT_ROW_LIMIT} 行和前{" "}
+          {DATABASE_DIRECT_IMPORT_COLUMN_LIMIT} 列。完整原文件不上传、不修改。
+        </p>
+      )}
+      <div className="mt-3 grid gap-2 lg:grid-cols-[1fr_auto_auto] lg:items-end">
+        <div>
+          <label
+            htmlFor="database-direct-import-confirmation"
+            className="text-xs font-semibold text-blue-950 dark:text-blue-100"
+          >
+            批量导入确认短语
+          </label>
+          <input
+            id="database-direct-import-confirmation"
+            value={confirmationPhrase}
+            onChange={(event) =>
+              onConfirmationPhraseChange(event.target.value)
+            }
+            placeholder={requiredPhrase}
+            className="mt-1 w-full rounded-md border border-blue-200 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-blue-500 dark:border-blue-900 dark:bg-zinc-950 dark:text-zinc-100"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={busy}
+          className="rounded-md border border-blue-200 bg-white px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-blue-900 dark:bg-zinc-950 dark:text-blue-300 dark:hover:bg-blue-950"
+        >
+          取消
+        </button>
+        <button
+          type="button"
+          onClick={onApply}
+          disabled={busy || !phraseMatches}
+          className="rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {busy ? "导入中..." : "确认导入"}
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] leading-5 text-blue-700 dark:text-blue-300">
+        当前预览会读取所选文件的表格值；写入前必须确认。receipt 只保存元数据，
+        不保存文件名、文件 bytes、表格单元格或页面正文。
+      </p>
+    </section>
+  );
+}
+
+function DatabaseImportReceiptPanel({
+  receipt,
+  exporting,
+  onExport,
+}: {
+  receipt: DatabaseImportReceipt;
+  exporting: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section className="mb-4 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+            数据库导入 receipt
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-emerald-800 dark:text-emerald-200">
+            已本地写入 {receipt.write_summary.rows_written} 行，新增{" "}
+            {receipt.write_summary.fields_created} 个字段，匹配{" "}
+            {receipt.write_summary.fields_matched} 个字段。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={exporting}
+          className="w-fit rounded-md border border-emerald-200 bg-white px-3 py-2 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-60 dark:border-emerald-900 dark:bg-zinc-950 dark:text-emerald-300 dark:hover:bg-emerald-950"
+        >
+          {exporting ? "导出中..." : "导出导入 receipt"}
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] leading-5 text-emerald-800 dark:text-emerald-200">
+        receipt 不包含文件名、文件 bytes、文件文本、表格单元格、token、凭证或云端数据。
+      </p>
+    </section>
+  );
+}
+
+function ImportMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md bg-white px-3 py-2 text-xs dark:bg-zinc-950">
+      <div className="font-semibold text-blue-950 dark:text-blue-100">
+        {value}
+      </div>
+      <div className="text-blue-700 dark:text-blue-300">{label}</div>
+    </div>
+  );
+}
+
+function getImportColumnStatusLabel(
+  status: DatabaseImportColumnPlan["target_status"]
+) {
+  if (status === "title-field") return "标题";
+  if (status === "existing-field") return "匹配";
+  return "新增";
 }
 
 function RelationCompletionRow({
@@ -1420,4 +1737,22 @@ function parseStringArray(value: unknown) {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function downloadJsonFile(fileName: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function fileSafeTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
 }

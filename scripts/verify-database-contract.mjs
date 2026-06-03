@@ -13,6 +13,7 @@ const files = {
   databaseModuleDashboard: "src/lib/database/databaseModuleDashboard.ts",
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
+  databaseImport: "src/lib/database/databaseImport.ts",
   moduleActions: "src/lib/modules/actions.ts",
   registry: "src/lib/modules/registry.ts",
   filePreviewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
@@ -73,6 +74,7 @@ function run() {
   const databaseModuleDashboard = readProjectFile(files.databaseModuleDashboard);
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
+  const databaseImport = readProjectFile(files.databaseImport);
   const moduleActions = readProjectFile(files.moduleActions);
   const registry = readProjectFile(files.registry);
   const filePreviewNode = readProjectFile(files.filePreviewNode);
@@ -105,6 +107,46 @@ function run() {
     "Excel export must write visible database rows to a worksheet."
   );
   assertIncludes(
+    files.databaseImport,
+    databaseImport,
+    'format: "zhinote-database-direct-import-preview"',
+    "Database direct import must define a local preview format."
+  );
+  assertIncludes(
+    files.databaseImport,
+    databaseImport,
+    'format: "zhinote-database-direct-import-receipt"',
+    "Database direct import must define a metadata-only receipt format."
+  );
+  for (const snippet of [
+    "DATABASE_DIRECT_IMPORT_ROW_LIMIT = 500",
+    "DATABASE_DIRECT_IMPORT_COLUMN_LIMIT = 50",
+    "buildDatabaseImportPreview",
+    "applyDatabaseImportPreview",
+    "local_preview_only: true",
+    "reads_selected_file_values: true",
+    "requires_typed_confirmation_before_write: true",
+    "uploads_data: false",
+    "calls_external_service: false",
+    "enables_ai: false",
+    "receipt_status: \"local-database-import-metadata-only\"",
+    "file_name_included: false",
+    "includes_file_name: false",
+    "includes_file_bytes: false",
+    "includes_file_text: false",
+    "includes_spreadsheet_cell_values: false",
+    "writes_workspace_data: true",
+    "addField(databaseId",
+    "addRow(databaseId",
+  ]) {
+    assertIncludes(
+      files.databaseImport,
+      databaseImport,
+      snippet,
+      "Database direct import must preserve local confirmation and metadata boundaries."
+    );
+  }
+  assertIncludes(
     files.databaseShell,
     databaseShell,
     "exportDatabaseAsCsv",
@@ -116,6 +158,24 @@ function run() {
     "exportDatabaseAsXlsx",
     "Database UI must expose XLSX export."
   );
+  for (const snippet of [
+    "DATABASE_IMPORT_ACCEPT",
+    "DATABASE_IMPORT_CONFIRMATION_PHRASE",
+    "handleDatabaseImportFileSelected",
+    "handleApplyDatabaseImport",
+    "DatabaseImportPreviewPanel",
+    "DatabaseImportReceiptPanel",
+    "追加导入当前数据库",
+    "导出导入 receipt",
+    "不保存文件名、文件 bytes、表格单元格或页面正文",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database UI must expose direct spreadsheet import into the current database."
+    );
+  }
   assertIncludes(
     files.databaseShell,
     databaseShell,
@@ -215,6 +275,18 @@ function run() {
     "Databases module UI must make the row-value privacy boundary visible."
   );
   assertIncludes(
+    files.databaseModuleShell,
+    databaseModuleShell,
+    "追加导入当前数据库",
+    "Databases module UI must document direct database import."
+  );
+  assertIncludes(
+    files.databaseModuleDashboard,
+    databaseModuleDashboard,
+    "数据库页面追加导入当前数据库",
+    "Database module dashboard must document direct spreadsheet import."
+  );
+  assertIncludes(
     files.filePreviewNode,
     filePreviewNode,
     "handleImportSpreadsheetDatabase",
@@ -286,6 +358,7 @@ function run() {
         workspace_presets: requiredWorkspacePresets.length,
         csv_export: true,
         xlsx_export: true,
+        direct_spreadsheet_import: true,
         spreadsheet_import_requires_confirmation: true,
       },
       null,

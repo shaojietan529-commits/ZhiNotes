@@ -350,8 +350,8 @@ function DatabasesDashboard() {
                 CSV/XLSX 导出仍在具体数据库页面里手动触发，因为导出会包含当前可见行值。
               </p>
               <p>
-                Excel/CSV/ODS 批量导入数据库仍需要 typed confirmation receipt；
-                云同步和 AI 使用数据库内容前也需要单独确认 payload。
+                Excel/CSV/ODS 可以在具体数据库页面追加导入当前数据库，或在文件预览中创建新数据库；
+                批量写入仍需要 typed confirmation receipt。云同步和 AI 使用数据库内容前也需要单独确认 payload。
               </p>
             </div>
           </div>
