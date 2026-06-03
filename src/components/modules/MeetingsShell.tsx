@@ -15,6 +15,11 @@ import {
   type MeetingFollowUpReport,
   type MeetingFollowUpStage,
 } from "@/lib/meetings/meetingFollowUp";
+import {
+  buildMeetingResearchPlaybook,
+  type MeetingResearchPlaybook,
+  type MeetingResearchPlaybookStatus,
+} from "@/lib/meetings/meetingResearchPlaybook";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -84,6 +89,7 @@ function MeetingsDashboard() {
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingFollowUp, setExportingFollowUp] = useState(false);
+  const [exportingPlaybook, setExportingPlaybook] = useState(false);
 
   useEffect(() => {
     void getAllDatabases()
@@ -103,6 +109,10 @@ function MeetingsDashboard() {
   const meetingFollowUp = useMemo(
     () => buildMeetingFollowUpReport(pages, databases),
     [databases, pages]
+  );
+  const meetingPlaybook = useMemo(
+    () => buildMeetingResearchPlaybook(meetingFollowUp),
+    [meetingFollowUp]
   );
 
   const meetingsModule = PLATFORM_MODULES.find((module) => module.id === "meetings");
@@ -137,6 +147,24 @@ function MeetingsDashboard() {
       window.alert("Meeting follow-up export failed. Please check the console.");
     } finally {
       setExportingFollowUp(false);
+    }
+  };
+
+  const handleExportPlaybook = () => {
+    setExportingPlaybook(true);
+    try {
+      downloadJsonFile(
+        `zhinote-meeting-research-playbook-${fileSafeTimestamp()}.json`,
+        {
+          ...meetingPlaybook,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export meeting playbook:", err);
+      window.alert("会议研究 Playbook 导出失败，请查看控制台。");
+    } finally {
+      setExportingPlaybook(false);
     }
   };
 
@@ -320,6 +348,133 @@ function MeetingsDashboard() {
               公司关联或报告关联。
             </p>
           )}
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                会议研究 Playbook
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把 follow-up 队列转成本地行动队列：补会议背景、Transcript 页面、
+                action items、公司/报告 relation、会议跟踪表和复盘节奏。导出只包含结构状态，
+                不包含会议正文、transcript text、录音 bytes、参会人详情或 meeting passcodes。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportPlaybook}
+              disabled={exportingPlaybook}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingPlaybook ? "导出中..." : "导出 Playbook"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-9">
+            <MeetingPlaybookMetric
+              label="步骤"
+              value={meetingPlaybook.summary.workflow_steps}
+              detail="Workflow"
+              status="partial"
+            />
+            <MeetingPlaybookMetric
+              label="Ready"
+              value={meetingPlaybook.summary.ready_steps}
+              detail="已覆盖"
+              status="ready"
+            />
+            <MeetingPlaybookMetric
+              label="Missing"
+              value={meetingPlaybook.summary.missing_steps}
+              detail="待补齐"
+              status={
+                meetingPlaybook.summary.missing_steps > 0 ? "missing" : "ready"
+              }
+            />
+            <MeetingPlaybookMetric
+              label="需确认"
+              value={meetingPlaybook.summary.manual_confirmation_steps}
+              detail="人工复核"
+              status="manual-confirmation"
+            />
+            <MeetingPlaybookMetric
+              label="行动队列"
+              value={meetingPlaybook.summary.action_queue_items}
+              detail="Next actions"
+              status={
+                meetingPlaybook.summary.action_queue_items > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+            <MeetingPlaybookMetric
+              label="候选会议"
+              value={meetingPlaybook.summary.candidate_meetings}
+              detail="Needs work"
+              status={
+                meetingPlaybook.summary.candidate_meetings > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+            <MeetingPlaybookMetric
+              label="Transcript"
+              value={meetingPlaybook.summary.transcript_gaps}
+              detail="待连接"
+              status={
+                meetingPlaybook.summary.transcript_gaps > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+            <MeetingPlaybookMetric
+              label="Action items"
+              value={meetingPlaybook.summary.action_item_gaps}
+              detail="待提取"
+              status={
+                meetingPlaybook.summary.action_item_gaps > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+            <MeetingPlaybookMetric
+              label="关系门"
+              value={meetingPlaybook.summary.relation_gates}
+              detail="Company/report"
+              status={
+                meetingPlaybook.summary.relation_gates > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                行动队列
+              </div>
+              {meetingPlaybook.action_queue.length > 0 ? (
+                meetingPlaybook.action_queue.map((item) => (
+                  <MeetingPlaybookActionCard key={item.id} item={item} />
+                ))
+              ) : (
+                <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  当前没有结构性会议缺口。下一步可以维护 relation 值、复盘节奏和最新结论。
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                研究步骤
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {meetingPlaybook.steps.map((step) => (
+                  <MeetingPlaybookStepCard key={step.id} step={step} />
+                ))}
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -550,6 +705,162 @@ function FollowUpStatusPill({
       {labels[status]}
     </span>
   );
+}
+
+function MeetingPlaybookMetric({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: MeetingResearchPlaybookStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <MeetingPlaybookStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function MeetingPlaybookActionCard({
+  item,
+}: {
+  item: MeetingResearchPlaybook["action_queue"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {item.reason}
+          </p>
+        </div>
+        <MeetingPlaybookStatusPill status={item.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        {item.applies_to.map((stepId) => (
+          <span
+            key={stepId}
+            className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"
+          >
+            {getMeetingPlaybookStepLabel(stepId)}
+          </span>
+        ))}
+        <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          去：{item.suggested_destination}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function MeetingPlaybookStepCard({
+  step,
+}: {
+  step: MeetingResearchPlaybook["steps"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {step.title}
+          </h3>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {step.evidence}
+          </p>
+        </div>
+        <MeetingPlaybookStatusPill status={step.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {getMeetingSurfaceLabel(step.surface)}
+        </span>
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {step.next_action}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400">
+        {step.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function MeetingPlaybookStatusPill({
+  status,
+}: {
+  status: MeetingResearchPlaybookStatus;
+}) {
+  const labels: Record<MeetingResearchPlaybookStatus, string> = {
+    ready: "Ready",
+    partial: "Partial",
+    missing: "Missing",
+    "manual-confirmation": "需确认",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "partial"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : status === "manual-confirmation"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function getMeetingPlaybookStepLabel(
+  stepId: MeetingResearchPlaybook["steps"][number]["id"]
+) {
+  const labels: Record<
+    MeetingResearchPlaybook["steps"][number]["id"],
+    string
+  > = {
+    "meeting-context": "会议背景",
+    "transcript-review": "转录复盘",
+    "action-items": "行动项",
+    "company-linking": "公司关联",
+    "report-linking": "报告关联",
+    "meeting-tracker": "会议跟踪表",
+    "follow-up-cadence": "复盘节奏",
+  };
+
+  return labels[stepId];
+}
+
+function getMeetingSurfaceLabel(
+  surface: MeetingResearchPlaybook["steps"][number]["surface"]
+) {
+  const labels: Record<
+    MeetingResearchPlaybook["steps"][number]["surface"],
+    string
+  > = {
+    page: "页面",
+    database: "数据库",
+    file: "文件",
+    relation: "Relation",
+    review: "复盘节奏",
+  };
+
+  return labels[surface];
 }
 
 function StarterButton({

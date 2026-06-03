@@ -12,6 +12,7 @@ const files = {
   companyCoverage: "src/lib/company/companyCoverage.ts",
   companyPlaybook: "src/lib/company/companyResearchPlaybook.ts",
   meetingFollowUp: "src/lib/meetings/meetingFollowUp.ts",
+  meetingPlaybook: "src/lib/meetings/meetingResearchPlaybook.ts",
   portfolioReview: "src/lib/portfolio/portfolioReview.ts",
   connectionsPanel: "src/components/modules/ResearchConnectionsPanel.tsx",
   graphShell: "src/components/modules/ResearchGraphShell.tsx",
@@ -111,6 +112,7 @@ function run() {
   const companyCoverage = readProjectFile(files.companyCoverage);
   const companyPlaybook = readProjectFile(files.companyPlaybook);
   const meetingFollowUp = readProjectFile(files.meetingFollowUp);
+  const meetingPlaybook = readProjectFile(files.meetingPlaybook);
   const portfolioReview = readProjectFile(files.portfolioReview);
   const connectionsPanel = readProjectFile(files.connectionsPanel);
   const graphShell = readProjectFile(files.graphShell);
@@ -285,6 +287,60 @@ function run() {
     );
   }
   assertIncludes(
+    files.meetingPlaybook,
+    meetingPlaybook,
+    'format: "zhinote-meeting-research-playbook"',
+    "Meeting research playbook must define a local export format."
+  );
+  assertIncludes(
+    files.meetingPlaybook,
+    meetingPlaybook,
+    "buildMeetingResearchPlaybook",
+    "Meeting research playbook must expose a reusable builder."
+  );
+  for (const snippet of [
+    "local_playbook_only: true",
+    "reads_meeting_follow_up_report: true",
+    "reads_research_workflow_schema: true",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "includes_transcript_text: false",
+    "includes_recording_bytes: false",
+    "includes_participant_details: false",
+    "includes_meeting_passcodes: false",
+    "includes_database_row_values: false",
+    "joins_calls: false",
+    "records_audio: false",
+    "publishes_notes: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.meetingPlaybook,
+      meetingPlaybook,
+      snippet,
+      "Meeting research playbook must preserve local-only privacy boundaries."
+    );
+  }
+  for (const actionId of [
+    "add-meeting-context",
+    "attach-transcript-page",
+    "extract-action-items",
+    "link-company-page",
+    "link-related-report",
+    "create-meeting-tracker",
+    "review-follow-up-candidates",
+  ]) {
+    assertIncludes(
+      files.meetingPlaybook,
+      meetingPlaybook,
+      actionId,
+      `Meeting research playbook must keep action ${actionId}.`
+    );
+  }
+  assertIncludes(
     files.portfolioReview,
     portfolioReview,
     'format: "zhinote-portfolio-review-report"',
@@ -412,14 +468,32 @@ function run() {
   assertIncludes(
     files.meetingsShell,
     meetingsShell,
+    "buildMeetingResearchPlaybook",
+    "Meetings module must build the research playbook."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
     "会议 follow-up 队列",
     "Meetings module must render the follow-up queue."
   );
   assertIncludes(
     files.meetingsShell,
     meetingsShell,
+    "会议研究 Playbook",
+    "Meetings module must render the research playbook panel."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
     "Export follow-up",
     "Meetings module must export the follow-up report."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    "导出 Playbook",
+    "Meetings module must export the research playbook."
   );
   assertIncludes(
     files.portfolioShell,
@@ -518,6 +592,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "meeting research playbook",
+    "README must document meeting research playbook exports."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "portfolio review radar",
     "README must document portfolio review reporting."
   );
@@ -547,6 +627,7 @@ function run() {
         ),
         company_coverage_areas: requiredCompanyCoverageAreas.length,
         meeting_follow_up_stages: requiredMeetingFollowUpStages.length,
+        meeting_playbook_actions: 7,
         portfolio_review_areas: requiredPortfolioReviewAreas.length,
         shared_routes: true,
         local_only: true,

@@ -344,6 +344,11 @@ Current local actions:
   links, and tracker database coverage without exporting meeting text,
   transcript text, recording bytes, participant details, meeting passcodes, or
   database row values.
+- Review and export a local meeting research playbook. The playbook converts
+  follow-up gaps into an action queue for meeting context, Transcript pages,
+  action items, company/report relations, meeting tracker setup, and follow-up
+  cadence without exporting page text, transcript text, recording bytes,
+  participant details, meeting passcodes, or database row values.
 - Open meetings from the sidebar Platform section or Cmd/Ctrl+K.
 
 The current Meetings module is a local research workspace. It does not join
