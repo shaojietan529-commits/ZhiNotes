@@ -400,9 +400,10 @@ Current local actions:
 The current Sync module is still local-first by default. Cloud Alpha can create
 Supabase Auth sessions, list/create empty workspace metadata, verify bootstrap,
 and store a local cloud workspace link only after environment variables are
-explicitly enabled; it does not upload local notes, files, databases, backups,
-run full cloud sync, write restored data back into the workspace, share pages,
-or call AI.
+explicitly enabled. A local workspace link now requires a successful bootstrap
+membership proof for the selected cloud workspace and can export a local link
+receipt. It does not upload local notes, files, databases, backups, run full
+cloud sync, write restored data back into the workspace, share pages, or call AI.
 
 ## Cloud Deployment Direction
 
@@ -418,6 +419,8 @@ The first cloud phase is a private alpha, not full sync:
   `GET /api/workspaces`, `POST /api/workspaces`, and
   `/api/workspaces/[workspaceId]/bootstrap` now have guarded Supabase
   implementations.
+- Local workspace linking requires a current bootstrap proof for the selected
+  cloud workspace and can export a metadata-only local link receipt.
 - Cloud routes stay disabled unless `ZHINOTES_CLOUD_ENABLED=true`.
 - Auth routes that create or mutate sessions also require
   `ZHINOTES_ALLOW_CLOUD_WRITES=true`.

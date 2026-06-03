@@ -149,11 +149,14 @@ import {
   type RestoreWritebackStatus,
 } from "@/lib/sync/restoreWritebackContract";
 import {
+  buildCloudWorkspaceBootstrapProof,
+  buildLocalWorkspaceCloudLinkReceipt,
   buildLocalWorkspaceIdentitySnapshot,
   getOrCreateLocalWorkspaceIdentity,
   linkLocalWorkspaceToCloud,
   readLocalWorkspaceIdentity,
   unlinkLocalWorkspaceFromCloud,
+  type CloudWorkspaceBootstrapProof,
   type LocalWorkspaceIdentity,
 } from "@/lib/sync/workspaceIdentity";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -179,6 +182,7 @@ type CloudAlphaAction =
   | "bootstrap"
   | "link-workspace"
   | "unlink-workspace"
+  | "link-receipt"
   | "clear";
 type WebBetaContractAction =
   | "contract"
@@ -361,6 +365,8 @@ function SyncDashboard() {
     CloudAlphaWorkspace[]
   >([]);
   const [selectedCloudWorkspaceId, setSelectedCloudWorkspaceId] = useState("");
+  const [cloudBootstrapProof, setCloudBootstrapProof] =
+    useState<CloudWorkspaceBootstrapProof | null>(null);
   const [busyCloudAction, setBusyCloudAction] =
     useState<CloudAlphaAction | null>(null);
   const [cloudMessage, setCloudMessage] =
@@ -821,6 +827,9 @@ function SyncDashboard() {
 
   const handleSelectedCloudWorkspaceChange = (workspaceId: string) => {
     setSelectedCloudWorkspaceId(workspaceId);
+    setCloudBootstrapProof((current) =>
+      current?.workspace_id === workspaceId ? current : null
+    );
     const selected =
       cloudWorkspaces.find((workspace) => workspace.id === workspaceId) ??
       (cloudWorkspace?.id === workspaceId ? cloudWorkspace : null);
@@ -991,6 +1000,11 @@ function SyncDashboard() {
         setSelectedCloudWorkspaceId(workspaces[0].id);
         setCloudWorkspace(workspaces[0]);
       }
+      setCloudBootstrapProof((current) =>
+        current && workspaces.some((workspace) => workspace.id === current.workspace_id)
+          ? current
+          : null
+      );
       setCloudMessage({
         tone: workspaces.length > 0 ? "success" : "info",
         title: "云 workspace 列表已读取",
@@ -1055,6 +1069,7 @@ function SyncDashboard() {
       if (workspace) {
         setCloudWorkspaces((current) => upsertCloudWorkspace(current, workspace));
         setSelectedCloudWorkspaceId(workspace.id);
+        setCloudBootstrapProof(null);
       }
       setCloudMessage({
         tone: "success",
@@ -1123,6 +1138,8 @@ function SyncDashboard() {
 
       const workspace = getCloudWorkspace(body);
       const membership = getCloudMembership(body);
+      const moduleCount = getCloudModuleCount(body);
+      const syncState = getCloudSyncState(body);
       if (workspace) {
         const nextWorkspace = {
           ...workspace,
@@ -1135,11 +1152,28 @@ function SyncDashboard() {
         setSelectedCloudWorkspaceId(nextWorkspace.id);
       }
 
+      if (workspace && membership?.user_id && membership.role) {
+        const proof = buildCloudWorkspaceBootstrapProof({
+          workspace: {
+            id: workspace.id,
+            name: workspace.name,
+          },
+          user: {
+            id: membership.user_id,
+          },
+          role: membership.role,
+          moduleCount,
+          syncPushEnabled: syncState.push_enabled,
+          syncPullEnabled: syncState.pull_enabled,
+        });
+        setCloudBootstrapProof(proof);
+      }
+
       setCloudMessage({
         tone: "success",
         title: "Bootstrap 检查通过",
         detail:
-          "云端已确认当前用户可以访问该 workspace。仍未拉取页面正文、文件或数据库 rows。",
+          `云端已确认当前用户可以访问该 workspace，并记录本地 bootstrap 证明。模块 ${moduleCount} 个，push/pull 仍关闭。`,
       });
     } catch (err) {
       console.error("[Zhinote] Cloud workspace bootstrap failed:", err);
@@ -1170,36 +1204,73 @@ function SyncDashboard() {
       });
       return;
     }
+    const selectedRole = selectedCloudWorkspace.role ?? "owner";
+    if (
+      !cloudBootstrapProof ||
+      cloudBootstrapProof.workspace_id !== selectedCloudWorkspace.id ||
+      cloudBootstrapProof.cloud_user_id !== cloudSession.user.id ||
+      cloudBootstrapProof.cloud_role !== selectedRole
+    ) {
+      setCloudMessage({
+        tone: "warning",
+        title: "需要先通过 Bootstrap 检查",
+        detail:
+          "连接本地 workspace 前，必须先用当前 session 对选中的云 workspace 完成 bootstrap membership 检查。",
+      });
+      return;
+    }
 
     setBusyCloudAction("link-workspace");
-    const nextIdentity = linkLocalWorkspaceToCloud({
-      workspace: {
-        id: selectedCloudWorkspace.id,
-        name: selectedCloudWorkspace.name,
-      },
-      user: {
-        id: cloudSession.user.id,
-      },
-      role: selectedCloudWorkspace.role ?? "owner",
-    });
-    setWorkspaceIdentity(nextIdentity);
-    setCloudWorkspace(selectedCloudWorkspace);
-    setSelectedCloudWorkspaceId(selectedCloudWorkspace.id);
-    setCloudMessage({
-      tone: "success",
-      title: "本地 workspace 已连接",
-      detail:
-        "已在浏览器本地记录 cloud workspace id。这个动作没有上传笔记、文件或数据库。",
-    });
-    setBusyCloudAction(null);
+    try {
+      const nextIdentity = linkLocalWorkspaceToCloud({
+        workspace: {
+          id: selectedCloudWorkspace.id,
+          name: selectedCloudWorkspace.name,
+        },
+        user: {
+          id: cloudSession.user.id,
+        },
+        role: selectedRole,
+        bootstrapProof: cloudBootstrapProof,
+      });
+      setWorkspaceIdentity(nextIdentity);
+      setCloudWorkspace(selectedCloudWorkspace);
+      setSelectedCloudWorkspaceId(selectedCloudWorkspace.id);
+      setCloudMessage({
+        tone: "success",
+        title: "本地 workspace 已连接",
+        detail:
+          "已在浏览器本地记录 cloud workspace id 和 bootstrap 证明。这个动作没有上传笔记、文件或数据库。",
+      });
+    } catch (err) {
+      console.error("[Zhinote] Cloud workspace link failed:", err);
+      setCloudMessage({
+        tone: "error",
+        title: "本地 workspace 连接失败",
+        detail: err instanceof Error ? err.message : "Unknown cloud error",
+      });
+    } finally {
+      setBusyCloudAction(null);
+    }
   };
 
   const handleUnlinkCloudWorkspace = () => {
     setBusyCloudAction("unlink-workspace");
+    const previousIdentity = workspaceIdentity;
     const nextIdentity = unlinkLocalWorkspaceFromCloud();
     setWorkspaceIdentity(nextIdentity);
+    if (previousIdentity) {
+      downloadJsonFile(
+        `zhinote-cloud-link-unlink-receipt-${fileSafeTimestamp()}.json`,
+        buildLocalWorkspaceCloudLinkReceipt({
+          action: "unlink",
+          identity: previousIdentity,
+        })
+      );
+    }
     setSelectedCloudWorkspaceId("");
     setCloudWorkspace(null);
+    setCloudBootstrapProof(null);
     setCloudMessage({
       tone: "success",
       title: "本地 workspace 已取消云连接",
@@ -1216,6 +1287,7 @@ function SyncDashboard() {
     setCloudWorkspace(null);
     setCloudWorkspaces([]);
     setSelectedCloudWorkspaceId("");
+    setCloudBootstrapProof(null);
     setCloudMessage({
       tone: "success",
       title: "本地云 session 已清除",
@@ -1704,6 +1776,32 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportCloudWorkspaceLinkReceipt = () => {
+    if (!workspaceIdentity || workspaceIdentity.cloud_status !== "linked-alpha") {
+      setCloudMessage({
+        tone: "info",
+        title: "没有已连接的云 workspace",
+        detail: "本地 workspace 仍是 local-only，暂时没有连接收据可导出。",
+      });
+      return;
+    }
+    setBusyCloudAction("link-receipt");
+    try {
+      downloadJsonFile(
+        `zhinote-cloud-link-receipt-${fileSafeTimestamp()}.json`,
+        buildLocalWorkspaceCloudLinkReceipt({
+          action: "link",
+          identity: workspaceIdentity,
+        })
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export cloud link receipt:", err);
+      window.alert("Cloud link receipt export failed. Please check the console.");
+    } finally {
+      setBusyCloudAction(null);
+    }
+  };
+
   const handleRestorePreviewFile = async (
     event: ChangeEvent<HTMLInputElement>
   ) => {
@@ -1767,6 +1865,7 @@ function SyncDashboard() {
           workspace={cloudWorkspace}
           workspaces={cloudWorkspaces}
           selectedWorkspaceId={selectedCloudWorkspaceId}
+          bootstrapProof={cloudBootstrapProof}
           localIdentity={workspaceIdentity}
           busyAction={busyCloudAction}
           message={cloudMessage}
@@ -1780,6 +1879,7 @@ function SyncDashboard() {
           onWorkspaceBootstrap={() => void handleCloudWorkspaceBootstrap()}
           onLinkWorkspace={handleLinkCloudWorkspace}
           onUnlinkWorkspace={handleUnlinkCloudWorkspace}
+          onExportLinkReceipt={handleExportCloudWorkspaceLinkReceipt}
           onClearSession={handleClearCloudSession}
         />
 
@@ -3539,6 +3639,7 @@ function CloudAlphaPanel({
   workspace,
   workspaces,
   selectedWorkspaceId,
+  bootstrapProof,
   localIdentity,
   busyAction,
   message,
@@ -3552,6 +3653,7 @@ function CloudAlphaPanel({
   onWorkspaceBootstrap,
   onLinkWorkspace,
   onUnlinkWorkspace,
+  onExportLinkReceipt,
   onClearSession,
 }: {
   email: string;
@@ -3561,6 +3663,7 @@ function CloudAlphaPanel({
   workspace: CloudAlphaWorkspace | null;
   workspaces: CloudAlphaWorkspace[];
   selectedWorkspaceId: string;
+  bootstrapProof: CloudWorkspaceBootstrapProof | null;
   localIdentity: LocalWorkspaceIdentity | null;
   busyAction: CloudAlphaAction | null;
   message: CloudAlphaMessage | null;
@@ -3574,6 +3677,7 @@ function CloudAlphaPanel({
   onWorkspaceBootstrap: () => void;
   onLinkWorkspace: () => void;
   onUnlinkWorkspace: () => void;
+  onExportLinkReceipt: () => void;
   onClearSession: () => void;
 }) {
   const hasUsableSession = Boolean(session && !sessionExpired);
@@ -3583,6 +3687,15 @@ function CloudAlphaPanel({
       ? [workspace]
       : [];
   const linkedWorkspaceId = localIdentity?.cloud_workspace_id ?? "";
+  const bootstrapProofMatchesSelection = Boolean(
+    bootstrapProof &&
+      bootstrapProof.workspace_id === selectedWorkspaceId &&
+      bootstrapProof.cloud_user_id === session?.user?.id
+  );
+  const linkedHasBootstrapProof = Boolean(
+    localIdentity?.cloud_status === "linked-alpha" &&
+      localIdentity.cloud_bootstrap_checked_at
+  );
 
   return (
     <section className="rounded-lg border border-blue-200 bg-white p-4 dark:border-blue-900 dark:bg-zinc-950">
@@ -3780,6 +3893,7 @@ function CloudAlphaPanel({
                 !hasUsableSession ||
                 !session?.user?.id ||
                 !selectedWorkspaceId ||
+                !bootstrapProofMatchesSelection ||
                 Boolean(busyAction)
               }
               onClick={onLinkWorkspace}
@@ -3791,6 +3905,16 @@ function CloudAlphaPanel({
               onClick={onUnlinkWorkspace}
               variant="secondary"
             />
+            <CloudAlphaButton
+              label="导出连接收据"
+              busy={busyAction === "link-receipt"}
+              disabled={
+                localIdentity?.cloud_status !== "linked-alpha" ||
+                Boolean(busyAction)
+              }
+              onClick={onExportLinkReceipt}
+              variant="secondary"
+            />
           </div>
         </div>
 
@@ -3800,11 +3924,33 @@ function CloudAlphaPanel({
             value={selectedWorkspaceId || "None"}
           />
           <CloudAlphaSmallRow
+            label="Bootstrap proof"
+            value={
+              bootstrapProofMatchesSelection
+                ? `Checked ${formatDate(bootstrapProof?.checked_at ?? "")}`
+                : linkedHasBootstrapProof
+                  ? `Linked proof ${formatDate(
+                      localIdentity?.cloud_bootstrap_checked_at ?? ""
+                    )}`
+                  : "Run bootstrap before link"
+            }
+          />
+          <CloudAlphaSmallRow
             label="Linked local workspace"
             value={
               localIdentity?.cloud_workspace_name ||
               localIdentity?.cloud_workspace_id ||
               "Local only"
+            }
+          />
+          <CloudAlphaSmallRow
+            label="Cloud sync flags"
+            value={
+              localIdentity?.cloud_status === "linked-alpha"
+                ? `push ${localIdentity.cloud_sync_push_enabled ? "on" : "off"} / pull ${
+                    localIdentity.cloud_sync_pull_enabled ? "on" : "off"
+                  }`
+                : "push off / pull off"
             }
           />
         </div>
@@ -6316,6 +6462,19 @@ function getCloudMembership(body: Record<string, unknown> | null) {
   return {
     user_id: getRecordString(membership, "user_id"),
     role: getCloudRole(membership.role),
+  };
+}
+
+function getCloudModuleCount(body: Record<string, unknown> | null) {
+  const modules = body?.modules;
+  return Array.isArray(modules) ? modules.length : 0;
+}
+
+function getCloudSyncState(body: Record<string, unknown> | null) {
+  const sync = getRecordValue(body, "sync");
+  return {
+    push_enabled: getRecordBoolean(sync, "push_enabled"),
+    pull_enabled: getRecordBoolean(sync, "pull_enabled"),
   };
 }
 

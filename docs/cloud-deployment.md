@@ -128,6 +128,9 @@ https://your-vercel-domain.vercel.app/auth/callback
 - `GET /api/workspaces` 可以列出当前用户可访问的 workspace metadata。
 - `POST /api/workspaces` 可以创建空 workspace 和 owner membership。
 - workspace bootstrap 可以返回当前用户 role。
+- 本地 workspace 连接云 workspace 前，必须先用当前 session 对选中的
+  workspace 完成 bootstrap membership 检查，并导出/保留 metadata-only
+  link receipt。
 - Cloud sync owner confirmation phrase 可以在本地生成 receipt，但 receipt 不会开启 push。
 - AI 外发和 restore write-back confirmation phrase 可以在本地生成 receipt，但 receipt 不会开启 `/api/ai/run` 或 `/api/backup/restore-apply`。
 - HTML 外部资源加载 confirmation phrase 可以在本地生成 receipt，但默认仍阻止远程资源，且 receipt 不包含报告正文、URL 列表、token 或文件 bytes。
@@ -136,7 +139,7 @@ https://your-vercel-domain.vercel.app/auth/callback
 
 ## 后续云同步顺序
 
-1. Workspace bootstrap QA 和 local workspace link 确认。
+1. Workspace bootstrap QA、local workspace link proof 和 link receipt 确认。
 2. Cloud sync opt-in gate：确认 linked workspace、payload preview、conflict baseline、disabled push API、owner confirmation phrase 和本地 confirmation receipt。
 3. Pages/databases 云端最小 CRUD。
 4. Sync payload preview 二次确认。

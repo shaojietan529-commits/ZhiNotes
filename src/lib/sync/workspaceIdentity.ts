@@ -19,8 +19,29 @@ export interface LocalWorkspaceIdentity {
   cloud_user_id?: string;
   cloud_role?: "owner" | "researcher" | "viewer";
   cloud_linked_at?: string;
+  cloud_bootstrap_checked_at?: string;
+  cloud_bootstrap_module_count?: number;
+  cloud_sync_push_enabled?: boolean;
+  cloud_sync_pull_enabled?: boolean;
   created_at: string;
   updated_at: string;
+  privacy_note: string;
+}
+
+export interface CloudWorkspaceBootstrapProof {
+  format: "zhinote-cloud-workspace-bootstrap-proof";
+  format_version: 1;
+  workspace_id: string;
+  workspace_name: string;
+  cloud_user_id: string;
+  cloud_role: "owner" | "researcher" | "viewer";
+  checked_at: string;
+  module_count: number;
+  sync_push_enabled: boolean;
+  sync_pull_enabled: boolean;
+  contains_page_text: false;
+  contains_file_bytes: false;
+  contains_database_rows: false;
   privacy_note: string;
 }
 
@@ -33,6 +54,35 @@ export interface LinkLocalWorkspaceToCloudInput {
     id: string;
   };
   role: "owner" | "researcher" | "viewer";
+  bootstrapProof: CloudWorkspaceBootstrapProof;
+}
+
+export interface LocalWorkspaceCloudLinkReceipt {
+  format: "zhinote-local-cloud-workspace-link-receipt";
+  format_version: 1;
+  action: "link" | "unlink";
+  generated_at: string;
+  local_workspace_id: string;
+  local_device_id: string;
+  cloud_status_before_export: LocalWorkspaceIdentity["cloud_status"];
+  cloud_workspace_id: string | null;
+  cloud_workspace_name: string | null;
+  cloud_user_id: string | null;
+  cloud_role: LocalWorkspaceIdentity["cloud_role"] | null;
+  bootstrap_checked_at: string | null;
+  bootstrap_module_count: number | null;
+  sync_push_enabled: boolean;
+  sync_pull_enabled: boolean;
+  boundary: {
+    local_receipt_only: true;
+    uploads_workspace_data: false;
+    reads_page_body_text: false;
+    reads_file_bytes: false;
+    reads_database_rows: false;
+    creates_cloud_workspace: false;
+    deletes_cloud_workspace: false;
+  };
+  privacy_note: string;
 }
 
 export function getOrCreateLocalWorkspaceIdentity(): LocalWorkspaceIdentity {
@@ -82,9 +132,43 @@ export function buildLocalWorkspaceIdentitySnapshot(
   };
 }
 
+export function buildCloudWorkspaceBootstrapProof(input: {
+  workspace: {
+    id: string;
+    name: string;
+  };
+  user: {
+    id: string;
+  };
+  role: "owner" | "researcher" | "viewer";
+  moduleCount: number;
+  syncPushEnabled: boolean;
+  syncPullEnabled: boolean;
+}): CloudWorkspaceBootstrapProof {
+  return {
+    format: "zhinote-cloud-workspace-bootstrap-proof",
+    format_version: FORMAT_VERSION,
+    workspace_id: input.workspace.id,
+    workspace_name: input.workspace.name,
+    cloud_user_id: input.user.id,
+    cloud_role: input.role,
+    checked_at: new Date().toISOString(),
+    module_count: input.moduleCount,
+    sync_push_enabled: input.syncPushEnabled,
+    sync_pull_enabled: input.syncPullEnabled,
+    contains_page_text: false,
+    contains_file_bytes: false,
+    contains_database_rows: false,
+    privacy_note:
+      "Generated locally from the workspace bootstrap response. This proof contains account/workspace metadata only and does not include page text, file bytes, database rows, backups, or sync queue payloads.",
+  };
+}
+
 export function linkLocalWorkspaceToCloud(
   input: LinkLocalWorkspaceToCloudInput
 ) {
+  validateBootstrapProof(input);
+
   const current = getOrCreateLocalWorkspaceIdentity();
   const now = new Date().toISOString();
   const next: LocalWorkspaceIdentity = {
@@ -95,9 +179,13 @@ export function linkLocalWorkspaceToCloud(
     cloud_user_id: input.user.id,
     cloud_role: input.role,
     cloud_linked_at: now,
+    cloud_bootstrap_checked_at: input.bootstrapProof.checked_at,
+    cloud_bootstrap_module_count: input.bootstrapProof.module_count,
+    cloud_sync_push_enabled: input.bootstrapProof.sync_push_enabled,
+    cloud_sync_pull_enabled: input.bootstrapProof.sync_pull_enabled,
     updated_at: now,
     privacy_note:
-      "Linked locally to a private-alpha cloud workspace. This stores account/workspace metadata in browser localStorage only. It does not upload notes, files, databases, backups, or sync queue rows.",
+      "Linked locally to a private-alpha cloud workspace after a bootstrap membership check. This stores account/workspace metadata in browser localStorage only. It does not upload notes, files, databases, backups, or sync queue rows.",
   };
 
   writeLocalWorkspaceIdentity(next);
@@ -120,9 +208,47 @@ export function unlinkLocalWorkspaceFromCloud() {
   delete next.cloud_user_id;
   delete next.cloud_role;
   delete next.cloud_linked_at;
+  delete next.cloud_bootstrap_checked_at;
+  delete next.cloud_bootstrap_module_count;
+  delete next.cloud_sync_push_enabled;
+  delete next.cloud_sync_pull_enabled;
 
   writeLocalWorkspaceIdentity(next);
   return next;
+}
+
+export function buildLocalWorkspaceCloudLinkReceipt(input: {
+  action: "link" | "unlink";
+  identity: LocalWorkspaceIdentity;
+}): LocalWorkspaceCloudLinkReceipt {
+  return {
+    format: "zhinote-local-cloud-workspace-link-receipt",
+    format_version: FORMAT_VERSION,
+    action: input.action,
+    generated_at: new Date().toISOString(),
+    local_workspace_id: input.identity.workspace_id,
+    local_device_id: input.identity.device_id,
+    cloud_status_before_export: input.identity.cloud_status,
+    cloud_workspace_id: input.identity.cloud_workspace_id ?? null,
+    cloud_workspace_name: input.identity.cloud_workspace_name ?? null,
+    cloud_user_id: input.identity.cloud_user_id ?? null,
+    cloud_role: input.identity.cloud_role ?? null,
+    bootstrap_checked_at: input.identity.cloud_bootstrap_checked_at ?? null,
+    bootstrap_module_count: input.identity.cloud_bootstrap_module_count ?? null,
+    sync_push_enabled: Boolean(input.identity.cloud_sync_push_enabled),
+    sync_pull_enabled: Boolean(input.identity.cloud_sync_pull_enabled),
+    boundary: {
+      local_receipt_only: true,
+      uploads_workspace_data: false,
+      reads_page_body_text: false,
+      reads_file_bytes: false,
+      reads_database_rows: false,
+      creates_cloud_workspace: false,
+      deletes_cloud_workspace: false,
+    },
+    privacy_note:
+      "Generated locally. This receipt records local cloud-link metadata only. It does not include page text, file bytes, database rows, sync queue payloads, tokens, credentials, backups, or private report content.",
+  };
 }
 
 function writeLocalWorkspaceIdentity(identity: LocalWorkspaceIdentity) {
@@ -132,6 +258,26 @@ function writeLocalWorkspaceIdentity(identity: LocalWorkspaceIdentity) {
   } catch {
     // Keep the generated identity usable for the current session even if
     // browser storage is unavailable.
+  }
+}
+
+function validateBootstrapProof(input: LinkLocalWorkspaceToCloudInput) {
+  const proof = input.bootstrapProof;
+
+  if (proof.workspace_id !== input.workspace.id) {
+    throw new Error("Bootstrap proof workspace does not match selected workspace.");
+  }
+
+  if (proof.cloud_user_id !== input.user.id) {
+    throw new Error("Bootstrap proof user does not match current session.");
+  }
+
+  if (proof.cloud_role !== input.role) {
+    throw new Error("Bootstrap proof role does not match selected workspace role.");
+  }
+
+  if (proof.sync_push_enabled || proof.sync_pull_enabled) {
+    throw new Error("Bootstrap proof must show sync push and pull are disabled.");
   }
 }
 
