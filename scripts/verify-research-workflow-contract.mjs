@@ -10,6 +10,7 @@ const files = {
   workflow: "src/lib/modules/researchWorkflow.ts",
   graph: "src/lib/modules/researchGraph.ts",
   companyCoverage: "src/lib/company/companyCoverage.ts",
+  meetingFollowUp: "src/lib/meetings/meetingFollowUp.ts",
   connectionsPanel: "src/components/modules/ResearchConnectionsPanel.tsx",
   graphShell: "src/components/modules/ResearchGraphShell.tsx",
   schemaPanel: "src/components/modules/ResearchWorkflowSchemaPanel.tsx",
@@ -64,6 +65,14 @@ const requiredCompanyCoverageAreas = [
   "tracker-database",
 ];
 
+const requiredMeetingFollowUpStages = [
+  "prep",
+  "transcript-review",
+  "action-items",
+  "research-linking",
+  "done",
+];
+
 const failures = [];
 
 function readProjectFile(relativePath) {
@@ -86,6 +95,7 @@ function run() {
   const workflow = readProjectFile(files.workflow);
   const graph = readProjectFile(files.graph);
   const companyCoverage = readProjectFile(files.companyCoverage);
+  const meetingFollowUp = readProjectFile(files.meetingFollowUp);
   const connectionsPanel = readProjectFile(files.connectionsPanel);
   const graphShell = readProjectFile(files.graphShell);
   const schemaPanel = readProjectFile(files.schemaPanel);
@@ -167,6 +177,48 @@ function run() {
     );
   }
   assertIncludes(
+    files.meetingFollowUp,
+    meetingFollowUp,
+    'format: "zhinote-meeting-follow-up-report"',
+    "Meeting follow-up must define a local export format."
+  );
+  assertIncludes(
+    files.meetingFollowUp,
+    meetingFollowUp,
+    "buildMeetingFollowUpReport",
+    "Meeting follow-up must expose a reusable builder."
+  );
+  for (const snippet of [
+    "local_report_only: true",
+    "reads_local_page_html: true",
+    "reads_database_metadata: true",
+    "includes_page_text: false",
+    "includes_database_row_values: false",
+    "reads_file_bytes: false",
+    "joins_calls: false",
+    "records_audio: false",
+    "publishes_notes: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.meetingFollowUp,
+      meetingFollowUp,
+      snippet,
+      "Meeting follow-up must preserve local-only boundaries."
+    );
+  }
+  for (const stage of requiredMeetingFollowUpStages) {
+    assertIncludes(
+      files.meetingFollowUp,
+      meetingFollowUp,
+      `id: "${stage}"`,
+      `Meeting follow-up must keep stage ${stage}.`
+    );
+  }
+  assertIncludes(
     files.connectionsPanel,
     connectionsPanel,
     "getResearchModuleRoute",
@@ -219,6 +271,24 @@ function run() {
     meetingsShell,
     'ResearchWorkflowSchemaPanel kind="meeting"',
     "Meetings module must show its object model."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    "buildMeetingFollowUpReport",
+    "Meetings module must build the follow-up report."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    "会议 follow-up 队列",
+    "Meetings module must render the follow-up queue."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    "Export follow-up",
+    "Meetings module must export the follow-up report."
   );
   assertIncludes(
     files.portfolioShell,
@@ -293,6 +363,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "meeting follow-up queue",
+    "README must document meeting follow-up reporting."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "npm run verify:research-workflow",
     "README useful checks must include the research workflow verifier."
   );
@@ -315,6 +391,7 @@ function run() {
           0
         ),
         company_coverage_areas: requiredCompanyCoverageAreas.length,
+        meeting_follow_up_stages: requiredMeetingFollowUpStages.length,
         shared_routes: true,
         local_only: true,
       },

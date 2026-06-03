@@ -284,6 +284,11 @@ Current local actions:
 - Create a meeting note from the Meeting Notes template.
 - Create a meeting tracker database with local relation fields and views.
 - Track meeting notes, transcript pages, action items, company links, and report links.
+- Review and export a local meeting follow-up queue. The follow-up report checks
+  meeting notes, transcript structure, action items, company links, report
+  links, and tracker database coverage without exporting meeting text,
+  transcript text, recording bytes, participant details, meeting passcodes, or
+  database row values.
 - Open meetings from the sidebar Platform section or Cmd/Ctrl+K.
 
 The current Meetings module is a local research workspace. It does not join
