@@ -94,6 +94,18 @@ ids, routes, starter coverage, data surfaces, and extension slot coverage
 without reading page text, database rows, uploaded file bytes, prompts, tokens,
 or cloud data.
 
+The module center can also export a local module onboarding contract. The
+contract defines the checklist for adding future modules: stable registry entry,
+routable page, starter safety, extension slot selection, data surface boundary,
+high-risk action gates, documentation, and verification. It does not create
+modules, write workspace data, read private content, connect cloud services,
+upload data, or enable AI.
+
+Run `npm run verify:modules` before treating a new module as part of the
+platform. The verifier checks registry fields, unique module ids, route files,
+extension slots, starter presets, local-only onboarding boundaries, sidebar
+navigation, command palette wiring, and the module center export surfaces.
+
 ## Research Workflow Schema
 
 The shared research workflow schema lives in:
@@ -519,8 +531,10 @@ npm run lint
 npm run verify:ai
 npm run verify:database
 npm run verify:file-preview
+npm run verify:modules
 npm run verify:research-workflow
 npm run verify:web-beta
+npm run verify:web-beta:smoke
 npm run build
 ```
 
