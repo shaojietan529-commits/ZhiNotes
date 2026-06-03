@@ -178,6 +178,11 @@ Current local actions:
 The current Report Library module is local-only. It does not upload reports,
 call AI, sync files, or load external resources by itself.
 
+The report module includes a local format support matrix for HTML reports,
+Markdown/MDX, PDF, Excel/CSV/ODS, Word/ODT, PowerPoint/ODP, RTF, EPUB, ZIP,
+Jupyter notebooks, media, text, code, and OPML. Legacy `.doc` and `.ppt` files
+are saved locally and downloadable, but conversion requires `.docx` or `.pptx`.
+
 HTML report previews block external resources by default. A user must type the
 local external-resource confirmation phrase before enabling remote images,
 scripts, styles, frames, fonts, media, or network endpoints for a trusted HTML
@@ -455,6 +460,7 @@ Useful checks:
 
 ```bash
 npm run lint
+npm run verify:file-preview
 npm run verify:web-beta
 npm run build
 ```

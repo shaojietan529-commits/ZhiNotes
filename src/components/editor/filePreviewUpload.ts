@@ -16,6 +16,7 @@ export const FILE_PREVIEW_ACCEPT = [
   ".rtf",
   ".epub",
   ".zip",
+  ".ipynb",
   ".pdf",
   ".xlsx",
   ".xls",

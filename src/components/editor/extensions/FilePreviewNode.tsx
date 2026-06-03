@@ -158,6 +158,18 @@ function FilePreviewComponent({
     void (async () => {
       await Promise.resolve();
       if (!active) return;
+
+      if (isLegacyOfficeFile(file)) {
+        setConvertedPreview({
+          status: "error",
+          message:
+            file.kind === "word"
+              ? "旧版 .doc 文件暂不支持本地转换预览。请转为 .docx 后再导入为可编辑块。"
+              : "旧版 .ppt 文件暂不支持本地转换预览。请转为 .pptx 后再导入为可编辑块。",
+        });
+        return;
+      }
+
       setConvertedPreview({ status: "loading" });
 
       try {
@@ -512,8 +524,8 @@ function FilePreviewComponent({
             <div className="text-[11px] text-zinc-400">
               {attrs.mimeType || "未知类型"} · {formatFileSize(attrs.size)}
             </div>
-            <div className="mt-0.5 text-[10px] text-zinc-400">
-              {getPreviewNote(attrs.kind)}
+          <div className="mt-0.5 text-[10px] text-zinc-400">
+              {getPreviewNote(attrs.kind, attrs.fileName)}
             </div>
           </div>
           {file?.kind === "markdown" && (
@@ -573,7 +585,8 @@ function FilePreviewComponent({
           {(file?.kind === "spreadsheet" ||
             file?.kind === "word" ||
             file?.kind === "presentation" ||
-            file?.kind === "epub") && (
+            file?.kind === "epub") &&
+            supportsEditableConvertedImport(file) && (
             <button
               type="button"
               onClick={handleImportConverted}
@@ -745,7 +758,8 @@ function FilePreviewComponent({
   );
 }
 
-function getPreviewNote(kind: PageFileKind) {
+function getPreviewNote(kind: PageFileKind, fileName = "") {
+  const lowerName = fileName.toLowerCase();
   switch (kind) {
     case "html":
       return "沙盒报告预览；默认阻止外部资源";
@@ -762,8 +776,14 @@ function getPreviewNote(kind: PageFileKind) {
     case "spreadsheet":
       return "表格转换预览；原文件保留在本地";
     case "word":
+      if (lowerName.endsWith(".doc")) {
+        return "旧版 Word 已本地保存；暂不转换预览";
+      }
       return "Word 转换预览；原文件保留在本地";
     case "presentation":
+      if (lowerName.endsWith(".ppt")) {
+        return "旧版 PPT 已本地保存；暂不转换预览";
+      }
       return "PPT 文本转换预览；原文件保留在本地";
     case "epub":
       return "EPUB 章节转换预览；原文件保留在本地";
@@ -780,6 +800,18 @@ function getPreviewNote(kind: PageFileKind) {
     default:
       return "已本地保存；暂未提供原生渲染器";
   }
+}
+
+function isLegacyOfficeFile(file: StoredPageFile) {
+  const lowerName = file.name.toLowerCase();
+  return (
+    (file.kind === "word" && lowerName.endsWith(".doc")) ||
+    (file.kind === "presentation" && lowerName.endsWith(".ppt"))
+  );
+}
+
+function supportsEditableConvertedImport(file: StoredPageFile) {
+  return !isLegacyOfficeFile(file);
 }
 
 function getFileKindLabel(kind: PageFileKind) {

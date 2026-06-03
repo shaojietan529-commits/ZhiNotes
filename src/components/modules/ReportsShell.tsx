@@ -18,6 +18,11 @@ import {
   updatePage,
 } from "@/lib/db/local/queries";
 import { FILE_PREVIEW_ACCEPT } from "@/components/editor/filePreviewUpload";
+import {
+  FILE_PREVIEW_CAPABILITIES,
+  type FilePreviewCapability,
+  type FilePreviewSupportLevel,
+} from "@/lib/files/filePreviewCapabilities";
 import { createFilePreviewBlockHtml } from "@/lib/files/filePreviewBlock";
 import { savePageFile, type StoredPageFile } from "@/lib/files/localStore";
 import { executeModuleStarter } from "@/lib/modules/actions";
@@ -268,6 +273,42 @@ function ReportsDashboard() {
           </div>
         </section>
 
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                格式支持矩阵
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                这里是报告库当前承诺的本地预览能力。所有转换都在浏览器本地完成；
+                外部资源、批量导入、AI 外发和云同步仍走单独确认边界。
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-zinc-500 dark:text-zinc-400">
+              <SupportSummaryCard
+                label="原生"
+                count={countCapabilities("native")}
+              />
+              <SupportSummaryCard
+                label="转换"
+                count={countCapabilities("converted")}
+              />
+              <SupportSummaryCard
+                label="元数据"
+                count={countCapabilities("metadata")}
+              />
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {FILE_PREVIEW_CAPABILITIES.map((capability) => (
+              <FormatCapabilityCard
+                key={capability.id}
+                capability={capability}
+              />
+            ))}
+          </div>
+        </section>
+
         <ResearchConnectionsPanel
           pages={pages}
           databases={databases}
@@ -337,6 +378,90 @@ function StarterButton({
       {busy ? "创建中..." : label}
     </button>
   );
+}
+
+function SupportSummaryCard({
+  label,
+  count,
+}: {
+  label: string;
+  count: number;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {count}
+      </div>
+      <div>{label}</div>
+    </div>
+  );
+}
+
+function FormatCapabilityCard({
+  capability,
+}: {
+  capability: FilePreviewCapability;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          {capability.label}
+        </h3>
+        <SupportPill level={capability.support_level} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {capability.extensions.map((extension) => (
+          <span
+            key={extension}
+            className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+          >
+            {extension}
+          </span>
+        ))}
+      </div>
+      <div className="mt-3 space-y-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+        <p>{capability.preview}</p>
+        <p>导入：{capability.editable_import}</p>
+        <p>数据库：{capability.database_import}</p>
+        <p>边界：{capability.privacy_boundary}</p>
+        {capability.limitation && (
+          <p className="text-amber-600 dark:text-amber-300">
+            限制：{capability.limitation}
+          </p>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function SupportPill({ level }: { level: FilePreviewSupportLevel }) {
+  const labels: Record<FilePreviewSupportLevel, string> = {
+    native: "原生预览",
+    converted: "本地转换",
+    metadata: "元数据",
+    "download-only": "仅下载",
+  };
+  const className =
+    level === "native"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : level === "converted"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : level === "metadata"
+          ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+          : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[level]}
+    </span>
+  );
+}
+
+function countCapabilities(level: FilePreviewSupportLevel) {
+  return FILE_PREVIEW_CAPABILITIES.filter(
+    (capability) => capability.support_level === level
+  ).length;
 }
 
 function WorkflowCard({ title, detail }: { title: string; detail: string }) {
