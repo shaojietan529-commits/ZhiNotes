@@ -558,6 +558,11 @@ Current local actions:
   idempotency replay, and rollback proof. Replay, database connection, SQL
   apply, server writes, metadata staging, acknowledgements, and remote applies
   remain disabled.
+- Type the local disposable replay confirmation phrase and export a high-risk
+  confirmation receipt. The receipt records only local confirmation metadata for
+  future empty-workspace replay and still does not connect a database, apply
+  SQL, stage remote rows, write server data, read private workspace content,
+  upload anything, or enable `/api/sync/replay-test`.
 - Review and export a local workspace identity with anonymous browser-local
   workspace and device ids for future sync metadata. The identity is not an
   account and does not connect cloud services or include note text/file content.
@@ -592,10 +597,10 @@ Current local actions:
   scenarios, but does not create users, grant access, revoke access, enforce
   server permissions, read page text, read file bytes, or upload workspace data.
 - Review and export a local high-risk action registry. The registry centralizes
-  typed confirmation phrases and coverage for cloud sync, restore write-back,
-  AI execution, HTML external resources, spreadsheet bulk import, future bulk
-  delete, and future sharing. Exporting it does not enable any action or include
-  workspace content.
+  typed confirmation phrases and coverage for cloud sync, disposable replay,
+  restore write-back, AI execution, HTML external resources, spreadsheet bulk
+  import, future bulk delete, and future sharing. Exporting it does not enable
+  any action or include workspace content.
 - Review and export a local Web Beta contract draft covering account login,
   cloud tables, sync APIs, conflict policies, deployment gates, and privacy
   confirmations. The export does not create accounts, connect cloud services,

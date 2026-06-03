@@ -197,9 +197,9 @@ function buildActions(
       gate: gatesById.get("conflict-resolution"),
       fallbackTitle: "Run disposable remote baseline replay",
       fallbackEvidence:
-        "Conflict policies, side-by-side preview, remote baseline request/staging/schema contracts, and disposable replay/RLS proof contract exist, but no actual empty-fixture replay has run.",
+        "Conflict policies, side-by-side preview, remote baseline request/staging/schema contracts, disposable replay/RLS proof contract, and local replay confirmation receipt exist, but no actual empty-fixture replay has run.",
       fallbackAction:
-        "Run disposable replay with empty workspace fixtures to prove payload denylist, RLS scope, cursor monotonicity, idempotency, and rollback while keeping apply disabled.",
+        "Export owner confirmation, then run disposable replay with empty workspace fixtures to prove payload denylist, RLS scope, cursor monotonicity, idempotency, and rollback while keeping apply disabled.",
       status: "ready-to-build",
       unlocks: "Multi-device editing without silent overwrites.",
     }),

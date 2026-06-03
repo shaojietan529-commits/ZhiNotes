@@ -207,6 +207,7 @@ type SyncQueueAction =
   | "remote-baseline-staging"
   | "remote-baseline-stage-schema"
   | "remote-baseline-stage-replay"
+  | "remote-baseline-replay-confirmation"
   | "opt-in-gate"
   | "sync-confirmation"
   | "rollback-plan"
@@ -414,6 +415,10 @@ function SyncDashboard() {
   const [cloudMessage, setCloudMessage] =
     useState<CloudAlphaMessage | null>(null);
   const [syncConfirmationPhrase, setSyncConfirmationPhrase] = useState("");
+  const [
+    remoteBaselineReplayConfirmationPhrase,
+    setRemoteBaselineReplayConfirmationPhrase,
+  ] = useState("");
   const [restoreConfirmationPhrase, setRestoreConfirmationPhrase] =
     useState("");
 
@@ -696,6 +701,31 @@ function SyncDashboard() {
       auditTrailPolicy,
       permissionDecisionReport,
       remoteBaselineStageSchema,
+      workspaceIdentity,
+    ]
+  );
+  const remoteBaselineReplayConfirmationReceipt = useMemo(
+    () =>
+      buildHighRiskConfirmationReceipt({
+        actionId: "remote-baseline-stage-replay",
+        requiredPhrase: getHighRiskRequiredPhrase(
+          "remote-baseline-stage-replay"
+        ),
+        typedPhrase: remoteBaselineReplayConfirmationPhrase,
+        actorLabel:
+          cloudSession?.user?.email ?? cloudSession?.user?.id ?? null,
+        localWorkspaceId: workspaceIdentity?.workspace_id ?? null,
+        cloudWorkspaceId: workspaceIdentity?.cloud_workspace_id ?? null,
+        scopeSummary: `${remoteBaselineStageReplay.summary.scenarios} disposable replay scenarios; ${remoteBaselineStageReplay.summary.rls_proofs} RLS proofs; ${remoteBaselineStageReplay.summary.rollback_proofs} rollback proofs; ${remoteBaselineStageReplay.summary.blocked} blocked replay gates; page text included: no; file bytes included: no.`,
+        riskSummary:
+          "A future disposable replay can connect to an empty disposable database to prove schema replay, RLS isolation, cursor monotonicity, idempotency, and rollback before any remote baseline apply path exists.",
+        destinationSummary:
+          "Disabled /api/sync/replay-test; empty disposable workspace fixtures only; no production workspace, private page text, file bytes, or database row values.",
+      }),
+    [
+      cloudSession,
+      remoteBaselineReplayConfirmationPhrase,
+      remoteBaselineStageReplay,
       workspaceIdentity,
     ]
   );
@@ -1650,6 +1680,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Remote baseline stage replay export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportRemoteBaselineReplayConfirmationReceipt = () => {
+    setBusyQueueAction("remote-baseline-replay-confirmation");
+    try {
+      downloadJsonFile(
+        `zhinote-remote-baseline-replay-confirmation-${fileSafeTimestamp()}.json`,
+        {
+          ...remoteBaselineReplayConfirmationReceipt,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export remote baseline replay confirmation receipt:",
+        err
+      );
+      window.alert(
+        "Remote baseline replay confirmation receipt failed. Please check the console."
       );
     } finally {
       setBusyQueueAction(null);
@@ -3257,6 +3310,77 @@ function SyncDashboard() {
                 status="blocked"
               />
             </div>
+            <ContractPanel
+              title="Disposable replay owner confirmation receipt"
+              className="mt-4"
+            >
+              <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
+                <p className="max-w-3xl">
+                  Type the exact phrase only after reviewing that replay would
+                  use empty disposable workspace fixtures. Exporting this
+                  receipt does not run replay, connect a database, apply SQL,
+                  stage remote rows, upload data, or enable
+                  /api/sync/replay-test.
+                </p>
+                <span className="w-fit rounded-md bg-amber-50 px-2 py-1 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                  {remoteBaselineReplayConfirmationReceipt.status}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-col gap-2 lg:flex-row">
+                <input
+                  id="remote-baseline-replay-confirmation-phrase"
+                  aria-label="Remote baseline replay confirmation phrase"
+                  value={remoteBaselineReplayConfirmationPhrase}
+                  onChange={(event) =>
+                    setRemoteBaselineReplayConfirmationPhrase(
+                      event.target.value
+                    )
+                  }
+                  placeholder={
+                    remoteBaselineReplayConfirmationReceipt.required_phrase
+                  }
+                  className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-zinc-100"
+                />
+                <button
+                  type="button"
+                  onClick={handleExportRemoteBaselineReplayConfirmationReceipt}
+                  disabled={
+                    busyQueueAction === "remote-baseline-replay-confirmation"
+                  }
+                  className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  {busyQueueAction === "remote-baseline-replay-confirmation"
+                    ? "Exporting..."
+                    : "Export replay receipt"}
+                </button>
+              </div>
+              <div className="mt-3 grid gap-2 md:grid-cols-4">
+                <IdentityMetric
+                  label="Required phrase"
+                  value={remoteBaselineReplayConfirmationReceipt.required_phrase}
+                  detail="Case-sensitive"
+                />
+                <IdentityMetric
+                  label="Phrase match"
+                  value={
+                    remoteBaselineReplayConfirmationReceipt.typed_phrase_matches
+                      ? "Yes"
+                      : "No"
+                  }
+                  detail={remoteBaselineReplayConfirmationReceipt.status}
+                />
+                <IdentityMetric
+                  label="Receipt boundary"
+                  value="Local only"
+                  detail="No page text or file bytes"
+                />
+                <IdentityMetric
+                  label="Replay route"
+                  value="/api/sync/replay-test"
+                  detail="Still disabled"
+                />
+              </div>
+            </ContractPanel>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
               <ContractPanel title="Disposable replay scenarios">
                 <div className="space-y-2">

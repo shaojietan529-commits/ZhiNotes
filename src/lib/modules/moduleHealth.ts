@@ -207,9 +207,9 @@ function buildHealthAreas(): ModuleHealthArea[] {
       phase: "phase-4",
       module_ids: ["sync"],
       evidence:
-        "Sync module contains local backup export, sync queue visibility, payload preview, conflict review and resolution contracts, side-by-side conflict review preview, remote baseline request, staging, stage schema/cursor proof, and disposable replay/RLS proof contracts, replay plan, account/session boundary, cloud schema plan, deployment target, smoke test plan, and permission contracts.",
+        "Sync module contains local backup export, sync queue visibility, payload preview, conflict review and resolution contracts, side-by-side conflict review preview, remote baseline request, staging, stage schema/cursor proof, disposable replay/RLS proof contracts, disposable replay confirmation receipt, replay plan, account/session boundary, cloud schema plan, deployment target, smoke test plan, and permission contracts.",
       next_action:
-        "Resolve GitHub credentials, configure disposable Supabase/Vercel preview, run the replay/RLS proof on empty disposable data, and keep writes disabled until rollback and owner confirmation are proven.",
+        "Resolve GitHub credentials, configure disposable Supabase/Vercel preview, export owner confirmation before any empty-data replay, run the replay/RLS proof on empty disposable data, and keep writes disabled until rollback and owner confirmation are proven.",
       privacy_boundary:
         "Web Beta work must keep local data as source of truth and avoid cloud writes or uploads until explicit opt-in.",
     },

@@ -24,6 +24,8 @@ const files = {
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
+  typedConfirmation: "src/lib/security/typedConfirmation.ts",
+  highRiskActionRegistry: "src/lib/security/highRiskActionRegistry.ts",
   webBetaReadiness: "src/lib/sync/webBetaReadiness.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
@@ -185,6 +187,8 @@ function run() {
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
+  const typedConfirmation = readProjectFile(files.typedConfirmation);
+  const highRiskActionRegistry = readProjectFile(files.highRiskActionRegistry);
   const webBetaReadiness = readProjectFile(files.webBetaReadiness);
   const syncShell = readProjectFile(files.syncShell);
   const migration = readProjectFile(files.migration);
@@ -211,6 +215,8 @@ function run() {
     [files.syncOptInGate, syncOptInGate],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
+    [files.typedConfirmation, typedConfirmation],
+    [files.highRiskActionRegistry, highRiskActionRegistry],
     [files.webBetaReadiness, webBetaReadiness],
     [files.syncShell, syncShell],
   ]) {
@@ -1324,6 +1330,34 @@ function run() {
       `Remote baseline stage replay gate ${gateId} must remain available.`
     );
   }
+  for (const [file, source, snippet, message] of [
+    [
+      files.typedConfirmation,
+      typedConfirmation,
+      '| "remote-baseline-stage-replay"',
+      "Typed confirmation must reserve remote baseline stage replay as a high-risk action.",
+    ],
+    [
+      files.highRiskActionRegistry,
+      highRiskActionRegistry,
+      '"remote-baseline-stage-replay": "ENABLE DISPOSABLE REPLAY"',
+      "High-risk registry must require a typed phrase before disposable replay.",
+    ],
+    [
+      files.highRiskActionRegistry,
+      highRiskActionRegistry,
+      'disabled_endpoint: "/api/sync/replay-test"',
+      "High-risk registry must keep disposable replay endpoint disabled.",
+    ],
+    [
+      files.highRiskActionRegistry,
+      highRiskActionRegistry,
+      "zhinote-remote-baseline-replay-confirmation",
+      "High-risk registry must expose a local replay confirmation receipt prefix.",
+    ],
+  ]) {
+    assertSourceIncludes(file, source, snippet, message);
+  }
   assertSourceIncludes(
     files.syncShell,
     syncShell,
@@ -1515,6 +1549,30 @@ function run() {
       "Final replay enablement",
       "Sync UI must render final replay enablement conditions.",
     ],
+    [
+      "remoteBaselineReplayConfirmationReceipt",
+      "Sync UI must build a disposable replay confirmation receipt.",
+    ],
+    [
+      "handleExportRemoteBaselineReplayConfirmationReceipt",
+      "Sync UI must export the disposable replay confirmation receipt.",
+    ],
+    [
+      "Disposable replay owner confirmation receipt",
+      "Sync UI must render the disposable replay confirmation panel.",
+    ],
+    [
+      "Export replay receipt",
+      "Sync UI must expose the disposable replay receipt export action.",
+    ],
+    [
+      "remote-baseline-replay-confirmation",
+      "Sync UI must track disposable replay receipt export state separately.",
+    ],
+    [
+      'getHighRiskRequiredPhrase(\n          "remote-baseline-stage-replay"',
+      "Sync UI must read the disposable replay confirmation phrase from the registry.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
@@ -1566,7 +1624,7 @@ function run() {
     remote_baseline_checks: 43,
     remote_baseline_staging_checks: 49,
     remote_baseline_stage_schema_checks: 55,
-    remote_baseline_stage_replay_checks: 57,
+    remote_baseline_stage_replay_checks: 67,
     warnings: warnings.length,
   };
 

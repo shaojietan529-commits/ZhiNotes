@@ -60,6 +60,7 @@ export const HIGH_RISK_CONFIRMATION_PHRASES: Record<
   string
 > = {
   "cloud-sync-first-push": "ENABLE PRIVATE ALPHA SYNC",
+  "remote-baseline-stage-replay": "ENABLE DISPOSABLE REPLAY",
   "restore-writeback": "ENABLE RESTORE WRITEBACK",
   "ai-external-run": "ENABLE AI EXTERNAL RUN",
   "external-resource-load": "ENABLE EXTERNAL RESOURCES",
@@ -89,6 +90,30 @@ export const HIGH_RISK_ACTION_REGISTRY: HighRiskActionDefinition[] = [
       "Audit event",
       "Idempotent acknowledgement",
       "Rollback proof",
+    ],
+  },
+  {
+    action_id: "remote-baseline-stage-replay",
+    title: "Remote baseline disposable replay",
+    category: "sync",
+    module_surface: "/modules/sync",
+    required_phrase:
+      HIGH_RISK_CONFIRMATION_PHRASES["remote-baseline-stage-replay"],
+    coverage: "local-receipt-available",
+    can_execute_today: false,
+    disabled_endpoint: "/api/sync/replay-test",
+    local_receipt_file_prefix: "zhinote-remote-baseline-replay-confirmation",
+    risk_summary:
+      "Future disposable replay can connect to an empty disposable database to prove remote baseline stage schema, RLS isolation, cursor monotonicity, idempotency, and rollback.",
+    current_boundary:
+      "Local receipt and replay/RLS proof contract exist, but replay endpoint remains disabled and does not create databases, apply SQL, read remote data, stage rows, or upload workspace data.",
+    next_required_controls: [
+      "Empty disposable workspace fixture",
+      "Payload denylist proof",
+      "RLS isolation proof",
+      "Cursor monotonicity proof",
+      "Rollback proof",
+      "Redacted audit event",
     ],
   },
   {

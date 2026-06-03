@@ -1,5 +1,6 @@
 export type HighRiskActionId =
   | "cloud-sync-first-push"
+  | "remote-baseline-stage-replay"
   | "restore-writeback"
   | "ai-external-run"
   | "external-resource-load"

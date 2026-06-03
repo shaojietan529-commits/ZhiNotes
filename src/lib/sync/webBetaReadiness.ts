@@ -134,7 +134,7 @@ export function buildWebBetaReadinessReport(
       status: "ready",
       category: "local",
       evidence:
-        "Backup JSON, workspace ZIP, Markdown export, sync queue export, sync replay test plan export, restore rollback plan export, restore write-back contract export, permission policy export, permission decision export, account session boundary export, environment preflight export, cloud schema migration plan export, cloud migration SQL draft export, launch checklist export, contract export, and readiness export are available locally.",
+        "Backup JSON, workspace ZIP, Markdown export, sync queue export, sync replay test plan export, disposable replay confirmation receipt export, restore rollback plan export, restore write-back contract export, permission policy export, permission decision export, account session boundary export, environment preflight export, cloud schema migration plan export, cloud migration SQL draft export, launch checklist export, contract export, and readiness export are available locally.",
       nextAction:
         "Keep this as the escape hatch before any user opts into beta sync.",
     },
@@ -250,10 +250,10 @@ export function buildWebBetaReadinessReport(
       status: input.syncPayloadPreview ? "partial" : "manual-confirmation",
       category: "security",
       evidence: input.syncPayloadPreview
-        ? `A local sync payload preview is available for ${input.syncPayloadPreview.summary.pending_count} pending rows; it is metadata-only and requires confirmation.`
-        : "Cloud sync, restore, AI execution, external assets, sharing, bulk delete, and broker import are listed as explicit confirmation actions.",
+        ? `A local sync payload preview is available for ${input.syncPayloadPreview.summary.pending_count} pending rows; it is metadata-only and requires confirmation. Disposable replay also has a local confirmation receipt before any empty-data replay can run.`
+        : "Cloud sync, disposable replay, restore, AI execution, external assets, sharing, bulk delete, and broker import are listed as explicit confirmation actions.",
       nextAction:
-        "Make payload preview a required confirmation screen before enabling any cloud push.",
+        "Make payload preview and disposable replay receipt required confirmation screens before enabling cloud push or empty-data replay.",
     },
     {
       id: "environment-preflight",
@@ -337,10 +337,10 @@ export function buildWebBetaReadinessReport(
       status: input.conflictReview ? "partial" : "blocked",
       category: "conflict",
       evidence: input.conflictReview
-        ? `A local conflict review scaffold covers ${input.conflictReview.summary.surfaces} surfaces, and sync UI now keeps side-by-side review plus remote baseline request, staging, schema/cursor proof, and disposable replay/RLS proof planning local-only. It still does not read remote data or merge changes.`
+        ? `A local conflict review scaffold covers ${input.conflictReview.summary.surfaces} surfaces, and sync UI now keeps side-by-side review plus remote baseline request, staging, schema/cursor proof, disposable replay/RLS proof planning, and a disposable replay confirmation receipt local-only. It still does not read remote data or merge changes.`
         : "Conflict policies exist for pages, database rows, files, comments, permissions, and restore, but no review UI is implemented.",
       nextAction:
-        "Run disposable replay/RLS proof on empty workspace fixtures, prove rollback, and require owner confirmation before supporting multi-device editing.",
+        "Export owner confirmation, then run disposable replay/RLS proof on empty workspace fixtures, prove rollback, and require owner confirmation before supporting multi-device editing.",
     },
     {
       id: "private-file-storage",
