@@ -716,6 +716,10 @@ The first cloud phase is a private alpha, not full sync:
   launch: expected pages, disabled/gated high-risk API routes, local-only
   privacy boundaries, Cloud Alpha disabled defaults, private file storage
   disabled state, Cloudflare staging review, and Sync UI export wiring.
+- `npm run verify:replay-harness` checks the disposable replay harness safety
+  boundary: replay and apply endpoints stay disabled, fixture payload stays
+  empty, no network/database/file-write execution appears in the harness, and
+  the Sync UI keeps the harness preflight export visible.
 
 See `docs/cloud-deployment.md` for the deployment checklist.
 
@@ -742,6 +746,7 @@ npm run verify:database
 npm run verify:file-preview
 npm run verify:modules
 npm run verify:research-workflow
+npm run verify:replay-harness
 npm run verify:web-beta
 npm run verify:web-beta:smoke
 npm run build

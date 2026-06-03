@@ -133,9 +133,9 @@ function buildSmokeTestCases(
       status: "ready-to-run",
       title: "Local verification bundle",
       evidence:
-        "Run lint, verify:web-beta, and production build before any preview deployment is reviewed.",
+        "Run lint, verify:web-beta, verify:replay-harness, and production build before any preview deployment is reviewed.",
       pass_condition:
-        "npm run lint, npm run verify:web-beta, and npm run build all pass on the deployment branch.",
+        "npm run lint, npm run verify:web-beta, npm run verify:replay-harness, and npm run build all pass on the deployment branch.",
       failure_response:
         "Do not create or promote a preview deployment until the failing command is fixed and rerun.",
       privacy_boundary:

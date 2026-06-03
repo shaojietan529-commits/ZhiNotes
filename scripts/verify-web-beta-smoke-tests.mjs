@@ -139,7 +139,12 @@ function run() {
   );
 
   const scripts = packageJson.scripts ?? {};
-  for (const scriptName of ["lint", "build", "verify:web-beta"]) {
+  for (const scriptName of [
+    "lint",
+    "build",
+    "verify:web-beta",
+    "verify:replay-harness",
+  ]) {
     if (typeof scripts[scriptName] !== "string") {
       failures.push(`package.json missing script ${scriptName}`);
     }
@@ -180,7 +185,7 @@ function run() {
   assertIncludes(
     files.smokeTestPlan,
     smokeTestPlan,
-    "npm run lint, npm run verify:web-beta, and npm run build all pass",
+    "npm run lint, npm run verify:web-beta, npm run verify:replay-harness, and npm run build all pass",
     "Smoke test plan must require the local verification bundle."
   );
   assertIncludes(

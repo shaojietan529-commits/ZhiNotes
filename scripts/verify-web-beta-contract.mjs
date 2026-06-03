@@ -7,12 +7,14 @@ import process from "node:process";
 const root = process.cwd();
 
 const files = {
+  packageJson: "package.json",
   envExample: ".env.example",
   apiStubs: "src/lib/sync/webBetaApiStubs.ts",
   contract: "src/lib/sync/webBetaContract.ts",
   deploymentTarget: "src/lib/sync/webBetaDeploymentTarget.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   smokeTestVerifier: "scripts/verify-web-beta-smoke-tests.mjs",
+  replayHarnessVerifier: "scripts/verify-replay-harness-safety.mjs",
   environmentPreflight: "src/lib/sync/webBetaEnvironmentPreflight.ts",
   launchChecklist: "src/lib/sync/webBetaLaunchChecklist.ts",
   routePreflight: "src/lib/sync/webBetaRoutePreflight.ts",
@@ -168,12 +170,14 @@ function assertMigrationTables(expectedTables, migrationSql) {
 }
 
 function run() {
+  const packageJson = readProjectFile(files.packageJson);
   const envExample = readProjectFile(files.envExample);
   const apiStubs = readProjectFile(files.apiStubs);
   const contract = readProjectFile(files.contract);
   const deploymentTarget = readProjectFile(files.deploymentTarget);
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const smokeTestVerifier = readProjectFile(files.smokeTestVerifier);
+  const replayHarnessVerifier = readProjectFile(files.replayHarnessVerifier);
   const environmentPreflight = readProjectFile(files.environmentPreflight);
   const launchChecklist = readProjectFile(files.launchChecklist);
   const routePreflight = readProjectFile(files.routePreflight);
@@ -206,12 +210,14 @@ function run() {
   assertAllPresent(".env.example", requiredEnvKeys, envExampleKeys);
 
   for (const [label, source] of [
+    [files.packageJson, packageJson],
     [files.envExample, envExample],
     [files.apiStubs, apiStubs],
     [files.contract, contract],
     [files.deploymentTarget, deploymentTarget],
     [files.smokeTestPlan, smokeTestPlan],
     [files.smokeTestVerifier, smokeTestVerifier],
+    [files.replayHarnessVerifier, replayHarnessVerifier],
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
     [files.routePreflight, routePreflight],
@@ -231,6 +237,53 @@ function run() {
     [files.syncShell, syncShell],
   ]) {
     assertNoLegacySingularEnv(source, label);
+  }
+
+  for (const [file, source, snippet, message] of [
+    [
+      files.packageJson,
+      packageJson,
+      '"verify:replay-harness": "node scripts/verify-replay-harness-safety.mjs"',
+      "Package scripts must expose replay harness safety verification.",
+    ],
+    [
+      files.smokeTestPlan,
+      smokeTestPlan,
+      "npm run verify:replay-harness",
+      "Smoke test plan must require replay harness safety verification.",
+    ],
+    [
+      files.smokeTestVerifier,
+      smokeTestVerifier,
+      '"verify:replay-harness"',
+      "Smoke verifier must check replay harness safety script presence.",
+    ],
+    [
+      files.replayHarnessVerifier,
+      replayHarnessVerifier,
+      "Replay harness safety verification passed",
+      "Replay harness verifier must expose a clear pass signal.",
+    ],
+    [
+      files.replayHarnessVerifier,
+      replayHarnessVerifier,
+      "Local harness and fixture must not start network calls.",
+      "Replay harness verifier must block network execution in harness and fixture.",
+    ],
+    [
+      files.replayHarnessVerifier,
+      replayHarnessVerifier,
+      "Local harness and fixture must not read secrets or env values.",
+      "Replay harness verifier must block env/secret reads in harness and fixture.",
+    ],
+    [
+      files.replayHarnessVerifier,
+      replayHarnessVerifier,
+      "Replay route must remain a disabled Web Beta stub.",
+      "Replay harness verifier must keep replay route disabled.",
+    ],
+  ]) {
+    assertSourceIncludes(file, source, snippet, message);
   }
 
   const apiStubRows = extractApiStubs(apiStubs);
@@ -2043,7 +2096,8 @@ function run() {
     link_proof_contract_checks: 7,
     deployment_target_checks: 16,
     smoke_test_plan_checks: 16,
-    smoke_test_verifier_checks: 3,
+    smoke_test_verifier_checks: 4,
+    replay_harness_safety_script_checks: 7,
     conflict_resolution_checks: 50,
     remote_baseline_checks: 43,
     remote_baseline_staging_checks: 49,
