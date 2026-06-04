@@ -13,6 +13,8 @@ const STORAGE_KEY = "zhinote.filePreview.actionReceipts";
 const MAX_RECEIPTS = 100;
 
 export type FilePreviewActionKind =
+  | "native-preview"
+  | "download-retain"
   | "editable-import"
   | "database-import"
   | "external-resource-enable"
@@ -92,7 +94,9 @@ export function buildFilePreviewActionReceipt(
   input: FilePreviewActionReceiptInput
 ): FilePreviewActionReceipt {
   const writesPageContent =
-    input.writes_page_content ?? input.action_kind === "editable-import";
+    input.writes_page_content ??
+    (input.action_kind === "editable-import" ||
+      input.action_kind === "native-preview");
   const createsDatabase =
     input.creates_database ?? input.action_kind === "database-import";
   const createsDatabaseRows =

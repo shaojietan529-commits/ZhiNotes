@@ -332,6 +332,12 @@ for written notes; spreadsheets become local database candidates only after
 typed confirmation; original files remain attached in local browser storage for
 auditability.
 
+Uploading a report file into the Reports module now creates a metadata-only
+local file action receipt for the native page preview path, or for download
+retention when the file can only be kept locally. The receipt does not include
+the file name, file bytes, extracted text, page body text, spreadsheet values,
+tokens, or credentials.
+
 HTML report previews block external resources by default. A user must type the
 local external-resource confirmation phrase before enabling remote images,
 scripts, styles, frames, fonts, media, or network endpoints for a trusted HTML
@@ -870,6 +876,9 @@ npm run build
 The current app is local-first:
 
 - Uploaded files are stored in local browser storage.
+- Report uploads create local metadata-only native-preview or download-retain
+  receipts without file names, file bytes, extracted text, page body text, or
+  spreadsheet values.
 - HTML report previews block external resources by default.
 - HTML external resources require a typed local confirmation receipt before
   they can be enabled for a trusted preview.

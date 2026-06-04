@@ -979,6 +979,8 @@ function getFileKindLabel(kind: PageFileKind) {
 
 function getFilePreviewActionLabel(actionKind: FilePreviewActionKind) {
   const labels: Record<FilePreviewActionKind, string> = {
+    "native-preview": "本地原生预览",
+    "download-retain": "本地留存下载",
     "editable-import": "导入为可编辑块",
     "database-import": "导入为数据库",
     "external-resource-enable": "开启 HTML 外部资源",

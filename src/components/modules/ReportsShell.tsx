@@ -276,6 +276,20 @@ function ReportsDashboard() {
       await updatePage(page.id, {
         content_text: createReportPageContent(storedFile),
       });
+      appendFilePreviewActionReceipt(
+        buildFilePreviewActionReceipt({
+          file: storedFile,
+          action_kind: getReportFileReceiptActionKind(storedFile),
+          source_surface: "reports-module",
+          writes_page_content: true,
+          confirmation_required: false,
+          confirmation_matched: true,
+          note:
+            storedFile.kind === "archive"
+              ? "Report file retained locally from the Reports module with download access."
+              : "Report file created from the Reports module as a local page preview.",
+        })
+      );
       await refresh();
       router.push(`/page/${page.id}`);
     } catch (err) {
@@ -1294,7 +1308,7 @@ function ReportsDashboard() {
                 文件动作 receipts
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                本地记录最近的文件导入、表格入库和 HTML 外部资源开关动作。
+                本地记录最近的报告页面预览、文件留存、文件导入、表格入库和 HTML 外部资源开关动作。
                 receipt 只保存动作元数据，不保存文件名、正文、bytes、表格值、token 或凭证。
               </p>
             </div>
@@ -1309,11 +1323,21 @@ function ReportsDashboard() {
               {exportingFileActionReceipts ? "导出中..." : "导出 receipts"}
             </button>
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-5">
+          <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
             <IntakeMetric
               label="总数"
               value={fileActionReceiptSummary.total}
               detail="Local"
+            />
+            <IntakeMetric
+              label="页面预览"
+              value={fileActionReceiptSummary.native_preview}
+              detail="Page"
+            />
+            <IntakeMetric
+              label="下载留存"
+              value={fileActionReceiptSummary.download_retain}
+              detail="Retain"
             />
             <IntakeMetric
               label="可编辑导入"
@@ -1330,11 +1354,6 @@ function ReportsDashboard() {
               value={fileActionReceiptSummary.external_resource_changes}
               detail="HTML"
             />
-            <IntakeMetric
-              label="敏感内容"
-              value={0}
-              detail="Excluded"
-            />
           </div>
           {fileActionReceipts.length > 0 ? (
             <div className="mt-4 grid gap-2 lg:grid-cols-2">
@@ -1347,7 +1366,7 @@ function ReportsDashboard() {
             </div>
           ) : (
             <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有文件动作 receipt。上传文件后，在 page 里执行“导入为可编辑块”、
+              还没有文件动作 receipt。上传报告文件、导入 Markdown、在 page 里执行“导入为可编辑块”、
               “导入为数据库”或切换 HTML 外部资源，这里会自动出现本地记录。
             </p>
           )}
@@ -2348,12 +2367,18 @@ function FileActionReceiptPill({
 }: {
   actionKind: FilePreviewActionKind;
 }) {
-  const className =
-    actionKind === "database-import"
-      ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-      : actionKind === "editable-import"
-        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-        : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  let className =
+    "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  if (actionKind === "native-preview") {
+    className =
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  } else if (actionKind === "download-retain") {
+    className = "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+  } else if (actionKind === "database-import") {
+    className = "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+  } else if (actionKind === "editable-import") {
+    className = "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300";
+  }
 
   return (
     <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
@@ -2418,6 +2443,12 @@ function countCapabilities(level: FilePreviewSupportLevel) {
 function summarizeFileActionReceipts(receipts: FilePreviewActionReceipt[]) {
   return {
     total: receipts.length,
+    native_preview: receipts.filter(
+      (receipt) => receipt.action_kind === "native-preview"
+    ).length,
+    download_retain: receipts.filter(
+      (receipt) => receipt.action_kind === "download-retain"
+    ).length,
     editable_import: receipts.filter(
       (receipt) => receipt.action_kind === "editable-import"
     ).length,
@@ -2432,12 +2463,20 @@ function summarizeFileActionReceipts(receipts: FilePreviewActionReceipt[]) {
 
 function getFileActionLabel(actionKind: FilePreviewActionKind) {
   const labels: Record<FilePreviewActionKind, string> = {
+    "native-preview": "本地原生预览",
+    "download-retain": "本地留存下载",
     "editable-import": "导入为可编辑块",
     "database-import": "导入为数据库",
     "external-resource-enable": "开启 HTML 外部资源",
     "external-resource-disable": "关闭 HTML 外部资源",
   };
   return labels[actionKind];
+}
+
+function getReportFileReceiptActionKind(
+  file: Pick<StoredPageFile, "kind">
+): FilePreviewActionKind {
+  return file.kind === "archive" ? "download-retain" : "native-preview";
 }
 
 function formatReceiptDate(value: string) {

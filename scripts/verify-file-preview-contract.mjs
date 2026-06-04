@@ -562,6 +562,8 @@ function run() {
     "listFilePreviewActionReceipts",
     "FILE_PREVIEW_ACTION_RECEIPT_EVENT",
     '"reports-module"',
+    '"native-preview"',
+    '"download-retain"',
     '"editable-import"',
     '"database-import"',
     '"external-resource-enable"',
@@ -713,6 +715,11 @@ function run() {
     "history_status: \"local-metadata-only\"",
     "不保存文件名、正文、bytes、表格值、token 或凭证",
     "summarizeFileActionReceipts",
+    "native_preview",
+    "download_retain",
+    "getReportFileReceiptActionKind",
+    "本地原生预览",
+    "本地留存下载",
     "FileActionReceiptCard",
   ]) {
     assertIncludes(
@@ -724,7 +731,9 @@ function run() {
   }
   for (const snippet of [
     "MARKDOWN_EDITABLE_IMPORT_LABEL",
+    "REPORT_FILE_ACTION_LABEL",
     "MARKDOWN_EDITABLE_IMPORT_ACCEPT",
+    "handleReportFileSelected",
     "handleChooseMarkdownImport",
     "handleMarkdownFileSelected",
     "createMarkdownImportedPageContent",
@@ -749,6 +758,8 @@ function run() {
     "最近文件动作 receipt",
     "导出动作 receipt",
     "不含文件名、正文、bytes 或表格值",
+    '"native-preview"',
+    '"download-retain"',
     '"editable-import"',
     '"database-import"',
     '"external-resource-enable"',
@@ -785,7 +796,7 @@ function run() {
         format_coverage_gates: 7,
         conversion_review_gates: 6,
         readiness_gates: 6,
-        action_receipt_kinds: 4,
+        action_receipt_kinds: 6,
         local_only: true,
       },
       null,
