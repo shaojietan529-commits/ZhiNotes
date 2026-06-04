@@ -2609,6 +2609,18 @@ function SyncDashboard() {
     }
   };
 
+  const handleWebLaunchStepOpen = (
+    step: WebLaunchWorkbenchPacket["launch_sequence"][number]
+  ) => {
+    if (step.route === "/modules/sync") {
+      document
+        .getElementById(step.target_section_id)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    router.push(step.route);
+  };
+
   const handleExportAuditTrailPolicy = () => {
     setBusyContractAction("audit-policy");
     try {
@@ -2859,7 +2871,10 @@ function SyncDashboard() {
           ))}
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="web-launch-workbench"
+          className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -2976,7 +2991,11 @@ function SyncDashboard() {
             </div>
             <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               {webLaunchWorkbenchPacket.launch_sequence.map((step) => (
-                <WebLaunchSequenceCard key={step.order} step={step} />
+                <WebLaunchSequenceCard
+                  key={step.order}
+                  step={step}
+                  onOpen={handleWebLaunchStepOpen}
+                />
               ))}
             </div>
           </div>
@@ -2987,7 +3006,10 @@ function SyncDashboard() {
           </p>
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="web-beta-stage-gate"
+          className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -5549,7 +5571,11 @@ function SyncDashboard() {
             )}
           </ContractPanel>
 
-          <ContractPanel title="Deployment target" className="mt-4">
+          <ContractPanel
+            id="web-beta-deployment-target"
+            title="Deployment target"
+            className="mt-4"
+          >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 Local deployment target for the first Web Alpha. It keeps
@@ -5990,7 +6016,11 @@ function SyncDashboard() {
             </div>
           </ContractPanel>
 
-          <ContractPanel title="Web Beta owner review packet" className="mt-4">
+          <ContractPanel
+            id="web-beta-owner-review"
+            title="Web Beta owner review packet"
+            className="mt-4"
+          >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 Local owner-review rehearsal for the private Web Beta decision.
@@ -7280,8 +7310,10 @@ function WebLaunchActionCard({
 
 function WebLaunchSequenceCard({
   step,
+  onOpen,
 }: {
   step: WebLaunchWorkbenchPacket["launch_sequence"][number];
+  onOpen: (step: WebLaunchWorkbenchPacket["launch_sequence"][number]) => void;
 }) {
   return (
     <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
@@ -7302,6 +7334,13 @@ function WebLaunchSequenceCard({
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         {step.completion_signal}
       </p>
+      <button
+        type="button"
+        onClick={() => onOpen(step)}
+        className="mt-3 rounded-md border border-zinc-200 px-2 py-1 text-[10px] font-medium text-zinc-600 transition-colors hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-950"
+      >
+        打开步骤
+      </button>
     </article>
   );
 }
@@ -11843,16 +11882,19 @@ function BetaStatusPill({ status }: { status: WebBetaReadinessStatus }) {
 }
 
 function ContractPanel({
+  id,
   title,
   className = "",
   children,
 }: {
+  id?: string;
   title: string;
   className?: string;
   children: ReactNode;
 }) {
   return (
     <div
+      id={id}
       className={`rounded-md border border-zinc-100 p-3 dark:border-zinc-800 ${className}`}
     >
       <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">

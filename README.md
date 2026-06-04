@@ -1074,6 +1074,8 @@ Current local actions:
   upload workspace data, enable sync, enable AI, read page bodies, read database
   row values, read file names, read file bytes, expose secrets, or export
   holdings/trading plans.
+  Its launch sequence cards can also jump to the matching review sections:
+  stage gate, deployment target, and owner review.
 - Run `npm run verify:web-alpha` to execute the local Web Alpha verification
   command bundle and print a receipt. The receipt runs lint, Web Beta contract
   verification, smoke verification, replay harness safety verification, and a

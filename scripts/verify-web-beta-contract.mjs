@@ -2290,6 +2290,22 @@ function run() {
       "Web launch workbench must read route preflight summary.",
     ],
     [
+      "target_section_id",
+      "Web launch workbench launch sequence must carry target section ids.",
+    ],
+    [
+      "web-beta-stage-gate",
+      "Web launch workbench must route P0 blockers to the stage gate section.",
+    ],
+    [
+      "web-beta-deployment-target",
+      "Web launch workbench must route deployment steps to the deployment target section.",
+    ],
+    [
+      "web-beta-owner-review",
+      "Web launch workbench must route owner approval to the owner review section.",
+    ],
+    [
       "reads_page_body_text: false",
       "Web launch workbench must not read page body text.",
     ],
@@ -2436,6 +2452,34 @@ function run() {
     [
       "WebLaunchSequenceCard",
       "Sync UI must include a launch sequence component.",
+    ],
+    [
+      "handleWebLaunchStepOpen",
+      "Sync UI must open Web launch sequence steps.",
+    ],
+    [
+      "scrollIntoView",
+      "Sync UI must scroll same-page Web launch steps to their target sections.",
+    ],
+    [
+      "打开步骤",
+      "Sync UI must expose Web launch step open buttons.",
+    ],
+    [
+      'id="web-launch-workbench"',
+      "Sync UI must expose a stable Web launch workbench section id.",
+    ],
+    [
+      'id="web-beta-stage-gate"',
+      "Sync UI must expose a stable stage gate section id.",
+    ],
+    [
+      "web-beta-deployment-target",
+      "Sync UI must expose a stable deployment target section id.",
+    ],
+    [
+      "web-beta-owner-review",
+      "Sync UI must expose a stable owner review section id.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
@@ -5038,7 +5082,7 @@ function run() {
     permission_server_test_matrix_checks: 32,
     permission_server_readiness_checks: 29,
     web_beta_stage_gate_checks: 35,
-    web_launch_workbench_checks: 62,
+    web_launch_workbench_checks: 73,
     web_alpha_launch_decision_checks: 39,
     web_beta_owner_review_packet_checks: 40,
     warnings: warnings.length,

@@ -143,6 +143,7 @@ export interface WebLaunchWorkbenchPacket {
     title: string;
     status: WebBetaStageGateStatus;
     route: string;
+    target_section_id: string;
     evidence: string;
     completion_signal: string;
   }>;
@@ -452,6 +453,7 @@ function buildLaunchSequence(input: {
       title: "继续本地优先工作",
       status: "ready" as const,
       route: "/modules",
+      target_section_id: "module-hub",
       evidence:
         "Local app can continue now; notes, modules, backups, and local planning reports remain usable.",
       completion_signal:
@@ -465,6 +467,7 @@ function buildLaunchSequence(input: {
           ? ("blocked" as const)
           : ("manual-confirmation" as const),
       route: "/modules/sync",
+      target_section_id: "web-beta-stage-gate",
       evidence: `${input.stageGate.summary.p0_blockers} P0 blockers and ${input.stageGate.summary.blocked} blocked stage gates remain.`,
       completion_signal:
         "Auth/session、cloud schema、sync、restore、permission、audit、environment 和 route gates 有证据通过。",
@@ -477,6 +480,7 @@ function buildLaunchSequence(input: {
           ? ("blocked" as const)
           : ("manual-confirmation" as const),
       route: "/modules/sync",
+      target_section_id: "web-beta-deployment-target",
       evidence: `First target is ${input.deploymentTarget.selected_strategy.first_web_alpha}; ${input.deploymentTarget.summary.blocked} deployment tracks remain blocked.`,
       completion_signal:
         "Vercel/Supabase/Cloudflare 角色、环境变量、preview origin、rollback 和 smoke tests 完成 owner review。",
@@ -486,6 +490,7 @@ function buildLaunchSequence(input: {
       title: "Owner 批准 Web Beta 和云同步",
       status: "blocked" as const,
       route: "/modules/sync",
+      target_section_id: "web-beta-owner-review",
       evidence: `Web Beta launch is false; cloud sync opt-in has ${input.syncOptInGate.summary.blocked} blocked gates and can_start_cloud_sync is false.`,
       completion_signal:
         "Owner 明确批准 Web Beta、cloud sync first push、外部用户邀请和数据上传边界。",
