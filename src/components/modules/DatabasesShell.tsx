@@ -22,6 +22,11 @@ import {
   type DatabaseTemplateCatalogReport,
 } from "@/lib/database/databaseTemplateCatalog";
 import {
+  buildDatabaseTemplateRowReadinessReport,
+  type DatabaseTemplateRowReadinessReport,
+  type DatabaseTemplateRowReadinessStatus,
+} from "@/lib/database/databaseTemplateRowReadiness";
+import {
   buildDatabaseViewReadinessReport,
   type DatabaseViewReadinessReport,
   type DatabaseViewReadinessStatus,
@@ -71,6 +76,8 @@ function DatabasesDashboard() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingDashboard, setExportingDashboard] = useState(false);
   const [exportingViewReadiness, setExportingViewReadiness] = useState(false);
+  const [exportingTemplateReadiness, setExportingTemplateReadiness] =
+    useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
@@ -121,6 +128,10 @@ function DatabasesDashboard() {
   );
   const viewReadiness = useMemo(
     () => buildDatabaseViewReadinessReport(snapshots),
+    [snapshots]
+  );
+  const templateRowReadiness = useMemo(
+    () => buildDatabaseTemplateRowReadinessReport(snapshots),
     [snapshots]
   );
   const starterModules = useMemo(
@@ -200,6 +211,27 @@ function DatabasesDashboard() {
     }
   };
 
+  const handleExportTemplateReadiness = () => {
+    setExportingTemplateReadiness(true);
+    try {
+      downloadJsonFile(
+        `zhinote-database-template-row-readiness-${fileSafeTimestamp()}.json`,
+        {
+          ...templateRowReadiness,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export database template row readiness:",
+        err
+      );
+      window.alert("模板行 readiness 导出失败，请查看控制台。");
+    } finally {
+      setExportingTemplateReadiness(false);
+    }
+  };
+
   return (
     <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -257,6 +289,13 @@ function DatabasesDashboard() {
         </section>
 
         <TemplateCatalogPanel catalog={templateCatalog} />
+
+        <TemplateRowReadinessPanel
+          report={templateRowReadiness}
+          exporting={exportingTemplateReadiness}
+          onExport={handleExportTemplateReadiness}
+          onOpen={(databaseId) => router.push(`/database/${databaseId}`)}
+        />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -610,6 +649,190 @@ function CatalogMetric({ label, value }: { label: string; value: number }) {
         {value}
       </div>
     </div>
+  );
+}
+
+function TemplateRowReadinessPanel({
+  report,
+  exporting,
+  onExport,
+  onOpen,
+}: {
+  report: DatabaseTemplateRowReadinessReport;
+  exporting: boolean;
+  onExport: () => void;
+  onOpen: (databaseId: string) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            模板行 readiness
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            按公司、报告、会议和组合模板检查每个数据库是否具备推荐字段。
+            这个报告只读 template metadata、schema、view metadata 和 row count，
+            不包含 field names、row values 或页面正文。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={exporting}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {exporting ? "导出中..." : "导出模板行 readiness"}
+        </button>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <Metric label="模板组" value={report.summary.template_groups} />
+        <Metric label="模板行" value={report.summary.template_rows} />
+        <Metric label="Ready" value={report.summary.ready_items} />
+        <Metric label="Partial" value={report.summary.partial_items} />
+        <Metric label="需补 schema" value={report.summary.needs_schema_items} />
+        <Metric label="缺 Relation" value={report.summary.missing_relation_requirements} />
+        <Metric label="缺 Status" value={report.summary.missing_status_requirements} />
+        <Metric label="缺 Date" value={report.summary.missing_date_requirements} />
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            Template-row gates
+          </div>
+          {report.gates.map((gate) => (
+            <TemplateRowGateRow key={gate.id} gate={gate} />
+          ))}
+        </div>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            数据库模板建议
+          </div>
+          {report.databases.length > 0 ? (
+            <div className="grid gap-2 md:grid-cols-2">
+              {report.databases.map((database) => (
+                <TemplateRowDatabaseCard
+                  key={database.database_id}
+                  database={database}
+                  onOpen={() => onOpen(database.database_id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+              还没有数据库。创建 tracker 后，这里会判断它适合哪些模板行。
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TemplateRowGateRow({
+  gate,
+}: {
+  gate: DatabaseTemplateRowReadinessReport["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+        </div>
+        <StepStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function TemplateRowDatabaseCard({
+  database,
+  onOpen,
+}: {
+  database: DatabaseTemplateRowReadinessReport["databases"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {database.title}
+          </h3>
+          <p className="mt-1 text-zinc-400">
+            {database.field_count} fields · {database.row_count} rows
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开
+        </button>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-1">
+        {database.recommended_status && (
+          <TemplateRowStatusPill status={database.recommended_status} />
+        )}
+        {database.recommended_group_label && (
+          <Chip label={`推荐 ${database.recommended_group_label}`} />
+        )}
+        {database.ready_group_ids.length > 0 && (
+          <Chip label={`Ready ${database.ready_group_ids.length}`} />
+        )}
+        {database.partial_group_ids.length > 0 && (
+          <Chip label={`Partial ${database.partial_group_ids.length}`} />
+        )}
+        {database.needs_schema_group_ids.length > 0 && (
+          <Chip label={`需补 ${database.needs_schema_group_ids.length}`} />
+        )}
+      </div>
+      {database.missing_required_field_groups.length > 0 && (
+        <p className="mt-3 rounded-md bg-amber-50 px-2 py-1.5 leading-5 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          缺口：{database.missing_required_field_groups.join("、")}
+        </p>
+      )}
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {database.next_action}
+      </p>
+    </article>
+  );
+}
+
+function TemplateRowStatusPill({
+  status,
+}: {
+  status: DatabaseTemplateRowReadinessStatus;
+}) {
+  const labels: Record<DatabaseTemplateRowReadinessStatus, string> = {
+    ready: "Ready",
+    partial: "Partial",
+    "needs-schema": "需补 schema",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "partial"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

@@ -12,6 +12,8 @@ const files = {
   databaseModuleRoute: "src/app/(workspace)/modules/databases/page.tsx",
   databaseModuleDashboard: "src/lib/database/databaseModuleDashboard.ts",
   databaseTemplateCatalog: "src/lib/database/databaseTemplateCatalog.ts",
+  databaseTemplateRowReadiness:
+    "src/lib/database/databaseTemplateRowReadiness.ts",
   databaseViewReadiness: "src/lib/database/databaseViewReadiness.ts",
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
@@ -75,6 +77,9 @@ function run() {
   const databaseModuleRoute = readProjectFile(files.databaseModuleRoute);
   const databaseModuleDashboard = readProjectFile(files.databaseModuleDashboard);
   const databaseTemplateCatalog = readProjectFile(files.databaseTemplateCatalog);
+  const databaseTemplateRowReadiness = readProjectFile(
+    files.databaseTemplateRowReadiness
+  );
   const databaseViewReadiness = readProjectFile(files.databaseViewReadiness);
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
@@ -278,6 +283,59 @@ function run() {
     "buildDatabaseViewReadinessReport",
     "Database view readiness must expose a reusable builder."
   );
+  assertIncludes(
+    files.databaseTemplateRowReadiness,
+    databaseTemplateRowReadiness,
+    'format: "zhinote-database-template-row-readiness"',
+    "Database template row readiness must define a stable local export format."
+  );
+  assertIncludes(
+    files.databaseTemplateRowReadiness,
+    databaseTemplateRowReadiness,
+    "buildDatabaseTemplateRowReadinessReport",
+    "Database template row readiness must expose a reusable builder."
+  );
+  for (const snippet of [
+    'report_status: "local-template-row-schema-only"',
+    "TEMPLATE_ROW_REQUIREMENTS",
+    "reads_template_metadata: true",
+    "reads_database_schema: true",
+    "reads_database_views: true",
+    "reads_database_row_count: true",
+    "reads_database_rows: false",
+    "reads_database_row_values: false",
+    "reads_page_text: false",
+    "includes_database_field_names: false",
+    "includes_database_row_values: false",
+    "includes_page_text: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    '"ready"',
+    '"partial"',
+    '"needs-schema"',
+    '"template-row-schema-map"',
+    '"template-row-ready-groups"',
+    '"relation-backed-templates"',
+    '"recommended-database-fit"',
+    '"local-row-write-boundary"',
+  ]) {
+    assertIncludes(
+      files.databaseTemplateRowReadiness,
+      databaseTemplateRowReadiness,
+      snippet,
+      "Database template row readiness must preserve schema-only boundaries and gates."
+    );
+  }
+  for (const groupId of ["company", "report", "meeting", "portfolio"]) {
+    assertIncludes(
+      files.databaseTemplateRowReadiness,
+      databaseTemplateRowReadiness,
+      `group_id: "${groupId}"`,
+      `Database template row readiness must include ${groupId}.`
+    );
+  }
   for (const snippet of [
     'report_status: "local-view-readiness-only"',
     "DATABASE_VIEW_READINESS_REQUIREMENTS",
@@ -358,6 +416,26 @@ function run() {
     "buildDatabaseViewReadinessReport",
     "Databases module UI must build the view readiness report."
   );
+  assertIncludes(
+    files.databaseModuleShell,
+    databaseModuleShell,
+    "buildDatabaseTemplateRowReadinessReport",
+    "Databases module UI must build the template row readiness report."
+  );
+  for (const snippet of [
+    "模板行 readiness",
+    "导出模板行 readiness",
+    "TemplateRowReadinessPanel",
+    "TemplateRowDatabaseCard",
+    "不包含 field names、row values 或页面正文",
+  ]) {
+    assertIncludes(
+      files.databaseModuleShell,
+      databaseModuleShell,
+      snippet,
+      "Databases module UI must render and export template row readiness."
+    );
+  }
   for (const snippet of [
     "视图适配 readiness",
     "导出视图 readiness",
@@ -493,6 +571,7 @@ function run() {
         direct_spreadsheet_import: true,
         spreadsheet_import_requires_confirmation: true,
         view_readiness_gates: 6,
+        template_row_readiness: true,
       },
       null,
       2

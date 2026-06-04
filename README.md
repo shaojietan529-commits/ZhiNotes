@@ -161,13 +161,17 @@ Current local actions:
   template-row readiness, export readiness, and row counts.
 - Review coverage for table, list, kanban, calendar, gallery, timeline, chart,
   form, and feed views.
+- Review and export local template-row readiness. The report checks whether
+  each database has the recommended field groups for company, report, meeting,
+  and portfolio template rows before the user creates rows in a database page.
 - Open any local database from the module list.
 
-The database module dashboard reads schema, view metadata, and row counts only.
-It does not read database row values, page bodies, file bytes, prompts, tokens,
-cloud data, or private research content. CSV/XLSX exports remain inside the
-individual database page because those exports intentionally include current
-visible row values.
+The database module dashboard and readiness reports read schema, view metadata,
+template metadata, and row counts only. They do not read database row values,
+page bodies, file bytes, prompts, tokens, cloud data, or private research
+content; template-row readiness also does not export database field names.
+CSV/XLSX exports remain inside the individual database page because those
+exports intentionally include current visible row values.
 
 ## Database Relations
 
