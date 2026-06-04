@@ -33,6 +33,8 @@ const files = {
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
   auditEventEnvelope: "src/lib/security/auditEventEnvelope.ts",
+  auditEventsApiStub: "src/lib/security/auditEventsApiStub.ts",
+  auditEventsRoute: "src/app/api/audit/events/route.ts",
   permissionCheckEnvelope: "src/lib/security/permissionCheckEnvelope.ts",
   permissionCheckApiStub: "src/lib/security/permissionCheckApiStub.ts",
   permissionCheckRequestValidator:
@@ -225,6 +227,8 @@ function run() {
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
   const auditEventEnvelope = readProjectFile(files.auditEventEnvelope);
+  const auditEventsApiStub = readProjectFile(files.auditEventsApiStub);
+  const auditEventsRoute = readProjectFile(files.auditEventsRoute);
   const permissionCheckEnvelope = readProjectFile(files.permissionCheckEnvelope);
   const permissionCheckApiStub = readProjectFile(files.permissionCheckApiStub);
   const permissionCheckRequestValidator = readProjectFile(
@@ -272,6 +276,7 @@ function run() {
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
     [files.auditEventEnvelope, auditEventEnvelope],
+    [files.auditEventsApiStub, auditEventsApiStub],
     [files.permissionCheckEnvelope, permissionCheckEnvelope],
     [files.permissionCheckApiStub, permissionCheckApiStub],
     [files.permissionCheckRequestValidator, permissionCheckRequestValidator],
@@ -354,6 +359,12 @@ function run() {
       assertRouteGuard(
         routeFile,
         "buildFilePresignApiDisabledResponse",
+        routeLabel
+      );
+    } else if (stub.id === "audit-events") {
+      assertRouteGuard(
+        routeFile,
+        "buildAuditEventsApiDisabledResponse",
         routeLabel
       );
     } else if (stub.id === "permission-check") {
@@ -589,6 +600,163 @@ function run() {
   ]) {
     assertSourceIncludes(files.auditEventEnvelope, auditEventEnvelope, snippet, message);
   }
+  assertSourceIncludes(
+    files.auditEventsApiStub,
+    auditEventsApiStub,
+    'format: "zhinote-audit-events-api-disabled"',
+    "Audit events API guard must expose a stable disabled response format."
+  );
+  assertSourceIncludes(
+    files.auditEventsApiStub,
+    auditEventsApiStub,
+    "buildAuditEventsApiDisabledResponse",
+    "Audit events API guard must expose a reusable disabled response builder."
+  );
+  for (const [snippet, message] of [
+    ['api_id: "audit-events"', "Audit events API guard must identify the audit-events route."],
+    ['path: "/api/audit/events"', "Audit events API guard must bind to /api/audit/events."],
+    ['method: "POST"', "Audit events API guard must document POST."],
+    ['stub_status: "disabled-local-stub"', "Audit events API guard must stay disabled."],
+    ["can_record_server_audit_events_now: false", "Audit events API guard must not record server audit events."],
+    ["can_read_request_body_now: false", "Audit events API guard must not read request bodies."],
+    ["can_read_event_payload_now: false", "Audit events API guard must not read event payloads."],
+    ["can_write_audit_events_table_now: false", "Audit events API guard must not write audit_events."],
+    ["can_write_server_audit_log_now: false", "Audit events API guard must not write server audit logs."],
+    ["can_read_page_body_text_now: false", "Audit events API guard must not read page text."],
+    ["can_read_database_values_now: false", "Audit events API guard must not read database values."],
+    ["can_read_file_bytes_now: false", "Audit events API guard must not read file bytes."],
+    ["can_read_prompt_text_now: false", "Audit events API guard must not read prompts."],
+    ["can_upload_workspace_data_now: false", "Audit events API guard must not upload workspace data."],
+    ["can_expose_secret_values_now: false", "Audit events API guard must not expose secrets."],
+    ["no_request_argument: true", "Audit events API guard must not accept a request argument."],
+    ["reads_request_body: false", "Audit events API guard must keep body reads disabled."],
+    ["metadata_only_request: true", "Audit events API guard must keep the future request metadata-only."],
+    ["accepts_event_payload: false", "Audit events API guard must not accept event payloads now."],
+    ["executes_actions: false", "Audit events API guard must not execute actions."],
+    ["writes_audit_events_table: false", "Audit events API guard must not write audit_events table."],
+    ["writes_server_audit_log: false", "Audit events API guard must not write server logs."],
+    ["writes_workspace_data: false", "Audit events API guard must not write workspace data."],
+    ["uploads_workspace_data: false", "Audit events API guard must not upload workspace data."],
+    ["reads_block_text: false", "Audit events API guard must not read block text."],
+    ["reads_database_row_values: false", "Audit events API guard must not read database row values."],
+    ["reads_comment_bodies: false", "Audit events API guard must not read comment bodies."],
+    ["reads_backup_payload: false", "Audit events API guard must not read backups."],
+    ["reads_model_raw_output: false", "Audit events API guard must not read raw AI output."],
+    ["reads_secret_values: false", "Audit events API guard must not read secrets."],
+    ["records_signed_urls: false", "Audit events API guard must not record signed URLs."],
+    ["requires_authenticated_actor_before_enablement: true", "Audit events API guard must require authenticated actors."],
+    ["requires_workspace_membership_before_enablement: true", "Audit events API guard must require workspace membership."],
+    ["requires_permission_decision_before_enablement: true", "Audit events API guard must require permission decision linkage."],
+    ["requires_redaction_before_enablement: true", "Audit events API guard must require redaction."],
+    ["requires_retention_policy_before_enablement: true", "Audit events API guard must require retention policy."],
+    ["requires_tamper_resistant_storage_before_enablement: true", "Audit events API guard must require tamper-resistant storage."],
+    ["requires_owner_audit_export_before_enablement: true", "Audit events API guard must require owner audit export."],
+    ['schema_status: "planned-metadata-only"', "Audit events API guard must expose metadata-only request schema."],
+    ['schema_status: "planned-receipt-only"', "Audit events API guard must expose receipt-only response schema."],
+    ["http_status: 501", "Audit events API guard must keep the disabled HTTP status explicit."],
+    ["returns_recorded_event_id: false", "Audit events API guard must not return a recorded event id now."],
+    ["returns_audit_payload: false", "Audit events API guard must not return audit payloads."],
+    ["returns_sensitive_payload: false", "Audit events API guard must not return sensitive payloads."],
+    ["writes_audit_event: false", "Audit events API guard must not write events."],
+  ]) {
+    assertSourceIncludes(files.auditEventsApiStub, auditEventsApiStub, snippet, message);
+  }
+  for (const snippet of [
+    "buildWebBetaApiStubResponse(\"audit-events\")",
+    "workspace_id",
+    "actor_user_id",
+    "device_id",
+    "event_type",
+    "resource_type",
+    "resource_id",
+    "operation_status",
+    "metadata_counts",
+    "metadata_hashes",
+    "changed_field_names",
+    "permission_decision_id",
+    "confirmation_receipt_id",
+    "redaction_profile",
+    "retention_class",
+    "client_event_id",
+    "occurred_at",
+    "page_body_text",
+    "block_text",
+    "database_cell_values",
+    "comment_body",
+    "file_bytes",
+    "backup_payload",
+    "prompt_text",
+    "model_raw_output",
+    "token",
+    "cookie",
+    "password",
+    "secret_values",
+    "signed_upload_url",
+    "signed_download_url",
+    "public_url",
+    "raw_request_body",
+    "environment_value",
+    "local_file_path",
+    "sql_text",
+    'format: "zhinote-audit-events-api-validator-fixtures"',
+    'validator_status: "not-executing-route"',
+    '"metadata-sync-event"',
+    '"high-risk-confirmation-event"',
+    '"page-text-blocked"',
+    '"file-backup-bytes-blocked"',
+    '"ai-payload-blocked"',
+    '"secret-url-blocked"',
+    '"authenticated-actor"',
+    '"workspace-membership"',
+    '"metadata-only-schema-validation"',
+    '"permission-decision-link"',
+    '"retention-policy"',
+    '"tamper-resistant-storage"',
+    '"owner-audit-export"',
+  ]) {
+    assertSourceIncludes(
+      files.auditEventsApiStub,
+      auditEventsApiStub,
+      snippet,
+      "Audit events API guard must preserve metadata schema, fixtures, and enablement gates."
+    );
+  }
+  assertSourceIncludes(
+    files.auditEventsRoute,
+    auditEventsRoute,
+    "buildAuditEventsApiDisabledResponse",
+    "Audit events route must return the dedicated disabled response."
+  );
+  assertSourceIncludes(
+    files.auditEventsRoute,
+    auditEventsRoute,
+    "WEB_BETA_API_STUB_HTTP_STATUS",
+    "Audit events route must keep the disabled Web Beta HTTP status."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildAuditEventsApiDisabledResponse",
+    "Sync UI must build the audit events API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportAuditEventsApiGuard",
+    "Sync UI must export the audit events API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Audit events API guard",
+    "Sync UI must render the audit events API guard panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Export audit API guard",
+    "Sync UI must render the audit events API guard export button."
+  );
   assertSourceIncludes(
     files.permissionCheckEnvelope,
     permissionCheckEnvelope,
@@ -3983,6 +4151,7 @@ function run() {
     deployment_target_checks: 16,
     private_file_storage_policy_checks: 45,
     file_presign_api_guard_checks: 86,
+    audit_events_api_guard_checks: 83,
     smoke_test_plan_checks: 16,
     smoke_test_verifier_checks: 5,
     replay_harness_safety_script_checks: 7,

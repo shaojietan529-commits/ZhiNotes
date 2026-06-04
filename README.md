@@ -724,15 +724,22 @@ Current local actions:
   allowed; page text, database values, comments, files, prompts, raw AI output,
   backup payloads, request bodies, signed URLs, tokens, cookies, and environment
   values stay forbidden. The endpoint remains disabled.
+- Review and export a local audit events API guard. `/api/audit/events` now
+  returns a dedicated disabled schema response with planned metadata-only
+  request fields, receipt-only response fields, forbidden payload classes,
+  fixture checks, and enablement gates. It still does not read request bodies,
+  accept event payloads, write `audit_events`, write server logs, upload
+  workspace data, or expose sensitive payloads.
 - Inspect disabled local Web Beta API stubs for auth session, login start,
   logout, workspace list, workspace create, workspace bootstrap, sync push, sync
   pull, sync replay test, restore preview, restore apply, file presign,
   permission check, audit events, and cloud migration apply. These routes return
   disabled responses unless explicitly enabled; the file presign route uses a
-  dedicated metadata-only no-URL schema guard, and the permission check route
-  uses a dedicated metadata-only schema guard, local validator fixture report,
-  server permission test matrix, and server permission readiness report. They do
-  not upload local notes, files, databases, backups, or sync queue rows.
+  dedicated metadata-only no-URL schema guard, the audit events route uses a
+  dedicated metadata-only receipt guard, and the permission check route uses a
+  dedicated metadata-only schema guard, local validator fixture report, server
+  permission test matrix, and server permission readiness report. They do not
+  upload local notes, files, databases, backups, or sync queue rows.
 - Review and export a local Web Beta readiness report that summarizes local
   evidence, manual confirmation points, and blocked launch gates. The report
   does not create accounts, connect cloud services, upload notes, sync files,
@@ -781,10 +788,10 @@ The first cloud phase is a private alpha, not full sync:
   receipt is audit evidence only and does not turn on cloud push.
 - `npm run verify:web-beta` checks the local Web Beta contract before launch:
   environment keys, guarded API route files, local module routes, the deployment
-  target contract, audit event envelope, permission check envelope, permission
-  check API disabled schema, permission request validator fixtures, server
-  permission test matrix, server permission readiness report, smoke test plan,
-  and Supabase migration tables.
+  target contract, audit event envelope, audit events API disabled schema,
+  permission check envelope, permission check API disabled schema, permission
+  request validator fixtures, server permission test matrix, server permission
+  readiness report, smoke test plan, and Supabase migration tables.
 - `npm run verify:web-beta:smoke` checks the preview smoke-test checklist before
   launch: expected pages, disabled/gated high-risk API routes, local-only
   privacy boundaries, Cloud Alpha disabled defaults, private file storage

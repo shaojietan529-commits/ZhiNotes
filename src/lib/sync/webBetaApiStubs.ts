@@ -193,9 +193,9 @@ export const WEB_BETA_API_STUBS: WebBetaApiStub[] = [
     purpose:
       "Future endpoint for recording server-side audit events for login, export, restore, sync, sharing, permissions, files, AI, and admin actions.",
     future_requirement:
-      "Enable only after authenticated actor identity, workspace membership, redaction policy, retention policy, permission checks, and tamper-resistant audit storage exist.",
+      "Enable only after authenticated actor identity, workspace membership, metadata-only schema validation, permission decision linkage, retention policy, tamper-resistant audit storage, owner audit export, and validator-backed forbidden payload rejection exist.",
     privacy_boundary:
-      "The current stub does not read event payloads, page text, prompt text, file content, request bodies, secret values, or write audit logs.",
+      "The current dedicated disabled response does not read request bodies, accept event payloads, inspect page text, database values, comments, file bytes, backups, prompts, model output, secrets, signed URLs, or write audit logs.",
   },
   {
     id: "cloud-migration-apply",

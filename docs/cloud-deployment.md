@@ -50,6 +50,13 @@
   file bytes、data URL、signed URL、public URL、tokens、cookies 和 secrets。
   当前 route 仍不会读取 request body、生成 signed URL、连接 storage、上传文件或写
   audit event。
+- `/api/audit/events` 现在返回专用 disabled schema guard：计划中的请求只允许
+  ids、counts、hashes、status、permission decision、confirmation receipt、
+  retention class 等 metadata-only 字段，响应只允许 receipt metadata。fixture
+  会拒绝 page text、database values、comments、file bytes、backup payload、
+  prompt text、raw AI output、signed URL、public URL、tokens、cookies、secrets、
+  local file path 和 raw request body。当前 route 仍不会读取 request body、写
+  `audit_events`、写 server log、上传 workspace data 或暴露敏感 payload。
 
 当前目标不是一次性做完整云同步，而是先上线一个安全的 private alpha：
 
@@ -176,6 +183,9 @@ https://your-vercel-domain.vercel.app/auth/callback
 - Sync 模块里的 `File presign API guard` 已导出或人工复核，且确认 metadata-only
   request schema、forbidden payload fields、no-URL response schema 和 enablement
   gates 与 private storage policy 一致。
+- Sync 模块里的 `Audit events API guard` 已导出或人工复核，且确认
+  metadata-only request schema、forbidden payload fields、receipt-only response
+  schema、validator fixtures 和 enablement gates 与 audit event envelope 一致。
 - Supabase migration 已在测试 project 跑通。
 - Vercel 环境变量已配置，但生产写入开关默认可先保持 false。
 - 登录 magic link 在测试邮箱上跑通。

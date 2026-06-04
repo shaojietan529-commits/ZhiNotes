@@ -49,6 +49,12 @@ import {
   type AuditEventEnvelopeStatus,
 } from "@/lib/security/auditEventEnvelope";
 import {
+  buildAuditEventsApiDisabledResponse,
+  type AuditEventsApiDisabledResponse,
+  type AuditEventsApiFieldStatus,
+  type AuditEventsApiValidationStatus,
+} from "@/lib/security/auditEventsApiStub";
+import {
   buildPermissionDecisionReport,
   type PermissionDecisionReport,
   type PermissionDecisionStatus,
@@ -295,6 +301,7 @@ type WebBetaContractAction =
   | "environment-preflight"
   | "audit-policy"
   | "audit-envelope"
+  | "audit-events-api-guard"
   | "permission-decisions"
   | "permission-check-envelope"
   | "account-session"
@@ -653,6 +660,10 @@ function SyncDashboard() {
         syncSummary,
       }),
     [auditTrailPolicy, permissionDecisionReport, syncSummary, workspaceIdentity]
+  );
+  const auditEventsApiGuard = useMemo(
+    () => buildAuditEventsApiDisabledResponse(),
+    []
   );
   const permissionCheckEnvelopeContract = useMemo(
     () =>
@@ -2435,6 +2446,26 @@ function SyncDashboard() {
       console.error("[Zhinote] Failed to export audit event envelope:", err);
       window.alert(
         "Audit event envelope export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportAuditEventsApiGuard = () => {
+    setBusyContractAction("audit-events-api-guard");
+    try {
+      downloadJsonFile(
+        `zhinote-audit-events-api-disabled-${fileSafeTimestamp()}.json`,
+        {
+          ...auditEventsApiGuard,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export audit events API guard:", err);
+      window.alert(
+        "Audit events API guard export failed. Please check the console."
       );
     } finally {
       setBusyContractAction(null);
@@ -4521,6 +4552,104 @@ function SyncDashboard() {
               <div className="grid gap-2 md:grid-cols-2">
                 {auditEventEnvelopeContract.gates.map((gate) => (
                   <AuditEnvelopeGateRow key={gate.id} gate={gate} />
+                ))}
+              </div>
+            </ContractPanel>
+          </ContractPanel>
+          <ContractPanel title="Audit events API guard" className="mt-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                Dedicated disabled response for `/api/audit/events`. It shows
+                the future metadata-only audit request and receipt-only response
+                schema, local fixture checks, and required gates while the route
+                still refuses to read request bodies, accept event payloads,
+                write audit rows, or expose sensitive payloads.
+              </p>
+              <button
+                type="button"
+                onClick={handleExportAuditEventsApiGuard}
+                disabled={busyContractAction === "audit-events-api-guard"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyContractAction === "audit-events-api-guard"
+                  ? "Exporting..."
+                  : "Export audit API guard"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
+              <AuditEventsApiSummaryCard
+                label="HTTP"
+                value={auditEventsApiGuard.disabled_response_contract.http_status}
+                detail="Disabled status"
+                status="rejected"
+              />
+              <AuditEventsApiSummaryCard
+                label="Request body"
+                value={auditEventsApiGuard.can_read_request_body_now ? "Yes" : "No"}
+                detail="No body reads"
+                status="rejected"
+              />
+              <AuditEventsApiSummaryCard
+                label="Audit write"
+                value={
+                  auditEventsApiGuard.can_write_audit_events_table_now
+                    ? "Yes"
+                    : "No"
+                }
+                detail="No server writes"
+                status="rejected"
+              />
+              <AuditEventsApiSummaryCard
+                label="Allowed"
+                value={auditEventsApiGuard.request_schema.allowed_fields.length}
+                detail="Future metadata"
+                status="accepted"
+              />
+              <AuditEventsApiSummaryCard
+                label="Forbidden"
+                value={auditEventsApiGuard.request_schema.forbidden_fields.length}
+                detail="Payload blocked"
+                status="rejected"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+              <ContractPanel title="Request schema">
+                <div className="space-y-2">
+                  {auditEventsApiGuard.request_schema.allowed_fields
+                    .slice(0, 6)
+                    .map((field) => (
+                      <AuditEventsApiFieldRow
+                        key={field.field}
+                        field={field}
+                      />
+                    ))}
+                  {auditEventsApiGuard.request_schema.forbidden_fields
+                    .slice(0, 6)
+                    .map((field) => (
+                      <AuditEventsApiFieldRow
+                        key={field.field}
+                        field={field}
+                      />
+                    ))}
+                </div>
+              </ContractPanel>
+              <ContractPanel title="Fixture checks">
+                <div className="space-y-2">
+                  {auditEventsApiGuard.local_validator_report.fixtures.map(
+                    (fixture) => (
+                      <AuditEventsApiFixtureRow
+                        key={fixture.id}
+                        fixture={fixture}
+                      />
+                    )
+                  )}
+                </div>
+              </ContractPanel>
+            </div>
+            <ContractPanel title="Enablement gates" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {auditEventsApiGuard.enablement_gates.map((gate) => (
+                  <AuditEventsApiGateRow key={gate.id} gate={gate} />
                 ))}
               </div>
             </ContractPanel>
@@ -6810,6 +6939,130 @@ function AuditEnvelopeGateRow({
         {gate.required_action}
       </p>
     </article>
+  );
+}
+
+function AuditEventsApiSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: AuditEventsApiValidationStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <AuditEventsApiValidationPill status={status} />
+      </div>
+      <div className="mt-2 break-all text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function AuditEventsApiFieldRow({
+  field,
+}: {
+  field: AuditEventsApiDisabledResponse["request_schema"]["allowed_fields"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+          {field.field}
+        </div>
+        <AuditEventsApiFieldStatusPill status={field.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {field.reason}
+      </p>
+    </article>
+  );
+}
+
+function AuditEventsApiFixtureRow({
+  fixture,
+}: {
+  fixture: AuditEventsApiDisabledResponse["local_validator_report"]["fixtures"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {fixture.id}
+          </div>
+          <div className="mt-1 text-[10px] text-zinc-400">
+            expected {fixture.expected_status}
+          </div>
+        </div>
+        <AuditEventsApiValidationPill status={fixture.actual_status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {fixture.reason}
+      </p>
+    </article>
+  );
+}
+
+function AuditEventsApiGateRow({
+  gate,
+}: {
+  gate: AuditEventsApiDisabledResponse["enablement_gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {gate.title}
+      </div>
+      <div className="mt-1 font-mono text-[10px] text-zinc-400">
+        {gate.id}
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {gate.required_before_enablement}
+      </p>
+    </article>
+  );
+}
+
+function AuditEventsApiFieldStatusPill({
+  status,
+}: {
+  status: AuditEventsApiFieldStatus;
+}) {
+  const className =
+    status === "allowed"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {status}
+    </span>
+  );
+}
+
+function AuditEventsApiValidationPill({
+  status,
+}: {
+  status: AuditEventsApiValidationStatus;
+}) {
+  const className =
+    status === "accepted"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {status}
+    </span>
   );
 }
 

@@ -65,7 +65,7 @@ const gatedOrDisabledApiRoutes = [
   },
   {
     path: "src/app/api/audit/events/route.ts",
-    guard: 'buildWebBetaApiStubResponse("audit-events")',
+    guard: "buildAuditEventsApiDisabledResponse",
   },
   {
     path: "src/app/api/backup/restore-apply/route.ts",
