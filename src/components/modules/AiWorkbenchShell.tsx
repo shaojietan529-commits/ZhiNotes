@@ -396,6 +396,19 @@ function AiWorkbenchDashboard() {
     }
   };
 
+  const handleEnablementStepNavigate = (
+    step: AiWorkbenchPacket["enablement_sequence"][number]
+  ) => {
+    if (step.route === "/modules/ai") {
+      document
+        .getElementById(step.target_section_id)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    router.push(step.route);
+  };
+
   return (
     <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -436,7 +449,10 @@ function AiWorkbenchDashboard() {
           <Metric label="已选上下文" value={selectedPages.length} />
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <section
+          id="ai-workflow-scope"
+          className="scroll-mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]"
+        >
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               AI 工作流
@@ -487,7 +503,10 @@ function AiWorkbenchDashboard() {
 
         <AiWorkflowReadinessPanel report={aiWorkflowReadiness} />
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="ai-workbench"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -567,7 +586,7 @@ function AiWorkbenchDashboard() {
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-            <div>
+            <div id="ai-workbench-lanes" className="scroll-mt-6">
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                 工作台 lanes
               </div>
@@ -577,7 +596,7 @@ function AiWorkbenchDashboard() {
                 ))}
               </div>
             </div>
-            <div>
+            <div id="ai-workbench-actions" className="scroll-mt-6">
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                 优先动作
               </div>
@@ -588,13 +607,20 @@ function AiWorkbenchDashboard() {
               </div>
             </div>
           </div>
-          <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+          <div
+            id="ai-enable-sequence"
+            className="mt-4 scroll-mt-6 border-t border-zinc-100 pt-4 dark:border-zinc-800"
+          >
             <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
               启用顺序
             </div>
             <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               {aiWorkbenchPacket.enablement_sequence.map((step) => (
-                <AiEnablementStepCard key={step.id} step={step} />
+                <AiEnablementStepCard
+                  key={step.id}
+                  step={step}
+                  onOpen={() => handleEnablementStepNavigate(step)}
+                />
               ))}
             </div>
           </div>
@@ -604,7 +630,10 @@ function AiWorkbenchDashboard() {
           </p>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+        <section
+          id="ai-local-context"
+          className="scroll-mt-6 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]"
+        >
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               本地上下文
@@ -658,7 +687,10 @@ function AiWorkbenchDashboard() {
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section
+          id="ai-payload-review"
+          className="scroll-mt-6 grid gap-4 lg:grid-cols-2"
+        >
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -837,7 +869,10 @@ function AiWorkbenchDashboard() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2">
+          <div
+            id="ai-prompt-blueprint"
+            className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2"
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -945,7 +980,10 @@ function AiWorkbenchDashboard() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2">
+          <div
+            id="ai-context-packet"
+            className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2"
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -1045,7 +1083,10 @@ function AiWorkbenchDashboard() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2">
+          <div
+            id="ai-research-runbook"
+            className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2"
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -1117,7 +1158,10 @@ function AiWorkbenchDashboard() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2">
+          <div
+            id="ai-output-review"
+            className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2"
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -1198,7 +1242,10 @@ function AiWorkbenchDashboard() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div
+            id="ai-provider-boundary"
+            className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+          >
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               文件准备度
             </h2>
@@ -1311,8 +1358,10 @@ function AiWorkbenchActionCard({
 
 function AiEnablementStepCard({
   step,
+  onOpen,
 }: {
   step: AiWorkbenchPacket["enablement_sequence"][number];
+  onOpen: () => void;
 }) {
   return (
     <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
@@ -1325,7 +1374,16 @@ function AiEnablementStepCard({
             {step.title}
           </div>
         </div>
-        <ExecutionStatusPill status={step.status} />
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <ExecutionStatusPill status={step.status} />
+          <button
+            type="button"
+            onClick={onOpen}
+            className="rounded border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-white hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          >
+            打开步骤
+          </button>
+        </div>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
         {step.reason}

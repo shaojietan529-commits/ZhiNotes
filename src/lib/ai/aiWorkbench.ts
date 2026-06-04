@@ -58,6 +58,7 @@ export interface AiWorkbenchEnablementStep {
   title: string;
   status: AiExecutionGateStatus;
   route: string;
+  target_section_id: string;
   reason: string;
   completion_signal: string;
 }
@@ -526,6 +527,7 @@ function buildEnablementSequence(input: {
         ? "manual-confirmation"
         : "planned",
       route: "/modules/ai",
+      target_section_id: "ai-workflow-scope",
       reason: "没有明确任务范围时，AI 很容易把普通整理变成不受控的投研外发。",
       completion_signal:
         "研究目标、输出用途、禁止内容和敏感信息边界已由用户确认。",
@@ -536,6 +538,7 @@ function buildEnablementSequence(input: {
       title: "确认上下文和最终 payload",
       status: "manual-confirmation",
       route: "/modules/ai",
+      target_section_id: "ai-payload-review",
       reason: `当前有 ${input.payloadPreview.summary.selected_pages} 个页面和 ${input.payloadPreview.summary.files_available} 个文件处于候选状态。`,
       completion_signal:
         "最终 outbound payload 可见，页面正文、prompt 正文和文件内容范围已逐项确认。",
@@ -547,6 +550,7 @@ function buildEnablementSequence(input: {
       status:
         input.executionPolicy.summary.blocked > 0 ? "blocked" : "manual-confirmation",
       route: "/modules/sync",
+      target_section_id: "sync-ai-provider-boundary",
       reason: "当前没有 provider、模型、账号边界、server-side permission check 或 audit event。",
       completion_signal:
         "Provider、模型、账号边界、计费边界、权限检查和 redacted audit event 已实现。",
@@ -560,6 +564,7 @@ function buildEnablementSequence(input: {
           ? "blocked"
           : "manual-confirmation",
       route: "/modules/ai",
+      target_section_id: "ai-output-review",
       reason: "AI 输出不能自动写入页面、数据库或报告，需要先完成来源和敏感信息检查。",
       completion_signal:
         "输出正文、来源引用、事实核查、retention、删除策略和保存目标已确认。",

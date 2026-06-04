@@ -700,6 +700,9 @@ Current local actions:
   and an enablement sequence. It excludes selected page titles, page body text,
   prompt text, file bytes, AI output text, holdings, trading plans, client
   information, tokens, and secrets.
+- Use the AI workbench enablement sequence to jump through local AI gates:
+  confirm task scope and sensitive boundaries, review context and outbound
+  payload, check provider/permission requirements, and review output-save gates.
 - Review and export a local AI payload preview. The preview summarizes selected
   pages, available file kinds, prompt length, and required approvals, but
   excludes page body text, file bytes, prompt text, model calls, and external
