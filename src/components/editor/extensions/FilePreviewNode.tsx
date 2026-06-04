@@ -18,6 +18,11 @@ import {
   type PageFileKind,
   type StoredPageFile,
 } from "@/lib/files/localStore";
+import {
+  getFilePreviewCapabilityByKind,
+  type FilePreviewCapability,
+  type FilePreviewSupportLevel,
+} from "@/lib/files/filePreviewCapabilities";
 import { highlightCodeToHtml } from "@/lib/codeHighlight";
 import { convertZipToHtml } from "@/lib/files/archive";
 import { convertEpubToHtml } from "@/lib/files/epub";
@@ -105,6 +110,14 @@ function FilePreviewComponent({
   const [convertedPreview, setConvertedPreview] = useState<ConvertedPreview>({
     status: "idle",
   });
+  const capability = useMemo(
+    () => getFilePreviewCapabilityByKind(attrs.kind),
+    [attrs.kind]
+  );
+  const supportLevel = useMemo(
+    () => getEffectivePreviewSupportLevel(attrs.kind, attrs.fileName, capability),
+    [attrs.fileName, attrs.kind, capability]
+  );
 
   useEffect(() => {
     let active = true;
@@ -641,6 +654,7 @@ function FilePreviewComponent({
           <span className="rounded bg-zinc-100 px-2 py-1 text-[11px] font-semibold uppercase text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             {getFileKindLabel(attrs.kind)}
           </span>
+          <FilePreviewSupportPill level={supportLevel} />
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
               {attrs.fileName}
@@ -648,7 +662,7 @@ function FilePreviewComponent({
             <div className="text-[11px] text-zinc-400">
               {attrs.mimeType || "未知类型"} · {formatFileSize(attrs.size)}
             </div>
-          <div className="mt-0.5 text-[10px] text-zinc-400">
+            <div className="mt-0.5 text-[10px] text-zinc-400">
               {getPreviewNote(attrs.kind, attrs.fileName)}
             </div>
           </div>
@@ -768,6 +782,13 @@ function FilePreviewComponent({
             </a>
           )}
         </div>
+
+        <FilePreviewCapabilityStrip
+          capability={capability}
+          kind={attrs.kind}
+          fileName={attrs.fileName}
+          supportLevel={supportLevel}
+        />
 
         {attrs.kind === "spreadsheet" && (
           <div className="border-b border-blue-100 bg-blue-50/70 px-3 py-3 dark:border-blue-950 dark:bg-blue-950/30">
@@ -917,6 +938,123 @@ function FilePreviewComponent({
   );
 }
 
+function FilePreviewCapabilityStrip({
+  capability,
+  kind,
+  fileName,
+  supportLevel,
+}: {
+  capability: FilePreviewCapability | undefined;
+  kind: PageFileKind;
+  fileName: string;
+  supportLevel: FilePreviewSupportLevel;
+}) {
+  const isLegacyFallback = isLegacyPreviewFallback(kind, fileName);
+  const previewRoute = isLegacyFallback
+    ? "旧版 Office 文件暂不转换预览；原文件保留在本地，可下载后处理。"
+    : capability?.preview ?? "这个格式当前仅保留本地附件和下载入口。";
+  const importRoute = isLegacyFallback
+    ? "请先转为 .docx 或 .pptx，再作为可编辑块导入。"
+    : capability?.editable_import ?? "暂不支持转换为可编辑块。";
+  const privacyRoute =
+    capability?.privacy_boundary ??
+    "文件保存在浏览器本地存储；当前不上传、不调用 AI、不连接云服务。";
+
+  return (
+    <div className="border-b border-zinc-100 bg-zinc-50/80 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/70">
+      <div className="grid gap-2 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400 lg:grid-cols-3">
+        <CapabilityRouteItem label="预览路径" value={previewRoute} />
+        <CapabilityRouteItem label="转换/导入" value={importRoute} />
+        <CapabilityRouteItem
+          label="隐私边界"
+          value={privacyRoute}
+          suffix={getSupportLevelLabel(supportLevel)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CapabilityRouteItem({
+  label,
+  value,
+  suffix,
+}: {
+  label: string;
+  value: string;
+  suffix?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+        {label}：
+      </span>
+      <span>{value}</span>
+      {suffix && (
+        <span className="ml-1 text-zinc-400 dark:text-zinc-500">
+          {suffix}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function FilePreviewSupportPill({
+  level,
+}: {
+  level: FilePreviewSupportLevel;
+}) {
+  const labels: Record<FilePreviewSupportLevel, string> = {
+    native: "原生预览",
+    converted: "本地转换",
+    metadata: "元数据",
+    "download-only": "仅下载",
+  };
+  const className =
+    level === "native"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : level === "converted"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : level === "metadata"
+          ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+          : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`rounded px-2 py-1 text-[11px] font-medium ${className}`}>
+      {labels[level]}
+    </span>
+  );
+}
+
+function getEffectivePreviewSupportLevel(
+  kind: PageFileKind,
+  fileName: string,
+  capability: FilePreviewCapability | undefined
+): FilePreviewSupportLevel {
+  if (isLegacyPreviewFallback(kind, fileName) || kind === "unknown") {
+    return "download-only";
+  }
+  return capability?.support_level ?? "download-only";
+}
+
+function getSupportLevelLabel(level: FilePreviewSupportLevel) {
+  const labels: Record<FilePreviewSupportLevel, string> = {
+    native: "native",
+    converted: "converted",
+    metadata: "metadata",
+    "download-only": "download-only",
+  };
+  return labels[level];
+}
+
+function isLegacyPreviewFallback(kind: PageFileKind, fileName: string) {
+  const lowerName = fileName.toLowerCase();
+  return (
+    (kind === "word" && lowerName.endsWith(".doc")) ||
+    (kind === "presentation" && lowerName.endsWith(".ppt"))
+  );
+}
+
 function getPreviewNote(kind: PageFileKind, fileName = "") {
   const lowerName = fileName.toLowerCase();
   switch (kind) {
@@ -962,11 +1100,7 @@ function getPreviewNote(kind: PageFileKind, fileName = "") {
 }
 
 function isLegacyOfficeFile(file: StoredPageFile) {
-  const lowerName = file.name.toLowerCase();
-  return (
-    (file.kind === "word" && lowerName.endsWith(".doc")) ||
-    (file.kind === "presentation" && lowerName.endsWith(".ppt"))
-  );
+  return isLegacyPreviewFallback(file.kind, file.name);
 }
 
 function supportsEditableConvertedImport(file: StoredPageFile) {

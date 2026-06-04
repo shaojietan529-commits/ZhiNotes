@@ -338,6 +338,11 @@ retention when the file can only be kept locally. The receipt does not include
 the file name, file bytes, extracted text, page body text, spreadsheet values,
 tokens, or credentials.
 
+Each file preview block also shows the active local route for that format:
+native preview, local conversion, metadata preview, or download-only retention,
+plus the matching edit/import route and privacy boundary. Legacy `.doc` and
+`.ppt` files are labeled as download-only until converted to `.docx` or `.pptx`.
+
 HTML report previews block external resources by default. A user must type the
 local external-resource confirmation phrase before enabling remote images,
 scripts, styles, frames, fonts, media, or network endpoints for a trusted HTML

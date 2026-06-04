@@ -207,6 +207,24 @@ function run() {
     "supportsEditableConvertedImport",
     "Legacy Office files should not show editable import as if conversion is supported."
   );
+  for (const snippet of [
+    "getFilePreviewCapabilityByKind",
+    "FilePreviewCapabilityStrip",
+    "FilePreviewSupportPill",
+    "getEffectivePreviewSupportLevel",
+    "isLegacyPreviewFallback",
+    "预览路径",
+    "转换/导入",
+    "隐私边界",
+    "download-only",
+  ]) {
+    assertIncludes(
+      files.previewNode,
+      previewNode,
+      snippet,
+      "Preview node must expose the same local capability route shown in the Reports module."
+    );
+  }
   assertIncludes(
     files.reportsShell,
     reportsShell,
