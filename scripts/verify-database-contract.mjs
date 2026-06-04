@@ -11,6 +11,7 @@ const files = {
   databaseModuleShell: "src/components/modules/DatabasesShell.tsx",
   databaseModuleRoute: "src/app/(workspace)/modules/databases/page.tsx",
   databaseModuleDashboard: "src/lib/database/databaseModuleDashboard.ts",
+  databaseTemplateCatalog: "src/lib/database/databaseTemplateCatalog.ts",
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
@@ -72,6 +73,7 @@ function run() {
   const databaseModuleShell = readProjectFile(files.databaseModuleShell);
   const databaseModuleRoute = readProjectFile(files.databaseModuleRoute);
   const databaseModuleDashboard = readProjectFile(files.databaseModuleDashboard);
+  const databaseTemplateCatalog = readProjectFile(files.databaseTemplateCatalog);
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
@@ -251,11 +253,69 @@ function run() {
     "Database module dashboard must expose a reusable report builder."
   );
   assertIncludes(
+    files.databaseTemplateCatalog,
+    databaseTemplateCatalog,
+    'format: "zhinote-database-template-catalog"',
+    "Database template catalog must define a stable local export format."
+  );
+  assertIncludes(
+    files.databaseTemplateCatalog,
+    databaseTemplateCatalog,
+    "buildDatabaseTemplateCatalogReport",
+    "Database template catalog must expose a reusable builder."
+  );
+  for (const snippet of [
+    "NOTE_TEMPLATES",
+    "local_catalog_only: true",
+    "reads_template_metadata: true",
+    "template_rows_read_workspace_data: false",
+    "reads_database_rows: false",
+    "includes_database_row_values: false",
+    "includes_page_text: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    "公司研究跟踪表",
+    "报告库跟踪表",
+    "会议跟踪表",
+    "组合跟踪表",
+    "持仓名、ticker、权重、交易计划",
+  ]) {
+    assertIncludes(
+      files.databaseTemplateCatalog,
+      databaseTemplateCatalog,
+      snippet,
+      "Database template catalog must preserve template groups and privacy boundaries."
+    );
+  }
+  assertIncludes(
     files.databaseModuleShell,
     databaseModuleShell,
     "buildDatabaseModuleDashboardReport",
     "Databases module UI must build the dashboard report."
   );
+  assertIncludes(
+    files.databaseModuleShell,
+    databaseModuleShell,
+    "buildDatabaseTemplateCatalogReport",
+    "Databases module UI must build the template row catalog."
+  );
+  for (const snippet of [
+    "投研模板行目录",
+    "TemplateCatalogPanel",
+    "CatalogMetric",
+    "具体数据库页的「+ 模板行」菜单",
+    "不读取 row values",
+    "隐私边界",
+  ]) {
+    assertIncludes(
+      files.databaseModuleShell,
+      databaseModuleShell,
+      snippet,
+      "Databases module UI must render the template row catalog."
+    );
+  }
   assertIncludes(
     files.databaseModuleShell,
     databaseModuleShell,

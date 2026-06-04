@@ -18,6 +18,10 @@ import {
   type DatabaseModuleSnapshot,
 } from "@/lib/database/databaseModuleDashboard";
 import {
+  buildDatabaseTemplateCatalogReport,
+  type DatabaseTemplateCatalogReport,
+} from "@/lib/database/databaseTemplateCatalog";
+import {
   getDatabaseViewTypeLabel,
 } from "@/lib/database/display";
 import { executeModuleStarter } from "@/lib/modules/actions";
@@ -104,6 +108,10 @@ function DatabasesDashboard() {
         snapshots.flatMap((snapshot) => snapshot.fields)
       ),
     [snapshots]
+  );
+  const templateCatalog = useMemo(
+    () => buildDatabaseTemplateCatalogReport(),
+    []
   );
   const starterModules = useMemo(
     () =>
@@ -219,6 +227,8 @@ function DatabasesDashboard() {
             value={dashboardReport.summary.covered_view_types}
           />
         </section>
+
+        <TemplateCatalogPanel catalog={templateCatalog} />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -396,6 +406,95 @@ function StarterButton({
     >
       {busy ? "创建中..." : label}
     </button>
+  );
+}
+
+function TemplateCatalogPanel({
+  catalog,
+}: {
+  catalog: DatabaseTemplateCatalogReport;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            投研模板行目录
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这些模板会出现在具体数据库页的「+ 模板行」菜单里，用于把公司、报告、
+            会议和组合资产写成本地 row。当前目录只读模板 metadata，不读取 row values
+            或页面正文。
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-zinc-500 dark:text-zinc-400">
+          <CatalogMetric label="模板组" value={catalog.summary.groups} />
+          <CatalogMetric label="模板行" value={catalog.summary.template_rows} />
+          <CatalogMetric
+            label="已注册"
+            value={catalog.summary.available_template_rows}
+          />
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {catalog.groups.map((group) => (
+          <article
+            key={group.id}
+            className="rounded-md border border-zinc-100 p-3 text-xs dark:border-zinc-800"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {group.label}
+                </h3>
+                <p className="mt-1 text-zinc-400">
+                  推荐数据库：{group.recommended_database}
+                </p>
+              </div>
+              <span className="w-fit rounded bg-zinc-100 px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                {group.templates.filter((template) => template.available).length}/
+                {group.templates.length} ready
+              </span>
+            </div>
+            <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+              {group.relation_goal}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1">
+              {group.templates.map((template) => (
+                <span
+                  key={template.title}
+                  className={`rounded px-1.5 py-0.5 text-[10px] ${
+                    template.available
+                      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                      : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                  }`}
+                  title={template.description}
+                >
+                  {template.title}
+                </span>
+              ))}
+            </div>
+            <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+              {group.row_usage}
+            </p>
+            <p className="mt-2 leading-5 text-zinc-400">
+              隐私边界：{group.privacy_boundary}
+            </p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CatalogMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+      <div>{label}</div>
+      <div className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        {value}
+      </div>
+    </div>
   );
 }
 
