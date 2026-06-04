@@ -409,6 +409,19 @@ function AiWorkbenchDashboard() {
     router.push(step.route);
   };
 
+  const handleDecisionNavigate = (
+    decision: AiWorkbenchPacket["decision_summary"]["decisions"][number]
+  ) => {
+    if (decision.route === "/modules/ai") {
+      document
+        .getElementById(decision.target_section_id)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    router.push(decision.route);
+  };
+
   return (
     <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -441,6 +454,17 @@ function AiWorkbenchDashboard() {
             {loadError}
           </div>
         )}
+
+        <AiDecisionSummaryPanel
+          summary={aiWorkbenchPacket.decision_summary}
+          exportingAiWorkbench={exportingAiWorkbench}
+          exportingExecutionPolicy={exportingExecutionPolicy}
+          exportingOutputReview={exportingOutputReview}
+          onOpenDecision={handleDecisionNavigate}
+          onExportAiWorkbench={handleExportAiWorkbench}
+          onExportExecutionPolicy={handleExportExecutionPolicy}
+          onExportOutputReview={handleExportOutputReview}
+        />
 
         <section className="grid gap-3 md:grid-cols-4">
           <Metric label="页面" value={pages.length} />
@@ -1279,6 +1303,192 @@ function AiWorkbenchDashboard() {
         </section>
       </div>
     </div>
+  );
+}
+
+function AiDecisionSummaryPanel({
+  summary,
+  exportingAiWorkbench,
+  exportingExecutionPolicy,
+  exportingOutputReview,
+  onOpenDecision,
+  onExportAiWorkbench,
+  onExportExecutionPolicy,
+  onExportOutputReview,
+}: {
+  summary: AiWorkbenchPacket["decision_summary"];
+  exportingAiWorkbench: boolean;
+  exportingExecutionPolicy: boolean;
+  exportingOutputReview: boolean;
+  onOpenDecision: (
+    decision: AiWorkbenchPacket["decision_summary"]["decisions"][number]
+  ) => void;
+  onExportAiWorkbench: () => void;
+  onExportExecutionPolicy: () => void;
+  onExportOutputReview: () => void;
+}) {
+  return (
+    <section
+      id="ai-decision-summary"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            AI Decision Summary
+          </p>
+          <h2 className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            AI 决策摘要
+          </h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            {summary.current_conclusion}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onExportAiWorkbench}
+            disabled={exportingAiWorkbench}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exportingAiWorkbench ? "导出中..." : "导出工作台"}
+          </button>
+          <button
+            type="button"
+            onClick={onExportExecutionPolicy}
+            disabled={exportingExecutionPolicy}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exportingExecutionPolicy ? "导出中..." : "导出执行策略"}
+          </button>
+          <button
+            type="button"
+            onClick={onExportOutputReview}
+            disabled={exportingOutputReview}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exportingOutputReview ? "导出中..." : "导出输出合同"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+        {summary.decisions.map((decision) => (
+          <AiDecisionCard
+            key={decision.id}
+            decision={decision}
+            onOpen={() => onOpenDecision(decision)}
+          />
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <AiDecisionList title="当前可做" items={summary.safe_local_work} />
+        <AiDecisionList title="保持关闭" items={summary.blocked_external_work} />
+        <AiDecisionList
+          title="Owner 待确认"
+          items={summary.required_owner_decisions}
+        />
+      </div>
+
+      <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+        关键阻塞：{" "}
+        {summary.top_blockers.length > 0
+          ? summary.top_blockers.join("；")
+          : "暂无"}。
+        决策摘要只读取本地 summary metadata，不包含页面正文、prompt 正文、文件
+        bytes 或 AI 输出正文。
+      </div>
+    </section>
+  );
+}
+
+function AiDecisionCard({
+  decision,
+  onOpen,
+}: {
+  decision: AiWorkbenchPacket["decision_summary"]["decisions"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="flex min-h-[220px] flex-col justify-between rounded-md border border-zinc-100 p-3 text-xs dark:border-zinc-800">
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+              {decision.title}
+            </h3>
+            <p className="mt-1 text-base font-semibold text-zinc-950 dark:text-zinc-50">
+              {decision.answer}
+            </p>
+          </div>
+          <AiDecisionStatusPill status={decision.status} />
+        </div>
+        <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+          {decision.evidence}
+        </p>
+      </div>
+      <div className="mt-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+        <p className="leading-5 text-zinc-400 dark:text-zinc-500">
+          {decision.next_action}
+        </p>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-3 rounded border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+        >
+          打开对应模块
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function AiDecisionList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {title}
+      </div>
+      <ul className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+function AiDecisionStatusPill({
+  status,
+}: {
+  status: AiWorkbenchPacket["decision_summary"]["decisions"][number]["status"];
+}) {
+  const labels: Record<
+    AiWorkbenchPacket["decision_summary"]["decisions"][number]["status"],
+    string
+  > = {
+    "available-local": "本地可做",
+    "requires-owner-confirmation": "需确认",
+    blocked: "阻塞",
+  };
+  const className =
+    status === "available-local"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "requires-owner-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

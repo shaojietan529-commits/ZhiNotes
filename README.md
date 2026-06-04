@@ -708,6 +708,10 @@ http://localhost:3000/modules/ai
 
 Current local actions:
 
+- Review the AI decision summary at the top of the module. It gives a one-page
+  owner decision view: local owner review can continue, final payload review
+  requires explicit confirmation, and model execution, provider/cloud access,
+  output write-back, and AI sync remain blocked.
 - Select an AI workflow such as summary, Q&A, report draft, comparison, or
   research framework.
 - Select local page context explicitly.

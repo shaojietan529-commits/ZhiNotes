@@ -63,6 +63,48 @@ export interface AiWorkbenchEnablementStep {
   completion_signal: string;
 }
 
+export type AiWorkbenchDecisionStatus =
+  | "available-local"
+  | "requires-owner-confirmation"
+  | "blocked";
+
+export interface AiWorkbenchDecision {
+  id:
+    | "local-owner-review"
+    | "final-payload-review"
+    | "external-model-run"
+    | "ai-output-writeback"
+    | "provider-cloud-boundary";
+  title: string;
+  status: AiWorkbenchDecisionStatus;
+  answer: string;
+  evidence: string;
+  next_action: string;
+  route: string;
+  target_section_id: string;
+  allowed_now: boolean;
+  requires_owner_confirmation: boolean;
+  blocks_ai_run: boolean;
+  writes_workspace_data: false;
+  calls_model_provider: false;
+  uploads_data: false;
+}
+
+export interface AiWorkbenchDecisionSummary {
+  current_state: "local-owner-review-only";
+  current_conclusion: string;
+  can_continue_local_review_now: true;
+  can_send_payload_now: false;
+  can_run_model_now: false;
+  can_save_output_now: false;
+  can_sync_ai_output_now: false;
+  safe_local_work: string[];
+  blocked_external_work: string[];
+  top_blockers: string[];
+  required_owner_decisions: string[];
+  decisions: AiWorkbenchDecision[];
+}
+
 export interface AiWorkbenchPacket {
   format: "zhinote-ai-workbench-packet";
   format_version: 1;
@@ -118,6 +160,7 @@ export interface AiWorkbenchPacket {
     blocked_actions: number;
     manual_confirmation_actions: number;
   };
+  decision_summary: AiWorkbenchDecisionSummary;
   lanes: AiWorkbenchLane[];
   actions: AiWorkbenchAction[];
   enablement_sequence: AiWorkbenchEnablementStep[];
@@ -280,6 +323,7 @@ export function buildAiWorkbenchPacket(input: {
         (action) => action.status === "manual-confirmation"
       ).length,
     },
+    decision_summary: buildDecisionSummary(input, actions),
     lanes: buildLanes(actions),
     actions,
     enablement_sequence: buildEnablementSequence(input),
@@ -289,6 +333,136 @@ export function buildAiWorkbenchPacket(input: {
       "npm run verify:modules",
       "npm run lint",
       "npm run build",
+    ],
+  };
+}
+
+function buildDecisionSummary(
+  input: {
+    workflowReadiness: AiWorkflowReadinessReport;
+    payloadPreview: AiPayloadPreview;
+    executionPolicy: AiExecutionPolicy;
+    outputReview: AiOutputReviewContract;
+  },
+  actions: AiWorkbenchAction[]
+): AiWorkbenchDecisionSummary {
+  const blockedActions = actions.filter((action) => action.status === "blocked");
+  const manualActions = actions.filter(
+    (action) => action.requires_manual_confirmation
+  );
+
+  return {
+    current_state: "local-owner-review-only",
+    current_conclusion:
+      "可以继续本地草拟、选择上下文和 owner review；AI 执行、payload 外发、外部 provider、输出写回和云同步仍然关闭。",
+    can_continue_local_review_now: true,
+    can_send_payload_now: false,
+    can_run_model_now: false,
+    can_save_output_now: false,
+    can_sync_ai_output_now: false,
+    safe_local_work: [
+      "选择 AI workflow 和研究问题。",
+      "选择候选页面上下文并导出 metadata-only payload preview。",
+      "复核 prompt 蓝图、context packet、research runbook 和 output review contract。",
+      "导出本地 AI 工作台 packet 给 owner 决策。",
+    ],
+    blocked_external_work: [
+      "不能调用模型 provider。",
+      "不能上传页面正文、prompt 正文或文件 bytes。",
+      "不能把 AI 输出写回页面、数据库、报告或云端。",
+      "不能启用 /api/ai/run。",
+    ],
+    top_blockers: blockedActions.slice(0, 4).map((action) => action.title),
+    required_owner_decisions: manualActions
+      .slice(0, 4)
+      .map((action) => action.next_action),
+    decisions: [
+      {
+        id: "local-owner-review",
+        title: "本地 owner review",
+        status: "available-local",
+        answer: "可以继续",
+        evidence: `${input.workflowReadiness.summary.workflows} 个 workflow 已进入本地目录，${actions.length} 个动作已排队。`,
+        next_action:
+          "继续在本地选择 workflow、上下文和研究问题，并导出 AI 工作台 packet。",
+        route: "/modules/ai",
+        target_section_id: "ai-workbench",
+        allowed_now: true,
+        requires_owner_confirmation: false,
+        blocks_ai_run: false,
+        writes_workspace_data: false,
+        calls_model_provider: false,
+        uploads_data: false,
+      },
+      {
+        id: "final-payload-review",
+        title: "最终 payload 外发",
+        status: "requires-owner-confirmation",
+        answer: "只可预览",
+        evidence: `${input.payloadPreview.summary.approvals_required} 个 payload 确认项；metadata-only preview 不能等同外发授权。`,
+        next_action:
+          "AI 启用前必须展示真实 outbound payload，并逐项确认页面正文、prompt 正文和文件内容范围。",
+        route: "/modules/ai",
+        target_section_id: "ai-payload-review",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_ai_run: true,
+        writes_workspace_data: false,
+        calls_model_provider: false,
+        uploads_data: false,
+      },
+      {
+        id: "external-model-run",
+        title: "模型执行",
+        status: "blocked",
+        answer: "保持关闭",
+        evidence: `${input.executionPolicy.summary.blocked} 个执行门禁仍阻塞，/api/ai/run 是 disabled local stub。`,
+        next_action:
+          "先定义 provider、模型、账号边界、权限检查、audit event 和 retention policy。",
+        route: "/modules/sync",
+        target_section_id: "sync-ai-provider-boundary",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_ai_run: true,
+        writes_workspace_data: false,
+        calls_model_provider: false,
+        uploads_data: false,
+      },
+      {
+        id: "ai-output-writeback",
+        title: "AI 输出写回",
+        status: "blocked",
+        answer: "保持关闭",
+        evidence: `${input.outputReview.summary.disabled_write_paths} 条输出写入路径仍禁用，${input.outputReview.summary.blocked_gates} 个保存门禁阻塞。`,
+        next_action:
+          "先实现输出预览、来源核对、敏感信息检查、retention、删除/回滚和写入前审计。",
+        route: "/modules/ai",
+        target_section_id: "ai-output-review",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_ai_run: true,
+        writes_workspace_data: false,
+        calls_model_provider: false,
+        uploads_data: false,
+      },
+      {
+        id: "provider-cloud-boundary",
+        title: "Provider / 云同步",
+        status: "blocked",
+        answer: "保持关闭",
+        evidence:
+          "当前 packet 不连接 cloud services，不上传 workspace 数据，也不启用外部资源。",
+        next_action:
+          "Web Beta 前在同步与权限模块确认 provider、cloud、retention、审计和删除边界。",
+        route: "/modules/sync",
+        target_section_id: "sync-ai-provider-boundary",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_ai_run: true,
+        writes_workspace_data: false,
+        calls_model_provider: false,
+        uploads_data: false,
+      },
     ],
   };
 }
