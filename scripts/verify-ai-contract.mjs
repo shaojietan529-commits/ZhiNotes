@@ -8,6 +8,7 @@ const root = process.cwd();
 const files = {
   packageJson: "package.json",
   workflow: "src/lib/ai/aiWorkflowContract.ts",
+  workflowReadiness: "src/lib/ai/aiWorkflowReadiness.ts",
   payloadPreview: "src/lib/ai/aiPayloadPreview.ts",
   executionPolicy: "src/lib/ai/aiExecutionPolicy.ts",
   researchRunbook: "src/lib/ai/aiResearchRunbook.ts",
@@ -75,6 +76,7 @@ function assertIncludes(sourceLabel, source, snippet, message) {
 function run() {
   const packageJson = readProjectFile(files.packageJson);
   const workflow = readProjectFile(files.workflow);
+  const workflowReadiness = readProjectFile(files.workflowReadiness);
   const payloadPreview = readProjectFile(files.payloadPreview);
   const executionPolicy = readProjectFile(files.executionPolicy);
   const researchRunbook = readProjectFile(files.researchRunbook);
@@ -97,10 +99,54 @@ function run() {
     "AI workflows must live in a reusable contract file."
   );
   assertIncludes(
+    files.workflowReadiness,
+    workflowReadiness,
+    'format: "zhinote-ai-workflow-readiness"',
+    "AI workflow readiness must define a stable local export format."
+  );
+  assertIncludes(
+    files.workflowReadiness,
+    workflowReadiness,
+    "buildAiWorkflowReadinessReport",
+    "AI workflow readiness must expose a reusable builder."
+  );
+  for (const snippet of [
+    "AI_WORKFLOWS",
+    "local_catalog_only: true",
+    "reads_workflow_metadata: true",
+    "reads_page_body_text: false",
+    "reads_prompt_text: false",
+    "reads_file_bytes: false",
+    "includes_page_body_text: false",
+    "includes_prompt_text: false",
+    "includes_file_bytes: false",
+    "includes_holdings_or_trading_plans: false",
+    "includes_client_info: false",
+    "includes_tokens_or_secrets: false",
+    "calls_model_provider: false",
+    "writes_workspace_data: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    "blocked-external-run",
+  ]) {
+    assertIncludes(
+      files.workflowReadiness,
+      workflowReadiness,
+      snippet,
+      "AI workflow readiness must preserve local-only workflow boundaries."
+    );
+  }
+  assertIncludes(
     files.aiShell,
     aiShell,
     "@/lib/ai/aiWorkflowContract",
     "AI Workbench must consume the shared workflow contract."
+  );
+  assertIncludes(
+    files.aiShell,
+    aiShell,
+    "@/lib/ai/aiWorkflowReadiness",
+    "AI Workbench must consume the shared workflow readiness contract."
   );
   assertIncludes(
     files.aiShell,
@@ -120,6 +166,21 @@ function run() {
     "AI 工作台",
     "AI Workbench UI should use the Chinese product language."
   );
+  for (const snippet of [
+    "AI workflow readiness",
+    "AiWorkflowReadinessPanel",
+    "ReadinessStatusPill",
+    "五类 AI 投研能力",
+    "不读取页面正文、prompt 正文、文件 bytes",
+    "默认排除",
+  ]) {
+    assertIncludes(
+      files.aiShell,
+      aiShell,
+      snippet,
+      "AI Workbench must render workflow readiness and default exclusions."
+    );
+  }
 
   for (const workflowId of requiredWorkflows) {
     assertIncludes(

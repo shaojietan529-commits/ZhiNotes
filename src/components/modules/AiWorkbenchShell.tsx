@@ -24,6 +24,10 @@ import {
   type AiWorkflowSpec,
 } from "@/lib/ai/aiWorkflowContract";
 import {
+  buildAiWorkflowReadinessReport,
+  type AiWorkflowReadinessReport,
+} from "@/lib/ai/aiWorkflowReadiness";
+import {
   buildAiResearchRunbook,
   type AiResearchRunbook,
 } from "@/lib/ai/aiResearchRunbook";
@@ -118,6 +122,10 @@ function AiWorkbenchDashboard() {
     [pages, selectedPageIds]
   );
   const selectedWorkflow = getAiWorkflowSpec(workflowId);
+  const aiWorkflowReadiness = useMemo(
+    () => buildAiWorkflowReadinessReport(),
+    []
+  );
   const fileSummary = useMemo(() => summarizeFiles(storedFiles), [storedFiles]);
   const requestDraft = useMemo(
     () =>
@@ -367,6 +375,8 @@ function AiWorkbenchDashboard() {
             </div>
           </div>
         </section>
+
+        <AiWorkflowReadinessPanel report={aiWorkflowReadiness} />
 
         <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -824,6 +834,131 @@ function PayloadMetric({
       </div>
       <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
     </div>
+  );
+}
+
+function AiWorkflowReadinessPanel({
+  report,
+}: {
+  report: AiWorkflowReadinessReport;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            AI workflow readiness
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            五类 AI 投研能力的本地安全目录。这里只读取 workflow metadata，
+            不读取页面正文、prompt 正文、文件 bytes，也不会调用模型 provider。
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-zinc-500 dark:text-zinc-400">
+          <ReadinessMetric label="工作流" value={report.summary.workflows} />
+          <ReadinessMetric
+            label="确认门槛"
+            value={report.summary.confirmation_gates}
+          />
+          <ReadinessMetric
+            label="默认排除"
+            value={report.summary.default_exclusions}
+          />
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 xl:grid-cols-5">
+        {report.items.map((item) => (
+          <article
+            key={item.id}
+            className="flex min-h-[240px] flex-col justify-between rounded-md border border-zinc-100 p-3 text-xs dark:border-zinc-800"
+          >
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    {item.title}
+                  </h3>
+                  <p className="mt-1 text-zinc-400">{item.output}</p>
+                </div>
+                <ReadinessStatusPill status={item.status} />
+              </div>
+              <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+                {item.privacy_boundary}
+              </p>
+              <div className="mt-3">
+                <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  必需上下文
+                </div>
+                <ul className="mt-1 space-y-1 text-zinc-500 dark:text-zinc-400">
+                  {item.required_context.map((context) => (
+                    <li key={context}>- {context}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mt-3">
+                <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  确认门槛
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {item.confirmation_gates.slice(0, 4).map((gate) => (
+                    <span
+                      key={gate}
+                      className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                    >
+                      {gate}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+              {item.next_action}
+            </p>
+          </article>
+        ))}
+      </div>
+      <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+        默认排除：{report.items[0]?.default_exclusions.join("；") ?? "无"}。
+      </p>
+    </section>
+  );
+}
+
+function ReadinessMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+      <div>{label}</div>
+      <div className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function ReadinessStatusPill({
+  status,
+}: {
+  status: AiWorkflowReadinessReport["items"][number]["status"];
+}) {
+  const labels: Record<
+    AiWorkflowReadinessReport["items"][number]["status"],
+    string
+  > = {
+    "local-ready": "本地就绪",
+    "manual-confirmation": "需确认",
+    "blocked-external-run": "外发关闭",
+  };
+  const className =
+    status === "local-ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`shrink-0 rounded px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
