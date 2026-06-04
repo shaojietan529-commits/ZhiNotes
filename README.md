@@ -179,6 +179,9 @@ Current local actions:
   current database schema supports them.
 - The template-row menu previews how many schema fields will be prefilled and
   how many remain manual before the user creates the row.
+- Creating a template row also writes a local metadata-only template-row receipt
+  that can be exported from the database page. The receipt records template
+  type, local row/page ids, and prefilled/manual field counts only.
 - Open any local database from the module list.
 
 The database module dashboard and readiness reports read schema, view metadata,
@@ -187,7 +190,9 @@ page bodies, file bytes, prompts, tokens, cloud data, or private research
 content; template-row readiness also does not export database field names.
 Template-row field drafts also avoid sensitive investment fields such as ticker,
 holdings, position size, weights, prices, rating, direction, broker/account, and
-trading plan fields; those remain manual.
+trading plan fields; those remain manual. Template-row receipts exclude database
+titles, field names, row values, page body text, tokens, credentials, and cloud
+data.
 CSV/XLSX exports remain inside the individual database page because those
 exports intentionally include current visible row values.
 

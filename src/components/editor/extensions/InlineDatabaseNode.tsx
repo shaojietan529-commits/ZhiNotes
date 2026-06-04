@@ -49,7 +49,11 @@ import {
   formatFieldOptions,
   isSelectLikeFieldType,
 } from "@/lib/database/fields";
-import { buildDatabaseTemplateRowDraft } from "@/lib/database/databaseTemplateRows";
+import {
+  appendDatabaseTemplateRowReceipt,
+  buildDatabaseTemplateRowDraft,
+  buildDatabaseTemplateRowReceipt,
+} from "@/lib/database/databaseTemplateRows";
 
 // ─── React Component rendered inside the editor ─────────────
 
@@ -146,11 +150,19 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
   const handleAddTemplateRow = useCallback(
     async (template: NoteTemplate) => {
       const draft = buildDatabaseTemplateRowDraft(template, fields);
-      await addRow(databaseId, {
+      const row = await addRow(databaseId, {
         title: template.title,
         fieldValues: draft.field_values,
         contentText: template.html,
       });
+      appendDatabaseTemplateRowReceipt(
+        buildDatabaseTemplateRowReceipt({
+          template,
+          draft,
+          row,
+          source_surface: "inline-database",
+        })
+      );
       reload();
     },
     [databaseId, fields, reload]

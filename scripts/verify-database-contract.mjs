@@ -204,6 +204,18 @@ function run() {
   assertIncludes(
     files.databaseShell,
     databaseShell,
+    "buildDatabaseTemplateRowReceipt",
+    "Database UI must create local template-row write receipts."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "appendDatabaseTemplateRowReceipt",
+    "Database UI must append local template-row write receipts."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
     "fieldValues: draft.field_values",
     "Database template rows must write safe structural field defaults."
   );
@@ -221,11 +233,37 @@ function run() {
       "Database template row menu must preview safe field draft coverage before writing."
     );
   }
+  for (const snippet of [
+    "DatabaseTemplateRowReceiptPanel",
+    "templateRowReceipt",
+    "handleExportTemplateRowReceipt",
+    "导出模板行 receipt",
+    "不包含数据库标题、row values、field names、页面正文",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database page must expose the latest local template-row receipt."
+    );
+  }
   assertIncludes(
     files.inlineDatabaseNode,
     inlineDatabaseNode,
     "buildDatabaseTemplateRowDraft",
     "Inline database UI must share template-row field draft logic."
+  );
+  assertIncludes(
+    files.inlineDatabaseNode,
+    inlineDatabaseNode,
+    "buildDatabaseTemplateRowReceipt",
+    "Inline database UI must create local template-row write receipts."
+  );
+  assertIncludes(
+    files.inlineDatabaseNode,
+    inlineDatabaseNode,
+    "appendDatabaseTemplateRowReceipt",
+    "Inline database UI must append local template-row write receipts."
   );
   assertIncludes(
     files.inlineDatabaseNode,
@@ -338,8 +376,34 @@ function run() {
     "buildDatabaseTemplateRowDraft",
     "Database template row drafts must expose a reusable builder."
   );
+  assertIncludes(
+    files.databaseTemplateRows,
+    databaseTemplateRows,
+    'format: "zhinote-database-template-row-receipt"',
+    "Database template row receipts must define a stable local format."
+  );
+  assertIncludes(
+    files.databaseTemplateRows,
+    databaseTemplateRows,
+    "buildDatabaseTemplateRowReceipt",
+    "Database template row receipts must expose a reusable builder."
+  );
+  assertIncludes(
+    files.databaseTemplateRows,
+    databaseTemplateRows,
+    "appendDatabaseTemplateRowReceipt",
+    "Database template row receipts must expose a local append helper."
+  );
+  assertIncludes(
+    files.databaseTemplateRows,
+    databaseTemplateRows,
+    "listDatabaseTemplateRowReceipts",
+    "Database template row receipts must expose local receipt history."
+  );
   for (const snippet of [
     'draft_status: "local-template-row-structure-only"',
+    'receipt_status: "local-template-row-metadata-only"',
+    "DATABASE_TEMPLATE_ROW_RECEIPT_EVENT",
     "inferTemplateRowGroupId",
     "getStatusCandidates",
     "getSelectCandidates",
@@ -359,6 +423,16 @@ function run() {
     "connects_cloud_services: false",
     "uploads_data: false",
     "enables_ai: false",
+    "stored_in_browser_local_storage: true",
+    "includes_database_title: false",
+    "includes_row_title: false",
+    "includes_page_title: false",
+    "includes_database_field_names: false",
+    "includes_database_row_values: false",
+    "includes_page_body_text: false",
+    "includes_tokens_or_credentials: false",
+    "receipt_writes_workspace_data: false",
+    "action_writes_local_workspace_data: true",
     '"敏感或方向性投资字段必须由用户手动填写。"',
   ]) {
     assertIncludes(
@@ -670,6 +744,7 @@ function run() {
         view_readiness_gates: 6,
         template_row_readiness: true,
         template_row_field_drafts: true,
+        template_row_receipts: true,
       },
       null,
       2

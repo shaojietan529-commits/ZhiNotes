@@ -72,7 +72,12 @@ import {
   type DatabaseImportPreview,
   type DatabaseImportReceipt,
 } from "@/lib/database/databaseImport";
-import { buildDatabaseTemplateRowDraft } from "@/lib/database/databaseTemplateRows";
+import {
+  appendDatabaseTemplateRowReceipt,
+  buildDatabaseTemplateRowDraft,
+  buildDatabaseTemplateRowReceipt,
+  type DatabaseTemplateRowReceipt,
+} from "@/lib/database/databaseTemplateRows";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 
 interface DatabaseShellProps {
@@ -125,6 +130,10 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [databaseImportReceipt, setDatabaseImportReceipt] =
     useState<DatabaseImportReceipt | null>(null);
   const [exportingDatabaseImportReceipt, setExportingDatabaseImportReceipt] =
+    useState(false);
+  const [templateRowReceipt, setTemplateRowReceipt] =
+    useState<DatabaseTemplateRowReceipt | null>(null);
+  const [exportingTemplateRowReceipt, setExportingTemplateRowReceipt] =
     useState(false);
   const databaseImportInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -226,11 +235,19 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const handleAddTemplateRow = useCallback(
     async (template: NoteTemplate) => {
       const draft = buildDatabaseTemplateRowDraft(template, fields);
-      await addRow(databaseId, {
+      const row = await addRow(databaseId, {
         title: template.title,
         fieldValues: draft.field_values,
         contentText: template.html,
       });
+      const receipt = buildDatabaseTemplateRowReceipt({
+        template,
+        draft,
+        row,
+        source_surface: "database-page",
+      });
+      appendDatabaseTemplateRowReceipt(receipt);
+      setTemplateRowReceipt(receipt);
       reload();
     },
     [databaseId, fields, reload]
@@ -406,6 +423,22 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       setExportingDatabaseImportReceipt(false);
     }
   }, [databaseImportReceipt]);
+
+  const handleExportTemplateRowReceipt = useCallback(() => {
+    if (!templateRowReceipt) return;
+    setExportingTemplateRowReceipt(true);
+    try {
+      downloadJsonFile(
+        `zhinote-database-template-row-receipt-${fileSafeTimestamp()}.json`,
+        templateRowReceipt
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export template row receipt:", err);
+      window.alert("模板行 receipt 导出失败，请查看控制台。");
+    } finally {
+      setExportingTemplateRowReceipt(false);
+    }
+  }, [templateRowReceipt]);
 
   const relationCompletionFields = useMemo(
     () => getRelationCompletionFields(fields, focusPage),
@@ -641,6 +674,14 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           receipt={databaseImportReceipt}
           exporting={exportingDatabaseImportReceipt}
           onExport={handleExportDatabaseImportReceipt}
+        />
+      )}
+
+      {templateRowReceipt && (
+        <DatabaseTemplateRowReceiptPanel
+          receipt={templateRowReceipt}
+          exporting={exportingTemplateRowReceipt}
+          onExport={handleExportTemplateRowReceipt}
         />
       )}
 
@@ -1059,6 +1100,45 @@ function DatabaseImportReceiptPanel({
       </div>
       <p className="mt-2 text-[11px] leading-5 text-emerald-800 dark:text-emerald-200">
         receipt 不包含文件名、文件 bytes、文件文本、表格单元格、token、凭证或云端数据。
+      </p>
+    </section>
+  );
+}
+
+function DatabaseTemplateRowReceiptPanel({
+  receipt,
+  exporting,
+  onExport,
+}: {
+  receipt: DatabaseTemplateRowReceipt;
+  exporting: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section className="mb-4 rounded-lg border border-teal-100 bg-teal-50/70 p-3 dark:border-teal-900 dark:bg-teal-950/30">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-teal-950 dark:text-teal-100">
+            模板行 receipt
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-teal-800 dark:text-teal-200">
+            已本地创建 {receipt.template.template_title} 模板行；预填{" "}
+            {receipt.field_draft_summary.fields_prefilled} 个结构字段，保留{" "}
+            {receipt.field_draft_summary.fields_left_manual} 个字段手动填写。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={exporting}
+          className="w-fit rounded-md border border-teal-200 bg-white px-3 py-2 text-xs font-medium text-teal-700 transition-colors hover:bg-teal-100 disabled:cursor-wait disabled:opacity-60 dark:border-teal-900 dark:bg-zinc-950 dark:text-teal-300 dark:hover:bg-teal-950"
+        >
+          {exporting ? "导出中..." : "导出模板行 receipt"}
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] leading-5 text-teal-800 dark:text-teal-200">
+        receipt 不包含数据库标题、row values、field names、页面正文、ticker、持仓、
+        仓位、价格、交易计划、token、凭证或云端数据。
       </p>
     </section>
   );

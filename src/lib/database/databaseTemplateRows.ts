@@ -1,6 +1,13 @@
 import { getFieldOptions } from "@/lib/database/fields";
 import type { NoteTemplate } from "@/lib/templates/noteTemplates";
-import type { DatabaseField } from "@/lib/utils/types";
+import type { DatabaseField, DatabaseRow } from "@/lib/utils/types";
+
+export const DATABASE_TEMPLATE_ROW_RECEIPT_EVENT =
+  "zhinote:database-template-row-receipt";
+
+const TEMPLATE_ROW_RECEIPT_STORAGE_KEY =
+  "zhinote.databaseTemplateRows.receipts";
+const MAX_TEMPLATE_ROW_RECEIPTS = 100;
 
 export type DatabaseTemplateRowGroupId =
   | "company"
@@ -45,6 +52,74 @@ export interface DatabaseTemplateRowDraft {
     connects_cloud_services: false;
     uploads_data: false;
     enables_ai: false;
+  };
+}
+
+export type DatabaseTemplateRowReceiptSourceSurface =
+  | "database-page"
+  | "inline-database";
+
+export interface DatabaseTemplateRowReceiptInput {
+  template: Pick<NoteTemplate, "title" | "description">;
+  draft: DatabaseTemplateRowDraft;
+  row: Pick<DatabaseRow, "id" | "database_id" | "page_id">;
+  source_surface: DatabaseTemplateRowReceiptSourceSurface;
+}
+
+export interface DatabaseTemplateRowReceipt {
+  format: "zhinote-database-template-row-receipt";
+  format_version: 1;
+  receipt_id: string;
+  receipt_status: "local-template-row-metadata-only";
+  created_at: string;
+  source_surface: DatabaseTemplateRowReceiptSourceSurface;
+  privacy_note: string;
+  template: {
+    template_title: string;
+    group_id: DatabaseTemplateRowGroupId;
+    template_description_included: false;
+  };
+  local_write: {
+    database_id: string;
+    row_id: string;
+    page_id: string;
+    writes_local_database_row: true;
+    writes_local_page: true;
+    writes_page_body_from_template: true;
+    database_title_included: false;
+    row_title_included: false;
+    page_title_included: false;
+  };
+  field_draft_summary: {
+    fields_prefilled: number;
+    fields_left_manual: number;
+    value_kinds_prefilled: Array<
+      DatabaseTemplateRowDraft["applied_fields"][number]["value_kind"]
+    >;
+    field_names_included: false;
+    row_values_included: false;
+  };
+  boundary: {
+    local_receipt_only: true;
+    stored_in_browser_local_storage: true;
+    includes_database_title: false;
+    includes_row_title: false;
+    includes_page_title: false;
+    includes_database_field_names: false;
+    includes_database_row_values: false;
+    includes_page_body_text: false;
+    includes_private_investment_details: false;
+    includes_holdings: false;
+    includes_tickers: false;
+    includes_position_sizes: false;
+    includes_prices: false;
+    includes_trading_plan: false;
+    includes_tokens_or_credentials: false;
+    uploads_data: false;
+    calls_external_service: false;
+    writes_server_audit_log: false;
+    receipt_writes_workspace_data: false;
+    action_writes_local_workspace_data: true;
   };
 }
 
@@ -110,6 +185,100 @@ export function buildDatabaseTemplateRowDraft(
       enables_ai: false,
     },
   };
+}
+
+export function buildDatabaseTemplateRowReceipt(
+  input: DatabaseTemplateRowReceiptInput
+): DatabaseTemplateRowReceipt {
+  return {
+    format: "zhinote-database-template-row-receipt",
+    format_version: 1,
+    receipt_id: createReceiptId(),
+    receipt_status: "local-template-row-metadata-only",
+    created_at: new Date().toISOString(),
+    source_surface: input.source_surface,
+    privacy_note:
+      "Generated locally after creating a database template row. This receipt records template-row action metadata only. It does not include database titles, row titles, page titles, database field names, database row values, page body text, private investment details, holdings, tickers, position sizes, prices, trading plans, tokens, credentials, cloud data, or AI output.",
+    template: {
+      template_title: input.template.title,
+      group_id: input.draft.group_id,
+      template_description_included: false,
+    },
+    local_write: {
+      database_id: input.row.database_id,
+      row_id: input.row.id,
+      page_id: input.row.page_id,
+      writes_local_database_row: true,
+      writes_local_page: true,
+      writes_page_body_from_template: true,
+      database_title_included: false,
+      row_title_included: false,
+      page_title_included: false,
+    },
+    field_draft_summary: {
+      fields_prefilled: input.draft.applied_fields.length,
+      fields_left_manual: input.draft.skipped_fields.length,
+      value_kinds_prefilled: Array.from(
+        new Set(input.draft.applied_fields.map((field) => field.value_kind))
+      ),
+      field_names_included: false,
+      row_values_included: false,
+    },
+    boundary: {
+      local_receipt_only: true,
+      stored_in_browser_local_storage: true,
+      includes_database_title: false,
+      includes_row_title: false,
+      includes_page_title: false,
+      includes_database_field_names: false,
+      includes_database_row_values: false,
+      includes_page_body_text: false,
+      includes_private_investment_details: false,
+      includes_holdings: false,
+      includes_tickers: false,
+      includes_position_sizes: false,
+      includes_prices: false,
+      includes_trading_plan: false,
+      includes_tokens_or_credentials: false,
+      uploads_data: false,
+      calls_external_service: false,
+      writes_server_audit_log: false,
+      receipt_writes_workspace_data: false,
+      action_writes_local_workspace_data: true,
+    },
+  };
+}
+
+export function appendDatabaseTemplateRowReceipt(
+  receipt: DatabaseTemplateRowReceipt
+) {
+  if (!canUseLocalStorage()) return;
+
+  const receipts = [receipt, ...listDatabaseTemplateRowReceipts()].slice(
+    0,
+    MAX_TEMPLATE_ROW_RECEIPTS
+  );
+  window.localStorage.setItem(
+    TEMPLATE_ROW_RECEIPT_STORAGE_KEY,
+    JSON.stringify(receipts)
+  );
+  window.dispatchEvent(
+    new CustomEvent(DATABASE_TEMPLATE_ROW_RECEIPT_EVENT, { detail: receipt })
+  );
+}
+
+export function listDatabaseTemplateRowReceipts(): DatabaseTemplateRowReceipt[] {
+  if (!canUseLocalStorage()) return [];
+
+  try {
+    const raw = window.localStorage.getItem(TEMPLATE_ROW_RECEIPT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isDatabaseTemplateRowReceipt);
+  } catch {
+    return [];
+  }
 }
 
 export function inferTemplateRowGroupId(
@@ -380,4 +549,31 @@ function toDateInputValue(value: Date) {
 
 function normalizeName(value: string) {
   return value.toLowerCase().replace(/[\s_\-:/]+/g, "");
+}
+
+function isDatabaseTemplateRowReceipt(
+  value: unknown
+): value is DatabaseTemplateRowReceipt {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Partial<DatabaseTemplateRowReceipt>;
+  return (
+    record.format === "zhinote-database-template-row-receipt" &&
+    record.receipt_status === "local-template-row-metadata-only" &&
+    Boolean(record.receipt_id) &&
+    Boolean(record.created_at)
+  );
+}
+
+function canUseLocalStorage() {
+  return typeof window !== "undefined" && Boolean(window.localStorage);
+}
+
+function createReceiptId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `template-row-receipt-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
 }
