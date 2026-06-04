@@ -19,8 +19,9 @@ while research workflows can be added as modules.
 
 Current module foundation:
 
-- Notes and Pages: block editor, page tree, backlinks, comments, version
-  history, and a local page research structure panel.
+- Notes and Pages: active module at `/modules/notes` for the page workbench,
+  block editor, page tree, backlinks, comments, version history, and local page
+  research structure review.
 - Research Databases: active module at `/modules/databases` for table, list,
   kanban, calendar, gallery, timeline, chart, form, feed, local page relation
   fields, template rows, CSV export, XLSX export, confirmed
@@ -138,6 +139,12 @@ export surfaces.
 
 ## Notes and Pages
 
+Open the notes module at:
+
+```txt
+http://localhost:3000/modules/notes
+```
+
 Open any local page at:
 
 ```txt
@@ -146,6 +153,15 @@ http://localhost:3000/page/<page-id>
 
 Current local actions:
 
+- Review and export the local 笔记工作台. The workbench summarizes active pages,
+  root/child organization, favorite and locked pages, page structure status,
+  file blocks, inline database blocks, wiki-link counts, backlinks, version
+  counts, comment counts, unresolved comment counts, and suggested next actions.
+- Use the notes workbench lanes for 笔记入口, 投研结构, 研究关联, 复盘痕迹,
+  知识库组织, and 导出安全.
+- Create blank research notes or template-backed local pages for investment
+  memos, company research, meeting notes, and research reports from the notes
+  module.
 - Write and edit Notion-like page content with headings, lists, tasks, toggles,
   callouts, tables, formulas, synced blocks, embeds, wiki links, file previews,
   inline databases, comments, backlinks, and version history.
@@ -167,9 +183,18 @@ Current local actions:
 - Export a local 导出结构报告 JSON from the Info panel. The export preserves
   the structure summary, gates, signals, and suggested actions for later review.
 
-The local page research structure panel reads only the current page HTML and
-basic page metadata. It does not read linked page bodies, database row values, uploaded file bytes, AI prompts, tokens, credentials, cloud data, or private research content. It does not upload data, connect cloud services, call AI, or
-write workspace data.
+The local notes module and page research structure panel run in the browser. The
+notes workbench reads active page metadata, local page HTML structure, version
+counts, comment counts, wiki-link counts, favorite state, and lock state. It
+does not read linked page bodies, database row values, uploaded file bytes, AI
+prompts, tokens, credentials, cloud data, or private research content. It does
+not upload data, connect cloud services, call AI, or write workspace data.
+The local page research structure panel remains the per-page drill-down for
+current-page outline, gates, signals, and suggested-only scaffold insertion.
+It does not read linked page bodies, database row values, uploaded file bytes, AI prompts, tokens, credentials, cloud data, or private research content.
+The notes workbench export excludes page body text, comment body text, linked
+page bodies, database row values, file bytes, tokens, credentials, cloud data,
+and AI output.
 The structure report export excludes page titles, page body text, linked page bodies, database row values, file bytes, tokens, credentials, cloud data, and AI output.
 
 Run `npm run verify:page-structure` before treating the Notes and Pages

@@ -27,6 +27,17 @@ export interface SyncLogEntry {
 
 type SyncOperation = "insert" | "update" | "delete" | "restore";
 
+export interface PageModuleCounts {
+  pageId: string;
+  versions: number;
+  pageComments: number;
+  unresolvedPageComments: number;
+  blockComments: number;
+  unresolvedBlockComments: number;
+  outgoingLinks: number;
+  backlinks: number;
+}
+
 function recordSyncChange(
   db: SqliteDb,
   tableName: string,
@@ -69,6 +80,86 @@ export async function getDeletedPages(): Promise<Page[]> {
   return db.query(
     "SELECT * FROM pages WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC"
   ) as unknown as Page[];
+}
+
+export async function getPageModuleCounts(): Promise<
+  Record<string, PageModuleCounts>
+> {
+  const db = await getDb();
+  const activePages = db.query(
+    "SELECT id FROM pages WHERE deleted_at IS NULL"
+  ) as unknown as { id: string }[];
+  const counts = Object.fromEntries(
+    activePages.map((page) => [
+      page.id,
+      {
+        pageId: page.id,
+        versions: 0,
+        pageComments: 0,
+        unresolvedPageComments: 0,
+        blockComments: 0,
+        unresolvedBlockComments: 0,
+        outgoingLinks: 0,
+        backlinks: 0,
+      } satisfies PageModuleCounts,
+    ])
+  );
+
+  applyCountRows(
+    counts,
+    db.query(
+      "SELECT page_id as pageId, COUNT(*) as count FROM page_versions GROUP BY page_id"
+    ) as unknown as CountRow[],
+    "versions"
+  );
+  applyCountRows(
+    counts,
+    db.query(
+      `SELECT page_id as pageId,
+              COUNT(*) as count,
+              SUM(CASE WHEN resolved = 0 THEN 1 ELSE 0 END) as unresolved
+       FROM page_comments
+       WHERE deleted_at IS NULL
+       GROUP BY page_id`
+    ) as unknown as CountRow[],
+    "pageComments",
+    "unresolvedPageComments"
+  );
+  applyCountRows(
+    counts,
+    db.query(
+      `SELECT page_id as pageId,
+              COUNT(*) as count,
+              SUM(CASE WHEN resolved = 0 THEN 1 ELSE 0 END) as unresolved
+       FROM block_comments
+       WHERE deleted_at IS NULL
+       GROUP BY page_id`
+    ) as unknown as CountRow[],
+    "blockComments",
+    "unresolvedBlockComments"
+  );
+  applyCountRows(
+    counts,
+    db.query(
+      `SELECT source_page_id as pageId, COUNT(*) as count
+       FROM wiki_links
+       WHERE deleted_at IS NULL
+       GROUP BY source_page_id`
+    ) as unknown as CountRow[],
+    "outgoingLinks"
+  );
+  applyCountRows(
+    counts,
+    db.query(
+      `SELECT target_page_id as pageId, COUNT(*) as count
+       FROM wiki_links
+       WHERE deleted_at IS NULL
+       GROUP BY target_page_id`
+    ) as unknown as CountRow[],
+    "backlinks"
+  );
+
+  return counts;
 }
 
 export async function getPage(id: string): Promise<Page | null> {
@@ -348,6 +439,31 @@ function stripSearchHtml(html: string) {
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<[^>]+>/g, " ");
+}
+
+type CountRow = {
+  pageId: string;
+  count: number;
+  unresolved?: number | null;
+};
+
+function applyCountRows(
+  counts: Record<string, PageModuleCounts>,
+  rows: CountRow[],
+  countKey: keyof Omit<
+    PageModuleCounts,
+    "pageId" | "unresolvedPageComments" | "unresolvedBlockComments"
+  >,
+  unresolvedKey?: "unresolvedPageComments" | "unresolvedBlockComments"
+) {
+  for (const row of rows) {
+    const target = counts[row.pageId];
+    if (!target) continue;
+    target[countKey] = Number(row.count ?? 0);
+    if (unresolvedKey) {
+      target[unresolvedKey] = Number(row.unresolved ?? 0);
+    }
+  }
 }
 
 // ─── Wiki Links ──────────────────────────────────────────────

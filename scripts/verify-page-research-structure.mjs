@@ -9,7 +9,12 @@ const files = {
   packageJson: "package.json",
   editor: "src/components/editor/Editor.tsx",
   pageStructure: "src/lib/pages/pageResearchStructure.ts",
+  notesModule: "src/lib/pages/notesModule.ts",
   pageShell: "src/components/providers/PageShell.tsx",
+  notesShell: "src/components/modules/NotesShell.tsx",
+  notesRoute: "src/app/(workspace)/modules/notes/page.tsx",
+  registry: "src/lib/modules/registry.ts",
+  queries: "src/lib/db/local/queries.ts",
   readme: "README.md",
 };
 
@@ -34,7 +39,12 @@ function run() {
   const packageJson = readProjectFile(files.packageJson);
   const editor = readProjectFile(files.editor);
   const pageStructure = readProjectFile(files.pageStructure);
+  const notesModule = readProjectFile(files.notesModule);
   const pageShell = readProjectFile(files.pageShell);
+  const notesShell = readProjectFile(files.notesShell);
+  const notesRoute = readProjectFile(files.notesRoute);
+  const registry = readProjectFile(files.registry);
+  const queries = readProjectFile(files.queries);
   const readme = readProjectFile(files.readme);
 
   for (const snippet of [
@@ -118,6 +128,95 @@ function run() {
     );
   }
 
+  for (const snippet of [
+    'format: "zhinote-notes-module-workbench"',
+    'report_status: "local-notes-module-only"',
+    "buildNotesModuleWorkbenchReport",
+    "reads_page_metadata: true",
+    "reads_page_content_html: true",
+    "reads_page_versions_metadata: true",
+    "reads_comment_counts: true",
+    "reads_wiki_link_counts: true",
+    "reads_database_rows: false",
+    "reads_database_row_values: false",
+    "reads_file_bytes: false",
+    "uploads_data: false",
+    "connects_cloud_services: false",
+    "enables_ai: false",
+    "writes_workspace_data: false",
+    "includes_page_body_text: false",
+    "includes_comment_body_text: false",
+    "includes_file_bytes: false",
+    '"inbox"',
+    '"structure"',
+    '"research-links"',
+    '"review-trail"',
+    '"knowledge-base"',
+    '"export-safety"',
+    "send_page_text_to_ai",
+    "auto_delete_pages",
+    "auto_sync_notes",
+    "required_verification_commands",
+  ]) {
+    assertIncludes(
+      files.notesModule,
+      notesModule,
+      snippet,
+      "Notes module workbench must keep local-only page structure and review boundaries."
+    );
+  }
+
+  for (const snippet of [
+    "getPageModuleCounts",
+    "SELECT id FROM pages WHERE deleted_at IS NULL",
+    "COUNT(*) as count FROM page_versions",
+    "FROM page_comments",
+    "FROM block_comments",
+    "FROM wiki_links",
+    "PageModuleCounts",
+  ]) {
+    assertIncludes(
+      files.queries,
+      queries,
+      snippet,
+      "Notes module counts must be available without reading database row values or file bytes."
+    );
+  }
+
+  for (const snippet of [
+    "NotesShell",
+    "buildNotesModuleWorkbenchReport",
+    "getPageModuleCounts",
+    "笔记与页面中心",
+    "笔记工作台",
+    "导出笔记工作台",
+    "创建笔记入口",
+    "不包含页面正文、评论正文或文件 bytes",
+    "不读取数据库 row values",
+    "不自动删除或覆盖页面",
+    "不自动同步",
+  ]) {
+    assertIncludes(
+      files.notesShell,
+      notesShell,
+      snippet,
+      "Notes module UI must render the local notes workbench and privacy boundary."
+    );
+  }
+
+  assertIncludes(
+    files.notesRoute,
+    notesRoute,
+    "@/components/modules/NotesShell",
+    "Notes module route must load the NotesShell."
+  );
+  assertIncludes(
+    files.registry,
+    registry,
+    'route: "/modules/notes"',
+    "Notes registry entry must expose a first-class module route."
+  );
+
   assertIncludes(
     files.packageJson,
     packageJson,
@@ -126,6 +225,13 @@ function run() {
   );
 
   for (const snippet of [
+    "http://localhost:3000/modules/notes",
+    "local 笔记工作台",
+    "笔记入口",
+    "研究关联",
+    "复盘痕迹",
+    "导出安全",
+    "notes workbench export excludes page body text, comment body text",
     "local page research structure panel",
     "投研结构",
     "下一步队列",

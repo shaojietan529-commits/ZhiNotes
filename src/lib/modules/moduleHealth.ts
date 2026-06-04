@@ -103,9 +103,9 @@ function buildHealthAreas(): ModuleHealthArea[] {
       phase: "phase-1",
       module_ids: ["notes"],
       evidence:
-        "Notes/pages are active with page tree, slash commands, backlinks, comments, version history, Markdown import/export, and block editor surfaces.",
+        "Notes/pages are active with a first-class notes module route, notes workbench, page tree, slash commands, backlinks, comments, version history, Markdown import/export, and block editor surfaces.",
       next_action:
-        "Continue tightening Notion-like shortcuts, templates, comments, formulas, and block ergonomics without breaking local-first storage.",
+        "Use the notes workbench to prioritize page structure, research links, review trail, templates, comments, formulas, and block ergonomics without breaking local-first storage.",
       privacy_boundary:
         "Notes remain browser-local unless the user explicitly opts into cloud sync or AI payload sharing.",
     },

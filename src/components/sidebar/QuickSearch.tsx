@@ -202,6 +202,13 @@ export default function QuickSearch() {
     router.push("/modules");
   };
 
+  const handleOpenNotes = () => {
+    setOpen(false);
+    setQuery("");
+    setResults([]);
+    router.push("/modules/notes");
+  };
+
   const handleOpenCompanyResearch = () => {
     setOpen(false);
     setQuery("");
@@ -380,6 +387,15 @@ export default function QuickSearch() {
       category: "Workspace",
       aliases: ["module", "modules", "platform", "research platform", "模块"],
       run: handleOpenModuleHub,
+    },
+    {
+      id: "notes-module",
+      title: "笔记与页面中心",
+      description: "打开本地笔记工作台和页面结构总览",
+      icon: "NOTE",
+      category: "Workspace",
+      aliases: ["notes", "pages", "notion", "workspace", "笔记", "页面"],
+      run: handleOpenNotes,
     },
     {
       id: "company-research-module",

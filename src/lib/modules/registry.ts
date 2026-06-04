@@ -89,9 +89,12 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "类似 Notion 的投研页面、Markdown 笔记、页面链接、反向链接、评论和版本历史。",
     category: "Workspace",
     status: "active",
-    route: null,
+    route: "/modules/notes",
     icon: "NOTE",
     capabilities: [
+      "独立模块页面",
+      "笔记工作台",
+      "投研结构总览",
       "页面树",
       "斜杠菜单",
       "反向链接",
