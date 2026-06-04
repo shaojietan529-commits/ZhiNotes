@@ -21,6 +21,11 @@ export type PortfolioWorkbenchStatus =
   | "missing"
   | "blocked-boundary";
 
+export type PortfolioDecisionSummaryStatus =
+  | "available-local"
+  | "requires-owner-confirmation"
+  | "blocked";
+
 export interface PortfolioWorkbenchLane {
   id: PortfolioWorkbenchLaneId;
   title: string;
@@ -57,6 +62,48 @@ export interface PortfolioWorkbenchReviewStep {
   target_section_id: string;
   reason: string;
   completion_signal: string;
+}
+
+export interface PortfolioDecisionSummaryItem {
+  id:
+    | "local-portfolio-asset-intake"
+    | "position-discipline-thesis-risk"
+    | "catalyst-research-link-review"
+    | "tracker-row-intake"
+    | "brokerage-price-ai-cloud-boundary";
+  title: string;
+  status: PortfolioDecisionSummaryStatus;
+  answer: string;
+  evidence: string;
+  next_action: string;
+  route: string;
+  target_section_id: string;
+  allowed_now: boolean;
+  requires_owner_confirmation: boolean;
+  blocks_portfolio_externalization: boolean;
+  writes_workspace_data: false;
+  connects_brokerage_accounts: false;
+  fetches_prices: false;
+  uploads_data: false;
+  enables_ai: false;
+}
+
+export interface PortfolioWorkbenchDecisionSummary {
+  current_state: "local-portfolio-owner-review";
+  current_conclusion: string;
+  can_create_local_portfolio_assets_now: true;
+  can_review_position_discipline_now: true;
+  can_review_research_links_now: true;
+  can_write_tracker_rows_without_manual_click_now: false;
+  can_connect_brokerage_accounts_now: false;
+  can_fetch_live_prices_now: false;
+  can_send_portfolio_context_to_ai_now: false;
+  can_sync_portfolio_data_now: false;
+  can_bulk_update_database_rows_now: false;
+  safe_local_work: string[];
+  blocked_work: string[];
+  required_owner_decisions: string[];
+  decisions: PortfolioDecisionSummaryItem[];
 }
 
 export interface PortfolioWorkbenchPacket {
@@ -103,6 +150,7 @@ export interface PortfolioWorkbenchPacket {
     manual_confirmation_actions: number;
     blocked_actions: number;
   };
+  decision_summary: PortfolioWorkbenchDecisionSummary;
   lanes: PortfolioWorkbenchLane[];
   actions: PortfolioWorkbenchAction[];
   review_sequence: PortfolioWorkbenchReviewStep[];
@@ -244,6 +292,7 @@ export function buildPortfolioWorkbenchPacket(input: {
       blocked_actions: actions.filter((action) => action.status === "blocked-boundary")
         .length,
     },
+    decision_summary: buildDecisionSummary(input.review, input.trackerIntakeItems, actions),
     lanes: buildLanes(actions),
     actions,
     review_sequence: buildReviewSequence(input.review, input.trackerIntakeItems),
@@ -255,6 +304,179 @@ export function buildPortfolioWorkbenchPacket(input: {
       "npm run build",
     ],
   };
+}
+
+function buildDecisionSummary(
+  review: PortfolioReviewReport,
+  trackerIntakeItems: PortfolioTrackerIntakeItem[],
+  actions: PortfolioWorkbenchAction[]
+): PortfolioWorkbenchDecisionSummary {
+  const disciplineGaps = countMissingAreas(review, [
+    "sizing-discipline",
+    "conviction",
+  ]);
+  const thesisRiskGaps = countMissingAreas(review, ["thesis", "risk-notes"]);
+  const catalystLinkGaps = countMissingAreas(review, [
+    "catalyst",
+    "research-links",
+  ]);
+  const manualActions = actions.filter(
+    (action) => action.requires_manual_confirmation
+  );
+  const blockedActions = actions.filter(
+    (action) => action.status === "blocked-boundary"
+  );
+  const trackerReady = review.summary.tracker_databases > 0;
+  const hasPortfolioAsset =
+    review.summary.portfolio_memos > 0 || review.summary.watchlist_pages > 0;
+
+  return {
+    current_state: "local-portfolio-owner-review",
+    current_conclusion:
+      "组合模块可以继续本地创建持仓 memo、观察名单、催化剂复盘和组合跟踪表，并复核仓位纪律、thesis、风险、研究关联和入库候选；券商连接、实时价格、AI、云同步、批量 row 更新和任何持仓外发仍保持关闭，必须经过 owner confirmation。",
+    can_create_local_portfolio_assets_now: true,
+    can_review_position_discipline_now: true,
+    can_review_research_links_now: true,
+    can_write_tracker_rows_without_manual_click_now: false,
+    can_connect_brokerage_accounts_now: false,
+    can_fetch_live_prices_now: false,
+    can_send_portfolio_context_to_ai_now: false,
+    can_sync_portfolio_data_now: false,
+    can_bulk_update_database_rows_now: false,
+    safe_local_work: [
+      "新建持仓备忘录、观察名单、催化剂复盘和组合跟踪表，全部留在本地浏览器工作区。",
+      "复核仓位纪律、确信度、投资假设、风险笔记和催化剂结构，但不导出具体权重或观点正文。",
+      "用研究图谱查看组合与公司、报告、会议和 memo 的 relation 缺口，不自动写 relation。",
+      "用组合入库台逐条创建 tracker row，继续使用脱敏标签和本地单条写入。",
+    ],
+    blocked_work: [
+      "不能默认连接券商账户、读取账户 ID、余额、持仓、交易记录或订单。",
+      "不能默认抓取实时价格、估值数据或外部行情源。",
+      "不能把组合上下文、持仓名、ticker、权重、交易计划或交易记录发送给 AI 或云端。",
+      "不能批量创建 tracker rows、批量更新数据库、自动写 relation 或同步组合数据。",
+    ],
+    required_owner_decisions: [
+      "确认组合跟踪表字段和 relation 后，再逐条创建 tracker row。",
+      "确认任何外部价格源、券商连接或账户导入前的权限范围、payload preview 和审计事件。",
+      "确认 AI 或云同步前是否允许包含组合上下文，以及哪些敏感字段必须排除。",
+      "确认批量更新数据库前的目标 rows、字段、回滚边界和 typed confirmation。",
+    ],
+    decisions: [
+      {
+        id: "local-portfolio-asset-intake",
+        title: "组合资产入口",
+        status: hasPortfolioAsset ? "available-local" : "requires-owner-confirmation",
+        answer: hasPortfolioAsset ? "本地可做" : "先建资产",
+        evidence: `${review.summary.portfolio_memos} 个持仓 memo，${review.summary.watchlist_pages} 个观察名单页面；创建动作只写本地页面。`,
+        next_action:
+          "继续新建或补齐持仓 memo、观察名单和催化剂复盘，把想法放进可复盘结构。",
+        route: "/modules/portfolio",
+        target_section_id: "portfolio-create-assets",
+        allowed_now: true,
+        requires_owner_confirmation: !hasPortfolioAsset,
+        blocks_portfolio_externalization: false,
+        writes_workspace_data: false,
+        connects_brokerage_accounts: false,
+        fetches_prices: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "position-discipline-thesis-risk",
+        title: "仓位纪律 / Thesis / 风险",
+        status:
+          disciplineGaps + thesisRiskGaps > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer: disciplineGaps + thesisRiskGaps > 0 ? "先复核" : "结构可用",
+        evidence: `${disciplineGaps} 个仓位纪律缺口，${thesisRiskGaps} 个 thesis/risk 缺口；摘要不包含权重、ticker 或观点正文。`,
+        next_action:
+          "逐个打开来源页补结构，确认是否需要进入 tracker 或公司研究，而不是批量导出敏感内容。",
+        route: "/modules/portfolio",
+        target_section_id: "portfolio-review-radar",
+        allowed_now: true,
+        requires_owner_confirmation: disciplineGaps + thesisRiskGaps > 0,
+        blocks_portfolio_externalization: false,
+        writes_workspace_data: false,
+        connects_brokerage_accounts: false,
+        fetches_prices: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "catalyst-research-link-review",
+        title: "催化剂与研究关联",
+        status:
+          catalystLinkGaps > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer: catalystLinkGaps > 0 ? "补 relation" : "结构可用",
+        evidence: `${catalystLinkGaps} 个催化剂或研究关联缺口；工作台只提示结构，不写 relation values。`,
+        next_action:
+          "用研究图谱把组合资产连接回公司、报告、会议和 memo，确认对象后再手动补 relation。",
+        route: "/modules/research-graph",
+        target_section_id: "portfolio-research-connections",
+        allowed_now: true,
+        requires_owner_confirmation: catalystLinkGaps > 0,
+        blocks_portfolio_externalization: false,
+        writes_workspace_data: false,
+        connects_brokerage_accounts: false,
+        fetches_prices: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "tracker-row-intake",
+        title: "Tracker 单条入库",
+        status: "requires-owner-confirmation",
+        answer: trackerReady ? "单条确认后写" : "先建 tracker",
+        evidence: `${trackerIntakeItems.length} 个脱敏入库候选，${review.summary.tracker_databases} 个组合跟踪表；禁止自动或批量写 row。`,
+        next_action:
+          "确认 Related memo relation、Status、Conviction、Thesis 和 Risk notes 后，再逐条创建本地 tracker row。",
+        route: "/modules/portfolio",
+        target_section_id: "portfolio-tracker-intake",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_portfolio_externalization: false,
+        writes_workspace_data: false,
+        connects_brokerage_accounts: false,
+        fetches_prices: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "brokerage-price-ai-cloud-boundary",
+        title: "券商 / 价格 / AI / 云边界",
+        status: "blocked",
+        answer: "保持关闭",
+        evidence: `${blockedActions.length} 个边界动作阻塞，${manualActions.length} 个动作需要手动确认；组合敏感信息不外发。`,
+        next_action:
+          "任何券商、价格源、AI、云同步、分享或批量更新，都先做 payload preview、权限检查、审计和 typed confirmation。",
+        route: "/modules/sync",
+        target_section_id: "sync-ai-provider-boundary",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_portfolio_externalization: true,
+        writes_workspace_data: false,
+        connects_brokerage_accounts: false,
+        fetches_prices: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+    ],
+  };
+}
+
+function countMissingAreas(
+  review: PortfolioReviewReport,
+  areaIds: PortfolioReviewAreaId[]
+) {
+  const missingAreas = new Set(
+    review.areas
+      .filter((area) => area.status === "missing")
+      .map((area) => area.id)
+  );
+  return areaIds.filter((areaId) => missingAreas.has(areaId)).length;
 }
 
 function buildActions(

@@ -652,6 +652,11 @@ http://localhost:3000/modules/portfolio
 
 Current local actions:
 
+- Review the portfolio decision summary at the top of the module. It separates
+  local portfolio asset intake, position discipline/thesis/risk review,
+  catalyst and research-link cleanup, tracker row intake, and the blocked
+  brokerage/price/AI/cloud boundary before any sensitive portfolio data leaves
+  local review.
 - Create a position memo from the Investment Memo template.
 - Create a portfolio tracker database with local relation fields and views.
 - Track position status, watchlist ideas, sizing, conviction, catalysts, thesis,
@@ -687,6 +692,12 @@ not fetch prices, connect brokerage accounts, sync holdings, import
 transactions, or send position data externally. Tracker intake uses redacted
 local structure until the user manually fills sensitive portfolio details inside
 the tracker.
+The portfolio decision summary follows the same metadata-only boundary: it reads
+only aggregate review and tracker-intake summaries and does not include page
+titles, page text, position names, tickers, weights, holdings, trading plans,
+transactions, brokerage data, prices, prompts, tokens, credentials, cloud data,
+or AI output. It is a local routing layer for what is safe now, what stays
+closed, and what requires owner confirmation.
 
 ## Meetings Module
 
