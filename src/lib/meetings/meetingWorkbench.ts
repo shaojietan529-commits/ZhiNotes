@@ -54,6 +54,7 @@ export interface MeetingWorkbenchReviewStep {
   order: number;
   title: string;
   route: string;
+  target_section_id: string;
   reason: string;
   completion_signal: string;
 }
@@ -503,6 +504,7 @@ function buildReviewSequence(input: {
       1,
       "先建立会议纪要",
       "/modules/meetings",
+      "meeting-create-assets",
       "会议纪要是 transcript、行动项、投研闭环和 relation 的本地中枢。",
       input.followUp.summary.meeting_pages > 0
         ? "已有会议纪要页面。"
@@ -513,6 +515,7 @@ function buildReviewSequence(input: {
       2,
       "再补 transcript 复盘",
       "/modules/meetings",
+      "meeting-follow-up",
       "转录稿或录音索引需要先人工复核，才能抽取可靠观点和开放问题。",
       input.followUp.summary.missing_transcripts === 0
         ? "Transcript 结构已覆盖。"
@@ -523,6 +526,7 @@ function buildReviewSequence(input: {
       3,
       "沉淀投研闭环",
       "/modules/meetings",
+      "meeting-decision-ledger",
       "会议结论需要进入 thesis、模型、风险、催化剂和开放问题结构。",
       input.decisionLedger.summary.ledger_items === 0
         ? "会议投研闭环结构已覆盖。"
@@ -533,6 +537,7 @@ function buildReviewSequence(input: {
       4,
       "处理研究任务队列",
       "/modules/meetings",
+      "meeting-research-queue",
       "研究任务队列把会议后的补读、模型调整、开放问题和关系补齐排成队。",
       input.researchQueue.summary.queue_items === 0
         ? "当前没有会议研究任务。"
@@ -543,6 +548,7 @@ function buildReviewSequence(input: {
       5,
       "连接公司和报告",
       "/modules/research-graph",
+      "meeting-research-connections",
       "会议要回到公司、报告、memo 或业绩复盘，才形成投研闭环。",
       input.followUp.summary.missing_company_links === 0 &&
       input.followUp.summary.missing_report_links === 0
@@ -554,6 +560,7 @@ function buildReviewSequence(input: {
       6,
       "最后逐条入会议跟踪表",
       "/modules/meetings",
+      "meeting-tracker-intake",
       "tracker row 是本地写入动作，必须逐条确认，不能由工作台批量写入。",
       input.trackerIntakeItems.length > 0
         ? `${input.trackerIntakeItems.length} 个候选等待会议入库台复核。`
@@ -564,6 +571,7 @@ function buildReviewSequence(input: {
       7,
       "外发和自动化必须单独确认",
       "/modules/sync",
+      "meeting-privacy-boundary",
       "入会、录音、发布、AI、云同步和批量写入都是高风险动作。",
       "当前 packet 只做本地 metadata-only 排队。"
     ),
@@ -575,6 +583,7 @@ function reviewStep(
   order: number,
   title: string,
   route: string,
+  targetSectionId: string,
   reason: string,
   completionSignal: string
 ): MeetingWorkbenchReviewStep {
@@ -583,6 +592,7 @@ function reviewStep(
     order,
     title,
     route,
+    target_section_id: targetSectionId,
     reason,
     completion_signal: completionSignal,
   };

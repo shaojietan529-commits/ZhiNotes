@@ -197,6 +197,19 @@ function MeetingsDashboard() {
   const meetingsModule = PLATFORM_MODULES.find((module) => module.id === "meetings");
   const trackerStarter = meetingsModule?.starter ?? null;
 
+  const handleReviewStepNavigate = (
+    step: MeetingWorkbenchPacket["review_sequence"][number]
+  ) => {
+    if (step.route === "/modules/meetings") {
+      document
+        .getElementById(step.target_section_id)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    router.push(step.route);
+  };
+
   const runStarter = async (starter: ModuleStarter) => {
     setBusyAction(starter.label);
     try {
@@ -397,7 +410,10 @@ function MeetingsDashboard() {
           <Metric label="跟踪表" value={meetingTrackers.length} />
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="meeting-create-assets"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -513,26 +529,19 @@ function MeetingsDashboard() {
           </div>
           <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
             {meetingWorkbench.review_sequence.map((step) => (
-              <div
+              <MeetingWorkbenchReviewStepCard
                 key={step.id}
-                className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800"
-              >
-                <div className="text-[11px] text-zinc-400">Step {step.order}</div>
-                <div className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
-                  {step.title}
-                </div>
-                <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
-                  {step.reason}
-                </p>
-                <p className="mt-2 leading-5 text-zinc-400">
-                  完成信号：{step.completion_signal}
-                </p>
-              </div>
+                step={step}
+                onOpen={() => handleReviewStepNavigate(step)}
+              />
             ))}
           </div>
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="meeting-research-queue"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -671,7 +680,10 @@ function MeetingsDashboard() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="meeting-tracker-intake"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -723,7 +735,10 @@ function MeetingsDashboard() {
           )}
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="meeting-follow-up"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -841,7 +856,10 @@ function MeetingsDashboard() {
           )}
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="meeting-decision-ledger"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -1099,7 +1117,10 @@ function MeetingsDashboard() {
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div
+            id="meeting-privacy-boundary"
+            className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+          >
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               会议工作流
             </h2>
@@ -1128,11 +1149,13 @@ function MeetingsDashboard() {
 
         <ResearchWorkflowSchemaPanel kind="meeting" />
 
-        <ResearchConnectionsPanel
-          pages={pages}
-          databases={databases}
-          focusKind="meeting"
-        />
+        <div id="meeting-research-connections" className="scroll-mt-6">
+          <ResearchConnectionsPanel
+            pages={pages}
+            databases={databases}
+            focusKind="meeting"
+          />
+        </div>
 
         <section className="grid gap-4 lg:grid-cols-2">
           <ResourceList
@@ -1175,6 +1198,40 @@ function MeetingWorkbenchMetric({
         {value}
       </div>
     </div>
+  );
+}
+
+function MeetingWorkbenchReviewStepCard({
+  step,
+  onOpen,
+}: {
+  step: MeetingWorkbenchPacket["review_sequence"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-[11px] text-zinc-400">Step {step.order}</div>
+          <div className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
+            {step.title}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="shrink-0 rounded border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+        >
+          打开步骤
+        </button>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {step.reason}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400">
+        完成信号：{step.completion_signal}
+      </p>
+    </article>
   );
 }
 

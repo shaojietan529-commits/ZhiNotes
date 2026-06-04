@@ -648,6 +648,10 @@ Current local actions:
   text, transcript text, recording bytes, participant details, meeting passcodes,
   database row values, holdings, trading plans, cloud data, AI prompts, tokens,
   or credentials.
+- Use the meeting workbench review sequence to jump through the post-meeting
+  workflow: create meeting assets, review transcript gaps, capture investment
+  conclusions, process the research queue, link companies/reports, intake a
+  tracker row, and review sync/AI/privacy boundaries.
 - Use the meeting intake desk to create one local meeting tracker row from a
   meeting note. The intake action maps Meeting note relation, Status,
   Follow-up needed, and Action items, checks for an existing tracker row first,
