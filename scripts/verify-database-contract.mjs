@@ -16,6 +16,8 @@ const files = {
   databaseTemplateRowReadiness:
     "src/lib/database/databaseTemplateRowReadiness.ts",
   databaseViewReadiness: "src/lib/database/databaseViewReadiness.ts",
+  databaseImportExportReadiness:
+    "src/lib/database/databaseImportExportReadiness.ts",
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
@@ -84,6 +86,9 @@ function run() {
     files.databaseTemplateRowReadiness
   );
   const databaseViewReadiness = readProjectFile(files.databaseViewReadiness);
+  const databaseImportExportReadiness = readProjectFile(
+    files.databaseImportExportReadiness
+  );
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
@@ -536,6 +541,62 @@ function run() {
       "Database view readiness must preserve schema-only boundaries and view gates."
     );
   }
+  assertIncludes(
+    files.databaseImportExportReadiness,
+    databaseImportExportReadiness,
+    'format: "zhinote-database-import-export-readiness"',
+    "Database import/export readiness must define a stable local export format."
+  );
+  assertIncludes(
+    files.databaseImportExportReadiness,
+    databaseImportExportReadiness,
+    "buildDatabaseImportExportReadinessReport",
+    "Database import/export readiness must expose a reusable builder."
+  );
+  for (const snippet of [
+    'report_status: "local-import-export-readiness-only"',
+    'readiness_verdict: "ready-with-manual-value-gates"',
+    "local_report_only: true",
+    "reads_database_schema: true",
+    "reads_database_views: true",
+    "reads_database_row_count: true",
+    "reads_database_rows: false",
+    "reads_database_row_values: false",
+    "reads_page_text: false",
+    "writes_workspace_data: false",
+    "exports_row_values: false",
+    "imports_file_values: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.databaseImportExportReadiness,
+      databaseImportExportReadiness,
+      snippet,
+      "Database import/export readiness must preserve metadata-only boundaries."
+    );
+  }
+  for (const snippet of [
+    '"module-metadata-only"',
+    '"value-export-confirmation"',
+    '"spreadsheet-import-confirmation"',
+    '"empty-database-bootstrap"',
+    '"schema-matching"',
+    '"cloud-ai-boundary"',
+    "typed_confirmation_required_for_import: true",
+    "values_included_on_export",
+    "csv_export_route",
+    "xlsx_export_route",
+    "append_import_route",
+  ]) {
+    assertIncludes(
+      files.databaseImportExportReadiness,
+      databaseImportExportReadiness,
+      snippet,
+      "Database import/export readiness must expose value gates and routes."
+    );
+  }
   for (const viewType of requiredViews) {
     assertIncludes(
       files.databaseViewReadiness,
@@ -593,6 +654,12 @@ function run() {
     "buildDatabaseTemplateRowReadinessReport",
     "Databases module UI must build the template row readiness report."
   );
+  assertIncludes(
+    files.databaseModuleShell,
+    databaseModuleShell,
+    "buildDatabaseImportExportReadinessReport",
+    "Databases module UI must build the import/export readiness report."
+  );
   for (const snippet of [
     "模板行 readiness",
     "导出模板行 readiness",
@@ -633,6 +700,27 @@ function run() {
       databaseModuleShell,
       snippet,
       "Databases module UI must render and export local template-row receipt history."
+    );
+  }
+  for (const snippet of [
+    "导入/导出 readiness",
+    "导出导入/导出 readiness",
+    "DatabaseImportExportReadinessPanel",
+    "DatabaseImportExportGateRow",
+    "DatabaseImportExportCard",
+    "DatabaseImportExportStatusPill",
+    "DatabaseImportExportRiskPill",
+    "handleExportImportExportReadiness",
+    "不读取 row values",
+    "真实导入/导出仍在具体数据库页手动触发",
+    "导出含 row values",
+    "导入需确认短语",
+  ]) {
+    assertIncludes(
+      files.databaseModuleShell,
+      databaseModuleShell,
+      snippet,
+      "Databases module UI must render and export import/export readiness."
     );
   }
   for (const snippet of [
@@ -774,6 +862,7 @@ function run() {
         template_row_field_drafts: true,
         template_row_receipts: true,
         template_row_receipt_history: true,
+        import_export_readiness: true,
       },
       null,
       2

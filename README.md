@@ -194,6 +194,12 @@ Current local actions:
   The history combines full database page and inline database template-row
   receipts without field names, row values, page body text, tokens, credentials,
   cloud data, or sensitive investment fields.
+- Review and export local database import/export readiness. The module center
+  shows which databases are ready for CSV/XLSX value export, which can receive
+  Excel/CSV/ODS append imports, which need schema work first, and which actions
+  require typed confirmation. This report reads schema, views, and row counts
+  only; it does not read row values, spreadsheet values, page text, upload,
+  sync, or call AI.
 - Open any local database from the module list.
 
 The database module dashboard and readiness reports read schema, view metadata,
