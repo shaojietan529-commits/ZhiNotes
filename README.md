@@ -317,6 +317,10 @@ http://localhost:3000/modules/reports
 Current local actions:
 
 - Create a report note from the Research Report template.
+- Upload one or more local report files in a single selection. Each file creates
+  a local report page with a file preview block and a local metadata-only action
+  receipt; files are not uploaded, synced, sent to AI, or loaded through
+  external resources.
 - Create a report tracker database with local relation fields and views.
 - Track report pages, local file preview pages, HTML reports, companies, meetings, and memos.
 - Review and export a local report intake queue. The queue is built from

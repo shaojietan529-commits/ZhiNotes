@@ -92,6 +92,12 @@ const MARKDOWN_EDITABLE_IMPORT_LABEL = "导入 Markdown 笔记";
 const MARKDOWN_EDITABLE_IMPORT_ACCEPT =
   ".md,.markdown,.mdx,text/markdown,text/x-markdown,text/plain";
 
+interface ReportFileBatchMessage {
+  created: number;
+  failed: number;
+  total: number;
+}
+
 const REPORT_TEMPLATE_STARTERS: ModuleStarter[] = [
   {
     type: "page",
@@ -177,6 +183,8 @@ function ReportsDashboard() {
   const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
     null
   );
+  const [reportFileBatchMessage, setReportFileBatchMessage] =
+    useState<ReportFileBatchMessage | null>(null);
   const reportFileInputRef = useRef<HTMLInputElement | null>(null);
   const markdownImportInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -275,36 +283,44 @@ function ReportsDashboard() {
   const handleReportFileSelected = async (
     event: ChangeEvent<HTMLInputElement>
   ) => {
-    const file = event.target.files?.[0] ?? null;
+    const selectedFiles = Array.from(event.target.files ?? []);
     event.target.value = "";
-    if (!file) return;
+    if (selectedFiles.length === 0) return;
 
     setBusyAction(REPORT_FILE_ACTION_LABEL);
+    setReportFileBatchMessage(null);
     try {
-      const storedFile = await savePageFile(file);
-      const page = await createPage({
-        title: reportPageTitleFromFile(storedFile.name),
-        icon: "RPT",
-      });
-      await updatePage(page.id, {
-        content_text: createReportPageContent(storedFile),
-      });
-      appendFilePreviewActionReceipt(
-        buildFilePreviewActionReceipt({
-          file: storedFile,
-          action_kind: getReportFileReceiptActionKind(storedFile),
-          source_surface: "reports-module",
-          writes_page_content: true,
-          confirmation_required: false,
-          confirmation_matched: true,
-          note:
-            storedFile.kind === "archive"
-              ? "Report file retained locally from the Reports module with download access."
-              : "Report file created from the Reports module as a local page preview.",
-        })
-      );
+      const createdPages: Page[] = [];
+      let failed = 0;
+
+      for (const file of selectedFiles) {
+        try {
+          const storedFile = await savePageFile(file);
+          const page = await createReportPageFromStoredFile(storedFile);
+          createdPages.push(page);
+        } catch (err) {
+          failed += 1;
+          console.error("[Zhinote] Failed to create report page from file:", err);
+        }
+      }
+
       await refresh();
-      router.push(`/page/${page.id}`);
+      if (selectedFiles.length === 1 && createdPages[0]) {
+        router.push(`/page/${createdPages[0].id}`);
+        return;
+      }
+
+      setReportFileBatchMessage({
+        created: createdPages.length,
+        failed,
+        total: selectedFiles.length,
+      });
+
+      if (createdPages.length === 0) {
+        window.alert(
+          "没有成功创建报告页。文件没有上传；请检查浏览器是否允许本地存储。"
+        );
+      }
     } catch (err) {
       console.error("[Zhinote] Failed to create report page from file:", err);
       window.alert(
@@ -313,6 +329,31 @@ function ReportsDashboard() {
     } finally {
       setBusyAction(null);
     }
+  };
+
+  const createReportPageFromStoredFile = async (storedFile: StoredPageFile) => {
+    const page = await createPage({
+      title: reportPageTitleFromFile(storedFile.name),
+      icon: "RPT",
+    });
+    await updatePage(page.id, {
+      content_text: createReportPageContent(storedFile),
+    });
+    appendFilePreviewActionReceipt(
+      buildFilePreviewActionReceipt({
+        file: storedFile,
+        action_kind: getReportFileReceiptActionKind(storedFile),
+        source_surface: "reports-module",
+        writes_page_content: true,
+        confirmation_required: false,
+        confirmation_matched: true,
+        note:
+          storedFile.kind === "archive"
+            ? "Report file retained locally from the Reports module with download access."
+            : "Report file created from the Reports module as a local page preview.",
+      })
+    );
+    return page;
   };
 
   const handleMarkdownFileSelected = async (
@@ -614,6 +655,7 @@ function ReportsDashboard() {
               <input
                 ref={reportFileInputRef}
                 type="file"
+                multiple
                 accept={FILE_PREVIEW_ACCEPT}
                 className="hidden"
                 onChange={(event) => void handleReportFileSelected(event)}
@@ -654,6 +696,16 @@ function ReportsDashboard() {
               )}
             </div>
           </div>
+          {reportFileBatchMessage && (
+            <p className="mt-3 rounded-md bg-green-50 px-3 py-2 text-xs leading-5 text-green-700 dark:bg-green-950 dark:text-green-300">
+              批量上传结果：已创建 {reportFileBatchMessage.created} /{" "}
+              {reportFileBatchMessage.total} 个本地报告页
+              {reportFileBatchMessage.failed > 0
+                ? `，失败 ${reportFileBatchMessage.failed} 个。`
+                : "。"}
+              新页面已进入下方报告 intake 队列；文件仍只保存在本地浏览器。
+            </p>
+          )}
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
