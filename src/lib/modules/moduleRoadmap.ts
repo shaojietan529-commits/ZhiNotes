@@ -21,6 +21,11 @@ export type ModuleRoadmapReadiness =
   | "contract-only"
   | "blocked-by-launch-gates";
 
+export type ModuleRoadmapDecisionStatus =
+  | "available-local"
+  | "requires-owner-confirmation"
+  | "blocked";
+
 export interface ModuleRoadmapInput {
   manifest: ModuleManifestReport;
   onboarding: ModuleOnboardingContract;
@@ -62,6 +67,45 @@ export interface ModuleRoadmapGap {
   required_action: string;
 }
 
+export interface ModuleRoadmapDecision {
+  id:
+    | "new-module-design"
+    | "route-shell-scaffold"
+    | "safe-starter"
+    | "high-risk-actions"
+    | "web-cloud-ai-boundary";
+  title: string;
+  status: ModuleRoadmapDecisionStatus;
+  answer: string;
+  evidence: string;
+  next_action: string;
+  route: "/modules";
+  target_section_id: string;
+  allowed_now: boolean;
+  requires_owner_confirmation: boolean;
+  blocks_web_launch: boolean;
+  creates_modules_now: false;
+  writes_workspace_data: false;
+  connects_cloud_services: false;
+  uploads_data: false;
+  enables_ai: false;
+}
+
+export interface ModuleRoadmapDecisionSummary {
+  current_state: "local-module-design-only";
+  current_conclusion: string;
+  can_design_new_module_now: true;
+  can_add_registry_contract_now: true;
+  can_add_safe_local_route_now: true;
+  can_enable_high_risk_actions_now: false;
+  can_connect_cloud_or_ai_now: false;
+  can_launch_web_module_now: false;
+  safe_local_work: string[];
+  blocked_work: string[];
+  required_owner_decisions: string[];
+  decisions: ModuleRoadmapDecision[];
+}
+
 export interface ModuleRoadmapReport {
   format: "zhinote-module-roadmap";
   format_version: 1;
@@ -97,6 +141,7 @@ export interface ModuleRoadmapReport {
     gaps: number;
     p0_gaps: number;
   };
+  decision_summary: ModuleRoadmapDecisionSummary;
   lanes: ModuleRoadmapLane[];
   items: ModuleRoadmapItem[];
   gaps: ModuleRoadmapGap[];
@@ -147,6 +192,7 @@ export function buildModuleRoadmapReport(
       gaps: gaps.length,
       p0_gaps: gaps.filter((gap) => gap.severity === "p0").length,
     },
+    decision_summary: buildModuleRoadmapDecisionSummary(input, gaps),
     lanes,
     items,
     gaps,
@@ -154,6 +200,143 @@ export function buildModuleRoadmapReport(
       input.onboarding.steps.map((step) => step.id),
     required_verification_commands:
       input.starterPack.verification_commands,
+  };
+}
+
+function buildModuleRoadmapDecisionSummary(
+  input: ModuleRoadmapInput,
+  gaps: ModuleRoadmapGap[]
+): ModuleRoadmapDecisionSummary {
+  const p0Gaps = gaps.filter((gap) => gap.severity === "p0");
+
+  return {
+    current_state: "local-module-design-only",
+    current_conclusion:
+      "可以继续本地设计新模块、补 registry contract、加本地 route/shell 和安全 starter；高风险动作、云服务、AI、外部资产、批量/破坏性操作和 Web launch 仍然需要 owner gate。",
+    can_design_new_module_now: true,
+    can_add_registry_contract_now: true,
+    can_add_safe_local_route_now: true,
+    can_enable_high_risk_actions_now: false,
+    can_connect_cloud_or_ai_now: false,
+    can_launch_web_module_now: false,
+    safe_local_work: [
+      "定义新模块 id、标题、category、route、capabilities、data surfaces 和 extension slots。",
+      "创建本地 route/shell，只渲染本地 metadata 和用户可见内容。",
+      "添加安全 starter，只创建本地页面、数据库或 tracker。",
+      "更新 README 和 npm run verify:modules 断言。",
+    ],
+    blocked_work: [
+      "不能默认启用云同步、分享、外部 asset 加载或 Web launch。",
+      "不能默认启用 AI provider、broker import、批量删除、restore write-back 或覆盖写入。",
+      "不能让新模块读取页面正文、数据库 rows 或文件 bytes 后直接外发。",
+      "不能绕过 payload preview、typed confirmation、permission check 和 audit event。",
+    ],
+    required_owner_decisions: [
+      "确认新模块属于 Workspace、Research、Data 还是 Automation。",
+      "确认新模块需要哪些 extension slots，以及是否需要 starter。",
+      "确认模块触碰的数据面：pages、databases、files、relations、sync_log 或 reports。",
+      "确认任何高风险动作在启用前都走独立 owner gate。",
+    ],
+    decisions: [
+      {
+        id: "new-module-design",
+        title: "新模块本地设计",
+        status: "available-local",
+        answer: "可以继续",
+        evidence: `${input.manifest.summary.modules} 个模块已在 registry 中管理，${input.manifest.summary.extension_slots} 个 extension slots 可复用。`,
+        next_action:
+          "先写 registry entry 和 data surface 边界，再决定是否做 route、starter 和 verifier。",
+        route: "/modules",
+        target_section_id: "module-manifest",
+        allowed_now: true,
+        requires_owner_confirmation: false,
+        blocks_web_launch: false,
+        creates_modules_now: false,
+        writes_workspace_data: false,
+        connects_cloud_services: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "route-shell-scaffold",
+        title: "Route / Shell scaffold",
+        status: "available-local",
+        answer: "可以本地加",
+        evidence: `${input.starterPack.summary.files} 个 starter file templates 已定义，route 和 shell 都保持 local-first。`,
+        next_action:
+          "创建 /modules/<module-id> 和 shell 时，只展示本地状态、disabled gates 和 owner review 信息。",
+        route: "/modules",
+        target_section_id: "module-starter-pack",
+        allowed_now: true,
+        requires_owner_confirmation: false,
+        blocks_web_launch: false,
+        creates_modules_now: false,
+        writes_workspace_data: false,
+        connects_cloud_services: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "safe-starter",
+        title: "安全 starter",
+        status: "requires-owner-confirmation",
+        answer: "逐项确认",
+        evidence: `${input.onboarding.current_registry.starter_modules} 个现有模块已有 starter；starter 只能创建本地 artifact。`,
+        next_action:
+          "只有在 starter 不上传、不删除、不调用 AI、不连接 broker、不恢复覆盖时，才接入模块动作。",
+        route: "/modules",
+        target_section_id: "module-onboarding",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_web_launch: false,
+        creates_modules_now: false,
+        writes_workspace_data: false,
+        connects_cloud_services: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "high-risk-actions",
+        title: "高风险动作",
+        status: "blocked",
+        answer: "保持阻塞",
+        evidence: `${input.starterPack.summary.risk_gates} 个 risk gates 已定义，包含 cloud sync、AI、external assets 和 bulk/destructive actions。`,
+        next_action:
+          "先接 payload preview、typed confirmation、permission decision、audit event 和 rollback/scope review。",
+        route: "/modules",
+        target_section_id: "module-starter-pack",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_web_launch: true,
+        creates_modules_now: false,
+        writes_workspace_data: false,
+        connects_cloud_services: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "web-cloud-ai-boundary",
+        title: "Web / Cloud / AI 模块",
+        status: "blocked",
+        answer: "保持关闭",
+        evidence:
+          p0Gaps.length > 0
+            ? `${p0Gaps.length} 个 P0 gap 仍阻塞 Web launch。`
+            : "Web launch 仍需要 owner review、permission、audit、storage 和 sync proof。",
+        next_action:
+          "上线或连接云/AI 前，先完成 Sync 模块中的 Web Beta owner review、环境 preflight、权限和审计门禁。",
+        route: "/modules",
+        target_section_id: "module-roadmap",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_web_launch: true,
+        creates_modules_now: false,
+        writes_workspace_data: false,
+        connects_cloud_services: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+    ],
   };
 }
 

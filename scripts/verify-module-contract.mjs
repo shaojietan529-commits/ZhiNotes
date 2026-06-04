@@ -335,6 +335,20 @@ function run() {
     "connects_cloud_services: false",
     "uploads_data: false",
     "enables_ai: false",
+    "decision_summary",
+    "local-module-design-only",
+    "can_design_new_module_now: true",
+    "can_add_registry_contract_now: true",
+    "can_add_safe_local_route_now: true",
+    "can_enable_high_risk_actions_now: false",
+    "can_connect_cloud_or_ai_now: false",
+    "can_launch_web_module_now: false",
+    "new-module-design",
+    "route-shell-scaffold",
+    "safe-starter",
+    "high-risk-actions",
+    "web-cloud-ai-boundary",
+    "可以继续本地设计新模块",
     '"active-now"',
     '"beta-hardening"',
     '"planned-contracts"',
@@ -471,6 +485,26 @@ function run() {
     "模块接入路线图",
     "Module center must render the module roadmap panel."
   );
+  for (const snippet of [
+    "module-decision-summary",
+    "新模块接入决策摘要",
+    "ModuleDecisionSummaryPanel",
+    "ModuleDecisionCard",
+    "ModuleDecisionStatusPill",
+    "Export roadmap",
+    "Export onboarding",
+    "Export starter pack",
+    "module-manifest",
+    "module-onboarding",
+    "module-starter-pack",
+  ]) {
+    assertIncludes(
+      files.dashboard,
+      dashboard,
+      snippet,
+      "Module center must render the new-module decision summary."
+    );
+  }
   assertIncludes(
     files.dashboard,
     dashboard,

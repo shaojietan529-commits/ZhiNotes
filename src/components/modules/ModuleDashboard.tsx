@@ -183,6 +183,14 @@ export default function ModuleDashboard() {
     }
   };
 
+  const handleModuleDecisionNavigate = (
+    decision: ModuleRoadmapReport["decision_summary"]["decisions"][number]
+  ) => {
+    document
+      .getElementById(decision.target_section_id)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -238,7 +246,21 @@ export default function ModuleDashboard() {
           <Metric label="规划中模块" value={plannedModules.length} />
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <ModuleDecisionSummaryPanel
+          summary={moduleRoadmap.decision_summary}
+          exportingRoadmap={exportingRoadmap}
+          exportingOnboarding={exportingOnboarding}
+          exportingStarterPack={exportingStarterPack}
+          onOpenDecision={handleModuleDecisionNavigate}
+          onExportRoadmap={handleExportRoadmap}
+          onExportOnboarding={handleExportOnboarding}
+          onExportStarterPack={handleExportStarterPack}
+        />
+
+        <section
+          id="module-roadmap"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -313,7 +335,10 @@ export default function ModuleDashboard() {
           )}
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="module-manifest"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -373,7 +398,10 @@ export default function ModuleDashboard() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="module-health"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -433,7 +461,10 @@ export default function ModuleDashboard() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="module-onboarding"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -493,7 +524,10 @@ export default function ModuleDashboard() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="module-starter-pack"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -681,6 +715,189 @@ export default function ModuleDashboard() {
         </section>
       </div>
     </div>
+  );
+}
+
+function ModuleDecisionSummaryPanel({
+  summary,
+  exportingRoadmap,
+  exportingOnboarding,
+  exportingStarterPack,
+  onOpenDecision,
+  onExportRoadmap,
+  onExportOnboarding,
+  onExportStarterPack,
+}: {
+  summary: ModuleRoadmapReport["decision_summary"];
+  exportingRoadmap: boolean;
+  exportingOnboarding: boolean;
+  exportingStarterPack: boolean;
+  onOpenDecision: (
+    decision: ModuleRoadmapReport["decision_summary"]["decisions"][number]
+  ) => void;
+  onExportRoadmap: () => void;
+  onExportOnboarding: () => void;
+  onExportStarterPack: () => void;
+}) {
+  return (
+    <section
+      id="module-decision-summary"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Module Decision Summary
+          </p>
+          <h2 className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            新模块接入决策摘要
+          </h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            {summary.current_conclusion}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onExportRoadmap}
+            disabled={exportingRoadmap}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exportingRoadmap ? "Exporting..." : "Export roadmap"}
+          </button>
+          <button
+            type="button"
+            onClick={onExportOnboarding}
+            disabled={exportingOnboarding}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exportingOnboarding ? "Exporting..." : "Export onboarding"}
+          </button>
+          <button
+            type="button"
+            onClick={onExportStarterPack}
+            disabled={exportingStarterPack}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exportingStarterPack ? "Exporting..." : "Export starter pack"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+        {summary.decisions.map((decision) => (
+          <ModuleDecisionCard
+            key={decision.id}
+            decision={decision}
+            onOpen={() => onOpenDecision(decision)}
+          />
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <ModuleDecisionList title="当前可做" items={summary.safe_local_work} />
+        <ModuleDecisionList title="保持关闭" items={summary.blocked_work} />
+        <ModuleDecisionList
+          title="Owner 待确认"
+          items={summary.required_owner_decisions}
+        />
+      </div>
+
+      <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+        决策摘要只读取 registry、manifest、onboarding、starter pack 和 health
+        metadata；不会创建模块、写入工作区、读取页面正文、数据库 rows 或文件
+        bytes。
+      </div>
+    </section>
+  );
+}
+
+function ModuleDecisionCard({
+  decision,
+  onOpen,
+}: {
+  decision: ModuleRoadmapReport["decision_summary"]["decisions"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="flex min-h-[220px] flex-col justify-between rounded-md border border-zinc-100 p-3 text-xs dark:border-zinc-800">
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+              {decision.title}
+            </h3>
+            <p className="mt-1 text-base font-semibold text-zinc-950 dark:text-zinc-50">
+              {decision.answer}
+            </p>
+          </div>
+          <ModuleDecisionStatusPill status={decision.status} />
+        </div>
+        <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+          {decision.evidence}
+        </p>
+      </div>
+      <div className="mt-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+        <p className="leading-5 text-zinc-400 dark:text-zinc-500">
+          {decision.next_action}
+        </p>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-3 rounded border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+        >
+          打开对应区域
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function ModuleDecisionList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {title}
+      </div>
+      <ul className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+function ModuleDecisionStatusPill({
+  status,
+}: {
+  status: ModuleRoadmapReport["decision_summary"]["decisions"][number]["status"];
+}) {
+  const labels: Record<
+    ModuleRoadmapReport["decision_summary"]["decisions"][number]["status"],
+    string
+  > = {
+    "available-local": "本地可做",
+    "requires-owner-confirmation": "需确认",
+    blocked: "阻塞",
+  };
+  const className =
+    status === "available-local"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "requires-owner-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

@@ -136,6 +136,13 @@ blockers. It does not create modules, change routes, write workspace data, read
 page text, read database rows, read file bytes, connect cloud services, upload
 data, or enable AI.
 
+The module center now shows a new-module decision summary before the detailed
+contracts. It makes the owner decision explicit: local module design, registry
+contracts, local routes, shells, and safe local starters can continue; high-risk
+actions, cloud services, AI, external assets, bulk/destructive operations, and
+Web launch remain blocked until owner gates, payload preview, permission checks,
+audit events, and rollback/scope review are explicit.
+
 Run `npm run verify:modules` before treating a new module as part of the
 platform. The verifier checks registry fields, unique module ids, route files,
 extension slots, starter presets, local-only onboarding boundaries, sidebar
