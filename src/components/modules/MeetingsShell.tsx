@@ -33,6 +33,16 @@ import {
   type MeetingResearchPlaybookStatus,
 } from "@/lib/meetings/meetingResearchPlaybook";
 import {
+  buildMeetingResearchQueue,
+  getMeetingResearchQueueRiskLabel,
+  getMeetingResearchQueueStatusLabel,
+  getMeetingResearchQueueWorkstreamLabel,
+  type MeetingResearchQueueReport,
+  type MeetingResearchQueueRisk,
+  type MeetingResearchQueueStatus,
+  type MeetingResearchQueueWorkstream,
+} from "@/lib/meetings/meetingResearchQueue";
+import {
   buildMeetingTrackerIntakeDraft,
   findExistingMeetingTrackerRow,
   type MeetingTrackerFollowUpItem,
@@ -121,6 +131,7 @@ function MeetingsDashboard() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingFollowUp, setExportingFollowUp] = useState(false);
   const [exportingDecisionLedger, setExportingDecisionLedger] = useState(false);
+  const [exportingResearchQueue, setExportingResearchQueue] = useState(false);
   const [exportingPlaybook, setExportingPlaybook] = useState(false);
   const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
     null
@@ -151,6 +162,14 @@ function MeetingsDashboard() {
   const meetingDecisionLedger = useMemo(
     () => buildMeetingDecisionLedgerReport(pages, databases),
     [databases, pages]
+  );
+  const meetingResearchQueue = useMemo(
+    () =>
+      buildMeetingResearchQueue({
+        followUp: meetingFollowUp,
+        decisionLedger: meetingDecisionLedger,
+      }),
+    [meetingDecisionLedger, meetingFollowUp]
   );
   const meetingPlaybook = useMemo(
     () => buildMeetingResearchPlaybook(meetingFollowUp),
@@ -207,6 +226,24 @@ function MeetingsDashboard() {
       window.alert("会议投研闭环导出失败，请查看控制台。");
     } finally {
       setExportingDecisionLedger(false);
+    }
+  };
+
+  const handleExportResearchQueue = () => {
+    setExportingResearchQueue(true);
+    try {
+      downloadJsonFile(
+        `zhinote-meeting-research-queue-${fileSafeTimestamp()}.json`,
+        {
+          ...meetingResearchQueue,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export meeting research queue:", err);
+      window.alert("会议研究任务队列导出失败，请查看控制台。");
+    } finally {
+      setExportingResearchQueue(false);
     }
   };
 
@@ -350,6 +387,145 @@ function MeetingsDashboard() {
                   emphasis
                   onClick={() => void runStarter(trackerStarter)}
                 />
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                会议研究任务队列
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把 follow-up 队列和投研闭环合并成可执行的本地任务：
+                Transcript 复盘、会议结论、模型更新、风险/催化剂、开放问题、
+                relation 和 tracker 入库。导出只包含结构状态，不包含会议正文、
+                transcript text、录音 bytes、参会人详情、meeting passcodes、
+                数据库 row values、持仓或交易计划。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportResearchQueue}
+              disabled={exportingResearchQueue}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingResearchQueue ? "导出中..." : "导出任务队列"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-9">
+            <MeetingResearchQueueMetric
+              label="任务"
+              value={meetingResearchQueue.summary.queue_items}
+              detail="Research queue"
+              status={queueMetricStatus(
+                meetingResearchQueue.summary.queue_items
+              )}
+            />
+            <MeetingResearchQueueMetric
+              label="待复核"
+              value={meetingResearchQueue.summary.review_needed_items}
+              detail="Needs review"
+              status={queueMetricStatus(
+                meetingResearchQueue.summary.review_needed_items
+              )}
+            />
+            <MeetingResearchQueueMetric
+              label="Blocked"
+              value={meetingResearchQueue.summary.blocked_items}
+              detail="Setup first"
+              status={
+                meetingResearchQueue.summary.blocked_items > 0
+                  ? "blocked"
+                  : "ready"
+              }
+            />
+            <MeetingResearchQueueMetric
+              label="High"
+              value={meetingResearchQueue.summary.high_priority_items}
+              detail="Priority"
+              status={
+                meetingResearchQueue.summary.high_priority_items > 0
+                  ? "review-needed"
+                  : "ready"
+              }
+            />
+            <MeetingResearchQueueMetric
+              label="Transcript"
+              value={meetingResearchQueue.summary.transcript_review_items}
+              detail="复盘"
+              status={queueMetricStatus(
+                meetingResearchQueue.summary.transcript_review_items
+              )}
+            />
+            <MeetingResearchQueueMetric
+              label="结论"
+              value={meetingResearchQueue.summary.decision_capture_items}
+              detail="Decision"
+              status={queueMetricStatus(
+                meetingResearchQueue.summary.decision_capture_items
+              )}
+            />
+            <MeetingResearchQueueMetric
+              label="模型"
+              value={meetingResearchQueue.summary.model_update_items}
+              detail="Model"
+              status={queueMetricStatus(
+                meetingResearchQueue.summary.model_update_items
+              )}
+            />
+            <MeetingResearchQueueMetric
+              label="风险/催化"
+              value={meetingResearchQueue.summary.risk_catalyst_items}
+              detail="Risk"
+              status={queueMetricStatus(
+                meetingResearchQueue.summary.risk_catalyst_items
+              )}
+            />
+            <MeetingResearchQueueMetric
+              label="关系/入库"
+              value={
+                meetingResearchQueue.summary.relation_linking_items +
+                meetingResearchQueue.summary.tracker_intake_items
+              }
+              detail="Relation"
+              status={queueMetricStatus(
+                meetingResearchQueue.summary.relation_linking_items +
+                  meetingResearchQueue.summary.tracker_intake_items
+              )}
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Research queue gates
+              </div>
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-1">
+                {meetingResearchQueue.gates.map((gate) => (
+                  <MeetingResearchQueueGateRow key={gate.id} gate={gate} />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Top research tasks
+              </div>
+              {meetingResearchQueue.items.length > 0 ? (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {meetingResearchQueue.items.slice(0, 8).map((item) => (
+                    <MeetingResearchQueueItemCard
+                      key={item.id}
+                      item={item}
+                      onOpen={() => router.push(item.route)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  当前没有会议研究任务。下一步可以维护 relation 值、复盘节奏和最新结论。
+                </p>
               )}
             </div>
           </div>
@@ -1220,6 +1396,166 @@ function MeetingDecisionPriorityPill({
   );
 }
 
+function MeetingResearchQueueMetric({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: MeetingResearchQueueStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <MeetingResearchQueueStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function MeetingResearchQueueGateRow({
+  gate,
+}: {
+  gate: MeetingResearchQueueReport["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {gate.evidence}
+          </p>
+        </div>
+        <MeetingResearchQueueStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {gate.next_action}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400">
+        {gate.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function MeetingResearchQueueItemCard({
+  item,
+  onOpen,
+}: {
+  item: MeetingResearchQueueReport["items"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.page_title}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <MeetingResearchQueueWorkstreamPill workstream={item.workstream} />
+            <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+              {item.source}
+            </span>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <FollowUpPriorityPill priority={item.priority} />
+          <MeetingResearchQueueRiskPill risk={item.risk} />
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        <MeetingResearchQueueStatusPill status={item.status} />
+        {item.missing_structures.slice(0, 4).map((structure) => (
+          <span
+            key={structure}
+            className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          >
+            缺 {structure}
+          </span>
+        ))}
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {item.trigger}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {item.next_action}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        {item.privacy_boundary}
+      </p>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-3 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        打开会议页
+      </button>
+    </article>
+  );
+}
+
+function MeetingResearchQueueStatusPill({
+  status,
+}: {
+  status: MeetingResearchQueueStatus;
+}) {
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "review-needed"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {getMeetingResearchQueueStatusLabel(status)}
+    </span>
+  );
+}
+
+function MeetingResearchQueueRiskPill({
+  risk,
+}: {
+  risk: MeetingResearchQueueRisk;
+}) {
+  const className =
+    risk === "high"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : risk === "medium"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {getMeetingResearchQueueRiskLabel(risk)}
+    </span>
+  );
+}
+
+function MeetingResearchQueueWorkstreamPill({
+  workstream,
+}: {
+  workstream: MeetingResearchQueueWorkstream;
+}) {
+  return (
+    <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+      {getMeetingResearchQueueWorkstreamLabel(workstream)}
+    </span>
+  );
+}
+
 function MeetingPlaybookMetric({
   label,
   value,
@@ -1532,6 +1868,10 @@ function compoundDecisionMetricStatus(
   if (total === 0 || firstCount === 0 || secondCount === 0) return "missing";
   if (firstCount === total && secondCount === total) return "ready";
   return "partial";
+}
+
+function queueMetricStatus(count: number): MeetingResearchQueueStatus {
+  return count > 0 ? "review-needed" : "ready";
 }
 
 function formatUpdated(value: string) {

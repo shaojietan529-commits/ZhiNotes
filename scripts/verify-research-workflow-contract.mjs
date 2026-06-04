@@ -15,6 +15,7 @@ const files = {
   companyTrackerIntake: "src/lib/company/companyTrackerIntake.ts",
   meetingFollowUp: "src/lib/meetings/meetingFollowUp.ts",
   meetingDecisionLedger: "src/lib/meetings/meetingDecisionLedger.ts",
+  meetingResearchQueue: "src/lib/meetings/meetingResearchQueue.ts",
   meetingPlaybook: "src/lib/meetings/meetingResearchPlaybook.ts",
   meetingTrackerIntake: "src/lib/meetings/meetingTrackerIntake.ts",
   portfolioReview: "src/lib/portfolio/portfolioReview.ts",
@@ -92,6 +93,16 @@ const requiredMeetingDecisionSignals = [
   "open-questions",
 ];
 
+const requiredMeetingResearchQueueWorkstreams = [
+  "transcript-review",
+  "decision-capture",
+  "model-update",
+  "risk-catalyst",
+  "open-question",
+  "relation-linking",
+  "tracker-intake",
+];
+
 const requiredPortfolioReviewAreas = [
   "position-memo",
   "watchlist",
@@ -131,6 +142,7 @@ function run() {
   const companyTrackerIntake = readProjectFile(files.companyTrackerIntake);
   const meetingFollowUp = readProjectFile(files.meetingFollowUp);
   const meetingDecisionLedger = readProjectFile(files.meetingDecisionLedger);
+  const meetingResearchQueue = readProjectFile(files.meetingResearchQueue);
   const meetingPlaybook = readProjectFile(files.meetingPlaybook);
   const meetingTrackerIntake = readProjectFile(files.meetingTrackerIntake);
   const portfolioReview = readProjectFile(files.portfolioReview);
@@ -656,6 +668,65 @@ function run() {
     );
   }
   assertIncludes(
+    files.meetingResearchQueue,
+    meetingResearchQueue,
+    'format: "zhinote-meeting-research-queue"',
+    "Meeting research queue must define a local export format."
+  );
+  assertIncludes(
+    files.meetingResearchQueue,
+    meetingResearchQueue,
+    "buildMeetingResearchQueue",
+    "Meeting research queue must expose a reusable builder."
+  );
+  for (const snippet of [
+    "local_queue_only: true",
+    "reads_meeting_follow_up_report: true",
+    "reads_meeting_decision_ledger: true",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "includes_transcript_text: false",
+    "includes_recording_bytes: false",
+    "includes_participant_details: false",
+    "includes_meeting_passcodes: false",
+    "includes_database_row_values: false",
+    "includes_holdings_or_trading_plans: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.meetingResearchQueue,
+      meetingResearchQueue,
+      snippet,
+      "Meeting research queue must preserve local-only privacy boundaries."
+    );
+  }
+  for (const workstream of requiredMeetingResearchQueueWorkstreams) {
+    assertIncludes(
+      files.meetingResearchQueue,
+      meetingResearchQueue,
+      `"${workstream}"`,
+      `Meeting research queue must keep workstream ${workstream}.`
+    );
+  }
+  for (const gate of [
+    "queue-built-from-local-reports",
+    "transcript-review-gate",
+    "decision-capture-gate",
+    "model-update-gate",
+    "risk-catalyst-gate",
+    "relation-linking-gate",
+  ]) {
+    assertIncludes(
+      files.meetingResearchQueue,
+      meetingResearchQueue,
+      `"${gate}"`,
+      `Meeting research queue must keep gate ${gate}.`
+    );
+  }
+  assertIncludes(
     files.meetingPlaybook,
     meetingPlaybook,
     'format: "zhinote-meeting-research-playbook"',
@@ -1013,6 +1084,12 @@ function run() {
   assertIncludes(
     files.meetingsShell,
     meetingsShell,
+    "buildMeetingResearchQueue",
+    "Meetings module must build the meeting research queue."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
     "buildMeetingResearchPlaybook",
     "Meetings module must build the research playbook."
   );
@@ -1064,6 +1141,27 @@ function run() {
     "导出闭环",
     "Meetings module must export the decision ledger report."
   );
+  for (const snippet of [
+    "会议研究任务队列",
+    "导出任务队列",
+    "meetingResearchQueue",
+    "handleExportResearchQueue",
+    "MeetingResearchQueueGateRow",
+    "MeetingResearchQueueItemCard",
+    "MeetingResearchQueueStatusPill",
+    "MeetingResearchQueueRiskPill",
+    "MeetingResearchQueueWorkstreamPill",
+    "Research queue gates",
+    "Top research tasks",
+    "不包含会议正文",
+  ]) {
+    assertIncludes(
+      files.meetingsShell,
+      meetingsShell,
+      snippet,
+      "Meetings module must render and export the local meeting research queue."
+    );
+  }
   assertIncludes(
     files.meetingsShell,
     meetingsShell,
@@ -1241,6 +1339,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "meeting research task queue",
+    "README must document meeting research task queue exports."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "meeting intake desk",
     "README must document meeting tracker intake."
   );
@@ -1284,6 +1388,9 @@ function run() {
         company_tracker_intake_fields: 6,
         meeting_follow_up_stages: requiredMeetingFollowUpStages.length,
         meeting_decision_signals: requiredMeetingDecisionSignals.length,
+        meeting_research_queue_workstreams:
+          requiredMeetingResearchQueueWorkstreams.length,
+        meeting_research_queue: true,
         meeting_playbook_actions: 7,
         meeting_tracker_intake_fields: 4,
         portfolio_review_areas: requiredPortfolioReviewAreas.length,

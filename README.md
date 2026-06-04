@@ -469,6 +469,13 @@ Current local actions:
   impact, risk watch items, catalyst follow-ups, and open questions without
   exporting meeting text, transcript text, recording bytes, participant
   details, meeting passcodes, holdings, trading plans, or database row values.
+- Review and export a local meeting research task queue. The queue merges the
+  meeting follow-up queue and meeting decision ledger into next research tasks
+  for Transcript review, decision capture, model updates, risk/catalyst review,
+  open questions, relation linking, and tracker intake without exporting page
+  text, meeting text, transcript text, recording bytes, participant details,
+  meeting passcodes, database row values, holdings, trading plans, sync, upload,
+  or AI.
 - Review and export a local meeting research playbook. The playbook converts
   follow-up gaps into an action queue for meeting context, Transcript pages,
   action items, company/report relations, meeting tracker setup, and follow-up
