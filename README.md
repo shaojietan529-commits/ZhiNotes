@@ -367,6 +367,10 @@ http://localhost:3000/modules/research-graph
 
 Current local actions:
 
+- Review the research graph decision summary at the top of the module. It
+  separates graph coverage review, manual relation handoffs, schema-field setup,
+  cross-module follow-up, and the blocked AI/cloud/bulk-write boundary before
+  any relation value or schema change is attempted.
 - View company, report, meeting, and portfolio asset coverage in one place.
 - Review recent relation links across local research trackers.
 - Identify local assets that still need structured relation fields.
@@ -405,6 +409,12 @@ call AI, sync data, or upload workspace content. Its only write path is a
 manually confirmed local relation-field creation from a schema gap. Relation
 completion from a database page is a separate manual click that writes only the
 selected local row and selected local relation field.
+The research graph decision summary follows the same metadata-only boundary: it
+reads only aggregate graph/workbench summaries and does not include page bodies,
+database row values, file names, file bytes, holdings, trading plans, prompts,
+tokens, credentials, cloud data, or AI output. It is a local routing layer for
+what can be reviewed now, what requires owner confirmation, and what remains
+blocked.
 
 ## Company Research Module
 

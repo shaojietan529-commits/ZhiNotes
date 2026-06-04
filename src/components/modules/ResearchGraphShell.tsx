@@ -30,6 +30,7 @@ import {
 import {
   buildResearchWorkbenchPacket,
   type ResearchWorkbenchActionStatus,
+  type ResearchWorkbenchDecisionStatus,
   type ResearchWorkbenchPacket,
 } from "@/lib/modules/researchWorkbench";
 import { getResearchModuleRoute } from "@/lib/modules/researchWorkflow";
@@ -201,6 +202,19 @@ function ResearchGraphDashboard() {
     }
   };
 
+  const handleDecisionOpen = (
+    decision: ResearchWorkbenchPacket["decision_summary"]["decisions"][number]
+  ) => {
+    if (decision.route === "/modules/research-graph") {
+      document
+        .getElementById(decision.target_section_id)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    router.push(`${decision.route}#${decision.target_section_id}`);
+  };
+
   const handleCreateSchemaGapField = async (gap: ResearchGraphSchemaGap) => {
     const confirmed = window.confirm(
       `在「${gap.database_title}」里创建 relation 字段「${gap.suggested_field_name}」？\n\n这只会修改本地数据库结构，不会写入行数据、同步或上传。`
@@ -303,6 +317,13 @@ function ResearchGraphDashboard() {
           <Metric label="工作队列" value={workbenchPacket.summary.actions} />
         </section>
 
+        <ResearchGraphDecisionSummaryPanel
+          summary={workbenchPacket.decision_summary}
+          exportingWorkbench={exportingWorkbenchPacket}
+          onExportWorkbench={handleExportWorkbenchPacket}
+          onOpenDecision={handleDecisionOpen}
+        />
+
         <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
           <CoveragePanel
             coverage={graphReport.coverage}
@@ -392,6 +413,167 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
+function ResearchGraphDecisionSummaryPanel({
+  summary,
+  exportingWorkbench,
+  onExportWorkbench,
+  onOpenDecision,
+}: {
+  summary: ResearchWorkbenchPacket["decision_summary"];
+  exportingWorkbench: boolean;
+  onExportWorkbench: () => void;
+  onOpenDecision: (
+    decision: ResearchWorkbenchPacket["decision_summary"]["decisions"][number]
+  ) => void;
+}) {
+  return (
+    <section
+      id="research-graph-decision-summary"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Research Graph Decision Summary
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            研究图谱决策摘要
+          </h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            {summary.current_conclusion}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExportWorkbench}
+          disabled={exportingWorkbench}
+          className="w-fit whitespace-nowrap rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+        >
+          {exportingWorkbench ? "导出中..." : "导出工作台行动包"}
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {summary.decisions.map((decision) => (
+          <ResearchGraphDecisionCard
+            key={decision.id}
+            decision={decision}
+            onOpen={() => onOpenDecision(decision)}
+          />
+        ))}
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <ResearchGraphDecisionList
+          title="当前可做"
+          items={summary.safe_local_work}
+        />
+        <ResearchGraphDecisionList
+          title="保持关闭"
+          items={summary.blocked_work}
+        />
+        <ResearchGraphDecisionList
+          title="Owner 待确认"
+          items={summary.required_owner_decisions}
+        />
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+        研究图谱决策摘要只读取本地 summary metadata，不包含 page bodies、
+        database row values、file names、file bytes、holdings、trading
+        plans、prompt、token、credentials、cloud data 或 AI output。
+      </p>
+    </section>
+  );
+}
+
+function ResearchGraphDecisionCard({
+  decision,
+  onOpen,
+}: {
+  decision: ResearchWorkbenchPacket["decision_summary"]["decisions"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="flex min-h-[230px] flex-col justify-between rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-zinc-950 dark:text-zinc-50">
+              {decision.title}
+            </h3>
+            <p className="mt-1 text-base font-semibold text-zinc-950 dark:text-zinc-50">
+              {decision.answer}
+            </p>
+          </div>
+          <ResearchGraphDecisionStatusPill status={decision.status} />
+        </div>
+        <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+          {decision.evidence}
+        </p>
+      </div>
+      <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+        <p className="text-xs leading-5 text-zinc-400">
+          {decision.next_action}
+        </p>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-3 rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-white dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          打开对应区域
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function ResearchGraphDecisionList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <article className="rounded-lg bg-zinc-50 px-4 py-3 text-sm dark:bg-zinc-900">
+      <h3 className="font-semibold text-zinc-950 dark:text-zinc-50">{title}</h3>
+      <ul className="mt-2 space-y-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+function ResearchGraphDecisionStatusPill({
+  status,
+}: {
+  status: ResearchWorkbenchDecisionStatus;
+}) {
+  const label: Record<ResearchWorkbenchDecisionStatus, string> = {
+    "available-local": "本地可做",
+    "requires-owner-confirmation": "需确认",
+    blocked: "阻塞",
+  };
+  const className: Record<ResearchWorkbenchDecisionStatus, string> = {
+    "available-local":
+      "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200",
+    "requires-owner-confirmation":
+      "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200",
+    blocked: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-200",
+  };
+
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${className[status]}`}
+    >
+      {label[status]}
+    </span>
+  );
+}
+
 function CoveragePanel({
   coverage,
   onOpenModule,
@@ -400,7 +582,10 @@ function CoveragePanel({
   onOpenModule: (kind: ResearchAssetKind) => void;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="research-graph-coverage"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         模块覆盖
       </h2>
@@ -452,7 +637,10 @@ function CoveragePanel({
 
 function BoundaryPanel({ report }: { report: ResearchGraphReport }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="research-graph-local-boundary"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         本地边界
       </h2>
@@ -506,7 +694,10 @@ function HealthSummaryPanel({
   onOpenRoute: (route: string) => void;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="research-graph-health-summary"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -630,7 +821,10 @@ function ResearchWorkbenchPanel({
   const topActions = packet.actions.slice(0, 8);
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="research-graph-workbench"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -849,7 +1043,10 @@ function PriorityQueuePanel({
   onOpenPage: (pageId: string) => void;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="research-graph-priority-queue"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -964,7 +1161,10 @@ function RelationHandoffPanel({
   onOpenRoute: (route: string) => void;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="research-graph-relation-handoff"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -1105,7 +1305,10 @@ function SchemaGapPanel({
   onCreateField: (gap: ResearchGraphSchemaGap) => void;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="research-graph-schema-gaps"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -1172,7 +1375,10 @@ function SchemaFieldCreationResultPanel({
   if (!result) return null;
 
   return (
-    <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+    <section
+      id="research-graph-schema-action-result"
+      className="scroll-mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-300">
@@ -1221,7 +1427,10 @@ function CompletionPlanPanel({
   onOpenModule: (kind: ResearchAssetKind) => void;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="research-graph-completion-plan"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -1317,7 +1526,10 @@ function RelationLinksPanel({
   onOpenPage: (pageId: string) => void;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="research-graph-relation-links"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           最近连接
@@ -1367,7 +1579,10 @@ function UnlinkedAssetsPanel({
   onCompleteAction: (action: ResearchGraphCompletionAction) => void;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="research-graph-unlinked-assets"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           待补全资产
@@ -1447,7 +1662,10 @@ function DatabaseSurfacePanel({
   onOpenDatabase: (databaseId: string) => void;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="research-graph-database-surfaces"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           本地跟踪表

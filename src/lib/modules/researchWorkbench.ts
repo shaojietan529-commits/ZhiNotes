@@ -11,6 +11,11 @@ export type ResearchWorkbenchActionStatus =
   | "needs-tracker"
   | "review-only";
 
+export type ResearchWorkbenchDecisionStatus =
+  | "available-local"
+  | "requires-owner-confirmation"
+  | "blocked";
+
 export type ResearchWorkbenchLaneId =
   | "company-context"
   | "report-linking"
@@ -73,6 +78,46 @@ export interface ResearchWorkbenchReviewStep {
   completion_signal: string;
 }
 
+export interface ResearchWorkbenchDecision {
+  id:
+    | "graph-coverage-review"
+    | "manual-relation-handoff"
+    | "schema-field-setup"
+    | "module-follow-up-queue"
+    | "cloud-ai-bulk-boundary";
+  title: string;
+  status: ResearchWorkbenchDecisionStatus;
+  answer: string;
+  evidence: string;
+  next_action: string;
+  route: string;
+  target_section_id: string;
+  allowed_now: boolean;
+  requires_owner_confirmation: boolean;
+  blocks_graph_externalization: boolean;
+  writes_workspace_data: false;
+  creates_relation_values: false;
+  creates_schema_fields: false;
+  uploads_data: false;
+  enables_ai: false;
+}
+
+export interface ResearchWorkbenchDecisionSummary {
+  current_state: "local-research-graph-owner-review";
+  current_conclusion: string;
+  can_review_graph_coverage_now: true;
+  can_open_relation_handoffs_now: true;
+  can_create_schema_fields_without_confirmation_now: false;
+  can_auto_write_relation_values_now: false;
+  can_bulk_update_database_rows_now: false;
+  can_send_graph_context_to_ai_now: false;
+  can_sync_graph_data_now: false;
+  safe_local_work: string[];
+  blocked_work: string[];
+  required_owner_decisions: string[];
+  decisions: ResearchWorkbenchDecision[];
+}
+
 export interface ResearchWorkbenchPacket {
   format: "zhinote-research-workbench-packet";
   format_version: 1;
@@ -111,6 +156,7 @@ export interface ResearchWorkbenchPacket {
     unlinked_assets: number;
     schema_gaps: number;
   };
+  decision_summary: ResearchWorkbenchDecisionSummary;
   lanes: ResearchWorkbenchLane[];
   module_rollups: ResearchWorkbenchModuleRollup[];
   actions: ResearchWorkbenchAction[];
@@ -235,6 +281,7 @@ export function buildResearchWorkbenchPacket(
       unlinked_assets: report.summary.unlinked_assets,
       schema_gaps: report.summary.schema_gaps,
     },
+    decision_summary: buildDecisionSummary(report, actions),
     lanes,
     module_rollups: moduleRollups,
     actions,
@@ -245,6 +292,165 @@ export function buildResearchWorkbenchPacket(
       "npm run verify:modules",
       "npm run lint",
       "npm run build",
+    ],
+  };
+}
+
+function buildDecisionSummary(
+  report: ResearchGraphReport,
+  actions: ResearchWorkbenchAction[]
+): ResearchWorkbenchDecisionSummary {
+  const relationActions = actions.filter(
+    (action) => action.status === "needs-relation"
+  );
+  const schemaActions = actions.filter(
+    (action) => action.status === "needs-schema"
+  );
+  const trackerActions = actions.filter(
+    (action) => action.status === "needs-tracker"
+  );
+  const manualActions = actions.filter(
+    (action) => action.requires_manual_confirmation
+  );
+
+  return {
+    current_state: "local-research-graph-owner-review",
+    current_conclusion:
+      "研究图谱现在可以继续本地查看跨模块连接覆盖、打开 relation handoff、复核 schema gap 和跳转到公司/报告/会议/组合模块；自动写 relation 值、批量更新数据库、AI、云同步和外发图谱上下文仍保持关闭，必须经过 owner confirmation。",
+    can_review_graph_coverage_now: true,
+    can_open_relation_handoffs_now: true,
+    can_create_schema_fields_without_confirmation_now: false,
+    can_auto_write_relation_values_now: false,
+    can_bulk_update_database_rows_now: false,
+    can_send_graph_context_to_ai_now: false,
+    can_sync_graph_data_now: false,
+    safe_local_work: [
+      "查看公司、报告、会议和组合的本地连接覆盖率、健康状态和断点队列。",
+      "打开 relation handoff，跳到对应 page 或 database，人工确认后再补 relation。",
+      "复核 schema gap，确认本地数据库是否需要新增 relation 字段。",
+      "把断点分流回 Company、Reports、Meetings、Portfolio 和 Databases 模块继续处理。",
+    ],
+    blocked_work: [
+      "不能自动写 relation values、自动创建 tracker rows 或批量更新数据库 rows。",
+      "不能默认创建 relation 字段；schema field creation 必须有本地确认。",
+      "不能读取 page bodies、database row values、file names 或 file bytes 来做图谱导出。",
+      "不能把图谱上下文、持仓、交易计划、文件或页面内容发送给 AI、云端或外部服务。",
+    ],
+    required_owner_decisions: [
+      "确认某个 schema gap 是否真的应该创建 relation 字段。",
+      "确认 relation handoff 的 source page、target tracker、relation field 和 row 后再手动写值。",
+      "确认批量关系修复前的目标 assets、rows、字段和回滚边界。",
+      "确认 AI 或云同步前的 payload preview、权限检查、审计事件和敏感字段排除。",
+    ],
+    decisions: [
+      {
+        id: "graph-coverage-review",
+        title: "图谱覆盖复核",
+        status: "available-local",
+        answer: "本地可看",
+        evidence: `${report.summary.assets} 个资产，${report.summary.connected_assets} 个已连接，${report.summary.relation_links} 条 relation 连接。`,
+        next_action:
+          "先看连接健康摘要和模块覆盖，把断点最多的模块排到下一步。",
+        route: "/modules/research-graph",
+        target_section_id: "research-graph-health-summary",
+        allowed_now: true,
+        requires_owner_confirmation: false,
+        blocks_graph_externalization: false,
+        writes_workspace_data: false,
+        creates_relation_values: false,
+        creates_schema_fields: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "manual-relation-handoff",
+        title: "Relation handoff",
+        status:
+          relationActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer: relationActions.length > 0 ? "手动补值" : "暂无断点",
+        evidence: `${relationActions.length} 个补 relation 行动，${report.summary.relation_handoff_packets} 个 handoff packet；不会自动写 relation values。`,
+        next_action:
+          "打开 handoff packet，确认 source、target tracker、relation field 和 row 后再手动写值。",
+        route: "/modules/research-graph",
+        target_section_id: "research-graph-relation-handoff",
+        allowed_now: true,
+        requires_owner_confirmation: relationActions.length > 0,
+        blocks_graph_externalization: false,
+        writes_workspace_data: false,
+        creates_relation_values: false,
+        creates_schema_fields: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "schema-field-setup",
+        title: "Relation 字段结构",
+        status:
+          schemaActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer: schemaActions.length > 0 ? "确认后创建" : "结构可用",
+        evidence: `${schemaActions.length} 个 schema action，${report.summary.schema_gaps} 个 relation 字段缺口；创建字段必须本地确认。`,
+        next_action:
+          "先复核字段名称和目标数据库，再用 schema gap 面板创建单个本地 relation 字段。",
+        route: "/modules/research-graph",
+        target_section_id: "research-graph-schema-gaps",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_graph_externalization: false,
+        writes_workspace_data: false,
+        creates_relation_values: false,
+        creates_schema_fields: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "module-follow-up-queue",
+        title: "跨模块行动队列",
+        status:
+          trackerActions.length + relationActions.length + schemaActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer:
+          trackerActions.length + relationActions.length + schemaActions.length > 0
+            ? "逐项处理"
+            : "队列清爽",
+        evidence: `${actions.length} 个工作台行动，${manualActions.length} 个需要手动确认，覆盖公司、报告、会议、组合和 schema setup。`,
+        next_action:
+          "按优先级打开对应模块，把断点回收到真实工作流，而不是在图谱里批量改数据。",
+        route: "/modules/research-graph",
+        target_section_id: "research-graph-workbench",
+        allowed_now: true,
+        requires_owner_confirmation: manualActions.length > 0,
+        blocks_graph_externalization: false,
+        writes_workspace_data: false,
+        creates_relation_values: false,
+        creates_schema_fields: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "cloud-ai-bulk-boundary",
+        title: "AI、云同步与批量写入边界",
+        status: "blocked",
+        answer: "保持关闭",
+        evidence:
+          "图谱工作台只做本地 metadata routing；AI、云同步、外部服务和批量写入仍被禁止。",
+        next_action:
+          "只有在 payload preview、权限检查、审计事件、typed confirmation 和回滚方案齐备后，才讨论自动化修复。",
+        route: "/modules/sync",
+        target_section_id: "sync-ai-provider-boundary",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_graph_externalization: true,
+        writes_workspace_data: false,
+        creates_relation_values: false,
+        creates_schema_fields: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
     ],
   };
 }
