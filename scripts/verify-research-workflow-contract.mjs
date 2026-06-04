@@ -13,6 +13,7 @@ const files = {
   companyPlaybook: "src/lib/company/companyResearchPlaybook.ts",
   companyTrackerIntake: "src/lib/company/companyTrackerIntake.ts",
   meetingFollowUp: "src/lib/meetings/meetingFollowUp.ts",
+  meetingDecisionLedger: "src/lib/meetings/meetingDecisionLedger.ts",
   meetingPlaybook: "src/lib/meetings/meetingResearchPlaybook.ts",
   meetingTrackerIntake: "src/lib/meetings/meetingTrackerIntake.ts",
   portfolioReview: "src/lib/portfolio/portfolioReview.ts",
@@ -80,6 +81,15 @@ const requiredMeetingFollowUpStages = [
   "done",
 ];
 
+const requiredMeetingDecisionSignals = [
+  "decision-summary",
+  "thesis-impact",
+  "model-impact",
+  "risk-watch",
+  "catalyst-follow-up",
+  "open-questions",
+];
+
 const requiredPortfolioReviewAreas = [
   "position-memo",
   "watchlist",
@@ -117,6 +127,7 @@ function run() {
   const companyPlaybook = readProjectFile(files.companyPlaybook);
   const companyTrackerIntake = readProjectFile(files.companyTrackerIntake);
   const meetingFollowUp = readProjectFile(files.meetingFollowUp);
+  const meetingDecisionLedger = readProjectFile(files.meetingDecisionLedger);
   const meetingPlaybook = readProjectFile(files.meetingPlaybook);
   const meetingTrackerIntake = readProjectFile(files.meetingTrackerIntake);
   const portfolioReview = readProjectFile(files.portfolioReview);
@@ -440,6 +451,49 @@ function run() {
       meetingFollowUp,
       `id: "${stage}"`,
       `Meeting follow-up must keep stage ${stage}.`
+    );
+  }
+  assertIncludes(
+    files.meetingDecisionLedger,
+    meetingDecisionLedger,
+    'format: "zhinote-meeting-decision-ledger"',
+    "Meeting decision ledger must define a local export format."
+  );
+  assertIncludes(
+    files.meetingDecisionLedger,
+    meetingDecisionLedger,
+    "buildMeetingDecisionLedgerReport",
+    "Meeting decision ledger must expose a reusable builder."
+  );
+  for (const snippet of [
+    "local_report_only: true",
+    "reads_local_page_html: true",
+    "reads_database_metadata: true",
+    "includes_page_text: false",
+    "includes_transcript_text: false",
+    "includes_recording_bytes: false",
+    "includes_participant_details: false",
+    "includes_meeting_passcodes: false",
+    "includes_database_row_values: false",
+    "includes_holdings_or_trading_plans: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.meetingDecisionLedger,
+      meetingDecisionLedger,
+      snippet,
+      "Meeting decision ledger must preserve local-only privacy boundaries."
+    );
+  }
+  for (const signal of requiredMeetingDecisionSignals) {
+    assertIncludes(
+      files.meetingDecisionLedger,
+      meetingDecisionLedger,
+      `"${signal}"`,
+      `Meeting decision ledger must keep signal ${signal}.`
     );
   }
   assertIncludes(
@@ -794,6 +848,12 @@ function run() {
   assertIncludes(
     files.meetingsShell,
     meetingsShell,
+    "buildMeetingDecisionLedgerReport",
+    "Meetings module must build the decision ledger report."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
     "buildMeetingResearchPlaybook",
     "Meetings module must build the research playbook."
   );
@@ -832,6 +892,18 @@ function run() {
     meetingsShell,
     "会议 follow-up 队列",
     "Meetings module must render the follow-up queue."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    "会议投研闭环",
+    "Meetings module must render the decision ledger panel."
+  );
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    "导出闭环",
+    "Meetings module must export the decision ledger report."
   );
   assertIncludes(
     files.meetingsShell,
@@ -1004,6 +1076,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "meeting decision ledger",
+    "README must document meeting decision ledger exports."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "meeting intake desk",
     "README must document meeting tracker intake."
   );
@@ -1046,6 +1124,7 @@ function run() {
         company_coverage_areas: requiredCompanyCoverageAreas.length,
         company_tracker_intake_fields: 6,
         meeting_follow_up_stages: requiredMeetingFollowUpStages.length,
+        meeting_decision_signals: requiredMeetingDecisionSignals.length,
         meeting_playbook_actions: 7,
         meeting_tracker_intake_fields: 4,
         portfolio_review_areas: requiredPortfolioReviewAreas.length,

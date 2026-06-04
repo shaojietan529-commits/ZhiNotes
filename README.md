@@ -367,6 +367,11 @@ Current local actions:
   links, and tracker database coverage without exporting meeting text,
   transcript text, recording bytes, participant details, meeting passcodes, or
   database row values.
+- Review and export a local meeting decision ledger. The ledger checks whether
+  meetings have been converted into decision summaries, thesis impact, model
+  impact, risk watch items, catalyst follow-ups, and open questions without
+  exporting meeting text, transcript text, recording bytes, participant
+  details, meeting passcodes, holdings, trading plans, or database row values.
 - Review and export a local meeting research playbook. The playbook converts
   follow-up gaps into an action queue for meeting context, Transcript pages,
   action items, company/report relations, meeting tracker setup, and follow-up

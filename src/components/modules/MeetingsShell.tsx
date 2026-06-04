@@ -21,6 +21,13 @@ import {
   type MeetingFollowUpStage,
 } from "@/lib/meetings/meetingFollowUp";
 import {
+  buildMeetingDecisionLedgerReport,
+  getMeetingDecisionSignalLabel,
+  type MeetingDecisionLedgerReport,
+  type MeetingDecisionPriority,
+  type MeetingDecisionStatus,
+} from "@/lib/meetings/meetingDecisionLedger";
+import {
   buildMeetingResearchPlaybook,
   type MeetingResearchPlaybook,
   type MeetingResearchPlaybookStatus,
@@ -113,6 +120,7 @@ function MeetingsDashboard() {
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingFollowUp, setExportingFollowUp] = useState(false);
+  const [exportingDecisionLedger, setExportingDecisionLedger] = useState(false);
   const [exportingPlaybook, setExportingPlaybook] = useState(false);
   const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
     null
@@ -138,6 +146,10 @@ function MeetingsDashboard() {
   );
   const meetingFollowUp = useMemo(
     () => buildMeetingFollowUpReport(pages, databases),
+    [databases, pages]
+  );
+  const meetingDecisionLedger = useMemo(
+    () => buildMeetingDecisionLedgerReport(pages, databases),
     [databases, pages]
   );
   const meetingPlaybook = useMemo(
@@ -177,6 +189,24 @@ function MeetingsDashboard() {
       window.alert("Meeting follow-up export failed. Please check the console.");
     } finally {
       setExportingFollowUp(false);
+    }
+  };
+
+  const handleExportDecisionLedger = () => {
+    setExportingDecisionLedger(true);
+    try {
+      downloadJsonFile(
+        `zhinote-meeting-decision-ledger-${fileSafeTimestamp()}.json`,
+        {
+          ...meetingDecisionLedger,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export meeting decision ledger:", err);
+      window.alert("会议投研闭环导出失败，请查看控制台。");
+    } finally {
+      setExportingDecisionLedger(false);
     }
   };
 
@@ -493,6 +523,136 @@ function MeetingsDashboard() {
               公司关联或报告关联。
             </p>
           )}
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                会议投研闭环
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                本地检查会议是否已经沉淀为会议结论、Thesis 影响、模型影响、
+                风险监控、催化剂跟进和开放问题。导出只包含结构状态，
+                不包含会议正文、transcript text、录音 bytes、参会人详情、
+                meeting passcodes、持仓或交易计划。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportDecisionLedger}
+              disabled={exportingDecisionLedger}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingDecisionLedger ? "导出中..." : "导出闭环"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-8">
+            <MeetingDecisionMetric
+              label="信号面"
+              value={meetingDecisionLedger.summary.decision_signals}
+              detail="Decision checks"
+              status="partial"
+            />
+            <MeetingDecisionMetric
+              label="Ready"
+              value={meetingDecisionLedger.summary.ready_signals}
+              detail="全会议覆盖"
+              status="ready"
+            />
+            <MeetingDecisionMetric
+              label="Missing"
+              value={meetingDecisionLedger.summary.missing_signals}
+              detail="完全缺失"
+              status={
+                meetingDecisionLedger.summary.missing_signals > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+            <MeetingDecisionMetric
+              label="会议结论"
+              value={meetingDecisionLedger.summary.meetings_with_decision_summary}
+              detail="Decision"
+              status={decisionMetricStatus(
+                meetingDecisionLedger.summary.meetings_with_decision_summary,
+                meetingDecisionLedger.summary.meeting_pages
+              )}
+            />
+            <MeetingDecisionMetric
+              label="Thesis"
+              value={meetingDecisionLedger.summary.meetings_with_thesis_impact}
+              detail="假设影响"
+              status={decisionMetricStatus(
+                meetingDecisionLedger.summary.meetings_with_thesis_impact,
+                meetingDecisionLedger.summary.meeting_pages
+              )}
+            />
+            <MeetingDecisionMetric
+              label="模型影响"
+              value={meetingDecisionLedger.summary.meetings_with_model_impact}
+              detail="Model"
+              status={decisionMetricStatus(
+                meetingDecisionLedger.summary.meetings_with_model_impact,
+                meetingDecisionLedger.summary.meeting_pages
+              )}
+            />
+            <MeetingDecisionMetric
+              label="风险/催化"
+              value={
+                meetingDecisionLedger.summary.meetings_with_risk_watch +
+                meetingDecisionLedger.summary.meetings_with_catalyst_follow_up
+              }
+              detail="Risk + catalyst"
+              status={compoundDecisionMetricStatus(
+                meetingDecisionLedger.summary.meetings_with_risk_watch,
+                meetingDecisionLedger.summary.meetings_with_catalyst_follow_up,
+                meetingDecisionLedger.summary.meeting_pages
+              )}
+            />
+            <MeetingDecisionMetric
+              label="待补会议"
+              value={meetingDecisionLedger.summary.ledger_items}
+              detail="Needs ledger"
+              status={
+                meetingDecisionLedger.summary.ledger_items > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                结构信号
+              </div>
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-1">
+                {meetingDecisionLedger.signals.map((signal) => (
+                  <MeetingDecisionSignalCard key={signal.id} signal={signal} />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                待沉淀会议
+              </div>
+              {meetingDecisionLedger.items.length > 0 ? (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {meetingDecisionLedger.items.slice(0, 6).map((item) => (
+                    <MeetingDecisionItemCard
+                      key={item.id}
+                      item={item}
+                      onOpen={() => router.push(item.route)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  当前会议页已经覆盖基础投研闭环结构，下一步可以补 relation 值和最新结论。
+                </p>
+              )}
+            </div>
+          </div>
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -912,6 +1072,154 @@ function FollowUpStatusPill({
   );
 }
 
+function MeetingDecisionMetric({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: MeetingDecisionStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <MeetingDecisionStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function MeetingDecisionSignalCard({
+  signal,
+}: {
+  signal: MeetingDecisionLedgerReport["signals"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {signal.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {signal.evidence}
+          </p>
+        </div>
+        <MeetingDecisionStatusPill status={signal.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {signal.next_action}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400">
+        {signal.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function MeetingDecisionItemCard({
+  item,
+  onOpen,
+}: {
+  item: MeetingDecisionLedgerReport["items"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.page_title}
+          </div>
+          <div className="mt-1 text-zinc-400">
+            {item.ready_signals.length} 个信号已覆盖
+          </div>
+        </div>
+        <MeetingDecisionPriorityPill priority={item.priority} />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {item.missing_signals.slice(0, 6).map((signalId) => (
+          <span
+            key={signalId}
+            className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          >
+            缺 {getMeetingDecisionSignalLabel(signalId)}
+          </span>
+        ))}
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {item.next_action}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        {item.privacy_boundary}
+      </p>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-3 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        打开会议页
+      </button>
+    </article>
+  );
+}
+
+function MeetingDecisionStatusPill({
+  status,
+}: {
+  status: MeetingDecisionStatus;
+}) {
+  const labels: Record<MeetingDecisionStatus, string> = {
+    ready: "Ready",
+    partial: "Partial",
+    missing: "Missing",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "partial"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function MeetingDecisionPriorityPill({
+  priority,
+}: {
+  priority: MeetingDecisionPriority;
+}) {
+  const labels: Record<MeetingDecisionPriority, string> = {
+    high: "High",
+    medium: "Medium",
+    low: "Low",
+  };
+  const className =
+    priority === "high"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : priority === "medium"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[priority]}
+    </span>
+  );
+}
+
 function MeetingPlaybookMetric({
   label,
   value,
@@ -1205,6 +1513,25 @@ function isMeetingTrackerDatabase(database: Database) {
     searchable.includes("call tracker") ||
     searchable.includes("会议")
   );
+}
+
+function decisionMetricStatus(
+  count: number,
+  total: number
+): MeetingDecisionStatus {
+  if (total === 0 || count === 0) return "missing";
+  if (count === total) return "ready";
+  return "partial";
+}
+
+function compoundDecisionMetricStatus(
+  firstCount: number,
+  secondCount: number,
+  total: number
+): MeetingDecisionStatus {
+  if (total === 0 || firstCount === 0 || secondCount === 0) return "missing";
+  if (firstCount === total && secondCount === total) return "ready";
+  return "partial";
 }
 
 function formatUpdated(value: string) {
