@@ -34,12 +34,15 @@ import {
 } from "@/lib/files/filePreviewReadiness";
 import {
   FILE_PREVIEW_ACTION_RECEIPT_EVENT,
+  appendFilePreviewActionReceipt,
+  buildFilePreviewActionReceipt,
   listFilePreviewActionReceipts,
   type FilePreviewActionKind,
   type FilePreviewActionReceipt,
 } from "@/lib/files/filePreviewActionReceipts";
 import { createFilePreviewBlockHtml } from "@/lib/files/filePreviewBlock";
 import { savePageFile, type StoredPageFile } from "@/lib/files/localStore";
+import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import {
@@ -62,6 +65,9 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
 const REPORT_FILE_ACTION_LABEL = "上传报告文件";
+const MARKDOWN_EDITABLE_IMPORT_LABEL = "导入 Markdown 笔记";
+const MARKDOWN_EDITABLE_IMPORT_ACCEPT =
+  ".md,.markdown,.mdx,text/markdown,text/x-markdown,text/plain";
 
 const REPORT_TEMPLATE_STARTERS: ModuleStarter[] = [
   {
@@ -142,6 +148,7 @@ function ReportsDashboard() {
     null
   );
   const reportFileInputRef = useRef<HTMLInputElement | null>(null);
+  const markdownImportInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     void getAllDatabases()
@@ -211,6 +218,10 @@ function ReportsDashboard() {
     reportFileInputRef.current?.click();
   };
 
+  const handleChooseMarkdownImport = () => {
+    markdownImportInputRef.current?.click();
+  };
+
   const handleReportFileSelected = async (
     event: ChangeEvent<HTMLInputElement>
   ) => {
@@ -234,6 +245,52 @@ function ReportsDashboard() {
       console.error("[Zhinote] Failed to create report page from file:", err);
       window.alert(
         "无法从这个本地文件创建报告页。文件没有上传；请检查浏览器是否允许本地存储。"
+      );
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleMarkdownFileSelected = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    if (!file) return;
+
+    setBusyAction(MARKDOWN_EDITABLE_IMPORT_LABEL);
+    try {
+      const storedFile = await savePageFile(file);
+      if (storedFile.kind !== "markdown") {
+        window.alert("请选择 .md、.markdown 或 .mdx 文件。");
+        return;
+      }
+
+      const page = await createPage({
+        title: markdownPageTitleFromFile(storedFile.name),
+        icon: "MD",
+      });
+      await updatePage(page.id, {
+        content_text: createMarkdownImportedPageContent(storedFile),
+      });
+      appendFilePreviewActionReceipt(
+        buildFilePreviewActionReceipt({
+          file: storedFile,
+          action_kind: "editable-import",
+          source_surface: "reports-module",
+          writes_page_content: true,
+          confirmation_required: false,
+          confirmation_matched: true,
+          note:
+            "Markdown imported from the Reports module into a local editable page.",
+        })
+      );
+      await refresh();
+      router.push(`/page/${page.id}`);
+    } catch (err) {
+      console.error("[Zhinote] Failed to import markdown note:", err);
+      window.alert(
+        "Markdown 笔记导入失败。文件没有上传；请检查浏览器是否允许本地存储。"
       );
     } finally {
       setBusyAction(null);
@@ -425,11 +482,23 @@ function ReportsDashboard() {
                 className="hidden"
                 onChange={(event) => void handleReportFileSelected(event)}
               />
+              <input
+                ref={markdownImportInputRef}
+                type="file"
+                accept={MARKDOWN_EDITABLE_IMPORT_ACCEPT}
+                className="hidden"
+                onChange={(event) => void handleMarkdownFileSelected(event)}
+              />
               <StarterButton
                 label={REPORT_FILE_ACTION_LABEL}
                 busy={busyAction === REPORT_FILE_ACTION_LABEL}
                 emphasis
                 onClick={handleChooseReportFile}
+              />
+              <StarterButton
+                label={MARKDOWN_EDITABLE_IMPORT_LABEL}
+                busy={busyAction === MARKDOWN_EDITABLE_IMPORT_LABEL}
+                onClick={handleChooseMarkdownImport}
               />
               {REPORT_TEMPLATE_STARTERS.map((starter) => (
                 <StarterButton
@@ -1716,6 +1785,14 @@ function reportPageTitleFromFile(fileName: string) {
   return baseName ? `${baseName} 报告` : "未命名研究报告";
 }
 
+function markdownPageTitleFromFile(fileName: string) {
+  const baseName = fileName
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  return baseName ? `${baseName} 笔记` : "未命名 Markdown 笔记";
+}
+
 function createReportPageContent(file: StoredPageFile) {
   return `
     <h1>研究报告</h1>
@@ -1749,6 +1826,28 @@ function createReportPageContent(file: StoredPageFile) {
     <ul data-type="taskList">
       <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p></p></div></li>
     </ul>
+  `;
+}
+
+function createMarkdownImportedPageContent(file: StoredPageFile) {
+  return `
+    <h1>Markdown 笔记</h1>
+    <h2>源文件</h2>
+    <ul>
+      <li>文件名：${escapeHtml(file.name)}</li>
+      <li>格式：Markdown / MDX</li>
+      <li>本地原文件：</li>
+    </ul>
+    ${createFilePreviewBlockHtml(file)}
+    <h2>关联研究</h2>
+    <ul>
+      <li>公司页面：</li>
+      <li>相关报告：</li>
+      <li>相关会议：</li>
+      <li>相关数据库：</li>
+    </ul>
+    <h2>可编辑内容</h2>
+    ${markdownToHtml(file.textContent ?? "")}
   `;
 }
 

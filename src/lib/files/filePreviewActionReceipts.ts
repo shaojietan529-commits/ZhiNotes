@@ -27,7 +27,7 @@ export interface FilePreviewActionReceiptInput {
   >;
   action_kind: FilePreviewActionKind;
   action_status?: FilePreviewActionStatus;
-  source_surface?: "file-preview-block";
+  source_surface?: "file-preview-block" | "reports-module";
   writes_page_content?: boolean;
   creates_database?: boolean;
   creates_database_rows?: boolean;
@@ -47,7 +47,7 @@ export interface FilePreviewActionReceipt {
   receipt_status: "local-file-action-metadata-only";
   action_kind: FilePreviewActionKind;
   action_status: FilePreviewActionStatus;
-  source_surface: "file-preview-block";
+  source_surface: "file-preview-block" | "reports-module";
   created_at: string;
   privacy_note: string;
   file: {

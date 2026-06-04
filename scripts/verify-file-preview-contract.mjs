@@ -437,6 +437,7 @@ function run() {
     "appendFilePreviewActionReceipt",
     "listFilePreviewActionReceipts",
     "FILE_PREVIEW_ACTION_RECEIPT_EVENT",
+    '"reports-module"',
     '"editable-import"',
     '"database-import"',
     '"external-resource-enable"',
@@ -546,6 +547,8 @@ function run() {
   for (const snippet of [
     "listFilePreviewActionReceipts",
     "FILE_PREVIEW_ACTION_RECEIPT_EVENT",
+    "appendFilePreviewActionReceipt",
+    "buildFilePreviewActionReceipt",
     "handleExportFileActionReceipts",
     "文件动作 receipts",
     "导出 receipts",
@@ -560,6 +563,25 @@ function run() {
       reportsShell,
       snippet,
       "Reports module must render local file action receipt history."
+    );
+  }
+  for (const snippet of [
+    "MARKDOWN_EDITABLE_IMPORT_LABEL",
+    "MARKDOWN_EDITABLE_IMPORT_ACCEPT",
+    "handleChooseMarkdownImport",
+    "handleMarkdownFileSelected",
+    "createMarkdownImportedPageContent",
+    "markdownPageTitleFromFile",
+    "markdownToHtml",
+    "source_surface: \"reports-module\"",
+    "导入 Markdown 笔记",
+    "Markdown imported from the Reports module into a local editable page.",
+  ]) {
+    assertIncludes(
+      files.reportsShell,
+      reportsShell,
+      snippet,
+      "Reports module must support direct local Markdown import into editable pages."
     );
   }
   for (const snippet of [
