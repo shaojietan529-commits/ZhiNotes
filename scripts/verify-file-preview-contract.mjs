@@ -15,6 +15,7 @@ const files = {
   reviewQueue: "src/lib/reports/reportReviewQueue.ts",
   readiness: "src/lib/files/filePreviewReadiness.ts",
   preflight: "src/lib/files/fileUploadPreflight.ts",
+  structure: "src/lib/files/filePreviewStructure.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
   localStore: "src/lib/files/localStore.ts",
@@ -148,6 +149,7 @@ function run() {
   const reviewQueue = readProjectFile(files.reviewQueue);
   const readiness = readProjectFile(files.readiness);
   const preflight = readProjectFile(files.preflight);
+  const structure = readProjectFile(files.structure);
   const actionReceipts = readProjectFile(files.actionReceipts);
   const upload = readProjectFile(files.upload);
   const localStore = readProjectFile(files.localStore);
@@ -215,8 +217,14 @@ function run() {
     "getFilePreviewCapabilityByKind",
     "FilePreviewCapabilityStrip",
     "FilePreviewSupportPill",
+    "buildFilePreviewStructure",
+    "FilePreviewStructureStrip",
+    "FilePreviewStructureStatusPill",
+    "FilePreviewStructureSignalCard",
+    "getStructurePreviewHtml",
     "getEffectivePreviewSupportLevel",
     "isLegacyPreviewFallback",
+    "文档结构",
     "预览路径",
     "转换/导入",
     "隐私边界",
@@ -227,6 +235,56 @@ function run() {
       previewNode,
       snippet,
       "Preview node must expose the same local capability route shown in the Reports module."
+    );
+  }
+  assertIncludes(
+    files.structure,
+    structure,
+    'format: "zhinote-file-preview-structure"',
+    "File preview structure must define a local structure format."
+  );
+  assertIncludes(
+    files.structure,
+    structure,
+    "buildFilePreviewStructure",
+    "File preview structure must expose a reusable builder."
+  );
+  for (const snippet of [
+    'report_status: "local-preview-structure-only"',
+    "local_preview_structure_only: true",
+    "reads_loaded_file_text",
+    "reads_converted_preview_html",
+    "reads_file_bytes: false",
+    "includes_file_name: false",
+    "uploads_data: false",
+    "connects_cloud_services: false",
+    "enables_ai: false",
+    "writes_workspace_data: false",
+  ]) {
+    assertIncludes(
+      files.structure,
+      structure,
+      snippet,
+      "File preview structure must preserve local-only preview boundaries."
+    );
+  }
+  for (const snippet of [
+    '"outline"',
+    '"tables"',
+    '"links"',
+    '"media"',
+    '"code"',
+    '"sheets"',
+    '"slides"',
+    '"local-boundary"',
+    "estimated_sheets",
+    "estimated_slides",
+  ]) {
+    assertIncludes(
+      files.structure,
+      structure,
+      snippet,
+      "File preview structure must expose document signals for research review."
     );
   }
   assertIncludes(
@@ -962,6 +1020,7 @@ function run() {
         review_queue_gates: 6,
         readiness_gates: 6,
         upload_preflight_gates: 7,
+        preview_structure_signals: 8,
         action_receipt_kinds: 6,
         local_only: true,
       },

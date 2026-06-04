@@ -400,6 +400,14 @@ page preview block. The receipt confirms the file stayed local and does not
 include file names, file bytes, extracted text, page body text, spreadsheet
 values, tokens, credentials, cloud data, or AI output.
 
+Each file preview block also renders a local document structure strip. For
+HTML, Markdown, text, notebook, Word, PPT, Excel, EPUB, RTF, OPML, and ZIP
+preview paths, the strip summarizes headings, tables, links, media, code,
+estimated sheets, estimated slides, and outline chips from already-loaded local
+preview text or converted preview HTML. It does not read file bytes, include
+file names, upload data, connect cloud services, call AI, or write workspace
+data.
+
 HTML report previews block external resources by default. A user must type the
 local external-resource confirmation phrase before enabling remote images,
 scripts, styles, frames, fonts, media, or network endpoints for a trusted HTML

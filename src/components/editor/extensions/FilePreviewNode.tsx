@@ -23,6 +23,12 @@ import {
   type FilePreviewCapability,
   type FilePreviewSupportLevel,
 } from "@/lib/files/filePreviewCapabilities";
+import {
+  buildFilePreviewStructure,
+  type FilePreviewStructureReport,
+  type FilePreviewStructureSignal,
+  type FilePreviewStructureStatus,
+} from "@/lib/files/filePreviewStructure";
 import { highlightCodeToHtml } from "@/lib/codeHighlight";
 import { convertZipToHtml } from "@/lib/files/archive";
 import { convertEpubToHtml } from "@/lib/files/epub";
@@ -273,6 +279,13 @@ function FilePreviewComponent({
       }),
     [attrs.size, bulkImportPhrase]
   );
+  const fileStructure = useMemo(() => {
+    if (!file) return null;
+    return buildFilePreviewStructure({
+      file,
+      previewHtml: getStructurePreviewHtml(file, srcDoc, convertedPreview),
+    });
+  }, [convertedPreview, file, srcDoc]);
 
   const recordActionReceipt = (
     actionKind: FilePreviewActionKind,
@@ -812,6 +825,10 @@ function FilePreviewComponent({
           supportLevel={supportLevel}
         />
 
+        {fileStructure && (
+          <FilePreviewStructureStrip structure={fileStructure} />
+        )}
+
         {attrs.kind === "spreadsheet" && (
           <div className="border-b border-blue-100 bg-blue-50/70 px-3 py-3 dark:border-blue-950 dark:bg-blue-950/30">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
@@ -1021,6 +1038,129 @@ function CapabilityRouteItem({
   );
 }
 
+function FilePreviewStructureStrip({
+  structure,
+}: {
+  structure: FilePreviewStructureReport;
+}) {
+  return (
+    <div className="border-b border-zinc-100 bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+              文档结构
+            </span>
+            <FilePreviewStructureStatusPill status={structure.structure_status} />
+            <span className="text-[11px] text-zinc-400">
+              {structure.summary.words} words · {structure.summary.lines} lines
+            </span>
+          </div>
+          {structure.outline.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {structure.outline.map((item) => (
+                <span
+                  key={item.id}
+                  className="max-w-full truncate rounded bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                  title={item.title}
+                >
+                  H{item.level} {item.title}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-[11px] leading-5 text-zinc-400">
+              暂未识别标题。可以继续使用原生预览，或导入后补目录/章节结构。
+            </p>
+          )}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3 xl:w-[520px]">
+          {structure.signals.slice(0, 6).map((signal) => (
+            <FilePreviewStructureSignalCard key={signal.id} signal={signal} />
+          ))}
+        </div>
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 text-[11px] leading-5 text-zinc-400 dark:border-zinc-800">
+        {structure.privacy_note}
+      </p>
+    </div>
+  );
+}
+
+function FilePreviewStructureSignalCard({
+  signal,
+}: {
+  signal: FilePreviewStructureSignal;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-2 py-1.5 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-300">
+          {signal.label}
+        </span>
+        <FilePreviewStructureSignalPill status={signal.status} />
+      </div>
+      <div className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        {signal.value}
+      </div>
+      <p className="mt-0.5 line-clamp-2 text-[10px] leading-4 text-zinc-400">
+        {signal.detail}
+      </p>
+    </div>
+  );
+}
+
+function FilePreviewStructureStatusPill({
+  status,
+}: {
+  status: FilePreviewStructureStatus;
+}) {
+  const labels: Record<FilePreviewStructureStatus, string> = {
+    ready: "Ready",
+    "converted-preview": "Converted",
+    "metadata-only": "Metadata",
+    unsupported: "Unsupported",
+  };
+  const className =
+    status === "ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "converted-preview"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : status === "metadata-only"
+          ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+          : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function FilePreviewStructureSignalPill({
+  status,
+}: {
+  status: FilePreviewStructureSignal["status"];
+}) {
+  const labels: Record<FilePreviewStructureSignal["status"], string> = {
+    ready: "Ready",
+    review: "Review",
+    empty: "Empty",
+  };
+  const className =
+    status === "ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "review"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400";
+
+  return (
+    <span className={`rounded px-1.5 py-0.5 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
 function FilePreviewSupportPill({
   level,
 }: {
@@ -1139,6 +1279,32 @@ function shouldShowDownloadRetainReceiptAction(
     file.kind === "archive" ||
     isLegacyOfficeFile(file)
   );
+}
+
+function getStructurePreviewHtml(
+  file: StoredPageFile,
+  srcDoc: string,
+  convertedPreview: ConvertedPreview
+) {
+  if (
+    file.kind === "html" ||
+    file.kind === "markdown" ||
+    file.kind === "opml" ||
+    file.kind === "rtf" ||
+    file.kind === "notebook"
+  ) {
+    return srcDoc;
+  }
+
+  if (convertedPreview.status === "ready") {
+    return convertedPreview.srcDoc;
+  }
+
+  if (file.kind === "text") {
+    return createPreviewDocument(renderTextFileAsCodeBlock(file.name, file.textContent ?? ""));
+  }
+
+  return undefined;
 }
 
 function getFileKindLabel(kind: PageFileKind) {
