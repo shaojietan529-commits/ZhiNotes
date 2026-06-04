@@ -249,7 +249,7 @@ function PortfolioDashboard() {
         router.push(
           `/database/${tracker.id}?q=${encodeURIComponent(
             item.redacted_label
-          )}&focus=${item.page_id}`
+          )}&focus=${item.page_id}&handoff=portfolio-workbench`
         );
         return;
       }
@@ -276,7 +276,7 @@ function PortfolioDashboard() {
       router.push(
         `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
           item.page_id
-        }`
+        }&handoff=portfolio-workbench`
       );
     } catch (err) {
       console.error("[Zhinote] Failed to create portfolio tracker row:", err);

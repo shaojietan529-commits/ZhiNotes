@@ -349,7 +349,7 @@ function CompanyResearchDashboard() {
         router.push(
           `/database/${tracker.id}?q=${encodeURIComponent(item.page_title)}&focus=${
             item.page_id
-          }`
+          }&handoff=company-workbench`
         );
         return;
       }
@@ -376,7 +376,7 @@ function CompanyResearchDashboard() {
       router.push(
         `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
           item.page_id
-        }`
+        }&handoff=company-workbench`
       );
     } catch (err) {
       console.error("[Zhinote] Failed to create company tracker row:", err);

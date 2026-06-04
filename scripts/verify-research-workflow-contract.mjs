@@ -242,6 +242,7 @@ function run() {
     "source_page_route",
     "target_database_title",
     "manual_relation_completion",
+    "handoff: \"research-graph\"",
     "auto_writes_relation_values: false",
     "includes_holdings: false",
     "includes_trading_plans: false",
@@ -288,6 +289,7 @@ function run() {
     "Relation 补全手册",
     "不自动写 relation",
     "打开目标库",
+    "handoff: \"module-connections\"",
   ]) {
     assertIncludes(
       files.connectionsPanel,
@@ -503,6 +505,12 @@ function run() {
       "Company module must render and export the company research workbench packet."
     );
   }
+  assertIncludes(
+    files.companyShell,
+    companyShell,
+    "handoff=company-workbench",
+    "Company module tracker handoff must tell the database page its source."
+  );
   assertIncludes(
     files.companyDossier,
     companyDossier,
@@ -1127,6 +1135,12 @@ function run() {
     );
   }
   assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    "handoff=meeting-workbench",
+    "Meeting module tracker handoff must tell the database page its source."
+  );
+  assertIncludes(
     files.meetingTrackerIntake,
     meetingTrackerIntake,
     'format: "zhinote-meeting-tracker-intake-draft"',
@@ -1347,6 +1361,12 @@ function run() {
       "Portfolio module must render and export the portfolio workbench packet."
     );
   }
+  assertIncludes(
+    files.portfolioShell,
+    portfolioShell,
+    "handoff=portfolio-workbench",
+    "Portfolio module tracker handoff must tell the database page its source."
+  );
   assertIncludes(
     files.portfolioTrackerIntake,
     portfolioTrackerIntake,

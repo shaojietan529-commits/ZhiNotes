@@ -301,6 +301,24 @@ function run() {
     "RelationCompletionAssistant",
     "Research database relation completion must remain available."
   );
+  for (const snippet of [
+    "RelationHandoffContextPanel",
+    "Relation handoff",
+    "getRelationHandoffSourceLabel",
+    "handoff",
+    "候选行",
+    "可写入字段",
+    "清除 handoff",
+    "不读页面正文",
+    "不包含持仓或交易计划",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database page must show focused relation handoff context before manual relation writes."
+    );
+  }
   assertIncludes(
     files.registry,
     registry,

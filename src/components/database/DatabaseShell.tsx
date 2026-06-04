@@ -107,6 +107,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const { pages: workspacePages } = usePages();
   const initialRowSearch = searchParams.get("q") ?? "";
   const focusPageId = searchParams.get("focus") ?? "";
+  const relationHandoffSource = searchParams.get("handoff") ?? "";
   const [database, setDatabase] = useState<Database | null>(null);
   const [fields, setFields] = useState<DatabaseField[]>([]);
   const [rows, setRows] = useState<RowWithPage[]>([]);
@@ -291,6 +292,10 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     },
     [router]
   );
+
+  const handleClearRelationHandoff = useCallback(() => {
+    router.push(`/database/${databaseId}`);
+  }, [databaseId, router]);
 
   const activeView = views.find((v) => v.id === activeViewId) || views[0];
   const visibleFields = useMemo(
@@ -686,13 +691,17 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       )}
 
       {focusPageId && (
-        <div className="mb-4 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300">
-          正在补全关系：
-          <span className="font-medium">
-            {focusPage?.title || "指定页面"}
-          </span>
-          。请在本表的 relation 字段里搜索并选择相关页面；如果没有对应行，先新建或打开正确的行。
-        </div>
+        <RelationHandoffContextPanel
+          database={database}
+          focusPage={focusPage}
+          focusPageId={focusPageId}
+          sourceLabel={getRelationHandoffSourceLabel(relationHandoffSource)}
+          rowSearch={rowSearch}
+          fields={relationCompletionFields}
+          candidateRows={relationCompletionRows}
+          onOpenFocusPage={handleOpenPage}
+          onClearHandoff={handleClearRelationHandoff}
+        />
       )}
 
       {focusPageId && focusPage && (
@@ -894,6 +903,163 @@ function DatabaseViewControls({
         </button>
       )}
     </div>
+  );
+}
+
+function RelationHandoffContextPanel({
+  database,
+  focusPage,
+  focusPageId,
+  sourceLabel,
+  rowSearch,
+  fields,
+  candidateRows,
+  onOpenFocusPage,
+  onClearHandoff,
+}: {
+  database: Database;
+  focusPage: Page | null;
+  focusPageId: string;
+  sourceLabel: string;
+  rowSearch: string;
+  fields: DatabaseField[];
+  candidateRows: RowWithPage[];
+  onOpenFocusPage: (pageId: string) => void;
+  onClearHandoff: () => void;
+}) {
+  const focusKind = focusPage ? classifyResearchPage(focusPage) : null;
+  const focusTitle = focusPage?.title || "指定页面";
+  const fieldLabels = fields.map((field) =>
+    getResearchRelationFieldLabel(field.name)
+  );
+
+  return (
+    <section className="mb-4 rounded-lg border border-blue-100 bg-blue-50/70 p-3 dark:border-blue-900 dark:bg-blue-950/30">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-blue-600 dark:text-blue-300">
+            Relation handoff
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-blue-950 dark:text-blue-100">
+            {sourceLabel}交接来的补关系任务
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-blue-800 dark:text-blue-200">
+            聚焦资产：{focusPage?.icon ? `${focusPage.icon} ` : ""}
+            {focusTitle}
+            {focusKind ? ` · ${getResearchAssetKindLabel(focusKind)}` : ""}。
+            当前目标库是「{database.title}」，搜索条件是「{rowSearch || "未设置"}」。
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {focusPage && (
+            <button
+              type="button"
+              onClick={() => onOpenFocusPage(focusPage.id)}
+              className="rounded-md border border-blue-200 bg-white px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-900 dark:bg-zinc-950 dark:text-blue-300 dark:hover:bg-blue-950"
+            >
+              打开聚焦页
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClearHandoff}
+            className="rounded-md border border-blue-200 bg-white px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-900 dark:bg-zinc-950 dark:text-blue-300 dark:hover:bg-blue-950"
+          >
+            清除 handoff
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+        <RelationHandoffMetric label="候选行" value={candidateRows.length} />
+        <RelationHandoffMetric label="可写入字段" value={fields.length} />
+        <RelationHandoffMetric label="聚焦页面 id" value={focusPageId ? 1 : 0} />
+        <RelationHandoffMetric label="自动写入" value={0} />
+      </div>
+
+      {fieldLabels.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1">
+          {fieldLabels.map((label) => (
+            <span
+              key={label}
+              className="rounded bg-white px-2 py-1 text-[11px] text-blue-700 dark:bg-zinc-950 dark:text-blue-300"
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          当前库还没有可用于这个资产的 relation 字段。先添加 relation 字段，再回来补具体关系。
+        </p>
+      )}
+
+      {candidateRows.length === 0 && (
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          当前搜索没有候选行。可以清除搜索、新建一行，或确认是否打开了正确的 tracker。
+        </p>
+      )}
+
+      <ol className="mt-3 grid gap-2 lg:grid-cols-3">
+        <RelationHandoffStep
+          order={1}
+          title="确认目标 row"
+          detail="先看候选行是不是这次要补关系的研究对象。"
+        />
+        <RelationHandoffStep
+          order={2}
+          title="选择 relation 字段"
+          detail="优先使用和聚焦资产类型匹配的字段，只处理一个最准确的字段。"
+        />
+        <RelationHandoffStep
+          order={3}
+          title="手动加入"
+          detail="点击下方按钮才会写入一条本地 relation 值，不会批量修改。"
+        />
+      </ol>
+
+      <p className="mt-3 border-t border-blue-100 pt-2 text-[11px] leading-5 text-blue-700 dark:border-blue-900 dark:text-blue-300">
+        本面板只读取 URL 参数、页面标题和字段 schema；不读页面正文、不导出表格行值、
+        不读取文件 bytes、不包含持仓或交易计划、不上传、不调用 AI。真正写入只发生在下方
+        “加入 relation 字段”按钮被点击时。
+      </p>
+    </section>
+  );
+}
+
+function RelationHandoffMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-md bg-white px-3 py-2 text-xs dark:bg-zinc-950">
+      <div className="font-semibold text-blue-950 dark:text-blue-100">
+        {value}
+      </div>
+      <div className="text-blue-700 dark:text-blue-300">{label}</div>
+    </div>
+  );
+}
+
+function RelationHandoffStep({
+  order,
+  title,
+  detail,
+}: {
+  order: number;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <li className="rounded-md bg-white px-3 py-2 text-xs dark:bg-zinc-950">
+      <div className="font-semibold text-blue-950 dark:text-blue-100">
+        {order}. {title}
+      </div>
+      <p className="mt-1 leading-5 text-blue-700 dark:text-blue-300">{detail}</p>
+    </li>
   );
 }
 
@@ -1649,6 +1815,15 @@ function getRelationCompletionRows(
   }
 
   return Array.from(nextRows.values()).slice(0, 5);
+}
+
+function getRelationHandoffSourceLabel(source: string) {
+  if (source === "research-graph") return "研究图谱";
+  if (source === "module-connections") return "模块关联面板";
+  if (source === "company-workbench") return "公司工作台";
+  if (source === "meeting-workbench") return "会议工作台";
+  if (source === "portfolio-workbench") return "组合工作台";
+  return "本地模块";
 }
 
 function getVisibleRows({

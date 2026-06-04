@@ -322,6 +322,10 @@ Current relation scope:
 - Feed views display key tracker fields, relation page chips, dates, statuses,
   links, and checkbox follow-up toggles for investment-research scanning.
 - CSV and XLSX export write related page titles, not internal ids.
+- Database pages accept focused relation handoff routes with `q`, `focus`, and
+  `handoff` parameters. The page shows the source module, focused asset, target
+  tracker, candidate rows, usable relation fields, and a local privacy boundary
+  before any manual relation write.
 - Company, report, meeting, and portfolio modules share a local research graph
   panel. It can export a graph report with asset titles, module coverage,
   relation fields, links, completion suggestions, and relation schema gaps,
@@ -358,7 +362,7 @@ Current local actions:
   schema fields, read page bodies, read database row values, read file names,
   read file bytes, upload data, connect cloud services, or enable AI.
 - Review suggested completion targets for unlinked assets and jump into the
-  right local database with `q` and `focus` parameters prefilled.
+  right local database with `q`, `focus`, and `handoff` parameters prefilled.
 - Review relation schema gaps, such as a company tracker missing related-report
   or related-meeting relation fields.
 - Create one missing local relation field from a schema gap after a manual

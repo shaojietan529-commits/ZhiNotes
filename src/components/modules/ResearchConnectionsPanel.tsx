@@ -202,6 +202,7 @@ function buildDatabaseRoute(databaseId: string, asset?: ResearchAsset) {
   const params = new URLSearchParams({
     q: asset.title,
     focus: asset.id,
+    handoff: "module-connections",
   });
   return `/database/${databaseId}?${params.toString()}`;
 }

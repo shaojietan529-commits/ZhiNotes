@@ -996,6 +996,7 @@ function buildDatabaseCompletionRoute(databaseId: string, asset: ResearchAsset) 
   const params = new URLSearchParams({
     q: asset.title,
     focus: asset.id,
+    handoff: "research-graph",
   });
   return `/database/${databaseId}?${params.toString()}`;
 }
