@@ -239,6 +239,10 @@ Current local actions:
 - View company, report, meeting, and portfolio asset coverage in one place.
 - Review recent relation links across local research trackers.
 - Identify local assets that still need structured relation fields.
+- Review a prioritized breakage queue for unlinked company, report, meeting,
+  and portfolio assets. The queue ranks company/report gaps first, separates
+  actionable relation-value work from missing tracker targets, and only opens
+  local pages or databases; it does not auto-write relation values.
 - Review suggested completion targets for unlinked assets and jump into the
   right local database with `q` and `focus` parameters prefilled.
 - Review relation schema gaps, such as a company tracker missing related-report

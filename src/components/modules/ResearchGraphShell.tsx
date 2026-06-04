@@ -22,6 +22,7 @@ import {
   type ResearchGraphCompletionAction,
   type ResearchAssetKind,
   type ResearchDatabaseSnapshot,
+  type ResearchGraphPriorityLevel,
   type ResearchGraphReport,
   type ResearchGraphSchemaGap,
   type ResearchRelationLink,
@@ -122,6 +123,7 @@ function ResearchGraphDashboard() {
   const unlinkedAssets = graph.unlinkedAssets.slice(0, 12);
   const completionActions = graphReport.completion_plan.actions.slice(0, 10);
   const schemaGaps = graphReport.schema_gaps.slice(0, 8);
+  const priorityQueue = graphReport.priority_queue.slice(0, 10);
   const completionActionByAssetId = useMemo(
     () =>
       new Map(
@@ -270,6 +272,15 @@ function ResearchGraphDashboard() {
         <HealthSummaryPanel
           items={graphReport.health_summary}
           onOpenRoute={(route) => router.push(route)}
+        />
+
+        <PriorityQueuePanel
+          items={priorityQueue}
+          totalItems={graphReport.priority_queue.length}
+          highPriorityItems={graphReport.summary.high_priority_unlinked_assets}
+          actionableItems={graphReport.summary.actionable_priority_items}
+          onOpenRoute={(route) => router.push(route)}
+          onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
         />
 
         <SchemaGapPanel
@@ -554,6 +565,127 @@ function getHealthBadgeClassName(
 function formatRelationLabels(labels: string[]) {
   if (labels.length === 0) return "无";
   return labels.join(" / ");
+}
+
+function PriorityQueuePanel({
+  items,
+  totalItems,
+  highPriorityItems,
+  actionableItems,
+  onOpenRoute,
+  onOpenPage,
+}: {
+  items: ResearchGraphReport["priority_queue"];
+  totalItems: number;
+  highPriorityItems: number;
+  actionableItems: number;
+  onOpenRoute: (route: string) => void;
+  onOpenPage: (pageId: string) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            断点优先队列
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">
+            把未连接资产按公司/报告优先、可补 relation 优先排序。这里只给出本地打开入口，
+            不自动写 relation、不导出正文或行值。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
+          <span>{totalItems} 个断点</span>
+          <span>{highPriorityItems} 个高优先级</span>
+          <span>{actionableItems} 个可直接补关系</span>
+        </div>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="mt-3 text-xs leading-5 text-zinc-400">
+          暂无断点队列。当前已识别资产都已有 relation 连接，或还没有可分类资产。
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-2 lg:grid-cols-2">
+          {items.map((item) => (
+            <article
+              key={item.id}
+              className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                      {item.asset_title}
+                    </h3>
+                    <PriorityPill priority={item.priority} />
+                  </div>
+                  <p className="mt-1 text-zinc-400">
+                    {item.asset_kind_label} · {formatUpdated(item.updated_at)}
+                    {item.target_database_title
+                      ? ` · ${item.target_database_title}`
+                      : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenPage(item.asset_id)}
+                  className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  打开
+                </button>
+              </div>
+              {item.relation_field_labels.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {item.relation_field_labels.map((label) => (
+                    <span
+                      key={label}
+                      className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+                {item.reason}
+              </p>
+              <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+                {item.privacy_boundary}
+              </p>
+              <button
+                type="button"
+                onClick={() => onOpenRoute(item.action_route)}
+                className="mt-3 rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+              >
+                {item.action_label}
+              </button>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PriorityPill({ priority }: { priority: ResearchGraphPriorityLevel }) {
+  const labels: Record<ResearchGraphPriorityLevel, string> = {
+    high: "高优先级",
+    medium: "中优先级",
+    low: "低优先级",
+  };
+  const className =
+    priority === "high"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : priority === "medium"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[priority]}
+    </span>
+  );
 }
 
 function SchemaGapPanel({

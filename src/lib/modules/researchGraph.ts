@@ -88,6 +88,25 @@ export interface ResearchGraphCompletionPlan {
   missing_targets: ResearchGraphMissingCompletionTarget[];
 }
 
+export type ResearchGraphPriorityLevel = "high" | "medium" | "low";
+
+export interface ResearchGraphPriorityItem {
+  id: string;
+  asset_id: string;
+  asset_title: string;
+  asset_kind: ResearchAssetKind;
+  asset_kind_label: string;
+  priority: ResearchGraphPriorityLevel;
+  updated_at: string;
+  recommended_action: "open-page" | "complete-relation" | "create-target";
+  action_label: string;
+  action_route: string;
+  target_database_title: string | null;
+  relation_field_labels: string[];
+  reason: string;
+  privacy_boundary: string;
+}
+
 export interface ResearchGraphSchemaGap {
   id: string;
   database_id: string;
@@ -128,6 +147,9 @@ export interface ResearchGraphReport {
     relation_fields: number;
     completion_actions: number;
     missing_completion_targets: number;
+    priority_queue_items: number;
+    high_priority_unlinked_assets: number;
+    actionable_priority_items: number;
     schema_gaps: number;
   };
   assets: Array<{
@@ -178,6 +200,7 @@ export interface ResearchGraphReport {
     relation_links: number;
   }>;
   health_summary: ResearchGraphHealthSummary[];
+  priority_queue: ResearchGraphPriorityItem[];
   completion_plan: ResearchGraphCompletionPlan;
   schema_gaps: ResearchGraphSchemaGap[];
 }
@@ -450,6 +473,10 @@ export function buildResearchGraphReport(
 
   const completionPlan = buildResearchGraphCompletionPlan(graph, snapshots);
   const schemaGaps = buildResearchGraphSchemaGaps(snapshots);
+  const priorityQueue = buildResearchGraphPriorityQueue(
+    graph,
+    completionPlan
+  );
   const coverage = RESEARCH_ASSET_KINDS.map((kind) => {
     const assets = graph.assets.filter((asset) => asset.kind === kind);
     return {
@@ -502,6 +529,13 @@ export function buildResearchGraphReport(
       ),
       completion_actions: completionPlan.actions.length,
       missing_completion_targets: completionPlan.missing_targets.length,
+      priority_queue_items: priorityQueue.length,
+      high_priority_unlinked_assets: priorityQueue.filter(
+        (item) => item.priority === "high"
+      ).length,
+      actionable_priority_items: priorityQueue.filter(
+        (item) => item.recommended_action === "complete-relation"
+      ).length,
       schema_gaps: schemaGaps.length,
     },
     assets: graph.assets.map((asset) => ({
@@ -538,6 +572,7 @@ export function buildResearchGraphReport(
     database_surfaces: databaseSurfaces,
     coverage,
     health_summary: healthSummary,
+    priority_queue: priorityQueue,
     completion_plan: completionPlan,
     schema_gaps: schemaGaps,
   };
@@ -671,6 +706,85 @@ export function buildResearchGraphCompletionPlan(
   };
 }
 
+export function buildResearchGraphPriorityQueue(
+  graph: ResearchGraph,
+  completionPlan: ResearchGraphCompletionPlan
+): ResearchGraphPriorityItem[] {
+  const actionByAssetId = new Map(
+    completionPlan.actions.map((action) => [action.asset_id, action])
+  );
+  const missingTargetByKind = new Map(
+    completionPlan.missing_targets.map((target) => [target.kind, target])
+  );
+
+  return graph.unlinkedAssets
+    .map((asset) => {
+      const action = actionByAssetId.get(asset.id) ?? null;
+      const missingTarget = missingTargetByKind.get(asset.kind) ?? null;
+      const priority = getResearchGraphPriority(asset.kind, action, missingTarget);
+
+      if (action) {
+        return {
+          id: `${asset.id}:priority`,
+          asset_id: asset.id,
+          asset_title: asset.title,
+          asset_kind: asset.kind,
+          asset_kind_label: getResearchAssetKindLabel(asset.kind),
+          priority,
+          updated_at: asset.updatedAt,
+          recommended_action: "complete-relation",
+          action_label: "补 relation 值",
+          action_route: action.database_route,
+          target_database_title: action.target_database_title,
+          relation_field_labels: action.relation_field_labels,
+          reason: `${getResearchAssetKindLabel(asset.kind)}已经有可用跟踪表或 relation 字段，下一步是补具体 relation 值。`,
+          privacy_boundary:
+            "只打开本地页面或目标数据库，不自动写 relation，不导出页面正文、数据库行值、文件 bytes、token 或凭证。",
+        } satisfies ResearchGraphPriorityItem;
+      }
+
+      if (missingTarget) {
+        return {
+          id: `${asset.id}:priority`,
+          asset_id: asset.id,
+          asset_title: asset.title,
+          asset_kind: asset.kind,
+          asset_kind_label: getResearchAssetKindLabel(asset.kind),
+          priority,
+          updated_at: asset.updatedAt,
+          recommended_action: "create-target",
+          action_label: "补跟踪入口",
+          action_route: missingTarget.recommended_module_route,
+          target_database_title: null,
+          relation_field_labels: [],
+          reason: missingTarget.reason,
+          privacy_boundary:
+            "只打开对应模块创建本地跟踪入口，不读取页面正文、不写 relation 值、不上传或同步。",
+        } satisfies ResearchGraphPriorityItem;
+      }
+
+      return {
+        id: `${asset.id}:priority`,
+        asset_id: asset.id,
+        asset_title: asset.title,
+        asset_kind: asset.kind,
+        asset_kind_label: getResearchAssetKindLabel(asset.kind),
+        priority,
+        updated_at: asset.updatedAt,
+        recommended_action: "open-page",
+        action_label: "打开页面复核",
+        action_route: `/page/${asset.id}`,
+        target_database_title: null,
+        relation_field_labels: [],
+        reason:
+          "这个资产尚未进入可执行补关系队列，先打开页面确认分类和需要关联的研究上下文。",
+        privacy_boundary:
+          "只打开本地页面，不导出页面正文、数据库行值、文件 bytes、token 或凭证。",
+      } satisfies ResearchGraphPriorityItem;
+    })
+    .sort(sortPriorityItems);
+}
+
 function buildCompletionTargets(
   snapshots: ResearchDatabaseSnapshot[]
 ): ResearchGraphCompletionTarget[] {
@@ -766,6 +880,52 @@ function sortCompletionActions(
     RESEARCH_ASSET_KINDS.indexOf(b.asset_kind);
   if (kindDelta !== 0) return kindDelta;
   return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+}
+
+function getResearchGraphPriority(
+  kind: ResearchAssetKind,
+  action: ResearchGraphCompletionAction | null,
+  missingTarget: ResearchGraphMissingCompletionTarget | null
+): ResearchGraphPriorityLevel {
+  if (action && (kind === "company" || kind === "report")) return "high";
+  if (missingTarget && (kind === "company" || kind === "report")) return "high";
+  if (action || missingTarget) return "medium";
+  return "low";
+}
+
+function sortPriorityItems(
+  a: ResearchGraphPriorityItem,
+  b: ResearchGraphPriorityItem
+) {
+  const priorityDelta =
+    getPriorityWeight(b.priority) - getPriorityWeight(a.priority);
+  if (priorityDelta !== 0) return priorityDelta;
+
+  const actionDelta =
+    getRecommendedActionWeight(b.recommended_action) -
+    getRecommendedActionWeight(a.recommended_action);
+  if (actionDelta !== 0) return actionDelta;
+
+  const kindDelta =
+    RESEARCH_ASSET_KINDS.indexOf(a.asset_kind) -
+    RESEARCH_ASSET_KINDS.indexOf(b.asset_kind);
+  if (kindDelta !== 0) return kindDelta;
+
+  return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+}
+
+function getPriorityWeight(priority: ResearchGraphPriorityLevel) {
+  if (priority === "high") return 3;
+  if (priority === "medium") return 2;
+  return 1;
+}
+
+function getRecommendedActionWeight(
+  action: ResearchGraphPriorityItem["recommended_action"]
+) {
+  if (action === "complete-relation") return 3;
+  if (action === "create-target") return 2;
+  return 1;
 }
 
 function getSuggestedRelationFieldName(

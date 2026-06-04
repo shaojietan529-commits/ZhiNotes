@@ -187,6 +187,12 @@ function run() {
   assertIncludes(
     files.graph,
     graph,
+    "priority_queue",
+    "Research graph export must include prioritized relation repair work."
+  );
+  assertIncludes(
+    files.graph,
+    graph,
     "export { getResearchAssetKindLabel }",
     "Research graph must preserve the existing asset-label export for callers."
   );
@@ -196,6 +202,11 @@ function run() {
     "needs-links",
     "required_relation_kinds",
     "missing_relation_kinds",
+    "priority_queue_items",
+    "high_priority_unlinked_assets",
+    "actionable_priority_items",
+    "buildResearchGraphPriorityQueue",
+    "ResearchGraphPriorityLevel",
     "writes_workspace_data",
   ]) {
     assertIncludes(
@@ -207,6 +218,11 @@ function run() {
   }
   for (const snippet of [
     "连接健康摘要",
+    "断点优先队列",
+    "PriorityQueuePanel",
+    "PriorityPill",
+    "高优先级",
+    "可直接补关系",
     "getHealthStatusLabel",
     "本地 metadata only",
     "formatRelationLabels",
