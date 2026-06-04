@@ -12,12 +12,14 @@ const files = {
   databaseModuleRoute: "src/app/(workspace)/modules/databases/page.tsx",
   databaseModuleDashboard: "src/lib/database/databaseModuleDashboard.ts",
   databaseTemplateCatalog: "src/lib/database/databaseTemplateCatalog.ts",
+  databaseTemplateRows: "src/lib/database/databaseTemplateRows.ts",
   databaseTemplateRowReadiness:
     "src/lib/database/databaseTemplateRowReadiness.ts",
   databaseViewReadiness: "src/lib/database/databaseViewReadiness.ts",
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
+  inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
   moduleActions: "src/lib/modules/actions.ts",
   registry: "src/lib/modules/registry.ts",
   filePreviewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
@@ -77,6 +79,7 @@ function run() {
   const databaseModuleRoute = readProjectFile(files.databaseModuleRoute);
   const databaseModuleDashboard = readProjectFile(files.databaseModuleDashboard);
   const databaseTemplateCatalog = readProjectFile(files.databaseTemplateCatalog);
+  const databaseTemplateRows = readProjectFile(files.databaseTemplateRows);
   const databaseTemplateRowReadiness = readProjectFile(
     files.databaseTemplateRowReadiness
   );
@@ -84,6 +87,7 @@ function run() {
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
+  const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
   const moduleActions = readProjectFile(files.moduleActions);
   const registry = readProjectFile(files.registry);
   const filePreviewNode = readProjectFile(files.filePreviewNode);
@@ -194,6 +198,30 @@ function run() {
   assertIncludes(
     files.databaseShell,
     databaseShell,
+    "buildDatabaseTemplateRowDraft",
+    "Database UI must create template rows with local structural field drafts."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "fieldValues: draft.field_values",
+    "Database template rows must write safe structural field defaults."
+  );
+  assertIncludes(
+    files.inlineDatabaseNode,
+    inlineDatabaseNode,
+    "buildDatabaseTemplateRowDraft",
+    "Inline database UI must share template-row field draft logic."
+  );
+  assertIncludes(
+    files.inlineDatabaseNode,
+    inlineDatabaseNode,
+    "fieldValues: draft.field_values",
+    "Inline database template rows must write safe structural field defaults."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
     "RelationCompletionAssistant",
     "Research database relation completion must remain available."
   );
@@ -271,6 +299,48 @@ function run() {
     "buildDatabaseTemplateCatalogReport",
     "Database template catalog must expose a reusable builder."
   );
+  assertIncludes(
+    files.databaseTemplateRows,
+    databaseTemplateRows,
+    'format: "zhinote-database-template-row-draft"',
+    "Database template row drafts must define a stable local format."
+  );
+  assertIncludes(
+    files.databaseTemplateRows,
+    databaseTemplateRows,
+    "buildDatabaseTemplateRowDraft",
+    "Database template row drafts must expose a reusable builder."
+  );
+  for (const snippet of [
+    'draft_status: "local-template-row-structure-only"',
+    "inferTemplateRowGroupId",
+    "getStatusCandidates",
+    "getSelectCandidates",
+    "isSensitiveInvestmentField",
+    "reads_template_metadata: true",
+    "reads_database_schema: true",
+    "reads_database_rows: false",
+    "reads_database_row_values: false",
+    "reads_page_text: false",
+    "includes_private_investment_details: false",
+    "includes_holdings: false",
+    "includes_tickers: false",
+    "includes_position_sizes: false",
+    "includes_prices: false",
+    "includes_trading_plan: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    '"敏感或方向性投资字段必须由用户手动填写。"',
+  ]) {
+    assertIncludes(
+      files.databaseTemplateRows,
+      databaseTemplateRows,
+      snippet,
+      "Database template row drafts must preserve safe local-only structural defaults."
+    );
+  }
   assertIncludes(
     files.databaseViewReadiness,
     databaseViewReadiness,
@@ -572,6 +642,7 @@ function run() {
         spreadsheet_import_requires_confirmation: true,
         view_readiness_gates: 6,
         template_row_readiness: true,
+        template_row_field_drafts: true,
       },
       null,
       2

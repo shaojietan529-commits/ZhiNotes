@@ -72,6 +72,7 @@ import {
   type DatabaseImportPreview,
   type DatabaseImportReceipt,
 } from "@/lib/database/databaseImport";
+import { buildDatabaseTemplateRowDraft } from "@/lib/database/databaseTemplateRows";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 
 interface DatabaseShellProps {
@@ -224,13 +225,15 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
   const handleAddTemplateRow = useCallback(
     async (template: NoteTemplate) => {
+      const draft = buildDatabaseTemplateRowDraft(template, fields);
       await addRow(databaseId, {
         title: template.title,
+        fieldValues: draft.field_values,
         contentText: template.html,
       });
       reload();
     },
-    [databaseId, reload]
+    [databaseId, fields, reload]
   );
 
   const handleUpdateRow = useCallback(
