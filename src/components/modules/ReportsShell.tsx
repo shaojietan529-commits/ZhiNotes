@@ -72,6 +72,11 @@ import {
   buildReportTrackerIntakeDraft,
   findExistingReportTrackerRow,
 } from "@/lib/reports/reportTrackerIntake";
+import {
+  buildReportConnectionPlan,
+  type ReportConnectionActionStatus,
+  type ReportConnectionPlan,
+} from "@/lib/reports/reportConnectionPlan";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -144,6 +149,7 @@ function ReportsDashboard() {
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingIntake, setExportingIntake] = useState(false);
+  const [exportingConnectionPlan, setExportingConnectionPlan] = useState(false);
   const [exportingFormatPlaybook, setExportingFormatPlaybook] = useState(false);
   const [exportingPreviewReadiness, setExportingPreviewReadiness] =
     useState(false);
@@ -215,6 +221,10 @@ function ReportsDashboard() {
   const reportConversionReview = useMemo(
     () => buildReportConversionReviewReport(reportIntake),
     [reportIntake]
+  );
+  const reportConnectionPlan = useMemo(
+    () => buildReportConnectionPlan({ intake: reportIntake, databases }),
+    [databases, reportIntake]
   );
   const fileActionReceiptSummary = useMemo(
     () => summarizeFileActionReceipts(fileActionReceipts),
@@ -336,6 +346,24 @@ function ReportsDashboard() {
       window.alert("Report intake export failed. Please check the console.");
     } finally {
       setExportingIntake(false);
+    }
+  };
+
+  const handleExportConnectionPlan = () => {
+    setExportingConnectionPlan(true);
+    try {
+      downloadJsonFile(
+        `zhinote-report-connection-plan-${fileSafeTimestamp()}.json`,
+        {
+          ...reportConnectionPlan,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export report connection plan:", err);
+      window.alert("报告关联计划导出失败，请查看控制台。");
+    } finally {
+      setExportingConnectionPlan(false);
     }
   };
 
@@ -671,6 +699,128 @@ function ReportsDashboard() {
               还没有待处理报告文件。点击“上传报告文件”后，新页面会自动进入这个本地 intake 队列。
             </p>
           )}
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                报告关联计划
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                从 intake 元数据和本地数据库 metadata 生成 report-to-company、
+                report-to-meeting、report-to-memo 和 portfolio 关联建议。这个计划不读取报告正文、
+                文件文本、文件 bytes、数据库 row values，不写入 relation，不调用 AI 或云服务。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportConnectionPlan}
+              disabled={exportingConnectionPlan}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingConnectionPlan ? "导出中..." : "导出关联计划"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <IntakeMetric
+              label="建议"
+              value={reportConnectionPlan.summary.suggestions}
+              detail="Relation work"
+            />
+            <IntakeMetric
+              label="高优先级"
+              value={reportConnectionPlan.summary.high_priority_suggestions}
+              detail="Review first"
+            />
+            <IntakeMetric
+              label="缺公司"
+              value={reportConnectionPlan.summary.missing_company_links}
+              detail="Company"
+            />
+            <IntakeMetric
+              label="缺会议"
+              value={reportConnectionPlan.summary.missing_meeting_links}
+              detail="Meeting"
+            />
+            <IntakeMetric
+              label="缺 Memo"
+              value={reportConnectionPlan.summary.missing_memo_links}
+              detail="Memo"
+            />
+            <IntakeMetric
+              label="公司表"
+              value={reportConnectionPlan.summary.company_trackers}
+              detail="Targets"
+            />
+            <IntakeMetric
+              label="会议表"
+              value={reportConnectionPlan.summary.meeting_trackers}
+              detail="Targets"
+            />
+            <IntakeMetric
+              label="需确认"
+              value={reportConnectionPlan.summary.confirmation_actions}
+              detail="Manual links"
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                关联建议
+              </div>
+              {reportConnectionPlan.suggestions.length > 0 ? (
+                <div className="mt-2 grid gap-3 lg:grid-cols-2">
+                  {reportConnectionPlan.suggestions.slice(0, 8).map((suggestion) => (
+                    <ReportConnectionSuggestionCard
+                      key={suggestion.id}
+                      suggestion={suggestion}
+                      onOpenReport={() => router.push(`/page/${suggestion.report_page_id}`)}
+                      onOpenRoute={(route) => router.push(route)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  当前没有可生成的关联建议。上传报告文件或补充报告页中的 relation 缺口后会出现在这里。
+                </p>
+              )}
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Relation field checklist
+              </div>
+              <div className="mt-2 space-y-2">
+                {reportConnectionPlan.required_fields.map((fieldSet) => (
+                  <ReportConnectionFieldSetRow
+                    key={fieldSet.target_kind}
+                    fieldSet={fieldSet}
+                  />
+                ))}
+              </div>
+              <div className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+                <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  Available tracker targets
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {reportConnectionPlan.tracker_targets.length > 0 ? (
+                    reportConnectionPlan.tracker_targets.map((target) => (
+                      <span
+                        key={`${target.kind}:${target.database_id}`}
+                        className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+                      >
+                        {target.kind}:{target.database_title}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-zinc-400">
+                      还没有识别到公司、会议、报告或组合 tracker。
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -1353,6 +1503,136 @@ function ReportIntakeItemCard({
         打开报告页
       </button>
     </article>
+  );
+}
+
+function ReportConnectionSuggestionCard({
+  suggestion,
+  onOpenReport,
+  onOpenRoute,
+}: {
+  suggestion: ReportConnectionPlan["suggestions"][number];
+  onOpenReport: () => void;
+  onOpenRoute: (route: string) => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {suggestion.report_page_title}
+          </div>
+          <div className="mt-1 truncate text-zinc-400">
+            {suggestion.file_name} · {suggestion.file_kind}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <IntakePriorityPill priority={suggestion.priority} />
+          <IntakeStagePill stage={suggestion.stage} />
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {suggestion.missing_target_labels.map((label) => (
+          <span
+            key={label}
+            className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          >
+            缺 {label}
+          </span>
+        ))}
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {suggestion.next_action}
+      </p>
+      <div className="mt-3 space-y-2">
+        {suggestion.actions.map((action) => (
+          <div
+            key={action.id}
+            className="rounded-md bg-zinc-50 px-2 py-2 dark:bg-zinc-900"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {action.target_label}
+                </div>
+                <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                  {action.reason}
+                </p>
+              </div>
+              <ReportConnectionActionPill status={action.status} />
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenRoute(action.route)}
+              className="mt-2 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              打开目标
+            </button>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        {suggestion.privacy_boundary}
+      </p>
+      <button
+        type="button"
+        onClick={onOpenReport}
+        className="mt-3 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        打开报告页
+      </button>
+    </article>
+  );
+}
+
+function ReportConnectionFieldSetRow({
+  fieldSet,
+}: {
+  fieldSet: ReportConnectionPlan["required_fields"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {fieldSet.target_kind}
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {fieldSet.reason}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {fieldSet.field_names.map((fieldName) => (
+          <span
+            key={fieldName}
+            className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {fieldName}
+          </span>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function ReportConnectionActionPill({
+  status,
+}: {
+  status: ReportConnectionActionStatus;
+}) {
+  const labels: Record<ReportConnectionActionStatus, string> = {
+    ready: "Ready",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

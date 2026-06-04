@@ -18,6 +18,7 @@ const files = {
   meetingTrackerIntake: "src/lib/meetings/meetingTrackerIntake.ts",
   portfolioReview: "src/lib/portfolio/portfolioReview.ts",
   portfolioTrackerIntake: "src/lib/portfolio/portfolioTrackerIntake.ts",
+  reportConnectionPlan: "src/lib/reports/reportConnectionPlan.ts",
   connectionsPanel: "src/components/modules/ResearchConnectionsPanel.tsx",
   graphShell: "src/components/modules/ResearchGraphShell.tsx",
   schemaPanel: "src/components/modules/ResearchWorkflowSchemaPanel.tsx",
@@ -132,6 +133,7 @@ function run() {
   const meetingTrackerIntake = readProjectFile(files.meetingTrackerIntake);
   const portfolioReview = readProjectFile(files.portfolioReview);
   const portfolioTrackerIntake = readProjectFile(files.portfolioTrackerIntake);
+  const reportConnectionPlan = readProjectFile(files.reportConnectionPlan);
   const connectionsPanel = readProjectFile(files.connectionsPanel);
   const graphShell = readProjectFile(files.graphShell);
   const schemaPanel = readProjectFile(files.schemaPanel);
@@ -294,6 +296,77 @@ function run() {
     "findExistingCompanyTrackerRow",
     "Company tracker intake must avoid duplicate company-page rows."
   );
+  assertIncludes(
+    files.reportConnectionPlan,
+    reportConnectionPlan,
+    'format: "zhinote-report-connection-plan"',
+    "Report connection plan must define a local export format."
+  );
+  assertIncludes(
+    files.reportConnectionPlan,
+    reportConnectionPlan,
+    "buildReportConnectionPlan",
+    "Report connection plan must expose a reusable builder."
+  );
+  for (const snippet of [
+    "local_plan_only: true",
+    "reads_report_intake_metadata: true",
+    "reads_database_metadata: true",
+    "reads_page_text: false",
+    "reads_database_rows: false",
+    "reads_database_row_values: false",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.reportConnectionPlan,
+      reportConnectionPlan,
+      snippet,
+      "Report connection plan must preserve local-only privacy boundaries."
+    );
+  }
+  for (const snippet of [
+    "report-to-company",
+    "report-to-meeting",
+    "report-to-memo",
+    "missing_company_links",
+    "missing_meeting_links",
+    "missing_memo_links",
+    "Report page",
+    "Company page",
+    "Related meetings",
+    "Related reports",
+    "Related memo",
+    "manual-confirmation",
+    "blocked",
+  ]) {
+    assertIncludes(
+      files.reportConnectionPlan,
+      reportConnectionPlan,
+      snippet,
+      "Report connection plan must preserve relation targets, fields, and manual gates."
+    );
+  }
+  for (const snippet of [
+    "buildReportConnectionPlan",
+    "报告关联计划",
+    "handleExportConnectionPlan",
+    "导出关联计划",
+    "ReportConnectionSuggestionCard",
+    "ReportConnectionFieldSetRow",
+    "ReportConnectionActionPill",
+  ]) {
+    assertIncludes(
+      files.reportsShell,
+      reportsShell,
+      snippet,
+      "Reports module must render and export the report connection plan."
+    );
+  }
   for (const snippet of [
     'title: "估值假设"',
     'title: "关键指标看板"',

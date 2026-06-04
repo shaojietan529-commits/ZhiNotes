@@ -26,8 +26,8 @@ Current module foundation:
   spreadsheet-to-database import, and a schema/view/row-count dashboard.
 - Report Library: beta module at `/modules/reports` for local HTML reports,
   Markdown notes, PDFs, Office files, notebooks, archives, takeaways, local
-  tracker-row intake, linked companies, linked meetings, and a local report
-  tracker database.
+  tracker-row intake, report connection planning, linked companies, linked
+  meetings, and a local report tracker database.
 - Company Research: beta module at `/modules/company-research` for company
   profiles, investment memos, earnings reviews, valuation assumptions, linked
   reports, linked meetings, local tracker-row intake, and a local tracker
@@ -287,6 +287,11 @@ Current local actions:
   page-level file preview block attributes and shows file kind, priority,
   workflow stage, relation gaps, and next action without reading file bytes,
   calling AI, connecting cloud services, or uploading data.
+- Review and export a local report connection plan. The plan turns intake
+  metadata and local database metadata into report-to-company,
+  report-to-meeting, report-to-memo, and portfolio relation suggestions. It
+  does not read report text, file text, file bytes, database rows, row values,
+  prompts, cloud data, or credentials, and it does not write relation values.
 - Review and export a local report format playbook. The playbook groups intake
   items by format and recommends whether each kind should stay as native
   preview, become editable page content, enter a database import path, remain
