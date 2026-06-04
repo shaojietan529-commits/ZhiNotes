@@ -368,6 +368,11 @@ Each file preview block also shows the active local route for that format:
 native preview, local conversion, metadata preview, or download-only retention,
 plus the matching edit/import route and privacy boundary. Legacy `.doc` and
 `.ppt` files are labeled as download-only until converted to `.docx` or `.pptx`.
+Download-only or metadata fallback blocks, including legacy Office files,
+unknown files, and ZIP archives, can record a local retention receipt from the
+page preview block. The receipt confirms the file stayed local and does not
+include file names, file bytes, extracted text, page body text, spreadsheet
+values, tokens, credentials, cloud data, or AI output.
 
 HTML report previews block external resources by default. A user must type the
 local external-resource confirmation phrase before enabling remote images,

@@ -52,13 +52,13 @@ const requiredCapabilities = [
   {
     id: "word",
     kind: "word",
-    extensions: [".docx", ".odt"],
+    extensions: [".docx", ".doc", ".odt"],
     snippets: ["convertWordToHtml", "convertOdtToHtml", "mammoth"],
   },
   {
     id: "presentation",
     kind: "presentation",
-    extensions: [".pptx", ".odp"],
+    extensions: [".pptx", ".ppt", ".odp"],
     snippets: ["convertPresentationToHtml", "convertPptxToHtml", "convertOdpToHtml"],
   },
   {
@@ -772,6 +772,10 @@ function run() {
     "appendFilePreviewActionReceipt",
     "buildFilePreviewActionReceipt",
     "recordActionReceipt",
+    "handleRecordDownloadRetainReceipt",
+    "shouldShowDownloadRetainReceiptAction",
+    "记录留存 receipt",
+    "File retained locally for metadata or download-only preview",
     "handleExportLastActionReceipt",
     "最近文件动作 receipt",
     "导出动作 receipt",

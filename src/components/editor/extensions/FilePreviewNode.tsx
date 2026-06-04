@@ -585,6 +585,19 @@ function FilePreviewComponent({
     );
   };
 
+  const handleRecordDownloadRetainReceipt = () => {
+    if (!file) return;
+    recordActionReceipt("download-retain", {
+      writes_page_content: false,
+      creates_database: false,
+      creates_database_rows: false,
+      confirmation_required: false,
+      confirmation_matched: true,
+      note:
+        "File retained locally for metadata or download-only preview. No conversion, upload, cloud sync, or AI action was run.",
+    });
+  };
+
   const handleExportLastActionReceipt = () => {
     if (!lastActionReceipt) return;
     setExportingActionReceipt(true);
@@ -760,6 +773,15 @@ function FilePreviewComponent({
               }
             >
               {allowExternalResources ? "外部资源已开" : "外部资源已关"}
+            </button>
+          )}
+          {file && shouldShowDownloadRetainReceiptAction(file, supportLevel) && (
+            <button
+              type="button"
+              onClick={handleRecordDownloadRetainReceipt}
+              className="rounded border border-amber-200 px-2 py-1 text-xs text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-900 dark:text-amber-400 dark:hover:bg-amber-950 dark:hover:text-amber-300"
+            >
+              记录留存 receipt
             </button>
           )}
           {canExpand && (
@@ -1105,6 +1127,18 @@ function isLegacyOfficeFile(file: StoredPageFile) {
 
 function supportsEditableConvertedImport(file: StoredPageFile) {
   return !isLegacyOfficeFile(file);
+}
+
+function shouldShowDownloadRetainReceiptAction(
+  file: StoredPageFile,
+  supportLevel: FilePreviewSupportLevel
+) {
+  return (
+    supportLevel === "download-only" ||
+    supportLevel === "metadata" ||
+    file.kind === "archive" ||
+    isLegacyOfficeFile(file)
+  );
 }
 
 function getFileKindLabel(kind: PageFileKind) {
