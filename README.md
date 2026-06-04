@@ -618,6 +618,14 @@ Current local actions:
   action items, company/report relations, meeting tracker setup, and follow-up
   cadence without exporting page text, transcript text, recording bytes,
   participant details, meeting passcodes, or database row values.
+- Review and export a local meeting workbench packet. The packet combines
+  follow-up, decision ledger, research queue, playbook, and tracker-intake
+  metadata into one action queue for meeting capture, transcript review,
+  decision ledger, research tasks, tracker intake, relation linking, and privacy
+  boundary review. It exports aggregated routing only, not meeting titles, page
+  text, transcript text, recording bytes, participant details, meeting passcodes,
+  database row values, holdings, trading plans, cloud data, AI prompts, tokens,
+  or credentials.
 - Use the meeting intake desk to create one local meeting tracker row from a
   meeting note. The intake action maps Meeting note relation, Status,
   Follow-up needed, and Action items, checks for an existing tracker row first,
@@ -626,8 +634,9 @@ Current local actions:
   call AI.
 - Open meetings from the sidebar Platform section or Cmd/Ctrl+K.
 
-The current Meetings module is a local research workspace. It does not join
-calls, record audio, publish notes, sync data, or call external services.
+The current Meetings module and meeting workbench are local research workspaces.
+They do not join calls, record audio, publish notes, sync data, upload data, or
+call external services.
 
 ## AI Workbench Module
 

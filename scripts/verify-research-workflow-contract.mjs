@@ -19,6 +19,7 @@ const files = {
   meetingDecisionLedger: "src/lib/meetings/meetingDecisionLedger.ts",
   meetingResearchQueue: "src/lib/meetings/meetingResearchQueue.ts",
   meetingPlaybook: "src/lib/meetings/meetingResearchPlaybook.ts",
+  meetingWorkbench: "src/lib/meetings/meetingWorkbench.ts",
   meetingTrackerIntake: "src/lib/meetings/meetingTrackerIntake.ts",
   portfolioReview: "src/lib/portfolio/portfolioReview.ts",
   portfolioTrackerIntake: "src/lib/portfolio/portfolioTrackerIntake.ts",
@@ -148,6 +149,7 @@ function run() {
   const meetingDecisionLedger = readProjectFile(files.meetingDecisionLedger);
   const meetingResearchQueue = readProjectFile(files.meetingResearchQueue);
   const meetingPlaybook = readProjectFile(files.meetingPlaybook);
+  const meetingWorkbench = readProjectFile(files.meetingWorkbench);
   const meetingTrackerIntake = readProjectFile(files.meetingTrackerIntake);
   const portfolioReview = readProjectFile(files.portfolioReview);
   const portfolioTrackerIntake = readProjectFile(files.portfolioTrackerIntake);
@@ -956,6 +958,105 @@ function run() {
       meetingPlaybook,
       actionId,
       `Meeting research playbook must keep action ${actionId}.`
+    );
+  }
+  assertIncludes(
+    files.meetingWorkbench,
+    meetingWorkbench,
+    'format: "zhinote-meeting-workbench-packet"',
+    "Meeting workbench must define a local packet format."
+  );
+  assertIncludes(
+    files.meetingWorkbench,
+    meetingWorkbench,
+    "buildMeetingWorkbenchPacket",
+    "Meeting workbench must expose a reusable builder."
+  );
+  for (const snippet of [
+    'packet_status: "local-meeting-workbench-only"',
+    "local_packet_only: true",
+    "reads_meeting_follow_up_report: true",
+    "reads_meeting_decision_ledger: true",
+    "reads_meeting_research_queue: true",
+    "reads_meeting_playbook: true",
+    "reads_tracker_intake_metadata: true",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "includes_page_titles: false",
+    "reads_transcript_text: false",
+    "includes_transcript_text: false",
+    "reads_recording_bytes: false",
+    "includes_recording_bytes: false",
+    "includes_participant_details: false",
+    "includes_meeting_passcodes: false",
+    "reads_database_rows: false",
+    "includes_database_row_values: false",
+    "includes_holdings_or_trading_plans: false",
+    "writes_workspace_data: false",
+    "creates_pages: false",
+    "creates_database_rows: false",
+    "updates_relation_values: false",
+    "joins_calls: false",
+    "records_audio: false",
+    "publishes_notes: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.meetingWorkbench,
+      meetingWorkbench,
+      snippet,
+      "Meeting workbench must preserve local-only privacy, meeting, and write boundaries."
+    );
+  }
+  for (const snippet of [
+    '"meeting-capture"',
+    '"transcript-review"',
+    '"decision-ledger"',
+    '"research-queue"',
+    '"tracker-intake"',
+    '"relation-linking"',
+    '"privacy-boundary"',
+    "forbidden_actions",
+    "required_verification_commands",
+    "join_calls_from_meeting_workbench",
+    "record_audio_from_meeting_workbench",
+    "publish_notes_from_meeting_workbench",
+    "export_meeting_titles_from_workbench",
+    "export_transcript_text_from_meeting_workbench",
+    "export_meeting_passcodes_from_workbench",
+    "auto_create_tracker_rows",
+    "auto_write_relation_values",
+    "send_meeting_context_to_ai",
+    "sync_meeting_data_to_cloud",
+    "npm run verify:research-workflow",
+    "npm run verify:modules",
+    "npm run lint",
+    "npm run build",
+  ]) {
+    assertIncludes(
+      files.meetingWorkbench,
+      meetingWorkbench,
+      snippet,
+      "Meeting workbench must keep lanes, forbidden actions, and verification commands."
+    );
+  }
+  for (const snippet of [
+    "buildMeetingWorkbenchPacket",
+    "meetingWorkbench",
+    "handleExportWorkbench",
+    "会议工作台",
+    "导出会议工作台",
+    "MeetingWorkbenchLaneCard",
+    "MeetingWorkbenchActionCard",
+    "导出不包含会议标题",
+  ]) {
+    assertIncludes(
+      files.meetingsShell,
+      meetingsShell,
+      snippet,
+      "Meetings module must render and export the meeting workbench packet."
     );
   }
   assertIncludes(
