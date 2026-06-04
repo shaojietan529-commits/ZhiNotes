@@ -7,6 +7,7 @@ import process from "node:process";
 const root = process.cwd();
 const files = {
   packageJson: "package.json",
+  editor: "src/components/editor/Editor.tsx",
   pageStructure: "src/lib/pages/pageResearchStructure.ts",
   pageShell: "src/components/providers/PageShell.tsx",
   readme: "README.md",
@@ -31,6 +32,7 @@ function assertIncludes(sourceLabel, source, snippet, message) {
 
 function run() {
   const packageJson = readProjectFile(files.packageJson);
+  const editor = readProjectFile(files.editor);
   const pageStructure = readProjectFile(files.pageStructure);
   const pageShell = readProjectFile(files.pageShell);
   const readme = readProjectFile(files.readme);
@@ -56,6 +58,7 @@ function run() {
     "PageResearchStructureSignal",
     "PageResearchStructureAction",
     "next_actions",
+    "insert_html",
     "action_status: \"suggested-only\"",
     "suggestion_writes_workspace_data: false",
     "apply-research-template",
@@ -72,7 +75,21 @@ function run() {
   }
 
   for (const snippet of [
+    "appendHtml: (html: string) => string | undefined",
+    "appendHtml(html: string)",
+    "insertContentAt(editor.state.doc.content.size, html)",
+  ]) {
+    assertIncludes(
+      files.editor,
+      editor,
+      snippet,
+      "Editor must expose a narrow appendHtml API for local suggested structure insertion."
+    );
+  }
+
+  for (const snippet of [
     "buildPageResearchStructureReport",
+    "handleApplyResearchAction",
     "PageResearchStructurePanel",
     "PageResearchStructureStatusPill",
     "PageResearchStructureSignalPill",
@@ -82,6 +99,8 @@ function run() {
     "本地页面结构体检",
     "导出结构报告",
     "下一步队列",
+    "插入结构块",
+    "appendHtml(action.insert_html)",
     "页面目录",
     "researchStructure={pageStructure}",
     "zhinote-page-research-structure-export",
@@ -111,6 +130,7 @@ function run() {
     "投研结构",
     "下一步队列",
     "导出结构报告",
+    "插入结构块",
     "npm run verify:page-structure",
     "does not read linked page bodies, database row values, uploaded file bytes, AI prompts, tokens, credentials, cloud data, or private research content",
     "export excludes page titles, page body text, linked page bodies, database row values, file bytes, tokens, credentials, cloud data, and AI output",

@@ -74,6 +74,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const favorite = isFavorite(pageId);
   const [showInfo, setShowInfo] = useState(false);
   const [exportingPageStructure, setExportingPageStructure] = useState(false);
+  const [applyingResearchActionId, setApplyingResearchActionId] =
+    useState<string | null>(null);
 
   useEffect(() => {
     setCurrentPageId(pageId);
@@ -403,6 +405,30 @@ function PageContent({ pageId }: { pageId: string }) {
       setExportingPageStructure(false);
     }
   };
+  const handleApplyResearchAction = async (
+    action: PageResearchStructureAction
+  ) => {
+    if (locked || !action.insert_html.trim()) return;
+    setApplyingResearchActionId(action.id);
+    try {
+      const html = editorRef.current?.appendHtml(action.insert_html);
+      if (!html) return;
+      await update({ content_text: html });
+      await updateWikiLinks(pageId, extractLinkedPageIdsFromHtml(html));
+      const created = await maybeSnapshot(
+        pageId,
+        title || page.title || "未命名页面",
+        html
+      );
+      if (created) await refreshVersions();
+      refresh();
+    } catch (err) {
+      console.error("[Zhinote] Failed to insert research action block:", err);
+      window.alert("插入建议结构块失败，请查看控制台。");
+    } finally {
+      setApplyingResearchActionId(null);
+    }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -646,7 +672,9 @@ function PageContent({ pageId }: { pageId: string }) {
               locked={locked}
               pageId={pageId}
               researchStructure={pageStructure}
+              applyingResearchActionId={applyingResearchActionId}
               exportingResearchStructure={exportingPageStructure}
+              onApplyResearchAction={handleApplyResearchAction}
               onExportResearchStructure={handleExportPageStructure}
               stats={pageInfo}
               title={title || page.title || "未命名页面"}
@@ -714,12 +742,14 @@ interface PageInfoStats {
 }
 
 function PageInfoPanel({
+  applyingResearchActionId,
   createdAt,
   exportingResearchStructure,
   favorite,
   hasCover,
   icon,
   locked,
+  onApplyResearchAction,
   onExportResearchStructure,
   pageId,
   researchStructure,
@@ -729,12 +759,14 @@ function PageInfoPanel({
   versionsCount,
   widePage,
 }: {
+  applyingResearchActionId: string | null;
   createdAt: string;
   exportingResearchStructure: boolean;
   favorite: boolean;
   hasCover: boolean;
   icon: string | null;
   locked: boolean;
+  onApplyResearchAction: (action: PageResearchStructureAction) => void;
   onExportResearchStructure: () => void;
   pageId: string;
   researchStructure: PageResearchStructureReport;
@@ -771,7 +803,10 @@ function PageInfoPanel({
         <PageInfoItem label="封面" value={hasCover ? "是" : "否"} />
       </dl>
       <PageResearchStructurePanel
+        applyingActionId={applyingResearchActionId}
         exporting={exportingResearchStructure}
+        locked={locked}
+        onApplyAction={onApplyResearchAction}
         onExport={onExportResearchStructure}
         report={researchStructure}
       />
@@ -791,11 +826,17 @@ function PageInfoItem({ label, value }: { label: string; value: string }) {
 }
 
 function PageResearchStructurePanel({
+  applyingActionId,
   exporting,
+  locked,
+  onApplyAction,
   onExport,
   report,
 }: {
+  applyingActionId: string | null;
   exporting: boolean;
+  locked: boolean;
+  onApplyAction: (action: PageResearchStructureAction) => void;
   onExport: () => void;
   report: PageResearchStructureReport;
 }) {
@@ -845,7 +886,13 @@ function PageResearchStructurePanel({
         </div>
         <div className="divide-y divide-zinc-200 rounded border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
           {report.next_actions.slice(0, 5).map((action) => (
-            <PageResearchStructureActionRow key={action.id} action={action} />
+            <PageResearchStructureActionRow
+              key={action.id}
+              action={action}
+              applying={applyingActionId === action.id}
+              disabled={locked}
+              onApply={onApplyAction}
+            />
           ))}
         </div>
       </div>
@@ -876,8 +923,14 @@ function PageResearchStructurePanel({
 
 function PageResearchStructureActionRow({
   action,
+  applying,
+  disabled,
+  onApply,
 }: {
   action: PageResearchStructureAction;
+  applying: boolean;
+  disabled: boolean;
+  onApply: (action: PageResearchStructureAction) => void;
 }) {
   const priorityClass =
     action.priority === "high"
@@ -903,8 +956,23 @@ function PageResearchStructureActionRow({
           {action.priority}
         </span>
       </div>
-      <div className="mt-1 truncate text-[11px] text-zinc-400">
-        建议块：{action.suggested_block}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0 truncate text-[11px] text-zinc-400">
+          建议块：{action.suggested_block}
+        </div>
+        <button
+          type="button"
+          onClick={() => onApply(action)}
+          disabled={disabled || applying}
+          className="shrink-0 rounded border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:text-zinc-200"
+          title={
+            disabled
+              ? "页面锁定时不能插入结构块"
+              : "在当前页面底部插入本地结构块"
+          }
+        >
+          {applying ? "插入中" : "插入结构块"}
+        </button>
       </div>
     </div>
   );

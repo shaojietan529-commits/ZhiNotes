@@ -161,6 +161,9 @@ Current local actions:
   structure gates into suggested-only actions such as adding H2/H3 sections,
   writing an investment decision, adding evidence, linking relations, or saving
   a review trail. It does not edit the page automatically.
+- Use 插入结构块 on a suggested action to append a blank local structure block to
+  the current page. This writes only the selected scaffold into the current
+  local page; it does not generate research content, call AI, sync, or upload.
 - Export a local 导出结构报告 JSON from the Info panel. The export preserves
   the structure summary, gates, signals, and suggested actions for later review.
 

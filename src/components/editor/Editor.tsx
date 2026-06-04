@@ -138,6 +138,7 @@ interface EditorProps {
 export interface EditorRef {
   insertSubPageLink: (childId: string, childTitle: string) => string | undefined;
   insertInlineDatabase: (databaseId: string) => string | undefined;
+  appendHtml: (html: string) => string | undefined;
   setContent: (html: string) => void;
   getHTML: () => string;
 }
@@ -524,6 +525,15 @@ const Editor = forwardRef<EditorRef, EditorProps>(
       insertInlineDatabase(databaseId: string) {
         if (!editor) return;
         editor.chain().focus().insertInlineDatabase(databaseId).run();
+        return editor.getHTML();
+      },
+      appendHtml(html: string) {
+        if (!editor || !html.trim()) return;
+        editor
+          .chain()
+          .focus("end")
+          .insertContentAt(editor.state.doc.content.size, html)
+          .run();
         return editor.getHTML();
       },
       setContent(html: string) {

@@ -67,6 +67,7 @@ export interface PageResearchStructureAction {
   action_status: "suggested-only";
   detail: string;
   suggested_block: string;
+  insert_html: string;
   local_only: true;
   suggestion_writes_workspace_data: false;
 }
@@ -478,6 +479,18 @@ function buildNextActions(
       action_status: "suggested-only",
       detail: "空页面建议先插入公司研究、投资备忘录、会议纪要或研究报告模板。",
       suggested_block: "/template 或工具栏 Template",
+      insert_html: [
+        "<h2>核心结论</h2>",
+        "<p></p>",
+        "<h2>投资假设</h2>",
+        "<p></p>",
+        "<h2>证据与来源</h2>",
+        "<ul><li>来源：</li><li>关键数据：</li></ul>",
+        "<h2>风险与反向证据</h2>",
+        "<p></p>",
+        "<h2>下一步</h2>",
+        '<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p></p></div></li></ul>',
+      ].join(""),
       local_only: true,
       suggestion_writes_workspace_data: false,
     });
@@ -493,6 +506,8 @@ function buildNextActions(
       action_status: "suggested-only",
       detail: "补 H2/H3、目录或小标题，让长笔记可以像 memo 一样扫读。",
       suggested_block: "H2: 核心结论 / 证据 / 风险 / 下一步",
+      insert_html:
+        "<h2>核心结论</h2><p></p><h2>证据</h2><p></p><h2>风险</h2><p></p><h2>下一步</h2><p></p>",
       local_only: true,
       suggestion_writes_workspace_data: false,
     });
@@ -508,6 +523,8 @@ function buildNextActions(
       action_status: "suggested-only",
       detail: "明确核心结论、投资假设、风险、催化剂或反向证据。",
       suggested_block: "H2: 核心结论 / 投资假设 / 风险 / 催化剂",
+      insert_html:
+        "<h2>核心结论</h2><p></p><h2>投资假设</h2><p></p><h2>风险</h2><p></p><h2>催化剂</h2><p></p>",
       local_only: true,
       suggestion_writes_workspace_data: false,
     });
@@ -523,6 +540,8 @@ function buildNextActions(
       action_status: "suggested-only",
       detail: "补来源、引用、表格、文件预览或原始链接，方便后续回溯。",
       suggested_block: "H2: 来源 / 数据表 / 原始报告",
+      insert_html:
+        "<h2>证据与来源</h2><ul><li>来源：</li><li>关键数据：</li><li>原始报告：</li><li>引用：</li></ul>",
       local_only: true,
       suggestion_writes_workspace_data: false,
     });
@@ -538,6 +557,8 @@ function buildNextActions(
       action_status: "suggested-only",
       detail: "记录待验证问题、模型更新、follow-up 或复盘窗口。",
       suggested_block: "Task list: 待验证问题 / 模型更新 / 跟进动作",
+      insert_html:
+        '<h2>下一步动作</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>待验证问题</p></div></li><li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>模型更新</p></div></li><li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>跟进动作</p></div></li></ul>',
       local_only: true,
       suggestion_writes_workspace_data: false,
     });
@@ -553,6 +574,8 @@ function buildNextActions(
       action_status: "suggested-only",
       detail: "把页面连接到公司、报告、会议、数据库或文件预览，形成投研网络。",
       suggested_block: "页面 mention / inline database / file preview",
+      insert_html:
+        "<h2>关联研究</h2><ul><li>公司页面：</li><li>相关报告：</li><li>相关会议：</li><li>相关数据库：</li></ul>",
       local_only: true,
       suggestion_writes_workspace_data: false,
     });
@@ -568,6 +591,8 @@ function buildNextActions(
       action_status: "suggested-only",
       detail: "重要页面建议保存版本、收藏或锁定，方便后续复盘。",
       suggested_block: "Save version / Favorite / Lock",
+      insert_html:
+        "<h2>复盘记录</h2><ul><li>本次更新：</li><li>下次复盘日期：</li><li>需要重新检查的假设：</li></ul>",
       local_only: true,
       suggestion_writes_workspace_data: false,
     });
@@ -583,6 +608,8 @@ function buildNextActions(
       action_status: "suggested-only",
       detail: "结构已经较完整，下一步适合设置复盘节奏或连接到 tracker。",
       suggested_block: "下次复盘日期 / 关联 tracker row",
+      insert_html:
+        "<h2>复盘节奏</h2><ul><li>下次复盘日期：</li><li>触发条件：</li><li>关联 tracker row：</li></ul>",
       local_only: true,
       suggestion_writes_workspace_data: false,
     });
