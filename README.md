@@ -171,6 +171,10 @@ Current local actions:
 - Write and edit Notion-like page content with headings, lists, tasks, toggles,
   callouts, tables, formulas, synced blocks, embeds, wiki links, file previews,
   inline databases, comments, backlinks, and version history.
+- Use `/page` from the slash menu to create a child page, insert the page link,
+  and automatically enter the new page. Heading 3 supports Cmd/Ctrl+Shift+3
+  when the browser receives it, plus Cmd/Ctrl+Alt+3 as the browser-safe fallback
+  because macOS can reserve Cmd+Shift+3 for screenshots.
 - Add page icons, covers, sub-pages, local page links, duplicate pages, lock
   editing, switch page width, save named versions, and export HTML, Markdown, or
   browser PDF.

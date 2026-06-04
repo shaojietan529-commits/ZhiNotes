@@ -9,6 +9,7 @@
     "lint": "eslint",
     "verify:ai": "node scripts/verify-ai-contract.mjs",
     "verify:database": "node scripts/verify-database-contract.mjs",
+    "verify:editor": "node scripts/verify-editor-commands.mjs",
     "verify:file-preview": "node scripts/verify-file-preview-contract.mjs",
     "verify:modules": "node scripts/verify-module-contract.mjs",
     "verify:page-structure": "node scripts/verify-page-research-structure.mjs",

@@ -1,5 +1,6 @@
 import { Extension, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { Plugin } from "@tiptap/pm/state";
 import { promptForLink } from "./linkHelpers";
 
 /**
@@ -16,6 +17,20 @@ import { promptForLink } from "./linkHelpers";
  */
 export const KeyboardShortcuts = Extension.create({
   name: "zhinoteKeyboardShortcuts",
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          handleKeyDown: (_view, event) => {
+            if (!isHeadingThreeShortcut(event)) return false;
+            event.preventDefault();
+            return this.editor.chain().focus().setHeading({ level: 3 }).run();
+          },
+        },
+      }),
+    ];
+  },
 
   addKeyboardShortcuts() {
     return {
@@ -111,6 +126,18 @@ export const KeyboardShortcuts = Extension.create({
     };
   },
 });
+
+function isHeadingThreeShortcut(event: KeyboardEvent) {
+  const hasModifier = event.metaKey || event.ctrlKey;
+  if (!hasModifier) return false;
+
+  const isDigitThree = event.key === "3" || event.code === "Digit3";
+  const isHash = event.key === "#";
+  const isPrimaryH3Shortcut = event.shiftKey && (isDigitThree || isHash);
+  const isFallbackH3Shortcut = event.altKey && isDigitThree;
+
+  return isPrimaryH3Shortcut || isFallbackH3Shortcut;
+}
 
 function toggleAllToggleBlocks(editor: Editor) {
   const toggleBlocks: Array<{ node: ProseMirrorNode; pos: number }> = [];

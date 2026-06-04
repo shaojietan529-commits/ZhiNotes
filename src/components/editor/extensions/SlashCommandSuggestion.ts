@@ -76,11 +76,20 @@ function getSlashCommands(): SlashCommandItem[] {
       },
     },
     {
-      title: "新建子页面",
-      description: "创建子页面，插入页面链接，并自动进入新页面",
+      title: "新建页面 / Page",
+      description: "创建子页面，插入页面链接，并自动进入新页面（/page）",
       icon: "📄",
       category: "基础块",
-      aliases: ["page", "subpage", "new page", "create page", "页面", "子页面"],
+      aliases: [
+        "page",
+        "subpage",
+        "new page",
+        "create page",
+        "new",
+        "页面",
+        "新页面",
+        "子页面",
+      ],
       command: async ({ editor, range }) => {
         const title = window.prompt("新页面标题：", "未命名页面");
         if (title === null) return;
