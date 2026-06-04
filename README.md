@@ -30,8 +30,8 @@ Current module foundation:
   meetings, and a local report tracker database.
 - Company Research: beta module at `/modules/company-research` for company
   profiles, investment memos, earnings reviews, valuation assumptions, linked
-  reports, linked meetings, local tracker-row intake, and a local tracker
-  database.
+  reports, linked meetings, company dossier planning, local tracker-row intake,
+  and a local tracker database.
 - Portfolio and Watchlist: beta module at `/modules/portfolio` for local
   position memos, watchlists, sizing discipline, catalyst review, risk notes,
   linked company pages, linked reports, linked meetings, local tracker-row
@@ -256,6 +256,12 @@ Current local actions:
   coverage gaps into an action queue for company home, investment memo, earnings
   review, valuation assumptions, key metrics, related reports, related meetings,
   tracker database setup, and review cadence.
+- Review and export a local company research Dossier plan. The Dossier plan
+  turns coverage gaps into per-company research dossiers for company home,
+  investment memo, earnings review, valuation assumptions, key metrics, related
+  reports, related meetings, and tracker setup. It does not read or export page
+  text, database row values, file bytes, holdings, trading plans, cloud data, AI
+  prompts, tokens, or credentials, and it does not write workspace data.
 - Use the company intake desk to create one local company tracker row from a
   company research page. The intake action maps Company page relation, Status,
   Thesis, identifiable Ticker, valuation assumptions, and key metrics, checks

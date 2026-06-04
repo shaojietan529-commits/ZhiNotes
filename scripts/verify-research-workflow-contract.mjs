@@ -10,6 +10,7 @@ const files = {
   workflow: "src/lib/modules/researchWorkflow.ts",
   graph: "src/lib/modules/researchGraph.ts",
   companyCoverage: "src/lib/company/companyCoverage.ts",
+  companyDossier: "src/lib/company/companyResearchDossier.ts",
   companyPlaybook: "src/lib/company/companyResearchPlaybook.ts",
   companyTrackerIntake: "src/lib/company/companyTrackerIntake.ts",
   meetingFollowUp: "src/lib/meetings/meetingFollowUp.ts",
@@ -125,6 +126,7 @@ function run() {
   const workflow = readProjectFile(files.workflow);
   const graph = readProjectFile(files.graph);
   const companyCoverage = readProjectFile(files.companyCoverage);
+  const companyDossier = readProjectFile(files.companyDossier);
   const companyPlaybook = readProjectFile(files.companyPlaybook);
   const companyTrackerIntake = readProjectFile(files.companyTrackerIntake);
   const meetingFollowUp = readProjectFile(files.meetingFollowUp);
@@ -240,6 +242,74 @@ function run() {
     "buildCompanyResearchPlaybook",
     "Company research playbook must expose a reusable builder."
   );
+  assertIncludes(
+    files.companyDossier,
+    companyDossier,
+    'format: "zhinote-company-research-dossier-plan"',
+    "Company research dossier must define a local export format."
+  );
+  assertIncludes(
+    files.companyDossier,
+    companyDossier,
+    "buildCompanyResearchDossierPlan",
+    "Company research dossier must expose a reusable builder."
+  );
+  for (const snippet of [
+    "local_plan_only: true",
+    "reads_company_coverage_report: true",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "includes_database_row_values: false",
+    "reads_file_bytes: false",
+    "includes_holdings: false",
+    "includes_trading_plans: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.companyDossier,
+      companyDossier,
+      snippet,
+      "Company research dossier must preserve local-only privacy boundaries."
+    );
+  }
+  for (const snippet of [
+    "CompanyCoverageAreaId",
+    "getCoverageAreaLabel",
+    "missing_memos",
+    "missing_earnings_reviews",
+    "missing_related_reports",
+    "missing_related_meetings",
+    '"related-reports"',
+    '"related-meetings"',
+    '"tracker-database"',
+    "review-company-dossiers",
+  ]) {
+    assertIncludes(
+      files.companyDossier,
+      companyDossier,
+      snippet,
+      "Company research dossier must preserve company-level dossier sections and relation gates."
+    );
+  }
+  for (const snippet of [
+    "buildCompanyResearchDossierPlan",
+    "公司研究 Dossier",
+    "handleExportDossier",
+    "导出 Dossier",
+    "CompanyDossierCard",
+    "CompanyDossierActionCard",
+    "CompanyDossierStatusPill",
+  ]) {
+    assertIncludes(
+      files.companyShell,
+      companyShell,
+      snippet,
+      "Company module must render and export the company research dossier plan."
+    );
+  }
   for (const snippet of [
     "local_playbook_only: true",
     "reads_company_coverage_report: true",

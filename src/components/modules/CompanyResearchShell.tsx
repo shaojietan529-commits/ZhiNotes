@@ -25,6 +25,11 @@ import {
   type CompanyResearchPlaybookStatus,
 } from "@/lib/company/companyResearchPlaybook";
 import {
+  buildCompanyResearchDossierPlan,
+  type CompanyResearchDossierPlan,
+  type CompanyResearchDossierStatus,
+} from "@/lib/company/companyResearchDossier";
+import {
   buildCompanyTrackerIntakeDraft,
   findExistingCompanyTrackerRow,
   type CompanyTrackerIntakeItem,
@@ -136,6 +141,7 @@ function CompanyResearchDashboard() {
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingCoverage, setExportingCoverage] = useState(false);
+  const [exportingDossier, setExportingDossier] = useState(false);
   const [exportingPlaybook, setExportingPlaybook] = useState(false);
   const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
     null
@@ -185,6 +191,10 @@ function CompanyResearchDashboard() {
   );
   const companyPlaybook = useMemo(
     () => buildCompanyResearchPlaybook(companyCoverage),
+    [companyCoverage]
+  );
+  const companyDossier = useMemo(
+    () => buildCompanyResearchDossierPlan(companyCoverage),
     [companyCoverage]
   );
   const companyTrackerIntakeItems = useMemo(
@@ -244,6 +254,24 @@ function CompanyResearchDashboard() {
       window.alert("公司研究 Playbook 导出失败，请查看控制台。");
     } finally {
       setExportingPlaybook(false);
+    }
+  };
+
+  const handleExportDossier = () => {
+    setExportingDossier(true);
+    try {
+      downloadJsonFile(
+        `zhinote-company-dossier-${fileSafeTimestamp()}.json`,
+        {
+          ...companyDossier,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export company dossier:", err);
+      window.alert("公司研究 Dossier 导出失败，请查看控制台。");
+    } finally {
+      setExportingDossier(false);
     }
   };
 
@@ -373,6 +401,141 @@ function CompanyResearchDashboard() {
                   onClick={() => void runStarter(trackerStarter)}
                 />
               )}
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                公司研究 Dossier
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把覆盖雷达按公司页整理成研究档案：公司主页、投资 memo、业绩复盘、
+                估值假设、关键指标、相关报告、相关会议和公司跟踪表。导出只包含结构状态，
+                不包含页面正文、数据库 row values、文件 bytes、持仓或交易计划。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportDossier}
+              disabled={exportingDossier}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingDossier ? "导出中..." : "导出 Dossier"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <CoverageMetric
+              label="公司页"
+              value={companyDossier.summary.company_pages}
+              detail="Dossier base"
+              status={
+                companyDossier.summary.company_pages > 0 ? "ready" : "missing"
+              }
+            />
+            <CoverageMetric
+              label="候选公司"
+              value={companyDossier.summary.company_candidates}
+              detail="Needs review"
+              status={
+                companyDossier.summary.company_candidates > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+            <CoverageMetric
+              label="完整档案"
+              value={companyDossier.summary.complete_dossiers}
+              detail="Complete"
+              status={
+                companyDossier.summary.complete_dossiers > 0
+                  ? "ready"
+                  : "partial"
+              }
+            />
+            <CoverageMetric
+              label="待补档案"
+              value={companyDossier.summary.incomplete_dossiers}
+              detail="Incomplete"
+              status={
+                companyDossier.summary.incomplete_dossiers > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+            <CoverageMetric
+              label="缺 Memo"
+              value={companyDossier.summary.missing_memos}
+              detail="Thesis"
+              status={
+                companyDossier.summary.missing_memos > 0 ? "missing" : "ready"
+              }
+            />
+            <CoverageMetric
+              label="缺报告"
+              value={companyDossier.summary.missing_related_reports}
+              detail="Reports"
+              status={
+                companyDossier.summary.missing_related_reports > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+            <CoverageMetric
+              label="缺会议"
+              value={companyDossier.summary.missing_related_meetings}
+              detail="Meetings"
+              status={
+                companyDossier.summary.missing_related_meetings > 0
+                  ? "missing"
+                  : "ready"
+              }
+            />
+            <CoverageMetric
+              label="手动动作"
+              value={companyDossier.summary.manual_actions}
+              detail="Relations"
+              status={
+                companyDossier.summary.manual_actions > 0 ? "partial" : "ready"
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                公司档案清单
+              </div>
+              {companyDossier.dossiers.length > 0 ? (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {companyDossier.dossiers.slice(0, 6).map((dossier) => (
+                    <CompanyDossierCard
+                      key={dossier.id}
+                      dossier={dossier}
+                      onOpen={() => router.push(dossier.route)}
+                      onNavigate={(route) => router.push(route)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  暂无待补齐公司 Dossier。已有公司页会在缺少 memo、业绩复盘、
+                  估值、指标、报告、会议或 tracker 结构时进入这里。
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                全局补齐动作
+              </div>
+              {companyDossier.global_actions.map((action) => (
+                <CompanyDossierActionCard
+                  key={action.id}
+                  action={action}
+                  onNavigate={(route) => router.push(route)}
+                />
+              ))}
             </div>
           </div>
         </section>
@@ -887,6 +1050,127 @@ function CompanyTrackerIntakeCard({
   );
 }
 
+function CompanyDossierCard({
+  dossier,
+  onOpen,
+  onNavigate,
+}: {
+  dossier: CompanyResearchDossierPlan["dossiers"][number];
+  onOpen: () => void;
+  onNavigate: (route: string) => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {dossier.company_title}
+          </div>
+          <div className="mt-1 text-zinc-400">
+            完成度 {dossier.completion_score}% · 缺少{" "}
+            {dossier.missing_sections.length} 项
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开
+        </button>
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+        <div
+          className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100"
+          style={{ width: `${dossier.completion_score}%` }}
+        />
+      </div>
+      <div className="mt-3 grid gap-2">
+        {dossier.sections.map((section) => (
+          <div
+            key={section.id}
+            className="rounded-md bg-zinc-50 px-2 py-2 dark:bg-zinc-900"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                  {section.title}
+                </div>
+                <div className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+                  {section.next_action}
+                </div>
+              </div>
+              <CompanyDossierStatusPill status={section.status} />
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+              <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+                只读计划
+              </span>
+              <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+                去：{getDossierRouteLabel(section.target_route)}
+              </span>
+              <button
+                type="button"
+                onClick={() => onNavigate(section.target_route)}
+                className="ml-auto rounded-md border border-zinc-300 px-2 py-1 text-[11px] text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                去补
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {dossier.next_action}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400">
+        {dossier.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function CompanyDossierActionCard({
+  action,
+  onNavigate,
+}: {
+  action: CompanyResearchDossierPlan["global_actions"][number];
+  onNavigate: (route: string) => void;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {action.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {action.reason}
+          </p>
+        </div>
+        <CompanyDossierStatusPill status={action.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        {action.applies_to.map((areaId) => (
+          <span
+            key={areaId}
+            className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"
+          >
+            {getCoverageAreaLabel(areaId)}
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={() => onNavigate(action.target_route)}
+          className="ml-auto rounded-md border border-zinc-300 px-2 py-1 text-[11px] text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开
+        </button>
+      </div>
+    </article>
+  );
+}
+
 function CompanyPlaybookActionCard({
   item,
 }: {
@@ -1006,6 +1290,33 @@ function CompanyPlaybookStatusPill({
   );
 }
 
+function CompanyDossierStatusPill({
+  status,
+}: {
+  status: CompanyResearchDossierStatus;
+}) {
+  const labels: Record<CompanyResearchDossierStatus, string> = {
+    ready: "Ready",
+    partial: "Partial",
+    missing: "Missing",
+    "manual-confirmation": "需确认",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "partial"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : status === "manual-confirmation"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
 function getSurfaceLabel(surface: CompanyResearchPlaybook["steps"][number]["surface"]) {
   const labels: Record<
     CompanyResearchPlaybook["steps"][number]["surface"],
@@ -1019,6 +1330,14 @@ function getSurfaceLabel(surface: CompanyResearchPlaybook["steps"][number]["surf
   };
 
   return labels[surface];
+}
+
+function getDossierRouteLabel(route: string) {
+  if (route.startsWith("/page/")) return "公司页";
+  if (route === "/modules/reports") return "报告库";
+  if (route === "/modules/meetings") return "会议模块";
+  if (route === "/modules/company-research") return "公司研究";
+  return route;
 }
 
 function StarterButton({
