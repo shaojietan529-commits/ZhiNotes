@@ -766,6 +766,12 @@ Current local actions:
   accounts, write server data, upload workspace data, enable sync, enable AI,
   read page bodies, read database row values, read file bytes, or expose secret
   values.
+- Review and export a local Web Alpha launch decision receipt. The receipt
+  answers whether local work can continue, whether a preview can be shared, and
+  whether cloud sync can start. It currently records a no-go preview/cloud
+  verdict, lists P0 blockers and owner decisions, and does not deploy, connect
+  cloud services, upload workspace data, enable sync, enable AI, read page
+  bodies, read database row values, read file bytes, or expose secrets.
 - Run `npm run verify:web-alpha` to execute the local Web Alpha verification
   command bundle and print a receipt. The receipt runs lint, Web Beta contract
   verification, smoke verification, replay harness safety verification, and a

@@ -162,6 +162,11 @@ import {
   type WebAlphaHandoffBundle,
   type WebAlphaHandoffStatus,
 } from "@/lib/sync/webAlphaHandoffBundle";
+import {
+  buildWebAlphaLaunchDecisionReceipt,
+  type WebAlphaLaunchDecisionReceipt,
+  type WebAlphaLaunchDecisionStatus,
+} from "@/lib/sync/webAlphaLaunchDecisionReceipt";
 import type {
   WebBetaEnvironmentCheckStatus,
   WebBetaEnvironmentPreflight,
@@ -317,6 +322,7 @@ type WebBetaContractAction =
   | "deployment-target"
   | "smoke-test-plan"
   | "web-alpha-handoff"
+  | "web-alpha-launch-decision"
   | "route-preflight";
 type ReadinessStatus = "Ready" | "Partial" | "Missing" | "Needs confirmation";
 
@@ -1174,6 +1180,21 @@ function SyncDashboard() {
       webBetaNextActionPlan,
       webBetaRoutePreflight,
       webBetaSmokeTestPlan,
+      webBetaStageGate,
+    ]
+  );
+  const webAlphaLaunchDecisionReceipt = useMemo(
+    () =>
+      buildWebAlphaLaunchDecisionReceipt({
+        handoffBundle: webAlphaHandoffBundle,
+        stageGate: webBetaStageGate,
+        nextActionPlan: webBetaNextActionPlan,
+        environmentPreflight,
+      }),
+    [
+      environmentPreflight,
+      webAlphaHandoffBundle,
+      webBetaNextActionPlan,
       webBetaStageGate,
     ]
   );
@@ -2380,6 +2401,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Web Alpha handoff bundle export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportWebAlphaLaunchDecisionReceipt = () => {
+    setBusyContractAction("web-alpha-launch-decision");
+    try {
+      downloadJsonFile(
+        `zhinote-web-alpha-launch-decision-${fileSafeTimestamp()}.json`,
+        {
+          ...webAlphaLaunchDecisionReceipt,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export web alpha launch decision:",
+        err
+      );
+      window.alert(
+        "Web Alpha launch decision export failed. Please check the console."
       );
     } finally {
       setBusyContractAction(null);
@@ -5627,6 +5671,95 @@ function SyncDashboard() {
                     />
                   ))}
                 </div>
+              </div>
+            </div>
+          </ContractPanel>
+
+          <ContractPanel
+            title="Web Alpha launch decision receipt"
+            className="mt-4"
+          >
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                Local go/no-go receipt for deciding whether ZhiNotes can move
+                from local development to a shareable Web Alpha preview. It
+                summarizes blockers and owner decisions without deploying,
+                connecting cloud services, uploading workspace data, enabling
+                sync, or reading private content.
+              </p>
+              <button
+                type="button"
+                onClick={handleExportWebAlphaLaunchDecisionReceipt}
+                disabled={busyContractAction === "web-alpha-launch-decision"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyContractAction === "web-alpha-launch-decision"
+                  ? "Exporting..."
+                  : "Export launch decision"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
+              <LaunchDecisionSummaryCard
+                label="Verdict"
+                value={webAlphaLaunchDecisionReceipt.release_verdict}
+                detail="No preview yet"
+                status="no-go-preview"
+              />
+              <LaunchDecisionSummaryCard
+                label="Local work"
+                value={
+                  webAlphaLaunchDecisionReceipt.local_app_can_continue_now
+                    ? "Yes"
+                    : "No"
+                }
+                detail="Continue build"
+                status="go-local-only"
+              />
+              <LaunchDecisionSummaryCard
+                label="Preview"
+                value={
+                  webAlphaLaunchDecisionReceipt.web_alpha_preview_can_be_shared_now
+                    ? "Yes"
+                    : "No"
+                }
+                detail="Owner gated"
+                status="no-go-preview"
+              />
+              <LaunchDecisionSummaryCard
+                label="Cloud sync"
+                value={
+                  webAlphaLaunchDecisionReceipt.cloud_sync_can_start_now
+                    ? "Yes"
+                    : "No"
+                }
+                detail="Still disabled"
+                status="no-go-cloud"
+              />
+              <LaunchDecisionSummaryCard
+                label="P0"
+                value={webAlphaLaunchDecisionReceipt.summary.p0_actions}
+                detail="Before preview"
+                status="no-go-preview"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+              <div className="space-y-2">
+                {webAlphaLaunchDecisionReceipt.decision_questions.map(
+                  (question) => (
+                    <LaunchDecisionQuestionRow
+                      key={question.id}
+                      question={question}
+                    />
+                  )
+                )}
+              </div>
+              <div className="space-y-2">
+                {webAlphaLaunchDecisionReceipt.top_blockers.map((blocker) => (
+                  <LaunchDecisionBlockerRow
+                    key={`${blocker.source}-${blocker.id}`}
+                    blocker={blocker}
+                  />
+                ))}
               </div>
             </div>
           </ContractPanel>
@@ -9314,6 +9447,112 @@ function HandoffStatusPill({
         : status === "manual-confirmation"
           ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
           : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function LaunchDecisionSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: WebAlphaLaunchDecisionStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <LaunchDecisionStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function LaunchDecisionQuestionRow({
+  question,
+}: {
+  question: WebAlphaLaunchDecisionReceipt["decision_questions"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {question.question}
+        </div>
+        <LaunchDecisionStatusPill status={question.status} />
+      </div>
+      <div className="mt-2 text-[11px] uppercase tracking-wide text-zinc-400">
+        Answer: {question.answer}
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {question.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {question.required_before_yes}
+      </p>
+    </article>
+  );
+}
+
+function LaunchDecisionBlockerRow({
+  blocker,
+}: {
+  blocker: WebAlphaLaunchDecisionReceipt["top_blockers"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {blocker.title}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-400">
+            {blocker.source}
+          </div>
+        </div>
+        <span className="shrink-0 rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
+          {blocker.priority}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {blocker.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {blocker.required_action}
+      </p>
+    </article>
+  );
+}
+
+function LaunchDecisionStatusPill({
+  status,
+}: {
+  status: WebAlphaLaunchDecisionStatus;
+}) {
+  const labels: Record<WebAlphaLaunchDecisionStatus, string> = {
+    "go-local-only": "Local only",
+    "no-go-preview": "No preview",
+    "no-go-cloud": "No cloud",
+  };
+
+  const className =
+    status === "go-local-only"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "no-go-preview"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>

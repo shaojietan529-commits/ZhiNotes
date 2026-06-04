@@ -14,6 +14,8 @@ const files = {
   contract: "src/lib/sync/webBetaContract.ts",
   deploymentTarget: "src/lib/sync/webBetaDeploymentTarget.ts",
   webAlphaHandoffBundle: "src/lib/sync/webAlphaHandoffBundle.ts",
+  webAlphaLaunchDecisionReceipt:
+    "src/lib/sync/webAlphaLaunchDecisionReceipt.ts",
   privateFileStoragePolicy: "src/lib/sync/privateFileStoragePolicy.ts",
   filePresignApiStub: "src/lib/sync/filePresignApiStub.ts",
   filePresignRoute: "src/app/api/files/presign/route.ts",
@@ -200,6 +202,9 @@ function run() {
   const contract = readProjectFile(files.contract);
   const deploymentTarget = readProjectFile(files.deploymentTarget);
   const webAlphaHandoffBundle = readProjectFile(files.webAlphaHandoffBundle);
+  const webAlphaLaunchDecisionReceipt = readProjectFile(
+    files.webAlphaLaunchDecisionReceipt
+  );
   const privateFileStoragePolicy = readProjectFile(files.privateFileStoragePolicy);
   const filePresignApiStub = readProjectFile(files.filePresignApiStub);
   const filePresignRoute = readProjectFile(files.filePresignRoute);
@@ -264,6 +269,7 @@ function run() {
     [files.deploymentTarget, deploymentTarget],
     [files.smokeTestPlan, smokeTestPlan],
     [files.smokeTestVerifier, smokeTestVerifier],
+    [files.webAlphaLaunchDecisionReceipt, webAlphaLaunchDecisionReceipt],
     [files.replayHarnessVerifier, replayHarnessVerifier],
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
@@ -2486,6 +2492,150 @@ function run() {
     "Sync UI must render the Web Alpha verification receipt runner."
   );
   assertSourceIncludes(
+    files.webAlphaLaunchDecisionReceipt,
+    webAlphaLaunchDecisionReceipt,
+    'format: "zhinote-web-alpha-launch-decision-receipt"',
+    "Web Alpha launch decision receipt must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.webAlphaLaunchDecisionReceipt,
+    webAlphaLaunchDecisionReceipt,
+    "buildWebAlphaLaunchDecisionReceipt",
+    "Web Alpha launch decision receipt must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'receipt_status: "local-launch-decision-only"',
+      "Launch decision receipt must stay local-only.",
+    ],
+    [
+      'release_verdict: "no-go"',
+      "Launch decision receipt must not approve preview launch.",
+    ],
+    [
+      'decision: "continue-local-build-no-preview"',
+      "Launch decision receipt must distinguish local progress from preview approval.",
+    ],
+    [
+      "web_alpha_preview_can_be_shared_now: false",
+      "Launch decision receipt must not approve preview sharing.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Launch decision receipt must not approve cloud sync.",
+    ],
+    [
+      "local_receipt_only: true",
+      "Launch decision receipt must be local-only.",
+    ],
+    [
+      "reads_handoff_bundle: true",
+      "Launch decision receipt must read handoff metadata.",
+    ],
+    [
+      "reads_stage_gate_metadata: true",
+      "Launch decision receipt must read stage gate metadata.",
+    ],
+    [
+      "reads_next_action_plan: true",
+      "Launch decision receipt must read next-action metadata.",
+    ],
+    [
+      "reads_environment_metadata: true",
+      "Launch decision receipt must read environment metadata.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Launch decision receipt must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Launch decision receipt must not read database row values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Launch decision receipt must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Launch decision receipt must not read secrets.",
+    ],
+    [
+      "reads_holding_details: false",
+      "Launch decision receipt must not read holding details.",
+    ],
+    [
+      "reads_trading_plans: false",
+      "Launch decision receipt must not read trading plans.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Launch decision receipt must not send network requests.",
+    ],
+    ["deploys_app: false", "Launch decision receipt must not deploy the app."],
+    [
+      "connects_cloud_services: false",
+      "Launch decision receipt must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Launch decision receipt must not upload workspace data.",
+    ],
+    ["enables_sync: false", "Launch decision receipt must not enable sync."],
+    ["enables_ai: false", "Launch decision receipt must not enable AI."],
+    [
+      "forbidden_actions_before_owner_approval",
+      "Launch decision receipt must list forbidden actions before owner approval.",
+    ],
+    [
+      "share_web_alpha_preview",
+      "Launch decision receipt must forbid preview sharing before owner approval.",
+    ],
+    [
+      "enable_sync_push",
+      "Launch decision receipt must forbid sync push before owner approval.",
+    ],
+    [
+      "enable_ai_execution",
+      "Launch decision receipt must forbid AI execution before owner approval.",
+    ],
+    [
+      "excluded_payload_classes",
+      "Launch decision receipt must carry excluded private payload classes.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.webAlphaLaunchDecisionReceipt,
+      webAlphaLaunchDecisionReceipt,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildWebAlphaLaunchDecisionReceipt",
+    "Sync UI must build the Web Alpha launch decision receipt."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportWebAlphaLaunchDecisionReceipt",
+    "Sync UI must export the Web Alpha launch decision receipt."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Web Alpha launch decision receipt",
+    "Sync UI must render the Web Alpha launch decision panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Export launch decision",
+    "Sync UI must expose the launch decision export button."
+  );
+  assertSourceIncludes(
     files.smokeTestVerifier,
     smokeTestVerifier,
     "Web Beta smoke test verification passed",
@@ -4436,6 +4586,7 @@ function run() {
     permission_server_test_matrix_checks: 32,
     permission_server_readiness_checks: 29,
     web_beta_stage_gate_checks: 35,
+    web_alpha_launch_decision_checks: 39,
     warnings: warnings.length,
   };
 
