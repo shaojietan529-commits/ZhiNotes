@@ -414,6 +414,12 @@ Current local actions:
   final payload, page context, file content, retention, permission, and audit
   gates; `/api/ai/run` is a disabled local stub and does not read request bodies,
   call model providers, upload workspace data, or store AI output.
+- Review and export a local AI prompt blueprint. The blueprint defines reusable
+  prompt sections, output schemas, citation rules, validation checks, and
+  blockers for summary, Q&A, report draft, comparison, and research framework
+  workflows. It uses workflow and payload metadata only and does not read prompt
+  text, page body text, file bytes, holdings, trading plans, client information,
+  tokens, or secrets.
 - Review and export a local AI research runbook. The runbook turns the selected
   workflow into an approval queue covering task scope, page context, file
   context, final payload preview, sensitive finance exclusions, provider/model

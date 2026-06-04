@@ -32,6 +32,10 @@ import {
   type AiResearchRunbook,
 } from "@/lib/ai/aiResearchRunbook";
 import {
+  buildAiPromptBlueprint,
+  type AiPromptBlueprint,
+} from "@/lib/ai/aiPromptBlueprint";
+import {
   buildAiOutputReviewContract,
   type AiOutputReviewContract,
 } from "@/lib/ai/aiOutputReview";
@@ -82,6 +86,8 @@ function AiWorkbenchDashboard() {
   const [researchQuestion, setResearchQuestion] = useState("");
   const [exportingPayloadPreview, setExportingPayloadPreview] = useState(false);
   const [exportingExecutionPolicy, setExportingExecutionPolicy] =
+    useState(false);
+  const [exportingPromptBlueprint, setExportingPromptBlueprint] =
     useState(false);
   const [exportingResearchRunbook, setExportingResearchRunbook] =
     useState(false);
@@ -149,6 +155,14 @@ function AiWorkbenchDashboard() {
   const aiExecutionPolicy = useMemo(
     () => buildAiExecutionPolicy({ payloadPreview: aiPayloadPreview }),
     [aiPayloadPreview]
+  );
+  const aiPromptBlueprint = useMemo(
+    () =>
+      buildAiPromptBlueprint({
+        workflow: selectedWorkflow,
+        payloadPreview: aiPayloadPreview,
+      }),
+    [aiPayloadPreview, selectedWorkflow]
   );
   const aiResearchRunbook = useMemo(
     () =>
@@ -230,6 +244,24 @@ function AiWorkbenchDashboard() {
       window.alert("AI execution policy 导出失败，请查看控制台。");
     } finally {
       setExportingExecutionPolicy(false);
+    }
+  };
+
+  const handleExportPromptBlueprint = () => {
+    setExportingPromptBlueprint(true);
+    try {
+      downloadJsonFile(
+        `zhinote-ai-prompt-blueprint-${fileSafeTimestamp()}.json`,
+        {
+          ...aiPromptBlueprint,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export AI prompt blueprint:", err);
+      window.alert("AI prompt 蓝图导出失败，请查看控制台。");
+    } finally {
+      setExportingPromptBlueprint(false);
     }
   };
 
@@ -608,6 +640,114 @@ function AiWorkbenchDashboard() {
                   status="blocked"
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  AI Prompt 蓝图
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  为研究总结、问答、报告草稿、文件对比和研究框架生成可复用 prompt
+                  结构、输出 schema、引用规则和保存前检查。这里只读取 workflow 和
+                  payload metadata，不读取 prompt 正文、页面正文或文件 bytes。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportPromptBlueprint}
+                disabled={exportingPromptBlueprint}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {exportingPromptBlueprint ? "导出中..." : "导出蓝图"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-6">
+              <ExecutionMetric
+                label="Prompt 段"
+                value={aiPromptBlueprint.summary.prompt_sections}
+                detail="Template"
+                status="planned"
+              />
+              <ExecutionMetric
+                label="输出字段"
+                value={aiPromptBlueprint.summary.output_fields}
+                detail="Schema"
+                status="planned"
+              />
+              <ExecutionMetric
+                label="引用规则"
+                value={aiPromptBlueprint.summary.citation_rules}
+                detail="Sources"
+                status="manual-confirmation"
+              />
+              <ExecutionMetric
+                label="检查项"
+                value={aiPromptBlueprint.summary.validation_checks}
+                detail="Before save"
+                status="manual-confirmation"
+              />
+              <ExecutionMetric
+                label="阻塞"
+                value={aiPromptBlueprint.summary.blockers}
+                detail="No AI run"
+                status="blocked"
+              />
+              <ExecutionMetric
+                label="正文"
+                value="不读取"
+                detail="Metadata only"
+                status="planned"
+              />
+            </div>
+            <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+              <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                系统角色：
+              </span>{" "}
+              {aiPromptBlueprint.system_role}
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  Prompt 段落
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {aiPromptBlueprint.prompt_sections.map((section) => (
+                    <PromptBlueprintSectionCard
+                      key={section.id}
+                      section={section}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  输出 schema
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {aiPromptBlueprint.output_schema.map((field) => (
+                    <PromptOutputFieldCard key={field.id} field={field} />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-3">
+              <PromptChecklistPanel
+                title="引用规则"
+                items={aiPromptBlueprint.citation_rules.map(
+                  (rule) => `${rule.title}: ${rule.rule}`
+                )}
+              />
+              <PromptChecklistPanel
+                title="保存前检查"
+                items={aiPromptBlueprint.validation_checklist}
+              />
+              <PromptChecklistPanel
+                title="执行阻塞"
+                items={aiPromptBlueprint.blockers}
+              />
             </div>
           </div>
 
@@ -1091,6 +1231,84 @@ function ExecutionGateRow({
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         {gate.required_action}
       </p>
+    </article>
+  );
+}
+
+function PromptBlueprintSectionCard({
+  section,
+}: {
+  section: AiPromptBlueprint["prompt_sections"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {section.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {section.id}
+          </div>
+        </div>
+        <span className="shrink-0 rounded bg-blue-50 px-2 py-1 text-[10px] text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+          {section.required ? "必填" : "可选"}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {section.purpose}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {section.inclusion_rule}
+      </p>
+    </article>
+  );
+}
+
+function PromptOutputFieldCard({
+  field,
+}: {
+  field: AiPromptBlueprint["output_schema"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {field.label}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {field.id}
+          </div>
+        </div>
+        <span className="shrink-0 rounded bg-zinc-100 px-2 py-1 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          {field.required ? "Required" : "Optional"}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {field.validation_rule}
+      </p>
+    </article>
+  );
+}
+
+function PromptChecklistPanel({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {title}
+      </div>
+      <ul className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
     </article>
   );
 }

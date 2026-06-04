@@ -11,6 +11,7 @@ const files = {
   workflowReadiness: "src/lib/ai/aiWorkflowReadiness.ts",
   payloadPreview: "src/lib/ai/aiPayloadPreview.ts",
   executionPolicy: "src/lib/ai/aiExecutionPolicy.ts",
+  promptBlueprint: "src/lib/ai/aiPromptBlueprint.ts",
   researchRunbook: "src/lib/ai/aiResearchRunbook.ts",
   outputReview: "src/lib/ai/aiOutputReview.ts",
   aiShell: "src/components/modules/AiWorkbenchShell.tsx",
@@ -79,6 +80,7 @@ function run() {
   const workflowReadiness = readProjectFile(files.workflowReadiness);
   const payloadPreview = readProjectFile(files.payloadPreview);
   const executionPolicy = readProjectFile(files.executionPolicy);
+  const promptBlueprint = readProjectFile(files.promptBlueprint);
   const researchRunbook = readProjectFile(files.researchRunbook);
   const outputReview = readProjectFile(files.outputReview);
   const aiShell = readProjectFile(files.aiShell);
@@ -157,6 +159,12 @@ function run() {
   assertIncludes(
     files.aiShell,
     aiShell,
+    "@/lib/ai/aiPromptBlueprint",
+    "AI Workbench must consume the shared prompt blueprint contract."
+  );
+  assertIncludes(
+    files.aiShell,
+    aiShell,
     "@/lib/ai/aiOutputReview",
     "AI Workbench must consume the shared output review contract."
   );
@@ -179,6 +187,23 @@ function run() {
       aiShell,
       snippet,
       "AI Workbench must render workflow readiness and default exclusions."
+    );
+  }
+  for (const snippet of [
+    "buildAiPromptBlueprint",
+    "handleExportPromptBlueprint",
+    "AI Prompt 蓝图",
+    "导出蓝图",
+    "PromptBlueprintSectionCard",
+    "PromptOutputFieldCard",
+    "PromptChecklistPanel",
+    "不读取 prompt 正文、页面正文或文件 bytes",
+  ]) {
+    assertIncludes(
+      files.aiShell,
+      aiShell,
+      snippet,
+      "AI Workbench must render and export the prompt blueprint."
     );
   }
 
@@ -294,6 +319,66 @@ function run() {
       executionPolicy,
       `id: "${gateId}"`,
       `AI execution policy gate ${gateId} must exist.`
+    );
+  }
+
+  assertIncludes(
+    files.promptBlueprint,
+    promptBlueprint,
+    'format: "zhinote-ai-prompt-blueprint"',
+    "AI prompt blueprint must define a stable local export format."
+  );
+  assertIncludes(
+    files.promptBlueprint,
+    promptBlueprint,
+    "buildAiPromptBlueprint",
+    "AI prompt blueprint must expose a reusable builder."
+  );
+  for (const snippet of [
+    'blueprint_status: "local-prompt-blueprint-only"',
+    "can_run_ai_now: false",
+    "local_blueprint_only: true",
+    "reads_workflow_metadata: true",
+    "reads_payload_preview_metadata: true",
+    "reads_prompt_text: false",
+    "reads_page_body_text: false",
+    "reads_file_bytes: false",
+    "includes_prompt_text: false",
+    "includes_page_body_text: false",
+    "includes_file_bytes: false",
+    "includes_holdings_or_trading_plans: false",
+    "includes_client_info: false",
+    "includes_tokens_or_secrets: false",
+    "calls_model_provider: false",
+    "writes_workspace_data: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.promptBlueprint,
+      promptBlueprint,
+      snippet,
+      "AI prompt blueprint must preserve local-only prompt boundaries."
+    );
+  }
+  for (const snippet of [
+    "getOutputSchema",
+    "getCitationRules",
+    "getValidationChecklist",
+    "authorized-context-only",
+    "separate-fact-and-inference",
+    "no-sensitive-defaults",
+    "executive-summary",
+    "direct-answer",
+    "report-outline",
+    "investment-implication",
+    "review-cadence",
+  ]) {
+    assertIncludes(
+      files.promptBlueprint,
+      promptBlueprint,
+      snippet,
+      "AI prompt blueprint must define reusable schemas for every workflow."
     );
   }
 
@@ -422,6 +507,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "AI prompt blueprint",
+    "README must document the AI prompt blueprint."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "AI Output Review Contract",
     "README must document the AI output review contract."
   );
@@ -446,6 +537,7 @@ function run() {
       {
         workflows: requiredWorkflows.length,
         execution_gates: requiredPolicyGates.length,
+        prompt_blueprint_workflows: requiredWorkflows.length,
         research_runbook_steps: requiredRunbookSteps.length,
         output_destinations: requiredOutputDestinations.length,
         output_review_gates: requiredOutputGates.length,
