@@ -63,6 +63,164 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     `,
   },
   {
+    title: "持仓备忘录",
+    description: "组合想法、仓位纪律、确信度和风险复盘",
+    aliases: [
+      "Position Memo",
+      "position memo",
+      "portfolio memo",
+      "holding memo",
+      "position size",
+      "持仓",
+      "持仓备忘录",
+      "仓位",
+      "组合",
+    ],
+    html: `
+      <h1>持仓备忘录</h1>
+      <h2>一句话投资假设</h2>
+      <p></p>
+      <h2>组合角色</h2>
+      <ul>
+        <li>角色：</li>
+        <li>研究状态：</li>
+        <li>确信度：</li>
+        <li>下次复盘日期：</li>
+      </ul>
+      <h2>仓位纪律</h2>
+      <table>
+        <tbody>
+          <tr><th>项目</th><th>当前判断</th><th>触发条件</th><th>复盘频率</th></tr>
+          <tr><td>目标权重</td><td></td><td></td><td></td></tr>
+          <tr><td>当前权重</td><td></td><td></td><td></td></tr>
+          <tr><td>上行情景</td><td></td><td></td><td></td></tr>
+          <tr><td>下行情景</td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <h2>关键催化剂</h2>
+      <ul>
+        <li>下一催化剂：</li>
+        <li>需要提前验证的信号：</li>
+        <li>复盘窗口：</li>
+      </ul>
+      <h2>风险笔记</h2>
+      <ul>
+        <li>核心风险：</li>
+        <li>反向证据：</li>
+        <li>降权或退出条件：</li>
+      </ul>
+      <h2>关联研究</h2>
+      <ul>
+        <li>公司页面：</li>
+        <li>投资备忘录：</li>
+        <li>相关报告：</li>
+        <li>相关会议：</li>
+      </ul>
+      <h2>后续行动</h2>
+      <ul data-type="taskList">
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>补充研究 relation</p></div></li>
+      </ul>
+    `,
+  },
+  {
+    title: "观察名单",
+    description: "待研究公司、优先级、触发条件和下一步",
+    aliases: [
+      "Watchlist",
+      "watchlist",
+      "idea list",
+      "idea",
+      "pipeline",
+      "观察名单",
+      "想法",
+      "待研究",
+      "研究队列",
+    ],
+    html: `
+      <h1>观察名单</h1>
+      <h2>想法来源</h2>
+      <ul>
+        <li>来源：</li>
+        <li>初始日期：</li>
+        <li>优先级：</li>
+        <li>下一步负责人：</li>
+      </ul>
+      <h2>进入正式研究的触发条件</h2>
+      <ul>
+        <li>估值进入可研究区间：</li>
+        <li>基本面变化：</li>
+        <li>催化剂临近：</li>
+        <li>信息缺口补齐：</li>
+      </ul>
+      <h2>初步投资假设</h2>
+      <p></p>
+      <h2>需要验证的问题</h2>
+      <ul data-type="taskList">
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>商业模式和行业结构</p></div></li>
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>关键指标和单位经济</p></div></li>
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>估值假设和风险笔记</p></div></li>
+      </ul>
+      <h2>关联研究</h2>
+      <ul>
+        <li>公司页面：</li>
+        <li>相关报告：</li>
+        <li>相关会议：</li>
+        <li>持仓备忘录：</li>
+      </ul>
+    `,
+  },
+  {
+    title: "催化剂与风险复盘",
+    description: "事件检查点、反向证据、风险监控和复盘结论",
+    aliases: [
+      "Catalyst Risk Review",
+      "catalyst",
+      "risk review",
+      "risk notes",
+      "review",
+      "催化剂",
+      "风险复盘",
+      "风险笔记",
+      "检查点",
+    ],
+    html: `
+      <h1>催化剂与风险复盘</h1>
+      <h2>关联研究</h2>
+      <ul>
+        <li>持仓备忘录：</li>
+        <li>公司页面：</li>
+        <li>相关报告：</li>
+        <li>相关会议：</li>
+      </ul>
+      <h2>催化剂</h2>
+      <table>
+        <tbody>
+          <tr><th>事件</th><th>预期影响</th><th>检查日期</th><th>复盘结论</th></tr>
+          <tr><td>下一催化剂</td><td></td><td></td><td></td></tr>
+          <tr><td>业绩披露</td><td></td><td></td><td></td></tr>
+          <tr><td>管理层会议</td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <h2>风险监控</h2>
+      <ul>
+        <li>核心风险：</li>
+        <li>反向证据：</li>
+        <li>需要降低确信度的信号：</li>
+      </ul>
+      <h2>投资假设变化</h2>
+      <ul>
+        <li>增强的假设：</li>
+        <li>削弱的假设：</li>
+        <li>需要等待下一次验证的假设：</li>
+      </ul>
+      <h2>后续行动</h2>
+      <ul data-type="taskList">
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>更新持仓备忘录</p></div></li>
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>补充相关报告或会议 relation</p></div></li>
+      </ul>
+    `,
+  },
+  {
     title: "业绩复盘",
     description: "季度业绩、管理层表述和模型影响",
     aliases: [

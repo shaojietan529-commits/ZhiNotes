@@ -288,10 +288,16 @@ function run() {
     'title: "关键指标看板"',
     'title: "会议转录稿"',
     'title: "会议行动项"',
+    'title: "持仓备忘录"',
+    'title: "观察名单"',
+    'title: "催化剂与风险复盘"',
     "Valuation Assumptions",
     "Key Metrics",
     "Meeting Transcript",
     "Meeting Action Items",
+    "Position Memo",
+    "Watchlist",
+    "Catalyst Risk Review",
     "单位经济",
     "关联研究",
   ]) {
@@ -313,6 +319,21 @@ function run() {
       noteTemplates,
       snippet,
       "Meeting templates must include transcript and action-item structure."
+    );
+  }
+  for (const snippet of [
+    "仓位纪律",
+    "目标权重",
+    "当前权重",
+    "确信度",
+    "降权或退出条件",
+    "进入正式研究的触发条件",
+  ]) {
+    assertIncludes(
+      files.noteTemplates,
+      noteTemplates,
+      snippet,
+      "Portfolio templates must include position discipline, watchlist, catalyst, and risk structure."
     );
   }
   for (const snippet of [
@@ -884,6 +905,20 @@ function run() {
     "Export review",
     "Portfolio module must export the review report."
   );
+  for (const snippet of [
+    "新建观察名单",
+    "新建催化剂复盘",
+    "templateTitle: \"持仓备忘录\"",
+    "templateTitle: \"观察名单\"",
+    "templateTitle: \"催化剂与风险复盘\"",
+  ]) {
+    assertIncludes(
+      files.portfolioShell,
+      portfolioShell,
+      snippet,
+      "Portfolio module must expose position, watchlist, catalyst, and risk page starters."
+    );
+  }
 
   for (const requirement of requiredKinds) {
     assertIncludes(

@@ -34,8 +34,22 @@ const PORTFOLIO_TEMPLATE_STARTERS: ModuleStarter[] = [
     type: "page",
     label: "新建持仓备忘录",
     title: "未命名持仓备忘录",
-    templateTitle: "投资备忘录",
+    templateTitle: "持仓备忘录",
     icon: "PF",
+  },
+  {
+    type: "page",
+    label: "新建观察名单",
+    title: "未命名观察名单",
+    templateTitle: "观察名单",
+    icon: "WL",
+  },
+  {
+    type: "page",
+    label: "新建催化剂复盘",
+    title: "未命名催化剂与风险复盘",
+    templateTitle: "催化剂与风险复盘",
+    icon: "CAT",
   },
 ];
 
