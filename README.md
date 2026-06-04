@@ -177,6 +177,8 @@ Current local actions:
   databases. Template rows now prefill safe structural fields such as Status,
   Format/Type, Date, Follow-up, Source, and placeholder research text when the
   current database schema supports them.
+- The template-row menu previews how many schema fields will be prefilled and
+  how many remain manual before the user creates the row.
 - Open any local database from the module list.
 
 The database module dashboard and readiness reports read schema, view metadata,

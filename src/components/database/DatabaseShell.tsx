@@ -581,7 +581,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           </span>
         ))}
         <AddFieldButton onAdd={handleAddField} />
-        <DatabaseTemplateButton onSelect={handleAddTemplateRow} />
+        <DatabaseTemplateButton fields={fields} onSelect={handleAddTemplateRow} />
       </div>
 
       <DatabaseViewControls
@@ -1430,8 +1430,10 @@ function AddFieldButton({
 }
 
 function DatabaseTemplateButton({
+  fields,
   onSelect,
 }: {
+  fields: DatabaseField[];
   onSelect: (template: NoteTemplate) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -1446,25 +1448,42 @@ function DatabaseTemplateButton({
         + 模板行
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-56 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
-          {NOTE_TEMPLATES.map((template) => (
-            <button
-              key={template.title}
-              type="button"
-              onClick={() => {
-                onSelect(template);
-                setOpen(false);
-              }}
-              className="w-full px-3 py-2 text-left hover:bg-zinc-50 dark:hover:bg-zinc-700"
-            >
-              <span className="block text-xs font-medium text-zinc-700 dark:text-zinc-200">
-                {template.title}
-              </span>
-              <span className="block text-[11px] text-zinc-400">
-                {template.description}
-              </span>
-            </button>
-          ))}
+        <div className="absolute left-0 top-full z-50 mt-1 w-72 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          {NOTE_TEMPLATES.map((template) => {
+            const draft = buildDatabaseTemplateRowDraft(template, fields);
+            return (
+              <button
+                key={template.title}
+                type="button"
+                onClick={() => {
+                  onSelect(template);
+                  setOpen(false);
+                }}
+                className="w-full px-3 py-2 text-left hover:bg-zinc-50 dark:hover:bg-zinc-700"
+              >
+                <span className="block text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                  {template.title}
+                </span>
+                <span className="block text-[11px] text-zinc-400">
+                  {template.description}
+                </span>
+                <span className="mt-1 flex flex-wrap gap-1 text-[10px] text-zinc-400">
+                  <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                    预填 {draft.applied_fields.length}
+                  </span>
+                  <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                    手动 {draft.skipped_fields.length}
+                  </span>
+                  <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                    不含敏感投资字段
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+          <div className="border-t border-zinc-100 px-3 py-2 text-[10px] leading-4 text-zinc-400 dark:border-zinc-700">
+            摘要只看模板 metadata 和字段 schema，不读取 row values 或页面正文。
+          </div>
         </div>
       )}
     </div>

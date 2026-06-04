@@ -207,6 +207,20 @@ function run() {
     "fieldValues: draft.field_values",
     "Database template rows must write safe structural field defaults."
   );
+  for (const snippet of [
+    "fields={fields}",
+    "预填 {draft.applied_fields.length}",
+    "手动 {draft.skipped_fields.length}",
+    "不含敏感投资字段",
+    "摘要只看模板 metadata 和字段 schema",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database template row menu must preview safe field draft coverage before writing."
+    );
+  }
   assertIncludes(
     files.inlineDatabaseNode,
     inlineDatabaseNode,
@@ -219,6 +233,19 @@ function run() {
     "fieldValues: draft.field_values",
     "Inline database template rows must write safe structural field defaults."
   );
+  for (const snippet of [
+    "fields={fields}",
+    "预填 {draft.applied_fields.length}",
+    "手动 {draft.skipped_fields.length}",
+    "只看模板 metadata 和字段 schema",
+  ]) {
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline template row menu must preview safe field draft coverage before writing."
+    );
+  }
   assertIncludes(
     files.databaseShell,
     databaseShell,
