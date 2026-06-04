@@ -11,6 +11,7 @@ const files = {
   trackerIntake: "src/lib/reports/reportTrackerIntake.ts",
   formatPlaybook: "src/lib/reports/reportFormatPlaybook.ts",
   formatCoverage: "src/lib/reports/reportFormatCoverage.ts",
+  conversionReview: "src/lib/reports/reportConversionReview.ts",
   readiness: "src/lib/files/filePreviewReadiness.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
@@ -141,6 +142,7 @@ function run() {
   const trackerIntake = readProjectFile(files.trackerIntake);
   const formatPlaybook = readProjectFile(files.formatPlaybook);
   const formatCoverage = readProjectFile(files.formatCoverage);
+  const conversionReview = readProjectFile(files.conversionReview);
   const readiness = readProjectFile(files.readiness);
   const actionReceipts = readProjectFile(files.actionReceipts);
   const upload = readProjectFile(files.upload);
@@ -429,6 +431,59 @@ function run() {
     "Report format coverage must compare intake against readiness routes."
   );
   assertIncludes(
+    files.conversionReview,
+    conversionReview,
+    'format: "zhinote-report-conversion-review"',
+    "Report conversion review must define a local export format."
+  );
+  assertIncludes(
+    files.conversionReview,
+    conversionReview,
+    "buildReportConversionReviewReport",
+    "Report conversion review must expose a reusable builder."
+  );
+  for (const snippet of [
+    'report_status: "local-conversion-review-only"',
+    'review_verdict: "usable-after-local-review"',
+    "reads_report_intake_metadata: true",
+    "reads_capability_metadata: true",
+    "reads_file_extensions: true",
+    "includes_file_names: false",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "reads_page_body_text: false",
+    "writes_workspace_data: false",
+    "loads_external_resources: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.conversionReview,
+      conversionReview,
+      snippet,
+      "Report conversion review must preserve local-only metadata boundaries."
+    );
+  }
+  for (const snippet of [
+    '"native-render-fit"',
+    '"office-conversion-fidelity"',
+    '"presentation-layout-gap"',
+    '"spreadsheet-formula-chart-review"',
+    '"legacy-office-block"',
+    '"cloud-ai-boundary"',
+    "PPTX/ODP",
+    "speaker notes",
+    "legacy_items",
+  ]) {
+    assertIncludes(
+      files.conversionReview,
+      conversionReview,
+      snippet,
+      "Report conversion review must expose Office/PPT fidelity gates."
+    );
+  }
+  assertIncludes(
     files.readiness,
     readiness,
     'format: "zhinote-file-preview-readiness-report"',
@@ -614,6 +669,23 @@ function run() {
     );
   }
   for (const snippet of [
+    "buildReportConversionReviewReport",
+    "handleExportConversionReview",
+    "转换质量复核",
+    "导出复核",
+    "ConversionReviewGateRow",
+    "ConversionReviewRouteCard",
+    "ConversionStatusPill",
+    "ConversionRiskPill",
+  ]) {
+    assertIncludes(
+      files.reportsShell,
+      reportsShell,
+      snippet,
+      "Reports module must render and export conversion fidelity review."
+    );
+  }
+  for (const snippet of [
     "buildFilePreviewReadinessReport",
     "handleExportPreviewReadiness",
     "原生预览 readiness",
@@ -711,6 +783,7 @@ function run() {
         tracker_intake_fields: 5,
         format_actions: requiredFormatActions.length,
         format_coverage_gates: 7,
+        conversion_review_gates: 6,
         readiness_gates: 6,
         action_receipt_kinds: 4,
         local_only: true,

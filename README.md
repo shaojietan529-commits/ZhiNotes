@@ -280,6 +280,11 @@ Current local actions:
   metadata-only, or be retained for download. It uses intake metadata only and
   does not read file bytes, converted file text, page body text, call AI, connect
   cloud services, load external resources, or upload data.
+- Review and export a local conversion quality review. The review separates
+  native display from local conversion, flags PPT/Word/Excel layout and fidelity
+  risk, tracks legacy `.doc/.ppt` blockers, and uses only file kind, extension,
+  count, and capability metadata. It does not export file names, read file
+  bytes, converted file text, page body text, call AI, sync, or upload data.
 - Use the report intake desk to create one local report tracker row from an
   intake file. The intake action maps Report page relation, Format, Status,
   Source, and Key takeaways, checks for an existing tracker row first, and then

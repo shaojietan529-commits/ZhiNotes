@@ -63,6 +63,12 @@ import {
   type ReportFormatCoverageStatus,
 } from "@/lib/reports/reportFormatCoverage";
 import {
+  buildReportConversionReviewReport,
+  type ReportConversionReviewReport,
+  type ReportConversionReviewStatus,
+  type ReportConversionRisk,
+} from "@/lib/reports/reportConversionReview";
+import {
   buildReportTrackerIntakeDraft,
   findExistingReportTrackerRow,
 } from "@/lib/reports/reportTrackerIntake";
@@ -143,6 +149,8 @@ function ReportsDashboard() {
     useState(false);
   const [exportingFormatCoverage, setExportingFormatCoverage] =
     useState(false);
+  const [exportingConversionReview, setExportingConversionReview] =
+    useState(false);
   const [exportingFileActionReceipts, setExportingFileActionReceipts] =
     useState(false);
   const [fileActionReceipts, setFileActionReceipts] = useState<
@@ -203,6 +211,10 @@ function ReportsDashboard() {
         readiness: filePreviewReadiness,
       }),
     [filePreviewReadiness, reportIntake]
+  );
+  const reportConversionReview = useMemo(
+    () => buildReportConversionReviewReport(reportIntake),
+    [reportIntake]
   );
   const fileActionReceiptSummary = useMemo(
     () => summarizeFileActionReceipts(fileActionReceipts),
@@ -378,6 +390,24 @@ function ReportsDashboard() {
       window.alert("格式覆盖缺口报告导出失败，请查看控制台。");
     } finally {
       setExportingFormatCoverage(false);
+    }
+  };
+
+  const handleExportConversionReview = () => {
+    setExportingConversionReview(true);
+    try {
+      downloadJsonFile(
+        `zhinote-report-conversion-review-${fileSafeTimestamp()}.json`,
+        {
+          ...reportConversionReview,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export conversion review:", err);
+      window.alert("转换质量复核导出失败，请查看控制台。");
+    } finally {
+      setExportingConversionReview(false);
     }
   };
 
@@ -882,6 +912,102 @@ function ReportsDashboard() {
                   <FormatCoverageRowCard key={row.id} row={row} />
                 ))}
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                转换质量复核
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                区分真正原生展示和本地转换展示：PPT/Word/Excel、RTF、EPUB、
+                notebook 等格式可能丢失复杂版式、图表、公式、批注或交互。
+                这个复核只看文件类型、扩展名和数量，不导出文件名、不读取文件 bytes、
+                文件文本或页面正文。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportConversionReview}
+              disabled={exportingConversionReview}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingConversionReview ? "导出中..." : "导出复核"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <IntakeMetric
+              label="文件项"
+              value={reportConversionReview.summary.intake_items}
+              detail="Intake"
+            />
+            <IntakeMetric
+              label="路线"
+              value={reportConversionReview.summary.active_routes}
+              detail="Active"
+            />
+            <IntakeMetric
+              label="原生可读"
+              value={reportConversionReview.summary.native_ready_items}
+              detail="Native"
+            />
+            <IntakeMetric
+              label="需复核"
+              value={reportConversionReview.summary.review_needed_items}
+              detail="Converted"
+            />
+            <IntakeMetric
+              label="阻塞"
+              value={reportConversionReview.summary.blocked_items}
+              detail="Legacy/unknown"
+            />
+            <IntakeMetric
+              label="Office"
+              value={reportConversionReview.summary.office_items}
+              detail="Word/PPT/Excel"
+            />
+            <IntakeMetric
+              label="PPT"
+              value={reportConversionReview.summary.presentation_items}
+              detail="Slides"
+            />
+            <IntakeMetric
+              label="高风险"
+              value={reportConversionReview.summary.high_risk_items}
+              detail="Manual"
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                质量 gates
+              </div>
+              {reportConversionReview.gates.map((gate) => (
+                <ConversionReviewGateRow key={gate.id} gate={gate} />
+              ))}
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                活跃格式复核
+              </div>
+              {reportConversionReview.routes.length > 0 ? (
+                <div className="grid gap-2 md:grid-cols-2">
+                  {reportConversionReview.routes.map((route) => (
+                    <ConversionReviewRouteCard
+                      key={route.id}
+                      route={route}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  还没有 intake 文件。上传 PPT、Word、Excel、PDF、HTML 或 Markdown 后，
+                  这里会显示哪些是原生展示，哪些需要转换复核。
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -1629,6 +1755,152 @@ function FormatCoverageStatusPill({
   return (
     <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
       {labels[status]}
+    </span>
+  );
+}
+
+function ConversionReviewGateRow({
+  gate,
+}: {
+  gate: ReportConversionReviewReport["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+        </div>
+        <ConversionStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function ConversionReviewRouteCard({
+  route,
+}: {
+  route: ReportConversionReviewReport["routes"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          {route.label}
+        </h3>
+        {route.support_level === "unknown" ? (
+          <span className="rounded bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
+            未登记
+          </span>
+        ) : (
+          <SupportPill level={route.support_level} />
+        )}
+        <ConversionStatusPill status={route.fidelity_status} />
+        <ConversionRiskPill risk={route.fidelity_risk} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {route.item_count} items
+        </span>
+        {route.extensions.map((item) => (
+          <span
+            key={item.extension}
+            className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+          >
+            {item.extension} x{item.count}
+          </span>
+        ))}
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {route.route_summary}
+      </p>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <ConversionDetailList title="可能损失" items={route.likely_loss} />
+        <ConversionDetailList title="复核清单" items={route.manual_checklist} />
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {route.recommended_action}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400">
+        {route.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function ConversionDetailList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <div className="rounded-md bg-zinc-50 px-2 py-2 dark:bg-zinc-900">
+      <div className="text-[10px] font-semibold text-zinc-400">{title}</div>
+      {items.length > 0 ? (
+        <ul className="mt-1 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1 leading-5 text-zinc-400">无明显转换损失。</p>
+      )}
+    </div>
+  );
+}
+
+function ConversionStatusPill({
+  status,
+}: {
+  status: ReportConversionReviewStatus;
+}) {
+  const labels: Record<ReportConversionReviewStatus, string> = {
+    "native-ready": "原生可读",
+    "review-needed": "需复核",
+    blocked: "阻塞",
+  };
+  const className =
+    status === "native-ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "review-needed"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function ConversionRiskPill({ risk }: { risk: ReportConversionRisk }) {
+  const labels: Record<ReportConversionRisk, string> = {
+    high: "High risk",
+    medium: "Medium risk",
+    low: "Low risk",
+  };
+  const className =
+    risk === "high"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : risk === "medium"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[risk]}
     </span>
   );
 }
