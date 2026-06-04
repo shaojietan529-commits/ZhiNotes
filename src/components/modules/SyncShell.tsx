@@ -5612,6 +5612,9 @@ function SyncDashboard() {
               </div>
               <div className="space-y-3">
                 <div className="grid gap-2">
+                  <HandoffCommandRow
+                    command={webAlphaHandoffBundle.verification_receipt_runner}
+                  />
                   {webAlphaHandoffBundle.command_bundle.map((command) => (
                     <HandoffCommandRow key={command.id} command={command} />
                   ))}

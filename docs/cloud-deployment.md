@@ -41,6 +41,9 @@
 - 明确命令包：`npm run lint`、`npm run verify:web-beta`、
   `npm run verify:web-beta:smoke`、`npm run verify:replay-harness` 和
   `npm run build`。
+- 可以运行 `npm run verify:web-alpha` 一次性执行上述本地检查并打印
+  `zhinote-web-alpha-verification-receipt`。该 receipt 只证明本地检查通过，
+  不代表已经批准分享 preview、启用 cloud writes 或开始 cloud sync。
 - 明确 owner decision：是否分享 preview、是否启用 cloud writes、是否开始
   cloud sync、是否上传私有文件，默认答案都是 no，必须单独确认。
 - 明确 excluded payload：page body text、database row values、file bytes、
@@ -193,6 +196,9 @@ https://your-vercel-domain.vercel.app/auth/callback
 - `npm run verify:replay-harness` 通过，确认 disposable replay harness 和
   disabled runner skeleton 不执行网络、数据库或文件写入。
 - `npm run build` 通过。
+- 推荐运行 `npm run verify:web-alpha` 生成一次本地 verification receipt，
+  作为 preview review 前的命令包执行记录。receipt 不部署、不连接云、不上传
+  workspace data，也不批准 cloud sync。
 - Sync 模块里的 `Web Alpha handoff bundle` 已导出或人工复核，且确认 command
   bundle、owner decisions、excluded payload classes、disabled cloud defaults、
   P0 blockers 和 cloud sync boundary 都清楚列出。

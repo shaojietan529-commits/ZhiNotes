@@ -737,6 +737,11 @@ Current local actions:
   accounts, write server data, upload workspace data, enable sync, enable AI,
   read page bodies, read database row values, read file bytes, or expose secret
   values.
+- Run `npm run verify:web-alpha` to execute the local Web Alpha verification
+  command bundle and print a receipt. The receipt runs lint, Web Beta contract
+  verification, smoke verification, replay harness safety verification, and a
+  production build, but still does not deploy, connect cloud services, upload
+  workspace data, enable sync, or approve preview sharing.
 - Review and export a local Web Beta next-action plan. The plan turns readiness
   and launch blockers into ordered P0/P1/P2 build work, but does not deploy the
   app, create accounts, connect cloud services, upload workspace data, read page
@@ -856,6 +861,7 @@ npm run verify:research-workflow
 npm run verify:replay-harness
 npm run verify:web-beta
 npm run verify:web-beta:smoke
+npm run verify:web-alpha
 npm run build
 ```
 

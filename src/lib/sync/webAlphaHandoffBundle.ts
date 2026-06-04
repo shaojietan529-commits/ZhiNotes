@@ -114,6 +114,7 @@ export interface WebAlphaHandoffBundle {
   source_reports: WebAlphaHandoffSourceReport[];
   handoff_items: WebAlphaHandoffItem[];
   command_bundle: WebAlphaHandoffCommand[];
+  verification_receipt_runner: WebAlphaHandoffCommand;
   owner_decisions: WebAlphaHandoffDecision[];
   excluded_payload_classes: string[];
 }
@@ -168,6 +169,11 @@ export function buildWebAlphaHandoffBundle(
     source_reports: sourceReports,
     handoff_items: handoffItems,
     command_bundle: commandBundle,
+    verification_receipt_runner: command(
+      "web-alpha-verification-receipt",
+      "npm run verify:web-alpha",
+      "Run the full local command bundle and print a Web Alpha verification receipt."
+    ),
     owner_decisions: ownerDecisions,
     excluded_payload_classes: [
       "page_body_text",

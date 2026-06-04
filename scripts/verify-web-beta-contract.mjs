@@ -9,6 +9,7 @@ const root = process.cwd();
 const files = {
   packageJson: "package.json",
   envExample: ".env.example",
+  webAlphaReceiptVerifier: "scripts/verify-web-alpha-handoff-receipt.mjs",
   apiStubs: "src/lib/sync/webBetaApiStubs.ts",
   contract: "src/lib/sync/webBetaContract.ts",
   deploymentTarget: "src/lib/sync/webBetaDeploymentTarget.ts",
@@ -194,6 +195,7 @@ function assertMigrationTables(expectedTables, migrationSql) {
 function run() {
   const packageJson = readProjectFile(files.packageJson);
   const envExample = readProjectFile(files.envExample);
+  const webAlphaReceiptVerifier = readProjectFile(files.webAlphaReceiptVerifier);
   const apiStubs = readProjectFile(files.apiStubs);
   const contract = readProjectFile(files.contract);
   const deploymentTarget = readProjectFile(files.deploymentTarget);
@@ -2319,6 +2321,14 @@ function run() {
       "Handoff bundle must include the Web Beta smoke verifier command.",
     ],
     [
+      "verification_receipt_runner",
+      "Handoff bundle must expose the one-command verification receipt runner.",
+    ],
+    [
+      "npm run verify:web-alpha",
+      "Handoff bundle must cite the Web Alpha verification receipt command.",
+    ],
+    [
       "holdings",
       "Handoff bundle must exclude holdings from handoff payloads.",
     ],
@@ -2330,6 +2340,117 @@ function run() {
     assertSourceIncludes(
       files.webAlphaHandoffBundle,
       webAlphaHandoffBundle,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.packageJson,
+    packageJson,
+    '"verify:web-alpha"',
+    "package.json must expose the Web Alpha verification receipt command."
+  );
+  assertSourceIncludes(
+    files.webAlphaReceiptVerifier,
+    webAlphaReceiptVerifier,
+    'format: "zhinote-web-alpha-verification-receipt"',
+    "Web Alpha receipt verifier must expose a stable receipt format."
+  );
+  assertSourceIncludes(
+    files.webAlphaReceiptVerifier,
+    webAlphaReceiptVerifier,
+    "Web Alpha verification receipt passed",
+    "Web Alpha receipt verifier must print a clear pass result."
+  );
+  for (const [snippet, message] of [
+    [
+      'release_verdict: status === "passed" ? "locally-verified-not-launched" : "failed"',
+      "Receipt must distinguish local verification from launch approval.",
+    ],
+    [
+      "web_alpha_can_be_shared_now: false",
+      "Receipt must not approve preview sharing.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Receipt must not approve cloud sync.",
+    ],
+    [
+      "local_receipt_only: true",
+      "Receipt must remain local-only.",
+    ],
+    [
+      "runs_local_commands: true",
+      "Receipt verifier must identify that it runs local commands.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Receipt verifier must not send network requests.",
+    ],
+    [
+      "deploys_app: false",
+      "Receipt verifier must not deploy the app.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Receipt verifier must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Receipt verifier must not upload workspace data.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Receipt verifier must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Receipt verifier must not read database row values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Receipt verifier must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Receipt verifier must not read secrets.",
+    ],
+    [
+      "enables_sync: false",
+      "Receipt verifier must not enable sync.",
+    ],
+    [
+      "enables_ai: false",
+      "Receipt verifier must not enable AI.",
+    ],
+    [
+      "shell: false",
+      "Receipt verifier must run commands without shell interpolation.",
+    ],
+    [
+      "npm run lint",
+      "Receipt verifier must run lint.",
+    ],
+    [
+      "npm run verify:web-beta",
+      "Receipt verifier must run Web Beta contract verification.",
+    ],
+    [
+      "npm run verify:web-beta:smoke",
+      "Receipt verifier must run Web Beta smoke verification.",
+    ],
+    [
+      "npm run verify:replay-harness",
+      "Receipt verifier must run replay harness safety verification.",
+    ],
+    [
+      "npm run build",
+      "Receipt verifier must run production build.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.webAlphaReceiptVerifier,
+      webAlphaReceiptVerifier,
       snippet,
       message
     );
@@ -2357,6 +2478,12 @@ function run() {
     syncShell,
     "Export handoff bundle",
     "Sync UI must expose the handoff bundle export button."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "verification_receipt_runner",
+    "Sync UI must render the Web Alpha verification receipt runner."
   );
   assertSourceIncludes(
     files.smokeTestVerifier,
