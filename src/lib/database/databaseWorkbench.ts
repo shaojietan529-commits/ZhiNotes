@@ -37,6 +37,11 @@ export type DatabaseWorkbenchActionStatus =
 
 export type DatabaseWorkbenchPriority = "high" | "medium" | "low";
 
+export type DatabaseWorkbenchDecisionStatus =
+  | "available-local"
+  | "requires-owner-confirmation"
+  | "blocked";
+
 export interface DatabaseWorkbenchLane {
   id: DatabaseWorkbenchLaneId;
   title: string;
@@ -97,6 +102,49 @@ export interface DatabaseWorkbenchReviewStep {
   completion_signal: string;
 }
 
+export interface DatabaseWorkbenchDecision {
+  id:
+    | "schema-view-review"
+    | "relation-schema-review"
+    | "template-row-intake"
+    | "spreadsheet-import-export"
+    | "cloud-ai-sync-boundary";
+  title: string;
+  status: DatabaseWorkbenchDecisionStatus;
+  answer: string;
+  evidence: string;
+  next_action: string;
+  route: string;
+  target_section_id: string;
+  allowed_now: boolean;
+  requires_owner_confirmation: boolean;
+  blocked_until_cloud_ai_gate: boolean;
+  workbench_writes_workspace_data: false;
+  reads_database_row_values: false;
+  exports_row_values: false;
+  imports_file_values: false;
+  uploads_data: false;
+  enables_ai: false;
+}
+
+export interface DatabaseWorkbenchDecisionSummary {
+  current_state: "local-database-owner-review";
+  current_conclusion: string;
+  can_review_schema_now: true;
+  can_review_views_now: true;
+  can_open_relation_schema_gate_now: true;
+  can_create_template_rows_without_manual_click_now: false;
+  can_bulk_import_spreadsheet_now: false;
+  can_export_row_values_from_module_now: false;
+  can_send_database_values_to_ai_now: false;
+  can_sync_database_values_now: false;
+  safe_local_work: string[];
+  blocked_work: string[];
+  required_owner_decisions: string[];
+  top_blockers: string[];
+  decisions: DatabaseWorkbenchDecision[];
+}
+
 export interface DatabaseWorkbenchPacket {
   format: "zhinote-database-workbench-packet";
   format_version: 1;
@@ -143,6 +191,7 @@ export interface DatabaseWorkbenchPacket {
     view_ready_databases: number;
     import_ready_databases: number;
   };
+  decision_summary: DatabaseWorkbenchDecisionSummary;
   lanes: DatabaseWorkbenchLane[];
   databases: DatabaseWorkbenchDatabase[];
   actions: DatabaseWorkbenchAction[];
@@ -298,6 +347,7 @@ export function buildDatabaseWorkbenchPacket(input: {
         (database) => database.import_status === "manual-confirmation"
       ).length,
     },
+    decision_summary: buildDecisionSummary(databases, actions),
     lanes,
     databases,
     actions,
@@ -307,6 +357,185 @@ export function buildDatabaseWorkbenchPacket(input: {
       "npm run verify:database",
       "npm run lint",
       "npm run build",
+    ],
+  };
+}
+
+function buildDecisionSummary(
+  databases: DatabaseWorkbenchDatabase[],
+  actions: DatabaseWorkbenchAction[]
+): DatabaseWorkbenchDecisionSummary {
+  const relationActions = actions.filter(
+    (action) => action.lane_id === "relation-setup"
+  );
+  const templateActions = actions.filter(
+    (action) => action.lane_id === "template-intake"
+  );
+  const viewActions = actions.filter((action) => action.lane_id === "view-design");
+  const importExportActions = actions.filter(
+    (action) => action.lane_id === "import-export"
+  );
+  const manualActions = actions.filter(
+    (action) => action.requires_manual_confirmation
+  );
+  const topBlockers = [
+    databases.length === 0
+      ? "还没有本地 tracker，数据库模块没有承载容器。"
+      : null,
+    relationActions.length > 0
+      ? `${relationActions.length} 个 tracker 需要先补 relation schema。`
+      : null,
+    importExportActions.length > 0
+      ? "导入导出会触碰 row values 或 spreadsheet values，必须留在具体数据库页确认。"
+      : null,
+    "云同步、AI 执行和数据库值外发仍未启用。",
+  ].filter(Boolean) as string[];
+
+  return {
+    current_state: "local-database-owner-review",
+    current_conclusion:
+      "可以继续在本地复核数据库 schema、视图、relation 缺口和模板行入口；模板行写入、CSV/XLSX 导出、Excel/CSV/ODS 追加导入、云同步和 AI 使用数据库值仍然必须经过单独 owner gate。",
+    can_review_schema_now: true,
+    can_review_views_now: true,
+    can_open_relation_schema_gate_now: true,
+    can_create_template_rows_without_manual_click_now: false,
+    can_bulk_import_spreadsheet_now: false,
+    can_export_row_values_from_module_now: false,
+    can_send_database_values_to_ai_now: false,
+    can_sync_database_values_now: false,
+    safe_local_work: [
+      "继续用数据库中心复核 schema、view metadata、row count、模板 readiness 和 relation 缺口。",
+      "继续从工作台打开 tracker、研究图谱和 readiness 区域做人工复核。",
+      "继续导出 metadata-only 数据库工作台 packet，不包含 field names、row values 或页面正文。",
+      "继续在具体数据库页手动创建模板行，敏感投资字段仍由用户手动填写。",
+    ],
+    blocked_work: [
+      "不能从模块中心读取、展示或导出 database row values。",
+      "不能从工作台 packet 自动创建 row、schema field 或 relation values。",
+      "不能无 typed confirmation 批量导入 Excel/CSV/ODS。",
+      "不能把数据库值发送给 AI、云同步、外部 API 或远端数据库。",
+    ],
+    required_owner_decisions: manualActions
+      .slice(0, 5)
+      .map((action) => action.next_action),
+    top_blockers: topBlockers,
+    decisions: [
+      {
+        id: "schema-view-review",
+        title: "Schema 与视图复核",
+        status: "available-local",
+        answer: "可以继续",
+        evidence: `${databases.length} 个本地数据库可用 schema、view metadata 和 row count 复核；${viewActions.length} 个视图行动可进入人工判断。`,
+        next_action:
+          "先在数据库中心检查字段结构、视图覆盖、row count 和 tracker 角色是否符合真实投研流程。",
+        route: "/modules/databases",
+        target_section_id: "databases-dashboard",
+        allowed_now: true,
+        requires_owner_confirmation: false,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_database_row_values: false,
+        exports_row_values: false,
+        imports_file_values: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "relation-schema-review",
+        title: "Relation 结构",
+        status:
+          relationActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer: relationActions.length > 0 ? "先补 schema" : "继续复核",
+        evidence:
+          relationActions.length > 0
+            ? `${relationActions.length} 个 tracker 缺少 relation 字段，需要你确认字段方向后再创建。`
+            : "当前 workbench 没有发现高优先级 relation schema 缺口。",
+        next_action:
+          "打开研究图谱或具体数据库，先确认公司、报告、会议、memo 和组合之间应该如何互相连接。",
+        route: "/modules/research-graph",
+        target_section_id: "databases-relation-setup",
+        allowed_now: true,
+        requires_owner_confirmation: relationActions.length > 0,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_database_row_values: false,
+        exports_row_values: false,
+        imports_file_values: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "template-row-intake",
+        title: "模板行入库",
+        status:
+          templateActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer: templateActions.length > 0 ? "可手动写入" : "暂无紧急缺口",
+        evidence:
+          templateActions.length > 0
+            ? `${templateActions.length} 个模板行行动需要在具体数据库页手动触发。`
+            : "当前 workbench 没有发现必须立即处理的模板行行动。",
+        next_action:
+          "只在具体数据库或 inline database 的「+ 模板行」菜单里创建 rows；方向性投资字段仍保持人工填写。",
+        route: "/modules/databases",
+        target_section_id: "databases-template-readiness",
+        allowed_now: true,
+        requires_owner_confirmation: templateActions.length > 0,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_database_row_values: false,
+        exports_row_values: false,
+        imports_file_values: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "spreadsheet-import-export",
+        title: "导入导出闸门",
+        status: "requires-owner-confirmation",
+        answer: "只在具体数据库页",
+        evidence:
+          importExportActions.length > 0
+            ? `${importExportActions.length} 个数据库存在导入/导出确认动作；模块中心只显示 readiness。`
+            : "导入导出 readiness 已保留手动闸门，真实值导入或导出不在模块中心执行。",
+        next_action:
+          "CSV/XLSX 导出、Excel/CSV/ODS 追加导入和字段映射都必须在具体数据库页复核后执行。",
+        route: "/modules/databases",
+        target_section_id: "databases-import-export-readiness",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_database_row_values: false,
+        exports_row_values: false,
+        imports_file_values: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "cloud-ai-sync-boundary",
+        title: "云同步与 AI 边界",
+        status: "blocked",
+        answer: "保持关闭",
+        evidence:
+          "当前数据库工作台没有连接云数据库、没有调用 AI，也没有把 row values 放进导出 packet。",
+        next_action:
+          "等 Web beta 的账号、权限、payload preview、审计和回滚合同确认后，再决定数据库值是否进入云同步或 AI。",
+        route: "/modules/sync",
+        target_section_id: "sync-architecture",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocked_until_cloud_ai_gate: true,
+        workbench_writes_workspace_data: false,
+        reads_database_row_values: false,
+        exports_row_values: false,
+        imports_file_values: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
     ],
   };
 }

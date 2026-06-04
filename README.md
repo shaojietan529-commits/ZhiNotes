@@ -265,6 +265,10 @@ Current local actions:
   the dashboard, view readiness, template-row readiness, and import/export
   readiness into tracker-fit, relation setup, template intake, view design,
   import/export, and manual-review lanes.
+- Review a database decision summary before drilling into the workbench. The
+  summary separates safe local schema/view review, relation schema review,
+  manual template-row intake, spreadsheet import/export gates, and the blocked
+  cloud/AI/sync boundary.
 - Use the database workbench to see which tracker needs relation fields, first
   template rows, next views, or import/export confirmation before editing the
   underlying database.
@@ -305,6 +309,11 @@ The database workbench follows the same boundary: it does not read row values,
 page text, spreadsheet cell values, or file bytes, and it does not create rows,
 create fields, import values, export values, connect cloud services, upload
 data, or enable AI.
+The database decision summary follows the same metadata-only contract: it can
+route the owner to schema/view review, relation review, template-row readiness,
+and import/export gates, but it does not include field names, row values,
+spreadsheet values, page text, prompts, tokens, credentials, cloud data, or AI
+output.
 Template-row field drafts also avoid sensitive investment fields such as ticker,
 holdings, position size, weights, prices, rating, direction, broker/account, and
 trading plan fields; those remain manual. Template-row receipts exclude database
