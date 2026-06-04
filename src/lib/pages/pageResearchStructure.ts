@@ -8,6 +8,8 @@ export type PageResearchStructureStatus =
 
 export type PageResearchSignalStatus = "ready" | "review" | "empty";
 
+export type PageResearchActionPriority = "high" | "medium" | "low";
+
 export type PageResearchStructureSignalId =
   | "outline"
   | "decision"
@@ -46,6 +48,27 @@ export interface PageResearchStructureGate {
   status: PageResearchSignalStatus;
   detail: string;
   evidence: string;
+}
+
+export interface PageResearchStructureAction {
+  id:
+    | "apply-research-template"
+    | "add-outline"
+    | "write-investment-decision"
+    | "add-evidence-sources"
+    | "add-next-actions"
+    | "link-research-relations"
+    | "save-review-trail"
+    | "review-cadence";
+  label: string;
+  priority: PageResearchActionPriority;
+  gate_id: PageResearchStructureGate["id"];
+  surface: "editor" | "page-action" | "relation" | "review";
+  action_status: "suggested-only";
+  detail: string;
+  suggested_block: string;
+  local_only: true;
+  suggestion_writes_workspace_data: false;
 }
 
 export interface PageResearchStructureReport {
@@ -92,6 +115,7 @@ export interface PageResearchStructureReport {
   };
   outline: PageResearchStructureOutlineItem[];
   gates: PageResearchStructureGate[];
+  next_actions: PageResearchStructureAction[];
   signals: PageResearchStructureSignal[];
 }
 
@@ -112,6 +136,7 @@ export function buildPageResearchStructureReport(input: {
   const summary = buildSummary(doc, text, outline.length);
   const gates = buildGates(summary, input.metadata);
   const structureStatus = getStructureStatus(summary, gates);
+  const nextActions = buildNextActions(summary, gates);
 
   return {
     format: "zhinote-page-research-structure",
@@ -135,6 +160,7 @@ export function buildPageResearchStructureReport(input: {
     summary,
     outline,
     gates,
+    next_actions: nextActions,
     signals: buildSignals(summary, input.metadata, structureStatus),
   };
 }
@@ -428,6 +454,158 @@ function buildSignals(
       detail: "只做本地结构分析，不上传、不调用 AI、不写 workspace。",
     },
   ];
+}
+
+function buildNextActions(
+  summary: PageResearchStructureReport["summary"],
+  gates: PageResearchStructureGate[]
+): PageResearchStructureAction[] {
+  const actions: PageResearchStructureAction[] = [];
+  const outlineGate = findGate(gates, "page-outline");
+  const decisionGate = findGate(gates, "investment-decision");
+  const evidenceGate = findGate(gates, "evidence-sources");
+  const actionsGate = findGate(gates, "next-actions");
+  const relationsGate = findGate(gates, "research-relations");
+  const reviewGate = findGate(gates, "review-trail");
+
+  if (summary.words === 0 || summary.blocks === 0) {
+    actions.push({
+      id: "apply-research-template",
+      label: "套用投研模板",
+      priority: "high",
+      gate_id: "page-outline",
+      surface: "editor",
+      action_status: "suggested-only",
+      detail: "空页面建议先插入公司研究、投资备忘录、会议纪要或研究报告模板。",
+      suggested_block: "/template 或工具栏 Template",
+      local_only: true,
+      suggestion_writes_workspace_data: false,
+    });
+  }
+
+  if (outlineGate?.status !== "ready") {
+    actions.push({
+      id: "add-outline",
+      label: "补页面骨架",
+      priority: summary.words > 120 ? "high" : "medium",
+      gate_id: "page-outline",
+      surface: "editor",
+      action_status: "suggested-only",
+      detail: "补 H2/H3、目录或小标题，让长笔记可以像 memo 一样扫读。",
+      suggested_block: "H2: 核心结论 / 证据 / 风险 / 下一步",
+      local_only: true,
+      suggestion_writes_workspace_data: false,
+    });
+  }
+
+  if (decisionGate?.status !== "ready") {
+    actions.push({
+      id: "write-investment-decision",
+      label: "补结论与假设",
+      priority: decisionGate?.status === "empty" ? "high" : "medium",
+      gate_id: "investment-decision",
+      surface: "editor",
+      action_status: "suggested-only",
+      detail: "明确核心结论、投资假设、风险、催化剂或反向证据。",
+      suggested_block: "H2: 核心结论 / 投资假设 / 风险 / 催化剂",
+      local_only: true,
+      suggestion_writes_workspace_data: false,
+    });
+  }
+
+  if (evidenceGate?.status !== "ready") {
+    actions.push({
+      id: "add-evidence-sources",
+      label: "补证据与来源",
+      priority: evidenceGate?.status === "empty" ? "high" : "medium",
+      gate_id: "evidence-sources",
+      surface: "editor",
+      action_status: "suggested-only",
+      detail: "补来源、引用、表格、文件预览或原始链接，方便后续回溯。",
+      suggested_block: "H2: 来源 / 数据表 / 原始报告",
+      local_only: true,
+      suggestion_writes_workspace_data: false,
+    });
+  }
+
+  if (actionsGate?.status !== "ready") {
+    actions.push({
+      id: "add-next-actions",
+      label: "补下一步动作",
+      priority: "medium",
+      gate_id: "next-actions",
+      surface: "editor",
+      action_status: "suggested-only",
+      detail: "记录待验证问题、模型更新、follow-up 或复盘窗口。",
+      suggested_block: "Task list: 待验证问题 / 模型更新 / 跟进动作",
+      local_only: true,
+      suggestion_writes_workspace_data: false,
+    });
+  }
+
+  if (relationsGate?.status !== "ready") {
+    actions.push({
+      id: "link-research-relations",
+      label: "补研究关系",
+      priority: relationsGate?.status === "empty" ? "medium" : "low",
+      gate_id: "research-relations",
+      surface: "relation",
+      action_status: "suggested-only",
+      detail: "把页面连接到公司、报告、会议、数据库或文件预览，形成投研网络。",
+      suggested_block: "页面 mention / inline database / file preview",
+      local_only: true,
+      suggestion_writes_workspace_data: false,
+    });
+  }
+
+  if (reviewGate?.status !== "ready") {
+    actions.push({
+      id: "save-review-trail",
+      label: "补审阅痕迹",
+      priority: "low",
+      gate_id: "review-trail",
+      surface: "page-action",
+      action_status: "suggested-only",
+      detail: "重要页面建议保存版本、收藏或锁定，方便后续复盘。",
+      suggested_block: "Save version / Favorite / Lock",
+      local_only: true,
+      suggestion_writes_workspace_data: false,
+    });
+  }
+
+  if (actions.length === 0) {
+    actions.push({
+      id: "review-cadence",
+      label: "进入周期复盘",
+      priority: "low",
+      gate_id: "review-trail",
+      surface: "review",
+      action_status: "suggested-only",
+      detail: "结构已经较完整，下一步适合设置复盘节奏或连接到 tracker。",
+      suggested_block: "下次复盘日期 / 关联 tracker row",
+      local_only: true,
+      suggestion_writes_workspace_data: false,
+    });
+  }
+
+  return actions.sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority));
+}
+
+function findGate(
+  gates: PageResearchStructureGate[],
+  id: PageResearchStructureGate["id"]
+) {
+  return gates.find((gate) => gate.id === id);
+}
+
+function priorityRank(priority: PageResearchActionPriority) {
+  const ranks: Record<PageResearchActionPriority, number> = {
+    high: 0,
+    medium: 1,
+    low: 2,
+  };
+
+  return ranks[priority];
 }
 
 function getStructureStatus(

@@ -43,6 +43,7 @@ import {
 } from "@/lib/pageLocalCommands";
 import {
   buildPageResearchStructureReport,
+  type PageResearchStructureAction,
   type PageResearchStructureGate,
   type PageResearchStructureReport,
   type PageResearchStructureSignal,
@@ -72,6 +73,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const { isFavorite, toggleFavorite } = usePageFavorites();
   const favorite = isFavorite(pageId);
   const [showInfo, setShowInfo] = useState(false);
+  const [exportingPageStructure, setExportingPageStructure] = useState(false);
 
   useEffect(() => {
     setCurrentPageId(pageId);
@@ -363,6 +365,44 @@ function PageContent({ pageId }: { pageId: string }) {
     },
   });
   const pageInfo = getPageInfoStats(pageStructure);
+  const handleExportPageStructure = () => {
+    setExportingPageStructure(true);
+    try {
+      downloadJsonFile(
+        `zhinote-page-research-structure-${fileSafeTimestamp()}.json`,
+        {
+          format: "zhinote-page-research-structure-export",
+          format_version: 1,
+          export_status: "local-page-structure-export-only",
+          exported_at: new Date().toISOString(),
+          page: {
+            local_page_id: pageId,
+            page_title_included: false,
+            page_body_included: false,
+          },
+          boundary: {
+            local_export_only: true,
+            includes_page_title: false,
+            includes_page_body_text: false,
+            includes_linked_page_bodies: false,
+            includes_database_row_values: false,
+            includes_file_bytes: false,
+            includes_tokens_or_credentials: false,
+            uploads_data: false,
+            connects_cloud_services: false,
+            enables_ai: false,
+            writes_workspace_data: false,
+          },
+          report: pageStructure,
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export page research structure:", err);
+      window.alert("页面投研结构报告导出失败，请查看控制台。");
+    } finally {
+      setExportingPageStructure(false);
+    }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -606,6 +646,8 @@ function PageContent({ pageId }: { pageId: string }) {
               locked={locked}
               pageId={pageId}
               researchStructure={pageStructure}
+              exportingResearchStructure={exportingPageStructure}
+              onExportResearchStructure={handleExportPageStructure}
               stats={pageInfo}
               title={title || page.title || "未命名页面"}
               updatedAt={page.updated_at}
@@ -673,10 +715,12 @@ interface PageInfoStats {
 
 function PageInfoPanel({
   createdAt,
+  exportingResearchStructure,
   favorite,
   hasCover,
   icon,
   locked,
+  onExportResearchStructure,
   pageId,
   researchStructure,
   stats,
@@ -686,10 +730,12 @@ function PageInfoPanel({
   widePage,
 }: {
   createdAt: string;
+  exportingResearchStructure: boolean;
   favorite: boolean;
   hasCover: boolean;
   icon: string | null;
   locked: boolean;
+  onExportResearchStructure: () => void;
   pageId: string;
   researchStructure: PageResearchStructureReport;
   stats: PageInfoStats;
@@ -724,7 +770,11 @@ function PageInfoPanel({
         <PageInfoItem label="宽页面" value={widePage ? "是" : "否"} />
         <PageInfoItem label="封面" value={hasCover ? "是" : "否"} />
       </dl>
-      <PageResearchStructurePanel report={researchStructure} />
+      <PageResearchStructurePanel
+        exporting={exportingResearchStructure}
+        onExport={onExportResearchStructure}
+        report={researchStructure}
+      />
     </section>
   );
 }
@@ -741,8 +791,12 @@ function PageInfoItem({ label, value }: { label: string; value: string }) {
 }
 
 function PageResearchStructurePanel({
+  exporting,
+  onExport,
   report,
 }: {
+  exporting: boolean;
+  onExport: () => void;
   report: PageResearchStructureReport;
 }) {
   return (
@@ -756,7 +810,18 @@ function PageResearchStructurePanel({
             本地页面结构体检，不读取关联页面或数据库行值。
           </p>
         </div>
-        <PageResearchStructureStatusPill status={report.structure_status} />
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={exporting}
+            className="rounded border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:text-zinc-200"
+            title="导出本地页面结构报告，不包含页面正文"
+          >
+            {exporting ? "导出中" : "导出结构报告"}
+          </button>
+          <PageResearchStructureStatusPill status={report.structure_status} />
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -769,6 +834,20 @@ function PageResearchStructurePanel({
         {report.gates.map((gate) => (
           <PageResearchStructureGateRow key={gate.id} gate={gate} />
         ))}
+      </div>
+
+      <div className="mt-3">
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <div className="text-xs text-zinc-400">下一步队列</div>
+          <div className="text-[11px] text-zinc-400">
+            {report.next_actions.length} suggested
+          </div>
+        </div>
+        <div className="divide-y divide-zinc-200 rounded border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          {report.next_actions.slice(0, 5).map((action) => (
+            <PageResearchStructureActionRow key={action.id} action={action} />
+          ))}
+        </div>
       </div>
 
       {report.outline.length > 0 && (
@@ -791,6 +870,42 @@ function PageResearchStructurePanel({
       <p className="mt-3 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400">
         {report.privacy_note}
       </p>
+    </div>
+  );
+}
+
+function PageResearchStructureActionRow({
+  action,
+}: {
+  action: PageResearchStructureAction;
+}) {
+  const priorityClass =
+    action.priority === "high"
+      ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-300"
+      : action.priority === "medium"
+        ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300"
+        : "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300";
+
+  return (
+    <div className="px-3 py-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">
+            {action.label}
+          </div>
+          <p className="mt-1 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400">
+            {action.detail}
+          </p>
+        </div>
+        <span
+          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${priorityClass}`}
+        >
+          {action.priority}
+        </span>
+      </div>
+      <div className="mt-1 truncate text-[11px] text-zinc-400">
+        建议块：{action.suggested_block}
+      </div>
     </div>
   );
 }
@@ -894,4 +1009,20 @@ function formatInfoDate(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function downloadJsonFile(fileName: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function fileSafeTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
 }

@@ -54,6 +54,14 @@ function run() {
     "catalyst_markers",
     "PageResearchStructureGate",
     "PageResearchStructureSignal",
+    "PageResearchStructureAction",
+    "next_actions",
+    "action_status: \"suggested-only\"",
+    "suggestion_writes_workspace_data: false",
+    "apply-research-template",
+    "write-investment-decision",
+    "add-evidence-sources",
+    "link-research-relations",
   ]) {
     assertIncludes(
       files.pageStructure,
@@ -69,10 +77,19 @@ function run() {
     "PageResearchStructureStatusPill",
     "PageResearchStructureSignalPill",
     "PageResearchStructureGateRow",
+    "PageResearchStructureActionRow",
     "投研结构",
     "本地页面结构体检",
+    "导出结构报告",
+    "下一步队列",
     "页面目录",
     "researchStructure={pageStructure}",
+    "zhinote-page-research-structure-export",
+    "local-page-structure-export-only",
+    "includes_page_title: false",
+    "includes_page_body_text: false",
+    "includes_database_row_values: false",
+    "includes_file_bytes: false",
   ]) {
     assertIncludes(
       files.pageShell,
@@ -92,8 +109,11 @@ function run() {
   for (const snippet of [
     "local page research structure panel",
     "投研结构",
+    "下一步队列",
+    "导出结构报告",
     "npm run verify:page-structure",
     "does not read linked page bodies, database row values, uploaded file bytes, AI prompts, tokens, credentials, cloud data, or private research content",
+    "export excludes page titles, page body text, linked page bodies, database row values, file bytes, tokens, credentials, cloud data, and AI output",
   ]) {
     assertIncludes(
       files.readme,
@@ -117,6 +137,7 @@ function run() {
         checked_files: Object.keys(files).length,
         local_boundary: true,
         gates: 6,
+        suggested_actions: 8,
         signals: 10,
       },
       null,

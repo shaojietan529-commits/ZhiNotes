@@ -157,10 +157,17 @@ Current local actions:
 - Use the 投研结构 panel as a local checklist for outline coverage, investment
   conclusions, thesis markers, sources, action items, research relations, file
   blocks, inline databases, and review trail.
+- Review the 下一步队列 inside the 投研结构 panel. The queue converts missing
+  structure gates into suggested-only actions such as adding H2/H3 sections,
+  writing an investment decision, adding evidence, linking relations, or saving
+  a review trail. It does not edit the page automatically.
+- Export a local 导出结构报告 JSON from the Info panel. The export preserves
+  the structure summary, gates, signals, and suggested actions for later review.
 
 The local page research structure panel reads only the current page HTML and
 basic page metadata. It does not read linked page bodies, database row values, uploaded file bytes, AI prompts, tokens, credentials, cloud data, or private research content. It does not upload data, connect cloud services, call AI, or
 write workspace data.
+The structure report export excludes page titles, page body text, linked page bodies, database row values, file bytes, tokens, credentials, cloud data, and AI output.
 
 Run `npm run verify:page-structure` before treating the Notes and Pages
 research-structure panel as part of the local product contract.
