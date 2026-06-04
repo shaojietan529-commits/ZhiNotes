@@ -594,6 +594,10 @@ Current local actions:
   aggregated routing only, not page titles, position names, tickers, weights,
   holdings, trading plans, transactions, brokerage data, prices, cloud data, AI
   prompts, tokens, or credentials.
+- Use the portfolio workbench review sequence to jump through the portfolio
+  workflow: create portfolio assets, review sizing/thesis/risk/catalyst gaps,
+  link company/report/meeting research, process tracker intake, and review
+  sync/AI/brokerage privacy boundaries.
 - Use the portfolio intake desk to create one local portfolio tracker row from
   a position memo or watchlist page. The intake action maps Related memo
   relation, Status, Conviction, Thesis, and Risk notes, checks for an existing

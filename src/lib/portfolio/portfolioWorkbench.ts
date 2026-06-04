@@ -54,6 +54,7 @@ export interface PortfolioWorkbenchReviewStep {
   order: number;
   title: string;
   route: string;
+  target_section_id: string;
   reason: string;
   completion_signal: string;
 }
@@ -521,6 +522,7 @@ function buildReviewSequence(
       1,
       "先建观察名单或持仓 memo",
       "/modules/portfolio",
+      "portfolio-create-assets",
       "组合想法需要进入观察名单或持仓 memo，才有复盘和关联基础。",
       review.summary.portfolio_memos > 0 || review.summary.watchlist_pages > 0
         ? "已有组合资产页面。"
@@ -531,6 +533,7 @@ function buildReviewSequence(
       2,
       "补仓位纪律",
       "/modules/portfolio",
+      "portfolio-review-radar",
       "仓位纪律是组合复盘的核心，但工作台不能导出权重或持仓细节。",
       review.areas.find((area) => area.id === "sizing-discipline")?.status ===
         "ready"
@@ -542,6 +545,7 @@ function buildReviewSequence(
       3,
       "补投资假设和风险",
       "/modules/portfolio",
+      "portfolio-review-radar",
       "组合条目需要明确 thesis、风险、反证和证伪条件。",
       review.areas.find((area) => area.id === "thesis")?.status === "ready" &&
       review.areas.find((area) => area.id === "risk-notes")?.status === "ready"
@@ -553,6 +557,7 @@ function buildReviewSequence(
       4,
       "补催化剂复盘",
       "/modules/portfolio",
+      "portfolio-review-radar",
       "催化剂和检查点让组合结论可以定期复盘。",
       review.areas.find((area) => area.id === "catalyst")?.status === "ready"
         ? "催化剂结构已覆盖。"
@@ -563,6 +568,7 @@ function buildReviewSequence(
       5,
       "连接公司、报告和会议",
       "/modules/research-graph",
+      "portfolio-research-connections",
       "组合条目要回到公司研究、报告和会议，才形成完整投研闭环。",
       review.areas.find((area) => area.id === "research-links")?.status ===
         "ready"
@@ -574,6 +580,7 @@ function buildReviewSequence(
       6,
       "最后逐条入组合跟踪表",
       "/modules/portfolio",
+      "portfolio-tracker-intake",
       "tracker row 是本地写入动作，必须逐条确认，不能由工作台批量写入。",
       trackerIntakeItems.length > 0
         ? `${trackerIntakeItems.length} 个脱敏候选等待组合入库台复核。`
@@ -584,6 +591,7 @@ function buildReviewSequence(
       7,
       "外部数据和外发必须单独确认",
       "/modules/sync",
+      "portfolio-privacy-boundary",
       "价格源、券商、AI、云同步和批量写入都是高风险动作。",
       "当前 packet 只做本地 metadata-only 排队。"
     ),
@@ -595,6 +603,7 @@ function reviewStep(
   order: number,
   title: string,
   route: string,
+  targetSectionId: string,
   reason: string,
   completionSignal: string
 ): PortfolioWorkbenchReviewStep {
@@ -603,6 +612,7 @@ function reviewStep(
     order,
     title,
     route,
+    target_section_id: targetSectionId,
     reason,
     completion_signal: completionSignal,
   };
