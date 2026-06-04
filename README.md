@@ -497,6 +497,11 @@ Current local actions:
   workflows. It uses workflow and payload metadata only and does not read prompt
   text, page body text, file bytes, holdings, trading plans, client information,
   tokens, or secrets.
+- Review and export a local AI context packet. The packet combines workflow
+  metadata, prompt blueprint metadata, selected page titles, available file
+  kinds, sensitive exclusions, source rules, and a final outbound checklist. It
+  is metadata-only and does not read prompt text, page body text, file bytes,
+  holdings, trading plans, client information, tokens, or secrets.
 - Review and export a local AI research runbook. The runbook turns the selected
   workflow into an approval queue covering task scope, page context, file
   context, final payload preview, sensitive finance exclusions, provider/model
@@ -536,6 +541,21 @@ this contract to build local request drafts, but `/api/ai/run` remains a
 disabled stub. Payload previews, execution policies, and high-risk confirmation
 receipts exclude page body text, prompt text, file bytes, tokens, and secrets
 until the user explicitly confirms the final outbound boundary.
+
+### AI Context Packet
+
+The local AI context packet contract lives in:
+
+```txt
+src/lib/ai/aiContextPacket.ts
+```
+
+It prepares a metadata-only review packet for future AI runs. The packet lists
+the selected workflow, prompt blueprint metadata, selected page titles,
+available file kinds, source rules, sensitive exclusions, and final outbound
+checklist items. It does not read prompt text, page body text, file bytes,
+holdings, trading plans, client information, tokens, or secrets, and it does
+not call model providers or enable `/api/ai/run`.
 
 ### AI Research Runbook
 

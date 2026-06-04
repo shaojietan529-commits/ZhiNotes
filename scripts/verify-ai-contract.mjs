@@ -12,6 +12,7 @@ const files = {
   payloadPreview: "src/lib/ai/aiPayloadPreview.ts",
   executionPolicy: "src/lib/ai/aiExecutionPolicy.ts",
   promptBlueprint: "src/lib/ai/aiPromptBlueprint.ts",
+  contextPacket: "src/lib/ai/aiContextPacket.ts",
   researchRunbook: "src/lib/ai/aiResearchRunbook.ts",
   outputReview: "src/lib/ai/aiOutputReview.ts",
   aiShell: "src/components/modules/AiWorkbenchShell.tsx",
@@ -81,6 +82,7 @@ function run() {
   const payloadPreview = readProjectFile(files.payloadPreview);
   const executionPolicy = readProjectFile(files.executionPolicy);
   const promptBlueprint = readProjectFile(files.promptBlueprint);
+  const contextPacket = readProjectFile(files.contextPacket);
   const researchRunbook = readProjectFile(files.researchRunbook);
   const outputReview = readProjectFile(files.outputReview);
   const aiShell = readProjectFile(files.aiShell);
@@ -171,6 +173,12 @@ function run() {
   assertIncludes(
     files.aiShell,
     aiShell,
+    "@/lib/ai/aiContextPacket",
+    "AI Workbench must consume the shared context packet contract."
+  );
+  assertIncludes(
+    files.aiShell,
+    aiShell,
     "AI 工作台",
     "AI Workbench UI should use the Chinese product language."
   );
@@ -204,6 +212,22 @@ function run() {
       aiShell,
       snippet,
       "AI Workbench must render and export the prompt blueprint."
+    );
+  }
+  for (const snippet of [
+    "buildAiContextPacket",
+    "handleExportContextPacket",
+    "AI 上下文包",
+    "导出上下文包",
+    "ContextPacketItemRow",
+    "metadata-only context packet",
+    "不读取 prompt 正文、页面正文或文件 bytes",
+  ]) {
+    assertIncludes(
+      files.aiShell,
+      aiShell,
+      snippet,
+      "AI Workbench must render and export the AI context packet."
     );
   }
 
@@ -382,6 +406,50 @@ function run() {
     );
   }
 
+  assertIncludes(
+    files.contextPacket,
+    contextPacket,
+    'format: "zhinote-ai-context-packet"',
+    "AI context packet must define a stable local export format."
+  );
+  assertIncludes(
+    files.contextPacket,
+    contextPacket,
+    "buildAiContextPacket",
+    "AI context packet must expose a reusable builder."
+  );
+  for (const snippet of [
+    'packet_status: "local-context-packet-only"',
+    "can_run_ai_now: false",
+    "local_context_packet_only: true",
+    "reads_workflow_metadata: true",
+    "reads_payload_preview_metadata: true",
+    "reads_prompt_blueprint_metadata: true",
+    "reads_prompt_text: false",
+    "reads_page_body_text: false",
+    "reads_file_bytes: false",
+    "includes_prompt_text: false",
+    "includes_page_body_text: false",
+    "includes_file_bytes: false",
+    "includes_holdings_or_trading_plans: false",
+    "includes_client_info: false",
+    "includes_tokens_or_secrets: false",
+    "calls_model_provider: false",
+    "writes_workspace_data: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    "metadata-is-not-evidence",
+    "final-payload-visible",
+    "provider-retention-selected",
+  ]) {
+    assertIncludes(
+      files.contextPacket,
+      contextPacket,
+      snippet,
+      "AI context packet must preserve metadata-only outbound boundaries."
+    );
+  }
+
   for (const stepId of requiredRunbookSteps) {
     assertIncludes(
       files.researchRunbook,
@@ -513,6 +581,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "AI Context Packet",
+    "README must document the AI context packet."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "AI Output Review Contract",
     "README must document the AI output review contract."
   );
@@ -538,6 +612,7 @@ function run() {
         workflows: requiredWorkflows.length,
         execution_gates: requiredPolicyGates.length,
         prompt_blueprint_workflows: requiredWorkflows.length,
+        context_packet: true,
         research_runbook_steps: requiredRunbookSteps.length,
         output_destinations: requiredOutputDestinations.length,
         output_review_gates: requiredOutputGates.length,

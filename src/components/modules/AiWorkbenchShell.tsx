@@ -39,6 +39,10 @@ import {
   buildAiOutputReviewContract,
   type AiOutputReviewContract,
 } from "@/lib/ai/aiOutputReview";
+import {
+  buildAiContextPacket,
+  type AiContextPacket,
+} from "@/lib/ai/aiContextPacket";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -92,6 +96,7 @@ function AiWorkbenchDashboard() {
   const [exportingResearchRunbook, setExportingResearchRunbook] =
     useState(false);
   const [exportingOutputReview, setExportingOutputReview] = useState(false);
+  const [exportingContextPacket, setExportingContextPacket] = useState(false);
   const [exportingConfirmationReceipt, setExportingConfirmationReceipt] =
     useState(false);
   const [aiConfirmationPhrase, setAiConfirmationPhrase] = useState("");
@@ -187,6 +192,15 @@ function AiWorkbenchDashboard() {
       aiResearchRunbook,
       selectedWorkflow,
     ]
+  );
+  const aiContextPacket = useMemo(
+    () =>
+      buildAiContextPacket({
+        workflow: selectedWorkflow,
+        payloadPreview: aiPayloadPreview,
+        promptBlueprint: aiPromptBlueprint,
+      }),
+    [aiPayloadPreview, aiPromptBlueprint, selectedWorkflow]
   );
   const aiConfirmationReceipt = useMemo(
     () =>
@@ -298,6 +312,24 @@ function AiWorkbenchDashboard() {
       window.alert("AI output review 导出失败，请查看控制台。");
     } finally {
       setExportingOutputReview(false);
+    }
+  };
+
+  const handleExportContextPacket = () => {
+    setExportingContextPacket(true);
+    try {
+      downloadJsonFile(
+        `zhinote-ai-context-packet-${fileSafeTimestamp()}.json`,
+        {
+          ...aiContextPacket,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export AI context packet:", err);
+      window.alert("AI context packet 导出失败，请查看控制台。");
+    } finally {
+      setExportingContextPacket(false);
     }
   };
 
@@ -749,6 +781,106 @@ function AiWorkbenchDashboard() {
                 items={aiPromptBlueprint.blockers}
               />
             </div>
+          </div>
+
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  AI 上下文包
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  把本次 AI 任务的 workflow、prompt 蓝图、已选页面标题、可用文件类型、
+                  敏感排除项和最终外发检查清单合并成 metadata-only context packet。
+                  它不读取 prompt 正文、页面正文或文件 bytes，也不调用模型。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportContextPacket}
+                disabled={exportingContextPacket}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {exportingContextPacket ? "导出中..." : "导出上下文包"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-6">
+              <ExecutionMetric
+                label="上下文项"
+                value={aiContextPacket.summary.context_items}
+                detail="Metadata only"
+                status="planned"
+              />
+              <ExecutionMetric
+                label="页面"
+                value={aiContextPacket.summary.selected_pages}
+                detail="正文未包含"
+                status={
+                  aiContextPacket.summary.selected_pages > 0
+                    ? "manual-confirmation"
+                    : "planned"
+                }
+              />
+              <ExecutionMetric
+                label="文件"
+                value={aiContextPacket.summary.files_available}
+                detail={`${aiContextPacket.summary.file_kinds} 类`}
+                status={
+                  aiContextPacket.summary.files_available > 0
+                    ? "manual-confirmation"
+                    : "planned"
+                }
+              />
+              <ExecutionMetric
+                label="待确认"
+                value={aiContextPacket.summary.required_decisions}
+                detail="外发前"
+                status="manual-confirmation"
+              />
+              <ExecutionMetric
+                label="敏感排除"
+                value={aiContextPacket.summary.sensitive_exclusions}
+                detail="默认禁止"
+                status="planned"
+              />
+              <ExecutionMetric
+                label="AI 执行"
+                value="关闭"
+                detail="No provider"
+                status="blocked"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  Context items
+                </div>
+                {aiContextPacket.context_items.map((item) => (
+                  <ContextPacketItemRow key={item.id} item={item} />
+                ))}
+              </div>
+              <div className="space-y-3">
+                <PromptChecklistPanel
+                  title="最终外发检查"
+                  items={aiContextPacket.outbound_payload_checklist.map(
+                    (item) => `${item.title}: ${item.required_action}`
+                  )}
+                />
+                <PromptChecklistPanel
+                  title="来源规则"
+                  items={aiContextPacket.source_policy.map(
+                    (rule) => `${rule.title}: ${rule.rule}`
+                  )}
+                />
+                <PromptChecklistPanel
+                  title="默认敏感排除"
+                  items={aiContextPacket.sensitive_exclusions}
+                />
+              </div>
+            </div>
+            <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+              {aiContextPacket.packet_ready_notes.join(" ")}
+            </p>
           </div>
 
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2">
@@ -1309,6 +1441,52 @@ function PromptChecklistPanel({
           <li key={item}>{item}</li>
         ))}
       </ul>
+    </article>
+  );
+}
+
+function ContextPacketItemRow({
+  item,
+}: {
+  item: AiContextPacket["context_items"][number];
+}) {
+  const kindLabels: Record<AiContextPacket["context_items"][number]["kind"], string> =
+    {
+      workflow: "工作流",
+      prompt: "Prompt",
+      page: "页面",
+      file: "文件",
+    };
+
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded bg-white px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+              {kindLabels[item.kind]}
+            </span>
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+              {item.title}
+            </span>
+          </div>
+          <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+            {item.required_decision}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <ExecutionStatusPill status={item.status} />
+          <PayloadRiskPill risk={item.risk} />
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          {item.included_in_packet}
+        </span>
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          {item.content_included ? "包含正文" : "不包含正文/bytes"}
+        </span>
+      </div>
     </article>
   );
 }
