@@ -170,6 +170,10 @@ Current local actions:
   root/child organization, favorite and locked pages, page structure status,
   file blocks, inline database blocks, wiki-link counts, backlinks, version
   counts, comment counts, unresolved comment counts, and suggested next actions.
+- Review the Notes decision summary before drilling into the workbench. The
+  summary separates the page knowledge-base foundation, research structure,
+  research links and review trail, format/export boundary, and blocked
+  AI/cloud-sync boundary.
 - Use the notes workbench lanes for 笔记入口, 投研结构, 研究关联, 复盘痕迹,
   知识库组织, and 导出安全.
 - Use the notes workbench review sequence to jump through the note workflow:
@@ -215,6 +219,11 @@ It does not read linked page bodies, database row values, uploaded file bytes, A
 The notes workbench export excludes page body text, comment body text, linked
 page bodies, database row values, file bytes, tokens, credentials, cloud data,
 and AI output.
+The Notes decision summary follows the same local metadata-only boundary: it can
+route the owner to page creation, structure review, research linking, review
+trail cleanup, file/export routes, and sync/AI gates, but it does not include
+page body text, comment body text, linked page bodies, database row values, file
+bytes, prompts, tokens, credentials, cloud data, or AI output.
 The structure report export excludes page titles, page body text, linked page bodies, database row values, file bytes, tokens, credentials, cloud data, and AI output.
 
 Run `npm run verify:page-structure` before treating the Notes and Pages

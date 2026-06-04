@@ -23,6 +23,11 @@ export type NotesModuleActionStatus =
 
 export type NotesModulePriority = "high" | "medium" | "low";
 
+export type NotesModuleDecisionStatus =
+  | "available-local"
+  | "requires-owner-confirmation"
+  | "blocked";
+
 export interface NotesModuleSnapshot {
   page: Page;
   favorite: boolean;
@@ -95,6 +100,50 @@ export interface NotesModuleReviewStep {
   completion_signal: string;
 }
 
+export interface NotesModuleDecision {
+  id:
+    | "page-foundation"
+    | "research-structure"
+    | "research-links-review-trail"
+    | "format-export-boundary"
+    | "cloud-ai-sync-boundary";
+  title: string;
+  status: NotesModuleDecisionStatus;
+  answer: string;
+  evidence: string;
+  next_action: string;
+  route: string;
+  target_section_id: string;
+  allowed_now: boolean;
+  requires_owner_confirmation: boolean;
+  blocked_until_cloud_ai_gate: boolean;
+  workbench_writes_workspace_data: false;
+  reads_page_body_text: false;
+  includes_page_body_text: false;
+  includes_comment_body_text: false;
+  reads_database_row_values: false;
+  reads_file_bytes: false;
+  uploads_data: false;
+  enables_ai: false;
+}
+
+export interface NotesModuleDecisionSummary {
+  current_state: "local-notes-owner-review";
+  current_conclusion: string;
+  can_create_local_pages_now: true;
+  can_review_page_structure_now: true;
+  can_review_links_and_versions_now: true;
+  can_export_page_body_from_workbench_now: false;
+  can_send_page_text_to_ai_now: false;
+  can_sync_notes_now: false;
+  can_bulk_delete_or_overwrite_now: false;
+  safe_local_work: string[];
+  blocked_work: string[];
+  required_owner_decisions: string[];
+  top_blockers: string[];
+  decisions: NotesModuleDecision[];
+}
+
 export interface NotesModuleWorkbenchReport {
   format: "zhinote-notes-module-workbench";
   format_version: 1;
@@ -140,6 +189,7 @@ export interface NotesModuleWorkbenchReport {
     actions: number;
     high_priority_actions: number;
   };
+  decision_summary: NotesModuleDecisionSummary;
   lanes: NotesModuleLane[];
   pages: NotesModulePageItem[];
   actions: NotesModuleAction[];
@@ -258,6 +308,7 @@ export function buildNotesModuleWorkbenchReport(
       includes_file_bytes: false,
     },
     summary: summarize(pages, actions),
+    decision_summary: buildDecisionSummary(pages, actions),
     lanes,
     pages,
     actions,
@@ -268,6 +319,200 @@ export function buildNotesModuleWorkbenchReport(
       "npm run verify:modules",
       "npm run lint",
       "npm run build",
+    ],
+  };
+}
+
+function buildDecisionSummary(
+  pages: NotesModulePageItem[],
+  actions: NotesModuleAction[]
+): NotesModuleDecisionSummary {
+  const structureActions = actions.filter(
+    (action) => action.lane_id === "structure"
+  );
+  const linkActions = actions.filter(
+    (action) => action.lane_id === "research-links"
+  );
+  const reviewActions = actions.filter(
+    (action) => action.lane_id === "review-trail"
+  );
+  const manualActions = actions.filter(
+    (action) => action.requires_manual_confirmation
+  );
+  const topBlockers = [
+    pages.length === 0 ? "还没有本地 page，知识库底座尚未开始。" : null,
+    structureActions.length > 0
+      ? `${structureActions.length} 个页面需要补投研结构。`
+      : null,
+    linkActions.length > 0
+      ? `${linkActions.length} 个页面还没有连接研究上下文。`
+      : null,
+    reviewActions.length > 0
+      ? `${reviewActions.length} 个页面需要补版本或评论复盘痕迹。`
+      : null,
+    "AI、云同步、批量删除和覆盖写入仍未启用。",
+  ].filter(Boolean) as string[];
+
+  return {
+    current_state: "local-notes-owner-review",
+    current_conclusion:
+      "可以继续把 page 当作本地知识库底座来创建、整理、结构体检和关联复盘；页面正文导出、AI 读取页面、云同步、批量删除或覆盖写入仍然必须经过单独 owner gate。",
+    can_create_local_pages_now: true,
+    can_review_page_structure_now: true,
+    can_review_links_and_versions_now: true,
+    can_export_page_body_from_workbench_now: false,
+    can_send_page_text_to_ai_now: false,
+    can_sync_notes_now: false,
+    can_bulk_delete_or_overwrite_now: false,
+    safe_local_work: [
+      "继续创建空白笔记或模板化投研 page，写入只发生在用户点击后。",
+      "继续复核页面结构、标题层级、block count、word count、file block 和 inline database count。",
+      "继续复核 wiki link、backlink、版本数量和评论数量。",
+      "继续导出 metadata-only 笔记工作台，不包含页面正文、评论正文或文件 bytes。",
+    ],
+    blocked_work: [
+      "不能从笔记工作台导出 page body text 或 comment body text。",
+      "不能在模块中心自动删除、覆盖、移动、同步或批量改写页面。",
+      "不能读取数据库 row values 或文件 bytes 来判断笔记路线。",
+      "不能把页面正文发送给 AI、云同步、外部 API 或远端存储。",
+    ],
+    required_owner_decisions:
+      manualActions.length > 0
+        ? manualActions.slice(0, 5).map((action) => action.next_action)
+        : [
+            "确认哪些页面适合作为公司、报告、会议、组合或通用研究模板的长期入口。",
+            "确认页面正文何时允许进入导出、AI payload、云同步或备份恢复流程。",
+          ],
+    top_blockers: topBlockers,
+    decisions: [
+      {
+        id: "page-foundation",
+        title: "Page 知识库底座",
+        status:
+          pages.length === 0 ? "requires-owner-confirmation" : "available-local",
+        answer: pages.length === 0 ? "先建第一篇" : "可以继续",
+        evidence:
+          pages.length === 0
+            ? "当前工作区没有活跃页面。"
+            : `${pages.length} 个本地 page 已进入笔记工作台；${pages.filter((page) => page.is_root).length} 个根页面。`,
+        next_action:
+          "从笔记模块创建空白笔记或投研模板页，再把公司、报告、会议和组合材料挂到 page 上。",
+        route: "/modules/notes",
+        target_section_id: "notes-create-entry",
+        allowed_now: true,
+        requires_owner_confirmation: pages.length === 0,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_body_text: false,
+        includes_page_body_text: false,
+        includes_comment_body_text: false,
+        reads_database_row_values: false,
+        reads_file_bytes: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "research-structure",
+        title: "投研结构",
+        status:
+          structureActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer: structureActions.length > 0 ? "需要补结构" : "继续复核",
+        evidence:
+          structureActions.length > 0
+            ? `${structureActions.length} 个页面需要补标题骨架、结论、证据或行动项。`
+            : "当前工作台没有发现高优先级结构缺口。",
+        next_action:
+          "打开页面 Info 面板，用投研结构和下一步队列补空白 scaffold；内容本身仍由用户填写。",
+        route: "/modules/notes",
+        target_section_id: "notes-priority-actions",
+        allowed_now: true,
+        requires_owner_confirmation: structureActions.length > 0,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_body_text: false,
+        includes_page_body_text: false,
+        includes_comment_body_text: false,
+        reads_database_row_values: false,
+        reads_file_bytes: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "research-links-review-trail",
+        title: "研究关联与复盘",
+        status:
+          linkActions.length + reviewActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer:
+          linkActions.length + reviewActions.length > 0
+            ? "需要人工整理"
+            : "继续保持",
+        evidence: `${linkActions.length} 个关联行动，${reviewActions.length} 个复盘行动；工作台只看 link/version/comment counts。`,
+        next_action:
+          "把关键页面连接到公司、报告、会议、文件或 inline database，并为长笔记保存 named version。",
+        route: "/modules/notes",
+        target_section_id: "notes-focus-pages",
+        allowed_now: true,
+        requires_owner_confirmation: linkActions.length + reviewActions.length > 0,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_body_text: false,
+        includes_page_body_text: false,
+        includes_comment_body_text: false,
+        reads_database_row_values: false,
+        reads_file_bytes: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "format-export-boundary",
+        title: "格式与导出边界",
+        status: "requires-owner-confirmation",
+        answer: "本地手动执行",
+        evidence:
+          "页面可以在编辑器里承载 HTML、Markdown、PDF、Office、file preview 和 inline database，但工作台不导出正文或文件 bytes。",
+        next_action:
+          "真实 HTML/Markdown/PDF/备份导出留在页面、文件或备份路径里手动触发，先确认可见内容和 payload。",
+        route: "/modules/files",
+        target_section_id: "files-decision-summary",
+        allowed_now: true,
+        requires_owner_confirmation: true,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_body_text: false,
+        includes_page_body_text: false,
+        includes_comment_body_text: false,
+        reads_database_row_values: false,
+        reads_file_bytes: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "cloud-ai-sync-boundary",
+        title: "AI 与同步边界",
+        status: "blocked",
+        answer: "保持关闭",
+        evidence:
+          "笔记工作台不会发送 page text、不会连接云服务、不会启用 AI，也不会自动同步页面。",
+        next_action:
+          "等 AI payload preview、账号权限、云同步、审计和恢复合同确认后，再决定页面正文是否进入云端或模型。",
+        route: "/modules/sync",
+        target_section_id: "sync-architecture",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocked_until_cloud_ai_gate: true,
+        workbench_writes_workspace_data: false,
+        reads_page_body_text: false,
+        includes_page_body_text: false,
+        includes_comment_body_text: false,
+        reads_database_row_values: false,
+        reads_file_bytes: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
     ],
   };
 }
