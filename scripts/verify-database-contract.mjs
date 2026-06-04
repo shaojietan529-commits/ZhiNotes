@@ -18,6 +18,7 @@ const files = {
   databaseViewReadiness: "src/lib/database/databaseViewReadiness.ts",
   databaseImportExportReadiness:
     "src/lib/database/databaseImportExportReadiness.ts",
+  databaseWorkbench: "src/lib/database/databaseWorkbench.ts",
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
@@ -89,6 +90,7 @@ function run() {
   const databaseImportExportReadiness = readProjectFile(
     files.databaseImportExportReadiness
   );
+  const databaseWorkbench = readProjectFile(files.databaseWorkbench);
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
@@ -597,6 +599,71 @@ function run() {
       "Database import/export readiness must expose value gates and routes."
     );
   }
+  assertIncludes(
+    files.databaseWorkbench,
+    databaseWorkbench,
+    'format: "zhinote-database-workbench-packet"',
+    "Database workbench must define a stable local export format."
+  );
+  assertIncludes(
+    files.databaseWorkbench,
+    databaseWorkbench,
+    "buildDatabaseWorkbenchPacket",
+    "Database workbench must expose a reusable packet builder."
+  );
+  for (const snippet of [
+    'packet_status: "local-database-workbench-only"',
+    'workbench_verdict: "ready-for-local-research-database-review"',
+    "reads_database_dashboard: true",
+    "reads_view_readiness: true",
+    "reads_template_row_readiness: true",
+    "reads_import_export_readiness: true",
+    "reads_database_schema: true",
+    "reads_database_views: true",
+    "reads_database_row_count: true",
+    "reads_database_rows: false",
+    "reads_database_row_values: false",
+    "reads_page_text: false",
+    "includes_database_field_names: false",
+    "includes_database_row_values: false",
+    "includes_page_text: false",
+    "writes_workspace_data: false",
+    "creates_database_rows: false",
+    "creates_schema_fields: false",
+    "exports_row_values: false",
+    "imports_file_values: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.databaseWorkbench,
+      databaseWorkbench,
+      snippet,
+      "Database workbench must preserve metadata-only local boundaries."
+    );
+  }
+  for (const snippet of [
+    '"tracker-fit"',
+    '"relation-setup"',
+    '"template-intake"',
+    '"view-design"',
+    '"import-export"',
+    '"manual-review"',
+    "auto_create_database_rows_from_packet",
+    "auto_create_schema_fields_from_packet",
+    "bulk_import_spreadsheet_without_typed_confirmation",
+    "read_database_row_values_from_module_center",
+    "send_database_values_to_ai",
+    "required_verification_commands",
+  ]) {
+    assertIncludes(
+      files.databaseWorkbench,
+      databaseWorkbench,
+      snippet,
+      "Database workbench must expose research database lanes and forbidden actions."
+    );
+  }
   for (const viewType of requiredViews) {
     assertIncludes(
       files.databaseViewReadiness,
@@ -660,6 +727,32 @@ function run() {
     "buildDatabaseImportExportReadinessReport",
     "Databases module UI must build the import/export readiness report."
   );
+  assertIncludes(
+    files.databaseModuleShell,
+    databaseModuleShell,
+    "buildDatabaseWorkbenchPacket",
+    "Databases module UI must build the database workbench packet."
+  );
+  for (const snippet of [
+    "数据库工作台",
+    "导出工作台包",
+    "DatabaseWorkbenchPanel",
+    "DatabaseWorkbenchLaneCard",
+    "DatabaseWorkbenchActionCard",
+    "DatabaseWorkbenchDatabaseCard",
+    "DatabaseWorkbenchStepRow",
+    "不读取 row values、页面正文或表格单元格",
+    "不从模块页读取 row values",
+    "不批量导入",
+    "不自动建",
+  ]) {
+    assertIncludes(
+      files.databaseModuleShell,
+      databaseModuleShell,
+      snippet,
+      "Databases module UI must render and export the local database workbench."
+    );
+  }
   for (const snippet of [
     "模板行 readiness",
     "导出模板行 readiness",
@@ -863,6 +956,7 @@ function run() {
         template_row_receipts: true,
         template_row_receipt_history: true,
         import_export_readiness: true,
+        database_workbench: true,
       },
       null,
       2

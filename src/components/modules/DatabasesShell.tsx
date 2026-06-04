@@ -33,6 +33,12 @@ import {
   type DatabaseImportExportStatus,
 } from "@/lib/database/databaseImportExportReadiness";
 import {
+  buildDatabaseWorkbenchPacket,
+  type DatabaseWorkbenchActionStatus,
+  type DatabaseWorkbenchPacket,
+  type DatabaseWorkbenchPriority,
+} from "@/lib/database/databaseWorkbench";
+import {
   DATABASE_TEMPLATE_ROW_RECEIPT_EVENT,
   listDatabaseTemplateRowReceipts,
   type DatabaseTemplateRowReceipt,
@@ -91,6 +97,7 @@ function DatabasesDashboard() {
     useState(false);
   const [exportingImportExportReadiness, setExportingImportExportReadiness] =
     useState(false);
+  const [exportingWorkbench, setExportingWorkbench] = useState(false);
   const [templateRowReceipts, setTemplateRowReceipts] = useState<
     DatabaseTemplateRowReceipt[]
   >([]);
@@ -174,6 +181,16 @@ function DatabasesDashboard() {
   const importExportReadiness = useMemo(
     () => buildDatabaseImportExportReadinessReport(snapshots),
     [snapshots]
+  );
+  const workbenchPacket = useMemo(
+    () =>
+      buildDatabaseWorkbenchPacket({
+        dashboard: dashboardReport,
+        viewReadiness,
+        templateRowReadiness,
+        importExportReadiness,
+      }),
+    [dashboardReport, viewReadiness, templateRowReadiness, importExportReadiness]
   );
   const templateRowReceiptSummary = useMemo(
     () => summarizeTemplateRowReceipts(templateRowReceipts),
@@ -298,6 +315,24 @@ function DatabasesDashboard() {
     }
   };
 
+  const handleExportWorkbench = () => {
+    setExportingWorkbench(true);
+    try {
+      downloadJsonFile(
+        `zhinote-database-workbench-packet-${fileSafeTimestamp()}.json`,
+        {
+          ...workbenchPacket,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export database workbench:", err);
+      window.alert("数据库工作台包导出失败，请查看控制台。");
+    } finally {
+      setExportingWorkbench(false);
+    }
+  };
+
   const handleExportTemplateRowReceipts = () => {
     setExportingTemplateRowReceipts(true);
     try {
@@ -389,6 +424,13 @@ function DatabasesDashboard() {
             value={dashboardReport.summary.covered_view_types}
           />
         </section>
+
+        <DatabaseWorkbenchPanel
+          packet={workbenchPacket}
+          exporting={exportingWorkbench}
+          onExport={handleExportWorkbench}
+          onOpenRoute={(route) => router.push(route)}
+        />
 
         <TemplateCatalogPanel catalog={templateCatalog} />
 
@@ -676,6 +718,357 @@ function StarterButton({
     >
       {busy ? "创建中..." : label}
     </button>
+  );
+}
+
+function DatabaseWorkbenchPanel({
+  packet,
+  exporting,
+  onExport,
+  onOpenRoute,
+}: {
+  packet: DatabaseWorkbenchPacket;
+  exporting: boolean;
+  onExport: () => void;
+  onOpenRoute: (route: string) => void;
+}) {
+  const topActions = packet.actions.slice(0, 8);
+  const visibleDatabases = packet.databases.slice(0, 6);
+
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            数据库工作台
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            把 dashboard、视图 readiness、模板行 readiness 和导入/导出
+            readiness 合成一个本地行动包。它只读 schema、view metadata、模板
+            metadata 和 row count，不读取 row values、页面正文或表格单元格。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={exporting}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {exporting ? "导出中..." : "导出工作台包"}
+        </button>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <Metric label="行动" value={packet.summary.actions} />
+        <Metric label="高优先" value={packet.summary.high_priority_actions} />
+        <Metric
+          label="需确认"
+          value={packet.summary.manual_confirmation_actions}
+        />
+        <Metric
+          label="Relation"
+          value={packet.summary.relation_schema_actions}
+        />
+        <Metric
+          label="模板行"
+          value={packet.summary.template_intake_actions}
+        />
+        <Metric label="视图" value={packet.summary.view_design_actions} />
+        <Metric
+          label="导入导出"
+          value={packet.summary.import_export_actions}
+        />
+        <Metric label="空表" value={packet.summary.empty_databases} />
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            工作台路线
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            {packet.lanes.map((lane) => (
+              <DatabaseWorkbenchLaneCard
+                key={lane.id}
+                lane={lane}
+                onOpen={() => onOpenRoute(lane.route)}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            优先行动
+          </div>
+          {topActions.length > 0 ? (
+            <div className="grid gap-2 md:grid-cols-2">
+              {topActions.map((action) => (
+                <DatabaseWorkbenchActionCard
+                  key={action.id}
+                  action={action}
+                  onOpen={() => onOpenRoute(action.action_route)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+              当前没有紧急数据库行动。可以继续人工复核 tracker 角色、视图和 relation
+              结构。
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            Tracker 对齐
+          </div>
+          {visibleDatabases.length > 0 ? (
+            <div className="grid gap-2 md:grid-cols-2">
+              {visibleDatabases.map((database) => (
+                <DatabaseWorkbenchDatabaseCard
+                  key={database.database_id}
+                  database={database}
+                  onOpen={() => onOpenRoute(database.open_route)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+              还没有数据库。先创建本地 tracker，工作台会自动生成 relation、模板行、
+              视图和导入导出建议。
+            </p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            建议顺序
+          </div>
+          {packet.review_sequence.map((step) => (
+            <DatabaseWorkbenchStepRow
+              key={step.id}
+              step={step}
+              onOpen={() => onOpenRoute(step.route)}
+            />
+          ))}
+          <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+            禁止动作：不从模块页读取 row values、不导出值、不批量导入、不自动建
+            row 或字段、不连接云数据库、不上传数据、不启用 AI。
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DatabaseWorkbenchLaneCard({
+  lane,
+  onOpen,
+}: {
+  lane: DatabaseWorkbenchPacket["lanes"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {lane.title}
+          </h3>
+          <p className="mt-1 text-zinc-400">
+            {lane.action_count} actions · {lane.high_priority_count} high
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开
+        </button>
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {lane.description}
+      </p>
+      {lane.manual_confirmation_count > 0 && (
+        <p className="mt-2 rounded bg-amber-50 px-2 py-1 leading-5 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          {lane.manual_confirmation_count} 个动作需要手动确认。
+        </p>
+      )}
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {lane.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function DatabaseWorkbenchActionCard({
+  action,
+  onOpen,
+}: {
+  action: DatabaseWorkbenchPacket["actions"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {action.title}
+          </h3>
+          <p className="mt-1 text-zinc-400">{action.evidence}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          {action.route_label}
+        </button>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        <DatabaseWorkbenchPriorityPill priority={action.priority} />
+        <DatabaseWorkbenchStatusPill status={action.status} />
+        {action.requires_manual_confirmation && <Chip label="需手动确认" />}
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {action.next_action}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400">{action.privacy_boundary}</p>
+    </article>
+  );
+}
+
+function DatabaseWorkbenchDatabaseCard({
+  database,
+  onOpen,
+}: {
+  database: DatabaseWorkbenchPacket["databases"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {database.title}
+          </h3>
+          <p className="mt-1 text-zinc-400">
+            {database.role_label} · score {database.readiness_score}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开
+        </button>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        <Chip label={`${database.field_count} fields`} />
+        <Chip label={`${database.row_count} rows`} />
+        <Chip label={`${database.view_count} views`} />
+        <Chip label={`${database.relation_fields} relation`} />
+        {database.template_row_status && (
+          <Chip label={`模板 ${database.template_row_status}`} />
+        )}
+        {database.recommended_next_view && (
+          <Chip
+            label={`下一视图 ${getDatabaseViewTypeLabel(
+              database.recommended_next_view
+            )}`}
+          />
+        )}
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {database.next_action}
+      </p>
+    </article>
+  );
+}
+
+function DatabaseWorkbenchStepRow({
+  step,
+  onOpen,
+}: {
+  step: DatabaseWorkbenchPacket["review_sequence"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {step.order}. {step.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {step.reason}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开
+        </button>
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        完成信号：{step.completion_signal}
+      </p>
+    </article>
+  );
+}
+
+function DatabaseWorkbenchPriorityPill({
+  priority,
+}: {
+  priority: DatabaseWorkbenchPriority;
+}) {
+  const labels: Record<DatabaseWorkbenchPriority, string> = {
+    high: "High",
+    medium: "Medium",
+    low: "Low",
+  };
+  const className =
+    priority === "high"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : priority === "medium"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] ${className}`}>
+      {labels[priority]}
+    </span>
+  );
+}
+
+function DatabaseWorkbenchStatusPill({
+  status,
+}: {
+  status: DatabaseWorkbenchActionStatus;
+}) {
+  const labels: Record<DatabaseWorkbenchActionStatus, string> = {
+    "ready-to-use": "可开始",
+    "ready-to-add": "可添加",
+    "needs-schema": "需补 schema",
+    "manual-confirmation": "需确认",
+    "needs-tracker": "需建 tracker",
+    "review-only": "复核",
+  };
+  const className =
+    status === "needs-schema" || status === "needs-tracker"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : status === "review-only"
+          ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+          : "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

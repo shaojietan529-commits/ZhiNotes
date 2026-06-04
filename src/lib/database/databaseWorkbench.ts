@@ -1,0 +1,794 @@
+import type {
+  DatabaseImportExportReadinessReport,
+  DatabaseImportExportStatus,
+} from "@/lib/database/databaseImportExportReadiness";
+import type {
+  DatabaseModuleDashboardReport,
+  DatabaseModuleItem,
+} from "@/lib/database/databaseModuleDashboard";
+import { getDatabaseViewTypeLabel } from "@/lib/database/display";
+import type { DatabaseTemplateCatalogGroupId } from "@/lib/database/databaseTemplateCatalog";
+import type {
+  DatabaseTemplateRowReadinessDatabase,
+  DatabaseTemplateRowReadinessReport,
+  DatabaseTemplateRowReadinessStatus,
+} from "@/lib/database/databaseTemplateRowReadiness";
+import type {
+  DatabaseViewReadinessDatabase,
+  DatabaseViewReadinessReport,
+} from "@/lib/database/databaseViewReadiness";
+import type { DatabaseView } from "@/lib/utils/types";
+
+export type DatabaseWorkbenchLaneId =
+  | "tracker-fit"
+  | "relation-setup"
+  | "template-intake"
+  | "view-design"
+  | "import-export"
+  | "manual-review";
+
+export type DatabaseWorkbenchActionStatus =
+  | "ready-to-use"
+  | "ready-to-add"
+  | "needs-schema"
+  | "manual-confirmation"
+  | "needs-tracker"
+  | "review-only";
+
+export type DatabaseWorkbenchPriority = "high" | "medium" | "low";
+
+export interface DatabaseWorkbenchLane {
+  id: DatabaseWorkbenchLaneId;
+  title: string;
+  description: string;
+  route: string;
+  action_count: number;
+  high_priority_count: number;
+  manual_confirmation_count: number;
+  privacy_boundary: string;
+}
+
+export interface DatabaseWorkbenchDatabase {
+  database_id: string;
+  title: string;
+  role_id: DatabaseTemplateCatalogGroupId | "general";
+  role_label: string;
+  row_count: number;
+  field_count: number;
+  view_count: number;
+  relation_fields: number;
+  configured_view_types: DatabaseView["view_type"][];
+  recommended_template_group_id: DatabaseTemplateCatalogGroupId | null;
+  recommended_template_group_label: string | null;
+  template_row_status: DatabaseTemplateRowReadinessStatus | null;
+  recommended_next_view: DatabaseView["view_type"] | null;
+  export_status: DatabaseImportExportStatus | null;
+  import_status: DatabaseImportExportStatus | null;
+  readiness_score: number;
+  next_action: string;
+  open_route: string;
+  writes_workspace_data: false;
+  privacy_boundary: string;
+}
+
+export interface DatabaseWorkbenchAction {
+  id: string;
+  lane_id: DatabaseWorkbenchLaneId;
+  database_id: string | null;
+  title: string;
+  priority: DatabaseWorkbenchPriority;
+  status: DatabaseWorkbenchActionStatus;
+  evidence: string;
+  next_action: string;
+  action_route: string;
+  route_label: string;
+  requires_manual_confirmation: boolean;
+  writes_workspace_data: false;
+  privacy_boundary: string;
+}
+
+export interface DatabaseWorkbenchReviewStep {
+  id: string;
+  order: number;
+  title: string;
+  route: string;
+  reason: string;
+  completion_signal: string;
+}
+
+export interface DatabaseWorkbenchPacket {
+  format: "zhinote-database-workbench-packet";
+  format_version: 1;
+  packet_status: "local-database-workbench-only";
+  workbench_verdict: "ready-for-local-research-database-review";
+  privacy_note: string;
+  boundary: {
+    local_packet_only: true;
+    reads_database_dashboard: true;
+    reads_view_readiness: true;
+    reads_template_row_readiness: true;
+    reads_import_export_readiness: true;
+    reads_database_schema: true;
+    reads_database_views: true;
+    reads_database_row_count: true;
+    reads_database_rows: false;
+    reads_database_row_values: false;
+    reads_page_text: false;
+    includes_database_field_names: false;
+    includes_database_row_values: false;
+    includes_page_text: false;
+    writes_workspace_data: false;
+    creates_database_rows: false;
+    creates_schema_fields: false;
+    exports_row_values: false;
+    imports_file_values: false;
+    connects_cloud_services: false;
+    uploads_data: false;
+    enables_ai: false;
+  };
+  summary: {
+    databases: number;
+    lanes: number;
+    actions: number;
+    high_priority_actions: number;
+    manual_confirmation_actions: number;
+    relation_schema_actions: number;
+    template_intake_actions: number;
+    view_design_actions: number;
+    import_export_actions: number;
+    empty_databases: number;
+    relation_ready_databases: number;
+    template_ready_databases: number;
+    view_ready_databases: number;
+    import_ready_databases: number;
+  };
+  lanes: DatabaseWorkbenchLane[];
+  databases: DatabaseWorkbenchDatabase[];
+  actions: DatabaseWorkbenchAction[];
+  review_sequence: DatabaseWorkbenchReviewStep[];
+  forbidden_actions: string[];
+  required_verification_commands: string[];
+}
+
+const LANE_META: Record<
+  DatabaseWorkbenchLaneId,
+  Omit<
+    DatabaseWorkbenchLane,
+    "action_count" | "high_priority_count" | "manual_confirmation_count"
+  >
+> = {
+  "tracker-fit": {
+    id: "tracker-fit",
+    title: "Tracker 定位",
+    description: "判断哪些本地数据库适合做公司、报告、会议或组合 tracker。",
+    route: "/modules/databases",
+    privacy_boundary:
+      "只使用数据库标题、描述、schema、view metadata 和 row count，不读取 row values。",
+  },
+  "relation-setup": {
+    id: "relation-setup",
+    title: "Relation 结构",
+    description: "先补公司、报告、会议、组合之间的关系字段，再补具体关系值。",
+    route: "/modules/research-graph",
+    privacy_boundary:
+      "只提示 relation schema 缺口，不自动创建字段、不写入 relation values。",
+  },
+  "template-intake": {
+    id: "template-intake",
+    title: "模板行入库",
+    description: "检查模板行能否安全创建首批结构化投研 rows。",
+    route: "/modules/databases",
+    privacy_boundary:
+      "只读取模板 metadata 和 schema；模板行写入必须在具体数据库页由用户触发。",
+  },
+  "view-design": {
+    id: "view-design",
+    title: "视图设计",
+    description: "把看板、日历、时间线、图表、表单和动态流对齐到字段结构。",
+    route: "/modules/databases",
+    privacy_boundary:
+      "只读取 view metadata 和字段类型，不读取筛选后的 row values 或页面正文。",
+  },
+  "import-export": {
+    id: "import-export",
+    title: "导入导出闸门",
+    description: "把 CSV/XLSX 值导出和 Excel/CSV/ODS 追加导入留在手动确认路径里。",
+    route: "/modules/databases",
+    privacy_boundary:
+      "模块页不导出 row values、不读取 spreadsheet values；真实导入导出只能在具体数据库页确认。",
+  },
+  "manual-review": {
+    id: "manual-review",
+    title: "人工复核",
+    description: "保留需要用户判断的 schema、模板、视图和安全边界事项。",
+    route: "/modules/databases",
+    privacy_boundary:
+      "只形成本地 review 队列，不连接云服务、不调用 AI、不上传工作区数据。",
+  },
+};
+
+const FORBIDDEN_ACTIONS = [
+  "read_database_row_values_from_module_center",
+  "export_row_values_from_database_workbench",
+  "bulk_import_spreadsheet_without_typed_confirmation",
+  "auto_create_database_rows_from_packet",
+  "auto_create_schema_fields_from_packet",
+  "auto_write_relation_values",
+  "read_page_text_for_database_routing",
+  "send_database_values_to_ai",
+  "connect_cloud_database",
+  "upload_workspace_data",
+];
+
+export function buildDatabaseWorkbenchPacket(input: {
+  dashboard: DatabaseModuleDashboardReport;
+  viewReadiness: DatabaseViewReadinessReport;
+  templateRowReadiness: DatabaseTemplateRowReadinessReport;
+  importExportReadiness: DatabaseImportExportReadinessReport;
+}): DatabaseWorkbenchPacket {
+  const databases = buildWorkbenchDatabases(input).sort(sortDatabases);
+  const actions = buildWorkbenchActions(input, databases).sort(sortActions);
+  const lanes = buildLanes(actions);
+
+  return {
+    format: "zhinote-database-workbench-packet",
+    format_version: 1,
+    packet_status: "local-database-workbench-only",
+    workbench_verdict: "ready-for-local-research-database-review",
+    privacy_note:
+      "Generated locally from the database module dashboard, view readiness, template-row readiness, and import/export readiness. This packet turns database metadata into a local research-database workbench queue. It does not read database rows, row values, page text, file bytes, spreadsheet values, prompts, tokens, credentials, cloud data, holdings, or trading plans; it does not write workspace data, create rows or fields, export row values, import file values, upload data, connect cloud services, or enable AI.",
+    boundary: {
+      local_packet_only: true,
+      reads_database_dashboard: true,
+      reads_view_readiness: true,
+      reads_template_row_readiness: true,
+      reads_import_export_readiness: true,
+      reads_database_schema: true,
+      reads_database_views: true,
+      reads_database_row_count: true,
+      reads_database_rows: false,
+      reads_database_row_values: false,
+      reads_page_text: false,
+      includes_database_field_names: false,
+      includes_database_row_values: false,
+      includes_page_text: false,
+      writes_workspace_data: false,
+      creates_database_rows: false,
+      creates_schema_fields: false,
+      exports_row_values: false,
+      imports_file_values: false,
+      connects_cloud_services: false,
+      uploads_data: false,
+      enables_ai: false,
+    },
+    summary: {
+      databases: databases.length,
+      lanes: lanes.length,
+      actions: actions.length,
+      high_priority_actions: actions.filter((action) => action.priority === "high")
+        .length,
+      manual_confirmation_actions: actions.filter(
+        (action) => action.requires_manual_confirmation
+      ).length,
+      relation_schema_actions: actions.filter(
+        (action) => action.lane_id === "relation-setup"
+      ).length,
+      template_intake_actions: actions.filter(
+        (action) => action.lane_id === "template-intake"
+      ).length,
+      view_design_actions: actions.filter(
+        (action) => action.lane_id === "view-design"
+      ).length,
+      import_export_actions: actions.filter(
+        (action) => action.lane_id === "import-export"
+      ).length,
+      empty_databases: databases.filter((database) => database.row_count === 0)
+        .length,
+      relation_ready_databases: databases.filter(
+        (database) => database.relation_fields > 0
+      ).length,
+      template_ready_databases: databases.filter(
+        (database) => database.template_row_status === "ready"
+      ).length,
+      view_ready_databases: databases.filter((database) =>
+        Boolean(database.recommended_next_view)
+      ).length,
+      import_ready_databases: databases.filter(
+        (database) => database.import_status === "manual-confirmation"
+      ).length,
+    },
+    lanes,
+    databases,
+    actions,
+    review_sequence: buildReviewSequence(databases, actions),
+    forbidden_actions: FORBIDDEN_ACTIONS,
+    required_verification_commands: [
+      "npm run verify:database",
+      "npm run lint",
+      "npm run build",
+    ],
+  };
+}
+
+function buildWorkbenchDatabases(input: {
+  dashboard: DatabaseModuleDashboardReport;
+  viewReadiness: DatabaseViewReadinessReport;
+  templateRowReadiness: DatabaseTemplateRowReadinessReport;
+  importExportReadiness: DatabaseImportExportReadinessReport;
+}): DatabaseWorkbenchDatabase[] {
+  return input.dashboard.databases.map((database) => {
+    const template = input.templateRowReadiness.databases.find(
+      (item) => item.database_id === database.database_id
+    );
+    const view = input.viewReadiness.databases.find(
+      (item) => item.database_id === database.database_id
+    );
+    const importExport = input.importExportReadiness.databases.find(
+      (item) => item.database_id === database.database_id
+    );
+    const roleId = template?.recommended_group_id ?? inferRoleId(database);
+
+    return {
+      database_id: database.database_id,
+      title: database.title,
+      role_id: roleId,
+      role_label: getRoleLabel(roleId, template),
+      row_count: database.row_count,
+      field_count: database.field_count,
+      view_count: database.view_count,
+      relation_fields: database.relation_fields,
+      configured_view_types: view?.configured_view_types ?? database.view_types,
+      recommended_template_group_id: template?.recommended_group_id ?? null,
+      recommended_template_group_label: template?.recommended_group_label ?? null,
+      template_row_status: template?.recommended_status ?? null,
+      recommended_next_view: view?.recommended_next_view ?? null,
+      export_status: importExport?.value_export_status ?? null,
+      import_status: importExport?.append_import_status ?? null,
+      readiness_score: scoreDatabase(database, template, view, importExport),
+      next_action: getDatabaseNextAction(database, template, view, importExport),
+      open_route: `/database/${database.database_id}`,
+      writes_workspace_data: false,
+      privacy_boundary:
+        "Workbench database rollup uses title, description-derived role, schema counts, view metadata, template readiness, import/export readiness, and row count only. It does not include field names, row values, page text, file bytes, holdings, trading plans, or cloud data.",
+    };
+  });
+}
+
+function buildWorkbenchActions(
+  input: {
+    dashboard: DatabaseModuleDashboardReport;
+    viewReadiness: DatabaseViewReadinessReport;
+    templateRowReadiness: DatabaseTemplateRowReadinessReport;
+    importExportReadiness: DatabaseImportExportReadinessReport;
+  },
+  databases: DatabaseWorkbenchDatabase[]
+): DatabaseWorkbenchAction[] {
+  const actions: DatabaseWorkbenchAction[] = [];
+
+  if (databases.length === 0) {
+    actions.push({
+      id: "database-workbench:create-first-tracker",
+      lane_id: "tracker-fit",
+      database_id: null,
+      title: "创建第一个投研 tracker",
+      priority: "high",
+      status: "needs-tracker",
+      evidence: "当前本地工作区还没有数据库。",
+      next_action:
+        "从公司、报告、会议或组合 preset 里创建一个本地 tracker，再回到数据库工作台复核结构。",
+      action_route: "/modules/databases",
+      route_label: "打开数据库中心",
+      requires_manual_confirmation: true,
+      writes_workspace_data: false,
+      privacy_boundary:
+        "Only routes the user to the local database module. It does not create a database until the user clicks a starter.",
+    });
+    return actions;
+  }
+
+  for (const database of databases) {
+    if (database.relation_fields === 0) {
+      actions.push({
+        id: `database-workbench:relation:${database.database_id}`,
+        lane_id: "relation-setup",
+        database_id: database.database_id,
+        title: `${database.title} 缺少 relation 字段`,
+        priority: "high",
+        status: "needs-schema",
+        evidence: "这个数据库还不能把公司、报告、会议、memo 或组合互相连接。",
+        next_action:
+          "打开数据库，按需要新增 Company page、Related reports、Related meetings 或 Related memo relation 字段。",
+        action_route: database.open_route,
+        route_label: "打开数据库",
+        requires_manual_confirmation: true,
+        writes_workspace_data: false,
+        privacy_boundary:
+          "This action opens the database page only. Creating a relation field remains a manual local schema edit.",
+      });
+    }
+
+    if (database.row_count === 0) {
+      actions.push({
+        id: `database-workbench:first-row:${database.database_id}`,
+        lane_id: "template-intake",
+        database_id: database.database_id,
+        title: `${database.title} 需要首批模板行`,
+        priority: "high",
+        status: "ready-to-use",
+        evidence: "这个 tracker 目前还是空表。",
+        next_action:
+          "打开数据库页，用「+ 模板行」创建第一批公司、报告、会议或组合 row；敏感投资字段仍手动填写。",
+        action_route: database.open_route,
+        route_label: "打开数据库",
+        requires_manual_confirmation: true,
+        writes_workspace_data: false,
+        privacy_boundary:
+          "Template-row creation writes local rows only after the user clicks in the database page. The workbench packet contains no row values.",
+      });
+    }
+
+    if (database.template_row_status === "needs-schema") {
+      actions.push({
+        id: `database-workbench:template-schema:${database.database_id}`,
+        lane_id: "template-intake",
+        database_id: database.database_id,
+        title: `${database.title} 模板行需要补 schema`,
+        priority: "medium",
+        status: "needs-schema",
+        evidence: database.recommended_template_group_label
+          ? `推荐方向是 ${database.recommended_template_group_label}，但必需字段组还不完整。`
+          : "模板行 readiness 认为这个数据库需要先补字段。",
+        next_action:
+          "先补状态、日期、格式或 relation 等结构字段，再使用模板行写入本地 rows。",
+        action_route: database.open_route,
+        route_label: "打开数据库",
+        requires_manual_confirmation: true,
+        writes_workspace_data: false,
+        privacy_boundary:
+          "This action only points to schema work. It does not inspect field names in the exported packet or create fields automatically.",
+      });
+    } else if (database.template_row_status === "partial") {
+      actions.push({
+        id: `database-workbench:template-partial:${database.database_id}`,
+        lane_id: "template-intake",
+        database_id: database.database_id,
+        title: `${database.title} 模板行部分就绪`,
+        priority: "low",
+        status: "ready-to-use",
+        evidence: database.recommended_template_group_label
+          ? `${database.recommended_template_group_label} 模板可以开始用，但还有字段可补。`
+          : "模板行可以开始使用，但部分推荐字段还未覆盖。",
+        next_action:
+          "可以先创建模板行，再逐步补齐推荐字段；方向性投资信息仍保持人工填写。",
+        action_route: database.open_route,
+        route_label: "打开数据库",
+        requires_manual_confirmation: true,
+        writes_workspace_data: false,
+        privacy_boundary:
+          "Template-row usage stays in the database page and writes local rows only after manual user action.",
+      });
+    }
+
+    if (database.recommended_next_view) {
+      actions.push({
+        id: `database-workbench:view:${database.database_id}:${database.recommended_next_view}`,
+        lane_id: "view-design",
+        database_id: database.database_id,
+        title: `${database.title} 可添加 ${getDatabaseViewTypeLabel(
+          database.recommended_next_view
+        )} 视图`,
+        priority: "medium",
+        status: "ready-to-add",
+        evidence:
+          "视图 readiness 显示这个数据库已有适合下一种工作流视图的字段结构。",
+        next_action:
+          "打开数据库页添加推荐视图，并保存常用筛选、排序和隐藏字段配置。",
+        action_route: database.open_route,
+        route_label: "打开数据库",
+        requires_manual_confirmation: true,
+        writes_workspace_data: false,
+        privacy_boundary:
+          "The workbench recommends the view only. Adding a view is a manual local metadata write in the database page.",
+      });
+    }
+
+    if (
+      database.import_status === "manual-confirmation" ||
+      database.export_status === "manual-confirmation"
+    ) {
+      actions.push({
+        id: `database-workbench:import-export:${database.database_id}`,
+        lane_id: "import-export",
+        database_id: database.database_id,
+        title: `${database.title} 导入/导出需要手动闸门`,
+        priority: database.row_count > 0 ? "medium" : "low",
+        status: "manual-confirmation",
+        evidence:
+          database.row_count > 0
+            ? "这个数据库的 CSV/XLSX 导出会包含当前可见 row values。"
+            : "这个数据库可以追加导入表格，但批量写入必须输入确认短语。",
+        next_action:
+          "只在具体数据库页执行 CSV/XLSX 导出或 Excel/CSV/ODS 追加导入，并先确认可见行、隐藏字段和确认短语。",
+        action_route: database.open_route,
+        route_label: "打开数据库",
+        requires_manual_confirmation: true,
+        writes_workspace_data: false,
+        privacy_boundary:
+          "Module workbench never exports values or reads spreadsheet values. Real import/export remains behind manual confirmation in the database page.",
+      });
+    }
+  }
+
+  const missingViewTypes = input.dashboard.view_coverage.filter(
+    (item) => item.status === "missing"
+  );
+  if (missingViewTypes.length > 0) {
+    actions.push({
+      id: "database-workbench:missing-view-coverage",
+      lane_id: "manual-review",
+      database_id: null,
+      title: "补齐尚未覆盖的数据库视图类型",
+      priority: "low",
+      status: "review-only",
+      evidence: `尚未覆盖：${missingViewTypes
+        .map((item) => item.label)
+        .join("、")}。`,
+      next_action:
+        "先确认这些视图是否对投研工作流有用，再在合适的 tracker 中手动添加。",
+      action_route: "/modules/databases",
+      route_label: "查看数据库中心",
+      requires_manual_confirmation: false,
+      writes_workspace_data: false,
+      privacy_boundary:
+        "View coverage uses metadata counts only and does not read rows, values, or page text.",
+    });
+  }
+
+  return actions;
+}
+
+function buildLanes(actions: DatabaseWorkbenchAction[]): DatabaseWorkbenchLane[] {
+  return (Object.keys(LANE_META) as DatabaseWorkbenchLaneId[]).map((id) => {
+    const laneActions = actions.filter((action) => action.lane_id === id);
+    return {
+      ...LANE_META[id],
+      action_count: laneActions.length,
+      high_priority_count: laneActions.filter(
+        (action) => action.priority === "high"
+      ).length,
+      manual_confirmation_count: laneActions.filter(
+        (action) => action.requires_manual_confirmation
+      ).length,
+    };
+  });
+}
+
+function buildReviewSequence(
+  databases: DatabaseWorkbenchDatabase[],
+  actions: DatabaseWorkbenchAction[]
+): DatabaseWorkbenchReviewStep[] {
+  if (databases.length === 0) {
+    return [
+      reviewStep(
+        "create-first-tracker",
+        1,
+        "创建第一个投研 tracker",
+        "/modules/databases",
+        "没有数据库时，后续 relation、模板行、导入导出都没有承载容器。",
+        "至少创建一个公司、报告、会议或组合 tracker。"
+      ),
+    ];
+  }
+
+  const steps: DatabaseWorkbenchReviewStep[] = [];
+
+  if (actions.some((action) => action.lane_id === "relation-setup")) {
+    steps.push(
+      reviewStep(
+        "relation-first",
+        steps.length + 1,
+        "先补 relation 字段",
+        "/modules/research-graph",
+        "投研平台的核心是把公司、报告、会议、memo 和组合连接起来。",
+        "关键 tracker 至少有一个 relation 字段。"
+      )
+    );
+  }
+
+  if (actions.some((action) => action.lane_id === "template-intake")) {
+    steps.push(
+      reviewStep(
+        "template-rows",
+        steps.length + 1,
+        "用模板行建立首批结构",
+        "/modules/databases",
+        "模板行能让投研资产用一致结构进入数据库，后面更容易搜索、关联和复盘。",
+        "空 tracker 至少有一批本地模板 rows，敏感投资字段保持人工填写。"
+      )
+    );
+  }
+
+  if (actions.some((action) => action.lane_id === "view-design")) {
+    steps.push(
+      reviewStep(
+        "view-design",
+        steps.length + 1,
+        "补常用视图",
+        "/modules/databases",
+        "不同投研动作需要不同视角：看板看状态，日历看催化剂，时间线看事件，图表看分布。",
+        "核心 tracker 保存了适合自己字段结构的视图。"
+      )
+    );
+  }
+
+  if (actions.some((action) => action.lane_id === "import-export")) {
+    steps.push(
+      reviewStep(
+        "import-export-gates",
+        steps.length + 1,
+        "最后处理导入导出",
+        "/modules/databases",
+        "导入导出会碰到真实 row values 或 spreadsheet values，应该放在结构复核之后。",
+        "只在具体数据库页手动执行导入或导出，并留下本地 receipt。"
+      )
+    );
+  }
+
+  if (steps.length === 0) {
+    steps.push(
+      reviewStep(
+        "manual-review",
+        1,
+        "人工复核数据库工作流",
+        "/modules/databases",
+        "当前没有紧急缺口，可以继续按投研流程检查 tracker 是否符合真实使用方式。",
+        "确认每个 tracker 的角色、视图、模板行和导入导出路径都清楚。"
+      )
+    );
+  }
+
+  return steps;
+}
+
+function reviewStep(
+  id: string,
+  order: number,
+  title: string,
+  route: string,
+  reason: string,
+  completionSignal: string
+): DatabaseWorkbenchReviewStep {
+  return {
+    id,
+    order,
+    title,
+    route,
+    reason,
+    completion_signal: completionSignal,
+  };
+}
+
+function scoreDatabase(
+  database: DatabaseModuleItem,
+  template: DatabaseTemplateRowReadinessDatabase | undefined,
+  view: DatabaseViewReadinessDatabase | undefined,
+  importExport:
+    | DatabaseImportExportReadinessReport["databases"][number]
+    | undefined
+): number {
+  let score = 0;
+  if (database.relation_fields > 0) score += 25;
+  if (database.row_count > 0) score += 20;
+  if (template?.recommended_status === "ready") score += 20;
+  if (template?.recommended_status === "partial") score += 10;
+  if (view?.configured_view_types.length) score += 15;
+  if (view?.ready_to_add_view_types.length) score += 10;
+  if (importExport?.append_import_status === "manual-confirmation") score += 5;
+  return score;
+}
+
+function getDatabaseNextAction(
+  database: DatabaseModuleItem,
+  template: DatabaseTemplateRowReadinessDatabase | undefined,
+  view: DatabaseViewReadinessDatabase | undefined,
+  importExport:
+    | DatabaseImportExportReadinessReport["databases"][number]
+    | undefined
+): string {
+  if (database.relation_fields === 0) {
+    return "先补 relation 字段，让这个 tracker 能连接公司、报告、会议、memo 或组合。";
+  }
+  if (template?.recommended_status === "needs-schema") {
+    return template.next_action;
+  }
+  if (database.row_count === 0) {
+    return "先用模板行创建首批本地 rows，再补人工字段。";
+  }
+  if (view?.recommended_next_view) {
+    return `下一步可添加 ${getDatabaseViewTypeLabel(
+      view.recommended_next_view
+    )} 视图。`;
+  }
+  if (importExport?.append_import_status === "manual-confirmation") {
+    return "可在具体数据库页追加导入 Excel/CSV/ODS；批量写入前必须输入确认短语。";
+  }
+  return database.next_action;
+}
+
+function inferRoleId(
+  database: DatabaseModuleItem
+): DatabaseTemplateCatalogGroupId | "general" {
+  const searchable = `${database.title} ${database.description}`.toLowerCase();
+  if (searchable.includes("公司") || searchable.includes("company")) {
+    return "company";
+  }
+  if (searchable.includes("报告") || searchable.includes("report")) {
+    return "report";
+  }
+  if (
+    searchable.includes("会议") ||
+    searchable.includes("meeting") ||
+    searchable.includes("call")
+  ) {
+    return "meeting";
+  }
+  if (
+    searchable.includes("组合") ||
+    searchable.includes("portfolio") ||
+    searchable.includes("watchlist")
+  ) {
+    return "portfolio";
+  }
+  return "general";
+}
+
+function getRoleLabel(
+  roleId: DatabaseTemplateCatalogGroupId | "general",
+  template: DatabaseTemplateRowReadinessDatabase | undefined
+): string {
+  if (template?.recommended_group_label) return template.recommended_group_label;
+  const labels: Record<DatabaseTemplateCatalogGroupId | "general", string> = {
+    company: "公司研究",
+    report: "报告库",
+    meeting: "会议与电话会",
+    portfolio: "组合与观察名单",
+    general: "通用投研数据库",
+  };
+  return labels[roleId];
+}
+
+function sortDatabases(
+  left: DatabaseWorkbenchDatabase,
+  right: DatabaseWorkbenchDatabase
+) {
+  if (left.readiness_score !== right.readiness_score) {
+    return left.readiness_score - right.readiness_score;
+  }
+  return left.title.localeCompare(right.title, "zh-CN");
+}
+
+function sortActions(
+  left: DatabaseWorkbenchAction,
+  right: DatabaseWorkbenchAction
+) {
+  const priorityRank: Record<DatabaseWorkbenchPriority, number> = {
+    high: 0,
+    medium: 1,
+    low: 2,
+  };
+  const laneRank: Record<DatabaseWorkbenchLaneId, number> = {
+    "tracker-fit": 0,
+    "relation-setup": 1,
+    "template-intake": 2,
+    "view-design": 3,
+    "import-export": 4,
+    "manual-review": 5,
+  };
+  if (priorityRank[left.priority] !== priorityRank[right.priority]) {
+    return priorityRank[left.priority] - priorityRank[right.priority];
+  }
+  if (laneRank[left.lane_id] !== laneRank[right.lane_id]) {
+    return laneRank[left.lane_id] - laneRank[right.lane_id];
+  }
+  return left.title.localeCompare(right.title, "zh-CN");
+}
