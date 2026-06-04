@@ -806,6 +806,12 @@ Current local actions:
   they do not upload local pages, files, databases, backups, or sync queue rows.
 - Inspect local counts for active pages, trash pages, databases, uploaded files,
   and pending sync log rows.
+- Review and export a local Web launch workbench packet. The packet combines
+  Web Beta stage gates, next actions, owner review, launch checklist, route
+  preflight, environment presence, deployment target, and sync opt-in metadata
+  into launch lanes, P0 actions, and an enablement sequence. It keeps the
+  verdict at local app can continue, Web Beta cannot launch, and cloud sync
+  cannot start.
 - Track core local changes in `sync_log`, including pages, wiki links, page
   comments, block comments, databases, database fields, database rows, database
   views, and page versions.
@@ -1021,6 +1027,15 @@ Current local actions:
   before approval. It does not launch Web Beta, deploy, connect cloud services,
   upload workspace data, enable sync, enable AI, read page bodies, read database
   row values, read file names, read file bytes, or expose secrets.
+- Review and export a local Web launch workbench packet. The packet is the
+  Sync/Web Beta control layer: it merges stage gates, next actions, owner review,
+  launch checklist, route preflight, environment presence, deployment target,
+  and sync opt-in into lanes, P0 actions, and launch sequence steps. It keeps
+  the verdict at local app can continue, Web Beta cannot launch, and cloud sync
+  cannot start; it does not deploy, connect cloud services, create accounts,
+  upload workspace data, enable sync, enable AI, read page bodies, read database
+  row values, read file names, read file bytes, expose secrets, or export
+  holdings/trading plans.
 - Run `npm run verify:web-alpha` to execute the local Web Alpha verification
   command bundle and print a receipt. The receipt runs lint, Web Beta contract
   verification, smoke verification, replay harness safety verification, and a

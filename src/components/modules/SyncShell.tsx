@@ -143,6 +143,10 @@ import {
   type WebBetaNextActionStatus,
 } from "@/lib/sync/webBetaNextActions";
 import {
+  buildWebLaunchWorkbenchPacket,
+  type WebLaunchWorkbenchPacket,
+} from "@/lib/sync/webLaunchWorkbench";
+import {
   buildWebBetaOwnerReviewPacket,
   type WebBetaOwnerReviewPacket,
   type WebBetaOwnerReviewStatus,
@@ -329,6 +333,7 @@ type WebBetaContractAction =
   | "stage-gate"
   | "deployment-target"
   | "smoke-test-plan"
+  | "web-launch-workbench"
   | "web-alpha-handoff"
   | "web-alpha-launch-decision"
   | "web-beta-owner-review"
@@ -1219,6 +1224,29 @@ function SyncDashboard() {
       environmentPreflight,
       webBetaNextActionPlan,
       webBetaSmokeTestPlan,
+      webBetaStageGate,
+    ]
+  );
+  const webLaunchWorkbenchPacket = useMemo(
+    () =>
+      buildWebLaunchWorkbenchPacket({
+        stageGate: webBetaStageGate,
+        nextActionPlan: webBetaNextActionPlan,
+        ownerReviewPacket: webBetaOwnerReviewPacket,
+        launchChecklist: webBetaLaunchChecklist,
+        routePreflight: webBetaRoutePreflight,
+        environmentPreflight,
+        deploymentTarget: webBetaDeploymentTarget,
+        syncOptInGate,
+      }),
+    [
+      environmentPreflight,
+      syncOptInGate,
+      webBetaDeploymentTarget,
+      webBetaLaunchChecklist,
+      webBetaNextActionPlan,
+      webBetaOwnerReviewPacket,
+      webBetaRoutePreflight,
       webBetaStageGate,
     ]
   );
@@ -2477,6 +2505,29 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportWebLaunchWorkbench = () => {
+    setBusyContractAction("web-launch-workbench");
+    try {
+      downloadJsonFile(
+        `zhinote-web-launch-workbench-${fileSafeTimestamp()}.json`,
+        {
+          ...webLaunchWorkbenchPacket,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export web launch workbench packet:",
+        err
+      );
+      window.alert(
+        "Web launch workbench export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
   const handleExportCloudSchemaMigrationPlan = () => {
     setBusyContractAction("cloud-schema-plan");
     try {
@@ -2806,6 +2857,134 @@ function SyncDashboard() {
               detail={metric.detail}
             />
           ))}
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Web 上线工作台总控
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把 Web Beta 阶段门禁、next actions、owner review、launch checklist、
+                route preflight、环境检查、部署目标和 sync opt-in 合并成一个本地上线
+                action packet。当前结论：本地可继续，Web Beta 和 cloud sync 仍不可启动。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportWebLaunchWorkbench}
+              disabled={busyContractAction === "web-launch-workbench"}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {busyContractAction === "web-launch-workbench"
+                ? "Exporting..."
+                : "导出 Web 上线工作台"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+            <BetaSummaryCard
+              label="Local"
+              value={webLaunchWorkbenchPacket.local_app_can_continue_now ? "Yes" : "No"}
+              detail="本地继续"
+              tone="ready"
+            />
+            <BetaSummaryCard
+              label="Web Beta"
+              value={webLaunchWorkbenchPacket.web_beta_can_launch_now ? "Ready" : "No"}
+              detail="仍不可上线"
+              tone="blocked"
+            />
+            <BetaSummaryCard
+              label="Cloud sync"
+              value={webLaunchWorkbenchPacket.cloud_sync_can_start_now ? "Ready" : "No"}
+              detail="上传关闭"
+              tone="blocked"
+            />
+            <BetaSummaryCard
+              label="P0 actions"
+              value={webLaunchWorkbenchPacket.summary.p0_actions}
+              detail="优先处理"
+              tone={
+                webLaunchWorkbenchPacket.summary.p0_actions > 0
+                  ? "blocked"
+                  : "ready"
+              }
+            />
+            <BetaSummaryCard
+              label="Blocked"
+              value={webLaunchWorkbenchPacket.summary.blocked_stages}
+              detail="阶段门禁"
+              tone={
+                webLaunchWorkbenchPacket.summary.blocked_stages > 0
+                  ? "blocked"
+                  : "ready"
+              }
+            />
+            <BetaSummaryCard
+              label="Local first"
+              value={webLaunchWorkbenchPacket.summary.local_first_actions}
+              detail="可本地先做"
+              tone="partial"
+            />
+            <BetaSummaryCard
+              label="Owner"
+              value={webLaunchWorkbenchPacket.summary.owner_decisions}
+              detail="待决策"
+              tone={
+                webLaunchWorkbenchPacket.summary.owner_decisions > 0
+                  ? "manual-confirmation"
+                  : "ready"
+              }
+            />
+            <BetaSummaryCard
+              label="Routes"
+              value={webLaunchWorkbenchPacket.summary.route_mismatch_or_missing}
+              detail="缺失/错配"
+              tone={
+                webLaunchWorkbenchPacket.summary.route_mismatch_or_missing > 0
+                  ? "blocked"
+                  : "ready"
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                上线 lanes
+              </div>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {webLaunchWorkbenchPacket.lanes.map((lane) => (
+                  <WebLaunchLaneCard key={lane.id} lane={lane} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                P0 / 优先动作
+              </div>
+              <div className="mt-2 space-y-2">
+                {webLaunchWorkbenchPacket.actions.slice(0, 8).map((action) => (
+                  <WebLaunchActionCard key={action.id} action={action} />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+            <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              上线顺序
+            </div>
+            <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {webLaunchWorkbenchPacket.launch_sequence.map((step) => (
+                <WebLaunchSequenceCard key={step.order} step={step} />
+              ))}
+            </div>
+          </div>
+          <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            导出 packet 不包含页面正文、数据库 row values、文件名、文件 bytes、
+            secret values、token、cookie、持仓或交易计划；也不会部署、连云、创建账号、
+            上传数据、启用同步或启用 AI。
+          </p>
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -7017,6 +7196,113 @@ function SyncOptInStatusPill({
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[status]}
     </span>
+  );
+}
+
+function WebLaunchLaneCard({
+  lane,
+}: {
+  lane: WebLaunchWorkbenchPacket["lanes"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {lane.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {lane.description}
+          </p>
+        </div>
+        <span className="shrink-0 rounded bg-white px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          {lane.action_count} actions
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          stages {lane.stage_count}
+        </span>
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          P0 {lane.p0_count}
+        </span>
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          blocked {lane.blocked_count}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {lane.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function WebLaunchActionCard({
+  action,
+}: {
+  action: WebLaunchWorkbenchPacket["actions"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <NextActionPriorityPill priority={action.priority} />
+            <NextActionOwnerPill owner={action.owner} />
+            <NextActionExecutionPathPill path={action.execution_path} />
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+              {action.title}
+            </span>
+          </div>
+          <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+            {action.evidence}
+          </p>
+        </div>
+        <NextActionStatusPill status={action.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {action.next_action}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+          {action.can_start_locally ? "可本地先做" : "需要云环境"}
+        </span>
+        <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+          {action.requires_owner_decision ? "owner 决策" : "工程任务"}
+        </span>
+        <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+          {action.cloud_dependency}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function WebLaunchSequenceCard({
+  step,
+}: {
+  step: WebLaunchWorkbenchPacket["launch_sequence"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] uppercase text-zinc-400">
+            Step {step.order}
+          </div>
+          <div className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
+            {step.title}
+          </div>
+        </div>
+        <BetaStatusPill status={step.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {step.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {step.completion_signal}
+      </p>
+    </article>
   );
 }
 

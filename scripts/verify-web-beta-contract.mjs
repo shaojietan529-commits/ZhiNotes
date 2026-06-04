@@ -52,6 +52,7 @@ const files = {
   webBetaReadiness: "src/lib/sync/webBetaReadiness.ts",
   webBetaStageGate: "src/lib/sync/webBetaStageGate.ts",
   webBetaNextActions: "src/lib/sync/webBetaNextActions.ts",
+  webLaunchWorkbench: "src/lib/sync/webLaunchWorkbench.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
 };
@@ -260,6 +261,7 @@ function run() {
   const webBetaReadiness = readProjectFile(files.webBetaReadiness);
   const webBetaStageGate = readProjectFile(files.webBetaStageGate);
   const webBetaNextActions = readProjectFile(files.webBetaNextActions);
+  const webLaunchWorkbench = readProjectFile(files.webLaunchWorkbench);
   const syncShell = readProjectFile(files.syncShell);
   const migration = readProjectFile(files.migration);
 
@@ -305,6 +307,7 @@ function run() {
     [files.webBetaReadiness, webBetaReadiness],
     [files.webBetaStageGate, webBetaStageGate],
     [files.webBetaNextActions, webBetaNextActions],
+    [files.webLaunchWorkbench, webLaunchWorkbench],
     [files.syncShell, syncShell],
   ]) {
     assertNoLegacySingularEnv(source, label);
@@ -2233,6 +2236,206 @@ function run() {
     [
       "summary.local_first",
       "Sync UI must summarize local-first next actions.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  assertSourceIncludes(
+    files.webLaunchWorkbench,
+    webLaunchWorkbench,
+    'format: "zhinote-web-launch-workbench-packet"',
+    "Web launch workbench must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.webLaunchWorkbench,
+    webLaunchWorkbench,
+    "buildWebLaunchWorkbenchPacket",
+    "Web launch workbench must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'packet_status: "local-web-launch-workbench-only"',
+      "Web launch workbench must remain local-only.",
+    ],
+    [
+      'launch_verdict: "not-ready"',
+      "Web launch workbench must not claim launch readiness.",
+    ],
+    [
+      "local_app_can_continue_now: true",
+      "Web launch workbench must preserve local app continuity.",
+    ],
+    [
+      "web_beta_can_launch_now: false",
+      "Web launch workbench must not allow Web Beta launch.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Web launch workbench must not allow cloud sync.",
+    ],
+    [
+      "reads_stage_gate_metadata: true",
+      "Web launch workbench must read stage-gate metadata.",
+    ],
+    [
+      "reads_next_action_plan: true",
+      "Web launch workbench must read next-action metadata.",
+    ],
+    [
+      "reads_owner_review_packet: true",
+      "Web launch workbench must read owner-review metadata.",
+    ],
+    [
+      "reads_route_preflight_summary: true",
+      "Web launch workbench must read route preflight summary.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Web launch workbench must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Web launch workbench must not read database row values.",
+    ],
+    [
+      "reads_file_names: false",
+      "Web launch workbench must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Web launch workbench must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Web launch workbench must not read secret values.",
+    ],
+    [
+      "reads_tokens_or_cookies: false",
+      "Web launch workbench must not read tokens or cookies.",
+    ],
+    [
+      "reads_holdings_or_trading_plans: false",
+      "Web launch workbench must not read holdings or trading plans.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Web launch workbench must not connect cloud services.",
+    ],
+    [
+      "creates_accounts: false",
+      "Web launch workbench must not create accounts.",
+    ],
+    [
+      "deploys_app: false",
+      "Web launch workbench must not deploy the app.",
+    ],
+    [
+      "writes_workspace_data: false",
+      "Web launch workbench must not write workspace data.",
+    ],
+    [
+      "writes_server_data: false",
+      "Web launch workbench must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Web launch workbench must not upload workspace data.",
+    ],
+    [
+      "enables_sync: false",
+      "Web launch workbench must not enable sync.",
+    ],
+    [
+      "enables_ai: false",
+      "Web launch workbench must not enable AI.",
+    ],
+    [
+      "local-continuity",
+      "Web launch workbench must include the local continuity lane.",
+    ],
+    [
+      "account-cloud",
+      "Web launch workbench must include account/cloud lane.",
+    ],
+    [
+      "schema-storage",
+      "Web launch workbench must include schema/storage lane.",
+    ],
+    [
+      "sync-conflict",
+      "Web launch workbench must include sync/conflict lane.",
+    ],
+    [
+      "backup-recovery",
+      "Web launch workbench must include backup/recovery lane.",
+    ],
+    [
+      "security-permission",
+      "Web launch workbench must include security/permission lane.",
+    ],
+    [
+      "deployment-release",
+      "Web launch workbench must include deployment/release lane.",
+    ],
+    [
+      "owner-decision",
+      "Web launch workbench must include owner decision lane.",
+    ],
+    [
+      "deploy_to_public_or_private_web_beta",
+      "Web launch workbench must list forbidden launch actions.",
+    ],
+    [
+      "upload_workspace_data",
+      "Web launch workbench must forbid uploads before approval.",
+    ],
+    [
+      "read_or_export_secret_values",
+      "Web launch workbench must forbid secret-value export.",
+    ],
+  ]) {
+    assertSourceIncludes(files.webLaunchWorkbench, webLaunchWorkbench, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "buildWebLaunchWorkbenchPacket",
+      "Sync UI must build the Web launch workbench packet.",
+    ],
+    [
+      "handleExportWebLaunchWorkbench",
+      "Sync UI must export the Web launch workbench packet.",
+    ],
+    [
+      "Web 上线工作台总控",
+      "Sync UI must render the Web launch workbench panel.",
+    ],
+    [
+      "导出 Web 上线工作台",
+      "Sync UI must render the Web launch workbench export button.",
+    ],
+    [
+      "上线 lanes",
+      "Sync UI must render Web launch workbench lanes.",
+    ],
+    [
+      "P0 / 优先动作",
+      "Sync UI must render Web launch priority actions.",
+    ],
+    [
+      "上线顺序",
+      "Sync UI must render Web launch sequence.",
+    ],
+    [
+      "WebLaunchLaneCard",
+      "Sync UI must include a lane component for the Web launch workbench.",
+    ],
+    [
+      "WebLaunchActionCard",
+      "Sync UI must include an action component for the Web launch workbench.",
+    ],
+    [
+      "WebLaunchSequenceCard",
+      "Sync UI must include a launch sequence component.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
@@ -4835,6 +5038,7 @@ function run() {
     permission_server_test_matrix_checks: 32,
     permission_server_readiness_checks: 29,
     web_beta_stage_gate_checks: 35,
+    web_launch_workbench_checks: 62,
     web_alpha_launch_decision_checks: 39,
     web_beta_owner_review_packet_checks: 40,
     warnings: warnings.length,
