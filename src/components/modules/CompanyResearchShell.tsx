@@ -56,6 +56,20 @@ const COMPANY_TEMPLATE_STARTERS: ModuleStarter[] = [
     templateTitle: "业绩复盘",
     icon: "Q",
   },
+  {
+    type: "page",
+    label: "新建估值假设",
+    title: "未命名估值假设",
+    templateTitle: "估值假设",
+    icon: "VAL",
+  },
+  {
+    type: "page",
+    label: "新建关键指标",
+    title: "未命名关键指标看板",
+    templateTitle: "关键指标看板",
+    icon: "KPI",
+  },
 ];
 
 const WORKFLOW_STEPS = [
@@ -73,6 +87,16 @@ const WORKFLOW_STEPS = [
     title: "业绩复盘",
     detail:
       "记录季度数据、管理层表述、模型影响和后续问题。",
+  },
+  {
+    title: "估值假设",
+    detail:
+      "把收入、利润率、倍数、DCF 和情景假设拆成可复盘的本地页面。",
+  },
+  {
+    title: "关键指标",
+    detail:
+      "维护 KPI、单位经济、运营指标和趋势判断，连接业绩复盘与估值假设。",
   },
   {
     title: "跟踪数据库",
@@ -142,6 +166,17 @@ function CompanyResearchDashboard() {
   );
   const earningsPages = useMemo(
     () => pages.filter((page) => pageMatches(page, ["earnings review", "业绩复盘"])),
+    [pages]
+  );
+  const valuationPages = useMemo(
+    () => pages.filter((page) => pageMatches(page, ["valuation", "估值假设"])),
+    [pages]
+  );
+  const metricPages = useMemo(
+    () =>
+      pages.filter((page) =>
+        pageMatches(page, ["key metrics", "关键指标", "kpi", "指标看板"])
+      ),
     [pages]
   );
   const companyCoverage = useMemo(
@@ -302,10 +337,12 @@ function CompanyResearchDashboard() {
           </div>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-4">
+        <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
           <Metric label="公司页面" value={companyPages.length} />
           <Metric label="投资备忘录" value={memoPages.length} />
           <Metric label="业绩复盘" value={earningsPages.length} />
+          <Metric label="估值假设" value={valuationPages.length} />
+          <Metric label="关键指标" value={metricPages.length} />
           <Metric label="跟踪表" value={companyTrackers.length} />
         </section>
 

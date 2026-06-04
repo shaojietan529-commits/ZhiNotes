@@ -168,6 +168,116 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     `,
   },
   {
+    title: "估值假设",
+    description: "收入、利润率、倍数和情景假设",
+    aliases: [
+      "Valuation Assumptions",
+      "valuation",
+      "assumptions",
+      "target price",
+      "scenario",
+      "估值",
+      "估值假设",
+      "目标价",
+      "情景",
+    ],
+    html: `
+      <h1>估值假设</h1>
+      <h2>关联公司</h2>
+      <ul>
+        <li>公司页面：</li>
+        <li>Ticker：</li>
+        <li>当前覆盖状态：</li>
+        <li>最新 memo：</li>
+      </ul>
+      <h2>核心估值结论</h2>
+      <p></p>
+      <h2>情景假设</h2>
+      <table>
+        <tbody>
+          <tr><th>项目</th><th>下行情景</th><th>基准情景</th><th>上行情景</th><th>证据 / 备注</th></tr>
+          <tr><td>收入 CAGR</td><td></td><td></td><td></td><td></td></tr>
+          <tr><td>毛利率</td><td></td><td></td><td></td><td></td></tr>
+          <tr><td>经营利润率</td><td></td><td></td><td></td><td></td></tr>
+          <tr><td>自由现金流转化率</td><td></td><td></td><td></td><td></td></tr>
+          <tr><td>退出倍数 / 折现率</td><td></td><td></td><td></td><td></td></tr>
+          <tr><td>隐含目标价</td><td></td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <h2>关键敏感性</h2>
+      <ul>
+        <li>收入增长：</li>
+        <li>利润率路径：</li>
+        <li>资本开支 / working capital：</li>
+        <li>倍数或折现率：</li>
+      </ul>
+      <h2>需要验证的问题</h2>
+      <ul data-type="taskList">
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p></p></div></li>
+      </ul>
+      <h2>关联研究</h2>
+      <ul>
+        <li>相关报告：</li>
+        <li>相关会议：</li>
+        <li>业绩复盘：</li>
+      </ul>
+    `,
+  },
+  {
+    title: "关键指标看板",
+    description: "KPI、单位经济和运营指标追踪",
+    aliases: [
+      "Key Metrics",
+      "metrics dashboard",
+      "kpi",
+      "unit economics",
+      "operating metrics",
+      "关键指标",
+      "指标看板",
+      "单位经济",
+      "运营指标",
+    ],
+    html: `
+      <h1>关键指标看板</h1>
+      <h2>关联公司</h2>
+      <ul>
+        <li>公司页面：</li>
+        <li>Ticker：</li>
+        <li>行业 / 业务线：</li>
+        <li>最新业绩复盘：</li>
+      </ul>
+      <h2>核心 KPI</h2>
+      <table>
+        <tbody>
+          <tr><th>指标</th><th>当前值</th><th>上期</th><th>同比 / 环比</th><th>为什么重要</th><th>来源</th></tr>
+          <tr><td>收入增长</td><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td>毛利率</td><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td>经营利润率</td><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td>留存 / churn</td><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td>单位经济</td><td></td><td></td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <h2>趋势判断</h2>
+      <ul>
+        <li>改善中的指标：</li>
+        <li>恶化中的指标：</li>
+        <li>需要等待下一次披露的指标：</li>
+      </ul>
+      <h2>投研影响</h2>
+      <ul>
+        <li>对投资假设的影响：</li>
+        <li>对估值假设的影响：</li>
+        <li>对后续问题的影响：</li>
+      </ul>
+      <h2>关联研究</h2>
+      <ul>
+        <li>相关报告：</li>
+        <li>相关会议：</li>
+        <li>估值假设：</li>
+      </ul>
+    `,
+  },
+  {
     title: "会议纪要",
     description: "会议记录、讨论要点和行动项",
     aliases: [

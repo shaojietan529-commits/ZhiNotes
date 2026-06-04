@@ -26,6 +26,7 @@ const files = {
   portfolioShell: "src/components/modules/PortfolioShell.tsx",
   registry: "src/lib/modules/registry.ts",
   moduleActions: "src/lib/modules/actions.ts",
+  noteTemplates: "src/lib/templates/noteTemplates.ts",
   readme: "README.md",
 };
 
@@ -129,6 +130,7 @@ function run() {
   const portfolioShell = readProjectFile(files.portfolioShell);
   const registry = readProjectFile(files.registry);
   const moduleActions = readProjectFile(files.moduleActions);
+  const noteTemplates = readProjectFile(files.noteTemplates);
   const readme = readProjectFile(files.readme);
 
   assertIncludes(
@@ -241,6 +243,21 @@ function run() {
     "findExistingCompanyTrackerRow",
     "Company tracker intake must avoid duplicate company-page rows."
   );
+  for (const snippet of [
+    'title: "估值假设"',
+    'title: "关键指标看板"',
+    "Valuation Assumptions",
+    "Key Metrics",
+    "单位经济",
+    "关联研究",
+  ]) {
+    assertIncludes(
+      files.noteTemplates,
+      noteTemplates,
+      snippet,
+      "Company research templates must include valuation and key-metric assets."
+    );
+  }
   for (const snippet of [
     "local_row_draft_only: true",
     "reads_company_coverage_candidate: true",
@@ -602,6 +619,21 @@ function run() {
     "buildCompanyTrackerIntakeDraft",
     "Company module must build local tracker intake drafts."
   );
+  for (const snippet of [
+    "新建估值假设",
+    "新建关键指标",
+    'templateTitle: "估值假设"',
+    'templateTitle: "关键指标看板"',
+    'Metric label="估值假设"',
+    'Metric label="关键指标"',
+  ]) {
+    assertIncludes(
+      files.companyShell,
+      companyShell,
+      snippet,
+      "Company module must expose valuation and key-metric starter assets."
+    );
+  }
   assertIncludes(
     files.companyShell,
     companyShell,
