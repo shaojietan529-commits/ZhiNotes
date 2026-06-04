@@ -721,6 +721,10 @@ Current local actions:
   text, transcript text, recording bytes, participant details, meeting passcodes,
   database row values, holdings, trading plans, cloud data, AI prompts, tokens,
   or credentials.
+- Review the meeting decision summary before drilling into the workbench. The
+  summary separates meeting asset capture, transcript review, decision ledger,
+  relation/tracker intake, and the blocked automation/cloud/AI/publishing
+  boundary.
 - Use the meeting workbench review sequence to jump through the post-meeting
   workflow: create meeting assets, review transcript gaps, capture investment
   conclusions, process the research queue, link companies/reports, intake a
@@ -736,6 +740,13 @@ Current local actions:
 The current Meetings module and meeting workbench are local research workspaces.
 They do not join calls, record audio, publish notes, sync data, upload data, or
 call external services.
+The meeting decision summary follows the same metadata-only boundary: it can
+route the owner to meeting asset creation, transcript structure review,
+decision-ledger cleanup, research queue processing, relation review, tracker
+intake, and sync/AI/publishing gates, but it does not include meeting titles,
+page text, transcript text, recording bytes, participant details, meeting
+passcodes, database row values, holdings, trading plans, prompts, tokens,
+credentials, cloud data, or AI output.
 
 ## AI Workbench Module
 

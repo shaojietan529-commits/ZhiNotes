@@ -21,6 +21,11 @@ export type MeetingWorkbenchStatus =
   | "missing"
   | "blocked-boundary";
 
+export type MeetingDecisionSummaryStatus =
+  | "available-local"
+  | "requires-owner-confirmation"
+  | "blocked";
+
 export interface MeetingWorkbenchLane {
   id: MeetingWorkbenchLaneId;
   title: string;
@@ -57,6 +62,59 @@ export interface MeetingWorkbenchReviewStep {
   target_section_id: string;
   reason: string;
   completion_signal: string;
+}
+
+export interface MeetingDecisionSummaryItem {
+  id:
+    | "meeting-capture"
+    | "transcript-review"
+    | "decision-ledger"
+    | "links-tracker-intake"
+    | "automation-cloud-ai-boundary";
+  title: string;
+  status: MeetingDecisionSummaryStatus;
+  answer: string;
+  evidence: string;
+  next_action: string;
+  route: string;
+  target_section_id: string;
+  allowed_now: boolean;
+  requires_owner_confirmation: boolean;
+  blocked_until_automation_gate: boolean;
+  workbench_writes_workspace_data: false;
+  reads_page_text: false;
+  includes_page_text: false;
+  includes_page_titles: false;
+  reads_transcript_text: false;
+  includes_transcript_text: false;
+  reads_recording_bytes: false;
+  includes_recording_bytes: false;
+  includes_participant_details: false;
+  includes_meeting_passcodes: false;
+  joins_calls: false;
+  records_audio: false;
+  publishes_notes: false;
+  uploads_data: false;
+  enables_ai: false;
+}
+
+export interface MeetingDecisionSummary {
+  current_state: "local-meeting-owner-review";
+  current_conclusion: string;
+  can_create_local_meeting_assets_now: true;
+  can_review_transcript_structure_now: true;
+  can_review_decision_ledger_now: true;
+  can_write_tracker_rows_without_manual_click_now: false;
+  can_join_calls_now: false;
+  can_record_audio_now: false;
+  can_publish_notes_now: false;
+  can_send_meeting_context_to_ai_now: false;
+  can_sync_meeting_data_now: false;
+  safe_local_work: string[];
+  blocked_work: string[];
+  required_owner_decisions: string[];
+  top_blockers: string[];
+  decisions: MeetingDecisionSummaryItem[];
 }
 
 export interface MeetingWorkbenchPacket {
@@ -109,6 +167,7 @@ export interface MeetingWorkbenchPacket {
     manual_confirmation_actions: number;
     blocked_actions: number;
   };
+  decision_summary: MeetingDecisionSummary;
   lanes: MeetingWorkbenchLane[];
   actions: MeetingWorkbenchAction[];
   review_sequence: MeetingWorkbenchReviewStep[];
@@ -259,6 +318,7 @@ export function buildMeetingWorkbenchPacket(input: {
       blocked_actions: actions.filter((action) => action.status === "blocked-boundary")
         .length,
     },
+    decision_summary: buildDecisionSummary(input, actions),
     lanes: buildLanes(actions),
     actions,
     review_sequence: buildReviewSequence(input),
@@ -268,6 +328,257 @@ export function buildMeetingWorkbenchPacket(input: {
       "npm run verify:modules",
       "npm run lint",
       "npm run build",
+    ],
+  };
+}
+
+function buildDecisionSummary(
+  input: {
+    followUp: MeetingFollowUpReport;
+    decisionLedger: MeetingDecisionLedgerReport;
+    researchQueue: MeetingResearchQueueReport;
+    playbook: MeetingResearchPlaybook;
+    trackerIntakeItems: MeetingTrackerFollowUpItem[];
+  },
+  actions: MeetingWorkbenchAction[]
+): MeetingDecisionSummary {
+  const captureActions = actions.filter(
+    (action) => action.lane_id === "meeting-capture"
+  );
+  const transcriptActions = actions.filter(
+    (action) => action.lane_id === "transcript-review"
+  );
+  const ledgerActions = actions.filter(
+    (action) => action.lane_id === "decision-ledger"
+  );
+  const queueActions = actions.filter((action) => action.lane_id === "research-queue");
+  const relationActions = actions.filter(
+    (action) => action.lane_id === "relation-linking"
+  );
+  const trackerActions = actions.filter(
+    (action) => action.lane_id === "tracker-intake"
+  );
+  const manualActions = actions.filter(
+    (action) => action.requires_manual_confirmation
+  );
+  const topBlockers = [
+    input.followUp.summary.meeting_pages === 0
+      ? "还没有会议纪要页面，会议研究中枢尚未建立。"
+      : null,
+    input.followUp.summary.missing_transcripts > 0
+      ? `${input.followUp.summary.missing_transcripts} 个会议页缺少 transcript 结构。`
+      : null,
+    input.decisionLedger.summary.ledger_items > 0
+      ? `${input.decisionLedger.summary.ledger_items} 个会议页缺少投研闭环结构。`
+      : null,
+    input.researchQueue.summary.queue_items > 0
+      ? `${input.researchQueue.summary.queue_items} 个会议研究任务等待复核。`
+      : null,
+    "会议入会、录音、发布、AI、云同步和批量写入仍未启用。",
+  ].filter(Boolean) as string[];
+
+  return {
+    current_state: "local-meeting-owner-review",
+    current_conclusion:
+      "可以继续在本地创建会议纪要、转录稿页面、行动项、投研闭环、研究任务队列和会议 tracker；自动入会、录音、发布纪要、读取 transcript 正文、AI 处理、云同步、批量写入以及任何 passcode/参会人信息外发仍然必须经过单独 owner gate。",
+    can_create_local_meeting_assets_now: true,
+    can_review_transcript_structure_now: true,
+    can_review_decision_ledger_now: true,
+    can_write_tracker_rows_without_manual_click_now: false,
+    can_join_calls_now: false,
+    can_record_audio_now: false,
+    can_publish_notes_now: false,
+    can_send_meeting_context_to_ai_now: false,
+    can_sync_meeting_data_now: false,
+    safe_local_work: [
+      "继续创建本地会议纪要、转录稿页面、行动项页面和会议 tracker。",
+      "继续复核 follow-up、decision ledger、research queue、playbook 和 tracker intake metadata。",
+      "继续通过研究图谱手动补公司/报告 relation。",
+      "继续导出 metadata-only 会议 workbench，不包含会议标题、正文、transcript、录音 bytes、参会人或 passcode。",
+    ],
+    blocked_work: [
+      "不能从会议 workbench 自动入会、录音、发布纪要或触发 meeting agent。",
+      "不能导出会议标题、页面正文、transcript text、recording bytes、participant details 或 meeting passcodes。",
+      "不能批量创建 tracker rows、批量更新数据库或自动写 relation values。",
+      "不能把会议上下文发送给 AI、云同步、外部 API 或远端存储。",
+    ],
+    required_owner_decisions:
+      manualActions.length > 0
+        ? manualActions.slice(0, 5).map((action) => action.next_action)
+        : [
+            "确认哪些会议页应进入正式 follow-up 和 tracker 流程。",
+            "确认何时允许 transcript、录音、纪要或行动项进入 AI payload、云同步或发布路径。",
+          ],
+    top_blockers: topBlockers,
+    decisions: [
+      {
+        id: "meeting-capture",
+        title: "会议资产入口",
+        status:
+          input.followUp.summary.meeting_pages > 0
+            ? "available-local"
+            : "requires-owner-confirmation",
+        answer:
+          input.followUp.summary.meeting_pages > 0
+            ? "可以继续"
+            : "先建会议纪要",
+        evidence: `${input.followUp.summary.meeting_pages} 个会议页，${captureActions.length} 个会议记录行动。`,
+        next_action:
+          "先创建会议纪要作为 transcript、行动项、投研闭环和 relation 的本地中枢。",
+        route: "/modules/meetings",
+        target_section_id: "meeting-create-assets",
+        allowed_now: true,
+        requires_owner_confirmation: input.followUp.summary.meeting_pages === 0,
+        blocked_until_automation_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_text: false,
+        includes_page_text: false,
+        includes_page_titles: false,
+        reads_transcript_text: false,
+        includes_transcript_text: false,
+        reads_recording_bytes: false,
+        includes_recording_bytes: false,
+        includes_participant_details: false,
+        includes_meeting_passcodes: false,
+        joins_calls: false,
+        records_audio: false,
+        publishes_notes: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "transcript-review",
+        title: "Transcript 复盘",
+        status:
+          transcriptActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer:
+          transcriptActions.length > 0 ? "需要人工复核" : "继续保持",
+        evidence: `${input.followUp.summary.transcript_pages} 个转录稿页面，${input.followUp.summary.missing_transcripts} 个 transcript 结构缺口。`,
+        next_action:
+          "连接 transcript page 或录音索引后，人工复核关键表述、开放问题和可信度；工作台不读取 transcript 正文。",
+        route: "/modules/meetings",
+        target_section_id: "meeting-follow-up",
+        allowed_now: true,
+        requires_owner_confirmation: transcriptActions.length > 0,
+        blocked_until_automation_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_text: false,
+        includes_page_text: false,
+        includes_page_titles: false,
+        reads_transcript_text: false,
+        includes_transcript_text: false,
+        reads_recording_bytes: false,
+        includes_recording_bytes: false,
+        includes_participant_details: false,
+        includes_meeting_passcodes: false,
+        joins_calls: false,
+        records_audio: false,
+        publishes_notes: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "decision-ledger",
+        title: "投研闭环",
+        status:
+          ledgerActions.length + queueActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer:
+          ledgerActions.length + queueActions.length > 0
+            ? "需要补闭环"
+            : "继续复核",
+        evidence: `${input.decisionLedger.summary.ledger_items} 个闭环待补，${input.researchQueue.summary.queue_items} 个研究任务。`,
+        next_action:
+          "把会议结论、thesis 影响、模型影响、风险、催化剂和开放问题转成可复盘结构。",
+        route: "/modules/meetings",
+        target_section_id: "meeting-decision-ledger",
+        allowed_now: true,
+        requires_owner_confirmation: ledgerActions.length + queueActions.length > 0,
+        blocked_until_automation_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_text: false,
+        includes_page_text: false,
+        includes_page_titles: false,
+        reads_transcript_text: false,
+        includes_transcript_text: false,
+        reads_recording_bytes: false,
+        includes_recording_bytes: false,
+        includes_participant_details: false,
+        includes_meeting_passcodes: false,
+        joins_calls: false,
+        records_audio: false,
+        publishes_notes: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "links-tracker-intake",
+        title: "关联与 Tracker 入库",
+        status:
+          relationActions.length + trackerActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer:
+          relationActions.length + trackerActions.length > 0
+            ? "逐条确认"
+            : "继续保持",
+        evidence: `${relationActions.length} 个 relation 行动，${input.trackerIntakeItems.length} 个 tracker intake 候选。`,
+        next_action:
+          "通过研究图谱手动补公司/报告 relation；会议 tracker row 只能在入库台逐条点击创建。",
+        route: "/modules/meetings",
+        target_section_id: "meeting-tracker-intake",
+        allowed_now: true,
+        requires_owner_confirmation: relationActions.length + trackerActions.length > 0,
+        blocked_until_automation_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_text: false,
+        includes_page_text: false,
+        includes_page_titles: false,
+        reads_transcript_text: false,
+        includes_transcript_text: false,
+        reads_recording_bytes: false,
+        includes_recording_bytes: false,
+        includes_participant_details: false,
+        includes_meeting_passcodes: false,
+        joins_calls: false,
+        records_audio: false,
+        publishes_notes: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "automation-cloud-ai-boundary",
+        title: "自动化、AI 与发布边界",
+        status: "blocked",
+        answer: "保持关闭",
+        evidence:
+          "当前会议 workbench 不加入会议、不录音、不发布纪要、不上传、不调用 AI，也不包含 passcodes 或 participant details。",
+        next_action:
+          "等 meeting agent preflight、音频/麦克风状态、payload preview、账号权限、发布目标和审计回滚合同确认后，再启用自动化。",
+        route: "/modules/sync",
+        target_section_id: "sync-architecture",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocked_until_automation_gate: true,
+        workbench_writes_workspace_data: false,
+        reads_page_text: false,
+        includes_page_text: false,
+        includes_page_titles: false,
+        reads_transcript_text: false,
+        includes_transcript_text: false,
+        reads_recording_bytes: false,
+        includes_recording_bytes: false,
+        includes_participant_details: false,
+        includes_meeting_passcodes: false,
+        joins_calls: false,
+        records_audio: false,
+        publishes_notes: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
     ],
   };
 }
