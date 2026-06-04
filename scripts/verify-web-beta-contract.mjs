@@ -2458,8 +2458,44 @@ function run() {
       "Sync UI must open Web launch sequence steps.",
     ],
     [
+      "handleWebLaunchSectionOpen",
+      "Sync UI must scroll top-level launch decision actions to target sections.",
+    ],
+    [
       "scrollIntoView",
       "Sync UI must scroll same-page Web launch steps to their target sections.",
+    ],
+    [
+      "Web 上线决策摘要",
+      "Sync UI must render the owner-facing Web launch decision summary.",
+    ],
+    [
+      "WebLaunchDecisionSummaryPanel",
+      "Sync UI must include a launch decision summary component.",
+    ],
+    [
+      "LaunchDecisionMetric",
+      "Sync UI must summarize launch go/no-go metrics.",
+    ],
+    [
+      "LaunchDecisionFact",
+      "Sync UI must render launch decision facts.",
+    ],
+    [
+      "LaunchDecisionWorkItem",
+      "Sync UI must render blockers and local-first work in the decision summary.",
+    ],
+    [
+      'id="web-launch-decision-summary"',
+      "Sync UI must expose a stable Web launch decision summary section id.",
+    ],
+    [
+      "导出 Alpha 决策",
+      "Sync UI must expose Alpha decision export from the summary.",
+    ],
+    [
+      "导出 Beta owner review",
+      "Sync UI must expose Beta owner review export from the summary.",
     ],
     [
       "打开步骤",

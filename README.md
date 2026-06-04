@@ -861,6 +861,10 @@ Current local actions:
   they do not upload local pages, files, databases, backups, or sync queue rows.
 - Inspect local counts for active pages, trash pages, databases, uploaded files,
   and pending sync log rows.
+- Review the owner-facing Web launch decision summary. It combines the Web
+  launch workbench, Web Alpha launch decision receipt, and Web Beta owner
+  review into a top-level go/no-go view: local build can continue, but preview
+  sharing, Web Beta launch, cloud sync, deployment, and AI remain disabled.
 - Review and export a local Web launch workbench packet. The packet combines
   Web Beta stage gates, next actions, owner review, launch checklist, route
   preflight, environment presence, deployment target, and sync opt-in metadata

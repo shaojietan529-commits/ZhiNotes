@@ -2621,6 +2621,12 @@ function SyncDashboard() {
     router.push(step.route);
   };
 
+  const handleWebLaunchSectionOpen = (sectionId: string) => {
+    document
+      .getElementById(sectionId)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const handleExportAuditTrailPolicy = () => {
     setBusyContractAction("audit-policy");
     try {
@@ -2870,6 +2876,16 @@ function SyncDashboard() {
             />
           ))}
         </section>
+
+        <WebLaunchDecisionSummaryPanel
+          workbench={webLaunchWorkbenchPacket}
+          alphaDecision={webAlphaLaunchDecisionReceipt}
+          ownerReview={webBetaOwnerReviewPacket}
+          busyAction={busyContractAction}
+          onOpenSection={handleWebLaunchSectionOpen}
+          onExportAlphaDecision={handleExportWebAlphaLaunchDecisionReceipt}
+          onExportOwnerReview={handleExportWebBetaOwnerReviewPacket}
+        />
 
         <section
           id="web-launch-workbench"
@@ -7226,6 +7242,291 @@ function SyncOptInStatusPill({
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[status]}
     </span>
+  );
+}
+
+function WebLaunchDecisionSummaryPanel({
+  workbench,
+  alphaDecision,
+  ownerReview,
+  busyAction,
+  onOpenSection,
+  onExportAlphaDecision,
+  onExportOwnerReview,
+}: {
+  workbench: WebLaunchWorkbenchPacket;
+  alphaDecision: WebAlphaLaunchDecisionReceipt;
+  ownerReview: WebBetaOwnerReviewPacket;
+  busyAction: WebBetaContractAction | null;
+  onOpenSection: (sectionId: string) => void;
+  onExportAlphaDecision: () => void;
+  onExportOwnerReview: () => void;
+}) {
+  const topBlockers = ownerReview.p0_blockers.slice(0, 3);
+  const localWork = ownerReview.local_first_work.slice(0, 3);
+
+  return (
+    <section
+      id="web-launch-decision-summary"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Owner launch decision
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Web 上线决策摘要
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            面向 owner 的 go/no-go 总览：本地开发可以继续，Web Alpha/Beta
+            preview、cloud sync、公开部署和 AI 仍保持关闭。这里仅整合本地
+            stage gate、owner review 和 launch workbench metadata，不连接云服务。
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenSection("web-launch-workbench")}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            打开上线工作台
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenSection("web-beta-owner-review")}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            打开 owner review
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        <LaunchDecisionMetric
+          label="Local build"
+          value={workbench.local_app_can_continue_now ? "Go" : "No"}
+          detail="继续本地迭代"
+          tone="ready"
+        />
+        <LaunchDecisionMetric
+          label="Alpha preview"
+          value={alphaDecision.web_alpha_preview_can_be_shared_now ? "Go" : "No"}
+          detail="不可分享预览"
+          tone="blocked"
+        />
+        <LaunchDecisionMetric
+          label="Web Beta"
+          value={workbench.web_beta_can_launch_now ? "Go" : "No"}
+          detail="不可上线"
+          tone="blocked"
+        />
+        <LaunchDecisionMetric
+          label="Cloud sync"
+          value={workbench.cloud_sync_can_start_now ? "Go" : "No"}
+          detail="上传关闭"
+          tone="blocked"
+        />
+        <LaunchDecisionMetric
+          label="P0 blockers"
+          value={ownerReview.summary.p0_blockers}
+          detail="先清理"
+          tone={ownerReview.summary.p0_blockers > 0 ? "blocked" : "ready"}
+        />
+        <LaunchDecisionMetric
+          label="Owner choices"
+          value={ownerReview.summary.owner_decisions}
+          detail="待确认"
+          tone={
+            ownerReview.summary.owner_decisions > 0
+              ? "manual-confirmation"
+              : "ready"
+          }
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+        <div className="rounded-md border border-zinc-100 p-3 text-xs dark:border-zinc-800">
+          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+            当前结论
+          </h3>
+          <div className="mt-2 grid gap-2">
+            <LaunchDecisionFact
+              label="Web Alpha"
+              value={alphaDecision.decision}
+              detail={`${alphaDecision.summary.p0_actions} 个 P0 action，${alphaDecision.summary.owner_decisions} 个 owner decision。`}
+            />
+            <LaunchDecisionFact
+              label="Web Beta"
+              value={ownerReview.decision}
+              detail={`${ownerReview.summary.blocked_stage_gates} 个 stage gate blocked，${ownerReview.summary.blocked_smoke_cases} 个 smoke case blocked。`}
+            />
+            <LaunchDecisionFact
+              label="Cloud readiness"
+              value={
+                ownerReview.summary.missing_required_environment === 0
+                  ? "env-present-but-still-owner-gated"
+                  : "missing-required-environment"
+              }
+              detail={`缺失环境项：${ownerReview.summary.missing_required_environment ?? "unknown"}。cloud sync 仍不可启动。`}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div>
+            <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              先处理的 blocker
+            </div>
+            <div className="mt-2 grid gap-2">
+              {topBlockers.length > 0 ? (
+                topBlockers.map((blocker) => (
+                  <LaunchDecisionWorkItem
+                    key={blocker.id}
+                    title={blocker.title}
+                    detail={blocker.required_action}
+                    badge={blocker.priority.toUpperCase()}
+                  />
+                ))
+              ) : (
+                <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  暂无 P0 blocker，继续检查 owner decision 和 smoke evidence。
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              可以继续的本地工作
+            </div>
+            <div className="mt-2 grid gap-2">
+              {localWork.length > 0 ? (
+                localWork.map((item) => (
+                  <LaunchDecisionWorkItem
+                    key={item.id}
+                    title={item.title}
+                    detail={
+                      item.completion_evidence[0] ??
+                      "需要补齐本地 completion evidence。"
+                    }
+                    badge="LOCAL"
+                  />
+                ))
+              ) : (
+                <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  暂无可独立推进的本地工作，优先完成 gate 和 owner review。
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 border-t border-zinc-100 pt-3 dark:border-zinc-800 lg:flex-row lg:items-center lg:justify-between">
+        <p className="max-w-3xl text-xs leading-5 text-zinc-400">
+          本摘要不读页面正文、数据库 row values、文件名、文件 bytes、secret values、
+          token、cookie、持仓或交易计划；也不会部署、连云、上传、启用 sync 或 AI。
+        </p>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onExportAlphaDecision}
+            disabled={busyAction === "web-alpha-launch-decision"}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {busyAction === "web-alpha-launch-decision"
+              ? "Exporting..."
+              : "导出 Alpha 决策"}
+          </button>
+          <button
+            type="button"
+            onClick={onExportOwnerReview}
+            disabled={busyAction === "web-beta-owner-review"}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {busyAction === "web-beta-owner-review"
+              ? "Exporting..."
+              : "导出 Beta owner review"}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LaunchDecisionMetric({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  tone: WebBetaReadinessStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <BetaStatusPill status={tone} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function LaunchDecisionFact({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+      <div className="text-[10px] uppercase tracking-wide text-zinc-400">
+        {label}
+      </div>
+      <div className="mt-1 break-words font-semibold text-zinc-900 dark:text-zinc-100">
+        {value}
+      </div>
+      <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+        {detail}
+      </p>
+    </article>
+  );
+}
+
+function LaunchDecisionWorkItem({
+  title,
+  detail,
+  badge,
+}: {
+  title: string;
+  detail: string;
+  badge: string;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {title}
+        </div>
+        <span className="shrink-0 rounded-md bg-white px-2 py-1 text-[10px] font-semibold text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          {badge}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {detail}
+      </p>
+    </article>
   );
 }
 
