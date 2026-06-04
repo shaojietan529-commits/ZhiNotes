@@ -14,6 +14,7 @@ const files = {
   conversionReview: "src/lib/reports/reportConversionReview.ts",
   reviewQueue: "src/lib/reports/reportReviewQueue.ts",
   readiness: "src/lib/files/filePreviewReadiness.ts",
+  routing: "src/lib/files/filePreviewRouting.ts",
   preflight: "src/lib/files/fileUploadPreflight.ts",
   structure: "src/lib/files/filePreviewStructure.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
@@ -148,6 +149,7 @@ function run() {
   const conversionReview = readProjectFile(files.conversionReview);
   const reviewQueue = readProjectFile(files.reviewQueue);
   const readiness = readProjectFile(files.readiness);
+  const routing = readProjectFile(files.routing);
   const preflight = readProjectFile(files.preflight);
   const structure = readProjectFile(files.structure);
   const actionReceipts = readProjectFile(files.actionReceipts);
@@ -299,6 +301,24 @@ function run() {
     "格式支持矩阵",
     "Reports module must expose a reader-facing support matrix."
   );
+  for (const snippet of [
+    "buildFilePreviewRoutingPacket",
+    "filePreviewRouting",
+    "handleExportPreviewRouting",
+    "PreviewRoutingPanel",
+    "PreviewRoutingRouteCard",
+    "PreviewRoutingStatusPill",
+    "原生预览路由",
+    "导出路由包",
+    "不读取文件名、正文、bytes、表格值",
+  ]) {
+    assertIncludes(
+      files.reportsShell,
+      reportsShell,
+      snippet,
+      "Reports module must build, render, and export the file preview routing packet."
+    );
+  }
   assertIncludes(
     files.intake,
     intake,
@@ -682,6 +702,80 @@ function run() {
     );
   }
   assertIncludes(
+    files.routing,
+    routing,
+    'format: "zhinote-file-preview-routing-packet"',
+    "File preview routing must define a local export format."
+  );
+  assertIncludes(
+    files.routing,
+    routing,
+    "buildFilePreviewRoutingPacket",
+    "File preview routing must expose a reusable builder."
+  );
+  for (const snippet of [
+    'packet_status: "local-preview-routing-only"',
+    'route_verdict: "ready-for-local-preview"',
+    'canonical_container: "zhinote-page"',
+    'native_report_format: "html"',
+    'editable_note_format: "markdown"',
+    'database_source_format: "spreadsheet"',
+    "local_packet_only: true",
+    "reads_file_preview_readiness: true",
+    "reads_format_coverage: true",
+    "reads_review_queue: true",
+    "reads_file_names: false",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "reads_page_body_text: false",
+    "includes_file_names: false",
+    "includes_database_row_values: false",
+    "writes_workspace_data: false",
+    "loads_external_resources: false",
+    "creates_database_rows: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.routing,
+      routing,
+      snippet,
+      "File preview routing must preserve local-only routing boundaries."
+    );
+  }
+  for (const snippet of [
+    '"native-preview"',
+    '"editable-import"',
+    '"database-import"',
+    '"metadata-review"',
+    '"download-retain"',
+    '"gap-review"',
+    '"native-ready"',
+    '"external-confirmation"',
+    '"converted-review"',
+    '"database-confirmation"',
+    '"blocked-limited"',
+    '"unsupported"',
+    "forbidden_actions",
+    "required_verification_commands",
+    "load_html_external_resources_without_confirmation",
+    "bulk_import_spreadsheet_without_confirmation",
+    "send_file_text_to_ai",
+    "upload_file_bytes_to_cloud",
+    "execute_notebook_code",
+    "npm run verify:file-preview",
+    "npm run lint",
+    "npm run build",
+  ]) {
+    assertIncludes(
+      files.routing,
+      routing,
+      snippet,
+      "File preview routing must preserve lanes, statuses, forbidden actions, and verification commands."
+    );
+  }
+  assertIncludes(
     files.actionReceipts,
     actionReceipts,
     'format: "zhinote-file-preview-action-receipt"',
@@ -1019,6 +1113,7 @@ function run() {
         conversion_review_gates: 6,
         review_queue_gates: 6,
         readiness_gates: 6,
+        routing_lanes: 6,
         upload_preflight_gates: 7,
         preview_structure_signals: 8,
         action_receipt_kinds: 6,

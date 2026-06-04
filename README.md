@@ -430,6 +430,13 @@ download retention. This preflight reads only capability metadata; it does not
 read file names, file bytes, file text, page body text, spreadsheet values,
 tokens, credentials, cloud data, or AI output.
 
+The Reports module also renders and exports a local file preview routing packet.
+It combines preview readiness, live format coverage, and the review queue into
+one route map for native preview, editable import, spreadsheet database import,
+metadata review, local retain, and gap review. The packet does not include file
+names, file bytes, file text, page body text, database row values, cloud data,
+or AI output, and it does not write workspace data or load external resources.
+
 Uploading a report file into the Reports module now creates a metadata-only
 local file action receipt for the native page preview path, or for download
 retention when the file can only be kept locally. The receipt does not include

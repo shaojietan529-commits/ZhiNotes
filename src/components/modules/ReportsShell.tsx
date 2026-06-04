@@ -33,6 +33,11 @@ import {
   type FilePreviewReadinessStatus,
 } from "@/lib/files/filePreviewReadiness";
 import {
+  buildFilePreviewRoutingPacket,
+  type FilePreviewRoutingPacket,
+  type FilePreviewRoutingStatus,
+} from "@/lib/files/filePreviewRouting";
+import {
   buildFileUploadPreflightReport,
   type FileUploadPreflightAction,
   type FileUploadPreflightGateStatus,
@@ -173,6 +178,7 @@ function ReportsDashboard() {
   const [exportingFormatPlaybook, setExportingFormatPlaybook] = useState(false);
   const [exportingPreviewReadiness, setExportingPreviewReadiness] =
     useState(false);
+  const [exportingPreviewRouting, setExportingPreviewRouting] = useState(false);
   const [exportingUploadPreflight, setExportingUploadPreflight] =
     useState(false);
   const [exportingFormatCoverage, setExportingFormatCoverage] =
@@ -254,6 +260,15 @@ function ReportsDashboard() {
   const reportReviewQueue = useMemo(
     () => buildReportReviewQueue(reportIntake),
     [reportIntake]
+  );
+  const filePreviewRouting = useMemo(
+    () =>
+      buildFilePreviewRoutingPacket({
+        readiness: filePreviewReadiness,
+        coverage: reportFormatCoverage,
+        reviewQueue: reportReviewQueue,
+      }),
+    [filePreviewReadiness, reportFormatCoverage, reportReviewQueue]
   );
   const reportConnectionPlan = useMemo(
     () => buildReportConnectionPlan({ intake: reportIntake, databases }),
@@ -480,6 +495,24 @@ function ReportsDashboard() {
       window.alert("文件预览 readiness 导出失败，请查看控制台。");
     } finally {
       setExportingPreviewReadiness(false);
+    }
+  };
+
+  const handleExportPreviewRouting = () => {
+    setExportingPreviewRouting(true);
+    try {
+      downloadJsonFile(
+        `zhinote-file-preview-routing-${fileSafeTimestamp()}.json`,
+        {
+          ...filePreviewRouting,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export preview routing:", err);
+      window.alert("文件预览路由包导出失败，请查看控制台。");
+    } finally {
+      setExportingPreviewRouting(false);
     }
   };
 
@@ -833,6 +866,12 @@ function ReportsDashboard() {
             </div>
           </div>
         </section>
+
+        <PreviewRoutingPanel
+          packet={filePreviewRouting}
+          exporting={exportingPreviewRouting}
+          onExport={handleExportPreviewRouting}
+        />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -2371,6 +2410,214 @@ function IntakeStagePill({ stage }: { stage: ReportIntakeStage }) {
   return (
     <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
       {labels[stage]}
+    </span>
+  );
+}
+
+function PreviewRoutingPanel({
+  packet,
+  exporting,
+  onExport,
+}: {
+  packet: FilePreviewRoutingPacket;
+  exporting: boolean;
+  onExport: () => void;
+}) {
+  const activeRoutes = packet.routes.filter((route) => route.active_items > 0);
+  const visibleRoutes = activeRoutes.length > 0 ? activeRoutes : packet.routes;
+
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            原生预览路由
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            把当前格式覆盖、预览 readiness 和 review queue 汇总成文件进入
+            ZhiNotes page 的路线图：原生预览、本地转换、表格入库、元数据复核或本地留存。
+            这个路由包不读取文件名、正文、bytes、表格值，不写入、不上传、不调用 AI。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={exporting}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {exporting ? "导出中..." : "导出路由包"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <IntakeMetric
+          label="路线"
+          value={packet.summary.routes}
+          detail="Format routes"
+        />
+        <IntakeMetric
+          label="活跃"
+          value={packet.summary.active_routes}
+          detail="Used"
+        />
+        <IntakeMetric
+          label="原生"
+          value={packet.summary.native_routes}
+          detail="Native"
+        />
+        <IntakeMetric
+          label="转换"
+          value={packet.summary.converted_routes}
+          detail="Local HTML"
+        />
+        <IntakeMetric
+          label="可编辑"
+          value={packet.summary.editable_import_routes}
+          detail="Import"
+        />
+        <IntakeMetric
+          label="入库候选"
+          value={packet.summary.database_import_candidates}
+          detail="DB"
+        />
+        <IntakeMetric
+          label="需确认"
+          value={packet.summary.confirmation_routes}
+          detail="Gated"
+        />
+        <IntakeMetric
+          label="缺口"
+          value={packet.summary.unsupported_routes + packet.summary.blocked_routes}
+          detail="Gaps"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_0.95fr]">
+        <div>
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            Format routes
+          </div>
+          <div className="mt-2 grid gap-2 lg:grid-cols-2">
+            {visibleRoutes.slice(0, 10).map((route) => (
+              <PreviewRoutingRouteCard key={route.id} route={route} />
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              Routing lanes
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {packet.lanes.map((lane) => (
+                <article
+                  key={lane.id}
+                  className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                      {lane.title}
+                    </div>
+                    <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                      {lane.route_count}
+                    </span>
+                  </div>
+                  <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                    {lane.description}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              Review sequence
+            </div>
+            <div className="mt-2 grid gap-2">
+              {packet.review_sequence.map((step) => (
+                <article
+                  key={step.id}
+                  className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800"
+                >
+                  <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                    {step.order}. {step.title}
+                  </div>
+                  <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                    {step.reason}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PreviewRoutingRouteCard({
+  route,
+}: {
+  route: FilePreviewRoutingPacket["routes"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              {route.label}
+            </h3>
+            <PreviewRoutingStatusPill status={route.status} />
+          </div>
+          <p className="mt-1 text-[11px] text-zinc-400">
+            {route.support_level} · {route.display_surface}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          {route.active_items}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {route.primary_action}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {route.secondary_action}
+      </p>
+    </article>
+  );
+}
+
+function PreviewRoutingStatusPill({
+  status,
+}: {
+  status: FilePreviewRoutingStatus;
+}) {
+  const labels: Record<FilePreviewRoutingStatus, string> = {
+    "native-ready": "Native",
+    "external-confirmation": "Confirm",
+    "converted-review": "Convert",
+    "database-confirmation": "Database",
+    "metadata-review": "Metadata",
+    "download-retain": "Retain",
+    "blocked-limited": "Limited",
+    unsupported: "Unsupported",
+  };
+
+  const className =
+    status === "native-ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "external-confirmation" ||
+          status === "database-confirmation" ||
+          status === "converted-review"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : status === "blocked-limited" || status === "unsupported"
+          ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+          : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
     </span>
   );
 }
