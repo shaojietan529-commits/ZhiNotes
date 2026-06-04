@@ -659,6 +659,12 @@ Current local actions:
 - Select an AI workflow such as summary, Q&A, report draft, comparison, or
   research framework.
 - Select local page context explicitly.
+- Review and export a local AI workbench packet. The packet combines workflow
+  readiness, payload preview, execution policy, prompt blueprint, context packet,
+  research runbook, and output review summaries into lanes, priority actions,
+  and an enablement sequence. It excludes selected page titles, page body text,
+  prompt text, file bytes, AI output text, holdings, trading plans, client
+  information, tokens, and secrets.
 - Review and export a local AI payload preview. The preview summarizes selected
   pages, available file kinds, prompt length, and required approvals, but
   excludes page body text, file bytes, prompt text, model calls, and external
@@ -717,6 +723,23 @@ this contract to build local request drafts, but `/api/ai/run` remains a
 disabled stub. Payload previews, execution policies, and high-risk confirmation
 receipts exclude page body text, prompt text, file bytes, tokens, and secrets
 until the user explicitly confirms the final outbound boundary.
+
+### AI Workbench Packet
+
+The local AI workbench packet contract lives in:
+
+```txt
+src/lib/ai/aiWorkbench.ts
+```
+
+It is the AI module control layer. It turns workflow readiness, payload preview,
+execution policy, prompt blueprint, context packet, research runbook, and output
+review summaries into local lanes, priority actions, and an enablement sequence.
+The packet is local-only and does not include selected page titles, page body
+text, prompt text, file bytes, AI output text, holdings, trading plans, client
+information, tokens, secrets, cloud data, or credentials. It does not call model
+providers, upload data, write workspace data, save AI output, create pages,
+update databases, connect cloud services, or enable `/api/ai/run`.
 
 ### AI Context Packet
 

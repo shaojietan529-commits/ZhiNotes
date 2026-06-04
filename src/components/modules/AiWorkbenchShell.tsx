@@ -43,6 +43,11 @@ import {
   buildAiContextPacket,
   type AiContextPacket,
 } from "@/lib/ai/aiContextPacket";
+import {
+  buildAiWorkbenchPacket,
+  type AiWorkbenchPacket,
+  type AiWorkbenchPriority,
+} from "@/lib/ai/aiWorkbench";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -97,6 +102,7 @@ function AiWorkbenchDashboard() {
     useState(false);
   const [exportingOutputReview, setExportingOutputReview] = useState(false);
   const [exportingContextPacket, setExportingContextPacket] = useState(false);
+  const [exportingAiWorkbench, setExportingAiWorkbench] = useState(false);
   const [exportingConfirmationReceipt, setExportingConfirmationReceipt] =
     useState(false);
   const [aiConfirmationPhrase, setAiConfirmationPhrase] = useState("");
@@ -201,6 +207,27 @@ function AiWorkbenchDashboard() {
         promptBlueprint: aiPromptBlueprint,
       }),
     [aiPayloadPreview, aiPromptBlueprint, selectedWorkflow]
+  );
+  const aiWorkbenchPacket = useMemo(
+    () =>
+      buildAiWorkbenchPacket({
+        workflowReadiness: aiWorkflowReadiness,
+        payloadPreview: aiPayloadPreview,
+        executionPolicy: aiExecutionPolicy,
+        promptBlueprint: aiPromptBlueprint,
+        contextPacket: aiContextPacket,
+        researchRunbook: aiResearchRunbook,
+        outputReview: aiOutputReview,
+      }),
+    [
+      aiContextPacket,
+      aiExecutionPolicy,
+      aiOutputReview,
+      aiPayloadPreview,
+      aiPromptBlueprint,
+      aiResearchRunbook,
+      aiWorkflowReadiness,
+    ]
   );
   const aiConfirmationReceipt = useMemo(
     () =>
@@ -333,6 +360,24 @@ function AiWorkbenchDashboard() {
     }
   };
 
+  const handleExportAiWorkbench = () => {
+    setExportingAiWorkbench(true);
+    try {
+      downloadJsonFile(
+        `zhinote-ai-workbench-${fileSafeTimestamp()}.json`,
+        {
+          ...aiWorkbenchPacket,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export AI workbench packet:", err);
+      window.alert("AI 工作台导出失败，请查看控制台。");
+    } finally {
+      setExportingAiWorkbench(false);
+    }
+  };
+
   const handleExportConfirmationReceipt = () => {
     setExportingConfirmationReceipt(true);
     try {
@@ -441,6 +486,123 @@ function AiWorkbenchDashboard() {
         </section>
 
         <AiWorkflowReadinessPanel report={aiWorkflowReadiness} />
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                AI 工作台总控
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把 workflow、payload、provider、prompt、输出保存和隐私边界合并成一个本地
+                action packet。导出不包含页面标题、页面正文、prompt 正文、文件 bytes 或
+                AI 输出正文，也不会调用模型。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportAiWorkbench}
+              disabled={exportingAiWorkbench}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingAiWorkbench ? "导出中..." : "导出 AI 工作台"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <ExecutionMetric
+              label="工作流"
+              value={aiWorkbenchPacket.summary.workflows}
+              detail="AI 能力目录"
+              status="planned"
+            />
+            <ExecutionMetric
+              label="页面"
+              value={aiWorkbenchPacket.summary.selected_pages}
+              detail="只导出数量"
+              status={
+                aiWorkbenchPacket.summary.selected_pages > 0
+                  ? "manual-confirmation"
+                  : "planned"
+              }
+            />
+            <ExecutionMetric
+              label="文件"
+              value={aiWorkbenchPacket.summary.files_available}
+              detail="bytes 排除"
+              status={
+                aiWorkbenchPacket.summary.files_available > 0
+                  ? "manual-confirmation"
+                  : "planned"
+              }
+            />
+            <ExecutionMetric
+              label="确认项"
+              value={aiWorkbenchPacket.summary.payload_approvals_required}
+              detail="Payload 前置"
+              status="manual-confirmation"
+            />
+            <ExecutionMetric
+              label="阻塞"
+              value={aiWorkbenchPacket.summary.blocked_actions}
+              detail="不能执行 AI"
+              status="blocked"
+            />
+            <ExecutionMetric
+              label="高优先级"
+              value={aiWorkbenchPacket.summary.high_priority_actions}
+              detail="下一步队列"
+              status="manual-confirmation"
+            />
+            <ExecutionMetric
+              label="写入路径"
+              value={aiWorkbenchPacket.summary.disabled_write_paths}
+              detail="全部禁用"
+              status="blocked"
+            />
+            <ExecutionMetric
+              label="AI 执行"
+              value="关闭"
+              detail="本地 packet"
+              status="blocked"
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                工作台 lanes
+              </div>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {aiWorkbenchPacket.lanes.map((lane) => (
+                  <AiWorkbenchLaneCard key={lane.id} lane={lane} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                优先动作
+              </div>
+              <div className="mt-2 space-y-2">
+                {aiWorkbenchPacket.actions.slice(0, 7).map((action) => (
+                  <AiWorkbenchActionCard key={action.id} action={action} />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+            <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              启用顺序
+            </div>
+            <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {aiWorkbenchPacket.enablement_sequence.map((step) => (
+                <AiEnablementStepCard key={step.id} step={step} />
+              ))}
+            </div>
+          </div>
+          <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            当前 AI 工作台总控只适合做本地 owner review；它不会启用
+            /api/ai/run，不会发送 payload，也不会把 AI 输出写入页面、数据库或云端。
+          </p>
+        </section>
 
         <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -1070,6 +1232,132 @@ function AiWorkbenchDashboard() {
         </section>
       </div>
     </div>
+  );
+}
+
+function AiWorkbenchLaneCard({
+  lane,
+}: {
+  lane: AiWorkbenchPacket["lanes"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {lane.title}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {lane.description}
+          </p>
+        </div>
+        <span className="shrink-0 rounded bg-white px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          {lane.action_count} 动作
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          高优先级 {lane.high_priority_count}
+        </span>
+        <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+          {lane.route}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {lane.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function AiWorkbenchActionCard({
+  action,
+}: {
+  action: AiWorkbenchPacket["actions"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <AiWorkbenchPriorityPill priority={action.priority} />
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+              {action.title}
+            </span>
+          </div>
+          <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+            {action.evidence}
+          </p>
+        </div>
+        <ExecutionStatusPill status={action.status} />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {action.next_action}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+          {action.blocks_ai_run ? "阻塞 AI 执行" : "不阻塞执行"}
+        </span>
+        <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+          {action.requires_manual_confirmation ? "需手动确认" : "计划项"}
+        </span>
+        <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+          {action.route_label}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function AiEnablementStepCard({
+  step,
+}: {
+  step: AiWorkbenchPacket["enablement_sequence"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] uppercase text-zinc-400">
+            Step {step.order}
+          </div>
+          <div className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
+            {step.title}
+          </div>
+        </div>
+        <ExecutionStatusPill status={step.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {step.reason}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {step.completion_signal}
+      </p>
+    </article>
+  );
+}
+
+function AiWorkbenchPriorityPill({
+  priority,
+}: {
+  priority: AiWorkbenchPriority;
+}) {
+  const labels: Record<AiWorkbenchPriority, string> = {
+    high: "高优先级",
+    medium: "中优先级",
+    low: "低优先级",
+  };
+  const className =
+    priority === "high"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : priority === "medium"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300";
+
+  return (
+    <span className={`shrink-0 rounded px-2 py-1 text-[10px] ${className}`}>
+      {labels[priority]}
+    </span>
   );
 }
 

@@ -13,6 +13,7 @@ const files = {
   executionPolicy: "src/lib/ai/aiExecutionPolicy.ts",
   promptBlueprint: "src/lib/ai/aiPromptBlueprint.ts",
   contextPacket: "src/lib/ai/aiContextPacket.ts",
+  aiWorkbench: "src/lib/ai/aiWorkbench.ts",
   researchRunbook: "src/lib/ai/aiResearchRunbook.ts",
   outputReview: "src/lib/ai/aiOutputReview.ts",
   aiShell: "src/components/modules/AiWorkbenchShell.tsx",
@@ -83,6 +84,7 @@ function run() {
   const executionPolicy = readProjectFile(files.executionPolicy);
   const promptBlueprint = readProjectFile(files.promptBlueprint);
   const contextPacket = readProjectFile(files.contextPacket);
+  const aiWorkbench = readProjectFile(files.aiWorkbench);
   const researchRunbook = readProjectFile(files.researchRunbook);
   const outputReview = readProjectFile(files.outputReview);
   const aiShell = readProjectFile(files.aiShell);
@@ -228,6 +230,33 @@ function run() {
       aiShell,
       snippet,
       "AI Workbench must render and export the AI context packet."
+    );
+  }
+  assertIncludes(
+    files.aiShell,
+    aiShell,
+    "@/lib/ai/aiWorkbench",
+    "AI Workbench shell must consume the local AI workbench packet."
+  );
+  for (const snippet of [
+    "buildAiWorkbenchPacket",
+    "handleExportAiWorkbench",
+    "AI 工作台总控",
+    "导出 AI 工作台",
+    "工作台 lanes",
+    "优先动作",
+    "启用顺序",
+    "导出不包含页面标题",
+    "AiWorkbenchLaneCard",
+    "AiWorkbenchActionCard",
+    "AiEnablementStepCard",
+    "AiWorkbenchPriorityPill",
+  ]) {
+    assertIncludes(
+      files.aiShell,
+      aiShell,
+      snippet,
+      "AI Workbench must render and export the local AI workbench packet."
     );
   }
 
@@ -450,6 +479,68 @@ function run() {
     );
   }
 
+  assertIncludes(
+    files.aiWorkbench,
+    aiWorkbench,
+    'format: "zhinote-ai-workbench-packet"',
+    "AI workbench packet must define a stable local export format."
+  );
+  assertIncludes(
+    files.aiWorkbench,
+    aiWorkbench,
+    "buildAiWorkbenchPacket",
+    "AI workbench packet must expose a reusable builder."
+  );
+  for (const snippet of [
+    'packet_status: "local-ai-workbench-only"',
+    "can_run_ai_now: false",
+    "local_packet_only: true",
+    "reads_workflow_metadata: true",
+    "reads_payload_preview_summary: true",
+    "reads_execution_policy_summary: true",
+    "reads_prompt_blueprint_summary: true",
+    "reads_context_packet_summary: true",
+    "reads_runbook_summary: true",
+    "reads_output_review_summary: true",
+    "reads_page_titles: false",
+    "reads_page_body_text: false",
+    "reads_prompt_text: false",
+    "reads_file_bytes: false",
+    "includes_page_titles: false",
+    "includes_page_body_text: false",
+    "includes_prompt_text: false",
+    "includes_file_bytes: false",
+    "includes_holdings_or_trading_plans: false",
+    "includes_client_info: false",
+    "includes_tokens_or_secrets: false",
+    "writes_workspace_data: false",
+    "creates_pages: false",
+    "updates_databases: false",
+    "stores_ai_output: false",
+    "calls_model_provider: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    "workflow-scope",
+    "context-selection",
+    "payload-review",
+    "provider-permission",
+    "prompt-and-output",
+    "audit-retention",
+    "privacy-boundary",
+    "export_ai_selected_page_titles_from_workbench",
+    "call_model_provider",
+    "send_payload_to_ai_provider",
+    "auto_create_ai_output_page",
+  ]) {
+    assertIncludes(
+      files.aiWorkbench,
+      aiWorkbench,
+      snippet,
+      "AI workbench packet must preserve local-only AI enablement boundaries."
+    );
+  }
+
   for (const stepId of requiredRunbookSteps) {
     assertIncludes(
       files.researchRunbook,
@@ -613,6 +704,7 @@ function run() {
         execution_gates: requiredPolicyGates.length,
         prompt_blueprint_workflows: requiredWorkflows.length,
         context_packet: true,
+        ai_workbench_packet: true,
         research_runbook_steps: requiredRunbookSteps.length,
         output_destinations: requiredOutputDestinations.length,
         output_review_gates: requiredOutputGates.length,
