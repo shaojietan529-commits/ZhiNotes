@@ -10,6 +10,7 @@ const files = {
   intake: "src/lib/reports/reportIntake.ts",
   trackerIntake: "src/lib/reports/reportTrackerIntake.ts",
   formatPlaybook: "src/lib/reports/reportFormatPlaybook.ts",
+  formatCoverage: "src/lib/reports/reportFormatCoverage.ts",
   readiness: "src/lib/files/filePreviewReadiness.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
@@ -139,6 +140,7 @@ function run() {
   const intake = readProjectFile(files.intake);
   const trackerIntake = readProjectFile(files.trackerIntake);
   const formatPlaybook = readProjectFile(files.formatPlaybook);
+  const formatCoverage = readProjectFile(files.formatCoverage);
   const readiness = readProjectFile(files.readiness);
   const actionReceipts = readProjectFile(files.actionReceipts);
   const upload = readProjectFile(files.upload);
@@ -360,6 +362,73 @@ function run() {
     "Report format playbook must expose a reusable builder."
   );
   assertIncludes(
+    files.formatCoverage,
+    formatCoverage,
+    'format: "zhinote-report-format-coverage"',
+    "Report format coverage must define a local export format."
+  );
+  assertIncludes(
+    files.formatCoverage,
+    formatCoverage,
+    "buildReportFormatCoverageReport",
+    "Report format coverage must expose a reusable builder."
+  );
+  for (const snippet of [
+    'report_status: "local-format-coverage-only"',
+    'coverage_verdict: "usable-with-local-gates"',
+    "reads_report_intake_metadata: true",
+    "reads_capability_metadata: true",
+    "reads_file_names: false",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "reads_page_body_text: false",
+    "writes_workspace_data: false",
+    "loads_external_resources: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.formatCoverage,
+      formatCoverage,
+      snippet,
+      "Report format coverage must preserve local-only metadata boundaries."
+    );
+  }
+  for (const snippet of [
+    '"active"',
+    '"active-needs-confirmation"',
+    '"supported-unused"',
+    '"blocked-limited"',
+    '"unsupported-active"',
+    '"intake-coverage"',
+    '"confirmation-workload"',
+    '"html-report-boundary"',
+    '"spreadsheet-database-import"',
+    '"converted-format-review"',
+    '"legacy-office-gap"',
+    '"unsupported-format-gap"',
+  ]) {
+    assertIncludes(
+      files.formatCoverage,
+      formatCoverage,
+      snippet,
+      "Report format coverage must expose coverage states and gap gates."
+    );
+  }
+  assertIncludes(
+    files.formatCoverage,
+    formatCoverage,
+    "FILE_PREVIEW_CAPABILITIES",
+    "Report format coverage must compare intake against the capability matrix."
+  );
+  assertIncludes(
+    files.formatCoverage,
+    formatCoverage,
+    "FilePreviewReadinessReport",
+    "Report format coverage must compare intake against readiness routes."
+  );
+  assertIncludes(
     files.readiness,
     readiness,
     'format: "zhinote-file-preview-readiness-report"',
@@ -529,6 +598,22 @@ function run() {
     "Reports module must export the format playbook."
   );
   for (const snippet of [
+    "buildReportFormatCoverageReport",
+    "handleExportFormatCoverage",
+    "格式覆盖缺口",
+    "导出 coverage",
+    "FormatCoverageGapRow",
+    "FormatCoverageRowCard",
+    "FormatCoverageStatusPill",
+  ]) {
+    assertIncludes(
+      files.reportsShell,
+      reportsShell,
+      snippet,
+      "Reports module must render and export report format coverage."
+    );
+  }
+  for (const snippet of [
     "buildFilePreviewReadinessReport",
     "handleExportPreviewReadiness",
     "原生预览 readiness",
@@ -625,6 +710,7 @@ function run() {
         intake_stages: requiredIntakeStages.length,
         tracker_intake_fields: 5,
         format_actions: requiredFormatActions.length,
+        format_coverage_gates: 7,
         readiness_gates: 6,
         action_receipt_kinds: 4,
         local_only: true,

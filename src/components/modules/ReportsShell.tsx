@@ -58,6 +58,11 @@ import {
   type ReportFormatPlaybook,
 } from "@/lib/reports/reportFormatPlaybook";
 import {
+  buildReportFormatCoverageReport,
+  type ReportFormatCoverageReport,
+  type ReportFormatCoverageStatus,
+} from "@/lib/reports/reportFormatCoverage";
+import {
   buildReportTrackerIntakeDraft,
   findExistingReportTrackerRow,
 } from "@/lib/reports/reportTrackerIntake";
@@ -136,6 +141,8 @@ function ReportsDashboard() {
   const [exportingFormatPlaybook, setExportingFormatPlaybook] = useState(false);
   const [exportingPreviewReadiness, setExportingPreviewReadiness] =
     useState(false);
+  const [exportingFormatCoverage, setExportingFormatCoverage] =
+    useState(false);
   const [exportingFileActionReceipts, setExportingFileActionReceipts] =
     useState(false);
   const [fileActionReceipts, setFileActionReceipts] = useState<
@@ -188,6 +195,14 @@ function ReportsDashboard() {
   const filePreviewReadiness = useMemo(
     () => buildFilePreviewReadinessReport(),
     []
+  );
+  const reportFormatCoverage = useMemo(
+    () =>
+      buildReportFormatCoverageReport({
+        intake: reportIntake,
+        readiness: filePreviewReadiness,
+      }),
+    [filePreviewReadiness, reportIntake]
   );
   const fileActionReceiptSummary = useMemo(
     () => summarizeFileActionReceipts(fileActionReceipts),
@@ -345,6 +360,24 @@ function ReportsDashboard() {
       window.alert("文件预览 readiness 导出失败，请查看控制台。");
     } finally {
       setExportingPreviewReadiness(false);
+    }
+  };
+
+  const handleExportFormatCoverage = () => {
+    setExportingFormatCoverage(true);
+    try {
+      downloadJsonFile(
+        `zhinote-report-format-coverage-${fileSafeTimestamp()}.json`,
+        {
+          ...reportFormatCoverage,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export report format coverage:", err);
+      window.alert("格式覆盖缺口报告导出失败，请查看控制台。");
+    } finally {
+      setExportingFormatCoverage(false);
     }
   };
 
@@ -764,6 +797,91 @@ function ReportsDashboard() {
                   还没有格式路线。上传报告文件后，这里会按文件类型生成处理 Playbook。
                 </p>
               )}
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                格式覆盖缺口
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把当前 intake 里的真实文件格式和 ZhiNotes 能力矩阵对齐，显示已使用、
+                未使用、需要确认、旧版 Office 和未知格式缺口。这个报告只按格式计数，
+                不列出文件名、不读取文件 bytes、文件文本或页面正文。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportFormatCoverage}
+              disabled={exportingFormatCoverage}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingFormatCoverage ? "导出中..." : "导出 coverage"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <IntakeMetric
+              label="实际格式"
+              value={reportFormatCoverage.summary.active_groups}
+              detail="Used groups"
+            />
+            <IntakeMetric
+              label="文件项"
+              value={reportFormatCoverage.summary.active_items}
+              detail="Intake files"
+            />
+            <IntakeMetric
+              label="未使用"
+              value={reportFormatCoverage.summary.supported_unused_groups}
+              detail="Supported"
+            />
+            <IntakeMetric
+              label="需确认"
+              value={reportFormatCoverage.summary.active_confirmation_groups}
+              detail="Active gates"
+            />
+            <IntakeMetric
+              label="未知"
+              value={reportFormatCoverage.summary.unsupported_active_groups}
+              detail="No route"
+            />
+            <IntakeMetric
+              label="限制"
+              value={reportFormatCoverage.summary.blocked_limited_groups}
+              detail="Known gaps"
+            />
+            <IntakeMetric
+              label="确认缺口"
+              value={reportFormatCoverage.summary.manual_confirmation_gaps}
+              detail="Review"
+            />
+            <IntakeMetric
+              label="阻塞缺口"
+              value={reportFormatCoverage.summary.blocked_gaps}
+              detail="Blocked"
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Coverage gaps
+              </div>
+              {reportFormatCoverage.gaps.map((gap) => (
+                <FormatCoverageGapRow key={gap.id} gap={gap} />
+              ))}
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Format coverage
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {reportFormatCoverage.rows.map((row) => (
+                  <FormatCoverageRowCard key={row.id} row={row} />
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -1390,6 +1508,128 @@ function StarterButton({
     >
       {busy ? "创建中..." : label}
     </button>
+  );
+}
+
+function FormatCoverageGapRow({
+  gap,
+}: {
+  gap: ReportFormatCoverageReport["gaps"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gap.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gap.id}
+          </div>
+        </div>
+        <FilePreviewReadinessPill status={gap.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gap.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gap.required_action}
+      </p>
+    </article>
+  );
+}
+
+function FormatCoverageRowCard({
+  row,
+}: {
+  row: ReportFormatCoverageReport["rows"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          {row.label}
+        </h3>
+        {row.support_level === "unknown" ? (
+          <span className="rounded bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
+            未登记
+          </span>
+        ) : (
+          <SupportPill level={row.support_level} />
+        )}
+        <FormatCoverageStatusPill status={row.coverage_status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {row.kinds.map((kind) => (
+          <span
+            key={kind}
+            className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+          >
+            {kind}
+          </span>
+        ))}
+        {row.extensions.slice(0, 6).map((extension) => (
+          <span
+            key={extension}
+            className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+          >
+            {extension}
+          </span>
+        ))}
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <RouteDetail label="当前文件" value={`${row.active_items} items`} />
+        <RouteDetail
+          label="Readiness"
+          value={
+            row.route_present_in_readiness
+              ? row.readiness_status
+              : "missing route"
+          }
+        />
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {row.recommended_action}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {row.privacy_boundary}
+      </p>
+      {row.capability_gap && (
+        <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-amber-600 dark:border-zinc-800 dark:text-amber-300">
+          {row.capability_gap}
+        </p>
+      )}
+    </article>
+  );
+}
+
+function FormatCoverageStatusPill({
+  status,
+}: {
+  status: ReportFormatCoverageStatus;
+}) {
+  const labels: Record<ReportFormatCoverageStatus, string> = {
+    active: "Active",
+    "active-needs-confirmation": "需确认",
+    "supported-unused": "未使用",
+    "blocked-limited": "限制",
+    "unsupported-active": "未知",
+  };
+  const className =
+    status === "active"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "active-needs-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : status === "supported-unused"
+          ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+          : status === "blocked-limited"
+            ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+            : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
