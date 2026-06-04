@@ -503,6 +503,9 @@ one route map for native preview, editable import, spreadsheet database import,
 metadata review, local retain, and gap review. The packet does not include file
 names, file bytes, file text, page body text, database row values, cloud data,
 or AI output, and it does not write workspace data or load external resources.
+Use the routing packet review sequence to jump through the report/file workflow:
+review native previews, inspect converted formats, confirm spreadsheet import
+boundaries, and resolve legacy or unknown format gaps.
 
 Uploading a report file into the Reports module now creates a metadata-only
 local file action receipt for the native page preview path, or for download

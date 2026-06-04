@@ -70,6 +70,7 @@ export interface FilePreviewRoutingStep {
   order: number;
   title: string;
   route: string;
+  target_section_id: string;
   reason: string;
   completion_signal: string;
 }
@@ -350,6 +351,7 @@ function buildReviewSequence(
       order: 1,
       title: "先打开可原生预览的报告",
       route: "/modules/reports",
+      target_section_id: "reports-review-queue",
       reason: firstActiveNative
         ? `${firstActiveNative.label} has ${firstActiveNative.active_items} active local items.`
         : "No active native-preview items yet; upload HTML, PDF, or media files to start.",
@@ -360,6 +362,7 @@ function buildReviewSequence(
       order: 2,
       title: "再复核转换类格式",
       route: "/modules/reports",
+      target_section_id: "reports-conversion-review",
       reason: firstConverted
         ? `${firstConverted.label} uses converted HTML preview and may lose layout details.`
         : `${input.coverage.summary.active_converted_groups} active converted groups need review.`,
@@ -370,6 +373,7 @@ function buildReviewSequence(
       order: 3,
       title: "表格先确认再入库",
       route: "/modules/reports",
+      target_section_id: "reports-format-playbook",
       reason: spreadsheet
         ? `${spreadsheet.active_items} active spreadsheet candidates; bulk import remains gated.`
         : "Spreadsheet route is not present in the current coverage rows.",
@@ -380,6 +384,7 @@ function buildReviewSequence(
       order: 4,
       title: "最后处理旧版或未知格式",
       route: "/modules/reports",
+      target_section_id: "reports-format-coverage",
       reason: firstGap
         ? `${firstGap.label}: ${firstGap.gap ?? "requires manual route review."}`
         : `${input.readiness.summary.blocked_routes} readiness routes are blocked.`,
