@@ -57,7 +57,7 @@ const gatedOrDisabledApiRoutes = [
   },
   {
     path: "src/app/api/files/presign/route.ts",
-    guard: 'buildWebBetaApiStubResponse("file-presign")',
+    guard: "buildFilePresignApiDisabledResponse",
   },
   {
     path: "src/app/api/permissions/check/route.ts",

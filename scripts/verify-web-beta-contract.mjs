@@ -13,6 +13,8 @@ const files = {
   contract: "src/lib/sync/webBetaContract.ts",
   deploymentTarget: "src/lib/sync/webBetaDeploymentTarget.ts",
   privateFileStoragePolicy: "src/lib/sync/privateFileStoragePolicy.ts",
+  filePresignApiStub: "src/lib/sync/filePresignApiStub.ts",
+  filePresignRoute: "src/app/api/files/presign/route.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   smokeTestVerifier: "scripts/verify-web-beta-smoke-tests.mjs",
   replayHarnessVerifier: "scripts/verify-replay-harness-safety.mjs",
@@ -193,6 +195,8 @@ function run() {
   const contract = readProjectFile(files.contract);
   const deploymentTarget = readProjectFile(files.deploymentTarget);
   const privateFileStoragePolicy = readProjectFile(files.privateFileStoragePolicy);
+  const filePresignApiStub = readProjectFile(files.filePresignApiStub);
+  const filePresignRoute = readProjectFile(files.filePresignRoute);
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const smokeTestVerifier = readProjectFile(files.smokeTestVerifier);
   const replayHarnessVerifier = readProjectFile(files.replayHarnessVerifier);
@@ -346,6 +350,12 @@ function run() {
 
     if (isCloudAlphaStub(stub.id)) {
       assertRouteGuard(routeFile, `cloudNotConfiguredResponse("${stub.id}")`, routeLabel);
+    } else if (stub.id === "file-presign") {
+      assertRouteGuard(
+        routeFile,
+        "buildFilePresignApiDisabledResponse",
+        routeLabel
+      );
     } else if (stub.id === "permission-check") {
       assertRouteGuard(
         routeFile,
@@ -1717,6 +1727,151 @@ function run() {
     syncShell,
     "Export storage policy",
     "Sync UI must render the private file storage policy export button."
+  );
+  assertSourceIncludes(
+    files.filePresignApiStub,
+    filePresignApiStub,
+    'format: "zhinote-file-presign-api-disabled"',
+    "File presign API guard must expose a stable disabled response format."
+  );
+  assertSourceIncludes(
+    files.filePresignApiStub,
+    filePresignApiStub,
+    "buildFilePresignApiDisabledResponse",
+    "File presign API guard must expose a reusable disabled response builder."
+  );
+  for (const [snippet, message] of [
+    ['api_id: "file-presign"', "File presign API guard must identify the file-presign route."],
+    ['path: "/api/files/presign"', "File presign API guard must bind to /api/files/presign."],
+    ['method: "POST"', "File presign API guard must document POST."],
+    ['stub_status: "disabled-local-stub"', "File presign API guard must stay disabled."],
+    ["can_create_signed_urls_now: false", "File presign API guard must not create signed URLs."],
+    ["can_create_signed_upload_url_now: false", "File presign API guard must not create upload URLs."],
+    ["can_create_signed_download_url_now: false", "File presign API guard must not create download URLs."],
+    ["can_read_request_body_now: false", "File presign API guard must not read request bodies."],
+    ["can_read_file_metadata_now: false", "File presign API guard must not read file metadata yet."],
+    ["can_read_file_bytes_now: false", "File presign API guard must not read file bytes."],
+    ["can_upload_files_now: false", "File presign API guard must not upload files."],
+    ["can_expose_public_urls_now: false", "File presign API guard must not expose public URLs."],
+    ["can_connect_storage_now: false", "File presign API guard must not connect storage."],
+    ["can_write_audit_events_now: false", "File presign API guard must not write audit events."],
+    ["no_request_argument: true", "File presign API guard must not accept a request argument."],
+    ["reads_request_body: false", "File presign API guard must keep body reads disabled."],
+    ["metadata_only_request: true", "File presign API guard must keep the future request metadata-only."],
+    ["executes_actions: false", "File presign API guard must not execute actions."],
+    ["reads_file_metadata: false", "File presign API guard must not read metadata in the disabled route."],
+    ["reads_file_names: false", "File presign API guard must not read file names."],
+    ["reads_file_bytes: false", "File presign API guard must not read file bytes."],
+    ["reads_page_body_text: false", "File presign API guard must not read page text."],
+    ["reads_database_row_values: false", "File presign API guard must not read database values."],
+    ["reads_prompt_text: false", "File presign API guard must not read prompt text."],
+    ["reads_secret_values: false", "File presign API guard must not read secrets."],
+    ["creates_signed_urls: false", "File presign API guard must not create signed URLs."],
+    ["creates_public_urls: false", "File presign API guard must not create public URLs."],
+    ["connects_storage_service: false", "File presign API guard must not connect storage service."],
+    ["uploads_files: false", "File presign API guard must not upload files."],
+    ["writes_server_audit_log: false", "File presign API guard must not write audit logs."],
+    ["uploads_workspace_data: false", "File presign API guard must not upload workspace data."],
+    ["requires_private_bucket_before_enablement: true", "File presign API guard must require private bucket policy."],
+    ["requires_authenticated_actor_before_enablement: true", "File presign API guard must require authenticated actors."],
+    ["requires_workspace_membership_before_enablement: true", "File presign API guard must require workspace membership."],
+    ["requires_permission_check_before_enablement: true", "File presign API guard must require permission checks."],
+    ["requires_checksum_before_enablement: true", "File presign API guard must require checksums."],
+    ["requires_owner_confirmation_before_enablement: true", "File presign API guard must require owner confirmation."],
+    ["requires_audit_event_envelope_before_enablement: true", "File presign API guard must require audit envelopes."],
+    ['schema_status: "planned-metadata-only"', "File presign API guard must expose metadata-only request schema."],
+    ['schema_status: "planned-no-url-body"', "File presign API guard must expose a no-URL response schema."],
+    ["http_status: 501", "File presign API guard must keep the disabled HTTP status explicit."],
+    ["returns_signed_upload_url: false", "File presign API guard must not return signed upload URLs."],
+    ["returns_signed_download_url: false", "File presign API guard must not return signed download URLs."],
+    ["returns_public_url: false", "File presign API guard must not return public URLs."],
+    ["returns_storage_credentials: false", "File presign API guard must not return storage credentials."],
+    ["returns_file_bytes: false", "File presign API guard must not return file bytes."],
+  ]) {
+    assertSourceIncludes(files.filePresignApiStub, filePresignApiStub, snippet, message);
+  }
+  for (const snippet of [
+    "buildWebBetaApiStubResponse(\"file-presign\")",
+    "workspace_id",
+    "file_id",
+    "storage_key",
+    "operation",
+    "file_kind",
+    "mime_type",
+    "size_bytes",
+    "sha256",
+    "requested_ttl_seconds",
+    "confirmation_receipt_id",
+    "permission_decision_id",
+    "audit_envelope_id",
+    "file_bytes",
+    "data_url",
+    "base64",
+    "signed_upload_url",
+    "signed_download_url",
+    "public_url",
+    "file_text",
+    "page_body_text",
+    "database_cell_values",
+    "prompt_text",
+    "token",
+    "cookie",
+    "secret",
+    "request_body_raw",
+    'format: "zhinote-file-presign-validator-fixtures"',
+    'validator_status: "not-executing-route"',
+    '"metadata-upload-request"',
+    '"file-bytes-blocked"',
+    '"signed-url-blocked"',
+    '"authenticated-workspace-membership"',
+    '"private-bucket-policy"',
+    '"checksum-and-size-validation"',
+    '"server-permission-check"',
+    '"metadata-only-audit-envelope"',
+    '"owner-file-sync-confirmation"',
+  ]) {
+    assertSourceIncludes(
+      files.filePresignApiStub,
+      filePresignApiStub,
+      snippet,
+      "File presign API guard must preserve metadata schema, fixtures, and enablement gates."
+    );
+  }
+  assertSourceIncludes(
+    files.filePresignRoute,
+    filePresignRoute,
+    "buildFilePresignApiDisabledResponse",
+    "File presign route must return the dedicated disabled response."
+  );
+  assertSourceIncludes(
+    files.filePresignRoute,
+    filePresignRoute,
+    "WEB_BETA_API_STUB_HTTP_STATUS",
+    "File presign route must keep the disabled Web Beta HTTP status."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildFilePresignApiDisabledResponse",
+    "Sync UI must build the file presign API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportFilePresignApiGuard",
+    "Sync UI must export the file presign API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "File presign API guard",
+    "Sync UI must render the file presign API guard panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Export file presign guard",
+    "Sync UI must render the file presign guard export button."
   );
   assertSourceIncludes(
     files.webBetaStageGate,
@@ -3827,6 +3982,7 @@ function run() {
     link_proof_contract_checks: 7,
     deployment_target_checks: 16,
     private_file_storage_policy_checks: 45,
+    file_presign_api_guard_checks: 86,
     smoke_test_plan_checks: 16,
     smoke_test_verifier_checks: 5,
     replay_harness_safety_script_checks: 7,

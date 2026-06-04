@@ -171,9 +171,9 @@ export const WEB_BETA_API_STUBS: WebBetaApiStub[] = [
     purpose:
       "Future endpoint for private upload/download URLs for reports, PDFs, Office files, archives, and notebooks.",
     future_requirement:
-      "Enable only after private storage buckets, signed URL expiry, checksums, size limits, and audit logs exist.",
+      "Enable only after private storage buckets, signed URL expiry, checksums, size limits, server permission checks, metadata-only audit envelopes, validator-backed forbidden payload rejection, and owner confirmation exist.",
     privacy_boundary:
-      "The current stub does not read file metadata, create storage URLs, upload files, or expose public links.",
+      "The current dedicated disabled response does not read request bodies, inspect file metadata, create signed URLs, expose public links, upload files, write audit logs, or return storage credentials.",
   },
   {
     id: "permission-check",

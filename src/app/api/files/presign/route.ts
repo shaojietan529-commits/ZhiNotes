@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import {
   WEB_BETA_API_STUB_HTTP_STATUS,
-  buildWebBetaApiStubResponse,
 } from "@/lib/sync/webBetaApiStubs";
+import { buildFilePresignApiDisabledResponse } from "@/lib/sync/filePresignApiStub";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  return NextResponse.json(buildWebBetaApiStubResponse("file-presign"), {
+  return NextResponse.json(buildFilePresignApiDisabledResponse(), {
     status: WEB_BETA_API_STUB_HTTP_STATUS,
   });
 }

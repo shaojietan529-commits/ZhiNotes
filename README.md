@@ -693,6 +693,12 @@ Current local actions:
   permission gates, audit gates, and forbidden payload fields. It does not
   create buckets, generate signed URLs, connect cloud services, read file names,
   read file bytes, upload files, or enable file sync.
+- Review and export a local file presign API guard. `/api/files/presign` now
+  returns a dedicated disabled schema response with planned metadata-only
+  request fields, forbidden payload fields, no-URL response fields, fixture
+  checks, and enablement gates. It still does not read request bodies, inspect
+  file metadata, generate signed URLs, expose public links, upload files, write
+  audit logs, or return storage credentials.
 - Review and export a local route/API preflight report. The report checks
   workspace routes, module routes, disabled API stubs, Cloud Alpha metadata
   routes, and the environment preflight endpoint against the launch checklist,
@@ -722,10 +728,11 @@ Current local actions:
   logout, workspace list, workspace create, workspace bootstrap, sync push, sync
   pull, sync replay test, restore preview, restore apply, file presign,
   permission check, audit events, and cloud migration apply. These routes return
-  disabled responses unless explicitly enabled; the permission check route uses
-  a dedicated metadata-only schema guard, local validator fixture report, server
-  permission test matrix, and server permission readiness report. They do not
-  upload local notes, files, databases, backups, or sync queue rows.
+  disabled responses unless explicitly enabled; the file presign route uses a
+  dedicated metadata-only no-URL schema guard, and the permission check route
+  uses a dedicated metadata-only schema guard, local validator fixture report,
+  server permission test matrix, and server permission readiness report. They do
+  not upload local notes, files, databases, backups, or sync queue rows.
 - Review and export a local Web Beta readiness report that summarizes local
   evidence, manual confirmation points, and blocked launch gates. The report
   does not create accounts, connect cloud services, upload notes, sync files,
