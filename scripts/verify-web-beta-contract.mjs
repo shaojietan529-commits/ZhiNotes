@@ -12,6 +12,7 @@ const files = {
   apiStubs: "src/lib/sync/webBetaApiStubs.ts",
   contract: "src/lib/sync/webBetaContract.ts",
   deploymentTarget: "src/lib/sync/webBetaDeploymentTarget.ts",
+  privateFileStoragePolicy: "src/lib/sync/privateFileStoragePolicy.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   smokeTestVerifier: "scripts/verify-web-beta-smoke-tests.mjs",
   replayHarnessVerifier: "scripts/verify-replay-harness-safety.mjs",
@@ -191,6 +192,7 @@ function run() {
   const apiStubs = readProjectFile(files.apiStubs);
   const contract = readProjectFile(files.contract);
   const deploymentTarget = readProjectFile(files.deploymentTarget);
+  const privateFileStoragePolicy = readProjectFile(files.privateFileStoragePolicy);
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const smokeTestVerifier = readProjectFile(files.smokeTestVerifier);
   const replayHarnessVerifier = readProjectFile(files.replayHarnessVerifier);
@@ -1575,6 +1577,146 @@ function run() {
     syncShell,
     "Deployment target",
     "Sync UI must render the deployment target panel."
+  );
+  assertSourceIncludes(
+    files.privateFileStoragePolicy,
+    privateFileStoragePolicy,
+    'format: "zhinote-private-file-storage-policy"',
+    "Private file storage policy must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.privateFileStoragePolicy,
+    privateFileStoragePolicy,
+    "buildPrivateFileStoragePolicyReport",
+    "Private file storage policy must expose a reusable builder."
+  );
+  assertSourceIncludes(
+    files.privateFileStoragePolicy,
+    privateFileStoragePolicy,
+    'policy_status: "local-policy-only"',
+    "Private file storage policy must remain local-only."
+  );
+  assertSourceIncludes(
+    files.privateFileStoragePolicy,
+    privateFileStoragePolicy,
+    "file_sync_can_start_now: false",
+    "Private file storage policy must not enable file sync."
+  );
+  for (const [snippet, message] of [
+    [
+      "reads_file_metadata_counts: true",
+      "Private file storage policy may read local file counts.",
+    ],
+    [
+      "reads_file_kind_summary: true",
+      "Private file storage policy may read local file kind summaries.",
+    ],
+    [
+      "reads_environment_presence: true",
+      "Private file storage policy may read environment presence metadata.",
+    ],
+    [
+      "reads_file_names: false",
+      "Private file storage policy must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Private file storage policy must not read file bytes.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Private file storage policy must not read page text.",
+    ],
+    [
+      "creates_storage_buckets: false",
+      "Private file storage policy must not create buckets.",
+    ],
+    [
+      "creates_signed_urls: false",
+      "Private file storage policy must not create signed URLs.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Private file storage policy must not connect cloud services.",
+    ],
+    [
+      "writes_server_data: false",
+      "Private file storage policy must not write server data.",
+    ],
+    [
+      "uploads_files: false",
+      "Private file storage policy must not upload files.",
+    ],
+    [
+      "exposes_secret_values: false",
+      "Private file storage policy must not expose secrets.",
+    ],
+    [
+      "requires_owner_confirmation_before_file_sync: true",
+      "Private file storage policy must require owner confirmation before file sync.",
+    ],
+  ]) {
+    assertSourceIncludes(files.privateFileStoragePolicy, privateFileStoragePolicy, snippet, message);
+  }
+  for (const snippet of [
+    "SUPABASE_STORAGE_BUCKET",
+    "/api/files/presign",
+    "private-source-files",
+    "private-preview-artifacts",
+    "signed_url_ttl_minutes",
+    "public_access_forbidden: true",
+    "file_bytes",
+    "signed_download_url",
+    "signed_upload_url",
+    "public_url",
+    '"private-bucket-policy"',
+    '"signed-url-expiry"',
+    '"checksum-and-size"',
+    '"permission-and-audit"',
+    '"owner-file-sync-confirmation"',
+  ]) {
+    assertSourceIncludes(
+      files.privateFileStoragePolicy,
+      privateFileStoragePolicy,
+      snippet,
+      "Private file storage policy must preserve storage gates and forbidden payload fields."
+    );
+  }
+  assertSourceIncludes(
+    files.launchChecklist,
+    launchChecklist,
+    "privateFileStoragePolicy",
+    "Launch checklist must consume the private file storage policy."
+  );
+  assertSourceIncludes(
+    files.launchChecklist,
+    launchChecklist,
+    "file sync cannot start",
+    "Launch checklist must keep file sync disabled after policy drafting."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildPrivateFileStoragePolicyReport",
+    "Sync UI must build the private file storage policy."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportPrivateFileStoragePolicy",
+    "Sync UI must export the private file storage policy."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "私有文件存储政策",
+    "Sync UI must render the private file storage policy panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Export storage policy",
+    "Sync UI must render the private file storage policy export button."
   );
   assertSourceIncludes(
     files.webBetaStageGate,
@@ -3684,6 +3826,7 @@ function run() {
     migration_tables: migrationTables.length,
     link_proof_contract_checks: 7,
     deployment_target_checks: 16,
+    private_file_storage_policy_checks: 45,
     smoke_test_plan_checks: 16,
     smoke_test_verifier_checks: 5,
     replay_harness_safety_script_checks: 7,

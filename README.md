@@ -687,6 +687,12 @@ Current local actions:
   Cloudflare as the DNS/CDN/WAF layer before any future Pages or Workers runtime
   review; it does not deploy the app, create cloud resources, connect services,
   read secrets, write server data, or upload workspace data.
+- Review and export a local private file storage policy. The policy maps future
+  private Supabase Storage buckets, `/api/files/presign` metadata requests,
+  signed URL TTL, checksums, file size limits, file-class strategies,
+  permission gates, audit gates, and forbidden payload fields. It does not
+  create buckets, generate signed URLs, connect cloud services, read file names,
+  read file bytes, upload files, or enable file sync.
 - Review and export a local route/API preflight report. The report checks
   workspace routes, module routes, disabled API stubs, Cloud Alpha metadata
   routes, and the environment preflight endpoint against the launch checklist,
@@ -761,6 +767,9 @@ The first cloud phase is a private alpha, not full sync:
 - Sync, file presign, permissions, audit, and restore write-back remain disabled
   until payload preview, permission checks, conflict handling, and rollback proof
   are implemented.
+- The private file storage policy is now drafted locally, but file sync remains
+  disabled until private buckets, signed URL expiry, checksums, size limits,
+  permission checks, audit events, and owner confirmation are implemented.
 - The cloud sync confirmation phrase can produce a local receipt, but the
   receipt is audit evidence only and does not turn on cloud push.
 - `npm run verify:web-beta` checks the local Web Beta contract before launch:

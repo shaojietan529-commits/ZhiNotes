@@ -117,6 +117,11 @@ import {
   type WebBetaLaunchStatus,
 } from "@/lib/sync/webBetaLaunchChecklist";
 import {
+  buildPrivateFileStoragePolicyReport,
+  type PrivateFileStoragePolicyReport,
+  type PrivateFileStoragePolicyStatus,
+} from "@/lib/sync/privateFileStoragePolicy";
+import {
   buildWebBetaNextActionPlan,
   type WebBetaNextActionPlan,
   type WebBetaNextActionPriority,
@@ -279,6 +284,7 @@ type WebBetaContractAction =
   | "identity"
   | "cloud-schema-plan"
   | "launch-checklist"
+  | "private-file-storage-policy"
   | "environment-preflight"
   | "audit-policy"
   | "audit-envelope"
@@ -974,6 +980,15 @@ function SyncDashboard() {
     () => buildWebBetaDeploymentTarget(),
     []
   );
+  const privateFileStoragePolicy = useMemo(
+    () =>
+      buildPrivateFileStoragePolicyReport({
+        uploadedFiles: storedFiles.length,
+        fileKinds: fileSummary.kinds,
+        environmentPreflight,
+      }),
+    [environmentPreflight, fileSummary.kinds, storedFiles.length]
+  );
   const webBetaLaunchChecklist = useMemo(
     () =>
       buildWebBetaLaunchChecklist({
@@ -994,6 +1009,7 @@ function SyncDashboard() {
         permissionDecisionReport,
         accountSessionBoundary,
         cloudMigrationSqlDraft,
+        privateFileStoragePolicy,
         syncReplayTestPlan,
       }),
     [
@@ -1008,6 +1024,7 @@ function SyncDashboard() {
       storedFiles.length,
       environmentPreflight,
       permissionDecisionReport,
+      privateFileStoragePolicy,
       syncConflictReview,
       syncPayloadPreview,
       syncReplayTestPlan,
@@ -2156,6 +2173,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Web beta launch checklist export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportPrivateFileStoragePolicy = () => {
+    setBusyContractAction("private-file-storage-policy");
+    try {
+      downloadJsonFile(
+        `zhinote-private-file-storage-policy-${fileSafeTimestamp()}.json`,
+        {
+          ...privateFileStoragePolicy,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export private file storage policy:",
+        err
+      );
+      window.alert(
+        "Private file storage policy export failed. Please check the console."
       );
     } finally {
       setBusyContractAction(null);
@@ -4062,6 +4102,96 @@ function SyncDashboard() {
               <StageGateRow key={gate.id} gate={gate} />
             ))}
           </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                私有文件存储政策
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                Web Beta 前的本地-only storage policy。它把未来 HTML 报告、
+                PDF、Office、notebook、archive 和 media 文件上云前必须满足的
+                private bucket、signed URL、checksum、size limit、permission
+                和 audit gate 列清楚；当前不创建 bucket、不生成 URL、不上传文件。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportPrivateFileStoragePolicy}
+              disabled={busyContractAction === "private-file-storage-policy"}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {busyContractAction === "private-file-storage-policy"
+                ? "Exporting..."
+                : "Export storage policy"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-5">
+            <PrivateFileStorageSummaryCard
+              label="Local files"
+              value={privateFileStoragePolicy.local_evidence.uploaded_files}
+              detail="Count only"
+              status="planned"
+            />
+            <PrivateFileStorageSummaryCard
+              label="Buckets"
+              value={privateFileStoragePolicy.summary.buckets}
+              detail="Private only"
+              status="planned"
+            />
+            <PrivateFileStorageSummaryCard
+              label="Blocked"
+              value={privateFileStoragePolicy.summary.blocked}
+              detail="Before file sync"
+              status="blocked"
+            />
+            <PrivateFileStorageSummaryCard
+              label="Signed URL"
+              value={`${privateFileStoragePolicy.summary.signed_url_ttl_minutes}m`}
+              detail="Future max TTL"
+              status="manual-confirmation"
+            />
+            <PrivateFileStorageSummaryCard
+              label="Max size"
+              value={`${privateFileStoragePolicy.summary.max_upload_size_mb}MB`}
+              detail="Default limit"
+              status="manual-confirmation"
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <ContractPanel title="Storage gates">
+              <div className="space-y-2">
+                {privateFileStoragePolicy.gates.map((gate) => (
+                  <PrivateFileStorageGateRow key={gate.id} gate={gate} />
+                ))}
+              </div>
+            </ContractPanel>
+            <ContractPanel title="Bucket and route policy">
+              <div className="grid gap-2 md:grid-cols-2">
+                {privateFileStoragePolicy.buckets.map((bucket) => (
+                  <PrivateFileStorageBucketRow
+                    key={bucket.id}
+                    bucket={bucket}
+                  />
+                ))}
+                {privateFileStoragePolicy.routes.map((route) => (
+                  <PrivateFileStorageRouteRow key={route.id} route={route} />
+                ))}
+              </div>
+            </ContractPanel>
+          </div>
+          <ContractPanel title="File class strategy" className="mt-4">
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {privateFileStoragePolicy.file_classes.map((fileClass) => (
+                <PrivateFileStorageClassRow
+                  key={fileClass.id}
+                  fileClass={fileClass}
+                />
+              ))}
+            </div>
+          </ContractPanel>
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -7877,6 +8007,191 @@ function PreflightStatusPill({
       : status === "missing"
         ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
         : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function PrivateFileStorageSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: PrivateFileStoragePolicyStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <PrivateFileStorageStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function PrivateFileStorageGateRow({
+  gate,
+}: {
+  gate: PrivateFileStoragePolicyReport["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+        </div>
+        <PrivateFileStorageStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function PrivateFileStorageBucketRow({
+  bucket,
+}: {
+  bucket: PrivateFileStoragePolicyReport["buckets"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {bucket.id}
+          </div>
+          <div className="mt-1 text-[10px] text-zinc-400">
+            {bucket.bucket_name_env} · public {bucket.public_access}
+          </div>
+        </div>
+        <PrivateFileStorageStatusPill status={bucket.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {bucket.purpose}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {bucket.required_controls.slice(0, 5).map((control) => (
+          <span
+            key={control}
+            className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {control}
+          </span>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function PrivateFileStorageRouteRow({
+  route,
+}: {
+  route: PrivateFileStoragePolicyReport["routes"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-md bg-white px-2 py-1 text-[10px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+              {route.method}
+            </span>
+            <span className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+              {route.route}
+            </span>
+          </div>
+          <div className="mt-1 text-[10px] uppercase tracking-wide text-zinc-400">
+            {route.id} · {route.route_status}
+          </div>
+        </div>
+        <PrivateFileStorageStatusPill status="blocked" />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {route.purpose}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        Forbidden: {route.forbidden_payload_fields.slice(0, 6).join(", ")}
+      </p>
+    </article>
+  );
+}
+
+function PrivateFileStorageClassRow({
+  fileClass,
+}: {
+  fileClass: PrivateFileStoragePolicyReport["file_classes"][number];
+}) {
+  const status: PrivateFileStoragePolicyStatus =
+    fileClass.sync_strategy === "blocked-until-review"
+      ? "blocked"
+      : "planned";
+
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {fileClass.label}
+          </div>
+          <div className="mt-1 text-[10px] text-zinc-400">
+            {fileClass.default_max_size_mb} MB · {fileClass.sync_strategy}
+          </div>
+        </div>
+        <PrivateFileStorageStatusPill status={status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {fileClass.file_kinds.map((kind) => (
+          <span
+            key={kind}
+            className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {kind}
+          </span>
+        ))}
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {fileClass.required_controls[0]}
+      </p>
+    </article>
+  );
+}
+
+function PrivateFileStorageStatusPill({
+  status,
+}: {
+  status: PrivateFileStoragePolicyStatus;
+}) {
+  const labels: Record<PrivateFileStoragePolicyStatus, string> = {
+    planned: "Planned",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+  const className =
+    status === "blocked"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>

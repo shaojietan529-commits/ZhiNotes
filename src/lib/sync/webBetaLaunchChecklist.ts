@@ -9,6 +9,7 @@ import type { AuditTrailPolicy } from "@/lib/security/auditTrailPolicy";
 import type { PermissionDecisionReport } from "@/lib/security/permissionDecision";
 import type { AccountSessionBoundary } from "@/lib/security/accountSessionBoundary";
 import type { CloudMigrationSqlDraft } from "@/lib/sync/cloudMigrationSqlDraft";
+import type { PrivateFileStoragePolicyReport } from "@/lib/sync/privateFileStoragePolicy";
 import type { SyncReplayTestPlan } from "@/lib/sync/syncReplayTestPlan";
 import { WEB_BETA_API_STUBS } from "@/lib/sync/webBetaApiStubs";
 import type { WebBetaApiStubId } from "@/lib/sync/webBetaApiStubs";
@@ -37,6 +38,7 @@ export interface WebBetaLaunchChecklistInput {
   permissionDecisionReport: PermissionDecisionReport | null;
   accountSessionBoundary: AccountSessionBoundary | null;
   cloudMigrationSqlDraft: CloudMigrationSqlDraft | null;
+  privateFileStoragePolicy: PrivateFileStoragePolicyReport | null;
   syncReplayTestPlan: SyncReplayTestPlan | null;
 }
 
@@ -197,10 +199,12 @@ function buildLaunchTracks(
     {
       id: "private-file-storage",
       title: "Private file storage",
-      status: "blocked",
-      evidence: `${input.uploadedFiles} local files would need private buckets, checksums, signed URLs, and size limits before sync.`,
+      status: input.privateFileStoragePolicy ? "partial" : "blocked",
+      evidence: input.privateFileStoragePolicy
+        ? `Private file storage policy covers ${input.privateFileStoragePolicy.summary.buckets} buckets, ${input.privateFileStoragePolicy.summary.routes} presign routes, ${input.privateFileStoragePolicy.summary.file_classes} file classes, and ${input.privateFileStoragePolicy.summary.blocked} blocked gates; /api/files/presign remains disabled and file sync cannot start.`
+        : `${input.uploadedFiles} local files would need private buckets, checksums, signed URLs, and size limits before sync.`,
       required_action:
-        "Configure private object storage before syncing HTML reports, PDFs, Office files, archives, or notebooks.",
+        "Implement private buckets, signed URL expiry, checksum validation, size limits, server permissions, metadata-only audit events, and owner confirmation before syncing HTML reports, PDFs, Office files, archives, or notebooks.",
     },
     {
       id: "sync-replay",

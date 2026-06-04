@@ -33,6 +33,19 @@
 - 该计划只生成本地 checklist；不会运行测试、发送网络请求、部署、创建账号、
   连接云服务、读取 secret、写 server data 或上传 workspace data。
 
+`src/lib/sync/privateFileStoragePolicy.ts` 记录 private storage policy：
+
+- 文件云同步必须使用 private Supabase Storage bucket，禁止 public URL 和 public
+  listing。
+- `/api/files/presign` 只能接收 metadata-only 请求，例如 workspace id、file id、
+  file kind、mime type、size、checksum、operation 和 confirmation receipt id。
+- signed URL 默认 TTL 为 10 分钟；signed URL 值、file bytes、data URL、file text、
+  page text、tokens、cookies 和 secrets 都不得进入 sync、audit 或 permission 导出。
+- HTML、Markdown、PDF、Excel、Word、PPT、notebook、archive 和 media 分不同
+  file class 处理；archive/media 在上传前还需要额外人工复核。
+- 该政策只在本地生成和导出；不会创建 bucket、生成 signed URL、连接云服务、
+  读取文件名、读取文件 bytes、写 server data、上传文件或启用 file sync。
+
 当前目标不是一次性做完整云同步，而是先上线一个安全的 private alpha：
 
 1. Vercel 托管 Next.js 前端。
@@ -153,6 +166,8 @@ https://your-vercel-domain.vercel.app/auth/callback
 - Sync 模块里的 `Smoke test plan` 已导出或人工复核，且 preview route、auth
   callback、disabled cloud defaults、private storage disabled、Cloudflare edge
   staging、rollback 和 observability 都有明确通过条件。
+- Sync 模块里的 `Private file storage policy` 已导出或人工复核，且确认
+  `/api/files/presign` 仍是 disabled stub，没有生成 signed URL 或上传文件。
 - Supabase migration 已在测试 project 跑通。
 - Vercel 环境变量已配置，但生产写入开关默认可先保持 false。
 - 登录 magic link 在测试邮箱上跑通。
