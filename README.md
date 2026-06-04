@@ -19,7 +19,8 @@ while research workflows can be added as modules.
 
 Current module foundation:
 
-- Notes and Pages: block editor, page tree, backlinks, comments, version history.
+- Notes and Pages: block editor, page tree, backlinks, comments, version
+  history, and a local page research structure panel.
 - Research Databases: active module at `/modules/databases` for table, list,
   kanban, calendar, gallery, timeline, chart, form, feed, local page relation
   fields, template rows, CSV export, XLSX export, confirmed
@@ -134,6 +135,35 @@ extension slots, starter presets, local-only onboarding boundaries, sidebar
 navigation, command palette wiring, module starter pack files/checklists/risk
 gates, module health coverage, module roadmap lanes, and the module center
 export surfaces.
+
+## Notes and Pages
+
+Open any local page at:
+
+```txt
+http://localhost:3000/page/<page-id>
+```
+
+Current local actions:
+
+- Write and edit Notion-like page content with headings, lists, tasks, toggles,
+  callouts, tables, formulas, synced blocks, embeds, wiki links, file previews,
+  inline databases, comments, backlinks, and version history.
+- Add page icons, covers, sub-pages, local page links, duplicate pages, lock
+  editing, switch page width, save named versions, and export HTML, Markdown, or
+  browser PDF.
+- Review the Info panel for page metadata, local word/block counts, file/table
+  counts, and the new 投研结构 summary.
+- Use the 投研结构 panel as a local checklist for outline coverage, investment
+  conclusions, thesis markers, sources, action items, research relations, file
+  blocks, inline databases, and review trail.
+
+The local page research structure panel reads only the current page HTML and
+basic page metadata. It does not read linked page bodies, database row values, uploaded file bytes, AI prompts, tokens, credentials, cloud data, or private research content. It does not upload data, connect cloud services, call AI, or
+write workspace data.
+
+Run `npm run verify:page-structure` before treating the Notes and Pages
+research-structure panel as part of the local product contract.
 
 ## Research Workflow Schema
 
@@ -966,6 +996,7 @@ npm run verify:ai
 npm run verify:database
 npm run verify:file-preview
 npm run verify:modules
+npm run verify:page-structure
 npm run verify:research-workflow
 npm run verify:replay-harness
 npm run verify:web-beta

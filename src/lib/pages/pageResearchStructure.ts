@@ -1,0 +1,487 @@
+"use client";
+
+export type PageResearchStructureStatus =
+  | "ready"
+  | "needs-structure"
+  | "thin"
+  | "empty";
+
+export type PageResearchSignalStatus = "ready" | "review" | "empty";
+
+export type PageResearchStructureSignalId =
+  | "outline"
+  | "decision"
+  | "thesis"
+  | "sources"
+  | "actions"
+  | "relations"
+  | "files"
+  | "databases"
+  | "versioning"
+  | "local-boundary";
+
+export interface PageResearchStructureOutlineItem {
+  id: string;
+  level: number;
+  title: string;
+}
+
+export interface PageResearchStructureSignal {
+  id: PageResearchStructureSignalId;
+  label: string;
+  value: number | string;
+  status: PageResearchSignalStatus;
+  detail: string;
+}
+
+export interface PageResearchStructureGate {
+  id:
+    | "page-outline"
+    | "investment-decision"
+    | "evidence-sources"
+    | "next-actions"
+    | "research-relations"
+    | "review-trail";
+  label: string;
+  status: PageResearchSignalStatus;
+  detail: string;
+  evidence: string;
+}
+
+export interface PageResearchStructureReport {
+  format: "zhinote-page-research-structure";
+  format_version: 1;
+  report_status: "local-page-structure-only";
+  structure_status: PageResearchStructureStatus;
+  privacy_note: string;
+  boundary: {
+    local_page_structure_only: true;
+    reads_current_page_html: true;
+    reads_page_metadata: true;
+    reads_linked_page_bodies: false;
+    reads_database_rows: false;
+    reads_file_bytes: false;
+    uploads_data: false;
+    connects_cloud_services: false;
+    enables_ai: false;
+    writes_workspace_data: false;
+  };
+  summary: {
+    blocks: number;
+    characters: number;
+    words: number;
+    headings: number;
+    tables: number;
+    links: number;
+    page_mentions: number;
+    file_blocks: number;
+    database_blocks: number;
+    callouts: number;
+    toggles: number;
+    toc_blocks: number;
+    code_blocks: number;
+    equations: number;
+    task_items: number;
+    checked_task_items: number;
+    decision_markers: number;
+    thesis_markers: number;
+    source_markers: number;
+    action_markers: number;
+    risk_markers: number;
+    catalyst_markers: number;
+  };
+  outline: PageResearchStructureOutlineItem[];
+  gates: PageResearchStructureGate[];
+  signals: PageResearchStructureSignal[];
+}
+
+export function buildPageResearchStructureReport(input: {
+  html: string;
+  title: string;
+  metadata: {
+    favorite: boolean;
+    hasCover: boolean;
+    locked: boolean;
+    versionsCount: number;
+    widePage: boolean;
+  };
+}): PageResearchStructureReport {
+  const doc = parsePageDocument(input.html);
+  const text = doc?.body.textContent ?? stripHtml(input.html);
+  const outline = doc ? extractOutline(doc) : [];
+  const summary = buildSummary(doc, text, outline.length);
+  const gates = buildGates(summary, input.metadata);
+  const structureStatus = getStructureStatus(summary, gates);
+
+  return {
+    format: "zhinote-page-research-structure",
+    format_version: 1,
+    report_status: "local-page-structure-only",
+    structure_status: structureStatus,
+    privacy_note:
+      "Generated locally from the current page HTML and basic page metadata. It does not read linked page bodies, database row values, file bytes, upload data, connect cloud services, call AI, or write workspace data.",
+    boundary: {
+      local_page_structure_only: true,
+      reads_current_page_html: true,
+      reads_page_metadata: true,
+      reads_linked_page_bodies: false,
+      reads_database_rows: false,
+      reads_file_bytes: false,
+      uploads_data: false,
+      connects_cloud_services: false,
+      enables_ai: false,
+      writes_workspace_data: false,
+    },
+    summary,
+    outline,
+    gates,
+    signals: buildSignals(summary, input.metadata, structureStatus),
+  };
+}
+
+function parsePageDocument(html: string) {
+  if (typeof DOMParser === "undefined") return null;
+  return new DOMParser().parseFromString(html || "", "text/html");
+}
+
+function buildSummary(
+  doc: Document | null,
+  text: string,
+  outlineCount: number
+): PageResearchStructureReport["summary"] {
+  const normalizedText = normalizeText(text);
+  const taskItems = doc?.body.querySelectorAll('[data-type="taskItem"]').length ?? 0;
+  const checkedTaskItems =
+    doc?.body.querySelectorAll('[data-type="taskItem"][data-checked="true"]')
+      .length ?? 0;
+  const pageMentions =
+    doc?.body.querySelectorAll(
+      '[data-type="mention"], [data-type="wiki-reference"]'
+    ).length ?? 0;
+
+  return {
+    blocks:
+      doc?.body.querySelectorAll(
+        "p,h1,h2,h3,h4,li,blockquote,pre,table,[data-type]"
+      ).length ?? 0,
+    characters: normalizedText.replace(/\s+/g, "").length,
+    words: countWords(normalizedText),
+    headings: outlineCount,
+    tables: doc?.body.querySelectorAll("table").length ?? 0,
+    links: doc?.body.querySelectorAll("a[href]").length ?? 0,
+    page_mentions: pageMentions,
+    file_blocks:
+      doc?.body.querySelectorAll('[data-type="file-preview"]').length ?? 0,
+    database_blocks:
+      doc?.body.querySelectorAll('[data-type="inline-database"]').length ?? 0,
+    callouts:
+      doc?.body.querySelectorAll('[data-type="callout-block"]').length ?? 0,
+    toggles:
+      doc?.body.querySelectorAll('[data-type="toggle-block"]').length ?? 0,
+    toc_blocks: doc?.body.querySelectorAll('[data-type="toc-block"]').length ?? 0,
+    code_blocks: doc?.body.querySelectorAll("pre, code").length ?? 0,
+    equations:
+      doc?.body.querySelectorAll(
+        '[data-type="equation-block"], [data-type="inline-equation"]'
+      ).length ?? 0,
+    task_items: taskItems,
+    checked_task_items: checkedTaskItems,
+    decision_markers: countKeywordHits(normalizedText, [
+      "结论",
+      "核心结论",
+      "decision",
+      "takeaway",
+      "recommendation",
+      "rating",
+    ]),
+    thesis_markers: countKeywordHits(normalizedText, [
+      "thesis",
+      "投资假设",
+      "核心假设",
+      "观点",
+      "假设",
+    ]),
+    source_markers: countKeywordHits(normalizedText, [
+      "source",
+      "来源",
+      "引用",
+      "citation",
+      "出处",
+      "原文",
+    ]),
+    action_markers: countKeywordHits(normalizedText, [
+      "下一步",
+      "行动项",
+      "todo",
+      "follow-up",
+      "open question",
+      "开放问题",
+    ]),
+    risk_markers: countKeywordHits(normalizedText, [
+      "risk",
+      "风险",
+      "downside",
+      "bear case",
+      "反方",
+    ]),
+    catalyst_markers: countKeywordHits(normalizedText, [
+      "catalyst",
+      "催化剂",
+      "事件",
+      "milestone",
+      "里程碑",
+    ]),
+  };
+}
+
+function extractOutline(doc: Document): PageResearchStructureOutlineItem[] {
+  return Array.from(doc.body.querySelectorAll("h1, h2, h3, h4"))
+    .map((heading, index) => ({
+      id: `page-heading-${index + 1}`,
+      level: Number(heading.tagName.slice(1)),
+      title: normalizeText(heading.textContent ?? "") || "未命名标题",
+    }))
+    .filter((item) => item.title)
+    .slice(0, 8);
+}
+
+function buildGates(
+  summary: PageResearchStructureReport["summary"],
+  metadata: {
+    favorite: boolean;
+    hasCover: boolean;
+    locked: boolean;
+    versionsCount: number;
+    widePage: boolean;
+  }
+): PageResearchStructureGate[] {
+  const relationCount =
+    summary.page_mentions + summary.database_blocks + summary.file_blocks;
+  const evidenceCount =
+    summary.source_markers + summary.links + summary.tables + summary.file_blocks;
+  const actionCount = summary.action_markers + summary.task_items;
+  const decisionCount =
+    summary.decision_markers +
+    summary.thesis_markers +
+    summary.risk_markers +
+    summary.catalyst_markers;
+
+  return [
+    {
+      id: "page-outline",
+      label: "页面骨架",
+      status:
+        summary.headings >= 2 || summary.toc_blocks > 0
+          ? "ready"
+          : summary.words > 120
+            ? "review"
+            : "empty",
+      detail:
+        summary.headings >= 2 || summary.toc_blocks > 0
+          ? "已经有标题或目录，可以快速扫读。"
+          : "建议补 H2/H3 或目录，让长笔记像 memo 一样可导航。",
+      evidence: `${summary.headings} 个标题 / ${summary.toc_blocks} 个目录块`,
+    },
+    {
+      id: "investment-decision",
+      label: "结论与假设",
+      status:
+        decisionCount >= 2 ? "ready" : decisionCount > 0 ? "review" : "empty",
+      detail:
+        decisionCount >= 2
+          ? "已经出现结论、假设、风险或催化剂线索。"
+          : "建议明确核心结论、投资假设、风险和催化剂。",
+      evidence: `${decisionCount} 个投研关键词线索`,
+    },
+    {
+      id: "evidence-sources",
+      label: "证据与来源",
+      status:
+        evidenceCount >= 2 ? "ready" : evidenceCount > 0 ? "review" : "empty",
+      detail:
+        evidenceCount >= 2
+          ? "已有来源、链接、表格或文件作为证据。"
+          : "建议补来源、表格、报告文件或原始链接，方便回溯。",
+      evidence: `${evidenceCount} 个证据线索`,
+    },
+    {
+      id: "next-actions",
+      label: "下一步动作",
+      status: actionCount > 0 ? "ready" : "empty",
+      detail:
+        actionCount > 0
+          ? "已经有行动项或待办，可进入跟踪。"
+          : "建议记录下一步问题、模型更新或 follow-up。",
+      evidence: `${actionCount} 个行动线索`,
+    },
+    {
+      id: "research-relations",
+      label: "研究关系",
+      status:
+        relationCount >= 2 ? "ready" : relationCount > 0 ? "review" : "empty",
+      detail:
+        relationCount >= 2
+          ? "页面已经连接到文件、页面或数据库。"
+          : "建议关联公司、报告、会议或数据库，形成投研网络。",
+      evidence: `${relationCount} 个本地关系线索`,
+    },
+    {
+      id: "review-trail",
+      label: "审阅痕迹",
+      status:
+        metadata.versionsCount > 0 || metadata.locked || metadata.favorite
+          ? "ready"
+          : metadata.hasCover || metadata.widePage
+            ? "review"
+            : "empty",
+      detail:
+        metadata.versionsCount > 0 || metadata.locked || metadata.favorite
+          ? "已有版本、收藏或锁定状态，适合沉淀重要页面。"
+          : "重要研究页建议保存版本或收藏，方便后续复盘。",
+      evidence: `${metadata.versionsCount} 个版本 / ${metadata.favorite ? "已收藏" : "未收藏"}`,
+    },
+  ];
+}
+
+function buildSignals(
+  summary: PageResearchStructureReport["summary"],
+  metadata: {
+    favorite: boolean;
+    hasCover: boolean;
+    locked: boolean;
+    versionsCount: number;
+    widePage: boolean;
+  },
+  structureStatus: PageResearchStructureStatus
+): PageResearchStructureSignal[] {
+  return [
+    {
+      id: "outline",
+      label: "Outline",
+      value: summary.headings,
+      status: summary.headings > 0 ? "ready" : "empty",
+      detail: "页面标题层级和目录线索。",
+    },
+    {
+      id: "decision",
+      label: "结论",
+      value: summary.decision_markers,
+      status: summary.decision_markers > 0 ? "ready" : "empty",
+      detail: "结论、takeaway、recommendation 等关键词线索。",
+    },
+    {
+      id: "thesis",
+      label: "Thesis",
+      value: summary.thesis_markers,
+      status: summary.thesis_markers > 0 ? "ready" : "empty",
+      detail: "投资假设、观点或 thesis 线索。",
+    },
+    {
+      id: "sources",
+      label: "Sources",
+      value: summary.source_markers + summary.links,
+      status:
+        summary.source_markers + summary.links > 0 ? "ready" : "empty",
+      detail: "来源、引用和外链线索。",
+    },
+    {
+      id: "actions",
+      label: "Actions",
+      value: summary.action_markers + summary.task_items,
+      status:
+        summary.action_markers + summary.task_items > 0 ? "ready" : "empty",
+      detail: "行动项、待办、开放问题或 follow-up。",
+    },
+    {
+      id: "relations",
+      label: "Relations",
+      value: summary.page_mentions,
+      status: summary.page_mentions > 0 ? "ready" : "empty",
+      detail: "本地页面 mention 和 wiki reference。",
+    },
+    {
+      id: "files",
+      label: "Files",
+      value: summary.file_blocks,
+      status: summary.file_blocks > 0 ? "ready" : "empty",
+      detail: "页面内本地 file-preview block。",
+    },
+    {
+      id: "databases",
+      label: "DB",
+      value: summary.database_blocks,
+      status: summary.database_blocks > 0 ? "ready" : "empty",
+      detail: "页面内 inline database block。",
+    },
+    {
+      id: "versioning",
+      label: "Versions",
+      value: metadata.versionsCount,
+      status: metadata.versionsCount > 0 ? "ready" : "review",
+      detail: "本地版本快照数量。",
+    },
+    {
+      id: "local-boundary",
+      label: "Boundary",
+      value: getStatusLabel(structureStatus),
+      status: "ready",
+      detail: "只做本地结构分析，不上传、不调用 AI、不写 workspace。",
+    },
+  ];
+}
+
+function getStructureStatus(
+  summary: PageResearchStructureReport["summary"],
+  gates: PageResearchStructureGate[]
+): PageResearchStructureStatus {
+  if (summary.words === 0 && summary.blocks === 0) return "empty";
+  if (summary.words < 80 && summary.blocks < 4) return "thin";
+
+  const readyGates = gates.filter((gate) => gate.status === "ready").length;
+  const emptyGates = gates.filter((gate) => gate.status === "empty").length;
+  if (readyGates >= 4 && emptyGates === 0) return "ready";
+  return "needs-structure";
+}
+
+function countKeywordHits(text: string, keywords: string[]) {
+  const lower = text.toLowerCase();
+  return keywords.reduce((count, keyword) => {
+    const normalized = keyword.toLowerCase();
+    if (!normalized) return count;
+    const matches = lower.match(new RegExp(escapeRegExp(normalized), "g"));
+    return count + (matches?.length ?? 0);
+  }, 0);
+}
+
+function countWords(text: string) {
+  const normalized = normalizeText(text);
+  if (!normalized) return 0;
+  const cjkMatches = normalized.match(/[\u4e00-\u9fff]/g)?.length ?? 0;
+  const wordMatches = normalized
+    .replace(/[\u4e00-\u9fff]/g, " ")
+    .match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/g)?.length ?? 0;
+  return cjkMatches + wordMatches;
+}
+
+function stripHtml(html: string) {
+  return html.replace(/<[^>]*>/g, " ");
+}
+
+function normalizeText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getStatusLabel(status: PageResearchStructureStatus) {
+  const labels: Record<PageResearchStructureStatus, string> = {
+    ready: "ready",
+    "needs-structure": "needs structure",
+    thin: "thin",
+    empty: "empty",
+  };
+
+  return labels[status];
+}

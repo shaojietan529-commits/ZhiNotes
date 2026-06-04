@@ -41,6 +41,13 @@ import {
   PAGE_LOCAL_COMMAND_EVENT,
   type PageLocalCommand,
 } from "@/lib/pageLocalCommands";
+import {
+  buildPageResearchStructureReport,
+  type PageResearchStructureGate,
+  type PageResearchStructureReport,
+  type PageResearchStructureSignal,
+  type PageResearchStructureStatus,
+} from "@/lib/pages/pageResearchStructure";
 
 export default function PageShell({ pageId }: { pageId: string }) {
   return (
@@ -344,7 +351,18 @@ function PageContent({ pageId }: { pageId: string }) {
     );
   }
 
-  const pageInfo = getPageInfoStats(page.content_text ?? "");
+  const pageStructure = buildPageResearchStructureReport({
+    html: page.content_text ?? "",
+    title: title || page.title || "未命名页面",
+    metadata: {
+      favorite,
+      hasCover: Boolean(page.cover_url),
+      locked,
+      versionsCount: versions.length,
+      widePage,
+    },
+  });
+  const pageInfo = getPageInfoStats(pageStructure);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -587,6 +605,7 @@ function PageContent({ pageId }: { pageId: string }) {
               icon={page.icon}
               locked={locked}
               pageId={pageId}
+              researchStructure={pageStructure}
               stats={pageInfo}
               title={title || page.title || "未命名页面"}
               updatedAt={page.updated_at}
@@ -659,6 +678,7 @@ function PageInfoPanel({
   icon,
   locked,
   pageId,
+  researchStructure,
   stats,
   title,
   updatedAt,
@@ -671,6 +691,7 @@ function PageInfoPanel({
   icon: string | null;
   locked: boolean;
   pageId: string;
+  researchStructure: PageResearchStructureReport;
   stats: PageInfoStats;
   title: string;
   updatedAt: string;
@@ -703,6 +724,7 @@ function PageInfoPanel({
         <PageInfoItem label="宽页面" value={widePage ? "是" : "否"} />
         <PageInfoItem label="封面" value={hasCover ? "是" : "否"} />
       </dl>
+      <PageResearchStructurePanel report={researchStructure} />
     </section>
   );
 }
@@ -718,33 +740,150 @@ function PageInfoItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function getPageInfoStats(html: string): PageInfoStats {
-  if (typeof DOMParser === "undefined") {
-    return {
-      blockCount: 0,
-      characterCount: 0,
-      codeBlockCount: 0,
-      fileBlockCount: 0,
-      linkCount: 0,
-      tableCount: 0,
-      wordCount: 0,
-    };
-  }
+function PageResearchStructurePanel({
+  report,
+}: {
+  report: PageResearchStructureReport;
+}) {
+  return (
+    <div className="mt-4 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+            投研结构
+          </h3>
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+            本地页面结构体检，不读取关联页面或数据库行值。
+          </p>
+        </div>
+        <PageResearchStructureStatusPill status={report.structure_status} />
+      </div>
 
-  const doc = new DOMParser().parseFromString(html || "", "text/html");
-  const text = doc.body.textContent?.trim() ?? "";
-  const words = text.match(/[\p{L}\p{N}_'-]+/gu) ?? [];
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {report.signals.map((signal) => (
+          <PageResearchStructureSignalPill key={signal.id} signal={signal} />
+        ))}
+      </div>
 
+      <div className="mt-3 divide-y divide-zinc-200 rounded border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        {report.gates.map((gate) => (
+          <PageResearchStructureGateRow key={gate.id} gate={gate} />
+        ))}
+      </div>
+
+      {report.outline.length > 0 && (
+        <div className="mt-3">
+          <div className="mb-1 text-xs text-zinc-400">页面目录</div>
+          <div className="flex flex-wrap gap-1.5">
+            {report.outline.map((item) => (
+              <span
+                key={item.id}
+                className="max-w-full truncate rounded border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+                title={item.title}
+              >
+                H{item.level} {item.title}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p className="mt-3 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400">
+        {report.privacy_note}
+      </p>
+    </div>
+  );
+}
+
+function PageResearchStructureStatusPill({
+  status,
+}: {
+  status: PageResearchStructureStatus;
+}) {
+  const labels: Record<PageResearchStructureStatus, string> = {
+    ready: "结构完整",
+    "needs-structure": "待补结构",
+    thin: "内容偏薄",
+    empty: "空页面",
+  };
+  const className =
+    status === "ready"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300"
+      : status === "needs-structure"
+        ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300"
+        : "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300";
+
+  return (
+    <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function PageResearchStructureSignalPill({
+  signal,
+}: {
+  signal: PageResearchStructureSignal;
+}) {
+  const className =
+    signal.status === "ready"
+      ? "border-emerald-200 bg-white text-emerald-700 dark:border-emerald-900/70 dark:bg-zinc-950 dark:text-emerald-300"
+      : signal.status === "review"
+        ? "border-amber-200 bg-white text-amber-700 dark:border-amber-900/70 dark:bg-zinc-950 dark:text-amber-300"
+        : "border-zinc-200 bg-white text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400";
+
+  return (
+    <span
+      className={`rounded-full border px-2 py-1 text-[11px] ${className}`}
+      title={signal.detail}
+    >
+      {signal.label}: {signal.value}
+    </span>
+  );
+}
+
+function PageResearchStructureGateRow({
+  gate,
+}: {
+  gate: PageResearchStructureGate;
+}) {
+  const dotClass =
+    gate.status === "ready"
+      ? "bg-emerald-500"
+      : gate.status === "review"
+        ? "bg-amber-500"
+        : "bg-zinc-300 dark:bg-zinc-700";
+
+  return (
+    <div className="flex gap-3 px-3 py-2">
+      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-3">
+          <div className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">
+            {gate.label}
+          </div>
+          <div className="shrink-0 text-[11px] text-zinc-400">{gate.evidence}</div>
+        </div>
+        <p className="mt-1 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400">
+          {gate.detail}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function getPageInfoStats(
+  report: PageResearchStructureReport
+): PageInfoStats {
+  const { summary } = report;
   return {
-    blockCount: doc.body.querySelectorAll(
-      "p,h1,h2,h3,li,blockquote,pre,table,[data-type]"
-    ).length,
-    characterCount: text.replace(/\s+/g, "").length,
-    codeBlockCount: doc.body.querySelectorAll("pre").length,
-    fileBlockCount: doc.body.querySelectorAll("[data-type='file-preview']").length,
-    linkCount: doc.body.querySelectorAll("a[href]").length,
-    tableCount: doc.body.querySelectorAll("table").length,
-    wordCount: words.length,
+    blockCount: summary.blocks,
+    characterCount: summary.characters,
+    codeBlockCount: summary.code_blocks,
+    fileBlockCount: summary.file_blocks,
+    linkCount: summary.links,
+    tableCount: summary.tables,
+    wordCount: summary.words,
   };
 }
 
