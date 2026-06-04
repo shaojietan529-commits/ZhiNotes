@@ -333,6 +333,98 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     `,
   },
   {
+    title: "会议转录稿",
+    description: "原始 transcript、关键表述和待复核片段",
+    aliases: [
+      "Meeting Transcript",
+      "transcript",
+      "raw transcript",
+      "recording",
+      "call transcript",
+      "转录稿",
+      "会议转录",
+      "录音",
+      "原始记录",
+    ],
+    html: `
+      <h1>会议转录稿</h1>
+      <h2>会议信息</h2>
+      <ul>
+        <li>主题：</li>
+        <li>日期 / 时间：</li>
+        <li>平台：</li>
+        <li>来源：</li>
+      </ul>
+      <h2>关联研究</h2>
+      <ul>
+        <li>会议纪要：</li>
+        <li>公司页面：</li>
+        <li>相关报告：</li>
+        <li>相关行动项：</li>
+      </ul>
+      <h2>Transcript</h2>
+      <p></p>
+      <h2>关键表述</h2>
+      <ul>
+        <li></li>
+      </ul>
+      <h2>待复核片段</h2>
+      <ul data-type="taskList">
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p></p></div></li>
+      </ul>
+      <h2>投研影响</h2>
+      <ul>
+        <li>对投资假设的影响：</li>
+        <li>对模型的影响：</li>
+        <li>需要追问的问题：</li>
+      </ul>
+    `,
+  },
+  {
+    title: "会议行动项",
+    description: "Follow-up、开放问题、负责人和截止日期",
+    aliases: [
+      "Meeting Action Items",
+      "action items",
+      "follow-up",
+      "follow up",
+      "open questions",
+      "todo",
+      "行动项",
+      "开放问题",
+      "后续跟踪",
+      "待办",
+    ],
+    html: `
+      <h1>会议行动项</h1>
+      <h2>关联研究</h2>
+      <ul>
+        <li>会议纪要：</li>
+        <li>Transcript：</li>
+        <li>公司页面：</li>
+        <li>相关报告：</li>
+      </ul>
+      <h2>优先级</h2>
+      <ul>
+        <li>高优先级：</li>
+        <li>本周完成：</li>
+        <li>等待外部信息：</li>
+      </ul>
+      <h2>行动项</h2>
+      <ul data-type="taskList">
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>补充公司关联</p></div></li>
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>补充相关报告</p></div></li>
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>更新投资假设或模型影响</p></div></li>
+      </ul>
+      <h2>开放问题</h2>
+      <ul>
+        <li></li>
+      </ul>
+      <h2>下次跟进</h2>
+      <p></p>
+    `,
+  },
+  {
     title: "研究报告",
     description: "报告复盘、核心结论、关联页面和后续工作",
     aliases: [

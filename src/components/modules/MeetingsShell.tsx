@@ -43,6 +43,20 @@ const MEETING_TEMPLATE_STARTERS: ModuleStarter[] = [
     templateTitle: "会议纪要",
     icon: "MTG",
   },
+  {
+    type: "page",
+    label: "新建转录稿",
+    title: "未命名会议转录稿",
+    templateTitle: "会议转录稿",
+    icon: "TRN",
+  },
+  {
+    type: "page",
+    label: "新建行动项",
+    title: "未命名会议行动项",
+    templateTitle: "会议行动项",
+    icon: "ACT",
+  },
 ];
 
 const WORKFLOW_STEPS = [

@@ -286,8 +286,12 @@ function run() {
   for (const snippet of [
     'title: "估值假设"',
     'title: "关键指标看板"',
+    'title: "会议转录稿"',
+    'title: "会议行动项"',
     "Valuation Assumptions",
     "Key Metrics",
+    "Meeting Transcript",
+    "Meeting Action Items",
     "单位经济",
     "关联研究",
   ]) {
@@ -296,6 +300,19 @@ function run() {
       noteTemplates,
       snippet,
       "Company research templates must include valuation and key-metric assets."
+    );
+  }
+  for (const snippet of [
+    "Transcript",
+    "待复核片段",
+    "开放问题",
+    "后续跟踪",
+  ]) {
+    assertIncludes(
+      files.noteTemplates,
+      noteTemplates,
+      snippet,
+      "Meeting templates must include transcript and action-item structure."
     );
   }
   for (const snippet of [
@@ -508,6 +525,19 @@ function run() {
       meetingTrackerIntake,
       fieldName,
       `Meeting tracker intake must map ${fieldName}.`
+    );
+  }
+  for (const snippet of [
+    "新建转录稿",
+    "新建行动项",
+    "templateTitle: \"会议转录稿\"",
+    "templateTitle: \"会议行动项\"",
+  ]) {
+    assertIncludes(
+      files.meetingsShell,
+      meetingsShell,
+      snippet,
+      "Meetings module must expose transcript and action-item page starters."
     );
   }
   assertIncludes(
