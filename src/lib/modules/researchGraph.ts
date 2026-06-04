@@ -88,6 +88,51 @@ export interface ResearchGraphCompletionPlan {
   missing_targets: ResearchGraphMissingCompletionTarget[];
 }
 
+export interface ResearchGraphRelationHandoffStep {
+  id: string;
+  title: string;
+  detail: string;
+  route: string;
+  action_label: string;
+  workspace_effect:
+    | "read-only-route"
+    | "manual-review"
+    | "manual-relation-value";
+}
+
+export interface ResearchGraphRelationHandoffPacket {
+  id: string;
+  asset_id: string;
+  asset_title: string;
+  asset_kind: ResearchAssetKind;
+  asset_kind_label: string;
+  source_page_route: string;
+  target_database_id: string;
+  target_database_title: string;
+  target_database_kind: ResearchAssetKind | null;
+  target_database_kind_label: string | null;
+  relation_field_names: string[];
+  relation_field_labels: string[];
+  database_route: string;
+  handoff_label: string;
+  manual_relation_completion: true;
+  review_steps: ResearchGraphRelationHandoffStep[];
+  boundary: {
+    local_only: true;
+    reads_page_text: false;
+    includes_page_text: false;
+    reads_database_rows: false;
+    includes_database_row_values: false;
+    reads_file_bytes: false;
+    includes_file_bytes: false;
+    includes_holdings: false;
+    includes_trading_plans: false;
+    auto_writes_relation_values: false;
+    creates_schema_fields: false;
+    uploads_data: false;
+  };
+}
+
 export type ResearchGraphPriorityLevel = "high" | "medium" | "low";
 
 export interface ResearchGraphPriorityItem {
@@ -150,6 +195,7 @@ export interface ResearchGraphReport {
     priority_queue_items: number;
     high_priority_unlinked_assets: number;
     actionable_priority_items: number;
+    relation_handoff_packets: number;
     schema_gaps: number;
   };
   assets: Array<{
@@ -201,6 +247,7 @@ export interface ResearchGraphReport {
   }>;
   health_summary: ResearchGraphHealthSummary[];
   priority_queue: ResearchGraphPriorityItem[];
+  relation_handoff_packets: ResearchGraphRelationHandoffPacket[];
   completion_plan: ResearchGraphCompletionPlan;
   schema_gaps: ResearchGraphSchemaGap[];
 }
@@ -473,6 +520,8 @@ export function buildResearchGraphReport(
 
   const completionPlan = buildResearchGraphCompletionPlan(graph, snapshots);
   const schemaGaps = buildResearchGraphSchemaGaps(snapshots);
+  const relationHandoffPackets =
+    buildResearchGraphRelationHandoffPackets(completionPlan);
   const priorityQueue = buildResearchGraphPriorityQueue(
     graph,
     completionPlan
@@ -536,6 +585,7 @@ export function buildResearchGraphReport(
       actionable_priority_items: priorityQueue.filter(
         (item) => item.recommended_action === "complete-relation"
       ).length,
+      relation_handoff_packets: relationHandoffPackets.length,
       schema_gaps: schemaGaps.length,
     },
     assets: graph.assets.map((asset) => ({
@@ -573,6 +623,7 @@ export function buildResearchGraphReport(
     coverage,
     health_summary: healthSummary,
     priority_queue: priorityQueue,
+    relation_handoff_packets: relationHandoffPackets,
     completion_plan: completionPlan,
     schema_gaps: schemaGaps,
   };
@@ -704,6 +755,84 @@ export function buildResearchGraphCompletionPlan(
     actions: actions.sort(sortCompletionActions),
     missing_targets: missingTargets,
   };
+}
+
+export function buildResearchGraphRelationHandoffPackets(
+  completionPlan: ResearchGraphCompletionPlan
+): ResearchGraphRelationHandoffPacket[] {
+  return completionPlan.actions.map((action) => {
+    const sourcePageRoute = `/page/${action.asset_id}`;
+    const relationLabels = action.relation_field_labels.length
+      ? action.relation_field_labels.join(" / ")
+      : "目标 relation 字段";
+
+    return {
+      id: `${action.id}:relation-handoff`,
+      asset_id: action.asset_id,
+      asset_title: action.asset_title,
+      asset_kind: action.asset_kind,
+      asset_kind_label: action.asset_kind_label,
+      source_page_route: sourcePageRoute,
+      target_database_id: action.target_database_id,
+      target_database_title: action.target_database_title,
+      target_database_kind: action.target_database_kind,
+      target_database_kind_label: action.target_database_kind_label,
+      relation_field_names: action.relation_field_names,
+      relation_field_labels: action.relation_field_labels,
+      database_route: action.database_route,
+      handoff_label: `${action.asset_kind_label} → ${action.target_database_title}`,
+      manual_relation_completion: true,
+      review_steps: [
+        {
+          id: "review-source-asset",
+          title: "确认资产",
+          detail: `打开${action.asset_kind_label}页面，确认它确实需要进入跨模块 relation。`,
+          route: sourcePageRoute,
+          action_label: "打开资产页",
+          workspace_effect: "manual-review",
+        },
+        {
+          id: "open-target-database",
+          title: "打开目标表",
+          detail: `进入「${action.target_database_title}」，用页面标题搜索并定位要补关系的 row。`,
+          route: action.database_route,
+          action_label: "打开目标库",
+          workspace_effect: "read-only-route",
+        },
+        {
+          id: "check-relation-fields",
+          title: "确认字段",
+          detail: `优先检查 ${relationLabels}，只选择一个最准确的 relation 字段处理。`,
+          route: action.database_route,
+          action_label: "检查字段",
+          workspace_effect: "manual-review",
+        },
+        {
+          id: "manual-relation-value",
+          title: "手动补 relation",
+          detail:
+            "在目标 row 里手动加入页面 relation，完成后回到研究图谱复核连接是否出现。",
+          route: action.database_route,
+          action_label: "手动补关系",
+          workspace_effect: "manual-relation-value",
+        },
+      ],
+      boundary: {
+        local_only: true,
+        reads_page_text: false,
+        includes_page_text: false,
+        reads_database_rows: false,
+        includes_database_row_values: false,
+        reads_file_bytes: false,
+        includes_file_bytes: false,
+        includes_holdings: false,
+        includes_trading_plans: false,
+        auto_writes_relation_values: false,
+        creates_schema_fields: false,
+        uploads_data: false,
+      },
+    };
+  });
 }
 
 export function buildResearchGraphPriorityQueue(

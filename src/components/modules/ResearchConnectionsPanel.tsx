@@ -90,6 +90,13 @@ export default function ResearchConnectionsPanel({
     () => getCompletionTargets(snapshots, focusKind),
     [focusKind, snapshots]
   );
+  const focusHandoffPackets = useMemo(
+    () =>
+      graphReport.relation_handoff_packets
+        .filter((packet) => packet.asset_kind === focusKind)
+        .slice(0, 4),
+    [focusKind, graphReport.relation_handoff_packets]
+  );
   const primaryCompletionTarget = completionTargets[0] ?? null;
   const relationCount = graph.relationLinks.length;
   const connectedAssetCount = new Set(
@@ -165,6 +172,17 @@ export default function ResearchConnectionsPanel({
           />
         </div>
       </div>
+
+      <ModuleRelationHandoffPanel
+        packets={focusHandoffPackets}
+        focusKind={focusKind}
+        totalPackets={
+          graphReport.relation_handoff_packets.filter(
+            (packet) => packet.asset_kind === focusKind
+          ).length
+        }
+        onOpenRoute={(route) => router.push(route)}
+      />
 
       <UnlinkedAssetList
         assets={focusUnlinkedAssets}
@@ -377,6 +395,100 @@ function CoveragePanel({
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+function ModuleRelationHandoffPanel({
+  packets,
+  focusKind,
+  totalPackets,
+  onOpenRoute,
+}: {
+  packets: ResearchGraphReport["relation_handoff_packets"];
+  focusKind: ResearchAssetKind;
+  totalPackets: number;
+  onOpenRoute: (route: string) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Relation 补全手册
+          </h3>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">
+            当前模块的待补{getResearchAssetKindLabel(focusKind)}资产会被拆成可执行步骤。
+            这里只打开本地页面和数据库，不自动写 relation。
+          </p>
+        </div>
+        <span className="text-xs text-zinc-400">{totalPackets} 个 handoff</span>
+      </div>
+
+      {packets.length === 0 ? (
+        <p className="mt-3 text-xs leading-5 text-zinc-400">
+          暂无可执行 handoff。先创建跟踪表和 relation 字段后，这里会显示补全步骤。
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-2 lg:grid-cols-2">
+          {packets.map((packet) => (
+            <article
+              key={packet.id}
+              className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                    {packet.asset_title}
+                  </div>
+                  <p className="mt-1 leading-5 text-zinc-400">
+                    目标：{packet.target_database_title}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenRoute(packet.database_route)}
+                  className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  打开目标库
+                </button>
+              </div>
+              {packet.relation_field_labels.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {packet.relation_field_labels.map((label) => (
+                    <span
+                      key={label}
+                      className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <ol className="mt-2 grid gap-1.5">
+                {packet.review_steps.map((step, index) => (
+                  <li
+                    key={step.id}
+                    className="flex gap-2 rounded bg-zinc-50 px-2 py-1.5 dark:bg-zinc-900"
+                  >
+                    <span className="text-[10px] font-semibold text-zinc-400">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="font-medium text-zinc-700 dark:text-zinc-300">
+                        {step.title}
+                      </div>
+                      <p className="mt-0.5 leading-5 text-zinc-400">
+                        {step.detail}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

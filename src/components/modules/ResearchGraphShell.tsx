@@ -133,6 +133,8 @@ function ResearchGraphDashboard() {
   const recentLinks = graph.relationLinks.slice(0, 12);
   const unlinkedAssets = graph.unlinkedAssets.slice(0, 12);
   const completionActions = graphReport.completion_plan.actions.slice(0, 10);
+  const relationHandoffPackets =
+    graphReport.relation_handoff_packets.slice(0, 8);
   const schemaGaps = graphReport.schema_gaps.slice(0, 8);
   const priorityQueue = graphReport.priority_queue.slice(0, 10);
   const completionActionByAssetId = useMemo(
@@ -326,6 +328,12 @@ function ResearchGraphDashboard() {
           actionableItems={graphReport.summary.actionable_priority_items}
           onOpenRoute={(route) => router.push(route)}
           onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
+        />
+
+        <RelationHandoffPanel
+          packets={relationHandoffPackets}
+          totalPackets={graphReport.summary.relation_handoff_packets}
+          onOpenRoute={(route) => router.push(route)}
         />
 
         <SchemaGapPanel
@@ -943,6 +951,143 @@ function PriorityPill({ priority }: { priority: ResearchGraphPriorityLevel }) {
     <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
       {labels[priority]}
     </span>
+  );
+}
+
+function RelationHandoffPanel({
+  packets,
+  totalPackets,
+  onOpenRoute,
+}: {
+  packets: ResearchGraphReport["relation_handoff_packets"];
+  totalPackets: number;
+  onOpenRoute: (route: string) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Relation 补全手册
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">
+            把每个可执行补关系建议拆成确认资产、打开目标库、确认字段、手动补 relation 四步。
+            手册只使用本地 metadata，不自动写入 relation 值。
+          </p>
+        </div>
+        <span className="text-xs text-zinc-400">{totalPackets} 个 handoff</span>
+      </div>
+
+      {packets.length === 0 ? (
+        <p className="mt-3 text-xs leading-5 text-zinc-400">
+          暂无 handoff。需要先有可用跟踪表和 relation 字段，图谱才会生成手动补全步骤。
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-3 xl:grid-cols-2">
+          {packets.map((packet) => (
+            <article
+              key={packet.id}
+              className="rounded-md border border-zinc-100 px-3 py-3 text-xs dark:border-zinc-800"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                    {packet.handoff_label}
+                  </div>
+                  <h3 className="mt-1 truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    {packet.asset_title}
+                  </h3>
+                  <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                    目标：{packet.target_database_title}
+                    {packet.target_database_kind_label
+                      ? ` · ${packet.target_database_kind_label}跟踪表`
+                      : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpenRoute(packet.source_page_route)}
+                    className="rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    打开资产
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenRoute(packet.database_route)}
+                    className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+                  >
+                    打开目标库
+                  </button>
+                </div>
+              </div>
+
+              {packet.relation_field_labels.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {packet.relation_field_labels.map((label) => (
+                    <span
+                      key={label}
+                      className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <HandoffStepList
+                steps={packet.review_steps}
+                onOpenRoute={onOpenRoute}
+              />
+
+              <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+                本地 only · 不读正文 · 不导出行值 · 不自动写 relation · 不上传
+              </p>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function HandoffStepList({
+  steps,
+  onOpenRoute,
+}: {
+  steps: ResearchGraphReport["relation_handoff_packets"][number]["review_steps"];
+  onOpenRoute: (route: string) => void;
+}) {
+  return (
+    <ol className="mt-3 grid gap-2">
+      {steps.map((step, index) => (
+        <li
+          key={step.id}
+          className="flex items-start gap-2 rounded-md bg-zinc-50 px-2 py-2 dark:bg-zinc-900"
+        >
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-[10px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+            {index + 1}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                {step.title}
+              </span>
+              <button
+                type="button"
+                onClick={() => onOpenRoute(step.route)}
+                className="rounded-md border border-zinc-300 px-2 py-0.5 text-[10px] text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                {step.action_label}
+              </button>
+            </div>
+            <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+              {step.detail}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }
 

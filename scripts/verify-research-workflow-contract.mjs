@@ -213,6 +213,18 @@ function run() {
   assertIncludes(
     files.graph,
     graph,
+    "relation_handoff_packets",
+    "Research graph export must include manual relation handoff packets."
+  );
+  assertIncludes(
+    files.graph,
+    graph,
+    "buildResearchGraphRelationHandoffPackets",
+    "Research graph must expose reusable relation handoff packet builder."
+  );
+  assertIncludes(
+    files.graph,
+    graph,
     "export { getResearchAssetKindLabel }",
     "Research graph must preserve the existing asset-label export for callers."
   );
@@ -225,6 +237,14 @@ function run() {
     "priority_queue_items",
     "high_priority_unlinked_assets",
     "actionable_priority_items",
+    "relation_handoff_packets",
+    "ResearchGraphRelationHandoffPacket",
+    "source_page_route",
+    "target_database_title",
+    "manual_relation_completion",
+    "auto_writes_relation_values: false",
+    "includes_holdings: false",
+    "includes_trading_plans: false",
     "buildResearchGraphPriorityQueue",
     "ResearchGraphPriorityLevel",
     "writes_workspace_data",
@@ -246,6 +266,10 @@ function run() {
     "WorkbenchStatusPill",
     "PriorityQueuePanel",
     "PriorityPill",
+    "Relation 补全手册",
+    "RelationHandoffPanel",
+    "HandoffStepList",
+    "手动补 relation",
     "高优先级",
     "可直接补关系",
     "getHealthStatusLabel",
@@ -257,6 +281,19 @@ function run() {
       graphShell,
       snippet,
       "Research graph shell must render the local connection health summary."
+    );
+  }
+  for (const snippet of [
+    "ModuleRelationHandoffPanel",
+    "Relation 补全手册",
+    "不自动写 relation",
+    "打开目标库",
+  ]) {
+    assertIncludes(
+      files.connectionsPanel,
+      connectionsPanel,
+      snippet,
+      "Research connections panel must render per-module relation handoff cards."
     );
   }
   assertIncludes(

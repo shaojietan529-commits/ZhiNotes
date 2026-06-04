@@ -345,6 +345,12 @@ Current local actions:
   and portfolio assets. The queue ranks company/report gaps first, separates
   actionable relation-value work from missing tracker targets, and only opens
   local pages or databases; it does not auto-write relation values.
+- Review relation handoff packets for actionable assets. Each packet turns one
+  unlinked asset into a local four-step checklist: confirm the source page, open
+  the target tracker, check the relation field, and manually add one relation
+  value. The packet is metadata-only and does not read page bodies, export row
+  values, include holdings/trading plans, auto-write relation values, or upload
+  data.
 - Review and export a local research workbench action packet. The packet turns
   graph health, priority breaks, schema gaps, and missing trackers into company,
   report, meeting, portfolio, and relation-setup work lanes. It only opens local
