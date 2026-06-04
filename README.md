@@ -895,6 +895,9 @@ Current local actions:
   and launch blockers into ordered P0/P1/P2 build work, but does not deploy the
   app, create accounts, connect cloud services, upload workspace data, read page
   bodies, or read file bytes.
+  Each action now includes owner, local-first/cloud-required path, cloud
+  dependency, verification commands, completion evidence, and forbidden actions
+  before owner confirmation.
 - Review and export a local audit trail policy for future Web Beta event
   logging. The policy covers auth, export, restore, sync, sharing, permission,
   file, AI, and admin actions, but keeps page text, prompt text, file bytes,

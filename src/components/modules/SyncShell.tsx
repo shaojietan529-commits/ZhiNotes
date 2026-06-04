@@ -135,6 +135,9 @@ import {
 } from "@/lib/sync/filePresignApiStub";
 import {
   buildWebBetaNextActionPlan,
+  type WebBetaNextActionCloudDependency,
+  type WebBetaNextActionExecutionPath,
+  type WebBetaNextActionOwner,
   type WebBetaNextActionPlan,
   type WebBetaNextActionPriority,
   type WebBetaNextActionStatus,
@@ -5782,7 +5785,7 @@ function SyncDashboard() {
                   : "Export next actions"}
               </button>
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-5">
+            <div className="mt-4 grid gap-3 md:grid-cols-6">
               <NextActionSummaryCard
                 label="Actions"
                 value={webBetaNextActionPlan.summary.actions}
@@ -5800,6 +5803,12 @@ function SyncDashboard() {
                 value={webBetaNextActionPlan.summary.ready_to_build}
                 detail="Can start locally"
                 status="ready-to-build"
+              />
+              <NextActionSummaryCard
+                label="Local first"
+                value={webBetaNextActionPlan.summary.local_first}
+                detail="No cloud write needed"
+                executionPath="local-first"
               />
               <NextActionSummaryCard
                 label="Decision"
@@ -9565,12 +9574,14 @@ function NextActionSummaryCard({
   label,
   value,
   detail,
+  executionPath,
   priority,
   status,
 }: {
   label: string;
   value: number | string;
   detail: string;
+  executionPath?: WebBetaNextActionExecutionPath;
   priority?: WebBetaNextActionPriority;
   status?: WebBetaNextActionStatus;
 }) {
@@ -9580,6 +9591,8 @@ function NextActionSummaryCard({
         <div className="text-xs text-zinc-400">{label}</div>
         {priority ? (
           <NextActionPriorityPill priority={priority} />
+        ) : executionPath ? (
+          <NextActionExecutionPathPill path={executionPath} />
         ) : status ? (
           <NextActionStatusPill status={status} />
         ) : null}
@@ -9606,9 +9619,12 @@ function NextActionRow({
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             <NextActionPriorityPill priority={action.priority} />
+            <NextActionOwnerPill owner={action.owner} />
+            <NextActionExecutionPathPill path={action.execution_path} />
             <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
               {action.phase}
             </span>
+            <NextActionCloudDependencyPill dependency={action.cloud_dependency} />
             <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-400 dark:bg-zinc-800">
               {action.source}
             </span>
@@ -9625,6 +9641,43 @@ function NextActionRow({
       <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
         Unlocks: {action.unlocks}
       </p>
+      <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-300">
+          Verification
+        </div>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {action.verification_commands.map((command) => (
+            <code
+              key={command}
+              className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+            >
+              {command}
+            </code>
+          ))}
+        </div>
+      </div>
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        <div>
+          <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-300">
+            Completion evidence
+          </div>
+          <ul className="mt-1 list-disc space-y-1 pl-4 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+            {action.completion_evidence.slice(0, 3).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-300">
+            Forbidden before confirmation
+          </div>
+          <ul className="mt-1 list-disc space-y-1 pl-4 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+            {action.forbidden_until_confirmed.slice(0, 3).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </article>
   );
 }
@@ -9644,6 +9697,74 @@ function NextActionPriorityPill({
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {priority.toUpperCase()}
+    </span>
+  );
+}
+
+function NextActionOwnerPill({ owner }: { owner: WebBetaNextActionOwner }) {
+  const labels: Record<WebBetaNextActionOwner, string> = {
+    owner: "Owner",
+    developer: "Dev",
+    "cloud-admin": "Cloud",
+  };
+  const className =
+    owner === "owner"
+      ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+      : owner === "cloud-admin"
+        ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[owner]}
+    </span>
+  );
+}
+
+function NextActionExecutionPathPill({
+  path,
+}: {
+  path: WebBetaNextActionExecutionPath;
+}) {
+  const labels: Record<WebBetaNextActionExecutionPath, string> = {
+    "local-first": "Local first",
+    "cloud-required": "Cloud req",
+    "owner-decision": "Decision",
+  };
+  const className =
+    path === "local-first"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : path === "owner-decision"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[path]}
+    </span>
+  );
+}
+
+function NextActionCloudDependencyPill({
+  dependency,
+}: {
+  dependency: WebBetaNextActionCloudDependency;
+}) {
+  const labels: Record<WebBetaNextActionCloudDependency, string> = {
+    none: "cloud: none",
+    "auth-provider": "cloud: auth",
+    supabase: "cloud: supabase",
+    "private-storage": "cloud: storage",
+    "deployment-env": "cloud: env",
+  };
+  const className =
+    dependency === "none"
+      ? "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+      : "bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[dependency]}
     </span>
   );
 }

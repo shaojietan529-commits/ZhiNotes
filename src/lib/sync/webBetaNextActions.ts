@@ -18,6 +18,17 @@ export type WebBetaNextActionStatus =
   | "ready-to-build"
   | "needs-owner-decision"
   | "blocked-by-missing-cloud";
+export type WebBetaNextActionOwner = "owner" | "developer" | "cloud-admin";
+export type WebBetaNextActionExecutionPath =
+  | "local-first"
+  | "cloud-required"
+  | "owner-decision";
+export type WebBetaNextActionCloudDependency =
+  | "none"
+  | "auth-provider"
+  | "supabase"
+  | "private-storage"
+  | "deployment-env";
 
 export interface WebBetaNextActionPlanInput {
   readinessReport: WebBetaReadinessReport;
@@ -37,6 +48,13 @@ export interface WebBetaNextAction {
   unlocks: string;
   source: string;
   privacy_boundary: string;
+  owner: WebBetaNextActionOwner;
+  execution_path: WebBetaNextActionExecutionPath;
+  can_start_locally: boolean;
+  cloud_dependency: WebBetaNextActionCloudDependency;
+  verification_commands: string[];
+  completion_evidence: string[];
+  forbidden_until_confirmed: string[];
 }
 
 export interface WebBetaNextActionPlan {
@@ -63,12 +81,210 @@ export interface WebBetaNextActionPlan {
     ready_to_build: number;
     needs_owner_decision: number;
     blocked_by_missing_cloud: number;
+    local_first: number;
+    cloud_required: number;
+    owner_decision: number;
     missing_environment_required: number;
     blocked_launch_tracks: number;
     blocked_deployment_gates: number;
+    verification_commands: number;
   };
   actions: WebBetaNextAction[];
 }
+
+type WebBetaNextActionExecutionMeta = Pick<
+  WebBetaNextAction,
+  | "owner"
+  | "execution_path"
+  | "can_start_locally"
+  | "cloud_dependency"
+  | "verification_commands"
+  | "completion_evidence"
+  | "forbidden_until_confirmed"
+>;
+
+const DEFAULT_FORBIDDEN_ACTIONS = [
+  "Do not enable sync push or pull.",
+  "Do not upload workspace data.",
+  "Do not expose file bytes or page bodies.",
+  "Do not create production accounts or server data.",
+];
+
+const ACTION_EXECUTION_META: Record<string, WebBetaNextActionExecutionMeta> = {
+  "choose-auth-session-model": {
+    owner: "owner",
+    execution_path: "owner-decision",
+    can_start_locally: true,
+    cloud_dependency: "auth-provider",
+    verification_commands: ["npm run verify:web-beta"],
+    completion_evidence: [
+      "Auth provider and session model are selected.",
+      "Workspace membership and device revoke behavior are documented.",
+      "Owner confirmation exists before local-to-cloud linking.",
+    ],
+    forbidden_until_confirmed: DEFAULT_FORBIDDEN_ACTIONS,
+  },
+  "configure-web-beta-environment": {
+    owner: "cloud-admin",
+    execution_path: "cloud-required",
+    can_start_locally: false,
+    cloud_dependency: "deployment-env",
+    verification_commands: ["npm run verify:web-beta", "npm run build"],
+    completion_evidence: [
+      "Required environment variables pass presence-only preflight.",
+      "No secret values are exposed in the preflight output.",
+      "Preview origin and app URL are explicitly scoped.",
+    ],
+    forbidden_until_confirmed: DEFAULT_FORBIDDEN_ACTIONS,
+  },
+  "create-reversible-cloud-migrations": {
+    owner: "developer",
+    execution_path: "local-first",
+    can_start_locally: true,
+    cloud_dependency: "supabase",
+    verification_commands: ["npm run verify:web-beta", "npm run build"],
+    completion_evidence: [
+      "Versioned migrations exist for the contracted cloud tables.",
+      "Rollback/RLS proof is captured on disposable beta data.",
+      "Migration apply remains disabled until owner confirmation.",
+    ],
+    forbidden_until_confirmed: DEFAULT_FORBIDDEN_ACTIONS,
+  },
+  "implement-server-permission-checks": {
+    owner: "developer",
+    execution_path: "local-first",
+    can_start_locally: true,
+    cloud_dependency: "none",
+    verification_commands: ["npm run verify:web-beta", "npm run build"],
+    completion_evidence: [
+      "Permission request validator rejects forbidden payload classes.",
+      "Owner, Researcher, and Viewer matrix tests are represented.",
+      "The API route stays disabled until authenticated enforcement exists.",
+    ],
+    forbidden_until_confirmed: [
+      "Do not trust client-only permission checks.",
+      "Do not allow restore, sync, sharing, AI, or file access without server checks.",
+    ],
+  },
+  "build-private-file-storage": {
+    owner: "cloud-admin",
+    execution_path: "cloud-required",
+    can_start_locally: true,
+    cloud_dependency: "private-storage",
+    verification_commands: ["npm run verify:web-beta"],
+    completion_evidence: [
+      "Private bucket policy blocks public listing.",
+      "Signed URL flow enforces size, MIME, checksum, and audit metadata.",
+      "File sync remains disabled until storage proof is complete.",
+    ],
+    forbidden_until_confirmed: [
+      "Do not store reports, PDFs, Office files, archives, or notebooks in public storage.",
+      "Do not include file bytes in generic sync payloads.",
+    ],
+  },
+  "implement-sync-push-pull-replay": {
+    owner: "developer",
+    execution_path: "local-first",
+    can_start_locally: true,
+    cloud_dependency: "supabase",
+    verification_commands: [
+      "npm run verify:web-beta",
+      "npm run verify:replay-harness",
+      "npm run build",
+    ],
+    completion_evidence: [
+      "Push/pull contracts include cursor, acknowledgement, retry, and idempotency.",
+      "Disposable replay evidence proves denylist, RLS scope, and rollback.",
+      "Owner sync opt-in receipt exists before real cloud sync starts.",
+    ],
+    forbidden_until_confirmed: DEFAULT_FORBIDDEN_ACTIONS,
+  },
+  "build-conflict-review-ui": {
+    owner: "developer",
+    execution_path: "local-first",
+    can_start_locally: true,
+    cloud_dependency: "none",
+    verification_commands: ["npm run verify:web-beta", "npm run build"],
+    completion_evidence: [
+      "Side-by-side conflict review covers page, database, file, permission, and restore conflicts.",
+      "No conflict resolution applies changes without explicit review.",
+      "Disposable replay stays empty-fixture until owner confirmation.",
+    ],
+    forbidden_until_confirmed: [
+      "Do not auto-merge conflicts.",
+      "Do not acknowledge remote rows before conflict review succeeds.",
+    ],
+  },
+  "prove-restore-writeback-rollback": {
+    owner: "developer",
+    execution_path: "local-first",
+    can_start_locally: true,
+    cloud_dependency: "none",
+    verification_commands: ["npm run verify:web-beta", "npm run build"],
+    completion_evidence: [
+      "Fresh rollback backup is required before restore apply.",
+      "Restore scope review, permission check, audit event, and second confirmation are represented.",
+      "Failed-restore recovery proof exists before write-back is enabled.",
+    ],
+    forbidden_until_confirmed: [
+      "Do not enable /api/backup/restore-apply.",
+      "Do not overwrite or delete workspace data from preview alone.",
+    ],
+  },
+  "implement-audit-events": {
+    owner: "developer",
+    execution_path: "local-first",
+    can_start_locally: true,
+    cloud_dependency: "none",
+    verification_commands: ["npm run verify:web-beta", "npm run build"],
+    completion_evidence: [
+      "Audit envelope validation rejects forbidden payloads.",
+      "Retention, owner-only export, and incident review are specified.",
+      "Server writes stay disabled until authenticated audit route exists.",
+    ],
+    forbidden_until_confirmed: [
+      "Do not write page bodies, file bytes, tokens, cookies, or secret values into audit events.",
+    ],
+  },
+  "automate-deployment-gates": {
+    owner: "developer",
+    execution_path: "local-first",
+    can_start_locally: true,
+    cloud_dependency: "deployment-env",
+    verification_commands: [
+      "npm run lint",
+      "npm run verify:web-beta",
+      "npm run verify:web-beta:smoke",
+      "npm run build",
+    ],
+    completion_evidence: [
+      "CI or release checklist runs local verification gates.",
+      "Preview route checks pass before owner go/no-go.",
+      "Rollback and export escape hatches are included.",
+    ],
+    forbidden_until_confirmed: [
+      "Do not deploy public beta before P0/P1 gates pass.",
+      "Do not enable sync, AI, external assets, or restore write-back from deployment alone.",
+    ],
+  },
+  "owner-beta-launch-decision": {
+    owner: "owner",
+    execution_path: "owner-decision",
+    can_start_locally: false,
+    cloud_dependency: "deployment-env",
+    verification_commands: [
+      "npm run verify:web-beta",
+      "npm run verify:web-beta:smoke",
+      "npm run build",
+    ],
+    completion_evidence: [
+      "Owner approves private beta scope, data boundary, rollback plan, and support process.",
+      "P0/P1 blockers have evidence attached.",
+      "Cloud sync and AI remain opt-in after launch.",
+    ],
+    forbidden_until_confirmed: DEFAULT_FORBIDDEN_ACTIONS,
+  },
+};
 
 export function buildWebBetaNextActionPlan(
   input: WebBetaNextActionPlanInput
@@ -255,6 +471,7 @@ function buildActions(
       source: "readiness-summary",
       privacy_boundary:
         "Decision record should cite counts and checklist status only, not private note text, file bytes, secrets, or holdings.",
+      ...getExecutionMeta("owner-beta-launch-decision"),
     },
   ];
 }
@@ -292,6 +509,7 @@ function fromGate({
     source: gate ? `readiness:${gate.id}` : "readiness:fallback",
     privacy_boundary:
       "Action planning uses local readiness evidence only and does not include page bodies, database row values, file bytes, tokens, secrets, or cloud data.",
+    ...getExecutionMeta(id),
   };
 }
 
@@ -328,7 +546,25 @@ function fromTrack({
     source: track ? `launch-checklist:${track.id}` : "launch-checklist:fallback",
     privacy_boundary:
       "Action planning uses launch checklist metadata only and does not include private workspace content.",
+    ...getExecutionMeta(id),
   };
+}
+
+function getExecutionMeta(id: string): WebBetaNextActionExecutionMeta {
+  return (
+    ACTION_EXECUTION_META[id] ?? {
+      owner: "developer",
+      execution_path: "local-first",
+      can_start_locally: true,
+      cloud_dependency: "none",
+      verification_commands: ["npm run verify:web-beta", "npm run build"],
+      completion_evidence: [
+        "Local contract and UI evidence are present.",
+        "No private payload leaves the browser-local workspace.",
+      ],
+      forbidden_until_confirmed: DEFAULT_FORBIDDEN_ACTIONS,
+    }
+  );
 }
 
 function summarizeActions(
@@ -349,12 +585,23 @@ function summarizeActions(
     blocked_by_missing_cloud: actions.filter(
       (action) => action.status === "blocked-by-missing-cloud"
     ).length,
+    local_first: actions.filter((action) => action.execution_path === "local-first")
+      .length,
+    cloud_required: actions.filter(
+      (action) => action.execution_path === "cloud-required"
+    ).length,
+    owner_decision: actions.filter(
+      (action) => action.execution_path === "owner-decision"
+    ).length,
     missing_environment_required:
       input.environmentPreflight?.summary.missing_required ?? 0,
     blocked_launch_tracks: input.launchChecklist.summary.blocked,
     blocked_deployment_gates: input.deploymentGates.filter(
       (gate) => gate.status === "blocked"
     ).length,
+    verification_commands: new Set(
+      actions.flatMap((action) => action.verification_commands)
+    ).size,
   };
 }
 

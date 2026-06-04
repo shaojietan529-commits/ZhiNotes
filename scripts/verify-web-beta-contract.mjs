@@ -50,6 +50,7 @@ const files = {
   highRiskActionRegistry: "src/lib/security/highRiskActionRegistry.ts",
   webBetaReadiness: "src/lib/sync/webBetaReadiness.ts",
   webBetaStageGate: "src/lib/sync/webBetaStageGate.ts",
+  webBetaNextActions: "src/lib/sync/webBetaNextActions.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
 };
@@ -254,6 +255,7 @@ function run() {
   const highRiskActionRegistry = readProjectFile(files.highRiskActionRegistry);
   const webBetaReadiness = readProjectFile(files.webBetaReadiness);
   const webBetaStageGate = readProjectFile(files.webBetaStageGate);
+  const webBetaNextActions = readProjectFile(files.webBetaNextActions);
   const syncShell = readProjectFile(files.syncShell);
   const migration = readProjectFile(files.migration);
 
@@ -297,6 +299,7 @@ function run() {
     [files.highRiskActionRegistry, highRiskActionRegistry],
     [files.webBetaReadiness, webBetaReadiness],
     [files.webBetaStageGate, webBetaStageGate],
+    [files.webBetaNextActions, webBetaNextActions],
     [files.syncShell, syncShell],
   ]) {
     assertNoLegacySingularEnv(source, label);
@@ -2157,6 +2160,78 @@ function run() {
     "Web Beta 阶段门禁",
     "Sync UI must render the Web Beta stage gate panel."
   );
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-web-beta-next-action-plan"',
+      "Next action plan must expose a stable export format.",
+    ],
+    [
+      "WebBetaNextActionOwner",
+      "Next action plan must assign action ownership.",
+    ],
+    [
+      "WebBetaNextActionExecutionPath",
+      "Next action plan must classify local-first, cloud-required, and owner-decision paths.",
+    ],
+    [
+      "WebBetaNextActionCloudDependency",
+      "Next action plan must classify cloud dependencies.",
+    ],
+    [
+      "can_start_locally",
+      "Next action plan must say whether work can start locally.",
+    ],
+    [
+      "verification_commands",
+      "Next action plan must attach local verification commands.",
+    ],
+    [
+      "completion_evidence",
+      "Next action plan must list completion evidence.",
+    ],
+    [
+      "forbidden_until_confirmed",
+      "Next action plan must list forbidden actions before confirmation.",
+    ],
+    [
+      "DEFAULT_FORBIDDEN_ACTIONS",
+      "Next action plan must preserve default no-cloud/no-upload constraints.",
+    ],
+  ]) {
+    assertSourceIncludes(files.webBetaNextActions, webBetaNextActions, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "NextActionOwnerPill",
+      "Sync UI must render owner labels for next actions.",
+    ],
+    [
+      "NextActionExecutionPathPill",
+      "Sync UI must render execution path labels for next actions.",
+    ],
+    [
+      "NextActionCloudDependencyPill",
+      "Sync UI must render cloud dependency labels for next actions.",
+    ],
+    [
+      "Verification",
+      "Sync UI must render verification commands for next actions.",
+    ],
+    [
+      "Completion evidence",
+      "Sync UI must render completion evidence for next actions.",
+    ],
+    [
+      "Forbidden before confirmation",
+      "Sync UI must render forbidden-before-confirmation boundaries.",
+    ],
+    [
+      "summary.local_first",
+      "Sync UI must summarize local-first next actions.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
   assertSourceIncludes(
     files.smokeTestPlan,
     smokeTestPlan,
