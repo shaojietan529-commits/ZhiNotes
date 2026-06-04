@@ -608,6 +608,34 @@ function run() {
     );
   }
   for (const snippet of [
+    "DATABASE_TEMPLATE_ROW_RECEIPT_EVENT",
+    "listDatabaseTemplateRowReceipts",
+    "templateRowReceipts",
+    "handleExportTemplateRowReceipts",
+    "模板行 receipts",
+    "导出 receipts",
+    'format: "zhinote-database-template-row-receipt-history"',
+    'history_status: "local-metadata-only"',
+    "TemplateRowReceiptHistoryPanel",
+    "TemplateRowReceiptCard",
+    "summarizeTemplateRowReceipts",
+    "不含 field",
+    "row values、页面正文或敏感投资字段",
+    "includes_database_field_names: false",
+    "includes_database_row_values: false",
+    "includes_page_body_text: false",
+    "includes_tokens_or_credentials: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.databaseModuleShell,
+      databaseModuleShell,
+      snippet,
+      "Databases module UI must render and export local template-row receipt history."
+    );
+  }
+  for (const snippet of [
     "视图适配 readiness",
     "导出视图 readiness",
     "ViewReadinessGateRow",
@@ -745,6 +773,7 @@ function run() {
         template_row_readiness: true,
         template_row_field_drafts: true,
         template_row_receipts: true,
+        template_row_receipt_history: true,
       },
       null,
       2

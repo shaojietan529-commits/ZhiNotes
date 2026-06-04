@@ -182,6 +182,10 @@ Current local actions:
 - Creating a template row also writes a local metadata-only template-row receipt
   that can be exported from the database page. The receipt records template
   type, local row/page ids, and prefilled/manual field counts only.
+- Review and export local template-row receipt history from the database module.
+  The history combines full database page and inline database template-row
+  receipts without field names, row values, page body text, tokens, credentials,
+  cloud data, or sensitive investment fields.
 - Open any local database from the module list.
 
 The database module dashboard and readiness reports read schema, view metadata,

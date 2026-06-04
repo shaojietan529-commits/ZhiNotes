@@ -27,6 +27,11 @@ import {
   type DatabaseTemplateRowReadinessStatus,
 } from "@/lib/database/databaseTemplateRowReadiness";
 import {
+  DATABASE_TEMPLATE_ROW_RECEIPT_EVENT,
+  listDatabaseTemplateRowReceipts,
+  type DatabaseTemplateRowReceipt,
+} from "@/lib/database/databaseTemplateRows";
+import {
   buildDatabaseViewReadinessReport,
   type DatabaseViewReadinessReport,
   type DatabaseViewReadinessStatus,
@@ -78,6 +83,11 @@ function DatabasesDashboard() {
   const [exportingViewReadiness, setExportingViewReadiness] = useState(false);
   const [exportingTemplateReadiness, setExportingTemplateReadiness] =
     useState(false);
+  const [templateRowReceipts, setTemplateRowReceipts] = useState<
+    DatabaseTemplateRowReceipt[]
+  >([]);
+  const [exportingTemplateRowReceipts, setExportingTemplateRowReceipts] =
+    useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
@@ -111,6 +121,25 @@ function DatabasesDashboard() {
     void loadDashboard();
   }, [loadDashboard]);
 
+  useEffect(() => {
+    const refreshReceipts = () => {
+      setTemplateRowReceipts(listDatabaseTemplateRowReceipts());
+    };
+
+    refreshReceipts();
+    window.addEventListener(
+      DATABASE_TEMPLATE_ROW_RECEIPT_EVENT,
+      refreshReceipts
+    );
+
+    return () => {
+      window.removeEventListener(
+        DATABASE_TEMPLATE_ROW_RECEIPT_EVENT,
+        refreshReceipts
+      );
+    };
+  }, []);
+
   const dashboardReport = useMemo(
     () => buildDatabaseModuleDashboardReport(snapshots),
     [snapshots]
@@ -133,6 +162,10 @@ function DatabasesDashboard() {
   const templateRowReadiness = useMemo(
     () => buildDatabaseTemplateRowReadinessReport(snapshots),
     [snapshots]
+  );
+  const templateRowReceiptSummary = useMemo(
+    () => summarizeTemplateRowReceipts(templateRowReceipts),
+    [templateRowReceipts]
   );
   const starterModules = useMemo(
     () =>
@@ -232,6 +265,42 @@ function DatabasesDashboard() {
     }
   };
 
+  const handleExportTemplateRowReceipts = () => {
+    setExportingTemplateRowReceipts(true);
+    try {
+      downloadJsonFile(
+        `zhinote-database-template-row-receipts-${fileSafeTimestamp()}.json`,
+        {
+          format: "zhinote-database-template-row-receipt-history",
+          format_version: 1,
+          history_status: "local-metadata-only",
+          exported_at: new Date().toISOString(),
+          boundary: {
+            local_export_only: true,
+            reads_browser_local_storage: true,
+            includes_database_title: false,
+            includes_database_field_names: false,
+            includes_database_row_values: false,
+            includes_page_body_text: false,
+            includes_tokens_or_credentials: false,
+            uploads_data: false,
+            enables_ai: false,
+          },
+          summary: templateRowReceiptSummary,
+          receipts: templateRowReceipts,
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export database template row receipts:",
+        err
+      );
+      window.alert("模板行 receipts 导出失败，请查看控制台。");
+    } finally {
+      setExportingTemplateRowReceipts(false);
+    }
+  };
+
   return (
     <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -295,6 +364,13 @@ function DatabasesDashboard() {
           exporting={exportingTemplateReadiness}
           onExport={handleExportTemplateReadiness}
           onOpen={(databaseId) => router.push(`/database/${databaseId}`)}
+        />
+
+        <TemplateRowReceiptHistoryPanel
+          receipts={templateRowReceipts}
+          summary={templateRowReceiptSummary}
+          exporting={exportingTemplateRowReceipts}
+          onExport={handleExportTemplateRowReceipts}
         />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -836,6 +912,112 @@ function TemplateRowStatusPill({
   );
 }
 
+function TemplateRowReceiptHistoryPanel({
+  receipts,
+  summary,
+  exporting,
+  onExport,
+}: {
+  receipts: DatabaseTemplateRowReceipt[];
+  summary: ReturnType<typeof summarizeTemplateRowReceipts>;
+  exporting: boolean;
+  onExport: () => void;
+}) {
+  const latestReceipts = receipts.slice(0, 6);
+
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            模板行 receipts
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            记录从完整数据库页和 inline database 创建模板行后的本地 receipt 历史。
+            这里读取浏览器 localStorage 里的 metadata-only receipts，不含 field
+            names、row values、页面正文或敏感投资字段。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={exporting || receipts.length === 0}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {exporting ? "导出中..." : "导出 receipts"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <Metric label="Receipts" value={summary.total} />
+        <Metric label="DB page" value={summary.database_page} />
+        <Metric label="Inline" value={summary.inline_database} />
+        <Metric label="Company" value={summary.company} />
+        <Metric label="Report" value={summary.report} />
+        <Metric label="Meeting" value={summary.meeting} />
+        <Metric label="Portfolio" value={summary.portfolio} />
+        <Metric label="已预填字段" value={summary.prefilled_fields} />
+      </div>
+
+      {latestReceipts.length > 0 ? (
+        <div className="mt-4 grid gap-2 lg:grid-cols-2">
+          {latestReceipts.map((receipt) => (
+            <TemplateRowReceiptCard
+              key={receipt.receipt_id}
+              receipt={receipt}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+          暂时没有模板行 receipt。你在完整数据库页或 inline database 里使用
+          「+ 模板行」后，这里会显示最近的本地创建记录。
+        </p>
+      )}
+    </section>
+  );
+}
+
+function TemplateRowReceiptCard({
+  receipt,
+}: {
+  receipt: DatabaseTemplateRowReceipt;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {receipt.template.template_title}
+          </h3>
+          <p className="mt-1 text-zinc-400">
+            {getTemplateRowGroupLabel(receipt.template.group_id)} ·{" "}
+            {getTemplateRowSourceLabel(receipt.source_surface)}
+          </p>
+        </div>
+        <span className="w-fit rounded bg-zinc-100 px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {formatDate(receipt.created_at)}
+        </span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        <Chip
+          label={`预填 ${receipt.field_draft_summary.fields_prefilled}`}
+        />
+        <Chip
+          label={`手动 ${receipt.field_draft_summary.fields_left_manual}`}
+        />
+        {receipt.field_draft_summary.value_kinds_prefilled.map((valueKind) => (
+          <Chip key={valueKind} label={valueKind} />
+        ))}
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        本地 receipt 只记录模板行动作 metadata。不含 field names、row values、
+        页面正文或敏感投资字段。
+      </p>
+    </article>
+  );
+}
+
 function WorkflowStepCard({
   step,
 }: {
@@ -1088,6 +1270,57 @@ function CoveragePill({ status }: { status: "covered" | "missing" }) {
       {status === "covered" ? "已覆盖" : "未使用"}
     </span>
   );
+}
+
+function summarizeTemplateRowReceipts(receipts: DatabaseTemplateRowReceipt[]) {
+  const summary = {
+    total: receipts.length,
+    database_page: 0,
+    inline_database: 0,
+    company: 0,
+    report: 0,
+    meeting: 0,
+    portfolio: 0,
+    prefilled_fields: 0,
+    manual_fields: 0,
+  };
+
+  for (const receipt of receipts) {
+    if (receipt.source_surface === "database-page") {
+      summary.database_page += 1;
+    } else {
+      summary.inline_database += 1;
+    }
+
+    summary[receipt.template.group_id] += 1;
+    summary.prefilled_fields += receipt.field_draft_summary.fields_prefilled;
+    summary.manual_fields += receipt.field_draft_summary.fields_left_manual;
+  }
+
+  return summary;
+}
+
+function getTemplateRowSourceLabel(
+  source: DatabaseTemplateRowReceipt["source_surface"]
+) {
+  if (source === "database-page") return "完整数据库页";
+  return "Inline database";
+}
+
+function getTemplateRowGroupLabel(
+  groupId: DatabaseTemplateRowReceipt["template"]["group_id"]
+) {
+  const labels: Record<
+    DatabaseTemplateRowReceipt["template"]["group_id"],
+    string
+  > = {
+    company: "公司研究",
+    report: "报告库",
+    meeting: "会议",
+    portfolio: "组合",
+  };
+
+  return labels[groupId];
 }
 
 function formatDate(value: string) {
