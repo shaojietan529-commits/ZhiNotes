@@ -23,6 +23,7 @@ const files = {
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
+  timelineView: "src/components/database/views/TimelineView.tsx",
   moduleActions: "src/lib/modules/actions.ts",
   registry: "src/lib/modules/registry.ts",
   filePreviewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
@@ -95,6 +96,7 @@ function run() {
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
+  const timelineView = readProjectFile(files.timelineView);
   const moduleActions = readProjectFile(files.moduleActions);
   const registry = readProjectFile(files.registry);
   const filePreviewNode = readProjectFile(files.filePreviewNode);
@@ -894,6 +896,21 @@ function run() {
     "RelationFieldEditor",
     "Relation fields must keep a dedicated editor."
   );
+  for (const snippet of [
+    "relationPages",
+    "getTimelineDisplayFields",
+    "formatTimelineFieldValue",
+    "stringifyRelationValue",
+    "getDatabaseFieldDisplayName",
+    "新建行",
+  ]) {
+    assertIncludes(
+      files.timelineView,
+      timelineView,
+      snippet,
+      "Timeline view must support investment tracker context fields and row creation."
+    );
+  }
 
   for (const viewType of requiredViews) {
     assertViewFile(viewType);
