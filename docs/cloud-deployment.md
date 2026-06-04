@@ -33,6 +33,22 @@
 - 该计划只生成本地 checklist；不会运行测试、发送网络请求、部署、创建账号、
   连接云服务、读取 secret、写 server data 或上传 workspace data。
 
+`src/lib/sync/webAlphaHandoffBundle.ts` 记录 Web Alpha 交接包：
+
+- 将 deployment target、launch checklist、route preflight、stage gate、smoke
+  test plan、next-action plan 和 environment preflight 汇总成一个本地 review
+  packet。
+- 明确命令包：`npm run lint`、`npm run verify:web-beta`、
+  `npm run verify:web-beta:smoke`、`npm run verify:replay-harness` 和
+  `npm run build`。
+- 明确 owner decision：是否分享 preview、是否启用 cloud writes、是否开始
+  cloud sync、是否上传私有文件，默认答案都是 no，必须单独确认。
+- 明确 excluded payload：page body text、database row values、file bytes、
+  backup payload、holdings、trading plans、AI prompt、tokens、cookies、secrets
+  和 signed URLs 不进入交接包。
+- 该交接包只在本地生成和导出；不会部署、创建账号、连接云服务、写 server
+  data、上传 workspace data、启用 sync 或启用 AI。
+
 `src/lib/sync/privateFileStoragePolicy.ts` 记录 private storage policy：
 
 - 文件云同步必须使用 private Supabase Storage bucket，禁止 public URL 和 public
@@ -174,7 +190,12 @@ https://your-vercel-domain.vercel.app/auth/callback
 - `npm run verify:web-beta:smoke` 通过，确认 preview smoke checklist、页面
   route、高风险 API 默认 disabled/gated、local-only 隐私边界和 Sync UI 导出
   入口对齐。
+- `npm run verify:replay-harness` 通过，确认 disposable replay harness 和
+  disabled runner skeleton 不执行网络、数据库或文件写入。
 - `npm run build` 通过。
+- Sync 模块里的 `Web Alpha handoff bundle` 已导出或人工复核，且确认 command
+  bundle、owner decisions、excluded payload classes、disabled cloud defaults、
+  P0 blockers 和 cloud sync boundary 都清楚列出。
 - Sync 模块里的 `Smoke test plan` 已导出或人工复核，且 preview route、auth
   callback、disabled cloud defaults、private storage disabled、Cloudflare edge
   staging、rollback 和 observability 都有明确通过条件。

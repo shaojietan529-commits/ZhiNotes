@@ -12,6 +12,7 @@ const files = {
   apiStubs: "src/lib/sync/webBetaApiStubs.ts",
   contract: "src/lib/sync/webBetaContract.ts",
   deploymentTarget: "src/lib/sync/webBetaDeploymentTarget.ts",
+  webAlphaHandoffBundle: "src/lib/sync/webAlphaHandoffBundle.ts",
   privateFileStoragePolicy: "src/lib/sync/privateFileStoragePolicy.ts",
   filePresignApiStub: "src/lib/sync/filePresignApiStub.ts",
   filePresignRoute: "src/app/api/files/presign/route.ts",
@@ -196,6 +197,7 @@ function run() {
   const apiStubs = readProjectFile(files.apiStubs);
   const contract = readProjectFile(files.contract);
   const deploymentTarget = readProjectFile(files.deploymentTarget);
+  const webAlphaHandoffBundle = readProjectFile(files.webAlphaHandoffBundle);
   const privateFileStoragePolicy = readProjectFile(files.privateFileStoragePolicy);
   const filePresignApiStub = readProjectFile(files.filePresignApiStub);
   const filePresignRoute = readProjectFile(files.filePresignRoute);
@@ -2218,6 +2220,143 @@ function run() {
     syncShell,
     "Smoke test plan",
     "Sync UI must render the smoke test plan panel."
+  );
+  assertSourceIncludes(
+    files.webAlphaHandoffBundle,
+    webAlphaHandoffBundle,
+    'format: "zhinote-web-alpha-handoff-bundle"',
+    "Web Alpha handoff bundle must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.webAlphaHandoffBundle,
+    webAlphaHandoffBundle,
+    "buildWebAlphaHandoffBundle",
+    "Web Alpha handoff bundle must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'bundle_status: "local-handoff-bundle-only"',
+      "Handoff bundle must remain local-only.",
+    ],
+    [
+      'release_verdict: "not-ready"',
+      "Handoff bundle must not mark Web Alpha ready.",
+    ],
+    [
+      "web_alpha_can_be_shared_now: false",
+      "Handoff bundle must not approve sharing a preview.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Handoff bundle must not start cloud sync.",
+    ],
+    ["local_bundle_only: true", "Handoff bundle must stay local-only."],
+    [
+      "reads_launch_contracts: true",
+      "Handoff bundle must read launch contract metadata.",
+    ],
+    [
+      "reads_route_contracts: true",
+      "Handoff bundle must read route contract metadata.",
+    ],
+    [
+      "reads_smoke_test_plan: true",
+      "Handoff bundle must read smoke plan metadata.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Handoff bundle must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Handoff bundle must not read database row values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Handoff bundle must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Handoff bundle must not read secret values.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Handoff bundle must not send network requests.",
+    ],
+    ["deploys_app: false", "Handoff bundle must not deploy the app."],
+    [
+      "connects_cloud_services: false",
+      "Handoff bundle must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Handoff bundle must not upload workspace data.",
+    ],
+    ["enables_sync: false", "Handoff bundle must not enable sync."],
+    ["enables_ai: false", "Handoff bundle must not enable AI."],
+    [
+      "requires_owner_confirmation_before_preview: true",
+      "Handoff bundle must require owner confirmation before preview.",
+    ],
+    [
+      "requires_owner_confirmation_before_cloud: true",
+      "Handoff bundle must require owner confirmation before cloud actions.",
+    ],
+    [
+      "command_bundle",
+      "Handoff bundle must include required local verification commands.",
+    ],
+    [
+      "owner_decisions",
+      "Handoff bundle must include owner decision gates.",
+    ],
+    [
+      "excluded_payload_classes",
+      "Handoff bundle must list private payload classes excluded from export.",
+    ],
+    [
+      "npm run verify:web-beta:smoke",
+      "Handoff bundle must include the Web Beta smoke verifier command.",
+    ],
+    [
+      "holdings",
+      "Handoff bundle must exclude holdings from handoff payloads.",
+    ],
+    [
+      "trading_plans",
+      "Handoff bundle must exclude trading plans from handoff payloads.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.webAlphaHandoffBundle,
+      webAlphaHandoffBundle,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildWebAlphaHandoffBundle",
+    "Sync UI must build the Web Alpha handoff bundle."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportWebAlphaHandoffBundle",
+    "Sync UI must export the Web Alpha handoff bundle."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Web Alpha handoff bundle",
+    "Sync UI must render the Web Alpha handoff bundle panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Export handoff bundle",
+    "Sync UI must expose the handoff bundle export button."
   );
   assertSourceIncludes(
     files.smokeTestVerifier,

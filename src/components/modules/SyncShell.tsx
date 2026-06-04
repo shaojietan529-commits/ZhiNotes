@@ -157,6 +157,11 @@ import {
   type WebBetaSmokeTestPlan,
   type WebBetaSmokeTestStatus,
 } from "@/lib/sync/webBetaSmokeTestPlan";
+import {
+  buildWebAlphaHandoffBundle,
+  type WebAlphaHandoffBundle,
+  type WebAlphaHandoffStatus,
+} from "@/lib/sync/webAlphaHandoffBundle";
 import type {
   WebBetaEnvironmentCheckStatus,
   WebBetaEnvironmentPreflight,
@@ -311,6 +316,7 @@ type WebBetaContractAction =
   | "stage-gate"
   | "deployment-target"
   | "smoke-test-plan"
+  | "web-alpha-handoff"
   | "route-preflight";
 type ReadinessStatus = "Ready" | "Partial" | "Missing" | "Needs confirmation";
 
@@ -1149,6 +1155,27 @@ function SyncDashboard() {
         deploymentGates: DEPLOYMENT_GATES,
       }),
     [environmentPreflight, webBetaLaunchChecklist, webBetaReadinessReport]
+  );
+  const webAlphaHandoffBundle = useMemo(
+    () =>
+      buildWebAlphaHandoffBundle({
+        deploymentTarget: webBetaDeploymentTarget,
+        launchChecklist: webBetaLaunchChecklist,
+        routePreflight: webBetaRoutePreflight,
+        stageGate: webBetaStageGate,
+        smokeTestPlan: webBetaSmokeTestPlan,
+        nextActionPlan: webBetaNextActionPlan,
+        environmentPreflight,
+      }),
+    [
+      environmentPreflight,
+      webBetaDeploymentTarget,
+      webBetaLaunchChecklist,
+      webBetaNextActionPlan,
+      webBetaRoutePreflight,
+      webBetaSmokeTestPlan,
+      webBetaStageGate,
+    ]
   );
   const backupScope = useMemo(
     () => [
@@ -2330,6 +2357,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Web beta smoke test plan export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportWebAlphaHandoffBundle = () => {
+    setBusyContractAction("web-alpha-handoff");
+    try {
+      downloadJsonFile(
+        `zhinote-web-alpha-handoff-bundle-${fileSafeTimestamp()}.json`,
+        {
+          ...webAlphaHandoffBundle,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export web alpha handoff bundle:",
+        err
+      );
+      window.alert(
+        "Web Alpha handoff bundle export failed. Please check the console."
       );
     } finally {
       setBusyContractAction(null);
@@ -5487,6 +5537,94 @@ function SyncDashboard() {
               {webBetaSmokeTestPlan.cases.map((testCase) => (
                 <SmokeTestCaseRow key={testCase.id} testCase={testCase} />
               ))}
+            </div>
+          </ContractPanel>
+
+          <ContractPanel title="Web Alpha handoff bundle" className="mt-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                Local handoff bundle for a future private Web Alpha review. It
+                summarizes launch contracts, stage gates, route preflight,
+                smoke tests, next actions, owner decisions, and command checks
+                into one export without deploying, connecting cloud services,
+                uploading workspace data, or exposing secrets.
+              </p>
+              <button
+                type="button"
+                onClick={handleExportWebAlphaHandoffBundle}
+                disabled={busyContractAction === "web-alpha-handoff"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyContractAction === "web-alpha-handoff"
+                  ? "Exporting..."
+                  : "Export handoff bundle"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
+              <HandoffSummaryCard
+                label="Sources"
+                value={webAlphaHandoffBundle.summary.source_reports}
+                detail="Reports included"
+                status="partial"
+              />
+              <HandoffSummaryCard
+                label="Commands"
+                value={webAlphaHandoffBundle.summary.commands}
+                detail="Must pass"
+                status="ready"
+              />
+              <HandoffSummaryCard
+                label="Blocked"
+                value={webAlphaHandoffBundle.summary.blocked}
+                detail="Cannot launch"
+                status={
+                  webAlphaHandoffBundle.summary.blocked > 0
+                    ? "blocked"
+                    : "ready"
+                }
+              />
+              <HandoffSummaryCard
+                label="P0"
+                value={webAlphaHandoffBundle.summary.p0_actions}
+                detail="Build blockers"
+                status={
+                  webAlphaHandoffBundle.summary.p0_actions > 0
+                    ? "blocked"
+                    : "ready"
+                }
+              />
+              <HandoffSummaryCard
+                label="Cloud sync"
+                value={
+                  webAlphaHandoffBundle.cloud_sync_can_start_now
+                    ? "Ready"
+                    : "No"
+                }
+                detail="Separate approval"
+                status="blocked"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+              <div className="space-y-2">
+                {webAlphaHandoffBundle.handoff_items.map((item) => (
+                  <HandoffItemRow key={item.id} item={item} />
+                ))}
+              </div>
+              <div className="space-y-3">
+                <div className="grid gap-2">
+                  {webAlphaHandoffBundle.command_bundle.map((command) => (
+                    <HandoffCommandRow key={command.id} command={command} />
+                  ))}
+                </div>
+                <div className="grid gap-2">
+                  {webAlphaHandoffBundle.owner_decisions.map((decision) => (
+                    <HandoffDecisionRow
+                      key={decision.id}
+                      decision={decision}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </ContractPanel>
 
@@ -9033,6 +9171,146 @@ function SmokeTestStatusPill({
       : status === "manual-confirmation"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function HandoffSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: WebAlphaHandoffStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <HandoffStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function HandoffItemRow({
+  item,
+}: {
+  item: WebAlphaHandoffBundle["handoff_items"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.title}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-400">{item.source}</div>
+        </div>
+        <HandoffStatusPill status={item.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {item.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {item.required_before_preview}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {item.owner_review}
+      </p>
+    </article>
+  );
+}
+
+function HandoffCommandRow({
+  command,
+}: {
+  command: WebAlphaHandoffBundle["command_bundle"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {command.command}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {command.purpose}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-md bg-green-50 px-2 py-1 text-[10px] text-green-700 dark:bg-green-950 dark:text-green-300">
+          Required
+        </span>
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {command.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function HandoffDecisionRow({
+  decision,
+}: {
+  decision: WebAlphaHandoffBundle["owner_decisions"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {decision.question}
+        </div>
+        <span
+          className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${
+            decision.default_answer === "yes"
+              ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+              : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+          }`}
+        >
+          Default {decision.default_answer}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {decision.rationale}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        Required before: {decision.required_before}
+      </p>
+    </article>
+  );
+}
+
+function HandoffStatusPill({
+  status,
+}: {
+  status: WebAlphaHandoffStatus;
+}) {
+  const labels: Record<WebAlphaHandoffStatus, string> = {
+    ready: "Ready",
+    partial: "Partial",
+    "manual-confirmation": "Confirm",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "partial"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : status === "manual-confirmation"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>

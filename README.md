@@ -730,6 +730,13 @@ Current local actions:
   observability, and narrow-layout review; it does not run tests, send network
   requests, deploy the app, create accounts, connect services, read secrets,
   write server data, or upload workspace data.
+- Review and export a local Web Alpha handoff bundle. The bundle summarizes
+  launch contracts, stage gates, route preflight, smoke tests, next actions,
+  owner decisions, command checks, and excluded private payload classes into
+  one review packet. It does not deploy, connect cloud services, create
+  accounts, write server data, upload workspace data, enable sync, enable AI,
+  read page bodies, read database row values, read file bytes, or expose secret
+  values.
 - Review and export a local Web Beta next-action plan. The plan turns readiness
   and launch blockers into ordered P0/P1/P2 build work, but does not deploy the
   app, create accounts, connect cloud services, upload workspace data, read page
