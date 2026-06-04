@@ -29,7 +29,13 @@ Current module foundation:
 - Report Library: beta module at `/modules/reports` for local HTML reports,
   Markdown notes, PDFs, Office files, notebooks, archives, takeaways, local
   tracker-row intake, report connection planning, linked companies, linked
-  meetings, and a local report tracker database.
+  meetings, a local report tracker database, conversion review, format
+  coverage, preview readiness, upload preflight, routing packets, review
+  queues, and metadata-only file action receipts.
+- File Library: beta module at `/modules/files` for local file metadata
+  workbench routing across HTML, Markdown, PDF, Excel, Word, PowerPoint,
+  notebooks, archives, media, editable import, database import, local retain,
+  and cloud/AI confirmation boundaries.
 - Company Research: beta module at `/modules/company-research` for company
   profiles, investment memos, earnings reviews, valuation assumptions, linked
   reports, linked meetings, company dossier planning, local tracker-row intake,
@@ -508,6 +514,33 @@ bulk import path now requires a typed local confirmation phrase before creating
 fields or rows. The exported receipt records only local confirmation metadata,
 row/column limits, and file size; it does not include spreadsheet cell values or
 file bytes.
+
+## File Library Module
+
+Open the file library module at:
+
+```txt
+http://localhost:3000/modules/files
+```
+
+Current local actions:
+
+- Review a local file workbench generated from IndexedDB file metadata and the
+  file preview capability matrix.
+- Route HTML reports, Markdown notes, PDFs, Office files, notebooks, archives,
+  spreadsheets, media, and unknown files into native preview, editable import,
+  database import, metadata review, local retain, or cloud/AI boundary lanes.
+- Open the Reports module for real local file upload, the Notes module for
+  editable writing, and the Databases module for confirmed spreadsheet import.
+- Export a metadata-only file workbench. The export excludes file names, file
+  bytes, file text, page body text, spreadsheet values, cloud data, AI prompts,
+  tokens, and credentials.
+
+The File Library module is a local routing desk, not a bulk importer. It does
+not delete files, upload files, sync files, call AI, load HTML external
+resources, execute notebooks, unzip archives into the workspace, or create
+database rows. Those higher-risk actions must stay behind the existing Reports,
+Databases, Sync, and AI confirmation gates.
 
 ## Portfolio and Watchlist Module
 

@@ -237,6 +237,13 @@ export default function QuickSearch() {
     router.push("/modules/reports");
   };
 
+  const handleOpenFiles = () => {
+    setOpen(false);
+    setQuery("");
+    setResults([]);
+    router.push("/modules/files");
+  };
+
   const handleOpenResearchGraph = () => {
     setOpen(false);
     setQuery("");
@@ -548,6 +555,26 @@ export default function QuickSearch() {
       category: "Workspace",
       aliases: ["report", "reports", "html report", "pdf", "file", "报告"],
       run: handleOpenReports,
+    },
+    {
+      id: "files-module",
+      title: "文件库",
+      description: "打开本地文件库工作台",
+      icon: "FILE",
+      category: "Workspace",
+      aliases: [
+        "files",
+        "file library",
+        "uploads",
+        "attachments",
+        "html",
+        "markdown",
+        "excel",
+        "word",
+        "文件",
+        "附件",
+      ],
+      run: handleOpenFiles,
     },
     {
       id: "new-report-note",

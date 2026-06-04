@@ -84,11 +84,17 @@ function buildHealthAreas(): ModuleHealthArea[] {
     {
       id: "module-platform",
       title: "模块化平台底座",
-      status: hasModules(["notes", "databases", "reports", "company-research"])
+      status: hasModules([
+        "notes",
+        "databases",
+        "reports",
+        "files",
+        "company-research",
+      ])
         ? "ready"
         : "blocked",
       phase: "phase-2",
-      module_ids: ["notes", "databases", "reports", "company-research"],
+      module_ids: ["notes", "databases", "reports", "files", "company-research"],
       evidence:
         "Module registry, module manifest, module onboarding contract, sidebar navigation, quick search actions, and module starter verification are available.",
       next_action:
@@ -125,15 +131,18 @@ function buildHealthAreas(): ModuleHealthArea[] {
     {
       id: "files-reports",
       title: "文件和报告",
-      status: moduleStatus("reports") === "beta" ? "partial" : "blocked",
+      status:
+        moduleStatus("reports") === "beta" && moduleStatus("files") === "beta"
+          ? "partial"
+          : "blocked",
       phase: "phase-1",
-      module_ids: ["reports"],
+      module_ids: ["reports", "files"],
       evidence:
-        "Report Library is beta and covers local HTML reports, Markdown notes, PDF, Office files, notebooks, archives, local file storage, takeaways, local tracker-row intake, and linked trackers.",
+        "Report Library and File Library are beta. They cover local HTML reports, Markdown notes, PDF, Office files, notebooks, archives, local file storage, metadata-only file workbench routing, takeaways, local tracker-row intake, and linked trackers.",
       next_action:
-        "Move more preview types from contract to polished in-page rendering and add safer report-to-company linking workflows.",
+        "Use the file workbench to separate native preview, editable import, database import, local retain, and cloud/AI confirmation boundaries before polishing more renderers.",
       privacy_boundary:
-        "File previews must stay local by default and must not load external assets without confirmation.",
+        "File previews and the file workbench must stay local by default and must not export file names, read bytes, upload files, call AI, or load external assets without confirmation.",
     },
     {
       id: "company-research",

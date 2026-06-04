@@ -20,8 +20,12 @@ const files = {
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
   localStore: "src/lib/files/localStore.ts",
+  fileLibrary: "src/lib/files/fileLibraryWorkbench.ts",
   previewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
   reportsShell: "src/components/modules/ReportsShell.tsx",
+  filesShell: "src/components/modules/FilesShell.tsx",
+  filesRoute: "src/app/(workspace)/modules/files/page.tsx",
+  registry: "src/lib/modules/registry.ts",
 };
 
 const requiredCapabilities = [
@@ -155,8 +159,12 @@ function run() {
   const actionReceipts = readProjectFile(files.actionReceipts);
   const upload = readProjectFile(files.upload);
   const localStore = readProjectFile(files.localStore);
+  const fileLibrary = readProjectFile(files.fileLibrary);
   const previewNode = readProjectFile(files.previewNode);
   const reportsShell = readProjectFile(files.reportsShell);
+  const filesShell = readProjectFile(files.filesShell);
+  const filesRoute = readProjectFile(files.filesRoute);
+  const registry = readProjectFile(files.registry);
 
   for (const requirement of requiredCapabilities) {
     assertIncludes(
@@ -989,6 +997,82 @@ function run() {
       "File upload preflight must define local-only format routing before file selection."
     );
   }
+  for (const snippet of [
+    'format: "zhinote-file-library-workbench"',
+    'report_status: "local-file-library-only"',
+    "buildFileLibraryWorkbenchReport",
+    "reads_file_metadata: true",
+    "reads_capability_metadata: true",
+    "reads_file_names: true",
+    "includes_file_names: false",
+    "includes_file_bytes: false",
+    "includes_file_text: false",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "reads_page_body_text: false",
+    "loads_external_resources: false",
+    "creates_database_rows: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    '"native-preview"',
+    '"editable-import"',
+    '"database-import"',
+    '"metadata-review"',
+    '"download-retain"',
+    '"cloud-ai-boundary"',
+    "upload_file_bytes_without_confirmation",
+    "send_file_text_to_ai",
+    "load_html_external_resources_without_confirmation",
+    "bulk_import_spreadsheet_without_typed_confirmation",
+    "delete_or_overwrite_local_files",
+    "export_file_names_from_workbench",
+    "sync_files_to_cloud",
+    "execute_notebook_code",
+    "npm run verify:file-preview",
+    "npm run verify:modules",
+    "npm run lint",
+    "npm run build",
+  ]) {
+    assertIncludes(
+      files.fileLibrary,
+      fileLibrary,
+      snippet,
+      "File Library workbench must preserve metadata-only routing and safety boundaries."
+    );
+  }
+  for (const snippet of [
+    "buildFileLibraryWorkbenchReport",
+    "listStoredPageFiles",
+    "文件库中心",
+    "文件工作台",
+    "导出文件工作台",
+    "文件接入入口",
+    "打开报告库上传",
+    "打开笔记中心",
+    "打开数据库中心",
+    "导出不包含文件名、bytes 或正文",
+    "不自动删除",
+  ]) {
+    assertIncludes(
+      files.filesShell,
+      filesShell,
+      snippet,
+      "Files module UI must render the local file workbench, routes, and safety boundary."
+    );
+  }
+  assertIncludes(
+    files.filesRoute,
+    filesRoute,
+    'import("@/components/modules/FilesShell")',
+    "Files module route must lazy-load the client shell."
+  );
+  assertIncludes(
+    files.registry,
+    registry,
+    'route: "/modules/files"',
+    "Module registry must expose the File Library route."
+  );
   for (const snippet of [
     "buildFileUploadPreflightReport",
     "handleExportUploadPreflight",
