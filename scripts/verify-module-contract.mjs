@@ -14,6 +14,7 @@ const files = {
   onboarding: "src/lib/modules/moduleOnboarding.ts",
   starterPack: "src/lib/modules/moduleStarterPack.ts",
   health: "src/lib/modules/moduleHealth.ts",
+  roadmap: "src/lib/modules/moduleRoadmap.ts",
   dashboard: "src/components/modules/ModuleDashboard.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
@@ -188,6 +189,7 @@ function run() {
   const onboarding = readProjectFile(files.onboarding);
   const starterPack = readProjectFile(files.starterPack);
   const health = readProjectFile(files.health);
+  const roadmap = readProjectFile(files.roadmap);
   const dashboard = readProjectFile(files.dashboard);
   const sidebar = readProjectFile(files.sidebar);
   const quickSearch = readProjectFile(files.quickSearch);
@@ -313,6 +315,40 @@ function run() {
       "Module health report must preserve local-only boundaries."
     );
   }
+  for (const snippet of [
+    'format: "zhinote-module-roadmap"',
+    "buildModuleRoadmapReport",
+    'roadmap_status: "local-module-roadmap-only"',
+    "local_report_only: true",
+    "reads_registry_metadata_only: true",
+    "reads_manifest_metadata: true",
+    "reads_onboarding_contract: true",
+    "reads_starter_pack_contract: true",
+    "reads_health_report: true",
+    "reads_page_text: false",
+    "reads_database_rows: false",
+    "reads_file_bytes: false",
+    "reads_secret_values: false",
+    "writes_workspace_data: false",
+    "creates_modules_now: false",
+    "changes_routes_now: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    '"active-now"',
+    '"beta-hardening"',
+    '"planned-contracts"',
+    '"web-launch-blockers"',
+    "required_before_new_module",
+    "required_verification_commands",
+  ]) {
+    assertIncludes(
+      files.roadmap,
+      roadmap,
+      snippet,
+      "Module roadmap report must preserve local-only queue, gaps, and verification boundaries."
+    );
+  }
   for (const step of requiredOnboardingSteps) {
     assertIncludes(
       files.onboarding,
@@ -414,6 +450,12 @@ function run() {
   assertIncludes(
     files.dashboard,
     dashboard,
+    "buildModuleRoadmapReport",
+    "Module center must build the module roadmap report."
+  );
+  assertIncludes(
+    files.dashboard,
+    dashboard,
     "新模块接入清单",
     "Module center must render the onboarding panel."
   );
@@ -422,6 +464,12 @@ function run() {
     dashboard,
     "平台目标健康度",
     "Module center must render the module health panel."
+  );
+  assertIncludes(
+    files.dashboard,
+    dashboard,
+    "模块接入路线图",
+    "Module center must render the module roadmap panel."
   );
   assertIncludes(
     files.dashboard,
@@ -446,6 +494,12 @@ function run() {
     dashboard,
     "Export health",
     "Module center must export the module health report."
+  );
+  assertIncludes(
+    files.dashboard,
+    dashboard,
+    "Export roadmap",
+    "Module center must export the module roadmap report."
   );
   assertIncludes(
     files.sidebar,
@@ -488,6 +542,7 @@ function run() {
     starter_pack_checklist: requiredStarterPackChecklist.length,
     starter_pack_risk_gates: requiredStarterPackRiskGates.length,
     health_areas: requiredHealthAreas.length,
+    roadmap_lanes: 4,
     boundary_checks: requiredBoundarySnippets.length,
   };
 

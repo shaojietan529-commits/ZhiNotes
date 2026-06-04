@@ -33,6 +33,11 @@ import {
   type ModuleHealthReport,
   type ModuleHealthStatus,
 } from "@/lib/modules/moduleHealth";
+import {
+  buildModuleRoadmapReport,
+  type ModuleRoadmapReadiness,
+  type ModuleRoadmapReport,
+} from "@/lib/modules/moduleRoadmap";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import {
   DEFAULT_APP_LANGUAGE_LABEL,
@@ -50,6 +55,7 @@ export default function ModuleDashboard() {
   const [exportingOnboarding, setExportingOnboarding] = useState(false);
   const [exportingStarterPack, setExportingStarterPack] = useState(false);
   const [exportingHealth, setExportingHealth] = useState(false);
+  const [exportingRoadmap, setExportingRoadmap] = useState(false);
   const activeModules = useMemo(() => getModulesByStatus("active"), []);
   const betaModules = useMemo(() => getModulesByStatus("beta"), []);
   const plannedModules = useMemo(() => getModulesByStatus("planned"), []);
@@ -57,6 +63,16 @@ export default function ModuleDashboard() {
   const moduleOnboarding = useMemo(() => buildModuleOnboardingContract(), []);
   const moduleStarterPack = useMemo(() => buildModuleStarterPackContract(), []);
   const moduleHealth = useMemo(() => buildModuleHealthReport(), []);
+  const moduleRoadmap = useMemo(
+    () =>
+      buildModuleRoadmapReport({
+        manifest: moduleManifest,
+        onboarding: moduleOnboarding,
+        starterPack: moduleStarterPack,
+        health: moduleHealth,
+      }),
+    [moduleHealth, moduleManifest, moduleOnboarding, moduleStarterPack]
+  );
 
   useEffect(() => {
     void getAllDatabases()
@@ -152,6 +168,21 @@ export default function ModuleDashboard() {
     }
   };
 
+  const handleExportRoadmap = () => {
+    setExportingRoadmap(true);
+    try {
+      downloadJsonFile(`zhinote-module-roadmap-${fileSafeTimestamp()}.json`, {
+        ...moduleRoadmap,
+        exported_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to export module roadmap:", err);
+      window.alert("Module roadmap export failed. Please check the console.");
+    } finally {
+      setExportingRoadmap(false);
+    }
+  };
+
   return (
     <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -205,6 +236,81 @@ export default function ModuleDashboard() {
           <Metric label="已启用模块" value={activeModules.length} />
           <Metric label="Beta 模块" value={betaModules.length} />
           <Metric label="规划中模块" value={plannedModules.length} />
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                模块接入路线图
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                本地 roadmap contract，把模块分成“本地可用、Beta 强化、规划合同、
+                上线阻塞”四条队列。它只读 registry、manifest、onboarding、
+                starter pack 和 health metadata，不创建模块、不改 route、不读取页面正文、
+                数据库 rows 或文件 bytes。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportRoadmap}
+              disabled={exportingRoadmap}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingRoadmap ? "Exporting..." : "Export roadmap"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-5">
+            <RoadmapMetric
+              label="Modules"
+              value={moduleRoadmap.summary.modules}
+              detail="Tracked"
+              readiness="ready-local"
+            />
+            <RoadmapMetric
+              label="Active"
+              value={moduleRoadmap.summary.active_now}
+              detail="Local now"
+              readiness="ready-local"
+            />
+            <RoadmapMetric
+              label="Beta"
+              value={moduleRoadmap.summary.beta_hardening}
+              detail="Hardening"
+              readiness="needs-hardening"
+            />
+            <RoadmapMetric
+              label="Planned"
+              value={moduleRoadmap.summary.planned_contracts}
+              detail="Contract only"
+              readiness="contract-only"
+            />
+            <RoadmapMetric
+              label="P0 gaps"
+              value={moduleRoadmap.summary.p0_gaps}
+              detail="Before launch"
+              readiness="blocked-by-launch-gates"
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
+            <div className="space-y-2">
+              {moduleRoadmap.lanes.map((lane) => (
+                <ModuleRoadmapLaneRow key={lane.id} lane={lane} />
+              ))}
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              {moduleRoadmap.items.map((item) => (
+                <ModuleRoadmapItemRow key={item.module_id} item={item} />
+              ))}
+            </div>
+          </div>
+          {moduleRoadmap.gaps.length > 0 && (
+            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {moduleRoadmap.gaps.map((gap) => (
+                <ModuleRoadmapGapRow key={gap.id} gap={gap} />
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -656,6 +762,155 @@ function HealthMetric({
       </div>
       <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
     </div>
+  );
+}
+
+function RoadmapMetric({
+  label,
+  value,
+  detail,
+  readiness,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  readiness: ModuleRoadmapReadiness;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <ModuleRoadmapReadinessPill readiness={readiness} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function ModuleRoadmapLaneRow({
+  lane,
+}: {
+  lane: ModuleRoadmapReport["lanes"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {lane.title}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-400">
+            {lane.module_count} modules ·{" "}
+            {lane.owner_decision_required ? "owner review" : "local build"}
+          </div>
+        </div>
+        <ModuleRoadmapReadinessPill readiness={lane.readiness} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {lane.module_ids.map((moduleId) => (
+          <span
+            key={moduleId}
+            className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {moduleId}
+          </span>
+        ))}
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {lane.next_action}
+      </p>
+    </article>
+  );
+}
+
+function ModuleRoadmapItemRow({
+  item,
+}: {
+  item: ModuleRoadmapReport["items"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.title}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-400">
+            {item.module_id} · {item.starter_type ?? "no starter"}
+          </div>
+        </div>
+        <ModuleRoadmapReadinessPill readiness={item.readiness} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {item.acceptance_gates.slice(0, 5).map((gate) => (
+          <span
+            key={gate}
+            className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+          >
+            {gate}
+          </span>
+        ))}
+      </div>
+      <p className="mt-2 line-clamp-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {item.next_action}
+      </p>
+    </article>
+  );
+}
+
+function ModuleRoadmapGapRow({
+  gap,
+}: {
+  gap: ModuleRoadmapReport["gaps"][number];
+}) {
+  return (
+    <article className="rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-xs dark:border-amber-900 dark:bg-amber-950">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-amber-900 dark:text-amber-100">
+          {gap.title}
+        </div>
+        <span className="shrink-0 rounded bg-white px-2 py-1 text-[10px] text-amber-700 dark:bg-amber-900 dark:text-amber-100">
+          {gap.severity}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-amber-700 dark:text-amber-200">
+        {gap.evidence}
+      </p>
+      <p className="mt-2 border-t border-amber-100 pt-2 leading-5 text-amber-700 dark:border-amber-900 dark:text-amber-200">
+        {gap.required_action}
+      </p>
+    </article>
+  );
+}
+
+function ModuleRoadmapReadinessPill({
+  readiness,
+}: {
+  readiness: ModuleRoadmapReadiness;
+}) {
+  const labels: Record<ModuleRoadmapReadiness, string> = {
+    "ready-local": "Ready",
+    "needs-hardening": "Hardening",
+    "contract-only": "Contract",
+    "blocked-by-launch-gates": "Blocked",
+  };
+
+  const className =
+    readiness === "ready-local"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : readiness === "needs-hardening"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : readiness === "contract-only"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[readiness]}
+    </span>
   );
 }
 

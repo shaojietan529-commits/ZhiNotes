@@ -121,11 +121,19 @@ AI, and Web Beta. It shows which areas are ready, partial, or blocked without
 reading page text, database rows, file bytes, prompts, credentials, or cloud
 data.
 
+The module center can export a local module roadmap report. The roadmap turns
+registry, manifest, onboarding, starter pack, and health metadata into four
+queues: active local modules, beta hardening, planned contracts, and Web launch
+blockers. It does not create modules, change routes, write workspace data, read
+page text, read database rows, read file bytes, connect cloud services, upload
+data, or enable AI.
+
 Run `npm run verify:modules` before treating a new module as part of the
 platform. The verifier checks registry fields, unique module ids, route files,
 extension slots, starter presets, local-only onboarding boundaries, sidebar
 navigation, command palette wiring, module starter pack files/checklists/risk
-gates, module health coverage, and the module center export surfaces.
+gates, module health coverage, module roadmap lanes, and the module center
+export surfaces.
 
 ## Research Workflow Schema
 
