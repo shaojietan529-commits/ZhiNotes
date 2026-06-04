@@ -442,6 +442,10 @@ Current local actions:
   It exports aggregated routing only, not company names, page titles, page text,
   row values, file names, file bytes, holdings, trading plans, cloud data, AI
   prompts, tokens, or credentials.
+- Review the company research decision summary before drilling into the
+  workbench. The summary separates company foundation, thesis/Dossier,
+  earnings/valuation/metrics, report-meeting links and tracker intake, and the
+  blocked AI/cloud-sync/sensitive-investment boundary.
 - Use the company workbench review sequence to jump through the company
   research workflow: create research assets, review coverage gaps, process the
   playbook, link reports/meetings, intake a tracker row, and review sync/AI
@@ -459,6 +463,12 @@ The company research playbook, workbench packet, and company intake desk are
 local-only. They read coverage structure and tracker field schema, but they do
 not read or export page text, database row values, file bytes, holdings, trading
 plans, cloud data, AI prompts, tokens, or credentials.
+The company research decision summary follows the same metadata-only boundary:
+it can route the owner to company asset creation, coverage review, Dossier
+review, report/meeting relation review, tracker intake, and sync/AI gates, but
+it does not include company names, page titles, page text, database row values,
+file names, file bytes, holdings, trading plans, prompts, tokens, credentials,
+cloud data, or AI output.
 
 ## Report Library Module
 

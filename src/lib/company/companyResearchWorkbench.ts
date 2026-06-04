@@ -23,6 +23,11 @@ export type CompanyResearchWorkbenchStatus =
   | "manual-confirmation"
   | "blocked-boundary";
 
+export type CompanyResearchDecisionStatus =
+  | "available-local"
+  | "requires-owner-confirmation"
+  | "blocked";
+
 export interface CompanyResearchWorkbenchLane {
   id: CompanyResearchWorkbenchLaneId;
   title: string;
@@ -57,6 +62,53 @@ export interface CompanyResearchWorkbenchReviewStep {
   target_section_id: string;
   reason: string;
   completion_signal: string;
+}
+
+export interface CompanyResearchDecision {
+  id:
+    | "company-foundation"
+    | "thesis-dossier"
+    | "earnings-valuation"
+    | "links-tracker-intake"
+    | "cloud-ai-sync-boundary";
+  title: string;
+  status: CompanyResearchDecisionStatus;
+  answer: string;
+  evidence: string;
+  next_action: string;
+  route: string;
+  target_section_id: string;
+  allowed_now: boolean;
+  requires_owner_confirmation: boolean;
+  blocked_until_cloud_ai_gate: boolean;
+  workbench_writes_workspace_data: false;
+  reads_page_text: false;
+  includes_page_text: false;
+  includes_page_titles: false;
+  includes_company_names: false;
+  includes_database_row_values: false;
+  reads_file_bytes: false;
+  includes_holdings: false;
+  includes_trading_plans: false;
+  uploads_data: false;
+  enables_ai: false;
+}
+
+export interface CompanyResearchDecisionSummary {
+  current_state: "local-company-owner-review";
+  current_conclusion: string;
+  can_create_local_research_assets_now: true;
+  can_review_coverage_now: true;
+  can_review_dossier_now: true;
+  can_write_tracker_rows_without_manual_click_now: false;
+  can_auto_link_reports_meetings_now: false;
+  can_send_company_research_to_ai_now: false;
+  can_sync_company_research_now: false;
+  safe_local_work: string[];
+  blocked_work: string[];
+  required_owner_decisions: string[];
+  top_blockers: string[];
+  decisions: CompanyResearchDecision[];
 }
 
 export interface CompanyResearchWorkbenchPacket {
@@ -101,6 +153,7 @@ export interface CompanyResearchWorkbenchPacket {
     high_priority_actions: number;
     manual_confirmation_actions: number;
   };
+  decision_summary: CompanyResearchDecisionSummary;
   lanes: CompanyResearchWorkbenchLane[];
   actions: CompanyResearchWorkbenchAction[];
   review_sequence: CompanyResearchWorkbenchReviewStep[];
@@ -243,6 +296,7 @@ export function buildCompanyResearchWorkbenchPacket(input: {
         (action) => action.requires_manual_confirmation
       ).length,
     },
+    decision_summary: buildDecisionSummary(input, actions),
     lanes,
     actions,
     review_sequence: buildReviewSequence(input),
@@ -252,6 +306,234 @@ export function buildCompanyResearchWorkbenchPacket(input: {
       "npm run verify:modules",
       "npm run lint",
       "npm run build",
+    ],
+  };
+}
+
+function buildDecisionSummary(
+  input: {
+    coverage: CompanyCoverageReport;
+    playbook: CompanyResearchPlaybook;
+    dossier: CompanyResearchDossierPlan;
+    trackerIntakeItems: CompanyTrackerIntakeItem[];
+  },
+  actions: CompanyResearchWorkbenchAction[]
+): CompanyResearchDecisionSummary {
+  const companyFoundationActions = actions.filter(
+    (action) => action.lane_id === "company-foundation"
+  );
+  const thesisActions = actions.filter(
+    (action) => action.lane_id === "thesis-workflow"
+  );
+  const earningsValuationActions = actions.filter(
+    (action) => action.lane_id === "earnings-valuation"
+  );
+  const linkActions = actions.filter(
+    (action) => action.lane_id === "research-links"
+  );
+  const trackerActions = actions.filter(
+    (action) => action.lane_id === "tracker-intake"
+  );
+  const manualActions = actions.filter(
+    (action) => action.requires_manual_confirmation
+  );
+  const topBlockers = [
+    input.coverage.summary.company_pages === 0
+      ? "还没有公司研究主页，公司级研究中枢尚未建立。"
+      : null,
+    input.coverage.summary.missing > 0
+      ? `${input.coverage.summary.missing} 个公司研究覆盖面缺失。`
+      : null,
+    input.dossier.summary.incomplete_dossiers > 0
+      ? `${input.dossier.summary.incomplete_dossiers} 个公司 Dossier 需要补齐。`
+      : null,
+    input.trackerIntakeItems.length > 0
+      ? `${input.trackerIntakeItems.length} 个公司页等待逐条 tracker intake。`
+      : null,
+    "公司研究 AI、云同步、批量 row 写入和 relation 自动补全仍未启用。",
+  ].filter(Boolean) as string[];
+
+  return {
+    current_state: "local-company-owner-review",
+    current_conclusion:
+      "可以继续在本地搭建公司主页、投资 memo、业绩复盘、估值假设、关键指标、报告/会议关联和公司跟踪表；tracker row 写入、relation 补全、AI 处理、云同步、批量更新以及任何持仓/交易计划推断仍然必须经过单独 owner gate。",
+    can_create_local_research_assets_now: true,
+    can_review_coverage_now: true,
+    can_review_dossier_now: true,
+    can_write_tracker_rows_without_manual_click_now: false,
+    can_auto_link_reports_meetings_now: false,
+    can_send_company_research_to_ai_now: false,
+    can_sync_company_research_now: false,
+    safe_local_work: [
+      "继续创建本地公司主页、投资 memo、业绩复盘、估值假设、关键指标和公司 tracker。",
+      "继续复核 coverage radar、playbook、dossier 和 tracker intake metadata。",
+      "继续从公司研究模块跳转到研究图谱，手动补报告和会议 relation。",
+      "继续导出 metadata-only 公司 workbench，不包含公司名、页面标题、正文、row values 或文件 bytes。",
+    ],
+    blocked_work: [
+      "不能从公司 workbench 导出公司名、页面标题、页面正文或数据库 row values。",
+      "不能批量创建 tracker rows、批量更新数据库、自动写 relation values。",
+      "不能推断持仓、仓位、评级变化、交易计划或未确认投资动作。",
+      "不能把公司研究内容发送给 AI、云同步、外部 API 或远端数据库。",
+    ],
+    required_owner_decisions:
+      manualActions.length > 0
+        ? manualActions.slice(0, 5).map((action) => action.next_action)
+        : [
+            "确认哪些公司研究资产应作为正式覆盖范围。",
+            "确认公司研究内容何时允许进入 AI payload、云同步、分享或备份恢复路径。",
+          ],
+    top_blockers: topBlockers,
+    decisions: [
+      {
+        id: "company-foundation",
+        title: "公司研究中枢",
+        status:
+          input.coverage.summary.company_pages > 0
+            ? "available-local"
+            : "requires-owner-confirmation",
+        answer:
+          input.coverage.summary.company_pages > 0
+            ? "可以继续"
+            : "先建公司主页",
+        evidence: `${input.coverage.summary.company_pages} 个公司主页，${companyFoundationActions.length} 个中枢/Dossier 行动。`,
+        next_action:
+          "先用公司研究页建立长期研究中枢，再把 memo、报告、会议、指标和 tracker 挂回公司页。",
+        route: "/modules/company-research",
+        target_section_id: "company-create-assets",
+        allowed_now: true,
+        requires_owner_confirmation: input.coverage.summary.company_pages === 0,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_text: false,
+        includes_page_text: false,
+        includes_page_titles: false,
+        includes_company_names: false,
+        includes_database_row_values: false,
+        reads_file_bytes: false,
+        includes_holdings: false,
+        includes_trading_plans: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "thesis-dossier",
+        title: "投资 memo 与 Dossier",
+        status:
+          thesisActions.length > 0 || input.dossier.summary.incomplete_dossiers > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer:
+          thesisActions.length > 0 || input.dossier.summary.incomplete_dossiers > 0
+            ? "需要补齐"
+            : "继续复核",
+        evidence: `${input.coverage.summary.investment_memos} 个投资 memo，${input.dossier.summary.incomplete_dossiers} 个待补 Dossier。`,
+        next_action:
+          "按 Dossier 清单补投资假设、相关报告、相关会议和 tracker 结构；投资结论仍由用户填写。",
+        route: "/modules/company-research",
+        target_section_id: "company-dossier",
+        allowed_now: true,
+        requires_owner_confirmation:
+          thesisActions.length > 0 || input.dossier.summary.incomplete_dossiers > 0,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_text: false,
+        includes_page_text: false,
+        includes_page_titles: false,
+        includes_company_names: false,
+        includes_database_row_values: false,
+        reads_file_bytes: false,
+        includes_holdings: false,
+        includes_trading_plans: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "earnings-valuation",
+        title: "业绩、估值、指标",
+        status:
+          earningsValuationActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer:
+          earningsValuationActions.length > 0 ? "需要补结构" : "继续保持",
+        evidence: `${earningsValuationActions.length} 个业绩/估值/指标行动；workbench 不导出目标价、模型数值或财务模型内容。`,
+        next_action:
+          "补齐业绩复盘、估值假设和关键指标入口，让公司研究可以从事实、模型影响和后续问题复盘。",
+        route: "/modules/company-research",
+        target_section_id: "company-playbook",
+        allowed_now: true,
+        requires_owner_confirmation: earningsValuationActions.length > 0,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_text: false,
+        includes_page_text: false,
+        includes_page_titles: false,
+        includes_company_names: false,
+        includes_database_row_values: false,
+        reads_file_bytes: false,
+        includes_holdings: false,
+        includes_trading_plans: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "links-tracker-intake",
+        title: "关联与 Tracker 入库",
+        status:
+          linkActions.length + trackerActions.length > 0
+            ? "requires-owner-confirmation"
+            : "available-local",
+        answer:
+          linkActions.length + trackerActions.length > 0
+            ? "逐条确认"
+            : "继续复核",
+        evidence: `${linkActions.length} 个报告/会议关联行动，${input.trackerIntakeItems.length} 个 tracker intake 候选。`,
+        next_action:
+          "通过研究图谱手动补报告/会议 relation；公司 tracker row 只能在入库台逐条点击创建。",
+        route: "/modules/company-research",
+        target_section_id: "company-tracker-intake",
+        allowed_now: true,
+        requires_owner_confirmation: linkActions.length + trackerActions.length > 0,
+        blocked_until_cloud_ai_gate: false,
+        workbench_writes_workspace_data: false,
+        reads_page_text: false,
+        includes_page_text: false,
+        includes_page_titles: false,
+        includes_company_names: false,
+        includes_database_row_values: false,
+        reads_file_bytes: false,
+        includes_holdings: false,
+        includes_trading_plans: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "cloud-ai-sync-boundary",
+        title: "AI、云同步与敏感边界",
+        status: "blocked",
+        answer: "保持关闭",
+        evidence:
+          "当前公司研究 workbench 不读取页面正文、不导出公司名、不上传、不调用 AI，也不推断持仓或交易计划。",
+        next_action:
+          "等 AI payload preview、账号权限、同步审计、回滚和敏感投资字段排除合同确认后，再决定是否启用外发。",
+        route: "/modules/sync",
+        target_section_id: "sync-architecture",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocked_until_cloud_ai_gate: true,
+        workbench_writes_workspace_data: false,
+        reads_page_text: false,
+        includes_page_text: false,
+        includes_page_titles: false,
+        includes_company_names: false,
+        includes_database_row_values: false,
+        reads_file_bytes: false,
+        includes_holdings: false,
+        includes_trading_plans: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
     ],
   };
 }
