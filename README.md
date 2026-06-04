@@ -105,6 +105,15 @@ high-risk action gates, documentation, and verification. It does not create
 modules, write workspace data, read private content, connect cloud services,
 upload data, or enable AI.
 
+The module center can export a local module starter pack. The starter pack turns
+future module creation into a reusable contract: required file templates,
+registry fields, route and shell expectations, starter wiring, extension slot
+decisions, data surface boundaries, high-risk gates, and verification commands.
+It is a local planning artifact only; exporting it does not create files, create
+modules, write workspace data, read page text, read database rows, read file
+bytes, connect cloud services, upload data, enable AI, or enable external
+assets.
+
 The module center can export a local module health report. The report maps the
 product goal areas to registry-backed modules: module platform, notes,
 databases, files/reports, company research, meetings, portfolio, research graph,
@@ -115,8 +124,8 @@ data.
 Run `npm run verify:modules` before treating a new module as part of the
 platform. The verifier checks registry fields, unique module ids, route files,
 extension slots, starter presets, local-only onboarding boundaries, sidebar
-navigation, command palette wiring, module health coverage, and the module
-center export surfaces.
+navigation, command palette wiring, module starter pack files/checklists/risk
+gates, module health coverage, and the module center export surfaces.
 
 ## Research Workflow Schema
 

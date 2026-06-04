@@ -12,6 +12,7 @@ const files = {
   actions: "src/lib/modules/actions.ts",
   manifest: "src/lib/modules/moduleManifest.ts",
   onboarding: "src/lib/modules/moduleOnboarding.ts",
+  starterPack: "src/lib/modules/moduleStarterPack.ts",
   health: "src/lib/modules/moduleHealth.ts",
   dashboard: "src/components/modules/ModuleDashboard.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
@@ -73,6 +74,34 @@ const requiredHealthAreas = [
   "web-beta",
 ];
 
+const requiredStarterPackFiles = [
+  "src/lib/modules/registry.ts",
+  "src/app/(workspace)/modules/<module-id>/page.tsx",
+  "src/components/modules/<ModuleName>Shell.tsx",
+  "src/lib/<domain>/<moduleContract>.ts",
+  "src/lib/modules/actions.ts",
+  "scripts/verify-module-contract.mjs",
+  "README.md",
+];
+
+const requiredStarterPackChecklist = [
+  "define-module-identity",
+  "declare-data-surfaces",
+  "choose-extension-slots",
+  "add-local-route-shell",
+  "wire-safe-starter",
+  "document-user-workflow",
+  "extend-verification",
+  "gate-high-risk-actions",
+];
+
+const requiredStarterPackRiskGates = [
+  "cloud-sync",
+  "ai-execution",
+  "external-assets",
+  "bulk-or-destructive-action",
+];
+
 const requiredBoundarySnippets = [
   "local_contract_only: true",
   "creates_modules: false",
@@ -83,6 +112,20 @@ const requiredBoundarySnippets = [
   "connects_cloud_services: false",
   "uploads_data: false",
   "enables_ai: false",
+];
+
+const requiredStarterPackBoundarySnippets = [
+  "local_contract_only: true",
+  "creates_files_now: false",
+  "creates_modules_now: false",
+  "writes_workspace_data: false",
+  "reads_page_text: false",
+  "reads_database_rows: false",
+  "reads_file_bytes: false",
+  "connects_cloud_services: false",
+  "uploads_data: false",
+  "enables_ai: false",
+  "enables_external_assets: false",
 ];
 
 const failures = [];
@@ -143,6 +186,7 @@ function run() {
   const actions = readProjectFile(files.actions);
   const manifest = readProjectFile(files.manifest);
   const onboarding = readProjectFile(files.onboarding);
+  const starterPack = readProjectFile(files.starterPack);
   const health = readProjectFile(files.health);
   const dashboard = readProjectFile(files.dashboard);
   const sidebar = readProjectFile(files.sidebar);
@@ -243,6 +287,14 @@ function run() {
       "Module onboarding contract must preserve local-only boundaries."
     );
   }
+  for (const snippet of requiredStarterPackBoundarySnippets) {
+    assertIncludes(
+      files.starterPack,
+      starterPack,
+      snippet,
+      "Module starter pack must preserve local-only boundaries."
+    );
+  }
   for (const snippet of [
     "local_report_only: true",
     "reads_registry_metadata_only: true",
@@ -285,10 +337,73 @@ function run() {
     "Module manifest report must remain available."
   );
   assertIncludes(
+    files.starterPack,
+    starterPack,
+    'format: "zhinote-module-starter-pack"',
+    "Module starter pack must expose a stable export format."
+  );
+  assertIncludes(
+    files.starterPack,
+    starterPack,
+    "buildModuleStarterPackContract",
+    "Module starter pack must expose a reusable builder."
+  );
+  for (const snippet of [
+    'contract_status: "local-new-module-starter-contract"',
+    "creates_files_now: false",
+    "creates_modules_now: false",
+    "enables_external_assets: false",
+    "required_registry_fields",
+    "allowed_starter_types",
+    "verification_commands",
+    "npm run verify:modules",
+    "npm run verify:research-workflow",
+    "npm run verify:web-beta",
+    "npm run lint",
+    "npm run build",
+  ]) {
+    assertIncludes(
+      files.starterPack,
+      starterPack,
+      snippet,
+      "Module starter pack must preserve starter contract, boundaries, and verification commands."
+    );
+  }
+  for (const filePath of requiredStarterPackFiles) {
+    assertIncludes(
+      files.starterPack,
+      starterPack,
+      filePath,
+      `Module starter pack must include required file template ${filePath}.`
+    );
+  }
+  for (const checklistItem of requiredStarterPackChecklist) {
+    assertIncludes(
+      files.starterPack,
+      starterPack,
+      `"${checklistItem}"`,
+      `Module starter pack must include checklist item ${checklistItem}.`
+    );
+  }
+  for (const riskGate of requiredStarterPackRiskGates) {
+    assertIncludes(
+      files.starterPack,
+      starterPack,
+      `"${riskGate}"`,
+      `Module starter pack must include risk gate ${riskGate}.`
+    );
+  }
+  assertIncludes(
     files.dashboard,
     dashboard,
     "buildModuleOnboardingContract",
     "Module center must build the onboarding contract."
+  );
+  assertIncludes(
+    files.dashboard,
+    dashboard,
+    "buildModuleStarterPackContract",
+    "Module center must build the starter pack contract."
   );
   assertIncludes(
     files.dashboard,
@@ -313,6 +428,18 @@ function run() {
     dashboard,
     "Export onboarding",
     "Module center must export the onboarding contract."
+  );
+  assertIncludes(
+    files.dashboard,
+    dashboard,
+    "新模块 Starter Pack",
+    "Module center must render the starter pack panel."
+  );
+  assertIncludes(
+    files.dashboard,
+    dashboard,
+    "Export starter pack",
+    "Module center must export the starter pack contract."
   );
   assertIncludes(
     files.dashboard,
@@ -357,6 +484,9 @@ function run() {
     extension_slots: requiredSlots.length,
     starter_types: requiredStarterTypes.length,
     onboarding_steps: requiredOnboardingSteps.length,
+    starter_pack_files: requiredStarterPackFiles.length,
+    starter_pack_checklist: requiredStarterPackChecklist.length,
+    starter_pack_risk_gates: requiredStarterPackRiskGates.length,
     health_areas: requiredHealthAreas.length,
     boundary_checks: requiredBoundarySnippets.length,
   };
