@@ -26,6 +26,11 @@ export type FileLibraryActionStatus =
 
 export type FileLibraryPriority = "high" | "medium" | "low";
 
+export type FileLibraryDecisionStatus =
+  | "available-local"
+  | "requires-owner-confirmation"
+  | "blocked";
+
 export interface FileLibraryLane {
   id: FileLibraryLaneId;
   title: string;
@@ -97,6 +102,45 @@ export interface FileLibraryReviewStep {
   completion_signal: string;
 }
 
+export interface FileLibraryDecision {
+  id:
+    | "native-page-preview"
+    | "editable-import-review"
+    | "spreadsheet-database-import"
+    | "legacy-unknown-retain"
+    | "cloud-ai-sync-boundary";
+  title: string;
+  status: FileLibraryDecisionStatus;
+  answer: string;
+  evidence: string;
+  next_action: string;
+  route: string;
+  target_section_id: string;
+  allowed_now: boolean;
+  requires_owner_confirmation: boolean;
+  blocks_file_externalization: boolean;
+  writes_workspace_data: false;
+  reads_file_bytes: false;
+  reads_file_text: false;
+  uploads_data: false;
+  enables_ai: false;
+}
+
+export interface FileLibraryDecisionSummary {
+  current_state: "local-file-routing-only";
+  current_conclusion: string;
+  can_preview_native_now: true;
+  can_review_converted_import_now: true;
+  can_bulk_import_spreadsheet_now: false;
+  can_load_external_html_resources_now: false;
+  can_send_files_to_ai_now: false;
+  can_sync_file_bytes_now: false;
+  safe_local_work: string[];
+  blocked_work: string[];
+  required_owner_decisions: string[];
+  decisions: FileLibraryDecision[];
+}
+
 export interface FileLibraryWorkbenchReport {
   format: "zhinote-file-library-workbench";
   format_version: 1;
@@ -139,6 +183,7 @@ export interface FileLibraryWorkbenchReport {
     actions: number;
     high_priority_actions: number;
   };
+  decision_summary: FileLibraryDecisionSummary;
   lanes: FileLibraryLane[];
   format_groups: FileLibraryFormatGroup[];
   files: FileLibraryFileItem[];
@@ -252,6 +297,7 @@ export function buildFileLibraryWorkbenchReport(
       enables_ai: false,
     },
     summary: summarize(fileItems, actions),
+    decision_summary: buildDecisionSummary(fileItems, actions),
     lanes,
     format_groups: formatGroups,
     files: fileItems,
@@ -263,6 +309,150 @@ export function buildFileLibraryWorkbenchReport(
       "npm run verify:modules",
       "npm run lint",
       "npm run build",
+    ],
+  };
+}
+
+function buildDecisionSummary(
+  files: FileLibraryFileItem[],
+  actions: FileLibraryAction[]
+): FileLibraryDecisionSummary {
+  const nativeFiles = files.filter((file) => file.support_level === "native");
+  const convertedFiles = files.filter(
+    (file) => file.support_level === "converted"
+  );
+  const spreadsheetFiles = files.filter((file) => file.kind === "spreadsheet");
+  const retainFiles = files.filter(
+    (file) => file.download_only || file.kind === "unknown"
+  );
+  const highRiskActions = actions.filter(
+    (action) => action.status === "blocked-boundary"
+  );
+
+  return {
+    current_state: "local-file-routing-only",
+    current_conclusion:
+      "可以继续把文件留在本地 page 中预览、转换复核和整理路线；表格批量入库、HTML 外部资源、AI 文件处理、云同步和文件 bytes 外发仍然需要独立 owner gate。",
+    can_preview_native_now: true,
+    can_review_converted_import_now: true,
+    can_bulk_import_spreadsheet_now: false,
+    can_load_external_html_resources_now: false,
+    can_send_files_to_ai_now: false,
+    can_sync_file_bytes_now: false,
+    safe_local_work: [
+      "HTML、PDF、图片、音频、视频和文本优先保留在 page 内本地预览。",
+      "Markdown、Word、PPT、RTF、EPUB 和 Notebook 先本地转换预览，再人工复核。",
+      "ZIP、未知格式和旧版 Office 先本地留存或元数据复核。",
+      "导出文件工作台 packet 时继续排除文件名、bytes、正文和表格值。",
+    ],
+    blocked_work: [
+      "不能默认加载 HTML 远程图片、脚本、样式、字体或 iframe。",
+      "不能默认把 Excel/CSV 批量写入数据库 rows。",
+      "不能把文件文本、文件 bytes 或文件名发送给 AI provider 或云端。",
+      "不能自动删除、覆盖、解包、执行 notebook 或同步文件。",
+    ],
+    required_owner_decisions: [
+      "确认 HTML 报告是否允许外部资源，默认保持 sandboxed preview。",
+      "确认转换类文件是否足够保真，尤其是 Word、PPT、Notebook 和 EPUB。",
+      "确认表格入库的字段、行数、目标数据库、回滚边界和 typed confirmation。",
+      "确认云同步或 AI 处理前的 payload preview、权限检查和审计事件。",
+    ],
+    decisions: [
+      {
+        id: "native-page-preview",
+        title: "Page 原生预览",
+        status: "available-local",
+        answer: "可以继续",
+        evidence: `${nativeFiles.length} 个本地文件走原生预览路线；HTML 外部资源仍默认阻止。`,
+        next_action:
+          "从报告库打开 page file preview，先在本地确认 HTML/PDF/media 是否可读。",
+        route: "/modules/reports",
+        target_section_id: "reports-preview-routing",
+        allowed_now: true,
+        requires_owner_confirmation: false,
+        blocks_file_externalization: false,
+        writes_workspace_data: false,
+        reads_file_bytes: false,
+        reads_file_text: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "editable-import-review",
+        title: "可编辑导入复核",
+        status: "requires-owner-confirmation",
+        answer: "先复核",
+        evidence: `${convertedFiles.length} 个本地文件属于转换路线，可能丢失复杂版式、公式、图表或输出。`,
+        next_action:
+          "转换后先人工复核，再决定是否作为可编辑 page 内容、公司 memo 或报告摘要使用。",
+        route: "/modules/reports",
+        target_section_id: "reports-conversion-review",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_file_externalization: false,
+        writes_workspace_data: false,
+        reads_file_bytes: false,
+        reads_file_text: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "spreadsheet-database-import",
+        title: "表格入库",
+        status: "requires-owner-confirmation",
+        answer: "确认后再写",
+        evidence: `${spreadsheetFiles.length} 个表格文件是数据库导入候选；工作台不读取 cell values。`,
+        next_action:
+          "入库前确认字段、行数、目标数据库、回滚边界和 typed confirmation。",
+        route: "/modules/databases",
+        target_section_id: "database-import-export-readiness",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_file_externalization: false,
+        writes_workspace_data: false,
+        reads_file_bytes: false,
+        reads_file_text: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "legacy-unknown-retain",
+        title: "旧版/未知格式",
+        status: retainFiles.length > 0 ? "blocked" : "available-local",
+        answer: retainFiles.length > 0 ? "本地留存" : "暂无阻塞",
+        evidence: `${retainFiles.length} 个文件暂时只能本地留存、下载或转换为受支持格式。`,
+        next_action:
+          "不要伪装成可编辑导入；先确认来源、用途和安全转换路线。",
+        route: "/modules/files",
+        target_section_id: "files-format-matrix",
+        allowed_now: retainFiles.length === 0,
+        requires_owner_confirmation: retainFiles.length > 0,
+        blocks_file_externalization: retainFiles.length > 0,
+        writes_workspace_data: false,
+        reads_file_bytes: false,
+        reads_file_text: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
+        id: "cloud-ai-sync-boundary",
+        title: "Cloud / AI / Sync",
+        status: "blocked",
+        answer: "保持关闭",
+        evidence: `${highRiskActions.length} 个高风险边界动作仍阻塞；文件 bytes、文本和文件名不外发。`,
+        next_action:
+          "任何 AI、云同步、分享链接或外部资源动作，都先走 payload preview、权限检查、审计和 owner confirmation。",
+        route: "/modules/sync",
+        target_section_id: "sync-ai-provider-boundary",
+        allowed_now: false,
+        requires_owner_confirmation: true,
+        blocks_file_externalization: true,
+        writes_workspace_data: false,
+        reads_file_bytes: false,
+        reads_file_text: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
     ],
   };
 }

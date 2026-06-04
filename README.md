@@ -578,6 +578,10 @@ http://localhost:3000/modules/files
 
 Current local actions:
 
+- Review the file format decision summary at the top of the module. It makes
+  the page-native preview, editable import review, spreadsheet database import,
+  legacy/unknown retention, and Cloud/AI/Sync boundaries explicit before any
+  file leaves local preview.
 - Review a local file workbench generated from IndexedDB file metadata and the
   file preview capability matrix.
 - Review the file library format route matrix directly in `/modules/files`,
