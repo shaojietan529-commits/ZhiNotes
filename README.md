@@ -399,6 +399,10 @@ Current local actions:
   It exports aggregated routing only, not company names, page titles, page text,
   row values, file names, file bytes, holdings, trading plans, cloud data, AI
   prompts, tokens, or credentials.
+- Use the company workbench review sequence to jump through the company
+  research workflow: create research assets, review coverage gaps, process the
+  playbook, link reports/meetings, intake a tracker row, and review sync/AI
+  privacy boundaries.
 - Use the company intake desk to create one local company tracker row from a
   company research page. The intake action maps Company page relation, Status,
   Thesis, identifiable Ticker, valuation assumptions, and key metrics, checks

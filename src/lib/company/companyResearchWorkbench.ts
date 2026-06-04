@@ -54,6 +54,7 @@ export interface CompanyResearchWorkbenchReviewStep {
   order: number;
   title: string;
   route: string;
+  target_section_id: string;
   reason: string;
   completion_signal: string;
 }
@@ -500,6 +501,7 @@ function buildReviewSequence(input: {
       1,
       "先建公司研究主页和 Dossier",
       "/modules/company-research",
+      "company-create-assets",
       "公司主页是所有 memo、报告、会议、指标和 tracker 的研究中枢。",
       input.coverage.summary.company_pages > 0
         ? "已有公司研究主页。"
@@ -510,6 +512,7 @@ function buildReviewSequence(input: {
       2,
       "再补投资 memo",
       "/modules/company-research",
+      "company-coverage-radar",
       "投资 memo 承载投资假设、风险收益、催化剂和决策上下文。",
       input.coverage.summary.investment_memos > 0
         ? "已有投资 memo 结构。"
@@ -520,6 +523,7 @@ function buildReviewSequence(input: {
       3,
       "补业绩复盘、估值和关键指标",
       "/modules/company-research",
+      "company-playbook",
       "业绩、估值和 KPI 是公司研究进入可复盘状态的核心。",
       input.playbook.summary.missing_steps === 0
         ? "Playbook 无结构性 missing steps。"
@@ -530,6 +534,7 @@ function buildReviewSequence(input: {
       4,
       "连接报告和会议",
       "/modules/research-graph",
+      "company-research-connections",
       "公司研究需要和报告库、会议纪要互相关联，后续才能从公司维度复盘。",
       input.dossier.summary.missing_related_reports === 0 &&
       input.dossier.summary.missing_related_meetings === 0
@@ -541,6 +546,7 @@ function buildReviewSequence(input: {
       5,
       "最后逐条入公司跟踪表",
       "/modules/company-research",
+      "company-tracker-intake",
       "tracker row 是本地写入动作，必须逐条确认，不能由工作台批量写入。",
       input.trackerIntakeItems.length > 0
         ? `${input.trackerIntakeItems.length} 个候选等待公司入库台复核。`
@@ -551,6 +557,7 @@ function buildReviewSequence(input: {
       6,
       "外发和自动化必须单独确认",
       "/modules/sync",
+      "company-privacy-boundary",
       "AI、云同步、批量写入、自动 relation 都是高风险动作。",
       "当前 packet 只做本地 metadata-only 排队。",
     ),
@@ -564,6 +571,7 @@ function reviewStep(
   order: number,
   title: string,
   route: string,
+  targetSectionId: string,
   reason: string,
   completionSignal: string
 ): CompanyResearchWorkbenchReviewStep {
@@ -572,6 +580,7 @@ function reviewStep(
     order,
     title,
     route,
+    target_section_id: targetSectionId,
     reason,
     completion_signal: completionSignal,
   };
