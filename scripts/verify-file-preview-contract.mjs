@@ -13,6 +13,7 @@ const files = {
   formatCoverage: "src/lib/reports/reportFormatCoverage.ts",
   conversionReview: "src/lib/reports/reportConversionReview.ts",
   reviewQueue: "src/lib/reports/reportReviewQueue.ts",
+  reportDecisionSummary: "src/lib/reports/reportDecisionSummary.ts",
   readiness: "src/lib/files/filePreviewReadiness.ts",
   routing: "src/lib/files/filePreviewRouting.ts",
   preflight: "src/lib/files/fileUploadPreflight.ts",
@@ -152,6 +153,7 @@ function run() {
   const formatCoverage = readProjectFile(files.formatCoverage);
   const conversionReview = readProjectFile(files.conversionReview);
   const reviewQueue = readProjectFile(files.reviewQueue);
+  const reportDecisionSummary = readProjectFile(files.reportDecisionSummary);
   const readiness = readProjectFile(files.readiness);
   const routing = readProjectFile(files.routing);
   const preflight = readProjectFile(files.preflight);
@@ -659,6 +661,75 @@ function run() {
     );
   }
   assertIncludes(
+    files.reportDecisionSummary,
+    reportDecisionSummary,
+    'format: "zhinote-report-decision-summary"',
+    "Report decision summary must define a local export format."
+  );
+  assertIncludes(
+    files.reportDecisionSummary,
+    reportDecisionSummary,
+    "buildReportDecisionSummary",
+    "Report decision summary must expose a reusable builder."
+  );
+  for (const snippet of [
+    'summary_status: "local-report-owner-review"',
+    'current_state: "local-report-owner-review"',
+    "ReportDecisionSummaryStatus",
+    "reads_report_intake_summary: true",
+    "reads_format_route_summary: true",
+    "reads_review_queue_summary: true",
+    "reads_connection_plan_summary: true",
+    "reads_file_names: false",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "reads_page_body_text: false",
+    "reads_database_rows: false",
+    "writes_workspace_data: false",
+    "creates_database_rows: false",
+    "loads_external_resources: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    "can_create_local_report_pages_now: true",
+    "can_preview_html_reports_now: true",
+    "can_import_markdown_editable_now: true",
+    "can_review_pdf_office_locally_now: true",
+    "can_write_tracker_rows_without_manual_click_now: false",
+    "can_bulk_import_spreadsheet_now: false",
+    "can_load_external_html_resources_now: false",
+    "can_send_reports_to_ai_now: false",
+    "can_sync_report_files_now: false",
+    "html-page-native-preview",
+    "markdown-editable-page-import",
+    "pdf-office-conversion-review",
+    "tracker-relation-intake",
+    "cloud-ai-external-resource-boundary",
+    "HTML Page 预览",
+    "Markdown 可编辑导入",
+    "Tracker 与 relation",
+    "AI、云同步与外部资源边界",
+    "load_html_external_resources_without_confirmation",
+    "send_report_text_or_file_bytes_to_ai",
+    "sync_report_files_to_cloud",
+    "bulk_import_spreadsheet_without_typed_confirmation",
+    "auto_create_report_tracker_rows",
+    "export_file_names_from_report_decision_summary",
+    "execute_notebook_code",
+    "unzip_archive_into_workspace",
+    "npm run verify:file-preview",
+    "npm run verify:research-workflow",
+    "npm run lint",
+    "npm run build",
+  ]) {
+    assertIncludes(
+      files.reportDecisionSummary,
+      reportDecisionSummary,
+      snippet,
+      "Report decision summary must preserve local-only owner gates."
+    );
+  }
+  assertIncludes(
     files.readiness,
     readiness,
     'format: "zhinote-file-preview-readiness-report"',
@@ -1124,6 +1195,30 @@ function run() {
     'route: "/modules/files"',
     "Module registry must expose the File Library route."
   );
+  for (const snippet of [
+    "buildReportDecisionSummary",
+    "reportDecisionSummary",
+    "handleExportDecisionSummary",
+    "handleDecisionOpen",
+    "reports-decision-summary",
+    "报告决策摘要",
+    "ReportDecisionSummaryPanel",
+    "ReportDecisionCard",
+    "ReportDecisionStatusPill",
+    "导出摘要",
+    "打开对应区域",
+    "当前可做",
+    "保持关闭",
+    "Owner 待确认",
+    "报告决策摘要只读取本地 summary metadata",
+  ]) {
+    assertIncludes(
+      files.reportsShell,
+      reportsShell,
+      snippet,
+      "Reports module must render and export the report decision summary."
+    );
+  }
   for (const snippet of [
     "buildFileUploadPreflightReport",
     "handleExportUploadPreflight",

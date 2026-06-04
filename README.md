@@ -480,6 +480,10 @@ http://localhost:3000/modules/reports
 
 Current local actions:
 
+- Review the report decision summary at the top of the module. It separates
+  HTML page-native preview, Markdown editable import, PDF/Office conversion
+  review, tracker relation intake, and the blocked AI/cloud-sync/external
+  resource boundary before the owner touches deeper queues.
 - Create a report note from the Research Report template.
 - Upload one or more local report files in a single selection. Each file creates
   a local report page with a file preview block and a local metadata-only action
@@ -522,6 +526,12 @@ Current local actions:
 
 The current Report Library module is local-only. It does not upload reports,
 call AI, sync files, or load external resources by itself.
+The report decision summary follows the same metadata-only boundary: it reads
+only aggregate local workflow summaries and does not include report titles, file
+names, page text, file bytes, extracted text, database row values, prompts,
+tokens, credentials, cloud data, or AI output. Its purpose is to make clear what
+is currently safe to do locally, what must stay closed, and what requires owner
+confirmation.
 
 The report module includes a local format support matrix for HTML reports,
 Markdown/MDX, PDF, Excel/CSV/ODS, Word/ODT, PowerPoint/ODP, RTF, EPUB, ZIP,
