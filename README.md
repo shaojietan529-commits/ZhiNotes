@@ -886,6 +886,12 @@ Current local actions:
   verdict, lists P0 blockers and owner decisions, and does not deploy, connect
   cloud services, upload workspace data, enable sync, enable AI, read page
   bodies, read database row values, read file bytes, or expose secrets.
+- Review and export a local Web Beta owner review packet. The packet rehearses
+  the owner go/no-go review with questions, P0 blockers, local-first work,
+  required verification commands, completion evidence, and forbidden actions
+  before approval. It does not launch Web Beta, deploy, connect cloud services,
+  upload workspace data, enable sync, enable AI, read page bodies, read database
+  row values, read file names, read file bytes, or expose secrets.
 - Run `npm run verify:web-alpha` to execute the local Web Alpha verification
   command bundle and print a receipt. The receipt runs lint, Web Beta contract
   verification, smoke verification, replay harness safety verification, and a

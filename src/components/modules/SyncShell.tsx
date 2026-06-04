@@ -143,6 +143,11 @@ import {
   type WebBetaNextActionStatus,
 } from "@/lib/sync/webBetaNextActions";
 import {
+  buildWebBetaOwnerReviewPacket,
+  type WebBetaOwnerReviewPacket,
+  type WebBetaOwnerReviewStatus,
+} from "@/lib/sync/webBetaOwnerReviewPacket";
+import {
   buildWebBetaStageGateReport,
   type WebBetaStageGate,
 } from "@/lib/sync/webBetaStageGate";
@@ -326,6 +331,7 @@ type WebBetaContractAction =
   | "smoke-test-plan"
   | "web-alpha-handoff"
   | "web-alpha-launch-decision"
+  | "web-beta-owner-review"
   | "route-preflight";
 type ReadinessStatus = "Ready" | "Partial" | "Missing" | "Needs confirmation";
 
@@ -1198,6 +1204,21 @@ function SyncDashboard() {
       environmentPreflight,
       webAlphaHandoffBundle,
       webBetaNextActionPlan,
+      webBetaStageGate,
+    ]
+  );
+  const webBetaOwnerReviewPacket = useMemo(
+    () =>
+      buildWebBetaOwnerReviewPacket({
+        stageGate: webBetaStageGate,
+        nextActionPlan: webBetaNextActionPlan,
+        smokeTestPlan: webBetaSmokeTestPlan,
+        environmentPreflight,
+      }),
+    [
+      environmentPreflight,
+      webBetaNextActionPlan,
+      webBetaSmokeTestPlan,
       webBetaStageGate,
     ]
   );
@@ -2427,6 +2448,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Web Alpha launch decision export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportWebBetaOwnerReviewPacket = () => {
+    setBusyContractAction("web-beta-owner-review");
+    try {
+      downloadJsonFile(
+        `zhinote-web-beta-owner-review-${fileSafeTimestamp()}.json`,
+        {
+          ...webBetaOwnerReviewPacket,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export web beta owner review packet:",
+        err
+      );
+      window.alert(
+        "Web Beta owner review packet export failed. Please check the console."
       );
     } finally {
       setBusyContractAction(null);
@@ -5763,6 +5807,103 @@ function SyncDashboard() {
                     blocker={blocker}
                   />
                 ))}
+              </div>
+            </div>
+          </ContractPanel>
+
+          <ContractPanel title="Web Beta owner review packet" className="mt-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                Local owner-review rehearsal for the private Web Beta decision.
+                It turns stage gates, next actions, smoke tests, and environment
+                presence into review questions and evidence without deploying,
+                connecting cloud services, uploading workspace data, enabling
+                sync, or reading private content.
+              </p>
+              <button
+                type="button"
+                onClick={handleExportWebBetaOwnerReviewPacket}
+                disabled={busyContractAction === "web-beta-owner-review"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyContractAction === "web-beta-owner-review"
+                  ? "Exporting..."
+                  : "Export owner review"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-6">
+              <OwnerReviewSummaryCard
+                label="Verdict"
+                value={webBetaOwnerReviewPacket.launch_verdict}
+                detail="No beta launch"
+                status="blocked"
+              />
+              <OwnerReviewSummaryCard
+                label="Local work"
+                value={
+                  webBetaOwnerReviewPacket.local_app_can_continue_now
+                    ? "Yes"
+                    : "No"
+                }
+                detail="Continue build"
+                status="local-only"
+              />
+              <OwnerReviewSummaryCard
+                label="P0"
+                value={webBetaOwnerReviewPacket.summary.p0_blockers}
+                detail="Owner blockers"
+                status="blocked"
+              />
+              <OwnerReviewSummaryCard
+                label="Decision"
+                value={webBetaOwnerReviewPacket.summary.owner_decisions}
+                detail="Owner choices"
+                status="owner-review"
+              />
+              <OwnerReviewSummaryCard
+                label="Local first"
+                value={webBetaOwnerReviewPacket.summary.local_first_ready}
+                detail="Can start safely"
+                status="local-only"
+              />
+              <OwnerReviewSummaryCard
+                label="Missing env"
+                value={
+                  webBetaOwnerReviewPacket.summary
+                    .missing_required_environment ?? "Unknown"
+                }
+                detail="Presence only"
+                status={
+                  webBetaOwnerReviewPacket.summary
+                    .missing_required_environment === 0
+                    ? "owner-review"
+                    : "blocked"
+                }
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+              <div className="space-y-2">
+                {webBetaOwnerReviewPacket.review_questions.map((question) => (
+                  <OwnerReviewQuestionRow
+                    key={question.id}
+                    question={question}
+                  />
+                ))}
+              </div>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  {webBetaOwnerReviewPacket.p0_blockers.map((blocker) => (
+                    <OwnerReviewBlockerRow
+                      key={blocker.id}
+                      blocker={blocker}
+                    />
+                  ))}
+                </div>
+                <div className="grid gap-2">
+                  {webBetaOwnerReviewPacket.local_first_work.map((item) => (
+                    <OwnerReviewLocalWorkRow key={item.id} item={item} />
+                  ))}
+                </div>
               </div>
             </div>
           </ContractPanel>
@@ -9561,6 +9702,151 @@ function LaunchDecisionStatusPill({
       ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : status === "no-go-preview"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function OwnerReviewSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: WebBetaOwnerReviewStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <OwnerReviewStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function OwnerReviewQuestionRow({
+  question,
+}: {
+  question: WebBetaOwnerReviewPacket["review_questions"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {question.question}
+        </div>
+        <OwnerReviewStatusPill status={question.status} />
+      </div>
+      <div className="mt-2 text-[11px] uppercase tracking-wide text-zinc-400">
+        Answer: {question.answer}
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {question.evidence}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {question.owner_prompt}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {question.required_before_go}
+      </p>
+    </article>
+  );
+}
+
+function OwnerReviewBlockerRow({
+  blocker,
+}: {
+  blocker: WebBetaOwnerReviewPacket["p0_blockers"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {blocker.title}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-400">
+            {blocker.source}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+          <NextActionPriorityPill priority={blocker.priority} />
+          <NextActionStatusPill status={blocker.status} />
+        </div>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {blocker.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {blocker.required_action}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {blocker.verification_commands.map((command) => (
+          <span
+            key={command}
+            className="rounded-md bg-zinc-100 px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+          >
+            {command}
+          </span>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function OwnerReviewLocalWorkRow({
+  item,
+}: {
+  item: WebBetaOwnerReviewPacket["local_first_work"][number];
+}) {
+  return (
+    <article className="rounded-md bg-green-50 px-3 py-2 text-xs dark:bg-green-950/40">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.title}
+          </div>
+          <div className="mt-1 text-[11px] text-green-700 dark:text-green-300">
+            {item.phase}
+          </div>
+        </div>
+        <NextActionPriorityPill priority={item.priority} />
+      </div>
+      <p className="mt-2 leading-5 text-green-700 dark:text-green-300">
+        {item.completion_evidence[0] ?? "Local completion evidence required."}
+      </p>
+    </article>
+  );
+}
+
+function OwnerReviewStatusPill({
+  status,
+}: {
+  status: WebBetaOwnerReviewStatus;
+}) {
+  const labels: Record<WebBetaOwnerReviewStatus, string> = {
+    "local-only": "Local only",
+    blocked: "Blocked",
+    "owner-review": "Owner",
+  };
+
+  const className =
+    status === "local-only"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "owner-review"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
         : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 
   return (

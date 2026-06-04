@@ -16,6 +16,7 @@ const files = {
   webAlphaHandoffBundle: "src/lib/sync/webAlphaHandoffBundle.ts",
   webAlphaLaunchDecisionReceipt:
     "src/lib/sync/webAlphaLaunchDecisionReceipt.ts",
+  webBetaOwnerReviewPacket: "src/lib/sync/webBetaOwnerReviewPacket.ts",
   privateFileStoragePolicy: "src/lib/sync/privateFileStoragePolicy.ts",
   filePresignApiStub: "src/lib/sync/filePresignApiStub.ts",
   filePresignRoute: "src/app/api/files/presign/route.ts",
@@ -206,6 +207,9 @@ function run() {
   const webAlphaLaunchDecisionReceipt = readProjectFile(
     files.webAlphaLaunchDecisionReceipt
   );
+  const webBetaOwnerReviewPacket = readProjectFile(
+    files.webBetaOwnerReviewPacket
+  );
   const privateFileStoragePolicy = readProjectFile(files.privateFileStoragePolicy);
   const filePresignApiStub = readProjectFile(files.filePresignApiStub);
   const filePresignRoute = readProjectFile(files.filePresignRoute);
@@ -272,6 +276,7 @@ function run() {
     [files.smokeTestPlan, smokeTestPlan],
     [files.smokeTestVerifier, smokeTestVerifier],
     [files.webAlphaLaunchDecisionReceipt, webAlphaLaunchDecisionReceipt],
+    [files.webBetaOwnerReviewPacket, webBetaOwnerReviewPacket],
     [files.replayHarnessVerifier, replayHarnessVerifier],
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
@@ -2711,6 +2716,175 @@ function run() {
     "Sync UI must expose the launch decision export button."
   );
   assertSourceIncludes(
+    files.webBetaOwnerReviewPacket,
+    webBetaOwnerReviewPacket,
+    'format: "zhinote-web-beta-owner-review-packet"',
+    "Web Beta owner review packet must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.webBetaOwnerReviewPacket,
+    webBetaOwnerReviewPacket,
+    "buildWebBetaOwnerReviewPacket",
+    "Web Beta owner review packet must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'packet_status: "local-owner-review-only"',
+      "Owner review packet must stay local-only.",
+    ],
+    [
+      'launch_verdict: "not-ready"',
+      "Owner review packet must not approve Web Beta launch.",
+    ],
+    [
+      'owner_review_status: "rehearsal-only"',
+      "Owner review packet must remain a rehearsal-only review artifact.",
+    ],
+    [
+      'decision: "continue-local-build-no-beta"',
+      "Owner review packet must distinguish local progress from beta approval.",
+    ],
+    [
+      "web_beta_can_launch_now: false",
+      "Owner review packet must not approve Web Beta launch.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Owner review packet must not approve cloud sync.",
+    ],
+    [
+      "local_packet_only: true",
+      "Owner review packet must be local-only.",
+    ],
+    [
+      "reads_stage_gate_metadata: true",
+      "Owner review packet must read stage gate metadata.",
+    ],
+    [
+      "reads_next_action_plan: true",
+      "Owner review packet must read next-action metadata.",
+    ],
+    [
+      "reads_smoke_test_plan: true",
+      "Owner review packet must read smoke test metadata.",
+    ],
+    [
+      "reads_environment_metadata: true",
+      "Owner review packet must read environment metadata.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Owner review packet must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Owner review packet must not read database row values.",
+    ],
+    [
+      "reads_file_names: false",
+      "Owner review packet must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Owner review packet must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Owner review packet must not read secrets.",
+    ],
+    [
+      "reads_holding_details: false",
+      "Owner review packet must not read holding details.",
+    ],
+    [
+      "reads_trading_plans: false",
+      "Owner review packet must not read trading plans.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Owner review packet must not send network requests.",
+    ],
+    ["deploys_app: false", "Owner review packet must not deploy the app."],
+    [
+      "connects_cloud_services: false",
+      "Owner review packet must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Owner review packet must not upload workspace data.",
+    ],
+    ["enables_sync: false", "Owner review packet must not enable sync."],
+    ["enables_ai: false", "Owner review packet must not enable AI."],
+    [
+      "review_questions",
+      "Owner review packet must list owner review questions.",
+    ],
+    ["p0_blockers", "Owner review packet must list P0 blockers."],
+    [
+      "local_first_work",
+      "Owner review packet must list local-first work that can continue.",
+    ],
+    [
+      "required_verification_commands",
+      "Owner review packet must list required verification commands.",
+    ],
+    [
+      "completion_evidence_required",
+      "Owner review packet must list completion evidence requirements.",
+    ],
+    [
+      "forbidden_actions_before_owner_approval",
+      "Owner review packet must list forbidden actions before owner approval.",
+    ],
+    [
+      "share_web_beta_preview",
+      "Owner review packet must forbid beta preview sharing before owner approval.",
+    ],
+    [
+      "enable_sync_push",
+      "Owner review packet must forbid sync push before owner approval.",
+    ],
+    [
+      "enable_ai_execution",
+      "Owner review packet must forbid AI execution before owner approval.",
+    ],
+    [
+      "excluded_payload_classes",
+      "Owner review packet must carry excluded private payload classes.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.webBetaOwnerReviewPacket,
+      webBetaOwnerReviewPacket,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildWebBetaOwnerReviewPacket",
+    "Sync UI must build the Web Beta owner review packet."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportWebBetaOwnerReviewPacket",
+    "Sync UI must export the Web Beta owner review packet."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Web Beta owner review packet",
+    "Sync UI must render the Web Beta owner review panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Export owner review",
+    "Sync UI must expose the owner review export button."
+  );
+  assertSourceIncludes(
     files.smokeTestVerifier,
     smokeTestVerifier,
     "Web Beta smoke test verification passed",
@@ -4662,6 +4836,7 @@ function run() {
     permission_server_readiness_checks: 29,
     web_beta_stage_gate_checks: 35,
     web_alpha_launch_decision_checks: 39,
+    web_beta_owner_review_packet_checks: 40,
     warnings: warnings.length,
   };
 
