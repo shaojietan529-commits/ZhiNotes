@@ -12,6 +12,7 @@ const files = {
   databaseModuleRoute: "src/app/(workspace)/modules/databases/page.tsx",
   databaseModuleDashboard: "src/lib/database/databaseModuleDashboard.ts",
   databaseTemplateCatalog: "src/lib/database/databaseTemplateCatalog.ts",
+  databaseViewReadiness: "src/lib/database/databaseViewReadiness.ts",
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
@@ -74,6 +75,7 @@ function run() {
   const databaseModuleRoute = readProjectFile(files.databaseModuleRoute);
   const databaseModuleDashboard = readProjectFile(files.databaseModuleDashboard);
   const databaseTemplateCatalog = readProjectFile(files.databaseTemplateCatalog);
+  const databaseViewReadiness = readProjectFile(files.databaseViewReadiness);
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
@@ -264,6 +266,55 @@ function run() {
     "buildDatabaseTemplateCatalogReport",
     "Database template catalog must expose a reusable builder."
   );
+  assertIncludes(
+    files.databaseViewReadiness,
+    databaseViewReadiness,
+    'format: "zhinote-database-view-readiness"',
+    "Database view readiness must define a stable local export format."
+  );
+  assertIncludes(
+    files.databaseViewReadiness,
+    databaseViewReadiness,
+    "buildDatabaseViewReadinessReport",
+    "Database view readiness must expose a reusable builder."
+  );
+  for (const snippet of [
+    'report_status: "local-view-readiness-only"',
+    "DATABASE_VIEW_READINESS_REQUIREMENTS",
+    "reads_database_schema: true",
+    "reads_database_views: true",
+    "reads_database_row_count: true",
+    "reads_database_rows: false",
+    "reads_database_row_values: false",
+    "reads_page_text: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    '"configured"',
+    '"configured-limited"',
+    '"ready-to-add"',
+    '"needs-schema"',
+    '"date-driven-views"',
+    '"status-workflow-views"',
+    '"chartable-fields"',
+    '"schema-gaps"',
+  ]) {
+    assertIncludes(
+      files.databaseViewReadiness,
+      databaseViewReadiness,
+      snippet,
+      "Database view readiness must preserve schema-only boundaries and view gates."
+    );
+  }
+  for (const viewType of requiredViews) {
+    assertIncludes(
+      files.databaseViewReadiness,
+      databaseViewReadiness,
+      `"${viewType}"`,
+      `Database view readiness must include ${viewType}.`
+    );
+  }
   for (const snippet of [
     "NOTE_TEMPLATES",
     "local_catalog_only: true",
@@ -301,6 +352,27 @@ function run() {
     "buildDatabaseTemplateCatalogReport",
     "Databases module UI must build the template row catalog."
   );
+  assertIncludes(
+    files.databaseModuleShell,
+    databaseModuleShell,
+    "buildDatabaseViewReadinessReport",
+    "Databases module UI must build the view readiness report."
+  );
+  for (const snippet of [
+    "视图适配 readiness",
+    "导出视图 readiness",
+    "ViewReadinessGateRow",
+    "ViewReadinessDatabaseCard",
+    "ViewReadinessStatusPill",
+    "不读取 row values 或页面正文",
+  ]) {
+    assertIncludes(
+      files.databaseModuleShell,
+      databaseModuleShell,
+      snippet,
+      "Databases module UI must render and export view readiness."
+    );
+  }
   for (const snippet of [
     "投研模板行目录",
     "TemplateCatalogPanel",
@@ -420,6 +492,7 @@ function run() {
         xlsx_export: true,
         direct_spreadsheet_import: true,
         spreadsheet_import_requires_confirmation: true,
+        view_readiness_gates: 6,
       },
       null,
       2

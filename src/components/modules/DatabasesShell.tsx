@@ -22,6 +22,11 @@ import {
   type DatabaseTemplateCatalogReport,
 } from "@/lib/database/databaseTemplateCatalog";
 import {
+  buildDatabaseViewReadinessReport,
+  type DatabaseViewReadinessReport,
+  type DatabaseViewReadinessStatus,
+} from "@/lib/database/databaseViewReadiness";
+import {
   getDatabaseViewTypeLabel,
 } from "@/lib/database/display";
 import { executeModuleStarter } from "@/lib/modules/actions";
@@ -65,6 +70,7 @@ function DatabasesDashboard() {
   const [snapshots, setSnapshots] = useState<DatabaseModuleSnapshot[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingDashboard, setExportingDashboard] = useState(false);
+  const [exportingViewReadiness, setExportingViewReadiness] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
@@ -112,6 +118,10 @@ function DatabasesDashboard() {
   const templateCatalog = useMemo(
     () => buildDatabaseTemplateCatalogReport(),
     []
+  );
+  const viewReadiness = useMemo(
+    () => buildDatabaseViewReadinessReport(snapshots),
+    [snapshots]
   );
   const starterModules = useMemo(
     () =>
@@ -169,6 +179,24 @@ function DatabasesDashboard() {
       window.alert("数据库总览导出失败，请查看控制台。");
     } finally {
       setExportingDashboard(false);
+    }
+  };
+
+  const handleExportViewReadiness = () => {
+    setExportingViewReadiness(true);
+    try {
+      downloadJsonFile(
+        `zhinote-database-view-readiness-${fileSafeTimestamp()}.json`,
+        {
+          ...viewReadiness,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export database view readiness:", err);
+      window.alert("数据库视图 readiness 导出失败，请查看控制台。");
+    } finally {
+      setExportingViewReadiness(false);
     }
   };
 
@@ -319,6 +347,93 @@ function DatabasesDashboard() {
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                视图适配 readiness
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                按字段类型判断每个数据库是否适合添加看板、日历、画廊、时间线、
+                图表、表单和动态视图。这个报告只读 schema、view metadata 和 row count，
+                不读取 row values 或页面正文。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportViewReadiness}
+              disabled={exportingViewReadiness}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingViewReadiness ? "导出中..." : "导出视图 readiness"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <Metric
+              label="已配置"
+              value={viewReadiness.summary.configured}
+            />
+            <Metric
+              label="可添加"
+              value={viewReadiness.summary.ready_to_add}
+            />
+            <Metric
+              label="需补字段"
+              value={viewReadiness.summary.needs_schema}
+            />
+            <Metric
+              label="配置受限"
+              value={viewReadiness.summary.configured_limited}
+            />
+            <Metric
+              label="日期就绪"
+              value={viewReadiness.summary.date_ready_databases}
+            />
+            <Metric
+              label="状态就绪"
+              value={viewReadiness.summary.status_ready_databases}
+            />
+            <Metric
+              label="图表就绪"
+              value={viewReadiness.summary.chart_ready_databases}
+            />
+            <Metric
+              label="Relation"
+              value={viewReadiness.summary.relation_ready_databases}
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Readiness gates
+              </div>
+              {viewReadiness.gates.map((gate) => (
+                <ViewReadinessGateRow key={gate.id} gate={gate} />
+              ))}
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                数据库视图建议
+              </div>
+              {viewReadiness.databases.length > 0 ? (
+                <div className="grid gap-2 md:grid-cols-2">
+                  {viewReadiness.databases.map((item) => (
+                    <ViewReadinessDatabaseCard
+                      key={item.database_id}
+                      item={item}
+                      onOpen={() => router.push(`/database/${item.database_id}`)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  还没有数据库。创建 tracker 后，这里会按字段类型推荐适合添加的视图。
+                </p>
               )}
             </div>
           </div>
@@ -543,6 +658,95 @@ function ViewCoverageCard({
   );
 }
 
+function ViewReadinessGateRow({
+  gate,
+}: {
+  gate: DatabaseViewReadinessReport["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+        </div>
+        <StepStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function ViewReadinessDatabaseCard({
+  item,
+  onOpen,
+}: {
+  item: DatabaseViewReadinessReport["databases"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.title}
+          </h3>
+          <p className="mt-1 text-zinc-400">
+            {item.field_count} fields · {item.row_count} rows
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          打开
+        </button>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {item.configured_view_types.map((viewType) => (
+          <Chip
+            key={`configured-${viewType}`}
+            label={`已配置 ${getDatabaseViewTypeLabel(viewType)}`}
+          />
+        ))}
+        {item.ready_to_add_view_types.slice(0, 5).map((viewType) => (
+          <Chip
+            key={`ready-${viewType}`}
+            label={`可添加 ${getDatabaseViewTypeLabel(viewType)}`}
+          />
+        ))}
+        {item.needs_schema_view_types.slice(0, 5).map((viewType) => (
+          <Chip
+            key={`needs-${viewType}`}
+            label={`需字段 ${getDatabaseViewTypeLabel(viewType)}`}
+          />
+        ))}
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {item.recommended_next_action}
+      </p>
+      {item.recommended_next_view && (
+        <div className="mt-2">
+          <ViewReadinessStatusPill status="ready-to-add" />
+          <span className="ml-2 text-[11px] text-zinc-400">
+            推荐下一步：{getDatabaseViewTypeLabel(item.recommended_next_view)}
+          </span>
+        </div>
+      )}
+    </article>
+  );
+}
+
 function DatabaseCard({
   item,
   onOpen,
@@ -585,6 +789,33 @@ function DatabaseCard({
         更新于 {formatDate(item.updated_at)}
       </div>
     </article>
+  );
+}
+
+function ViewReadinessStatusPill({
+  status,
+}: {
+  status: DatabaseViewReadinessStatus;
+}) {
+  const labels: Record<DatabaseViewReadinessStatus, string> = {
+    configured: "已配置",
+    "configured-limited": "配置受限",
+    "ready-to-add": "可添加",
+    "needs-schema": "需补字段",
+  };
+  const className =
+    status === "configured"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "ready-to-add"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : status === "configured-limited"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
