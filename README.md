@@ -289,6 +289,12 @@ Current local actions:
   and portfolio assets. The queue ranks company/report gaps first, separates
   actionable relation-value work from missing tracker targets, and only opens
   local pages or databases; it does not auto-write relation values.
+- Review and export a local research workbench action packet. The packet turns
+  graph health, priority breaks, schema gaps, and missing trackers into company,
+  report, meeting, portfolio, and relation-setup work lanes. It only opens local
+  module/page/database routes and does not auto-write relation values, create
+  schema fields, read page bodies, read database row values, read file names,
+  read file bytes, upload data, connect cloud services, or enable AI.
 - Review suggested completion targets for unlinked assets and jump into the
   right local database with `q` and `focus` parameters prefilled.
 - Review relation schema gaps, such as a company tracker missing related-report

@@ -9,6 +9,7 @@ const files = {
   packageJson: "package.json",
   workflow: "src/lib/modules/researchWorkflow.ts",
   graph: "src/lib/modules/researchGraph.ts",
+  workbench: "src/lib/modules/researchWorkbench.ts",
   companyCoverage: "src/lib/company/companyCoverage.ts",
   companyDossier: "src/lib/company/companyResearchDossier.ts",
   companyPlaybook: "src/lib/company/companyResearchPlaybook.ts",
@@ -136,6 +137,7 @@ function run() {
   const packageJson = readProjectFile(files.packageJson);
   const workflow = readProjectFile(files.workflow);
   const graph = readProjectFile(files.graph);
+  const workbench = readProjectFile(files.workbench);
   const companyCoverage = readProjectFile(files.companyCoverage);
   const companyDossier = readProjectFile(files.companyDossier);
   const companyPlaybook = readProjectFile(files.companyPlaybook);
@@ -231,6 +233,11 @@ function run() {
   for (const snippet of [
     "连接健康摘要",
     "断点优先队列",
+    "投研工作台行动包",
+    "导出工作台行动包",
+    "ResearchWorkbenchPanel",
+    "WorkbenchActionRow",
+    "WorkbenchStatusPill",
     "PriorityQueuePanel",
     "PriorityPill",
     "高优先级",
@@ -244,6 +251,86 @@ function run() {
       graphShell,
       snippet,
       "Research graph shell must render the local connection health summary."
+    );
+  }
+  assertIncludes(
+    files.workbench,
+    workbench,
+    'format: "zhinote-research-workbench-packet"',
+    "Research workbench must define a stable local packet format."
+  );
+  assertIncludes(
+    files.workbench,
+    workbench,
+    "buildResearchWorkbenchPacket",
+    "Research workbench must expose a reusable builder."
+  );
+  for (const snippet of [
+    'packet_status: "local-research-workbench-only"',
+    "local_packet_only: true",
+    "reads_research_graph_report: true",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "reads_database_rows: false",
+    "includes_database_row_values: false",
+    "reads_file_names: false",
+    "reads_file_bytes: false",
+    "includes_holdings: false",
+    "includes_trading_plans: false",
+    "writes_workspace_data: false",
+    "creates_relation_values: false",
+    "creates_schema_fields: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.workbench,
+      workbench,
+      snippet,
+      "Research workbench must preserve local-only privacy and write boundaries."
+    );
+  }
+  for (const snippet of [
+    '"company-context"',
+    '"report-linking"',
+    '"meeting-follow-up"',
+    '"portfolio-review"',
+    '"schema-setup"',
+    "module_rollups",
+    "review_sequence",
+    "forbidden_actions",
+    "required_verification_commands",
+    "auto_write_relation_values",
+    "bulk_update_database_rows",
+    "send_page_text_to_ai",
+    "read_file_bytes_for_linking",
+    "npm run verify:research-workflow",
+    "npm run verify:modules",
+    "npm run lint",
+    "npm run build",
+  ]) {
+    assertIncludes(
+      files.workbench,
+      workbench,
+      snippet,
+      "Research workbench must keep cross-module lanes, forbidden actions, and verification commands."
+    );
+  }
+  for (const snippet of [
+    "buildResearchWorkbenchPacket",
+    "workbenchPacket",
+    "handleExportWorkbenchPacket",
+    "导出工作台行动包",
+    "ResearchWorkbenchPanel",
+    "投研工作台行动包",
+    "不自动写 relation",
+  ]) {
+    assertIncludes(
+      files.graphShell,
+      graphShell,
+      snippet,
+      "Research graph shell must build, render, and export the research workbench packet."
     );
   }
   assertIncludes(
@@ -1391,6 +1478,8 @@ function run() {
         meeting_research_queue_workstreams:
           requiredMeetingResearchQueueWorkstreams.length,
         meeting_research_queue: true,
+        research_workbench_lanes: 5,
+        research_workbench_local_only: true,
         meeting_playbook_actions: 7,
         meeting_tracker_intake_fields: 4,
         portfolio_review_areas: requiredPortfolioReviewAreas.length,

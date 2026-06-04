@@ -27,6 +27,11 @@ import {
   type ResearchGraphSchemaGap,
   type ResearchRelationLink,
 } from "@/lib/modules/researchGraph";
+import {
+  buildResearchWorkbenchPacket,
+  type ResearchWorkbenchActionStatus,
+  type ResearchWorkbenchPacket,
+} from "@/lib/modules/researchWorkbench";
 import { getResearchModuleRoute } from "@/lib/modules/researchWorkflow";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database } from "@/lib/utils/types";
@@ -72,6 +77,8 @@ function ResearchGraphDashboard() {
   const [databases, setDatabases] = useState<Database[]>([]);
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [exportingGraphReport, setExportingGraphReport] = useState(false);
+  const [exportingWorkbenchPacket, setExportingWorkbenchPacket] =
+    useState(false);
   const [schemaGapBusyId, setSchemaGapBusyId] = useState<string | null>(null);
   const [schemaFieldCreationResult, setSchemaFieldCreationResult] =
     useState<SchemaFieldCreationResult | null>(null);
@@ -118,6 +125,10 @@ function ResearchGraphDashboard() {
   const graphReport = useMemo(
     () => buildResearchGraphReport(graph, snapshots),
     [graph, snapshots]
+  );
+  const workbenchPacket = useMemo(
+    () => buildResearchWorkbenchPacket(graphReport),
+    [graphReport]
   );
   const recentLinks = graph.relationLinks.slice(0, 12);
   const unlinkedAssets = graph.unlinkedAssets.slice(0, 12);
@@ -167,6 +178,24 @@ function ResearchGraphDashboard() {
       window.alert("研究图谱报告导出失败，请查看控制台。");
     } finally {
       setExportingGraphReport(false);
+    }
+  };
+
+  const handleExportWorkbenchPacket = () => {
+    setExportingWorkbenchPacket(true);
+    try {
+      downloadJsonFile(
+        `zhinote-research-workbench-${fileSafeTimestamp()}.json`,
+        {
+          ...workbenchPacket,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export research workbench packet:", err);
+      window.alert("投研工作台行动包导出失败，请查看控制台。");
+    } finally {
+      setExportingWorkbenchPacket(false);
     }
   };
 
@@ -244,11 +273,21 @@ function ResearchGraphDashboard() {
               >
                 {exportingGraphReport ? "正在导出..." : "导出图谱报告"}
               </button>
+              <button
+                type="button"
+                onClick={handleExportWorkbenchPacket}
+                disabled={exportingWorkbenchPacket}
+                className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {exportingWorkbenchPacket
+                  ? "正在导出..."
+                  : "导出工作台行动包"}
+              </button>
             </div>
           </div>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
+        <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
           <Metric label="已识别资产" value={graphReport.summary.assets} />
           <Metric label="已连接资产" value={graphReport.summary.connected_assets} />
           <Metric label="Relation 连接" value={graphReport.summary.relation_links} />
@@ -259,6 +298,7 @@ function ResearchGraphDashboard() {
             value={graphReport.summary.completion_actions}
           />
           <Metric label="结构缺口" value={graphReport.summary.schema_gaps} />
+          <Metric label="工作队列" value={workbenchPacket.summary.actions} />
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
@@ -271,6 +311,11 @@ function ResearchGraphDashboard() {
 
         <HealthSummaryPanel
           items={graphReport.health_summary}
+          onOpenRoute={(route) => router.push(route)}
+        />
+
+        <ResearchWorkbenchPanel
+          packet={workbenchPacket}
           onOpenRoute={(route) => router.push(route)}
         />
 
@@ -565,6 +610,219 @@ function getHealthBadgeClassName(
 function formatRelationLabels(labels: string[]) {
   if (labels.length === 0) return "无";
   return labels.join(" / ");
+}
+
+function ResearchWorkbenchPanel({
+  packet,
+  onOpenRoute,
+}: {
+  packet: ResearchWorkbenchPacket;
+  onOpenRoute: (route: string) => void;
+}) {
+  const topActions = packet.actions.slice(0, 8);
+
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            投研工作台行动包
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">
+            把研究图谱转换成公司、报告、会议、组合和 relation 结构的下一步队列。
+            这里只打开本地页面或模块，不自动写 relation、不创建字段、不上传数据。
+          </p>
+        </div>
+        <span className="text-xs text-zinc-400">
+          {packet.summary.actions} 个行动 · {packet.summary.high_priority} 个高优先级
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-4">
+        <WorkbenchMetric
+          label="补 relation"
+          value={packet.summary.relation_actions}
+        />
+        <WorkbenchMetric label="补字段" value={packet.summary.schema_actions} />
+        <WorkbenchMetric
+          label="补跟踪表"
+          value={packet.summary.tracker_actions}
+        />
+        <WorkbenchMetric
+          label="手动确认"
+          value={packet.summary.manual_confirmation_actions}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+        <div className="space-y-2">
+          {topActions.length > 0 ? (
+            topActions.map((action) => (
+              <WorkbenchActionRow
+                key={action.id}
+                action={action}
+                onOpenRoute={onOpenRoute}
+              />
+            ))
+          ) : (
+            <p className="rounded-md border border-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-400 dark:border-zinc-800">
+              暂无工作台行动。当前图谱没有发现需要处理的断点、schema gap 或 tracker 缺口。
+            </p>
+          )}
+        </div>
+        <div className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {packet.module_rollups.map((rollup) => (
+              <WorkbenchModuleRollupCard
+                key={rollup.kind}
+                rollup={rollup}
+                onOpenRoute={onOpenRoute}
+              />
+            ))}
+          </div>
+          <div className="rounded-md border border-zinc-100 p-3 dark:border-zinc-800">
+            <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              Review sequence
+            </h3>
+            <div className="mt-2 grid gap-2">
+              {packet.review_sequence.map((step) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => onOpenRoute(step.route)}
+                  className="rounded-md bg-zinc-50 px-3 py-2 text-left text-xs transition-colors hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+                >
+                  <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                    {step.order}. {step.title}
+                  </div>
+                  <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                    {step.reason}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WorkbenchMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function WorkbenchActionRow({
+  action,
+  onOpenRoute,
+}: {
+  action: ResearchWorkbenchPacket["actions"][number];
+  onOpenRoute: (route: string) => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              {action.title}
+            </h3>
+            <PriorityPill priority={action.priority} />
+            <WorkbenchStatusPill status={action.status} />
+          </div>
+          <p className="mt-1 text-[11px] text-zinc-400">
+            {action.module_label} · {action.source}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onOpenRoute(action.action_route)}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          {action.route_label}
+        </button>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {action.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {action.next_action}
+      </p>
+    </article>
+  );
+}
+
+function WorkbenchModuleRollupCard({
+  rollup,
+  onOpenRoute,
+}: {
+  rollup: ResearchWorkbenchPacket["module_rollups"][number];
+  onOpenRoute: (route: string) => void;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {rollup.label}
+          </h3>
+          <p className="mt-1 text-zinc-400">{rollup.health_status}</p>
+        </div>
+        <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-[10px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          {rollup.connection_rate}%
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {rollup.assets} 资产 · {rollup.unlinked_assets} 待补 ·{" "}
+        {rollup.schema_gaps} 结构缺口
+      </p>
+      <button
+        type="button"
+        onClick={() => onOpenRoute(rollup.next_action_route)}
+        className="mt-2 w-fit rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        {rollup.next_action_label}
+      </button>
+    </article>
+  );
+}
+
+function WorkbenchStatusPill({
+  status,
+}: {
+  status: ResearchWorkbenchActionStatus;
+}) {
+  const labels: Record<ResearchWorkbenchActionStatus, string> = {
+    "ready-to-start": "Ready",
+    "needs-relation": "Relation",
+    "needs-schema": "Schema",
+    "needs-tracker": "Tracker",
+    "review-only": "Review",
+  };
+
+  const className =
+    status === "needs-relation"
+      ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+      : status === "needs-schema"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : status === "needs-tracker"
+          ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+          : status === "ready-to-start"
+            ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+            : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
 }
 
 function PriorityQueuePanel({
