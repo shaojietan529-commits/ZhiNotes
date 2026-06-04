@@ -177,6 +177,19 @@ function NotesDashboard() {
     }
   };
 
+  const handleReviewStepNavigate = (
+    step: NotesModuleWorkbenchReport["review_sequence"][number]
+  ) => {
+    if (step.route === "/modules/notes") {
+      document
+        .getElementById(step.target_section_id)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    router.push(step.route);
+  };
+
   return (
     <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -227,7 +240,10 @@ function NotesDashboard() {
           <Metric label="行动" value={workbench.summary.actions} />
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="notes-create-entry"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -262,6 +278,7 @@ function NotesDashboard() {
           exporting={exportingWorkbench}
           onExport={handleExportWorkbench}
           onOpenRoute={(route) => router.push(route)}
+          onReviewStepOpen={handleReviewStepNavigate}
         />
       </div>
     </div>
@@ -273,17 +290,24 @@ function NotesWorkbenchPanel({
   exporting,
   onExport,
   onOpenRoute,
+  onReviewStepOpen,
 }: {
   report: NotesModuleWorkbenchReport;
   exporting: boolean;
   onExport: () => void;
   onOpenRoute: (route: string) => void;
+  onReviewStepOpen: (
+    step: NotesModuleWorkbenchReport["review_sequence"][number]
+  ) => void;
 }) {
   const topActions = report.actions.slice(0, 8);
   const focusPages = report.pages.slice(0, 8);
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="notes-workbench"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -322,7 +346,7 @@ function NotesWorkbenchPanel({
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="space-y-2">
+        <div id="notes-workbench-routes" className="scroll-mt-6 space-y-2">
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
             工作台路线
           </div>
@@ -336,7 +360,7 @@ function NotesWorkbenchPanel({
             ))}
           </div>
         </div>
-        <div className="space-y-2">
+        <div id="notes-priority-actions" className="scroll-mt-6 space-y-2">
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
             优先行动
           </div>
@@ -359,7 +383,7 @@ function NotesWorkbenchPanel({
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-2">
+        <div id="notes-focus-pages" className="scroll-mt-6 space-y-2">
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
             需要关注的页面
           </div>
@@ -379,7 +403,7 @@ function NotesWorkbenchPanel({
             </p>
           )}
         </div>
-        <div className="space-y-2">
+        <div id="notes-review-sequence" className="scroll-mt-6 space-y-2">
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
             建议顺序
           </div>
@@ -387,7 +411,7 @@ function NotesWorkbenchPanel({
             <NotesReviewStepCard
               key={step.id}
               step={step}
-              onOpen={() => onOpenRoute(step.route)}
+              onOpen={() => onReviewStepOpen(step)}
             />
           ))}
           <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
@@ -541,7 +565,7 @@ function NotesReviewStepCard({
           onClick={onOpen}
           className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
         >
-          打开
+          打开步骤
         </button>
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">

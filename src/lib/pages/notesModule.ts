@@ -90,6 +90,7 @@ export interface NotesModuleReviewStep {
   order: number;
   title: string;
   route: string;
+  target_section_id: string;
   reason: string;
   completion_signal: string;
 }
@@ -526,6 +527,7 @@ function buildReviewSequence(
         1,
         "创建第一篇本地投研笔记",
         "/modules/notes",
+        "notes-create-entry",
         "笔记/page 是 ZhiNotes 的知识库底座，没有页面就没有后续模块承载。",
         "至少有一篇本地页面。"
       ),
@@ -540,6 +542,7 @@ function buildReviewSequence(
         steps.length + 1,
         "先补投研结构",
         "/modules/notes",
+        "notes-priority-actions",
         "标题骨架、结论、证据、行动项让笔记从记录变成可复盘研究资产。",
         "高优先级页面不再是 empty 或 needs-structure。"
       )
@@ -552,6 +555,7 @@ function buildReviewSequence(
         steps.length + 1,
         "再补研究关联",
         "/modules/research-graph",
+        "notes-research-links",
         "投研平台需要公司、报告、会议、组合和笔记互相连接。",
         "关键研究笔记至少有一个 wiki link、file block、inline database 或 backlink。"
       )
@@ -564,6 +568,7 @@ function buildReviewSequence(
         steps.length + 1,
         "最后补复盘痕迹",
         "/modules/notes",
+        "notes-focus-pages",
         "版本历史和评论能记录观点变化，避免研究结论丢失上下文。",
         "长笔记保存版本，未解决评论被处理或转成行动项。"
       )
@@ -576,6 +581,7 @@ function buildReviewSequence(
         1,
         "保持笔记库可导航",
         "/modules/notes",
+        "notes-workbench-routes",
         "当前没有紧急缺口，下一步是按真实投研流程整理根页面、收藏和锁定状态。",
         "关键页面容易从侧边栏、搜索和模块入口找到。"
       )
@@ -589,6 +595,7 @@ function reviewStep(
   order: number,
   title: string,
   route: string,
+  targetSectionId: string,
   reason: string,
   completionSignal: string
 ): NotesModuleReviewStep {
@@ -597,6 +604,7 @@ function reviewStep(
     order,
     title,
     route,
+    target_section_id: targetSectionId,
     reason,
     completion_signal: completionSignal,
   };

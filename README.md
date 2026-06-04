@@ -165,6 +165,9 @@ Current local actions:
   counts, comment counts, unresolved comment counts, and suggested next actions.
 - Use the notes workbench lanes for 笔记入口, 投研结构, 研究关联, 复盘痕迹,
   知识库组织, and 导出安全.
+- Use the notes workbench review sequence to jump through the note workflow:
+  create a first note, review structure gaps, connect research context, and
+  handle review trail issues.
 - Create blank research notes or template-backed local pages for investment
   memos, company research, meeting notes, and research reports from the notes
   module.
