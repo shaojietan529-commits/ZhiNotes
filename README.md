@@ -319,6 +319,8 @@ Current relation scope:
 - List and gallery views display relation titles.
 - Timeline views display key tracker context fields, including relation titles,
   and keep the same inline row creation workflow as list/gallery views.
+- Feed views display key tracker fields, relation page chips, dates, statuses,
+  links, and checkbox follow-up toggles for investment-research scanning.
 - CSV and XLSX export write related page titles, not internal ids.
 - Company, report, meeting, and portfolio modules share a local research graph
   panel. It can export a graph report with asset titles, module coverage,

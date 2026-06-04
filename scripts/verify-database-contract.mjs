@@ -24,6 +24,7 @@ const files = {
   databaseImport: "src/lib/database/databaseImport.ts",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
   timelineView: "src/components/database/views/TimelineView.tsx",
+  feedView: "src/components/database/views/FeedView.tsx",
   moduleActions: "src/lib/modules/actions.ts",
   registry: "src/lib/modules/registry.ts",
   filePreviewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
@@ -97,6 +98,7 @@ function run() {
   const databaseImport = readProjectFile(files.databaseImport);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
   const timelineView = readProjectFile(files.timelineView);
+  const feedView = readProjectFile(files.feedView);
   const moduleActions = readProjectFile(files.moduleActions);
   const registry = readProjectFile(files.registry);
   const filePreviewNode = readProjectFile(files.filePreviewNode);
@@ -926,6 +928,28 @@ function run() {
       "Timeline view must support investment tracker context fields and row creation."
     );
   }
+  for (const snippet of [
+    "FeedCard",
+    "FeedFieldChip",
+    "getFeedFields",
+    "compareFeedFields",
+    "getRelationPages",
+    "getDatabaseFieldDisplayName",
+    "getFieldOptions",
+    "onUpdateRow",
+    "onOpenPage",
+    "relationPages",
+    "formatUrlLabel",
+    "更新于",
+    "删除",
+  ]) {
+    assertIncludes(
+      files.feedView,
+      feedView,
+      snippet,
+      "Feed view must show investment tracker field context, relation chips, and quick follow-up toggles."
+    );
+  }
 
   for (const viewType of requiredViews) {
     assertViewFile(viewType);
@@ -988,6 +1012,7 @@ function run() {
         template_row_receipts: true,
         template_row_receipt_history: true,
         import_export_readiness: true,
+        feed_field_context: true,
         database_workbench: true,
       },
       null,

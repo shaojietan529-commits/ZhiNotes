@@ -2,6 +2,9 @@
 
 import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
+import { getDatabaseFieldDisplayName } from "@/lib/database/display";
+import { getFieldOptions } from "@/lib/database/fields";
+import { getRelationPages } from "@/lib/database/relationValues";
 
 interface FeedViewProps {
   fields: DatabaseField[];
@@ -10,13 +13,19 @@ interface FeedViewProps {
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
+  onOpenPage: (pageId: string) => void;
+  relationPages: Page[];
 }
 
 export default function FeedView({
+  fields,
   rows,
   onAddRow,
+  onUpdateRow,
   onDeleteRow,
   onOpenRow,
+  onOpenPage,
+  relationPages,
 }: FeedViewProps) {
   const sortedRows = [...rows].sort((left, right) =>
     String(right.page?.updated_at || right.updated_at).localeCompare(
@@ -31,39 +40,16 @@ export default function FeedView({
       ) : (
         <div className="space-y-3">
           {sortedRows.map((row) => (
-            <article
+            <FeedCard
               key={row.id}
-              className="group rounded-md border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => onOpenRow(row.page_id)}
-                  className="min-w-0 flex-1 text-left"
-                >
-                  <h3 className="truncate text-sm font-semibold text-zinc-900 hover:text-blue-600 dark:text-zinc-100 dark:hover:text-blue-400">
-                    {row.page?.icon ? `${row.page.icon} ` : ""}
-                    {row.page?.title || "未命名页面"}
-                  </h3>
-                  <p className="mt-1 text-xs text-zinc-400">
-                    更新于 {formatRelativeDate(row.page?.updated_at || row.updated_at)}
-                  </p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDeleteRow(row.id)}
-                  className="opacity-0 text-xs text-zinc-400 transition-opacity hover:text-red-500 group-hover:opacity-100"
-                  title="删除行"
-                >
-                  删除
-                </button>
-              </div>
-              {row.page?.content_text && (
-                <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                  {stripHtml(row.page.content_text)}
-                </p>
-              )}
-            </article>
+              row={row}
+              fields={fields}
+              relationPages={relationPages}
+              onOpenRow={onOpenRow}
+              onOpenPage={onOpenPage}
+              onDeleteRow={onDeleteRow}
+              onUpdateRow={onUpdateRow}
+            />
           ))}
         </div>
       )}
@@ -86,6 +72,238 @@ export default function FeedView({
       </button>
     </div>
   );
+}
+
+function FeedCard({
+  row,
+  fields,
+  relationPages,
+  onOpenRow,
+  onOpenPage,
+  onDeleteRow,
+  onUpdateRow,
+}: {
+  row: DatabaseRow & { page: Page };
+  fields: DatabaseField[];
+  relationPages: Page[];
+  onOpenRow: (pageId: string) => void;
+  onOpenPage: (pageId: string) => void;
+  onDeleteRow: (rowId: string) => void;
+  onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
+}) {
+  const fieldValues = parseRowFieldValues(row.field_values);
+  const feedFields = getFeedFields(fields, fieldValues);
+
+  const handleFieldChange = (fieldId: string, value: unknown) => {
+    onUpdateRow(row.id, { ...fieldValues, [fieldId]: value });
+  };
+
+  return (
+    <article className="group rounded-md border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => onOpenRow(row.page_id)}
+          className="min-w-0 flex-1 text-left"
+        >
+          <h3 className="truncate text-sm font-semibold text-zinc-900 hover:text-blue-600 dark:text-zinc-100 dark:hover:text-blue-400">
+            {row.page?.icon ? `${row.page.icon} ` : ""}
+            {row.page?.title || "未命名页面"}
+          </h3>
+          <p className="mt-1 text-xs text-zinc-400">
+            更新于 {formatRelativeDate(row.page?.updated_at || row.updated_at)}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => onDeleteRow(row.id)}
+          className="text-xs text-zinc-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+          title="删除行"
+        >
+          删除
+        </button>
+      </div>
+
+      {feedFields.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {feedFields.map((field) => (
+            <FeedFieldChip
+              key={field.id}
+              field={field}
+              value={fieldValues[field.id]}
+              relationPages={relationPages}
+              onOpenPage={onOpenPage}
+              onChange={(value) => handleFieldChange(field.id, value)}
+            />
+          ))}
+        </div>
+      )}
+
+      {row.page?.content_text && (
+        <p className="mt-3 line-clamp-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+          {stripHtml(row.page.content_text)}
+        </p>
+      )}
+    </article>
+  );
+}
+
+function FeedFieldChip({
+  field,
+  value,
+  relationPages,
+  onOpenPage,
+  onChange,
+}: {
+  field: DatabaseField;
+  value: unknown;
+  relationPages: Page[];
+  onOpenPage: (pageId: string) => void;
+  onChange: (value: unknown) => void;
+}) {
+  const label = getDatabaseFieldDisplayName(field);
+
+  if (field.field_type === "relation") {
+    const related = getRelationPages(value, relationPages).slice(0, 4);
+    if (related.length === 0) return null;
+    return (
+      <span className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700 dark:bg-blue-950 dark:text-blue-200">
+        <span className="text-blue-400">{label}</span>
+        {related.map(({ id, page }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onOpenPage(id)}
+            className="max-w-[10rem] truncate rounded bg-white px-1.5 py-0.5 text-blue-700 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-100 dark:hover:bg-blue-800"
+          >
+            {page?.title || id}
+          </button>
+        ))}
+      </span>
+    );
+  }
+
+  if (field.field_type === "checkbox") {
+    const checked = Boolean(value);
+    return (
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`rounded-md px-2 py-1 text-xs ${
+          checked
+            ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-200"
+            : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+        }`}
+      >
+        {label}: {checked ? "是" : "否"}
+      </button>
+    );
+  }
+
+  const displayValue = formatFeedFieldValue(field, value);
+  if (!displayValue) return null;
+
+  if (field.field_type === "url") {
+    return (
+      <a
+        href={String(value)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="max-w-full truncate rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+      >
+        {label}: {displayValue}
+      </a>
+    );
+  }
+
+  const toneClass =
+    field.field_type === "status"
+      ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-200"
+      : field.field_type === "select"
+        ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-200"
+        : field.field_type === "date"
+          ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-200"
+          : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-200";
+
+  return (
+    <span className={`max-w-full truncate rounded-md px-2 py-1 text-xs ${toneClass}`}>
+      {label}: {displayValue}
+    </span>
+  );
+}
+
+function getFeedFields(
+  fields: DatabaseField[],
+  fieldValues: Record<string, unknown>
+) {
+  return fields
+    .slice(1)
+    .filter((field) => hasDisplayValue(field, fieldValues))
+    .sort(compareFeedFields)
+    .slice(0, 6);
+}
+
+function hasDisplayValue(
+  field: DatabaseField,
+  fieldValues: Record<string, unknown>
+) {
+  if (!(field.id in fieldValues)) return false;
+  const value = fieldValues[field.id];
+  if (field.field_type === "checkbox") return true;
+  if (Array.isArray(value)) return value.length > 0;
+  return value !== null && value !== undefined && String(value).trim().length > 0;
+}
+
+function compareFeedFields(left: DatabaseField, right: DatabaseField) {
+  const priority: Record<string, number> = {
+    status: 0,
+    select: 1,
+    date: 2,
+    relation: 3,
+    checkbox: 4,
+    number: 5,
+    url: 6,
+    text: 7,
+  };
+  return (
+    (priority[left.field_type] ?? 10) - (priority[right.field_type] ?? 10) ||
+    left.position - right.position
+  );
+}
+
+function formatFeedFieldValue(field: DatabaseField, value: unknown) {
+  if (value === null || value === undefined) return "";
+  if (field.field_type === "select" || field.field_type === "status") {
+    const options = getFieldOptions(field);
+    const selected = String(value);
+    return options.includes(selected) || selected ? selected : "";
+  }
+  if (field.field_type === "number") {
+    return typeof value === "number" ? value.toLocaleString() : String(value);
+  }
+  if (field.field_type === "url") {
+    return formatUrlLabel(String(value));
+  }
+  return String(value);
+}
+
+function parseRowFieldValues(value: string) {
+  try {
+    const parsed = JSON.parse(value || "{}") as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function formatUrlLabel(value: string) {
+  try {
+    return new URL(value).hostname || value;
+  } catch {
+    return value;
+  }
 }
 
 function stripHtml(html: string) {
