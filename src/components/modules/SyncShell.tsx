@@ -123,6 +123,10 @@ import {
   type WebBetaNextActionStatus,
 } from "@/lib/sync/webBetaNextActions";
 import {
+  buildWebBetaStageGateReport,
+  type WebBetaStageGate,
+} from "@/lib/sync/webBetaStageGate";
+import {
   buildWebBetaRoutePreflightReport,
   type WebBetaRoutePreflightReport,
   type WebBetaRoutePreflightStatus,
@@ -284,6 +288,7 @@ type WebBetaContractAction =
   | "high-risk-registry"
   | "migration-sql"
   | "next-actions"
+  | "stage-gate"
   | "deployment-target"
   | "smoke-test-plan"
   | "route-preflight";
@@ -1061,6 +1066,25 @@ function SyncDashboard() {
   const webBetaRoutePreflight = useMemo(
     () => buildWebBetaRoutePreflightReport(webBetaLaunchChecklist),
     [webBetaLaunchChecklist]
+  );
+  const webBetaStageGate = useMemo(
+    () =>
+      buildWebBetaStageGateReport({
+        readinessReport: webBetaReadinessReport,
+        launchChecklist: webBetaLaunchChecklist,
+        deploymentTarget: webBetaDeploymentTarget,
+        routePreflight: webBetaRoutePreflight,
+        environmentPreflight,
+        syncOptInGate,
+      }),
+    [
+      environmentPreflight,
+      syncOptInGate,
+      webBetaDeploymentTarget,
+      webBetaLaunchChecklist,
+      webBetaReadinessReport,
+      webBetaRoutePreflight,
+    ]
   );
   const webBetaSmokeTestPlan = useMemo(
     () =>
@@ -2178,6 +2202,29 @@ function SyncDashboard() {
       );
       window.alert(
         "Web beta route preflight export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportWebBetaStageGate = () => {
+    setBusyContractAction("stage-gate");
+    try {
+      downloadJsonFile(
+        `zhinote-web-beta-stage-gate-${fileSafeTimestamp()}.json`,
+        {
+          ...webBetaStageGate,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export web beta stage gate:",
+        err
+      );
+      window.alert(
+        "Web beta stage gate export failed. Please check the console."
       );
     } finally {
       setBusyContractAction(null);
@@ -3937,6 +3984,84 @@ function SyncDashboard() {
               ))}
             </div>
           </ContractPanel>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Web Beta 阶段门禁
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                本地-only launch gate for deciding whether ZhiNotes can move
+                from local workbench to private Web Beta. It summarizes the
+                account, cloud database, private file storage, sync,
+                permissions, recovery, and deployment blockers without
+                connecting cloud services, uploading data, or enabling sync.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportWebBetaStageGate}
+              disabled={busyContractAction === "stage-gate"}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {busyContractAction === "stage-gate"
+                ? "Exporting..."
+                : "Export stage gate"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <BetaSummaryCard
+              label="Local app"
+              value={webBetaStageGate.local_app_can_continue_now ? "Yes" : "No"}
+              detail="Keep building locally"
+              tone="ready"
+            />
+            <BetaSummaryCard
+              label="Web Beta"
+              value={webBetaStageGate.web_beta_can_launch_now ? "Ready" : "No"}
+              detail="Launch still blocked"
+              tone="blocked"
+            />
+            <BetaSummaryCard
+              label="Cloud sync"
+              value={webBetaStageGate.cloud_sync_can_start_now ? "Ready" : "No"}
+              detail="Uploads disabled"
+              tone="blocked"
+            />
+            <BetaSummaryCard
+              label="P0 blockers"
+              value={webBetaStageGate.summary.p0_blockers}
+              detail="Must clear first"
+              tone={
+                webBetaStageGate.summary.p0_blockers > 0 ? "blocked" : "ready"
+              }
+            />
+            <BetaSummaryCard
+              label="Missing env"
+              value={webBetaStageGate.summary.required_environment_missing}
+              detail="Required settings"
+              tone={
+                webBetaStageGate.summary.required_environment_missing > 0
+                  ? "blocked"
+                  : "ready"
+              }
+            />
+            <BetaSummaryCard
+              label="Stage blocked"
+              value={webBetaStageGate.summary.blocked}
+              detail="Overall gates"
+              tone={
+                webBetaStageGate.summary.blocked > 0 ? "blocked" : "ready"
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-2 xl:grid-cols-3">
+            {webBetaStageGate.gates.map((gate) => (
+              <StageGateRow key={gate.id} gate={gate} />
+            ))}
+          </div>
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -9590,6 +9715,33 @@ function RemoteBaselineStatusPill({
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[status]}
     </span>
+  );
+}
+
+function StageGateRow({ gate }: { gate: WebBetaStageGate }) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 text-[11px] uppercase tracking-wide text-zinc-400">
+            {gate.stage_type} · {gate.source}
+          </div>
+        </div>
+        <BetaStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.current_state}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        Missing: {gate.missing_before_web_beta}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.next_action}
+      </p>
+    </article>
   );
 }
 

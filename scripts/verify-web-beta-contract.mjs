@@ -40,6 +40,7 @@ const files = {
   typedConfirmation: "src/lib/security/typedConfirmation.ts",
   highRiskActionRegistry: "src/lib/security/highRiskActionRegistry.ts",
   webBetaReadiness: "src/lib/sync/webBetaReadiness.ts",
+  webBetaStageGate: "src/lib/sync/webBetaStageGate.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
 };
@@ -233,6 +234,7 @@ function run() {
   const typedConfirmation = readProjectFile(files.typedConfirmation);
   const highRiskActionRegistry = readProjectFile(files.highRiskActionRegistry);
   const webBetaReadiness = readProjectFile(files.webBetaReadiness);
+  const webBetaStageGate = readProjectFile(files.webBetaStageGate);
   const syncShell = readProjectFile(files.syncShell);
   const migration = readProjectFile(files.migration);
 
@@ -273,6 +275,7 @@ function run() {
     [files.typedConfirmation, typedConfirmation],
     [files.highRiskActionRegistry, highRiskActionRegistry],
     [files.webBetaReadiness, webBetaReadiness],
+    [files.webBetaStageGate, webBetaStageGate],
     [files.syncShell, syncShell],
   ]) {
     assertNoLegacySingularEnv(source, label);
@@ -1572,6 +1575,112 @@ function run() {
     syncShell,
     "Deployment target",
     "Sync UI must render the deployment target panel."
+  );
+  assertSourceIncludes(
+    files.webBetaStageGate,
+    webBetaStageGate,
+    'format: "zhinote-web-beta-stage-gate"',
+    "Web Beta stage gate must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.webBetaStageGate,
+    webBetaStageGate,
+    "buildWebBetaStageGateReport",
+    "Web Beta stage gate must expose a reusable builder."
+  );
+  assertSourceIncludes(
+    files.webBetaStageGate,
+    webBetaStageGate,
+    'gate_status: "local-stage-gate-only"',
+    "Web Beta stage gate must remain a local-only report."
+  );
+  assertSourceIncludes(
+    files.webBetaStageGate,
+    webBetaStageGate,
+    'launch_verdict: "not-ready"',
+    "Web Beta stage gate must not claim launch readiness."
+  );
+  for (const [snippet, message] of [
+    [
+      "local_app_can_continue_now: true",
+      "Stage gate must preserve local app continuity.",
+    ],
+    [
+      "web_beta_can_launch_now: false",
+      "Stage gate must not allow Web Beta launch.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Stage gate must not allow cloud sync.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Stage gate must not read page body text.",
+    ],
+    ["reads_file_bytes: false", "Stage gate must not read file bytes."],
+    [
+      "reads_secret_values: false",
+      "Stage gate must not read secret values.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Stage gate must not connect cloud services.",
+    ],
+    ["deploys_app: false", "Stage gate must not deploy the app."],
+    ["creates_accounts: false", "Stage gate must not create accounts."],
+    [
+      "writes_workspace_data: false",
+      "Stage gate must not write workspace data.",
+    ],
+    ["writes_server_data: false", "Stage gate must not write server data."],
+    [
+      "uploads_workspace_data: false",
+      "Stage gate must not upload workspace data.",
+    ],
+    ["enables_sync: false", "Stage gate must not enable sync."],
+    ["enables_ai: false", "Stage gate must not enable AI execution."],
+    [
+      "requires_owner_confirmation_before_cloud: true",
+      "Stage gate must require owner confirmation before cloud work.",
+    ],
+  ]) {
+    assertSourceIncludes(files.webBetaStageGate, webBetaStageGate, snippet, message);
+  }
+  for (const gateId of [
+    "local-workbench",
+    "auth-session",
+    "cloud-database",
+    "private-file-storage",
+    "sync-push-pull",
+    "backup-restore",
+    "permissions-audit",
+    "deployment-release",
+    "owner-beta-decision",
+  ]) {
+    assertSourceIncludes(
+      files.webBetaStageGate,
+      webBetaStageGate,
+      `"${gateId}"`,
+      `Stage gate ${gateId} must remain available.`
+    );
+  }
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildWebBetaStageGateReport",
+    "Sync UI must build the Web Beta stage gate report."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportWebBetaStageGate",
+    "Sync UI must export the Web Beta stage gate report."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Web Beta 阶段门禁",
+    "Sync UI must render the Web Beta stage gate panel."
   );
   assertSourceIncludes(
     files.smokeTestPlan,
@@ -3592,6 +3701,7 @@ function run() {
     permission_check_request_validator_checks: 28,
     permission_server_test_matrix_checks: 32,
     permission_server_readiness_checks: 29,
+    web_beta_stage_gate_checks: 35,
     warnings: warnings.length,
   };
 
