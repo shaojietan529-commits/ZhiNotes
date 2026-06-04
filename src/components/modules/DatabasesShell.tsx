@@ -333,6 +333,19 @@ function DatabasesDashboard() {
     }
   };
 
+  const handleWorkbenchStepNavigate = (
+    step: DatabaseWorkbenchPacket["review_sequence"][number]
+  ) => {
+    if (step.route === "/modules/databases") {
+      document
+        .getElementById(step.target_section_id)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    router.push(step.route);
+  };
+
   const handleExportTemplateRowReceipts = () => {
     setExportingTemplateRowReceipts(true);
     try {
@@ -430,16 +443,19 @@ function DatabasesDashboard() {
           exporting={exportingWorkbench}
           onExport={handleExportWorkbench}
           onOpenRoute={(route) => router.push(route)}
+          onReviewStepOpen={handleWorkbenchStepNavigate}
         />
 
         <TemplateCatalogPanel catalog={templateCatalog} />
 
-        <TemplateRowReadinessPanel
-          report={templateRowReadiness}
-          exporting={exportingTemplateReadiness}
-          onExport={handleExportTemplateReadiness}
-          onOpen={(databaseId) => router.push(`/database/${databaseId}`)}
-        />
+        <div id="databases-template-readiness" className="scroll-mt-6">
+          <TemplateRowReadinessPanel
+            report={templateRowReadiness}
+            exporting={exportingTemplateReadiness}
+            onExport={handleExportTemplateReadiness}
+            onOpen={(databaseId) => router.push(`/database/${databaseId}`)}
+          />
+        </div>
 
         <TemplateRowReceiptHistoryPanel
           receipts={templateRowReceipts}
@@ -448,14 +464,19 @@ function DatabasesDashboard() {
           onExport={handleExportTemplateRowReceipts}
         />
 
-        <DatabaseImportExportReadinessPanel
-          report={importExportReadiness}
-          exporting={exportingImportExportReadiness}
-          onExport={handleExportImportExportReadiness}
-          onOpen={(databaseId) => router.push(`/database/${databaseId}`)}
-        />
+        <div id="databases-import-export-readiness" className="scroll-mt-6">
+          <DatabaseImportExportReadinessPanel
+            report={importExportReadiness}
+            exporting={exportingImportExportReadiness}
+            onExport={handleExportImportExportReadiness}
+            onOpen={(databaseId) => router.push(`/database/${databaseId}`)}
+          />
+        </div>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="databases-create-workspace"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -487,7 +508,10 @@ function DatabasesDashboard() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="databases-dashboard"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -549,7 +573,10 @@ function DatabasesDashboard() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <section
+          id="databases-view-readiness"
+          className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -637,7 +664,10 @@ function DatabasesDashboard() {
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div
+            id="databases-list"
+            className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+          >
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               数据库清单
             </h2>
@@ -659,7 +689,10 @@ function DatabasesDashboard() {
             )}
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div
+            id="databases-privacy-boundary"
+            className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+          >
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               本地安全边界
             </h2>
@@ -726,17 +759,24 @@ function DatabaseWorkbenchPanel({
   exporting,
   onExport,
   onOpenRoute,
+  onReviewStepOpen,
 }: {
   packet: DatabaseWorkbenchPacket;
   exporting: boolean;
   onExport: () => void;
   onOpenRoute: (route: string) => void;
+  onReviewStepOpen: (
+    step: DatabaseWorkbenchPacket["review_sequence"][number]
+  ) => void;
 }) {
   const topActions = packet.actions.slice(0, 8);
   const visibleDatabases = packet.databases.slice(0, 6);
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="databases-workbench"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -780,7 +820,7 @@ function DatabaseWorkbenchPanel({
         <Metric label="空表" value={packet.summary.empty_databases} />
       </div>
       <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="space-y-2">
+        <div id="databases-workbench-routes" className="scroll-mt-6 space-y-2">
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
             工作台路线
           </div>
@@ -794,7 +834,7 @@ function DatabaseWorkbenchPanel({
             ))}
           </div>
         </div>
-        <div className="space-y-2">
+        <div id="databases-priority-actions" className="scroll-mt-6 space-y-2">
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
             优先行动
           </div>
@@ -817,7 +857,7 @@ function DatabaseWorkbenchPanel({
         </div>
       </div>
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-2">
+        <div id="databases-workbench-databases" className="scroll-mt-6 space-y-2">
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
             Tracker 对齐
           </div>
@@ -838,7 +878,7 @@ function DatabaseWorkbenchPanel({
             </p>
           )}
         </div>
-        <div className="space-y-2">
+        <div id="databases-review-sequence" className="scroll-mt-6 space-y-2">
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
             建议顺序
           </div>
@@ -846,7 +886,7 @@ function DatabaseWorkbenchPanel({
             <DatabaseWorkbenchStepRow
               key={step.id}
               step={step}
-              onOpen={() => onOpenRoute(step.route)}
+              onOpen={() => onReviewStepOpen(step)}
             />
           ))}
           <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
@@ -1009,7 +1049,7 @@ function DatabaseWorkbenchStepRow({
           onClick={onOpen}
           className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
         >
-          打开
+          打开步骤
         </button>
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">

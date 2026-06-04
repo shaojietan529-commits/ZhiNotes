@@ -92,6 +92,7 @@ export interface DatabaseWorkbenchReviewStep {
   order: number;
   title: string;
   route: string;
+  target_section_id: string;
   reason: string;
   completion_signal: string;
 }
@@ -574,6 +575,7 @@ function buildReviewSequence(
         1,
         "创建第一个投研 tracker",
         "/modules/databases",
+        "databases-create-workspace",
         "没有数据库时，后续 relation、模板行、导入导出都没有承载容器。",
         "至少创建一个公司、报告、会议或组合 tracker。"
       ),
@@ -589,6 +591,7 @@ function buildReviewSequence(
         steps.length + 1,
         "先补 relation 字段",
         "/modules/research-graph",
+        "databases-relation-setup",
         "投研平台的核心是把公司、报告、会议、memo 和组合连接起来。",
         "关键 tracker 至少有一个 relation 字段。"
       )
@@ -602,6 +605,7 @@ function buildReviewSequence(
         steps.length + 1,
         "用模板行建立首批结构",
         "/modules/databases",
+        "databases-template-readiness",
         "模板行能让投研资产用一致结构进入数据库，后面更容易搜索、关联和复盘。",
         "空 tracker 至少有一批本地模板 rows，敏感投资字段保持人工填写。"
       )
@@ -615,6 +619,7 @@ function buildReviewSequence(
         steps.length + 1,
         "补常用视图",
         "/modules/databases",
+        "databases-view-readiness",
         "不同投研动作需要不同视角：看板看状态，日历看催化剂，时间线看事件，图表看分布。",
         "核心 tracker 保存了适合自己字段结构的视图。"
       )
@@ -628,6 +633,7 @@ function buildReviewSequence(
         steps.length + 1,
         "最后处理导入导出",
         "/modules/databases",
+        "databases-import-export-readiness",
         "导入导出会碰到真实 row values 或 spreadsheet values，应该放在结构复核之后。",
         "只在具体数据库页手动执行导入或导出，并留下本地 receipt。"
       )
@@ -641,6 +647,7 @@ function buildReviewSequence(
         1,
         "人工复核数据库工作流",
         "/modules/databases",
+        "databases-workbench-databases",
         "当前没有紧急缺口，可以继续按投研流程检查 tracker 是否符合真实使用方式。",
         "确认每个 tracker 的角色、视图、模板行和导入导出路径都清楚。"
       )
@@ -655,6 +662,7 @@ function reviewStep(
   order: number,
   title: string,
   route: string,
+  targetSectionId: string,
   reason: string,
   completionSignal: string
 ): DatabaseWorkbenchReviewStep {
@@ -663,6 +671,7 @@ function reviewStep(
     order,
     title,
     route,
+    target_section_id: targetSectionId,
     reason,
     completion_signal: completionSignal,
   };

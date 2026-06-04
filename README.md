@@ -261,6 +261,9 @@ Current local actions:
 - Use the database workbench to see which tracker needs relation fields, first
   template rows, next views, or import/export confirmation before editing the
   underlying database.
+- Use the database workbench review sequence to jump through tracker setup:
+  create the first tracker, review relation schema, template-row readiness,
+  view readiness, and import/export boundaries.
 - Review coverage for table, list, kanban, calendar, gallery, timeline, chart,
   form, and feed views.
 - Review and export local template-row readiness. The report checks whether
