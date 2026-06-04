@@ -386,6 +386,13 @@ Current local actions:
   reports, related meetings, and tracker setup. It does not read or export page
   text, database row values, file bytes, holdings, trading plans, cloud data, AI
   prompts, tokens, or credentials, and it does not write workspace data.
+- Review and export a local company research workbench packet. The packet
+  combines coverage, playbook, dossier, and tracker-intake metadata into one
+  action queue for company foundation, thesis workflow, earnings/valuation,
+  research links, tracker intake, review cadence, and privacy boundary review.
+  It exports aggregated routing only, not company names, page titles, page text,
+  row values, file names, file bytes, holdings, trading plans, cloud data, AI
+  prompts, tokens, or credentials.
 - Use the company intake desk to create one local company tracker row from a
   company research page. The intake action maps Company page relation, Status,
   Thesis, identifiable Ticker, valuation assumptions, and key metrics, checks
@@ -395,10 +402,10 @@ Current local actions:
   upload, or call AI.
 - Open company research from the sidebar Platform section or Cmd/Ctrl+K.
 
-The company research playbook and company intake desk are local-only. They read
-coverage structure and tracker field schema, but they do not read or export page
-text, database row values, file bytes, holdings, trading plans, cloud data, AI
-prompts, tokens, or credentials.
+The company research playbook, workbench packet, and company intake desk are
+local-only. They read coverage structure and tracker field schema, but they do
+not read or export page text, database row values, file bytes, holdings, trading
+plans, cloud data, AI prompts, tokens, or credentials.
 
 ## Report Library Module
 

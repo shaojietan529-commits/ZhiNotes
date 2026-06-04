@@ -34,6 +34,12 @@ import {
   findExistingCompanyTrackerRow,
   type CompanyTrackerIntakeItem,
 } from "@/lib/company/companyTrackerIntake";
+import {
+  buildCompanyResearchWorkbenchPacket,
+  type CompanyResearchWorkbenchPacket,
+  type CompanyResearchWorkbenchPriority,
+  type CompanyResearchWorkbenchStatus,
+} from "@/lib/company/companyResearchWorkbench";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -143,6 +149,7 @@ function CompanyResearchDashboard() {
   const [exportingCoverage, setExportingCoverage] = useState(false);
   const [exportingDossier, setExportingDossier] = useState(false);
   const [exportingPlaybook, setExportingPlaybook] = useState(false);
+  const [exportingWorkbench, setExportingWorkbench] = useState(false);
   const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
     null
   );
@@ -200,6 +207,16 @@ function CompanyResearchDashboard() {
   const companyTrackerIntakeItems = useMemo(
     () => buildCompanyTrackerIntakeItems(companyPages, companyCoverage),
     [companyCoverage, companyPages]
+  );
+  const companyWorkbench = useMemo(
+    () =>
+      buildCompanyResearchWorkbenchPacket({
+        coverage: companyCoverage,
+        playbook: companyPlaybook,
+        dossier: companyDossier,
+        trackerIntakeItems: companyTrackerIntakeItems,
+      }),
+    [companyCoverage, companyDossier, companyPlaybook, companyTrackerIntakeItems]
   );
 
   const companyModule = PLATFORM_MODULES.find(
@@ -272,6 +289,24 @@ function CompanyResearchDashboard() {
       window.alert("公司研究 Dossier 导出失败，请查看控制台。");
     } finally {
       setExportingDossier(false);
+    }
+  };
+
+  const handleExportWorkbench = () => {
+    setExportingWorkbench(true);
+    try {
+      downloadJsonFile(
+        `zhinote-company-workbench-${fileSafeTimestamp()}.json`,
+        {
+          ...companyWorkbench,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export company workbench:", err);
+      window.alert("公司研究工作台导出失败，请查看控制台。");
+    } finally {
+      setExportingWorkbench(false);
     }
   };
 
@@ -402,6 +437,109 @@ function CompanyResearchDashboard() {
                 />
               )}
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                公司研究工作台
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把 coverage、Playbook、Dossier 和公司入库台合并成一个本地
+                action packet：先建公司中枢，再补投资假设、业绩估值、研究关联、
+                tracker intake 和复盘节奏。导出不包含公司名称、页面标题、页面正文、
+                数据库 row values、文件名、文件 bytes、持仓或交易计划。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportWorkbench}
+              disabled={exportingWorkbench}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingWorkbench ? "导出中..." : "导出公司工作台"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <CompanyWorkbenchMetric
+              label="Coverage 缺口"
+              value={companyWorkbench.summary.missing_areas}
+            />
+            <CompanyWorkbenchMetric
+              label="公司页"
+              value={companyWorkbench.summary.company_pages}
+            />
+            <CompanyWorkbenchMetric
+              label="待补 Dossier"
+              value={companyWorkbench.summary.incomplete_dossiers}
+            />
+            <CompanyWorkbenchMetric
+              label="Playbook 动作"
+              value={companyWorkbench.summary.playbook_actions}
+            />
+            <CompanyWorkbenchMetric
+              label="入库候选"
+              value={companyWorkbench.summary.tracker_intake_candidates}
+            />
+            <CompanyWorkbenchMetric
+              label="总动作"
+              value={companyWorkbench.summary.actions}
+            />
+            <CompanyWorkbenchMetric
+              label="高优先级"
+              value={companyWorkbench.summary.high_priority_actions}
+            />
+            <CompanyWorkbenchMetric
+              label="需确认"
+              value={companyWorkbench.summary.manual_confirmation_actions}
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                工作台 lanes
+              </div>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {companyWorkbench.lanes.map((lane) => (
+                  <CompanyWorkbenchLaneCard key={lane.id} lane={lane} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                优先动作
+              </div>
+              <div className="mt-2 space-y-2">
+                {companyWorkbench.actions.slice(0, 6).map((action) => (
+                  <CompanyWorkbenchActionCard
+                    key={action.id}
+                    action={action}
+                    onNavigate={(route) => router.push(route)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {companyWorkbench.review_sequence.map((step) => (
+              <div
+                key={step.id}
+                className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800"
+              >
+                <div className="text-[11px] text-zinc-400">Step {step.order}</div>
+                <div className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
+                  {step.title}
+                </div>
+                <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                  {step.reason}
+                </p>
+                <p className="mt-2 leading-5 text-zinc-400">
+                  完成信号：{step.completion_signal}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -871,6 +1009,149 @@ function CompanyResearchDashboard() {
         </section>
       </div>
     </div>
+  );
+}
+
+function CompanyWorkbenchMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function CompanyWorkbenchLaneCard({
+  lane,
+}: {
+  lane: CompanyResearchWorkbenchPacket["lanes"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {lane.title}
+        </div>
+        <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          {lane.action_count} 动作
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {lane.description}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          高优先级 {lane.high_priority_count}
+        </span>
+        <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          {lane.route}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function CompanyWorkbenchActionCard({
+  action,
+  onNavigate,
+}: {
+  action: CompanyResearchWorkbenchPacket["actions"][number];
+  onNavigate: (route: string) => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <CompanyWorkbenchPriorityPill priority={action.priority} />
+        <CompanyWorkbenchStatusPill status={action.status} />
+        {action.requires_manual_confirmation && (
+          <span className="rounded-md bg-amber-50 px-2 py-1 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+            需确认
+          </span>
+        )}
+      </div>
+      <div className="mt-3 font-semibold text-zinc-900 dark:text-zinc-100">
+        {action.title}
+      </div>
+      <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+        {action.next_action}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {action.applies_to.map((areaId) => (
+          <span
+            key={areaId}
+            className="rounded bg-zinc-50 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+          >
+            {getCoverageAreaLabel(areaId)}
+          </span>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => onNavigate(action.action_route)}
+        className="mt-3 rounded-md border border-zinc-300 px-2 py-1 text-[11px] text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        {action.route_label}
+      </button>
+    </article>
+  );
+}
+
+function CompanyWorkbenchPriorityPill({
+  priority,
+}: {
+  priority: CompanyResearchWorkbenchPriority;
+}) {
+  const labels: Record<CompanyResearchWorkbenchPriority, string> = {
+    high: "高优先级",
+    medium: "中优先级",
+    low: "低优先级",
+  };
+  const className =
+    priority === "high"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : priority === "medium"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[priority]}
+    </span>
+  );
+}
+
+function CompanyWorkbenchStatusPill({
+  status,
+}: {
+  status: CompanyResearchWorkbenchStatus;
+}) {
+  const labels: Record<CompanyResearchWorkbenchStatus, string> = {
+    ready: "Ready",
+    missing: "Missing",
+    "manual-confirmation": "需确认",
+    "blocked-boundary": "边界阻止",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : status === "blocked-boundary"
+          ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

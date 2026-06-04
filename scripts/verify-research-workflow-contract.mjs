@@ -13,6 +13,7 @@ const files = {
   companyCoverage: "src/lib/company/companyCoverage.ts",
   companyDossier: "src/lib/company/companyResearchDossier.ts",
   companyPlaybook: "src/lib/company/companyResearchPlaybook.ts",
+  companyWorkbench: "src/lib/company/companyResearchWorkbench.ts",
   companyTrackerIntake: "src/lib/company/companyTrackerIntake.ts",
   meetingFollowUp: "src/lib/meetings/meetingFollowUp.ts",
   meetingDecisionLedger: "src/lib/meetings/meetingDecisionLedger.ts",
@@ -141,6 +142,7 @@ function run() {
   const companyCoverage = readProjectFile(files.companyCoverage);
   const companyDossier = readProjectFile(files.companyDossier);
   const companyPlaybook = readProjectFile(files.companyPlaybook);
+  const companyWorkbench = readProjectFile(files.companyWorkbench);
   const companyTrackerIntake = readProjectFile(files.companyTrackerIntake);
   const meetingFollowUp = readProjectFile(files.meetingFollowUp);
   const meetingDecisionLedger = readProjectFile(files.meetingDecisionLedger);
@@ -357,6 +359,95 @@ function run() {
     "buildCompanyResearchPlaybook",
     "Company research playbook must expose a reusable builder."
   );
+  assertIncludes(
+    files.companyWorkbench,
+    companyWorkbench,
+    'format: "zhinote-company-research-workbench-packet"',
+    "Company research workbench must define a local packet format."
+  );
+  assertIncludes(
+    files.companyWorkbench,
+    companyWorkbench,
+    "buildCompanyResearchWorkbenchPacket",
+    "Company research workbench must expose a reusable builder."
+  );
+  for (const snippet of [
+    'packet_status: "local-company-workbench-only"',
+    "local_packet_only: true",
+    "reads_company_coverage_report: true",
+    "reads_company_playbook: true",
+    "reads_company_dossier_plan: true",
+    "reads_tracker_intake_metadata: true",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "includes_page_titles: false",
+    "reads_database_rows: false",
+    "includes_database_row_values: false",
+    "reads_file_names: false",
+    "reads_file_bytes: false",
+    "includes_file_bytes: false",
+    "includes_holdings: false",
+    "includes_trading_plans: false",
+    "writes_workspace_data: false",
+    "creates_pages: false",
+    "creates_database_rows: false",
+    "updates_relation_values: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.companyWorkbench,
+      companyWorkbench,
+      snippet,
+      "Company research workbench must preserve local-only privacy and write boundaries."
+    );
+  }
+  for (const snippet of [
+    '"company-foundation"',
+    '"thesis-workflow"',
+    '"earnings-valuation"',
+    '"research-links"',
+    '"tracker-intake"',
+    '"review-cadence"',
+    '"privacy-boundary"',
+    "forbidden_actions",
+    "required_verification_commands",
+    "export_company_names_from_workbench",
+    "export_page_titles_from_workbench",
+    "auto_create_tracker_rows",
+    "auto_write_relation_values",
+    "send_company_research_to_ai",
+    "sync_company_research_to_cloud",
+    "npm run verify:research-workflow",
+    "npm run verify:modules",
+    "npm run lint",
+    "npm run build",
+  ]) {
+    assertIncludes(
+      files.companyWorkbench,
+      companyWorkbench,
+      snippet,
+      "Company research workbench must keep lanes, forbidden actions, and verification commands."
+    );
+  }
+  for (const snippet of [
+    "buildCompanyResearchWorkbenchPacket",
+    "companyWorkbench",
+    "handleExportWorkbench",
+    "公司研究工作台",
+    "导出公司工作台",
+    "CompanyWorkbenchLaneCard",
+    "CompanyWorkbenchActionCard",
+    "导出不包含公司名称、页面标题",
+  ]) {
+    assertIncludes(
+      files.companyShell,
+      companyShell,
+      snippet,
+      "Company module must render and export the company research workbench packet."
+    );
+  }
   assertIncludes(
     files.companyDossier,
     companyDossier,
