@@ -561,9 +561,14 @@ Current local actions:
 
 - Review a local file workbench generated from IndexedDB file metadata and the
   file preview capability matrix.
+- Review the file library format route matrix directly in `/modules/files`,
+  including supported extensions, local file counts, confirmation needs, and
+  privacy boundaries for each format family.
 - Route HTML reports, Markdown notes, PDFs, Office files, notebooks, archives,
   spreadsheets, media, and unknown files into native preview, editable import,
   database import, metadata review, local retain, or cloud/AI boundary lanes.
+- Use the file review sequence to jump to the matching local module or section
+  for native preview, conversion review, database import, and sync/AI boundary.
 - Open the Reports module for real local file upload, the Notes module for
   editable writing, and the Databases module for confirmed spreadsheet import.
 - Export a metadata-only file workbench. The export excludes file names, file

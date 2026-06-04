@@ -87,6 +87,18 @@ function FilesDashboard() {
     }
   };
 
+  const handleReviewStepOpen = (
+    step: FileLibraryWorkbenchReport["review_sequence"][number]
+  ) => {
+    if (step.route === "/modules/files") {
+      document
+        .getElementById(step.target_section_id)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    router.push(step.route);
+  };
+
   return (
     <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -141,7 +153,10 @@ function FilesDashboard() {
           <Metric label="动作" value={workbench.summary.actions} />
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <section
+          id="files-intake-entrypoints"
+          className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+        >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
@@ -164,7 +179,10 @@ function FilesDashboard() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <section
+          id="files-workbench-lanes"
+          className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
@@ -216,8 +234,34 @@ function FilesDashboard() {
           </div>
         </section>
 
+        <section
+          id="files-format-matrix"
+          className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+        >
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+              格式路线矩阵
+            </p>
+            <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+              多格式文件在 page 里的处理方式
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+              这张矩阵来自本地能力表和 IndexedDB 文件 metadata，只显示格式、
+              扩展名、支持等级和下一步路线；不读取文件正文、bytes、表格值或上传文件。
+            </p>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {workbench.format_groups.map((group) => (
+              <FileFormatGroupCard key={group.id} group={group} />
+            ))}
+          </div>
+        </section>
+
         <section className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-          <div className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <div
+            id="files-local-files"
+            className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+          >
             <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
               本地文件
             </h2>
@@ -243,7 +287,10 @@ function FilesDashboard() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <div
+            id="files-next-actions"
+            className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+          >
             <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
               下一步动作
             </h2>
@@ -285,13 +332,16 @@ function FilesDashboard() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <section
+          id="files-review-sequence"
+          className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+        >
           <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             复核顺序
           </h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {workbench.review_sequence.map((step) => (
-              <div
+              <article
                 key={step.id}
                 className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950"
               >
@@ -307,12 +357,22 @@ function FilesDashboard() {
                 <p className="mt-3 text-xs leading-5 text-zinc-400">
                   完成信号：{step.completion_signal}
                 </p>
-              </div>
+                <button
+                  type="button"
+                  onClick={() => handleReviewStepOpen(step)}
+                  className="mt-3 rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-white dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                >
+                  打开步骤
+                </button>
+              </article>
             ))}
           </div>
         </section>
 
-        <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <section
+          id="files-privacy-boundary"
+          className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+        >
           <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             禁止动作
           </h2>
@@ -355,6 +415,41 @@ function Metric({ label, value }: { label: string; value: string | number }) {
         {value}
       </p>
     </div>
+  );
+}
+
+function FileFormatGroupCard({
+  group,
+}: {
+  group: FileLibraryWorkbenchReport["format_groups"][number];
+}) {
+  return (
+    <article className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-zinc-950 dark:text-zinc-50">
+            {group.label}
+          </h3>
+          <p className="mt-1 text-xs text-zinc-400">
+            {group.extensions.join(" / ")}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-zinc-200 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+          {group.support_level}
+        </span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <span>{group.local_file_count} 个本地文件</span>
+        <span>{group.route_lane_id}</span>
+        {group.confirmation_required && <span>需确认</span>}
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {group.next_action}
+      </p>
+      <p className="mt-3 border-t border-zinc-200 pt-3 text-xs leading-5 text-zinc-400 dark:border-zinc-800">
+        {group.privacy_boundary}
+      </p>
+    </article>
   );
 }
 

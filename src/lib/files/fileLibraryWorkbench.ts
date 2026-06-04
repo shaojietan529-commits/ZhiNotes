@@ -92,6 +92,7 @@ export interface FileLibraryReviewStep {
   order: number;
   title: string;
   route: string;
+  target_section_id: string;
   reason: string;
   completion_signal: string;
 }
@@ -511,6 +512,7 @@ function buildReviewSequence(
         1,
         "先通过报告模块添加本地文件",
         "/modules/reports",
+        "reports-preview-routing",
         "文件需要挂在 ZhiNotes page 上，才能进入原生预览、可编辑导入和关系追踪。",
         "至少有一个本地 file preview block 和 IndexedDB 文件。"
       ),
@@ -525,6 +527,7 @@ function buildReviewSequence(
         steps.length + 1,
         "先确认原生预览",
         "/modules/reports",
+        "reports-preview-routing",
         "HTML/PDF/media/text 适合先留在 page 中原生查看，避免过早转换损失信息。",
         "关键文件能在 page 中预览，HTML 外部资源保持阻止或有 receipt。"
       )
@@ -537,6 +540,7 @@ function buildReviewSequence(
         steps.length + 1,
         "再处理可编辑导入",
         "/modules/reports",
+        "reports-conversion-review",
         "Markdown、Word、PPT、RTF、EPUB、Notebook 进入页面前需要格式复核。",
         "转换后的内容由用户确认后再作为投研笔记使用。"
       )
@@ -549,6 +553,7 @@ function buildReviewSequence(
         steps.length + 1,
         "表格最后入库",
         "/modules/databases",
+        "database-import-export-readiness",
         "Spreadsheet 入库会创建字段和 rows，属于批量写入，必须晚于结构复核。",
         "导入前确认字段、行数、目标数据库、回滚边界和 typed confirmation。"
       )
@@ -560,6 +565,7 @@ function buildReviewSequence(
       steps.length + 1,
       "任何外发都走同步和权限边界",
       "/modules/sync",
+      "sync-ai-provider-boundary",
       "文件是高敏感数据源，AI、云同步、共享链接和外部资源加载必须单独确认。",
       "没有文件 bytes、文件文本或文件名被发送到外部。"
     )
@@ -572,6 +578,7 @@ function reviewStep(
   order: number,
   title: string,
   route: string,
+  targetSectionId: string,
   reason: string,
   completionSignal: string
 ): FileLibraryReviewStep {
@@ -580,6 +587,7 @@ function reviewStep(
     order,
     title,
     route,
+    target_section_id: targetSectionId,
     reason,
     completion_signal: completionSignal,
   };
