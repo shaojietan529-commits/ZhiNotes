@@ -267,6 +267,11 @@ function ResearchGraphDashboard() {
           <BoundaryPanel report={graphReport} />
         </section>
 
+        <HealthSummaryPanel
+          items={graphReport.health_summary}
+          onOpenRoute={(route) => router.push(route)}
+        />
+
         <SchemaGapPanel
           gaps={schemaGaps}
           totalGaps={graphReport.schema_gaps.length}
@@ -427,6 +432,128 @@ function BoundaryItem({ label, value }: { label: string; value: string }) {
       <span className="font-medium text-zinc-800 dark:text-zinc-200">{value}</span>
     </div>
   );
+}
+
+function HealthSummaryPanel({
+  items,
+  onOpenRoute,
+}: {
+  items: ResearchGraphReport["health_summary"];
+  onOpenRoute: (route: string) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            连接健康摘要
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">
+            按公司、报告、会议和组合检查跟踪表、relation 字段和待补关系值。
+          </p>
+        </div>
+        <span className="text-xs text-zinc-400">本地 metadata only</span>
+      </div>
+      <div className="mt-3 grid gap-2 xl:grid-cols-4">
+        {items.map((item) => (
+          <article
+            key={item.kind}
+            className="flex min-h-[180px] flex-col justify-between rounded-md border border-zinc-100 p-3 dark:border-zinc-800"
+          >
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    {item.kind_label}
+                  </h3>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    {getHealthStatusLabel(item.status)}
+                  </p>
+                </div>
+                <span className={getHealthBadgeClassName(item.status)}>
+                  {item.connection_rate}%
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <HealthNumber label="资产" value={item.assets} />
+                <HealthNumber label="已连" value={item.connected_assets} />
+                <HealthNumber label="待补" value={item.unlinked_assets} />
+              </div>
+              <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                跟踪表 {item.tracker_databases} 个 · relation 连接{" "}
+                {item.relation_links} 条 · 建议 {item.completion_actions} 条
+              </p>
+              <p className="mt-2 text-xs leading-5 text-zinc-400">
+                必需关系：{formatRelationLabels(item.required_relation_labels)}
+              </p>
+              {item.missing_relation_labels.length > 0 && (
+                <p className="mt-1 text-xs leading-5 text-amber-600 dark:text-amber-300">
+                  缺少：{formatRelationLabels(item.missing_relation_labels)}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenRoute(item.next_action.route)}
+              className="mt-3 w-fit rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              {item.next_action.label}
+            </button>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function HealthNumber({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md bg-zinc-50 px-2 py-1.5 dark:bg-zinc-900">
+      <div className="text-zinc-400">{label}</div>
+      <div className="mt-0.5 font-semibold text-zinc-900 dark:text-zinc-100">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function getHealthStatusLabel(
+  status: ResearchGraphReport["health_summary"][number]["status"]
+) {
+  switch (status) {
+    case "ready":
+      return "连接健康";
+    case "needs-assets":
+      return "缺研究资产";
+    case "needs-links":
+      return "缺 relation 值";
+    case "needs-schema":
+      return "缺 relation 字段";
+    case "needs-tracker":
+      return "缺跟踪表";
+  }
+}
+
+function getHealthBadgeClassName(
+  status: ResearchGraphReport["health_summary"][number]["status"]
+) {
+  const base =
+    "shrink-0 rounded-md px-2 py-1 text-xs font-semibold";
+  if (status === "ready") {
+    return `${base} bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300`;
+  }
+  if (status === "needs-links") {
+    return `${base} bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300`;
+  }
+  if (status === "needs-assets") {
+    return `${base} bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300`;
+  }
+  return `${base} bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300`;
+}
+
+function formatRelationLabels(labels: string[]) {
+  if (labels.length === 0) return "无";
+  return labels.join(" / ");
 }
 
 function SchemaGapPanel({

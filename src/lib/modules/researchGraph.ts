@@ -177,8 +177,42 @@ export interface ResearchGraphReport {
     unlinked_assets: number;
     relation_links: number;
   }>;
+  health_summary: ResearchGraphHealthSummary[];
   completion_plan: ResearchGraphCompletionPlan;
   schema_gaps: ResearchGraphSchemaGap[];
+}
+
+export type ResearchGraphHealthStatus =
+  | "ready"
+  | "needs-assets"
+  | "needs-links"
+  | "needs-schema"
+  | "needs-tracker";
+
+export interface ResearchGraphHealthSummary {
+  kind: ResearchAssetKind;
+  kind_label: string;
+  module_route: string;
+  status: ResearchGraphHealthStatus;
+  assets: number;
+  connected_assets: number;
+  connection_rate: number;
+  unlinked_assets: number;
+  relation_links: number;
+  tracker_databases: number;
+  required_relation_kinds: ResearchAssetKind[];
+  required_relation_labels: string[];
+  present_relation_kinds: ResearchAssetKind[];
+  present_relation_labels: string[];
+  missing_relation_kinds: ResearchAssetKind[];
+  missing_relation_labels: string[];
+  schema_gaps: number;
+  completion_actions: number;
+  next_action: {
+    label: string;
+    route: string;
+    writes_workspace_data: boolean;
+  };
 }
 
 const RELATION_FIELD_LABELS: Array<[string, string]> = [
@@ -416,6 +450,27 @@ export function buildResearchGraphReport(
 
   const completionPlan = buildResearchGraphCompletionPlan(graph, snapshots);
   const schemaGaps = buildResearchGraphSchemaGaps(snapshots);
+  const coverage = RESEARCH_ASSET_KINDS.map((kind) => {
+    const assets = graph.assets.filter((asset) => asset.kind === kind);
+    return {
+      kind,
+      label: getResearchAssetKindLabel(kind),
+      assets: assets.length,
+      connected_assets: assets.filter((asset) => connectedAssetIds.has(asset.id))
+        .length,
+      unlinked_assets: graph.unlinkedAssets.filter((asset) => asset.kind === kind)
+        .length,
+      relation_links: graph.relationLinks.filter(
+        (link) => link.source.kind === kind || link.target.kind === kind
+      ).length,
+    };
+  });
+  const healthSummary = buildResearchGraphHealthSummary(
+    coverage,
+    snapshots,
+    completionPlan,
+    schemaGaps
+  );
 
   return {
     format: "zhinote-research-graph-report",
@@ -481,24 +536,81 @@ export function buildResearchGraphReport(
       updated_at: asset.updatedAt,
     })),
     database_surfaces: databaseSurfaces,
-    coverage: RESEARCH_ASSET_KINDS.map((kind) => {
-      const assets = graph.assets.filter((asset) => asset.kind === kind);
-      return {
-        kind,
-        label: getResearchAssetKindLabel(kind),
-        assets: assets.length,
-        connected_assets: assets.filter((asset) => connectedAssetIds.has(asset.id))
-          .length,
-        unlinked_assets: graph.unlinkedAssets.filter((asset) => asset.kind === kind)
-          .length,
-        relation_links: graph.relationLinks.filter(
-          (link) => link.source.kind === kind || link.target.kind === kind
-        ).length,
-      };
-    }),
+    coverage,
+    health_summary: healthSummary,
     completion_plan: completionPlan,
     schema_gaps: schemaGaps,
   };
+}
+
+export function buildResearchGraphHealthSummary(
+  coverage: ResearchGraphReport["coverage"],
+  snapshots: ResearchDatabaseSnapshot[],
+  completionPlan: ResearchGraphCompletionPlan,
+  schemaGaps: ResearchGraphSchemaGap[]
+): ResearchGraphHealthSummary[] {
+  return RESEARCH_ASSET_KINDS.map((kind) => {
+    const item = coverage.find((coverageItem) => coverageItem.kind === kind);
+    const trackerDatabases = snapshots.filter(
+      (snapshot) => classifyResearchDatabase(snapshot.database) === kind
+    );
+    const requiredRelationKinds = getExpectedRelationKinds(kind);
+    const missingRelationKinds = getMissingRelationKindsForHealth(
+      kind,
+      trackerDatabases.length,
+      requiredRelationKinds,
+      schemaGaps
+    );
+    const presentRelationKinds = requiredRelationKinds.filter(
+      (relationKind) => !missingRelationKinds.includes(relationKind)
+    );
+    const schemaGapCount = schemaGaps.filter(
+      (gap) => gap.database_kind === kind
+    ).length;
+    const completionActions = completionPlan.actions.filter(
+      (action) => action.asset_kind === kind
+    );
+    const connectionRate = item?.assets
+      ? Math.round((item.connected_assets / item.assets) * 100)
+      : 0;
+    const status = getResearchGraphHealthStatus({
+      assets: item?.assets ?? 0,
+      unlinkedAssets: item?.unlinked_assets ?? 0,
+      trackerDatabases: trackerDatabases.length,
+      missingRelationKinds: missingRelationKinds.length,
+    });
+
+    return {
+      kind,
+      kind_label: getResearchAssetKindLabel(kind),
+      module_route: getResearchModuleRoute(kind),
+      status,
+      assets: item?.assets ?? 0,
+      connected_assets: item?.connected_assets ?? 0,
+      connection_rate: connectionRate,
+      unlinked_assets: item?.unlinked_assets ?? 0,
+      relation_links: item?.relation_links ?? 0,
+      tracker_databases: trackerDatabases.length,
+      required_relation_kinds: requiredRelationKinds,
+      required_relation_labels: requiredRelationKinds.map(getResearchAssetKindLabel),
+      present_relation_kinds: presentRelationKinds,
+      present_relation_labels: presentRelationKinds.map(getResearchAssetKindLabel),
+      missing_relation_kinds: missingRelationKinds,
+      missing_relation_labels: missingRelationKinds.map(getResearchAssetKindLabel),
+      schema_gaps:
+        trackerDatabases.length === 0
+          ? requiredRelationKinds.length
+          : schemaGapCount,
+      completion_actions: completionActions.length,
+      next_action: getResearchGraphHealthNextAction(
+        kind,
+        trackerDatabases[0]?.database.id ?? null,
+        missingRelationKinds.length,
+        completionActions[0] ?? null,
+        item?.assets ?? 0
+      ),
+    };
+  });
 }
 
 export function buildResearchGraphCompletionPlan(
@@ -665,6 +777,90 @@ function getSuggestedRelationFieldName(
   if (targetKind === "meeting") return "Related meetings";
   if (targetKind === "portfolio") return "Related portfolio";
   return `${getResearchAssetKindLabel(sourceKind)} relation`;
+}
+
+function getMissingRelationKindsForHealth(
+  kind: ResearchAssetKind,
+  trackerDatabases: number,
+  requiredRelationKinds: ResearchAssetKind[],
+  schemaGaps: ResearchGraphSchemaGap[]
+) {
+  if (trackerDatabases === 0) return requiredRelationKinds;
+
+  const missingKinds = new Set(
+    schemaGaps
+      .filter((gap) => gap.database_kind === kind)
+      .map((gap) => gap.missing_relation_kind)
+  );
+  return requiredRelationKinds.filter((relationKind) =>
+    missingKinds.has(relationKind)
+  );
+}
+
+function getResearchGraphHealthStatus({
+  assets,
+  unlinkedAssets,
+  trackerDatabases,
+  missingRelationKinds,
+}: {
+  assets: number;
+  unlinkedAssets: number;
+  trackerDatabases: number;
+  missingRelationKinds: number;
+}): ResearchGraphHealthStatus {
+  if (trackerDatabases === 0) return "needs-tracker";
+  if (missingRelationKinds > 0) return "needs-schema";
+  if (assets === 0) return "needs-assets";
+  if (unlinkedAssets > 0) return "needs-links";
+  return "ready";
+}
+
+function getResearchGraphHealthNextAction(
+  kind: ResearchAssetKind,
+  trackerDatabaseId: string | null,
+  missingRelationKinds: number,
+  completionAction: ResearchGraphCompletionAction | null,
+  assets: number
+) {
+  const kindLabel = getResearchAssetKindLabel(kind);
+
+  if (!trackerDatabaseId) {
+    return {
+      label: `创建${kindLabel}跟踪表`,
+      route: getResearchModuleRoute(kind),
+      writes_workspace_data: false,
+    };
+  }
+
+  if (missingRelationKinds > 0) {
+    return {
+      label: "补 relation 字段",
+      route: `/database/${trackerDatabaseId}`,
+      writes_workspace_data: true,
+    };
+  }
+
+  if (completionAction) {
+    return {
+      label: "补 relation 值",
+      route: completionAction.database_route,
+      writes_workspace_data: false,
+    };
+  }
+
+  if (assets === 0) {
+    return {
+      label: `创建${kindLabel}资产`,
+      route: getResearchModuleRoute(kind),
+      writes_workspace_data: false,
+    };
+  }
+
+  return {
+    label: "继续维护",
+    route: getResearchModuleRoute(kind),
+    writes_workspace_data: false,
+  };
 }
 
 function createAsset(page: Page, kind: ResearchAssetKind): ResearchAsset {

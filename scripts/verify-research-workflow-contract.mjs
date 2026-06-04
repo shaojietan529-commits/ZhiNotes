@@ -160,9 +160,49 @@ function run() {
   assertIncludes(
     files.graph,
     graph,
+    "buildResearchGraphHealthSummary",
+    "Research graph must expose a reusable local health summary builder."
+  );
+  assertIncludes(
+    files.graph,
+    graph,
+    "health_summary",
+    "Research graph export must include per-module connection health."
+  );
+  assertIncludes(
+    files.graph,
+    graph,
     "export { getResearchAssetKindLabel }",
     "Research graph must preserve the existing asset-label export for callers."
   );
+  for (const snippet of [
+    "needs-tracker",
+    "needs-schema",
+    "needs-links",
+    "required_relation_kinds",
+    "missing_relation_kinds",
+    "writes_workspace_data",
+  ]) {
+    assertIncludes(
+      files.graph,
+      graph,
+      snippet,
+      "Research graph health summary must explain setup, schema, link, and write boundaries."
+    );
+  }
+  for (const snippet of [
+    "连接健康摘要",
+    "getHealthStatusLabel",
+    "本地 metadata only",
+    "formatRelationLabels",
+  ]) {
+    assertIncludes(
+      files.graphShell,
+      graphShell,
+      snippet,
+      "Research graph shell must render the local connection health summary."
+    );
+  }
   assertIncludes(
     files.companyCoverage,
     companyCoverage,
