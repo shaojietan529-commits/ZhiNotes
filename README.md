@@ -327,6 +327,11 @@ Current local actions:
   page-level file preview block attributes and shows file kind, priority,
   workflow stage, relation gaps, and next action without reading file bytes,
   calling AI, connecting cloud services, or uploading data.
+- Review and export a local next-step review queue. The queue turns intake
+  files into operational research workstreams such as first-pass reading,
+  conversion review, spreadsheet/database review, source triage, relation
+  linking, and local retain. It uses local metadata only and does not read file
+  text or bytes, sync, upload, load external resources, or call AI.
 - Review and export a local report connection plan. The plan turns intake
   metadata and local database metadata into report-to-company,
   report-to-meeting, report-to-memo, and portfolio relation suggestions. It

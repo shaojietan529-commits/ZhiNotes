@@ -76,6 +76,13 @@ import {
   type ReportConversionRisk,
 } from "@/lib/reports/reportConversionReview";
 import {
+  buildReportReviewQueue,
+  type ReportReviewQueueReport,
+  type ReportReviewQueueRisk,
+  type ReportReviewQueueStatus,
+  type ReportReviewQueueWorkstream,
+} from "@/lib/reports/reportReviewQueue";
+import {
   buildReportTrackerIntakeDraft,
   findExistingReportTrackerRow,
 } from "@/lib/reports/reportTrackerIntake";
@@ -172,6 +179,7 @@ function ReportsDashboard() {
     useState(false);
   const [exportingConversionReview, setExportingConversionReview] =
     useState(false);
+  const [exportingReviewQueue, setExportingReviewQueue] = useState(false);
   const [exportingFileActionReceipts, setExportingFileActionReceipts] =
     useState(false);
   const [fileActionReceipts, setFileActionReceipts] = useState<
@@ -241,6 +249,10 @@ function ReportsDashboard() {
   );
   const reportConversionReview = useMemo(
     () => buildReportConversionReviewReport(reportIntake),
+    [reportIntake]
+  );
+  const reportReviewQueue = useMemo(
+    () => buildReportReviewQueue(reportIntake),
     [reportIntake]
   );
   const reportConnectionPlan = useMemo(
@@ -525,6 +537,24 @@ function ReportsDashboard() {
     }
   };
 
+  const handleExportReviewQueue = () => {
+    setExportingReviewQueue(true);
+    try {
+      downloadJsonFile(
+        `zhinote-report-review-queue-${fileSafeTimestamp()}.json`,
+        {
+          ...reportReviewQueue,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export report review queue:", err);
+      window.alert("下一步 review queue 导出失败，请查看控制台。");
+    } finally {
+      setExportingReviewQueue(false);
+    }
+  };
+
   const handleExportFileActionReceipts = () => {
     setExportingFileActionReceipts(true);
     try {
@@ -706,6 +736,102 @@ function ReportsDashboard() {
               新页面已进入下方报告 intake 队列；文件仍只保存在本地浏览器。
             </p>
           )}
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                下一步 review queue
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把 intake 文件合并成可执行的投研待办：第一遍阅读、转换复核、表格入库、
+                来源分流和关联归档。这个 queue 只用本地 metadata，不读取文件正文、
+                文件 bytes，不上传、不同步、不调用 AI。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportReviewQueue}
+              disabled={exportingReviewQueue}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingReviewQueue ? "导出中..." : "导出 queue"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <IntakeMetric
+              label="Queue"
+              value={reportReviewQueue.summary.queue_items}
+              detail="Items"
+            />
+            <IntakeMetric
+              label="可阅读"
+              value={reportReviewQueue.summary.ready_items}
+              detail="Ready"
+            />
+            <IntakeMetric
+              label="需复核"
+              value={reportReviewQueue.summary.review_needed_items}
+              detail="Review"
+            />
+            <IntakeMetric
+              label="阻塞"
+              value={reportReviewQueue.summary.blocked_items}
+              detail="Blocked"
+            />
+            <IntakeMetric
+              label="第一遍"
+              value={reportReviewQueue.summary.first_pass_reading_items}
+              detail="Read"
+            />
+            <IntakeMetric
+              label="转换"
+              value={reportReviewQueue.summary.conversion_review_items}
+              detail="Fidelity"
+            />
+            <IntakeMetric
+              label="表格"
+              value={reportReviewQueue.summary.database_review_items}
+              detail="Database"
+            />
+            <IntakeMetric
+              label="确认"
+              value={reportReviewQueue.summary.confirmation_required_items}
+              detail="Gated"
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Queue gates
+              </div>
+              {reportReviewQueue.gates.map((gate) => (
+                <ReportReviewQueueGateRow key={gate.id} gate={gate} />
+              ))}
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Top queue items
+              </div>
+              {reportReviewQueue.items.length > 0 ? (
+                <div className="mt-2 grid gap-3 lg:grid-cols-2">
+                  {reportReviewQueue.items.slice(0, 8).map((item) => (
+                    <ReportReviewQueueItemCard
+                      key={item.id}
+                      item={item}
+                      onOpen={() => router.push(`/page/${item.page_id}`)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+                  还没有 review queue。上传报告文件后，ZhiNotes 会自动把文件排入阅读、
+                  转换复核、表格入库或来源分流。
+                </p>
+              )}
+            </div>
+          </div>
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -1702,6 +1828,104 @@ function ReportIntakeItemCard({
   );
 }
 
+function ReportReviewQueueGateRow({
+  gate,
+}: {
+  gate: ReportReviewQueueReport["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+        </div>
+        <ReportReviewQueueStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function ReportReviewQueueItemCard({
+  item,
+  onOpen,
+}: {
+  item: ReportReviewQueueReport["items"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.file_name}
+          </div>
+          <div className="mt-1 truncate text-zinc-400">
+            {item.page_title} · {item.file_size_label}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <ReportReviewQueueStatusPill status={item.status} />
+          <ReportReviewQueueRiskPill risk={item.risk} />
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        <ReportReviewQueueWorkstreamPill workstream={item.workstream} />
+        <IntakePriorityPill priority={item.priority} />
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {item.file_kind}
+        </span>
+        {item.required_confirmation && (
+          <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
+            需确认
+          </span>
+        )}
+      </div>
+      <div className="mt-3 rounded-md bg-zinc-50 px-2 py-2 dark:bg-zinc-900">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {item.action_label}
+        </div>
+        <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+          {item.evidence}
+        </p>
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {item.next_step}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {item.relation_gaps.map((gap) => (
+          <span
+            key={gap}
+            className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          >
+            缺 {gap}
+          </span>
+        ))}
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        {item.privacy_boundary}
+      </p>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-3 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        打开报告页
+      </button>
+    </article>
+  );
+}
+
 function ReportConnectionSuggestionCard({
   suggestion,
   onOpenReport,
@@ -1805,6 +2029,71 @@ function ReportConnectionFieldSetRow({
         ))}
       </div>
     </article>
+  );
+}
+
+function ReportReviewQueueStatusPill({
+  status,
+}: {
+  status: ReportReviewQueueStatus;
+}) {
+  const labels: Record<ReportReviewQueueStatus, string> = {
+    ready: "Ready",
+    "review-needed": "Review",
+    blocked: "Blocked",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "review-needed"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function ReportReviewQueueRiskPill({ risk }: { risk: ReportReviewQueueRisk }) {
+  const labels: Record<ReportReviewQueueRisk, string> = {
+    low: "低风险",
+    medium: "中风险",
+    high: "高风险",
+  };
+  const className =
+    risk === "low"
+      ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+      : risk === "medium"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[risk]}
+    </span>
+  );
+}
+
+function ReportReviewQueueWorkstreamPill({
+  workstream,
+}: {
+  workstream: ReportReviewQueueWorkstream;
+}) {
+  const labels: Record<ReportReviewQueueWorkstream, string> = {
+    "first-pass-reading": "第一遍阅读",
+    "conversion-review": "转换复核",
+    "database-review": "表格入库",
+    "source-triage": "来源分流",
+    "relation-linking": "关联归档",
+    "local-retain": "本地留存",
+  };
+
+  return (
+    <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+      {labels[workstream]}
+    </span>
   );
 }
 

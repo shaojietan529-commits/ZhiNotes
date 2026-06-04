@@ -12,6 +12,7 @@ const files = {
   formatPlaybook: "src/lib/reports/reportFormatPlaybook.ts",
   formatCoverage: "src/lib/reports/reportFormatCoverage.ts",
   conversionReview: "src/lib/reports/reportConversionReview.ts",
+  reviewQueue: "src/lib/reports/reportReviewQueue.ts",
   readiness: "src/lib/files/filePreviewReadiness.ts",
   preflight: "src/lib/files/fileUploadPreflight.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
@@ -144,6 +145,7 @@ function run() {
   const formatPlaybook = readProjectFile(files.formatPlaybook);
   const formatCoverage = readProjectFile(files.formatCoverage);
   const conversionReview = readProjectFile(files.conversionReview);
+  const reviewQueue = readProjectFile(files.reviewQueue);
   const readiness = readProjectFile(files.readiness);
   const preflight = readProjectFile(files.preflight);
   const actionReceipts = readProjectFile(files.actionReceipts);
@@ -504,6 +506,63 @@ function run() {
     );
   }
   assertIncludes(
+    files.reviewQueue,
+    reviewQueue,
+    'format: "zhinote-report-review-queue"',
+    "Report review queue must define a local export format."
+  );
+  assertIncludes(
+    files.reviewQueue,
+    reviewQueue,
+    "buildReportReviewQueue",
+    "Report review queue must expose a reusable builder."
+  );
+  for (const snippet of [
+    'queue_status: "local-review-queue-only"',
+    'queue_verdict: "ready-for-local-research-triage"',
+    "local_queue_only: true",
+    "reads_report_intake_metadata: true",
+    "reads_file_names: true",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "reads_page_body_text: false",
+    "writes_workspace_data: false",
+    "loads_external_resources: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.reviewQueue,
+      reviewQueue,
+      snippet,
+      "Report review queue must preserve local-only metadata boundaries."
+    );
+  }
+  for (const snippet of [
+    '"first-pass-reading"',
+    '"conversion-review"',
+    '"database-review"',
+    '"source-triage"',
+    '"relation-linking"',
+    '"local-retain"',
+    '"queue-built-from-intake"',
+    '"first-pass-reading-focus"',
+    '"conversion-review-focus"',
+    '"spreadsheet-database-gate"',
+    '"relation-linking-gate"',
+    '"legacy-unknown-block"',
+    "isLegacyOffice",
+    "sort_score",
+  ]) {
+    assertIncludes(
+      files.reviewQueue,
+      reviewQueue,
+      snippet,
+      "Report review queue must expose ordered workstreams and gates."
+    );
+  }
+  assertIncludes(
     files.readiness,
     readiness,
     'format: "zhinote-file-preview-readiness-report"',
@@ -708,6 +767,26 @@ function run() {
     );
   }
   for (const snippet of [
+    "buildReportReviewQueue",
+    "reportReviewQueue",
+    "handleExportReviewQueue",
+    "下一步 review queue",
+    "导出 queue",
+    "ReportReviewQueueGateRow",
+    "ReportReviewQueueItemCard",
+    "ReportReviewQueueStatusPill",
+    "ReportReviewQueueRiskPill",
+    "ReportReviewQueueWorkstreamPill",
+    "不读取文件正文",
+  ]) {
+    assertIncludes(
+      files.reportsShell,
+      reportsShell,
+      snippet,
+      "Reports module must render and export the operational report review queue."
+    );
+  }
+  for (const snippet of [
     "buildFilePreviewReadinessReport",
     "handleExportPreviewReadiness",
     "原生预览 readiness",
@@ -880,6 +959,7 @@ function run() {
         format_actions: requiredFormatActions.length,
         format_coverage_gates: 7,
         conversion_review_gates: 6,
+        review_queue_gates: 6,
         readiness_gates: 6,
         upload_preflight_gates: 7,
         action_receipt_kinds: 6,
