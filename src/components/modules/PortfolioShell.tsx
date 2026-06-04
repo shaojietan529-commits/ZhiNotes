@@ -26,6 +26,12 @@ import {
   findExistingPortfolioTrackerRow,
   type PortfolioTrackerIntakeItem,
 } from "@/lib/portfolio/portfolioTrackerIntake";
+import {
+  buildPortfolioWorkbenchPacket,
+  type PortfolioWorkbenchPacket,
+  type PortfolioWorkbenchPriority,
+  type PortfolioWorkbenchStatus,
+} from "@/lib/portfolio/portfolioWorkbench";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -107,6 +113,7 @@ function PortfolioDashboard() {
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingReview, setExportingReview] = useState(false);
+  const [exportingWorkbench, setExportingWorkbench] = useState(false);
   const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
     null
   );
@@ -141,6 +148,14 @@ function PortfolioDashboard() {
       ),
     [portfolioReview, positionPages, watchlistPages]
   );
+  const portfolioWorkbench = useMemo(
+    () =>
+      buildPortfolioWorkbenchPacket({
+        review: portfolioReview,
+        trackerIntakeItems: portfolioTrackerIntakeItems,
+      }),
+    [portfolioReview, portfolioTrackerIntakeItems]
+  );
 
   const portfolioModule = PLATFORM_MODULES.find((module) => module.id === "portfolio");
   const trackerStarter = portfolioModule?.starter ?? null;
@@ -174,6 +189,24 @@ function PortfolioDashboard() {
       window.alert("Portfolio review export failed. Please check the console.");
     } finally {
       setExportingReview(false);
+    }
+  };
+
+  const handleExportWorkbench = () => {
+    setExportingWorkbench(true);
+    try {
+      downloadJsonFile(
+        `zhinote-portfolio-workbench-${fileSafeTimestamp()}.json`,
+        {
+          ...portfolioWorkbench,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export portfolio workbench:", err);
+      window.alert("组合工作台导出失败，请查看控制台。");
+    } finally {
+      setExportingWorkbench(false);
     }
   };
 
@@ -302,6 +335,109 @@ function PortfolioDashboard() {
                 />
               )}
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                组合工作台
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把组合复盘雷达和组合入库台合并成一个本地 action packet：
+                先建立观察名单或持仓 memo，再补仓位纪律、投资假设、风险、
+                催化剂、研究关联、tracker intake 和隐私边界。导出不包含页面标题、
+                ticker、权重、持仓名、交易计划、交易记录、券商账户或价格源。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportWorkbench}
+              disabled={exportingWorkbench}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingWorkbench ? "导出中..." : "导出组合工作台"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <PortfolioWorkbenchMetric
+              label="Review 缺口"
+              value={portfolioWorkbench.summary.missing_areas}
+            />
+            <PortfolioWorkbenchMetric
+              label="Memo"
+              value={portfolioWorkbench.summary.portfolio_memos}
+            />
+            <PortfolioWorkbenchMetric
+              label="观察名单"
+              value={portfolioWorkbench.summary.watchlist_pages}
+            />
+            <PortfolioWorkbenchMetric
+              label="待复盘"
+              value={portfolioWorkbench.summary.items_needing_review}
+            />
+            <PortfolioWorkbenchMetric
+              label="入库候选"
+              value={portfolioWorkbench.summary.tracker_intake_candidates}
+            />
+            <PortfolioWorkbenchMetric
+              label="总动作"
+              value={portfolioWorkbench.summary.actions}
+            />
+            <PortfolioWorkbenchMetric
+              label="高优先级"
+              value={portfolioWorkbench.summary.high_priority_actions}
+            />
+            <PortfolioWorkbenchMetric
+              label="边界阻止"
+              value={portfolioWorkbench.summary.blocked_actions}
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                工作台 lanes
+              </div>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {portfolioWorkbench.lanes.map((lane) => (
+                  <PortfolioWorkbenchLaneCard key={lane.id} lane={lane} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                优先动作
+              </div>
+              <div className="mt-2 space-y-2">
+                {portfolioWorkbench.actions.slice(0, 6).map((action) => (
+                  <PortfolioWorkbenchActionCard
+                    key={action.id}
+                    action={action}
+                    onNavigate={(route) => router.push(route)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            {portfolioWorkbench.review_sequence.map((step) => (
+              <div
+                key={step.id}
+                className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800"
+              >
+                <div className="text-[11px] text-zinc-400">Step {step.order}</div>
+                <div className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
+                  {step.title}
+                </div>
+                <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                  {step.reason}
+                </p>
+                <p className="mt-2 leading-5 text-zinc-400">
+                  完成信号：{step.completion_signal}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -526,6 +662,152 @@ function PortfolioDashboard() {
         </section>
       </div>
     </div>
+  );
+}
+
+function PortfolioWorkbenchMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function PortfolioWorkbenchLaneCard({
+  lane,
+}: {
+  lane: PortfolioWorkbenchPacket["lanes"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {lane.title}
+        </div>
+        <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          {lane.action_count} 动作
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {lane.description}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          高优先级 {lane.high_priority_count}
+        </span>
+        <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          {lane.route}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function PortfolioWorkbenchActionCard({
+  action,
+  onNavigate,
+}: {
+  action: PortfolioWorkbenchPacket["actions"][number];
+  onNavigate: (route: string) => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <PortfolioWorkbenchPriorityPill priority={action.priority} />
+        <PortfolioWorkbenchStatusPill status={action.status} />
+        {action.requires_manual_confirmation && (
+          <span className="rounded-md bg-amber-50 px-2 py-1 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+            需确认
+          </span>
+        )}
+      </div>
+      <div className="mt-3 font-semibold text-zinc-900 dark:text-zinc-100">
+        {action.title}
+      </div>
+      <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+        {action.next_action}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {action.applies_to.map((areaId) => (
+          <span
+            key={areaId}
+            className="rounded bg-zinc-50 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+          >
+            {getPortfolioReviewAreaLabel(areaId)}
+          </span>
+        ))}
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+        {action.privacy_boundary}
+      </p>
+      <button
+        type="button"
+        onClick={() => onNavigate(action.action_route)}
+        className="mt-3 rounded-md border border-zinc-300 px-2 py-1 text-[11px] text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        {action.route_label}
+      </button>
+    </article>
+  );
+}
+
+function PortfolioWorkbenchPriorityPill({
+  priority,
+}: {
+  priority: PortfolioWorkbenchPriority;
+}) {
+  const labels: Record<PortfolioWorkbenchPriority, string> = {
+    high: "高优先级",
+    medium: "中优先级",
+    low: "低优先级",
+  };
+  const className =
+    priority === "high"
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : priority === "medium"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[priority]}
+    </span>
+  );
+}
+
+function PortfolioWorkbenchStatusPill({
+  status,
+}: {
+  status: PortfolioWorkbenchStatus;
+}) {
+  const labels: Record<PortfolioWorkbenchStatus, string> = {
+    ready: "Ready",
+    "review-needed": "需复核",
+    missing: "Missing",
+    "blocked-boundary": "边界阻止",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "review-needed"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : status === "blocked-boundary"
+          ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

@@ -569,6 +569,13 @@ Current local actions:
   thesis, research links, and tracker coverage without exporting page text,
   page titles, position names, tickers, weights, holdings, trading plans,
   transactions, or database row values.
+- Review and export a local portfolio workbench packet. The packet combines the
+  portfolio review radar and tracker-intake metadata into one redacted action
+  queue for idea intake, position discipline, thesis/risk, catalyst review,
+  research links, tracker intake, and privacy boundary review. It exports
+  aggregated routing only, not page titles, position names, tickers, weights,
+  holdings, trading plans, transactions, brokerage data, prices, cloud data, AI
+  prompts, tokens, or credentials.
 - Use the portfolio intake desk to create one local portfolio tracker row from
   a position memo or watchlist page. The intake action maps Related memo
   relation, Status, Conviction, Thesis, and Risk notes, checks for an existing
@@ -578,10 +585,11 @@ Current local actions:
   trading plans, transactions, sync, upload, brokerage accounts, prices, or AI.
 - Open Portfolio from the sidebar Platform section or Cmd/Ctrl+K.
 
-The current Portfolio module is local-only. It does not fetch prices, connect
-brokerage accounts, sync holdings, import transactions, or send position data
-externally. Tracker intake uses redacted local structure until the user manually
-fills sensitive portfolio details inside the tracker.
+The current Portfolio module and portfolio workbench are local-only. They do
+not fetch prices, connect brokerage accounts, sync holdings, import
+transactions, or send position data externally. Tracker intake uses redacted
+local structure until the user manually fills sensitive portfolio details inside
+the tracker.
 
 ## Meetings Module
 

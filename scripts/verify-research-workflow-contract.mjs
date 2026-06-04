@@ -22,6 +22,7 @@ const files = {
   meetingWorkbench: "src/lib/meetings/meetingWorkbench.ts",
   meetingTrackerIntake: "src/lib/meetings/meetingTrackerIntake.ts",
   portfolioReview: "src/lib/portfolio/portfolioReview.ts",
+  portfolioWorkbench: "src/lib/portfolio/portfolioWorkbench.ts",
   portfolioTrackerIntake: "src/lib/portfolio/portfolioTrackerIntake.ts",
   reportConnectionPlan: "src/lib/reports/reportConnectionPlan.ts",
   connectionsPanel: "src/components/modules/ResearchConnectionsPanel.tsx",
@@ -152,6 +153,7 @@ function run() {
   const meetingWorkbench = readProjectFile(files.meetingWorkbench);
   const meetingTrackerIntake = readProjectFile(files.meetingTrackerIntake);
   const portfolioReview = readProjectFile(files.portfolioReview);
+  const portfolioWorkbench = readProjectFile(files.portfolioWorkbench);
   const portfolioTrackerIntake = readProjectFile(files.portfolioTrackerIntake);
   const reportConnectionPlan = readProjectFile(files.reportConnectionPlan);
   const connectionsPanel = readProjectFile(files.connectionsPanel);
@@ -1169,6 +1171,102 @@ function run() {
       portfolioReview,
       `id: "${area}"`,
       `Portfolio review must keep area ${area}.`
+    );
+  }
+  assertIncludes(
+    files.portfolioWorkbench,
+    portfolioWorkbench,
+    'format: "zhinote-portfolio-workbench-packet"',
+    "Portfolio workbench must define a local packet format."
+  );
+  assertIncludes(
+    files.portfolioWorkbench,
+    portfolioWorkbench,
+    "buildPortfolioWorkbenchPacket",
+    "Portfolio workbench must expose a reusable builder."
+  );
+  for (const snippet of [
+    'packet_status: "local-portfolio-workbench-only"',
+    "local_packet_only: true",
+    "reads_portfolio_review_report: true",
+    "reads_tracker_intake_metadata: true",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "includes_page_titles: false",
+    "reads_database_rows: false",
+    "includes_database_row_values: false",
+    "includes_position_names: false",
+    "includes_tickers: false",
+    "includes_weights: false",
+    "includes_holdings: false",
+    "includes_trading_plans: false",
+    "includes_transactions: false",
+    "reads_file_bytes: false",
+    "connects_brokerage_accounts: false",
+    "fetches_prices: false",
+    "writes_workspace_data: false",
+    "creates_pages: false",
+    "creates_database_rows: false",
+    "updates_relation_values: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+  ]) {
+    assertIncludes(
+      files.portfolioWorkbench,
+      portfolioWorkbench,
+      snippet,
+      "Portfolio workbench must preserve local-only privacy, broker, price, and write boundaries."
+    );
+  }
+  for (const snippet of [
+    '"idea-intake"',
+    '"position-discipline"',
+    '"thesis-risk"',
+    '"catalyst-review"',
+    '"research-links"',
+    '"tracker-intake"',
+    '"privacy-boundary"',
+    "forbidden_actions",
+    "required_verification_commands",
+    "export_portfolio_page_titles_from_workbench",
+    "export_position_names_from_workbench",
+    "export_tickers_from_workbench",
+    "export_weights_from_workbench",
+    "export_holdings_from_workbench",
+    "connect_brokerage_accounts",
+    "fetch_live_prices",
+    "auto_create_tracker_rows",
+    "auto_write_relation_values",
+    "send_portfolio_context_to_ai",
+    "sync_portfolio_data_to_cloud",
+    "npm run verify:research-workflow",
+    "npm run verify:modules",
+    "npm run lint",
+    "npm run build",
+  ]) {
+    assertIncludes(
+      files.portfolioWorkbench,
+      portfolioWorkbench,
+      snippet,
+      "Portfolio workbench must keep lanes, forbidden actions, and verification commands."
+    );
+  }
+  for (const snippet of [
+    "buildPortfolioWorkbenchPacket",
+    "portfolioWorkbench",
+    "handleExportWorkbench",
+    "组合工作台",
+    "导出组合工作台",
+    "PortfolioWorkbenchLaneCard",
+    "PortfolioWorkbenchActionCard",
+    "导出不包含页面标题",
+  ]) {
+    assertIncludes(
+      files.portfolioShell,
+      portfolioShell,
+      snippet,
+      "Portfolio module must render and export the portfolio workbench packet."
     );
   }
   assertIncludes(
