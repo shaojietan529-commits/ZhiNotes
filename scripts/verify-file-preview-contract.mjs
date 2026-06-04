@@ -13,6 +13,7 @@ const files = {
   formatCoverage: "src/lib/reports/reportFormatCoverage.ts",
   conversionReview: "src/lib/reports/reportConversionReview.ts",
   readiness: "src/lib/files/filePreviewReadiness.ts",
+  preflight: "src/lib/files/fileUploadPreflight.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
   localStore: "src/lib/files/localStore.ts",
@@ -144,6 +145,7 @@ function run() {
   const formatCoverage = readProjectFile(files.formatCoverage);
   const conversionReview = readProjectFile(files.conversionReview);
   const readiness = readProjectFile(files.readiness);
+  const preflight = readProjectFile(files.preflight);
   const actionReceipts = readProjectFile(files.actionReceipts);
   const upload = readProjectFile(files.upload);
   const localStore = readProjectFile(files.localStore);
@@ -722,6 +724,60 @@ function run() {
     );
   }
   for (const snippet of [
+    'format: "zhinote-file-upload-preflight"',
+    "buildFileUploadPreflightReport",
+    'preflight_verdict: "ready-for-local-file-intake"',
+    'default_container: "zhinote-page"',
+    'ai_visual_report: "html"',
+    'personal_note: "markdown"',
+    'database_source: "spreadsheet"',
+    "reads_file_names: false",
+    "reads_file_bytes: false",
+    "reads_file_text: false",
+    "reads_page_body_text: false",
+    "writes_workspace_data: false",
+    "loads_external_resources: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    "pre-upload-locality",
+    "html-report-native-first",
+    "markdown-editable-first",
+    "spreadsheet-write-gate",
+    "converted-fidelity-review",
+    "legacy-office-retain",
+    "cloud-ai-separation",
+    "confirmation_required_before_upload: false",
+    "confirmation_required_after_upload",
+    "local_receipt_action",
+  ]) {
+    assertIncludes(
+      files.preflight,
+      preflight,
+      snippet,
+      "File upload preflight must define local-only format routing before file selection."
+    );
+  }
+  for (const snippet of [
+    "buildFileUploadPreflightReport",
+    "handleExportUploadPreflight",
+    "上传前格式预检",
+    "导出预检",
+    "UploadPreflightGateRow",
+    "UploadPreflightRouteCard",
+    "UploadPreflightActionPill",
+    "UploadPreflightRiskPill",
+    "不读取文件名、文件 bytes、文件文本或页面正文",
+    "AI 可视化报告优先用",
+  ]) {
+    assertIncludes(
+      files.reportsShell,
+      reportsShell,
+      snippet,
+      "Reports module must render and export local upload preflight routes."
+    );
+  }
+  for (const snippet of [
     "listFilePreviewActionReceipts",
     "FILE_PREVIEW_ACTION_RECEIPT_EVENT",
     "appendFilePreviewActionReceipt",
@@ -818,6 +874,7 @@ function run() {
         format_coverage_gates: 7,
         conversion_review_gates: 6,
         readiness_gates: 6,
+        upload_preflight_gates: 7,
         action_receipt_kinds: 6,
         local_only: true,
       },

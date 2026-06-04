@@ -33,6 +33,13 @@ import {
   type FilePreviewReadinessStatus,
 } from "@/lib/files/filePreviewReadiness";
 import {
+  buildFileUploadPreflightReport,
+  type FileUploadPreflightAction,
+  type FileUploadPreflightGateStatus,
+  type FileUploadPreflightReport,
+  type FileUploadPreflightRisk,
+} from "@/lib/files/fileUploadPreflight";
+import {
   FILE_PREVIEW_ACTION_RECEIPT_EVENT,
   appendFilePreviewActionReceipt,
   buildFilePreviewActionReceipt,
@@ -153,6 +160,8 @@ function ReportsDashboard() {
   const [exportingFormatPlaybook, setExportingFormatPlaybook] = useState(false);
   const [exportingPreviewReadiness, setExportingPreviewReadiness] =
     useState(false);
+  const [exportingUploadPreflight, setExportingUploadPreflight] =
+    useState(false);
   const [exportingFormatCoverage, setExportingFormatCoverage] =
     useState(false);
   const [exportingConversionReview, setExportingConversionReview] =
@@ -208,6 +217,10 @@ function ReportsDashboard() {
   );
   const filePreviewReadiness = useMemo(
     () => buildFilePreviewReadinessReport(),
+    []
+  );
+  const fileUploadPreflight = useMemo(
+    () => buildFileUploadPreflightReport(),
     []
   );
   const reportFormatCoverage = useMemo(
@@ -417,6 +430,24 @@ function ReportsDashboard() {
     }
   };
 
+  const handleExportUploadPreflight = () => {
+    setExportingUploadPreflight(true);
+    try {
+      downloadJsonFile(
+        `zhinote-file-upload-preflight-${fileSafeTimestamp()}.json`,
+        {
+          ...fileUploadPreflight,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export upload preflight:", err);
+      window.alert("上传预检导出失败，请查看控制台。");
+    } finally {
+      setExportingUploadPreflight(false);
+    }
+  };
+
   const handleExportFormatCoverage = () => {
     setExportingFormatCoverage(true);
     try {
@@ -621,6 +652,100 @@ function ReportsDashboard() {
                   onClick={() => void runStarter(trackerStarter)}
                 />
               )}
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                上传前格式预检
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                选择文件前先看 ZhiNotes 会如何处理不同格式：原生预览、本地转换、
+                可编辑导入、数据库候选、元数据复核或本地留存下载。这个预检只读格式能力元数据，
+                不读取文件名、文件 bytes、文件文本或页面正文。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportUploadPreflight}
+              disabled={exportingUploadPreflight}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {exportingUploadPreflight ? "导出中..." : "导出预检"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <IntakeMetric
+              label="格式组"
+              value={fileUploadPreflight.summary.capability_groups}
+              detail="Routes"
+            />
+            <IntakeMetric
+              label="扩展名"
+              value={fileUploadPreflight.summary.accepted_extension_patterns}
+              detail="Accepted"
+            />
+            <IntakeMetric
+              label="原生"
+              value={fileUploadPreflight.summary.native_groups}
+              detail="Preview"
+            />
+            <IntakeMetric
+              label="转换"
+              value={fileUploadPreflight.summary.converted_groups}
+              detail="Local"
+            />
+            <IntakeMetric
+              label="低风险"
+              value={fileUploadPreflight.summary.low_risk_groups}
+              detail="Direct"
+            />
+            <IntakeMetric
+              label="中风险"
+              value={fileUploadPreflight.summary.medium_risk_groups}
+              detail="Review"
+            />
+            <IntakeMetric
+              label="高风险"
+              value={fileUploadPreflight.summary.high_risk_groups}
+              detail="Confirm"
+            />
+            <IntakeMetric
+              label="限制"
+              value={fileUploadPreflight.summary.limited_groups}
+              detail="Gaps"
+            />
+          </div>
+          <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+              默认路线：
+            </span>{" "}
+            AI 可视化报告优先用 {fileUploadPreflight.primary_formats.ai_visual_report}，
+            个人笔记优先用 {fileUploadPreflight.primary_formats.personal_note}，
+            数据库来源优先用 {fileUploadPreflight.primary_formats.database_source}。
+            Page 是统一容器；云同步、AI 处理、外部资源加载和批量写入都仍然独立确认。
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Preflight gates
+              </div>
+              {fileUploadPreflight.gates.map((gate) => (
+                <UploadPreflightGateRow key={gate.id} gate={gate} />
+              ))}
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Upload routes
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {fileUploadPreflight.routes.map((route) => (
+                  <UploadPreflightRouteCard key={route.id} route={route} />
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -1933,6 +2058,165 @@ function StarterButton({
     >
       {busy ? "创建中..." : label}
     </button>
+  );
+}
+
+function UploadPreflightGateRow({
+  gate,
+}: {
+  gate: FileUploadPreflightReport["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+        </div>
+        <UploadPreflightGatePill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function UploadPreflightRouteCard({
+  route,
+}: {
+  route: FileUploadPreflightReport["routes"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          {route.label}
+        </h3>
+        <SupportPill level={route.support_level} />
+        <UploadPreflightActionPill action={route.primary_action} />
+        <UploadPreflightRiskPill risk={route.risk_level} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {route.extensions.map((extension) => (
+          <span
+            key={extension}
+            className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+          >
+            {extension}
+          </span>
+        ))}
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <RouteDetail label="入口" value={route.upload_entrypoint} />
+        <RouteDetail label="最适合" value={route.best_fit_use_case} />
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {route.page_handling}
+      </p>
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <RouteDetail label="预览" value={route.preview_result} />
+        <RouteDetail label="可编辑" value={route.editable_result} />
+        <RouteDetail label="数据库" value={route.database_result} />
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        上传前确认：
+        {route.confirmation_required_before_upload ? "需要" : "不需要"} · 上传后确认：
+        {route.confirmation_required_after_upload ? "需要" : "不需要"} · receipt：
+        {route.local_receipt_action === "auto-recorded"
+          ? "自动记录"
+          : "上传后可记录"}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {route.privacy_boundary}
+      </p>
+      {route.fallback_or_gap && (
+        <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-amber-600 dark:border-zinc-800 dark:text-amber-300">
+          {route.fallback_or_gap}
+        </p>
+      )}
+    </article>
+  );
+}
+
+function UploadPreflightActionPill({
+  action,
+}: {
+  action: FileUploadPreflightAction;
+}) {
+  const labels: Record<FileUploadPreflightAction, string> = {
+    "native-preview": "原生预览",
+    "editable-import": "可编辑",
+    "database-import": "入库候选",
+    "metadata-review": "元数据",
+    "download-retain": "留存下载",
+  };
+  const className =
+    action === "native-preview"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : action === "editable-import"
+        ? "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300"
+        : action === "database-import"
+          ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+          : action === "metadata-review"
+            ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+            : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[action]}
+    </span>
+  );
+}
+
+function UploadPreflightRiskPill({ risk }: { risk: FileUploadPreflightRisk }) {
+  const labels: Record<FileUploadPreflightRisk, string> = {
+    low: "低风险",
+    medium: "中风险",
+    high: "高风险",
+  };
+  const className =
+    risk === "low"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : risk === "medium"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[risk]}
+    </span>
+  );
+}
+
+function UploadPreflightGatePill({
+  status,
+}: {
+  status: FileUploadPreflightGateStatus;
+}) {
+  const labels: Record<FileUploadPreflightGateStatus, string> = {
+    ready: "Ready",
+    "manual-confirmation": "确认",
+    blocked: "Blocked",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

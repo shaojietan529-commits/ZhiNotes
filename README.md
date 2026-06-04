@@ -358,6 +358,13 @@ for written notes; spreadsheets become local database candidates only after
 typed confirmation; original files remain attached in local browser storage for
 auditability.
 
+The Reports module also renders a local upload preflight before file selection.
+It shows how each supported format will be routed inside a page: native preview,
+local conversion, editable import, database candidate, metadata review, or
+download retention. This preflight reads only capability metadata; it does not
+read file names, file bytes, file text, page body text, spreadsheet values,
+tokens, credentials, cloud data, or AI output.
+
 Uploading a report file into the Reports module now creates a metadata-only
 local file action receipt for the native page preview path, or for download
 retention when the file can only be kept locally. The receipt does not include
