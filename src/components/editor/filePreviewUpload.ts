@@ -106,6 +106,9 @@ export const FILE_PREVIEW_ACCEPT = [
   "application/msword",
   "application/vnd.oasis.opendocument.text",
 ].join(",");
+export const HTML_REPORT_ACCEPT = ".html,.htm,text/html";
+export const MARKDOWN_FILE_ACCEPT =
+  ".md,.markdown,.mdx,text/markdown,text/x-markdown,text/plain";
 
 export interface FilePreviewImportProgress {
   status: "started" | "progress" | "done";
@@ -166,11 +169,14 @@ export async function insertFilesAsPreviews(editor: Editor, files: File[]) {
   });
 }
 
-export function promptAndInsertFilePreview(editor: Editor) {
+export function promptAndInsertFilePreview(
+  editor: Editor,
+  opts?: { accept?: string; multiple?: boolean }
+) {
   const input = document.createElement("input");
   input.type = "file";
-  input.multiple = true;
-  input.accept = FILE_PREVIEW_ACCEPT;
+  input.multiple = opts?.multiple ?? true;
+  input.accept = opts?.accept ?? FILE_PREVIEW_ACCEPT;
 
   input.onchange = () => {
     const files = Array.from(input.files ?? []);
@@ -182,6 +188,20 @@ export function promptAndInsertFilePreview(editor: Editor) {
   input.click();
 }
 
+export function promptAndInsertHtmlReportPreview(editor: Editor) {
+  promptAndInsertFilePreview(editor, {
+    accept: HTML_REPORT_ACCEPT,
+    multiple: true,
+  });
+}
+
+export function promptAndInsertMarkdownFilePreview(editor: Editor) {
+  promptAndInsertFilePreview(editor, {
+    accept: MARKDOWN_FILE_ACCEPT,
+    multiple: true,
+  });
+}
+
 function emitFilePreviewImportProgress(detail: FilePreviewImportProgress) {
   window.dispatchEvent(
     new CustomEvent(FILE_PREVIEW_IMPORT_PROGRESS_EVENT, { detail })
@@ -191,7 +211,7 @@ function emitFilePreviewImportProgress(detail: FilePreviewImportProgress) {
 export function promptAndImportMarkdown(editor: Editor) {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = ".md,.markdown,text/markdown,text/x-markdown,text/plain";
+  input.accept = MARKDOWN_FILE_ACCEPT;
 
   input.onchange = () => {
     const file = input.files?.[0];

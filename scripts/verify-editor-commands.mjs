@@ -9,6 +9,7 @@ const files = {
   packageJson: "package.json",
   keyboardShortcuts: "src/components/editor/extensions/KeyboardShortcuts.ts",
   slashSuggestion: "src/components/editor/extensions/SlashCommandSuggestion.ts",
+  filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
   editor: "src/components/editor/Editor.tsx",
   readme: "README.md",
 };
@@ -34,6 +35,7 @@ function run() {
   const packageJson = readProjectFile(files.packageJson);
   const keyboardShortcuts = readProjectFile(files.keyboardShortcuts);
   const slashSuggestion = readProjectFile(files.slashSuggestion);
+  const filePreviewUpload = readProjectFile(files.filePreviewUpload);
   const editor = readProjectFile(files.editor);
   const readme = readProjectFile(files.readme);
 
@@ -114,6 +116,38 @@ function run() {
     "README must document the /page slash command."
   );
 
+  for (const snippet of [
+    "HTML_REPORT_ACCEPT",
+    "MARKDOWN_FILE_ACCEPT",
+    "promptAndInsertHtmlReportPreview",
+    "promptAndInsertMarkdownFilePreview",
+  ]) {
+    assertIncludes(
+      files.filePreviewUpload,
+      filePreviewUpload,
+      snippet,
+      "File upload helpers must expose explicit HTML and Markdown page-preview entrypoints."
+    );
+  }
+
+  for (const snippet of [
+    "promptAndInsertHtmlReportPreview",
+    "promptAndInsertMarkdownFilePreview",
+    "HTML 报告",
+    "本地上传 HTML，插入沙盒原生预览块（默认阻止外部资源）",
+    "Markdown 文件预览",
+    "本地上传 Markdown/MDX，保留原文件预览块，并可再导入",
+    "Markdown 导入为可编辑块",
+    "选择 Markdown 文件并直接写入当前页面内容",
+  ]) {
+    assertIncludes(
+      files.slashSuggestion,
+      slashSuggestion,
+      snippet,
+      "Slash commands must keep HTML and Markdown file workflows clearly separated."
+    );
+  }
+
   if (failures.length > 0) {
     console.error("Editor command verification failed");
     for (const failure of failures) {
@@ -128,6 +162,7 @@ function run() {
       {
         h3_shortcut_paths: 3,
         page_slash_aliases: 6,
+        file_workflow_entrypoints: 3,
         page_command_opens_new_page: true,
         local_only: true,
       },

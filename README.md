@@ -476,6 +476,14 @@ for written notes; spreadsheets become local database candidates only after
 typed confirmation; original files remain attached in local browser storage for
 auditability.
 
+Inside the editor slash menu, `/html` now opens the HTML report path directly
+and inserts a sandboxed native preview block. `/markdown preview` inserts a
+local Markdown/MDX file preview block and keeps the original file attached.
+`/markdown import` imports a Markdown file into the current page as editable
+blocks. This separates the two common workflows: AI-generated HTML reports stay
+as native previews, while personal Markdown notes can either stay attached or be
+converted into editable page content.
+
 The Reports module also renders a local upload preflight before file selection.
 It shows how each supported format will be routed inside a page: native preview,
 local conversion, editable import, database candidate, metadata review, or

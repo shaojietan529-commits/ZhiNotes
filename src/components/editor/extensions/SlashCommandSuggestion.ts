@@ -15,6 +15,8 @@ import {
   updateWikiLinks,
 } from "@/lib/db/local/queries";
 import {
+  promptAndInsertHtmlReportPreview,
+  promptAndInsertMarkdownFilePreview,
   promptAndImportMarkdown,
   promptAndInsertFilePreview,
 } from "../filePreviewUpload";
@@ -354,21 +356,52 @@ function getSlashCommands(): SlashCommandItem[] {
     },
     {
       title: "HTML 报告",
-      description: "本地上传 AI 生成的 HTML 可视化报告",
+      description: "本地上传 HTML，插入沙盒原生预览块（默认阻止外部资源）",
       icon: "H",
       category: "媒体",
-      aliases: ["html", "report", "visualization", "报告", "可视化"],
+      aliases: [
+        "html",
+        "htm",
+        "html report",
+        "ai report",
+        "visual report",
+        "report",
+        "visualization",
+        "报告",
+        "可视化",
+      ],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).run();
-        promptAndInsertFilePreview(editor);
+        promptAndInsertHtmlReportPreview(editor);
       },
     },
     {
-      title: "Markdown 笔记",
-      description: "导入 Markdown 文件为可编辑块",
+      title: "Markdown 文件预览",
+      description: "本地上传 Markdown/MDX，保留原文件预览块，并可再导入",
       icon: "MD",
       category: "媒体",
-      aliases: ["markdown", "md", "import", "笔记", "导入"],
+      aliases: [
+        "markdown preview",
+        "md preview",
+        "markdown file",
+        "md file",
+        "mdx",
+        "markdown",
+        "md",
+        "预览",
+        "原文件",
+      ],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        promptAndInsertMarkdownFilePreview(editor);
+      },
+    },
+    {
+      title: "Markdown 导入为可编辑块",
+      description: "选择 Markdown 文件并直接写入当前页面内容",
+      icon: "MD",
+      category: "媒体",
+      aliases: ["markdown import", "md import", "import", "editable", "笔记", "导入", "可编辑"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).run();
         promptAndImportMarkdown(editor);
