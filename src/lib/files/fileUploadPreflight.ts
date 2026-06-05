@@ -107,7 +107,7 @@ export function buildFileUploadPreflightReport(
       database_source: "spreadsheet",
     },
     privacy_note:
-      "Generated locally from the file capability matrix before upload. It does not inspect file names, file bytes, file text, page body text, spreadsheet values, tokens, credentials, cloud data, or AI output.",
+      "上传前由文件能力矩阵在本地生成。不检查文件名、文件字节、文件文本、页面正文、表格值、token、凭证、云端数据或 AI 输出。",
     boundary: {
       local_report_only: true,
       reads_capability_metadata: true,
@@ -190,7 +190,7 @@ function buildPreflightGates(
       "pre-upload-locality",
       "上传前本地边界",
       "ready",
-      "预检只读取格式能力矩阵，不读取文件名、文件正文、bytes 或页面正文。",
+      "预检只读取格式能力矩阵，不读取文件名、文件正文、字节或页面正文。",
       "用户选择文件前先展示处理路线；真正读取文件只发生在本地预览创建时。"
     ),
     gate(
@@ -211,8 +211,8 @@ function buildPreflightGates(
       "spreadsheet-write-gate",
       "表格入库写入门槛",
       "manual-confirmation",
-      "表格文件可以预览；导入数据库会创建字段和 rows，属于批量本地写入。",
-      "导入数据库前必须确认目标表、字段、行数、回滚边界和 typed confirmation。"
+      "表格文件可以预览；导入数据库会创建字段和行，属于批量本地写入。",
+      "导入数据库前必须确认目标表、字段、行数、回滚边界，并输入确认文本。"
     ),
     gate(
       "converted-fidelity-review",
@@ -225,7 +225,7 @@ function buildPreflightGates(
       "legacy-office-retain",
       "旧版 Office 留存",
       "blocked",
-      "旧版 .doc 和 .ppt 在安全本地转换器确定前，只保留本地下载和元数据 receipt。",
+      "旧版 .doc 和 .ppt 在安全本地转换器确定前，只保留本地下载和元数据收据。",
       "建议先转为 .docx 或 .pptx；否则保持 download-retain，不伪装成可编辑导入。"
     ),
     gate(
@@ -283,10 +283,10 @@ function getPageHandling(
     return "先创建报告页本地预览；如需入库，再走数据库导入确认。";
   }
   if (action === "download-retain") {
-    return "创建报告页并保留本地文件块，默认只提供下载和留存 receipt。";
+    return "创建报告页并保留本地文件块，默认只提供下载和留存收据。";
   }
   if (action === "metadata-review") {
-    return "创建报告页并显示元数据预览，不解包写入 workspace。";
+    return "创建报告页并显示元数据预览，不解包写入工作区。";
   }
   return "创建报告页并嵌入本地文件预览块。";
 }
@@ -296,7 +296,7 @@ function getBestFitUseCase(capability: FilePreviewCapability) {
   if (capability.id === "markdown-note") return "自己写的可编辑投研笔记。";
   if (capability.id === "pdf") return "卖方报告、公告、会议材料和不可编辑原件。";
   if (capability.id === "spreadsheet") return "模型、KPI、持仓、财务数据和跟踪表来源。";
-  if (capability.id === "word") return "外部 memo、访谈记录和长文档。";
+  if (capability.id === "word") return "外部备忘录、访谈记录和长文档。";
   if (capability.id === "presentation") return "路演材料、专家会 slide 和公司材料。";
   if (capability.id === "archive") return "打包资料、本地留存和后续人工拆分。";
   if (capability.id === "notebook") return "研究脚本输出和可复核分析 notebook。";

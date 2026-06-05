@@ -102,7 +102,7 @@ export function buildReportConversionReviewReport(
     report_status: "local-conversion-review-only",
     review_verdict: "usable-after-local-review",
     privacy_note:
-      "Generated locally from report intake metadata and file preview capability metadata. It reads file kinds, file extensions, counts, support levels, and conversion routes only. It does not include file names, read file bytes, read converted file text, read page body text, load external resources, write workspace data, connect cloud services, upload data, or enable AI.",
+      "由报告 intake 元数据和文件预览能力元数据在本地生成。它只读取文件类型、扩展名、数量、支持级别和转换路线；不包含文件名、不读取文件字节、不读取转换后的文件文本、不读取页面正文、不加载外部资源、不写入工作区、不连接云服务、不上传数据、也不启用 AI。",
     boundary: {
       local_report_only: true,
       reads_report_intake_metadata: true,
@@ -217,7 +217,7 @@ function buildConversionGates(
       "PPT 版式缺口",
       presentationItems > 0 ? "review-needed" : "native-ready",
       presentationItems > 0
-        ? `${presentationItems} 个演示文稿文件项当前走文本级 slide outline 或 ODP 本地转换。`
+        ? `${presentationItems} 个演示文稿文件项当前走文本级幻灯片大纲或 ODP 本地转换。`
         : "当前没有演示文稿 intake 项。",
       "PPTX/ODP 导入后复核幻灯片顺序、图表、图片、注释和原始版式；旧版 .ppt 先转 .pptx。"
     ),
@@ -244,7 +244,7 @@ function buildConversionGates(
       "云端和 AI 边界",
       "blocked",
       "转换质量复核不读取文件内容；AI 总结、云同步和外部资源加载仍是独立高风险动作。",
-      "在 payload 预览、权限检查、审计事件和用户确认齐备前，不把文件内容发送到 AI 或云服务。"
+      "在发送内容预览、权限检查、审计事件和用户确认齐备前，不把文件内容发送到 AI 或云服务。"
     ),
   ];
 }
@@ -312,8 +312,8 @@ function getConversionPolicy(input: {
       status: "review-needed" as const,
       risk: "high" as const,
       routeSummary:
-        "PPTX/ODP 可以本地转换为 slide outline，但不是原始幻灯片画布级渲染。",
-      likelyLoss: ["复杂版式", "图片和图表语义", "动画", "speaker notes", "嵌入对象"],
+        "PPTX/ODP 可以本地转换为幻灯片大纲，但不是原始幻灯片画布级渲染。",
+      likelyLoss: ["复杂版式", "图片和图表语义", "动画", "演讲者备注", "嵌入对象"],
       manualChecklist: [
         "核对幻灯片顺序",
         "核对图表和图片结论",
@@ -355,7 +355,7 @@ function getConversionPolicy(input: {
       status: "review-needed" as const,
       risk: "high" as const,
       routeSummary:
-        "Notebook 只解析 markdown/code cells 和常见文本输出，不执行代码。",
+        "Notebook 只解析 markdown/code 单元格和常见文本输出，不执行代码。",
       likelyLoss: ["交互输出", "图表上下文", "执行顺序语义", "外部数据依赖"],
       manualChecklist: ["不要执行代码", "复核输出来源", "标记关键图表", "补数据来源"],
       recommendedAction:
@@ -371,7 +371,7 @@ function getConversionPolicy(input: {
       likelyLoss: ["部分样式", "嵌入内容", "源文件特定交互"],
       manualChecklist: ["复核标题", "复核列表/表格", "补关联研究"],
       recommendedAction:
-        "转换为可编辑页面后，先复核结构，再把结论挂回公司、会议或 memo。",
+        "转换为可编辑页面后，先复核结构，再把结论挂回公司、会议或备忘录。",
     };
   }
 
@@ -379,7 +379,7 @@ function getConversionPolicy(input: {
     return {
       status: "review-needed" as const,
       risk: "medium" as const,
-      routeSummary: "这个格式只做元数据复核，不自动解包或写入 workspace。",
+      routeSummary: "这个格式只做元数据复核，不自动解包或写入工作区。",
       likelyLoss: ["压缩包内部上下文", "目录外的说明文件", "拆分资产关系"],
       manualChecklist: ["确认来源", "确认是否需要拆分", "保留原件"],
       recommendedAction:
@@ -409,7 +409,7 @@ function getConversionPolicy(input: {
     manualChecklist:
       input.kind === "html"
         ? ["确认外部资源保持关闭", "把核心结论写入报告页"]
-        : ["保留原件", "补公司/会议/memo 关联"],
+        : ["保留原件", "补公司/会议/备忘录关联"],
     recommendedAction:
       "保留原件和页面预览，把关键投研结论写入 ZhiNotes page。",
   };
@@ -417,7 +417,7 @@ function getConversionPolicy(input: {
 
 function summarizeExtensions(fileNames: string[]) {
   const counts = fileNames.reduce<Record<string, number>>((result, fileName) => {
-    const extension = getFileExtension(fileName) || "unknown";
+    const extension = getFileExtension(fileName) || "未知";
     result[extension] = (result[extension] ?? 0) + 1;
     return result;
   }, {});

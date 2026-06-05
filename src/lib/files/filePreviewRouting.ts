@@ -149,23 +149,23 @@ const LANE_COPY: Record<
   "database-import": {
     id: "database-import",
     title: "表格入库",
-    description: "Excel、CSV、TSV、ODS 先预览，再经确认创建本地数据库字段和 rows。",
+    description: "Excel、CSV、TSV、ODS 先预览，再经确认创建本地数据库字段和行。",
     privacy_boundary:
-      "批量入库前需要 typed confirmation；路由包不包含单元格值或文件 bytes。",
+      "批量入库前需要输入确认文本；路由包不包含单元格值或文件字节。",
   },
   "metadata-review": {
     id: "metadata-review",
     title: "元数据复核",
     description: "ZIP、未知或低结构文件先看目录、格式和用途，不自动解包。",
     privacy_boundary:
-      "只使用格式路线和数量，不列出文件名、不读取压缩包内容或文件 bytes。",
+      "只使用格式路线和数量，不列出文件名、不读取压缩包内容或文件字节。",
   },
   "download-retain": {
     id: "download-retain",
     title: "本地留存",
     description: "暂不能安全转换的文件保留在本地，提供下载或后续手动转换。",
     privacy_boundary:
-      "保留动作只记录 metadata receipt，不上传、不同步、不导出文件名或文件 bytes。",
+      "保留动作只记录元数据收据，不上传、不同步、不导出文件名或文件字节。",
   },
   "gap-review": {
     id: "gap-review",
@@ -211,7 +211,7 @@ export function buildFilePreviewRoutingPacket(input: {
     editable_note_format: "markdown",
     database_source_format: "spreadsheet",
     privacy_note:
-      "Generated locally from file preview readiness, report format coverage, and report review queue metadata. This routing packet explains how each format should be displayed, imported, retained, or reviewed inside ZhiNotes pages. It does not read file names, file bytes, file text, page body text, database row values, cloud data, AI prompts, tokens, or credentials; it does not write workspace data, load external resources, create database rows, upload data, connect cloud services, or enable AI.",
+      "由文件预览就绪度、报告格式覆盖和报告复核队列元数据在本地生成。这个路由包解释每种格式应该如何在 ZhiNotes page 中展示、导入、留存或复核；不读取文件名、文件字节、文件文本、页面正文、数据库行值、云端数据、AI prompt、token 或凭证；不写入工作区数据、不加载外部资源、不创建数据库行、不上传数据、不连接云服务、也不启用 AI。",
     boundary: {
       local_packet_only: true,
       reads_file_preview_readiness: true,
@@ -304,7 +304,7 @@ function buildRoutingRoute(
     privacy_boundary:
       readinessRoute?.privacy_boundary ??
       row.privacy_boundary ??
-      "Unknown formats stay local and are not read, executed, uploaded, synced, or sent to AI.",
+      "未知格式只留在本地，不读取、不执行、不上传、不同步，也不发送给 AI。",
   };
 }
 
@@ -353,9 +353,9 @@ function buildReviewSequence(
       route: "/modules/reports",
       target_section_id: "reports-review-queue",
       reason: firstActiveNative
-        ? `${firstActiveNative.label} has ${firstActiveNative.active_items} active local items.`
-        : "No active native-preview items yet; upload HTML, PDF, or media files to start.",
-      completion_signal: "Native previews render inside ZhiNotes page without external resource loading.",
+        ? `${firstActiveNative.label} 有 ${firstActiveNative.active_items} 个活跃本地项。`
+        : "还没有活跃的原生预览项；上传 HTML、PDF 或媒体文件后开始。",
+      completion_signal: "原生预览在 ZhiNotes page 内渲染，且不加载外部资源。",
     },
     {
       id: "review-converted-formats",
@@ -364,9 +364,9 @@ function buildReviewSequence(
       route: "/modules/reports",
       target_section_id: "reports-conversion-review",
       reason: firstConverted
-        ? `${firstConverted.label} uses converted HTML preview and may lose layout details.`
-        : `${input.coverage.summary.active_converted_groups} active converted groups need review.`,
-      completion_signal: "Converted previews are checked before editable import or research linking.",
+        ? `${firstConverted.label} 使用转换后的 HTML 预览，可能丢失版式细节。`
+        : `${input.coverage.summary.active_converted_groups} 个活跃转换格式组需要复核。`,
+      completion_signal: "转换预览在可编辑导入或研究关联前已完成复核。",
     },
     {
       id: "confirm-spreadsheet-import",
@@ -375,9 +375,9 @@ function buildReviewSequence(
       route: "/modules/reports",
       target_section_id: "reports-format-playbook",
       reason: spreadsheet
-        ? `${spreadsheet.active_items} active spreadsheet candidates; bulk import remains gated.`
-        : "Spreadsheet route is not present in the current coverage rows.",
-      completion_signal: "Field mapping, row count, rollback boundary, and typed confirmation are captured before rows are written.",
+        ? `${spreadsheet.active_items} 个活跃表格候选；批量导入仍在闸门后。`
+        : "当前覆盖行里没有表格路线。",
+      completion_signal: "字段映射、行数、回滚边界和确认文本齐备后，才写入数据库行。",
     },
     {
       id: "route-gaps-last",
@@ -386,9 +386,9 @@ function buildReviewSequence(
       route: "/modules/reports",
       target_section_id: "reports-format-coverage",
       reason: firstGap
-        ? `${firstGap.label}: ${firstGap.gap ?? "requires manual route review."}`
-        : `${input.readiness.summary.blocked_routes} readiness routes are blocked.`,
-      completion_signal: "Legacy/unknown formats are retained locally or converted outside ZhiNotes before import.",
+        ? `${firstGap.label}: ${firstGap.gap ?? "需要人工复核路线。"}`
+        : `${input.readiness.summary.blocked_routes} 条就绪路线仍被阻塞。`,
+      completion_signal: "旧版或未知格式先本地留存，或在 ZhiNotes 外部转换后再导入。",
     },
   ];
 }
@@ -469,7 +469,7 @@ function getPrimaryAction(
   if (status === "metadata-review") {
     return "只查看目录、格式和元数据，不自动解包写入。";
   }
-  if (status === "download-retain") return "保留本地原件并记录留存 receipt。";
+  if (status === "download-retain") return "保留本地原件并记录留存收据。";
   if (status === "unsupported") return "先确认来源和用途，再决定是否新增安全路线。";
   return row.recommended_action;
 }
@@ -479,7 +479,7 @@ function getSecondaryAction(
   readinessRoute: FilePreviewReadinessRoute | null
 ) {
   if (row.id === "spreadsheet") {
-    return "需要 typed confirmation 后才允许创建本地数据库 rows。";
+    return "需要输入确认文本后，才允许创建本地数据库行。";
   }
   if (row.id === "html-report") {
     return "只有单独确认后才允许外部图片、脚本、样式、字体或 frame。";

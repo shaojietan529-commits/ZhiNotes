@@ -106,7 +106,7 @@ export function buildReportFormatPlaybook(
     format_version: 1,
     playbook_status: "local-format-playbook-only",
     privacy_note:
-      "Generated locally from report intake metadata. This playbook uses file names, kinds, sizes, preview support, and relation gaps only. It does not read file bytes, read converted file text, read page body text, write workspace data, load external resources, connect cloud services, upload data, or enable AI.",
+      "由报告 intake 元数据在本地生成。这个 playbook 只使用文件名、类型、大小、预览支持和关联缺口；不读取文件字节、不读取转换后的文件文本、不读取页面正文、不写入工作区、不加载外部资源、不连接云服务、不上传数据、也不启用 AI。",
     boundary: {
       local_playbook_only: true,
       reads_report_intake_metadata: true,
@@ -127,7 +127,7 @@ export function buildReportFormatPlaybook(
       database_source_format: "spreadsheet",
       editable_page_format: "tiptap-html",
       rationale:
-        "ZhiNotes page remains the canonical research container. HTML is the best native preview target for AI-generated visual reports, Markdown is the best editable source for written notes, spreadsheets feed local databases after confirmation, and original files remain attached locally for auditability.",
+        "ZhiNotes page 是统一研究容器。HTML 最适合承载 AI 生成的可视化报告原生预览，Markdown 最适合作为手写笔记的可编辑源格式，表格在确认后进入本地数据库，原始文件继续本地留存以便审计。",
     },
     summary: {
       intake_items: intake.summary.intake_items,
@@ -258,7 +258,7 @@ function buildConfirmationQueue(
   if (metadataKinds.length > 0) {
     confirmations.push({
       id: "metadata-only-review",
-      title: "元数据-only 复核",
+      title: "仅元数据复核",
       status: "recommended",
       applies_to_kinds: metadataKinds,
       reason:
@@ -283,8 +283,8 @@ function getRoutePolicy(kind: PageFileKind): {
       stage: "reading-review",
       pageHandling: "保留为报告页内的沙盒 HTML 预览，并补核心结论和关联研究。",
       confirmationStatus: "required",
-      confirmationReason: "开启任何外部资源前必须 typed confirmation。",
-      relationTarget: ["公司", "会议", "memo", "业绩复盘"],
+      confirmationReason: "开启任何外部资源前必须输入确认文本。",
+      relationTarget: ["公司", "会议", "备忘录", "业绩复盘"],
     };
   }
 
@@ -295,7 +295,7 @@ function getRoutePolicy(kind: PageFileKind): {
       pageHandling: "优先导入为可编辑块，作为长期笔记源格式。",
       confirmationStatus: "not-needed",
       confirmationReason: "本地文本导入不需要外部连接。",
-      relationTarget: ["公司", "memo", "任务"],
+      relationTarget: ["公司", "备忘录", "任务"],
     };
   }
 
@@ -325,7 +325,7 @@ function getRoutePolicy(kind: PageFileKind): {
       pageHandling: "本地转换为页面内容后复核格式，再提取结论和待办。",
       confirmationStatus: "recommended",
       confirmationReason: "本地转换可能丢失复杂布局，建议导入后人工复核。",
-      relationTarget: ["公司", "memo", "会议"],
+      relationTarget: ["公司", "备忘录", "会议"],
     };
   }
 
@@ -336,7 +336,7 @@ function getRoutePolicy(kind: PageFileKind): {
       pageHandling: "使用浏览器原生 PDF 预览，关键结论手动写入报告页。",
       confirmationStatus: "not-needed",
       confirmationReason: "原生 PDF 预览留在本地页面，不需要外部连接。",
-      relationTarget: ["公司", "memo", "会议"],
+      relationTarget: ["公司", "备忘录", "会议"],
     };
   }
 

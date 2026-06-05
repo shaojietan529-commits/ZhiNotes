@@ -54,7 +54,7 @@ const requiredKinds = [
     route: "/modules/reports",
     preset: "report-library",
     relationKinds: ["company", "meeting"],
-    keyFields: ["Report page", "Company page", "Key takeaways"],
+    keyFields: ["报告页", "公司页", "核心结论"],
   },
 	  {
 	    kind: "meeting",
@@ -904,17 +904,15 @@ function run() {
     );
   }
   for (const snippet of [
-    "report-to-company",
-    "report-to-meeting",
-    "report-to-memo",
+    "报告到公司、会议、备忘录和组合",
     "missing_company_links",
     "missing_meeting_links",
     "missing_memo_links",
-    "Report page",
-    "Company page",
-    "Related meetings",
-    "Related reports",
-    "Related memo",
+    "报告页",
+    "公司页",
+    "关联会议",
+    "关联报告",
+    "关联备忘录",
     "manual-confirmation",
     "blocked",
   ]) {

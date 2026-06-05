@@ -103,7 +103,7 @@ export function buildReportFormatCoverageReport({
     report_status: "local-format-coverage-only",
     coverage_verdict: "usable-with-local-gates",
     privacy_note:
-      "Generated locally from report intake counts and file preview capability metadata. This coverage report groups files by format kind only; it does not include file names, file bytes, converted file text, page body text, cloud data, AI prompts, tokens, credentials, or private research payloads.",
+      "由报告 intake 计数和文件预览能力元数据在本地生成。这个覆盖报告只按格式类型分组；不包含文件名、文件字节、转换后的文件文本、页面正文、云端数据、AI prompt、token、凭证或私有研究内容。",
     boundary: {
       local_report_only: true,
       reads_report_intake_metadata: true,
@@ -211,7 +211,7 @@ function buildCoverageGaps(
           ? `${intake.summary.intake_items} 个本地 file-preview 项已经映射到格式覆盖表。`
           : "还没有本地 file-preview 项，覆盖表只能显示支持矩阵，不能反映真实使用情况。",
       required_action:
-        "继续通过报告页上传或导入文件，让 coverage 反映真实投研资料结构。",
+        "继续通过报告页上传或导入文件，让覆盖报告反映真实投研资料结构。",
     },
     {
       id: "confirmation-workload",
@@ -220,7 +220,7 @@ function buildCoverageGaps(
         activeNeedsConfirmation.length > 0 ? "manual-confirmation" : "ready",
       evidence: `${activeNeedsConfirmation.length} 个正在使用的格式组需要外部资源、转换复核、数据库导入或元数据复核确认。`,
       required_action:
-        "在批量导入、开放外部资源、AI 处理或云同步前，逐项导出并复核 receipt。",
+        "在批量导入、开放外部资源、AI 处理或云同步前，逐项导出并复核动作收据。",
     },
     {
       id: "html-report-boundary",
@@ -242,7 +242,7 @@ function buildCoverageGaps(
           ? `${activeSpreadsheet} 个表格文件可以作为本地数据库导入候选。`
           : "当前没有表格导入候选。",
       required_action:
-        "导入前确认字段、行数、目标表名、回滚边界和 typed confirmation。",
+        "导入前确认字段、行数、目标表名、回滚边界，并输入确认文本。",
     },
     {
       id: "converted-format-review",
@@ -250,13 +250,13 @@ function buildCoverageGaps(
       status: activeConverted.length > 0 ? "manual-confirmation" : "ready",
       evidence: `${activeConverted.length} 个正在使用的格式组依赖本地转换，可能丢失复杂布局、图表交互或样式。`,
       required_action:
-        "转换为可编辑页面后先人工复核，再把结论连接到公司、会议、memo 或数据库。",
+        "转换为可编辑页面后先人工复核，再把结论连接到公司、会议、备忘录或数据库。",
     },
     {
       id: "legacy-office-gap",
       title: "旧版 Office 缺口",
       status: blockedLimited.length > 0 ? "blocked" : "ready",
-      evidence: `${blockedLimited.length} 个格式组存在明确 limitation，例如旧版 .doc/.ppt 只能本地保存和下载。`,
+      evidence: `${blockedLimited.length} 个格式组存在明确限制，例如旧版 .doc/.ppt 只能本地保存和下载。`,
       required_action:
         "优先要求转换为 .docx/.pptx，或后续接入安全的本地旧版 Office 转换器。",
     },

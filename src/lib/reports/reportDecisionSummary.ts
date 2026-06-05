@@ -132,9 +132,9 @@ export function buildReportDecisionSummary(
     summary_status: "local-report-owner-review",
     current_state: "local-report-owner-review",
     current_conclusion:
-      "报告库现在可以继续本地创建 page、原生展示 HTML/PDF、导入 Markdown、复核 Office/Notebook 转换，并把单个报告接入 tracker；批量表格入库、HTML 外部资源、AI 总结、云同步和文件外发仍保持关闭，必须经过 owner confirmation。",
+      "报告库现在可以继续本地创建 page、原生展示 HTML/PDF、导入 Markdown、复核 Office/Notebook 转换，并把单个报告接入跟踪表；批量表格入库、HTML 外部资源、AI 总结、云同步和文件外发仍保持关闭，必须由你确认。",
     privacy_note:
-      "Generated locally from aggregate report workflow summaries. It does not include file names, report titles, page text, file bytes, extracted file text, database row values, prompts, tokens, credentials, cloud data, or AI output.",
+      "由聚合后的报告工作流摘要在本地生成。不包含文件名、报告标题、页面文本、文件字节、抽取后的文件文本、数据库行值、prompt、token、凭证、云端数据或 AI 输出。",
     boundary: {
       local_summary_only: true,
       reads_report_intake_summary: true,
@@ -165,21 +165,21 @@ export function buildReportDecisionSummary(
     can_sync_report_files_now: false,
     safe_local_work: [
       "上传 HTML、PDF、Markdown、Office、notebook、archive 和媒体文件时，先创建本地 page 与 file-preview block。",
-      "HTML Page 预览继续使用 sandboxed iframe；外部图片、脚本、样式、字体和 frame 默认阻止。",
-      "Markdown 可编辑导入可以直接生成 page 内容，同时保留本地原文件 receipt。",
-      "PDF、Word、PPT、Excel、EPUB、RTF 和 Notebook 先进入本地预览、转换复核或 review queue。",
+      "HTML Page 预览继续使用沙盒 iframe；外部图片、脚本、样式、字体和 frame 默认阻止。",
+      "Markdown 可编辑导入可以直接生成 page 内容，同时保留本地原文件动作收据。",
+      "PDF、Word、PPT、Excel、EPUB、RTF 和 Notebook 先进入本地预览、转换复核或复核队列。",
     ],
     blocked_work: [
       "不能默认加载 HTML 报告里的远程资源或执行外部脚本。",
-      "不能默认把 Excel/CSV/ODS 批量写入数据库 rows。",
-      "不能把报告正文、文件文本、file bytes、文件名或页面正文发送给 AI provider。",
-      "不能自动同步报告文件、生成分享链接、执行 notebook 或解包写入 workspace。",
+      "不能默认把 Excel/CSV/ODS 批量写入数据库行。",
+      "不能把报告正文、文件文本、文件字节、文件名或页面正文发送给 AI provider。",
+      "不能自动同步报告文件、生成分享链接、执行 notebook 或解包写入工作区。",
     ],
     required_owner_decisions: [
       "确认某个 HTML 报告是否值得开启外部资源，默认继续关闭。",
-      "确认转换后的 Word/PPT/Excel/Notebook 是否保真，再把结论写入 page 或 tracker。",
-      "确认表格入库的字段、行数、目标数据库、回滚边界和 typed confirmation。",
-      "确认 AI、云同步或外部分享前的 payload preview、权限检查和审计事件。",
+      "确认转换后的 Word/PPT/Excel/Notebook 是否保真，再把结论写入 page 或跟踪表。",
+      "确认表格入库的字段、行数、目标数据库、回滚边界，并输入确认文本。",
+      "确认 AI、云同步或外部分享前的发送内容预览、权限检查和审计事件。",
     ],
     top_blockers: buildTopBlockers(summary),
     decisions: [
@@ -190,7 +190,7 @@ export function buildReportDecisionSummary(
         answer: "本地可做",
         evidence: `${summary.html_reports} 个 HTML 报告已经在 intake/playbook 中识别；HTML 仍是 AI 可视化报告的首选原生展示格式。`,
         next_action:
-          "从报告页打开 sandboxed preview，先读图表和结论；外部资源保持关闭。",
+          "从报告页打开沙盒预览，先读图表和结论；外部资源保持关闭。",
         route: "/modules/reports",
         target_section_id: "reports-preview-routing",
         allowed_now: true,
@@ -232,7 +232,7 @@ export function buildReportDecisionSummary(
         answer: conversionNeedsReview ? "先复核" : "暂无阻塞",
         evidence: `${summary.review_needed_items} 个 review-needed 项需要关注转换保真、公式、图表、批注、slide 顺序或 notebook 输出。`,
         next_action:
-          "对照原生预览和转换结果，确认关键结论不丢失后再写入 page、memo 或 tracker。",
+          "对照原生预览和转换结果，确认关键结论不丢失后再写入 page、备忘录或跟踪表。",
         route: "/modules/reports",
         target_section_id: "reports-conversion-review",
         allowed_now: !conversionNeedsReview,
@@ -247,12 +247,12 @@ export function buildReportDecisionSummary(
       },
       {
         id: "tracker-relation-intake",
-        title: "Tracker 与 relation",
+        title: "跟踪表与 relation",
         status: "requires-owner-confirmation",
-        answer: trackerReady ? "单条确认后写" : "先建 tracker",
-        evidence: `${summary.relation_suggestions} 个 relation suggestion，${summary.report_trackers} 个报告 tracker 可用；写 row 必须通过单条点击。`,
+        answer: trackerReady ? "单条确认后写" : "先建跟踪表",
+        evidence: `${summary.relation_suggestions} 个 relation 建议，${summary.report_trackers} 个报告跟踪表可用；写入行必须通过单条点击。`,
         next_action:
-          "先确认 Report page relation、Format、Status、Source 和 Key takeaways，再创建单条本地 tracker row。",
+          "先确认报告页 relation、格式、状态、来源和核心结论，再创建单条本地跟踪表行。",
         route: "/modules/reports",
         target_section_id: "reports-tracker-intake",
         allowed_now: false,
@@ -270,9 +270,9 @@ export function buildReportDecisionSummary(
         title: "AI、云同步与外部资源边界",
         status: "blocked",
         answer: "保持关闭",
-        evidence: `${summary.confirmation_queue_items} 个格式或 review queue 确认项仍在本地 gate 后面；报告文件、正文和文件名不外发。`,
+        evidence: `${summary.confirmation_queue_items} 个格式或复核队列确认项仍在本地闸门后面；报告文件、正文和文件名不外发。`,
         next_action:
-          "只有在 payload preview、权限检查、审计事件和 typed confirmation 齐备后，才讨论 AI、云同步、分享或外部资源。",
+          "只有在发送内容预览、权限检查、审计事件和确认文本齐备后，才讨论 AI、云同步、分享或外部资源。",
         route: "/modules/sync",
         target_section_id: "sync-ai-provider-boundary",
         allowed_now: false,
@@ -307,13 +307,13 @@ export function buildReportDecisionSummary(
 
 function buildTopBlockers(summary: ReportDecisionSummary["summary"]) {
   const blockers = [
-    `${summary.active_confirmation_groups} 个活跃格式组需要 owner confirmation。`,
+    `${summary.active_confirmation_groups} 个活跃格式组需要你确认。`,
     `${summary.spreadsheet_candidates} 个表格候选仍禁止默认批量入库。`,
     `${summary.blocked_items} 个阻塞项来自旧版、未知格式或明确 gap。`,
   ];
 
   if (summary.report_trackers === 0) {
-    blockers.push("还没有报告 tracker 时，relation intake 只能先停在建表/补字段步骤。");
+    blockers.push("还没有报告跟踪表时，relation intake 只能先停在建表/补字段步骤。");
   }
 
   return blockers;

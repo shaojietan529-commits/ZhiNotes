@@ -103,7 +103,7 @@ export function buildReportReviewQueue(
     queue_status: "local-review-queue-only",
     queue_verdict: "ready-for-local-research-triage",
     privacy_note:
-      "Generated locally from report intake metadata. The queue uses file names, file kinds, sizes, priorities, preview support, and relation gaps only. It does not read file bytes, read converted file text, read page body text, write workspace data, load external resources, connect cloud services, upload data, or enable AI.",
+      "由报告 intake 元数据在本地生成。队列只使用文件名、文件类型、大小、优先级、预览支持和关联缺口；不读取文件字节、不读取转换后的文件文本、不读取页面正文、不写入工作区、不加载外部资源、不连接云服务、不上传数据、也不启用 AI。",
     boundary: {
       local_queue_only: true,
       reads_report_intake_metadata: true,
@@ -146,7 +146,7 @@ function buildQueueItem(item: ReportIntakeItem): ReportReviewQueueItem {
     required_confirmation: policy.requiredConfirmation,
     relation_gaps: item.relation_gaps,
     privacy_boundary:
-      "本地 review queue 只使用 intake 元数据；不读取报告正文、文件文本、文件 bytes、tokens、credentials、云数据或 AI 输出。",
+      "本地复核队列只使用 intake 元数据；不读取报告正文、文件文本、文件字节、token、凭证、云数据或 AI 输出。",
     sort_score: sortScore,
   };
 }
@@ -178,7 +178,7 @@ function getQueuePolicy(item: ReportIntakeItem): {
       status: "review-needed",
       risk: "high",
       actionLabel: "表格入库复核",
-      evidence: "Excel/CSV/ODS 可以预览，也可能批量创建字段和 rows。",
+      evidence: "Excel/CSV/ODS 可以预览，也可能批量创建字段和行。",
       nextStep: "先确认字段、行数、公式值和回滚边界，再决定是否导入本地数据库。",
       requiredConfirmation: true,
     };
@@ -246,7 +246,7 @@ function getQueuePolicy(item: ReportIntakeItem): {
       evidence:
         item.file_kind === "unknown"
           ? "未知格式没有明确预览或转换路线。"
-          : "ZIP 只做本地目录元数据复核，不自动解包写入 workspace。",
+          : "ZIP 只做本地目录元数据复核，不自动解包写入工作区。",
       nextStep:
         item.file_kind === "unknown"
           ? "先确认来源和用途，再决定是否新增安全预览路线。"
@@ -297,7 +297,7 @@ function buildQueueGates(
       "队列来源",
       summary.queue_items > 0 ? "ready" : "review-needed",
       summary.queue_items > 0
-        ? `${summary.queue_items} 个 intake 文件已经进入下一步 review queue。`
+        ? `${summary.queue_items} 个 intake 文件已经进入下一步复核队列。`
         : "还没有 intake 文件，队列暂时为空。",
       "继续通过报告库上传文件，让队列反映真实投研资料。"
     ),
@@ -326,8 +326,8 @@ function buildQueueGates(
       "relation-linking-gate",
       "关联归档",
       summary.relation_gap_items > 0 ? "review-needed" : "ready",
-      `${summary.relation_gap_items} 个文件仍缺公司、会议或 memo 关系。`,
-      "完成阅读或转换复核后，把报告页连接到公司、会议、memo 或组合。"
+      `${summary.relation_gap_items} 个文件仍缺公司、会议或备忘录关系。`,
+      "完成阅读或转换复核后，把报告页连接到公司、会议、备忘录或组合。"
     ),
     gate(
       "legacy-unknown-block",

@@ -93,7 +93,7 @@ export interface ReportConnectionPlan {
 const TARGET_LABELS: Record<ReportConnectionTargetKind, string> = {
   company: "公司",
   meeting: "会议",
-  memo: "Memo",
+  memo: "备忘录",
   portfolio: "组合",
 };
 
@@ -114,7 +114,7 @@ export function buildReportConnectionPlan(input: {
     format_version: 1,
     plan_status: "local-relation-plan-only",
     privacy_note:
-      "Generated locally from report intake metadata and database metadata. This plan recommends report-to-company, report-to-meeting, report-to-memo, and report-to-portfolio relation work without reading report text, file text, file bytes, database rows, prompts, tokens, credentials, cloud data, or private row values. It does not write workspace data.",
+      "由报告 intake 元数据和数据库元数据在本地生成。这个计划建议报告到公司、会议、备忘录和组合的关联工作；不读取报告正文、文件文本、文件字节、数据库行、prompt、token、凭证、云端数据或私有行值，也不写入工作区数据。",
     boundary: {
       local_plan_only: true,
       reads_report_intake_metadata: true,
@@ -157,31 +157,31 @@ export function buildReportConnectionPlan(input: {
       {
         target_kind: "report",
         field_names: [
-          "Report page",
-          "Company page",
-          "Related meetings",
-          "Related memo",
+          "报告页",
+          "公司页",
+          "关联会议",
+          "关联备忘录",
         ],
         reason:
-          "Report tracker rows should link the source report page to company, meeting, and memo context.",
+          "报告跟踪表行应把来源报告页连接到公司、会议和备忘录上下文。",
       },
       {
         target_kind: "company",
-        field_names: ["Company page", "Related reports", "Related meetings"],
+        field_names: ["公司页", "关联报告", "关联会议"],
         reason:
-          "Company tracker rows should expose relation fields back to reports and meetings.",
+          "公司跟踪表行应提供回连报告和会议的 relation 字段。",
       },
       {
         target_kind: "meeting",
-        field_names: ["Meeting note", "Related reports", "Company page"],
+        field_names: ["会议纪要", "关联报告", "公司页"],
         reason:
-          "Meeting tracker rows should link transcripts and calls to reports and company pages.",
+          "会议跟踪表行应把纪要、电话会与报告和公司页连接起来。",
       },
       {
         target_kind: "portfolio",
-        field_names: ["Company page", "Related reports", "Related meetings"],
+        field_names: ["公司页", "关联报告", "关联会议"],
         reason:
-          "Portfolio tracker rows should keep position review context connected to research artifacts.",
+          "组合跟踪表行应把持仓复盘上下文连接到相关研究资产。",
       },
     ],
   };
@@ -213,9 +213,9 @@ function buildSuggestion(
     ),
     actions,
     next_action:
-      "Open the report page and tracker side by side, then add relation ids manually after confirming the company, meeting, memo, or portfolio context.",
+      "并排打开报告页和目标跟踪表，在确认公司、会议、备忘录或组合上下文后手动补 relation。",
     privacy_boundary:
-      "This suggestion uses intake metadata only. It does not inspect report text, file text, file bytes, database rows, tokens, credentials, cloud data, or AI prompts.",
+      "这个建议只使用 intake 元数据；不检查报告正文、文件文本、文件字节、数据库行、token、凭证、云端数据或 AI prompt。",
   };
 }
 
@@ -235,8 +235,8 @@ function buildAction(
     route: tracker?.database_route ?? fallbackRoute,
     writes_workspace_data: false,
     reason: tracker
-      ? `Open ${tracker.database_title} and manually connect the report after confirming the right ${TARGET_LABELS[target]} relation.`
-      : `No ${TARGET_LABELS[target]} tracker is available yet. Create or configure the tracker before linking this report.`,
+      ? `打开 ${tracker.database_title}，确认正确的${TARGET_LABELS[target]} relation 后手动连接报告。`
+      : `当前还没有可用的${TARGET_LABELS[target]}跟踪表。先创建或配置跟踪表，再关联这份报告。`,
   };
 }
 

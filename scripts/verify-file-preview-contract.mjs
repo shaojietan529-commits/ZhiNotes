@@ -358,7 +358,7 @@ function run() {
     "reports-conversion-review",
     "原生预览路由",
     "导出路由包",
-    "不读取文件名、正文、bytes、表格值",
+    "不读取文件名、正文、字节、表格值",
   ]) {
     assertIncludes(
       files.reportsShell,
@@ -621,7 +621,7 @@ function run() {
     '"legacy-office-block"',
     '"cloud-ai-boundary"',
     "PPTX/ODP",
-    "speaker notes",
+    "演讲者备注",
     "legacy_items",
   ]) {
     assertIncludes(
@@ -735,7 +735,7 @@ function run() {
     "cloud-ai-external-resource-boundary",
     "HTML Page 预览",
     "Markdown 可编辑导入",
-    "Tracker 与 relation",
+    "跟踪表与 relation",
     "AI、云同步与外部资源边界",
     "load_html_external_resources_without_confirmation",
     "send_report_text_or_file_bytes_to_ai",
@@ -980,7 +980,7 @@ function run() {
   assertIncludes(
     files.reportsShell,
     reportsShell,
-    "Export intake",
+    "导出入库队列",
     "Reports module must export the intake report."
   );
   assertIncludes(
@@ -1004,7 +1004,7 @@ function run() {
   assertIncludes(
     files.reportsShell,
     reportsShell,
-    "创建 tracker row",
+    "创建跟踪表行",
     "Reports module must expose a tracker-row creation action."
   );
   assertIncludes(
@@ -1035,7 +1035,7 @@ function run() {
     "buildReportFormatCoverageReport",
     "handleExportFormatCoverage",
     "格式覆盖缺口",
-    "导出 coverage",
+    "导出覆盖报告",
     "FormatCoverageGapRow",
     "FormatCoverageRowCard",
     "FormatCoverageStatusPill",
@@ -1068,8 +1068,8 @@ function run() {
     "buildReportReviewQueue",
     "reportReviewQueue",
     "handleExportReviewQueue",
-    "下一步 review queue",
-    "导出 queue",
+    "下一步复核队列",
+    "导出队列",
     "ReportReviewQueueGateRow",
     "ReportReviewQueueItemCard",
     "ReportReviewQueueStatusPill",
@@ -1088,7 +1088,7 @@ function run() {
     "buildFilePreviewReadinessReport",
     "handleExportPreviewReadiness",
     "原生预览 readiness",
-    "导出 readiness",
+    "导出预览就绪",
     "FilePreviewReadinessGateRow",
     "FilePreviewReadinessRouteCard",
     "FilePreviewReadinessPill",
@@ -1294,7 +1294,7 @@ function run() {
     "打开对应区域",
     "当前可做",
     "保持关闭",
-    "Owner 待确认",
+    "待你确认",
     "报告决策摘要只读取本地 summary metadata",
   ]) {
     assertIncludes(
@@ -1313,7 +1313,7 @@ function run() {
     "UploadPreflightRouteCard",
     "UploadPreflightActionPill",
     "UploadPreflightRiskPill",
-    "不读取文件名、文件 bytes、文件文本或页面正文",
+    "不读取文件名、文件字节、文件文本或页面正文",
     "AI 可视化报告优先用",
   ]) {
     assertIncludes(
@@ -1329,11 +1329,11 @@ function run() {
     "appendFilePreviewActionReceipt",
     "buildFilePreviewActionReceipt",
     "handleExportFileActionReceipts",
-    "文件动作 receipts",
-    "导出 receipts",
+    "文件动作收据",
+    "导出收据",
     "zhinote-file-preview-action-receipt-history",
     "history_status: \"local-metadata-only\"",
-    "不保存文件名、正文、bytes、表格值、token 或凭证",
+    "不保存文件名、正文、字节、表格值、token 或凭证",
     "summarizeFileActionReceipts",
     "native_preview",
     "download_retain",
@@ -1368,7 +1368,7 @@ function run() {
     "markdownToHtml",
     "source_surface: \"reports-module\"",
     "导入 Markdown 笔记",
-    "Markdown imported from the Reports module into a local editable page.",
+    "Markdown 已从报告库模块导入为本地可编辑页面。",
   ]) {
     assertIncludes(
       files.reportsShell,

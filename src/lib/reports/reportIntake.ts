@@ -93,7 +93,7 @@ export const REPORT_INTAKE_LANES: ReportIntakeLane[] = [
   {
     id: "linking",
     title: "关联归档",
-    description: "把报告关联到公司、会议、memo、组合或后续跟踪事项。",
+    description: "把报告关联到公司、会议、备忘录、组合或后续跟踪事项。",
   },
 ];
 
@@ -106,7 +106,7 @@ export function buildReportIntakeReport(pages: Page[]): ReportIntakeReport {
     format_version: 1,
     report_status: "local-report-intake-only",
     privacy_note:
-      "Generated locally from page-level file preview block attributes. The report lists file names, kinds, sizes, preview support, workflow stage, and next actions only. It does not read file bytes, read converted file text, connect cloud services, upload data, or enable AI.",
+      "由页面级 file-preview block 属性在本地生成。报告只列出文件名、类型、大小、预览支持、工作流阶段和下一步动作；不读取文件字节、不读取转换后的文件文本、不连接云服务、不上传数据、也不启用 AI。",
     boundary: {
       local_report_only: true,
       reads_local_page_html: true,
@@ -261,7 +261,7 @@ function getNextAction(kind: PageFileKind) {
     return "确认字段、行数和导入边界后，再决定是否转成本地数据库。";
   }
   if (kind === "html") {
-    return "先保持外部资源阻止，阅读核心图表，再补公司、会议和 memo 关联。";
+    return "先保持外部资源阻止，阅读核心图表，再补公司、会议和备忘录关联。";
   }
   if (kind === "markdown") {
     return "导入为可编辑块后，提取核心结论、假设影响和后续问题。";
@@ -288,8 +288,8 @@ function getRelationGaps(content: string) {
   if (!lowerContent.includes("相关会议") && !lowerContent.includes("meeting")) {
     gaps.push("会议");
   }
-  if (!lowerContent.includes("memo")) {
-    gaps.push("memo");
+  if (!lowerContent.includes("memo") && !lowerContent.includes("备忘")) {
+    gaps.push("备忘录");
   }
 
   return gaps.length > 0 ? gaps : ["待确认"];

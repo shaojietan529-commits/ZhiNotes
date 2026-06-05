@@ -207,13 +207,13 @@ async function applyWorkspacePreset(
   if (preset === "report-library") {
     await updateDatabase(databaseId, {
       description:
-        "Local report library tracker for HTML reports, PDFs, Office files, notebooks, archives, takeaways, thesis impact, and linked research.",
+        "本地报告库跟踪表，用来管理 HTML 报告、PDF、Office 文件、notebook、压缩包、核心结论、投资假设影响和关联研究。",
     });
     await addPresetFields(databaseId, [
-      { name: "Report page", fieldType: "relation" },
-      { name: "Company page", fieldType: "relation" },
+      { name: "报告页", fieldType: "relation" },
+      { name: "公司页", fieldType: "relation" },
       {
-        name: "Format",
+        name: "格式",
         fieldType: "select",
         options: [
           "HTML",
@@ -223,30 +223,30 @@ async function applyWorkspacePreset(
           "Word",
           "PowerPoint",
           "Notebook",
-          "Archive",
-          "Other",
+          "压缩包",
+          "其他",
         ],
       },
       {
-        name: "Status",
+        name: "状态",
         fieldType: "status",
-        options: ["Inbox", "Reviewing", "Summarized", "Linked", "Archived"],
+        options: ["收件箱", "复核中", "已总结", "已关联", "已归档"],
       },
-      { name: "Report date", fieldType: "date" },
-      { name: "Source", fieldType: "text" },
-      { name: "External source", fieldType: "url" },
-      { name: "Key takeaways", fieldType: "text" },
-      { name: "Thesis impact", fieldType: "text" },
-      { name: "Model impact", fieldType: "text" },
-      { name: "Related meetings", fieldType: "relation" },
-      { name: "Related memo", fieldType: "relation" },
+      { name: "报告日期", fieldType: "date" },
+      { name: "来源", fieldType: "text" },
+      { name: "外部来源", fieldType: "url" },
+      { name: "核心结论", fieldType: "text" },
+      { name: "投资假设影响", fieldType: "text" },
+      { name: "模型影响", fieldType: "text" },
+      { name: "关联会议", fieldType: "relation" },
+      { name: "关联备忘录", fieldType: "relation" },
     ]);
     await addPresetViews(databaseId, [
-      { name: "Report table", viewType: "table" },
-      { name: "Review board", viewType: "kanban" },
-      { name: "Format gallery", viewType: "gallery" },
+      { name: "报告表", viewType: "table" },
+      { name: "复核看板", viewType: "kanban" },
+      { name: "格式画廊", viewType: "gallery" },
       { name: "格式分布", viewType: "chart" },
-      { name: "Recent reports", viewType: "feed" },
+      { name: "最近报告", viewType: "feed" },
     ]);
     return updateDatabase(databaseId, {});
   }

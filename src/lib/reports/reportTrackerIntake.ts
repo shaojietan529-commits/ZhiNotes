@@ -45,11 +45,11 @@ export interface ReportTrackerExistingRow {
 }
 
 const REPORT_TRACKER_REQUIRED_FIELDS = [
-  "Report page",
-  "Format",
-  "Status",
-  "Source",
-  "Key takeaways",
+  { label: "报告页", aliases: ["报告页", "报告页面", "Report page"] },
+  { label: "格式", aliases: ["格式", "Format"] },
+  { label: "状态", aliases: ["状态", "Status"] },
+  { label: "来源", aliases: ["来源", "Source"] },
+  { label: "核心结论", aliases: ["核心结论", "Key takeaways", "Takeaways"] },
 ];
 
 export function buildReportTrackerIntakeDraft(
@@ -59,7 +59,7 @@ export function buildReportTrackerIntakeDraft(
   const mappedFields: ReportTrackerIntakeDraft["mapped_fields"] = [];
   const fieldValues: Record<string, unknown> = {};
 
-  const reportPageField = findField(fields, ["Report page", "报告页面"]);
+  const reportPageField = findField(fields, ["报告页", "Report page", "报告页面"]);
   const formatField = findField(fields, ["Format", "格式"]);
   const statusField = findField(fields, ["Status", "状态"]);
   const sourceField = findField(fields, ["Source", "来源"]);
@@ -119,7 +119,7 @@ export function buildReportTrackerIntakeDraft(
     format_version: 1,
     draft_status: "local-report-tracker-row-draft",
     privacy_note:
-      "Generated locally from one report intake item and the selected report tracker field schema. It creates a row draft with relation ids and file metadata only. It does not read or export report text, file text, file bytes, page body text, cloud data, AI prompts, tokens, or credentials.",
+      "由一个报告 intake 条目和所选报告跟踪表字段结构在本地生成。它只创建带 relation id 和文件 metadata 的行草稿，不读取或导出报告正文、文件文本、文件字节、页面正文、云端数据、AI prompt、token 或凭证。",
     boundary: {
       local_row_draft_only: true,
       reads_report_intake_item: true,
@@ -139,11 +139,13 @@ export function buildReportTrackerIntakeDraft(
     field_values: fieldValues,
     mapped_fields: mappedFields,
     missing_fields: REPORT_TRACKER_REQUIRED_FIELDS.filter(
-      (fieldName) =>
-        !mappedFields.some(
-          (field) => normalizeName(field.field_name) === normalizeName(fieldName)
+      (requiredField) =>
+        !mappedFields.some((field) =>
+          requiredField.aliases.some(
+            (alias) => normalizeName(field.field_name) === normalizeName(alias)
+          )
         )
-    ),
+    ).map((requiredField) => requiredField.label),
   };
 }
 
@@ -152,7 +154,7 @@ export function findExistingReportTrackerRow(
   fields: DatabaseField[],
   reportPageId: string
 ): ReportTrackerExistingRow | null {
-  const reportPageField = findField(fields, ["Report page", "报告页面"]);
+  const reportPageField = findField(fields, ["报告页", "Report page", "报告页面"]);
   if (!reportPageField) return null;
 
   for (const row of rows) {
@@ -175,44 +177,44 @@ function getReportTrackerFormat(item: ReportIntakeItem) {
   const labels: Record<ReportIntakeItem["file_kind"], string> = {
     html: "HTML",
     markdown: "Markdown",
-    opml: "Other",
-    rtf: "Other",
-    epub: "Other",
-    archive: "Archive",
+    opml: "其他",
+    rtf: "其他",
+    epub: "其他",
+    archive: "压缩包",
     pdf: "PDF",
-    image: "Other",
-    audio: "Other",
-    video: "Other",
-    text: "Other",
+    image: "其他",
+    audio: "其他",
+    video: "其他",
+    text: "其他",
     notebook: "Notebook",
     spreadsheet: "Excel",
     word: "Word",
     presentation: "PowerPoint",
-    unknown: "Other",
+    unknown: "其他",
   };
 
-  return labels[item.file_kind] ?? "Other";
+  return labels[item.file_kind] ?? "其他";
 }
 
 function getReportTrackerStatus(stage: ReportIntakeStage) {
-  if (stage === "captured" || stage === "source-triage") return "Inbox";
-  if (stage === "reading-review" || stage === "database-review") return "Reviewing";
-  if (stage === "linking") return "Linked";
-  return "Inbox";
+  if (stage === "captured" || stage === "source-triage") return "收件箱";
+  if (stage === "reading-review" || stage === "database-review") return "复核中";
+  if (stage === "linking") return "已关联";
+  return "收件箱";
 }
 
 function buildReportTrackerRowContent(item: ReportIntakeItem) {
   const relationGaps =
     item.relation_gaps.length > 0
       ? item.relation_gaps.map((gap) => `<li>${escapeHtml(gap)}</li>`).join("")
-      : "<li>待确认公司、会议和 memo 关系。</li>";
+      : "<li>待确认公司、会议和备忘录关系。</li>";
 
   return `
     <h1>${escapeHtml(`报告跟踪 - ${item.page_title}`)}</h1>
-    <p>由报告库本地入库创建。这个 row 用来把本地报告页接入报告跟踪表。</p>
+    <p>由报告库本地入库创建。这个行用来把本地报告页接入报告跟踪表。</p>
     <h2>已连接</h2>
     <ul>
-      <li>Report page relation: ${escapeHtml(item.page_title)}</li>
+      <li>报告页 relation: ${escapeHtml(item.page_title)}</li>
       <li>文件名：${escapeHtml(item.file_name)}</li>
       <li>格式：${escapeHtml(item.file_kind)}</li>
     </ul>
@@ -221,7 +223,7 @@ function buildReportTrackerRowContent(item: ReportIntakeItem) {
       <li>${escapeHtml(item.next_action)}</li>
       ${relationGaps}
     </ul>
-    <p><strong>隐私边界：</strong>本地单条写入，不读取报告正文、文件文本、文件 bytes、上传或调用 AI。</p>
+    <p><strong>隐私边界：</strong>本地单条写入，不读取报告正文、文件文本、文件字节、上传或调用 AI。</p>
   `.trim();
 }
 

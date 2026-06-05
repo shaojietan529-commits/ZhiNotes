@@ -103,7 +103,7 @@ export function buildFilePreviewReadinessReport(
     can_sync_files_now: false,
     can_bulk_import_without_confirmation_now: false,
     privacy_note:
-      "这个报告只在本地根据文件预览能力元数据生成；不会读取文件 bytes、转换后的文件文本或页面正文，不会加载外部资源、写入 workspace、连接云服务、上传数据或启用 AI。",
+      "这个报告只在本地根据文件预览能力元数据生成；不会读取文件字节、转换后的文件文本或页面正文，不会加载外部资源、写入工作区、连接云服务、上传数据或启用 AI。",
     boundary: {
       local_report_only: true,
       reads_capability_metadata: true,
@@ -196,7 +196,7 @@ function buildReadinessGates(
       "表格数据库导入",
       "manual-confirmation",
       "Excel、CSV、TSV 和 ODS 可以在字段、行数和回滚方案复核后导入本地数据库。",
-      "任何批量数据库写入前，都要要求用户 typed confirmation。"
+      "任何批量数据库写入前，都要要求用户输入确认文本。"
     ),
     gate(
       "editable-conversion-review",
@@ -217,7 +217,7 @@ function buildReadinessGates(
       "云端和 AI 边界",
       "blocked",
       "文件预览是本地能力；AI 执行、云同步和外部资源加载都属于单独的高风险动作。",
-      "在 payload 预览、权限检查、审计事件和用户确认齐备前，不把文件内容发送给 AI 或云服务。"
+      "在发送内容预览、权限检查、审计事件和用户确认齐备前，不把文件内容发送给 AI 或云服务。"
     ),
   ];
 }
@@ -238,7 +238,7 @@ function getRouteStatus(
 
 function getDefaultGap(capability: FilePreviewCapability) {
   if (capability.support_level === "metadata") {
-    return "只复核元数据；不会把压缩包内容解包写入 workspace。";
+    return "只复核元数据；不会把压缩包内容解包写入工作区。";
   }
   if (capability.support_level === "download-only") {
     return "仅本地留存和下载。";

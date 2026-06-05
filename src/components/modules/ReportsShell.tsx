@@ -427,8 +427,8 @@ function ReportsDashboard() {
         confirmation_matched: true,
         note:
           storedFile.kind === "archive"
-            ? "Report file retained locally from the Reports module with download access."
-            : "Report file created from the Reports module as a local page preview.",
+            ? "报告文件已从报告库模块本地留存，并提供下载入口。"
+            : "报告文件已从报告库模块创建为本地页面预览。",
       })
     );
     return page;
@@ -464,8 +464,7 @@ function ReportsDashboard() {
           writes_page_content: true,
           confirmation_required: false,
           confirmation_matched: true,
-          note:
-            "Markdown imported from the Reports module into a local editable page.",
+          note: "Markdown 已从报告库模块导入为本地可编辑页面。",
         })
       );
       await refresh();
@@ -489,7 +488,7 @@ function ReportsDashboard() {
       });
     } catch (err) {
       console.error("[Zhinote] Failed to export report intake:", err);
-      window.alert("Report intake export failed. Please check the console.");
+      window.alert("报告入库队列导出失败，请查看控制台。");
     } finally {
       setExportingIntake(false);
     }
@@ -633,7 +632,7 @@ function ReportsDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export report review queue:", err);
-      window.alert("下一步 review queue 导出失败，请查看控制台。");
+      window.alert("下一步复核队列导出失败，请查看控制台。");
     } finally {
       setExportingReviewQueue(false);
     }
@@ -668,13 +667,13 @@ function ReportsDashboard() {
           exported_at: new Date().toISOString(),
           history_status: "local-metadata-only",
           privacy_note:
-            "Exported locally from browser receipt history. Receipts do not include file names, file bytes, file text, page body text, spreadsheet cell values, tokens, credentials, prompts, cloud data, or AI output.",
+            "从浏览器本地动作收据历史导出。动作收据不包含文件名、文件字节、文件文本、页面正文、表格单元格值、token、凭证、prompt、云端数据或 AI 输出。",
           receipts: fileActionReceipts,
         }
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export file action receipts:", err);
-      window.alert("文件动作 receipts 导出失败，请查看控制台。");
+      window.alert("文件动作收据导出失败，请查看控制台。");
     } finally {
       setExportingFileActionReceipts(false);
     }
@@ -701,7 +700,7 @@ function ReportsDashboard() {
       );
       if (existingRow) {
         setTrackerIntakeMessage(
-          `已存在 tracker row：${existingRow.row_title}。已打开报告跟踪表继续补 relation。`
+          `已存在跟踪表行：${existingRow.row_title}。已打开报告跟踪表继续补 relation。`
         );
         router.push(
           `/database/${tracker.id}?q=${encodeURIComponent(item.page_title)}`
@@ -715,7 +714,7 @@ function ReportsDashboard() {
       );
       if (!hasReportPageRelation) {
         window.alert(
-          "当前报告跟踪表缺少 Report page relation 字段，请先补字段后再入库。"
+          "当前报告跟踪表缺少报告页 relation 字段，请先补字段后再入库。"
         );
         return;
       }
@@ -726,7 +725,7 @@ function ReportsDashboard() {
         contentText: draft.row_page_content,
       });
       setTrackerIntakeMessage(
-        `已创建 tracker row：${draft.row_title}。已打开报告跟踪表继续补 relation。`
+        `已创建跟踪表行：${draft.row_title}。已打开报告跟踪表继续补 relation。`
       );
       router.push(
         `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}`
@@ -856,12 +855,12 @@ function ReportsDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                下一步 review queue
+                下一步复核队列
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 把 intake 文件合并成可执行的投研待办：第一遍阅读、转换复核、表格入库、
-                来源分流和关联归档。这个 queue 只用本地 metadata，不读取文件正文、
-                文件 bytes，不上传、不同步、不调用 AI。
+                来源分流和关联归档。这个队列只用本地元数据，不读取文件正文、
+                文件字节，不上传、不同步、不调用 AI。
               </p>
             </div>
             <button
@@ -870,55 +869,55 @@ function ReportsDashboard() {
               disabled={exportingReviewQueue}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingReviewQueue ? "导出中..." : "导出 queue"}
+              {exportingReviewQueue ? "导出中..." : "导出队列"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
             <IntakeMetric
-              label="Queue"
+              label="队列"
               value={reportReviewQueue.summary.queue_items}
-              detail="Items"
+              detail="条目"
             />
             <IntakeMetric
               label="可阅读"
               value={reportReviewQueue.summary.ready_items}
-              detail="Ready"
+              detail="就绪"
             />
             <IntakeMetric
               label="需复核"
               value={reportReviewQueue.summary.review_needed_items}
-              detail="Review"
+              detail="复核"
             />
             <IntakeMetric
               label="阻塞"
               value={reportReviewQueue.summary.blocked_items}
-              detail="Blocked"
+              detail="阻塞"
             />
             <IntakeMetric
               label="第一遍"
               value={reportReviewQueue.summary.first_pass_reading_items}
-              detail="Read"
+              detail="阅读"
             />
             <IntakeMetric
               label="转换"
               value={reportReviewQueue.summary.conversion_review_items}
-              detail="Fidelity"
+              detail="保真度"
             />
             <IntakeMetric
               label="表格"
               value={reportReviewQueue.summary.database_review_items}
-              detail="Database"
+              detail="数据库"
             />
             <IntakeMetric
               label="确认"
               value={reportReviewQueue.summary.confirmation_required_items}
-              detail="Gated"
+              detail="需确认"
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
             <div className="space-y-2">
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Queue gates
+                队列闸门
               </div>
               {reportReviewQueue.gates.map((gate) => (
                 <ReportReviewQueueGateRow key={gate.id} gate={gate} />
@@ -926,7 +925,7 @@ function ReportsDashboard() {
             </div>
             <div>
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Top queue items
+                优先队列项
               </div>
               {reportReviewQueue.items.length > 0 ? (
                 <div className="mt-2 grid gap-3 lg:grid-cols-2">
@@ -940,7 +939,7 @@ function ReportsDashboard() {
                 </div>
               ) : (
                 <p className="mt-2 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-                  还没有 review queue。上传报告文件后，ZhiNotes 会自动把文件排入阅读、
+                  还没有复核队列。上传报告文件后，ZhiNotes 会自动把文件排入阅读、
                   转换复核、表格入库或来源分流。
                 </p>
               )}
@@ -967,7 +966,7 @@ function ReportsDashboard() {
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 选择文件前先看 ZhiNotes 会如何处理不同格式：原生预览、本地转换、
                 可编辑导入、数据库候选、元数据复核或本地留存下载。这个预检只读格式能力元数据，
-                不读取文件名、文件 bytes、文件文本或页面正文。
+                不读取文件名、文件字节、文件文本或页面正文。
               </p>
             </div>
             <button
@@ -983,42 +982,42 @@ function ReportsDashboard() {
             <IntakeMetric
               label="格式组"
               value={fileUploadPreflight.summary.capability_groups}
-              detail="Routes"
+              detail="路线"
             />
             <IntakeMetric
               label="扩展名"
               value={fileUploadPreflight.summary.accepted_extension_patterns}
-              detail="Accepted"
+              detail="已接受"
             />
             <IntakeMetric
               label="原生"
               value={fileUploadPreflight.summary.native_groups}
-              detail="Preview"
+              detail="预览"
             />
             <IntakeMetric
               label="转换"
               value={fileUploadPreflight.summary.converted_groups}
-              detail="Local"
+              detail="本地"
             />
             <IntakeMetric
               label="低风险"
               value={fileUploadPreflight.summary.low_risk_groups}
-              detail="Direct"
+              detail="直接"
             />
             <IntakeMetric
               label="中风险"
               value={fileUploadPreflight.summary.medium_risk_groups}
-              detail="Review"
+              detail="复核"
             />
             <IntakeMetric
               label="高风险"
               value={fileUploadPreflight.summary.high_risk_groups}
-              detail="Confirm"
+              detail="确认"
             />
             <IntakeMetric
               label="限制"
               value={fileUploadPreflight.summary.limited_groups}
-              detail="Gaps"
+              detail="缺口"
             />
           </div>
           <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
@@ -1033,7 +1032,7 @@ function ReportsDashboard() {
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
             <div className="space-y-2">
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Preflight gates
+                预检闸门
               </div>
               {fileUploadPreflight.gates.map((gate) => (
                 <UploadPreflightGateRow key={gate.id} gate={gate} />
@@ -1041,7 +1040,7 @@ function ReportsDashboard() {
             </div>
             <div className="space-y-2">
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Upload routes
+                上传路线
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 {fileUploadPreflight.routes.map((route) => (
@@ -1063,7 +1062,7 @@ function ReportsDashboard() {
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 从本地 page 的 file-preview block 元数据生成待处理报告队列，
-                用来判断格式、优先级、下一步动作和关联缺口。这个报告不读取文件 bytes、
+                用来判断格式、优先级、下一步动作和关联缺口。这个报告不读取文件字节、
                 不调用 AI、不连接云服务。
               </p>
             </div>
@@ -1073,44 +1072,44 @@ function ReportsDashboard() {
               disabled={exportingIntake}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingIntake ? "Exporting..." : "Export intake"}
+              {exportingIntake ? "导出中..." : "导出入库队列"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-7">
             <IntakeMetric
               label="待处理"
               value={reportIntake.summary.intake_items}
-              detail="File blocks"
+              detail="文件块"
             />
             <IntakeMetric
               label="高优先级"
               value={reportIntake.summary.high_priority}
-              detail="Review first"
+              detail="优先复核"
             />
             <IntakeMetric
               label="格式类型"
               value={reportIntake.summary.unique_file_kinds}
-              detail="Kinds"
+              detail="类型"
             />
             <IntakeMetric
               label="HTML"
               value={reportIntake.summary.html_reports}
-              detail="Reports"
+              detail="报告"
             />
             <IntakeMetric
               label="表格候选"
               value={reportIntake.summary.spreadsheet_candidates}
-              detail="DB import"
+              detail="入库候选"
             />
             <IntakeMetric
               label="页面扫描"
               value={reportIntake.summary.pages_scanned}
-              detail="Local only"
+              detail="仅本地"
             />
             <IntakeMetric
               label="队列阶段"
               value={reportIntake.lanes.length}
-              detail="Workflow"
+              detail="工作流"
             />
           </div>
           <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
@@ -1155,9 +1154,8 @@ function ReportsDashboard() {
                 报告关联计划
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                从 intake 元数据和本地数据库 metadata 生成 report-to-company、
-                report-to-meeting、report-to-memo 和 portfolio 关联建议。这个计划不读取报告正文、
-                文件文本、文件 bytes、数据库 row values，不写入 relation，不调用 AI 或云服务。
+                从 intake 元数据和本地数据库 metadata 生成报告到公司、会议、备忘录和组合的关联建议。这个计划不读取报告正文、
+                文件文本、文件字节、数据库行值，不写入 relation，不调用 AI 或云服务。
               </p>
             </div>
             <button
@@ -1173,42 +1171,42 @@ function ReportsDashboard() {
             <IntakeMetric
               label="建议"
               value={reportConnectionPlan.summary.suggestions}
-              detail="Relation work"
+              detail="关联工作"
             />
             <IntakeMetric
               label="高优先级"
               value={reportConnectionPlan.summary.high_priority_suggestions}
-              detail="Review first"
+              detail="优先复核"
             />
             <IntakeMetric
               label="缺公司"
               value={reportConnectionPlan.summary.missing_company_links}
-              detail="Company"
+              detail="公司"
             />
             <IntakeMetric
               label="缺会议"
               value={reportConnectionPlan.summary.missing_meeting_links}
-              detail="Meeting"
+              detail="会议"
             />
             <IntakeMetric
-              label="缺 Memo"
+              label="缺备忘录"
               value={reportConnectionPlan.summary.missing_memo_links}
-              detail="Memo"
+              detail="备忘录"
             />
             <IntakeMetric
               label="公司表"
               value={reportConnectionPlan.summary.company_trackers}
-              detail="Targets"
+              detail="目标"
             />
             <IntakeMetric
               label="会议表"
               value={reportConnectionPlan.summary.meeting_trackers}
-              detail="Targets"
+              detail="目标"
             />
             <IntakeMetric
               label="需确认"
               value={reportConnectionPlan.summary.confirmation_actions}
-              detail="Manual links"
+              detail="手动关联"
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
@@ -1235,7 +1233,7 @@ function ReportsDashboard() {
             </div>
             <div>
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Relation field checklist
+                Relation 字段清单
               </div>
               <div className="mt-2 space-y-2">
                 {reportConnectionPlan.required_fields.map((fieldSet) => (
@@ -1247,7 +1245,7 @@ function ReportsDashboard() {
               </div>
               <div className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
                 <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-                  Available tracker targets
+                  可用跟踪表目标
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {reportConnectionPlan.tracker_targets.length > 0 ? (
@@ -1280,9 +1278,9 @@ function ReportsDashboard() {
                 报告入库台
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把单个 intake 文件创建成报告跟踪表 row，并自动填入 Report page relation、
-                Format、Status、Source 和 Key takeaways。点击后只做本地单条写入，
-                不读取报告正文、文件文本或文件 bytes，不上传、不同步、不调用 AI。
+                把单个 intake 文件创建成报告跟踪表行，并自动填入报告页 relation、
+                格式、状态、来源和核心结论。点击后只做本地单条写入，
+                不读取报告正文、文件文本或文件字节，不上传、不同步、不调用 AI。
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
@@ -1293,7 +1291,7 @@ function ReportsDashboard() {
                     : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                 }`}
               >
-                {reportTrackers.length > 0 ? "Tracker ready" : "缺报告跟踪表"}
+                {reportTrackers.length > 0 ? "跟踪表就绪" : "缺报告跟踪表"}
               </span>
               <span className="rounded-md bg-blue-50 px-2 py-1 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                 本地单条写入
@@ -1337,7 +1335,7 @@ function ReportsDashboard() {
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 把 intake 队列里的格式拆成处理路线：HTML 报告优先原生预览，
                 Markdown 笔记优先可编辑导入，表格走数据库候选，其它文件保留本地原件和复核步骤。
-                这个 Playbook 不读取文件 bytes、文件文本或页面正文。
+                这个 Playbook 不读取文件字节、文件文本或页面正文。
               </p>
             </div>
             <button
@@ -1353,42 +1351,42 @@ function ReportsDashboard() {
             <IntakeMetric
               label="路线"
               value={reportFormatPlaybook.summary.format_routes}
-              detail="Format kinds"
+              detail="格式类型"
             />
             <IntakeMetric
               label="原生预览"
               value={reportFormatPlaybook.summary.native_preview_routes}
-              detail="HTML/PDF/media"
+              detail="HTML/PDF/媒体"
             />
             <IntakeMetric
               label="可编辑导入"
               value={reportFormatPlaybook.summary.editable_import_routes}
-              detail="Markdown/docs"
+              detail="Markdown/文档"
             />
             <IntakeMetric
               label="数据库候选"
               value={reportFormatPlaybook.summary.database_import_routes}
-              detail="Spreadsheet"
+              detail="表格"
             />
             <IntakeMetric
               label="元数据复核"
               value={reportFormatPlaybook.summary.metadata_review_routes}
-              detail="Archive/unknown"
+              detail="压缩包/未知"
             />
             <IntakeMetric
               label="确认项"
               value={reportFormatPlaybook.summary.confirmation_queue_items}
-              detail="Before risky actions"
+              detail="风险动作前"
             />
             <IntakeMetric
               label="HTML"
               value={reportFormatPlaybook.summary.html_reports}
-              detail="Native target"
+              detail="原生目标"
             />
             <IntakeMetric
               label="Markdown"
               value={reportFormatPlaybook.summary.markdown_notes}
-              detail="Editable target"
+              detail="可编辑目标"
             />
           </div>
           <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
@@ -1446,7 +1444,7 @@ function ReportsDashboard() {
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 把当前 intake 里的真实文件格式和 ZhiNotes 能力矩阵对齐，显示已使用、
                 未使用、需要确认、旧版 Office 和未知格式缺口。这个报告只按格式计数，
-                不列出文件名、不读取文件 bytes、文件文本或页面正文。
+                不列出文件名、不读取文件字节、文件文本或页面正文。
               </p>
             </div>
             <button
@@ -1455,55 +1453,55 @@ function ReportsDashboard() {
               disabled={exportingFormatCoverage}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingFormatCoverage ? "导出中..." : "导出 coverage"}
+              {exportingFormatCoverage ? "导出中..." : "导出覆盖报告"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
             <IntakeMetric
               label="实际格式"
               value={reportFormatCoverage.summary.active_groups}
-              detail="Used groups"
+              detail="已使用组"
             />
             <IntakeMetric
               label="文件项"
               value={reportFormatCoverage.summary.active_items}
-              detail="Intake files"
+              detail="入库文件"
             />
             <IntakeMetric
               label="未使用"
               value={reportFormatCoverage.summary.supported_unused_groups}
-              detail="Supported"
+              detail="已支持"
             />
             <IntakeMetric
               label="需确认"
               value={reportFormatCoverage.summary.active_confirmation_groups}
-              detail="Active gates"
+              detail="活跃闸门"
             />
             <IntakeMetric
               label="未知"
               value={reportFormatCoverage.summary.unsupported_active_groups}
-              detail="No route"
+              detail="无路线"
             />
             <IntakeMetric
               label="限制"
               value={reportFormatCoverage.summary.blocked_limited_groups}
-              detail="Known gaps"
+              detail="已知缺口"
             />
             <IntakeMetric
               label="确认缺口"
               value={reportFormatCoverage.summary.manual_confirmation_gaps}
-              detail="Review"
+              detail="复核"
             />
             <IntakeMetric
               label="阻塞缺口"
               value={reportFormatCoverage.summary.blocked_gaps}
-              detail="Blocked"
+              detail="阻塞"
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
             <div className="space-y-2">
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Coverage gaps
+                覆盖缺口
               </div>
               {reportFormatCoverage.gaps.map((gap) => (
                 <FormatCoverageGapRow key={gap.id} gap={gap} />
@@ -1511,7 +1509,7 @@ function ReportsDashboard() {
             </div>
             <div className="space-y-2">
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Format coverage
+                格式覆盖
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 {reportFormatCoverage.rows.map((row) => (
@@ -1534,7 +1532,7 @@ function ReportsDashboard() {
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 区分真正原生展示和本地转换展示：PPT/Word/Excel、RTF、EPUB、
                 notebook 等格式可能丢失复杂版式、图表、公式、批注或交互。
-                这个复核只看文件类型、扩展名和数量，不导出文件名、不读取文件 bytes、
+                这个复核只看文件类型、扩展名和数量，不导出文件名、不读取文件字节、
                 文件文本或页面正文。
               </p>
             </div>
@@ -1551,27 +1549,27 @@ function ReportsDashboard() {
             <IntakeMetric
               label="文件项"
               value={reportConversionReview.summary.intake_items}
-              detail="Intake"
+              detail="入库"
             />
             <IntakeMetric
               label="路线"
               value={reportConversionReview.summary.active_routes}
-              detail="Active"
+              detail="活跃"
             />
             <IntakeMetric
               label="原生可读"
               value={reportConversionReview.summary.native_ready_items}
-              detail="Native"
+              detail="原生"
             />
             <IntakeMetric
               label="需复核"
               value={reportConversionReview.summary.review_needed_items}
-              detail="Converted"
+              detail="已转换"
             />
             <IntakeMetric
               label="阻塞"
               value={reportConversionReview.summary.blocked_items}
-              detail="Legacy/unknown"
+              detail="旧版/未知"
             />
             <IntakeMetric
               label="Office"
@@ -1581,12 +1579,12 @@ function ReportsDashboard() {
             <IntakeMetric
               label="PPT"
               value={reportConversionReview.summary.presentation_items}
-              detail="Slides"
+              detail="幻灯片"
             />
             <IntakeMetric
               label="高风险"
               value={reportConversionReview.summary.high_risk_items}
-              detail="Manual"
+              detail="手动"
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
@@ -1664,7 +1662,7 @@ function ReportsDashboard() {
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 汇总当前多格式文件在 ZhiNotes page 里的本地展示能力。这个报告只读取格式能力元数据，
-                不读取文件 bytes、文件文本或页面正文，也不会上传、同步或调用 AI。
+                不读取文件字节、文件文本或页面正文，也不会上传、同步或调用 AI。
               </p>
             </div>
             <button
@@ -1673,49 +1671,49 @@ function ReportsDashboard() {
               disabled={exportingPreviewReadiness}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingPreviewReadiness ? "导出中..." : "导出 readiness"}
+              {exportingPreviewReadiness ? "导出中..." : "导出预览就绪"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
             <IntakeMetric
               label="格式组"
               value={filePreviewReadiness.summary.capability_groups}
-              detail="Capability"
+              detail="能力"
             />
             <IntakeMetric
               label="扩展名"
               value={filePreviewReadiness.summary.extension_patterns}
-              detail="Accepted"
+              detail="已接受"
             />
             <IntakeMetric
               label="原生"
               value={filePreviewReadiness.summary.native_routes}
-              detail="Native"
+              detail="原生"
             />
             <IntakeMetric
               label="转换"
               value={filePreviewReadiness.summary.converted_routes}
-              detail="Local"
+              detail="本地"
             />
             <IntakeMetric
               label="元数据"
               value={filePreviewReadiness.summary.metadata_routes}
-              detail="Review"
+              detail="复核"
             />
             <IntakeMetric
-              label="Ready"
+              label="就绪"
               value={filePreviewReadiness.summary.ready_routes}
               detail={filePreviewReadiness.readiness_verdict}
             />
             <IntakeMetric
               label="需确认"
               value={filePreviewReadiness.summary.manual_confirmation_routes}
-              detail="Before write"
+              detail="写入前"
             />
             <IntakeMetric
               label="阻塞"
               value={filePreviewReadiness.summary.blocked_routes}
-              detail="Gaps"
+              detail="缺口"
             />
           </div>
           <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
@@ -1730,7 +1728,7 @@ function ReportsDashboard() {
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
             <div className="space-y-2">
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Readiness gates
+                就绪闸门
               </div>
               {filePreviewReadiness.gates.map((gate) => (
                 <FilePreviewReadinessGateRow key={gate.id} gate={gate} />
@@ -1738,7 +1736,7 @@ function ReportsDashboard() {
             </div>
             <div className="space-y-2">
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Format routes
+                格式路线
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 {filePreviewReadiness.routes.map((route) => (
@@ -1756,11 +1754,11 @@ function ReportsDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                文件动作 receipts
+                文件动作收据
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 本地记录最近的报告页面预览、文件留存、文件导入、表格入库和 HTML 外部资源开关动作。
-                receipt 只保存动作元数据，不保存文件名、正文、bytes、表格值、token 或凭证。
+                动作收据只保存动作元数据，不保存文件名、正文、字节、表格值、token 或凭证。
               </p>
             </div>
             <button
@@ -1771,34 +1769,34 @@ function ReportsDashboard() {
               }
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingFileActionReceipts ? "导出中..." : "导出 receipts"}
+              {exportingFileActionReceipts ? "导出中..." : "导出收据"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
             <IntakeMetric
               label="总数"
               value={fileActionReceiptSummary.total}
-              detail="Local"
+              detail="本地"
             />
             <IntakeMetric
               label="页面预览"
               value={fileActionReceiptSummary.native_preview}
-              detail="Page"
+              detail="页面"
             />
             <IntakeMetric
               label="下载留存"
               value={fileActionReceiptSummary.download_retain}
-              detail="Retain"
+              detail="留存"
             />
             <IntakeMetric
               label="可编辑导入"
               value={fileActionReceiptSummary.editable_import}
-              detail="Page writes"
+              detail="页面写入"
             />
             <IntakeMetric
               label="数据库导入"
               value={fileActionReceiptSummary.database_import}
-              detail="Rows"
+              detail="行"
             />
             <IntakeMetric
               label="资源开关"
@@ -1817,7 +1815,7 @@ function ReportsDashboard() {
             </div>
           ) : (
             <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有文件动作 receipt。上传报告文件、导入 Markdown、在 page 里执行“导入为可编辑块”、
+              还没有文件动作收据。上传报告文件、导入 Markdown、在 page 里执行“导入为可编辑块”、
               “导入为数据库”或切换 HTML 外部资源，这里会自动出现本地记录。
             </p>
           )}
@@ -1946,7 +1944,7 @@ function ReportDecisionSummaryPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Report Decision Summary
+            报告决策摘要
           </p>
           <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             报告决策摘要
@@ -1967,7 +1965,7 @@ function ReportDecisionSummaryPanel({
 
       <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
         <IntakeMetric
-          label="Intake"
+          label="入库"
           value={summary.summary.intake_items}
           detail="本地报告项"
         />
@@ -1987,7 +1985,7 @@ function ReportDecisionSummaryPanel({
           detail="转换/质量"
         />
         <IntakeMetric
-          label="Relation"
+          label="关联"
           value={summary.summary.relation_suggestions}
           detail="待连接"
         />
@@ -2012,15 +2010,15 @@ function ReportDecisionSummaryPanel({
         <ReportDecisionList title="当前可做" items={summary.safe_local_work} />
         <ReportDecisionList title="保持关闭" items={summary.blocked_work} />
         <ReportDecisionList
-          title="Owner 待确认"
+          title="待你确认"
           items={summary.required_owner_decisions}
         />
       </div>
 
       <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
         报告决策摘要只读取本地 summary metadata，不包含报告标题、文件名、
-        页面正文、文件 bytes、文件文本、数据库 row values、prompt、token、
-        credentials、cloud data 或 AI output。
+        页面正文、文件字节、文件文本、数据库行值、prompt、token、
+        凭证、云端数据或 AI 输出。
       </p>
     </section>
   );
@@ -2374,9 +2372,9 @@ function ReportReviewQueueStatusPill({
   status: ReportReviewQueueStatus;
 }) {
   const labels: Record<ReportReviewQueueStatus, string> = {
-    ready: "Ready",
-    "review-needed": "Review",
-    blocked: "Blocked",
+    ready: "就绪",
+    "review-needed": "需复核",
+    blocked: "阻塞",
   };
   const className =
     status === "ready"
@@ -2439,9 +2437,9 @@ function ReportConnectionActionPill({
   status: ReportConnectionActionStatus;
 }) {
   const labels: Record<ReportConnectionActionStatus, string> = {
-    ready: "Ready",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
   const className =
     status === "ready"
@@ -2503,11 +2501,11 @@ function ReportTrackerIntakeCard({
         ))}
       </div>
       <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
-        将创建一条本地 report tracker row，写入 Report page relation、Format、
-        Status、Source 和 Key takeaways。
+        将创建一条本地报告跟踪表行，写入报告页 relation、格式、
+        状态、来源和核心结论。
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
-        本地单条写入；不读取报告正文、file text、file bytes、tokens 或 credentials。
+        本地单条写入；不读取报告正文、文件文本、文件字节、token 或凭证。
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
@@ -2516,7 +2514,7 @@ function ReportTrackerIntakeCard({
           disabled={!trackerReady || busy}
           className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
         >
-          {busy ? "创建中..." : "创建 tracker row"}
+          {busy ? "创建中..." : "创建跟踪表行"}
         </button>
         <button
           type="button"
@@ -2576,7 +2574,7 @@ function FormatRouteCard({
         <ActionPill action={route.recommended_action} />
         <ConfirmationPill status={route.confirmation_status} />
         <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-          {route.item_count} files
+          {route.item_count} 个文件
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
@@ -2627,9 +2625,9 @@ function IntakePriorityPill({
   priority: ReportIntakePriority;
 }) {
   const labels: Record<ReportIntakePriority, string> = {
-    high: "High",
-    medium: "Medium",
-    low: "Low",
+    high: "高",
+    medium: "中",
+    low: "低",
   };
   const className =
     priority === "high"
@@ -2697,11 +2695,11 @@ function ConfirmationPill({
 
 function IntakeStagePill({ stage }: { stage: ReportIntakeStage }) {
   const labels: Record<ReportIntakeStage, string> = {
-    captured: "Captured",
-    "source-triage": "Triage",
-    "reading-review": "Review",
-    "database-review": "Database",
-    linking: "Linking",
+    captured: "已捕获",
+    "source-triage": "来源分流",
+    "reading-review": "复核",
+    "database-review": "数据库",
+    linking: "关联",
   };
 
   return (
@@ -2738,9 +2736,9 @@ function PreviewRoutingPanel({
             原生预览路由
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            把当前格式覆盖、预览 readiness 和 review queue 汇总成文件进入
+            把当前格式覆盖、预览就绪度和复核队列汇总成文件进入
             ZhiNotes page 的路线图：原生预览、本地转换、表格入库、元数据复核或本地留存。
-            这个路由包不读取文件名、正文、bytes、表格值，不写入、不上传、不调用 AI。
+            这个路由包不读取文件名、正文、字节、表格值，不写入、不上传、不调用 AI。
           </p>
         </div>
         <button
@@ -2757,49 +2755,49 @@ function PreviewRoutingPanel({
         <IntakeMetric
           label="路线"
           value={packet.summary.routes}
-          detail="Format routes"
+          detail="格式路线"
         />
         <IntakeMetric
           label="活跃"
           value={packet.summary.active_routes}
-          detail="Used"
+          detail="已使用"
         />
         <IntakeMetric
           label="原生"
           value={packet.summary.native_routes}
-          detail="Native"
+          detail="原生"
         />
         <IntakeMetric
           label="转换"
           value={packet.summary.converted_routes}
-          detail="Local HTML"
+          detail="本地 HTML"
         />
         <IntakeMetric
           label="可编辑"
           value={packet.summary.editable_import_routes}
-          detail="Import"
+          detail="导入"
         />
         <IntakeMetric
           label="入库候选"
           value={packet.summary.database_import_candidates}
-          detail="DB"
+          detail="数据库"
         />
         <IntakeMetric
           label="需确认"
           value={packet.summary.confirmation_routes}
-          detail="Gated"
+          detail="需确认"
         />
         <IntakeMetric
           label="缺口"
           value={packet.summary.unsupported_routes + packet.summary.blocked_routes}
-          detail="Gaps"
+          detail="缺口"
         />
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_0.95fr]">
         <div>
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-            Format routes
+            格式路线
           </div>
           <div className="mt-2 grid gap-2 lg:grid-cols-2">
             {visibleRoutes.slice(0, 10).map((route) => (
@@ -2810,7 +2808,7 @@ function PreviewRoutingPanel({
         <div className="space-y-3">
           <div>
             <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-              Routing lanes
+              路由分组
             </div>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {packet.lanes.map((lane) => (
@@ -2835,7 +2833,7 @@ function PreviewRoutingPanel({
           </div>
           <div>
             <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-              Review sequence
+              复核顺序
             </div>
             <div className="mt-2 grid gap-2">
               {packet.review_sequence.map((step) => (
@@ -2864,7 +2862,7 @@ function PreviewRoutingReviewStepCard({
     <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-[11px] text-zinc-400">Step {step.order}</div>
+          <div className="text-[11px] text-zinc-400">步骤 {step.order}</div>
           <div className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
             {step.title}
           </div>
@@ -2926,14 +2924,14 @@ function PreviewRoutingStatusPill({
   status: FilePreviewRoutingStatus;
 }) {
   const labels: Record<FilePreviewRoutingStatus, string> = {
-    "native-ready": "Native",
-    "external-confirmation": "Confirm",
-    "converted-review": "Convert",
-    "database-confirmation": "Database",
-    "metadata-review": "Metadata",
-    "download-retain": "Retain",
-    "blocked-limited": "Limited",
-    unsupported: "Unsupported",
+    "native-ready": "原生",
+    "external-confirmation": "确认",
+    "converted-review": "转换",
+    "database-confirmation": "数据库",
+    "metadata-review": "元数据",
+    "download-retain": "留存",
+    "blocked-limited": "受限",
+    unsupported: "不支持",
   };
 
   const className =
@@ -3049,7 +3047,7 @@ function UploadPreflightRouteCard({
       <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         上传前确认：
         {route.confirmation_required_before_upload ? "需要" : "不需要"} · 上传后确认：
-        {route.confirmation_required_after_upload ? "需要" : "不需要"} · receipt：
+        {route.confirmation_required_after_upload ? "需要" : "不需要"} · 收据：
         {route.local_receipt_action === "auto-recorded"
           ? "自动记录"
           : "上传后可记录"}
@@ -3122,9 +3120,9 @@ function UploadPreflightGatePill({
   status: FileUploadPreflightGateStatus;
 }) {
   const labels: Record<FileUploadPreflightGateStatus, string> = {
-    ready: "Ready",
+    ready: "就绪",
     "manual-confirmation": "确认",
-    blocked: "Blocked",
+    blocked: "阻塞",
   };
   const className =
     status === "ready"
@@ -3209,11 +3207,11 @@ function FormatCoverageRowCard({
       <div className="mt-3 grid gap-2 md:grid-cols-2">
         <RouteDetail label="当前文件" value={`${row.active_items} items`} />
         <RouteDetail
-          label="Readiness"
+          label="就绪度"
           value={
             row.route_present_in_readiness
               ? row.readiness_status
-              : "missing route"
+              : "缺少路线"
           }
         />
       </div>
@@ -3238,7 +3236,7 @@ function FormatCoverageStatusPill({
   status: ReportFormatCoverageStatus;
 }) {
   const labels: Record<ReportFormatCoverageStatus, string> = {
-    active: "Active",
+    active: "活跃",
     "active-needs-confirmation": "需确认",
     "supported-unused": "未使用",
     "blocked-limited": "限制",
@@ -3313,7 +3311,7 @@ function ConversionReviewRouteCard({
       </div>
       <div className="mt-2 flex flex-wrap gap-1">
         <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-          {route.item_count} items
+          {route.item_count} 项
         </span>
         {route.extensions.map((item) => (
           <span
@@ -3390,9 +3388,9 @@ function ConversionStatusPill({
 
 function ConversionRiskPill({ risk }: { risk: ReportConversionRisk }) {
   const labels: Record<ReportConversionRisk, string> = {
-    high: "High risk",
-    medium: "Medium risk",
-    low: "Low risk",
+    high: "高风险",
+    medium: "中风险",
+    low: "低风险",
   };
   const className =
     risk === "high"
@@ -3552,7 +3550,7 @@ function FileActionReceiptCard({
       </div>
       <div className="mt-2 grid gap-2 leading-5 text-zinc-500 dark:text-zinc-400 md:grid-cols-2">
         <span>格式：{receipt.file.kind}</span>
-        <span>扩展：{receipt.file.extension || "unknown"}</span>
+        <span>扩展：{receipt.file.extension || "未知"}</span>
         <span>大小：{receipt.file.size_label}</span>
         <span>
           本地写入：
@@ -3560,7 +3558,7 @@ function FileActionReceiptCard({
         </span>
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        {formatReceiptDate(receipt.created_at)} · 不含文件名、正文、bytes 或表格值。
+        {formatReceiptDate(receipt.created_at)} · 不含文件名、正文、字节或表格值。
       </p>
     </article>
   );
@@ -3620,9 +3618,9 @@ function FilePreviewReadinessPill({
   status: FilePreviewReadinessStatus;
 }) {
   const labels: Record<FilePreviewReadinessStatus, string> = {
-    ready: "Ready",
+    ready: "就绪",
     "manual-confirmation": "确认",
-    blocked: "Blocked",
+    blocked: "阻塞",
   };
   const className =
     status === "ready"
@@ -3842,7 +3840,7 @@ function createReportPageContent(file: StoredPageFile) {
     <ul>
       <li>公司页面：</li>
       <li>相关会议：</li>
-      <li>相关 memo：</li>
+      <li>相关备忘录：</li>
       <li>相关业绩复盘：</li>
     </ul>
     <h2>核心结论</h2>
