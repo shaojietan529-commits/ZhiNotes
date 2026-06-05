@@ -23,6 +23,7 @@ import {
 } from "@/lib/db/local/queries";
 import {
   FILE_PREVIEW_CAPABILITIES,
+  getFilePreviewCapabilityByKind,
   type FilePreviewCapability,
   type FilePreviewSupportLevel,
 } from "@/lib/files/filePreviewCapabilities";
@@ -3839,6 +3840,7 @@ function markdownPageTitleFromFile(fileName: string) {
 }
 
 function createReportPageContent(file: StoredPageFile) {
+  const capability = getFilePreviewCapabilityByKind(file.kind);
   return `
     <h1>研究报告</h1>
     <h2>源报告</h2>
@@ -3848,6 +3850,25 @@ function createReportPageContent(file: StoredPageFile) {
       <li>本地文件预览：</li>
     </ul>
     ${createFilePreviewBlockHtml(file)}
+    <h2>原生预览状态</h2>
+    <table>
+      <tbody>
+        <tr><th>项目</th><th>当前路线</th></tr>
+        <tr><td>预览路径</td><td>${escapeHtml(
+          capability?.preview ?? "未知格式仅本地留存和下载。"
+        )}</td></tr>
+        <tr><td>可编辑导入</td><td>${escapeHtml(
+          capability?.editable_import ?? "暂不导入为可编辑块。"
+        )}</td></tr>
+        <tr><td>数据库导入</td><td>${escapeHtml(
+          capability?.database_import ?? "不适用。"
+        )}</td></tr>
+        <tr><td>隐私边界</td><td>${escapeHtml(
+          capability?.privacy_boundary ??
+            "未知格式默认只做本地保存和下载，不读取文件内容、不上传。"
+        )}</td></tr>
+      </tbody>
+    </table>
     <h2>关联研究</h2>
     <ul>
       <li>公司页面：</li>
