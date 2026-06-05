@@ -5,6 +5,7 @@ export const DATABASE_FIELD_TYPES = [
   { value: "number", label: "数字" },
   { value: "relation", label: "关联" },
   { value: "select", label: "单选" },
+  { value: "multi_select", label: "多选" },
   { value: "status", label: "状态" },
   { value: "date", label: "日期" },
   { value: "checkbox", label: "复选框" },
@@ -14,7 +15,7 @@ export const DATABASE_FIELD_TYPES = [
 ];
 
 export function isSelectLikeFieldType(fieldType: string) {
-  return fieldType === "select" || fieldType === "status";
+  return fieldType === "select" || fieldType === "multi_select" || fieldType === "status";
 }
 
 export function parseSelectOptions(value: string) {

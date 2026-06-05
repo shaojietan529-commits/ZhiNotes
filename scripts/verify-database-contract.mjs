@@ -23,9 +23,11 @@ const files = {
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
   databaseFields: "src/lib/database/fields.ts",
+  databaseMultiSelect: "src/lib/database/multiSelectValues.ts",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
   tableView: "src/components/database/views/TableView.tsx",
   formView: "src/components/database/views/FormView.tsx",
+  chartView: "src/components/database/views/ChartView.tsx",
   timelineView: "src/components/database/views/TimelineView.tsx",
   feedView: "src/components/database/views/FeedView.tsx",
   moduleActions: "src/lib/modules/actions.ts",
@@ -100,9 +102,11 @@ function run() {
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
   const databaseFields = readProjectFile(files.databaseFields);
+  const databaseMultiSelect = readProjectFile(files.databaseMultiSelect);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
   const tableView = readProjectFile(files.tableView);
   const formView = readProjectFile(files.formView);
+  const chartView = readProjectFile(files.chartView);
   const timelineView = readProjectFile(files.timelineView);
   const feedView = readProjectFile(files.feedView);
   const moduleActions = readProjectFile(files.moduleActions);
@@ -121,62 +125,97 @@ function run() {
   for (const snippet of [
     '{ value: "email", label: "邮箱" }',
     '{ value: "phone", label: "电话" }',
+    '{ value: "multi_select", label: "多选" }',
+    'fieldType === "multi_select"',
   ]) {
     assertIncludes(
       files.databaseFields,
       databaseFields,
       snippet,
-      "Database field picker must expose common Notion-like email and phone fields."
+      "Database field picker must expose common Notion-like email, phone, and multi-select fields."
     );
   }
-  for (const snippet of ['email: "邮箱"', 'phone: "电话"']) {
+  for (const snippet of ['email: "邮箱"', 'phone: "电话"', 'multi_select: "多选"']) {
     assertIncludes(
       files.display,
       display,
       snippet,
-      "Database field display labels must include email and phone."
+      "Database field display labels must include email, phone, and multi-select."
+    );
+  }
+  for (const snippet of [
+    "normalizeMultiSelectValue",
+    "toggleMultiSelectValue",
+    "stringifyMultiSelectValue",
+  ]) {
+    assertIncludes(
+      files.databaseMultiSelect,
+      databaseMultiSelect,
+      snippet,
+      "Multi-select values must share one parser/stringifier across database views."
     );
   }
   for (const snippet of [
     'field.field_type === "email"',
     'field.field_type === "phone"',
+    'field.field_type === "multi_select"',
     'type={inputType}',
     'mailto:${linkValue}',
     'tel:${linkValue}',
+    "toggleMultiSelectValue",
   ]) {
     assertIncludes(
       files.tableView,
       tableView,
       snippet,
-      "Table view must edit and display email/phone fields with native input/link behavior."
+      "Table view must edit and display email/phone/multi-select fields."
     );
   }
   for (const snippet of [
     'field.field_type === "email"',
     'field.field_type === "phone"',
+    'field.field_type === "multi_select"',
     '? "email"',
     '? "tel"',
+    "toggleMultiSelectValue",
   ]) {
     assertIncludes(
       files.formView,
       formView,
       snippet,
-      "Form view must use native email and phone inputs."
+      "Form view must use native email/phone inputs and multi-select chips."
     );
   }
   for (const snippet of [
     '| "email"',
     '| "phone"',
+    '| "multi_select"',
     "isEmailValue",
     "isPhoneValue",
+    "parseMultiSelectValue",
     'fieldType === "email"',
     'fieldType === "phone"',
+    'fieldType === "multi_select"',
   ]) {
     assertIncludes(
       files.databaseImport,
       databaseImport,
       snippet,
-      "Spreadsheet import should infer and preserve email/phone field types locally."
+      "Spreadsheet import should infer/preserve email, phone, and multi-select field types locally."
+    );
+  }
+  assertIncludes(
+    files.databaseExport,
+    databaseExport,
+    "stringifyMultiSelectValue",
+    "CSV/XLSX export must render multi-select arrays as readable text."
+  );
+  for (const snippet of ["normalizeMultiSelectValue", '"multi_select"']) {
+    assertIncludes(
+      files.chartView,
+      chartView,
+      snippet,
+      "Chart view must group multi-select fields by selected option."
     );
   }
   assertIncludes(
@@ -1053,6 +1092,8 @@ function run() {
     "formatUrlLabel",
     'field.field_type === "email"',
     'field.field_type === "phone"',
+    'field.field_type === "multi_select"',
+    "stringifyMultiSelectValue",
     "mailto:${String(value)}",
     "tel:${String(value)}",
     "更新于",

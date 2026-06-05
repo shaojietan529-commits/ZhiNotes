@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
+import { normalizeMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
   getDatabaseFieldDisplayName,
@@ -139,6 +140,7 @@ function pickChartGroupField(
   return (
     fields.find((field) => field.field_type === "status") ||
     fields.find((field) => field.field_type === "select") ||
+    fields.find((field) => field.field_type === "multi_select") ||
     fields.find((field) => field.field_type === "relation") ||
     fields.find((field) => field.field_type === "date") ||
     fields.find((field) => field.field_type === "checkbox") ||
@@ -205,6 +207,11 @@ function getBucketLabels(
     return [value ? "已勾选" : "未勾选"];
   }
 
+  if (field.field_type === "multi_select") {
+    const selected = normalizeMultiSelectValue(value);
+    return selected.length > 0 ? selected : ["无值"];
+  }
+
   if (field.field_type === "date") {
     const text = String(value ?? "");
     return [text ? text.slice(0, 7) : "无日期"];
@@ -238,6 +245,7 @@ function isChartableField(field: DatabaseField) {
   return [
     "status",
     "select",
+    "multi_select",
     "relation",
     "date",
     "checkbox",

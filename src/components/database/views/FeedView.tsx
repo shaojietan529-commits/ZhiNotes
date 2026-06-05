@@ -4,6 +4,7 @@ import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import { getFieldOptions } from "@/lib/database/fields";
+import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { getRelationPages } from "@/lib/database/relationValues";
 
 interface FeedViewProps {
@@ -231,9 +232,11 @@ function FeedFieldChip({
       ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-200"
       : field.field_type === "select"
         ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-200"
-        : field.field_type === "date"
-          ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-200"
-          : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-200";
+        : field.field_type === "multi_select"
+          ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-200"
+          : field.field_type === "date"
+            ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-200"
+            : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-200";
 
   return (
     <span className={`max-w-full truncate rounded-md px-2 py-1 text-xs ${toneClass}`}>
@@ -268,14 +271,15 @@ function compareFeedFields(left: DatabaseField, right: DatabaseField) {
   const priority: Record<string, number> = {
     status: 0,
     select: 1,
-    date: 2,
-    relation: 3,
-    checkbox: 4,
-    number: 5,
-    url: 6,
-    email: 7,
-    phone: 8,
-    text: 9,
+    multi_select: 2,
+    date: 3,
+    relation: 4,
+    checkbox: 5,
+    number: 6,
+    url: 7,
+    email: 8,
+    phone: 9,
+    text: 10,
   };
   return (
     (priority[left.field_type] ?? 10) - (priority[right.field_type] ?? 10) ||
@@ -289,6 +293,9 @@ function formatFeedFieldValue(field: DatabaseField, value: unknown) {
     const options = getFieldOptions(field);
     const selected = String(value);
     return options.includes(selected) || selected ? selected : "";
+  }
+  if (field.field_type === "multi_select") {
+    return stringifyMultiSelectValue(value);
   }
   if (field.field_type === "number") {
     return typeof value === "number" ? value.toLocaleString() : String(value);

@@ -5,6 +5,7 @@ const FIELD_TYPE_LABELS: Record<string, string> = {
   number: "数字",
   relation: "关联",
   select: "单选",
+  multi_select: "多选",
   status: "状态",
   date: "日期",
   checkbox: "复选框",

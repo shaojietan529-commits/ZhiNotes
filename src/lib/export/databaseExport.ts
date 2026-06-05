@@ -2,6 +2,7 @@
 
 import type { Database, DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
+import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import { downloadTextFile } from "./pageExport";
 
@@ -75,6 +76,9 @@ function stringifyCell(value: unknown, field: DatabaseField, relationPages: Page
   if (value === null || value === undefined) return "";
   if (field.field_type === "relation") {
     return stringifyRelationValue(value, relationPages);
+  }
+  if (field.field_type === "multi_select") {
+    return stringifyMultiSelectValue(value);
   }
   if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
   return String(value);

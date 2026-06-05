@@ -14,7 +14,8 @@ export type DatabaseImportFieldType =
   | "checkbox"
   | "url"
   | "email"
-  | "phone";
+  | "phone"
+  | "multi_select";
 
 type SpreadsheetCell = string | number | boolean | null;
 
@@ -29,7 +30,7 @@ export interface DatabaseImportColumnPlan {
 
 export interface DatabaseImportRowDraft {
   title: string;
-  field_values: Record<string, string | number | boolean>;
+  field_values: Record<string, string | number | boolean | string[]>;
 }
 
 export interface DatabaseImportPreview {
@@ -395,7 +396,8 @@ function coerceFieldType(fieldType: string): DatabaseImportFieldType {
     fieldType === "checkbox" ||
     fieldType === "url" ||
     fieldType === "email" ||
-    fieldType === "phone"
+    fieldType === "phone" ||
+    fieldType === "multi_select"
   ) {
     return fieldType;
   }
@@ -405,12 +407,13 @@ function coerceFieldType(fieldType: string): DatabaseImportFieldType {
 function coerceFieldValue(
   value: string,
   fieldType: DatabaseImportFieldType
-): string | number | boolean | null {
+): string | number | boolean | string[] | null {
   const trimmed = value.trim();
   if (!trimmed) return "";
   if (fieldType === "checkbox") return parseBooleanValue(trimmed);
   if (fieldType === "date") return normalizeDateValue(trimmed);
   if (fieldType === "number") return Number(trimmed.replace(/,/g, ""));
+  if (fieldType === "multi_select") return parseMultiSelectValue(trimmed);
   return trimmed;
 }
 
@@ -420,6 +423,13 @@ function isBooleanValue(value: string) {
 
 function parseBooleanValue(value: string) {
   return /^(true|yes|y|1)$/i.test(value.trim());
+}
+
+function parseMultiSelectValue(value: string) {
+  return value
+    .split(/[,;；，]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function isIsoDateValue(value: string) {

@@ -2,6 +2,7 @@
 
 import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
+import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 
 interface GalleryViewProps {
@@ -71,6 +72,8 @@ export default function GalleryView({
                           const label =
                             field.field_type === "relation"
                               ? stringifyRelationValue(value, relationPages)
+                              : field.field_type === "multi_select"
+                                ? stringifyMultiSelectValue(value)
                               : String(value);
                           if (!label) return null;
                           return (

@@ -3,6 +3,7 @@
 import type { DatabaseField, DatabaseRow } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
+import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 
 interface ListViewProps {
@@ -59,6 +60,8 @@ export default function ListView({
                     const label =
                       field.field_type === "relation"
                         ? stringifyRelationValue(val, relationPages)
+                        : field.field_type === "multi_select"
+                          ? stringifyMultiSelectValue(val)
                         : String(val);
                     if (!label) return null;
                     return (

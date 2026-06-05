@@ -6,6 +6,11 @@ import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import RelationFieldEditor from "@/components/database/RelationFieldEditor";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
+import { getFieldOptions } from "@/lib/database/fields";
+import {
+  normalizeMultiSelectValue,
+  toggleMultiSelectValue,
+} from "@/lib/database/multiSelectValues";
 
 interface TableViewProps {
   fields: DatabaseField[];
@@ -210,6 +215,33 @@ function CellEditor({
           </option>
         ))}
       </select>
+    );
+  }
+
+  if (field.field_type === "multi_select") {
+    const options: string[] = getFieldOptions(field);
+    const selected = normalizeMultiSelectValue(value);
+    return (
+      <div className="flex max-w-[18rem] flex-wrap gap-1">
+        {options.length === 0 && <span className="text-sm text-zinc-400">—</span>}
+        {options.map((option) => {
+          const active = selected.includes(option);
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => onChange(toggleMultiSelectValue(value, option))}
+              className={`rounded px-1.5 py-0.5 text-xs ${
+                active
+                  ? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-200"
+                  : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              }`}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
     );
   }
 

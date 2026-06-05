@@ -3,6 +3,10 @@
 import { useState } from "react";
 import RelationFieldEditor from "@/components/database/RelationFieldEditor";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
+import {
+  normalizeMultiSelectValue,
+  toggleMultiSelectValue,
+} from "@/lib/database/multiSelectValues";
 import type { DatabaseField, Page } from "@/lib/utils/types";
 
 interface FormViewProps {
@@ -120,6 +124,38 @@ function FormField({
           ))}
         </select>
       </label>
+    );
+  }
+
+  if (field.field_type === "multi_select") {
+    const options = getFieldOptions(field);
+    const selected = normalizeMultiSelectValue(value);
+    return (
+      <div className="block">
+        {label}
+        <div className="flex flex-wrap gap-2">
+          {options.length === 0 && (
+            <span className="text-sm text-zinc-400">请先在字段设置里添加选项。</span>
+          )}
+          {options.map((option) => {
+            const active = selected.includes(option);
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onChange(toggleMultiSelectValue(value, option))}
+                className={`rounded-md px-2 py-1 text-xs ${
+                  active
+                    ? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-200"
+                    : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                }`}
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     );
   }
 

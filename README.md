@@ -306,10 +306,11 @@ Current local actions:
   view readiness, and import/export boundaries.
 - Review coverage for table, list, kanban, calendar, gallery, timeline, chart,
   form, and feed views.
-- Use local database fields for text, number, relation, select, status, date,
-  checkbox, URL, email, and phone values. Table and form views use native
-  email/phone inputs, feed chips make them actionable, and CSV/XLSX append
-  import can infer email and phone columns locally.
+- Use local database fields for text, number, relation, select, multi-select,
+  status, date, checkbox, URL, email, and phone values. Table and form views use
+  native email/phone inputs and multi-select chips, feed chips make them
+  actionable, charts can group multi-select options, and CSV/XLSX append import
+  can infer email/phone columns or preserve matched multi-select fields locally.
 - Review and export local template-row readiness. The report checks whether
   each database has the recommended field groups for company, report, meeting,
   and portfolio template rows before the user creates rows in a database page.
