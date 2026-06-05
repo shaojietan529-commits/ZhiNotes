@@ -233,18 +233,18 @@ const LANE_META: Record<
   "research-links": {
     id: "research-links",
     title: "研究关联",
-    description: "检查页面是否连接到其他页面、文件预览或 inline database。",
+    description: "检查页面是否连接到其他页面、文件预览或内联数据库。",
     route: "/modules/research-graph",
     privacy_boundary:
-      "只使用 wiki link、file block 和 inline database 计数，不读取 linked page bodies 或 row values。",
+      "只使用页面链接、文件块和内联数据库计数，不读取关联页面正文或数据库行值。",
   },
   "review-trail": {
     id: "review-trail",
     title: "复盘痕迹",
-    description: "检查版本历史、评论和未解决 review 项。",
+    description: "检查版本历史、评论和未解决复核项。",
     route: "/modules/notes",
     privacy_boundary:
-      "只读取版本数量和评论数量，不导出版本正文、评论正文或 block anchor text。",
+      "只读取版本数量和评论数量，不导出版本正文、评论正文或块锚点文字。",
   },
   "knowledge-base": {
     id: "knowledge-base",
@@ -252,7 +252,7 @@ const LANE_META: Record<
     description: "区分根页面、子页面、收藏、锁定和封面，保持笔记库可导航。",
     route: "/modules/notes",
     privacy_boundary:
-      "只使用本地页面 metadata，不改变页面层级、收藏或锁定状态。",
+      "只使用本地页面元数据，不改变页面层级、收藏或锁定状态。",
   },
   "export-safety": {
     id: "export-safety",
@@ -289,7 +289,7 @@ export function buildNotesModuleWorkbenchReport(
     format_version: 1,
     report_status: "local-notes-module-only",
     privacy_note:
-      "这份笔记工作台只在本地生成，只读取活跃页面 metadata、本地页面 HTML 结构、版本数量、评论数量、wiki link 数量、本地收藏状态和锁定状态。它不读取数据库行、row values、文件 bytes、linked page bodies、云端数据、prompt、token、凭证、持仓或交易计划。导出的工作台只包含结构计数和状态，不包含页面正文或评论正文，也不会写入工作区、连接云服务、上传数据或启用 AI。",
+      "这份笔记工作台只在本地生成，只读取活跃页面元数据、本地页面 HTML 结构、版本数量、评论数量、页面链接数量、本地收藏状态和锁定状态。它不读取数据库行、行值、文件字节、关联页面正文、云端数据、提示词、token、凭证、持仓或交易计划。导出的工作台只包含结构计数和状态，不包含页面正文或评论正文，也不会写入工作区、连接云服务、上传数据或启用 AI。",
     boundary: {
       local_report_only: true,
       reads_page_metadata: true,
@@ -341,7 +341,7 @@ function buildDecisionSummary(
     (action) => action.requires_manual_confirmation
   );
   const topBlockers = [
-    pages.length === 0 ? "还没有本地 page，知识库底座尚未开始。" : null,
+    pages.length === 0 ? "还没有本地页面，知识库底座尚未开始。" : null,
     structureActions.length > 0
       ? `${structureActions.length} 个页面需要补投研结构。`
       : null,
@@ -357,7 +357,7 @@ function buildDecisionSummary(
   return {
     current_state: "local-notes-owner-review",
     current_conclusion:
-      "可以继续把 page 当作本地知识库底座来创建、整理、结构体检和关联复盘；页面正文导出、AI 读取页面、云同步、批量删除或覆盖写入仍然必须经过单独 owner gate。",
+      "可以继续把页面当作本地知识库底座来创建、整理、结构体检和关联复盘；页面正文导出、AI 读取页面、云同步、批量删除或覆盖写入仍然必须经过单独确认。",
     can_create_local_pages_now: true,
     can_review_page_structure_now: true,
     can_review_links_and_versions_now: true,
@@ -366,38 +366,38 @@ function buildDecisionSummary(
     can_sync_notes_now: false,
     can_bulk_delete_or_overwrite_now: false,
     safe_local_work: [
-      "继续创建空白笔记或模板化投研 page，写入只发生在用户点击后。",
-      "继续复核页面结构、标题层级、block count、word count、file block 和 inline database count。",
-      "继续复核 wiki link、backlink、版本数量和评论数量。",
-      "继续导出 metadata-only 笔记工作台，不包含页面正文、评论正文或文件 bytes。",
+      "继续创建空白笔记或模板化投研页面，写入只发生在用户点击后。",
+      "继续复核页面结构、标题层级、块数、字数、文件块和内联数据库数量。",
+      "继续复核页面链接、反向链接、版本数量和评论数量。",
+      "继续导出仅元数据的笔记工作台，不包含页面正文、评论正文或文件字节。",
     ],
     blocked_work: [
-      "不能从笔记工作台导出 page body text 或 comment body text。",
+      "不能从笔记工作台导出页面正文或评论正文。",
       "不能在模块中心自动删除、覆盖、移动、同步或批量改写页面。",
-      "不能读取数据库 row values 或文件 bytes 来判断笔记路线。",
-      "不能把页面正文发送给 AI、云同步、外部 API 或远端存储。",
+      "不能读取数据库行值或文件字节来判断笔记路线。",
+      "不能把页面正文发送给 AI、云同步、外部接口或远端存储。",
     ],
     required_owner_decisions:
       manualActions.length > 0
         ? manualActions.slice(0, 5).map((action) => action.next_action)
         : [
             "确认哪些页面适合作为公司、报告、会议、组合或通用研究模板的长期入口。",
-            "确认页面正文何时允许进入导出、AI payload、云同步或备份恢复流程。",
+            "确认页面正文何时允许进入导出、AI 载荷预览、云同步或备份恢复流程。",
           ],
     top_blockers: topBlockers,
     decisions: [
       {
         id: "page-foundation",
-        title: "Page 知识库底座",
+        title: "页面知识库底座",
         status:
           pages.length === 0 ? "requires-owner-confirmation" : "available-local",
         answer: pages.length === 0 ? "先建第一篇" : "可以继续",
         evidence:
           pages.length === 0
             ? "当前工作区没有活跃页面。"
-            : `${pages.length} 个本地 page 已进入笔记工作台；${pages.filter((page) => page.is_root).length} 个根页面。`,
+            : `${pages.length} 个本地页面已进入笔记工作台；${pages.filter((page) => page.is_root).length} 个根页面。`,
         next_action:
-          "从笔记模块创建空白笔记或投研模板页，再把公司、报告、会议和组合材料挂到 page 上。",
+          "从笔记模块创建空白笔记或投研模板页，再把公司、报告、会议和组合材料挂到页面上。",
         route: "/modules/notes",
         target_section_id: "notes-create-entry",
         allowed_now: true,
@@ -425,7 +425,7 @@ function buildDecisionSummary(
             ? `${structureActions.length} 个页面需要补标题骨架、结论、证据或行动项。`
             : "当前工作台没有发现高优先级结构缺口。",
         next_action:
-          "打开页面 Info 面板，用投研结构和下一步队列补空白 scaffold；内容本身仍由用户填写。",
+          "打开页面信息面板，用投研结构和下一步队列补空白结构块；内容本身仍由用户填写。",
         route: "/modules/notes",
         target_section_id: "notes-priority-actions",
         allowed_now: true,
@@ -451,9 +451,9 @@ function buildDecisionSummary(
           linkActions.length + reviewActions.length > 0
             ? "需要人工整理"
             : "继续保持",
-        evidence: `${linkActions.length} 个关联行动，${reviewActions.length} 个复盘行动；工作台只看 link/version/comment counts。`,
+        evidence: `${linkActions.length} 个关联行动，${reviewActions.length} 个复盘行动；工作台只看链接、版本和评论计数。`,
         next_action:
-          "把关键页面连接到公司、报告、会议、文件或 inline database，并为长笔记保存 named version。",
+          "把关键页面连接到公司、报告、会议、文件或内联数据库，并为长笔记保存命名版本。",
         route: "/modules/notes",
         target_section_id: "notes-focus-pages",
         allowed_now: true,
@@ -474,9 +474,9 @@ function buildDecisionSummary(
         status: "requires-owner-confirmation",
         answer: "本地手动执行",
         evidence:
-          "页面可以在编辑器里承载 HTML、Markdown、PDF、Office、file preview 和 inline database，但工作台不导出正文或文件 bytes。",
+          "页面可以在编辑器里承载 HTML、Markdown、PDF、Office、文件预览和内联数据库，但工作台不导出正文或文件字节。",
         next_action:
-          "真实 HTML/Markdown/PDF/备份导出留在页面、文件或备份路径里手动触发，先确认可见内容和 payload。",
+          "真实 HTML/Markdown/PDF/备份导出留在页面、文件或备份路径里手动触发，先确认可见内容和载荷。",
         route: "/modules/files",
         target_section_id: "files-decision-summary",
         allowed_now: true,
@@ -497,9 +497,9 @@ function buildDecisionSummary(
         status: "blocked",
         answer: "保持关闭",
         evidence:
-          "笔记工作台不会发送 page text、不会连接云服务、不会启用 AI，也不会自动同步页面。",
+          "笔记工作台不会发送页面正文、不会连接云服务、不会启用 AI，也不会自动同步页面。",
         next_action:
-          "等 AI payload preview、账号权限、云同步、审计和恢复合同确认后，再决定页面正文是否进入云端或模型。",
+          "等 AI 载荷预览、账号权限、云同步、审计和恢复合同确认后，再决定页面正文是否进入云端或模型。",
         route: "/modules/sync",
         target_section_id: "sync-architecture",
         allowed_now: false,
@@ -577,7 +577,7 @@ function buildPageItem(snapshot: NotesModuleSnapshot): NotesModulePageItem {
     next_action: getPageNextAction(structure.structure_status, counts, structure.summary),
     open_route: `/page/${page.id}`,
     privacy_boundary:
-      "Page 汇总只在本地生成，只保存页面标题、结构计数、metadata 计数和路由；不包含页面正文、评论正文、linked page bodies、数据库 row values 或文件 bytes。",
+      "页面汇总只在本地生成，只保存页面标题、结构计数、元数据计数和路由；不包含页面正文、评论正文、关联页面正文、数据库行值或文件字节。",
   };
 }
 
@@ -616,7 +616,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         status: "needs-structure",
         evidence: `${page.word_count} 字 · ${page.block_count} 个块`,
         next_action:
-          "打开页面，用 slash command 或投研结构面板插入 H2/H3、结论、证据和下一步。",
+          "打开页面，用斜杠菜单或投研结构面板插入 H2/H3、结论、证据和下一步。",
         action_route: page.open_route,
         route_label: "打开页面",
         writes_workspace_data: false,
@@ -640,7 +640,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         writes_workspace_data: false,
         requires_manual_confirmation: false,
         privacy_boundary:
-          "工作台报告不会写入页面内容；任何 scaffold 插入都是页面级手动操作。",
+          "工作台报告不会写入页面内容；任何结构块插入都是页面级手动操作。",
       });
     } else if (page.structure_status === "thin") {
       actions.push({
@@ -673,15 +673,15 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         title: `${page.title} 尚未连接研究上下文`,
         priority: "medium",
         status: "needs-linking",
-        evidence: "检测到 0 个 wiki/page relation。",
+        evidence: "检测到 0 个页面链接或页面关系。",
         next_action:
-          "用 [[页面链接]]、报告文件块或 inline database，把它连接到公司、报告、会议或组合资产。",
+          "用 [[页面链接]]、报告文件块或内联数据库，把它连接到公司、报告、会议或组合资产。",
         action_route: page.open_route,
         route_label: "打开页面",
         writes_workspace_data: false,
         requires_manual_confirmation: false,
         privacy_boundary:
-          "关系建议只使用 link 计数，不读取 linked page bodies 或数据库 row values。",
+          "关系建议只使用链接计数，不读取关联页面正文或数据库行值。",
       });
     }
 
@@ -695,7 +695,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         status: "needs-review",
         evidence: "0 个保存版本。",
         next_action:
-          "打开页面后保存一个 named version，方便后续比较投资假设变化。",
+          "打开页面后保存一个命名版本，方便后续比较投资假设变化。",
         action_route: page.open_route,
         route_label: "打开页面",
         writes_workspace_data: false,
@@ -743,7 +743,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
       writes_workspace_data: false,
       requires_manual_confirmation: false,
       privacy_boundary:
-        "这是只基于 metadata 的整理建议，不会自动移动页面。",
+        "这是只基于元数据的整理建议，不会自动移动页面。",
     });
   }
 
@@ -775,7 +775,7 @@ function buildReviewSequence(
         "创建第一篇本地投研笔记",
         "/modules/notes",
         "notes-create-entry",
-        "笔记/page 是 ZhiNotes 的知识库底座，没有页面就没有后续模块承载。",
+        "笔记页面是 ZhiNotes 的知识库底座，没有页面就没有后续模块承载。",
         "至少有一篇本地页面。"
       ),
     ];
@@ -791,7 +791,7 @@ function buildReviewSequence(
         "/modules/notes",
         "notes-priority-actions",
         "标题骨架、结论、证据、行动项让笔记从记录变成可复盘研究资产。",
-        "高优先级页面不再是 empty 或 needs-structure。"
+        "高优先级页面不再是空白或待补结构。"
       )
     );
   }
@@ -804,7 +804,7 @@ function buildReviewSequence(
         "/modules/research-graph",
         "notes-research-links",
         "投研平台需要公司、报告、会议、组合和笔记互相连接。",
-        "关键研究笔记至少有一个 wiki link、file block、inline database 或 backlink。"
+        "关键研究笔记至少有一个页面链接、文件块、内联数据库或反向链接。"
       )
     );
   }
@@ -956,16 +956,16 @@ function getPageNextAction(
     return "先插入投研结构模板或 H2/H3 骨架。";
   }
   if (structureStatus === "needs-structure") {
-    return "补核心结论、证据来源、行动项或研究 relation。";
+    return "补核心结论、证据来源、行动项或研究关系。";
   }
   if (structureStatus === "thin") {
     return "补充假设、风险、催化剂、来源和下一步。";
   }
   if (counts.outgoingLinks + counts.backlinks + summary.page_mentions === 0) {
-    return "补 wiki link 或 relation，让这篇笔记进入研究图谱。";
+    return "补页面链接或研究关系，让这篇笔记进入研究图谱。";
   }
   if (counts.versions === 0) {
-    return "保存一个 named version，留下复盘痕迹。";
+    return "保存一个命名版本，留下复盘痕迹。";
   }
   return "结构可用，继续保持版本、评论和研究关系。";
 }

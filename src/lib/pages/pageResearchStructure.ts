@@ -145,7 +145,7 @@ export function buildPageResearchStructureReport(input: {
     report_status: "local-page-structure-only",
     structure_status: structureStatus,
     privacy_note:
-      "Generated locally from the current page HTML and basic page metadata. It does not read linked page bodies, database row values, file bytes, upload data, connect cloud services, call AI, or write workspace data.",
+      "这份结构体检只在本地根据当前页面 HTML 和基础页面元数据生成。它不读取关联页面正文、数据库行值或文件字节，不上传数据、不连接云服务、不调用 AI，也不写入工作区。",
     boundary: {
       local_page_structure_only: true,
       reads_current_page_html: true,
@@ -384,7 +384,7 @@ function buildSignals(
   return [
     {
       id: "outline",
-      label: "Outline",
+      label: "大纲",
       value: summary.headings,
       status: summary.headings > 0 ? "ready" : "empty",
       detail: "页面标题层级和目录线索。",
@@ -394,18 +394,18 @@ function buildSignals(
       label: "结论",
       value: summary.decision_markers,
       status: summary.decision_markers > 0 ? "ready" : "empty",
-      detail: "结论、takeaway、recommendation 等关键词线索。",
+      detail: "结论、关键观点、推荐动作等关键词线索。",
     },
     {
       id: "thesis",
-      label: "Thesis",
+      label: "投资假设",
       value: summary.thesis_markers,
       status: summary.thesis_markers > 0 ? "ready" : "empty",
-      detail: "投资假设、观点或 thesis 线索。",
+      detail: "投资假设、观点或核心判断线索。",
     },
     {
       id: "sources",
-      label: "Sources",
+      label: "来源",
       value: summary.source_markers + summary.links,
       status:
         summary.source_markers + summary.links > 0 ? "ready" : "empty",
@@ -413,46 +413,46 @@ function buildSignals(
     },
     {
       id: "actions",
-      label: "Actions",
+      label: "行动",
       value: summary.action_markers + summary.task_items,
       status:
         summary.action_markers + summary.task_items > 0 ? "ready" : "empty",
-      detail: "行动项、待办、开放问题或 follow-up。",
+      detail: "行动项、待办、开放问题或后续跟进。",
     },
     {
       id: "relations",
-      label: "Relations",
+      label: "关系",
       value: summary.page_mentions,
       status: summary.page_mentions > 0 ? "ready" : "empty",
-      detail: "本地页面 mention 和 wiki reference。",
+      detail: "本地页面提及和页面链接。",
     },
     {
       id: "files",
-      label: "Files",
+      label: "文件",
       value: summary.file_blocks,
       status: summary.file_blocks > 0 ? "ready" : "empty",
-      detail: "页面内本地 file-preview block。",
+      detail: "页面内本地文件预览块。",
     },
     {
       id: "databases",
-      label: "DB",
+      label: "数据库",
       value: summary.database_blocks,
       status: summary.database_blocks > 0 ? "ready" : "empty",
-      detail: "页面内 inline database block。",
+      detail: "页面内内联数据库块。",
     },
     {
       id: "versioning",
-      label: "Versions",
+      label: "版本",
       value: metadata.versionsCount,
       status: metadata.versionsCount > 0 ? "ready" : "review",
       detail: "本地版本快照数量。",
     },
     {
       id: "local-boundary",
-      label: "Boundary",
+      label: "本地边界",
       value: getStatusLabel(structureStatus),
       status: "ready",
-      detail: "只做本地结构分析，不上传、不调用 AI、不写 workspace。",
+      detail: "只做本地结构分析，不上传、不调用 AI、不写工作区。",
     },
   ];
 }
@@ -573,7 +573,7 @@ function buildNextActions(
       surface: "relation",
       action_status: "suggested-only",
       detail: "把页面连接到公司、报告、会议、数据库或文件预览，形成投研网络。",
-      suggested_block: "页面 mention / inline database / file preview",
+      suggested_block: "页面提及 / 内联数据库 / 文件预览",
       insert_html:
         "<h2>关联研究</h2><ul><li>公司页面：</li><li>相关报告：</li><li>相关会议：</li><li>相关数据库：</li></ul>",
       local_only: true,
@@ -606,8 +606,8 @@ function buildNextActions(
       gate_id: "review-trail",
       surface: "review",
       action_status: "suggested-only",
-      detail: "结构已经较完整，下一步适合设置复盘节奏或连接到 tracker。",
-      suggested_block: "下次复盘日期 / 关联 tracker row",
+      detail: "结构已经较完整，下一步适合设置复盘节奏或连接到跟踪表。",
+      suggested_block: "下次复盘日期 / 关联跟踪表行",
       insert_html:
         "<h2>复盘节奏</h2><ul><li>下次复盘日期：</li><li>触发条件：</li><li>关联 tracker row：</li></ul>",
       local_only: true,
@@ -682,10 +682,10 @@ function escapeRegExp(value: string) {
 
 function getStatusLabel(status: PageResearchStructureStatus) {
   const labels: Record<PageResearchStructureStatus, string> = {
-    ready: "ready",
-    "needs-structure": "needs structure",
-    thin: "thin",
-    empty: "empty",
+    ready: "已就绪",
+    "needs-structure": "需补结构",
+    thin: "偏薄",
+    empty: "空白",
   };
 
   return labels[status];

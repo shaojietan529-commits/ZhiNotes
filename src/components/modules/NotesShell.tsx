@@ -217,7 +217,7 @@ function NotesDashboard() {
                 笔记与页面中心
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                把本地 page 变成投研平台的知识库底座：集中查看结构、关联、版本、
+                把本地页面变成投研平台的知识库底座：集中查看结构、关联、版本、
                 评论、收藏、锁定和导出边界。这个页面只在浏览器本地运行。
               </p>
             </div>
@@ -271,7 +271,7 @@ function NotesDashboard() {
                 创建笔记入口
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                可以创建空白研究笔记，或直接用投研模板创建本地 page。模板只写入当前
+                可以创建空白研究笔记，或直接用投研模板创建本地页面。模板只写入当前
                 浏览器本地页面，不同步、不上传、不调用 AI。
               </p>
             </div>
@@ -327,7 +327,7 @@ function NotesDecisionSummaryPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Notes Decision Summary
+            笔记决策总览
           </p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             笔记决策摘要
@@ -360,7 +360,7 @@ function NotesDecisionSummaryPanel({
         <NotesDecisionList title="当前可做" items={summary.safe_local_work} />
         <NotesDecisionList title="保持关闭" items={summary.blocked_work} />
         <NotesDecisionList
-          title="Owner 待确认"
+          title="待你确认"
           items={summary.required_owner_decisions}
         />
       </div>
@@ -370,9 +370,8 @@ function NotesDecisionSummaryPanel({
         {summary.top_blockers.length > 0
           ? summary.top_blockers.join("；")
           : "暂无"}
-        。笔记决策摘要只读取本地 summary metadata，不包含页面正文、评论正文、
-        linked page bodies、database row values、file bytes、prompt、token 或
-        credentials。
+        。笔记决策摘要只读取本地摘要元数据，不包含页面正文、评论正文、
+        关联页面正文、数据库行值、文件字节、提示词、token 或凭证。
       </div>
     </section>
   );
@@ -500,8 +499,8 @@ function NotesWorkbenchPanel({
             笔记工作台
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            把所有本地页面按 inbox、投研结构、研究关联、复盘痕迹、知识库组织和
-            导出安全拆成行动队列。导出不包含页面正文、评论正文或文件 bytes。
+            把所有本地页面按入口收集、投研结构、研究关联、复盘痕迹、知识库组织和
+            导出安全拆成行动队列。导出不包含页面正文、评论正文或文件字节。
           </p>
         </div>
         <button
@@ -601,8 +600,8 @@ function NotesWorkbenchPanel({
             />
           ))}
           <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-            禁止动作：不从工作台导出页面正文、不导出评论正文、不读取数据库 row values、
-            不读取文件 bytes、不自动删除或覆盖页面、不自动同步、不调用 AI。
+            禁止动作：不从工作台导出页面正文、不导出评论正文、不读取数据库行值、
+            不读取文件字节、不自动删除或覆盖页面、不自动同步、不调用 AI。
           </p>
         </div>
       </div>
@@ -698,7 +697,7 @@ function NotesPageCard({
             {page.title}
           </h3>
           <p className="mt-1 text-zinc-400">
-            {getRoleLabel(page.role)} · 分数 {page.readiness_score}
+            {getRoleLabel(page.role)} · 就绪分 {page.readiness_score}
           </p>
         </div>
         <button
@@ -710,7 +709,7 @@ function NotesPageCard({
         </button>
       </div>
       <div className="mt-3 flex flex-wrap gap-1">
-        <Chip label={page.structure_status} />
+        <Chip label={getStructureStatusLabel(page.structure_status)} />
         <Chip label={`${page.word_count} 字`} />
         <Chip label={`${page.heading_count} 个标题`} />
         <Chip label={`${page.outgoing_links + page.backlinks} 个链接`} />
@@ -857,6 +856,18 @@ function getRoleLabel(role: NotesModuleWorkbenchReport["pages"][number]["role"])
     "general-note": "通用笔记",
   };
   return labels[role];
+}
+
+function getStructureStatusLabel(
+  status: NotesModuleWorkbenchReport["pages"][number]["structure_status"]
+) {
+  const labels: Record<typeof status, string> = {
+    ready: "已就绪",
+    "needs-structure": "需补结构",
+    thin: "偏薄",
+    empty: "空白",
+  };
+  return labels[status];
 }
 
 function getEmptyPageCounts(pageId: string): PageModuleCounts {
