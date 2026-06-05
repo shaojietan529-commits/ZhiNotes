@@ -35,6 +35,8 @@ schema migration 的能力默认保持关闭。
   `/turnnumber`、`/turnh3`、`/book` 等输入会命中对应块或书签命令。
 - 格式和颜色命令也补齐英文可发现性：`/bold`、`/clear formatting`、`/align left`、
   `/red text`、`/gray text`、`/blue background` 等输入会命中对应文字格式或背景色命令。
+- 颜色工作流新增 `/default`，只移除文字颜色和背景高亮，不像“清除格式”那样重置整个块；
+  背景色也补齐橙色和灰色。
 - 新增本地高级块操作入口：`/duplicate`、`/delete`、`/move up`、`/move down` 和
   `/comment`，用于复制、删除、上下移动当前块，以及给当前块或选中文本添加本地评论。
 - 复制块链接、复制块 Markdown、复制块 HTML 也已接入 slash 和 Cmd/Ctrl+K，方便把投研

@@ -216,7 +216,8 @@ Current local actions:
   action is also available from Cmd/Ctrl+K. Block link, Markdown, and HTML copy
   commands are exposed from both slash and Cmd/Ctrl+K for local reuse. Formatting
   and color aliases such as `/bold`, `/clear formatting`, `/red text`, and
-  `/blue background` are searchable too.
+  `/blue background` are searchable too; `/default` removes text color and
+  highlight without resetting the whole block.
 - Add local comments from the keyboard with Cmd/Ctrl+Shift+M, matching Notion's
   comment shortcut while keeping the comment body in local storage.
 - Open the local block action menu with Cmd/Ctrl+/, matching Notion's block edit

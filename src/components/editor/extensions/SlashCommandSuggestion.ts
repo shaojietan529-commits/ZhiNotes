@@ -802,6 +802,30 @@ function getSlashCommands(): SlashCommandItem[] {
         editor.chain().focus().deleteRange(range).setColor("#9ca3af").run();
       },
     },
+    {
+      title: "默认颜色",
+      description: "移除文字颜色和背景高亮",
+      icon: "DEF",
+      category: "颜色",
+      aliases: [
+        "default",
+        "default color",
+        "clear color",
+        "remove color",
+        "default background",
+        "默认",
+        "默认颜色",
+      ],
+      command: ({ editor, range }) => {
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .unsetColor()
+          .unsetHighlight()
+          .run();
+      },
+    },
     ...templateCommands,
     // ── Background Colors ──
     {
@@ -811,7 +835,27 @@ function getSlashCommands(): SlashCommandItem[] {
       category: "背景色",
       aliases: ["red background", "red bg", "background red", "红色背景"],
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).toggleHighlight({ color: "#fecaca" }).run();
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .toggleHighlight({ color: "#fecaca" })
+          .run();
+      },
+    },
+    {
+      title: "橙色背景",
+      description: "用橙色背景高亮",
+      icon: "🟠",
+      category: "背景色",
+      aliases: ["orange background", "orange bg", "background orange", "橙色背景"],
+      command: ({ editor, range }) => {
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .toggleHighlight({ color: "#fed7aa" })
+          .run();
       },
     },
     {
@@ -821,7 +865,12 @@ function getSlashCommands(): SlashCommandItem[] {
       category: "背景色",
       aliases: ["yellow background", "yellow bg", "background yellow", "黄色背景"],
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).toggleHighlight({ color: "#fef08a" }).run();
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .toggleHighlight({ color: "#fef08a" })
+          .run();
       },
     },
     {
@@ -831,7 +880,12 @@ function getSlashCommands(): SlashCommandItem[] {
       category: "背景色",
       aliases: ["green background", "green bg", "background green", "绿色背景"],
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).toggleHighlight({ color: "#bbf7d0" }).run();
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .toggleHighlight({ color: "#bbf7d0" })
+          .run();
       },
     },
     {
@@ -841,7 +895,12 @@ function getSlashCommands(): SlashCommandItem[] {
       category: "背景色",
       aliases: ["blue background", "blue bg", "background blue", "蓝色背景"],
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).toggleHighlight({ color: "#bfdbfe" }).run();
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .toggleHighlight({ color: "#bfdbfe" })
+          .run();
       },
     },
     {
@@ -851,7 +910,34 @@ function getSlashCommands(): SlashCommandItem[] {
       category: "背景色",
       aliases: ["purple background", "purple bg", "background purple", "紫色背景"],
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).toggleHighlight({ color: "#e9d5ff" }).run();
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .toggleHighlight({ color: "#e9d5ff" })
+          .run();
+      },
+    },
+    {
+      title: "灰色背景",
+      description: "用灰色背景高亮",
+      icon: "⚪",
+      category: "背景色",
+      aliases: [
+        "gray background",
+        "grey background",
+        "gray bg",
+        "grey bg",
+        "background gray",
+        "灰色背景",
+      ],
+      command: ({ editor, range }) => {
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .toggleHighlight({ color: "#e4e4e7" })
+          .run();
       },
     },
   ];

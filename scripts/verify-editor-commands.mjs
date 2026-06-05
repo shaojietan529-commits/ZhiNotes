@@ -350,6 +350,14 @@ function run() {
     "\"red text\"",
     "\"blue background\"",
     "\"gray text\"",
+    "title: \"默认颜色\"",
+    "\"default color\"",
+    ".unsetColor()",
+    ".unsetHighlight()",
+    "title: \"橙色背景\"",
+    "\"orange background\"",
+    "title: \"灰色背景\"",
+    "\"gray background\"",
   ]) {
     assertIncludes(
       files.slashSuggestion,
@@ -769,6 +777,8 @@ function run() {
         block_copy_export_commands: 3,
         notion_style_slash_aliases: 13,
         formatting_color_aliases: true,
+        default_color_command: true,
+        background_color_commands: 7,
         file_workflow_entrypoints: 3,
         localized_shared_note_controls: true,
         page_command_opens_new_page: true,
