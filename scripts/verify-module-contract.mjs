@@ -401,6 +401,8 @@ function run() {
     "trial_routes",
     "required_verification_commands",
     "阶段 3：投研核心模块 beta hardening",
+    "创建项目页并入库",
+    "项目 handoff",
   ]) {
     assertIncludes(
       files.projectProgressSnapshot,

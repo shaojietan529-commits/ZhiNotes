@@ -295,6 +295,8 @@ function getRecommendedTest(moduleId: string) {
     reports: "上传或打开一个本地 HTML/Markdown/PDF 报告，确认 native preview 和路由提示。",
     files: "查看文件库对 HTML、Markdown、PDF、Excel、Word、PPT 的本地处理路线。",
     "company-research": "创建或打开公司研究 tracker，检查 memo、估值、报告和会议关系入口。",
+    projects:
+      "打开投研项目模块，创建项目跟踪表，再用“创建项目页并入库”检查项目页、tracker row 和项目 handoff。",
     portfolio: "打开组合模块，检查 memo、watchlist、sizing、catalyst、risk 和 relation 入口。",
     meetings: "打开会议模块，检查 transcript、action items、follow-up 和 relation 入口。",
     "research-graph": "查看研究图谱的 relation handoff、schema gap 和 unlinked asset 队列。",

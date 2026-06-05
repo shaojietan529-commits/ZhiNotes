@@ -405,6 +405,9 @@ Current local actions:
   fields so the project page is not accidentally added to company, report,
   meeting, or portfolio relation fields. Candidate rows also prioritize rows
   already linked to the current project page.
+- The `/modules` project progress snapshot recommends this projects workflow as
+  an owner trial route so the current stage overview matches the implemented
+  project page, tracker row, and handoff loop.
 - Review module readiness for company, report, meeting, and portfolio context
   from the shared research graph summary.
 - Export the current project brief as local JSON.
