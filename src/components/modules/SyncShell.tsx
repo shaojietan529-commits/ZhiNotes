@@ -272,6 +272,12 @@ import {
   type RestoreWritebackStatus,
 } from "@/lib/sync/restoreWritebackContract";
 import {
+  buildRestoreApplyApiDisabledResponse,
+  type RestoreApplyApiDisabledResponse,
+  type RestoreApplyApiFieldStatus,
+  type RestoreApplyApiValidationStatus,
+} from "@/lib/sync/restoreApplyApiStub";
+import {
   buildCloudWorkspaceBootstrapProof,
   buildLocalWorkspaceCloudLinkReceipt,
   buildLocalWorkspaceIdentitySnapshot,
@@ -304,6 +310,7 @@ type SyncQueueAction =
   | "sync-confirmation"
   | "rollback-plan"
   | "restore-writeback"
+  | "restore-apply-api-guard"
   | "restore-confirmation"
   | "replay-test-plan";
 type PermissionPolicyAction = "policy";
@@ -966,6 +973,10 @@ function SyncDashboard() {
       syncReplayTestPlan,
       workspaceIdentity,
     ]
+  );
+  const restoreApplyApiGuard = useMemo(
+    () => buildRestoreApplyApiDisabledResponse(),
+    []
   );
   const restoreConfirmationReceipt = useMemo(
     () =>
@@ -2186,6 +2197,24 @@ function SyncDashboard() {
       window.alert(
         "恢复写入合同导出失败，请查看控制台。"
       );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportRestoreApplyApiGuard = () => {
+    setBusyQueueAction("restore-apply-api-guard");
+    try {
+      downloadJsonFile(
+        `zhinote-restore-apply-api-disabled-${fileSafeTimestamp()}.json`,
+        {
+          ...restoreApplyApiGuard,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export restore apply API guard:", err);
+      window.alert("恢复应用 API 防护导出失败，请查看控制台。");
     } finally {
       setBusyQueueAction(null);
     }
@@ -5347,6 +5376,117 @@ function SyncDashboard() {
               ))}
             </div>
           </div>
+          <ContractPanel title="恢复应用 API 防护" className="mt-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                `/api/backup/restore-apply` 的专用关闭响应。它展示未来“仅元数据”
+                恢复应用请求、仅收据响应结构、本地 fixture 检查和必需门槛；
+                路由当前仍拒绝读取请求体、接收备份 payload、覆盖页面、删除行或写入工作区。
+              </p>
+              <button
+                type="button"
+                onClick={handleExportRestoreApplyApiGuard}
+                disabled={busyQueueAction === "restore-apply-api-guard"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyQueueAction === "restore-apply-api-guard"
+                  ? "导出中..."
+                  : "导出恢复应用防护"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-7">
+              <RestoreApplyApiSummaryCard
+                label="格式"
+                value={restoreApplyApiGuard.format}
+                detail="专用响应"
+                status="accepted"
+              />
+              <RestoreApplyApiSummaryCard
+                label="HTTP"
+                value={restoreApplyApiGuard.disabled_response_contract.http_status}
+                detail="关闭状态"
+                status="rejected"
+              />
+              <RestoreApplyApiSummaryCard
+                label="请求体"
+                value={restoreApplyApiGuard.can_read_request_body_now ? "是" : "否"}
+                detail="不读取正文"
+                status="rejected"
+              />
+              <RestoreApplyApiSummaryCard
+                label="工作区写入"
+                value={
+                  restoreApplyApiGuard.can_write_workspace_data_now
+                    ? "是"
+                    : "否"
+                }
+                detail="不覆盖删除"
+                status="rejected"
+              />
+              <RestoreApplyApiSummaryCard
+                label="允许字段"
+                value={restoreApplyApiGuard.request_schema.allowed_fields.length}
+                detail="未来元数据"
+                status="accepted"
+              />
+              <RestoreApplyApiSummaryCard
+                label="禁止字段"
+                value={restoreApplyApiGuard.request_schema.forbidden_fields.length}
+                detail="载荷已阻止"
+                status="rejected"
+              />
+              <RestoreApplyApiSummaryCard
+                label="Fixture 字段"
+                value={
+                  restoreApplyApiGuard.local_validator_report.summary
+                    .forbidden_fields_covered
+                }
+                detail="本地覆盖"
+                status="rejected"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+              <ContractPanel title="请求结构">
+                <div className="space-y-2">
+                  {restoreApplyApiGuard.request_schema.allowed_fields
+                    .slice(0, 6)
+                    .map((field) => (
+                      <RestoreApplyApiFieldRow
+                        key={field.field}
+                        field={field}
+                      />
+                    ))}
+                  {restoreApplyApiGuard.request_schema.forbidden_fields
+                    .slice(0, 6)
+                    .map((field) => (
+                      <RestoreApplyApiFieldRow
+                        key={field.field}
+                        field={field}
+                      />
+                    ))}
+                </div>
+              </ContractPanel>
+              <ContractPanel title="Fixture 检查">
+                <div className="space-y-2">
+                  {restoreApplyApiGuard.local_validator_report.fixtures.map(
+                    (fixture) => (
+                      <RestoreApplyApiFixtureRow
+                        key={fixture.id}
+                        fixture={fixture}
+                      />
+                    )
+                  )}
+                </div>
+              </ContractPanel>
+            </div>
+            <ContractPanel title="启用门槛" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {restoreApplyApiGuard.enablement_gates.map((gate) => (
+                  <RestoreApplyApiGateRow key={gate.id} gate={gate} />
+                ))}
+              </div>
+            </ContractPanel>
+          </ContractPanel>
           <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
             <label
               htmlFor="restore-confirmation-phrase"
@@ -9365,6 +9505,142 @@ function RestoreWritebackGateRow({
         {gate.required_action}
       </p>
     </article>
+  );
+}
+
+function RestoreApplyApiSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: RestoreApplyApiValidationStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <RestoreApplyApiValidationPill status={status} />
+      </div>
+      <div className="mt-2 break-all text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function RestoreApplyApiFieldRow({
+  field,
+}: {
+  field: RestoreApplyApiDisabledResponse["request_schema"]["allowed_fields"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+          {field.field}
+        </div>
+        <RestoreApplyApiFieldStatusPill status={field.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {field.reason}
+      </p>
+    </article>
+  );
+}
+
+function RestoreApplyApiFixtureRow({
+  fixture,
+}: {
+  fixture: RestoreApplyApiDisabledResponse["local_validator_report"]["fixtures"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {fixture.id}
+          </div>
+          <div className="mt-1 text-[10px] text-zinc-400">
+            预期 {fixture.expected_status}
+          </div>
+        </div>
+        <RestoreApplyApiValidationPill status={fixture.actual_status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {fixture.reason}
+      </p>
+      {fixture.forbidden_field_names.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+          {fixture.forbidden_field_names.map((fieldName) => (
+            <span
+              key={fieldName}
+              className="rounded-md bg-white px-2 py-1 font-mono text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"
+            >
+              {fieldName}
+            </span>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function RestoreApplyApiGateRow({
+  gate,
+}: {
+  gate: RestoreApplyApiDisabledResponse["enablement_gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {gate.title}
+      </div>
+      <div className="mt-1 font-mono text-[10px] text-zinc-400">
+        {gate.id}
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {gate.required_before_enablement}
+      </p>
+    </article>
+  );
+}
+
+function RestoreApplyApiFieldStatusPill({
+  status,
+}: {
+  status: RestoreApplyApiFieldStatus;
+}) {
+  const className =
+    status === "allowed"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {status === "allowed" ? "允许" : "禁止"}
+    </span>
+  );
+}
+
+function RestoreApplyApiValidationPill({
+  status,
+}: {
+  status: RestoreApplyApiValidationStatus;
+}) {
+  const className =
+    status === "accepted"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {status === "accepted" ? "已接受" : "已拒绝"}
+    </span>
   );
 }
 

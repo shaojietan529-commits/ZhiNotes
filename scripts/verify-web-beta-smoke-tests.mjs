@@ -70,7 +70,7 @@ const gatedOrDisabledApiRoutes = [
   },
   {
     path: "src/app/api/backup/restore-apply/route.ts",
-    guard: 'buildWebBetaApiStubResponse("restore-apply")',
+    guard: "buildRestoreApplyApiDisabledResponse",
   },
   {
     path: "src/app/api/ai/run/route.ts",

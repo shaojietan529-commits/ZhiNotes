@@ -36,6 +36,8 @@ const files = {
   remoteBaselineReplayRunner: "src/lib/sync/remoteBaselineReplayRunner.ts",
   restoreRollbackPlan: "src/lib/sync/restoreRollbackPlan.ts",
   restoreWritebackContract: "src/lib/sync/restoreWritebackContract.ts",
+  restoreApplyApiStub: "src/lib/sync/restoreApplyApiStub.ts",
+  restoreApplyRoute: "src/app/api/backup/restore-apply/route.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -245,6 +247,8 @@ function run() {
   const restoreWritebackContract = readProjectFile(
     files.restoreWritebackContract
   );
+  const restoreApplyApiStub = readProjectFile(files.restoreApplyApiStub);
+  const restoreApplyRoute = readProjectFile(files.restoreApplyRoute);
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -300,6 +304,8 @@ function run() {
     [files.remoteBaselineReplayHarness, remoteBaselineReplayHarness],
     [files.remoteBaselineReplayRunner, remoteBaselineReplayRunner],
     [files.syncOptInGate, syncOptInGate],
+    [files.restoreApplyApiStub, restoreApplyApiStub],
+    [files.restoreApplyRoute, restoreApplyRoute],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
     [files.auditEventEnvelope, auditEventEnvelope],
@@ -401,6 +407,12 @@ function run() {
       assertRouteGuard(
         routeFile,
         "buildPermissionCheckApiDisabledResponse",
+        routeLabel
+      );
+    } else if (stub.id === "restore-apply") {
+      assertRouteGuard(
+        routeFile,
+        "buildRestoreApplyApiDisabledResponse",
         routeLabel
       );
     } else {
@@ -628,7 +640,12 @@ function run() {
       "Audit event envelope must include content denylist check.",
     ],
   ]) {
-    assertSourceIncludes(files.auditEventEnvelope, auditEventEnvelope, snippet, message);
+    assertSourceIncludes(
+      files.auditEventEnvelope,
+      auditEventEnvelope,
+      snippet,
+      message
+    );
   }
   assertSourceIncludes(
     files.auditEventsApiStub,
@@ -5368,6 +5385,143 @@ function run() {
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
+  assertSourceIncludes(
+    files.restoreApplyApiStub,
+    restoreApplyApiStub,
+    'format: "zhinote-restore-apply-api-disabled"',
+    "Restore apply API guard must expose a stable disabled response format."
+  );
+  assertSourceIncludes(
+    files.restoreApplyApiStub,
+    restoreApplyApiStub,
+    "buildRestoreApplyApiDisabledResponse",
+    "Restore apply API guard must expose a reusable disabled response builder."
+  );
+  for (const item of [
+    ['api_id: "restore-apply"', "Restore apply API guard must identify the restore-apply route."],
+    ['path: "/api/backup/restore-apply"', "Restore apply API guard must bind to /api/backup/restore-apply."],
+    ['method: "POST"', "Restore apply API guard must document POST."],
+    ['stub_status: "disabled-local-stub"', "Restore apply API guard must stay disabled."],
+    ["can_apply_restore_now: false", "Restore apply API guard must not apply restore."],
+    ["can_read_request_body_now: false", "Restore apply API guard must not read request bodies."],
+    ["can_read_backup_payload_now: false", "Restore apply API guard must not read backups."],
+    ["can_write_workspace_data_now: false", "Restore apply API guard must not write workspace data."],
+    ["can_overwrite_pages_now: false", "Restore apply API guard must not overwrite pages."],
+    ["can_delete_rows_now: false", "Restore apply API guard must not delete rows."],
+    ["can_upload_workspace_data_now: false", "Restore apply API guard must not upload workspace data."],
+    ["can_sync_restored_data_now: false", "Restore apply API guard must not sync restored data."],
+    ["no_request_argument: true", "Restore apply API guard must not accept a request argument."],
+    ["endpoint_disabled: true", "Restore apply API guard must preserve disabled endpoint boundary."],
+    ["reads_request_body: false", "Restore apply API guard must keep body reads disabled."],
+    ["accepts_restore_payload: false", "Restore apply API guard must not accept restore payloads."],
+    ["metadata_only_request: true", "Restore apply API guard must keep future request metadata-only."],
+    ["applies_restore: false", "Restore apply API guard must not apply restore."],
+    ["writes_workspace_data: false", "Restore apply API guard must not write workspace data."],
+    ["overwrites_pages: false", "Restore apply API guard must not overwrite pages."],
+    ["deletes_rows: false", "Restore apply API guard must not delete rows."],
+    ["uploads_workspace_data: false", "Restore apply API guard must not upload workspace data."],
+    ["syncs_restored_data: false", "Restore apply API guard must not sync restored data."],
+    ["reads_page_body_text: false", "Restore apply API guard must not read page text."],
+    ["reads_database_row_values: false", "Restore apply API guard must not read database values."],
+    ["reads_comment_bodies: false", "Restore apply API guard must not read comments."],
+    ["reads_file_bytes: false", "Restore apply API guard must not read files."],
+    ["reads_backup_payload: false", "Restore apply API guard must not read backup payloads."],
+    ["reads_secret_values: false", "Restore apply API guard must not read secrets."],
+    ["requires_rollback_snapshot_before_enablement: true", "Restore apply API guard must require rollback snapshot."],
+    ["requires_scope_review_before_enablement: true", "Restore apply API guard must require scope review."],
+    ["requires_permission_check_before_enablement: true", "Restore apply API guard must require permission checks."],
+    ["requires_audit_event_before_enablement: true", "Restore apply API guard must require audit events."],
+    ["requires_sync_replay_safety_before_enablement: true", "Restore apply API guard must require sync replay safety."],
+    ["requires_second_confirmation_before_enablement: true", "Restore apply API guard must require second confirmation."],
+    ["requires_failure_recovery_before_enablement: true", "Restore apply API guard must require failure recovery."],
+    ['schema_status: "planned-metadata-only"', "Restore apply API guard must expose metadata-only request schema."],
+    ['schema_status: "planned-receipt-only"', "Restore apply API guard must expose receipt-only response schema."],
+    ['format: "zhinote-restore-apply-api-validator-fixtures"', "Restore apply API guard must include local validator fixtures."],
+    ['validator_status: "not-executing-route"', "Restore apply validator must not execute the route."],
+    "forbidden_field_names",
+    "forbidden_fields_covered",
+    '"metadata-restore-apply-request"',
+    '"backup-payload-blocked"',
+    '"workspace-content-blocked"',
+    '"file-bytes-blocked"',
+    '"destructive-flags-blocked"',
+    '"credential-fields-blocked"',
+    "backup_manifest_id",
+    "rollback_snapshot_id",
+    "restore_scope_ids",
+    "permission_decision_id",
+    "audit_event_envelope_id",
+    "sync_replay_proof_id",
+    "second_confirmation_receipt_id",
+    "failure_recovery_plan_id",
+    "backup_payload",
+    "database_cell_values",
+    "file_bytes",
+    "delete_all",
+    "overwrite_all",
+    "secret_values",
+    '"rollback-snapshot"',
+    '"scope-review"',
+    '"permission-check"',
+    '"audit-event"',
+    '"sync-replay-safety"',
+    '"second-confirmation"',
+    '"failure-recovery"',
+  ]) {
+    const expected = Array.isArray(item) ? item[0] : item;
+    const message = Array.isArray(item)
+      ? item[1]
+      : "Restore apply API guard must preserve schema, fixtures, and enablement gates.";
+    assertSourceIncludes(files.restoreApplyApiStub, restoreApplyApiStub, expected, message);
+  }
+  assertSourceIncludes(
+    files.restoreApplyRoute,
+    restoreApplyRoute,
+    "buildRestoreApplyApiDisabledResponse",
+    "Restore apply route must return the dedicated disabled response."
+  );
+  assertSourceIncludes(
+    files.restoreApplyRoute,
+    restoreApplyRoute,
+    "WEB_BETA_API_STUB_HTTP_STATUS",
+    "Restore apply route must keep the disabled Web Beta HTTP status."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildRestoreApplyApiDisabledResponse",
+    "Sync UI must build the restore apply API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportRestoreApplyApiGuard",
+    "Sync UI must export the restore apply API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "恢复应用 API 防护",
+    "Sync UI must render the restore apply API guard panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "导出恢复应用防护",
+    "Sync UI must render the restore apply API guard export button."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "value={restoreApplyApiGuard.format}",
+    "Sync UI must render the restore apply disabled response format."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "RestoreApplyApiFixtureRow",
+    "Sync UI must render restore apply validator fixtures."
+  );
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
