@@ -19,6 +19,7 @@ const files = {
   projectFields: "src/lib/modules/researchProjectFields.ts",
   dashboard: "src/components/modules/ModuleDashboard.tsx",
   projectsShell: "src/components/modules/ProjectsShell.tsx",
+  databaseProvider: "src/components/providers/DatabaseProvider.tsx",
   databaseShell: "src/components/database/DatabaseShell.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
@@ -199,6 +200,7 @@ function run() {
   const projectFields = readProjectFile(files.projectFields);
   const dashboard = readProjectFile(files.dashboard);
   const projectsShell = readProjectFile(files.projectsShell);
+  const databaseProvider = readProjectFile(files.databaseProvider);
   const databaseShell = readProjectFile(files.databaseShell);
   const sidebar = readProjectFile(files.sidebar);
   const quickSearch = readProjectFile(files.quickSearch);
@@ -650,6 +652,20 @@ function run() {
     sidebar,
     "PLATFORM_MODULES",
     "Sidebar navigation must read from the module registry."
+  );
+  for (const snippet of ["导出 MD", "导出 ZIP"]) {
+    assertIncludes(
+      files.sidebar,
+      sidebar,
+      snippet,
+      "Sidebar local export controls must keep Chinese action labels."
+    );
+  }
+  assertIncludes(
+    files.databaseProvider,
+    databaseProvider,
+    "正在打开 Zhinote...",
+    "The local app loading shell must keep a Chinese status label."
   );
   assertIncludes(
     files.quickSearch,

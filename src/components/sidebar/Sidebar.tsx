@@ -226,7 +226,7 @@ export default function Sidebar() {
           className="flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 disabled:cursor-wait disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
           title="下载所有活跃页面为一个 Markdown 文件"
         >
-          MD all
+          {markdownExportRunning ? "导出中..." : "导出 MD"}
         </button>
         <button
           type="button"
@@ -235,7 +235,7 @@ export default function Sidebar() {
           className="flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 disabled:cursor-wait disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
           title="下载活跃页面和上传文件为本地 ZIP"
         >
-          {zipExportRunning ? "ZIP..." : "ZIP"}
+          {zipExportRunning ? "导出中..." : "导出 ZIP"}
         </button>
         <button
           type="button"
