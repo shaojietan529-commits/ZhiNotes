@@ -17,6 +17,7 @@ export interface AuditEventsApiValidatorFixture {
   expected_status: AuditEventsApiValidationStatus;
   actual_status: AuditEventsApiValidationStatus;
   contains_forbidden_payload: boolean;
+  forbidden_field_names: string[];
   reason: string;
 }
 
@@ -30,6 +31,7 @@ export interface AuditEventsApiValidatorReport {
     accepted: number;
     rejected: number;
     forbidden_payload_rejections: number;
+    forbidden_fields_covered: number;
   };
   fixtures: AuditEventsApiValidatorFixture[];
 }
@@ -316,37 +318,67 @@ export function buildAuditEventsValidatorReport(): AuditEventsApiValidatorReport
       "metadata-sync-event",
       "accepted",
       false,
+      [],
       "Workspace, actor, device, event type, resource id, counts, hashes, permission decision, and retention metadata are allowed in the future schema."
     ),
     fixture(
       "high-risk-confirmation-event",
       "accepted",
       false,
+      [],
       "Restore, AI, external asset, bulk import, file sync, and sharing actions may link typed confirmation receipt ids after auth is implemented."
     ),
     fixture(
-      "page-text-blocked",
+      "content-fields-blocked",
       "rejected",
       true,
+      [
+        "page_body_text",
+        "block_text",
+        "comment_body",
+        "database_cell_values",
+      ],
       "page_body_text, block_text, comment_body, and database_cell_values are forbidden because they can contain private research content."
     ),
     fixture(
       "file-backup-bytes-blocked",
       "rejected",
       true,
+      ["file_bytes", "backup_payload"],
       "file_bytes and backup_payload are forbidden because audit rows must not store private files or backup packages."
     ),
     fixture(
       "ai-payload-blocked",
       "rejected",
       true,
+      ["prompt_text", "model_raw_output"],
       "prompt_text and model_raw_output are forbidden unless a separate reviewed storage policy explicitly allows them."
     ),
     fixture(
-      "secret-url-blocked",
+      "credential-fields-blocked",
       "rejected",
       true,
-      "token, cookie, password, secret_values, signed URLs, public URLs, environment values, and local file paths are forbidden."
+      ["token", "cookie", "password", "secret_values", "environment_value"],
+      "token, cookie, password, secret_values, and environment values are forbidden because they can expose credentials or deployment configuration."
+    ),
+    fixture(
+      "url-path-fields-blocked",
+      "rejected",
+      true,
+      [
+        "signed_upload_url",
+        "signed_download_url",
+        "public_url",
+        "local_file_path",
+      ],
+      "Signed URLs, public URLs, and local file paths are forbidden because they can expose credentials or private folder names."
+    ),
+    fixture(
+      "sql-raw-body-blocked",
+      "rejected",
+      true,
+      ["sql_text", "raw_request_body"],
+      "SQL text and raw request bodies are forbidden because audit rows must store redacted metadata only."
     ),
   ];
 
@@ -363,6 +395,9 @@ export function buildAuditEventsValidatorReport(): AuditEventsApiValidatorReport
         .length,
       forbidden_payload_rejections: fixtures.filter(
         (item) => item.contains_forbidden_payload
+      ).length,
+      forbidden_fields_covered: unique(
+        fixtures.flatMap((item) => item.forbidden_field_names)
       ).length,
     },
     fixtures,
@@ -381,6 +416,7 @@ function fixture(
   id: string,
   status: AuditEventsApiValidationStatus,
   containsForbiddenPayload: boolean,
+  forbiddenFieldNames: string[],
   reason: string
 ): AuditEventsApiValidatorFixture {
   return {
@@ -388,6 +424,11 @@ function fixture(
     expected_status: status,
     actual_status: status,
     contains_forbidden_payload: containsForbiddenPayload,
+    forbidden_field_names: forbiddenFieldNames,
     reason,
   };
+}
+
+function unique(values: string[]) {
+  return [...new Set(values)];
 }

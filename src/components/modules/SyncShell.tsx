@@ -5056,7 +5056,7 @@ function SyncDashboard() {
                   : "导出审计 API 防护"}
               </button>
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-5">
+            <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
               <AuditEventsApiSummaryCard
                 label="HTTP"
                 value={auditEventsApiGuard.disabled_response_contract.http_status}
@@ -5089,6 +5089,15 @@ function SyncDashboard() {
                 label="禁止字段"
                 value={auditEventsApiGuard.request_schema.forbidden_fields.length}
                 detail="载荷已阻止"
+                status="rejected"
+              />
+              <AuditEventsApiSummaryCard
+                label="Fixture 字段"
+                value={
+                  auditEventsApiGuard.local_validator_report.summary
+                    .forbidden_fields_covered
+                }
+                detail="本地覆盖"
                 status="rejected"
               />
             </div>
@@ -8320,6 +8329,18 @@ function AuditEventsApiFixtureRow({
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
         {fixture.reason}
       </p>
+      {fixture.forbidden_field_names.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+          {fixture.forbidden_field_names.map((fieldName) => (
+            <span
+              key={fieldName}
+              className="rounded-md bg-white px-2 py-1 font-mono text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"
+            >
+              {fieldName}
+            </span>
+          ))}
+        </div>
+      )}
     </article>
   );
 }

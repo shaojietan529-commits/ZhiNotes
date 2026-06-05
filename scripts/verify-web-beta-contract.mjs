@@ -730,12 +730,16 @@ function run() {
     "sql_text",
     'format: "zhinote-audit-events-api-validator-fixtures"',
     'validator_status: "not-executing-route"',
+    "forbidden_field_names",
+    "forbidden_fields_covered",
     '"metadata-sync-event"',
     '"high-risk-confirmation-event"',
-    '"page-text-blocked"',
+    '"content-fields-blocked"',
     '"file-backup-bytes-blocked"',
     '"ai-payload-blocked"',
-    '"secret-url-blocked"',
+    '"credential-fields-blocked"',
+    '"url-path-fields-blocked"',
+    '"sql-raw-body-blocked"',
     '"authenticated-actor"',
     '"workspace-membership"',
     '"metadata-only-schema-validation"',
@@ -786,6 +790,18 @@ function run() {
     syncShell,
     "导出审计 API 防护",
     "Sync UI must render the audit events API guard export button."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "Fixture 字段",
+    "Sync UI must summarize audit events fixture field coverage."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "forbidden_field_names",
+    "Sync UI must render forbidden audit fixture field names."
   );
   assertSourceIncludes(
     files.permissionCheckEnvelope,
@@ -5396,7 +5412,7 @@ function run() {
     deployment_target_checks: 16,
     private_file_storage_policy_checks: 45,
     file_presign_api_guard_checks: 86,
-    audit_events_api_guard_checks: 83,
+    audit_events_api_guard_checks: 89,
     smoke_test_plan_checks: 16,
     smoke_test_verifier_checks: 5,
     replay_harness_safety_script_checks: 7,
