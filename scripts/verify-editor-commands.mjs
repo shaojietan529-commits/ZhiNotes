@@ -137,6 +137,19 @@ function run() {
   }
 
   for (const snippet of [
+    "dispatchEditorLocalCommand",
+    "\"Mod-Shift-m\"",
+    "dispatchEditorLocalCommand(\"block-comment\")",
+  ]) {
+    assertIncludes(
+      files.keyboardShortcuts,
+      keyboardShortcuts,
+      snippet,
+      "Keyboard shortcuts must expose Notion-style comment creation."
+    );
+  }
+
+  for (const snippet of [
     "新建页面 / Page",
     "创建子页面，插入页面链接，并自动进入新页面（/page）",
     "\"page\"",
@@ -710,6 +723,7 @@ function run() {
     JSON.stringify(
       {
         h3_shortcut_paths: 3,
+        comment_shortcut: "Mod-Shift-m",
         page_slash_aliases: 8,
         block_insert_heading_levels: 3,
         advanced_block_slash_commands: 8,

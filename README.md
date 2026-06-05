@@ -217,6 +217,8 @@ Current local actions:
   commands are exposed from both slash and Cmd/Ctrl+K for local reuse. Formatting
   and color aliases such as `/bold`, `/clear formatting`, `/red text`, and
   `/blue background` are searchable too.
+- Add local comments from the keyboard with Cmd/Ctrl+Shift+M, matching Notion's
+  comment shortcut while keeping the comment body in local storage.
 - Add page icons, covers, sub-pages, local page links, duplicate pages, lock
   editing, switch page width, save named versions, and export HTML, Markdown, or
   browser PDF. Page cover controls, table-of-contents blocks, and callout
