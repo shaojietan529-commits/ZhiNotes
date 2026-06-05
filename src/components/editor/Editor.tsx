@@ -433,7 +433,9 @@ const Editor = forwardRef<EditorRef, EditorProps>(
           return;
         }
 
-        void Promise.resolve(runEditorLocalCommand(editor, command, pageId))
+        void Promise.resolve(
+          runEditorLocalCommand(editor, command, pageId, persistEditorNow)
+        )
           .then((changed) => {
             if (changed) persistEditorNow(editor);
           })
@@ -953,11 +955,18 @@ export default Editor;
 function runEditorLocalCommand(
   editor: TiptapEditor,
   command: EditorLocalCommand,
-  pageId: string
+  pageId: string,
+  onPersistContent?: (editor: TiptapEditor) => void
 ): boolean | Promise<boolean> {
   const chain = editor.chain().focus();
 
   switch (command) {
+    case "block-comment":
+      return commentCurrentBlock(
+        editor,
+        pageId,
+        onPersistContent ?? (() => undefined)
+      ).then(() => false);
     case "child-page":
       return createChildPageFromEditorCommand(editor, pageId);
     case "bold":

@@ -264,18 +264,90 @@ function run() {
   }
 
   for (const snippet of [
-    "aliases: [\"h3\", \"heading 3\", \"subheading\", \"三级标题\", \"小标题\"]",
-    "aliases: [\"h3\", \"heading\", \"heading 3\", \"subheading\", \"三级标题\", \"小标题\"]",
+    "\"h3\"",
+    "\"heading 3\"",
+    "\"subheading\"",
+    "\"turn h3\"",
+    "\"turnh3\"",
+    "\"三级标题\"",
+    "\"小标题\"",
   ]) {
-    const sourceLabel = snippet.includes("\"heading\",")
-      ? files.quickSearch
-      : files.slashSuggestion;
-    const source = snippet.includes("\"heading\",") ? quickSearch : slashSuggestion;
+    assertIncludes(
+      files.slashSuggestion,
+      slashSuggestion,
+      snippet,
+      "Heading 3 must be searchable from slash commands with Notion-like aliases."
+    );
+  }
+  assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "aliases: [\"h3\", \"heading\", \"heading 3\", \"subheading\", \"三级标题\", \"小标题\"]",
+    "Heading 3 must remain searchable from Cmd/Ctrl+K."
+  );
+
+  for (const snippet of [
+    "\"turnbullet\"",
+    "\"num\"",
+    "\"turnnumber\"",
+    "\"divider\"",
+    "\"div\"",
+    "\"book\"",
+    "\"web bookmark\"",
+  ]) {
+    assertIncludes(
+      files.slashSuggestion,
+      slashSuggestion,
+      snippet,
+      "Slash commands must include common Notion-style aliases."
+    );
+  }
+
+  for (const snippet of [
+    "title: \"复制当前块\"",
+    "duplicateCurrentBlock",
+    "title: \"删除当前块\"",
+    "deleteCurrentBlock",
+    "title: \"上移当前块\"",
+    "moveCurrentBlockUp",
+    "title: \"下移当前块\"",
+    "moveCurrentBlockDown",
+    "title: \"评论当前块\"",
+    "dispatchEditorLocalCommand(\"block-comment\")",
+  ]) {
+    assertIncludes(
+      files.slashSuggestion,
+      slashSuggestion,
+      snippet,
+      "Slash commands must expose local advanced block operations."
+    );
+  }
+
+  for (const snippet of [
+    "| \"block-comment\"",
+    "case \"block-comment\"",
+    "commentCurrentBlock(",
+    "runEditorLocalCommand(editor, command, pageId, persistEditorNow)",
+    "id: \"editor-block-comment\"",
+    "runEditorCommand(\"block-comment\")",
+  ]) {
+    const sourceLabel = snippet.includes("| \"block-comment\"")
+      ? files.editorLocalCommands
+      : snippet.includes("id: \"editor-block-comment\"") ||
+          snippet.includes("runEditorCommand")
+        ? files.quickSearch
+        : files.editor;
+    const source =
+      sourceLabel === files.editorLocalCommands
+        ? editorLocalCommands
+        : sourceLabel === files.quickSearch
+          ? quickSearch
+          : editor;
     assertIncludes(
       sourceLabel,
       source,
       snippet,
-      "Heading 3 must be searchable from slash commands and Cmd/Ctrl+K."
+      "Block comments must be available from slash commands and Cmd/Ctrl+K."
     );
   }
 
@@ -612,11 +684,14 @@ function run() {
         h3_shortcut_paths: 3,
         page_slash_aliases: 8,
         block_insert_heading_levels: 3,
+        advanced_block_slash_commands: 5,
+        notion_style_slash_aliases: 7,
         file_workflow_entrypoints: 3,
         localized_shared_note_controls: true,
         page_command_opens_new_page: true,
         page_command_seeds_child_page: true,
         cmdk_child_page_command: true,
+        cmdk_block_comment_command: true,
         local_only: true,
       },
       null,

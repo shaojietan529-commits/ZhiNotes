@@ -23,6 +23,7 @@ import {
 import { NOTE_TEMPLATES } from "@/lib/templates/noteTemplates";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { buildChildPageInitialHtml } from "@/lib/pages/childPageSeed";
+import { dispatchEditorLocalCommand } from "@/lib/editorLocalCommands";
 
 function getSlashCommands(): SlashCommandItem[] {
   const templateCommands: SlashCommandItem[] = NOTE_TEMPLATES.map((template) => ({
@@ -43,7 +44,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "普通文本块",
       icon: "Aa",
       category: "基础块",
-      aliases: ["paragraph", "plain", "text", "wenben"],
+      aliases: ["paragraph", "plain", "text", "turn text", "turntext", "wenben"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setParagraph().run();
       },
@@ -53,7 +54,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "一级大标题",
       icon: "H1",
       category: "基础块",
-      aliases: ["h1", "title", "heading 1", "biaoti"],
+      aliases: ["h1", "title", "heading 1", "turn h1", "turnh1", "biaoti"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setHeading({ level: 1 }).run();
       },
@@ -63,7 +64,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "二级标题",
       icon: "H2",
       category: "基础块",
-      aliases: ["h2", "subtitle", "heading 2"],
+      aliases: ["h2", "subtitle", "heading 2", "turn h2", "turnh2"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setHeading({ level: 2 }).run();
       },
@@ -73,7 +74,15 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "三级小标题",
       icon: "H3",
       category: "基础块",
-      aliases: ["h3", "heading 3", "subheading", "三级标题", "小标题"],
+      aliases: [
+        "h3",
+        "heading 3",
+        "subheading",
+        "turn h3",
+        "turnh3",
+        "三级标题",
+        "小标题",
+      ],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setHeading({ level: 3 }).run();
       },
@@ -146,7 +155,16 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "项目符号列表",
       icon: "•",
       category: "列表",
-      aliases: ["bullet", "bullets", "ul", "无序", "列表"],
+      aliases: [
+        "bullet",
+        "bullets",
+        "ul",
+        "turn bullet",
+        "turnbullet",
+        "turn ul",
+        "无序",
+        "列表",
+      ],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleBulletList().run();
       },
@@ -156,7 +174,17 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "数字排序列表",
       icon: "1.",
       category: "列表",
-      aliases: ["number", "ordered", "ol", "编号", "有序"],
+      aliases: [
+        "number",
+        "num",
+        "ordered",
+        "ol",
+        "turn number",
+        "turnnumber",
+        "turn num",
+        "编号",
+        "有序",
+      ],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleOrderedList().run();
       },
@@ -166,7 +194,16 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "带复选框的任务列表",
       icon: "☑",
       category: "列表",
-      aliases: ["todo", "task", "checkbox", "待办", "任务"],
+      aliases: [
+        "todo",
+        "task",
+        "checkbox",
+        "turn todo",
+        "turntodo",
+        "turn task",
+        "待办",
+        "任务",
+      ],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleTaskList().run();
       },
@@ -176,7 +213,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "可以展开/收起的内容块",
       icon: ">",
       category: "列表",
-      aliases: ["toggle", "collapse", "fold", "折叠"],
+      aliases: ["toggle", "collapse", "fold", "turn toggle", "turntoggle", "折叠"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).insertToggleBlock().run();
       },
@@ -187,7 +224,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "引用块",
       icon: "❝",
       category: "内容块",
-      aliases: ["blockquote", "quote", "引用"],
+      aliases: ["blockquote", "quote", "turn quote", "turnquote", "引用"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setBlockquote().run();
       },
@@ -197,7 +234,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "水平分割线",
       icon: "—",
       category: "内容块",
-      aliases: ["hr", "line", "separator", "分割线"],
+      aliases: ["hr", "line", "separator", "divider", "div", "分割线"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setHorizontalRule().run();
       },
@@ -472,6 +509,58 @@ function getSlashCommands(): SlashCommandItem[] {
         }
       },
     },
+    // ── Advanced block operations ──
+    {
+      title: "复制当前块",
+      description: "复制光标所在块或选中的多个块",
+      icon: "DUP",
+      category: "高级",
+      aliases: ["duplicate", "copy block", "clone", "复制块", "复制当前块"],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).duplicateCurrentBlock().run();
+      },
+    },
+    {
+      title: "删除当前块",
+      description: "删除光标所在块或选中的多个块，可用撤销恢复",
+      icon: "DEL",
+      category: "高级",
+      aliases: ["delete", "remove", "del", "delete block", "删除块", "删除当前块"],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).deleteCurrentBlock().run();
+      },
+    },
+    {
+      title: "上移当前块",
+      description: "把当前块向上移动一位",
+      icon: "UP",
+      category: "高级",
+      aliases: ["move up", "moveup", "up", "block up", "上移", "上移块"],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).moveCurrentBlockUp().run();
+      },
+    },
+    {
+      title: "下移当前块",
+      description: "把当前块向下移动一位",
+      icon: "DN",
+      category: "高级",
+      aliases: ["move down", "movedown", "down", "block down", "下移", "下移块"],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).moveCurrentBlockDown().run();
+      },
+    },
+    {
+      title: "评论当前块",
+      description: "给当前块或选中文本添加本地评论",
+      icon: "CMT",
+      category: "高级",
+      aliases: ["comment", "add comment", "block comment", "评论", "块评论"],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        dispatchEditorLocalCommand("block-comment");
+      },
+    },
     // ── Inline ──
     {
       title: "链接到页面",
@@ -489,7 +578,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "添加本地链接预览卡片",
       icon: "URL",
       category: "行内",
-      aliases: ["url", "link", "web", "bookmark", "书签"],
+      aliases: ["url", "link", "web", "bookmark", "book", "web bookmark", "书签"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).run();
         const url = window.prompt("书签 URL：");

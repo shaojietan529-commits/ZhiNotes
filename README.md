@@ -210,6 +210,10 @@ Current local actions:
   the page link, and automatically enter the new page. Heading 3 supports
   Cmd/Ctrl+Shift+3 when the browser receives it, plus Cmd/Ctrl+Alt+3 as the
   browser-safe fallback because macOS can reserve Cmd+Shift+3 for screenshots.
+- Use Notion-style slash aliases such as `/num`, `/div`, `/turnbullet`,
+  `/duplicate`, `/delete`, `/move up`, `/move down`, and `/comment` for common
+  block transforms and local block operations. The same local block comment
+  action is also available from Cmd/Ctrl+K.
 - Add page icons, covers, sub-pages, local page links, duplicate pages, lock
   editing, switch page width, save named versions, and export HTML, Markdown, or
   browser PDF. Page cover controls, table-of-contents blocks, and callout

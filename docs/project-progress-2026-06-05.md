@@ -16,7 +16,8 @@ schema migration 的能力默认保持关闭。
 - 模块中心：Notes、Databases、Reports、Files、Company Research、Meetings、
   Portfolio、Projects、Research Graph、AI、Sync 都已有模块入口。
 - 笔记底座：page/tree、breadcrumbs、图标、backlinks、版本历史、评论、toggle、
-  callout、目录、cover、快捷键、slash command 和创建 page 后自动进入新页面。
+  callout、目录、cover、快捷键、slash command、Notion-style slash alias、
+  高级块操作和创建 page 后自动进入新页面。
 - 数据库底座：table/list/kanban/calendar/gallery/timeline/chart/form/feed、多视图、
   字段设置、显示属性、CSV/XLSX 导出、确认后的 spreadsheet import。
 - 文件/报告底座：HTML、Markdown、PDF、Office、notebook、archive、media 的本地
@@ -27,6 +28,16 @@ schema migration 的能力默认保持关闭。
   restore、cloud migration 相关 route 都有默认关闭合同和本地验证。
 
 ## 本轮完成
+
+### 笔记 Slash 高级命令阶段
+
+- Slash 菜单现在补齐了更接近 Notion 的常用别名：`/num`、`/div`、`/turnbullet`、
+  `/turnnumber`、`/turnh3`、`/book` 等输入会命中对应块或书签命令。
+- 新增本地高级块操作入口：`/duplicate`、`/delete`、`/move up`、`/move down` 和
+  `/comment`，用于复制、删除、上下移动当前块，以及给当前块或选中文本添加本地评论。
+- `评论当前块` 同步加入 Cmd/Ctrl+K 编辑器命令；它复用现有本地 block comment 逻辑，
+  不连接云端、不读取文件 bytes、不调用 AI，也不会外发私人内容。
+- `删除当前块` 只是用户主动触发的页面编辑动作，可通过撤销恢复；本轮验证不会删除现有页面内容。
 
 ### 数据库 Formula 字段阶段
 

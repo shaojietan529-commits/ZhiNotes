@@ -1,6 +1,7 @@
 export const EDITOR_LOCAL_COMMAND_EVENT = "zhinote:editor-local-command";
 
 export type EditorLocalCommand =
+  | "block-comment"
   | "blockquote"
   | "bold"
   | "bookmark"

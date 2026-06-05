@@ -1056,6 +1056,15 @@ function getEditorCommandActions(
       run: () => runEditorCommand("clear-formatting"),
     },
     {
+      id: "editor-block-comment",
+      title: "评论当前块",
+      description: "给当前块或选中文本添加本地评论",
+      icon: "CMT",
+      category: "Editor",
+      aliases: ["comment", "block comment", "add comment", "评论", "块评论"],
+      run: () => runEditorCommand("block-comment"),
+    },
+    {
       id: "editor-bullet-list",
       title: "无序列表",
       description: "切换无序列表",
