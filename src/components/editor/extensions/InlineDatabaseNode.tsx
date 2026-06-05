@@ -68,10 +68,16 @@ import {
 
 type RowWithPage = DatabaseRow & { page: Page };
 type SortDirection = "asc" | "desc";
+type InlineDatabaseFilterOperator =
+  | "contains"
+  | "does_not_contain"
+  | "is_empty"
+  | "is_not_empty";
 
 interface InlineDatabaseFilterRule {
   id: string;
   fieldId: string;
+  operator: InlineDatabaseFilterOperator;
   value: string;
 }
 
@@ -710,11 +716,11 @@ function getInlineVisibleRows({
 }) {
   const normalizedSearch = search.trim().toLowerCase();
   const activeFilterRules = filterRules
+    .filter(isActiveInlineDatabaseFilterRule)
     .map((rule) => ({
       ...rule,
       normalizedValue: rule.value.trim().toLowerCase(),
-    }))
-    .filter((rule) => rule.normalizedValue);
+    }));
   const activeSortRules = sortRules.length
     ? sortRules
     : [createInlineDatabaseSortRule("position", "asc")];
@@ -725,15 +731,16 @@ function getInlineVisibleRows({
 
     return activeFilterRules.every((rule) => {
       if (rule.fieldId === "all") {
-        return rowText.includes(rule.normalizedValue);
+        return matchesInlineDatabaseFilterText(rowText, rule);
       }
 
       const field = fields.find((item) => item.id === rule.fieldId);
       if (!field) return true;
 
-      return getInlineRowFieldText(row, field, fields, relationPages)
-        .toLowerCase()
-        .includes(rule.normalizedValue);
+      return matchesInlineDatabaseFilterText(
+        getInlineRowFieldText(row, field, fields, relationPages).toLowerCase(),
+        rule
+      );
     });
   });
 
@@ -933,8 +940,7 @@ function parseInlineDatabaseFilterRules(
           if (!item || typeof item !== "object") return null;
           const candidate = item as Partial<InlineDatabaseFilterRule>;
           if (
-            typeof candidate.fieldId !== "string" ||
-            typeof candidate.value !== "string"
+            typeof candidate.fieldId !== "string"
           ) {
             return null;
           }
@@ -944,7 +950,8 @@ function parseInlineDatabaseFilterRules(
                 ? candidate.id
                 : `inline-filter-${index + 1}`,
             fieldId: candidate.fieldId,
-            value: candidate.value,
+            operator: parseInlineDatabaseFilterOperator(candidate.operator),
+            value: typeof candidate.value === "string" ? candidate.value : "",
           };
         })
         .filter((item): item is InlineDatabaseFilterRule => Boolean(item))
@@ -953,6 +960,45 @@ function parseInlineDatabaseFilterRules(
   if (rules.length > 0) return rules;
   if (!legacyValue.trim()) return [];
   return [createInlineDatabaseFilterRule(legacyFieldId || "all", legacyValue)];
+}
+
+function parseInlineDatabaseFilterOperator(
+  value: unknown
+): InlineDatabaseFilterOperator {
+  return value === "does_not_contain" ||
+    value === "is_empty" ||
+    value === "is_not_empty"
+    ? value
+    : "contains";
+}
+
+function isValueBasedInlineDatabaseFilterOperator(
+  operator: InlineDatabaseFilterOperator
+) {
+  return operator === "contains" || operator === "does_not_contain";
+}
+
+function isActiveInlineDatabaseFilterRule(rule: InlineDatabaseFilterRule) {
+  return isValueBasedInlineDatabaseFilterOperator(rule.operator)
+    ? rule.value.trim().length > 0
+    : true;
+}
+
+function matchesInlineDatabaseFilterText(
+  text: string,
+  rule: InlineDatabaseFilterRule & { normalizedValue: string }
+) {
+  const normalizedText = text.trim().toLowerCase();
+  if (rule.operator === "does_not_contain") {
+    return !normalizedText.includes(rule.normalizedValue);
+  }
+  if (rule.operator === "is_empty") {
+    return normalizedText.length === 0;
+  }
+  if (rule.operator === "is_not_empty") {
+    return normalizedText.length > 0;
+  }
+  return normalizedText.includes(rule.normalizedValue);
 }
 
 function parseInlineDatabaseSortRules(
@@ -984,11 +1030,13 @@ function parseInlineDatabaseSortRules(
 
 function createInlineDatabaseFilterRule(
   fieldId = "all",
-  value = ""
+  value = "",
+  operator: InlineDatabaseFilterOperator = "contains"
 ): InlineDatabaseFilterRule {
   return {
     id: `inline-filter-${fieldId}`,
     fieldId,
+    operator,
     value,
   };
 }

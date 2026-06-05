@@ -109,9 +109,15 @@ const DATABASE_IMPORT_CONFIRMATION_PHRASE =
 
 type RowWithPage = DatabaseRow & { page: Page };
 type SortDirection = "asc" | "desc";
+type DatabaseFilterOperator =
+  | "contains"
+  | "does_not_contain"
+  | "is_empty"
+  | "is_not_empty";
 interface DatabaseFilterRule {
   id: string;
   fieldId: string;
+  operator: DatabaseFilterOperator;
   value: string;
 }
 interface DatabaseSortRule {
@@ -1225,7 +1231,7 @@ function DatabaseViewControls({
   visibleCount: number;
   totalCount: number;
 }) {
-  const activeFilterCount = filterRules.filter((rule) => rule.value.trim()).length;
+  const activeFilterCount = filterRules.filter(isActiveDatabaseFilterRule).length;
   const hasSortControls = !isDefaultSortRules(sortRules);
   const hasControls =
     rowSearch ||
@@ -1242,7 +1248,7 @@ function DatabaseViewControls({
 
   const handleFilterRuleChange = (
     ruleId: string,
-    updates: Partial<Pick<DatabaseFilterRule, "fieldId" | "value">>
+    updates: Partial<Pick<DatabaseFilterRule, "fieldId" | "operator" | "value">>
   ) => {
     onFilterRulesChange(
       filterRules.map((rule) =>
@@ -1344,15 +1350,36 @@ function DatabaseViewControls({
                 </option>
               ))}
             </select>
-            <input
-              type="text"
-              value={rule.value}
+            <select
+              value={rule.operator}
               onChange={(event) =>
-                handleFilterRuleChange(rule.id, { value: event.target.value })
+                handleFilterRuleChange(rule.id, {
+                  operator: parseDatabaseFilterOperator(event.target.value),
+                })
               }
-              placeholder="包含"
+              aria-label="筛选条件"
               className="h-8 w-36 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500"
-            />
+            >
+              <option value="contains">包含</option>
+              <option value="does_not_contain">不包含</option>
+              <option value="is_empty">为空</option>
+              <option value="is_not_empty">不为空</option>
+            </select>
+            {isValueBasedDatabaseFilterOperator(rule.operator) ? (
+              <input
+                type="text"
+                value={rule.value}
+                onChange={(event) =>
+                  handleFilterRuleChange(rule.id, { value: event.target.value })
+                }
+                placeholder={getDatabaseFilterOperatorLabel(rule.operator)}
+                className="h-8 w-36 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500"
+              />
+            ) : (
+              <span className="inline-flex h-8 items-center rounded border border-dashed border-zinc-200 px-2 text-xs text-zinc-400 dark:border-zinc-700">
+                不需要输入值
+              </span>
+            )}
             <button
               type="button"
               onClick={() =>
@@ -2724,11 +2751,11 @@ function getVisibleRows({
 }) {
   const normalizedSearch = search.trim().toLowerCase();
   const activeFilterRules = filterRules
+    .filter(isActiveDatabaseFilterRule)
     .map((rule) => ({
       ...rule,
       normalizedValue: rule.value.trim().toLowerCase(),
-    }))
-    .filter((rule) => rule.normalizedValue);
+    }));
   const activeSortRules = sortRules.length
     ? sortRules
     : [createDatabaseSortRule("position", "asc")];
@@ -2738,15 +2765,16 @@ function getVisibleRows({
 
     return activeFilterRules.every((rule) => {
       if (rule.fieldId === "all") {
-        return rowText.includes(rule.normalizedValue);
+        return matchesDatabaseFilterText(rowText, rule);
       }
 
       const field = fields.find((item) => item.id === rule.fieldId);
       if (!field) return true;
 
-      return getRowFieldText(row, field, fields, relationPages)
-        .toLowerCase()
-        .includes(rule.normalizedValue);
+      return matchesDatabaseFilterText(
+        getRowFieldText(row, field, fields, relationPages).toLowerCase(),
+        rule
+      );
     });
   });
 
@@ -3025,11 +3053,13 @@ function getDatabaseRowGroupLabels(
 
 function createDatabaseFilterRule(
   fieldId = "all",
-  value = ""
+  value = "",
+  operator: DatabaseFilterOperator = "contains"
 ): DatabaseFilterRule {
   return {
     id: createDatabaseViewRuleId("filter"),
     fieldId,
+    operator,
     value,
   };
 }
@@ -3056,8 +3086,7 @@ function parseDatabaseFilterRules(
           if (!item || typeof item !== "object") return null;
           const candidate = item as Partial<DatabaseFilterRule>;
           if (
-            typeof candidate.fieldId !== "string" ||
-            typeof candidate.value !== "string"
+            typeof candidate.fieldId !== "string"
           ) {
             return null;
           }
@@ -3067,7 +3096,8 @@ function parseDatabaseFilterRules(
                 ? candidate.id
                 : `filter-${index + 1}`,
             fieldId: candidate.fieldId,
-            value: candidate.value,
+            operator: parseDatabaseFilterOperator(candidate.operator),
+            value: typeof candidate.value === "string" ? candidate.value : "",
           };
         })
         .filter((item): item is DatabaseFilterRule => Boolean(item))
@@ -3076,6 +3106,52 @@ function parseDatabaseFilterRules(
   if (rules.length > 0) return rules;
   if (!legacyValue.trim()) return [];
   return [createDatabaseFilterRule(legacyFieldId || "all", legacyValue)];
+}
+
+function parseDatabaseFilterOperator(
+  value: unknown
+): DatabaseFilterOperator {
+  return value === "does_not_contain" ||
+    value === "is_empty" ||
+    value === "is_not_empty"
+    ? value
+    : "contains";
+}
+
+function isValueBasedDatabaseFilterOperator(
+  operator: DatabaseFilterOperator
+) {
+  return operator === "contains" || operator === "does_not_contain";
+}
+
+function isActiveDatabaseFilterRule(rule: DatabaseFilterRule) {
+  return isValueBasedDatabaseFilterOperator(rule.operator)
+    ? rule.value.trim().length > 0
+    : true;
+}
+
+function matchesDatabaseFilterText(
+  text: string,
+  rule: DatabaseFilterRule & { normalizedValue: string }
+) {
+  const normalizedText = text.trim().toLowerCase();
+  if (rule.operator === "does_not_contain") {
+    return !normalizedText.includes(rule.normalizedValue);
+  }
+  if (rule.operator === "is_empty") {
+    return normalizedText.length === 0;
+  }
+  if (rule.operator === "is_not_empty") {
+    return normalizedText.length > 0;
+  }
+  return normalizedText.includes(rule.normalizedValue);
+}
+
+function getDatabaseFilterOperatorLabel(operator: DatabaseFilterOperator) {
+  if (operator === "does_not_contain") return "不包含";
+  if (operator === "is_empty") return "为空";
+  if (operator === "is_not_empty") return "不为空";
+  return "包含";
 }
 
 function parseDatabaseSortRules(
