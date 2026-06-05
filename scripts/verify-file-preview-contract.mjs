@@ -168,6 +168,31 @@ function run() {
   const filesRoute = readProjectFile(files.filesRoute);
   const registry = readProjectFile(files.registry);
 
+  assertIncludes(
+    files.upload,
+    upload,
+    "if (opts?.accept !== undefined)",
+    "Generic file preview insertion must allow any local file; only specialized entrypoints should restrict accept types."
+  );
+  assertIncludes(
+    files.upload,
+    upload,
+    "input.accept = opts.accept",
+    "Generic file preview insertion must only set accept when a specialized entrypoint passes it."
+  );
+  assertIncludes(
+    files.upload,
+    upload,
+    "accept: HTML_REPORT_ACCEPT",
+    "HTML report entrypoint should still restrict the picker to HTML."
+  );
+  assertIncludes(
+    files.upload,
+    upload,
+    "accept: MARKDOWN_FILE_ACCEPT",
+    "Markdown preview entrypoint should still restrict the picker to Markdown/Text."
+  );
+
   for (const requirement of requiredCapabilities) {
     assertIncludes(
       files.capabilities,

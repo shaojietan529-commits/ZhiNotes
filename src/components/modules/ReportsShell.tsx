@@ -21,7 +21,6 @@ import {
   getRows,
   updatePage,
 } from "@/lib/db/local/queries";
-import { FILE_PREVIEW_ACCEPT } from "@/components/editor/filePreviewUpload";
 import {
   FILE_PREVIEW_CAPABILITIES,
   type FilePreviewCapability,
@@ -799,7 +798,6 @@ function ReportsDashboard() {
                 ref={reportFileInputRef}
                 type="file"
                 multiple
-                accept={FILE_PREVIEW_ACCEPT}
                 className="hidden"
                 onChange={(event) => void handleReportFileSelected(event)}
               />

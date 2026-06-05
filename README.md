@@ -639,6 +639,11 @@ for written notes; spreadsheets become local database candidates only after
 typed confirmation; original files remain attached in local browser storage for
 auditability.
 
+The generic file preview entrypoints now allow any local file to be selected.
+Known formats render through their local preview routes; unknown formats still
+enter the page as local attachments with metadata/download retention instead of
+being blocked at the picker.
+
 Inside the editor slash menu, `/html` now opens the HTML report path directly
 and inserts a sandboxed native preview block. `/markdown preview` inserts a
 local Markdown/MDX file preview block and keeps the original file attached.

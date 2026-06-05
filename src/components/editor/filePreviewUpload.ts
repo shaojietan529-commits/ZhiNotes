@@ -176,7 +176,9 @@ export function promptAndInsertFilePreview(
   const input = document.createElement("input");
   input.type = "file";
   input.multiple = opts?.multiple ?? true;
-  input.accept = opts?.accept ?? FILE_PREVIEW_ACCEPT;
+  if (opts?.accept !== undefined) {
+    input.accept = opts.accept;
+  }
 
   input.onchange = () => {
     const files = Array.from(input.files ?? []);
