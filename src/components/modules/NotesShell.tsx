@@ -23,6 +23,49 @@ import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStart
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 const NOTE_TEMPLATE_STARTERS = getResearchTemplateStarters("notes");
+const NOTES_FORMAT_ENTRIES: NotesFormatEntry[] = [
+  {
+    id: "markdown-notes",
+    title: "Markdown 笔记",
+    description: "把 .md/.mdx/.rmd/.qmd 作为可编辑页面导入，保留标题和 wiki link。",
+    route: "/modules/reports",
+    routeLabel: "打开报告库",
+    boundary: "用户选择文件前不读取文件；导入仍在浏览器本地完成。",
+  },
+  {
+    id: "html-reports",
+    title: "HTML 可视化报告",
+    description: "把 AI 生成的 HTML 报告作为页面内原生预览和报告页承载。",
+    route: "/modules/reports",
+    routeLabel: "打开报告库",
+    boundary: "HTML 外部资源默认阻断；信任外部资源需要单独确认。",
+  },
+  {
+    id: "documents",
+    title: "PDF / Word / PPT",
+    description: "先进入文件库做本地预览路线、转换复核和页面容器归档。",
+    route: "/modules/files",
+    routeLabel: "打开文件库",
+    boundary: "不会自动转换、上传、解析正文或调用 AI。",
+  },
+  {
+    id: "spreadsheets",
+    title: "Excel / CSV",
+    description: "需要变成结构化数据时，进入数据库模块做确认后的导入。",
+    route: "/modules/databases",
+    routeLabel: "打开数据库",
+    boundary: "表格导入前保留确认步骤，不自动写 row values。",
+  },
+];
+
+interface NotesFormatEntry {
+  id: string;
+  title: string;
+  description: string;
+  route: string;
+  routeLabel: string;
+  boundary: string;
+}
 
 export default function NotesShell() {
   return (
@@ -280,6 +323,8 @@ function NotesDashboard() {
           </div>
         </section>
 
+        <NotesFormatEntryPanel onOpenRoute={(route) => router.push(route)} />
+
         <NotesWorkbenchPanel
           report={workbench}
           exporting={exportingWorkbench}
@@ -289,6 +334,72 @@ function NotesDashboard() {
         />
       </div>
     </div>
+  );
+}
+
+function NotesFormatEntryPanel({
+  onOpenRoute,
+}: {
+  onOpenRoute: (route: string) => void;
+}) {
+  return (
+    <section
+      id="notes-format-entry"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+          格式入口
+        </p>
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          不同文件从哪里进入
+        </h2>
+        <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+          Notes 仍是最终知识库容器；具体文件先走最合适的本地模块。这里仅做路由，
+          不读取文件、不创建页面、不写数据库、不上传、不调用 AI。
+        </p>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {NOTES_FORMAT_ENTRIES.map((entry) => (
+          <NotesFormatEntryCard
+            key={entry.id}
+            entry={entry}
+            onOpen={() => onOpenRoute(entry.route)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function NotesFormatEntryCard({
+  entry,
+  onOpen,
+}: {
+  entry: NotesFormatEntry;
+  onOpen: () => void;
+}) {
+  return (
+    <article className="flex min-h-[190px] flex-col justify-between rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div>
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          {entry.title}
+        </h3>
+        <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+          {entry.description}
+        </p>
+        <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+          {entry.boundary}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-3 w-fit rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        {entry.routeLabel}
+      </button>
+    </article>
   );
 }
 

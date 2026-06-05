@@ -199,6 +199,9 @@ Current local actions:
 - When the workspace has no pages, the notes module shows a 第一篇笔记 panel
   with blank-note and template starters. The panel only presents local buttons;
   it does not create a page until the user clicks one.
+- Use the notes 格式入口 panel to route Markdown notes, HTML visual reports,
+  PDF/Word/PPT documents, and Excel/CSV files into the right local module before
+  they become page-linked knowledge assets.
 - Create blank research notes or template-backed local pages for investment
   memos, company research, meeting notes, research reports, report intake,
   industry comparison, expert calls, and research decision logs from the notes

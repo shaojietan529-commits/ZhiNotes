@@ -240,6 +240,14 @@ schema migration 的能力默认保持关闭。
 - 这个面板只展示本地创建入口；不会自动创建页面、写入工作区、上传、同步或调用 AI。
 - 创建动作仍然必须由用户点击触发，创建后继续沿用已有流程自动进入新页面。
 
+### 笔记格式入口阶段
+
+- Notes 模块新增“格式入口”面板，明确 Markdown 笔记、HTML 可视化报告、PDF/Word/PPT、
+  Excel/CSV 应先进入哪个本地模块。
+- Markdown 和 HTML 报告会引导到 Reports，PDF/Word/PPT 先进入 Files，Excel/CSV 进入
+  Databases 做确认后的结构化导入。
+- 这个面板只做路由说明和跳转，不读取文件、不创建页面、不写数据库、不上传、不调用 AI。
+
 ### Sync/API 防护阶段
 
 - 新增共享 `ApiGuardPanel`，统一 API 防护展示结构。
