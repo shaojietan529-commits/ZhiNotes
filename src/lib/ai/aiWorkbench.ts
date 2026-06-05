@@ -178,7 +178,7 @@ const LANE_META: Record<
     description: "先确认 AI 工作流、研究问题、输出用途和敏感范围。",
     route: "/modules/ai",
     privacy_boundary:
-      "只读取 workflow metadata 和 prompt 字符数，不导出 prompt 正文。",
+      "只读取工作流元数据和提示词字符数，不导出提示词正文。",
   },
   "context-selection": {
     id: "context-selection",
@@ -186,36 +186,36 @@ const LANE_META: Record<
     description: "把页面、文件和数据库上下文停留在候选状态，等待逐项确认。",
     route: "/modules/ai",
     privacy_boundary:
-      "工作台只导出上下文数量，不导出页面标题、页面正文或文件 bytes。",
+      "工作台只导出上下文数量，不导出页面标题、页面正文或文件字节。",
   },
   "payload-review": {
     id: "payload-review",
-    title: "Payload 预览",
-    description: "发送前必须展示真实 outbound payload，metadata-only 不能等同授权。",
+    title: "外发内容预览",
+    description: "发送前必须展示真实外发内容，仅元数据预览不能等同授权。",
     route: "/modules/ai",
     privacy_boundary:
-      "只读取 payload preview summary，不包含最终 prompt、页面正文或文件内容。",
+      "只读取外发内容预览摘要，不包含最终提示词、页面正文或文件内容。",
   },
   "provider-permission": {
     id: "provider-permission",
-    title: "Provider 和权限",
-    description: "模型 provider、账号边界、权限检查和审计事件必须先定义。",
+    title: "模型服务和权限",
+    description: "模型服务、账号边界、权限检查和审计事件必须先定义。",
     route: "/modules/sync",
     privacy_boundary:
-      "不会连接 provider、不会调用模型、不会上传 workspace 数据。",
+      "不会连接模型服务、不会调用模型、不会上传工作区数据。",
   },
   "prompt-and-output": {
     id: "prompt-and-output",
-    title: "Prompt 和输出",
-    description: "把 prompt 蓝图、输出 schema、引用规则和保存门禁串起来。",
+    title: "提示词和输出",
+    description: "把提示词蓝图、输出结构、引用规则和保存门禁串起来。",
     route: "/modules/ai",
     privacy_boundary:
-      "只读取蓝图和输出合同 summary，不读取 prompt 正文或 AI 输出正文。",
+      "只读取蓝图和输出合同摘要，不读取提示词正文或 AI 输出正文。",
   },
   "audit-retention": {
     id: "audit-retention",
     title: "审计和保留",
-    description: "AI 启用前必须定义 retention、删除、回滚和 redacted audit event。",
+    description: "AI 启用前必须定义保留规则、删除、回滚和脱敏审计事件。",
     route: "/modules/sync",
     privacy_boundary:
       "只提示缺口，不写审计日志、不保存 AI 输出、不创建页面或数据库 row。",
@@ -266,7 +266,7 @@ export function buildAiWorkbenchPacket(input: {
     packet_status: "local-ai-workbench-only",
     can_run_ai_now: false,
     privacy_note:
-      "Generated locally from AI workflow, payload-preview, execution-policy, prompt-blueprint, context-packet, runbook, and output-review summary metadata only. It does not include selected page titles, page body text, prompt text, file bytes, AI output text, holdings, trading plans, client information, tokens, secrets, cloud data, or credentials; it does not call a model provider, upload data, write workspace data, save AI output, create pages, update databases, connect cloud services, or enable AI.",
+      "本地生成。这个 AI 工作台动作包只读取工作流、外发内容预览、执行策略、提示词蓝图、上下文包、运行手册和输出复核摘要元数据；不包含已选页面标题、页面正文、提示词正文、文件字节、AI 输出正文、持仓、交易计划、客户信息、token、secret、云端数据或凭证；不会调用模型服务、上传数据、写入工作区、保存 AI 输出、创建页面、更新数据库、连接云服务或启用 AI。",
     boundary: {
       local_packet_only: true,
       reads_workflow_metadata: true,
@@ -354,21 +354,21 @@ function buildDecisionSummary(
   return {
     current_state: "local-owner-review-only",
     current_conclusion:
-      "可以继续本地草拟、选择上下文和 owner review；AI 执行、payload 外发、外部 provider、输出写回和云同步仍然关闭。",
+      "可以继续本地草拟、选择上下文和用户复核；AI 执行、外发内容、外部模型服务、输出写回和云同步仍然关闭。",
     can_continue_local_review_now: true,
     can_send_payload_now: false,
     can_run_model_now: false,
     can_save_output_now: false,
     can_sync_ai_output_now: false,
     safe_local_work: [
-      "选择 AI workflow 和研究问题。",
-      "选择候选页面上下文并导出 metadata-only payload preview。",
-      "复核 prompt 蓝图、context packet、research runbook 和 output review contract。",
-      "导出本地 AI 工作台 packet 给 owner 决策。",
+      "选择 AI 工作流和研究问题。",
+      "选择候选页面上下文并导出仅元数据外发内容预览。",
+      "复核提示词蓝图、上下文包、研究运行手册和输出复核合同。",
+      "导出本地 AI 工作台动作包给用户决策。",
     ],
     blocked_external_work: [
-      "不能调用模型 provider。",
-      "不能上传页面正文、prompt 正文或文件 bytes。",
+      "不能调用模型服务。",
+      "不能上传页面正文、提示词正文或文件字节。",
       "不能把 AI 输出写回页面、数据库、报告或云端。",
       "不能启用 /api/ai/run。",
     ],
@@ -379,12 +379,12 @@ function buildDecisionSummary(
     decisions: [
       {
         id: "local-owner-review",
-        title: "本地 owner review",
+        title: "本地用户复核",
         status: "available-local",
         answer: "可以继续",
-        evidence: `${input.workflowReadiness.summary.workflows} 个 workflow 已进入本地目录，${actions.length} 个动作已排队。`,
+        evidence: `${input.workflowReadiness.summary.workflows} 个工作流已进入本地目录，${actions.length} 个动作已排队。`,
         next_action:
-          "继续在本地选择 workflow、上下文和研究问题，并导出 AI 工作台 packet。",
+          "继续在本地选择工作流、上下文和研究问题，并导出 AI 工作台动作包。",
         route: "/modules/ai",
         target_section_id: "ai-workbench",
         allowed_now: true,
@@ -396,12 +396,12 @@ function buildDecisionSummary(
       },
       {
         id: "final-payload-review",
-        title: "最终 payload 外发",
+        title: "最终外发内容",
         status: "requires-owner-confirmation",
         answer: "只可预览",
-        evidence: `${input.payloadPreview.summary.approvals_required} 个 payload 确认项；metadata-only preview 不能等同外发授权。`,
+        evidence: `${input.payloadPreview.summary.approvals_required} 个外发确认项；仅元数据预览不能等同外发授权。`,
         next_action:
-          "AI 启用前必须展示真实 outbound payload，并逐项确认页面正文、prompt 正文和文件内容范围。",
+          "AI 启用前必须展示真实外发内容，并逐项确认页面正文、提示词正文和文件内容范围。",
         route: "/modules/ai",
         target_section_id: "ai-payload-review",
         allowed_now: false,
@@ -416,9 +416,9 @@ function buildDecisionSummary(
         title: "模型执行",
         status: "blocked",
         answer: "保持关闭",
-        evidence: `${input.executionPolicy.summary.blocked} 个执行门禁仍阻塞，/api/ai/run 是 disabled local stub。`,
+        evidence: `${input.executionPolicy.summary.blocked} 个执行门禁仍阻塞，/api/ai/run 是禁用的本地占位接口。`,
         next_action:
-          "先定义 provider、模型、账号边界、权限检查、audit event 和 retention policy。",
+          "先定义模型服务、模型、账号边界、权限检查、审计事件和保留规则。",
         route: "/modules/sync",
         target_section_id: "sync-ai-provider-boundary",
         allowed_now: false,
@@ -435,7 +435,7 @@ function buildDecisionSummary(
         answer: "保持关闭",
         evidence: `${input.outputReview.summary.disabled_write_paths} 条输出写入路径仍禁用，${input.outputReview.summary.blocked_gates} 个保存门禁阻塞。`,
         next_action:
-          "先实现输出预览、来源核对、敏感信息检查、retention、删除/回滚和写入前审计。",
+          "先实现输出预览、来源核对、敏感信息检查、保留规则、删除/回滚和写入前审计。",
         route: "/modules/ai",
         target_section_id: "ai-output-review",
         allowed_now: false,
@@ -447,13 +447,13 @@ function buildDecisionSummary(
       },
       {
         id: "provider-cloud-boundary",
-        title: "Provider / 云同步",
+        title: "模型服务 / 云同步",
         status: "blocked",
         answer: "保持关闭",
         evidence:
-          "当前 packet 不连接 cloud services，不上传 workspace 数据，也不启用外部资源。",
+          "当前动作包不连接云服务，不上传工作区数据，也不启用外部资源。",
         next_action:
-          "Web Beta 前在同步与权限模块确认 provider、cloud、retention、审计和删除边界。",
+          "Web Beta 前在同步与权限模块确认模型服务、云服务、保留规则、审计和删除边界。",
         route: "/modules/sync",
         target_section_id: "sync-ai-provider-boundary",
         allowed_now: false,
@@ -490,7 +490,7 @@ function buildActions(input: {
       status: hasPrompt ? "manual-confirmation" : "planned",
       evidence: hasPrompt
         ? `已有 ${input.payloadPreview.prompt.character_count} 个字符的研究问题，但正文未进入工作台导出。`
-        : "当前没有研究问题或 memo 目标，AI 任务范围仍不明确。",
+        : "当前没有研究问题或备忘录目标，AI 任务范围仍不明确。",
       next_action:
         "在请求草稿中明确研究目标、输出用途、禁止内容和是否涉及敏感投研信息。",
       requires_manual_confirmation: hasPrompt,
@@ -507,7 +507,7 @@ function buildActions(input: {
       status: hasPages ? "manual-confirmation" : "planned",
       evidence: `${input.payloadPreview.summary.selected_pages} 个页面处于候选上下文；工作台导出不包含页面标题或正文。`,
       next_action:
-        "只在用户确认后，才允许页面正文进入最终 outbound payload。",
+        "只在用户确认后，才允许页面正文进入最终外发内容。",
       requires_manual_confirmation: hasPages,
       blocks_ai_run: true,
     })
@@ -520,9 +520,9 @@ function buildActions(input: {
       title: hasFiles ? "逐类确认文件内容" : "等待文件内容确认",
       priority: hasFiles ? "high" : "low",
       status: hasFiles ? "manual-confirmation" : "planned",
-      evidence: `${input.payloadPreview.summary.files_available} 个本地文件可用，但文件 bytes 仍被排除。`,
+      evidence: `${input.payloadPreview.summary.files_available} 个本地文件可用，但文件字节仍被排除。`,
       next_action:
-        "按 HTML、Markdown、PDF、Excel、Word 等类型逐项确认内容、外部资源、retention 和删除策略。",
+        "按 HTML、Markdown、PDF、Excel、Word 等类型逐项确认内容、外部资源、保留规则和删除策略。",
       requires_manual_confirmation: hasFiles,
       blocks_ai_run: hasFiles,
     })
@@ -532,12 +532,12 @@ function buildActions(input: {
     action({
       id: "show-final-outbound-payload",
       lane_id: "payload-review",
-      title: "展示最终 outbound payload",
+      title: "展示最终外发内容",
       priority: "high",
       status: "manual-confirmation",
-      evidence: `当前 payload preview 有 ${input.payloadPreview.summary.approvals_required} 个确认项；metadata-only 不是最终外发内容。`,
+      evidence: `当前外发内容预览有 ${input.payloadPreview.summary.approvals_required} 个确认项；仅元数据预览不是最终外发内容。`,
       next_action:
-        "AI 启用前必须展示真实会发送的 prompt、页面正文范围和文件内容范围。",
+        "AI 启用前必须展示真实会发送的提示词、页面正文范围和文件内容范围。",
       requires_manual_confirmation: true,
       blocks_ai_run: true,
     })
@@ -571,13 +571,13 @@ function buildActions(input: {
     action({
       id: "review-prompt-blueprint",
       lane_id: "prompt-and-output",
-      title: "复核 Prompt 蓝图和输出 schema",
+      title: "复核提示词蓝图和输出结构",
       priority: "medium",
       status:
         input.promptBlueprint.summary.blockers > 0
           ? "blocked"
           : "manual-confirmation",
-      evidence: `${input.promptBlueprint.summary.prompt_sections} 个 prompt 段、${input.promptBlueprint.summary.output_fields} 个输出字段、${input.promptBlueprint.summary.citation_rules} 条引用规则。`,
+      evidence: `${input.promptBlueprint.summary.prompt_sections} 个提示词段、${input.promptBlueprint.summary.output_fields} 个输出字段、${input.promptBlueprint.summary.citation_rules} 条引用规则。`,
       next_action:
         "确认蓝图能约束总结、问答、报告、对比或框架输出，不允许编造来源和数值。",
       requires_manual_confirmation: true,
@@ -607,12 +607,12 @@ function buildActions(input: {
     action({
       id: "implement-audit-retention",
       lane_id: "audit-retention",
-      title: "定义 retention、删除和审计事件",
+      title: "定义保留规则、删除和审计事件",
       priority: "high",
       status: "blocked",
-      evidence: `${input.researchRunbook.summary.blocked_steps} 个 runbook 步骤阻塞，包含 provider、权限审计和输出保留策略。`,
+      evidence: `${input.researchRunbook.summary.blocked_steps} 个运行手册步骤阻塞，包含模型服务、权限审计和输出保留策略。`,
       next_action:
-        "Web Beta 前实现 server-side permission check、redacted audit event、output retention 和删除/回滚流程。",
+        "Web Beta 前实现服务端权限检查、脱敏审计事件、输出保留规则和删除/回滚流程。",
       action_route: "/modules/sync",
       route_label: "打开同步与权限",
       requires_manual_confirmation: false,
@@ -627,9 +627,9 @@ function buildActions(input: {
       title: "保持敏感投研信息默认排除",
       priority: "high",
       status: "manual-confirmation",
-      evidence: `${input.contextPacket.summary.sensitive_exclusions} 条默认敏感排除仍生效；AI 工作台不导出页面标题、prompt 正文或文件 bytes。`,
+      evidence: `${input.contextPacket.summary.sensitive_exclusions} 条默认敏感排除仍生效；AI 工作台不导出页面标题、提示词正文或文件字节。`,
       next_action:
-        "任何 AI 外发前，先确认持仓、交易计划、客户信息、未公开交易、token 和 secret 没有进入 payload。",
+        "任何 AI 外发前，先确认持仓、交易计划、客户信息、未公开交易、token 和密钥没有进入外发内容。",
       requires_manual_confirmation: true,
       blocks_ai_run: true,
     })
@@ -709,25 +709,25 @@ function buildEnablementSequence(input: {
     {
       id: "context-and-payload",
       order: 2,
-      title: "确认上下文和最终 payload",
+      title: "确认上下文和最终外发内容",
       status: "manual-confirmation",
       route: "/modules/ai",
       target_section_id: "ai-payload-review",
       reason: `当前有 ${input.payloadPreview.summary.selected_pages} 个页面和 ${input.payloadPreview.summary.files_available} 个文件处于候选状态。`,
       completion_signal:
-        "最终 outbound payload 可见，页面正文、prompt 正文和文件内容范围已逐项确认。",
+        "最终外发内容可见，页面正文、提示词正文和文件内容范围已逐项确认。",
     },
     {
       id: "provider-and-permission",
       order: 3,
-      title: "选择 provider 并通过权限检查",
+      title: "选择模型服务并通过权限检查",
       status:
         input.executionPolicy.summary.blocked > 0 ? "blocked" : "manual-confirmation",
       route: "/modules/sync",
       target_section_id: "sync-ai-provider-boundary",
-      reason: "当前没有 provider、模型、账号边界、server-side permission check 或 audit event。",
+      reason: "当前没有模型服务、模型、账号边界、服务端权限检查或审计事件。",
       completion_signal:
-        "Provider、模型、账号边界、计费边界、权限检查和 redacted audit event 已实现。",
+        "模型服务、模型、账号边界、计费边界、权限检查和脱敏审计事件已实现。",
     },
     {
       id: "run-and-review-output",
@@ -741,7 +741,7 @@ function buildEnablementSequence(input: {
       target_section_id: "ai-output-review",
       reason: "AI 输出不能自动写入页面、数据库或报告，需要先完成来源和敏感信息检查。",
       completion_signal:
-        "输出正文、来源引用、事实核查、retention、删除策略和保存目标已确认。",
+        "输出正文、来源引用、事实核查、保留规则、删除策略和保存目标已确认。",
     },
   ];
 }

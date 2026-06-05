@@ -84,7 +84,7 @@ export function buildAiPayloadPreview(
     preview_status: "local-preview-only",
     can_run_ai_now: false,
     privacy_note:
-      "本地生成。这个 AI payload 预览不会调用模型 provider、上传页面内容、上传文件 bytes、包含页面正文、包含文件 bytes 或分享 workspace 数据。",
+      "本地生成。这个 AI 外发内容预览不会调用模型服务、上传页面内容、上传文件字节、包含页面正文、包含文件字节或分享工作区数据。",
     boundary: {
       local_preview_only: true,
       calls_model_provider: false,
@@ -152,17 +152,17 @@ function buildApprovals(
   files: AiPayloadFileContext[]
 ) {
   const approvals = [
-    "任何 AI 外发前，先选择模型 provider、目标服务和账号边界。",
-    "确认 retention policy，以及 prompt/output 是否可以被保存。",
-    "发送给 AI 前，必须立即预览最终 payload。",
+    "任何 AI 外发前，先选择模型服务、目标服务和账号边界。",
+    "确认保留规则，以及提示词/输出是否可以被保存。",
+    "发送给 AI 前，必须立即预览最终外发内容。",
   ];
 
   if (input.selectedPages.length > 0) {
-    approvals.push("确认已选页面的正文是否允许进入 AI payload。");
+    approvals.push("确认已选页面的正文是否允许进入 AI 外发内容。");
   }
 
   if (files.length > 0) {
-    approvals.push("每一种文件类型进入 AI payload 前都需要单独确认。");
+    approvals.push("每一种文件类型进入 AI 外发内容前都需要单独确认。");
   }
 
   if (input.question.trim().length > 0) {

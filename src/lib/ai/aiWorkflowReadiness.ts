@@ -52,9 +52,9 @@ export interface AiWorkflowReadinessReport {
 }
 
 const DEFAULT_EXCLUSIONS = [
-  "页面正文默认不进入 payload",
-  "Prompt 正文默认不进入导出 receipt",
-  "文件 bytes 默认不进入 payload",
+  "页面正文默认不进入外发内容",
+  "提示词正文默认不进入导出确认收据",
+  "文件字节默认不进入外发内容",
   "持仓、交易计划、客户信息、token 和 secret 默认排除",
   "HTML 外部资源、云同步和数据库写入需要独立确认",
 ];
@@ -73,7 +73,7 @@ export function buildAiWorkflowReadinessReport(): AiWorkflowReadinessReport {
       confirmation_gates: confirmationGates,
       default_exclusions: DEFAULT_EXCLUSIONS,
       next_action:
-        "先选择本地上下文并导出 payload preview；外发前再确认 provider、retention、最终 payload 和 typed confirmation receipt。",
+        "先选择本地上下文并导出外发内容预览；外发前再确认模型服务、保留规则、最终外发内容和确认收据。",
     };
   });
 
@@ -82,7 +82,7 @@ export function buildAiWorkflowReadinessReport(): AiWorkflowReadinessReport {
     format_version: 1,
     report_status: "local-workflow-metadata-only",
     privacy_note:
-      "Generated locally from AI workflow metadata only. It does not read page bodies, prompt text, file bytes, holdings, trading plans, client information, tokens, secrets, cloud data, or AI output.",
+      "本地生成。这个 AI 工作流就绪度报告只读取工作流元数据；不读取页面正文、提示词正文、文件字节、持仓、交易计划、客户信息、token、secret、云端数据或 AI 输出。",
     boundary: {
       local_catalog_only: true,
       reads_workflow_metadata: true,
@@ -121,9 +121,9 @@ export function buildAiWorkflowReadinessReport(): AiWorkflowReadinessReport {
 
 function getWorkflowConfirmationGates(id: AiWorkflowId) {
   const common = [
-    "最终 outbound payload 预览",
-    "模型 provider / 账号 / retention policy",
-    "Owner typed confirmation receipt",
+    "最终外发内容预览",
+    "模型服务 / 账号 / 保留规则",
+    "用户确认收据",
   ];
 
   if (id === "summary") {

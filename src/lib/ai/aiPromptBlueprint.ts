@@ -90,7 +90,7 @@ export function buildAiPromptBlueprint(input: {
     blueprint_status: "local-prompt-blueprint-only",
     can_run_ai_now: false,
     privacy_note:
-      "Generated locally from AI workflow metadata and payload-preview metadata only. It does not read prompt text, page body text, file bytes, holdings, trading plans, client information, tokens, secrets, cloud data, or AI output, and it does not call a model provider.",
+      "本地生成。这个 AI 提示词蓝图只读取工作流元数据和外发内容预览元数据；不读取提示词正文、页面正文、文件字节、持仓、交易计划、客户信息、token、secret、云端数据或 AI 输出，也不会调用模型服务。",
     workflow: {
       id: input.workflow.id,
       title: input.workflow.title,
@@ -124,12 +124,12 @@ export function buildAiPromptBlueprint(input: {
       blockers: blockers.length,
     },
     system_role:
-      "你是投资研究助手，只能基于用户明确授权进入 payload 的材料回答；不确定时必须标注不确定性，不得补全未提供事实。",
+      "你是投资研究助手，只能基于用户明确授权进入外发内容的材料回答；不确定时必须标注不确定性，不得补全未提供事实。",
     task_instruction_template: getTaskInstructionTemplate(input.workflow.id),
     context_policy: [
-      "默认只把页面标题、文件类型和 workflow metadata 作为本地蓝图输入。",
-      "页面正文进入最终 prompt 前必须由用户逐项确认。",
-      "文件 bytes、HTML 外部资源、notebook 输出和数据库 row values 默认排除。",
+      "默认只把页面标题、文件类型和工作流元数据作为本地蓝图输入。",
+      "页面正文进入最终提示词前必须由用户逐项确认。",
+      "文件字节、HTML 外部资源、notebook 输出和数据库行数据默认排除。",
       "持仓、交易计划、客户信息、未公开交易信息、token 和 secret 默认排除。",
     ],
     prompt_sections: input.workflow.prompt_sections.map((section, index) => ({
@@ -205,7 +205,7 @@ function getCitationRules(id: AiWorkflowId): AiPromptCitationRule[] {
     {
       id: "authorized-context-only",
       title: "只引用授权上下文",
-      rule: "只能引用最终 payload 中明确包含的页面正文、文件内容或用户输入。",
+      rule: "只能引用最终外发内容中明确包含的页面正文、文件内容或用户输入。",
     },
     {
       id: "separate-fact-and-inference",
@@ -246,10 +246,10 @@ function getCitationRules(id: AiWorkflowId): AiPromptCitationRule[] {
 
 function getValidationChecklist(id: AiWorkflowId) {
   const common = [
-    "确认最终 payload 已展示，不只是 metadata 摘要。",
+    "确认最终外发内容已展示，不只是元数据摘要。",
     "确认输出没有新增未提供的事实、数值或来源。",
-    "确认敏感投研信息、token 和 secret 未进入 prompt 或输出。",
-    "确认输出保存路径、retention 和删除策略。",
+    "确认敏感投研信息、token 和 secret 未进入提示词或输出。",
+    "确认输出保存路径、保留规则和删除策略。",
   ];
 
   const map: Record<AiWorkflowId, string[]> = {
@@ -265,16 +265,16 @@ function getValidationChecklist(id: AiWorkflowId) {
 
 function buildBlockers(payloadPreview: AiPayloadPreview) {
   const blockers = [
-    "AI provider、模型、账号边界和 retention policy 尚未确认。",
-    "/api/ai/run 仍是 disabled local stub。",
-    "server-side permission check 和 AI audit event 尚未启用。",
+    "AI 模型服务、模型、账号边界和保留规则尚未确认。",
+    "/api/ai/run 仍是禁用的本地占位接口。",
+    "服务端权限检查和 AI 审计事件尚未启用。",
   ];
 
   if (payloadPreview.summary.selected_pages > 0) {
-    blockers.push("已选页面只是候选上下文；页面正文仍未确认进入 payload。");
+    blockers.push("已选页面只是候选上下文；页面正文仍未确认进入外发内容。");
   }
   if (payloadPreview.summary.files_available > 0) {
-    blockers.push("本地文件只是可用资源；文件 bytes 仍未确认进入 payload。");
+    blockers.push("本地文件只是可用资源；文件字节仍未确认进入外发内容。");
   }
   if (payloadPreview.prompt.provided) {
     blockers.push("研究问题文本未包含在导出蓝图里；最终外发前仍需确认。");
@@ -309,7 +309,7 @@ function getSectionPurpose(section: string) {
     return "定义任务边界，避免模型把未授权上下文扩展成事实。";
   }
   if (section.includes("上下文")) {
-    return "列出最终 payload 中允许使用的本地材料。";
+    return "列出最终外发内容中允许使用的本地材料。";
   }
   if (section.includes("输出")) {
     return "约束输出格式，让结果能进入 ZhiNotes 页面、报告或数据库草稿。";
@@ -325,7 +325,7 @@ function getSectionInclusionRule(section: string) {
     return "只允许包含用户最终确认的页面正文、文件内容或数据库字段。";
   }
   if (section.includes("目标") || section.includes("问题")) {
-    return "研究问题文本进入外发 payload 前必须再次确认。";
+    return "研究问题文本进入外发内容前必须再次确认。";
   }
-  return "只包含模板说明；不自动加入页面正文、文件 bytes 或 prompt 正文。";
+  return "只包含模板说明；不自动加入页面正文、文件字节或提示词正文。";
 }

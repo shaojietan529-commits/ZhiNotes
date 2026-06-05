@@ -185,11 +185,11 @@ function run() {
     "AI Workbench UI should use the Chinese product language."
   );
   for (const snippet of [
-    "AI workflow readiness",
+    "AI 工作流就绪度",
     "AiWorkflowReadinessPanel",
     "ReadinessStatusPill",
     "五类 AI 投研能力",
-    "不读取页面正文、prompt 正文、文件 bytes",
+    "不读取页面正文、提示词正文、文件字节",
     "默认排除",
   ]) {
     assertIncludes(
@@ -202,12 +202,12 @@ function run() {
   for (const snippet of [
     "buildAiPromptBlueprint",
     "handleExportPromptBlueprint",
-    "AI Prompt 蓝图",
+    "AI 提示词蓝图",
     "导出蓝图",
     "PromptBlueprintSectionCard",
     "PromptOutputFieldCard",
     "PromptChecklistPanel",
-    "不读取 prompt 正文、页面正文或文件 bytes",
+    "不读取提示词正文、页面正文或文件字节",
   ]) {
     assertIncludes(
       files.aiShell,
@@ -222,8 +222,8 @@ function run() {
     "AI 上下文包",
     "导出上下文包",
     "ContextPacketItemRow",
-    "metadata-only context packet",
-    "不读取 prompt 正文、页面正文或文件 bytes",
+    "仅元数据上下文包",
+    "不读取提示词正文、页面正文或文件字节",
   ]) {
     assertIncludes(
       files.aiShell,
@@ -243,7 +243,7 @@ function run() {
     "handleExportAiWorkbench",
     "AI 工作台总控",
     "导出 AI 工作台",
-    "工作台 lanes",
+    "工作台分组",
     "优先动作",
     "启用顺序",
     "导出不包含页面标题",
@@ -264,7 +264,7 @@ function run() {
     "AiDecisionSummaryPanel",
     "AiDecisionCard",
     "AiDecisionStatusPill",
-    "本地 owner review",
+    "本地用户复核",
     "导出执行策略",
     "ai-local-context",
     "ai-payload-review",
@@ -559,8 +559,8 @@ function run() {
     "requires-owner-confirmation",
     "模型执行",
     "AI 输出写回",
-    "Provider / 云同步",
-    "AI 执行、payload 外发、外部 provider、输出写回和云同步仍然关闭",
+    "模型服务 / 云同步",
+    "AI 执行、外发内容、外部模型服务、输出写回和云同步仍然关闭",
     "workflow-scope",
     "context-selection",
     "payload-review",

@@ -97,7 +97,7 @@ export function buildAiOutputReviewContract(
     can_save_ai_output_now: false,
     can_overwrite_workspace_now: false,
     privacy_note:
-      "本地生成。这个 AI 输出接收合同不调用模型 provider、不读取 AI 输出正文、不包含页面正文、prompt 正文、文件 bytes、持仓、交易计划、客户信息、token 或 secret，也不会创建页面、覆盖页面、更新数据库、上传或同步输出。",
+      "本地生成。这个 AI 输出接收合同不调用模型服务、不读取 AI 输出正文、不包含页面正文、提示词正文、文件字节、持仓、交易计划、客户信息、token 或 secret，也不会创建页面、覆盖页面、更新数据库、上传或同步输出。",
     workflow: {
       id: input.workflow.id,
       title: input.workflow.title,
@@ -140,12 +140,12 @@ export function buildAiOutputReviewContract(
     destinations,
     acceptance_gates: gates,
     final_enablement_conditions: [
-      "AI run endpoint 已启用，并且 provider、payload、retention、权限和审计门禁全部通过。",
-      "展示完整 AI 输出正文、引用来源、生成时间、provider、模型和输入摘要。",
-      "用户选择保存目标：新页面草稿、追加到现有页面、数据库 row 草稿、报告页草稿或仅下载。",
+      "AI 执行接口已启用，并且模型服务、外发内容、保留规则、权限和审计门禁全部通过。",
+      "展示完整 AI 输出正文、引用来源、生成时间、模型服务、模型和输入摘要。",
+      "用户选择保存目标：新页面草稿、追加到现有页面、数据库行草稿、报告页草稿或仅下载。",
       "页面覆盖、数据库写入、文件上传和云同步必须保持独立确认，不能由 AI 输出自动触发。",
       "保存前完成敏感投研扫描，确认不含未授权持仓、交易计划、客户信息、token 或 secret。",
-      "写入前生成 audit event；写入后保留删除或回滚路径。",
+      "写入前生成审计事件；写入后保留删除或回滚路径。",
     ],
   };
 }
@@ -158,7 +158,7 @@ function buildDestinations(): AiOutputDestination[] {
       status: "manual-confirmation",
       write_status: "disabled",
       default_behavior: "只允许先进入预览，不自动创建页面。",
-      required_confirmation: "确认标题、目标父页面、引用来源和 retention 后才能写入。",
+      required_confirmation: "确认标题、目标父页面、引用来源和保留规则后才能写入。",
     },
     {
       id: "append-to-existing-page",
@@ -170,11 +170,11 @@ function buildDestinations(): AiOutputDestination[] {
     },
     {
       id: "database-row-draft",
-      title: "数据库 row 草稿",
+      title: "数据库行草稿",
       status: "manual-confirmation",
       write_status: "disabled",
-      default_behavior: "只生成字段映射计划，不自动写数据库 row values。",
-      required_confirmation: "确认目标数据库、字段映射、row 标题和敏感字段后才能写入。",
+      default_behavior: "只生成字段映射计划，不自动写数据库行数据。",
+      required_confirmation: "确认目标数据库、字段映射、行标题和敏感字段后才能写入。",
     },
     {
       id: "report-page-draft",
@@ -189,7 +189,7 @@ function buildDestinations(): AiOutputDestination[] {
       title: "仅下载",
       status: "planned",
       write_status: "disabled",
-      default_behavior: "优先作为低风险出口，不写入当前 workspace。",
+      default_behavior: "优先作为低风险出口，不写入当前工作区。",
       required_confirmation: "下载前仍需确认输出正文和敏感信息扫描结果。",
     },
   ];
@@ -203,8 +203,8 @@ function buildAcceptanceGates(
       id: "ai-run-completed",
       title: "AI 执行已完成",
       status: "blocked",
-      evidence: `${input.executionPolicy.disabled_endpoint} 仍是 disabled local stub；当前不能生成真实 AI 输出。`,
-      required_action: "在 provider、payload、权限和审计全部通过前，保持 AI 输出保存禁用。",
+      evidence: `${input.executionPolicy.disabled_endpoint} 仍是禁用的本地占位接口；当前不能生成真实 AI 输出。`,
+      required_action: "在模型服务、外发内容、权限和审计全部通过前，保持 AI 输出保存禁用。",
       blocks_output_save: true,
     },
     {
@@ -212,14 +212,14 @@ function buildAcceptanceGates(
       title: "输出正文预览",
       status: "manual-confirmation",
       evidence: "当前合同不读取或包含 AI 输出正文。",
-      required_action: "保存前展示完整输出正文，不能只展示摘要、标题或 metadata。",
+      required_action: "保存前展示完整输出正文，不能只展示摘要、标题或元数据。",
       blocks_output_save: true,
     },
     {
       id: "source-attribution-review",
       title: "来源引用复核",
       status: "manual-confirmation",
-      evidence: `${input.payloadPreview.summary.selected_pages} 个页面和 ${input.payloadPreview.summary.files_available} 个文件是候选上下文，但正文和文件 bytes 仍未进入 payload。`,
+      evidence: `${input.payloadPreview.summary.selected_pages} 个页面和 ${input.payloadPreview.summary.files_available} 个文件是候选上下文，但正文和文件字节仍未进入外发内容。`,
       required_action: "输出保存前必须显示本地来源、引用范围和未引用材料。",
       blocks_output_save: true,
     },
@@ -243,7 +243,7 @@ function buildAcceptanceGates(
       id: "retention-delete-policy",
       title: "保留与删除策略",
       status: "blocked",
-      evidence: "尚未实现 AI output retention、删除、回滚或版本策略。",
+      evidence: "尚未实现 AI 输出保留规则、删除、回滚或版本策略。",
       required_action: "定义输出保存位置、保留期限、删除流程和版本快照。",
       blocks_output_save: true,
     },
@@ -251,8 +251,8 @@ function buildAcceptanceGates(
       id: "permission-audit-before-write",
       title: "写入前权限与审计",
       status: "blocked",
-      evidence: `${input.researchRunbook.summary.blocked_steps} 个 runbook 步骤仍阻塞；server-side audit event 尚未启用。`,
-      required_action: "写入页面或数据库前，先通过角色权限检查并记录 redacted audit event。",
+      evidence: `${input.researchRunbook.summary.blocked_steps} 个运行手册步骤仍阻塞；服务端审计事件尚未启用。`,
+      required_action: "写入页面或数据库前，先通过角色权限检查并记录脱敏审计事件。",
       blocks_output_save: true,
     },
   ];

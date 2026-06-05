@@ -54,10 +54,10 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
 const PRIVACY_GATES = [
-  "当前模块不调用 AI，/api/ai/run 是禁用的本地 stub。",
+  "当前模块不调用 AI，/api/ai/run 是禁用的本地占位接口。",
   "只有显式勾选的页面才会进入候选上下文。",
   "上传文件和 HTML 报告进入 AI 前需要单独确认。",
-  "外部 provider、模型、账号边界和 retention 规则必须先确认。",
+  "外部模型服务、模型、账号边界和保留规则必须先确认。",
 ];
 
 export default function AiWorkbenchShell() {
@@ -235,11 +235,11 @@ function AiWorkbenchDashboard() {
         actionId: "ai-external-run",
         requiredPhrase: getHighRiskRequiredPhrase("ai-external-run"),
         typedPhrase: aiConfirmationPhrase,
-        scopeSummary: `${selectedWorkflow.title}; ${aiPayloadPreview.summary.selected_pages} selected pages; ${aiPayloadPreview.summary.files_available} available local files; prompt text included in receipt: no.`,
+        scopeSummary: `${selectedWorkflow.title}; ${aiPayloadPreview.summary.selected_pages} 个已选页面；${aiPayloadPreview.summary.files_available} 个可用本地文件；确认收据不包含提示词正文。`,
         riskSummary:
-          "未来 AI 执行可能把已确认的页面正文、prompt 文本和获批文件内容发送到外部模型 provider。",
+          "未来 AI 执行可能把已确认的页面正文、提示词文本和获批文件内容发送到外部模型服务。",
         destinationSummary:
-          "尚未选择 AI provider；/api/ai/run 仍禁用且不读取 request body。",
+          "尚未选择 AI 模型服务；/api/ai/run 仍禁用且不读取请求正文。",
       }),
     [aiConfirmationPhrase, aiPayloadPreview, selectedWorkflow]
   );
@@ -264,7 +264,7 @@ function AiWorkbenchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export AI payload preview:", err);
-      window.alert("AI payload preview 导出失败，请查看控制台。");
+      window.alert("AI 外发内容预览导出失败，请查看控制台。");
     } finally {
       setExportingPayloadPreview(false);
     }
@@ -282,7 +282,7 @@ function AiWorkbenchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export AI execution policy:", err);
-      window.alert("AI execution policy 导出失败，请查看控制台。");
+      window.alert("AI 执行策略导出失败，请查看控制台。");
     } finally {
       setExportingExecutionPolicy(false);
     }
@@ -300,7 +300,7 @@ function AiWorkbenchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export AI prompt blueprint:", err);
-      window.alert("AI prompt 蓝图导出失败，请查看控制台。");
+      window.alert("AI 提示词蓝图导出失败，请查看控制台。");
     } finally {
       setExportingPromptBlueprint(false);
     }
@@ -318,7 +318,7 @@ function AiWorkbenchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export AI research runbook:", err);
-      window.alert("AI research runbook 导出失败，请查看控制台。");
+      window.alert("AI 研究运行手册导出失败，请查看控制台。");
     } finally {
       setExportingResearchRunbook(false);
     }
@@ -336,7 +336,7 @@ function AiWorkbenchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export AI output review:", err);
-      window.alert("AI output review 导出失败，请查看控制台。");
+      window.alert("AI 输出复核合同导出失败，请查看控制台。");
     } finally {
       setExportingOutputReview(false);
     }
@@ -354,7 +354,7 @@ function AiWorkbenchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export AI context packet:", err);
-      window.alert("AI context packet 导出失败，请查看控制台。");
+      window.alert("AI 上下文包导出失败，请查看控制台。");
     } finally {
       setExportingContextPacket(false);
     }
@@ -390,7 +390,7 @@ function AiWorkbenchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export AI confirmation receipt:", err);
-      window.alert("AI confirmation receipt 导出失败，请查看控制台。");
+      window.alert("AI 确认收据导出失败，请查看控制台。");
     } finally {
       setExportingConfirmationReceipt(false);
     }
@@ -537,8 +537,8 @@ function AiWorkbenchDashboard() {
                 AI 工作台总控
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把 workflow、payload、provider、prompt、输出保存和隐私边界合并成一个本地
-                action packet。导出不包含页面标题、页面正文、prompt 正文、文件 bytes 或
+                把工作流、外发内容、模型服务、提示词、输出保存和隐私边界合并成一个本地
+                动作包。导出不包含页面标题、页面正文、提示词正文、文件字节或
                 AI 输出正文，也不会调用模型。
               </p>
             </div>
@@ -571,7 +571,7 @@ function AiWorkbenchDashboard() {
             <ExecutionMetric
               label="文件"
               value={aiWorkbenchPacket.summary.files_available}
-              detail="bytes 排除"
+              detail="字节排除"
               status={
                 aiWorkbenchPacket.summary.files_available > 0
                   ? "manual-confirmation"
@@ -581,7 +581,7 @@ function AiWorkbenchDashboard() {
             <ExecutionMetric
               label="确认项"
               value={aiWorkbenchPacket.summary.payload_approvals_required}
-              detail="Payload 前置"
+              detail="外发前置"
               status="manual-confirmation"
             />
             <ExecutionMetric
@@ -605,14 +605,14 @@ function AiWorkbenchDashboard() {
             <ExecutionMetric
               label="AI 执行"
               value="关闭"
-              detail="本地 packet"
+              detail="本地动作包"
               status="blocked"
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
             <div id="ai-workbench-lanes" className="scroll-mt-6">
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                工作台 lanes
+                工作台分组
               </div>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
                 {aiWorkbenchPacket.lanes.map((lane) => (
@@ -649,8 +649,8 @@ function AiWorkbenchDashboard() {
             </div>
           </div>
           <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-            当前 AI 工作台总控只适合做本地 owner review；它不会启用
-            /api/ai/run，不会发送 payload，也不会把 AI 输出写入页面、数据库或云端。
+            当前 AI 工作台总控只适合做本地用户复核；它不会启用
+            /api/ai/run，不会发送外发内容，也不会把 AI 输出写入页面、数据库或云端。
           </p>
         </section>
 
@@ -719,10 +719,10 @@ function AiWorkbenchDashboard() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  AI payload 预览
+                  AI 外发内容预览
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  本地 metadata-only 预览。页面正文、文件 bytes、prompt 正文和模型调用仍被排除。
+                  本地仅元数据预览。页面正文、文件字节、提示词正文和模型调用仍被排除。
                 </p>
               </div>
               <button
@@ -748,7 +748,7 @@ function AiWorkbenchDashboard() {
                 tone={aiPayloadPreview.summary.files_available > 0 ? "high" : "low"}
               />
               <PayloadMetric
-                label="Prompt"
+                label="提示词"
                 value={aiPayloadPreview.prompt.provided ? "已草拟" : "空"}
                 detail={`${aiPayloadPreview.prompt.character_count} 字符`}
                 tone={aiPayloadPreview.prompt.provided ? "medium" : "low"}
@@ -783,8 +783,8 @@ function AiWorkbenchDashboard() {
                   AI 执行策略
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  未来启用 AI 前的本地策略。当前 run endpoint 已禁用，
-                  不读取 request body，也不调用 provider。
+                  未来启用 AI 前的本地策略。当前运行接口已禁用，
+                  不读取请求正文，也不调用模型服务。
                 </p>
               </div>
               <button
@@ -806,7 +806,7 @@ function AiWorkbenchDashboard() {
               <ExecutionMetric
                 label="阻塞"
                 value={aiExecutionPolicy.summary.blocked}
-                detail="Provider 和审计缺口"
+                detail="模型服务和审计缺口"
                 status="blocked"
               />
               <ExecutionMetric
@@ -816,15 +816,15 @@ function AiWorkbenchDashboard() {
                 status="manual-confirmation"
               />
               <ExecutionMetric
-                label="Endpoint"
+                label="接口"
                 value="/api/ai/run"
-                detail="禁用本地 stub"
+                detail="禁用本地占位接口"
                 status="blocked"
               />
               <ExecutionMetric
                 label="边界"
                 value="无模型"
-                detail="不调用 provider"
+                detail="不调用模型服务"
                 status="planned"
               />
             </div>
@@ -858,11 +858,11 @@ function AiWorkbenchDashboard() {
                 >
                   {exportingConfirmationReceipt
                     ? "导出中..."
-                    : "导出 AI receipt"}
+                    : "导出 AI 确认收据"}
                 </button>
               </div>
               <p className="mt-2 text-[11px] leading-5 text-zinc-400 dark:text-zinc-500">
-                即使短语匹配，当前仍不会调用 AI；/api/ai/run disabled. 收据不包含页面正文、prompt 正文、文件内容、token 或 secret。
+                即使短语匹配，当前仍不会调用 AI；/api/ai/run 已禁用。收据不包含页面正文、提示词正文、文件内容、token 或密钥。
               </p>
               <div className="mt-3 grid gap-2 md:grid-cols-3">
                 <ExecutionMetric
@@ -900,12 +900,12 @@ function AiWorkbenchDashboard() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  AI Prompt 蓝图
+                  AI 提示词蓝图
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  为研究总结、问答、报告草稿、文件对比和研究框架生成可复用 prompt
-                  结构、输出 schema、引用规则和保存前检查。这里只读取 workflow 和
-                  payload metadata，不读取 prompt 正文、页面正文或文件 bytes。
+                  为研究总结、问答、报告草稿、文件对比和研究框架生成可复用提示词
+                  结构、输出结构、引用规则和保存前检查。这里只读取工作流和
+                  外发内容元数据，不读取提示词正文、页面正文或文件字节。
                 </p>
               </div>
               <button
@@ -919,7 +919,7 @@ function AiWorkbenchDashboard() {
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-6">
               <ExecutionMetric
-                label="Prompt 段"
+                label="提示词段"
                 value={aiPromptBlueprint.summary.prompt_sections}
                 detail="模板"
                 status="planned"
@@ -951,7 +951,7 @@ function AiWorkbenchDashboard() {
               <ExecutionMetric
                 label="正文"
                 value="不读取"
-                detail="Metadata only"
+                detail="仅元数据"
                 status="planned"
               />
             </div>
@@ -964,7 +964,7 @@ function AiWorkbenchDashboard() {
             <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                  Prompt 段落
+                  提示词段落
                 </div>
                 <div className="grid gap-2 md:grid-cols-2">
                   {aiPromptBlueprint.prompt_sections.map((section) => (
@@ -977,7 +977,7 @@ function AiWorkbenchDashboard() {
               </div>
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                  输出 schema
+                  输出结构
                 </div>
                 <div className="grid gap-2 md:grid-cols-2">
                   {aiPromptBlueprint.output_schema.map((field) => (
@@ -1014,9 +1014,9 @@ function AiWorkbenchDashboard() {
                   AI 上下文包
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  把本次 AI 任务的 workflow、prompt 蓝图、已选页面标题、可用文件类型、
-                  敏感排除项和最终外发检查清单合并成 metadata-only context packet。
-                  它不读取 prompt 正文、页面正文或文件 bytes，也不调用模型。
+                  把本次 AI 任务的工作流、提示词蓝图、已选页面标题、可用文件类型、
+                  敏感排除项和最终外发检查清单合并成仅元数据上下文包。
+                  它不读取提示词正文、页面正文或文件字节，也不调用模型。
                 </p>
               </div>
               <button
@@ -1032,7 +1032,7 @@ function AiWorkbenchDashboard() {
               <ExecutionMetric
                 label="上下文项"
                 value={aiContextPacket.summary.context_items}
-                detail="Metadata only"
+                detail="仅元数据"
                 status="planned"
               />
               <ExecutionMetric
@@ -1070,14 +1070,14 @@ function AiWorkbenchDashboard() {
               <ExecutionMetric
                 label="AI 执行"
                 value="关闭"
-                detail="No provider"
+                detail="未选模型服务"
                 status="blocked"
               />
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                  Context items
+                  上下文项
                 </div>
                 {aiContextPacket.context_items.map((item) => (
                   <ContextPacketItemRow key={item.id} item={item} />
@@ -1114,11 +1114,11 @@ function AiWorkbenchDashboard() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  AI 研究 Runbook
+                  AI 研究运行手册
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  本地 AI 研究运行手册。它把任务范围、上下文确认、payload
-                  预览、provider 政策、审计和输出保存串成审批队列。
+                  本地 AI 研究运行手册。它把任务范围、上下文确认、外发内容
+                  预览、模型服务政策、审计和输出保存串成审批队列。
                 </p>
               </div>
               <button
@@ -1127,7 +1127,7 @@ function AiWorkbenchDashboard() {
                 disabled={exportingResearchRunbook}
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
-                {exportingResearchRunbook ? "导出中..." : "导出 Runbook"}
+                {exportingResearchRunbook ? "导出中..." : "导出运行手册"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
@@ -1146,7 +1146,7 @@ function AiWorkbenchDashboard() {
               <ExecutionMetric
                 label="确认"
                 value={aiResearchRunbook.summary.manual_confirmation_steps}
-                detail="需要 owner 确认"
+                detail="需要用户确认"
                 status="manual-confirmation"
               />
               <ExecutionMetric
@@ -1233,7 +1233,7 @@ function AiWorkbenchDashboard() {
               <ExecutionMetric
                 label="正文"
                 value="不读取"
-                detail="不含 AI output"
+                detail="不含 AI 输出"
                 status="planned"
               />
               <ExecutionMetric
@@ -1296,8 +1296,8 @@ function AiWorkbenchDashboard() {
               连接边界
             </h2>
             <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-              AI 执行启用前仍必须确认模型 provider、已选上下文、外发 payload
-              预览、使用日志和 retention policy。
+              AI 执行启用前仍必须确认模型服务、已选上下文、外发内容
+              预览、使用日志和保留规则。
             </p>
           </div>
         </section>
@@ -1335,7 +1335,7 @@ function AiDecisionSummaryPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            AI Decision Summary
+            AI 决策摘要
           </p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             AI 决策摘要
@@ -1386,7 +1386,7 @@ function AiDecisionSummaryPanel({
         <AiDecisionList title="当前可做" items={summary.safe_local_work} />
         <AiDecisionList title="保持关闭" items={summary.blocked_external_work} />
         <AiDecisionList
-          title="Owner 待确认"
+          title="用户待确认"
           items={summary.required_owner_decisions}
         />
       </div>
@@ -1396,8 +1396,8 @@ function AiDecisionSummaryPanel({
         {summary.top_blockers.length > 0
           ? summary.top_blockers.join("；")
           : "暂无"}。
-        决策摘要只读取本地 summary metadata，不包含页面正文、prompt 正文、文件
-        bytes 或 AI 输出正文。
+        决策摘要只读取本地摘要元数据，不包含页面正文、提示词正文、文件
+        字节或 AI 输出正文。
       </div>
     </section>
   );
@@ -1517,7 +1517,7 @@ function AiWorkbenchLaneCard({
           高优先级 {lane.high_priority_count}
         </span>
         <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
-          {lane.route}
+          目标模块 {formatModuleRoute(lane.route)}
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
@@ -1577,8 +1577,8 @@ function AiEnablementStepCard({
     <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[10px] uppercase text-zinc-400">
-            Step {step.order}
+          <div className="text-[10px] text-zinc-400">
+            步骤 {step.order}
           </div>
           <div className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
             {step.title}
@@ -1675,11 +1675,11 @@ function AiWorkflowReadinessPanel({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            AI workflow readiness
+            AI 工作流就绪度
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            五类 AI 投研能力的本地安全目录。这里只读取 workflow metadata，
-            不读取页面正文、prompt 正文、文件 bytes，也不会调用模型 provider。
+            五类 AI 投研能力的本地安全目录。这里只读取工作流元数据，
+            不读取页面正文、提示词正文、文件字节，也不会调用模型服务。
           </p>
         </div>
         <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -1845,7 +1845,7 @@ function PayloadPreviewPanel({ preview }: { preview: AiPayloadPreview }) {
           </div>
         ) : (
           <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-            没有可用或已包含的文件 bytes。
+            没有可用或已包含的文件字节。
           </p>
         )}
       </div>
@@ -1970,7 +1970,7 @@ function PromptOutputFieldCard({
           </div>
         </div>
         <span className="shrink-0 rounded bg-zinc-100 px-2 py-1 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-          {field.required ? "Required" : "Optional"}
+          {field.required ? "必填" : "可选"}
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
@@ -2009,7 +2009,7 @@ function ContextPacketItemRow({
   const kindLabels: Record<AiContextPacket["context_items"][number]["kind"], string> =
     {
       workflow: "工作流",
-      prompt: "Prompt",
+      prompt: "提示词",
       page: "页面",
       file: "文件",
     };
@@ -2037,10 +2037,10 @@ function ContextPacketItemRow({
       </div>
       <div className="mt-2 flex flex-wrap gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
         <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
-          {item.included_in_packet}
+          {formatPacketInclusion(item.included_in_packet)}
         </span>
         <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
-          {item.content_included ? "包含正文" : "不包含正文/bytes"}
+          {item.content_included ? "包含正文" : "不包含正文/字节"}
         </span>
       </div>
     </article>
@@ -2080,8 +2080,8 @@ function RunbookStepRow({
   > = {
     scope: "范围",
     context: "上下文",
-    payload: "Payload",
-    provider: "Provider",
+    payload: "外发内容",
+    provider: "模型服务",
     confirmation: "确认",
     audit: "审计",
     output: "输出",
@@ -2092,7 +2092,7 @@ function RunbookStepRow({
   > = {
     researcher: "研究员",
     system: "系统",
-    "future-provider": "未来 Provider",
+    "future-provider": "未来模型服务",
   };
 
   return (
@@ -2174,10 +2174,10 @@ function OutputDestinationRow({
       </div>
       <div className="mt-2 flex flex-wrap gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
         <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
-          {destination.write_status}
+          {formatWriteStatus(destination.write_status)}
         </span>
         <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
-          {destination.id}
+          需确认后写入
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
@@ -2284,14 +2284,49 @@ function buildRequestDraft({
     "已选本地上下文：",
     pageLines,
     "",
-    "建议 prompt 结构：",
+    "建议提示词结构：",
     ...workflow.prompt_sections.map((section) => `- ${section}`),
     "",
     "隐私门禁：",
-    "- 发送前预览最终 outbound payload",
-    "- 确认模型 provider、账号边界和 retention policy",
+    "- 发送前预览最终外发内容",
+    "- 确认模型服务、账号边界和保留规则",
     "- 文件和 HTML 报告默认排除，除非单独确认",
   ].join("\n");
+}
+
+function formatModuleRoute(route: string) {
+  const labels: Record<string, string> = {
+    "/modules/ai": "AI 工作台",
+    "/modules/sync": "同步与权限",
+  };
+
+  return labels[route] ?? route;
+}
+
+function formatPacketInclusion(
+  inclusion: AiContextPacket["context_items"][number]["included_in_packet"]
+) {
+  const labels: Record<
+    AiContextPacket["context_items"][number]["included_in_packet"],
+    string
+  > = {
+    "metadata-only": "仅元数据",
+  };
+
+  return labels[inclusion];
+}
+
+function formatWriteStatus(
+  status: AiOutputReviewContract["destinations"][number]["write_status"]
+) {
+  const labels: Record<
+    AiOutputReviewContract["destinations"][number]["write_status"],
+    string
+  > = {
+    disabled: "已禁用",
+  };
+
+  return labels[status];
 }
 
 function downloadJsonFile(fileName: string, value: unknown) {

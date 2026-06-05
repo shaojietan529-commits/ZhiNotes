@@ -85,7 +85,7 @@ export function buildAiResearchRunbook(
     runbook_status: "local-runbook-only",
     can_run_ai_now: false,
     privacy_note:
-      "本地生成。这个 AI research runbook 不调用模型 provider、不上传 workspace 数据、不包含页面正文、prompt 正文、文件 bytes、持仓、交易计划、客户信息、token 或 secret。",
+      "本地生成。这个 AI 研究运行手册不调用模型服务、不上传工作区数据、不包含页面正文、提示词正文、文件字节、持仓、交易计划、客户信息、token 或 secret。",
     workflow: {
       id: input.workflow.id,
       title: input.workflow.title,
@@ -117,12 +117,12 @@ export function buildAiResearchRunbook(
     approval_queue: approvalQueue,
     steps,
     final_enablement_conditions: [
-      "选择 provider、模型、账号边界和数据处理条款。",
-      "展示最终 outbound payload，并由 owner 显式确认。",
-      "确认页面正文、prompt 正文和每一种文件类型是否允许进入 payload。",
-      "确认持仓、交易计划、客户信息、token 和 secret 不进入 payload。",
-      "实现 server-side permission check、AI audit event、retention policy 和删除流程。",
-      "保持 /api/ai/run 在以上条件全部满足前为 disabled local stub。",
+      "选择模型服务、模型、账号边界和数据处理条款。",
+      "展示最终外发内容，并由用户显式确认。",
+      "确认页面正文、提示词正文和每一种文件类型是否允许进入外发内容。",
+      "确认持仓、交易计划、客户信息、token 和 secret 不进入外发内容。",
+      "实现服务端权限检查、AI 审计事件、保留规则和删除流程。",
+      "保持 /api/ai/run 在以上条件全部满足前为禁用的本地占位接口。",
     ],
   };
 }
@@ -142,7 +142,7 @@ function buildRunbookSteps(
       status: hasPrompt ? "manual-confirmation" : "planned",
       owner: "researcher",
       evidence: hasPrompt
-        ? `已有 ${input.payloadPreview.prompt.character_count} 个字符的研究问题，但 prompt 正文未进入预览。`
+        ? `已有 ${input.payloadPreview.prompt.character_count} 个字符的研究问题，但提示词正文未进入预览。`
         : "尚未填写研究问题或 memo 目标。",
       required_decision:
         "确认任务目标、输出用途和是否涉及持仓、交易计划或客户信息。",
@@ -155,7 +155,7 @@ function buildRunbookSteps(
       status: hasPages ? "manual-confirmation" : "planned",
       owner: "researcher",
       evidence: `${input.payloadPreview.summary.selected_pages} 个页面被选为候选上下文；页面正文仍被排除。`,
-      required_decision: "确认哪些页面正文可以进入最终 payload，以及引用方式。",
+      required_decision: "确认哪些页面正文可以进入最终外发内容，以及引用方式。",
       blocks_ai_run: true,
     },
     {
@@ -164,20 +164,20 @@ function buildRunbookSteps(
       title: "确认文件上下文",
       status: hasFiles ? "manual-confirmation" : "planned",
       owner: "researcher",
-      evidence: `${input.payloadPreview.summary.files_available} 个本地文件可用；文件 bytes 仍被排除。`,
+      evidence: `${input.payloadPreview.summary.files_available} 个本地文件可用；文件字节仍被排除。`,
       required_decision:
-        "逐类确认 HTML、Markdown、PDF、Excel、Word 等文件是否允许进入 payload。",
+        "逐类确认 HTML、Markdown、PDF、Excel、Word 等文件是否允许进入外发内容。",
       blocks_ai_run: true,
     },
     {
       id: "payload-final-preview",
       phase: "payload",
-      title: "最终 outbound payload 预览",
+      title: "最终外发内容预览",
       status: "manual-confirmation",
       owner: "system",
-      evidence: `当前 payload preview 有 ${input.payloadPreview.summary.approvals_required} 个确认项。`,
+      evidence: `当前外发内容预览有 ${input.payloadPreview.summary.approvals_required} 个确认项。`,
       required_decision:
-        "在发送前展示精确最终 payload，不能只展示摘要或 metadata。",
+        "在发送前展示精确最终外发内容，不能只展示摘要或元数据。",
       blocks_ai_run: true,
     },
     {
@@ -188,18 +188,18 @@ function buildRunbookSteps(
       owner: "researcher",
       evidence: "Runbook 明确不包含持仓、交易计划、客户信息、token 或 secret。",
       required_decision:
-        "确认最终 payload 不包含未显式授权的持仓、交易计划、客户信息和未公开交易信息。",
+        "确认最终外发内容不包含未显式授权的持仓、交易计划、客户信息和未公开交易信息。",
       blocks_ai_run: true,
     },
     {
       id: "provider-and-model-policy",
       phase: "provider",
-      title: "Provider 与模型政策",
+      title: "模型服务与模型政策",
       status: "blocked",
       owner: "researcher",
-      evidence: "尚未选择 provider、模型、账号边界、计费边界或数据处理条款。",
+      evidence: "尚未选择模型服务、模型、账号边界、计费边界或数据处理条款。",
       required_decision:
-        "选择模型服务，并确认是否允许 provider 保存 prompt/output。",
+        "选择模型服务，并确认是否允许服务方保存提示词/输出。",
       blocks_ai_run: true,
     },
     {
@@ -208,9 +208,9 @@ function buildRunbookSteps(
       title: "Owner 最终确认",
       status: "manual-confirmation",
       owner: "researcher",
-      evidence: "AI external run 仍需要 typed confirmation receipt。",
+      evidence: "AI 外部执行仍需要输入确认短语并生成确认收据。",
       required_decision:
-        "在最终 payload、provider 和 retention 确认后，再输入高风险确认短语。",
+        "在最终外发内容、模型服务和保留规则确认后，再输入高风险确认短语。",
       blocks_ai_run: true,
     },
     {
@@ -221,7 +221,7 @@ function buildRunbookSteps(
       owner: "system",
       evidence: `${input.executionPolicy.summary.blocked} 个执行策略门禁仍处于阻塞状态。`,
       required_decision:
-        "实现 server-side permission check、workspace role check 和 AI audit event。",
+        "实现服务端权限检查、工作区角色检查和 AI 审计事件。",
       blocks_ai_run: true,
     },
     {
@@ -232,7 +232,7 @@ function buildRunbookSteps(
       owner: "system",
       evidence: "尚未定义 AI output 是否保存到页面、数据库、文件或日志。",
       required_decision:
-        "确认 output retention、本地保存位置、引用来源和删除流程。",
+        "确认输出保留规则、本地保存位置、引用来源和删除流程。",
       blocks_ai_run: true,
     },
   ];
@@ -244,15 +244,15 @@ function buildApprovalQueue(
   const approvals: AiResearchRunbookApproval[] = [
     {
       id: "provider-approval",
-      title: "选择 AI provider",
+      title: "选择 AI 模型服务",
       status: "blocked",
-      reason: "没有 provider、模型和账号边界时，不能启用 AI 执行。",
+      reason: "没有模型服务、模型和账号边界时，不能启用 AI 执行。",
     },
     {
       id: "payload-owner-approval",
-      title: "最终 payload owner 确认",
+      title: "最终外发内容用户确认",
       status: "manual-confirmation",
-      reason: "最终外发内容必须由用户确认，metadata-only 预览不等于授权发送。",
+      reason: "最终外发内容必须由用户确认，仅元数据预览不等于授权发送。",
     },
     {
       id: "sensitive-scope-approval",
@@ -268,7 +268,7 @@ function buildApprovalQueue(
       id: "page-body-approval",
       title: "页面正文确认",
       status: "manual-confirmation",
-      reason: "已选页面只是候选上下文；正文进入 payload 前需要单独确认。",
+      reason: "已选页面只是候选上下文；正文进入外发内容前需要单独确认。",
     });
   }
 
@@ -277,14 +277,14 @@ function buildApprovalQueue(
       id: "file-bytes-approval",
       title: "文件内容确认",
       status: "manual-confirmation",
-      reason: "HTML、Markdown、PDF、Excel、Word 等文件 bytes 默认不外发。",
+      reason: "HTML、Markdown、PDF、Excel、Word 等文件字节默认不外发。",
     });
   }
 
   if (input.payloadPreview.prompt.provided) {
     approvals.push({
       id: "prompt-text-approval",
-      title: "Prompt 正文确认",
+      title: "提示词正文确认",
       status: "manual-confirmation",
       reason: "研究问题文本可能包含敏感判断，发送前需要最终确认。",
     });

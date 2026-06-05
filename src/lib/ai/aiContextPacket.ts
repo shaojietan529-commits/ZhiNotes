@@ -94,7 +94,7 @@ export function buildAiContextPacket(
     "客户信息和个人联系信息默认排除。",
     "未公开交易、IPO、融资或尽调材料默认排除。",
     "token、secret、API key、cookie 和账号凭证默认排除。",
-    "文件 bytes、页面正文和 prompt 正文默认排除。",
+    "文件字节、页面正文和提示词正文默认排除。",
   ];
 
   return {
@@ -103,7 +103,7 @@ export function buildAiContextPacket(
     packet_status: "local-context-packet-only",
     can_run_ai_now: false,
     privacy_note:
-      "本地生成。这个 AI context packet 只打包 workflow、payload preview 和 prompt blueprint metadata；不读取 prompt 正文、页面正文、文件 bytes、持仓、交易计划、客户信息、token 或 secret，也不调用模型 provider。",
+      "本地生成。这个 AI 上下文包只打包工作流、外发内容预览和提示词蓝图元数据；不读取提示词正文、页面正文、文件字节、持仓、交易计划、客户信息、token 或 secret，也不调用模型服务。",
     workflow: {
       id: input.workflow.id,
       title: input.workflow.title,
@@ -144,9 +144,9 @@ export function buildAiContextPacket(
     source_policy: sourcePolicy,
     outbound_payload_checklist: outboundChecklist,
     packet_ready_notes: [
-      "这个上下文包可以导出给用户审核，但不能直接发送给 AI provider。",
-      "最终 outbound payload 必须展示真实将被发送的正文和文件范围。",
-      "metadata-only 上下文包不等于用户授权发送页面正文、prompt 正文或文件 bytes。",
+      "这个上下文包可以导出给用户审核，但不能直接发送给 AI 模型服务。",
+      "最终外发内容必须展示真实将被发送的正文和文件范围。",
+      "仅元数据上下文包不等于用户授权发送页面正文、提示词正文或文件字节。",
     ],
   };
 }
@@ -166,7 +166,7 @@ function buildContextItems(input: AiContextPacketInput): AiContextPacketItem[] {
     {
       id: "prompt-metadata",
       title: input.payloadPreview.prompt.provided
-        ? "研究问题 metadata"
+        ? "研究问题元数据"
         : "未填写研究问题",
       kind: "prompt",
       status: input.payloadPreview.prompt.provided
@@ -176,7 +176,7 @@ function buildContextItems(input: AiContextPacketInput): AiContextPacketItem[] {
       included_in_packet: "metadata-only",
       content_included: false,
       required_decision:
-        "确认 prompt 正文是否允许进入最终 outbound payload；当前只记录字符数。",
+        "确认提示词正文是否允许进入最终外发内容；当前只记录字符数。",
     },
   ];
 
@@ -190,7 +190,7 @@ function buildContextItems(input: AiContextPacketInput): AiContextPacketItem[] {
       included_in_packet: "metadata-only",
       content_included: false,
       required_decision:
-        "确认该页面正文是否允许进入最终 outbound payload，以及引用方式。",
+        "确认该页面正文是否允许进入最终外发内容，以及引用方式。",
     });
   }
 
@@ -204,7 +204,7 @@ function buildContextItems(input: AiContextPacketInput): AiContextPacketItem[] {
       included_in_packet: "metadata-only",
       content_included: false,
       required_decision:
-        "逐类确认文件内容、外部资源、retention 和删除策略；当前不包含 file bytes。",
+        "逐类确认文件内容、外部资源、保留规则和删除策略；当前不包含文件字节。",
     });
   }
 
@@ -217,19 +217,19 @@ function buildSourcePolicy(input: AiContextPacketInput): AiContextPacketRule[] {
       id: "authorized-context-only",
       title: "只使用授权上下文",
       status: "manual-confirmation",
-      rule: "最终回答只能基于用户确认进入 payload 的页面正文、文件内容和 prompt 正文。",
+      rule: "最终回答只能基于用户确认进入外发内容的页面正文、文件内容和提示词正文。",
     },
     {
       id: "metadata-is-not-evidence",
-      title: "Metadata 不是证据",
+      title: "元数据不是证据",
       status: "manual-confirmation",
       rule: "页面标题、文件类型和字符数只能用于任务准备，不能作为事实证据。",
     },
     {
       id: "blueprint-schema-required",
-      title: "遵守输出 schema",
+      title: "遵守输出结构",
       status: "planned",
-      rule: `输出必须覆盖 ${input.promptBlueprint.summary.output_fields} 个 schema 字段和 ${input.promptBlueprint.summary.citation_rules} 条引用规则。`,
+      rule: `输出必须覆盖 ${input.promptBlueprint.summary.output_fields} 个输出字段和 ${input.promptBlueprint.summary.citation_rules} 条引用规则。`,
     },
   ];
 }
@@ -240,10 +240,10 @@ function buildOutboundChecklist(
   return [
     {
       id: "final-payload-visible",
-      title: "最终 payload 可见",
+      title: "最终外发内容可见",
       status: "manual-confirmation",
       required_action:
-        "发送前展示真实 outbound payload，不能只展示本地 context packet。",
+        "发送前展示真实外发内容，不能只展示本地上下文包。",
     },
     {
       id: "page-body-confirmed",
@@ -253,7 +253,7 @@ function buildOutboundChecklist(
           ? "manual-confirmation"
           : "planned",
       required_action:
-        "逐页确认正文范围、引用规则和是否允许外发给模型 provider。",
+        "逐页确认正文范围、引用规则和是否允许外发给模型服务。",
     },
     {
       id: "file-bytes-confirmed",
@@ -263,21 +263,21 @@ function buildOutboundChecklist(
           ? "manual-confirmation"
           : "planned",
       required_action:
-        "逐类确认 HTML、Markdown、PDF、Excel、Word 等文件是否允许进入 payload。",
+        "逐类确认 HTML、Markdown、PDF、Excel、Word 等文件是否允许进入外发内容。",
     },
     {
       id: "sensitive-exclusions-reviewed",
       title: "敏感信息排除复核",
       status: "manual-confirmation",
       required_action:
-        "确认持仓、交易计划、客户信息、未公开交易信息、token 和 secret 未进入 payload。",
+        "确认持仓、交易计划、客户信息、未公开交易信息、token 和 secret 未进入外发内容。",
     },
     {
       id: "provider-retention-selected",
-      title: "Provider 和 retention 已选",
+      title: "模型服务和保留规则已选",
       status: "blocked",
       required_action:
-        "选择模型 provider、账号边界、prompt/output 保存策略和删除流程。",
+        "选择模型服务、账号边界、提示词/输出保存策略和删除流程。",
     },
   ];
 }
