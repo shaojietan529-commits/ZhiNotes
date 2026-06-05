@@ -211,7 +211,8 @@ Current local actions:
   browser-safe fallback because macOS can reserve Cmd+Shift+3 for screenshots.
 - Add page icons, covers, sub-pages, local page links, duplicate pages, lock
   editing, switch page width, save named versions, and export HTML, Markdown, or
-  browser PDF.
+  browser PDF. Page cover controls, table-of-contents blocks, and callout
+  controls keep the default notes UI in Chinese.
 - Review the Info panel for page metadata, local word/block counts, file/table
   counts, and the new 投研结构 summary.
 - Use the 投研结构 panel as a local checklist for outline coverage, investment

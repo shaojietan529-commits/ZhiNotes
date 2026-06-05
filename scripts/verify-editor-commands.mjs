@@ -13,9 +13,13 @@ const files = {
   slashSuggestion: "src/components/editor/extensions/SlashCommandSuggestion.ts",
   filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
   blockDragHandle: "src/components/editor/BlockDragHandleLayer.tsx",
+  calloutNode: "src/components/editor/extensions/CalloutNode.tsx",
   editor: "src/components/editor/Editor.tsx",
+  pageShell: "src/components/providers/PageShell.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   readme: "README.md",
+  tableOfContentsNode:
+    "src/components/editor/extensions/TableOfContentsNode.tsx",
 };
 
 const failures = [];
@@ -43,9 +47,12 @@ function run() {
   const slashSuggestion = readProjectFile(files.slashSuggestion);
   const filePreviewUpload = readProjectFile(files.filePreviewUpload);
   const blockDragHandle = readProjectFile(files.blockDragHandle);
+  const calloutNode = readProjectFile(files.calloutNode);
   const editor = readProjectFile(files.editor);
+  const pageShell = readProjectFile(files.pageShell);
   const quickSearch = readProjectFile(files.quickSearch);
   const readme = readProjectFile(files.readme);
+  const tableOfContentsNode = readProjectFile(files.tableOfContentsNode);
 
   assertIncludes(
     files.packageJson,
@@ -230,6 +237,42 @@ function run() {
       slashSuggestion,
       snippet,
       "Slash commands must keep HTML and Markdown file workflows clearly separated."
+    );
+  }
+
+  for (const snippet of ["目录", "添加标题后会自动生成目录。"]) {
+    assertIncludes(
+      files.tableOfContentsNode,
+      tableOfContentsNode,
+      snippet,
+      "Table of contents block must keep the default notes UI in Chinese."
+    );
+  }
+  for (const snippet of [
+    "提示块图标",
+    "提示块颜色",
+    "<option value=\"blue\">蓝色</option>",
+    "<option value=\"neutral\">灰色</option>",
+  ]) {
+    assertIncludes(
+      files.calloutNode,
+      calloutNode,
+      snippet,
+      "Callout block controls must keep the default notes UI in Chinese."
+    );
+  }
+  for (const snippet of [
+    "请选择图片文件作为页面封面。",
+    "封面图片 URL：",
+    "添加封面",
+    "封面 URL",
+    "移除",
+  ]) {
+    assertIncludes(
+      files.pageShell,
+      pageShell,
+      snippet,
+      "Page cover controls must keep the default notes UI in Chinese."
     );
   }
 

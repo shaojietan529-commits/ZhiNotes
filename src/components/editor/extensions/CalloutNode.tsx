@@ -42,7 +42,7 @@ function CalloutComponent({ node, updateAttributes }: NodeViewProps) {
             onChange={(event) =>
               updateAttributes({ icon: event.target.value.slice(0, 4) || "i" })
             }
-            aria-label="Callout icon"
+            aria-label="提示块图标"
             className="h-7 w-8 shrink-0 rounded bg-white/70 text-center text-sm font-semibold outline-none dark:bg-black/20"
             contentEditable={false}
           />
@@ -52,15 +52,15 @@ function CalloutComponent({ node, updateAttributes }: NodeViewProps) {
           <select
             value={tone}
             onChange={(event) => updateAttributes({ tone: event.target.value })}
-            aria-label="Callout color"
+            aria-label="提示块颜色"
             className="rounded border border-current/15 bg-white/60 px-2 py-1 text-xs outline-none dark:bg-black/20"
             contentEditable={false}
           >
-            <option value="blue">Blue</option>
-            <option value="neutral">Gray</option>
-            <option value="yellow">Yellow</option>
-            <option value="green">Green</option>
-            <option value="red">Red</option>
+            <option value="blue">蓝色</option>
+            <option value="neutral">灰色</option>
+            <option value="yellow">黄色</option>
+            <option value="green">绿色</option>
+            <option value="red">红色</option>
           </select>
         </div>
       </div>

@@ -235,7 +235,7 @@ function PageContent({ pageId }: { pageId: string }) {
       event.target.value = "";
       if (!file) return;
       if (!file.type.startsWith("image/")) {
-        window.alert("Please choose an image file for the cover.");
+        window.alert("请选择图片文件作为页面封面。");
         return;
       }
 
@@ -248,7 +248,7 @@ function PageContent({ pageId }: { pageId: string }) {
 
   const handleCoverUrl = useCallback(async () => {
     if (locked) return;
-    const url = window.prompt("Cover image URL:", page?.cover_url ?? "");
+    const url = window.prompt("封面图片 URL：", page?.cover_url ?? "");
     if (url === null) return;
     await update({ cover_url: url.trim() });
     refresh();
@@ -461,7 +461,7 @@ function PageContent({ pageId }: { pageId: string }) {
                         onClick={() => coverInputRef.current?.click()}
                         className="rounded bg-white/90 px-2 py-1 text-xs text-zinc-600 shadow-sm hover:bg-white hover:text-zinc-900 dark:bg-zinc-900/90 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
                       >
-                        Upload
+                        上传
                       </button>
                       <button
                         type="button"
@@ -475,7 +475,7 @@ function PageContent({ pageId }: { pageId: string }) {
                         onClick={handleRemoveCover}
                         className="rounded bg-white/90 px-2 py-1 text-xs text-zinc-600 shadow-sm hover:bg-white hover:text-red-500 dark:bg-zinc-900/90 dark:text-zinc-300 dark:hover:bg-zinc-900"
                       >
-                        Remove
+                        移除
                       </button>
                     </>
                   )}
@@ -489,14 +489,14 @@ function PageContent({ pageId }: { pageId: string }) {
                 onClick={() => coverInputRef.current?.click()}
                 className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
               >
-                Add cover
+                添加封面
               </button>
               <button
                 type="button"
                 onClick={handleCoverUrl}
                 className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
               >
-                Cover URL
+                封面 URL
               </button>
             </div>
           ) : null}

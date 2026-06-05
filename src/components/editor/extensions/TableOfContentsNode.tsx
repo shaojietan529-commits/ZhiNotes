@@ -65,10 +65,10 @@ function TableOfContentsComponent({ editor }: NodeViewProps) {
         contentEditable={false}
       >
         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Table of contents
+          目录
         </div>
         {headings.length === 0 ? (
-          <p className="text-sm text-zinc-400">Add headings to build a table of contents.</p>
+          <p className="text-sm text-zinc-400">添加标题后会自动生成目录。</p>
         ) : (
           <div className="space-y-1">
             {headings.map((heading) => (
@@ -111,7 +111,7 @@ export const TableOfContentsNode = Node.create({
     return [
       "div",
       mergeAttributes(HTMLAttributes, { "data-type": "toc-block" }),
-      ["p", "Table of contents"],
+      ["p", "目录"],
     ];
   },
 
@@ -132,4 +132,3 @@ export const TableOfContentsNode = Node.create({
     };
   },
 });
-
