@@ -671,6 +671,10 @@ Markdown-family file into the current page as editable blocks. This separates
 the two common workflows: AI-generated HTML reports stay as native previews,
 while personal Markdown notes can either stay attached or be converted into
 editable page content.
+When a Markdown import creates a new page from the Reports module, `[[Page]]`
+references are matched against existing local page titles and become internal
+page mentions; unresolved references remain as wiki-reference chips for later
+cleanup.
 
 The generic file preview path also recognizes common research text and
 reference files such as LaTeX, BibTeX, RIS, reStructuredText, AsciiDoc,

@@ -20,6 +20,7 @@ import {
   getFields,
   getRows,
   updatePage,
+  updateWikiLinks,
 } from "@/lib/db/local/queries";
 import {
   FILE_PREVIEW_CAPABILITIES,
@@ -458,9 +459,11 @@ function ReportsDashboard() {
         ),
         icon: "MD",
       });
+      const contentHtml = createMarkdownImportedPageContent(storedFile, pages);
       await updatePage(page.id, {
-        content_text: createMarkdownImportedPageContent(storedFile),
+        content_text: contentHtml,
       });
+      await updateWikiLinks(page.id, extractLinkedPageIdsFromHtml(contentHtml));
       appendFilePreviewActionReceipt(
         buildFilePreviewActionReceipt({
           file: storedFile,
@@ -4048,7 +4051,15 @@ function createReportPageContent(file: StoredPageFile) {
   `;
 }
 
-function createMarkdownImportedPageContent(file: StoredPageFile) {
+function createMarkdownImportedPageContent(
+  file: StoredPageFile,
+  pages: Pick<Page, "id" | "title">[] = []
+) {
+  const editableHtml = resolveMarkdownWikiReferences(
+    markdownToHtml(file.textContent ?? ""),
+    pages
+  );
+
   return `
     <h1>Markdown 笔记</h1>
     <h2>源文件</h2>
@@ -4066,8 +4077,61 @@ function createMarkdownImportedPageContent(file: StoredPageFile) {
       <li>相关数据库：</li>
     </ul>
     <h2>可编辑内容</h2>
-    ${markdownToHtml(file.textContent ?? "")}
+    ${editableHtml}
   `;
+}
+
+function resolveMarkdownWikiReferences(
+  html: string,
+  pages: Pick<Page, "id" | "title">[]
+) {
+  if (pages.length === 0) return html;
+
+  const titleIndex = new Map<string, Pick<Page, "id" | "title">>();
+  for (const page of pages) {
+    const key = normalizeWikiReferenceTitle(page.title);
+    if (key && !titleIndex.has(key)) titleIndex.set(key, page);
+  }
+  if (titleIndex.size === 0) return html;
+
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc
+    .querySelectorAll<HTMLElement>('span[data-type="wiki-reference"]')
+    .forEach((element) => {
+      const target =
+        element.getAttribute("data-target") ||
+        element.getAttribute("data-label") ||
+        element.textContent ||
+        "";
+      const label = element.getAttribute("data-label") || target;
+      const page = titleIndex.get(normalizeWikiReferenceTitle(target));
+      if (!page) return;
+
+      const mention = doc.createElement("span");
+      mention.setAttribute("data-type", "mention");
+      mention.setAttribute("data-id", page.id);
+      mention.setAttribute("data-label", label || page.title);
+      mention.textContent = `📄 ${label || page.title}`;
+      element.replaceWith(mention);
+    });
+
+  return doc.body.innerHTML;
+}
+
+function normalizeWikiReferenceTitle(value: string) {
+  return value
+    .replace(/^\[\[|\]\]$/g, "")
+    .split("|")[0]
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function extractLinkedPageIdsFromHtml(html: string) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return Array.from(doc.querySelectorAll("[data-type='mention'][data-id]"))
+    .map((element) => element.getAttribute("data-id"))
+    .filter((id): id is string => Boolean(id));
 }
 
 function getReportFileKindLabel(file: StoredPageFile) {
