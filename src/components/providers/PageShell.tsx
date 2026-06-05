@@ -65,6 +65,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const editorRef = useRef<EditorRef>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const copyNoticeTimeoutRef = useRef<number | null>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const { page, loading, update, remove } = usePage(pageId);
   const { refresh } = usePages();
   const { versions, refresh: refreshVersions } = useVersions(pageId);
@@ -171,6 +172,31 @@ function PageContent({ pageId }: { pageId: string }) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!showExportMenu) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        exportMenuRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setShowExportMenu(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowExportMenu(false);
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showExportMenu]);
 
   const handleCopyPageMarkdown = useCallback(async () => {
     const html = editorRef.current?.getHTML() ?? page?.content_text ?? "";
@@ -659,7 +685,7 @@ function PageContent({ pageId }: { pageId: string }) {
                 >
                   📌 保存版本
                 </button>
-                <div className="relative">
+                <div ref={exportMenuRef} className="relative">
                   <button
                     onClick={() => setShowExportMenu((current) => !current)}
                     className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
