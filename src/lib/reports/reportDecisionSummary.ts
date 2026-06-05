@@ -132,9 +132,9 @@ export function buildReportDecisionSummary(
     summary_status: "local-report-owner-review",
     current_state: "local-report-owner-review",
     current_conclusion:
-      "报告库现在可以继续本地创建 page、原生展示 HTML/PDF、导入 Markdown、复核 Office/Notebook 转换，并把单个报告接入跟踪表；批量表格入库、HTML 外部资源、AI 总结、云同步和文件外发仍保持关闭，必须由你确认。",
+      "报告库现在可以继续本地创建页面、原生展示 HTML/PDF、导入 Markdown、复核 Office/Notebook 转换，并把单个报告接入跟踪表；批量表格入库、HTML 外部资源、AI 总结、云同步和文件外发仍保持关闭，必须由你确认。",
     privacy_note:
-      "由聚合后的报告工作流摘要在本地生成。不包含文件名、报告标题、页面文本、文件字节、抽取后的文件文本、数据库行值、prompt、token、凭证、云端数据或 AI 输出。",
+      "由聚合后的报告工作流摘要在本地生成。不包含文件名、报告标题、页面文本、文件字节、抽取后的文件文本、数据库行值、提示词、token、凭证、云端数据或 AI 输出。",
     boundary: {
       local_summary_only: true,
       reads_report_intake_summary: true,
@@ -164,20 +164,20 @@ export function buildReportDecisionSummary(
     can_send_reports_to_ai_now: false,
     can_sync_report_files_now: false,
     safe_local_work: [
-      "上传 HTML、PDF、Markdown、Office、notebook、archive 和媒体文件时，先创建本地 page 与 file-preview block。",
+      "上传 HTML、PDF、Markdown、Office、Notebook、压缩包和媒体文件时，先创建本地页面与文件预览块。",
       "HTML Page 预览继续使用沙盒 iframe；外部图片、脚本、样式、字体和 frame 默认阻止。",
-      "Markdown 可编辑导入可以直接生成 page 内容，同时保留本地原文件动作收据。",
+      "Markdown 可编辑导入可以直接生成页面内容，同时保留本地原文件动作收据。",
       "PDF、Word、PPT、Excel、EPUB、RTF 和 Notebook 先进入本地预览、转换复核或复核队列。",
     ],
     blocked_work: [
       "不能默认加载 HTML 报告里的远程资源或执行外部脚本。",
       "不能默认把 Excel/CSV/ODS 批量写入数据库行。",
-      "不能把报告正文、文件文本、文件字节、文件名或页面正文发送给 AI provider。",
-      "不能自动同步报告文件、生成分享链接、执行 notebook 或解包写入工作区。",
+      "不能把报告正文、文件文本、文件字节、文件名或页面正文发送给 AI 服务。",
+      "不能自动同步报告文件、生成分享链接、执行 Notebook 或解包写入工作区。",
     ],
     required_owner_decisions: [
       "确认某个 HTML 报告是否值得开启外部资源，默认继续关闭。",
-      "确认转换后的 Word/PPT/Excel/Notebook 是否保真，再把结论写入 page 或跟踪表。",
+      "确认转换后的 Word/PPT/Excel/Notebook 是否保真，再把结论写入页面或跟踪表。",
       "确认表格入库的字段、行数、目标数据库、回滚边界，并输入确认文本。",
       "确认 AI、云同步或外部分享前的发送内容预览、权限检查和审计事件。",
     ],
@@ -188,7 +188,7 @@ export function buildReportDecisionSummary(
         title: "HTML Page 预览",
         status: "available-local",
         answer: "本地可做",
-        evidence: `${summary.html_reports} 个 HTML 报告已经在 intake/playbook 中识别；HTML 仍是 AI 可视化报告的首选原生展示格式。`,
+        evidence: `${summary.html_reports} 个 HTML 报告已经在入库队列/行动手册中识别；HTML 仍是 AI 可视化报告的首选原生展示格式。`,
         next_action:
           "从报告页打开沙盒预览，先读图表和结论；外部资源保持关闭。",
         route: "/modules/reports",
@@ -210,7 +210,7 @@ export function buildReportDecisionSummary(
         answer: "直接导入",
         evidence: `${summary.markdown_notes} 个 Markdown 笔记已经进入格式 playbook；Markdown 是个人笔记的首选可编辑源格式。`,
         next_action:
-          "用报告库顶部的导入 Markdown 笔记按钮创建可编辑 page，再继续补充 block、relation 和摘要。",
+          "用报告库顶部的导入 Markdown 笔记按钮创建可编辑页面，再继续补充块、关系和摘要。",
         route: "/modules/reports",
         target_section_id: "reports-create-assets",
         allowed_now: true,
@@ -230,9 +230,9 @@ export function buildReportDecisionSummary(
           ? "requires-owner-confirmation"
           : "available-local",
         answer: conversionNeedsReview ? "先复核" : "暂无阻塞",
-        evidence: `${summary.review_needed_items} 个 review-needed 项需要关注转换保真、公式、图表、批注、slide 顺序或 notebook 输出。`,
+        evidence: `${summary.review_needed_items} 个需复核项需要关注转换保真、公式、图表、批注、幻灯片顺序或 Notebook 输出。`,
         next_action:
-          "对照原生预览和转换结果，确认关键结论不丢失后再写入 page、备忘录或跟踪表。",
+          "对照原生预览和转换结果，确认关键结论不丢失后再写入页面、备忘录或跟踪表。",
         route: "/modules/reports",
         target_section_id: "reports-conversion-review",
         allowed_now: !conversionNeedsReview,
@@ -247,12 +247,12 @@ export function buildReportDecisionSummary(
       },
       {
         id: "tracker-relation-intake",
-        title: "跟踪表与 relation",
+        title: "跟踪表与关系",
         status: "requires-owner-confirmation",
         answer: trackerReady ? "单条确认后写" : "先建跟踪表",
-        evidence: `${summary.relation_suggestions} 个 relation 建议，${summary.report_trackers} 个报告跟踪表可用；写入行必须通过单条点击。`,
+        evidence: `${summary.relation_suggestions} 个关系建议，${summary.report_trackers} 个报告跟踪表可用；写入行必须通过单条点击。`,
         next_action:
-          "先确认报告页 relation、格式、状态、来源和核心结论，再创建单条本地跟踪表行。",
+          "先确认报告页关系、格式、状态、来源和核心结论，再创建单条本地跟踪表行。",
         route: "/modules/reports",
         target_section_id: "reports-tracker-intake",
         allowed_now: false,
@@ -313,7 +313,7 @@ function buildTopBlockers(summary: ReportDecisionSummary["summary"]) {
   ];
 
   if (summary.report_trackers === 0) {
-    blockers.push("还没有报告跟踪表时，relation intake 只能先停在建表/补字段步骤。");
+    blockers.push("还没有报告跟踪表时，关系入库只能先停在建表/补字段步骤。");
   }
 
   return blockers;

@@ -119,7 +119,7 @@ export function buildReportTrackerIntakeDraft(
     format_version: 1,
     draft_status: "local-report-tracker-row-draft",
     privacy_note:
-      "由一个报告 intake 条目和所选报告跟踪表字段结构在本地生成。它只创建带 relation id 和文件 metadata 的行草稿，不读取或导出报告正文、文件文本、文件字节、页面正文、云端数据、AI prompt、token 或凭证。",
+      "由一个报告入库条目和所选报告跟踪表字段结构在本地生成。它只创建带关系 id 和文件元数据的行草稿，不读取或导出报告正文、文件文本、文件字节、页面正文、云端数据、AI 提示词、token 或凭证。",
     boundary: {
       local_row_draft_only: true,
       reads_report_intake_item: true,
@@ -214,7 +214,7 @@ function buildReportTrackerRowContent(item: ReportIntakeItem) {
     <p>由报告库本地入库创建。这个行用来把本地报告页接入报告跟踪表。</p>
     <h2>已连接</h2>
     <ul>
-      <li>报告页 relation: ${escapeHtml(item.page_title)}</li>
+      <li>报告页关系：${escapeHtml(item.page_title)}</li>
       <li>文件名：${escapeHtml(item.file_name)}</li>
       <li>格式：${escapeHtml(item.file_kind)}</li>
     </ul>

@@ -362,7 +362,7 @@ function buildNativeStrategy(): FileLibraryNativeStrategy {
     primary_written_note_format: "markdown",
     editable_page_format: "tiptap-html",
     current_recommendation:
-      "如果必须选一个原生容器，ZhiNotes page 是统一容器；AI 生成的可视化报告优先用 HTML 沙盒原生预览，个人写作优先用 Markdown 导入为可编辑块，表格资料优先转为本地数据库候选。",
+      "如果必须选一个原生容器，ZhiNotes 页面是统一容器；AI 生成的可视化报告优先用 HTML 沙盒原生预览，个人写作优先用 Markdown 导入为可编辑块，表格资料优先转为本地数据库候选。",
     safe_defaults: [
       "HTML 报告默认以沙盒 iframe 在 page 内原生预览，并阻止外部资源。",
       "Markdown/MDX 默认可本地预览，也可以导入为可编辑 page 内容。",

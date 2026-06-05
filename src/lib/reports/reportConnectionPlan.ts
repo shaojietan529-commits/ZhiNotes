@@ -114,7 +114,7 @@ export function buildReportConnectionPlan(input: {
     format_version: 1,
     plan_status: "local-relation-plan-only",
     privacy_note:
-      "由报告 intake 元数据和数据库元数据在本地生成。这个计划建议报告到公司、会议、备忘录和组合的关联工作；不读取报告正文、文件文本、文件字节、数据库行、prompt、token、凭证、云端数据或私有行值，也不写入工作区数据。",
+      "由报告入库元数据和数据库元数据在本地生成。这个计划建议报告到公司、会议、备忘录和组合的关联工作；不读取报告正文、文件文本、文件字节、数据库行、提示词、token、凭证、云端数据或私有行值，也不写入工作区数据。",
     boundary: {
       local_plan_only: true,
       reads_report_intake_metadata: true,
@@ -169,7 +169,7 @@ export function buildReportConnectionPlan(input: {
         target_kind: "company",
         field_names: ["公司页", "关联报告", "关联会议"],
         reason:
-          "公司跟踪表行应提供回连报告和会议的 relation 字段。",
+          "公司跟踪表行应提供回连报告和会议的关系字段。",
       },
       {
         target_kind: "meeting",
@@ -213,9 +213,9 @@ function buildSuggestion(
     ),
     actions,
     next_action:
-      "并排打开报告页和目标跟踪表，在确认公司、会议、备忘录或组合上下文后手动补 relation。",
+      "并排打开报告页和目标跟踪表，在确认公司、会议、备忘录或组合上下文后手动补关系。",
     privacy_boundary:
-      "这个建议只使用 intake 元数据；不检查报告正文、文件文本、文件字节、数据库行、token、凭证、云端数据或 AI prompt。",
+      "这个建议只使用入库元数据；不检查报告正文、文件文本、文件字节、数据库行、token、凭证、云端数据或 AI 提示词。",
   };
 }
 
@@ -235,7 +235,7 @@ function buildAction(
     route: tracker?.database_route ?? fallbackRoute,
     writes_workspace_data: false,
     reason: tracker
-      ? `打开 ${tracker.database_title}，确认正确的${TARGET_LABELS[target]} relation 后手动连接报告。`
+      ? `打开 ${tracker.database_title}，确认正确的${TARGET_LABELS[target]}关系后手动连接报告。`
       : `当前还没有可用的${TARGET_LABELS[target]}跟踪表。先创建或配置跟踪表，再关联这份报告。`,
   };
 }

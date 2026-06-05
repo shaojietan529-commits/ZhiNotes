@@ -138,7 +138,7 @@ const WORKFLOW_STEPS = [
   {
     title: "关联研究",
     detail:
-      "用 relation 字段把报告关联到公司、会议、备忘录和业绩复盘。",
+      "用关系字段把报告关联到公司、会议、备忘录和业绩复盘。",
   },
   {
     title: "本地留存",
@@ -700,7 +700,7 @@ function ReportsDashboard() {
       );
       if (existingRow) {
         setTrackerIntakeMessage(
-          `已存在跟踪表行：${existingRow.row_title}。已打开报告跟踪表继续补 relation。`
+          `已存在跟踪表行：${existingRow.row_title}。已打开报告跟踪表继续补关系。`
         );
         router.push(
           `/database/${tracker.id}?q=${encodeURIComponent(item.page_title)}`
@@ -714,7 +714,7 @@ function ReportsDashboard() {
       );
       if (!hasReportPageRelation) {
         window.alert(
-          "当前报告跟踪表缺少报告页 relation 字段，请先补字段后再入库。"
+          "当前报告跟踪表缺少报告页关系字段，请先补字段后再入库。"
         );
         return;
       }
@@ -725,7 +725,7 @@ function ReportsDashboard() {
         contentText: draft.row_page_content,
       });
       setTrackerIntakeMessage(
-        `已创建跟踪表行：${draft.row_title}。已打开报告跟踪表继续补 relation。`
+        `已创建跟踪表行：${draft.row_title}。已打开报告跟踪表继续补关系。`
       );
       router.push(
         `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}`
@@ -751,7 +751,7 @@ function ReportsDashboard() {
                 报告库
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                管理本地 HTML 报告、Markdown 笔记、PDF、Office 文件、notebook、
+                管理本地 HTML 报告、Markdown 笔记、PDF、Office 文件、Notebook、
                 压缩包、核心结论，以及与公司或会议的关联。
               </p>
             </div>
@@ -843,7 +843,7 @@ function ReportsDashboard() {
               {reportFileBatchMessage.failed > 0
                 ? `，失败 ${reportFileBatchMessage.failed} 个。`
                 : "。"}
-              新页面已进入下方报告 intake 队列；文件仍只保存在本地浏览器。
+              新页面已进入下方报告入库队列；文件仍只保存在本地浏览器。
             </p>
           )}
         </section>
@@ -858,7 +858,7 @@ function ReportsDashboard() {
                 下一步复核队列
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把 intake 文件合并成可执行的投研待办：第一遍阅读、转换复核、表格入库、
+                把入库文件合并成可执行的投研待办：第一遍阅读、转换复核、表格入库、
                 来源分流和关联归档。这个队列只用本地元数据，不读取文件正文、
                 文件字节，不上传、不同步、不调用 AI。
               </p>
@@ -1058,10 +1058,10 @@ function ReportsDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                报告 intake 队列
+                报告入库队列
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                从本地 page 的 file-preview block 元数据生成待处理报告队列，
+                从本地页面的文件预览块元数据生成待处理报告队列，
                 用来判断格式、优先级、下一步动作和关联缺口。这个报告不读取文件字节、
                 不调用 AI、不连接云服务。
               </p>
@@ -1139,7 +1139,7 @@ function ReportsDashboard() {
             </div>
           ) : (
             <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有待处理报告文件。点击“上传报告文件”后，新页面会自动进入这个本地 intake 队列。
+              还没有待处理报告文件。点击“上传报告文件”后，新页面会自动进入这个本地入库队列。
             </p>
           )}
         </section>
@@ -1154,8 +1154,8 @@ function ReportsDashboard() {
                 报告关联计划
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                从 intake 元数据和本地数据库 metadata 生成报告到公司、会议、备忘录和组合的关联建议。这个计划不读取报告正文、
-                文件文本、文件字节、数据库行值，不写入 relation，不调用 AI 或云服务。
+                从入库元数据和本地数据库元数据生成报告到公司、会议、备忘录和组合的关联建议。这个计划不读取报告正文、
+                文件文本、文件字节、数据库行值，不写入关系，不调用 AI 或云服务。
               </p>
             </div>
             <button
@@ -1227,13 +1227,13 @@ function ReportsDashboard() {
                 </div>
               ) : (
                 <p className="mt-2 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-                  当前没有可生成的关联建议。上传报告文件或补充报告页中的 relation 缺口后会出现在这里。
+                  当前没有可生成的关联建议。上传报告文件或补充报告页中的关系缺口后会出现在这里。
                 </p>
               )}
             </div>
             <div>
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Relation 字段清单
+                关系字段清单
               </div>
               <div className="mt-2 space-y-2">
                 {reportConnectionPlan.required_fields.map((fieldSet) => (
@@ -1259,7 +1259,7 @@ function ReportsDashboard() {
                     ))
                   ) : (
                     <span className="text-zinc-400">
-                      还没有识别到公司、会议、报告或组合 tracker。
+                      还没有识别到公司、会议、报告或组合跟踪表。
                     </span>
                   )}
                 </div>
@@ -1278,7 +1278,7 @@ function ReportsDashboard() {
                 报告入库台
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把单个 intake 文件创建成报告跟踪表行，并自动填入报告页 relation、
+                把单个入库文件创建成报告跟踪表行，并自动填入报告页关系、
                 格式、状态、来源和核心结论。点击后只做本地单条写入，
                 不读取报告正文、文件文本或文件字节，不上传、不同步、不调用 AI。
               </p>
@@ -1318,7 +1318,7 @@ function ReportsDashboard() {
             </div>
           ) : (
             <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有可入库的报告文件。先上传报告文件或创建包含 file-preview 的报告页。
+              还没有可入库的报告文件。先上传报告文件或创建包含文件预览块的报告页。
             </p>
           )}
         </section>
@@ -1333,7 +1333,7 @@ function ReportsDashboard() {
                 格式处理 Playbook
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把 intake 队列里的格式拆成处理路线：HTML 报告优先原生预览，
+                把入库队列里的格式拆成处理路线：HTML 报告优先原生预览，
                 Markdown 笔记优先可编辑导入，表格走数据库候选，其它文件保留本地原件和复核步骤。
                 这个 Playbook 不读取文件字节、文件文本或页面正文。
               </p>
@@ -1393,7 +1393,7 @@ function ReportsDashboard() {
             <span className="font-semibold text-zinc-900 dark:text-zinc-100">
               原生格式策略：
             </span>{" "}
-            ZhiNotes page 是统一容器；HTML 作为 AI 可视化报告的首选原生预览格式，
+            ZhiNotes 页面是统一容器；HTML 作为 AI 可视化报告的首选原生预览格式，
             Markdown 作为自己写笔记的首选可编辑源格式，Excel/CSV/ODS 在确认后进入本地数据库，
             原始文件继续保留在本地附件里。
           </div>
@@ -1442,7 +1442,7 @@ function ReportsDashboard() {
                 格式覆盖缺口
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把当前 intake 里的真实文件格式和 ZhiNotes 能力矩阵对齐，显示已使用、
+                把当前入库队列里的真实文件格式和 ZhiNotes 能力矩阵对齐，显示已使用、
                 未使用、需要确认、旧版 Office 和未知格式缺口。这个报告只按格式计数，
                 不列出文件名、不读取文件字节、文件文本或页面正文。
               </p>
@@ -1531,7 +1531,7 @@ function ReportsDashboard() {
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 区分真正原生展示和本地转换展示：PPT/Word/Excel、RTF、EPUB、
-                notebook 等格式可能丢失复杂版式、图表、公式、批注或交互。
+                Notebook 等格式可能丢失复杂版式、图表、公式、批注或交互。
                 这个复核只看文件类型、扩展名和数量，不导出文件名、不读取文件字节、
                 文件文本或页面正文。
               </p>
@@ -1611,7 +1611,7 @@ function ReportsDashboard() {
                 </div>
               ) : (
                 <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-                  还没有 intake 文件。上传 PPT、Word、Excel、PDF、HTML 或 Markdown 后，
+                  还没有入库文件。上传 PPT、Word、Excel、PDF、HTML 或 Markdown 后，
                   这里会显示哪些是原生展示，哪些需要转换复核。
                 </p>
               )}
@@ -1641,7 +1641,7 @@ function ReportsDashboard() {
             <div className="mt-3 space-y-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
               <p>
                 报告文件会以文件预览块的形式挂在本地页面上。预览层支持 HTML、Markdown、
-                PDF、Office 文档、表格、演示文稿、notebook、EPUB、压缩包、媒体和文本/代码文件。
+                PDF、Office 文档、表格、演示文稿、Notebook、EPUB、压缩包、媒体和文本/代码文件。
               </p>
               <p>
                 HTML 报告预览默认阻止外部资源。未来如果要启用 AI 总结或 Web 同步，
@@ -1661,7 +1661,7 @@ function ReportsDashboard() {
                 原生预览 readiness
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                汇总当前多格式文件在 ZhiNotes page 里的本地展示能力。这个报告只读取格式能力元数据，
+                汇总当前多格式文件在 ZhiNotes 页面里的本地展示能力。这个报告只读取格式能力元数据，
                 不读取文件字节、文件文本或页面正文，也不会上传、同步或调用 AI。
               </p>
             </div>
@@ -1815,7 +1815,7 @@ function ReportsDashboard() {
             </div>
           ) : (
             <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有文件动作收据。上传报告文件、导入 Markdown、在 page 里执行“导入为可编辑块”、
+              还没有文件动作收据。上传报告文件、导入 Markdown、在页面里执行“导入为可编辑块”、
               “导入为数据库”或切换 HTML 外部资源，这里会自动出现本地记录。
             </p>
           )}
@@ -2016,8 +2016,8 @@ function ReportDecisionSummaryPanel({
       </div>
 
       <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-        报告决策摘要只读取本地 summary metadata，不包含报告标题、文件名、
-        页面正文、文件字节、文件文本、数据库行值、prompt、token、
+        报告决策摘要只读取本地摘要元数据，不包含报告标题、文件名、
+        页面正文、文件字节、文件文本、数据库行值、提示词、token、
         凭证、云端数据或 AI 输出。
       </p>
     </section>
@@ -2501,7 +2501,7 @@ function ReportTrackerIntakeCard({
         ))}
       </div>
       <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
-        将创建一条本地报告跟踪表行，写入报告页 relation、格式、
+        将创建一条本地报告跟踪表行，写入报告页关系、格式、
         状态、来源和核心结论。
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
@@ -2737,7 +2737,7 @@ function PreviewRoutingPanel({
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             把当前格式覆盖、预览就绪度和复核队列汇总成文件进入
-            ZhiNotes page 的路线图：原生预览、本地转换、表格入库、元数据复核或本地留存。
+            ZhiNotes 页面的路线图：原生预览、本地转换、表格入库、元数据复核或本地留存。
             这个路由包不读取文件名、正文、字节、表格值，不写入、不上传、不调用 AI。
           </p>
         </div>

@@ -735,7 +735,7 @@ function run() {
     "cloud-ai-external-resource-boundary",
     "HTML Page 预览",
     "Markdown 可编辑导入",
-    "跟踪表与 relation",
+    "跟踪表与关系",
     "AI、云同步与外部资源边界",
     "load_html_external_resources_without_confirmation",
     "send_report_text_or_file_bytes_to_ai",
@@ -974,7 +974,7 @@ function run() {
   assertIncludes(
     files.reportsShell,
     reportsShell,
-    "报告 intake 队列",
+    "报告入库队列",
     "Reports module must render the intake queue panel."
   );
   assertIncludes(
@@ -1174,7 +1174,7 @@ function run() {
     "database-import-candidate",
     "conversion-review",
     "metadata-retain",
-    "ZhiNotes page 是统一容器",
+    "ZhiNotes 页面是统一容器",
     "local-file-routing-only",
     "can_preview_native_now: true",
     "can_review_converted_import_now: true",
@@ -1301,7 +1301,7 @@ function run() {
     "当前可做",
     "保持关闭",
     "待你确认",
-    "报告决策摘要只读取本地 summary metadata",
+    "报告决策摘要只读取本地摘要元数据",
   ]) {
     assertIncludes(
       files.reportsShell,

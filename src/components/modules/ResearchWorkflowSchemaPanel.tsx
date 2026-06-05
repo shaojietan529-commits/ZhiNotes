@@ -30,8 +30,8 @@ export default function ResearchWorkflowSchemaPanel({
             {title}
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            {spec.label}模块使用统一投研 schema：页面承载判断，数据库承载状态，
-            relation 字段把公司、报告、会议和组合连接起来。
+            {spec.label}模块使用统一投研结构：页面承载判断，数据库承载状态，
+            关系字段把公司、报告、会议和组合连接起来。
           </p>
         </div>
         <span className="w-fit rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">

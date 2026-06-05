@@ -292,8 +292,8 @@ function run() {
   }
   for (const snippet of [
     "ModuleRelationHandoffPanel",
-    "Relation 补全手册",
-    "不自动写 relation",
+    "关系补全手册",
+    "不自动写关系",
     "打开目标库",
     "handoff: \"module-connections\"",
   ]) {

@@ -147,8 +147,8 @@ export default function ResearchConnectionsPanel({
       <div className="grid gap-3 md:grid-cols-5">
         <Metric label="已识别资产" value={graph.assets.length} />
         <Metric label="已连接资产" value={connectedAssetCount} />
-        <Metric label="Relation 连接" value={relationCount} />
-        <Metric label="Relation 字段" value={graphReport.summary.relation_fields} />
+        <Metric label="关系连接" value={relationCount} />
+        <Metric label="关系字段" value={graphReport.summary.relation_fields} />
         <Metric label="待补全关联" value={graph.unlinkedAssets.length} />
       </div>
 
@@ -270,7 +270,7 @@ function RelationList({
       </h3>
       {links.length === 0 ? (
         <p className="mt-3 text-xs leading-5 text-zinc-400">
-          暂无结构化 relation 连接。
+          暂无结构化关系连接。
         </p>
       ) : (
         <ul className="mt-3 space-y-2">
@@ -416,19 +416,19 @@ function ModuleRelationHandoffPanel({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Relation 补全手册
+            关系补全手册
           </h3>
           <p className="mt-1 text-xs leading-5 text-zinc-400">
             当前模块的待补{getResearchAssetKindLabel(focusKind)}资产会被拆成可执行步骤。
-            这里只打开本地页面和数据库，不自动写 relation。
+            这里只打开本地页面和数据库，不自动写关系。
           </p>
         </div>
-        <span className="text-xs text-zinc-400">{totalPackets} 个 handoff</span>
+        <span className="text-xs text-zinc-400">{totalPackets} 个交接步骤</span>
       </div>
 
       {packets.length === 0 ? (
         <p className="mt-3 text-xs leading-5 text-zinc-400">
-          暂无可执行 handoff。先创建跟踪表和 relation 字段后，这里会显示补全步骤。
+          暂无可执行交接步骤。先创建跟踪表和关系字段后，这里会显示补全步骤。
         </p>
       ) : (
         <div className="mt-3 grid gap-2 lg:grid-cols-2">
