@@ -12,6 +12,7 @@ const files = {
   filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
   blockDragHandle: "src/components/editor/BlockDragHandleLayer.tsx",
   editor: "src/components/editor/Editor.tsx",
+  quickSearch: "src/components/sidebar/QuickSearch.tsx",
   readme: "README.md",
 };
 
@@ -39,6 +40,7 @@ function run() {
   const filePreviewUpload = readProjectFile(files.filePreviewUpload);
   const blockDragHandle = readProjectFile(files.blockDragHandle);
   const editor = readProjectFile(files.editor);
+  const quickSearch = readProjectFile(files.quickSearch);
   const readme = readProjectFile(files.readme);
 
   assertIncludes(
@@ -117,6 +119,22 @@ function run() {
       blockDragHandle,
       snippet,
       "Block insert menu must expose Heading 3 alongside Heading 1 and Heading 2."
+    );
+  }
+
+  for (const snippet of [
+    "aliases: [\"h3\", \"heading 3\", \"subheading\", \"三级标题\", \"小标题\"]",
+    "aliases: [\"h3\", \"heading\", \"heading 3\", \"subheading\", \"三级标题\", \"小标题\"]",
+  ]) {
+    const sourceLabel = snippet.includes("\"heading\",")
+      ? files.quickSearch
+      : files.slashSuggestion;
+    const source = snippet.includes("\"heading\",") ? quickSearch : slashSuggestion;
+    assertIncludes(
+      sourceLabel,
+      source,
+      snippet,
+      "Heading 3 must be searchable from slash commands and Cmd/Ctrl+K."
     );
   }
 

@@ -72,7 +72,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "三级小标题",
       icon: "H3",
       category: "基础块",
-      aliases: ["h3"],
+      aliases: ["h3", "heading 3", "subheading", "三级标题", "小标题"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setHeading({ level: 3 }).run();
       },

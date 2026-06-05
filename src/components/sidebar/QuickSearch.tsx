@@ -1068,7 +1068,7 @@ function getEditorCommandActions(
       description: "把当前块转换成小标题",
       icon: "H3",
       category: "Editor",
-      aliases: ["h3", "heading"],
+      aliases: ["h3", "heading", "heading 3", "subheading", "三级标题", "小标题"],
       run: () => runEditorCommand("heading-3"),
     },
     {
