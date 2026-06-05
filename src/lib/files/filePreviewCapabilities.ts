@@ -30,7 +30,7 @@ export const FILE_PREVIEW_CAPABILITIES: FilePreviewCapability[] = [
     editable_import: "可导入为可编辑块，但复杂布局、脚本和部分样式会被清理。",
     database_import: "不适用。",
     privacy_boundary:
-      "外部图片、脚本、样式、字体、frame 和网络端点默认阻止；开启前需要 typed confirmation receipt。",
+      "外部图片、脚本、样式、字体、iframe 和网络端点默认阻止；开启前需要确认记录。",
   },
   {
     id: "markdown-note",
@@ -52,7 +52,7 @@ export const FILE_PREVIEW_CAPABILITIES: FilePreviewCapability[] = [
     preview: "浏览器原生 PDF 预览。",
     editable_import: "暂不转换为可编辑块。",
     database_import: "不适用。",
-    privacy_boundary: "PDF bytes 保存在浏览器本地 IndexedDB，不上传。",
+    privacy_boundary: "PDF 字节保存在浏览器本地 IndexedDB，不上传。",
   },
   {
     id: "spreadsheet",
@@ -63,8 +63,8 @@ export const FILE_PREVIEW_CAPABILITIES: FilePreviewCapability[] = [
     preview: "转换为表格 HTML 预览，最多显示前 5 个工作表。",
     editable_import: "可导入为可编辑表格块。",
     database_import:
-      "可批量导入为本地数据库，导入前需要 typed confirmation receipt。",
-    privacy_boundary: "导入 receipt 不包含单元格值或文件 bytes。",
+      "可批量导入为本地数据库，导入前需要输入确认文本并留下确认记录。",
+    privacy_boundary: "导入记录不包含单元格值或文件字节。",
   },
   {
     id: "word",
@@ -121,7 +121,7 @@ export const FILE_PREVIEW_CAPABILITIES: FilePreviewCapability[] = [
     preview: "列出压缩包内容、类型、压缩后大小和压缩方式。",
     editable_import: "不导入为可编辑块。",
     database_import: "不适用。",
-    privacy_boundary: "只读取本地目录元数据，不解包写入 workspace。",
+    privacy_boundary: "只读取本地目录元数据，不解包写入工作区。",
   },
   {
     id: "notebook",

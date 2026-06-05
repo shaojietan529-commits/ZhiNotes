@@ -13,6 +13,7 @@ import {
   type FileLibraryPriority,
   type FileLibraryWorkbenchReport,
 } from "@/lib/files/fileLibraryWorkbench";
+import type { FilePreviewSupportLevel } from "@/lib/files/filePreviewCapabilities";
 import {
   listStoredPageFiles,
   type StoredPageFile,
@@ -139,7 +140,7 @@ function FilesDashboard() {
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
                 集中盘点 HTML、Markdown、PDF、Excel、Word、PPT、Notebook、
-                ZIP 和媒体文件的本地处理路线。文件库只做 metadata 工作台，
+                ZIP 和媒体文件的本地处理路线。文件库只做元数据工作台，
                 不自动删除、不上传、不同步、不调用 AI。
               </p>
             </div>
@@ -206,7 +207,7 @@ function FilesDashboard() {
               <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
                 真实文件上传仍从报告库进入；Markdown 笔记继续走笔记中心；
                 Excel/CSV 入库必须走数据库中心的确认门槛。本地界面显示文件名；
-                导出不包含文件名、bytes 或正文。
+                导出不包含文件名、字节或正文。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -230,7 +231,7 @@ function FilesDashboard() {
                 本地格式路线和隐私边界
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                工作台从 IndexedDB 文件 metadata 和格式能力矩阵生成，
+                工作台从 IndexedDB 文件元数据和格式能力矩阵生成，
                 用来决定哪些文件原生预览、哪些要转换复核、哪些要表格入库、
                 哪些只保留下载。
               </p>
@@ -268,8 +269,8 @@ function FilesDashboard() {
               多格式文件在 page 里的处理方式
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-              这张矩阵来自本地能力表和 IndexedDB 文件 metadata，只显示格式、
-              扩展名、支持等级和下一步路线；不读取文件正文、bytes、表格值或上传文件。
+              这张矩阵来自本地能力表和 IndexedDB 文件元数据，只显示格式、
+              扩展名、支持等级和下一步路线；不读取文件正文、字节、表格值或上传文件。
             </p>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -289,7 +290,7 @@ function FilesDashboard() {
             </h2>
             <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
               这里显示本机浏览器里的文件名，方便你识别；导出的 JSON 只保留
-              redacted label 和路线信息。
+              脱敏标签和路线信息。
             </p>
             <div className="mt-4 flex flex-col gap-3">
               {workbench.files.length === 0 ? (
@@ -317,7 +318,7 @@ function FilesDashboard() {
               下一步动作
             </h2>
             <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-              动作只打开本地模块或提示确认门槛，不会直接创建数据库 rows、
+              动作只打开本地模块或提示确认门槛，不会直接创建数据库行、
               加载外部资源、删除文件或连接云服务。
             </p>
             <div className="mt-4 flex flex-col gap-3">
@@ -368,7 +369,7 @@ function FilesDashboard() {
                 className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950"
               >
                 <span className="text-xs font-medium text-zinc-400">
-                  Step {step.order}
+                  步骤 {step.order}
                 </span>
                 <h3 className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
                   {step.title}
@@ -404,7 +405,7 @@ function FilesDashboard() {
                 key={action}
                 className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-500 dark:border-zinc-800 dark:text-zinc-400"
               >
-                {action}
+                {getForbiddenActionLabel(action)}
               </span>
             ))}
           </div>
@@ -435,7 +436,7 @@ function FileDecisionSummaryPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            File Decision Summary
+            文件决策摘要
           </p>
           <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             文件格式接入决策摘要
@@ -468,14 +469,14 @@ function FileDecisionSummaryPanel({
         <FileDecisionList title="当前可做" items={summary.safe_local_work} />
         <FileDecisionList title="保持关闭" items={summary.blocked_work} />
         <FileDecisionList
-          title="Owner 待确认"
+          title="待你确认"
           items={summary.required_owner_decisions}
         />
       </div>
 
       <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
-        文件决策摘要只读取本地 metadata 和格式能力矩阵；导出仍不包含文件名、
-        文件 bytes、文件正文、表格值、页面正文、token 或 credentials。
+        文件决策摘要只读取本地元数据和格式能力矩阵；导出仍不包含文件名、
+        文件字节、文件正文、表格值、页面正文、token 或凭证。
       </p>
     </section>
   );
@@ -580,7 +581,7 @@ function FileNativeStrategyPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Native Format Strategy
+            原生格式策略
           </p>
           <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             原生格式策略
@@ -592,15 +593,19 @@ function FileNativeStrategyPanel({
         <div className="grid min-w-[260px] gap-2 text-xs sm:grid-cols-3">
           <NativeStrategyFact
             label="统一容器"
-            value={strategy.canonical_container}
+            value={getNativeStrategyValueLabel(strategy.canonical_container)}
           />
           <NativeStrategyFact
             label="报告首选"
-            value={strategy.primary_generated_report_format}
+            value={getNativeStrategyValueLabel(
+              strategy.primary_generated_report_format
+            )}
           />
           <NativeStrategyFact
             label="笔记首选"
-            value={strategy.primary_written_note_format}
+            value={getNativeStrategyValueLabel(
+              strategy.primary_written_note_format
+            )}
           />
         </div>
       </div>
@@ -662,7 +667,7 @@ function FileNativeStrategyCard({
               {item.label}
             </h3>
             <p className="mt-1 font-mono text-[11px] text-zinc-400">
-              {item.default_route}
+              {getNativeRouteLabel(item.default_route)}
             </p>
           </div>
           <NativePreferencePill preference={item.native_preference} />
@@ -732,6 +737,29 @@ function NativeStrategyList({
       </ul>
     </article>
   );
+}
+
+function getNativeStrategyValueLabel(value: string) {
+  const labels: Record<string, string> = {
+    "zhinote-page": "ZhiNotes Page",
+    html: "HTML 报告",
+    markdown: "Markdown 笔记",
+    "tiptap-html": "可编辑页面块",
+  };
+  return labels[value] ?? value;
+}
+
+function getNativeRouteLabel(
+  route: FileLibraryWorkbenchReport["native_strategy"]["items"][number]["default_route"]
+) {
+  const labels: Record<typeof route, string> = {
+    "page-native-preview": "Page 原生预览",
+    "editable-page-import": "可编辑页面导入",
+    "database-import-candidate": "数据库导入候选",
+    "conversion-review": "转换复核",
+    "metadata-retain": "元数据留存",
+  };
+  return labels[route];
 }
 
 function FileLibraryLaneCard({
@@ -847,12 +875,12 @@ function FileFormatGroupCard({
           </p>
         </div>
         <span className="shrink-0 rounded-full bg-zinc-200 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-          {group.support_level}
+          {getSupportLevelLabel(group.support_level)}
         </span>
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-500 dark:text-zinc-400">
         <span>{group.local_file_count} 个本地文件</span>
-        <span>{group.route_lane_id}</span>
+        <span>{getLaneLabel(group.route_lane_id)}</span>
         {group.confirmation_required && <span>需确认</span>}
       </div>
       <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
@@ -889,8 +917,8 @@ function FileCard({
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-500 dark:text-zinc-400">
         <span>{item.size_label}</span>
-        <span>{item.support_level}</span>
-        <span>{item.lane_id}</span>
+        <span>{getSupportLevelLabel(item.support_level)}</span>
+        <span>{getLaneLabel(item.lane_id)}</span>
         {item.database_import_candidate && <span>数据库候选</span>}
         {item.editable_import_candidate && <span>可编辑候选</span>}
         {item.download_only && <span>本地留存</span>}
@@ -934,7 +962,7 @@ function ActionStatusPill({ status }: { status: FileLibraryActionStatus }) {
     "ready-to-preview": "可预览",
     "needs-conversion-review": "需转换复核",
     "needs-database-confirmation": "需入库确认",
-    "metadata-only": "仅 metadata",
+    "metadata-only": "仅元数据",
     "download-retain": "本地留存",
     "blocked-boundary": "边界阻止",
   };
@@ -943,6 +971,49 @@ function ActionStatusPill({ status }: { status: FileLibraryActionStatus }) {
       {label[status]}
     </span>
   );
+}
+
+function getSupportLevelLabel(
+  level: FilePreviewSupportLevel | "unknown"
+): string {
+  const labels: Record<FilePreviewSupportLevel | "unknown", string> = {
+    native: "原生预览",
+    converted: "本地转换",
+    metadata: "元数据复核",
+    "download-only": "仅下载",
+    unknown: "未知支持",
+  };
+  return labels[level];
+}
+
+function getLaneLabel(laneId: FileLibraryLane["id"]): string {
+  const labels: Record<FileLibraryLane["id"], string> = {
+    "native-preview": "原生预览",
+    "editable-import": "可编辑导入",
+    "database-import": "表格入库",
+    "metadata-review": "元数据复核",
+    "download-retain": "本地留存",
+    "cloud-ai-boundary": "云/AI 边界",
+  };
+  return labels[laneId];
+}
+
+function getForbiddenActionLabel(action: string): string {
+  const labels: Record<string, string> = {
+    upload_file_bytes_without_confirmation: "未确认前上传文件字节",
+    send_file_text_to_ai: "向 AI 发送文件文本",
+    load_html_external_resources_without_confirmation:
+      "未确认加载 HTML 外部资源",
+    bulk_import_spreadsheet_without_typed_confirmation:
+      "未输入确认文本批量导入表格",
+    delete_or_overwrite_local_files: "删除或覆盖本地文件",
+    export_file_names_from_workbench: "从工作台导出文件名",
+    export_file_bytes_from_workbench: "从工作台导出文件字节",
+    sync_files_to_cloud: "同步文件到云端",
+    execute_notebook_code: "执行 Notebook 代码",
+    unzip_archive_into_workspace: "解包压缩包到工作区",
+  };
+  return labels[action] ?? action;
 }
 
 function downloadJsonFile(fileName: string, payload: FileLibraryWorkbenchReport & {

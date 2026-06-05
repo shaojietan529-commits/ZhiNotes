@@ -256,10 +256,10 @@ const LANE_META: Record<
   "database-import": {
     id: "database-import",
     title: "表格入库",
-    description: "Excel、CSV、TSV、ODS 是数据库候选，但必须经 typed confirmation。",
+    description: "Excel、CSV、TSV、ODS 是数据库候选，但必须输入确认文本。",
     route: "/modules/databases",
     privacy_boundary:
-      "工作台不读取 spreadsheet cell values；真实入库只在页面预览或数据库页确认后发生。",
+      "工作台不读取表格单元格值；真实入库只在页面预览或数据库页确认后发生。",
   },
   "metadata-review": {
     id: "metadata-review",
@@ -267,7 +267,7 @@ const LANE_META: Record<
     description: "ZIP、未知或低结构文件先复核类型、用途和保留策略。",
     route: "/modules/files",
     privacy_boundary:
-      "只使用文件 kind、大小、时间和能力矩阵，不解包、不读取 bytes。",
+      "只使用文件类型、大小、时间和能力矩阵，不解包、不读取字节。",
   },
   "download-retain": {
     id: "download-retain",
@@ -275,7 +275,7 @@ const LANE_META: Record<
     description: "旧版 Office 或暂不支持格式保留在本地，等待转换或手动下载。",
     route: "/modules/files",
     privacy_boundary:
-      "不删除、不移动、不上传文件；保留策略只记录本地 metadata。",
+      "不删除、不移动、不上传文件；保留策略只记录本地元数据。",
   },
   "cloud-ai-boundary": {
     id: "cloud-ai-boundary",
@@ -283,7 +283,7 @@ const LANE_META: Record<
     description: "文件外发、AI 处理、云同步和外部资源加载必须单独确认。",
     route: "/modules/sync",
     privacy_boundary:
-      "文件库不会把文件 bytes、文本或名称发送给云端、AI provider 或外部资源。",
+      "文件库不会把文件字节、文本或名称发送给云端、AI 服务或外部资源。",
   },
 };
 
@@ -315,7 +315,7 @@ export function buildFileLibraryWorkbenchReport(
     format_version: 1,
     report_status: "local-file-library-only",
     privacy_note:
-      "Generated locally from IndexedDB file metadata and the file preview capability matrix. The local UI may show file names to the user, but the exported workbench report redacts file names and does not include file bytes, file text, page body text, spreadsheet values, cloud data, AI prompts, tokens, or credentials. It does not write workspace data, load external resources, import database values, connect cloud services, upload data, or enable AI.",
+      "由 IndexedDB 文件元数据和文件预览能力矩阵在本地生成。本地 UI 可以向用户显示文件名，但导出的工作台报告会脱敏文件名，且不包含文件字节、文件文本、页面正文、表格值、云端数据、AI prompt、token 或凭证。它不写入工作区数据、不加载外部资源、不导入数据库值、不连接云服务、不上传数据、也不启用 AI。",
     boundary: {
       local_report_only: true,
       reads_file_metadata: true,
@@ -364,16 +364,16 @@ function buildNativeStrategy(): FileLibraryNativeStrategy {
     current_recommendation:
       "如果必须选一个原生容器，ZhiNotes page 是统一容器；AI 生成的可视化报告优先用 HTML 沙盒原生预览，个人写作优先用 Markdown 导入为可编辑块，表格资料优先转为本地数据库候选。",
     safe_defaults: [
-      "HTML 报告默认以 sandbox iframe 在 page 内原生预览，并阻止外部资源。",
+      "HTML 报告默认以沙盒 iframe 在 page 内原生预览，并阻止外部资源。",
       "Markdown/MDX 默认可本地预览，也可以导入为可编辑 page 内容。",
       "PDF、图片、音频、视频和文本优先使用浏览器本地原生预览。",
-      "Excel/CSV/ODS 默认只进入数据库导入候选，真实入库前必须 typed confirmation。",
+      "Excel/CSV/ODS 默认只进入数据库导入候选，真实入库前必须输入确认文本。",
     ],
     blocked_defaults: [
       "不默认加载 HTML 外部图片、脚本、样式、字体或 frame。",
-      "不默认把 Office/PDF/Notebook/Spreadsheet 内容发送给 AI 或云端。",
-      "不默认批量导入 spreadsheet cell values，也不自动创建数据库 rows。",
-      "不默认执行 notebook 代码、解包 ZIP 到 workspace、或删除本地文件。",
+      "不默认把 Office、PDF、Notebook 或表格内容发送给 AI 或云端。",
+      "不默认批量导入表格单元格值，也不自动创建数据库行。",
+      "不默认执行 notebook 代码、解包 ZIP 到工作区、或删除本地文件。",
     ],
     items: [
       nativeStrategyItem(
@@ -381,24 +381,24 @@ function buildNativeStrategy(): FileLibraryNativeStrategy {
         "HTML 可视化报告",
         "page-native-preview",
         "primary",
-        "AI 生成的可交互投研报告、图表和 dashboard。",
-        "在 page 中以 sandbox iframe 原生展示，保留原始布局；复杂报告不强制转成编辑块。",
-        "加载外部资源前必须 typed confirmation。",
+        "AI 生成的可交互投研报告、图表和仪表盘。",
+        "在 page 中以沙盒 iframe 原生展示，保留原始布局；复杂报告不强制转成编辑块。",
+        "加载外部资源前必须输入确认文本。",
         "/modules/reports",
         "reports-preview-routing",
-        "默认阻止外部网络资源，文件 bytes 保留在本地。"
+        "默认阻止外部网络资源，文件字节保留在本地。"
       ),
       nativeStrategyItem(
         "markdown-editable",
         "Markdown / MDX 笔记",
         "editable-page-import",
         "primary",
-        "个人笔记、研究框架、会议纪要和 memo 草稿。",
+        "个人笔记、研究框架、会议纪要和备忘录草稿。",
         "可保留为文件预览，也可导入为 Tiptap 可编辑 page 内容。",
         "导入前只在本地解析；不上传文本。",
         "/modules/reports",
         "reports-conversion-review",
-        "本地文本解析，导出的 workbench 不包含 Markdown 正文。"
+        "本地文本解析，导出的工作台不包含 Markdown 正文。"
       ),
       nativeStrategyItem(
         "pdf-native",
@@ -407,22 +407,22 @@ function buildNativeStrategy(): FileLibraryNativeStrategy {
         "supported",
         "券商报告、公告、长 PDF 附件。",
         "优先使用浏览器 PDF 原生预览；暂不把 PDF 自动转成可编辑正文。",
-        "AI 摘要或全文提取必须另走 payload preview 和 owner gate。",
+        "AI 摘要或全文提取必须另走发送内容预览和用户确认。",
         "/modules/reports",
         "reports-preview-routing",
-        "PDF bytes 保存在本地 IndexedDB，不上传。"
+        "PDF 字节保存在本地 IndexedDB，不上传。"
       ),
       nativeStrategyItem(
         "spreadsheet-database",
         "Excel / CSV / ODS",
         "database-import-candidate",
         "review-required",
-        "模型表、跟踪表、财务数据、指标表和交易 comps。",
-        "先显示本地表格预览，再作为数据库导入候选；不把 spreadsheet 当普通文档处理。",
-        "导入数据库前必须 typed confirmation，不批量静默写 rows。",
+        "模型表、跟踪表、财务数据、指标表和交易可比数据。",
+        "先显示本地表格预览，再作为数据库导入候选；不把表格当普通文档处理。",
+        "导入数据库前必须输入确认文本，不批量静默写入行。",
         "/modules/databases",
         "databases-import-export-readiness",
-        "工作台不读取或导出 cell values。"
+        "工作台不读取或导出单元格值。"
       ),
       nativeStrategyItem(
         "office-conversion",
@@ -442,7 +442,7 @@ function buildNativeStrategy(): FileLibraryNativeStrategy {
         "conversion-review",
         "review-required",
         "研究 notebook、电子书章节、富文本资料。",
-        "本地解析为预览 HTML，可选择导入为可编辑块；Notebook 只读 cells，不执行代码。",
+        "本地解析为预览 HTML，可选择导入为可编辑块；Notebook 只读单元格，不执行代码。",
         "执行代码、加载远程资源或 AI 处理保持关闭。",
         "/modules/files",
         "files-format-matrix",
@@ -453,12 +453,12 @@ function buildNativeStrategy(): FileLibraryNativeStrategy {
         "ZIP / Archive",
         "metadata-retain",
         "retain-only",
-        "原始资料包、批量附件、导出的 workspace assets。",
-        "只显示 archive metadata 和保留/下载路线；不自动解包写入 workspace。",
+        "原始资料包、批量附件、导出的工作区资产。",
+        "只显示压缩包元数据和保留/下载路线；不自动解包写入工作区。",
         "解包、批量导入或覆盖写入必须单独确认。",
         "/modules/files",
         "files-format-matrix",
-        "只读取目录元数据，不写入 workspace。"
+        "只读取目录元数据，不写入工作区。"
       ),
       nativeStrategyItem(
         "media-text-native",
@@ -467,14 +467,14 @@ function buildNativeStrategy(): FileLibraryNativeStrategy {
         "supported",
         "截图、录音、视频、纯文本、JSON、OPML。",
         "媒体和文本尽量用浏览器原生预览；文本、代码和 OPML 可导入为可编辑块。",
-        "外发、转写、AI 处理或云同步前必须 owner gate。",
+        "外发、转写、AI 处理或云同步前必须由你确认。",
         "/modules/reports",
         "reports-preview-routing",
-        "所有内容保留本地，工作台导出不含 bytes 或正文。"
+        "所有内容保留本地，工作台导出不含字节或正文。"
       ),
     ],
     privacy_boundary:
-      "Native strategy is generated from static capability metadata only. It does not inspect local file bytes, file text, page bodies, spreadsheet cell values, cloud data, prompts, tokens, credentials, or private research content.",
+      "原生格式策略只由静态能力元数据生成；不检查本地文件字节、文件文本、页面正文、表格单元格值、云端数据、prompt、token、凭证或私人研究内容。",
   };
 }
 
@@ -523,7 +523,7 @@ function buildDecisionSummary(
   return {
     current_state: "local-file-routing-only",
     current_conclusion:
-      "可以继续把文件留在本地 page 中预览、转换复核和整理路线；表格批量入库、HTML 外部资源、AI 文件处理、云同步和文件 bytes 外发仍然需要独立 owner gate。",
+      "可以继续把文件留在本地 page 中预览、转换复核和整理路线；表格批量入库、HTML 外部资源、AI 文件处理、云同步和文件字节外发仍然需要你单独确认。",
     can_preview_native_now: true,
     can_review_converted_import_now: true,
     can_bulk_import_spreadsheet_now: false,
@@ -534,19 +534,19 @@ function buildDecisionSummary(
       "HTML、PDF、图片、音频、视频和文本优先保留在 page 内本地预览。",
       "Markdown、Word、PPT、RTF、EPUB 和 Notebook 先本地转换预览，再人工复核。",
       "ZIP、未知格式和旧版 Office 先本地留存或元数据复核。",
-      "导出文件工作台 packet 时继续排除文件名、bytes、正文和表格值。",
+      "导出文件工作台时继续排除文件名、字节、正文和表格值。",
     ],
     blocked_work: [
       "不能默认加载 HTML 远程图片、脚本、样式、字体或 iframe。",
-      "不能默认把 Excel/CSV 批量写入数据库 rows。",
-      "不能把文件文本、文件 bytes 或文件名发送给 AI provider 或云端。",
+      "不能默认把 Excel/CSV 批量写入数据库行。",
+      "不能把文件文本、文件字节或文件名发送给 AI 服务或云端。",
       "不能自动删除、覆盖、解包、执行 notebook 或同步文件。",
     ],
     required_owner_decisions: [
-      "确认 HTML 报告是否允许外部资源，默认保持 sandboxed preview。",
+      "确认 HTML 报告是否允许外部资源，默认保持沙盒预览。",
       "确认转换类文件是否足够保真，尤其是 Word、PPT、Notebook 和 EPUB。",
-      "确认表格入库的字段、行数、目标数据库、回滚边界和 typed confirmation。",
-      "确认云同步或 AI 处理前的 payload preview、权限检查和审计事件。",
+      "确认表格入库的字段、行数、目标数据库、回滚边界，并输入确认文本。",
+      "确认云同步或 AI 处理前的发送内容预览、权限检查和审计事件。",
     ],
     decisions: [
       {
@@ -556,7 +556,7 @@ function buildDecisionSummary(
         answer: "可以继续",
         evidence: `${nativeFiles.length} 个本地文件走原生预览路线；HTML 外部资源仍默认阻止。`,
         next_action:
-          "从报告库打开 page file preview，先在本地确认 HTML/PDF/media 是否可读。",
+          "从报告库打开 page 文件预览，先在本地确认 HTML/PDF/媒体是否可读。",
         route: "/modules/reports",
         target_section_id: "reports-preview-routing",
         allowed_now: true,
@@ -575,7 +575,7 @@ function buildDecisionSummary(
         answer: "先复核",
         evidence: `${convertedFiles.length} 个本地文件属于转换路线，可能丢失复杂版式、公式、图表或输出。`,
         next_action:
-          "转换后先人工复核，再决定是否作为可编辑 page 内容、公司 memo 或报告摘要使用。",
+          "转换后先人工复核，再决定是否作为可编辑 page 内容、公司备忘录或报告摘要使用。",
         route: "/modules/reports",
         target_section_id: "reports-conversion-review",
         allowed_now: false,
@@ -592,9 +592,9 @@ function buildDecisionSummary(
         title: "表格入库",
         status: "requires-owner-confirmation",
         answer: "确认后再写",
-        evidence: `${spreadsheetFiles.length} 个表格文件是数据库导入候选；工作台不读取 cell values。`,
+        evidence: `${spreadsheetFiles.length} 个表格文件是数据库导入候选；工作台不读取单元格值。`,
         next_action:
-          "入库前确认字段、行数、目标数据库、回滚边界和 typed confirmation。",
+          "入库前确认字段、行数、目标数据库、回滚边界，并输入确认文本。",
         route: "/modules/databases",
         target_section_id: "databases-import-export-readiness",
         allowed_now: false,
@@ -627,12 +627,12 @@ function buildDecisionSummary(
       },
       {
         id: "cloud-ai-sync-boundary",
-        title: "Cloud / AI / Sync",
+        title: "云 / AI / 同步",
         status: "blocked",
         answer: "保持关闭",
-        evidence: `${highRiskActions.length} 个高风险边界动作仍阻塞；文件 bytes、文本和文件名不外发。`,
+        evidence: `${highRiskActions.length} 个高风险边界动作仍阻塞；文件字节、文本和文件名不外发。`,
         next_action:
-          "任何 AI、云同步、分享链接或外部资源动作，都先走 payload preview、权限检查、审计和 owner confirmation。",
+          "任何 AI、云同步、分享链接或外部资源动作，都先走发送内容预览、权限检查、审计和用户确认。",
         route: "/modules/sync",
         target_section_id: "web-beta-owner-review",
         allowed_now: false,
@@ -682,7 +682,7 @@ function buildFileItem(file: StoredPageFile, index: number): FileLibraryFileItem
       isLegacyRetainCandidate(file),
     next_action: getNextAction(file.kind, supportLevel),
     privacy_boundary:
-      "Exported file item redacts file name and never includes file bytes, file text, converted preview text, page body text, spreadsheet values, or external URLs.",
+      "导出的文件项会脱敏文件名，并且不包含文件字节、文件文本、转换预览文本、页面正文、表格值或外部 URL。",
   };
 }
 
@@ -729,13 +729,13 @@ function buildActions(files: FileLibraryFileItem[]): FileLibraryAction[] {
       status: "ready-to-preview",
       evidence: "当前 IndexedDB 文件库为空。",
       next_action:
-        "打开报告库，上传 HTML、Markdown、PDF、Excel、Word、PPT 或其他本地文件并生成 page preview block。",
+        "打开报告库，上传 HTML、Markdown、PDF、Excel、Word、PPT 或其他本地文件并生成 page 文件预览块。",
       action_route: "/modules/reports",
       route_label: "打开报告库",
       requires_manual_confirmation: true,
       writes_workspace_data: false,
       privacy_boundary:
-        "This action only opens the Reports module. File selection remains a separate local user action.",
+        "这个动作只打开报告模块。选择文件仍然是单独的本地用户动作。",
     });
     return actions;
   }
@@ -751,13 +751,13 @@ function buildActions(files: FileLibraryFileItem[]): FileLibraryAction[] {
         status: "ready-to-preview",
         evidence: `${file.kind_label} · ${file.size_label}`,
         next_action:
-          "在页面 file preview block 中本地查看；只有明确确认后才允许加载远程图片、脚本、字体、样式或 iframe。",
+          "在页面文件预览块中本地查看；只有明确确认后才允许加载远程图片、脚本、字体、样式或 iframe。",
         action_route: "/modules/reports",
         route_label: "打开报告库",
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "The file library does not load external resources or export file names, bytes, text, or URL lists.",
+          "文件库不会加载外部资源，也不会导出文件名、字节、文本或 URL 列表。",
       });
     }
 
@@ -771,13 +771,13 @@ function buildActions(files: FileLibraryFileItem[]): FileLibraryAction[] {
         status: "needs-database-confirmation",
         evidence: `${file.kind_label} · ${file.size_label}`,
         next_action:
-          "先在页面预览中检查字段、行数和回滚边界，再输入 typed confirmation 创建本地数据库。",
+          "先在页面预览中检查字段、行数和回滚边界，再输入确认文本创建本地数据库。",
         action_route: "/modules/databases",
         route_label: "打开数据库",
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "The workbench does not read spreadsheet values or create database rows.",
+          "工作台不读取表格值，也不会创建数据库行。",
       });
     }
 
@@ -789,7 +789,7 @@ function buildActions(files: FileLibraryFileItem[]): FileLibraryAction[] {
         title: `${file.kind_label} 需要转换复核`,
         priority: file.kind === "markdown" ? "low" : "medium",
         status: "needs-conversion-review",
-        evidence: `${file.support_level} · ${file.size_label}`,
+        evidence: `${getSupportLevelLabel(file.support_level)} · ${file.size_label}`,
         next_action:
           "转换成可编辑 page 内容后，先人工复核格式、表格、公式、批注和关键信息。",
         action_route: "/modules/reports",
@@ -797,7 +797,7 @@ function buildActions(files: FileLibraryFileItem[]): FileLibraryAction[] {
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "The workbench does not include converted text or page body text.",
+          "工作台不包含转换后的文本或页面正文。",
       });
     }
 
@@ -811,13 +811,13 @@ function buildActions(files: FileLibraryFileItem[]): FileLibraryAction[] {
         status: "metadata-only",
         evidence: `${file.mime_type_group} · ${file.size_label}`,
         next_action:
-          "确认来源和研究用途；不要自动解包、执行或写入 workspace。",
+          "确认来源和研究用途；不要自动解包、执行或写入工作区。",
         action_route: "/modules/files",
         route_label: "查看文件库",
         requires_manual_confirmation: false,
         writes_workspace_data: false,
         privacy_boundary:
-          "Metadata review does not read archive contents or file bytes.",
+          "元数据复核不会读取压缩包内容或文件字节。",
       });
     }
 
@@ -829,7 +829,7 @@ function buildActions(files: FileLibraryFileItem[]): FileLibraryAction[] {
         title: `${file.kind_label} 暂时本地留存`,
         priority: file.kind === "unknown" ? "high" : "medium",
         status: "download-retain",
-        evidence: `${file.support_level} · ${file.size_label}`,
+        evidence: `${getSupportLevelLabel(file.support_level)} · ${file.size_label}`,
         next_action:
           "保持本地留存或先转换为受支持格式；不要伪装成可编辑导入。",
         action_route: "/modules/files",
@@ -837,7 +837,7 @@ function buildActions(files: FileLibraryFileItem[]): FileLibraryAction[] {
         requires_manual_confirmation: false,
         writes_workspace_data: false,
         privacy_boundary:
-          "Retain action does not delete, upload, execute, unzip, or sync files.",
+          "留存动作不会删除、上传、执行、解包或同步文件。",
       });
     }
   }
@@ -852,13 +852,13 @@ function buildActions(files: FileLibraryFileItem[]): FileLibraryAction[] {
       status: "blocked-boundary",
       evidence: `${files.length} 个本地文件目前只在浏览器 IndexedDB 中管理。`,
       next_action:
-        "任何 AI、云同步、外部资源或共享链接动作，都必须先经过 payload preview、权限检查和审计边界。",
+        "任何 AI、云同步、外部资源或共享链接动作，都必须先经过发送内容预览、权限检查和审计边界。",
       action_route: "/modules/sync",
       route_label: "打开同步",
       requires_manual_confirmation: true,
       writes_workspace_data: false,
       privacy_boundary:
-        "This boundary action never sends file names, bytes, text, prompts, tokens, or credentials.",
+        "这个边界动作不会发送文件名、字节、文本、prompt、token 或凭证。",
     });
   }
 
@@ -895,7 +895,7 @@ function buildReviewSequence(
         "/modules/reports",
         "reports-preview-routing",
         "文件需要挂在 ZhiNotes page 上，才能进入原生预览、可编辑导入和关系追踪。",
-        "至少有一个本地 file preview block 和 IndexedDB 文件。"
+        "至少有一个本地文件预览块和 IndexedDB 文件。"
       ),
     ];
   }
@@ -909,8 +909,8 @@ function buildReviewSequence(
         "先确认原生预览",
         "/modules/reports",
         "reports-preview-routing",
-        "HTML/PDF/media/text 适合先留在 page 中原生查看，避免过早转换损失信息。",
-        "关键文件能在 page 中预览，HTML 外部资源保持阻止或有 receipt。"
+        "HTML/PDF/媒体/文本适合先留在 page 中原生查看，避免过早转换损失信息。",
+        "关键文件能在 page 中预览，HTML 外部资源保持阻止或有确认记录。"
       )
     );
   }
@@ -935,8 +935,8 @@ function buildReviewSequence(
         "表格最后入库",
         "/modules/databases",
         "databases-import-export-readiness",
-        "Spreadsheet 入库会创建字段和 rows，属于批量写入，必须晚于结构复核。",
-        "导入前确认字段、行数、目标数据库、回滚边界和 typed confirmation。"
+        "表格入库会创建字段和行，属于批量写入，必须晚于结构复核。",
+        "导入前确认字段、行数、目标数据库、回滚边界，并输入确认文本。"
       )
     );
   }
@@ -948,7 +948,7 @@ function buildReviewSequence(
       "/modules/sync",
       "web-beta-owner-review",
       "文件是高敏感数据源，AI、云同步、共享链接和外部资源加载必须单独确认。",
-      "没有文件 bytes、文件文本或文件名被发送到外部。"
+      "没有文件字节、文件文本或文件名被发送到外部。"
     )
   );
   return steps;
@@ -1048,7 +1048,7 @@ function getNextAction(
   supportLevel: FilePreviewSupportLevel | "unknown"
 ) {
   if (kind === "html") {
-    return "在 page 中原生预览；外部资源默认阻止，开启前需要 confirmation receipt。";
+    return "在 page 中原生预览；外部资源默认阻止，开启前需要确认记录。";
   }
   if (kind === "spreadsheet") {
     return "先本地预览，再确认字段、行数和回滚边界后导入数据库。";
@@ -1057,12 +1057,12 @@ function getNextAction(
     return "转换为可编辑内容前先复核格式和信息保真度。";
   }
   if (supportLevel === "metadata") {
-    return "只做元数据复核，不自动解包或写入 workspace。";
+    return "只做元数据复核，不自动解包或写入工作区。";
   }
   if (supportLevel === "unknown") {
     return "先保留本地下载，确认安全路线后再新增预览或转换能力。";
   }
-  return "保留在 page 中原生预览，并按需要连接到公司、报告、会议或 memo。";
+  return "保留在 page 中原生预览，并按需要连接到公司、报告、会议或备忘录。";
 }
 
 function getCapabilityNextAction(capabilityId: string) {
@@ -1097,9 +1097,27 @@ function getKindLabel(kind: PageFileKind) {
   return labels[kind];
 }
 
+function getSupportLevelLabel(level: FilePreviewSupportLevel | "unknown") {
+  const labels: Record<FilePreviewSupportLevel | "unknown", string> = {
+    native: "原生预览",
+    converted: "本地转换",
+    metadata: "元数据复核",
+    "download-only": "仅下载",
+    unknown: "未知支持",
+  };
+  return labels[level];
+}
+
 function getMimeTypeGroup(mimeType: string) {
-  if (!mimeType) return "unknown";
-  return mimeType.split("/")[0] || "unknown";
+  const group = mimeType.split("/")[0];
+  const labels: Record<string, string> = {
+    application: "应用文件",
+    audio: "音频",
+    image: "图片",
+    text: "文本",
+    video: "视频",
+  };
+  return labels[group] ?? "未知";
 }
 
 function sortFiles(left: FileLibraryFileItem, right: FileLibraryFileItem) {
