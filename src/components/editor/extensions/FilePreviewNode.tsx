@@ -611,6 +611,10 @@ function FilePreviewComponent({
     });
   };
 
+  const handleOpenFileRouteHub = () => {
+    router.push("/modules/files#files-preview-routing");
+  };
+
   const handleExportLastActionReceipt = () => {
     if (!lastActionReceipt) return;
     setExportingActionReceipt(true);
@@ -797,6 +801,14 @@ function FilePreviewComponent({
               记录留存 receipt
             </button>
           )}
+          <button
+            type="button"
+            onClick={handleOpenFileRouteHub}
+            className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            title="打开文件库里的原生预览、可编辑导入、表格入库和留存路线总控"
+          >
+            查看文件路线
+          </button>
           {canExpand && (
             <button
               type="button"

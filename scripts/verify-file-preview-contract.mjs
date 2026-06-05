@@ -269,6 +269,9 @@ function run() {
     "转换/导入",
     "隐私边界",
     "download-only",
+    "handleOpenFileRouteHub",
+    "/modules/files#files-preview-routing",
+    "查看文件路线",
   ]) {
     assertIncludes(
       files.previewNode,
