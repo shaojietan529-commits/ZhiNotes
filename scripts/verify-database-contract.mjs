@@ -310,7 +310,10 @@ function run() {
   }
   for (const snippet of [
     "sticky left-0",
-    "sticky left-10",
+    "buildFrozenColumnLayouts",
+    "getFrozenColumnStyle",
+    "TITLE_COLUMN_WIDTH",
+    "FROZEN_FIELD_WIDTH",
     "frozenCellBackground",
     "shadow-[1px_0_0_rgb(228,228,231)]",
   ]) {
@@ -319,6 +322,20 @@ function run() {
       tableView,
       snippet,
       "Table view must freeze the row number and title columns for wide databases."
+    );
+  }
+  for (const snippet of [
+    "frozenFieldIds",
+    "DatabaseFrozenColumnsButton",
+    "DATABASE_TABLE_FROZEN_FIELD_LIMIT",
+    "当前 Table 额外冻结列",
+    "清除冻结",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database table views must support configurable local frozen columns."
     );
   }
   for (const snippet of [
@@ -1951,6 +1968,7 @@ function run() {
         inline_grouped_views: true,
         table_column_summaries: true,
         table_frozen_title_column: true,
+        table_configurable_frozen_columns: true,
         button_draft_fields: true,
         import_export_readiness: true,
         feed_field_context: true,

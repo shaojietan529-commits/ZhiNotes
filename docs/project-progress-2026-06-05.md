@@ -199,7 +199,8 @@ schema migration 的能力默认保持关闭。
 ### 数据库表格冻结列阶段
 
 - Full database 的 Table 现在冻结左侧序号列和标题列，宽表横向滚动时仍能看到当前记录是谁。
-- 这是 freeze column 的基础本地版，只改表格展示 CSS，不写 view config，不读取或改写 row values。
+- Table view 现在可额外选择最多 3 个字段固定在左侧；配置写入当前 view config，只影响该 view
+  展示，不改变字段顺序，不读取或改写 row values。
 
 ### 数据库删除确认阶段
 

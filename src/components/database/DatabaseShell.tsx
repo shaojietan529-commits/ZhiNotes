@@ -110,6 +110,7 @@ const DATABASE_IMPORT_ACCEPT =
   ".xlsx,.xls,.csv,.tsv,.ods,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,text/tab-separated-values,application/vnd.oasis.opendocument.spreadsheet";
 const DATABASE_IMPORT_CONFIRMATION_PHRASE =
   getHighRiskRequiredPhrase("bulk-import");
+const DATABASE_TABLE_FROZEN_FIELD_LIMIT = 3;
 
 type RowWithPage = DatabaseRow & { page: Page };
 type SortDirection = "asc" | "desc";
@@ -156,6 +157,7 @@ interface DatabaseViewConfig {
   sortRules: DatabaseSortRule[];
   groupFieldId: string;
   hiddenFieldIds: string[];
+  frozenFieldIds: string[];
   chartGroupFieldId: string;
   dateFieldId: string;
 }
@@ -187,6 +189,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   ]);
   const [groupFieldId, setGroupFieldId] = useState("");
   const [hiddenFieldIds, setHiddenFieldIds] = useState<string[]>([]);
+  const [frozenFieldIds, setFrozenFieldIds] = useState<string[]>([]);
   const [chartGroupFieldId, setChartGroupFieldId] = useState("");
   const [dateFieldId, setDateFieldId] = useState("");
   const [relationCompletionBusyId, setRelationCompletionBusyId] =
@@ -213,6 +216,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     setSortRules(config.sortRules);
     setGroupFieldId(config.groupFieldId);
     setHiddenFieldIds(config.hiddenFieldIds);
+    setFrozenFieldIds(config.frozenFieldIds);
     setChartGroupFieldId(config.chartGroupFieldId);
     setDateFieldId(config.dateFieldId);
   }, [initialRowSearch]);
@@ -809,6 +813,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     focusPageId,
     focusPage,
     groupFieldId,
+    frozenFieldIds,
     dateFieldId,
   };
   const visibleFieldViewProps = {
@@ -983,6 +988,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         onGroupFieldChange={setGroupFieldId}
         hiddenFieldIds={hiddenFieldIds}
         onHiddenFieldIdsChange={setHiddenFieldIds}
+        frozenFieldIds={frozenFieldIds}
+        onFrozenFieldIdsChange={setFrozenFieldIds}
         chartGroupFieldId={chartGroupFieldId}
         onChartGroupFieldChange={setChartGroupFieldId}
         dateFieldId={dateFieldId}
@@ -1003,6 +1010,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
               sortRules,
               groupFieldId,
               hiddenFieldIds,
+              frozenFieldIds,
               chartGroupFieldId,
               dateFieldId,
             }),
@@ -1570,6 +1578,8 @@ function DatabaseViewControls({
   onGroupFieldChange,
   hiddenFieldIds,
   onHiddenFieldIdsChange,
+  frozenFieldIds,
+  onFrozenFieldIdsChange,
   chartGroupFieldId,
   onChartGroupFieldChange,
   dateFieldId,
@@ -1593,6 +1603,8 @@ function DatabaseViewControls({
   onGroupFieldChange: (value: string) => void;
   hiddenFieldIds: string[];
   onHiddenFieldIdsChange: (value: string[]) => void;
+  frozenFieldIds: string[];
+  onFrozenFieldIdsChange: (value: string[]) => void;
   chartGroupFieldId: string;
   onChartGroupFieldChange: (value: string) => void;
   dateFieldId: string;
@@ -1610,6 +1622,7 @@ function DatabaseViewControls({
     hasSortControls ||
     groupFieldId ||
     hiddenFieldIds.length > 0 ||
+    frozenFieldIds.length > 0 ||
     chartGroupFieldId ||
     dateFieldId;
   const chartableFields = fields.filter(isChartableField);
@@ -1663,6 +1676,13 @@ function DatabaseViewControls({
           hiddenFieldIds={hiddenFieldIds}
           onHiddenFieldIdsChange={onHiddenFieldIdsChange}
         />
+        {activeViewType === "table" && (
+          <DatabaseFrozenColumnsButton
+            fields={fields}
+            frozenFieldIds={frozenFieldIds}
+            onFrozenFieldIdsChange={onFrozenFieldIdsChange}
+          />
+        )}
         {activeViewType === "chart" && (
           <select
             value={chartGroupFieldId}
@@ -1713,6 +1733,7 @@ function DatabaseViewControls({
               onSortRulesChange([createDatabaseSortRule("position", "asc")]);
               onGroupFieldChange("");
               onHiddenFieldIdsChange([]);
+              onFrozenFieldIdsChange([]);
               onChartGroupFieldChange("");
               onDateFieldChange("");
             }}
@@ -2523,6 +2544,110 @@ function DatabasePropertiesButton({
               className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
             >
               只显示名称
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DatabaseFrozenColumnsButton({
+  fields,
+  frozenFieldIds,
+  onFrozenFieldIdsChange,
+}: {
+  fields: DatabaseField[];
+  frozenFieldIds: string[];
+  onFrozenFieldIdsChange: (value: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const freezeableFields = fields.filter((field) => field.position !== 0);
+  const freezeableFieldIds = new Set(freezeableFields.map((field) => field.id));
+  const normalizedFrozenFieldIds = frozenFieldIds.filter((id) =>
+    freezeableFieldIds.has(id)
+  );
+  const frozenFieldSet = new Set(normalizedFrozenFieldIds);
+
+  const toggleField = (field: DatabaseField) => {
+    if (frozenFieldSet.has(field.id)) {
+      onFrozenFieldIdsChange(
+        normalizedFrozenFieldIds.filter((id) => id !== field.id)
+      );
+      return;
+    }
+    if (normalizedFrozenFieldIds.length >= DATABASE_TABLE_FROZEN_FIELD_LIMIT) {
+      return;
+    }
+    onFrozenFieldIdsChange([...normalizedFrozenFieldIds, field.id]);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="h-8 rounded border border-zinc-200 px-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        title="选择当前 table view 固定在左侧的属性"
+      >
+        冻结 {normalizedFrozenFieldIds.length}/{DATABASE_TABLE_FROZEN_FIELD_LIMIT}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-72 rounded-lg border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          <div className="mb-2 px-1 text-[11px] font-medium text-zinc-400">
+            当前 Table 额外冻结列
+          </div>
+          <p className="mb-2 px-1 text-[11px] leading-5 text-zinc-400">
+            名称列始终固定；这里最多再固定{" "}
+            {DATABASE_TABLE_FROZEN_FIELD_LIMIT} 个字段。只影响当前 view
+            展示，不改变字段顺序或行值。
+          </p>
+          <div className="max-h-64 space-y-1 overflow-y-auto">
+            {freezeableFields.length === 0 ? (
+              <p className="px-2 py-3 text-center text-xs text-zinc-400">
+                暂无可额外冻结的字段
+              </p>
+            ) : (
+              freezeableFields.map((field) => {
+                const checked = frozenFieldSet.has(field.id);
+                const disabled =
+                  !checked &&
+                  normalizedFrozenFieldIds.length >=
+                    DATABASE_TABLE_FROZEN_FIELD_LIMIT;
+                return (
+                  <label
+                    key={field.id}
+                    className={`flex items-center gap-2 rounded px-2 py-1.5 text-xs ${
+                      disabled
+                        ? "text-zinc-300 dark:text-zinc-600"
+                        : "text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => toggleField(field)}
+                      className="rounded border-zinc-300"
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {getDatabaseFieldDisplayName(field)}
+                    </span>
+                    <span className="shrink-0 text-[11px] text-zinc-400">
+                      {getDatabaseFieldTypeLabel(field.field_type)}
+                    </span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => onFrozenFieldIdsChange([])}
+              className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+            >
+              清除冻结
             </button>
           </div>
         </div>
@@ -3468,6 +3593,7 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
     sortRules: [createDatabaseSortRule("position", "asc")],
     groupFieldId: "",
     hiddenFieldIds: [],
+    frozenFieldIds: [],
     chartGroupFieldId: "",
     dateFieldId: "",
   };
@@ -3506,6 +3632,7 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
       groupFieldId:
         typeof parsed.groupFieldId === "string" ? parsed.groupFieldId : "",
       hiddenFieldIds: parseStringArray(parsed.hiddenFieldIds),
+      frozenFieldIds: parseStringArray(parsed.frozenFieldIds),
       chartGroupFieldId:
         typeof parsed.chartGroupFieldId === "string" ? parsed.chartGroupFieldId : "",
       dateFieldId:

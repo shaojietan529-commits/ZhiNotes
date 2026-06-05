@@ -104,17 +104,18 @@ ZhiNotes 当前已有：
 - 已有 Formula、Rollup、字段说明、字段复制、字段排序、视图排序、行排序和表格摘要。
 - 已有 view rename、duplicate、delete、copy link、view description、本地 side peek 和 center peek。
   数据库行点击可先打开侧边或居中预览，也可按 view 保存为直接打开完整页面。
-- 已有基础版 freeze column：Full database 的 Table 固定序号列和标题列，宽表横向滚动时保留记录识别。
+- 已有可配置 freeze column：Full database 的 Table 固定序号列和标题列，也可按 table view
+  额外固定最多 3 个字段，宽表横向滚动时保留记录识别和关键属性。
 
 仍缺口：
 
 - 还没有 sub-group 二级分组。
-- 还没有可配置的多列 freeze column、nested advanced filter groups。
+- 还没有 nested advanced filter groups。
 - 多人协作前，还不能区分“只对我生效”和“保存给所有人”的 view 设置。
 
 建议下一步：
 
-- 第二批继续做可配置 freeze column。
+- 第二批继续做 sub-group 和 nested filter groups。
 - Nested filter groups 需要重新设计 view config 结构，建议放在数据库硬化阶段。
 
 ### Synced blocks

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import type { DatabaseField, DatabaseRow } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
@@ -28,6 +28,7 @@ import {
 interface TableViewProps {
   fields: DatabaseField[];
   rows: (DatabaseRow & { page: Page })[];
+  frozenFieldIds?: string[];
   onAddRow: () => void;
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
@@ -48,9 +49,19 @@ interface TableColumnSummary {
   title: string;
 }
 
+interface FrozenColumnLayout {
+  left: number;
+  width: number;
+}
+
+const ROW_NUMBER_COLUMN_WIDTH = 40;
+const TITLE_COLUMN_WIDTH = 220;
+const FROZEN_FIELD_WIDTH = 180;
+
 export default function TableView({
   fields,
   rows,
+  frozenFieldIds = [],
   onAddRow,
   onUpdateRow,
   onDeleteRow,
@@ -67,6 +78,7 @@ export default function TableView({
   const columnSummaries = fields.map((field) =>
     buildTableColumnSummary(field, rows, fields, relationPages)
   );
+  const frozenColumnLayouts = buildFrozenColumnLayouts(fields, frozenFieldIds);
 
   return (
     <div className="overflow-x-auto">
@@ -76,16 +88,18 @@ export default function TableView({
             <th className="sticky left-0 z-30 w-10 min-w-10 bg-white px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
               #
             </th>
-            {fields.map((field, fieldIndex) => {
+            {fields.map((field) => {
               const fieldDescription = getDatabaseFieldDescription(field);
               const fieldName = getDatabaseFieldDisplayName(field);
+              const frozenColumnLayout = frozenColumnLayouts.get(field.id);
               return (
                 <th
                   key={field.id}
                   title={fieldDescription || fieldName}
+                  style={getFrozenColumnStyle(frozenColumnLayout)}
                   className={`min-w-[140px] px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 ${
-                    fieldIndex === 0
-                      ? "sticky left-10 z-30 bg-white shadow-[1px_0_0_rgb(228,228,231)] dark:bg-zinc-950 dark:shadow-[1px_0_0_rgb(63,63,70)]"
+                    frozenColumnLayout
+                      ? "sticky z-30 bg-white shadow-[1px_0_0_rgb(228,228,231)] dark:bg-zinc-950 dark:shadow-[1px_0_0_rgb(63,63,70)]"
                       : ""
                   }`}
                 >
@@ -128,6 +142,7 @@ export default function TableView({
               relationPages={relationPages}
               focusPage={focusPage}
               focused={row.page_id === focusPageId}
+              frozenColumnLayouts={frozenColumnLayouts}
             />
           ))}
         </tbody>
@@ -138,12 +153,14 @@ export default function TableView({
             </td>
             {fields.map((field, index) => {
               const summary = columnSummaries[index];
+              const frozenColumnLayout = frozenColumnLayouts.get(field.id);
               return (
                 <td
                   key={field.id}
+                  style={getFrozenColumnStyle(frozenColumnLayout)}
                   className={`px-3 py-2 ${
-                    index === 0
-                      ? "sticky left-10 z-20 bg-zinc-50 shadow-[1px_0_0_rgb(228,228,231)] dark:bg-zinc-900 dark:shadow-[1px_0_0_rgb(63,63,70)]"
+                    frozenColumnLayout
+                      ? "sticky z-20 bg-zinc-50 shadow-[1px_0_0_rgb(228,228,231)] dark:bg-zinc-900 dark:shadow-[1px_0_0_rgb(63,63,70)]"
                       : ""
                   }`}
                   title={summary.title}
@@ -180,6 +197,38 @@ export default function TableView({
   );
 }
 
+function buildFrozenColumnLayouts(
+  fields: DatabaseField[],
+  frozenFieldIds: string[]
+) {
+  const frozenFieldSet = new Set(frozenFieldIds);
+  if (fields[0]) frozenFieldSet.add(fields[0].id);
+
+  const layouts = new Map<string, FrozenColumnLayout>();
+  let left = ROW_NUMBER_COLUMN_WIDTH;
+
+  for (const field of fields) {
+    if (!frozenFieldSet.has(field.id)) continue;
+    const width = field.position === 0 ? TITLE_COLUMN_WIDTH : FROZEN_FIELD_WIDTH;
+    layouts.set(field.id, { left, width });
+    left += width;
+  }
+
+  return layouts;
+}
+
+function getFrozenColumnStyle(
+  layout: FrozenColumnLayout | undefined
+): CSSProperties | undefined {
+  if (!layout) return undefined;
+  return {
+    left: layout.left,
+    width: layout.width,
+    minWidth: layout.width,
+    maxWidth: layout.width,
+  };
+}
+
 function TableRow({
   row,
   index,
@@ -196,6 +245,7 @@ function TableRow({
   relationPages,
   focusPage,
   focused,
+  frozenColumnLayouts,
 }: {
   row: DatabaseRow & { page: Page };
   index: number;
@@ -212,6 +262,7 @@ function TableRow({
   relationPages: Page[];
   focusPage?: Page | null;
   focused: boolean;
+  frozenColumnLayouts: Map<string, FrozenColumnLayout>;
 }) {
   const fieldValues: Record<string, unknown> =
     typeof row.field_values === "string"
@@ -238,37 +289,41 @@ function TableRow({
       >
         {index}
       </td>
-      {fields.map((field, i) => (
-        <td
-          key={field.id}
-          className={`px-3 py-1.5 ${
-            i === 0
-              ? `sticky left-10 z-10 shadow-[1px_0_0_rgb(228,228,231)] dark:shadow-[1px_0_0_rgb(63,63,70)] ${frozenCellBackground}`
-              : ""
-          }`}
-        >
-          {i === 0 ? (
-            // First field (Name) — clickable to open page
-            <button
-              onClick={onOpen}
-              className="text-left text-blue-600 dark:text-blue-400 hover:underline font-medium"
-            >
-              {row.page?.title || "未命名页面"}
-            </button>
-          ) : (
-            <CellEditor
-              field={field}
-              fields={fields}
-              row={row}
-              value={fieldValues[field.id]}
-              relationPages={relationPages}
-              focusPage={focusPage}
-              onOpenPage={onOpenPage}
-              onChange={(val) => handleCellChange(field.id, val)}
-            />
-          )}
-        </td>
-      ))}
+      {fields.map((field, i) => {
+        const frozenColumnLayout = frozenColumnLayouts.get(field.id);
+        return (
+          <td
+            key={field.id}
+            style={getFrozenColumnStyle(frozenColumnLayout)}
+            className={`px-3 py-1.5 ${
+              frozenColumnLayout
+                ? `sticky z-10 shadow-[1px_0_0_rgb(228,228,231)] dark:shadow-[1px_0_0_rgb(63,63,70)] ${frozenCellBackground}`
+                : ""
+            }`}
+          >
+            {i === 0 ? (
+              // First field (Name) — clickable to open page
+              <button
+                onClick={onOpen}
+                className="block max-w-full truncate text-left font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                {row.page?.title || "未命名页面"}
+              </button>
+            ) : (
+              <CellEditor
+                field={field}
+                fields={fields}
+                row={row}
+                value={fieldValues[field.id]}
+                relationPages={relationPages}
+                focusPage={focusPage}
+                onOpenPage={onOpenPage}
+                onChange={(val) => handleCellChange(field.id, val)}
+              />
+            )}
+          </td>
+        );
+      })}
       <td className="px-3 py-1.5 text-xs text-zinc-400">
         {formatRelativeDate(row.created_at)}
       </td>
