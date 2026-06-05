@@ -2436,7 +2436,7 @@ function run() {
       "Sync UI must render the Web launch workbench export button.",
     ],
     [
-      "上线 lanes",
+      "上线分组",
       "Sync UI must render Web launch workbench lanes.",
     ],
     [
@@ -2500,7 +2500,7 @@ function run() {
       "Sync UI must expose Alpha decision export from the summary.",
     ],
     [
-      "导出 Beta owner review",
+      "导出 Beta 用户复核",
       "Sync UI must expose Beta owner review export from the summary.",
     ],
     [

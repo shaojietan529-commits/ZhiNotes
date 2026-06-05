@@ -589,7 +589,7 @@ function SyncDashboard() {
       setSelectedCloudWorkspaceId(identity.cloud_workspace_id);
       setCloudWorkspace({
         id: identity.cloud_workspace_id,
-        name: identity.cloud_workspace_name ?? "Linked cloud workspace",
+        name: identity.cloud_workspace_name ?? "已连接云工作区",
         beta_status: "private-alpha",
         role: identity.cloud_role,
         created_at: identity.cloud_linked_at,
@@ -1465,7 +1465,7 @@ function SyncDashboard() {
           title:
             response.status === 501
               ? "云 workspace 列表尚未开启"
-              : "Workspace 列表读取失败",
+              : "工作区列表读取失败",
           detail: getCloudApiDetail(body, response),
         });
         return;
@@ -1494,8 +1494,8 @@ function SyncDashboard() {
       console.error("[Zhinote] Cloud workspace list failed:", err);
       setCloudMessage({
         tone: "error",
-        title: "Workspace 列表读取失败",
-        detail: err instanceof Error ? err.message : "Unknown cloud error",
+        title: "工作区列表读取失败",
+        detail: err instanceof Error ? err.message : "未知云端错误",
       });
     } finally {
       setBusyCloudAction(null);
@@ -1535,7 +1535,7 @@ function SyncDashboard() {
           title:
             response.status === 501
               ? "云端 workspace 创建尚未开启"
-              : "Workspace 创建失败",
+              : "工作区创建失败",
           detail: getCloudApiDetail(body, response),
         });
         return;
@@ -1559,8 +1559,8 @@ function SyncDashboard() {
       console.error("[Zhinote] Cloud workspace create failed:", err);
       setCloudMessage({
         tone: "error",
-        title: "Workspace 创建失败",
-        detail: err instanceof Error ? err.message : "Unknown cloud error",
+        title: "工作区创建失败",
+        detail: err instanceof Error ? err.message : "未知云端错误",
       });
     } finally {
       setBusyCloudAction(null);
@@ -1574,7 +1574,7 @@ function SyncDashboard() {
       setCloudMessage({
         tone: "warning",
         title: "需要先登录",
-        detail: "Bootstrap 检查需要一个有效的本地云 session。",
+        detail: "启动检查需要一个有效的本地云会话。",
       });
       return;
     }
@@ -1584,8 +1584,8 @@ function SyncDashboard() {
     if (!workspaceId) {
       setCloudMessage({
         tone: "warning",
-        title: "请选择云 workspace",
-        detail: "请先读取或创建一个云 workspace，然后再做 bootstrap 检查。",
+        title: "请选择云工作区",
+        detail: "请先读取或创建一个云工作区，然后再做启动检查。",
       });
       return;
     }
@@ -1606,8 +1606,8 @@ function SyncDashboard() {
           tone: response.status === 501 ? "warning" : "error",
           title:
             response.status === 501
-              ? "云 workspace bootstrap 尚未开启"
-              : "Bootstrap 检查失败",
+              ? "云工作区启动检查尚未开启"
+              : "启动检查失败",
           detail: getCloudApiDetail(body, response),
         });
         return;
@@ -1648,7 +1648,7 @@ function SyncDashboard() {
 
       setCloudMessage({
         tone: "success",
-        title: "Bootstrap 检查通过",
+        title: "启动检查通过",
         detail:
           `云端已确认当前用户可以访问该 workspace，并记录本地 bootstrap 证明。模块 ${moduleCount} 个，push/pull 仍关闭。`,
       });
@@ -1656,8 +1656,8 @@ function SyncDashboard() {
       console.error("[Zhinote] Cloud workspace bootstrap failed:", err);
       setCloudMessage({
         tone: "error",
-        title: "Bootstrap 检查失败",
-        detail: err instanceof Error ? err.message : "Unknown cloud error",
+        title: "启动检查失败",
+        detail: err instanceof Error ? err.message : "未知云端错误",
       });
     } finally {
       setBusyCloudAction(null);
@@ -1668,16 +1668,16 @@ function SyncDashboard() {
     if (!cloudSession?.user?.id) {
       setCloudMessage({
         tone: "warning",
-        title: "需要先检查 session",
-        detail: "请先完成登录并点击检查 session，让本地知道当前 Supabase user。",
+        title: "需要先检查会话",
+        detail: "请先完成登录并点击检查会话，让本地知道当前 Supabase 用户。",
       });
       return;
     }
     if (!selectedCloudWorkspace) {
       setCloudMessage({
         tone: "warning",
-        title: "请选择云 workspace",
-        detail: "请先读取或创建一个云 workspace。",
+        title: "请选择云工作区",
+        detail: "请先读取或创建一个云工作区。",
       });
       return;
     }
@@ -1690,9 +1690,9 @@ function SyncDashboard() {
     ) {
       setCloudMessage({
         tone: "warning",
-        title: "需要先通过 Bootstrap 检查",
+        title: "需要先通过启动检查",
         detail:
-          "连接本地 workspace 前，必须先用当前 session 对选中的云 workspace 完成 bootstrap membership 检查。",
+          "连接本地工作区前，必须先用当前会话对选中的云工作区完成成员关系启动检查。",
       });
       return;
     }
@@ -1715,16 +1715,16 @@ function SyncDashboard() {
       setSelectedCloudWorkspaceId(selectedCloudWorkspace.id);
       setCloudMessage({
         tone: "success",
-        title: "本地 workspace 已连接",
+        title: "本地工作区已连接",
         detail:
-          "已在浏览器本地记录 cloud workspace id 和 bootstrap 证明。这个动作没有上传笔记、文件或数据库。",
+          "已在浏览器本地记录云工作区 id 和启动检查证明。这个动作没有上传笔记、文件或数据库。",
       });
     } catch (err) {
       console.error("[Zhinote] Cloud workspace link failed:", err);
       setCloudMessage({
         tone: "error",
-        title: "本地 workspace 连接失败",
-        detail: err instanceof Error ? err.message : "Unknown cloud error",
+        title: "本地工作区连接失败",
+        detail: err instanceof Error ? err.message : "未知云端错误",
       });
     } finally {
       setBusyCloudAction(null);
@@ -1750,9 +1750,9 @@ function SyncDashboard() {
     setCloudBootstrapProof(null);
     setCloudMessage({
       tone: "success",
-      title: "本地 workspace 已取消云连接",
+      title: "本地工作区已取消云连接",
       detail:
-        "这只清除浏览器本地的 cloud workspace 链接，不删除云端 workspace 或本地笔记。",
+        "这只清除浏览器本地的云工作区链接，不删除云端工作区或本地笔记。",
     });
     setBusyCloudAction(null);
   };
@@ -2580,7 +2580,7 @@ function SyncDashboard() {
       });
     } catch (err) {
       console.error("[Zhinote] Failed to export web beta readiness:", err);
-      window.alert("Web beta readiness export failed. Please check the console.");
+      window.alert("Web Beta 准备度导出失败，请查看控制台。");
     } finally {
       setBusyContractAction(null);
     }
@@ -2779,7 +2779,7 @@ function SyncDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export cloud link receipt:", err);
-      window.alert("Cloud link receipt export failed. Please check the console.");
+      window.alert("云连接收据导出失败，请查看控制台。");
     } finally {
       setBusyCloudAction(null);
     }
@@ -2812,16 +2812,15 @@ function SyncDashboard() {
         <header className="border-b border-zinc-200 pb-5 dark:border-zinc-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-                Web beta readiness
+              <p className="text-xs font-medium tracking-wider text-zinc-400">
+                Web Beta 准备度
               </p>
               <h1 className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
-                Web Sync and Permissions
+                云同步与权限
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                Prepare ZhiNotes for a private web beta by checking local data,
-                backup coverage, sync queue visibility, restore planning,
-                permissions, and privacy boundaries.
+                为 ZhiNotes 的私有 Web Beta 做准备：检查本地数据、备份覆盖、
+                同步队列、恢复规划、权限和隐私边界。
               </p>
             </div>
             <button
@@ -2829,7 +2828,7 @@ function SyncDashboard() {
               onClick={() => router.push("/modules")}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              All modules
+              所有模块
             </button>
           </div>
         </header>
@@ -2897,9 +2896,9 @@ function SyncDashboard() {
                 Web 上线工作台总控
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把 Web Beta 阶段门禁、next actions、owner review、launch checklist、
-                route preflight、环境检查、部署目标和 sync opt-in 合并成一个本地上线
-                action packet。当前结论：本地可继续，Web Beta 和 cloud sync 仍不可启动。
+                把 Web Beta 阶段门禁、后续动作、用户复核、上线清单、
+                路由预检、环境检查、部署目标和同步选择加入合并成一个本地上线
+                动作包。当前结论：本地可继续，Web Beta 和云同步仍不可启动。
               </p>
             </div>
             <button
@@ -2909,31 +2908,43 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyContractAction === "web-launch-workbench"
-                ? "Exporting..."
+                ? "导出中..."
                 : "导出 Web 上线工作台"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
             <BetaSummaryCard
-              label="Local"
-              value={webLaunchWorkbenchPacket.local_app_can_continue_now ? "Yes" : "No"}
+              label="本地"
+              value={
+                webLaunchWorkbenchPacket.local_app_can_continue_now
+                  ? "可继续"
+                  : "不可继续"
+              }
               detail="本地继续"
               tone="ready"
             />
             <BetaSummaryCard
               label="Web Beta"
-              value={webLaunchWorkbenchPacket.web_beta_can_launch_now ? "Ready" : "No"}
+              value={
+                webLaunchWorkbenchPacket.web_beta_can_launch_now
+                  ? "可上线"
+                  : "不可上线"
+              }
               detail="仍不可上线"
               tone="blocked"
             />
             <BetaSummaryCard
-              label="Cloud sync"
-              value={webLaunchWorkbenchPacket.cloud_sync_can_start_now ? "Ready" : "No"}
+              label="云同步"
+              value={
+                webLaunchWorkbenchPacket.cloud_sync_can_start_now
+                  ? "可启动"
+                  : "不可启动"
+              }
               detail="上传关闭"
               tone="blocked"
             />
             <BetaSummaryCard
-              label="P0 actions"
+              label="P0 动作"
               value={webLaunchWorkbenchPacket.summary.p0_actions}
               detail="优先处理"
               tone={
@@ -2943,7 +2954,7 @@ function SyncDashboard() {
               }
             />
             <BetaSummaryCard
-              label="Blocked"
+              label="阻塞"
               value={webLaunchWorkbenchPacket.summary.blocked_stages}
               detail="阶段门禁"
               tone={
@@ -2953,13 +2964,13 @@ function SyncDashboard() {
               }
             />
             <BetaSummaryCard
-              label="Local first"
+              label="本地优先"
               value={webLaunchWorkbenchPacket.summary.local_first_actions}
               detail="可本地先做"
               tone="partial"
             />
             <BetaSummaryCard
-              label="Owner"
+              label="用户"
               value={webLaunchWorkbenchPacket.summary.owner_decisions}
               detail="待决策"
               tone={
@@ -2969,7 +2980,7 @@ function SyncDashboard() {
               }
             />
             <BetaSummaryCard
-              label="Routes"
+              label="路由"
               value={webLaunchWorkbenchPacket.summary.route_mismatch_or_missing}
               detail="缺失/错配"
               tone={
@@ -2982,7 +2993,7 @@ function SyncDashboard() {
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
             <div>
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                上线 lanes
+                上线分组
               </div>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
                 {webLaunchWorkbenchPacket.lanes.map((lane) => (
@@ -3016,8 +3027,8 @@ function SyncDashboard() {
             </div>
           </div>
           <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-            导出 packet 不包含页面正文、数据库 row values、文件名、文件 bytes、
-            secret values、token、cookie、持仓或交易计划；也不会部署、连云、创建账号、
+            导出动作包不包含页面正文、数据库行数据、文件名、文件字节、
+            密钥值、token、cookie、持仓或交易计划；也不会部署、连云、创建账号、
             上传数据、启用同步或启用 AI。
           </p>
         </section>
@@ -6787,27 +6798,26 @@ function CloudAlphaPanel({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Cloud Alpha
+              云端 Alpha
             </h2>
             <span className="rounded-md bg-blue-50 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-              Account + workspace only
+              仅账号 + 工作区
             </span>
           </div>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            Connect Supabase Auth and create an empty cloud workspace. Local
-            pages, files, databases, backups, and sync queue rows stay in this
-            browser until a separate sync push is explicitly enabled.
+            连接 Supabase 登录并创建空云工作区。本地页面、文件、数据库、
+            备份和同步队列仍保留在这个浏览器里；只有单独启用同步推送后才会外发。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <CloudAlphaButton
-            label="检查 session"
+            label="检查会话"
             busy={busyAction === "session"}
             disabled={!hasUsableSession || Boolean(busyAction)}
             onClick={onSessionCheck}
           />
           <CloudAlphaButton
-            label="清除本地 session"
+            label="清除本地会话"
             busy={busyAction === "clear"}
             disabled={!session || Boolean(busyAction)}
             onClick={onClearSession}
@@ -6818,41 +6828,41 @@ function CloudAlphaPanel({
 
       <div className="mt-4 grid gap-3 md:grid-cols-5">
         <CloudAlphaMetric
-          label="Cloud config"
-          value="Gated"
-          detail="Disabled until env vars are enabled"
+          label="云配置"
+          value="受限"
+          detail="环境变量启用前保持禁用"
           tone="warning"
         />
         <CloudAlphaMetric
-          label="Local session"
+          label="本地会话"
           value={
             sessionExpired
-              ? "Expired"
-              : session?.user?.email || (session ? "Token stored" : "None")
+              ? "已过期"
+              : session?.user?.email || (session ? "已保存 token" : "无")
           }
           detail={
             session?.expiresAt
-              ? `Expires ${formatDate(new Date(session.expiresAt).toISOString())}`
-              : "No cloud token in this browser"
+              ? `过期时间 ${formatDate(new Date(session.expiresAt).toISOString())}`
+              : "这个浏览器没有云端 token"
           }
           tone={hasUsableSession ? "success" : "warning"}
         />
         <CloudAlphaMetric
-          label="Workspace"
-          value={workspace?.name ?? "Not created"}
-          detail={workspace?.id ?? "Create after login"}
+          label="云工作区"
+          value={workspace?.name ?? "未创建"}
+          detail={workspace?.id ?? "登录后创建"}
           tone={workspace ? "success" : "info"}
         />
         <CloudAlphaMetric
-          label="Local link"
+          label="本地连接"
           value={
             localIdentity?.cloud_status === "linked-alpha"
-              ? "Linked"
-              : "Local only"
+              ? "已连接"
+              : "仅本地"
           }
           detail={
             linkedWorkspaceId ||
-            "No cloud workspace id stored in local identity"
+            "本地身份里没有云工作区 id"
           }
           tone={
             localIdentity?.cloud_status === "linked-alpha"
@@ -6861,9 +6871,9 @@ function CloudAlphaPanel({
           }
         />
         <CloudAlphaMetric
-          label="Sync status"
-          value="Off"
-          detail="No note/file/database upload"
+          label="同步状态"
+          value="关闭"
+          detail="不上传笔记、文件或数据库"
           tone="info"
         />
       </div>
@@ -6889,13 +6899,13 @@ function CloudAlphaPanel({
             />
           </div>
           <p className="mt-2 text-[11px] leading-4 text-zinc-400">
-            默认环境下会返回 disabled，不会发送邮箱到 Supabase。
+            默认环境下接口禁用，不会把邮箱发送到 Supabase。
           </p>
         </div>
 
         <div className="rounded-md border border-zinc-100 p-3 dark:border-zinc-800">
           <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-            云 workspace 名称
+            云工作区名称
           </label>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <input
@@ -6905,14 +6915,14 @@ function CloudAlphaPanel({
               className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-400"
             />
             <CloudAlphaButton
-              label="创建 workspace"
+              label="创建工作区"
               busy={busyAction === "workspace"}
               disabled={!hasUsableSession || Boolean(busyAction)}
               onClick={onWorkspaceCreate}
             />
           </div>
           <p className="mt-2 text-[11px] leading-4 text-zinc-400">
-            只创建空 workspace 和 owner membership，不上传本地内容。
+            只创建空工作区和用户成员关系，不上传本地内容。
           </p>
         </div>
       </div>
@@ -6921,23 +6931,23 @@ function CloudAlphaPanel({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-              云 workspace 连接
+              云工作区连接
             </div>
             <p className="mt-1 max-w-3xl text-[11px] leading-4 text-zinc-400">
-              这里只做账号和 workspace 元数据检查。连接本地 workspace
-              只是把 cloud workspace id 记在浏览器本地，不会上传任何页面内容。
+              这里只做账号和工作区元数据检查。连接本地工作区
+              只是把云工作区 id 记在浏览器本地，不会上传任何页面内容。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <CloudAlphaButton
-              label="列出 workspace"
+              label="列出工作区"
               busy={busyAction === "list-workspaces"}
               disabled={!hasUsableSession || Boolean(busyAction)}
               onClick={onWorkspaceList}
               variant="secondary"
             />
             <CloudAlphaButton
-              label="Bootstrap 检查"
+              label="启动检查"
               busy={busyAction === "bootstrap"}
               disabled={
                 !hasUsableSession ||
@@ -6953,7 +6963,7 @@ function CloudAlphaPanel({
         <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              选择云 workspace
+              选择云工作区
             </label>
             <select
               value={selectedWorkspaceId}
@@ -6964,14 +6974,14 @@ function CloudAlphaPanel({
               <option value="">未选择</option>
               {workspaceOptions.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name} · {item.role ?? "role unknown"} · {item.id}
+                  {item.name} · {formatCloudRole(item.role)} · {item.id}
                 </option>
               ))}
             </select>
           </div>
           <div className="flex flex-wrap gap-2">
             <CloudAlphaButton
-              label="连接本地 workspace"
+              label="连接本地工作区"
               busy={busyAction === "link-workspace"}
               disabled={
                 !hasUsableSession ||
@@ -7004,37 +7014,37 @@ function CloudAlphaPanel({
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <CloudAlphaSmallRow
-            label="Selected cloud workspace"
-            value={selectedWorkspaceId || "None"}
+            label="已选云工作区"
+            value={selectedWorkspaceId || "未选择"}
           />
           <CloudAlphaSmallRow
-            label="Bootstrap proof"
+            label="启动检查证明"
             value={
               bootstrapProofMatchesSelection
-                ? `Checked ${formatDate(bootstrapProof?.checked_at ?? "")}`
+                ? `已检查 ${formatDate(bootstrapProof?.checked_at ?? "")}`
                 : linkedHasBootstrapProof
-                  ? `Linked proof ${formatDate(
+                  ? `已连接证明 ${formatDate(
                       localIdentity?.cloud_bootstrap_checked_at ?? ""
                     )}`
-                  : "Run bootstrap before link"
+                  : "连接前先做启动检查"
             }
           />
           <CloudAlphaSmallRow
-            label="Linked local workspace"
+            label="本地工作区连接"
             value={
               localIdentity?.cloud_workspace_name ||
               localIdentity?.cloud_workspace_id ||
-              "Local only"
+              "仅本地"
             }
           />
           <CloudAlphaSmallRow
-            label="Cloud sync flags"
+            label="云同步开关"
             value={
               localIdentity?.cloud_status === "linked-alpha"
-                ? `push ${localIdentity.cloud_sync_push_enabled ? "on" : "off"} / pull ${
-                    localIdentity.cloud_sync_pull_enabled ? "on" : "off"
+                ? `推送${localIdentity.cloud_sync_push_enabled ? "开" : "关"} / 拉取${
+                    localIdentity.cloud_sync_pull_enabled ? "开" : "关"
                   }`
-                : "push off / pull off"
+                : "推送关 / 拉取关"
             }
           />
         </div>
@@ -7141,12 +7151,22 @@ function CloudAlphaSmallRow({
   );
 }
 
+function formatCloudRole(role: CloudAlphaWorkspace["role"]) {
+  const labels: Record<NonNullable<CloudAlphaWorkspace["role"]>, string> = {
+    owner: "拥有者",
+    researcher: "研究员",
+    viewer: "查看者",
+  };
+
+  return role ? labels[role] : "角色未知";
+}
+
 function CloudAlphaTonePill({ tone }: { tone: CloudAlphaMessageTone }) {
   const labels: Record<CloudAlphaMessageTone, string> = {
-    info: "Info",
-    success: "Ready",
-    warning: "Gated",
-    error: "Error",
+    info: "信息",
+    success: "就绪",
+    warning: "受限",
+    error: "错误",
   };
   const className =
     tone === "success"
@@ -7218,9 +7238,9 @@ function SyncOptInStatusPill({
   status: SyncOptInGateStatus;
 }) {
   const labels: Record<SyncOptInGateStatus, string> = {
-    ready: "Ready",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -7265,15 +7285,15 @@ function WebLaunchDecisionSummaryPanel({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Owner launch decision
+            上线决策
           </p>
           <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             Web 上线决策摘要
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            面向 owner 的 go/no-go 总览：本地开发可以继续，Web Alpha/Beta
-            preview、cloud sync、公开部署和 AI 仍保持关闭。这里仅整合本地
-            stage gate、owner review 和 launch workbench metadata，不连接云服务。
+            面向用户的上线/不上线总览：本地开发可以继续，Web Alpha/Beta
+            预览、云同步、公开部署和 AI 仍保持关闭。这里仅整合本地
+            阶段门禁、用户复核和上线工作台元数据，不连接云服务。
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -7289,44 +7309,48 @@ function WebLaunchDecisionSummaryPanel({
             onClick={() => onOpenSection("web-beta-owner-review")}
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
-            打开 owner review
+            打开用户复核
           </button>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <LaunchDecisionMetric
-          label="Local build"
-          value={workbench.local_app_can_continue_now ? "Go" : "No"}
+          label="本地构建"
+          value={workbench.local_app_can_continue_now ? "可继续" : "不可继续"}
           detail="继续本地迭代"
           tone="ready"
         />
         <LaunchDecisionMetric
-          label="Alpha preview"
-          value={alphaDecision.web_alpha_preview_can_be_shared_now ? "Go" : "No"}
+          label="Alpha 预览"
+          value={
+            alphaDecision.web_alpha_preview_can_be_shared_now
+              ? "可分享"
+              : "不可分享"
+          }
           detail="不可分享预览"
           tone="blocked"
         />
         <LaunchDecisionMetric
           label="Web Beta"
-          value={workbench.web_beta_can_launch_now ? "Go" : "No"}
+          value={workbench.web_beta_can_launch_now ? "可上线" : "不可上线"}
           detail="不可上线"
           tone="blocked"
         />
         <LaunchDecisionMetric
-          label="Cloud sync"
-          value={workbench.cloud_sync_can_start_now ? "Go" : "No"}
+          label="云同步"
+          value={workbench.cloud_sync_can_start_now ? "可启动" : "不可启动"}
           detail="上传关闭"
           tone="blocked"
         />
         <LaunchDecisionMetric
-          label="P0 blockers"
+          label="P0 阻塞"
           value={ownerReview.summary.p0_blockers}
           detail="先清理"
           tone={ownerReview.summary.p0_blockers > 0 ? "blocked" : "ready"}
         />
         <LaunchDecisionMetric
-          label="Owner choices"
+          label="用户决策"
           value={ownerReview.summary.owner_decisions}
           detail="待确认"
           tone={
@@ -7345,22 +7369,22 @@ function WebLaunchDecisionSummaryPanel({
           <div className="mt-2 grid gap-2">
             <LaunchDecisionFact
               label="Web Alpha"
-              value={alphaDecision.decision}
-              detail={`${alphaDecision.summary.p0_actions} 个 P0 action，${alphaDecision.summary.owner_decisions} 个 owner decision。`}
+              value={formatLaunchDecisionValue(alphaDecision.decision)}
+              detail={`${alphaDecision.summary.p0_actions} 个 P0 动作，${alphaDecision.summary.owner_decisions} 个用户决策。`}
             />
             <LaunchDecisionFact
               label="Web Beta"
-              value={ownerReview.decision}
-              detail={`${ownerReview.summary.blocked_stage_gates} 个 stage gate blocked，${ownerReview.summary.blocked_smoke_cases} 个 smoke case blocked。`}
+              value={formatLaunchDecisionValue(ownerReview.decision)}
+              detail={`${ownerReview.summary.blocked_stage_gates} 个阶段门禁阻塞，${ownerReview.summary.blocked_smoke_cases} 个冒烟用例阻塞。`}
             />
             <LaunchDecisionFact
-              label="Cloud readiness"
-              value={
+              label="云就绪度"
+              value={formatLaunchDecisionValue(
                 ownerReview.summary.missing_required_environment === 0
                   ? "env-present-but-still-owner-gated"
                   : "missing-required-environment"
-              }
-              detail={`缺失环境项：${ownerReview.summary.missing_required_environment ?? "unknown"}。cloud sync 仍不可启动。`}
+              )}
+              detail={`缺失环境项：${ownerReview.summary.missing_required_environment ?? "未知"}。云同步仍不可启动。`}
             />
           </div>
         </div>
@@ -7368,21 +7392,21 @@ function WebLaunchDecisionSummaryPanel({
         <div className="grid gap-3 lg:grid-cols-2">
           <div>
             <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-              先处理的 blocker
+              先处理的阻塞项
             </div>
             <div className="mt-2 grid gap-2">
               {topBlockers.length > 0 ? (
                 topBlockers.map((blocker) => (
                   <LaunchDecisionWorkItem
                     key={blocker.id}
-                    title={blocker.title}
-                    detail={blocker.required_action}
+                    title={localizeSyncDecisionText(blocker.title)}
+                    detail={localizeSyncDecisionText(blocker.required_action)}
                     badge={blocker.priority.toUpperCase()}
                   />
                 ))
               ) : (
                 <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-                  暂无 P0 blocker，继续检查 owner decision 和 smoke evidence。
+                  暂无 P0 阻塞项，继续检查用户决策和冒烟测试证据。
                 </p>
               )}
             </div>
@@ -7397,17 +7421,19 @@ function WebLaunchDecisionSummaryPanel({
                 localWork.map((item) => (
                   <LaunchDecisionWorkItem
                     key={item.id}
-                    title={item.title}
+                    title={localizeSyncDecisionText(item.title)}
                     detail={
-                      item.completion_evidence[0] ??
-                      "需要补齐本地 completion evidence。"
+                      localizeSyncDecisionText(
+                        item.completion_evidence[0] ??
+                          "需要补齐本地完成证据。"
+                      )
                     }
-                    badge="LOCAL"
+                    badge="本地"
                   />
                 ))
               ) : (
                 <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-                  暂无可独立推进的本地工作，优先完成 gate 和 owner review。
+                  暂无可独立推进的本地工作，优先完成门禁和用户复核。
                 </p>
               )}
             </div>
@@ -7417,8 +7443,8 @@ function WebLaunchDecisionSummaryPanel({
 
       <div className="mt-4 flex flex-col gap-3 border-t border-zinc-100 pt-3 dark:border-zinc-800 lg:flex-row lg:items-center lg:justify-between">
         <p className="max-w-3xl text-xs leading-5 text-zinc-400">
-          本摘要不读页面正文、数据库 row values、文件名、文件 bytes、secret values、
-          token、cookie、持仓或交易计划；也不会部署、连云、上传、启用 sync 或 AI。
+          本摘要不读页面正文、数据库行数据、文件名、文件字节、密钥值、
+          token、cookie、持仓或交易计划；也不会部署、连云、上传、启用同步或 AI。
         </p>
         <div className="flex shrink-0 flex-wrap gap-2">
           <button
@@ -7428,7 +7454,7 @@ function WebLaunchDecisionSummaryPanel({
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === "web-alpha-launch-decision"
-              ? "Exporting..."
+              ? "导出中..."
               : "导出 Alpha 决策"}
           </button>
           <button
@@ -7438,8 +7464,8 @@ function WebLaunchDecisionSummaryPanel({
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === "web-beta-owner-review"
-              ? "Exporting..."
-              : "导出 Beta owner review"}
+              ? "导出中..."
+              : "导出 Beta 用户复核"}
           </button>
         </div>
       </div>
@@ -7483,7 +7509,7 @@ function LaunchDecisionFact({
 }) {
   return (
     <article className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
-      <div className="text-[10px] uppercase tracking-wide text-zinc-400">
+      <div className="text-[10px] tracking-wide text-zinc-400">
         {label}
       </div>
       <div className="mt-1 break-words font-semibold text-zinc-900 dark:text-zinc-100">
@@ -7520,6 +7546,64 @@ function LaunchDecisionWorkItem({
       </p>
     </article>
   );
+}
+
+function formatLaunchDecisionValue(value: string) {
+  const labels: Record<string, string> = {
+    "continue-local-build-no-preview": "继续本地构建，暂不开放预览",
+    "continue-local-build-no-beta": "继续本地构建，暂不上线 Beta",
+    "env-present-but-still-owner-gated": "环境项齐备，但仍需用户确认",
+    "missing-required-environment": "缺少必需环境项",
+  };
+
+  return labels[value] ?? value;
+}
+
+function localizeSyncDecisionText(value: string) {
+  const exact: Record<string, string> = {
+    "Cloud database schema": "云数据库结构",
+    "Permission policy draft": "权限策略草案",
+    "Account session boundary": "账号会话边界",
+    "Audit trail policy": "审计轨迹策略",
+    "Cloud schema contract exists locally, but no applied migration is proven.":
+      "云端数据结构合同已在本地存在，但还没有迁移应用证明。",
+    "Create versioned migrations for users, workspaces, pages, databases, files, sync_log, permissions, and audit events.":
+      "为用户、工作区、页面、数据库、文件、同步日志、权限和审计事件创建版本化迁移。",
+    "Permission request validator rejects forbidden payload classes.":
+      "权限请求验证器已经拒绝禁止外发的内容类型。",
+    "Audit envelope validation rejects forbidden payloads.":
+      "审计信封验证已经拒绝禁止外发的内容。",
+    "Auth provider and session model are selected.":
+      "身份服务和会话模型已选择。",
+    "Local completion evidence required.": "需要补齐本地完成证据。",
+    "需要补齐本地完成证据。": "需要补齐本地完成证据。",
+  };
+
+  let next = exact[value] ?? value;
+  next = next
+    .replaceAll("Move role checks to authenticated server endpoints only after the dedicated permission route runs validator-backed forbidden payload rejection, high-risk confirmations, audit envelope linkage, server permission matrix tests, and readiness gates before private beta.", "在专用权限接口通过禁止内容验证、高风险确认、审计信封关联、服务端权限矩阵测试和就绪门禁后，再把角色检查迁移到已认证的服务端接口。")
+    .replaceAll("Private beta cannot start until account login, session storage, workspace membership, and local-to-cloud linking are specified.", "账号登录、会话存储、工作区成员关系和本地到云端连接规则明确前，不能启动私有 Beta。")
+    .replaceAll("Choose auth provider, session cookie design, device revoke behavior, workspace membership rules, and owner confirmation for local-to-cloud linking.", "选择身份服务、会话 cookie 设计、设备撤销行为、工作区成员规则，以及本地连接云端前的用户确认。")
+    .replaceAll("Versioned migrations exist for the contracted cloud tables.", "约定云表已有版本化迁移。")
+    .replaceAll("Owner", "用户")
+    .replaceAll("owner", "用户")
+    .replaceAll("cloud sync", "云同步")
+    .replaceAll("Cloud sync", "云同步")
+    .replaceAll("cloud", "云端")
+    .replaceAll("Cloud", "云端")
+    .replaceAll("payload", "外发内容")
+    .replaceAll("Payload", "外发内容")
+    .replaceAll("stage gate", "阶段门禁")
+    .replaceAll("smoke", "冒烟测试")
+    .replaceAll("completion evidence", "完成证据")
+    .replaceAll("server endpoints", "服务端接口")
+    .replaceAll("permission", "权限")
+    .replaceAll("audit", "审计")
+    .replaceAll("workspace", "工作区")
+    .replaceAll("sync_log", "同步日志")
+    .replaceAll("AI", "AI");
+
+  return next;
 }
 
 function WebLaunchLaneCard({
@@ -12157,10 +12241,10 @@ function BetaGateRow({ gate }: { gate: WebBetaReadinessGate }) {
 
 function BetaStatusPill({ status }: { status: WebBetaReadinessStatus }) {
   const labels: Record<WebBetaReadinessStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    partial: "部分",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
