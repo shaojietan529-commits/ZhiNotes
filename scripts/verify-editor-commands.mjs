@@ -11,6 +11,7 @@ const files = {
   childPageSeed: "src/lib/pages/childPageSeed.ts",
   compareShell: "src/components/comparison/CompareShell.tsx",
   markdownToHtml: "src/lib/markdown/markdownToHtml.ts",
+  notesShell: "src/components/modules/NotesShell.tsx",
   pageExport: "src/lib/export/pageExport.ts",
   keyboardShortcuts: "src/components/editor/extensions/KeyboardShortcuts.ts",
   slashSuggestion: "src/components/editor/extensions/SlashCommandSuggestion.ts",
@@ -35,6 +36,7 @@ const files = {
   sideBySideDiff: "src/components/comparison/SideBySideDiff.tsx",
   subPageTree: "src/components/shared/SubPageTree.tsx",
   syncedBlockNode: "src/components/editor/extensions/SyncedBlockNode.tsx",
+  syncedBlockRegistry: "src/lib/pages/syncedBlockRegistry.ts",
   tableOfContentsNode:
     "src/components/editor/extensions/TableOfContentsNode.tsx",
   templateButtonNode: "src/components/editor/extensions/TemplateButtonNode.tsx",
@@ -67,6 +69,7 @@ function run() {
   const childPageSeed = readProjectFile(files.childPageSeed);
   const compareShell = readProjectFile(files.compareShell);
   const markdownToHtml = readProjectFile(files.markdownToHtml);
+  const notesShell = readProjectFile(files.notesShell);
   const pageExport = readProjectFile(files.pageExport);
   const keyboardShortcuts = readProjectFile(files.keyboardShortcuts);
   const slashSuggestion = readProjectFile(files.slashSuggestion);
@@ -93,6 +96,7 @@ function run() {
   const sideBySideDiff = readProjectFile(files.sideBySideDiff);
   const subPageTree = readProjectFile(files.subPageTree);
   const syncedBlockNode = readProjectFile(files.syncedBlockNode);
+  const syncedBlockRegistry = readProjectFile(files.syncedBlockRegistry);
   const tableOfContentsNode = readProjectFile(files.tableOfContentsNode);
   const templateButtonNode = readProjectFile(files.templateButtonNode);
   const versionHistoryPanel = readProjectFile(files.versionHistoryPanel);
@@ -794,6 +798,33 @@ function run() {
       syncedBlockNode,
       snippet,
       "Synced block controls must keep Chinese labels."
+    );
+  }
+  for (const snippet of [
+    "buildSyncedBlockRegistryReport",
+    'format: "zhinote-synced-block-registry"',
+    "reads_synced_block_content: false",
+    "performs_cross_page_sync: false",
+    "data-sync-id",
+  ]) {
+    assertIncludes(
+      files.syncedBlockRegistry,
+      syncedBlockRegistry,
+      snippet,
+      "Synced block registry must stay local metadata-only."
+    );
+  }
+  for (const snippet of [
+    "notes-synced-block-registry",
+    "SyncedBlockRegistryPanel",
+    "导出 registry",
+    "本地同步块实例清单",
+  ]) {
+    assertIncludes(
+      files.notesShell,
+      notesShell,
+      snippet,
+      "Notes module must expose the local synced block registry."
     );
   }
   for (const snippet of [

@@ -207,6 +207,10 @@ Current local actions:
   memos, company research, meeting notes, research reports, report intake,
   industry comparison, expert calls, and research decision logs from the notes
   module.
+- Review and export a local synced-block registry from the notes module. The
+  registry scans local page HTML for synced block ids and page titles only; it
+  does not read synced block body content, perform cross-page syncing, upload
+  data, or call AI.
 - Write and edit Notion-like page content with headings, lists, tasks, toggles,
   callouts, tables, formulas, synced blocks, embeds, wiki links, file previews,
   inline databases, comments, backlinks, and version history. The block insert

@@ -128,15 +128,16 @@ Notion 已有：
 ZhiNotes 当前已有：
 
 - 编辑器已有 synced block 节点和本地导出语义。
+- Notes 模块已有本地 synced block registry，可列出 sync id、实例页面数、实例数量和跨页面复用状态。
 
 仍缺口：
 
-- 还没有完整的跨页面多实例同步编辑、原始块引用关系、权限感知和冲突处理。
+- 还没有完整的跨页面正文同步编辑、原始块引用关系、权限感知和冲突处理。
 - 本地-first 模式下还需要先定义 sync id、实例列表和删除/解除同步语义。
 
 建议下一步：
 
-- 先做本地 synced block registry，只记录 sync id、实例 page/block id 和最后更新时间。
+- 继续定义原始块、实例列表、删除/解除同步语义。
 - 云同步和权限上线前，不跨用户同步 synced block 内容。
 
 ### Database buttons / Automations
