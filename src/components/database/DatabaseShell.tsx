@@ -158,6 +158,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const searchParams = useSearchParams();
   const { pages: workspacePages } = usePages();
   const initialRowSearch = searchParams.get("q") ?? "";
+  const initialViewId = searchParams.get("view") ?? "";
   const focusPageId = searchParams.get("focus") ?? "";
   const relationHandoffSource = searchParams.get("handoff") ?? "";
   const [database, setDatabase] = useState<Database | null>(null);
@@ -219,11 +220,13 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     setViews(v);
     if (db) setTitle(db.title);
     if (v.length > 0 && !activeViewId) {
-      setActiveViewId(v[0].id);
-      applyViewConfig(v[0].config);
+      const initialView =
+        v.find((view) => view.id === initialViewId) ?? v[0];
+      setActiveViewId(initialView.id);
+      applyViewConfig(initialView.config);
     }
     setLoading(false);
-  }, [databaseId, activeViewId, applyViewConfig]);
+  }, [databaseId, activeViewId, applyViewConfig, initialViewId]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -442,6 +445,18 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       reload();
     },
     [applyViewConfig, databaseId, reload]
+  );
+
+  const handleCopyViewLink = useCallback(
+    async (view: DatabaseView) => {
+      const url = buildDatabaseViewLink(databaseId, view.id);
+      try {
+        await window.navigator.clipboard.writeText(url);
+      } catch {
+        window.prompt("复制视图链接：", url);
+      }
+    },
+    [databaseId]
   );
 
   const handleMoveView = useCallback(
@@ -838,6 +853,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
                 canMoveRight={viewIndex >= 0 && viewIndex < views.length - 1}
                 onRename={handleRenameView}
                 onDuplicate={handleDuplicateView}
+                onCopyLink={handleCopyViewLink}
                 onMove={handleMoveView}
                 onDelete={handleDeleteView}
               />
@@ -1101,6 +1117,7 @@ function DatabaseViewActionsButton({
   canMoveRight,
   onRename,
   onDuplicate,
+  onCopyLink,
   onMove,
   onDelete,
 }: {
@@ -1110,6 +1127,7 @@ function DatabaseViewActionsButton({
   canMoveRight: boolean;
   onRename: (view: DatabaseView, name: string) => void;
   onDuplicate: (view: DatabaseView) => void;
+  onCopyLink: (view: DatabaseView) => Promise<void>;
   onMove: (view: DatabaseView, direction: "left" | "right") => void;
   onDelete: (view: DatabaseView) => void;
 }) {
@@ -1170,6 +1188,16 @@ function DatabaseViewActionsButton({
             >
               复制视图
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                void onCopyLink(view);
+                setOpen(false);
+              }}
+              className="rounded px-2 py-1.5 text-left text-xs text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              复制视图链接
+            </button>
             <div className="grid grid-cols-2 gap-1">
               <button
                 type="button"
@@ -1215,6 +1243,12 @@ function DatabaseViewActionsButton({
       )}
     </span>
   );
+}
+
+function buildDatabaseViewLink(databaseId: string, viewId: string) {
+  const path = `/database/${databaseId}?view=${encodeURIComponent(viewId)}`;
+  if (typeof window === "undefined") return path;
+  return `${window.location.origin}${path}`;
 }
 
 function DatabaseViewControls({

@@ -534,11 +534,17 @@ function run() {
   );
   for (const snippet of [
     "DatabaseViewActionsButton",
+    "initialViewId",
+    'searchParams.get("view")',
     "handleRenameView",
     "handleDuplicateView",
+    "handleCopyViewLink",
+    "buildDatabaseViewLink",
+    "encodeURIComponent(viewId)",
     "handleDeleteView",
     "deleteView",
     "复制视图",
+    "复制视图链接",
     "删除视图",
     "至少保留一个视图",
     "不会删除任何行或页面",
@@ -547,7 +553,7 @@ function run() {
       files.databaseShell,
       databaseShell,
       snippet,
-      "Database view tabs must expose local rename, duplicate, and protected delete actions."
+      "Database view tabs must expose local rename, duplicate, copy-link, and protected delete actions."
     );
   }
   for (const snippet of [
