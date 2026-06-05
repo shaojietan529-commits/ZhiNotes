@@ -10,6 +10,7 @@ const files = {
   workflow: "src/lib/modules/researchWorkflow.ts",
   graph: "src/lib/modules/researchGraph.ts",
   workbench: "src/lib/modules/researchWorkbench.ts",
+  projectBrief: "src/lib/modules/researchProjectBrief.ts",
   companyCoverage: "src/lib/company/companyCoverage.ts",
   companyDossier: "src/lib/company/companyResearchDossier.ts",
   companyPlaybook: "src/lib/company/companyResearchPlaybook.ts",
@@ -141,6 +142,7 @@ function run() {
   const workflow = readProjectFile(files.workflow);
   const graph = readProjectFile(files.graph);
   const workbench = readProjectFile(files.workbench);
+  const projectBrief = readProjectFile(files.projectBrief);
   const companyCoverage = readProjectFile(files.companyCoverage);
   const companyDossier = readProjectFile(files.companyDossier);
   const companyPlaybook = readProjectFile(files.companyPlaybook);
@@ -377,9 +379,78 @@ function run() {
       "Research workbench must keep cross-module lanes, forbidden actions, and verification commands."
     );
   }
+  assertIncludes(
+    files.projectBrief,
+    projectBrief,
+    'format: "zhinote-research-project-brief"',
+    "Research project brief must define a stable local export format."
+  );
+  assertIncludes(
+    files.projectBrief,
+    projectBrief,
+    "buildResearchProjectBrief",
+    "Research project brief must expose a reusable builder."
+  );
+  for (const snippet of [
+    'brief_status: "local-project-brief-only"',
+    "RESEARCH_PROJECT_MODE_OPTIONS",
+    '"initiation"',
+    '"earnings-review"',
+    '"variant-view"',
+    '"meeting-follow-up"',
+    '"portfolio-review"',
+    "local_brief_only: true",
+    "reads_research_graph_report: true",
+    "reads_research_workbench_packet: true",
+    "includes_owner_entered_topic",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "reads_database_rows: false",
+    "includes_database_row_values: false",
+    "reads_file_names: false",
+    "reads_file_bytes: false",
+    "includes_holdings: false",
+    "includes_trading_plans: false",
+    "writes_workspace_data: false",
+    "creates_pages: false",
+    "creates_database_rows: false",
+    "creates_relation_values: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    "module_plans",
+    "checklist",
+    "review_sequence",
+    "blocked_actions",
+    "required_owner_decisions",
+    "auto_create_research_project_pages",
+    "send_project_context_to_ai",
+    "sync_project_assets_to_cloud",
+    "npm run verify:research-workflow",
+    "npm run verify:modules",
+    "npm run lint",
+    "npm run build",
+  ]) {
+    assertIncludes(
+      files.projectBrief,
+      projectBrief,
+      snippet,
+      "Research project brief must keep local-only project planning boundaries."
+    );
+  }
   for (const snippet of [
     "buildResearchWorkbenchPacket",
     "workbenchPacket",
+    "buildResearchProjectBrief",
+    "projectBrief",
+    "handleExportProjectBrief",
+    "ResearchProjectBriefPanel",
+    "ResearchProjectModuleCard",
+    "ResearchProjectChecklistRow",
+    "ResearchProjectStatusPill",
+    "投研项目启动器",
+    "导出 Brief",
+    "research-project-brief",
     "handleExportWorkbenchPacket",
     "handleDecisionOpen",
     "研究图谱决策摘要",

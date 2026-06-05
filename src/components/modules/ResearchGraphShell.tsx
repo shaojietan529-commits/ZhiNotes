@@ -33,6 +33,13 @@ import {
   type ResearchWorkbenchDecisionStatus,
   type ResearchWorkbenchPacket,
 } from "@/lib/modules/researchWorkbench";
+import {
+  RESEARCH_PROJECT_MODE_OPTIONS,
+  buildResearchProjectBrief,
+  type ResearchProjectBrief,
+  type ResearchProjectChecklistStatus,
+  type ResearchProjectMode,
+} from "@/lib/modules/researchProjectBrief";
 import { getResearchModuleRoute } from "@/lib/modules/researchWorkflow";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database } from "@/lib/utils/types";
@@ -80,6 +87,11 @@ function ResearchGraphDashboard() {
   const [exportingGraphReport, setExportingGraphReport] = useState(false);
   const [exportingWorkbenchPacket, setExportingWorkbenchPacket] =
     useState(false);
+  const [exportingProjectBrief, setExportingProjectBrief] = useState(false);
+  const [projectTopic, setProjectTopic] = useState("");
+  const [projectMode, setProjectMode] =
+    useState<ResearchProjectMode>("initiation");
+  const [projectHorizon, setProjectHorizon] = useState("本周");
   const [schemaGapBusyId, setSchemaGapBusyId] = useState<string | null>(null);
   const [schemaFieldCreationResult, setSchemaFieldCreationResult] =
     useState<SchemaFieldCreationResult | null>(null);
@@ -130,6 +142,17 @@ function ResearchGraphDashboard() {
   const workbenchPacket = useMemo(
     () => buildResearchWorkbenchPacket(graphReport),
     [graphReport]
+  );
+  const projectBrief = useMemo(
+    () =>
+      buildResearchProjectBrief({
+        topic: projectTopic,
+        projectMode,
+        horizon: projectHorizon,
+        graphReport,
+        workbench: workbenchPacket,
+      }),
+    [graphReport, projectHorizon, projectMode, projectTopic, workbenchPacket]
   );
   const recentLinks = graph.relationLinks.slice(0, 12);
   const unlinkedAssets = graph.unlinkedAssets.slice(0, 12);
@@ -199,6 +222,21 @@ function ResearchGraphDashboard() {
       window.alert("投研工作台行动包导出失败，请查看控制台。");
     } finally {
       setExportingWorkbenchPacket(false);
+    }
+  };
+
+  const handleExportProjectBrief = () => {
+    setExportingProjectBrief(true);
+    try {
+      downloadJsonFile(`zhinote-research-project-${fileSafeTimestamp()}.json`, {
+        ...projectBrief,
+        exported_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to export research project brief:", err);
+      window.alert("研究项目 Brief 导出失败，请查看控制台。");
+    } finally {
+      setExportingProjectBrief(false);
     }
   };
 
@@ -322,6 +360,19 @@ function ResearchGraphDashboard() {
           exportingWorkbench={exportingWorkbenchPacket}
           onExportWorkbench={handleExportWorkbenchPacket}
           onOpenDecision={handleDecisionOpen}
+        />
+
+        <ResearchProjectBriefPanel
+          brief={projectBrief}
+          topic={projectTopic}
+          projectMode={projectMode}
+          horizon={projectHorizon}
+          exporting={exportingProjectBrief}
+          onTopicChange={setProjectTopic}
+          onModeChange={setProjectMode}
+          onHorizonChange={setProjectHorizon}
+          onExport={handleExportProjectBrief}
+          onOpenRoute={(route) => router.push(route)}
         />
 
         <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
@@ -570,6 +621,310 @@ function ResearchGraphDecisionStatusPill({
       className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${className[status]}`}
     >
       {label[status]}
+    </span>
+  );
+}
+
+function ResearchProjectBriefPanel({
+  brief,
+  topic,
+  projectMode,
+  horizon,
+  exporting,
+  onTopicChange,
+  onModeChange,
+  onHorizonChange,
+  onExport,
+  onOpenRoute,
+}: {
+  brief: ResearchProjectBrief;
+  topic: string;
+  projectMode: ResearchProjectMode;
+  horizon: string;
+  exporting: boolean;
+  onTopicChange: (value: string) => void;
+  onModeChange: (value: ResearchProjectMode) => void;
+  onHorizonChange: (value: string) => void;
+  onExport: () => void;
+  onOpenRoute: (route: string) => void;
+}) {
+  const selectedMode =
+    RESEARCH_PROJECT_MODE_OPTIONS.find((option) => option.id === projectMode) ??
+    RESEARCH_PROJECT_MODE_OPTIONS[0];
+  const topChecklist = brief.checklist.slice(0, 8);
+  const topSequence = brief.review_sequence.slice(0, 5);
+
+  return (
+    <section
+      id="research-project-brief"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Research Project Brief
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            投研项目启动器
+          </h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            {brief.topic_status === "owner-entered"
+              ? `当前主题：${brief.topic}`
+              : "先输入一个研究主题，系统会把公司、报告、会议、组合和 relation 工作排成一个本地 checklist。"}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenRoute(brief.summary.recommended_first_route)}
+            className="rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+          >
+            {brief.summary.recommended_first_label}
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={exporting}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exporting ? "导出中..." : "导出 Brief"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 lg:grid-cols-[1.1fr_0.9fr_0.75fr]">
+        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          研究主题
+          <input
+            value={topic}
+            onChange={(event) => onTopicChange(event.target.value)}
+            placeholder="例如：AI capex 是否进入下修周期"
+            className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-zinc-400"
+          />
+        </label>
+        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          项目类型
+          <select
+            value={projectMode}
+            onChange={(event) =>
+              onModeChange(event.target.value as ResearchProjectMode)
+            }
+            className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-zinc-400"
+          >
+            {RESEARCH_PROJECT_MODE_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          时间范围
+          <input
+            value={horizon}
+            onChange={(event) => onHorizonChange(event.target.value)}
+            placeholder="本周 / 本季度 / 业绩前"
+            className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-zinc-400"
+          />
+        </label>
+      </div>
+
+      <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+        {selectedMode.description} Brief 只读取图谱和工作台 summary metadata；
+        导出会包含你手动输入的主题，但不包含页面正文、数据库行值、文件名、文件内容、持仓或交易计划。
+      </p>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <WorkbenchMetric
+          label="图谱资产"
+          value={brief.summary.graph_assets}
+        />
+        <WorkbenchMetric
+          label="已连接"
+          value={brief.summary.connected_assets}
+        />
+        <WorkbenchMetric
+          label="待补关系"
+          value={brief.summary.relation_actions}
+        />
+        <WorkbenchMetric
+          label="Checklist"
+          value={brief.summary.checklist_items}
+        />
+      </div>
+
+      <div className="mt-5 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              模块准备度
+            </h3>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {brief.module_plans.map((plan) => (
+                <ResearchProjectModuleCard
+                  key={plan.kind}
+                  plan={plan}
+                  onOpenRoute={onOpenRoute}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="rounded-md border border-zinc-100 p-3 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              推荐顺序
+            </h3>
+            <div className="mt-2 grid gap-2">
+              {topSequence.map((step) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => onOpenRoute(step.route)}
+                  className="rounded-md bg-zinc-50 px-3 py-2 text-left text-xs transition-colors hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+                >
+                  <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                    {step.order}. {step.title}
+                  </div>
+                  <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                    {step.reason}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              项目 Checklist
+            </h3>
+            <span className="text-xs text-zinc-400">
+              {brief.summary.checklist_ready} ready ·{" "}
+              {brief.summary.checklist_needing_review} review
+            </span>
+          </div>
+          <div className="mt-2 grid gap-2">
+            {topChecklist.map((item) => (
+              <ResearchProjectChecklistRow
+                key={item.id}
+                item={item}
+                onOpenRoute={onOpenRoute}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
+        保持关闭：{brief.blocked_actions.join(" / ")}
+      </p>
+    </section>
+  );
+}
+
+function ResearchProjectModuleCard({
+  plan,
+  onOpenRoute,
+}: {
+  plan: ResearchProjectBrief["module_plans"][number];
+  onOpenRoute: (route: string) => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            {plan.label}
+          </h4>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {plan.role}
+          </p>
+        </div>
+        <ResearchProjectStatusPill status={plan.readiness} />
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        <HealthNumber label="资产" value={plan.assets} />
+        <HealthNumber label="已连" value={plan.connected_assets} />
+        <HealthNumber label="缺口" value={plan.unlinked_assets} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-400">
+        {plan.connection_rate}% 覆盖 · {plan.schema_gaps} 个结构缺口
+      </p>
+      <button
+        type="button"
+        onClick={() => onOpenRoute(plan.next_action_route)}
+        className="mt-2 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        {plan.next_action_label}
+      </button>
+    </article>
+  );
+}
+
+function ResearchProjectChecklistRow({
+  item,
+  onOpenRoute,
+}: {
+  item: ResearchProjectBrief["checklist"][number];
+  onOpenRoute: (route: string) => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              {item.title}
+            </h4>
+            <ResearchProjectStatusPill status={item.status} />
+            <span className="rounded bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+              {item.surface}
+            </span>
+          </div>
+          <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+            {item.reason}
+          </p>
+          <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
+            {item.owner_decision}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onOpenRoute(item.route)}
+          className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          {item.route_label}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function ResearchProjectStatusPill({
+  status,
+}: {
+  status: ResearchProjectChecklistStatus;
+}) {
+  const labels: Record<ResearchProjectChecklistStatus, string> = {
+    ready: "Ready",
+    "needs-review": "Review",
+    missing: "Missing",
+    "blocked-boundary": "Blocked",
+  };
+  const className =
+    status === "ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "needs-review"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : status === "missing"
+          ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+          : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+
+  return (
+    <span
+      className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-medium ${className}`}
+    >
+      {labels[status]}
     </span>
   );
 }

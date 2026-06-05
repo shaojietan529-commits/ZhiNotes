@@ -400,6 +400,16 @@ Current local actions:
   module/page/database routes and does not auto-write relation values, create
   schema fields, read page bodies, read database row values, read file names,
   read file bytes, upload data, connect cloud services, or enable AI.
+- Start a local research project brief from the graph page. The project brief
+  supports first coverage, earnings review, variant-view, meeting follow-up, and
+  portfolio-review modes, then turns the current graph/workbench summary into a
+  module readiness view, recommended route order, and checklist across company,
+  report, meeting, portfolio, relation repair, schema/tracker setup, and the
+  externalization boundary.
+- Export the research project brief as local JSON. The export can include the
+  owner-entered project topic and horizon, but it does not include page bodies,
+  database row values, file names, file bytes, holdings, trading plans, prompts,
+  credentials, cloud data, or AI output.
 - Review suggested completion targets for unlinked assets and jump into the
   right local database with `q`, `focus`, and `handoff` parameters prefilled.
 - Review relation schema gaps, such as a company tracker missing related-report
@@ -425,6 +435,10 @@ database row values, file names, file bytes, holdings, trading plans, prompts,
 tokens, credentials, cloud data, or AI output. It is a local routing layer for
 what can be reviewed now, what requires owner confirmation, and what remains
 blocked.
+The research project brief follows the same boundary: it reads the local graph
+report and workbench packet only, adds owner-entered project fields, and remains
+a planning/export layer. It does not create pages, create database rows, write
+relation values, upload data, connect cloud services, or enable AI.
 
 ## Company Research Module
 
