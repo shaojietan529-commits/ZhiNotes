@@ -521,6 +521,26 @@ function run() {
     );
   }
   for (const snippet of [
+    "要删除字段",
+    "不会删除页面正文、文件、云端数据或 AI 内容",
+    "要删除记录",
+    "本地页面一起软删除",
+    "不会上传或外发任何内容",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Full database destructive row/field actions must require local confirmation."
+    );
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline database destructive row/field actions must require local confirmation."
+    );
+  }
+  for (const snippet of [
     '| "email"',
     '| "phone"',
     '| "multi_select"',
@@ -1593,6 +1613,7 @@ function run() {
         view_management: true,
         row_duplicate_actions: true,
         field_duplicate_actions: true,
+        delete_confirmations: true,
         local_rollup_fields: true,
         database_workbench: true,
       },

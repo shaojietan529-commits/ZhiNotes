@@ -227,10 +227,16 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
   const handleDeleteField = useCallback(
     async (fieldId: string) => {
+      const field = fields.find((item) => item.id === fieldId);
+      const fieldName = field ? getDatabaseFieldDisplayName(field) : "这个字段";
+      const ok = window.confirm(
+        `要删除字段「${fieldName}」吗？这会从当前数据库视图中移除字段配置，但不会删除页面正文、文件、云端数据或 AI 内容。`
+      );
+      if (!ok) return;
       await deleteField(fieldId);
       reload();
     },
-    [reload]
+    [fields, reload]
   );
 
   const handleDuplicateField = useCallback(
@@ -311,10 +317,16 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
   const handleDeleteRow = useCallback(
     async (rowId: string) => {
+      const row = rows.find((item) => item.id === rowId);
+      const rowTitle = row?.page?.title || "未命名页面";
+      const ok = window.confirm(
+        `要删除记录「${rowTitle}」吗？这会把当前数据库行和它的本地页面一起软删除，不会上传或外发任何内容。`
+      );
+      if (!ok) return;
       await deleteRow(rowId);
       reload();
     },
-    [reload]
+    [reload, rows]
   );
 
   const handleDuplicateRow = useCallback(

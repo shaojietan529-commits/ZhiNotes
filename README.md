@@ -327,6 +327,9 @@ Current local actions:
   timeline, feed, and inline database views. Row duplicate creates a new local
   row/page with the source row title and field values, but it intentionally
   does not copy the source page body, uploaded files, cloud data, or AI output.
+- Database row and field delete actions now ask for local confirmation first.
+  Row delete soft-deletes the row and local page together; field delete removes
+  the field config from the database. Neither action uploads or sends data out.
 - Use local database fields for text, number, formula, rollup, relation,
   select, multi-select, status, date, checkbox, URL, email, phone, unique ID,
   created time, and last edited time values. Table and form views use native
