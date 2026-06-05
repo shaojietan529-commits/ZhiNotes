@@ -129,7 +129,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const handleSaveVersion = useCallback(async () => {
     const html = editorRef.current?.getHTML() ?? page?.content_text ?? "";
     const label = window.prompt(
-      "给这个版本命名（可选，例如：Q3 earnings update）："
+      "给这个版本命名（可选，例如：Q3 业绩更新）："
     );
     // A null return means the user cancelled the prompt
     if (label === null) return;
@@ -153,7 +153,7 @@ function PageContent({ pageId }: { pageId: string }) {
     try {
       await window.navigator.clipboard.writeText(url);
     } catch {
-      window.prompt("Copy page link:", url);
+      window.prompt("复制页面链接：", url);
     }
   }, [pageId]);
 
@@ -342,12 +342,12 @@ function PageContent({ pageId }: { pageId: string }) {
         <Sidebar />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-zinc-500 mb-4">Page not found</p>
+            <p className="text-zinc-500 mb-4">页面未找到</p>
             <button
               onClick={() => router.push("/")}
               className="text-sm text-blue-500 hover:underline"
             >
-              Go home
+              返回首页
             </button>
           </div>
         </main>
@@ -537,7 +537,7 @@ function PageContent({ pageId }: { pageId: string }) {
                       ? "text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
                       : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                   }`}
-                  title={favorite ? "Remove from favorites" : "Add to favorites"}
+                  title={favorite ? "取消收藏" : "添加到收藏"}
                 >
                   <svg
                     width="13"
@@ -552,15 +552,15 @@ function PageContent({ pageId }: { pageId: string }) {
                   >
                     <path d="m12 2 3.1 6.4 7 .9-5.1 4.9 1.3 6.9L12 17.8 5.7 21.1l1.3-6.9L1.9 9.3l7-.9L12 2Z" />
                   </svg>
-                  {favorite ? "Favorited" : "Favorite"}
+                  {favorite ? "已收藏" : "收藏"}
                 </button>
                 <button
                   onClick={handleAddSubPage}
                   disabled={locked}
                   className="text-xs text-zinc-400 hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-zinc-300 transition-colors"
-                  title="Add sub-page"
+                  title="添加子页面"
                 >
-                  + Sub-page
+                  + 子页面
                 </button>
                 <button
                   onClick={handleToggleLock}
@@ -569,16 +569,16 @@ function PageContent({ pageId }: { pageId: string }) {
                       ? "text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
                       : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                   }`}
-                  title={locked ? "Unlock page editing" : "Lock page editing"}
+                  title={locked ? "解锁页面编辑" : "锁定页面编辑"}
                 >
-                  {locked ? "Locked" : "Lock"}
+                  {locked ? "已锁定" : "锁定"}
                 </button>
                 <button
                   onClick={handleToggleWidth}
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title={widePage ? "Use normal page width" : "Use wide page width"}
+                  title={widePage ? "使用标准页面宽度" : "使用宽页面"}
                 >
-                  {widePage ? "Narrow" : "Wide"}
+                  {widePage ? "标准宽度" : "宽页面"}
                 </button>
                 <button
                   onClick={() => setShowInfo((current) => !current)}
@@ -587,59 +587,59 @@ function PageContent({ pageId }: { pageId: string }) {
                       ? "text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                       : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                   }`}
-                  title="View local page information"
+                  title="查看本地页面信息"
                 >
-                  Info
+                  信息
                 </button>
                 <button
                   onClick={handleSaveVersion}
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="Save a named version snapshot"
+                  title="保存命名版本快照"
                 >
-                  📌 Save version
+                  📌 保存版本
                 </button>
                 <button
                   onClick={handleExportHtml}
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="Download this page as HTML"
+                  title="下载 HTML"
                 >
                   HTML
                 </button>
                 <button
                   onClick={handleExportMarkdown}
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="Download this page as Markdown"
+                  title="下载 Markdown"
                 >
                   MD
                 </button>
                 <button
                   onClick={handlePrintPdf}
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="Print or save this page as PDF"
+                  title="打印或另存为 PDF"
                 >
                   PDF
                 </button>
                 <button
                   onClick={handleCopyPageLink}
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="Copy local page link"
+                  title="复制本地页面链接"
                 >
-                  Copy link
+                  复制链接
                 </button>
                 <button
                   onClick={handleDuplicatePage}
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="Duplicate this page"
+                  title="复制这个页面"
                 >
-                  Duplicate
+                  复制页面
                 </button>
                 <div className="group relative">
                   <button
                     onClick={() => setShowHistory((s) => !s)}
                     className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                    title="View version history"
+                    title="查看版本历史"
                   >
-                    🕘 History
+                    🕘 历史
                     {versions.length > 0 && (
                       <span className="ml-1 text-zinc-300 dark:text-zinc-600">
                         ({versions.length})
@@ -652,9 +652,9 @@ function PageContent({ pageId }: { pageId: string }) {
                   onClick={handleDelete}
                   disabled={locked}
                   className="text-xs text-zinc-400 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
-                  title="Delete page"
+                  title="删除页面"
                 >
-                  Delete
+                  删除
                 </button>
               </div>
             </div>
