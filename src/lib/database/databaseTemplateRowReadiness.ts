@@ -128,7 +128,15 @@ const TEMPLATE_ROW_REQUIREMENTS: DatabaseTemplateRowGroupRequirement[] = [
     group_id: "company",
     group_label: "公司研究",
     recommended_database: "公司研究跟踪表",
-    template_titles: ["公司研究", "投资备忘录", "业绩复盘", "估值假设", "关键指标看板"],
+    template_titles: [
+      "公司研究",
+      "投资备忘录",
+      "业绩复盘",
+      "估值假设",
+      "关键指标看板",
+      "行业对比",
+      "投研决策日志",
+    ],
     required_field_groups: [
       fieldRequirement(
         "company-relation",
@@ -183,7 +191,7 @@ const TEMPLATE_ROW_REQUIREMENTS: DatabaseTemplateRowGroupRequirement[] = [
     group_id: "report",
     group_label: "报告库",
     recommended_database: "报告库跟踪表",
-    template_titles: ["研究报告"],
+    template_titles: ["研究报告", "报告摄取清单"],
     required_field_groups: [
       fieldRequirement(
         "report-relation",
@@ -229,7 +237,7 @@ const TEMPLATE_ROW_REQUIREMENTS: DatabaseTemplateRowGroupRequirement[] = [
       ),
     ],
     starter_value_hints: [
-      "Format: HTML or Markdown",
+      "Format: HTML / Markdown / PDF / Excel / Word",
       "Status: Inbox",
       "Report date: manual date",
     ],
@@ -238,7 +246,13 @@ const TEMPLATE_ROW_REQUIREMENTS: DatabaseTemplateRowGroupRequirement[] = [
     group_id: "meeting",
     group_label: "会议与电话会",
     recommended_database: "会议跟踪表",
-    template_titles: ["会议纪要", "会议转录稿", "会议行动项"],
+    template_titles: [
+      "会议纪要",
+      "会议转录稿",
+      "会议行动项",
+      "专家电话纪要",
+      "管理层会议纪要",
+    ],
     required_field_groups: [
       fieldRequirement(
         "meeting-date",
@@ -285,7 +299,7 @@ const TEMPLATE_ROW_REQUIREMENTS: DatabaseTemplateRowGroupRequirement[] = [
     ],
     starter_value_hints: [
       "Status: Notes to process",
-      "Type: Management call",
+      "Type: Management call or Expert call",
       "Follow-up needed: false",
     ],
   },

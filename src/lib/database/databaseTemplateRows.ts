@@ -284,11 +284,15 @@ export function listDatabaseTemplateRowReceipts(): DatabaseTemplateRowReceipt[] 
 export function inferTemplateRowGroupId(
   templateTitle: string
 ): DatabaseTemplateRowGroupId {
-  if (templateTitle === "研究报告") return "report";
+  if (templateTitle === "研究报告" || templateTitle === "报告摄取清单") {
+    return "report";
+  }
   if (
     templateTitle === "会议纪要" ||
     templateTitle === "会议转录稿" ||
-    templateTitle === "会议行动项"
+    templateTitle === "会议行动项" ||
+    templateTitle === "专家电话纪要" ||
+    templateTitle === "管理层会议纪要"
   ) {
     return "meeting";
   }
@@ -427,11 +431,24 @@ function getSelectCandidates(
 ) {
   const normalizedField = normalizeName(fieldName);
   if (normalizedField.includes("format") || normalizedField.includes("格式")) {
+    if (groupId === "report") {
+      return ["HTML", "Markdown", "PDF", "Excel", "Word", "Other"];
+    }
     return ["Markdown", "Other"];
   }
   if (normalizedField.includes("type") || normalizedField.includes("类型")) {
-    if (groupId === "meeting") return ["Internal review", "Management call"];
-    if (groupId === "report") return ["Markdown", "Other"];
+    if (groupId === "meeting") {
+      if (templateTitle === "专家电话纪要") {
+        return ["Expert call", "Channel check", "Interview"];
+      }
+      if (templateTitle === "管理层会议纪要") {
+        return ["Management call", "NDR", "Investor meeting"];
+      }
+      return ["Internal review", "Management call", "Expert call"];
+    }
+    if (groupId === "report") {
+      return ["Research report", "HTML", "Markdown", "PDF", "Excel", "Word"];
+    }
     return [templateTitle, "Research"];
   }
   if (
