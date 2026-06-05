@@ -34,9 +34,10 @@ import {
   buildResearchProjectTrackerIntakeDraft,
   findExistingResearchProjectTrackerRow,
 } from "@/lib/modules/researchProjectTrackerIntake";
+import { isResearchProjectPageRelationField } from "@/lib/modules/researchProjectFields";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import type { Database, DatabaseField } from "@/lib/utils/types";
+import type { Database } from "@/lib/utils/types";
 
 export default function ProjectsShell() {
   return (
@@ -172,7 +173,7 @@ function ProjectsDashboard() {
     try {
       const trackerFields = await getFields(tracker.id);
       const projectPageRelationField = trackerFields.find(
-        isProjectPageRelationField
+        isResearchProjectPageRelationField
       );
       if (!projectPageRelationField) {
         window.alert(
@@ -650,20 +651,6 @@ function isProjectTrackerDatabase(database: Database) {
     searchable.includes("project") ||
     searchable.includes("项目") ||
     searchable.includes("投研项目")
-  );
-}
-
-function normalizeFieldName(value: string) {
-  return value.toLowerCase().replace(/[-_\s]+/g, " ").trim();
-}
-
-function isProjectPageRelationField(field: DatabaseField) {
-  const normalizedName = normalizeFieldName(field.name);
-  return (
-    field.field_type === "relation" &&
-    ["project page", "项目页", "项目页面", "投研项目页"].some(
-      (alias) => normalizeFieldName(alias) === normalizedName
-    )
   );
 }
 

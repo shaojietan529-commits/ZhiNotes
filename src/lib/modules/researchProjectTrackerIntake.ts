@@ -1,4 +1,5 @@
 import { normalizeRelationValue } from "@/lib/database/relationValues";
+import { RESEARCH_PROJECT_PAGE_FIELD_ALIASES } from "@/lib/modules/researchProjectFields";
 import type { ResearchProjectBrief } from "@/lib/modules/researchProjectBrief";
 import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 
@@ -59,7 +60,7 @@ export interface ResearchProjectTrackerExistingRow {
 const PROJECT_TRACKER_REQUIRED_FIELDS = [
   {
     label: "Project page",
-    aliases: ["Project page", "项目页", "项目页面", "投研项目页"],
+    aliases: RESEARCH_PROJECT_PAGE_FIELD_ALIASES,
   },
   { label: "Status", aliases: ["Status", "状态"] },
   { label: "Project mode", aliases: ["Project mode", "项目类型"] },
@@ -83,7 +84,7 @@ export function buildResearchProjectTrackerIntakeDraft(
   const mappedFields: ResearchProjectTrackerIntakeDraft["mapped_fields"] = [];
   const fieldValues: Record<string, unknown> = {};
 
-  const projectPageField = findField(fields, ["Project page", "项目页"]);
+  const projectPageField = findField(fields, RESEARCH_PROJECT_PAGE_FIELD_ALIASES);
   const statusField = findField(fields, ["Status", "状态"]);
   const modeField = findField(fields, ["Project mode", "项目类型"]);
   const priorityField = findField(fields, ["Priority", "优先级"]);
@@ -219,7 +220,7 @@ export function findExistingResearchProjectTrackerRow(
   fields: DatabaseField[],
   projectPageId: string
 ): ResearchProjectTrackerExistingRow | null {
-  const projectPageField = findField(fields, ["Project page", "项目页"]);
+  const projectPageField = findField(fields, RESEARCH_PROJECT_PAGE_FIELD_ALIASES);
   if (!projectPageField) return null;
 
   for (const row of rows) {

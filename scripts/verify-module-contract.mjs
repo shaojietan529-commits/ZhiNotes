@@ -16,6 +16,7 @@ const files = {
   health: "src/lib/modules/moduleHealth.ts",
   roadmap: "src/lib/modules/moduleRoadmap.ts",
   projectProgressSnapshot: "src/lib/modules/projectProgressSnapshot.ts",
+  projectFields: "src/lib/modules/researchProjectFields.ts",
   dashboard: "src/components/modules/ModuleDashboard.tsx",
   projectsShell: "src/components/modules/ProjectsShell.tsx",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -195,6 +196,7 @@ function run() {
   const health = readProjectFile(files.health);
   const roadmap = readProjectFile(files.roadmap);
   const projectProgressSnapshot = readProjectFile(files.projectProgressSnapshot);
+  const projectFields = readProjectFile(files.projectFields);
   const dashboard = readProjectFile(files.dashboard);
   const projectsShell = readProjectFile(files.projectsShell);
   const databaseShell = readProjectFile(files.databaseShell);
@@ -586,11 +588,27 @@ function run() {
     "Module center must export the module roadmap report."
   );
   for (const snippet of [
+    "RESEARCH_PROJECT_PAGE_FIELD_ALIASES",
+    "Project page",
+    "项目页",
+    "项目页面",
+    "投研项目页",
+    "isResearchProjectPageRelationField",
+    "matchesResearchProjectFieldAlias",
+  ]) {
+    assertIncludes(
+      files.projectFields,
+      projectFields,
+      snippet,
+      "Project relation field aliases must stay centralized for project module and database handoff."
+    );
+  }
+  for (const snippet of [
     "handleCreateProjectPageAndTrackerRow",
     "buildResearchProjectTrackerIntakeDraft",
     "findExistingResearchProjectTrackerRow",
     "addRow",
-    "isProjectPageRelationField",
+    "isResearchProjectPageRelationField",
     "创建项目页并入库",
     "trackerIntakeMessage",
     "Project page / 项目页",
@@ -612,8 +630,8 @@ function run() {
     "alreadyLinkedToFocus",
     "isProjectModuleHandoff",
     "isProjectPageRelationFieldName",
-    "Project page",
-    "项目页",
+    "RESEARCH_PROJECT_PAGE_FIELD_ALIASES",
+    "matchesResearchProjectFieldAlias",
     "投研项目模块",
     "Project tracker 下一步",
     "不会自动写跨模块 relation",

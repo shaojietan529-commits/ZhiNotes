@@ -52,6 +52,10 @@ import {
   inferResearchKindFromRelationField,
 } from "@/lib/modules/researchGraph";
 import {
+  RESEARCH_PROJECT_PAGE_FIELD_ALIASES,
+  matchesResearchProjectFieldAlias,
+} from "@/lib/modules/researchProjectFields";
+import {
   getDatabaseFieldDisplayName,
   getDatabaseFieldTypeLabel,
   getDatabaseViewDisplayName,
@@ -1872,17 +1876,10 @@ function isProjectModuleHandoff(source: string) {
 }
 
 function isProjectPageRelationFieldName(fieldName: string) {
-  const normalizedName = normalizeRelationFieldName(fieldName);
-  return ["Project page", "项目页", "项目页面", "投研项目页"].some((alias) => {
-    const normalizedAlias = normalizeRelationFieldName(alias);
-    return (
-      normalizedName === normalizedAlias || normalizedName.includes(normalizedAlias)
-    );
-  });
-}
-
-function normalizeRelationFieldName(value: string) {
-  return value.toLowerCase().replace(/[-_\s]+/g, " ").trim();
+  return matchesResearchProjectFieldAlias(
+    fieldName,
+    RESEARCH_PROJECT_PAGE_FIELD_ALIASES
+  );
 }
 
 function getVisibleRows({

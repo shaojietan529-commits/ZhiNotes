@@ -11,6 +11,7 @@ const files = {
   graph: "src/lib/modules/researchGraph.ts",
   workbench: "src/lib/modules/researchWorkbench.ts",
   projectBrief: "src/lib/modules/researchProjectBrief.ts",
+  projectFields: "src/lib/modules/researchProjectFields.ts",
   projectTrackerIntake: "src/lib/modules/researchProjectTrackerIntake.ts",
   companyCoverage: "src/lib/company/companyCoverage.ts",
   companyDossier: "src/lib/company/companyResearchDossier.ts",
@@ -144,6 +145,7 @@ function run() {
   const graph = readProjectFile(files.graph);
   const workbench = readProjectFile(files.workbench);
   const projectBrief = readProjectFile(files.projectBrief);
+  const projectFields = readProjectFile(files.projectFields);
   const projectTrackerIntake = readProjectFile(files.projectTrackerIntake);
   const companyCoverage = readProjectFile(files.companyCoverage);
   const companyDossier = readProjectFile(files.companyDossier);
@@ -477,6 +479,22 @@ function run() {
     "Research project tracker intake must expose existing-row detection."
   );
   for (const snippet of [
+    "RESEARCH_PROJECT_PAGE_FIELD_ALIASES",
+    "Project page",
+    "项目页",
+    "项目页面",
+    "投研项目页",
+    "isResearchProjectPageRelationField",
+    "matchesResearchProjectFieldAlias",
+  ]) {
+    assertIncludes(
+      files.projectFields,
+      projectFields,
+      snippet,
+      "Research project field aliases must preserve shared Project page matching."
+    );
+  }
+  for (const snippet of [
     'draft_status: "local-project-tracker-row-draft"',
     "local_row_draft_only: true",
     "reads_project_brief_metadata: true",
@@ -494,7 +512,7 @@ function run() {
     "uploads_data: false",
     "enables_ai: false",
     "Project page",
-    "项目页",
+    "RESEARCH_PROJECT_PAGE_FIELD_ALIASES",
     "Status",
     "Project mode",
     "Priority",
