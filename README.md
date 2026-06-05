@@ -197,7 +197,8 @@ Current local actions:
   create a first note, review structure gaps, connect research context, and
   handle review trail issues.
 - Create blank research notes or template-backed local pages for investment
-  memos, company research, meeting notes, and research reports from the notes
+  memos, company research, meeting notes, research reports, report intake,
+  industry comparison, expert calls, and research decision logs from the notes
   module.
 - Write and edit Notion-like page content with headings, lists, tasks, toggles,
   callouts, tables, formulas, synced blocks, embeds, wiki links, file previews,
@@ -526,6 +527,8 @@ Current local actions:
 - Create a company profile page from the Company Research template.
 - Create an investment memo from the Investment Memo template.
 - Create an earnings review from the Earnings Review template.
+- Create valuation assumptions, key metrics, industry comparison, and research
+  decision-log pages from the company research module or Cmd/Ctrl+K.
 - Create a company tracker database with local fields and views.
 - Review and export a local company coverage radar. The coverage report checks
   company home pages, investment memos, earnings reviews, valuation assumptions,
@@ -640,10 +643,11 @@ tokens, credentials, cloud data, or AI output. Its purpose is to make clear what
 is currently safe to do locally, what must stay closed, and what requires owner
 confirmation.
 
-The report module includes a local format support matrix for HTML reports,
-Markdown/MDX, PDF, Excel/CSV/ODS, Word/ODT, PowerPoint/ODP, RTF, EPUB, ZIP,
-Jupyter notebooks, media, text, code, and OPML. Legacy `.doc` and `.ppt` files
-are saved locally and downloadable, but conversion requires `.docx` or `.pptx`.
+The report module includes a local format support matrix for HTML/XHTML
+reports, Markdown/MDX/MDown/MKD/MKDN, PDF, Excel/CSV/ODS, Word/ODT,
+PowerPoint/ODP, RTF, EPUB, ZIP, Jupyter notebooks, media, text, code, and
+OPML. Legacy `.doc` and `.ppt` files are saved locally and downloadable, but
+conversion requires `.docx` or `.pptx`.
 
 The native format strategy is now explicit: a ZhiNotes page is the canonical
 research container; HTML is the preferred native preview format for
@@ -657,13 +661,18 @@ Known formats render through their local preview routes; unknown formats still
 enter the page as local attachments with metadata/download retention instead of
 being blocked at the picker.
 
-Inside the editor slash menu, `/html` now opens the HTML report path directly
-and inserts a sandboxed native preview block. `/markdown preview` inserts a
-local Markdown/MDX file preview block and keeps the original file attached.
-`/markdown import` imports a Markdown file into the current page as editable
-blocks. This separates the two common workflows: AI-generated HTML reports stay
-as native previews, while personal Markdown notes can either stay attached or be
-converted into editable page content.
+Inside the editor slash menu, `/html` now opens the HTML/XHTML report path
+directly and inserts a sandboxed native preview block. `/markdown preview`
+inserts a local Markdown/MDX/MDown/MKD/MKDN file preview block and keeps the
+original file attached. `/markdown import` imports a Markdown-family file into
+the current page as editable blocks. This separates the two common workflows:
+AI-generated HTML reports stay as native previews, while personal Markdown
+notes can either stay attached or be converted into editable page content.
+
+When the Reports module creates a page from a local file, the new page includes
+a format routing table next to the file preview block. It records the preview
+path, editable-import route, database-import route, and privacy boundary for
+that file family, while the original file remains in local browser storage.
 
 The Reports module also renders a local upload preflight before file selection.
 It shows how each supported format will be routed inside a page: native preview,
@@ -745,6 +754,8 @@ Current local actions:
 - Route HTML reports, Markdown notes, PDFs, Office files, notebooks, archives,
   spreadsheets, media, and unknown files into native preview, editable import,
   database import, metadata review, local retain, or cloud/AI boundary lanes.
+- Route XHTML and common Markdown variants (`.mdown`, `.mkd`, `.mkdn`) through
+  the same local HTML/Markdown paths instead of unknown-file retention.
 - Open each file workbench lane directly from its card. Local lanes scroll to
   the matching file-library section; cross-module lanes open Reports,
   Databases, or Sync with a section anchor such as `#reports-preview-routing`,
