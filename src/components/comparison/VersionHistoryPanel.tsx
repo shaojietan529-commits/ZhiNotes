@@ -28,23 +28,22 @@ export default function VersionHistoryPanel({
     <div className="mb-6 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden bg-white dark:bg-zinc-900">
       <div className="flex items-center justify-between px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Version history
+          版本历史
           <span className="ml-2 text-xs text-zinc-400">
-            {versions.length} saved
+            已保存 {versions.length} 个
           </span>
         </span>
         <button
           onClick={onClose}
           className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
         >
-          Close
+          关闭
         </button>
       </div>
 
       {versions.length === 0 ? (
         <div className="px-4 py-6 text-sm text-zinc-400 text-center">
-          No versions saved yet. Versions are captured automatically as you
-          edit, or save one manually with “Save version”.
+          还没有保存版本。编辑时会自动生成版本，也可以手动点击“保存版本”。
         </div>
       ) : (
         <>
@@ -52,18 +51,18 @@ export default function VersionHistoryPanel({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Filter versions..."
+              placeholder="筛选版本..."
               className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-700 outline-none placeholder:text-zinc-300 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:border-blue-700 dark:focus:ring-blue-950"
             />
             {trimmedQuery && (
               <div className="mt-1 text-[11px] text-zinc-400">
-                {filteredVersions.length} of {versions.length} versions shown
+                显示 {filteredVersions.length}/{versions.length} 个版本
               </div>
             )}
           </div>
           {filteredVersions.length === 0 ? (
             <div className="px-4 py-6 text-center text-sm text-zinc-400">
-              No versions match “{trimmedQuery}”.
+              没有匹配“{trimmedQuery}”的版本。
             </div>
           ) : (
             <div className="max-h-80 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -79,7 +78,7 @@ export default function VersionHistoryPanel({
                       </span>
                       {index === 0 && !trimmedQuery && (
                         <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-950 dark:text-blue-300">
-                          Latest
+                          最新
                         </span>
                       )}
                       <span
@@ -97,16 +96,16 @@ export default function VersionHistoryPanel({
                     <button
                       onClick={() => onCompare(v)}
                       className="text-[11px] text-blue-500 hover:text-blue-600 px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
-                      title="Compare this version with the current page"
+                      title="对比此版本和当前页面"
                     >
-                      Compare
+                      对比
                     </button>
                     <button
                       onClick={() => onRestore(v)}
                       className="text-[11px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                      title="Restore the page to this version"
+                      title="恢复页面到此版本"
                     >
-                      Restore
+                      恢复
                     </button>
                   </div>
                 </div>

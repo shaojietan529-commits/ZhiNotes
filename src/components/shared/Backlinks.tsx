@@ -66,7 +66,7 @@ export default function Backlinks({ pageId, pageTitle }: BacklinksProps) {
           <path d="M9 17H7A5 5 0 017 7h2M15 7h2a5 5 0 010 10h-2M8 12h8" />
         </svg>
         <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          References
+          引用
         </h3>
         <span className="text-xs text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-full px-1.5">
           {links.length + unlinkedMentions.length}
@@ -74,14 +74,14 @@ export default function Backlinks({ pageId, pageTitle }: BacklinksProps) {
       </div>
       {links.length > 0 && (
         <ReferenceSection
-          title="Backlinks"
+          title="反向链接"
           pages={links}
           onNavigate={(id) => router.push(`/page/${id}`)}
         />
       )}
       {unlinkedMentions.length > 0 && (
         <ReferenceSection
-          title="Unlinked mentions"
+          title="未链接提及"
           pages={unlinkedMentions}
           onNavigate={(id) => router.push(`/page/${id}`)}
         />
@@ -113,7 +113,7 @@ function ReferenceSection({
             >
               <span className="shrink-0">{page.icon || "📄"}</span>
               <span className="flex-1 truncate text-zinc-700 group-hover:text-zinc-900 dark:text-zinc-300 dark:group-hover:text-zinc-100">
-                {page.title || "Untitled"}
+                {page.title || "未命名页面"}
               </span>
               <span className="shrink-0 text-[10px] text-zinc-400">
                 {formatRelativeDate(page.updated_at)}
@@ -138,7 +138,13 @@ function findUnlinkedMentions(
   backlinkIds: Set<string>
 ): ReferencePage[] {
   const title = currentPageTitle.trim();
-  if (title.length < 3 || title.toLowerCase() === "untitled") return [];
+  if (
+    title.length < 3 ||
+    title.toLowerCase() === "untitled" ||
+    title === "未命名页面"
+  ) {
+    return [];
+  }
 
   const titlePattern = new RegExp(escapeRegExp(title), "i");
   const mentions: ReferencePage[] = [];

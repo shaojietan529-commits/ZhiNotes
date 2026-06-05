@@ -13,13 +13,16 @@ const files = {
   slashSuggestion: "src/components/editor/extensions/SlashCommandSuggestion.ts",
   filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
   blockDragHandle: "src/components/editor/BlockDragHandleLayer.tsx",
+  backlinks: "src/components/shared/Backlinks.tsx",
   calloutNode: "src/components/editor/extensions/CalloutNode.tsx",
   editor: "src/components/editor/Editor.tsx",
+  hoverSummary: "src/components/comparison/HoverSummary.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   readme: "README.md",
   tableOfContentsNode:
     "src/components/editor/extensions/TableOfContentsNode.tsx",
+  versionHistoryPanel: "src/components/comparison/VersionHistoryPanel.tsx",
 };
 
 const failures = [];
@@ -47,12 +50,15 @@ function run() {
   const slashSuggestion = readProjectFile(files.slashSuggestion);
   const filePreviewUpload = readProjectFile(files.filePreviewUpload);
   const blockDragHandle = readProjectFile(files.blockDragHandle);
+  const backlinks = readProjectFile(files.backlinks);
   const calloutNode = readProjectFile(files.calloutNode);
   const editor = readProjectFile(files.editor);
+  const hoverSummary = readProjectFile(files.hoverSummary);
   const pageShell = readProjectFile(files.pageShell);
   const quickSearch = readProjectFile(files.quickSearch);
   const readme = readProjectFile(files.readme);
   const tableOfContentsNode = readProjectFile(files.tableOfContentsNode);
+  const versionHistoryPanel = readProjectFile(files.versionHistoryPanel);
 
   assertIncludes(
     files.packageJson,
@@ -281,6 +287,36 @@ function run() {
       pageShell,
       snippet,
       "Page cover controls must keep the default notes UI in Chinese."
+    );
+  }
+  for (const snippet of [
+    "版本历史",
+    "筛选版本...",
+    "最新",
+    "对比",
+    "恢复",
+  ]) {
+    assertIncludes(
+      files.versionHistoryPanel,
+      versionHistoryPanel,
+      snippet,
+      "Version history panel must keep the default notes UI in Chinese."
+    );
+  }
+  for (const snippet of ["还没有保存版本。编辑时会自动生成版本。", "最近变化"]) {
+    assertIncludes(
+      files.hoverSummary,
+      hoverSummary,
+      snippet,
+      "Version hover summary must keep the default notes UI in Chinese."
+    );
+  }
+  for (const snippet of ["引用", "反向链接", "未链接提及", "未命名页面"]) {
+    assertIncludes(
+      files.backlinks,
+      backlinks,
+      snippet,
+      "Backlinks panel must keep the default notes UI in Chinese."
     );
   }
 
