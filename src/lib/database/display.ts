@@ -14,6 +14,7 @@ const FIELD_TYPE_LABELS: Record<string, string> = {
   email: "邮箱",
   phone: "电话",
   formula: "公式",
+  button: "按钮草案",
   created_time: "创建时间",
   last_edited_time: "最后编辑时间",
   unique_id: "唯一 ID",

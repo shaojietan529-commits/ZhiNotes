@@ -149,16 +149,15 @@ Notion 已有：
 ZhiNotes 当前已有：
 
 - 已有 template row、module starter、tracker intake desk 和本地确认 receipt 的基础。
+- 已有只读 database button draft 字段：保存按钮标签和动作预览，Table 点击只弹出预览，不执行写入。
 - AI、云同步和高风险写入仍默认关闭。
 
 仍缺口：
 
-- 还没有 database button 字段类型。
-- 还没有本地 action runner、动作预览、撤销/回滚 receipt。
+- 还没有本地 action runner、真实动作执行、撤销/回滚 receipt。
 - 还没有权限模型来限制哪些 button 可以写页面、写字段或创建数据库。
 
 建议下一步：
 
-- 先做只读 button draft property：显示按钮标签和 planned actions，但点击只弹出预览，不执行。
-- 第二步做低风险本地动作，例如设置同一行 status、date、checkbox。
+- 第二步做低风险本地动作，例如设置同一行 status、date、checkbox，并补撤销/回滚 receipt。
 - 创建页面、批量写字段、调用 AI、同步云端必须继续放在 owner gate 后面。

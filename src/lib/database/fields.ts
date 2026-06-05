@@ -43,6 +43,7 @@ export const DATABASE_FIELD_TYPES = [
   { value: "email", label: "邮箱" },
   { value: "phone", label: "电话" },
   { value: "formula", label: "公式" },
+  { value: "button", label: "按钮草案" },
   { value: DATABASE_CREATED_TIME_FIELD, label: "创建时间" },
   { value: DATABASE_LAST_EDITED_TIME_FIELD, label: "最后编辑时间" },
   { value: DATABASE_UNIQUE_ID_FIELD, label: "唯一 ID" },
@@ -142,6 +143,28 @@ export function getDatabaseRollupConfig(
   }
 }
 
+export function getDatabaseButtonConfig(field: Pick<DatabaseField, "config">) {
+  try {
+    const config = field.config ? JSON.parse(field.config) : {};
+    return {
+      label:
+        typeof config.buttonLabel === "string" && config.buttonLabel.trim()
+          ? config.buttonLabel.trim()
+          : "预览动作",
+      actionPreview:
+        typeof config.buttonActionPreview === "string" &&
+        config.buttonActionPreview.trim()
+          ? config.buttonActionPreview.trim()
+          : "尚未配置动作。当前按钮只显示预览，不会写入数据。",
+    };
+  } catch {
+    return {
+      label: "预览动作",
+      actionPreview: "尚未配置动作。当前按钮只显示预览，不会写入数据。",
+    };
+  }
+}
+
 export function buildFieldConfig(
   fieldType: string,
   optionsText: string,
@@ -149,7 +172,9 @@ export function buildFieldConfig(
   formulaExpression: string = "",
   rollupRelationFieldId: string = "",
   rollupAggregation: string = DEFAULT_DATABASE_ROLLUP_AGGREGATION,
-  description: string = ""
+  description: string = "",
+  buttonLabel: string = "",
+  buttonActionPreview: string = ""
 ) {
   if (isSelectLikeFieldType(fieldType)) {
     return stringifyFieldConfig(
@@ -175,6 +200,17 @@ export function buildFieldConfig(
         numberFormat: isDatabaseNumberFormat(numberFormat)
           ? numberFormat
           : DEFAULT_DATABASE_NUMBER_FORMAT,
+      },
+      description
+    );
+  }
+  if (fieldType === "button") {
+    return stringifyFieldConfig(
+      {
+        buttonLabel: buttonLabel.trim() || "预览动作",
+        buttonActionPreview:
+          buttonActionPreview.trim() ||
+          "尚未配置动作。当前按钮只显示预览，不会写入数据。",
       },
       description
     );

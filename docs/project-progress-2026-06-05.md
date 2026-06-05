@@ -141,6 +141,12 @@ schema migration 的能力默认保持关闭。
 - Rollup 只读取本地 relation id 和页面标题，不读取关联页面正文、文件 bytes、云端数据或 AI 内容；
   后续如果要做跨数据库属性 rollup，再单独设计权限和数据边界。
 
+### 数据库 Button 草案字段阶段
+
+- 新增本地 button draft 字段类型；字段配置可以保存按钮标签和动作预览说明。
+- Table view 的 button 单元格只弹出动作预览，不写 row values、不创建页面、不调用 AI、不连接云端。
+- 这为后续 Notion-like database button action runner 预留字段模型，但执行能力仍保持关闭。
+
 ### 数据库记录复制阶段
 
 - 数据库记录现在支持本地复制：Table、List、Kanban、Calendar、Gallery、Timeline、Feed

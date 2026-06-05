@@ -71,6 +71,7 @@ import {
   DATABASE_NUMBER_FORMATS,
   DATABASE_ROLLUP_AGGREGATIONS,
   formatFieldOptions,
+  getDatabaseButtonConfig,
   getDatabaseFieldDescription,
   getDatabaseFormulaExpression,
   getDatabaseNumberFormat,
@@ -2547,6 +2548,12 @@ function FieldSettingsButton({
   const [rollupAggregation, setRollupAggregation] = useState<string>(
     getDatabaseRollupConfig(field).aggregation
   );
+  const [buttonLabel, setButtonLabel] = useState(
+    getDatabaseButtonConfig(field).label
+  );
+  const [buttonActionPreview, setButtonActionPreview] = useState(
+    getDatabaseButtonConfig(field).actionPreview
+  );
   const relationFields = fields.filter(
     (candidate) =>
       candidate.field_type === "relation" && candidate.id !== field.id
@@ -2568,6 +2575,8 @@ function FieldSettingsButton({
     setFormulaExpression(getDatabaseFormulaExpression(field));
     setRollupRelationFieldId(getDatabaseRollupConfig(field).relationFieldId);
     setRollupAggregation(getDatabaseRollupConfig(field).aggregation);
+    setButtonLabel(getDatabaseButtonConfig(field).label);
+    setButtonActionPreview(getDatabaseButtonConfig(field).actionPreview);
   }, [field]);
 
   const handleSave = () => {
@@ -2585,7 +2594,9 @@ function FieldSettingsButton({
         formulaExpression,
         nextRollupRelationFieldId,
         rollupAggregation,
-        fieldDescription
+        fieldDescription,
+        buttonLabel,
+        buttonActionPreview
       ),
     });
     setOpen(false);
@@ -2776,6 +2787,39 @@ function FieldSettingsButton({
                   只汇总当前行 relation 里的页面 id；不会读取关联页面正文。
                 </span>
               </label>
+            </div>
+          )}
+          {type === "button" && (
+            <div className="mt-3 space-y-3 rounded-md border border-blue-100 bg-blue-50/70 p-2 dark:border-blue-900 dark:bg-blue-950/30">
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-medium text-blue-700 dark:text-blue-300">
+                  按钮标签
+                </span>
+                <input
+                  type="text"
+                  value={buttonLabel}
+                  onChange={(event) => setButtonLabel(event.target.value)}
+                  placeholder="生成复盘草稿"
+                  className="w-full rounded border border-blue-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-blue-400 dark:border-blue-900 dark:bg-zinc-950 dark:text-zinc-100"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-medium text-blue-700 dark:text-blue-300">
+                  动作预览
+                </span>
+                <textarea
+                  value={buttonActionPreview}
+                  onChange={(event) =>
+                    setButtonActionPreview(event.target.value)
+                  }
+                  rows={3}
+                  placeholder="例如：未来可基于本行生成一页复盘草稿；当前只展示预览，不执行。"
+                  className="w-full resize-none rounded border border-blue-200 bg-white px-2 py-1.5 text-xs leading-5 text-zinc-900 outline-none focus:border-blue-400 dark:border-blue-900 dark:bg-zinc-950 dark:text-zinc-100"
+                />
+              </label>
+              <p className="text-[11px] leading-5 text-blue-700 dark:text-blue-300">
+                当前按钮字段只是动作草案；点击单元格按钮只显示预览，不写行、不建页、不调用 AI。
+              </p>
             </div>
           )}
           <div className="mt-3 rounded-md border border-zinc-100 p-2 dark:border-zinc-700">
@@ -3345,6 +3389,9 @@ function getRowFieldText(
     const values = parseFieldValues(row.field_values);
     return evaluateDatabaseRollup(field, fields, values, relationPages).label;
   }
+  if (field.field_type === "button") {
+    return getDatabaseButtonConfig(field).label;
+  }
   return stringifyValue(value);
 }
 
@@ -3503,7 +3550,8 @@ function buildDatabaseRowGroups({
     const labels = getDatabaseRowGroupLabels(row, field, fields, relationPages);
     for (const label of labels) {
       const groupId = `${field.id}:${label}`;
-      const group = groups.get(groupId) ?? { id: groupId, label, rows: [] };
+      const group: DatabaseRowGroup =
+        groups.get(groupId) ?? { id: groupId, label, rows: [] };
       group.rows.push(row);
       groups.set(groupId, group);
     }
@@ -3538,7 +3586,7 @@ function getDatabaseRowGroupLabels(
   const text = getRowFieldText(row, field, fields, relationPages).trim();
   const labels = text
     .split(",")
-    .map((item) => item.trim())
+    .map((item: string) => item.trim())
     .filter(Boolean);
   return labels.length > 0 ? labels : ["无值"];
 }

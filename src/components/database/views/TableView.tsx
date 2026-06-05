@@ -7,6 +7,7 @@ import { formatRelativeDate } from "@/lib/utils/dates";
 import RelationFieldEditor from "@/components/database/RelationFieldEditor";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import {
+  getDatabaseButtonConfig,
   getDatabaseFieldDescription,
   getFieldOptions,
 } from "@/lib/database/fields";
@@ -552,6 +553,24 @@ function CellEditor({
             : systemValue
           : "—"}
       </span>
+    );
+  }
+
+  if (field.field_type === "button") {
+    const buttonConfig = getDatabaseButtonConfig(field);
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          window.alert(
+            `按钮动作预览：${buttonConfig.actionPreview}\n\n当前版本不会写入行值、创建页面或调用 AI。`
+          )
+        }
+        className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+        title="当前按钮字段只显示动作预览，不执行写入"
+      >
+        {buttonConfig.label}
+      </button>
     );
   }
 

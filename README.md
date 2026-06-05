@@ -411,13 +411,16 @@ Current local actions:
   the field config from the database. Neither action uploads or sends data out.
 - Use local database fields for text, number, formula, rollup, relation,
   select, multi-select, status, date, checkbox, URL, email, phone, unique ID,
-  created time, and last edited time values. Table and form views use native
-  email/phone inputs, multi-select chips, and read-only system properties.
+  created time, last edited time, and button draft values. Table and form views
+  use native email/phone inputs, multi-select chips, and read-only system
+  properties.
   Formula fields are local read-only computed fields that reference same-row
   fields with `{Field Name}` and basic + - * / arithmetic. Rollup fields are
   local read-only summaries over one relation field, currently supporting
   related-page counts or related-page titles without reading related page
-  bodies. Feed chips make computed fields visible, number/formula fields can
+  bodies. Button draft fields show a local action preview only; they do not
+  write rows, create pages, call AI, or sync cloud data. Feed chips make
+  computed fields visible, number/formula fields can
   display as plain values, percentages, USD, CNY, or multiples without changing
   stored values, charts can group multi-select options, formula buckets, rollup
   buckets, or system time months, and CSV/XLSX append import can infer

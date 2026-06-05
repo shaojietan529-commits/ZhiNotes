@@ -47,6 +47,7 @@ import {
   buildFieldConfig,
   DATABASE_FIELD_TYPES,
   formatFieldOptions,
+  getDatabaseButtonConfig,
   getDatabaseFieldDescription,
   isSelectLikeFieldType,
 } from "@/lib/database/fields";
@@ -822,7 +823,8 @@ function buildInlineDatabaseRowGroups({
     );
     for (const label of labels) {
       const groupId = `${field.id}:${label}`;
-      const group = groups.get(groupId) ?? { id: groupId, label, rows: [] };
+      const group: InlineDatabaseRowGroup =
+        groups.get(groupId) ?? { id: groupId, label, rows: [] };
       group.rows.push(row);
       groups.set(groupId, group);
     }
@@ -861,7 +863,7 @@ function getInlineDatabaseRowGroupLabels(
   const text = getInlineRowFieldText(row, field, fields, relationPages).trim();
   const labels = text
     .split(",")
-    .map((item) => item.trim())
+    .map((item: string) => item.trim())
     .filter(Boolean);
   return labels.length > 0 ? labels : ["无值"];
 }
@@ -935,6 +937,9 @@ function getInlineRowFieldText(
   if (field.field_type === "rollup") {
     const values = parseFieldValues(row.field_values);
     return evaluateDatabaseRollup(field, fields, values, relationPages).label;
+  }
+  if (field.field_type === "button") {
+    return getDatabaseButtonConfig(field).label;
   }
   return stringifyInlineValue(value);
 }
