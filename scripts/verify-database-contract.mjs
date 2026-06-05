@@ -462,6 +462,33 @@ function run() {
     );
   }
   for (const snippet of [
+    "handleMoveView",
+    "canMoveLeft",
+    "canMoveRight",
+    "左移",
+    "右移",
+    "只调整视图 tab 顺序",
+    "view metadata",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database view tabs must support local metadata-only ordering."
+    );
+  }
+  for (const snippet of [
+    'Pick<DatabaseView, "name" | "config" | "position">',
+    'changedCols.push("position")',
+  ]) {
+    assertIncludes(
+      files.queries,
+      queries,
+      snippet,
+      "Local database view updates must support position metadata changes."
+    );
+  }
+  for (const snippet of [
     "handleDuplicateRow",
     "sourceRow.page?.title",
     "fieldValues",
@@ -1664,6 +1691,7 @@ function run() {
         view_rule_controls: true,
         view_grouping: true,
         view_management: true,
+        view_reordering: true,
         row_duplicate_actions: true,
         field_duplicate_actions: true,
         field_descriptions: true,

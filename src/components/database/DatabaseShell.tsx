@@ -402,6 +402,26 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [applyViewConfig, databaseId, reload]
   );
 
+  const handleMoveView = useCallback(
+    async (view: DatabaseView, direction: "left" | "right") => {
+      const orderedViews = [...views].sort(
+        (left, right) => left.position - right.position
+      );
+      const currentIndex = orderedViews.findIndex((item) => item.id === view.id);
+      const targetIndex =
+        direction === "left" ? currentIndex - 1 : currentIndex + 1;
+      const targetView = orderedViews[targetIndex];
+      if (currentIndex < 0 || !targetView) return;
+
+      await Promise.all([
+        updateView(view.id, { position: targetView.position }),
+        updateView(targetView.id, { position: view.position }),
+      ]);
+      reload();
+    },
+    [reload, views]
+  );
+
   const handleDeleteView = useCallback(
     async (view: DatabaseView) => {
       if (views.length <= 1) {
@@ -733,43 +753,49 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
       {/* View tabs + add view */}
       <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-zinc-700 mb-4">
-        {views.map((view) => (
-          <span
-            key={view.id}
-            className={`inline-flex items-center rounded-t-md transition-colors ${
-              activeView?.id === view.id
-                ? "bg-white dark:bg-zinc-800 border border-b-0 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-medium -mb-px"
-                : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setActiveViewId(view.id);
-                applyViewConfig(view.config);
-              }}
-              className="px-3 py-1.5 text-sm"
+        {views.map((view) => {
+          const viewIndex = views.findIndex((item) => item.id === view.id);
+          return (
+            <span
+              key={view.id}
+              className={`inline-flex items-center rounded-t-md transition-colors ${
+                activeView?.id === view.id
+                  ? "bg-white dark:bg-zinc-800 border border-b-0 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-medium -mb-px"
+                  : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              }`}
             >
-              {view.view_type === "table" && "⊞ "}
-              {view.view_type === "list" && "☰ "}
-              {view.view_type === "kanban" && "▥ "}
-              {view.view_type === "calendar" && "📅 "}
-              {view.view_type === "gallery" && "▦ "}
-              {view.view_type === "timeline" && "↔ "}
-              {view.view_type === "chart" && "▤ "}
-              {view.view_type === "form" && "□ "}
-              {view.view_type === "feed" && "☷ "}
-              {getDatabaseViewDisplayName(view)}
-            </button>
-            <DatabaseViewActionsButton
-              view={view}
-              canDelete={views.length > 1}
-              onRename={handleRenameView}
-              onDuplicate={handleDuplicateView}
-              onDelete={handleDeleteView}
-            />
-          </span>
-        ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveViewId(view.id);
+                  applyViewConfig(view.config);
+                }}
+                className="px-3 py-1.5 text-sm"
+              >
+                {view.view_type === "table" && "⊞ "}
+                {view.view_type === "list" && "☰ "}
+                {view.view_type === "kanban" && "▥ "}
+                {view.view_type === "calendar" && "📅 "}
+                {view.view_type === "gallery" && "▦ "}
+                {view.view_type === "timeline" && "↔ "}
+                {view.view_type === "chart" && "▤ "}
+                {view.view_type === "form" && "□ "}
+                {view.view_type === "feed" && "☷ "}
+                {getDatabaseViewDisplayName(view)}
+              </button>
+              <DatabaseViewActionsButton
+                view={view}
+                canDelete={views.length > 1}
+                canMoveLeft={viewIndex > 0}
+                canMoveRight={viewIndex >= 0 && viewIndex < views.length - 1}
+                onRename={handleRenameView}
+                onDuplicate={handleDuplicateView}
+                onMove={handleMoveView}
+                onDelete={handleDeleteView}
+              />
+            </span>
+          );
+        })}
         {/* Add view dropdown */}
         <AddViewButton onAdd={handleAddView} />
       </div>
@@ -1017,14 +1043,20 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 function DatabaseViewActionsButton({
   view,
   canDelete,
+  canMoveLeft,
+  canMoveRight,
   onRename,
   onDuplicate,
+  onMove,
   onDelete,
 }: {
   view: DatabaseView;
   canDelete: boolean;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
   onRename: (view: DatabaseView, name: string) => void;
   onDuplicate: (view: DatabaseView) => void;
+  onMove: (view: DatabaseView, direction: "left" | "right") => void;
   onDelete: (view: DatabaseView) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -1084,6 +1116,32 @@ function DatabaseViewActionsButton({
             >
               复制视图
             </button>
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                type="button"
+                disabled={!canMoveLeft}
+                onClick={() => {
+                  onMove(view, "left");
+                  setOpen(false);
+                }}
+                className="rounded px-2 py-1.5 text-left text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-default disabled:text-zinc-300 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:disabled:text-zinc-600"
+                title="只调整视图 tab 顺序，不改行值或 view config"
+              >
+                左移
+              </button>
+              <button
+                type="button"
+                disabled={!canMoveRight}
+                onClick={() => {
+                  onMove(view, "right");
+                  setOpen(false);
+                }}
+                className="rounded px-2 py-1.5 text-left text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-default disabled:text-zinc-300 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:disabled:text-zinc-600"
+                title="只调整视图 tab 顺序，不改行值或 view config"
+              >
+                右移
+              </button>
+            </div>
             <button
               type="button"
               disabled={!canDelete}
@@ -1097,7 +1155,7 @@ function DatabaseViewActionsButton({
             </button>
           </div>
           <p className="mt-2 text-[11px] leading-5 text-zinc-400">
-            这些动作只修改当前数据库的 view config，不会删除行、页面或文件。
+            这些动作只修改当前数据库的 view metadata，不会删除行、页面或文件。
           </p>
         </div>
       )}

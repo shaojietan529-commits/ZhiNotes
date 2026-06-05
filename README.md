@@ -320,6 +320,9 @@ Current local actions:
 - Manage local database views from each view tab: rename a view, duplicate its
   current config into a copy, or soft-delete a non-final view without deleting
   any rows, pages, files, or field values.
+- Reorder local database view tabs from each view tab menu. View ordering only
+  swaps local view position metadata; it does not change view rules or row
+  values.
 - Duplicate local database fields from full database pages or inline databases.
   Field duplicate copies the field name, type, and configuration into a new
   local field, but does not copy existing row values.

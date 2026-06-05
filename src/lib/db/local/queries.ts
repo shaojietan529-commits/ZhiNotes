@@ -1204,7 +1204,7 @@ export async function addView(databaseId: string, opts: {
 
 export async function updateView(
   id: string,
-  updates: Partial<Pick<DatabaseView, "name" | "config">>
+  updates: Partial<Pick<DatabaseView, "name" | "config" | "position">>
 ): Promise<void> {
   const db = await getDb();
   const now = nowISO();
@@ -1221,6 +1221,11 @@ export async function updateView(
     setClauses.push("config = ?");
     values.push(updates.config);
     changedCols.push("config");
+  }
+  if (updates.position !== undefined) {
+    setClauses.push("position = ?");
+    values.push(updates.position);
+    changedCols.push("position");
   }
 
   if (changedCols.length === 0) {
