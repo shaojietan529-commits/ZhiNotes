@@ -842,6 +842,9 @@ Current local actions:
   saves the selected file in browser-local storage, creates a ZhiNotes page with
   a file preview block, and adds a format route table, recommended destination,
   review checklist, research-linking section, and local-only safety boundary.
+- Create a generic page from an existing local file card in the Files module.
+  This reuses the browser-local file and the same file-page template without
+  reselecting, uploading, syncing, or calling AI.
 - Review a local file workbench generated from IndexedDB file metadata and the
   file preview capability matrix.
 - Review the file library format route matrix directly in `/modules/files`,

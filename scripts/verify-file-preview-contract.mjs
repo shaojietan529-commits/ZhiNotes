@@ -1643,8 +1643,11 @@ function run() {
   }
   for (const snippet of [
     "fileInputRef",
+    "storedFileById",
     "handleChooseFiles",
     "handleFilesSelected",
+    "handleCreatePageForStoredFile",
+    "creatingExistingFilePageId",
     "createFileLibraryPageFromStoredFile",
     "savePageFile(file)",
     "source_surface: \"files-module\"",
@@ -1653,6 +1656,8 @@ function run() {
     "buildFileLibraryPageContent",
     "FILE_LIBRARY_PAGE_ACTION_LABEL",
     "文件没有上传、同步或调用 AI",
+    "从本地文件创建 Page",
+    "只复用浏览器本地文件和通用文件页面模板",
     "不确定文件属于哪个模块时",
   ]) {
     assertIncludes(

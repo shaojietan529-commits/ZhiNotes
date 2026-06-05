@@ -90,6 +90,9 @@ function FilesDashboard() {
   const [exportingWorkbench, setExportingWorkbench] = useState(false);
   const [exportingPreviewRouting, setExportingPreviewRouting] = useState(false);
   const [creatingFilePages, setCreatingFilePages] = useState(false);
+  const [creatingExistingFilePageId, setCreatingExistingFilePageId] = useState<
+    string | null
+  >(null);
   const [filePageBatchMessage, setFilePageBatchMessage] = useState<{
     created: number;
     failed: number;
@@ -146,6 +149,10 @@ function FilesDashboard() {
 
   const fileNameById = useMemo(
     () => new Map(storedFiles.map((file) => [file.id, file.name])),
+    [storedFiles]
+  );
+  const storedFileById = useMemo(
+    () => new Map(storedFiles.map((file) => [file.id, file])),
     [storedFiles]
   );
 
@@ -259,6 +266,23 @@ function FilesDashboard() {
       })
     );
     return page;
+  };
+
+  const handleCreatePageForStoredFile = async (storedFile: StoredPageFile) => {
+    setCreatingExistingFilePageId(storedFile.id);
+    setFilePageBatchMessage(null);
+    try {
+      const page = await createFileLibraryPageFromStoredFile(storedFile);
+      await refreshPages();
+      router.push(`/page/${page.id}`);
+    } catch (err) {
+      console.error("[Zhinote] Failed to create page for stored file:", err);
+      window.alert(
+        "无法从这个本地文件创建页面。文件没有上传；请检查浏览器是否允许本地存储。"
+      );
+    } finally {
+      setCreatingExistingFilePageId(null);
+    }
   };
 
   const handleReviewStepOpen = (
@@ -532,6 +556,11 @@ function FilesDashboard() {
                     key={file.local_file_id}
                     item={file}
                     localName={fileNameById.get(file.local_file_id) ?? file.display_label}
+                    storedFile={storedFileById.get(file.local_file_id) ?? null}
+                    creatingPage={creatingExistingFilePageId === file.local_file_id}
+                    onCreatePage={(storedFile) =>
+                      void handleCreatePageForStoredFile(storedFile)
+                    }
                   />
                 ))
               )}
@@ -1378,9 +1407,15 @@ function FileFormatGroupCard({
 function FileCard({
   item,
   localName,
+  storedFile,
+  creatingPage,
+  onCreatePage,
 }: {
   item: FileLibraryFileItem;
   localName: string;
+  storedFile: StoredPageFile | null;
+  creatingPage: boolean;
+  onCreatePage: (storedFile: StoredPageFile) => void;
 }) {
   return (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -1408,6 +1443,19 @@ function FileCard({
       <p className="mt-3 text-sm leading-5 text-zinc-500 dark:text-zinc-400">
         {item.next_action}
       </p>
+      <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+        <button
+          type="button"
+          onClick={() => storedFile && onCreatePage(storedFile)}
+          disabled={!storedFile || creatingPage}
+          className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+        >
+          {creatingPage ? "创建中..." : "从本地文件创建 Page"}
+        </button>
+        <p className="mt-2 text-xs leading-5 text-zinc-400">
+          只复用浏览器本地文件和通用文件页面模板；不上传、不同步、不调用 AI。
+        </p>
+      </div>
     </div>
   );
 }
