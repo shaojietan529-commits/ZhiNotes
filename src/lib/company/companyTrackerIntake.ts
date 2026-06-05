@@ -148,7 +148,7 @@ export function buildCompanyTrackerIntakeDraft(
     format_version: 1,
     draft_status: "local-company-tracker-row-draft",
     privacy_note:
-      "由一个公司覆盖候选和所选公司跟踪表字段结构在本地生成。它只创建带 relation id 和结构状态的行草稿，不读取或导出页面正文、数据库行值、文件字节、持仓、交易计划、云端数据、AI prompt、token 或凭证。",
+      "由一个公司覆盖候选和所选公司跟踪表字段结构在本地生成。它只创建带关系 id 和结构状态的行草稿，不读取或导出页面正文、数据库行值、文件字节、持仓、交易计划、云端数据、AI 提示词、token 或凭证。",
     boundary: {
       local_row_draft_only: true,
       reads_company_coverage_candidate: true,
@@ -209,7 +209,7 @@ function buildCompanyTrackerRowContent(item: CompanyTrackerIntakeItem) {
       ? item.missing_sections
           .map((area) => `<li>${escapeHtml(getCoverageAreaLabel(area))}</li>`)
           .join("")
-      : "<li>基础结构已覆盖，继续维护 relation 值、复盘节奏和最新结论。</li>";
+      : "<li>基础结构已覆盖，继续维护关系值、复盘节奏和最新结论。</li>";
 
   return `
     <h1>${escapeHtml(`公司跟踪 - ${item.page_title}`)}</h1>

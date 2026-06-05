@@ -144,7 +144,7 @@ export function buildPortfolioTrackerIntakeDraft(
     format_version: 1,
     draft_status: "local-portfolio-tracker-row-draft",
     privacy_note:
-      "由本地脱敏组合复盘条目和所选组合跟踪表字段结构生成。它只创建带 relation id 和结构状态的行草稿，不读取或导出页面正文、页面标题、数据库行值、持仓名、股票代码、权重、持仓、交易计划、交易记录、券商数据、价格、云端数据、AI prompt、token 或凭证。",
+      "由本地脱敏组合复盘条目和所选组合跟踪表字段结构生成。它只创建带关系 id 和结构状态的行草稿，不读取或导出页面正文、页面标题、数据库行值、持仓名、股票代码、权重、持仓、交易计划、交易记录、券商数据、价格、云端数据、AI 提示词、token 或凭证。",
     boundary: {
       local_row_draft_only: true,
       reads_portfolio_review_item: true,
@@ -229,7 +229,7 @@ function buildPortfolioTrackerRowContent(item: PortfolioTrackerIntakeItem) {
     <p>由组合模块本地入库创建。这个行用来把本地持仓或观察名单备忘录接入组合跟踪表。</p>
     <h2>已连接</h2>
     <ul>
-      <li>关联备忘录 relation: ${escapeHtml(item.redacted_label)}</li>
+      <li>关联备忘录关系：${escapeHtml(item.redacted_label)}</li>
       <li>来源类型：${item.source_kind === "watchlist" ? "观察名单" : "持仓备忘录"}</li>
     </ul>
     <h2>下一步</h2>

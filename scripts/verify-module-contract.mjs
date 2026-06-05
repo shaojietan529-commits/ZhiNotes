@@ -615,9 +615,9 @@ function run() {
     "isResearchProjectPageRelationField",
     "创建项目页并入库",
     "trackerIntakeMessage",
-    "Project page / 项目页",
+    "项目页关系字段",
     "handoff=projects-module",
-    "跨模块 relation 仍需手动补",
+    "跨模块关系仍需手动补",
   ]) {
     assertIncludes(
       files.projectsShell,

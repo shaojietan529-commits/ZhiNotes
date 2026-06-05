@@ -129,11 +129,11 @@ export function buildPortfolioReviewReport(
   const areas: PortfolioReviewArea[] = [
     {
       id: "position-memo",
-      title: "持仓 memo",
+      title: "持仓备忘录",
       status: countStatus(portfolioMemos.length),
-      evidence: `${portfolioMemos.length} 个本地页面包含持仓或投资 memo 结构。`,
+      evidence: `${portfolioMemos.length} 个本地页面包含持仓或投资备忘录结构。`,
       next_action:
-        "每个正式组合想法都应有 memo，记录决策逻辑、核心假设和复盘节奏。",
+        "每个正式组合想法都应有备忘录，记录决策逻辑、核心假设和复盘节奏。",
       privacy_boundary:
         "只统计结构覆盖；导出不包含页面标题、ticker、持仓名或交易计划。",
     },
@@ -188,16 +188,16 @@ export function buildPortfolioReviewReport(
       status: countStatus(thesisPages.length),
       evidence: `${thesisPages.length} 个页面包含投资假设结构。`,
       next_action:
-        "把核心假设、验证证据、反证和更新节奏放进 memo 或公司页。",
+        "把核心假设、验证证据、反证和更新节奏放进备忘录或公司页。",
       privacy_boundary: "只记录结构覆盖，不导出具体投资假设。",
     },
     {
       id: "research-links",
       title: "研究关联",
       status: countStatus(researchLinkPages.length),
-      evidence: `${researchLinkPages.length} 个页面包含公司、报告、会议或 memo 关联结构。`,
+      evidence: `${researchLinkPages.length} 个页面包含公司、报告、会议或备忘录关联结构。`,
       next_action:
-        "用 relation 字段把组合条目连接回公司、报告、会议和研究 memo。",
+        "用关系字段把组合条目连接回公司、报告、会议和研究备忘录。",
       privacy_boundary: "只统计关联结构，不导出关联对象标题或内容。",
     },
     {
@@ -206,7 +206,7 @@ export function buildPortfolioReviewReport(
       status: countStatus(trackerDatabases.length),
       evidence: `${trackerDatabases.length} 个本地数据库匹配组合或观察名单跟踪表。`,
       next_action:
-        "用跟踪表统一管理状态、角色、确信度、催化剂、风险和研究 relation。",
+        "用跟踪表统一管理状态、角色、确信度、催化剂、风险和研究关系。",
       privacy_boundary: "只读取数据库标题和描述，不读取数据库行值。",
     },
   ];
@@ -216,7 +216,7 @@ export function buildPortfolioReviewReport(
     format_version: 1,
     report_status: "local-portfolio-review-only",
     privacy_note:
-      "Generated locally from page structure signals and database metadata. It reports portfolio workflow coverage and missing structure only. It does not export page text, page titles, database row values, position names, tickers, weights, holdings, trading plans, transactions, account data, file bytes, cloud data, or AI prompts.",
+      "由页面结构信号和数据库元数据在本地生成。它只报告组合工作流覆盖面和缺失结构，不导出页面正文、页面标题、数据库行值、持仓名、股票代码、权重、持仓、交易计划、交易记录、账户数据、文件字节、云端数据或 AI 提示词。",
     boundary: {
       local_report_only: true,
       reads_local_page_html: true,
@@ -270,7 +270,7 @@ function buildReviewItem(page: Page, index: number): PortfolioReviewItem {
     missing_areas: missingAreas,
     next_action:
       missingAreas.length === 0
-        ? "结构已覆盖基础组合复盘面，下一步补 relation 值和最新复盘结论。"
+        ? "结构已覆盖基础组合复盘面，下一步补关系值和最新复盘结论。"
         : `优先补齐 ${missingAreas.map(getPortfolioReviewAreaLabel).join("、")}。`,
     updated_at: page.updated_at,
   };
@@ -304,7 +304,7 @@ function countStatus(count: number): PortfolioReviewStatus {
 
 export function getPortfolioReviewAreaLabel(areaId: PortfolioReviewAreaId) {
   const labels: Record<PortfolioReviewAreaId, string> = {
-    "position-memo": "持仓 memo",
+    "position-memo": "持仓备忘录",
     watchlist: "观察名单",
     "sizing-discipline": "仓位纪律",
     conviction: "确信度",

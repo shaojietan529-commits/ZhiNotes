@@ -200,7 +200,7 @@ const LANE_META: Record<
     description: "把组合条目连接回公司页、报告、会议和研究备忘录。",
     route: "/modules/research-graph",
     privacy_boundary:
-      "只提示 relation 缺口，不自动写 relation，不读取公司、报告或会议正文。",
+      "只提示关系缺口，不自动写关系，不读取公司、报告或会议正文。",
   },
   "tracker-intake": {
     id: "tracker-intake",
@@ -248,7 +248,7 @@ export function buildPortfolioWorkbenchPacket(input: {
     format_version: 1,
     packet_status: "local-portfolio-workbench-only",
     privacy_note:
-      "由本地组合复盘和入库台 metadata 生成。导出只包含汇总路由和脱敏结构数量，不包含页面正文、页面标题、持仓名、股票代码、权重、持仓、交易计划、交易记录、券商数据、价格、文件字节、云端数据、AI prompt、token 或凭证；它不会创建页面、创建跟踪表行、更新 relation 值、连接券商、抓取价格、上传数据、连接云服务或启用 AI。",
+      "由本地组合复盘和入库台元数据生成。导出只包含汇总路由和脱敏结构数量，不包含页面正文、页面标题、持仓名、股票代码、权重、持仓、交易计划、交易记录、券商数据、价格、文件字节、云端数据、AI 提示词、token 或凭证；它不会创建页面、创建跟踪表行、更新关系值、连接券商、抓取价格、上传数据、连接云服务或启用 AI。",
     boundary: {
       local_packet_only: true,
       reads_portfolio_review_report: true,
@@ -346,20 +346,20 @@ function buildDecisionSummary(
     safe_local_work: [
       "新建持仓备忘录、观察名单、催化剂复盘和组合跟踪表，全部留在本地浏览器工作区。",
       "复核仓位纪律、确信度、投资假设、风险笔记和催化剂结构，但不导出具体权重或观点正文。",
-      "用研究图谱查看组合与公司、报告、会议和备忘录的 relation 缺口，不自动写 relation。",
+      "用研究图谱查看组合与公司、报告、会议和备忘录的关系缺口，不自动写关系。",
       "用组合入库台逐条创建跟踪表行，继续使用脱敏标签和本地单条写入。",
     ],
     blocked_work: [
       "不能默认连接券商账户、读取账户 ID、余额、持仓、交易记录或订单。",
       "不能默认抓取实时价格、估值数据或外部行情源。",
       "不能把组合上下文、持仓名、股票代码、权重、交易计划或交易记录发送给 AI 或云端。",
-      "不能批量创建跟踪表行、批量更新数据库、自动写 relation 或同步组合数据。",
+      "不能批量创建跟踪表行、批量更新数据库、自动写关系或同步组合数据。",
     ],
     required_owner_decisions: [
-      "确认组合跟踪表字段和 relation 后，再逐条创建跟踪表行。",
-      "确认任何外部价格源、券商连接或账户导入前的权限范围、payload preview 和审计事件。",
+      "确认组合跟踪表字段和关系后，再逐条创建跟踪表行。",
+      "确认任何外部价格源、券商连接或账户导入前的权限范围、外发内容预览和审计事件。",
       "确认 AI 或云同步前是否允许包含组合上下文，以及哪些敏感字段必须排除。",
-      "确认批量更新数据库前的目标行、字段、回滚边界和 typed confirmation。",
+      "确认批量更新数据库前的目标行、字段、回滚边界和手动确认文本。",
     ],
     decisions: [
       {
@@ -410,10 +410,10 @@ function buildDecisionSummary(
           catalystLinkGaps > 0
             ? "requires-owner-confirmation"
             : "available-local",
-        answer: catalystLinkGaps > 0 ? "补 relation" : "结构可用",
-        evidence: `${catalystLinkGaps} 个催化剂或研究关联缺口；工作台只提示结构，不写 relation 值。`,
+        answer: catalystLinkGaps > 0 ? "补关系" : "结构可用",
+        evidence: `${catalystLinkGaps} 个催化剂或研究关联缺口；工作台只提示结构，不写关系值。`,
         next_action:
-          "用研究图谱把组合资产连接回公司、报告、会议和 memo，确认对象后再手动补 relation。",
+          "用研究图谱把组合资产连接回公司、报告、会议和备忘录，确认对象后再手动补关系。",
         route: "/modules/research-graph",
         target_section_id: "portfolio-research-connections",
         allowed_now: true,
@@ -451,7 +451,7 @@ function buildDecisionSummary(
         answer: "保持关闭",
         evidence: `${blockedActions.length} 个边界动作阻塞，${manualActions.length} 个动作需要手动确认；组合敏感信息不外发。`,
         next_action:
-          "任何券商、价格源、AI、云同步、分享或批量更新，都先做 payload preview、权限检查、审计和 typed confirmation。",
+          "任何券商、价格源、AI、云同步、分享或批量更新，都先做外发内容预览、权限检查、审计和手动确认文本。",
         route: "/modules/sync",
         target_section_id: "sync-ai-provider-boundary",
         allowed_now: false,
@@ -518,7 +518,7 @@ function buildActions(
         applies_to: ["watchlist"],
         evidence: "当前缺少观察名单结构。",
         next_action:
-          "建立观察名单，用于暂存还没有进入正式 memo 的公司想法。",
+          "建立观察名单，用于暂存还没有进入正式备忘录的公司想法。",
         action_route: "/modules/portfolio",
         route_label: "新建观察名单",
         requires_manual_confirmation: true,
@@ -692,7 +692,7 @@ function buildActions(
       applies_to: [],
       evidence: "价格源、券商连接、AI、云同步和批量写入均未启用。",
       next_action:
-        "任何价格源、券商导入、AI、云同步、外部分享或批量数据库写入前，都必须先做 payload preview 和用户确认。",
+        "任何价格源、券商导入、AI、云同步、外部分享或批量数据库写入前，都必须先做外发内容预览和用户确认。",
       action_route: "/modules/sync",
       route_label: "打开同步边界",
       requires_manual_confirmation: true,
@@ -717,7 +717,7 @@ function action(
     connects_brokerage_accounts: false,
     fetches_prices: false,
     privacy_boundary:
-      "工作台动作只处理 metadata，不包含页面正文、页面标题、持仓名、股票代码、权重、持仓、交易计划、交易记录、券商数据、价格、云端数据、AI prompt、token 或凭证。",
+      "工作台动作只处理元数据，不包含页面正文、页面标题、持仓名、股票代码、权重、持仓、交易计划、交易记录、券商数据、价格、云端数据、AI 提示词、token 或凭证。",
   };
 }
 

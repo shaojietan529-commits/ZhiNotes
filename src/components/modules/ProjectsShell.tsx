@@ -177,7 +177,7 @@ function ProjectsDashboard() {
       );
       if (!projectPageRelationField) {
         window.alert(
-          "当前项目跟踪表缺少 Project page / 项目页 relation 字段，请先补字段后再入库。"
+          "当前项目跟踪表缺少项目页关系字段，请先补字段后再入库。"
         );
         return;
       }
@@ -197,7 +197,7 @@ function ProjectsDashboard() {
       );
       if (existingRow) {
         setTrackerIntakeMessage(
-          `已存在 tracker row：${existingRow.row_title}。已打开项目跟踪表继续补 relation。`
+          `已存在跟踪表行：${existingRow.row_title}。已打开项目跟踪表继续补关系。`
         );
         await refreshPages();
         router.push(
@@ -222,7 +222,7 @@ function ProjectsDashboard() {
         contentText: draft.row_page_content,
       });
       setTrackerIntakeMessage(
-        `已创建项目页和 tracker row：${draft.row_title}。已打开项目跟踪表继续补 relation。`
+        `已创建项目页和跟踪表行：${draft.row_title}。已打开项目跟踪表继续补关系。`
       );
       await refreshPages();
       router.push(
@@ -280,8 +280,8 @@ function ProjectsDashboard() {
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
                 把一个研究主题沉淀成项目页、项目 checklist、模块准备度和本地项目跟踪表。
-                只有明确点击入库时才写一条 tracker row；不会自动写跨模块 relation 值、
-                AI payload 或云同步。
+                只有明确点击入库时才写一条跟踪表行；不会自动写跨模块关系值、
+                AI 外发内容或云同步。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -536,9 +536,9 @@ function ProjectTrackerPanel({
             项目跟踪表
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-400">
-            跟踪表只创建本地 schema：Project page、Status、Project mode、
-            Related companies/reports/meetings/portfolio 等字段。明确点击后可以创建一条本地 row；
-            公司、报告、会议和组合等跨模块 relation 仍需手动补。
+            跟踪表只创建本地结构：项目页、状态、项目模式、
+            相关公司/报告/会议/组合等字段。明确点击后可以创建一条本地行；
+            公司、报告、会议和组合等跨模块关系仍需手动补。
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -573,7 +573,7 @@ function ProjectTrackerPanel({
 
       {!canCreateIntakeRow && (
         <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-          先创建项目跟踪表，才能把项目页以单条 tracker row 的方式入库。
+          先创建项目跟踪表，才能把项目页以单条跟踪表行的方式入库。
         </p>
       )}
 

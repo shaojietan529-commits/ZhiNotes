@@ -59,7 +59,7 @@ export interface ResearchProjectTrackerExistingRow {
 
 const PROJECT_TRACKER_REQUIRED_FIELDS = [
   {
-    label: "Project page",
+    label: "项目页",
     aliases: RESEARCH_PROJECT_PAGE_FIELD_ALIASES,
   },
   { label: "Status", aliases: ["Status", "状态"] },

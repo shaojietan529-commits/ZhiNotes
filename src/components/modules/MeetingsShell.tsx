@@ -97,12 +97,12 @@ const WORKFLOW_STEPS = [
   {
     title: "行动项",
     detail:
-      "通过待办列表和跟踪状态管理 follow-up、开放问题、模型调整和负责人。",
+      "通过待办列表和跟踪状态管理跟进、开放问题、模型调整和负责人。",
   },
   {
     title: "研究关联",
     detail:
-      "用 relation 字段把会议关联回公司页面、报告、备忘录和业绩复盘。",
+      "用关系字段把会议关联回公司页面、报告、备忘录和业绩复盘。",
   },
 ];
 
@@ -250,7 +250,7 @@ function MeetingsDashboard() {
       });
     } catch (err) {
       console.error("[Zhinote] Failed to export meeting follow-up:", err);
-      window.alert("Meeting follow-up export failed. Please check the console.");
+      window.alert("会议跟进报告导出失败，请查看控制台。");
     } finally {
       setExportingFollowUp(false);
     }
@@ -349,7 +349,7 @@ function MeetingsDashboard() {
       );
       if (existingRow) {
         setTrackerIntakeMessage(
-          `已存在 tracker 行：${existingRow.row_title}。已打开跟踪表继续补 relation。`
+          `已存在跟踪表行：${existingRow.row_title}。已打开跟踪表继续补关系。`
         );
         router.push(
           `/database/${tracker.id}?q=${encodeURIComponent(
@@ -365,7 +365,7 @@ function MeetingsDashboard() {
       );
       if (!hasMeetingNoteRelation) {
         window.alert(
-          "当前会议跟踪表缺少会议页 relation 字段，请先补字段后再入库。"
+          "当前会议跟踪表缺少会议页关系字段，请先补字段后再入库。"
         );
         return;
       }
@@ -376,7 +376,7 @@ function MeetingsDashboard() {
         contentText: draft.row_page_content,
       });
       setTrackerIntakeMessage(
-        `已创建 tracker 行：${draft.row_title}。已打开跟踪表继续补 relation。`
+        `已创建跟踪表行：${draft.row_title}。已打开跟踪表继续补关系。`
       );
       router.push(
         `/database/${tracker.id}?q=${encodeURIComponent(
@@ -472,11 +472,11 @@ function MeetingsDashboard() {
                 会议工作台
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把 follow-up、投研闭环、研究任务队列、Playbook 和会议入库台合并成
-                一个本地 action packet：先建会议记录，再处理 transcript、会议结论、
-                研究任务、tracker intake、公司/报告关联和隐私边界。导出不包含会议标题、
-                页面正文、transcript text、录音 bytes、参会人详情、meeting passcodes、
-                数据库 row values、持仓或交易计划。
+                把跟进、投研闭环、研究任务队列、行动手册和会议入库台合并成
+                一个本地动作包：先建会议记录，再处理转录稿、会议结论、
+                研究任务、跟踪表入库、公司/报告关联和隐私边界。导出不包含会议标题、
+                页面正文、转录稿文本、录音字节、参会人详情、会议密码、
+                数据库行值、持仓或交易计划。
               </p>
             </div>
             <button
@@ -569,11 +569,11 @@ function MeetingsDashboard() {
                 会议研究任务队列
               </h2>
 	              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-	                把 follow-up 队列和投研闭环合并成可执行的本地任务：
+	                把跟进队列和投研闭环合并成可执行的本地任务：
 	                转录稿复盘、会议结论、模型更新、风险/催化剂、开放问题、
 	                relation 和 tracker 入库。导出只包含结构状态，不包含会议正文、
-	                transcript text、录音 bytes、参会人详情、meeting passcodes、
-	                数据库 row values、持仓或交易计划。
+	                转录稿文本、录音字节、参会人详情、会议密码、
+	                数据库行值、持仓或交易计划。
               </p>
             </div>
             <button
@@ -694,7 +694,7 @@ function MeetingsDashboard() {
                 </div>
               ) : (
                 <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-                  当前没有会议研究任务。下一步可以维护 relation 值、复盘节奏和最新结论。
+                  当前没有会议研究任务。下一步可以维护关系值、复盘节奏和最新结论。
                 </p>
               )}
             </div>
@@ -711,8 +711,8 @@ function MeetingsDashboard() {
                 会议入库台
               </h2>
 	              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-	                把单个会议页创建成会议跟踪表行，并自动填入会议页 relation、
-	                状态、follow-up 标记和行动项。点击后只做本地单条写入，
+	                把单个会议页创建成会议跟踪表行，并自动填入会议页关系、
+	                状态、跟进标记和行动项。点击后只做本地单条写入，
 	                不会自动入会、录音、发布、同步、上传或调用 AI。
 	              </p>
             </div>
@@ -751,7 +751,7 @@ function MeetingsDashboard() {
             </div>
           ) : (
             <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有可入库的会议页。先新建会议纪要，再把它创建成会议跟踪表 row。
+              还没有可入库的会议页。先新建会议纪要，再把它创建成会议跟踪表行。
             </p>
           )}
         </section>
@@ -763,7 +763,7 @@ function MeetingsDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                会议 follow-up 队列
+                会议跟进队列
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 本地扫描会议纪要页面和会议跟踪表元数据，检查转录稿、行动项、
@@ -777,7 +777,7 @@ function MeetingsDashboard() {
               disabled={exportingFollowUp}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-	              {exportingFollowUp ? "导出中..." : "导出 follow-up"}
+              {exportingFollowUp ? "导出中..." : "导出跟进报告"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-7">
@@ -826,7 +826,7 @@ function MeetingsDashboard() {
             <FollowUpMetric
               label="缺公司"
               value={meetingFollowUp.summary.missing_company_links}
-              detail="Relations"
+              detail="关系"
               status={
                 meetingFollowUp.summary.missing_company_links > 0
                   ? "missing"
@@ -836,7 +836,7 @@ function MeetingsDashboard() {
             <FollowUpMetric
               label="缺报告"
               value={meetingFollowUp.summary.missing_report_links}
-              detail="Relations"
+              detail="关系"
               status={
                 meetingFollowUp.summary.missing_report_links > 0
                   ? "missing"
@@ -871,7 +871,7 @@ function MeetingsDashboard() {
             </div>
           ) : (
             <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有会议 follow-up 项。新建会议纪要后，这里会提示缺少的转录稿、行动项、
+              还没有会议跟进项。新建会议纪要后，这里会提示缺少的转录稿、行动项、
               公司关联或报告关联。
             </p>
           )}
@@ -889,8 +889,8 @@ function MeetingsDashboard() {
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 本地检查会议是否已经沉淀为会议结论、Thesis 影响、模型影响、
                 风险监控、催化剂跟进和开放问题。导出只包含结构状态，
-                不包含会议正文、transcript text、录音 bytes、参会人详情、
-                meeting passcodes、持仓或交易计划。
+                不包含会议正文、转录稿文本、录音字节、参会人详情、
+                会议密码、持仓或交易计划。
               </p>
             </div>
             <button
@@ -1003,7 +1003,7 @@ function MeetingsDashboard() {
                 </div>
               ) : (
                 <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-                  当前会议页已经覆盖基础投研闭环结构，下一步可以补 relation 值和最新结论。
+                  当前会议页已经覆盖基础投研闭环结构，下一步可以补关系值和最新结论。
                 </p>
               )}
             </div>
@@ -1017,9 +1017,9 @@ function MeetingsDashboard() {
                 会议研究 Playbook
               </h2>
 	              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-	                把 follow-up 队列转成本地行动队列：补会议背景、转录稿页面、
+	                把跟进队列转成本地行动队列：补会议背景、转录稿页面、
 	                行动项、公司/报告 relation、会议跟踪表和复盘节奏。导出只包含结构状态，
-	                不包含会议正文、transcript text、录音 bytes、参会人详情或 meeting passcodes。
+	                不包含会议正文、转录稿文本、录音字节、参会人详情或会议密码。
 	              </p>
             </div>
             <button
@@ -1120,7 +1120,7 @@ function MeetingsDashboard() {
                 ))
               ) : (
                 <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-                  当前没有结构性会议缺口。下一步可以维护 relation 值、复盘节奏和最新结论。
+                  当前没有结构性会议缺口。下一步可以维护关系值、复盘节奏和最新结论。
                 </p>
               )}
             </div>
@@ -1158,7 +1158,7 @@ function MeetingsDashboard() {
             </h2>
             <div className="mt-3 space-y-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
               <p>
-                会议会保存为本地页面和跟踪表行。relation 字段会把它们连接到公司、报告、备忘录和
+                会议会保存为本地页面和跟踪表行。关系字段会把它们连接到公司、报告、备忘录和
                 转录稿页面。
               </p>
               <p>
@@ -1259,7 +1259,7 @@ function MeetingDecisionSummaryPanel({
         <MeetingDecisionList title="当前可做" items={summary.safe_local_work} />
         <MeetingDecisionList title="保持关闭" items={summary.blocked_work} />
         <MeetingDecisionList
-          title="Owner 待确认"
+          title="用户待确认"
           items={summary.required_owner_decisions}
         />
       </div>
@@ -1269,9 +1269,9 @@ function MeetingDecisionSummaryPanel({
         {summary.top_blockers.length > 0
           ? summary.top_blockers.join("；")
           : "暂无"}
-        。会议决策摘要只读取本地 summary metadata，不包含会议标题、页面正文、
-        transcript text、recording bytes、participant details、meeting passcodes、
-        database row values、持仓、交易计划、prompt、token 或 credentials。
+        。会议决策摘要只读取本地摘要元数据，不包含会议标题、页面正文、
+        转录稿文本、录音字节、参会人详情、会议密码、
+        数据库行值、持仓、交易计划、提示词、token 或凭证。
       </div>
     </section>
   );
@@ -1667,11 +1667,11 @@ function MeetingTrackerIntakeCard({
         <FollowUpFlag label="报告" ready={item.has_report_link} />
       </div>
       <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
-        将创建一条本地 tracker 行，写入会议页 relation、状态、
-        follow-up 标记和下一步动作。
+        将创建一条本地跟踪表行，写入会议页关系、状态、
+        跟进标记和下一步动作。
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
-        本地单条写入；不导出 transcript text、录音 bytes、参会人详情或 meeting passcodes。
+        本地单条写入；不导出转录稿文本、录音字节、参会人详情或会议密码。
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
@@ -1680,7 +1680,7 @@ function MeetingTrackerIntakeCard({
           disabled={!trackerReady || busy}
           className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
         >
-	          {busy ? "创建中..." : "创建 tracker 行"}
+	          {busy ? "创建中..." : "创建跟踪表行"}
         </button>
         <button
           type="button"
@@ -2224,7 +2224,7 @@ function getMeetingSurfaceLabel(
     page: "页面",
     database: "数据库",
     file: "文件",
-    relation: "Relation",
+    relation: "关系",
     review: "复盘节奏",
   };
 

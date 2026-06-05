@@ -177,7 +177,7 @@ export function buildMeetingDecisionLedgerReport(
     format_version: 1,
     report_status: "local-meeting-decision-ledger-only",
     privacy_note:
-      "Generated locally from meeting page titles, page HTML structure, and database metadata. It checks whether meeting assets have decision, thesis impact, model impact, risk, catalyst, and open-question structure. It does not export meeting text, transcript text, recording bytes, participant details, meeting passcodes, database row values, holdings, trading plans, cloud data, AI prompts, tokens, or credentials.",
+      "由会议页面标题、页面 HTML 结构和数据库元数据在本地生成。它检查会议资产是否具备决策、投资假设影响、模型影响、风险、催化剂和开放问题结构；不导出会议正文、转录稿文本、录音字节、参会人详情、会议密码、数据库行值、持仓、交易计划、云端数据、AI 提示词、token 或凭证。",
     boundary: {
       local_report_only: true,
       reads_local_page_html: true,
@@ -251,7 +251,7 @@ function buildLedgerItem(page: Page): MeetingDecisionLedgerItem {
     ready_signals: readySignals,
     next_action: getLedgerNextAction(missingSignals),
     privacy_boundary:
-      "只输出会议页闭环结构状态，不导出会议正文、转录稿、录音、参会人详情、meeting passcodes、持仓或交易计划。",
+      "只输出会议页闭环结构状态，不导出会议正文、转录稿、录音、参会人详情、会议密码、持仓或交易计划。",
     updated_at: page.updated_at,
   };
 }
@@ -269,7 +269,7 @@ function getSignalCounts(pages: Page[]) {
 
 function getLedgerNextAction(missingSignals: MeetingDecisionSignalId[]) {
   if (missingSignals.length === 0) {
-    return "会议已经覆盖基础投研闭环，下一步可以维护 relation 值和最新结论。";
+    return "会议已经覆盖基础投研闭环，下一步可以维护关系值和最新结论。";
   }
 
   return `优先补齐 ${missingSignals
@@ -301,7 +301,7 @@ function getSignalNextAction(id: MeetingDecisionSignalId) {
     "decision-summary":
       "在会议页补一个结论区，明确这次会议改变了什么判断、保留了什么判断、下一步如何处理。",
     "thesis-impact":
-      "把会议对核心投资假设的增强、削弱或待验证部分写入公司页或投资 memo。",
+      "把会议对核心投资假设的增强、削弱或待验证部分写入公司页或投资备忘录。",
     "model-impact":
       "把收入、利润率、假设、估值或模型调整放入可复盘的页面区块或跟踪字段。",
     "risk-watch":
@@ -317,7 +317,7 @@ function getSignalNextAction(id: MeetingDecisionSignalId) {
 
 function getSignalPrivacyBoundary(id: MeetingDecisionSignalId) {
   const common =
-    "只检查是否存在结构信号，不导出页面正文、转录文本、数据库 row values 或文件 bytes。";
+    "只检查是否存在结构信号，不导出页面正文、转录文本、数据库行值或文件字节。";
   if (id === "model-impact") {
     return "只检查模型影响结构，不读取、计算或导出财务模型文件内容。";
   }

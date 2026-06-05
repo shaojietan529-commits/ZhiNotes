@@ -514,7 +514,7 @@ function run() {
     "connects_cloud_services: false",
     "uploads_data: false",
     "enables_ai: false",
-    "Project page",
+    "项目页",
     "RESEARCH_PROJECT_PAGE_FIELD_ALIASES",
     "Status",
     "Project mode",
@@ -717,7 +717,7 @@ function run() {
     "当前可做",
     "保持关闭",
     "用户待确认",
-    "公司研究决策摘要只读取本地 summary metadata",
+    "公司研究决策摘要只读取本地摘要元数据",
     "公司研究工作台",
     "导出公司工作台",
     "CompanyWorkbenchLaneCard",
@@ -1333,7 +1333,7 @@ function run() {
     "meeting-create-assets",
 	    "meeting-research-queue",
 	    "meeting-tracker-intake",
-	    "tracker 行",
+	    "跟踪表行",
 	    "forbidden_actions",
     "required_verification_commands",
     "join_calls_from_meeting_workbench",
@@ -1370,8 +1370,8 @@ function run() {
     "meeting-decision-summary",
     "当前可做",
     "保持关闭",
-    "Owner 待确认",
-    "会议决策摘要只读取本地 summary metadata",
+    "用户待确认",
+    "会议决策摘要只读取本地摘要元数据",
     "会议工作台",
     "导出会议工作台",
     "MeetingWorkbenchLaneCard",
@@ -1627,8 +1627,8 @@ function run() {
     "portfolio-decision-summary",
     "当前可做",
     "保持关闭",
-    "Owner 待确认",
-    "组合决策摘要只读取本地 summary metadata",
+    "用户待确认",
+    "组合决策摘要只读取本地摘要元数据",
     "组合工作台",
     "导出组合工作台",
     "PortfolioWorkbenchLaneCard",
@@ -1878,7 +1878,7 @@ function run() {
 	assertIncludes(
 	  files.meetingsShell,
 	  meetingsShell,
-	  "创建 tracker 行",
+	  "创建跟踪表行",
 	  "Meetings module must expose a tracker-row creation action."
 	);
   assertIncludes(
@@ -1890,7 +1890,7 @@ function run() {
   assertIncludes(
     files.meetingsShell,
     meetingsShell,
-    "会议 follow-up 队列",
+    "会议跟进队列",
     "Meetings module must render the follow-up queue."
   );
   assertIncludes(
@@ -1943,7 +1943,7 @@ function run() {
 	assertIncludes(
 	  files.meetingsShell,
 	  meetingsShell,
-	  "导出 follow-up",
+    "导出跟进报告",
 	  "Meetings module must export the follow-up report."
 	);
   assertIncludes(

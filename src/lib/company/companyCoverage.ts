@@ -222,7 +222,7 @@ export function buildCompanyCoverageReport(
     format_version: 1,
     report_status: "local-company-coverage-only",
     privacy_note:
-      "由本地页面标题、页面 HTML 结构和数据库 metadata 生成。它只识别公司研究覆盖面和缺失结构，不导出页面正文、数据库行值、文件字节、云端数据、AI prompt、持仓或投资计划。",
+      "由本地页面标题、页面 HTML 结构和数据库元数据生成。它只识别公司研究覆盖面和缺失结构，不导出页面正文、数据库行值、文件字节、云端数据、AI 提示词、持仓或投资计划。",
     boundary: {
       local_report_only: true,
       reads_local_page_html: true,
@@ -282,7 +282,7 @@ function buildCandidate(page: Page): CompanyCoverageCandidate {
     missing_sections: missingSections,
     next_action:
       missingSections.length === 0
-        ? "结构已覆盖基础公司研究面，下一步补 relation 值和最新结论。"
+        ? "结构已覆盖基础公司研究面，下一步补关系值和最新结论。"
         : `优先补齐 ${missingSections.map(getCoverageAreaLabel).join("、")}。`,
   };
 }

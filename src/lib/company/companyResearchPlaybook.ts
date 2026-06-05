@@ -86,7 +86,7 @@ export function buildCompanyResearchPlaybook(
     format_version: 1,
     playbook_status: "local-company-playbook-only",
     privacy_note:
-      "由本地公司覆盖报告和共享研究工作流 schema 生成。行动手册不读取或导出页面正文、数据库行值、文件字节、持仓、交易计划、云端数据、AI prompt、token 或凭证。",
+      "由本地公司覆盖报告和共享研究工作流结构生成。行动手册不读取或导出页面正文、数据库行值、文件字节、持仓、交易计划、云端数据、AI 提示词、token 或凭证。",
     boundary: {
       local_playbook_only: true,
       reads_company_coverage_report: true,
@@ -294,7 +294,7 @@ function actionItem(
     "create-company-tracker": {
       title: "创建公司跟踪表",
       status: "missing",
-      reason: "公司跟踪表统一承载覆盖状态、评级、催化剂和 relation 字段。",
+      reason: "公司跟踪表统一承载覆盖状态、评级、催化剂和关系字段。",
       suggested_destination: "创建公司跟踪表",
     },
   };

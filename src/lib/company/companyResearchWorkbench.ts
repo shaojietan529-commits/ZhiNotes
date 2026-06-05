@@ -222,7 +222,7 @@ const LANE_META: Record<
     description: "任何 AI、云同步、批量行写入或关系自动补全都必须单独确认。",
     route: "/modules/sync",
     privacy_boundary:
-      "公司研究工作台不会上传数据、调用 AI、连接云服务或自动写 relation。",
+      "公司研究工作台不会上传数据、调用 AI、连接云服务或自动写关系。",
   },
 };
 
@@ -255,7 +255,7 @@ export function buildCompanyResearchWorkbenchPacket(input: {
     format_version: 1,
     packet_status: "local-company-workbench-only",
     privacy_note:
-      "由本地公司覆盖、行动手册、档案和入库台 metadata 生成。动作包只导出汇总路由和动作数量，不包含公司名、页面标题、页面正文、数据库行值、文件名、文件字节、持仓、交易计划、云端数据、AI prompt、token 或凭证；它不会创建页面、创建跟踪表行、更新 relation 值、上传数据、连接云服务或启用 AI。",
+      "由本地公司覆盖、行动手册、档案和入库台元数据生成。动作包只导出汇总路由和动作数量，不包含公司名、页面标题、页面正文、数据库行值、文件名、文件字节、持仓、交易计划、云端数据、AI 提示词、token 或凭证；它不会创建页面、创建跟踪表行、更新关系值、上传数据、连接云服务或启用 AI。",
     boundary: {
       local_packet_only: true,
       reads_company_coverage_report: true,
@@ -372,7 +372,7 @@ function buildDecisionSummary(
     ],
     blocked_work: [
       "不能从公司工作台导出公司名、页面标题、页面正文或数据库行值。",
-      "不能批量创建跟踪表行、批量更新数据库、自动写 relation 值。",
+      "不能批量创建跟踪表行、批量更新数据库、自动写关系值。",
       "不能推断持仓、仓位、评级变化、交易计划或未确认投资动作。",
       "不能把公司研究内容发送给 AI、云同步、外部 API 或远端数据库。",
     ],
@@ -632,7 +632,7 @@ function buildActions(input: {
         applies_to: missingLinks,
         evidence: `${missingLinks.length} 个研究关联结构面缺失。`,
         next_action:
-          "用研究图谱检查公司、报告、会议之间的 relation 缺口，再手动补齐。",
+          "用研究图谱检查公司、报告、会议之间的关系缺口，再手动补齐。",
         action_route: "/modules/research-graph",
         route_label: "打开研究图谱",
         requires_manual_confirmation: true,
@@ -754,7 +754,7 @@ function action(input: Omit<CompanyResearchWorkbenchAction, "writes_workspace_da
     ...input,
     writes_workspace_data: false,
     privacy_boundary:
-      "工作台动作只处理 metadata，不包含公司名、页面标题、页面正文、数据库行值、文件名、文件字节、持仓、交易计划、云端数据、AI prompt、token 或凭证。",
+      "工作台动作只处理元数据，不包含公司名、页面标题、页面正文、数据库行值、文件名、文件字节、持仓、交易计划、云端数据、AI 提示词、token 或凭证。",
   };
 }
 

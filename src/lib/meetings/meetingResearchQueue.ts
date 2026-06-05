@@ -110,7 +110,7 @@ export function buildMeetingResearchQueue(input: {
     format_version: 1,
     report_status: "local-meeting-research-queue-only",
     privacy_note:
-      "Generated locally from the meeting follow-up report and meeting decision ledger. It turns local structure gaps into research tasks only. It does not read or export page text, meeting text, transcript text, recording bytes, participant details, meeting passcodes, database row values, holdings, trading plans, cloud data, AI prompts, tokens, or credentials.",
+      "由会议跟进报告和会议决策账本在本地生成。它只把本地结构缺口转成研究任务，不读取或导出页面正文、会议正文、转录稿文本、录音字节、参会人详情、会议密码、数据库行值、持仓、交易计划、云端数据、AI 提示词、token 或凭证。",
     boundary: {
       local_queue_only: true,
       reads_meeting_follow_up_report: true,
@@ -152,12 +152,12 @@ function buildQueueItems(
         priority: item.priority,
         risk: riskFromPriority(item.priority, "transcript-review"),
         source: "follow-up",
-        trigger: "缺 Transcript 或转录结构",
+        trigger: "缺转录稿结构",
         missing_structures: [getMeetingFollowUpStageLabel("transcript-review")],
         next_action:
-          "补 Transcript 页面或录音索引，再人工提取关键表述、开放问题和可信度。",
+          "补转录稿页面或录音索引，再人工提取关键表述、开放问题和可信度。",
         privacy_boundary:
-          "只来自 follow-up 结构状态，不读取或导出会议正文、transcript text、recording bytes、参会人详情或 meeting passcodes。",
+          "只来自跟进结构状态，不读取或导出会议正文、转录稿文本、录音字节、参会人详情或会议密码。",
         updated_at: item.updated_at,
       });
     }
@@ -178,7 +178,7 @@ function buildQueueItems(
         next_action:
           "把会议后的开放问题、负责人、补读材料、模型调整和下次跟进时间写入本地行动项。",
         privacy_boundary:
-          "只提示 action item 结构缺口，不读取或导出行动项正文、负责人个人信息或数据库 row values。",
+          "只提示行动项结构缺口，不读取或导出行动项正文、负责人个人信息或数据库行值。",
         updated_at: item.updated_at,
       });
     }
@@ -197,9 +197,9 @@ function buildQueueItems(
         trigger: "缺公司或报告 relation",
         missing_structures: [getMeetingFollowUpStageLabel("research-linking")],
         next_action:
-          "把会议页连接到公司主页、相关报告、memo 或业绩复盘，形成会议-公司-报告闭环。",
+          "把会议页连接到公司主页、相关报告、备忘录或业绩复盘，形成会议-公司-报告闭环。",
         privacy_boundary:
-          "只提示 relation 结构缺口，不读取或导出会议正文、报告正文、公司研究正文或数据库 row values。",
+          "只提示关系结构缺口，不读取或导出会议正文、报告正文、公司研究正文或数据库行值。",
         updated_at: item.updated_at,
       });
     }
@@ -218,9 +218,9 @@ function buildQueueItems(
         trigger: "缺会议跟踪表",
         missing_structures: ["会议跟踪表"],
         next_action:
-          "先创建会议跟踪表，再把会议页入库为本地 tracker 行，后续手动补 relation 值。",
+          "先创建会议跟踪表，再把会议页入库为本地跟踪表行，后续手动补关系值。",
         privacy_boundary:
-          "只检查 tracker metadata，不读取或导出 tracker 行值、参会人详情、meeting passcodes 或 transcript text。",
+          "只检查跟踪表元数据，不读取或导出跟踪表行值、参会人详情、会议密码或转录稿文本。",
         updated_at: item.updated_at,
       });
     }
@@ -243,7 +243,7 @@ function buildQueueItems(
         missing_structures: [getMeetingDecisionSignalLabel(signalId)],
         next_action: nextActionFromSignal(signalId),
         privacy_boundary:
-          "只来自 decision ledger 结构状态，不读取或导出会议正文、transcript text、recording bytes、参会人详情、meeting passcodes、持仓或交易计划。",
+          "只来自决策账本结构状态，不读取或导出会议正文、转录稿文本、录音字节、参会人详情、会议密码、持仓或交易计划。",
         updated_at: item.updated_at,
       });
     }
@@ -311,28 +311,28 @@ function buildGates(
       title: "本地队列来源",
       status: hasMeetings ? "ready" : "blocked",
       evidence: hasMeetings
-        ? `${summary.queue_items} 个任务来自 follow-up report 和 decision ledger。`
+        ? `${summary.queue_items} 个任务来自跟进报告和决策账本。`
         : "还没有会议页，无法生成会议研究队列。",
       next_action: hasMeetings
         ? "先处理高优先级和 blocked 项，再进入每周会议复盘。"
         : "先创建会议纪要或导入会议页面。",
       privacy_boundary:
-        "队列只读取本地 follow-up report 和 decision ledger，不读取页面正文、会议正文或文件 bytes。",
+        "队列只读取本地跟进报告和决策账本，不读取页面正文、会议正文或文件字节。",
     },
     {
       id: "transcript-review-gate",
-      title: "Transcript 复盘门",
+      title: "转录稿复盘门",
       status: gateStatus(hasMeetings, summary.transcript_review_items),
       evidence:
         summary.transcript_review_items > 0
-          ? `${summary.transcript_review_items} 个会议任务需要补 Transcript 或转录结构。`
+          ? `${summary.transcript_review_items} 个会议任务需要补转录稿结构。`
           : hasMeetings
-            ? "当前没有 Transcript 结构缺口。"
-            : "还没有会议页，无法检查 Transcript 结构。",
+            ? "当前没有转录稿结构缺口。"
+            : "还没有会议页，无法检查转录稿结构。",
       next_action:
-        "先连接 Transcript 页面或录音索引，再人工标记关键表述和开放问题。",
+        "先连接转录稿页面或录音索引，再人工标记关键表述和开放问题。",
       privacy_boundary:
-        "只检查 Transcript 结构状态，不导出 transcript text 或 recording bytes。",
+        "只检查转录稿结构状态，不导出转录稿文本或录音字节。",
     },
     {
       id: "decision-capture-gate",
@@ -347,7 +347,7 @@ function buildGates(
       next_action:
         "把会议改变了什么判断、保留了什么判断、削弱了什么假设写入会议页或公司页。",
       privacy_boundary:
-        "只检查结论结构，不导出会议正文、投资 memo 正文、持仓或交易计划。",
+        "只检查结论结构，不导出会议正文、投资备忘录正文、持仓或交易计划。",
     },
     {
       id: "model-update-gate",
@@ -381,21 +381,21 @@ function buildGates(
     },
     {
       id: "relation-linking-gate",
-      title: "Relation 与入库门",
+      title: "关系与入库门",
       status: gateStatus(
         hasMeetings,
         summary.relation_linking_items + summary.tracker_intake_items
       ),
       evidence:
         summary.relation_linking_items + summary.tracker_intake_items > 0
-          ? `${summary.relation_linking_items} 个 relation 任务和 ${summary.tracker_intake_items} 个 tracker 入库任务待处理。`
+          ? `${summary.relation_linking_items} 个关系任务和 ${summary.tracker_intake_items} 个跟踪表入库任务待处理。`
           : hasMeetings
-            ? "当前没有 relation 或 tracker 入库结构缺口。"
-            : "还没有会议页，无法检查 relation。",
+            ? "当前没有关系或跟踪表入库结构缺口。"
+            : "还没有会议页，无法检查关系。",
       next_action:
-        "把会议页连接到公司页、报告、memo、业绩复盘，并确认是否需要创建 tracker 行。",
+        "把会议页连接到公司页、报告、备忘录、业绩复盘，并确认是否需要创建跟踪表行。",
       privacy_boundary:
-        "只检查 relation 和 tracker metadata，不导出数据库 row values、会议正文或参会人详情。",
+        "只检查关系和跟踪表元数据，不导出数据库行值、会议正文或参会人详情。",
     },
   ];
 }
@@ -416,7 +416,7 @@ function nextActionFromSignal(signalId: MeetingDecisionSignalId) {
     "decision-summary":
       "补一个会议结论区：这次会议改变了什么判断、确认了什么判断、下一步如何处理。",
     "thesis-impact":
-      "把会议对核心投资假设的增强、削弱或待验证部分写入公司页或 memo。",
+      "把会议对核心投资假设的增强、削弱或待验证部分写入公司页或备忘录。",
     "model-impact":
       "把收入、利润率、估值或假设变化登记到本地模型影响区，后续再人工同步到模型。",
     "risk-watch":

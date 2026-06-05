@@ -82,12 +82,12 @@ export const MEETING_FOLLOW_UP_LANES: MeetingFollowUpLane[] = [
   {
     id: "action-items",
     title: "行动项",
-    description: "跟踪 follow-up、开放问题、模型调整和负责人。",
+    description: "跟踪跟进、开放问题、模型调整和负责人。",
   },
   {
     id: "research-linking",
     title: "研究关联",
-    description: "把会议连接到公司页面、报告、memo 和业绩复盘。",
+    description: "把会议连接到公司页面、报告、备忘录和业绩复盘。",
   },
   {
     id: "done",
@@ -157,7 +157,7 @@ export function buildMeetingFollowUpReport(
     format_version: 1,
     report_status: "local-meeting-follow-up-only",
     privacy_note:
-      "Generated locally from meeting page titles, page HTML structure, and database metadata. It identifies follow-up stage, missing transcript/action/relation structure, and next action only. It does not export meeting text, transcript text, recording bytes, database row values, cloud data, AI prompts, passcodes, or participant details.",
+      "由会议页面标题、页面 HTML 结构和数据库元数据在本地生成。它只识别跟进阶段、缺失的转录稿/行动项/关系结构和下一步动作，不导出会议正文、转录稿文本、录音字节、数据库行值、云端数据、AI 提示词、会议密码或参会人详情。",
     boundary: {
       local_report_only: true,
       reads_local_page_html: true,
@@ -258,15 +258,15 @@ function getPriority(missingSteps: MeetingFollowUpStage[]): MeetingFollowUpPrior
 
 function getNextAction(missingSteps: MeetingFollowUpStage[]) {
   if (missingSteps.length === 0) {
-    return "基础会议结构已覆盖，下一步可以补 relation 值和最新结论。";
+    return "基础会议结构已覆盖，下一步可以补关系值和最新结论。";
   }
   if (missingSteps.includes("transcript-review")) {
     return "先补转录稿或录音链接，再提取关键表述和待回答问题。";
   }
   if (missingSteps.includes("action-items")) {
-    return "补充 follow-up、开放问题、模型调整和负责人。";
+    return "补充跟进、开放问题、模型调整和负责人。";
   }
-  return "把会议关联到公司页面、相关报告、memo 或业绩复盘。";
+  return "把会议关联到公司页面、相关报告、备忘录或业绩复盘。";
 }
 
 function filterPages(pages: Page[], terms: string[]) {

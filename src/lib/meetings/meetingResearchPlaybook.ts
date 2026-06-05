@@ -108,7 +108,7 @@ export function buildMeetingResearchPlaybook(
     format_version: 1,
     playbook_status: "local-meeting-playbook-only",
     privacy_note:
-      "Generated locally from the meeting follow-up report and shared research workflow schema. This playbook does not read or export page text, transcript text, recording bytes, participant details, meeting passcodes, database row values, cloud data, AI prompts, tokens, or credentials.",
+      "由会议跟进报告和共享研究工作流结构在本地生成。这个行动手册不读取或导出页面正文、转录稿文本、录音字节、参会人详情、会议密码、数据库行值、云端数据、AI 提示词、token 或凭证。",
     boundary: {
       local_playbook_only: true,
       reads_meeting_follow_up_report: true,
@@ -173,7 +173,7 @@ function buildPlaybookSteps(
       next_action:
         "为每场会议补齐平台、组织者、公司、会议类型、议程、关键问题和会前材料链接。",
       privacy_boundary:
-        "只提示背景字段结构，不导出会议链接、参会人详情、passcode 或页面正文。",
+        "只提示背景字段结构，不导出会议链接、参会人详情、会议密码或页面正文。",
     },
     {
       id: "transcript-review",
@@ -185,14 +185,14 @@ function buildPlaybookSteps(
       surface: "page",
       evidence:
         followUp.summary.missing_transcripts > 0
-          ? `${followUp.summary.missing_transcripts} 个会议页缺少 Transcript 或转录结构。`
+          ? `${followUp.summary.missing_transcripts} 个会议页缺少转录稿结构。`
           : hasMeetingPages
-            ? "会议页已经识别到 Transcript 或转录结构。"
+            ? "会议页已经识别到转录稿结构。"
             : "还没有会议页，无法检查转录结构。",
       next_action:
         "把 transcript page 或录音索引连接到会议页，再人工标记关键表述、开放问题和可信度。",
       privacy_boundary:
-        "只检查是否存在 transcript 结构，不导出 transcript text 或 recording bytes。",
+        "只检查是否存在转录稿结构，不导出转录稿文本或录音字节。",
     },
     {
       id: "action-items",
@@ -204,14 +204,14 @@ function buildPlaybookSteps(
       surface: "database",
       evidence:
         followUp.summary.missing_action_items > 0
-          ? `${followUp.summary.missing_action_items} 个会议页缺少 action items 或 follow-up 结构。`
+          ? `${followUp.summary.missing_action_items} 个会议页缺少行动项或跟进结构。`
           : hasMeetingPages
-            ? "会议页已经识别到行动项或 follow-up 结构。"
+            ? "会议页已经识别到行动项或跟进结构。"
             : "还没有会议页，无法检查行动项。",
       next_action:
         "提取开放问题、负责人、模型调整、报告补读和下次跟进时间，放入本地行动项区或会议跟踪表。",
       privacy_boundary:
-        "只输出行动项结构缺口，不导出行动项正文、负责人个人信息或数据库 row values。",
+        "只输出行动项结构缺口，不导出行动项正文、负责人个人信息或数据库行值。",
     },
     {
       id: "company-linking",
@@ -228,9 +228,9 @@ function buildPlaybookSteps(
             ? "会议页已经识别到公司关联结构。"
             : "还没有会议页，无法检查公司关联。",
       next_action:
-        "把会议页或会议跟踪表 row 连接到公司主页，方便从公司视角回看管理层会议、专家电话会和后续问题。",
+        "把会议页或会议跟踪表行连接到公司主页，方便从公司视角回看管理层会议、专家电话会和后续问题。",
       privacy_boundary:
-        "只提示 relation 结构，不导出公司研究正文、会议正文或数据库 row values。",
+        "只提示关系结构，不导出公司研究正文、会议正文或数据库行值。",
     },
     {
       id: "report-linking",
@@ -247,9 +247,9 @@ function buildPlaybookSteps(
             ? "会议页已经识别到相关报告结构。"
             : "还没有会议页，无法检查报告关联。",
       next_action:
-        "把会议结论连接到来源报告、后续 memo 或业绩复盘，形成报告-会议-公司闭环。",
+        "把会议结论连接到来源报告、后续备忘录或业绩复盘，形成报告-会议-公司闭环。",
       privacy_boundary:
-        "只提示 relation 结构，不导出报告正文、会议正文或文件 bytes。",
+        "只提示关系结构，不导出报告正文、会议正文或文件字节。",
     },
     {
       id: "meeting-tracker",
@@ -259,11 +259,11 @@ function buildPlaybookSteps(
       evidence:
         followUp.summary.tracker_databases > 0
           ? `${followUp.summary.tracker_databases} 个会议跟踪表可用于统一管理状态、平台、行动项和 relation。`
-          : "还没有会议跟踪表，无法集中管理会议状态和 relation 字段。",
+          : "还没有会议跟踪表，无法集中管理会议状态和关系字段。",
       next_action:
         "创建会议跟踪表，并保留会议页、转录稿页面、行动项、公司页和关联报告字段。",
       privacy_boundary:
-        "只检查数据库 metadata，不读取或导出数据库 row values。",
+        "只检查数据库元数据，不读取或导出数据库行值。",
     },
     {
       id: "follow-up-cadence",
@@ -279,10 +279,10 @@ function buildPlaybookSteps(
         followUp.summary.follow_up_items > 0
           ? `${followUp.summary.follow_up_items} 个会议候选项需要人工复核和排序。`
           : hasMeetingPages
-            ? "当前没有结构性会议 follow-up 缺口。"
+            ? "当前没有结构性会议跟进缺口。"
             : "还没有会议页，无法建立会议复盘节奏。",
       next_action:
-        "每周复核会议 follow-up，确认哪些开放问题进入公司页、报告库、模型更新或下一次会议准备。",
+        "每周复核会议跟进，确认哪些开放问题进入公司页、报告库、模型更新或下一次会议准备。",
       privacy_boundary:
         "只提示复盘节奏，不自动发布会议纪要、调用 AI、入会或录音。",
     },
@@ -324,8 +324,8 @@ function buildActionQueue(
         "report-linking",
         "follow-up-cadence",
       ],
-      reason: `${followUp.summary.follow_up_items} 个会议页还有 transcript、action items 或 relation 缺口。`,
-      suggested_destination: "会议 follow-up 队列",
+      reason: `${followUp.summary.follow_up_items} 个会议页还有转录稿、行动项或关系缺口。`,
+      suggested_destination: "会议跟进队列",
     });
   }
 
@@ -347,13 +347,13 @@ function actionItem(
       suggested_destination: "新建会议纪要",
     },
     "attach-transcript-page": {
-      title: "连接 Transcript 页面",
+      title: "连接转录稿页面",
       status: "missing",
-      reason: "Transcript 是提取管理层表述、专家观点和开放问题的基础材料。",
-      suggested_destination: "会议页 Transcript 区",
+      reason: "转录稿是提取管理层表述、专家观点和开放问题的基础材料。",
+      suggested_destination: "会议页转录稿区",
     },
     "extract-action-items": {
-      title: "提取 action items",
+      title: "提取行动项",
       status: "missing",
       reason: "会议后需要明确开放问题、模型调整、补读报告和下次跟进动作。",
       suggested_destination: "会议页行动项或会议跟踪表",
@@ -362,18 +362,18 @@ function actionItem(
       title: "补公司关系",
       status: "missing",
       reason: "会议需要回到公司研究页，才方便从公司维度追踪管理层和专家观点。",
-      suggested_destination: "公司 relation 字段",
+      suggested_destination: "公司关系字段",
     },
     "link-related-report": {
       title: "补报告关系",
       status: "missing",
-      reason: "会议结论需要连接来源报告、后续 memo 或业绩复盘，避免孤立存放。",
-      suggested_destination: "Related report relation",
+      reason: "会议结论需要连接来源报告、后续备忘录或业绩复盘，避免孤立存放。",
+      suggested_destination: "相关报告关系",
     },
     "create-meeting-tracker": {
       title: "创建会议跟踪表",
       status: "missing",
-      reason: "会议跟踪表统一承载日期、平台、状态、行动项、Transcript 和 relation 字段。",
+      reason: "会议跟踪表统一承载日期、平台、状态、行动项、转录稿和关系字段。",
       suggested_destination: "创建会议跟踪表",
     },
   };

@@ -119,7 +119,7 @@ export function buildCompanyResearchDossierPlan(
     format_version: 1,
     plan_status: "local-company-dossier-only",
     privacy_note:
-      "由本地公司覆盖报告生成。它创建公司级档案清单，覆盖页面、备忘录、业绩复盘、估值假设、关键指标、相关报告、相关会议和跟踪表设置；不会读取或导出页面正文、数据库行值、文件字节、持仓、交易计划、云端数据、AI prompt、token 或凭证。",
+      "由本地公司覆盖报告生成。它创建公司级档案清单，覆盖页面、备忘录、业绩复盘、估值假设、关键指标、相关报告、相关会议和跟踪表设置；不会读取或导出页面正文、数据库行值、文件字节、持仓、交易计划、云端数据、AI 提示词、token 或凭证。",
     boundary: {
       local_plan_only: true,
       reads_company_coverage_report: true,
@@ -191,7 +191,7 @@ function buildDossier(
     sections,
     next_action:
       missingSections.length === 0
-        ? "公司档案基础结构已齐，下一步手动复核 relation 值、最新结论和复盘节奏。"
+        ? "公司档案基础结构已齐，下一步手动复核关系值、最新结论和复盘节奏。"
         : `优先补齐 ${missingSections.map(getCoverageAreaLabel).join("、")}。`,
     privacy_boundary:
       "公司档案只整理结构缺口，不读取或导出页面正文、数据库行值、文件字节、持仓或交易计划。",
@@ -302,7 +302,7 @@ function buildGlobalActions(
       status: "ready",
       applies_to: ["tracker-database"],
       reason:
-        "公司档案基础结构已齐，下一步手动维护 relation 值、催化剂、复盘日期和最新结论。",
+        "公司档案基础结构已齐，下一步手动维护关系值、催化剂、复盘日期和最新结论。",
       target_route: "/modules/company-research",
     });
   }

@@ -185,7 +185,7 @@ const LANE_META: Record<
     description: "先建立会议纪要、会前背景和基础研究问题。",
     route: "/modules/meetings",
     privacy_boundary:
-      "只使用结构状态，不导出会议标题、会议正文、参会人详情或 meeting passcodes。",
+      "只使用结构状态，不导出会议标题、会议正文、参会人详情或会议密码。",
   },
   "transcript-review": {
     id: "transcript-review",
@@ -193,7 +193,7 @@ const LANE_META: Record<
     description: "把 transcript 页面或录音索引补齐，并保留人工复核门槛。",
     route: "/modules/meetings",
     privacy_boundary:
-      "只提示 transcript 结构缺口，不读取 transcript text 或 recording bytes。",
+      "只提示转录稿结构缺口，不读取转录稿文本或录音字节。",
   },
   "decision-ledger": {
     id: "decision-ledger",
@@ -209,7 +209,7 @@ const LANE_META: Record<
     description: "将会议结构缺口转成 transcript、模型、风险、开放问题和 relation 任务。",
     route: "/modules/meetings",
     privacy_boundary:
-      "任务队列只包含结构缺口，不导出页面正文、transcript、row values 或文件 bytes。",
+      "任务队列只包含结构缺口，不导出页面正文、转录稿、行值或文件字节。",
   },
   "tracker-intake": {
     id: "tracker-intake",
@@ -222,10 +222,10 @@ const LANE_META: Record<
   "relation-linking": {
     id: "relation-linking",
     title: "公司和报告关联",
-    description: "把会议连接到公司页、报告、memo 或业绩复盘。",
+    description: "把会议连接到公司页、报告、备忘录或业绩复盘。",
     route: "/modules/research-graph",
     privacy_boundary:
-      "只提示 relation 缺口，不自动写 relation、不读取公司正文或报告正文。",
+      "只提示关系缺口，不自动写关系、不读取公司正文或报告正文。",
   },
   "privacy-boundary": {
     id: "privacy-boundary",
@@ -268,7 +268,7 @@ export function buildMeetingWorkbenchPacket(input: {
     format_version: 1,
     packet_status: "local-meeting-workbench-only",
     privacy_note:
-      "这份会议工作台包只在本地生成，来源是 follow-up、decision ledger、research queue、playbook 和 tracker-intake metadata。它只导出聚合行动路由，不包含会议标题、页面正文、transcript text、录音 bytes、参会人详情、meeting passcodes、数据库 row values、持仓、交易计划、云端数据、AI prompt、token 或凭证；也不会入会、录音、发布纪要、创建 tracker 行、写 relation values、上传数据、连接云服务或启用 AI。",
+      "这份会议工作台包只在本地生成，来源是跟进报告、决策账本、研究队列、行动手册和入库台元数据。它只导出聚合行动路由，不包含会议标题、页面正文、转录稿文本、录音字节、参会人详情、会议密码、数据库行值、持仓、交易计划、云端数据、AI 提示词、token 或凭证；也不会入会、录音、发布纪要、创建跟踪表行、写关系值、上传数据、连接云服务或启用 AI。",
     boundary: {
       local_packet_only: true,
       reads_meeting_follow_up_report: true,
@@ -380,7 +380,7 @@ function buildDecisionSummary(
   return {
     current_state: "local-meeting-owner-review",
     current_conclusion:
-      "可以继续在本地创建会议纪要、转录稿页面、行动项、投研闭环、研究任务队列和会议 tracker；自动入会、录音、发布纪要、读取 transcript 正文、AI 处理、云同步、批量写入以及任何 passcode/参会人信息外发仍然必须经过单独 owner gate。",
+      "可以继续在本地创建会议纪要、转录稿页面、行动项、投研闭环、研究任务队列和会议跟踪表；自动入会、录音、发布纪要、读取转录稿正文、AI 处理、云同步、批量写入以及任何会议密码/参会人信息外发仍然必须经过你单独确认。",
     can_create_local_meeting_assets_now: true,
     can_review_transcript_structure_now: true,
     can_review_decision_ledger_now: true,
@@ -391,22 +391,22 @@ function buildDecisionSummary(
     can_send_meeting_context_to_ai_now: false,
     can_sync_meeting_data_now: false,
     safe_local_work: [
-      "继续创建本地会议纪要、转录稿页面、行动项页面和会议 tracker。",
-      "继续复核 follow-up、decision ledger、research queue、playbook 和 tracker intake metadata。",
-      "继续通过研究图谱手动补公司/报告 relation。",
-      "继续导出 metadata-only 会议 workbench，不包含会议标题、正文、transcript、录音 bytes、参会人或 passcode。",
+      "继续创建本地会议纪要、转录稿页面、行动项页面和会议跟踪表。",
+      "继续复核跟进报告、决策账本、研究队列、行动手册和跟踪表入库元数据。",
+      "继续通过研究图谱手动补公司/报告关系。",
+      "继续导出仅含元数据的会议工作台，不包含会议标题、正文、转录稿、录音字节、参会人或会议密码。",
     ],
     blocked_work: [
-      "不能从会议 workbench 自动入会、录音、发布纪要或触发 meeting agent。",
-      "不能导出会议标题、页面正文、transcript text、recording bytes、participant details 或 meeting passcodes。",
-      "不能批量创建 tracker 行、批量更新数据库或自动写 relation values。",
+      "不能从会议工作台自动入会、录音、发布纪要或触发会议助手。",
+      "不能导出会议标题、页面正文、转录稿文本、录音字节、参会人详情或会议密码。",
+      "不能批量创建跟踪表行、批量更新数据库或自动写关系值。",
       "不能把会议上下文发送给 AI、云同步、外部 API 或远端存储。",
     ],
     required_owner_decisions:
       manualActions.length > 0
         ? manualActions.slice(0, 5).map((action) => action.next_action)
         : [
-            "确认哪些会议页应进入正式 follow-up 和 tracker 流程。",
+            "确认哪些会议页应进入正式跟进和跟踪表流程。",
             "确认何时允许 transcript、录音、纪要或行动项进入 AI payload、云同步或发布路径。",
           ],
     top_blockers: topBlockers,
@@ -448,7 +448,7 @@ function buildDecisionSummary(
       },
       {
         id: "transcript-review",
-        title: "Transcript 复盘",
+        title: "转录稿复盘",
         status:
           transcriptActions.length > 0
             ? "requires-owner-confirmation"
@@ -525,9 +525,9 @@ function buildDecisionSummary(
           relationActions.length + trackerActions.length > 0
             ? "逐条确认"
             : "继续保持",
-        evidence: `${relationActions.length} 个 relation 行动，${input.trackerIntakeItems.length} 个 tracker intake 候选。`,
+        evidence: `${relationActions.length} 个关系行动，${input.trackerIntakeItems.length} 个跟踪表入库候选。`,
         next_action:
-          "通过研究图谱手动补公司/报告 relation；会议 tracker 行只能在入库台逐条点击创建。",
+          "通过研究图谱手动补公司/报告关系；会议跟踪表行只能在入库台逐条点击创建。",
         route: "/modules/meetings",
         target_section_id: "meeting-tracker-intake",
         allowed_now: true,
@@ -555,7 +555,7 @@ function buildDecisionSummary(
         status: "blocked",
         answer: "保持关闭",
         evidence:
-          "当前会议 workbench 不加入会议、不录音、不发布纪要、不上传、不调用 AI，也不包含 passcodes 或 participant details。",
+          "当前会议工作台不加入会议、不录音、不发布纪要、不上传、不调用 AI，也不包含会议密码或参会人详情。",
         next_action:
           "等 meeting agent preflight、音频/麦克风状态、payload preview、账号权限、发布目标和审计回滚合同确认后，再启用自动化。",
         route: "/modules/sync",
@@ -697,9 +697,9 @@ function buildActions(input: {
         title: "补公司和报告关联",
         priority: "medium",
         status: "review-needed",
-        evidence: `${relationGaps} 个公司/报告 relation 结构缺口。`,
+        evidence: `${relationGaps} 个公司/报告关系结构缺口。`,
         next_action:
-          "用研究图谱把会议连接到公司页、报告、memo 或业绩复盘。",
+          "用研究图谱把会议连接到公司页、报告、备忘录或业绩复盘。",
         action_route: "/modules/research-graph",
         route_label: "打开研究图谱",
         requires_manual_confirmation: true,
@@ -717,7 +717,7 @@ function buildActions(input: {
         status: "missing",
         evidence: "当前缺少会议跟踪表。",
         next_action:
-          "创建会议跟踪表后，再逐条把会议页接入 tracker 行。",
+          "创建会议跟踪表后，再逐条把会议页接入跟踪表行。",
         action_route: "/modules/meetings",
         route_label: "创建会议跟踪表",
         requires_manual_confirmation: true,
@@ -740,7 +740,7 @@ function buildActions(input: {
         evidence: `${input.trackerIntakeItems.length} 个会议页可进入会议入库台。`,
         next_action:
           input.followUp.summary.tracker_databases > 0
-            ? "逐条确认会议页是否应创建 tracker 行；不要批量写入。"
+            ? "逐条确认会议页是否应创建跟踪表行；不要批量写入。"
             : "先创建会议跟踪表，再逐条处理入库候选。",
         action_route: "/modules/meetings",
         route_label: "查看入库台",
@@ -785,7 +785,7 @@ function action(
     records_audio: false,
     publishes_notes: false,
     privacy_boundary:
-      "Workbench action is metadata-only and does not include meeting titles, page text, transcript text, recording bytes, participant details, meeting passcodes, row values, holdings, trading plans, cloud data, AI prompts, tokens, or credentials.",
+      "工作台动作只处理元数据，不包含会议标题、页面正文、转录稿文本、录音字节、参会人详情、会议密码、行值、持仓、交易计划、云端数据、AI 提示词、token 或凭证。",
   };
 }
 
@@ -829,8 +829,8 @@ function buildReviewSequence(input: {
       "meeting-follow-up",
       "转录稿或录音索引需要先人工复核，才能抽取可靠观点和开放问题。",
       input.followUp.summary.missing_transcripts === 0
-        ? "Transcript 结构已覆盖。"
-        : "Transcript 结构仍有缺口。"
+        ? "转录稿结构已覆盖。"
+        : "转录稿结构仍有缺口。"
     ),
     reviewStep(
       "decision-ledger",
@@ -860,10 +860,10 @@ function buildReviewSequence(input: {
       "连接公司和报告",
       "/modules/research-graph",
       "meeting-research-connections",
-      "会议要回到公司、报告、memo 或业绩复盘，才形成投研闭环。",
+      "会议要回到公司、报告、备忘录或业绩复盘，才形成投研闭环。",
       input.followUp.summary.missing_company_links === 0 &&
       input.followUp.summary.missing_report_links === 0
-        ? "公司和报告 relation 结构已覆盖。"
+        ? "公司和报告关系结构已覆盖。"
         : "公司或报告 relation 仍需手动补齐。"
     ),
     reviewStep(
@@ -872,7 +872,7 @@ function buildReviewSequence(input: {
       "最后逐条入会议跟踪表",
       "/modules/meetings",
       "meeting-tracker-intake",
-      "tracker 行是本地写入动作，必须逐条确认，不能由工作台批量写入。",
+      "跟踪表行是本地写入动作，必须逐条确认，不能由工作台批量写入。",
       input.trackerIntakeItems.length > 0
         ? `${input.trackerIntakeItems.length} 个候选等待会议入库台复核。`
         : "当前没有 tracker intake 候选。"
@@ -884,7 +884,7 @@ function buildReviewSequence(input: {
       "/modules/sync",
       "meeting-privacy-boundary",
       "入会、录音、发布、AI、云同步和批量写入都是高风险动作。",
-      "当前 packet 只做本地 metadata-only 排队。"
+      "当前动作包只做本地元数据排队。"
     ),
   ];
 }

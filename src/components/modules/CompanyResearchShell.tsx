@@ -358,7 +358,7 @@ function CompanyResearchDashboard() {
       );
       if (existingRow) {
         setTrackerIntakeMessage(
-          `已存在跟踪表行：${existingRow.row_title}。已打开公司跟踪表继续补 relation。`
+          `已存在跟踪表行：${existingRow.row_title}。已打开公司跟踪表继续补关系。`
         );
         router.push(
           `/database/${tracker.id}?q=${encodeURIComponent(item.page_title)}&focus=${
@@ -374,7 +374,7 @@ function CompanyResearchDashboard() {
       );
       if (!hasCompanyPageRelation) {
         window.alert(
-          "当前公司跟踪表缺少公司页 relation 字段，请先补字段后再入库。"
+          "当前公司跟踪表缺少公司页关系字段，请先补字段后再入库。"
         );
         return;
       }
@@ -385,7 +385,7 @@ function CompanyResearchDashboard() {
         contentText: draft.row_page_content,
       });
       setTrackerIntakeMessage(
-        `已创建跟踪表行：${draft.row_title}。已打开公司跟踪表继续补 relation。`
+        `已创建跟踪表行：${draft.row_title}。已打开公司跟踪表继续补关系。`
       );
       router.push(
         `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
@@ -971,7 +971,7 @@ function CompanyResearchDashboard() {
                 ))
               ) : (
                 <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-                  当前没有结构性缺口。下一步可以维护 relation 值、复盘节奏和最新结论。
+                  当前没有结构性缺口。下一步可以维护关系值、复盘节奏和最新结论。
                 </p>
               )}
             </div>
@@ -1013,7 +1013,7 @@ function CompanyResearchDashboard() {
                 字段连接起来。
               </p>
               <p>
-                下一步会继续强化 relation 字段，让公司页面、会议、报告和数据库可以更结构化地互相关联。
+                下一步会继续强化关系字段，让公司页面、会议、报告和数据库可以更结构化地互相关联。
               </p>
             </div>
           </div>
@@ -1120,9 +1120,9 @@ function CompanyDecisionSummaryPanel({
         {summary.top_blockers.length > 0
           ? summary.top_blockers.join("；")
           : "暂无"}
-        。公司研究决策摘要只读取本地 summary metadata，不包含公司名、页面标题、
+        。公司研究决策摘要只读取本地摘要元数据，不包含公司名、页面标题、
         页面正文、数据库行值、文件名、文件字节、持仓、交易计划、
-        prompt、token 或 credentials。
+        提示词、token 或凭证。
       </div>
     </section>
   );
@@ -1980,7 +1980,7 @@ function buildCompanyTrackerIntakeItems(
       missing_sections: candidate?.missing_sections ?? [],
       next_action:
         candidate?.next_action ??
-        "结构已覆盖基础公司研究面，下一步补 relation 值、复盘节奏和最新结论。",
+        "结构已覆盖基础公司研究面，下一步补关系值、复盘节奏和最新结论。",
     };
   });
 }

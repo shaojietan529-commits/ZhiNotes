@@ -79,7 +79,7 @@ const WORKFLOW_STEPS = [
   {
     title: "研究关联",
     detail:
-      "通过 relation 字段把持仓关联回公司页面、备忘录、报告和会议。",
+      "通过关系字段把持仓关联回公司页面、备忘录、报告和会议。",
   },
 ];
 
@@ -258,7 +258,7 @@ function PortfolioDashboard() {
       );
       if (existingRow) {
         setTrackerIntakeMessage(
-          "已存在跟踪表行。已打开组合跟踪表继续补 relation 和复盘字段。"
+          "已存在跟踪表行。已打开组合跟踪表继续补关系和复盘字段。"
         );
         router.push(
           `/database/${tracker.id}?q=${encodeURIComponent(
@@ -274,7 +274,7 @@ function PortfolioDashboard() {
       );
       if (!hasRelatedMemoRelation) {
         window.alert(
-          "当前组合跟踪表缺少关联备忘录 relation 字段，请先补字段后再入库。"
+          "当前组合跟踪表缺少关联备忘录关系字段，请先补字段后再入库。"
         );
         return;
       }
@@ -285,7 +285,7 @@ function PortfolioDashboard() {
         contentText: draft.row_page_content,
       });
       setTrackerIntakeMessage(
-        "已创建脱敏跟踪表行。已打开组合跟踪表继续补 relation 和复盘字段。"
+        "已创建脱敏跟踪表行。已打开组合跟踪表继续补关系和复盘字段。"
       );
       router.push(
         `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
@@ -540,7 +540,7 @@ function PortfolioDashboard() {
                 组合复盘雷达
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                本地扫描组合页面和数据库元数据，检查持仓 memo、观察名单、仓位纪律、
+                本地扫描组合页面和数据库元数据，检查持仓备忘录、观察名单、仓位纪律、
                 确信度、催化剂、风险笔记、投资假设、研究关联和组合跟踪表结构。
                 导出不会包含页面标题、股票代码、权重、持仓名、交易计划或交易记录。
               </p>
@@ -777,15 +777,15 @@ function PortfolioDecisionSummaryPanel({
         <PortfolioDecisionList title="当前可做" items={summary.safe_local_work} />
         <PortfolioDecisionList title="保持关闭" items={summary.blocked_work} />
         <PortfolioDecisionList
-          title="Owner 待确认"
+          title="用户待确认"
           items={summary.required_owner_decisions}
         />
       </div>
 
       <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-        组合决策摘要只读取本地 summary metadata，不包含页面标题、页面正文、
+        组合决策摘要只读取本地摘要元数据，不包含页面标题、页面正文、
         持仓名、股票代码、权重、持仓、交易计划、交易记录、券商数据、价格、
-        prompt、token、credentials、cloud data 或 AI output。
+        提示词、token、凭证、云端数据或 AI 输出。
       </p>
     </section>
   );
@@ -1374,7 +1374,7 @@ function buildPortfolioTrackerIntakeItems(
       missing_areas: reviewItem?.missing_areas ?? [],
       next_action:
         reviewItem?.next_action ??
-        "结构已覆盖基础组合复盘面，下一步补 relation 值和最新复盘结论。",
+        "结构已覆盖基础组合复盘面，下一步补关系值和最新复盘结论。",
       updated_at: page.updated_at,
     };
   });

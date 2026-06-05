@@ -111,7 +111,7 @@ export function buildMeetingTrackerIntakeDraft(
     format_version: 1,
     draft_status: "local-meeting-tracker-row-draft",
     privacy_note:
-      "Generated locally from one meeting follow-up item and the selected meeting tracker field schema. It creates a row draft with relation ids and structural status only. It does not read or export meeting text, transcript text, recording bytes, participant details, passcodes, cloud data, AI prompts, tokens, or credentials.",
+      "由一个会议跟进条目和所选会议跟踪表字段结构在本地生成。它只创建带关系 id 和结构状态的行草稿，不读取或导出会议正文、转录稿文本、录音字节、参会人详情、会议密码、云端数据、AI 提示词、token 或凭证。",
     boundary: {
       local_row_draft_only: true,
       reads_meeting_follow_up_item: true,
@@ -172,7 +172,7 @@ function buildMeetingTrackerRowContent(item: MeetingTrackerFollowUpItem) {
   const missingSteps =
     item.missing_steps.length > 0
       ? item.missing_steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")
-      : "<li>基础结构已覆盖，继续补 relation 值和最新结论。</li>";
+      : "<li>基础结构已覆盖，继续补关系值和最新结论。</li>";
 
   return `
     <h1>${escapeHtml(`会议跟踪 - ${item.page_title}`)}</h1>

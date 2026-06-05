@@ -72,7 +72,7 @@ export const RESEARCH_WORKFLOW_SPECS: Record<
       {
         id: "company-relations",
         title: "研究关联",
-        detail: "用 relation 连接相关报告和会议，形成公司级研究上下文。",
+        detail: "用关系连接相关报告和会议，形成公司级研究上下文。",
         surface: "relation",
       },
     ],
@@ -114,7 +114,7 @@ export const RESEARCH_WORKFLOW_SPECS: Record<
       {
         id: "report-tracker",
         title: "报告跟踪表",
-        detail: "用本地数据库跟踪报告状态、格式、来源和 review 节奏。",
+        detail: "用本地数据库跟踪报告状态、格式、来源和复盘节奏。",
         surface: "database",
       },
       {
@@ -141,7 +141,7 @@ export const RESEARCH_WORKFLOW_SPECS: Record<
       "类型",
       "平台",
       "状态",
-      "需要 follow-up",
+      "需要跟进",
       "行动项",
       "转录稿页面",
       "关联报告",
@@ -162,7 +162,7 @@ export const RESEARCH_WORKFLOW_SPECS: Record<
       {
         id: "meeting-actions",
         title: "行动项",
-        detail: "跟踪 follow-up、开放问题、模型调整和负责人。",
+        detail: "跟踪跟进、开放问题、模型调整和负责人。",
         surface: "database",
       },
       {
@@ -179,7 +179,7 @@ export const RESEARCH_WORKFLOW_SPECS: Record<
     label: "组合",
     module_route: "/modules/portfolio",
     primary_database_preset: "portfolio-tracker",
-    primary_assets: ["持仓记录", "观察名单", "仓位 memo", "催化剂复盘"],
+    primary_assets: ["持仓记录", "观察名单", "仓位备忘录", "催化剂复盘"],
     required_relation_kinds: ["company", "report", "meeting"],
     key_tracker_fields: [
       "股票代码",
@@ -205,20 +205,20 @@ export const RESEARCH_WORKFLOW_SPECS: Record<
       },
       {
         id: "position-memo",
-        title: "仓位 memo",
-        detail: "跟踪 thesis、风险、目标仓位、目标价和 downside。",
+        title: "仓位备忘录",
+        detail: "跟踪投资假设、风险、目标仓位、目标价和下行空间。",
         surface: "page",
       },
       {
         id: "portfolio-review",
         title: "组合复盘",
-        detail: "围绕状态、仓位、催化剂和风险做周期性 review。",
+        detail: "围绕状态、仓位、催化剂和风险做周期性复盘。",
         surface: "database",
       },
       {
         id: "portfolio-relations",
         title: "关联研究",
-        detail: "把组合条目关联到公司、报告、会议和研究 memo。",
+        detail: "把组合条目关联到公司、报告、会议和研究备忘录。",
         surface: "relation",
       },
     ],
