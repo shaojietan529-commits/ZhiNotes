@@ -105,6 +105,13 @@ schema migration 的能力默认保持关闭。
 - 行顺序调整只交换本地 row position metadata，不读取或改写字段值、页面正文、文件 bytes、云端数据或 AI 内容。
 - 当前只在手动排序语境下启用；按日期、状态或更新时间组织的视图暂不放手动行排序按钮，避免操作后视觉结果不明显。
 
+### 数据库表格摘要阶段
+
+- Table view 现在在底部显示 Notion-like 字段摘要：标题覆盖、checkbox 完成度、number/formula/rollup
+  合计与平均、日期覆盖、唯一值数量都会基于当前可见行本地计算。
+- 表格摘要不写入 row values，不读取页面正文，不读取文件 bytes，不连接云端，也不调用 AI；inline
+  database 和分组 table 复用同一套只读摘要。
+
 ### 数据库删除确认阶段
 
 - 完整数据库页和 inline database 现在都会在删除字段或删除记录前弹出本地确认。

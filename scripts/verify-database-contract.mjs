@@ -287,6 +287,21 @@ function run() {
     );
   }
   for (const snippet of [
+    "buildTableColumnSummary",
+    "<tfoot>",
+    "Σ ${formatTableSummaryNumber(sum, field)}",
+    "平均 ${formatTableSummaryNumber(average, field)}",
+    "个唯一",
+    "列摘要只基于当前视图可见行本地计算",
+  ]) {
+    assertIncludes(
+      files.tableView,
+      tableView,
+      snippet,
+      "Table view must expose local-only Notion-like column summaries."
+    );
+  }
+  for (const snippet of [
     'field.field_type === "email"',
     'field.field_type === "phone"',
     'field.field_type === "multi_select"',
@@ -1753,6 +1768,7 @@ function run() {
         template_row_receipt_history: true,
         inline_view_config: true,
         inline_grouped_views: true,
+        table_column_summaries: true,
         import_export_readiness: true,
         feed_field_context: true,
         view_rule_controls: true,

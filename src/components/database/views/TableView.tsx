@@ -14,6 +14,7 @@ import {
   toggleMultiSelectValue,
 } from "@/lib/database/multiSelectValues";
 import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
+import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
   getDatabaseSystemFieldValue,
   isDatabaseSystemField,
@@ -37,6 +38,12 @@ interface TableViewProps {
   canMoveRows?: boolean;
 }
 
+interface TableColumnSummary {
+  primary: string;
+  detail: string;
+  title: string;
+}
+
 export default function TableView({
   fields,
   rows,
@@ -53,6 +60,10 @@ export default function TableView({
   showAddRow = true,
   canMoveRows = true,
 }: TableViewProps) {
+  const columnSummaries = fields.map((field) =>
+    buildTableColumnSummary(field, rows, fields, relationPages)
+  );
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm border-collapse">
@@ -97,6 +108,28 @@ export default function TableView({
             />
           ))}
         </tbody>
+        <tfoot>
+          <tr className="border-t border-zinc-200 bg-zinc-50/80 text-[11px] text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-400">
+            <td className="px-3 py-2 font-medium">汇总</td>
+            {fields.map((field, index) => {
+              const summary = columnSummaries[index];
+              return (
+                <td key={field.id} className="px-3 py-2" title={summary.title}>
+                  <div className="flex min-w-[8rem] flex-col gap-0.5">
+                    <span className="font-medium text-zinc-600 dark:text-zinc-300">
+                      {summary.primary}
+                    </span>
+                    <span className="text-[10px] text-zinc-400">
+                      {summary.detail}
+                    </span>
+                  </div>
+                </td>
+              );
+            })}
+            <td className="px-3 py-2 font-medium">{rows.length} 行</td>
+            <td className="px-1 py-2" />
+          </tr>
+        </tfoot>
       </table>
 
       {showAddRow && (
@@ -232,6 +265,172 @@ function TableRow({
       </td>
     </tr>
   );
+}
+
+function buildTableColumnSummary(
+  field: DatabaseField,
+  rows: (DatabaseRow & { page: Page })[],
+  fields: DatabaseField[],
+  relationPages: Page[]
+): TableColumnSummary {
+  if (rows.length === 0) {
+    return {
+      primary: "0 行",
+      detail: "没有可见行",
+      title: "列摘要只基于当前视图可见行本地计算。",
+    };
+  }
+
+  if (field.position === 0 || field.name === "Name") {
+    const namedRows = rows.filter((row) => row.page?.title?.trim()).length;
+    return {
+      primary: `${namedRows}/${rows.length} 有标题`,
+      detail: `${rows.length - namedRows} 个空标题`,
+      title: "标题摘要只读取当前可见行的本地页面标题。",
+    };
+  }
+
+  if (field.field_type === "checkbox") {
+    const checkedRows = rows.filter((row) =>
+      Boolean(getTableSummaryRawValue(row, field, fields, relationPages))
+    ).length;
+    const percent = Math.round((checkedRows / rows.length) * 100);
+    return {
+      primary: `${checkedRows}/${rows.length} 已勾选`,
+      detail: `${percent}% 完成`,
+      title: "Checkbox 摘要只根据当前可见行本地计算。",
+    };
+  }
+
+  if (
+    field.field_type === "number" ||
+    field.field_type === "formula" ||
+    field.field_type === "rollup"
+  ) {
+    const numericValues = rows
+      .map((row) =>
+        toTableSummaryNumber(
+          getTableSummaryRawValue(row, field, fields, relationPages)
+        )
+      )
+      .filter((value): value is number => Number.isFinite(value));
+
+    if (numericValues.length > 0) {
+      const sum = numericValues.reduce((total, value) => total + value, 0);
+      const average = sum / numericValues.length;
+      return {
+        primary: `Σ ${formatTableSummaryNumber(sum, field)}`,
+        detail: `平均 ${formatTableSummaryNumber(average, field)} · ${
+          numericValues.length
+        }/${rows.length}`,
+        title:
+          "数字摘要只基于当前可见行本地计算，不会写入任何数据库值。",
+      };
+    }
+  }
+
+  const labels = rows.flatMap((row) =>
+    getTableSummaryLabels(
+      getTableSummaryRawValue(row, field, fields, relationPages),
+      field,
+      relationPages
+    )
+  );
+  const filledRows = rows.filter(
+    (row) =>
+      getTableSummaryLabels(
+        getTableSummaryRawValue(row, field, fields, relationPages),
+        field,
+        relationPages
+      ).length > 0
+  ).length;
+  const uniqueCount = new Set(labels.map((label) => label.toLowerCase())).size;
+
+  if (
+    field.field_type === "date" ||
+    field.field_type === "created_time" ||
+    field.field_type === "last_edited_time"
+  ) {
+    return {
+      primary: `${filledRows}/${rows.length} 有日期`,
+      detail: `${rows.length - filledRows} 个空值`,
+      title: "日期摘要只基于当前可见行本地计算。",
+    };
+  }
+
+  return {
+    primary: `${uniqueCount} 个唯一`,
+    detail: `${filledRows}/${rows.length} 有值`,
+    title: "列摘要只基于当前视图可见行本地计算。",
+  };
+}
+
+function getTableSummaryRawValue(
+  row: DatabaseRow & { page: Page },
+  field: DatabaseField,
+  fields: DatabaseField[],
+  relationPages: Page[]
+) {
+  if (isDatabaseSystemField(field)) {
+    return getDatabaseSystemFieldValue(row, field);
+  }
+
+  const fieldValues = parseFieldValues(row.field_values);
+  if (field.field_type === "formula") {
+    return evaluateDatabaseFormula(field, fields, row, fieldValues).value;
+  }
+  if (field.field_type === "rollup") {
+    return evaluateDatabaseRollup(
+      field,
+      fields,
+      fieldValues,
+      relationPages
+    ).value;
+  }
+  return fieldValues[field.id];
+}
+
+function getTableSummaryLabels(
+  value: unknown,
+  field: DatabaseField,
+  relationPages: Page[]
+) {
+  if (value === null || value === undefined || value === "") return [];
+
+  if (field.field_type === "multi_select") {
+    return normalizeMultiSelectValue(value);
+  }
+
+  if (field.field_type === "relation") {
+    return splitTableSummaryLabels(stringifyRelationValue(value, relationPages));
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => splitTableSummaryLabels(String(item)));
+  }
+
+  if (typeof value === "boolean") {
+    return [value ? "是" : "否"];
+  }
+
+  return splitTableSummaryLabels(String(value));
+}
+
+function splitTableSummaryLabels(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function toTableSummaryNumber(value: unknown) {
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value.trim()) return Number(value);
+  return Number.NaN;
+}
+
+function formatTableSummaryNumber(value: number, field: DatabaseField) {
+  return formatDatabaseNumberValue(value, field) || String(value);
 }
 
 function CellEditor({
