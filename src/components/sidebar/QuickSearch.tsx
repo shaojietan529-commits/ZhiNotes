@@ -510,6 +510,38 @@ export default function QuickSearch() {
         }),
     },
     {
+      id: "new-valuation-assumptions",
+      title: "新建估值假设",
+      description: "创建一个本地估值假设页面",
+      icon: "VAL",
+      category: "Page",
+      aliases: ["valuation", "assumptions", "target price", "scenario", "估值", "目标价", "情景"],
+      run: () =>
+        void handleModuleStarter({
+          type: "page",
+          label: "新建估值假设",
+          title: "未命名估值假设",
+          templateTitle: "估值假设",
+          icon: "VAL",
+        }),
+    },
+    {
+      id: "new-key-metrics",
+      title: "新建关键指标",
+      description: "创建一个本地 KPI 和单位经济看板页面",
+      icon: "KPI",
+      category: "Page",
+      aliases: ["metrics", "kpi", "dashboard", "unit economics", "关键指标", "指标", "单位经济"],
+      run: () =>
+        void handleModuleStarter({
+          type: "page",
+          label: "新建关键指标",
+          title: "未命名关键指标看板",
+          templateTitle: "关键指标看板",
+          icon: "KPI",
+        }),
+    },
+    {
       id: "new-research-decision-log",
       title: "新建投研决策日志",
       description: "创建一个本地投研决策复盘页面",
@@ -577,6 +609,38 @@ export default function QuickSearch() {
         }),
     },
     {
+      id: "new-watchlist-note",
+      title: "新建观察名单",
+      description: "创建一个本地观察名单或想法队列页面",
+      icon: "WL",
+      category: "Page",
+      aliases: ["watchlist", "idea", "pipeline", "观察名单", "想法", "研究队列"],
+      run: () =>
+        void handleModuleStarter({
+          type: "page",
+          label: "新建观察名单",
+          title: "未命名观察名单",
+          templateTitle: "观察名单",
+          icon: "WL",
+        }),
+    },
+    {
+      id: "new-catalyst-risk-review",
+      title: "新建催化剂复盘",
+      description: "创建一个本地催化剂和风险复盘页面",
+      icon: "CAT",
+      category: "Page",
+      aliases: ["catalyst", "risk review", "risk notes", "review", "催化剂", "风险复盘", "风险笔记"],
+      run: () =>
+        void handleModuleStarter({
+          type: "page",
+          label: "新建催化剂复盘",
+          title: "未命名催化剂与风险复盘",
+          templateTitle: "催化剂与风险复盘",
+          icon: "CAT",
+        }),
+    },
+    {
       id: "create-portfolio-tracker",
       title: "创建组合跟踪表",
       description: "创建本地组合与观察名单数据库",
@@ -617,6 +681,38 @@ export default function QuickSearch() {
           title: "未命名会议纪要",
           templateTitle: "会议纪要",
           icon: "MTG",
+        }),
+    },
+    {
+      id: "new-meeting-transcript",
+      title: "新建会议转录稿",
+      description: "创建一个本地会议 transcript 页面",
+      icon: "TRN",
+      category: "Page",
+      aliases: ["transcript", "recording", "raw notes", "转录稿", "会议转录", "录音"],
+      run: () =>
+        void handleModuleStarter({
+          type: "page",
+          label: "新建会议转录稿",
+          title: "未命名会议转录稿",
+          templateTitle: "会议转录稿",
+          icon: "TRN",
+        }),
+    },
+    {
+      id: "new-meeting-action-items",
+      title: "新建会议行动项",
+      description: "创建一个本地会议 follow-up 和开放问题页面",
+      icon: "ACT",
+      category: "Page",
+      aliases: ["action items", "follow up", "todo", "open questions", "行动项", "开放问题", "待办"],
+      run: () =>
+        void handleModuleStarter({
+          type: "page",
+          label: "新建会议行动项",
+          title: "未命名会议行动项",
+          templateTitle: "会议行动项",
+          icon: "ACT",
         }),
     },
     {
