@@ -375,6 +375,8 @@ Current local actions:
 - Reorder local database view tabs from each view tab menu. View ordering only
   swaps local view position metadata; it does not change view rules or row
   values.
+- Database view menus close on outside pointer input or Escape, matching the
+  expected lightweight database-tab editing flow.
 - Duplicate local database fields from full database pages or inline databases.
   Field duplicate copies the field name, type, and configuration into a new
   local field, but does not copy existing row values.

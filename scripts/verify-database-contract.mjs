@@ -577,6 +577,20 @@ function run() {
     );
   }
   for (const snippet of [
+    "useDismissFloatingMenu",
+    'document.addEventListener("pointerdown"',
+    'document.addEventListener("keydown"',
+    'event.key === "Escape"',
+    "containerRef.current?.contains(target)",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database floating menus must close on outside pointer input and Escape."
+    );
+  }
+  for (const snippet of [
     'Pick<DatabaseView, "name" | "config" | "position">',
     'changedCols.push("position")',
   ]) {

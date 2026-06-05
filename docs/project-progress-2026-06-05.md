@@ -122,6 +122,7 @@ schema migration 的能力默认保持关闭。
 - 数据库 view tab 现在有本地管理菜单：重命名、保存视图说明、复制视图配置、复制视图链接、
   删除非最后一个视图；删除是 soft delete，复制链接只生成带 `?view=` 的本地 URL；
   视图说明写入 view config；这些动作不删除行、页面、字段或文件。
+- 数据库 view 设置和新增 view 菜单现在支持点外面或按 Escape 关闭，降低误停留菜单对编辑流的干扰。
 - Inline database 现在会应用已保存的 view config：row search、筛选、排序、隐藏属性、图表
   分组和手动排序启用状态都会按所选 view 本地计算展示；inline 本身不写 view config。
 - Inline database 的 Table、List、Gallery、Feed 也会读取保存的分组字段并渲染分组区块；

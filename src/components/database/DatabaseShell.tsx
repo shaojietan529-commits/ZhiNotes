@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   type ChangeEvent,
+  type RefObject,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePages } from "@/hooks/usePages";
@@ -1170,6 +1171,9 @@ function DatabaseViewActionsButton({
   const [description, setDescription] = useState(
     parseDatabaseViewConfig(view.config).description
   );
+  const menuRef = useRef<HTMLSpanElement | null>(null);
+
+  useDismissFloatingMenu(open, setOpen, menuRef);
 
   useEffect(() => {
     setName(getDatabaseViewDisplayName(view));
@@ -1189,7 +1193,7 @@ function DatabaseViewActionsButton({
   };
 
   return (
-    <span className="relative">
+    <span ref={menuRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -2836,6 +2840,8 @@ function AddViewButton({
   onAdd: (name: string, viewType: DatabaseView["view_type"]) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  useDismissFloatingMenu(open, setOpen, menuRef);
 
   const viewTypes: { type: DatabaseView["view_type"]; label: string; icon: string }[] = [
     { type: "table", label: getDatabaseViewTypeLabel("table"), icon: "⊞" },
@@ -2850,8 +2856,9 @@ function AddViewButton({
   ];
 
   return (
-    <div className="relative">
+    <div ref={menuRef} className="relative">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
         className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 px-2 py-1.5"
       >
@@ -2876,6 +2883,33 @@ function AddViewButton({
       )}
     </div>
   );
+}
+
+function useDismissFloatingMenu(
+  open: boolean,
+  setOpen: (value: boolean) => void,
+  containerRef: RefObject<HTMLElement | null>
+) {
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (containerRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [containerRef, open, setOpen]);
 }
 
 function getRelationCompletionFields(
