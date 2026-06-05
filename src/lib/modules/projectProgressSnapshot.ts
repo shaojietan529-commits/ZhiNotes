@@ -290,7 +290,7 @@ function buildOwnerGatedWork(roadmap: ModuleRoadmapReport) {
 
 function getRecommendedTest(moduleId: string) {
   const tests: Record<string, string> = {
-    notes: "新建一篇研究笔记，检查 slash command、结构摘要、backlinks 和版本痕迹。",
+    notes: "直达笔记工作台，检查页面结构、slash command、backlinks、版本痕迹和优先行动。",
     databases: "打开数据库模块，检查 table/list/kanban/calendar/gallery/timeline/form/feed 入口。",
     reports: "上传或打开一个本地 HTML/Markdown/PDF 报告，确认 native preview 和路由提示。",
     files: "直达文件预览路由总控，检查 HTML、Markdown、PDF、Excel、Word、PPT 如何进入 page、导入或入库。",
@@ -307,6 +307,7 @@ function getRecommendedTest(moduleId: string) {
 
 function getTrialRoute(moduleId: string, route: string) {
   const deepLinks: Record<string, string> = {
+    notes: "/modules/notes#notes-workbench",
     files: "/modules/files#files-preview-routing",
     reports: "/modules/reports#reports-preview-routing",
     databases: "/modules/databases#databases-import-export-readiness",
