@@ -294,12 +294,12 @@ function getRecommendedTest(moduleId: string) {
     databases: "打开数据库模块，检查 table/list/kanban/calendar/gallery/timeline/form/feed 入口。",
     reports: "上传或打开一个本地 HTML/Markdown/PDF 报告，确认 native preview 和路由提示。",
     files: "直达文件预览路由总控，检查 HTML、Markdown、PDF、Excel、Word、PPT 如何进入 page、导入或入库。",
-    "company-research": "创建或打开公司研究 tracker，检查 memo、估值、报告和会议关系入口。",
+    "company-research": "直达公司研究 dossier，检查 memo、估值、报告、会议关系和覆盖缺口。",
     projects:
-      "打开投研项目模块，创建项目跟踪表，再用“创建项目页并入库”检查项目页、tracker row 和项目 handoff。",
-    portfolio: "打开组合模块，检查 memo、watchlist、sizing、catalyst、risk 和 relation 入口。",
-    meetings: "打开会议模块，检查 transcript、action items、follow-up 和 relation 入口。",
-    "research-graph": "查看研究图谱的 relation handoff、schema gap 和 unlinked asset 队列。",
+      "直达项目 launcher，创建项目跟踪表，再用“创建项目页并入库”检查项目页、tracker row 和项目 handoff。",
+    portfolio: "直达组合工作台，检查 memo、watchlist、sizing、catalyst、risk 和 relation 入口。",
+    meetings: "直达会议研究队列，检查 transcript、action items、follow-up 和 relation 入口。",
+    "research-graph": "直达研究图谱工作台，查看 relation handoff、schema gap 和 unlinked asset 队列。",
   };
 
   return tests[moduleId] ?? "打开模块页面，确认入口、边界说明和导出动作都可用。";
@@ -308,9 +308,14 @@ function getRecommendedTest(moduleId: string) {
 function getTrialRoute(moduleId: string, route: string) {
   const deepLinks: Record<string, string> = {
     notes: "/modules/notes#notes-workbench",
+    "company-research": "/modules/company-research#company-dossier",
     files: "/modules/files#files-preview-routing",
+    meetings: "/modules/meetings#meeting-research-queue",
+    portfolio: "/modules/portfolio#portfolio-workbench",
+    projects: "/modules/projects#project-launcher",
     reports: "/modules/reports#reports-preview-routing",
     databases: "/modules/databases#databases-import-export-readiness",
+    "research-graph": "/modules/research-graph#research-graph-workbench",
     sync: "/modules/sync#web-beta-owner-review",
   };
 
