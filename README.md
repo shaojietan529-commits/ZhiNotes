@@ -233,10 +233,11 @@ Current local actions:
   icon picking, date display, synced blocks, version history, hover change
   summaries, backlinks/reference panels, and page/block comments are localized
   too.
-- Copy the current page as Markdown or standalone HTML from the page toolbar or
-  Cmd/Ctrl+K. This is a local clipboard action for moving one page into emails,
-  reports, AI prompt drafts, or another writing tool without downloading a file.
-- Download the current page as HTML or Markdown from the page toolbar or
+- Copy the current page as Markdown or standalone HTML from the page
+  导出/复制 menu or Cmd/Ctrl+K. This is a local clipboard action for moving one
+  page into emails, reports, AI prompt drafts, or another writing tool without
+  downloading a file.
+- Download the current page as HTML or Markdown from the page 导出/复制 menu or
   Cmd/Ctrl+K. These actions are separate from the workspace-level all-page
   Markdown export.
 - Review the Info panel for page metadata, local word/block counts, file/table

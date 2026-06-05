@@ -221,8 +221,9 @@ schema migration 的能力默认保持关闭。
 
 ### 页面复制导出阶段
 
-- 普通 page 顶部操作区新增“复制 MD”和“复制 HTML”，可以把当前页面直接复制为 Markdown
-  或可独立打开的 HTML 文本。
+- 普通 page 顶部操作区新增“导出/复制”菜单，把下载 HTML、下载 Markdown、复制 MD、
+  复制 HTML、打印 PDF 和复制链接聚合在一起，避免页面顶部操作区过于拥挤。
+- 这个菜单可以把当前页面直接复制为 Markdown 或可独立打开的 HTML 文本。
 - `Cmd/Ctrl+K` 也新增“复制页面 Markdown”和“复制页面 HTML”动作，和页面工具栏走同一套
   本地 copy pipeline。
 - `Cmd/Ctrl+K` 现在也能搜索“导出当前页面 HTML”和“导出当前页面 Markdown”，和页面顶部的

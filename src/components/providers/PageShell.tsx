@@ -76,6 +76,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const { isFavorite, toggleFavorite } = usePageFavorites();
   const favorite = isFavorite(pageId);
   const [showInfo, setShowInfo] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [exportingPageStructure, setExportingPageStructure] = useState(false);
   const [applyingResearchActionId, setApplyingResearchActionId] =
@@ -658,53 +659,67 @@ function PageContent({ pageId }: { pageId: string }) {
                 >
                   📌 保存版本
                 </button>
-                <button
-                  onClick={handleExportHtml}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="下载 HTML"
-                >
-                  HTML
-                </button>
-                <button
-                  onClick={handleExportMarkdown}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="下载 Markdown"
-                >
-                  MD
-                </button>
-                <button
-                  onClick={() => void handleCopyPageMarkdown()}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="复制页面 Markdown 到剪贴板"
-                >
-                  复制 MD
-                </button>
-                <button
-                  onClick={() => void handleCopyPageHtml()}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="复制页面 HTML 到剪贴板"
-                >
-                  复制 HTML
-                </button>
-                <button
-                  onClick={handlePrintPdf}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="打印或另存为 PDF"
-                >
-                  PDF
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowExportMenu((current) => !current)}
+                    className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                    title="导出、复制或打印当前页面"
+                    aria-expanded={showExportMenu}
+                  >
+                    导出/复制
+                  </button>
+                  {showExportMenu && (
+                    <div className="absolute right-0 top-6 z-30 w-44 overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-xs shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                      <PageActionMenuButton
+                        label="下载 HTML"
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          handleExportHtml();
+                        }}
+                      />
+                      <PageActionMenuButton
+                        label="下载 Markdown"
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          handleExportMarkdown();
+                        }}
+                      />
+                      <PageActionMenuButton
+                        label="复制 MD"
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          void handleCopyPageMarkdown();
+                        }}
+                      />
+                      <PageActionMenuButton
+                        label="复制 HTML"
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          void handleCopyPageHtml();
+                        }}
+                      />
+                      <PageActionMenuButton
+                        label="打印 / PDF"
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          handlePrintPdf();
+                        }}
+                      />
+                      <PageActionMenuButton
+                        label="复制链接"
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          void handleCopyPageLink();
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
                 {copyNotice && (
                   <span className="text-xs text-emerald-600 dark:text-emerald-400">
                     {copyNotice}
                   </span>
                 )}
-                <button
-                  onClick={handleCopyPageLink}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="复制本地页面链接"
-                >
-                  复制链接
-                </button>
                 <button
                   onClick={handleDuplicatePage}
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
@@ -791,6 +806,24 @@ function PageContent({ pageId }: { pageId: string }) {
         </div>
       </main>
     </div>
+  );
+}
+
+function PageActionMenuButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="block w-full px-3 py-2 text-left text-xs text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+    >
+      {label}
+    </button>
   );
 }
 
