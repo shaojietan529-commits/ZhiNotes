@@ -528,7 +528,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
                     },
                   },
                 ],
-                text: `📄 ${childTitle || "Untitled"}`,
+                text: `📄 ${childTitle || "未命名页面"}`,
               },
             ],
           })

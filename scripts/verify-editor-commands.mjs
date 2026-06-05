@@ -10,6 +10,8 @@ const files = {
   editorLocalCommands: "src/lib/editorLocalCommands.ts",
   childPageSeed: "src/lib/pages/childPageSeed.ts",
   compareShell: "src/components/comparison/CompareShell.tsx",
+  markdownToHtml: "src/lib/markdown/markdownToHtml.ts",
+  pageExport: "src/lib/export/pageExport.ts",
   keyboardShortcuts: "src/components/editor/extensions/KeyboardShortcuts.ts",
   slashSuggestion: "src/components/editor/extensions/SlashCommandSuggestion.ts",
   filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
@@ -36,6 +38,7 @@ const files = {
   versionHistoryPanel: "src/components/comparison/VersionHistoryPanel.tsx",
   wikiLinkList: "src/components/editor/extensions/WikiLinkList.tsx",
   wikiReferenceNode: "src/components/editor/extensions/WikiReferenceNode.tsx",
+  workspaceBackup: "src/lib/export/workspaceBackup.ts",
 };
 
 const failures = [];
@@ -60,6 +63,8 @@ function run() {
   const editorLocalCommands = readProjectFile(files.editorLocalCommands);
   const childPageSeed = readProjectFile(files.childPageSeed);
   const compareShell = readProjectFile(files.compareShell);
+  const markdownToHtml = readProjectFile(files.markdownToHtml);
+  const pageExport = readProjectFile(files.pageExport);
   const keyboardShortcuts = readProjectFile(files.keyboardShortcuts);
   const slashSuggestion = readProjectFile(files.slashSuggestion);
   const filePreviewUpload = readProjectFile(files.filePreviewUpload);
@@ -85,6 +90,7 @@ function run() {
   const versionHistoryPanel = readProjectFile(files.versionHistoryPanel);
   const wikiLinkList = readProjectFile(files.wikiLinkList);
   const wikiReferenceNode = readProjectFile(files.wikiReferenceNode);
+  const workspaceBackup = readProjectFile(files.workspaceBackup);
 
   assertIncludes(
     files.packageJson,
@@ -466,6 +472,44 @@ function run() {
       wikiLinkList,
       snippet,
       "Wiki link autocomplete must keep Chinese empty and fallback labels."
+    );
+  }
+  for (const snippet of ["未命名页面", "折叠项"]) {
+    assertIncludes(
+      files.markdownToHtml,
+      markdownToHtml,
+      snippet,
+      "Markdown import fallback labels must stay Chinese."
+    );
+  }
+  for (const snippet of [
+    "页面路径：",
+    "模板按钮：",
+    "插入模板",
+    "同步块",
+    "嵌入：",
+  ]) {
+    assertIncludes(
+      files.pageExport,
+      pageExport,
+      snippet,
+      "Markdown page export labels must stay Chinese."
+    );
+  }
+  for (const snippet of [
+    "页面路径：",
+    "更新时间：",
+    "_空页面_",
+    "ZhiNotes 工作区",
+    "ZhiNotes 导出",
+    "没有活跃页面。",
+    "未命名页面",
+  ]) {
+    assertIncludes(
+      files.workspaceBackup,
+      workspaceBackup,
+      snippet,
+      "Workspace export labels and fallback titles must stay Chinese."
     );
   }
   for (const snippet of ["同步块", "新同步组", "将此块移到新的同步组"]) {

@@ -111,7 +111,7 @@ export function markdownToHtml(
     if (/^<details(?:\s+[^>]*)?>\s*$/i.test(line.trim())) {
       closeList();
       const detailsLines: string[] = [];
-      let summary = "Toggle";
+      let summary = "折叠项";
 
       while (index + 1 < lines.length) {
         index += 1;
@@ -122,7 +122,7 @@ export function markdownToHtml(
           detailsLine.trim()
         );
         if (summaryMatch) {
-          summary = summaryMatch[1].trim() || "Toggle";
+          summary = summaryMatch[1].trim() || "折叠项";
         } else {
           detailsLines.push(detailsLine);
         }
@@ -753,8 +753,8 @@ function parseWikiReferenceValue(value: string) {
   const label = sanitizeWikiReferencePart(labelParts.join("|")) || target;
 
   return {
-    target: target || label || "Untitled",
-    label: label || target || "Untitled",
+    target: target || label || "未命名页面",
+    label: label || target || "未命名页面",
   };
 }
 

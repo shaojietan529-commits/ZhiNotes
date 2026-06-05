@@ -360,7 +360,7 @@ function nodeToMarkdown(node: Node): string {
         const summary =
           node.querySelector("[data-toggle-summary]")?.textContent?.trim() ||
           node.getAttribute("data-summary") ||
-          "Toggle";
+          "折叠项";
         const content =
           node.querySelector("[data-toggle-content]") ??
           node.querySelector("[data-toggle-body]");
@@ -395,12 +395,12 @@ function nodeToMarkdown(node: Node): string {
           .join("\n");
       }
       if (node.getAttribute("data-type") === "breadcrumb-block") {
-        const path = node.getAttribute("data-path") || "Page path";
-        return `Path: ${path}`;
+        const path = node.getAttribute("data-path") || "页面路径";
+        return `页面路径：${path}`;
       }
       if (node.getAttribute("data-type") === "bookmark-block") {
         const url = node.getAttribute("data-url") || "";
-        const title = node.getAttribute("data-title") || url || "Bookmark";
+        const title = node.getAttribute("data-title") || url || "书签";
         const description = node.getAttribute("data-description") || "";
         return `${
           url && isSafeExportUrl(url)
@@ -416,24 +416,24 @@ function nodeToMarkdown(node: Node): string {
         return `$$\n${formula}\n$$`;
       }
       if (node.getAttribute("data-type") === "template-button") {
-        return `[Template button: ${
-          node.getAttribute("data-label") || "Insert template"
+        return `[模板按钮：${
+          node.getAttribute("data-label") || "插入模板"
         }]`;
       }
       if (node.getAttribute("data-type") === "synced-block") {
         const syncId = node.getAttribute("data-sync-id") || "";
         const content = node.querySelector("[data-synced-content]");
         const markdown = content ? nodeToMarkdown(content).trim() : children();
-        return `> Synced block${syncId ? ` (${syncId})` : ""}${
+        return `> 同步块${syncId ? ` (${syncId})` : ""}${
           markdown ? `\n>\n${prefixLines(markdown, "> ")}` : ""
         }`;
       }
       if (node.getAttribute("data-type") === "embed-block") {
         const url = node.getAttribute("data-url") || "";
-        const caption = node.getAttribute("data-caption") || "Embed";
+        const caption = node.getAttribute("data-caption") || "嵌入";
         return url && isSafeExportUrl(url)
           ? `[${escapeMarkdownLinkText(caption)}](${escapeMarkdownLinkDestination(url)})`
-          : `[Embed: ${caption}]`;
+          : `[嵌入：${caption}]`;
       }
       return Array.from(node.childNodes)
         .map(nodeToMarkdown)

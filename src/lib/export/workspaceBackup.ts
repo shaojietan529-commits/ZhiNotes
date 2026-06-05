@@ -73,7 +73,7 @@ export async function exportWorkspaceMarkdown() {
     ? pages
         .map((page) => pageToWorkspaceMarkdown(page, pagesById))
         .join("\n\n---\n\n")
-    : "# ZhiNotes Workspace\n\nNo active pages.";
+    : "# ZhiNotes 工作区\n\n没有活跃页面。";
 
   downloadTextFile(
     `zhinote-workspace-pages-${fileSafeTimestamp()}.md`,
@@ -145,7 +145,7 @@ export async function exportWorkspaceZip() {
     files.push({
       path: pagePath,
       data: buildPageHtmlDocument(
-        page.title || "Untitled",
+        page.title || "未命名页面",
         rewriteFilePreviewReferences(
           page.content_text ?? "",
           pagePath,
@@ -229,17 +229,17 @@ function pageToWorkspaceMarkdown(
       : page.content_text ?? "";
   const body = htmlToMarkdown(contentHtml);
   return [
-    `# ${page.title || "Untitled"}`,
+    `# ${page.title || "未命名页面"}`,
     "",
-    `Path: ${path}`,
-    `Updated: ${page.updated_at}`,
+    `页面路径：${path}`,
+    `更新时间：${page.updated_at}`,
     "",
-    body || "_Empty page_",
+    body || "_空页面_",
   ].join("\n");
 }
 
 function getPagePath(page: Page, pagesById: Map<string, Page>) {
-  const parts = [page.title || "Untitled"];
+  const parts = [page.title || "未命名页面"];
   let parentId = page.parent_id;
   const seen = new Set<string>([page.id]);
 
@@ -248,7 +248,7 @@ function getPagePath(page: Page, pagesById: Map<string, Page>) {
     seen.add(parentId);
     const parent = pagesById.get(parentId);
     if (!parent) break;
-    parts.unshift(parent.title || "Untitled");
+    parts.unshift(parent.title || "未命名页面");
     parentId = parent.parent_id;
   }
 
@@ -259,7 +259,7 @@ function buildWorkspaceIndexHtml(pages: Page[], pagesById: Map<string, Page>) {
   const items = pages
     .map((page) => {
       const path = getPagePath(page, pagesById);
-      return `<li><strong>${escapeHtml(page.title || "Untitled")}</strong><br /><span>${escapeHtml(path)}</span></li>`;
+      return `<li><strong>${escapeHtml(page.title || "未命名页面")}</strong><br /><span>${escapeHtml(path)}</span></li>`;
     })
     .join("\n");
 
@@ -268,7 +268,7 @@ function buildWorkspaceIndexHtml(pages: Page[], pagesById: Map<string, Page>) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ZhiNotes Export</title>
+  <title>ZhiNotes 导出</title>
   <style>
     body { margin: 0 auto; max-width: 840px; padding: 48px 28px; color: #18181b; font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     li { margin: 10px 0; }
@@ -276,9 +276,9 @@ function buildWorkspaceIndexHtml(pages: Page[], pagesById: Map<string, Page>) {
   </style>
 </head>
 <body>
-  <h1>ZhiNotes Export</h1>
-  <p>Generated locally. See <code>pages/</code> for HTML pages, <code>markdown/</code> for Markdown pages, and <code>assets/</code> for uploaded files.</p>
-  <ul>${items || "<li>No active pages.</li>"}</ul>
+  <h1>ZhiNotes 导出</h1>
+  <p>本地生成。<code>pages/</code> 保存 HTML 页面，<code>markdown/</code> 保存 Markdown 页面，<code>assets/</code> 保存上传文件。</p>
+  <ul>${items || "<li>没有活跃页面。</li>"}</ul>
 </body>
 </html>`;
 }
@@ -345,7 +345,7 @@ function safePath(path: string) {
 }
 
 function safeFileName(value: string) {
-  return value.trim().replace(/[\\/:*?"<>|]+/g, "-").slice(0, 90) || "Untitled";
+  return value.trim().replace(/[\\/:*?"<>|]+/g, "-").slice(0, 90) || "未命名页面";
 }
 
 function uniquePath(path: string, usedPaths: Set<string>) {
