@@ -35,6 +35,7 @@ const files = {
   syncedBlockNode: "src/components/editor/extensions/SyncedBlockNode.tsx",
   tableOfContentsNode:
     "src/components/editor/extensions/TableOfContentsNode.tsx",
+  templateButtonNode: "src/components/editor/extensions/TemplateButtonNode.tsx",
   versionHistoryPanel: "src/components/comparison/VersionHistoryPanel.tsx",
   wikiLinkList: "src/components/editor/extensions/WikiLinkList.tsx",
   wikiReferenceNode: "src/components/editor/extensions/WikiReferenceNode.tsx",
@@ -87,6 +88,7 @@ function run() {
   const subPageTree = readProjectFile(files.subPageTree);
   const syncedBlockNode = readProjectFile(files.syncedBlockNode);
   const tableOfContentsNode = readProjectFile(files.tableOfContentsNode);
+  const templateButtonNode = readProjectFile(files.templateButtonNode);
   const versionHistoryPanel = readProjectFile(files.versionHistoryPanel);
   const wikiLinkList = readProjectFile(files.wikiLinkList);
   const wikiReferenceNode = readProjectFile(files.wikiReferenceNode);
@@ -518,6 +520,22 @@ function run() {
       syncedBlockNode,
       snippet,
       "Synced block controls must keep Chinese labels."
+    );
+  }
+  for (const snippet of [
+    "插入模板",
+    "按钮下方",
+    "按钮上方",
+    "页面顶部",
+    "页面底部",
+    "模板按钮文案",
+    "插入位置",
+  ]) {
+    assertIncludes(
+      files.templateButtonNode,
+      templateButtonNode,
+      snippet,
+      "Template button controls must keep Chinese labels."
     );
   }
   for (const snippet of ["page structure", "breadcrumbs", "synced blocks"]) {

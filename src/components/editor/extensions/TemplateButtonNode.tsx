@@ -6,15 +6,16 @@ import type { NodeViewProps } from "@tiptap/react";
 import { NOTE_TEMPLATES } from "@/lib/templates/noteTemplates";
 
 type TemplateInsertPosition = "above" | "below" | "bottom" | "top";
+const DEFAULT_TEMPLATE_BUTTON_LABEL = "插入模板";
 
 const INSERT_POSITION_OPTIONS: Array<{
   label: string;
   value: TemplateInsertPosition;
 }> = [
-  { label: "Below button", value: "below" },
-  { label: "Above button", value: "above" },
-  { label: "Top of page", value: "top" },
-  { label: "Bottom of page", value: "bottom" },
+  { label: "按钮下方", value: "below" },
+  { label: "按钮上方", value: "above" },
+  { label: "页面顶部", value: "top" },
+  { label: "页面底部", value: "bottom" },
 ];
 
 function findTemplate(title: string) {
@@ -36,7 +37,7 @@ function TemplateButtonComponent({
   getPos,
   updateAttributes,
 }: NodeViewProps) {
-  const label = String(node.attrs.label || "Insert template");
+  const label = String(node.attrs.label || DEFAULT_TEMPLATE_BUTTON_LABEL);
   const templateTitle = String(
     node.attrs.templateTitle || NOTE_TEMPLATES[0]?.title || ""
   );
@@ -79,10 +80,10 @@ function TemplateButtonComponent({
           value={label}
           onChange={(event) =>
             updateAttributes({
-              label: event.target.value || "Insert template",
+              label: event.target.value || DEFAULT_TEMPLATE_BUTTON_LABEL,
             })
           }
-          aria-label="Template button label"
+          aria-label="模板按钮文案"
           className="min-w-0 flex-1 rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
         />
         <select
@@ -90,7 +91,7 @@ function TemplateButtonComponent({
           onChange={(event) =>
             updateAttributes({ templateTitle: event.target.value })
           }
-          aria-label="Template"
+          aria-label="模板"
           className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
         >
           {NOTE_TEMPLATES.map((item) => (
@@ -106,7 +107,7 @@ function TemplateButtonComponent({
               insertPosition: normalizeInsertPosition(event.target.value),
             })
           }
-          aria-label="Insert position"
+          aria-label="插入位置"
           className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
         >
           {INSERT_POSITION_OPTIONS.map((item) => (
@@ -156,9 +157,9 @@ export const TemplateButtonNode = Node.create({
   addAttributes() {
     return {
       label: {
-        default: "Insert template",
+        default: DEFAULT_TEMPLATE_BUTTON_LABEL,
         parseHTML: (element) =>
-          element.getAttribute("data-label") || "Insert template",
+          element.getAttribute("data-label") || DEFAULT_TEMPLATE_BUTTON_LABEL,
         renderHTML: (attributes) => ({ "data-label": attributes.label }),
       },
       templateTitle: {
@@ -206,7 +207,7 @@ export const TemplateButtonNode = Node.create({
             .insertContent({
               type: this.name,
               attrs: {
-                label: "Insert template",
+                label: DEFAULT_TEMPLATE_BUTTON_LABEL,
                 templateTitle: NOTE_TEMPLATES[0]?.title || "Investment Memo",
                 insertPosition: "below",
               },

@@ -478,7 +478,7 @@ function buildNextActions(
       surface: "editor",
       action_status: "suggested-only",
       detail: "空页面建议先插入公司研究、投资备忘录、会议纪要或研究报告模板。",
-      suggested_block: "/template 或工具栏 Template",
+      suggested_block: "/template 或工具栏模板按钮",
       insert_html: [
         "<h2>核心结论</h2>",
         "<p></p>",
@@ -590,7 +590,7 @@ function buildNextActions(
       surface: "page-action",
       action_status: "suggested-only",
       detail: "重要页面建议保存版本、收藏或锁定，方便后续复盘。",
-      suggested_block: "Save version / Favorite / Lock",
+      suggested_block: "保存版本 / 收藏 / 锁定",
       insert_html:
         "<h2>复盘记录</h2><ul><li>本次更新：</li><li>下次复盘日期：</li><li>需要重新检查的假设：</li></ul>",
       local_only: true,
