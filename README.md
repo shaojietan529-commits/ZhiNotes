@@ -403,7 +403,8 @@ Current local actions:
 - When the project module opens the tracker database with `handoff=projects-module`,
   the database relation assistant prioritizes Project page / 项目页 relation
   fields so the project page is not accidentally added to company, report,
-  meeting, or portfolio relation fields.
+  meeting, or portfolio relation fields. Candidate rows also prioritize rows
+  already linked to the current project page.
 - Review module readiness for company, report, meeting, and portfolio context
   from the shared research graph summary.
 - Export the current project brief as local JSON.

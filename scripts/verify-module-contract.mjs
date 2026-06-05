@@ -607,11 +607,16 @@ function run() {
   for (const snippet of [
     "relationHandoffSource",
     "getRelationCompletionFields(fields, focusPage, relationHandoffSource)",
+    "getRelationCompletionRows(",
+    "relationCompletionFields",
+    "alreadyLinkedToFocus",
     "isProjectModuleHandoff",
     "isProjectPageRelationFieldName",
     "Project page",
     "项目页",
     "投研项目模块",
+    "Project tracker 下一步",
+    "不会自动写跨模块 relation",
   ]) {
     assertIncludes(
       files.databaseShell,

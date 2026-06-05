@@ -450,8 +450,14 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [fields, focusPage, relationHandoffSource]
   );
   const relationCompletionRows = useMemo(
-    () => getRelationCompletionRows(rows, visibleRows, focusPageId),
-    [focusPageId, rows, visibleRows]
+    () =>
+      getRelationCompletionRows(
+        rows,
+        visibleRows,
+        relationCompletionFields,
+        focusPageId
+      ),
+    [focusPageId, relationCompletionFields, rows, visibleRows]
   );
 
   const handleAddFocusRelation = useCallback(
@@ -695,6 +701,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           database={database}
           focusPage={focusPage}
           focusPageId={focusPageId}
+          handoffSource={relationHandoffSource}
           sourceLabel={getRelationHandoffSourceLabel(relationHandoffSource)}
           rowSearch={rowSearch}
           fields={relationCompletionFields}
@@ -910,6 +917,7 @@ function RelationHandoffContextPanel({
   database,
   focusPage,
   focusPageId,
+  handoffSource,
   sourceLabel,
   rowSearch,
   fields,
@@ -920,6 +928,7 @@ function RelationHandoffContextPanel({
   database: Database;
   focusPage: Page | null;
   focusPageId: string;
+  handoffSource: string;
   sourceLabel: string;
   rowSearch: string;
   fields: DatabaseField[];
@@ -932,6 +941,7 @@ function RelationHandoffContextPanel({
   const fieldLabels = fields.map((field) =>
     getResearchRelationFieldLabel(field.name)
   );
+  const projectHandoff = isProjectModuleHandoff(handoffSource);
 
   return (
     <section className="mb-4 rounded-lg border border-blue-100 bg-blue-50/70 p-3 dark:border-blue-900 dark:bg-blue-950/30">
@@ -998,6 +1008,19 @@ function RelationHandoffContextPanel({
         <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
           当前搜索没有候选行。可以清除搜索、新建一行，或确认是否打开了正确的 tracker。
         </p>
+      )}
+
+      {projectHandoff && (
+        <div className="mt-3 rounded-md border border-blue-100 bg-white px-3 py-2 text-xs leading-5 text-blue-800 dark:border-blue-900 dark:bg-zinc-950 dark:text-blue-200">
+          <h3 className="font-semibold text-blue-950 dark:text-blue-100">
+            Project tracker 下一步
+          </h3>
+          <ul className="mt-1 list-disc space-y-1 pl-4">
+            <li>先确认候选 row 的 Project page / 项目页 relation 已连接当前项目页。</li>
+            <li>再打开 row，手动补 Related companies、reports、meetings、portfolio 和 Decision memo。</li>
+            <li>这个提示只读，不会自动写跨模块 relation。</li>
+          </ul>
+        </div>
       )}
 
       <ol className="mt-3 grid gap-2 lg:grid-cols-3">
@@ -1810,11 +1833,21 @@ function getRelationCompletionFields(
 function getRelationCompletionRows(
   rows: RowWithPage[],
   visibleRows: RowWithPage[],
+  relationFields: DatabaseField[],
   focusPageId: string
 ) {
   const nextRows = new Map<string, RowWithPage>();
   const focusedRow = rows.find((row) => row.page_id === focusPageId);
   if (focusedRow) nextRows.set(focusedRow.id, focusedRow);
+  if (focusPageId) {
+    for (const row of rows) {
+      const fieldValues = parseFieldValues(row.field_values);
+      const alreadyLinkedToFocus = relationFields.some((field) =>
+        normalizeRelationValue(fieldValues[field.id]).includes(focusPageId)
+      );
+      if (alreadyLinkedToFocus) nextRows.set(row.id, row);
+    }
+  }
 
   const sourceRows = visibleRows.length > 0 ? visibleRows : rows;
   for (const row of sourceRows.slice(0, 5)) {
