@@ -502,6 +502,25 @@ function run() {
     );
   }
   for (const snippet of [
+    "handleDuplicateField",
+    "onDuplicate={handleDuplicateField}",
+    "复制字段配置，不复制已有行值",
+    "复制字段",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Full database field settings must support local field config duplication without copying row values."
+    );
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline database field settings must support local field config duplication without copying row values."
+    );
+  }
+  for (const snippet of [
     '| "email"',
     '| "phone"',
     '| "multi_select"',
@@ -1573,6 +1592,7 @@ function run() {
         view_grouping: true,
         view_management: true,
         row_duplicate_actions: true,
+        field_duplicate_actions: true,
         local_rollup_fields: true,
         database_workbench: true,
       },

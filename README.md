@@ -320,6 +320,9 @@ Current local actions:
 - Manage local database views from each view tab: rename a view, duplicate its
   current config into a copy, or soft-delete a non-final view without deleting
   any rows, pages, files, or field values.
+- Duplicate local database fields from full database pages or inline databases.
+  Field duplicate copies the field name, type, and configuration into a new
+  local field, but does not copy existing row values.
 - Duplicate local database rows from table, list, kanban, calendar, gallery,
   timeline, feed, and inline database views. Row duplicate creates a new local
   row/page with the source row title and field values, but it intentionally

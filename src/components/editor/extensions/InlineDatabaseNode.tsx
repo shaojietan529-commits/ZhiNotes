@@ -118,6 +118,18 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
     [reload]
   );
 
+  const handleDuplicateField = useCallback(
+    async (field: DatabaseField) => {
+      await addField(databaseId, {
+        name: `${getDatabaseFieldDisplayName(field)} 副本`,
+        fieldType: field.field_type,
+        config: field.config ?? undefined,
+      });
+      reload();
+    },
+    [databaseId, reload]
+  );
+
   const handleUpdateField = useCallback(
     async (
       fieldId: string,
@@ -322,6 +334,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
               <InlineFieldSettingsButton
                 field={field}
                 onUpdate={handleUpdateField}
+                onDuplicate={handleDuplicateField}
               />
               {field.position !== 0 && (
                 <button
@@ -385,12 +398,14 @@ function parseFieldValues(fieldValues: string) {
 function InlineFieldSettingsButton({
   field,
   onUpdate,
+  onDuplicate,
 }: {
   field: DatabaseField;
   onUpdate: (
     fieldId: string,
     updates: Partial<Pick<DatabaseField, "name" | "field_type" | "config">>
   ) => void;
+  onDuplicate: (field: DatabaseField) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(getDatabaseFieldDisplayName(field));
@@ -411,6 +426,11 @@ function InlineFieldSettingsButton({
       field_type: nextType,
       config: buildFieldConfig(nextType, options),
     });
+    setOpen(false);
+  };
+
+  const handleDuplicate = () => {
+    onDuplicate(field);
     setOpen(false);
   };
 
@@ -467,7 +487,15 @@ function InlineFieldSettingsButton({
               />
             </label>
           )}
-          <div className="mt-2 flex justify-end gap-1">
+          <div className="mt-2 flex flex-wrap justify-end gap-1">
+            <button
+              type="button"
+              onClick={handleDuplicate}
+              className="mr-auto rounded border border-zinc-200 px-2 py-1 text-[10px] text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+              title="复制字段配置，不复制已有行值"
+            >
+              复制字段
+            </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
