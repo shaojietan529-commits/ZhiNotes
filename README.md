@@ -136,6 +136,14 @@ blockers. It does not create modules, change routes, write workspace data, read
 page text, read database rows, read file bytes, connect cloud services, upload
 data, or enable AI.
 
+The module center now shows a local project progress snapshot at the top of
+`/modules`. The snapshot turns module health, roadmap metadata, page count, and
+database count into an owner-facing progress view: current stage, completed
+foundation, beta-hardening work, owner-gated work, trial routes, launch
+blockers, and verification commands. It can be exported as JSON for review, but
+it only reads module metadata and counts; it does not read page text, database
+row values, file bytes, secrets, cloud data, prompts, or credentials.
+
 The module center now shows a new-module decision summary before the detailed
 contracts. It makes the owner decision explicit: local module design, registry
 contracts, local routes, shells, and safe local starters can continue; high-risk

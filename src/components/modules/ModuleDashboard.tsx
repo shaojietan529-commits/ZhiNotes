@@ -38,6 +38,11 @@ import {
   type ModuleRoadmapReadiness,
   type ModuleRoadmapReport,
 } from "@/lib/modules/moduleRoadmap";
+import {
+  buildProjectProgressSnapshot,
+  type ProjectProgressSnapshot,
+  type ProjectProgressStatus,
+} from "@/lib/modules/projectProgressSnapshot";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import {
   DEFAULT_APP_LANGUAGE_LABEL,
@@ -56,6 +61,7 @@ export default function ModuleDashboard() {
   const [exportingStarterPack, setExportingStarterPack] = useState(false);
   const [exportingHealth, setExportingHealth] = useState(false);
   const [exportingRoadmap, setExportingRoadmap] = useState(false);
+  const [exportingProgress, setExportingProgress] = useState(false);
   const activeModules = useMemo(() => getModulesByStatus("active"), []);
   const betaModules = useMemo(() => getModulesByStatus("beta"), []);
   const plannedModules = useMemo(() => getModulesByStatus("planned"), []);
@@ -72,6 +78,17 @@ export default function ModuleDashboard() {
         health: moduleHealth,
       }),
     [moduleHealth, moduleManifest, moduleOnboarding, moduleStarterPack]
+  );
+  const progressSnapshot = useMemo(
+    () =>
+      buildProjectProgressSnapshot({
+        page_count: pages.length,
+        database_count: databases.length,
+        manifest: moduleManifest,
+        health: moduleHealth,
+        roadmap: moduleRoadmap,
+      }),
+    [databases.length, moduleHealth, moduleManifest, moduleRoadmap, pages.length]
   );
 
   useEffect(() => {
@@ -183,11 +200,32 @@ export default function ModuleDashboard() {
     }
   };
 
+  const handleExportProgressSnapshot = () => {
+    setExportingProgress(true);
+    try {
+      downloadJsonFile(`zhinote-project-progress-${fileSafeTimestamp()}.json`, {
+        ...progressSnapshot,
+        exported_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to export project progress snapshot:", err);
+      window.alert("项目进度快照导出失败，请查看控制台。");
+    } finally {
+      setExportingProgress(false);
+    }
+  };
+
   const handleModuleDecisionNavigate = (
     decision: ModuleRoadmapReport["decision_summary"]["decisions"][number]
   ) => {
     document
       .getElementById(decision.target_section_id)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleProgressSectionOpen = (sectionId: string) => {
+    document
+      .getElementById(sectionId)
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -245,6 +283,14 @@ export default function ModuleDashboard() {
           <Metric label="Beta 模块" value={betaModules.length} />
           <Metric label="规划中模块" value={plannedModules.length} />
         </section>
+
+        <ProjectProgressSnapshotPanel
+          snapshot={progressSnapshot}
+          exportingProgress={exportingProgress}
+          onExportProgress={handleExportProgressSnapshot}
+          onOpenRoute={(route) => router.push(route)}
+          onOpenSection={handleProgressSectionOpen}
+        />
 
         <ModuleDecisionSummaryPanel
           summary={moduleRoadmap.decision_summary}
@@ -715,6 +761,358 @@ export default function ModuleDashboard() {
         </section>
       </div>
     </div>
+  );
+}
+
+function ProjectProgressSnapshotPanel({
+  snapshot,
+  exportingProgress,
+  onExportProgress,
+  onOpenRoute,
+  onOpenSection,
+}: {
+  snapshot: ProjectProgressSnapshot;
+  exportingProgress: boolean;
+  onExportProgress: () => void;
+  onOpenRoute: (route: string) => void;
+  onOpenSection: (sectionId: string) => void;
+}) {
+  return (
+    <section
+      id="module-progress-snapshot"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Project Progress Snapshot
+          </p>
+          <h2 className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            当前项目进度快照
+          </h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            {snapshot.current_conclusion}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-md bg-zinc-100 px-2 py-1 font-medium text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+              {snapshot.current_stage}
+            </span>
+            <span className="rounded-md bg-zinc-100 px-2 py-1 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+              {snapshot.summary.routable_modules} 个可打开模块
+            </span>
+            <span className="rounded-md bg-zinc-100 px-2 py-1 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+              {snapshot.summary.owner_gated_decisions} 个 owner gate
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onExportProgress}
+            disabled={exportingProgress}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exportingProgress ? "Exporting..." : "导出进度快照"}
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenSection("module-health")}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            看健康度
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenSection("module-roadmap")}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            看路线图
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-6">
+        <ProjectProgressMetric
+          label="Ready areas"
+          value={snapshot.summary.ready_areas}
+          detail="本地可用"
+          status="ready-local"
+        />
+        <ProjectProgressMetric
+          label="Partial areas"
+          value={snapshot.summary.partial_areas}
+          detail="Beta 强化"
+          status="beta-hardening"
+        />
+        <ProjectProgressMetric
+          label="Blocked"
+          value={snapshot.summary.blocked_areas}
+          detail="需 owner gate"
+          status="blocked"
+        />
+        <ProjectProgressMetric
+          label="Active modules"
+          value={snapshot.summary.active_modules}
+          detail="可稳定试用"
+          status="ready-local"
+        />
+        <ProjectProgressMetric
+          label="Beta modules"
+          value={snapshot.summary.beta_modules}
+          detail="继续打磨"
+          status="beta-hardening"
+        />
+        <ProjectProgressMetric
+          label="Web blockers"
+          value={snapshot.summary.web_launch_blockers}
+          detail="上线前处理"
+          status="owner-gated"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            阶段状态
+          </div>
+          {snapshot.phases.map((phase) => (
+            <ProjectProgressPhaseRow key={phase.id} phase={phase} />
+          ))}
+        </div>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            醒来后可试用入口
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            {snapshot.trial_routes.map((route) => (
+              <ProjectProgressTrialRouteRow
+                key={route.module_id}
+                route={route}
+                onOpen={() => onOpenRoute(route.route)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <ProjectProgressList
+          title="已完成底座"
+          items={snapshot.completed_foundation}
+        />
+        <ProjectProgressList
+          title="继续强化"
+          items={snapshot.in_progress_hardening}
+        />
+        <ProjectProgressList
+          title="等 owner 确认"
+          items={snapshot.owner_gated_work}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
+        <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            接下来睡眠时段可继续做
+          </div>
+          <ul className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {snapshot.recommended_sleep_run_work.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            本地验证命令
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {snapshot.required_verification_commands.map((command) => (
+              <span
+                key={command}
+                className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                {command}
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+            进度快照只读模块 metadata、页面数量和数据库数量，不读取正文、row value
+            或文件 bytes。
+          </p>
+        </div>
+      </div>
+
+      {snapshot.blockers.length > 0 && (
+        <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {snapshot.blockers.map((blocker) => (
+            <ProjectProgressBlockerRow key={blocker.id} blocker={blocker} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ProjectProgressMetric({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: ProjectProgressStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <ProjectProgressStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function ProjectProgressPhaseRow({
+  phase,
+}: {
+  phase: ProjectProgressSnapshot["phases"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {phase.title}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {phase.module_ids.map((moduleId) => (
+              <span
+                key={moduleId}
+                className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                {moduleId}
+              </span>
+            ))}
+          </div>
+        </div>
+        <ProjectProgressStatusPill status={phase.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {phase.evidence}
+      </p>
+    </article>
+  );
+}
+
+function ProjectProgressTrialRouteRow({
+  route,
+  onOpen,
+}: {
+  route: ProjectProgressSnapshot["trial_routes"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate font-semibold text-zinc-900 dark:text-zinc-100">
+            {route.title}
+          </div>
+          <div className="mt-1 font-mono text-[11px] text-zinc-400">
+            {route.route}
+          </div>
+        </div>
+        <ProjectProgressStatusPill status={route.readiness} />
+      </div>
+      <p className="mt-2 line-clamp-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {route.recommended_test}
+      </p>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-3 rounded border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+      >
+        打开试用
+      </button>
+    </article>
+  );
+}
+
+function ProjectProgressList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {title}
+      </div>
+      <ul className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+        {items.slice(0, 5).map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+function ProjectProgressBlockerRow({
+  blocker,
+}: {
+  blocker: ProjectProgressSnapshot["blockers"][number];
+}) {
+  return (
+    <article className="rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-xs dark:border-amber-900 dark:bg-amber-950">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-amber-900 dark:text-amber-100">
+          {blocker.title}
+        </div>
+        <ProjectProgressStatusPill status={blocker.status} />
+      </div>
+      <p className="mt-2 leading-5 text-amber-700 dark:text-amber-200">
+        {blocker.evidence}
+      </p>
+      <p className="mt-2 border-t border-amber-100 pt-2 leading-5 text-amber-700 dark:border-amber-900 dark:text-amber-200">
+        {blocker.next_action}
+      </p>
+    </article>
+  );
+}
+
+function ProjectProgressStatusPill({
+  status,
+}: {
+  status: ProjectProgressStatus;
+}) {
+  const labels: Record<ProjectProgressStatus, string> = {
+    "ready-local": "Ready",
+    "beta-hardening": "Hardening",
+    "owner-gated": "Owner gate",
+    blocked: "Blocked",
+  };
+
+  const className =
+    status === "ready-local"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "beta-hardening"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : status === "owner-gated"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

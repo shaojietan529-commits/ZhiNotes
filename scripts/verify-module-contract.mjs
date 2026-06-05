@@ -15,6 +15,7 @@ const files = {
   starterPack: "src/lib/modules/moduleStarterPack.ts",
   health: "src/lib/modules/moduleHealth.ts",
   roadmap: "src/lib/modules/moduleRoadmap.ts",
+  projectProgressSnapshot: "src/lib/modules/projectProgressSnapshot.ts",
   dashboard: "src/components/modules/ModuleDashboard.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
@@ -190,6 +191,7 @@ function run() {
   const starterPack = readProjectFile(files.starterPack);
   const health = readProjectFile(files.health);
   const roadmap = readProjectFile(files.roadmap);
+  const projectProgressSnapshot = readProjectFile(files.projectProgressSnapshot);
   const dashboard = readProjectFile(files.dashboard);
   const sidebar = readProjectFile(files.sidebar);
   const quickSearch = readProjectFile(files.quickSearch);
@@ -363,6 +365,42 @@ function run() {
       "Module roadmap report must preserve local-only queue, gaps, and verification boundaries."
     );
   }
+  for (const snippet of [
+    'format: "zhinote-project-progress-snapshot"',
+    "buildProjectProgressSnapshot",
+    'snapshot_status: "local-owner-progress-review"',
+    "local_report_only: true",
+    "reads_registry_metadata_only: true",
+    "reads_health_metadata: true",
+    "reads_roadmap_metadata: true",
+    "reads_page_count_only: true",
+    "reads_database_count_only: true",
+    "reads_page_text: false",
+    "reads_database_rows: false",
+    "reads_database_row_values: false",
+    "reads_file_bytes: false",
+    "reads_secret_values: false",
+    "writes_workspace_data: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    "current_stage",
+    "current_conclusion",
+    "completed_foundation",
+    "in_progress_hardening",
+    "owner_gated_work",
+    "recommended_sleep_run_work",
+    "trial_routes",
+    "required_verification_commands",
+    "阶段 3：投研核心模块 beta hardening",
+  ]) {
+    assertIncludes(
+      files.projectProgressSnapshot,
+      projectProgressSnapshot,
+      snippet,
+      "Project progress snapshot must preserve owner-facing progress, trial routes, and local-only boundaries."
+    );
+  }
   for (const step of requiredOnboardingSteps) {
     assertIncludes(
       files.onboarding,
@@ -486,6 +524,12 @@ function run() {
     "Module center must render the module roadmap panel."
   );
   for (const snippet of [
+    "buildProjectProgressSnapshot",
+    "ProjectProgressSnapshotPanel",
+    "module-progress-snapshot",
+    "当前项目进度快照",
+    "导出进度快照",
+    "ProjectProgressStatusPill",
     "module-decision-summary",
     "新模块接入决策摘要",
     "ModuleDecisionSummaryPanel",
@@ -562,6 +606,12 @@ function run() {
   assertIncludes(
     files.readme,
     readme,
+    "project progress snapshot",
+    "README must document the project progress snapshot."
+  );
+  assertIncludes(
+    files.readme,
+    readme,
     "npm run verify:modules",
     "README must document module verification."
   );
@@ -577,6 +627,7 @@ function run() {
     starter_pack_risk_gates: requiredStarterPackRiskGates.length,
     health_areas: requiredHealthAreas.length,
     roadmap_lanes: 4,
+    project_progress_snapshot: 1,
     boundary_checks: requiredBoundarySnippets.length,
   };
 
