@@ -14,6 +14,7 @@ import {
 import {
   getDatabaseSystemFieldValue,
   isDatabaseSystemField,
+  isDatabaseSystemTimeField,
 } from "@/lib/database/systemFields";
 
 interface TableViewProps {
@@ -202,7 +203,11 @@ function CellEditor({
         className="text-sm text-zinc-500 dark:text-zinc-400"
         title={systemValue || undefined}
       >
-        {systemValue ? formatRelativeDate(systemValue) : "—"}
+        {systemValue
+          ? isDatabaseSystemTimeField(field)
+            ? formatRelativeDate(systemValue)
+            : systemValue
+          : "—"}
       </span>
     );
   }

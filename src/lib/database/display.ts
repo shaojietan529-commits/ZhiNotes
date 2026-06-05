@@ -14,6 +14,7 @@ const FIELD_TYPE_LABELS: Record<string, string> = {
   phone: "电话",
   created_time: "创建时间",
   last_edited_time: "最后编辑时间",
+  unique_id: "唯一 ID",
 };
 
 const VIEW_TYPE_LABELS: Record<DatabaseView["view_type"], string> = {

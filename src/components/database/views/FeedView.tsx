@@ -9,6 +9,7 @@ import { getRelationPages } from "@/lib/database/relationValues";
 import {
   getDatabaseSystemFieldValue,
   isDatabaseSystemField,
+  isDatabaseSystemTimeField,
 } from "@/lib/database/systemFields";
 
 interface FeedViewProps {
@@ -244,7 +245,7 @@ function FeedFieldChip({
         ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-200"
         : field.field_type === "multi_select"
           ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-200"
-          : field.field_type === "date" || isDatabaseSystemField(field)
+          : field.field_type === "date" || isDatabaseSystemTimeField(field)
             ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-200"
             : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-200";
 
@@ -290,13 +291,14 @@ function compareFeedFields(left: DatabaseField, right: DatabaseField) {
     date: 3,
     created_time: 4,
     last_edited_time: 5,
-    relation: 6,
-    checkbox: 7,
-    number: 8,
-    url: 9,
-    email: 10,
-    phone: 11,
-    text: 12,
+    unique_id: 6,
+    relation: 7,
+    checkbox: 8,
+    number: 9,
+    url: 10,
+    email: 11,
+    phone: 12,
+    text: 13,
   };
   return (
     (priority[left.field_type] ?? 10) - (priority[right.field_type] ?? 10) ||
@@ -315,7 +317,9 @@ function formatFeedFieldValue(field: DatabaseField, value: unknown) {
     return stringifyMultiSelectValue(value);
   }
   if (isDatabaseSystemField(field)) {
-    return formatRelativeDate(String(value));
+    return isDatabaseSystemTimeField(field)
+      ? formatRelativeDate(String(value))
+      : String(value);
   }
   if (field.field_type === "number") {
     return typeof value === "number" ? value.toLocaleString() : String(value);

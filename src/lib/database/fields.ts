@@ -2,6 +2,7 @@ import type { DatabaseField } from "@/lib/utils/types";
 import {
   DATABASE_CREATED_TIME_FIELD,
   DATABASE_LAST_EDITED_TIME_FIELD,
+  DATABASE_UNIQUE_ID_FIELD,
 } from "@/lib/database/systemFields";
 
 export const DATABASE_FIELD_TYPES = [
@@ -18,6 +19,7 @@ export const DATABASE_FIELD_TYPES = [
   { value: "phone", label: "电话" },
   { value: DATABASE_CREATED_TIME_FIELD, label: "创建时间" },
   { value: DATABASE_LAST_EDITED_TIME_FIELD, label: "最后编辑时间" },
+  { value: DATABASE_UNIQUE_ID_FIELD, label: "唯一 ID" },
 ];
 
 export function isSelectLikeFieldType(fieldType: string) {

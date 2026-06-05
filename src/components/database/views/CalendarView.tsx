@@ -6,6 +6,7 @@ import type { Page } from "@/lib/utils/types";
 import {
   getDatabaseSystemFieldDateKey,
   isDatabaseSystemField,
+  isDatabaseSystemTimeField,
 } from "@/lib/database/systemFields";
 
 interface CalendarViewProps {
@@ -25,7 +26,7 @@ export default function CalendarView({
   const [currentDate, setCurrentDate] = useState(new Date());
   const dateField =
     fields.find((field) => field.field_type === "date") ||
-    fields.find(isDatabaseSystemField);
+    fields.find(isDatabaseSystemTimeField);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();

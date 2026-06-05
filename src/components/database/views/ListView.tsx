@@ -8,6 +8,7 @@ import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
   getDatabaseSystemFieldValue,
   isDatabaseSystemField,
+  isDatabaseSystemTimeField,
 } from "@/lib/database/systemFields";
 
 interface ListViewProps {
@@ -65,7 +66,9 @@ export default function ListView({
                     if (val === undefined || val === null || val === "") return null;
                     const label =
                       isDatabaseSystemField(field)
-                        ? formatRelativeDate(String(val))
+                        ? isDatabaseSystemTimeField(field)
+                          ? formatRelativeDate(String(val))
+                          : String(val)
                       : field.field_type === "relation"
                         ? stringifyRelationValue(val, relationPages)
                         : field.field_type === "multi_select"

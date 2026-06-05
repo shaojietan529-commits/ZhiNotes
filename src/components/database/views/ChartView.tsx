@@ -6,7 +6,7 @@ import { normalizeMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
   getDatabaseSystemFieldValue,
-  isDatabaseSystemField,
+  isDatabaseSystemTimeField,
 } from "@/lib/database/systemFields";
 import {
   getDatabaseFieldDisplayName,
@@ -147,7 +147,7 @@ function pickChartGroupField(
     fields.find((field) => field.field_type === "multi_select") ||
     fields.find((field) => field.field_type === "relation") ||
     fields.find((field) => field.field_type === "date") ||
-    fields.find(isDatabaseSystemField) ||
+    fields.find(isDatabaseSystemTimeField) ||
     fields.find((field) => field.field_type === "checkbox") ||
     fields.find((field) => field.field_type === "number") ||
     null
@@ -169,7 +169,7 @@ function buildBuckets({
 
   for (const row of rows) {
     const values = parseFieldValues(row.field_values);
-    const value = isDatabaseSystemField(field)
+    const value = isDatabaseSystemTimeField(field)
       ? getDatabaseSystemFieldValue(row, field)
       : values[field.id];
     const labels = getBucketLabels(value, field, relationPages);
@@ -220,7 +220,7 @@ function getBucketLabels(
     return selected.length > 0 ? selected : ["无值"];
   }
 
-  if (field.field_type === "date" || isDatabaseSystemField(field)) {
+  if (field.field_type === "date" || isDatabaseSystemTimeField(field)) {
     const text = String(value ?? "");
     return [text ? text.slice(0, 7) : "无日期"];
   }

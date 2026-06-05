@@ -136,6 +136,7 @@ function run() {
     '{ value: "multi_select", label: "多选" }',
     "DATABASE_CREATED_TIME_FIELD",
     "DATABASE_LAST_EDITED_TIME_FIELD",
+    "DATABASE_UNIQUE_ID_FIELD",
     'fieldType === "multi_select"',
   ]) {
     assertIncludes(
@@ -151,6 +152,7 @@ function run() {
     'multi_select: "多选"',
     'created_time: "创建时间"',
     'last_edited_time: "最后编辑时间"',
+    'unique_id: "唯一 ID"',
   ]) {
     assertIncludes(
       files.display,
@@ -162,7 +164,10 @@ function run() {
   for (const snippet of [
     "DATABASE_CREATED_TIME_FIELD",
     "DATABASE_LAST_EDITED_TIME_FIELD",
+    "DATABASE_UNIQUE_ID_FIELD",
     "isDatabaseSystemFieldType",
+    "isDatabaseSystemTimeFieldType",
+    "isDatabaseSystemTimeField",
     "getDatabaseSystemFieldValue",
     "getDatabaseSystemFieldDateKey",
   ]) {
@@ -194,6 +199,7 @@ function run() {
     'tel:${linkValue}',
     "toggleMultiSelectValue",
     "isDatabaseSystemField",
+    "isDatabaseSystemTimeField",
     "getDatabaseSystemFieldValue",
   ]) {
     assertIncludes(
@@ -242,6 +248,7 @@ function run() {
     '| "multi_select"',
     '| "created_time"',
     '| "last_edited_time"',
+    '| "unique_id"',
     "isEmailValue",
     "isPhoneValue",
     "parseMultiSelectValue",
@@ -278,16 +285,27 @@ function run() {
     );
   }
   for (const snippet of [
-    "isDatabaseSystemField",
     "getDatabaseSystemFieldValue",
     '"created_time"',
     '"last_edited_time"',
+    "isDatabaseSystemTimeField",
   ]) {
     assertIncludes(
       files.chartView,
       chartView,
       snippet,
       "Chart view must group read-only system time fields by month."
+    );
+  }
+  for (const [sourceLabel, source] of [
+    [files.timelineView, timelineView],
+    [files.calendarView, calendarView],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "fields.find(isDatabaseSystemTimeField)",
+      "Timeline and calendar fallbacks must use system time fields, not unique ID fields."
     );
   }
   assertIncludes(

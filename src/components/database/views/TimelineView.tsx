@@ -9,6 +9,7 @@ import {
   getDatabaseSystemFieldDateKey,
   getDatabaseSystemFieldValue,
   isDatabaseSystemField,
+  isDatabaseSystemTimeField,
 } from "@/lib/database/systemFields";
 
 interface TimelineViewProps {
@@ -37,7 +38,7 @@ export default function TimelineView({
 }: TimelineViewProps) {
   const dateField =
     fields.find((field) => field.field_type === "date") ||
-    fields.find(isDatabaseSystemField);
+    fields.find(isDatabaseSystemTimeField);
 
   const timelineRows = useMemo(() => {
     if (!dateField) return [];
@@ -209,7 +210,10 @@ function formatTimelineFieldValue(
   }
 
   if (isDatabaseSystemField(field)) {
-    return value ? formatRelativeDate(String(value)) : "";
+    if (!value) return "";
+    return isDatabaseSystemTimeField(field)
+      ? formatRelativeDate(String(value))
+      : String(value);
   }
 
   return String(value ?? "").trim();

@@ -7,6 +7,7 @@ import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
   getDatabaseSystemFieldValue,
   isDatabaseSystemField,
+  isDatabaseSystemTimeField,
 } from "@/lib/database/systemFields";
 
 interface GalleryViewProps {
@@ -79,7 +80,9 @@ export default function GalleryView({
                             : fieldValues[field.id];
                           const label =
                             isDatabaseSystemField(field)
-                              ? formatRelativeDate(String(value))
+                              ? isDatabaseSystemTimeField(field)
+                                ? formatRelativeDate(String(value))
+                                : String(value)
                             : field.field_type === "relation"
                               ? stringifyRelationValue(value, relationPages)
                               : field.field_type === "multi_select"

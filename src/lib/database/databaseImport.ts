@@ -18,7 +18,8 @@ export type DatabaseImportFieldType =
   | "phone"
   | "multi_select"
   | "created_time"
-  | "last_edited_time";
+  | "last_edited_time"
+  | "unique_id";
 
 type SpreadsheetCell = string | number | boolean | null;
 
