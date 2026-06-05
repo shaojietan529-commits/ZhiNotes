@@ -203,11 +203,11 @@ const LANE_META: Record<
   },
   "schema-setup": {
     id: "schema-setup",
-    title: "Relation 结构搭建",
-    description: "检查跟踪表缺少哪些 relation 字段，先补结构再补值。",
+    title: "关系结构搭建",
+    description: "检查跟踪表缺少哪些关系字段，先补结构再补值。",
     module_route: "/modules/research-graph",
     privacy_boundary:
-      "只列出 schema gap 和本地数据库入口；不会自动创建字段或写入行值。",
+      "只列出结构缺口和本地数据库入口；不会自动创建字段或写入行值。",
   },
 };
 
@@ -236,7 +236,7 @@ export function buildResearchWorkbenchPacket(
     format_version: 1,
     packet_status: "local-research-workbench-only",
     privacy_note:
-      "Generated locally from the research graph report. This packet turns company, report, meeting, portfolio, and relation-schema gaps into a local workbench queue. It does not read page bodies, database rows, row values, file names, file bytes, holdings, trading plans, cloud data, AI prompts, tokens, or credentials; it does not write relation values, create schema fields, upload data, connect cloud services, or enable AI.",
+      "这份研究工作台行动包只在本地由研究图谱报告生成，把公司、报告、会议、组合和关系结构缺口转成工作队列。它不读取页面正文、数据库行、行值、文件名、文件字节、持仓、交易计划、云端数据、AI 提示词、token 或凭证；也不会写入关系值、创建结构字段、上传数据、连接云服务或启用 AI。",
     boundary: {
       local_packet_only: true,
       reads_research_graph_report: true,
@@ -316,7 +316,7 @@ function buildDecisionSummary(
   return {
     current_state: "local-research-graph-owner-review",
     current_conclusion:
-      "研究图谱现在可以继续本地查看跨模块连接覆盖、打开 relation handoff、复核 schema gap 和跳转到公司/报告/会议/组合模块；自动写 relation 值、批量更新数据库、AI、云同步和外发图谱上下文仍保持关闭，必须经过 owner confirmation。",
+      "研究图谱现在可以继续本地查看跨模块连接覆盖、打开关系补全交接包、复核结构缺口，并跳转到公司/报告/会议/组合模块；自动写关系值、批量更新数据库、AI、云同步和外发图谱上下文仍保持关闭，必须经过你确认。",
     can_review_graph_coverage_now: true,
     can_open_relation_handoffs_now: true,
     can_create_schema_fields_without_confirmation_now: false,
@@ -326,21 +326,21 @@ function buildDecisionSummary(
     can_sync_graph_data_now: false,
     safe_local_work: [
       "查看公司、报告、会议和组合的本地连接覆盖率、健康状态和断点队列。",
-      "打开 relation handoff，跳到对应 page 或 database，人工确认后再补 relation。",
-      "复核 schema gap，确认本地数据库是否需要新增 relation 字段。",
+      "打开关系补全交接包，跳到对应页面或数据库，人工确认后再补关系。",
+      "复核结构缺口，确认本地数据库是否需要新增关系字段。",
       "把断点分流回 Company、Reports、Meetings、Portfolio 和 Databases 模块继续处理。",
     ],
     blocked_work: [
-      "不能自动写 relation values、自动创建 tracker rows 或批量更新数据库 rows。",
-      "不能默认创建 relation 字段；schema field creation 必须有本地确认。",
-      "不能读取 page bodies、database row values、file names 或 file bytes 来做图谱导出。",
+      "不能自动写关系值、自动创建跟踪表行或批量更新数据库行。",
+      "不能默认创建关系字段；结构字段创建必须有本地确认。",
+      "不能读取页面正文、数据库行值、文件名或文件字节来做图谱导出。",
       "不能把图谱上下文、持仓、交易计划、文件或页面内容发送给 AI、云端或外部服务。",
     ],
     required_owner_decisions: [
-      "确认某个 schema gap 是否真的应该创建 relation 字段。",
-      "确认 relation handoff 的 source page、target tracker、relation field 和 row 后再手动写值。",
-      "确认批量关系修复前的目标 assets、rows、字段和回滚边界。",
-      "确认 AI 或云同步前的 payload preview、权限检查、审计事件和敏感字段排除。",
+      "确认某个结构缺口是否真的应该创建关系字段。",
+      "确认关系补全交接包的来源页面、目标跟踪表、关系字段和行后再手动写值。",
+      "确认批量关系修复前的目标资产、行、字段和回滚边界。",
+      "确认 AI 或云同步前的载荷预览、权限检查、审计事件和敏感字段排除。",
     ],
     decisions: [
       {
@@ -348,7 +348,7 @@ function buildDecisionSummary(
         title: "图谱覆盖复核",
         status: "available-local",
         answer: "本地可看",
-        evidence: `${report.summary.assets} 个资产，${report.summary.connected_assets} 个已连接，${report.summary.relation_links} 条 relation 连接。`,
+        evidence: `${report.summary.assets} 个资产，${report.summary.connected_assets} 个已连接，${report.summary.relation_links} 条关系连接。`,
         next_action:
           "先看连接健康摘要和模块覆盖，把断点最多的模块排到下一步。",
         route: "/modules/research-graph",
@@ -364,15 +364,15 @@ function buildDecisionSummary(
       },
       {
         id: "manual-relation-handoff",
-        title: "Relation handoff",
+        title: "关系补全交接",
         status:
           relationActions.length > 0
             ? "requires-owner-confirmation"
             : "available-local",
         answer: relationActions.length > 0 ? "手动补值" : "暂无断点",
-        evidence: `${relationActions.length} 个补 relation 行动，${report.summary.relation_handoff_packets} 个 handoff packet；不会自动写 relation values。`,
+        evidence: `${relationActions.length} 个补关系行动，${report.summary.relation_handoff_packets} 个交接包；不会自动写关系值。`,
         next_action:
-          "打开 handoff packet，确认 source、target tracker、relation field 和 row 后再手动写值。",
+          "打开交接包，确认来源页面、目标跟踪表、关系字段和行后再手动写值。",
         route: "/modules/research-graph",
         target_section_id: "research-graph-relation-handoff",
         allowed_now: true,
@@ -386,15 +386,15 @@ function buildDecisionSummary(
       },
       {
         id: "schema-field-setup",
-        title: "Relation 字段结构",
+        title: "关系字段结构",
         status:
           schemaActions.length > 0
             ? "requires-owner-confirmation"
             : "available-local",
         answer: schemaActions.length > 0 ? "确认后创建" : "结构可用",
-        evidence: `${schemaActions.length} 个 schema action，${report.summary.schema_gaps} 个 relation 字段缺口；创建字段必须本地确认。`,
+        evidence: `${schemaActions.length} 个结构行动，${report.summary.schema_gaps} 个关系字段缺口；创建字段必须本地确认。`,
         next_action:
-          "先复核字段名称和目标数据库，再用 schema gap 面板创建单个本地 relation 字段。",
+          "先复核字段名称和目标数据库，再用结构缺口面板创建单个本地关系字段。",
         route: "/modules/research-graph",
         target_section_id: "research-graph-schema-gaps",
         allowed_now: false,
@@ -417,7 +417,7 @@ function buildDecisionSummary(
           trackerActions.length + relationActions.length + schemaActions.length > 0
             ? "逐项处理"
             : "队列清爽",
-        evidence: `${actions.length} 个工作台行动，${manualActions.length} 个需要手动确认，覆盖公司、报告、会议、组合和 schema setup。`,
+        evidence: `${actions.length} 个工作台行动，${manualActions.length} 个需要手动确认，覆盖公司、报告、会议、组合和结构搭建。`,
         next_action:
           "按优先级打开对应模块，把断点回收到真实工作流，而不是在图谱里批量改数据。",
         route: "/modules/research-graph",
@@ -437,9 +437,9 @@ function buildDecisionSummary(
         status: "blocked",
         answer: "保持关闭",
         evidence:
-          "图谱工作台只做本地 metadata routing；AI、云同步、外部服务和批量写入仍被禁止。",
+          "图谱工作台只做本地元数据路由；AI、云同步、外部服务和批量写入仍被禁止。",
         next_action:
-          "只有在 payload preview、权限检查、审计事件、typed confirmation 和回滚方案齐备后，才讨论自动化修复。",
+          "只有在载荷预览、权限检查、审计事件、输入确认和回滚方案齐备后，才讨论自动化修复。",
         route: "/modules/sync",
         target_section_id: "sync-ai-provider-boundary",
         allowed_now: false,
@@ -474,7 +474,7 @@ function buildModuleRollups(
     next_action_route: item.next_action.route,
     writes_workspace_data: false,
     privacy_boundary:
-      "Module rollup uses graph summary metadata only. It does not include page bodies, database row values, file bytes, holdings, trading plans, or cloud data.",
+      "模块汇总只使用图谱摘要元数据，不包含页面正文、数据库行值、文件字节、持仓、交易计划或云端数据。",
   }));
 }
 
@@ -498,7 +498,7 @@ function buildWorkbenchActions(
         item.recommended_action === "open-page"
           ? "打开页面"
           : item.recommended_action === "complete-relation"
-            ? "打开 relation 入口"
+            ? "打开关系入口"
             : "打开模块",
       source: `priority-queue:${item.id}`,
       requires_manual_confirmation: status !== "review-only",
@@ -519,14 +519,14 @@ function buildWorkbenchActions(
     title: `${gap.database_title} 缺少 ${gap.suggested_field_label}`,
     evidence: gap.reason,
     next_action:
-      "Open the database and manually confirm whether this relation field should be created.",
+      "打开数据库并手动确认是否应该创建这个关系字段。",
     action_route: gap.database_route,
     route_label: "打开数据库",
     source: `schema-gap:${gap.id}`,
     requires_manual_confirmation: true,
     writes_workspace_data: false,
     privacy_boundary:
-      "Schema actions list missing local relation fields only. They do not create fields, write rows, read row values, or upload data.",
+      "结构行动只列出缺失的本地关系字段，不会创建字段、写入行、读取行值或上传数据。",
       }) satisfies ResearchWorkbenchAction
   );
 
@@ -542,7 +542,7 @@ function buildWorkbenchActions(
           priority: "medium" as const,
           status: "needs-tracker" as const,
           title: `${item.kind_label} 缺少跟踪表`,
-          evidence: `${item.kind_label} has ${item.assets} assets and ${item.tracker_databases} tracker databases.`,
+          evidence: `${item.kind_label}有 ${item.assets} 个资产和 ${item.tracker_databases} 个跟踪表。`,
           next_action: item.next_action.label,
           action_route: item.next_action.route,
           route_label: "打开模块",
@@ -550,7 +550,7 @@ function buildWorkbenchActions(
           requires_manual_confirmation: true,
           writes_workspace_data: false,
           privacy_boundary:
-            "Tracker setup actions open local module routes only and do not create databases without a separate user action.",
+            "跟踪表设置行动只打开本地模块入口，不会在缺少单独用户动作时创建数据库。",
         }) satisfies ResearchWorkbenchAction
     );
 
@@ -588,7 +588,7 @@ function buildReviewSequence(
       route: "/modules/company-research",
       reason:
         "公司页面是投研资料的长期锚点，报告、会议和组合最好先能连回公司。",
-      completion_signal: "公司资产已经具备报告和会议 relation 路径。",
+      completion_signal: "公司资产已经具备报告和会议关系路径。",
     },
     {
       id: "resolve-high-priority-breaks",
@@ -608,16 +608,16 @@ function buildReviewSequence(
       reason: mostBlockedModule
         ? `${mostBlockedModule.label} 有 ${mostBlockedModule.unlinked_assets} 个未连接资产。`
         : "当前没有模块汇总。",
-      completion_signal: "模块连接率提升，或缺失的 tracker/schema 配置已经确认。",
+      completion_signal: "模块连接率提升，或缺失的跟踪表/结构配置已经确认。",
     },
     {
       id: "review-schema-before-values",
       order: 4,
-      title: "先补 relation 结构，再补 relation 值",
+      title: "先补关系结构，再补关系值",
       route: "/modules/research-graph",
       reason:
-        "缺失 relation 字段会阻塞报告到公司、报告到会议、组合到研究材料的清晰连接。",
-      completion_signal: "任何手动行连接开始前，schema gaps 已经完成复核。",
+        "缺失关系字段会阻塞报告到公司、报告到会议、组合到研究材料的清晰连接。",
+      completion_signal: "任何手动行连接开始前，结构缺口已经完成复核。",
     },
   ];
 }

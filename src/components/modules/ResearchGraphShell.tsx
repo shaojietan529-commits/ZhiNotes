@@ -239,7 +239,7 @@ function ResearchGraphDashboard() {
       });
     } catch (err) {
       console.error("[Zhinote] Failed to export research project brief:", err);
-      window.alert("研究项目 Brief 导出失败，请查看控制台。");
+      window.alert("研究项目简报导出失败，请查看控制台。");
     } finally {
       setExportingProjectBrief(false);
     }
@@ -280,7 +280,7 @@ function ResearchGraphDashboard() {
 
   const handleCreateSchemaGapField = async (gap: ResearchGraphSchemaGap) => {
     const confirmed = window.confirm(
-      `在「${gap.database_title}」里创建 relation 字段「${gap.suggested_field_name}」？\n\n这只会修改本地数据库结构，不会写入行数据、同步或上传。`
+      `在「${gap.database_title}」里创建关系字段「${gap.suggested_field_name}」？\n\n这只会修改本地数据库结构，不会写入行数据、同步或上传。`
     );
     if (!confirmed) return;
 
@@ -313,7 +313,7 @@ function ResearchGraphDashboard() {
       await reloadSnapshots();
     } catch (err) {
       console.error("[Zhinote] Failed to create relation field:", err);
-      window.alert("relation 字段创建失败，请查看控制台。");
+      window.alert("关系字段创建失败，请查看控制台。");
     } finally {
       setSchemaGapBusyId(null);
     }
@@ -332,7 +332,7 @@ function ResearchGraphDashboard() {
                 研究图谱
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                集中查看公司、报告、会议和组合之间的本地 relation 连接，
+                集中查看公司、报告、会议和组合之间的本地关系连接，
                 找到已经串起来的研究资产和还需要补关系的空白点。
               </p>
             </div>
@@ -369,8 +369,8 @@ function ResearchGraphDashboard() {
         <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
           <Metric label="已识别资产" value={graphReport.summary.assets} />
           <Metric label="已连接资产" value={graphReport.summary.connected_assets} />
-          <Metric label="Relation 连接" value={graphReport.summary.relation_links} />
-          <Metric label="Relation 字段" value={graphReport.summary.relation_fields} />
+          <Metric label="关系连接" value={graphReport.summary.relation_links} />
+          <Metric label="关系字段" value={graphReport.summary.relation_fields} />
           <Metric label="待补全资产" value={graphReport.summary.unlinked_assets} />
           <Metric
             label="补关系建议"
@@ -512,7 +512,7 @@ function ResearchGraphDecisionSummaryPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Research Graph Decision Summary
+            研究图谱决策总览
           </p>
           <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             研究图谱决策摘要
@@ -551,15 +551,14 @@ function ResearchGraphDecisionSummaryPanel({
           items={summary.blocked_work}
         />
         <ResearchGraphDecisionList
-          title="Owner 待确认"
+          title="待你确认"
           items={summary.required_owner_decisions}
         />
       </div>
 
       <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-        研究图谱决策摘要只读取本地 summary metadata，不包含 page bodies、
-        database row values、file names、file bytes、holdings、trading
-        plans、prompt、token、credentials、cloud data 或 AI output。
+        研究图谱决策摘要只读取本地摘要元数据，不包含页面正文、数据库行值、
+        文件名、文件字节、持仓、交易计划、提示词、token、凭证、云端数据或 AI 输出。
       </p>
     </section>
   );
@@ -693,7 +692,7 @@ function ResearchProjectBriefPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Research Project Brief
+            投研项目简报
           </p>
           <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             投研项目启动器
@@ -701,7 +700,7 @@ function ResearchProjectBriefPanel({
           <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
             {brief.topic_status === "owner-entered"
               ? `当前主题：${brief.topic}`
-              : "先输入一个研究主题，系统会把公司、报告、会议、组合和 relation 工作排成一个本地 checklist。"}
+              : "先输入一个研究主题，系统会把公司、报告、会议、组合和关系工作排成一个本地清单。"}
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -726,7 +725,7 @@ function ResearchProjectBriefPanel({
             disabled={exporting}
             className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
-            {exporting ? "导出中..." : "导出 Brief"}
+            {exporting ? "导出中..." : "导出简报"}
           </button>
         </div>
       </div>
@@ -769,7 +768,7 @@ function ResearchProjectBriefPanel({
       </div>
 
       <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-        {selectedMode.description} Brief 只读取图谱和工作台 summary metadata；
+        {selectedMode.description} 简报只读取图谱和工作台摘要元数据；
         导出会包含你手动输入的主题，但不包含页面正文、数据库行值、文件名、文件内容、持仓或交易计划。
       </p>
 
@@ -787,7 +786,7 @@ function ResearchProjectBriefPanel({
           value={brief.summary.relation_actions}
         />
         <WorkbenchMetric
-          label="Checklist"
+          label="清单"
           value={brief.summary.checklist_items}
         />
       </div>
@@ -835,11 +834,11 @@ function ResearchProjectBriefPanel({
         <div>
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              项目 Checklist
+              项目清单
             </h3>
             <span className="text-xs text-zinc-400">
-              {brief.summary.checklist_ready} ready ·{" "}
-              {brief.summary.checklist_needing_review} review
+              {brief.summary.checklist_ready} 已就绪 ·{" "}
+              {brief.summary.checklist_needing_review} 需复核
             </span>
           </div>
           <div className="mt-2 grid gap-2">
@@ -917,7 +916,7 @@ function ResearchProjectChecklistRow({
             </h4>
             <ResearchProjectStatusPill status={item.status} />
             <span className="rounded bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-              {item.surface}
+            {getProjectSurfaceLabel(item.surface)}
             </span>
           </div>
           <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
@@ -966,6 +965,19 @@ function ResearchProjectStatusPill({
       {labels[status]}
     </span>
   );
+}
+
+function getProjectSurfaceLabel(
+  surface: ResearchProjectBrief["checklist"][number]["surface"]
+) {
+  const labels: Record<typeof surface, string> = {
+    page: "页面",
+    database: "数据库",
+    file: "文件",
+    relation: "关系",
+    boundary: "边界",
+  };
+  return labels[surface];
 }
 
 function CoveragePanel({
@@ -1098,10 +1110,10 @@ function HealthSummaryPanel({
             连接健康摘要
           </h2>
           <p className="mt-1 text-xs leading-5 text-zinc-400">
-            按公司、报告、会议和组合检查跟踪表、relation 字段和待补关系值。
+            按公司、报告、会议和组合检查跟踪表、关系字段和待补关系值。
           </p>
         </div>
-        <span className="text-xs text-zinc-400">本地 metadata only</span>
+        <span className="text-xs text-zinc-400">仅本地元数据</span>
       </div>
       <div className="mt-3 grid gap-2 xl:grid-cols-4">
         {items.map((item) => (
@@ -1129,7 +1141,7 @@ function HealthSummaryPanel({
                 <HealthNumber label="待补" value={item.unlinked_assets} />
               </div>
               <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                跟踪表 {item.tracker_databases} 个 · relation 连接{" "}
+                跟踪表 {item.tracker_databases} 个 · 关系连接{" "}
                 {item.relation_links} 条 · 建议 {item.completion_actions} 条
               </p>
               <p className="mt-2 text-xs leading-5 text-zinc-400">
@@ -1175,9 +1187,9 @@ function getHealthStatusLabel(
     case "needs-assets":
       return "缺研究资产";
     case "needs-links":
-      return "缺 relation 值";
+      return "缺关系值";
     case "needs-schema":
-      return "缺 relation 字段";
+      return "缺关系字段";
     case "needs-tracker":
       return "缺跟踪表";
   }
@@ -1225,8 +1237,8 @@ function ResearchWorkbenchPanel({
             投研工作台行动包
           </h2>
           <p className="mt-1 text-xs leading-5 text-zinc-400">
-            把研究图谱转换成公司、报告、会议、组合和 relation 结构的下一步队列。
-            这里只打开本地页面或模块，不自动写 relation、不创建字段、不上传数据。
+            把研究图谱转换成公司、报告、会议、组合和关系结构的下一步队列。
+            这里只打开本地页面或模块，不自动写关系、不创建字段、不上传数据。
           </p>
         </div>
         <span className="text-xs text-zinc-400">
@@ -1236,7 +1248,7 @@ function ResearchWorkbenchPanel({
 
       <div className="mt-3 grid gap-3 md:grid-cols-4">
         <WorkbenchMetric
-          label="补 relation"
+          label="补关系"
           value={packet.summary.relation_actions}
         />
         <WorkbenchMetric label="补字段" value={packet.summary.schema_actions} />
@@ -1262,7 +1274,7 @@ function ResearchWorkbenchPanel({
             ))
           ) : (
             <p className="rounded-md border border-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-400 dark:border-zinc-800">
-              暂无工作台行动。当前图谱没有发现需要处理的断点、schema gap 或 tracker 缺口。
+              暂无工作台行动。当前图谱没有发现需要处理的断点、结构缺口或跟踪表缺口。
             </p>
           )}
         </div>
@@ -1447,8 +1459,8 @@ function PriorityQueuePanel({
             断点优先队列
           </h2>
           <p className="mt-1 text-xs leading-5 text-zinc-400">
-            把未连接资产按公司/报告优先、可补 relation 优先排序。这里只给出本地打开入口，
-            不自动写 relation、不导出正文或行值。
+            把未连接资产按公司/报告优先、可补关系优先排序。这里只给出本地打开入口，
+            不自动写关系、不导出正文或行值。
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
@@ -1460,7 +1472,7 @@ function PriorityQueuePanel({
 
       {items.length === 0 ? (
         <p className="mt-3 text-xs leading-5 text-zinc-400">
-          暂无断点队列。当前已识别资产都已有 relation 连接，或还没有可分类资产。
+          暂无断点队列。当前已识别资产都已有关系连接，或还没有可分类资产。
         </p>
       ) : (
         <div className="mt-3 grid gap-2 lg:grid-cols-2">
@@ -1562,19 +1574,19 @@ function RelationHandoffPanel({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Relation 补全手册
+            关系补全手册
           </h2>
           <p className="mt-1 text-xs leading-5 text-zinc-400">
-            把每个可执行补关系建议拆成确认资产、打开目标库、确认字段、手动补 relation 四步。
-            手册只使用本地 metadata，不自动写入 relation 值。
+            把每个可执行补关系建议拆成确认资产、打开目标库、确认字段、手动补关系四步。
+            手册只使用本地元数据，不自动写入关系值。
           </p>
         </div>
-        <span className="text-xs text-zinc-400">{totalPackets} 个 handoff</span>
+        <span className="text-xs text-zinc-400">{totalPackets} 个交接包</span>
       </div>
 
       {packets.length === 0 ? (
         <p className="mt-3 text-xs leading-5 text-zinc-400">
-          暂无 handoff。需要先有可用跟踪表和 relation 字段，图谱才会生成手动补全步骤。
+          暂无交接包。需要先有可用跟踪表和关系字段，图谱才会生成手动补全步骤。
         </p>
       ) : (
         <div className="mt-3 grid gap-3 xl:grid-cols-2">
@@ -1635,7 +1647,7 @@ function RelationHandoffPanel({
               />
 
               <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
-                本地 only · 不读正文 · 不导出行值 · 不自动写 relation · 不上传
+                仅本地 · 不读正文 · 不导出行值 · 不自动写关系 · 不上传
               </p>
             </article>
           ))}
@@ -1709,7 +1721,7 @@ function SchemaGapPanel({
             关系结构检查
           </h2>
           <p className="mt-1 text-xs leading-5 text-zinc-400">
-            检查公司、报告、会议和组合跟踪表是否具备最低 relation 字段结构。
+            检查公司、报告、会议和组合跟踪表是否具备最低关系字段结构。
             创建字段前会二次确认。
           </p>
         </div>
@@ -1718,7 +1730,7 @@ function SchemaGapPanel({
 
       {gaps.length === 0 ? (
         <p className="mt-3 text-xs leading-5 text-zinc-400">
-          暂无结构缺口。当前已识别跟踪表的 relation 字段覆盖了基础投研连接。
+          暂无结构缺口。当前已识别跟踪表的关系字段覆盖了基础投研连接。
         </p>
       ) : (
         <div className="mt-3 grid gap-2 lg:grid-cols-2">
@@ -1732,7 +1744,7 @@ function SchemaGapPanel({
                   {gap.database_title}
                 </h3>
                 <p className="mt-1 text-xs text-zinc-400">
-                  缺少 {gap.missing_relation_label} relation · 建议字段：
+                  缺少 {gap.missing_relation_label} 关系 · 建议字段：
                   {gap.suggested_field_name}
                 </p>
               </div>
@@ -1779,7 +1791,7 @@ function SchemaFieldCreationResultPanel({
             本地结构动作
           </p>
           <h2 className="mt-1 text-sm font-semibold text-emerald-950 dark:text-emerald-50">
-            {result.created ? "已创建 relation 字段" : "字段已存在，已刷新图谱"}
+            {result.created ? "已创建关系字段" : "字段已存在，已刷新图谱"}
           </h2>
           <p className="mt-2 text-xs leading-5 text-emerald-800 dark:text-emerald-200">
             {result.databaseTitle} · {result.fieldName} · 指向
@@ -1787,7 +1799,7 @@ function SchemaFieldCreationResultPanel({
           </p>
           <p className="mt-1 text-xs leading-5 text-emerald-700 dark:text-emerald-300">
             这是本地结构动作，不包含页面正文、表格行值、文件内容、同步或上传。
-            下一步可以打开对应数据库，手动补充具体 relation 值。
+            下一步可以打开对应数据库，手动补充具体关系值。
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
@@ -1831,7 +1843,7 @@ function CompletionPlanPanel({
             补关系建议
           </h2>
           <p className="mt-1 text-xs leading-5 text-zinc-400">
-            这些建议只打开目标数据库并聚焦资产，不会自动写入 relation。
+            这些建议只打开目标数据库并聚焦资产，不会自动写入关系。
           </p>
         </div>
         <span className="text-xs text-zinc-400">{totalActions} 条建议</span>
@@ -1892,7 +1904,7 @@ function CompletionPlanPanel({
                 className="flex items-center justify-between gap-3 text-xs text-amber-700 dark:text-amber-300"
               >
                 <span>
-                  {target.kind_label}：{target.unlinked_assets} 个资产需要先建跟踪表或 relation 字段
+                  {target.kind_label}：{target.unlinked_assets} 个资产需要先建跟踪表或关系字段
                 </span>
                 <button
                   type="button"
@@ -1932,7 +1944,7 @@ function RelationLinksPanel({
       </div>
       {links.length === 0 ? (
         <p className="mt-3 text-xs leading-5 text-zinc-400">
-          暂无 relation 连接。先在公司、报告、会议或组合跟踪表里添加 relation 字段。
+          暂无关系连接。先在公司、报告、会议或组合跟踪表里添加关系字段。
         </p>
       ) : (
         <ul className="mt-3 space-y-2">
@@ -2083,7 +2095,7 @@ function DatabaseSurfacePanel({
                 </h3>
                 <p className="text-xs text-zinc-400">
                   {surface.kind_label ?? "未分类"} · {surface.rows} 行 ·{" "}
-                  {surface.relation_fields} 个 relation 字段
+                  {surface.relation_fields} 个关系字段
                 </p>
               </div>
               <button

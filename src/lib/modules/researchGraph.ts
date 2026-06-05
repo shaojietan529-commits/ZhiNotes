@@ -556,7 +556,7 @@ export function buildResearchGraphReport(
     format_version: 1,
     report_status: "local-graph-summary",
     privacy_note:
-      "This report is generated locally and excludes page bodies, database row values, uploaded file bytes, prompts, tokens, and cloud data.",
+      "这份报告只在本地生成，不包含页面正文、数据库行值、上传文件字节、提示词、token 或云端数据。",
     boundary: {
       reads_page_text_for_classification: true,
       includes_page_text: false,
@@ -747,7 +747,7 @@ export function buildResearchGraphCompletionPlan(
       kind_label: getResearchAssetKindLabel(kind),
       unlinked_assets: unlinkedAssets,
       recommended_module_route: getResearchModuleRoute(kind),
-      reason: `缺少可用于补全${getResearchAssetKindLabel(kind)}关系的本地跟踪表或 relation 字段。`,
+      reason: `缺少可用于补全${getResearchAssetKindLabel(kind)}关系的本地跟踪表或关系字段。`,
     };
   }).filter(
     (target): target is ResearchGraphMissingCompletionTarget => Boolean(target)
@@ -767,7 +767,7 @@ export function buildResearchGraphRelationHandoffPackets(
     const sourcePageRoute = `/page/${action.asset_id}`;
     const relationLabels = action.relation_field_labels.length
       ? action.relation_field_labels.join(" / ")
-      : "目标 relation 字段";
+      : "目标关系字段";
 
     return {
       id: `${action.id}:relation-handoff`,
@@ -789,7 +789,7 @@ export function buildResearchGraphRelationHandoffPackets(
         {
           id: "review-source-asset",
           title: "确认资产",
-          detail: `打开${action.asset_kind_label}页面，确认它确实需要进入跨模块 relation。`,
+          detail: `打开${action.asset_kind_label}页面，确认它确实需要进入跨模块关系。`,
           route: sourcePageRoute,
           action_label: "打开资产页",
           workspace_effect: "manual-review",
@@ -797,7 +797,7 @@ export function buildResearchGraphRelationHandoffPackets(
         {
           id: "open-target-database",
           title: "打开目标表",
-          detail: `进入「${action.target_database_title}」，用页面标题搜索并定位要补关系的 row。`,
+          detail: `进入「${action.target_database_title}」，用页面标题搜索并定位要补关系的行。`,
           route: action.database_route,
           action_label: "打开目标库",
           workspace_effect: "read-only-route",
@@ -805,16 +805,16 @@ export function buildResearchGraphRelationHandoffPackets(
         {
           id: "check-relation-fields",
           title: "确认字段",
-          detail: `优先检查 ${relationLabels}，只选择一个最准确的 relation 字段处理。`,
+          detail: `优先检查 ${relationLabels}，只选择一个最准确的关系字段处理。`,
           route: action.database_route,
           action_label: "检查字段",
           workspace_effect: "manual-review",
         },
         {
           id: "manual-relation-value",
-          title: "手动补 relation",
+          title: "手动补关系",
           detail:
-            "在目标 row 里手动加入页面 relation，完成后回到研究图谱复核连接是否出现。",
+            "在目标行里手动加入页面关系，完成后回到研究图谱复核连接是否出现。",
           route: action.database_route,
           action_label: "手动补关系",
           workspace_effect: "manual-relation-value",
@@ -865,13 +865,13 @@ export function buildResearchGraphPriorityQueue(
           priority,
           updated_at: asset.updatedAt,
           recommended_action: "complete-relation",
-          action_label: "补 relation 值",
+          action_label: "补关系值",
           action_route: action.database_route,
           target_database_title: action.target_database_title,
           relation_field_labels: action.relation_field_labels,
-          reason: `${getResearchAssetKindLabel(asset.kind)}已经有可用跟踪表或 relation 字段，下一步是补具体 relation 值。`,
+          reason: `${getResearchAssetKindLabel(asset.kind)}已经有可用跟踪表或关系字段，下一步是补具体关系值。`,
           privacy_boundary:
-            "只打开本地页面或目标数据库，不自动写 relation，不导出页面正文、数据库行值、文件 bytes、token 或凭证。",
+            "只打开本地页面或目标数据库，不自动写关系，不导出页面正文、数据库行值、文件字节、token 或凭证。",
         } satisfies ResearchGraphPriorityItem;
       }
 
@@ -891,7 +891,7 @@ export function buildResearchGraphPriorityQueue(
           relation_field_labels: [],
           reason: missingTarget.reason,
           privacy_boundary:
-            "只打开对应模块创建本地跟踪入口，不读取页面正文、不写 relation 值、不上传或同步。",
+            "只打开对应模块创建本地跟踪入口，不读取页面正文、不写关系值、不上传或同步。",
         } satisfies ResearchGraphPriorityItem;
       }
 
@@ -911,7 +911,7 @@ export function buildResearchGraphPriorityQueue(
         reason:
           "这个资产尚未进入可执行补关系队列，先打开页面确认分类和需要关联的研究上下文。",
         privacy_boundary:
-          "只打开本地页面，不导出页面正文、数据库行值、文件 bytes、token 或凭证。",
+          "只打开本地页面，不导出页面正文、数据库行值、文件字节、token 或凭证。",
       } satisfies ResearchGraphPriorityItem;
     })
     .sort(sortPriorityItems);
@@ -948,7 +948,7 @@ function buildCompletionTargets(
         reason:
           databaseKind === kind
             ? `${getResearchAssetKindLabel(kind)}自己的跟踪表可以作为补全入口。`
-            : `这个跟踪表已有指向${getResearchAssetKindLabel(kind)}的 relation 字段。`,
+            : `这个跟踪表已有指向${getResearchAssetKindLabel(kind)}的关系字段。`,
       };
     }).filter(
       (target): target is ResearchGraphCompletionTarget => Boolean(target)
@@ -989,7 +989,7 @@ export function buildResearchGraphSchemaGaps(
           suggested_field_name: suggestedFieldName,
           suggested_field_label: getResearchRelationFieldLabel(suggestedFieldName),
           database_route: `/database/${snapshot.database.id}`,
-          reason: `${getResearchAssetKindLabel(databaseKind)}跟踪表缺少指向${getResearchAssetKindLabel(missingKind)}的 relation 字段。`,
+          reason: `${getResearchAssetKindLabel(databaseKind)}跟踪表缺少指向${getResearchAssetKindLabel(missingKind)}的关系字段。`,
         };
       });
   });
@@ -1069,7 +1069,7 @@ function getSuggestedRelationFieldName(
   if (targetKind === "report") return "Related reports";
   if (targetKind === "meeting") return "Related meetings";
   if (targetKind === "portfolio") return "Related portfolio";
-  return `${getResearchAssetKindLabel(sourceKind)} relation`;
+  return `${getResearchAssetKindLabel(sourceKind)}关系`;
 }
 
 function getMissingRelationKindsForHealth(
@@ -1127,7 +1127,7 @@ function getResearchGraphHealthNextAction(
 
   if (missingRelationKinds > 0) {
     return {
-      label: "补 relation 字段",
+      label: "补关系字段",
       route: `/database/${trackerDatabaseId}`,
       writes_workspace_data: true,
     };
@@ -1135,7 +1135,7 @@ function getResearchGraphHealthNextAction(
 
   if (completionAction) {
     return {
-      label: "补 relation 值",
+      label: "补关系值",
       route: completionAction.database_route,
       writes_workspace_data: false,
     };

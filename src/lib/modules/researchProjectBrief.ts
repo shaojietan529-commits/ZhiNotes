@@ -209,7 +209,7 @@ export function buildResearchProjectBrief(
     horizon: input.horizon.trim() || "未设置",
     created_at: createdAt,
     privacy_note:
-      "Generated locally from the research graph report, research workbench packet, and owner-entered project fields. It does not read page bodies, database row values, file names, file bytes, holdings, trading plans, cloud data, AI prompts, tokens, or credentials; it does not create pages, write relation values, upload data, connect cloud services, or enable AI.",
+      "这份投研项目简报只在本地由研究图谱报告、研究工作台行动包和你手动输入的项目字段生成。它不读取页面正文、数据库行值、文件名、文件字节、持仓、交易计划、云端数据、AI 提示词、token 或凭证；也不会创建页面、写入关系值、上传数据、连接云服务或启用 AI。",
     boundary: {
       local_brief_only: true,
       reads_research_graph_report: true,
@@ -329,7 +329,7 @@ export function buildResearchProjectBriefPageHtml(
   return `
     <h1>${escapeHtml(buildResearchProjectPageTitle(brief))}</h1>
     <blockquote>
-      <p>本页面由研究图谱的投研项目启动器在本地生成。它只使用 graph/workbench summary metadata 和你手动输入的项目字段，不包含页面正文、数据库行值、文件名、文件内容、持仓或交易计划。</p>
+      <p>本页面由研究图谱的投研项目启动器在本地生成。它只使用图谱/工作台摘要元数据和你手动输入的项目字段，不包含页面正文、数据库行值、文件名、文件内容、持仓或交易计划。</p>
     </blockquote>
     <h2>项目设置</h2>
     <ul>
@@ -341,7 +341,7 @@ export function buildResearchProjectBriefPageHtml(
     <h2>核心仪表盘</h2>
     <table>
       <tbody>
-        <tr><th>图谱资产</th><th>已连接资产</th><th>未连接资产</th><th>Relation 连接</th><th>工作台行动</th></tr>
+        <tr><th>图谱资产</th><th>已连接资产</th><th>未连接资产</th><th>关系连接</th><th>工作台行动</th></tr>
         <tr>
           <td>${brief.summary.graph_assets}</td>
           <td>${brief.summary.connected_assets}</td>
@@ -358,7 +358,7 @@ export function buildResearchProjectBriefPageHtml(
         ${moduleRows}
       </tbody>
     </table>
-    <h2>项目 Checklist</h2>
+    <h2>项目清单</h2>
     <ul data-type="taskList">
       ${checklistItems}
     </ul>
@@ -366,7 +366,7 @@ export function buildResearchProjectBriefPageHtml(
     <ol>
       ${reviewSteps}
     </ol>
-    <h2>Owner 待确认</h2>
+    <h2>待你确认</h2>
     <ul>
       ${ownerDecisions}
     </ul>
@@ -379,7 +379,7 @@ export function buildResearchProjectBriefPageHtml(
       <li>读取页面正文：${brief.boundary.reads_page_text ? "是" : "否"}</li>
       <li>导出数据库行值：${brief.boundary.includes_database_row_values ? "是" : "否"}</li>
       <li>读取文件内容：${brief.boundary.reads_file_bytes ? "是" : "否"}</li>
-      <li>写 relation 值：${brief.boundary.creates_relation_values ? "是" : "否"}</li>
+      <li>写关系值：${brief.boundary.creates_relation_values ? "是" : "否"}</li>
       <li>上传数据：${brief.boundary.uploads_data ? "是" : "否"}</li>
       <li>启用 AI：${brief.boundary.enables_ai ? "是" : "否"}</li>
     </ul>
@@ -388,7 +388,7 @@ export function buildResearchProjectBriefPageHtml(
 
 export function buildResearchProjectPageTitle(brief: ResearchProjectBrief) {
   if (brief.topic) return `投研项目：${brief.topic}`;
-  return `${brief.project_mode_label}项目 Brief`;
+  return `${brief.project_mode_label}项目简报`;
 }
 
 function buildModulePlans(
@@ -422,7 +422,7 @@ function buildModulePlans(
       readiness,
       privacy_boundary:
         rollup?.privacy_boundary ??
-        "Module plan uses local graph metadata only. It does not include page bodies, database row values, file bytes, holdings, trading plans, or cloud data.",
+        "模块计划只使用本地图谱元数据，不包含页面正文、数据库行值、文件字节、持仓、交易计划或云端数据。",
     };
   });
 }
@@ -500,7 +500,7 @@ function buildChecklist(
       route: portfolioPlan.next_action_route,
       route_label: portfolioPlan.next_action_label,
       reason: `${portfolioPlan.assets} 个组合资产，${portfolioPlan.schema_gaps} 个结构缺口。`,
-      owner_decision: "确认这个研究项目是否影响观察名单、仓位 memo、风险或催化剂复盘。",
+      owner_decision: "确认这个研究项目是否影响观察名单、仓位备忘录、风险或催化剂复盘。",
       requires_owner_confirmation: portfolioPlan.readiness !== "ready",
       writes_workspace_data: false,
       uploads_data: false,
@@ -514,9 +514,9 @@ function buildChecklist(
           : "ready",
       surface: "relation",
       route: "/modules/research-graph#research-graph-relation-handoff",
-      route_label: "打开 handoff",
-      reason: `${input.workbench.summary.relation_actions} 个 relation 行动，${input.graphReport.summary.relation_handoff_packets} 个 handoff packet。`,
-      owner_decision: "确认 source page、target tracker、relation field 和 row 后再手动补值。",
+      route_label: "打开交接包",
+      reason: `${input.workbench.summary.relation_actions} 个关系行动，${input.graphReport.summary.relation_handoff_packets} 个交接包。`,
+      owner_decision: "确认来源页面、目标跟踪表、关系字段和行后再手动补值。",
       requires_owner_confirmation: input.workbench.summary.relation_actions > 0,
       writes_workspace_data: false,
       uploads_data: false,
@@ -533,8 +533,8 @@ function buildChecklist(
       surface: "database",
       route: "/modules/research-graph#research-graph-schema-gaps",
       route_label: "检查结构",
-      reason: `${input.workbench.summary.schema_actions} 个 schema action，${input.workbench.summary.tracker_actions} 个 tracker action。`,
-      owner_decision: "确认是否要创建 relation 字段或 tracker；不要批量写 row。",
+      reason: `${input.workbench.summary.schema_actions} 个结构行动，${input.workbench.summary.tracker_actions} 个跟踪表行动。`,
+      owner_decision: "确认是否要创建关系字段或跟踪表；不要批量写行。",
       requires_owner_confirmation:
         input.workbench.summary.schema_actions +
           input.workbench.summary.tracker_actions >
@@ -551,7 +551,7 @@ function buildChecklist(
       route_label: "查看边界",
       reason: "AI、云同步、批量写入和外部数据连接仍保持关闭。",
       owner_decision:
-        "只有 payload preview、权限、审计、回滚和 typed confirmation 齐备后，才讨论外发或自动化。",
+        "只有载荷预览、权限、审计、回滚和输入确认齐备后，才讨论外发或自动化。",
       requires_owner_confirmation: true,
       writes_workspace_data: false,
       uploads_data: false,
@@ -595,8 +595,8 @@ function buildRequiredOwnerDecisions(
     "确认研究主题、时间范围和本次输出形式。",
     ...manualChecklist.map((item) => item.owner_decision),
     input.topic.trim()
-      ? "确认导出的 project brief 可以包含你手动输入的主题。"
-      : "如果要导出 project brief，先确认是否需要补充项目主题。",
+      ? "确认导出的项目简报可以包含你手动输入的主题。"
+      : "如果要导出项目简报，先确认是否需要补充项目主题。",
   ];
 }
 
@@ -679,7 +679,7 @@ function getModeFirstReason(mode: ResearchProjectMode, label: string) {
     case "variant-view":
       return "反向观点先从报告和证据缺口开始，避免直接改写结论。";
     case "meeting-follow-up":
-      return "会议跟进先处理纪要、转录、行动项和公司/报告 relation。";
+      return "会议跟进先处理纪要、转录、行动项和公司/报告关系。";
     case "portfolio-review":
       return "组合复盘先看观察名单、仓位 memo、风险和催化剂连接。";
     case "initiation":
@@ -690,10 +690,10 @@ function getModeFirstReason(mode: ResearchProjectMode, label: string) {
 
 function getChecklistStatusLabel(status: ResearchProjectChecklistStatus) {
   const labels: Record<ResearchProjectChecklistStatus, string> = {
-    ready: "Ready",
-    "needs-review": "Needs review",
-    missing: "Missing",
-    "blocked-boundary": "Blocked boundary",
+    ready: "已就绪",
+    "needs-review": "需复核",
+    missing: "缺失",
+    "blocked-boundary": "边界阻塞",
   };
   return labels[status];
 }

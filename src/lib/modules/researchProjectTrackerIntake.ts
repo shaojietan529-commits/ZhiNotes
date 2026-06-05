@@ -179,7 +179,7 @@ export function buildResearchProjectTrackerIntakeDraft(
     format_version: 1,
     draft_status: "local-project-tracker-row-draft",
     privacy_note:
-      "Generated locally from one research project brief and the selected project tracker field schema. It creates a row draft with relation ids and structural status only. It does not read or export page text, database row values, file names, file bytes, holdings, trading plans, cloud data, AI prompts, tokens, or credentials.",
+      "这份项目跟踪表行草稿只在本地由一个投研项目简报和所选项目跟踪表字段结构生成。它只创建包含关系 id 和结构化状态的行草稿，不读取或导出页面正文、数据库行值、文件名、文件字节、持仓、交易计划、云端数据、AI 提示词、token 或凭证。",
     boundary: {
       local_row_draft_only: true,
       reads_project_brief_metadata: true,
@@ -240,9 +240,9 @@ export function findExistingResearchProjectTrackerRow(
 }
 
 function getProjectStatus(brief: ResearchProjectBrief) {
-  if (brief.topic_status === "empty-draft") return "Scoping";
-  if (brief.summary.checklist_missing > 0) return "Researching";
-  return "Review";
+  if (brief.topic_status === "empty-draft") return "范围界定";
+  if (brief.summary.checklist_missing > 0) return "研究中";
+  return "复核";
 }
 
 function getNextAction(brief: ResearchProjectBrief) {
@@ -257,19 +257,19 @@ function buildProjectTrackerRowContent(item: ResearchProjectTrackerIntakeItem) {
 
   return `
     <h1>${escapeHtml(`项目跟踪 - ${item.project_page_title}`)}</h1>
-    <p>由投研项目模块本地入库创建。这个 row 用来把项目页接入项目跟踪表。</p>
+    <p>由投研项目模块本地入库创建。这个行用来把项目页接入项目跟踪表。</p>
     <h2>已连接</h2>
     <ul>
-      <li>Project page relation: ${escapeHtml(item.project_page_title)}</li>
+      <li>项目页关系：${escapeHtml(item.project_page_title)}</li>
       <li>项目类型：${escapeHtml(item.brief.project_mode_label)}</li>
       <li>时间范围：${escapeHtml(item.brief.horizon)}</li>
     </ul>
     <h2>下一步</h2>
     <ul>
       <li>${escapeHtml(getNextAction(item.brief))}</li>
-      ${missingChecklist || "<li>基础 checklist 已覆盖，继续补 relation 值和决策 memo。</li>"}
+      ${missingChecklist || "<li>基础清单已覆盖，继续补关系值和决策备忘录。</li>"}
     </ul>
-    <p><strong>隐私边界：</strong>本地单条写入，只写项目页 relation 和结构化状态，不读取页面正文、数据库 row values、文件名、文件 bytes、持仓或交易计划。</p>
+    <p><strong>隐私边界：</strong>本地单条写入，只写项目页关系和结构化状态，不读取页面正文、数据库行值、文件名、文件字节、持仓或交易计划。</p>
   `.trim();
 }
 
