@@ -67,9 +67,11 @@ import {
   DATABASE_FIELD_TYPES,
   DATABASE_NUMBER_FORMATS,
   formatFieldOptions,
+  getDatabaseFormulaExpression,
   getDatabaseNumberFormat,
   isSelectLikeFieldType,
 } from "@/lib/database/fields";
+import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import {
   getDatabaseSystemFieldValue,
   isDatabaseSystemField,
@@ -1522,6 +1524,9 @@ function FieldSettingsButton({
   const [numberFormat, setNumberFormat] = useState<string>(
     getDatabaseNumberFormat(field)
   );
+  const [formulaExpression, setFormulaExpression] = useState(
+    getDatabaseFormulaExpression(field)
+  );
   const isTitleField = field.position === 0;
 
   useEffect(() => {
@@ -1529,6 +1534,7 @@ function FieldSettingsButton({
     setType(field.field_type);
     setOptions(formatFieldOptions(field));
     setNumberFormat(getDatabaseNumberFormat(field));
+    setFormulaExpression(getDatabaseFormulaExpression(field));
   }, [field]);
 
   const handleSave = () => {
@@ -1537,7 +1543,12 @@ function FieldSettingsButton({
     onUpdate(field.id, {
       name: nextName,
       field_type: nextType,
-      config: buildFieldConfig(nextType, options, numberFormat),
+      config: buildFieldConfig(
+        nextType,
+        options,
+        numberFormat,
+        formulaExpression
+      ),
     });
     setOpen(false);
   };
@@ -1618,7 +1629,7 @@ function FieldSettingsButton({
               />
             </label>
           )}
-          {type === "number" && (
+          {(type === "number" || type === "formula") && (
             <label className="mt-3 block">
               <span className="mb-1 block text-[11px] font-medium text-zinc-500">
                 数字格式
@@ -1635,7 +1646,26 @@ function FieldSettingsButton({
                 ))}
               </select>
               <span className="mt-1 block text-[11px] text-zinc-400">
-                只改变显示方式，原始值仍按数字保存。
+                {type === "formula"
+                  ? "只改变公式结果显示方式，不写入行值。"
+                  : "只改变显示方式，原始值仍按数字保存。"}
+              </span>
+            </label>
+          )}
+          {type === "formula" && (
+            <label className="mt-3 block">
+              <span className="mb-1 block text-[11px] font-medium text-zinc-500">
+                公式表达式
+              </span>
+              <input
+                type="text"
+                value={formulaExpression}
+                onChange={(event) => setFormulaExpression(event.target.value)}
+                placeholder="({目标价} - {当前价}) / {当前价}"
+                className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 font-mono text-xs text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              />
+              <span className="mt-1 block text-[11px] leading-5 text-zinc-400">
+                用 {"{字段名}"} 引用同一行字段；支持 + - * / 和括号；结果本地计算。
               </span>
             </label>
           )}
@@ -1671,15 +1701,19 @@ function AddFieldButton({
   const [type, setType] = useState("text");
   const [options, setOptions] = useState("未开始, 进行中, 已完成");
   const [numberFormat, setNumberFormat] = useState("plain");
+  const [formulaExpression, setFormulaExpression] = useState("");
 
   const handleSubmit = () => {
     if (!name.trim()) return;
-    const config = buildFieldConfig(type, options, numberFormat) ?? undefined;
+    const config =
+      buildFieldConfig(type, options, numberFormat, formulaExpression) ??
+      undefined;
     onAdd(name.trim(), type, config);
     setName("");
     setType("text");
     setOptions("未开始, 进行中, 已完成");
     setNumberFormat("plain");
+    setFormulaExpression("");
     setOpen(false);
   };
 
@@ -1726,7 +1760,7 @@ function AddFieldButton({
           className="text-xs px-2 py-0.5 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-48 outline-none"
         />
       )}
-      {type === "number" && (
+      {(type === "number" || type === "formula") && (
         <select
           value={numberFormat}
           onChange={(e) => setNumberFormat(e.target.value)}
@@ -1739,6 +1773,17 @@ function AddFieldButton({
             </option>
           ))}
         </select>
+      )}
+      {type === "formula" && (
+        <input
+          type="text"
+          value={formulaExpression}
+          onChange={(e) => setFormulaExpression(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          placeholder="{目标价} / {EPS}"
+          className="text-xs px-2 py-0.5 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-56 font-mono outline-none"
+          title="公式表达式"
+        />
       )}
       <button onClick={handleSubmit} className="text-xs text-blue-500 hover:text-blue-600">
         添加
@@ -1963,7 +2008,7 @@ function getVisibleRows({
     const field = fields.find((item) => item.id === filterFieldId);
     if (!field) return true;
 
-    return getRowFieldText(row, field, relationPages)
+    return getRowFieldText(row, field, fields, relationPages)
       .toLowerCase()
       .includes(normalizedFilter);
   });
@@ -1994,11 +2039,14 @@ function compareRows(
     if (!field) return 0;
     if (field.field_type === "relation") {
       return compareValues(
-        getRowFieldText(left, field, relationPages),
-        getRowFieldText(right, field, relationPages)
+        getRowFieldText(left, field, fields, relationPages),
+        getRowFieldText(right, field, fields, relationPages)
       );
     }
-    return compareValues(getRowFieldValue(left, field), getRowFieldValue(right, field));
+    return compareValues(
+      getRowFieldValue(left, field, fields),
+      getRowFieldValue(right, field, fields)
+    );
   }
 
   return 0;
@@ -2029,33 +2077,45 @@ function getRowSearchText(
     row.page?.title ?? "",
     row.created_at,
     row.updated_at,
-    ...fields.map((field) => getRowFieldText(row, field, relationPages)),
+    ...fields.map((field) => getRowFieldText(row, field, fields, relationPages)),
   ].join(" ");
 }
 
 function getRowFieldText(
   row: RowWithPage,
   field: DatabaseField,
+  fields: DatabaseField[],
   relationPages: Page[]
 ) {
   if (field.position === 0 || field.name === "Name") {
     return row.page?.title ?? "";
   }
-  const value = getRowFieldValue(row, field);
+  const value = getRowFieldValue(row, field, fields);
   if (field.field_type === "relation") {
     return stringifyRelationValue(value, relationPages);
   }
   if (field.field_type === "number") {
     return formatDatabaseNumberValue(value, field);
   }
+  if (field.field_type === "formula") {
+    const values = parseFieldValues(row.field_values);
+    return evaluateDatabaseFormula(field, fields, row, values).label;
+  }
   return stringifyValue(value);
 }
 
-function getRowFieldValue(row: RowWithPage, field: DatabaseField) {
+function getRowFieldValue(
+  row: RowWithPage,
+  field: DatabaseField,
+  fields: DatabaseField[]
+) {
   if (isDatabaseSystemField(field)) {
     return getDatabaseSystemFieldValue(row, field);
   }
   const values = parseFieldValues(row.field_values);
+  if (field.field_type === "formula") {
+    return evaluateDatabaseFormula(field, fields, row, values).value;
+  }
   return values[field.id];
 }
 
@@ -2120,6 +2180,7 @@ function isChartableField(field: DatabaseField) {
     "last_edited_time",
     "checkbox",
     "number",
+    "formula",
   ].includes(field.field_type);
 }
 

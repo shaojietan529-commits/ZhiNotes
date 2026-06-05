@@ -7,6 +7,7 @@ import { formatRelativeDate } from "@/lib/utils/dates";
 import RelationFieldEditor from "@/components/database/RelationFieldEditor";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import { getFieldOptions } from "@/lib/database/fields";
+import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import {
   normalizeMultiSelectValue,
   toggleMultiSelectValue,
@@ -152,6 +153,7 @@ function TableRow({
           ) : (
             <CellEditor
               field={field}
+              fields={fields}
               row={row}
               value={fieldValues[field.id]}
               relationPages={relationPages}
@@ -180,6 +182,7 @@ function TableRow({
 
 function CellEditor({
   field,
+  fields,
   row,
   value,
   onChange,
@@ -188,6 +191,7 @@ function CellEditor({
   focusPage,
 }: {
   field: DatabaseField;
+  fields: DatabaseField[];
   row: DatabaseRow & { page: Page };
   value: unknown;
   onChange: (value: unknown) => void;
@@ -196,6 +200,23 @@ function CellEditor({
   focusPage?: Page | null;
 }) {
   const [editing, setEditing] = useState(false);
+
+  if (field.field_type === "formula") {
+    const fieldValues = parseFieldValues(row.field_values);
+    const result = evaluateDatabaseFormula(field, fields, row, fieldValues);
+    return (
+      <span
+        className={`text-sm ${
+          result.status === "ready"
+            ? "font-medium text-zinc-700 dark:text-zinc-300"
+            : "text-amber-600 dark:text-amber-300"
+        }`}
+        title={result.detail}
+      >
+        {result.label}
+      </span>
+    );
+  }
 
   if (isDatabaseSystemField(field)) {
     const systemValue = getDatabaseSystemFieldValue(row, field);
@@ -406,4 +427,12 @@ function CellEditor({
       {(value as string) || <span className="text-zinc-400">—</span>}
     </button>
   );
+}
+
+function parseFieldValues(fieldValues: string) {
+  try {
+    return JSON.parse(fieldValues || "{}") as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }

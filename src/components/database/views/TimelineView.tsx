@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
+import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
@@ -128,6 +129,9 @@ export default function TimelineView({
                           : fieldValues[field.id];
                         const labelText = formatTimelineFieldValue(
                           field,
+                          fields,
+                          row,
+                          fieldValues,
                           value,
                           relationPages
                         );
@@ -185,6 +189,11 @@ function getTimelineDisplayFields(
     .filter((field) => {
       if (field.id === dateField.id) return false;
       if (field.position === 0 && field.name === "Name") return false;
+      if (field.field_type === "formula") {
+        return Boolean(
+          evaluateDatabaseFormula(field, fields, row, fieldValues).label
+        );
+      }
       const value = isDatabaseSystemField(field)
         ? getDatabaseSystemFieldValue(row, field)
         : fieldValues[field.id];
@@ -195,9 +204,16 @@ function getTimelineDisplayFields(
 
 function formatTimelineFieldValue(
   field: DatabaseField,
+  fields: DatabaseField[],
+  row: DatabaseRow & { page: Page },
+  fieldValues: Record<string, unknown>,
   value: unknown,
   relationPages: Page[]
 ) {
+  if (field.field_type === "formula") {
+    return evaluateDatabaseFormula(field, fields, row, fieldValues).label;
+  }
+
   if (field.field_type === "relation") {
     return stringifyRelationValue(value, relationPages);
   }

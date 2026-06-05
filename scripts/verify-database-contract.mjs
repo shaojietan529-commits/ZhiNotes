@@ -23,6 +23,7 @@ const files = {
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
   databaseFields: "src/lib/database/fields.ts",
+  databaseFormula: "src/lib/database/formula.ts",
   databaseMultiSelect: "src/lib/database/multiSelectValues.ts",
   databaseNumberValues: "src/lib/database/numberValues.ts",
   databaseSystemFields: "src/lib/database/systemFields.ts",
@@ -107,6 +108,7 @@ function run() {
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
   const databaseFields = readProjectFile(files.databaseFields);
+  const databaseFormula = readProjectFile(files.databaseFormula);
   const databaseMultiSelect = readProjectFile(files.databaseMultiSelect);
   const databaseNumberValues = readProjectFile(files.databaseNumberValues);
   const databaseSystemFields = readProjectFile(files.databaseSystemFields);
@@ -135,14 +137,17 @@ function run() {
   for (const snippet of [
     '{ value: "email", label: "邮箱" }',
     '{ value: "phone", label: "电话" }',
+    '{ value: "formula", label: "公式" }',
     '{ value: "multi_select", label: "多选" }',
     "DATABASE_CREATED_TIME_FIELD",
     "DATABASE_LAST_EDITED_TIME_FIELD",
     "DATABASE_UNIQUE_ID_FIELD",
     "DATABASE_NUMBER_FORMATS",
     "getDatabaseNumberFormat",
+    "getDatabaseFormulaExpression",
     'fieldType === "multi_select"',
     'fieldType === "number"',
+    'fieldType === "formula"',
   ]) {
     assertIncludes(
       files.databaseFields,
@@ -154,6 +159,7 @@ function run() {
   for (const snippet of [
     'email: "邮箱"',
     'phone: "电话"',
+    'formula: "公式"',
     'multi_select: "多选"',
     'created_time: "创建时间"',
     'last_edited_time: "最后编辑时间"',
@@ -212,10 +218,29 @@ function run() {
     );
   }
   for (const snippet of [
+    "evaluateDatabaseFormula",
+    "getDatabaseFormulaExpression",
+    "evaluateArithmeticExpression",
+    "tokenizeArithmeticExpression",
+    "evaluateReversePolish",
+    "仅支持数字、括号和 + - * / 基础四则运算。",
+    "用 {字段名} 引用同一行数字字段。",
+    "formatDatabaseNumberValue(value, field)",
+  ]) {
+    assertIncludes(
+      files.databaseFormula,
+      databaseFormula,
+      snippet,
+      "Formula fields must use a local safe arithmetic evaluator and shared number formatting."
+    );
+  }
+  for (const snippet of [
     'field.field_type === "email"',
     'field.field_type === "phone"',
     'field.field_type === "multi_select"',
     'field.field_type === "number"',
+    'field.field_type === "formula"',
+    "evaluateDatabaseFormula(field, fields, row, fieldValues)",
     'type={inputType}',
     'mailto:${linkValue}',
     'tel:${linkValue}',
@@ -236,11 +261,13 @@ function run() {
     'field.field_type === "email"',
     'field.field_type === "phone"',
     'field.field_type === "multi_select"',
+    'field.field_type === "formula"',
     '? "email"',
     '? "tel"',
     "toggleMultiSelectValue",
     "isDatabaseSystemField",
     "创建行后自动生成",
+    "创建行后按公式自动计算",
   ]) {
     assertIncludes(
       files.formView,
@@ -279,12 +306,43 @@ function run() {
       "Formatted number fields must display consistently across database search and summary views."
     );
   }
+  for (const [sourceLabel, source] of [
+    [files.databaseShell, databaseShell],
+    [files.tableView, tableView],
+    [files.listView, listView],
+    [files.galleryView, galleryView],
+    [files.timelineView, timelineView],
+    [files.feedView, feedView],
+    [files.chartView, chartView],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "evaluateDatabaseFormula",
+      "Database views and search helpers must display local formula results."
+    );
+  }
+  for (const snippet of [
+    'field.field_type === "formula"',
+    '"formula"',
+    "evaluateDatabaseFormula(field, fields, row, values).value",
+  ]) {
+    assertIncludes(
+      files.chartView,
+      chartView,
+      snippet,
+      "Chart view must treat formula fields as chartable computed numbers."
+    );
+  }
   for (const snippet of [
     "DATABASE_NUMBER_FORMATS",
     "数字格式",
     "只改变显示方式，原始值仍按数字保存。",
-    "buildFieldConfig(nextType, options, numberFormat)",
-    "buildFieldConfig(type, options, numberFormat)",
+    "公式表达式",
+    "只改变公式结果显示方式，不写入行值。",
+    '"{字段名}"',
+    "buildFieldConfig(",
+    "formulaExpression",
   ]) {
     assertIncludes(
       files.databaseShell,
@@ -297,6 +355,7 @@ function run() {
     '| "email"',
     '| "phone"',
     '| "multi_select"',
+    '| "formula"',
     '| "created_time"',
     '| "last_edited_time"',
     '| "unique_id"',
@@ -306,6 +365,8 @@ function run() {
     'fieldType === "email"',
     'fieldType === "phone"',
     'fieldType === "multi_select"',
+    'fieldType === "formula"',
+    "isDatabaseImportReadOnlyFieldType",
     "isDatabaseSystemFieldType",
   ]) {
     assertIncludes(
@@ -320,6 +381,12 @@ function run() {
     databaseExport,
     "stringifyMultiSelectValue",
     "CSV/XLSX export must render multi-select arrays as readable text."
+  );
+  assertIncludes(
+    files.databaseExport,
+    databaseExport,
+    "evaluateDatabaseFormula",
+    "CSV/XLSX export must include local formula results."
   );
   assertIncludes(
     files.databaseExport,

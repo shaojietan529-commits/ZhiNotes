@@ -28,6 +28,17 @@ schema migration 的能力默认保持关闭。
 
 ## 本轮完成
 
+### 数据库 Formula 字段阶段
+
+- 新增本地只读 Formula 字段；字段可以用 `{字段名}` 引用同一行的其他字段，支持
+  `+ - * /` 和括号，适合先覆盖目标价 upside、估值倍数、简单评分等投研表格场景。
+- Formula 结果使用现有数字格式体系：普通数字、百分比、美元、人民币、倍数；这只改变展示，
+  不会把计算结果写回 row values。
+- Table、List、Gallery、Timeline、Feed、Chart、搜索、排序和 CSV/XLSX 导出都会使用本地计算
+  后的 Formula 结果；Form 和 spreadsheet import 会跳过 Formula 写入，避免用户误以为它是手填字段。
+- 公式计算器是本地安全表达式解析器，只允许数字、字段引用、括号和基础四则运算，不执行任意代码，
+  不读取页面正文、文件内容、云端数据或 AI 内容。
+
 ### 文件与 Markdown 原生展示阶段
 
 - 扩展本地文件格式识别：Markdown 族现在包括 `.rmd`、`.qmd`；研究文本/引用文件包括
@@ -61,6 +72,16 @@ schema migration 的能力默认保持关闭。
 ## 本轮本地验证
 
 以下命令已通过：
+
+```bash
+npm run verify:database
+npm run lint
+npm run build
+```
+
+Formula 字段阶段还做过 `/modules/databases` 浏览器只读检查，数据库模块可以正常渲染。
+
+文件与 Markdown 原生展示阶段已通过：
 
 ```bash
 npm run verify:file-preview

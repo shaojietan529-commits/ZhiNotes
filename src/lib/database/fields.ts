@@ -30,6 +30,7 @@ export const DATABASE_FIELD_TYPES = [
   { value: "url", label: "链接" },
   { value: "email", label: "邮箱" },
   { value: "phone", label: "电话" },
+  { value: "formula", label: "公式" },
   { value: DATABASE_CREATED_TIME_FIELD, label: "创建时间" },
   { value: DATABASE_LAST_EDITED_TIME_FIELD, label: "最后编辑时间" },
   { value: DATABASE_UNIQUE_ID_FIELD, label: "唯一 ID" },
@@ -83,15 +84,38 @@ export function getDatabaseNumberFormat(
   }
 }
 
+export function getDatabaseFormulaExpression(
+  field: Pick<DatabaseField, "config">
+) {
+  try {
+    const config = field.config ? JSON.parse(field.config) : {};
+    return typeof config.formula === "string" ? config.formula : "";
+  } catch {
+    return "";
+  }
+}
+
 export function buildFieldConfig(
   fieldType: string,
   optionsText: string,
-  numberFormat: string = DEFAULT_DATABASE_NUMBER_FORMAT
+  numberFormat: string = DEFAULT_DATABASE_NUMBER_FORMAT,
+  formulaExpression: string = ""
 ) {
   if (isSelectLikeFieldType(fieldType)) {
     return JSON.stringify({ options: parseSelectOptions(optionsText) });
   }
-  if (fieldType === "number" && numberFormat !== DEFAULT_DATABASE_NUMBER_FORMAT) {
+  if (fieldType === "formula") {
+    return JSON.stringify({
+      formula: formulaExpression.trim(),
+      numberFormat: isDatabaseNumberFormat(numberFormat)
+        ? numberFormat
+        : DEFAULT_DATABASE_NUMBER_FORMAT,
+    });
+  }
+  if (
+    fieldType === "number" &&
+    numberFormat !== DEFAULT_DATABASE_NUMBER_FORMAT
+  ) {
     return JSON.stringify({
       numberFormat: isDatabaseNumberFormat(numberFormat)
         ? numberFormat

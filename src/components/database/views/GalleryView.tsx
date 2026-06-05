@@ -2,6 +2,7 @@
 
 import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
+import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
@@ -38,6 +39,11 @@ export default function GalleryView({
           {rows.map((row) => {
             const fieldValues = parseFieldValues(row.field_values);
             const extraFields = fields.slice(1, 5).filter((field) => {
+              if (field.field_type === "formula") {
+                return Boolean(
+                  evaluateDatabaseFormula(field, fields, row, fieldValues).label
+                );
+              }
               const value = isDatabaseSystemField(field)
                 ? getDatabaseSystemFieldValue(row, field)
                 : fieldValues[field.id];
@@ -76,6 +82,28 @@ export default function GalleryView({
                     {extraFields.length > 0 && (
                       <dl className="mt-3 space-y-1">
                         {extraFields.map((field) => {
+                          if (field.field_type === "formula") {
+                            const result = evaluateDatabaseFormula(
+                              field,
+                              fields,
+                              row,
+                              fieldValues
+                            );
+                            if (!result.label) return null;
+                            return (
+                              <div key={field.id} className="flex gap-2 text-xs">
+                                <dt className="w-20 shrink-0 truncate text-zinc-400">
+                                  {field.name}
+                                </dt>
+                                <dd
+                                  className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300"
+                                  title={result.detail}
+                                >
+                                  {result.label}
+                                </dd>
+                              </div>
+                            );
+                          }
                           const value = isDatabaseSystemField(field)
                             ? getDatabaseSystemFieldValue(row, field)
                             : fieldValues[field.id];

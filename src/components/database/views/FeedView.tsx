@@ -4,6 +4,7 @@ import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import { getFieldOptions } from "@/lib/database/fields";
+import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { getRelationPages } from "@/lib/database/relationValues";
@@ -103,7 +104,9 @@ function FeedCard({
 
   const handleFieldChange = (fieldId: string, value: unknown) => {
     const field = fields.find((item) => item.id === fieldId);
-    if (field && isDatabaseSystemField(field)) return;
+    if (field && (isDatabaseSystemField(field) || field.field_type === "formula")) {
+      return;
+    }
     onUpdateRow(row.id, { ...fieldValues, [fieldId]: value });
   };
 
@@ -139,6 +142,9 @@ function FeedCard({
             <FeedFieldChip
               key={field.id}
               field={field}
+              fields={fields}
+              row={row}
+              fieldValues={fieldValues}
               value={
                 isDatabaseSystemField(field)
                   ? getDatabaseSystemFieldValue(row, field)
@@ -163,18 +169,37 @@ function FeedCard({
 
 function FeedFieldChip({
   field,
+  fields,
+  row,
+  fieldValues,
   value,
   relationPages,
   onOpenPage,
   onChange,
 }: {
   field: DatabaseField;
+  fields: DatabaseField[];
+  row: DatabaseRow & { page: Page };
+  fieldValues: Record<string, unknown>;
   value: unknown;
   relationPages: Page[];
   onOpenPage: (pageId: string) => void;
   onChange: (value: unknown) => void;
 }) {
   const label = getDatabaseFieldDisplayName(field);
+
+  if (field.field_type === "formula") {
+    const result = evaluateDatabaseFormula(field, fields, row, fieldValues);
+    if (!result.label) return null;
+    return (
+      <span
+        className="max-w-full truncate rounded-md bg-sky-50 px-2 py-1 text-xs text-sky-700 dark:bg-sky-950 dark:text-sky-200"
+        title={result.detail}
+      >
+        {label}: {result.label}
+      </span>
+    );
+  }
 
   if (field.field_type === "relation") {
     const related = getRelationPages(value, relationPages).slice(0, 4);
@@ -264,18 +289,22 @@ function getFeedFields(
 ) {
   return fields
     .slice(1)
-    .filter((field) => hasDisplayValue(field, row, fieldValues))
+    .filter((field) => hasDisplayValue(field, fields, row, fieldValues))
     .sort(compareFeedFields)
     .slice(0, 6);
 }
 
 function hasDisplayValue(
   field: DatabaseField,
+  fields: DatabaseField[],
   row: DatabaseRow & { page: Page },
   fieldValues: Record<string, unknown>
 ) {
   if (isDatabaseSystemField(field)) {
     return Boolean(getDatabaseSystemFieldValue(row, field));
+  }
+  if (field.field_type === "formula") {
+    return Boolean(evaluateDatabaseFormula(field, fields, row, fieldValues).label);
   }
   if (!(field.id in fieldValues)) return false;
   const value = fieldValues[field.id];
@@ -296,10 +325,11 @@ function compareFeedFields(left: DatabaseField, right: DatabaseField) {
     relation: 7,
     checkbox: 8,
     number: 9,
-    url: 10,
-    email: 11,
-    phone: 12,
-    text: 13,
+    formula: 10,
+    url: 11,
+    email: 12,
+    phone: 13,
+    text: 14,
   };
   return (
     (priority[left.field_type] ?? 10) - (priority[right.field_type] ?? 10) ||

@@ -185,6 +185,17 @@ function FormField({
     );
   }
 
+  if (field.field_type === "formula") {
+    return (
+      <div className="block">
+        {label}
+        <div className="rounded border border-dashed border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900">
+          创建行后按公式自动计算
+        </div>
+      </div>
+    );
+  }
+
   const inputType =
     field.field_type === "number"
       ? "number"

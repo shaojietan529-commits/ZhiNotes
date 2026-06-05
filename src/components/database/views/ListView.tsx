@@ -3,6 +3,7 @@
 import type { DatabaseField, DatabaseRow } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
+import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
@@ -61,6 +62,24 @@ export default function ListView({
                     {row.page?.title || "未命名页面"}
                   </span>
                   {extraFields.map((field) => {
+                    if (field.field_type === "formula") {
+                      const result = evaluateDatabaseFormula(
+                        field,
+                        fields,
+                        row,
+                        fieldValues
+                      );
+                      if (!result.label) return null;
+                      return (
+                        <span
+                          key={field.id}
+                          title={result.detail}
+                          className="text-xs text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded px-1.5 py-0.5"
+                        >
+                          {result.label}
+                        </span>
+                      );
+                    }
                     const val = isDatabaseSystemField(field)
                       ? getDatabaseSystemFieldValue(row, field)
                       : fieldValues[field.id];

@@ -311,15 +311,17 @@ Current local actions:
   view readiness, and import/export boundaries.
 - Review coverage for table, list, kanban, calendar, gallery, timeline, chart,
   form, and feed views.
-- Use local database fields for text, number, relation, select, multi-select,
-  status, date, checkbox, URL, email, phone, unique ID, created time, and last
-  edited time values. Table and form views use native email/phone inputs,
-  multi-select chips, and read-only system properties; feed chips make them
-  actionable, number fields can display as plain values, percentages, USD, CNY,
-  or multiples without changing stored values, charts can group multi-select
-  options or system time months, and CSV/XLSX append import can infer
-  email/phone columns, preserve matched multi-select fields locally, or skip
-  writes to read-only system fields.
+- Use local database fields for text, number, formula, relation, select,
+  multi-select, status, date, checkbox, URL, email, phone, unique ID, created
+  time, and last edited time values. Table and form views use native
+  email/phone inputs, multi-select chips, and read-only system properties.
+  Formula fields are local read-only computed fields that reference same-row
+  fields with `{Field Name}` and basic + - * / arithmetic; feed chips make them
+  visible, number/formula fields can display as plain values, percentages, USD,
+  CNY, or multiples without changing stored values, charts can group
+  multi-select options, formula buckets, or system time months, and CSV/XLSX
+  append import can infer email/phone columns, preserve matched multi-select
+  fields locally, or skip writes to read-only system/formula fields.
 - Review and export local template-row readiness. The report checks whether
   each database has the recommended field groups for company, report, meeting,
   and portfolio template rows before the user creates rows in a database page.

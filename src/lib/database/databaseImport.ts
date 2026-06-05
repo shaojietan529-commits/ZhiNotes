@@ -17,6 +17,7 @@ export type DatabaseImportFieldType =
   | "email"
   | "phone"
   | "multi_select"
+  | "formula"
   | "created_time"
   | "last_edited_time"
   | "unique_id";
@@ -222,7 +223,7 @@ export async function applyDatabaseImportPreview(
   for (const column of preview.columns) {
     if (column.target_status === "title-field") continue;
 
-    if (isDatabaseSystemFieldType(column.target_field_type)) {
+    if (isDatabaseImportReadOnlyFieldType(column.target_field_type)) {
       if (column.target_field_id) fieldsMatched += 1;
       continue;
     }
@@ -248,7 +249,7 @@ export async function applyDatabaseImportPreview(
     const fieldValues: Record<string, unknown> = {};
     for (const column of preview.columns) {
       if (column.target_status === "title-field") continue;
-      if (isDatabaseSystemFieldType(column.target_field_type)) continue;
+      if (isDatabaseImportReadOnlyFieldType(column.target_field_type)) continue;
       const fieldId = fieldIdBySourceColumnIndex.get(column.source_column_index);
       const value = row.field_values[String(column.source_column_index)];
       if (fieldId && value !== "" && value !== null && value !== undefined) {
@@ -346,7 +347,7 @@ function buildRowDraft(
   const fieldValues: DatabaseImportRowDraft["field_values"] = {};
 
   for (const column of columns.slice(1)) {
-    if (isDatabaseSystemFieldType(column.target_field_type)) continue;
+    if (isDatabaseImportReadOnlyFieldType(column.target_field_type)) continue;
     const rawValue = stringifyCell(row[column.source_column_index]);
     const value = coerceFieldValue(rawValue, column.target_field_type);
     if (value !== "" && value !== null) {
@@ -408,7 +409,8 @@ function coerceFieldType(fieldType: string): DatabaseImportFieldType {
     fieldType === "url" ||
     fieldType === "email" ||
     fieldType === "phone" ||
-    fieldType === "multi_select"
+    fieldType === "multi_select" ||
+    fieldType === "formula"
   ) {
     return fieldType;
   }
@@ -429,6 +431,10 @@ function coerceFieldValue(
   if (fieldType === "number") return Number(trimmed.replace(/,/g, ""));
   if (fieldType === "multi_select") return parseMultiSelectValue(trimmed);
   return trimmed;
+}
+
+function isDatabaseImportReadOnlyFieldType(fieldType: string) {
+  return fieldType === "formula" || isDatabaseSystemFieldType(fieldType);
 }
 
 function isBooleanValue(value: string) {

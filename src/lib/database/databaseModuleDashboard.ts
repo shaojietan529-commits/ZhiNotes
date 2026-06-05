@@ -165,7 +165,7 @@ function toDatabaseItem(snapshot: DatabaseModuleSnapshot): DatabaseModuleItem {
     (field) => field.field_type === "date"
   ).length;
   const numberFields = snapshot.fields.filter(
-    (field) => field.field_type === "number"
+    (field) => field.field_type === "number" || field.field_type === "formula"
   ).length;
 
   return {

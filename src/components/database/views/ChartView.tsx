@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
+import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import { normalizeMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
@@ -43,10 +44,11 @@ export default function ChartView({
   const buckets = useMemo(() => {
     return buildBuckets({
       rows,
+      fields,
       field: groupField,
       relationPages,
     });
-  }, [rows, groupField, relationPages]);
+  }, [fields, rows, groupField, relationPages]);
 
   const maxCount = Math.max(...buckets.map((bucket) => bucket.rows.length), 1);
 
@@ -150,16 +152,19 @@ function pickChartGroupField(
     fields.find(isDatabaseSystemTimeField) ||
     fields.find((field) => field.field_type === "checkbox") ||
     fields.find((field) => field.field_type === "number") ||
+    fields.find((field) => field.field_type === "formula") ||
     null
   );
 }
 
 function buildBuckets({
   rows,
+  fields,
   field,
   relationPages,
 }: {
   rows: (DatabaseRow & { page: Page })[];
+  fields: DatabaseField[];
   field: DatabaseField | null;
   relationPages: Page[];
 }) {
@@ -169,9 +174,12 @@ function buildBuckets({
 
   for (const row of rows) {
     const values = parseFieldValues(row.field_values);
-    const value = isDatabaseSystemTimeField(field)
-      ? getDatabaseSystemFieldValue(row, field)
-      : values[field.id];
+    const value =
+      field.field_type === "formula"
+        ? evaluateDatabaseFormula(field, fields, row, values).value
+        : isDatabaseSystemTimeField(field)
+          ? getDatabaseSystemFieldValue(row, field)
+          : values[field.id];
     const labels = getBucketLabels(value, field, relationPages);
     for (const label of labels) {
       const group = groups.get(label) ?? [];
@@ -225,7 +233,7 @@ function getBucketLabels(
     return [text ? text.slice(0, 7) : "无日期"];
   }
 
-  if (field.field_type === "number") {
+  if (field.field_type === "number" || field.field_type === "formula") {
     const number = Number(value);
     if (!Number.isFinite(number)) return ["无数值"];
     if (number < 0) return ["小于 0"];
@@ -260,6 +268,7 @@ function isChartableField(field: DatabaseField) {
     "last_edited_time",
     "checkbox",
     "number",
+    "formula",
   ].includes(field.field_type);
 }
 

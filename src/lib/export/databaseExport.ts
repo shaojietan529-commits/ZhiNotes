@@ -2,6 +2,7 @@
 
 import type { Database, DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
+import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
@@ -63,6 +64,9 @@ function buildDatabaseExportTable(
       if (index === 0) return row.page?.title || "";
       if (isDatabaseSystemField(field)) {
         return getDatabaseSystemFieldValue(row, field);
+      }
+      if (field.field_type === "formula") {
+        return evaluateDatabaseFormula(field, fields, row, values).label;
       }
       return stringifyCell(values[field.id], field, relationPages);
     });
