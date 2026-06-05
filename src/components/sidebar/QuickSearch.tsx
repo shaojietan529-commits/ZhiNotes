@@ -494,6 +494,38 @@ export default function QuickSearch() {
         }),
     },
     {
+      id: "new-industry-comparison",
+      title: "新建行业对比",
+      description: "创建一个本地行业与同业对比页面",
+      icon: "PEER",
+      category: "Page",
+      aliases: ["industry", "peers", "comparison", "sector", "行业", "同业", "对比"],
+      run: () =>
+        void handleModuleStarter({
+          type: "page",
+          label: "新建行业对比",
+          title: "未命名行业对比",
+          templateTitle: "行业对比",
+          icon: "PEER",
+        }),
+    },
+    {
+      id: "new-research-decision-log",
+      title: "新建投研决策日志",
+      description: "创建一个本地投研决策复盘页面",
+      icon: "DEC",
+      category: "Page",
+      aliases: ["decision", "decision log", "ic", "committee", "决策", "投委会", "复盘"],
+      run: () =>
+        void handleModuleStarter({
+          type: "page",
+          label: "新建投研决策日志",
+          title: "未命名投研决策日志",
+          templateTitle: "投研决策日志",
+          icon: "DEC",
+        }),
+    },
+    {
       id: "create-company-tracker",
       title: "创建公司跟踪表",
       description: "创建本地公司研究数据库",
@@ -540,7 +572,7 @@ export default function QuickSearch() {
           type: "page",
           label: "新建持仓备忘录",
           title: "未命名持仓备忘录",
-          templateTitle: "投资备忘录",
+          templateTitle: "持仓备忘录",
           icon: "PF",
         }),
     },
@@ -585,6 +617,38 @@ export default function QuickSearch() {
           title: "未命名会议纪要",
           templateTitle: "会议纪要",
           icon: "MTG",
+        }),
+    },
+    {
+      id: "new-expert-call-note",
+      title: "新建专家电话纪要",
+      description: "创建一个本地专家访谈或渠道调研页面",
+      icon: "EXP",
+      category: "Page",
+      aliases: ["expert", "expert call", "interview", "channel check", "专家", "访谈", "渠道调研"],
+      run: () =>
+        void handleModuleStarter({
+          type: "page",
+          label: "新建专家电话纪要",
+          title: "未命名专家电话纪要",
+          templateTitle: "专家电话纪要",
+          icon: "EXP",
+        }),
+    },
+    {
+      id: "new-management-meeting-note",
+      title: "新建管理层会议纪要",
+      description: "创建一个本地管理层会议或 NDR 页面",
+      icon: "MGMT",
+      category: "Page",
+      aliases: ["management", "management meeting", "ndr", "investor meeting", "管理层", "路演"],
+      run: () =>
+        void handleModuleStarter({
+          type: "page",
+          label: "新建管理层会议纪要",
+          title: "未命名管理层会议纪要",
+          templateTitle: "管理层会议纪要",
+          icon: "MGMT",
         }),
     },
     {
@@ -639,6 +703,22 @@ export default function QuickSearch() {
           title: "未命名研究报告",
           templateTitle: "研究报告",
           icon: "RPT",
+        }),
+    },
+    {
+      id: "new-report-intake-checklist",
+      title: "新建报告摄取清单",
+      description: "创建一个本地报告格式、预览和关联复核页面",
+      icon: "FILE",
+      category: "Page",
+      aliases: ["report intake", "file intake", "html report", "markdown", "pdf", "excel", "word", "报告摄取", "格式复核"],
+      run: () =>
+        void handleModuleStarter({
+          type: "page",
+          label: "新建报告摄取清单",
+          title: "未命名报告摄取清单",
+          templateTitle: "报告摄取清单",
+          icon: "FILE",
         }),
     },
     {

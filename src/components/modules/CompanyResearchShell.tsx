@@ -82,6 +82,20 @@ const COMPANY_TEMPLATE_STARTERS: ModuleStarter[] = [
     templateTitle: "关键指标看板",
     icon: "KPI",
   },
+  {
+    type: "page",
+    label: "新建行业对比",
+    title: "未命名行业对比",
+    templateTitle: "行业对比",
+    icon: "PEER",
+  },
+  {
+    type: "page",
+    label: "新建决策日志",
+    title: "未命名投研决策日志",
+    templateTitle: "投研决策日志",
+    icon: "DEC",
+  },
 ];
 
 const WORKFLOW_STEPS = [
@@ -109,6 +123,16 @@ const WORKFLOW_STEPS = [
     title: "关键指标",
     detail:
       "维护 KPI、单位经济、运营指标和趋势判断，连接业绩复盘与估值假设。",
+  },
+  {
+    title: "行业对比",
+    detail:
+      "把同业增长、利润率、估值、竞争优势和反向风险放进可复盘的同一页。",
+  },
+  {
+    title: "决策日志",
+    detail:
+      "记录结论、证据链、反向证据、组合动作和下一次复盘日期。",
   },
   {
     title: "跟踪数据库",

@@ -947,6 +947,11 @@ function run() {
     'title: "持仓备忘录"',
     'title: "观察名单"',
     'title: "催化剂与风险复盘"',
+    'title: "报告摄取清单"',
+    'title: "行业对比"',
+    'title: "专家电话纪要"',
+    'title: "管理层会议纪要"',
+    'title: "投研决策日志"',
     "Valuation Assumptions",
     "Key Metrics",
     "Meeting Transcript",
@@ -954,6 +959,11 @@ function run() {
     "Position Memo",
     "Watchlist",
     "Catalyst Risk Review",
+    "Report Intake",
+    "Industry Comparison",
+    "Expert Call Notes",
+    "Management Meeting Notes",
+    "Research Decision Log",
     "单位经济",
     "关联研究",
   ]) {
@@ -969,6 +979,11 @@ function run() {
     "待复核片段",
     "开放问题",
     "后续跟踪",
+    "专家电话",
+    "专家访谈",
+    "管理层会议",
+    "可信度与偏差",
+    "指引与资本配置",
   ]) {
     assertIncludes(
       files.noteTemplates,
@@ -984,6 +999,9 @@ function run() {
     "确信度",
     "降权或退出条件",
     "进入正式研究的触发条件",
+    "证据链",
+    "反向证据",
+    "下次复盘日期",
   ]) {
     assertIncludes(
       files.noteTemplates,
@@ -1456,8 +1474,12 @@ function run() {
   for (const snippet of [
     "新建转录稿",
     "新建行动项",
+    "新建专家电话",
+    "新建管理层会议",
     "templateTitle: \"会议转录稿\"",
     "templateTitle: \"会议行动项\"",
+    "templateTitle: \"专家电话纪要\"",
+    "templateTitle: \"管理层会议纪要\"",
   ]) {
     assertIncludes(
       files.meetingsShell,
@@ -1761,8 +1783,12 @@ function run() {
   for (const snippet of [
     "新建估值假设",
     "新建关键指标",
+    "新建行业对比",
+    "新建决策日志",
     'templateTitle: "估值假设"',
     'templateTitle: "关键指标看板"',
+    'templateTitle: "行业对比"',
+    'templateTitle: "投研决策日志"',
     'Metric label="估值假设"',
     'Metric label="关键指标"',
   ]) {
@@ -1827,6 +1853,18 @@ function run() {
     'ResearchWorkflowSchemaPanel kind="report"',
     "Reports module must show its object model."
   );
+  for (const snippet of [
+    "新建报告摄取",
+    "格式摄取",
+    'templateTitle: "报告摄取清单"',
+  ]) {
+    assertIncludes(
+      files.reportsShell,
+      reportsShell,
+      snippet,
+      "Reports module must expose report intake page starters and format review workflow."
+    );
+  }
   assertIncludes(
     files.meetingsShell,
     meetingsShell,

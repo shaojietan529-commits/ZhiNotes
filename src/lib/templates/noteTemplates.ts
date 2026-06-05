@@ -628,4 +628,329 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
       </ul>
     `,
   },
+  {
+    title: "报告摄取清单",
+    description: "上传或导入报告后的格式、预览、关联和复核清单",
+    aliases: [
+      "Report Intake",
+      "report intake",
+      "file intake",
+      "html report",
+      "markdown report",
+      "pdf report",
+      "excel report",
+      "word report",
+      "native preview",
+      "报告摄取",
+      "文件摄取",
+      "格式复核",
+      "原生预览",
+    ],
+    html: `
+      <h1>报告摄取清单</h1>
+      <h2>文件信息</h2>
+      <ul>
+        <li>报告标题：</li>
+        <li>格式：HTML / Markdown / PDF / Excel / Word / 其他</li>
+        <li>来源：</li>
+        <li>报告日期：</li>
+        <li>本地文件预览：</li>
+      </ul>
+      <h2>原生预览状态</h2>
+      <table>
+        <tbody>
+          <tr><th>格式</th><th>当前状态</th><th>可编辑性</th><th>需要人工确认</th></tr>
+          <tr><td>HTML</td><td></td><td></td><td></td></tr>
+          <tr><td>Markdown</td><td></td><td></td><td></td></tr>
+          <tr><td>PDF</td><td></td><td></td><td></td></tr>
+          <tr><td>Excel</td><td></td><td></td><td></td></tr>
+          <tr><td>Word</td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <h2>核心结论</h2>
+      <ul>
+        <li></li>
+      </ul>
+      <h2>数据与图表</h2>
+      <ul>
+        <li>需要保留的图表：</li>
+        <li>需要转成数据库或表格的内容：</li>
+        <li>需要复核的数据来源：</li>
+      </ul>
+      <h2>关联计划</h2>
+      <ul>
+        <li>公司页面：</li>
+        <li>相关会议：</li>
+        <li>相关备忘录：</li>
+        <li>相关组合或观察名单：</li>
+      </ul>
+      <h2>格式风险</h2>
+      <ul>
+        <li>渲染异常：</li>
+        <li>表格丢失：</li>
+        <li>图片 / 附件缺失：</li>
+        <li>需要保留原文件的原因：</li>
+      </ul>
+      <h2>后续行动</h2>
+      <ul data-type="taskList">
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>确认原生预览是否满足阅读需求</p></div></li>
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>补齐公司、会议、备忘录 relation</p></div></li>
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>提取需要进入模型或数据库的关键数据</p></div></li>
+      </ul>
+    `,
+  },
+  {
+    title: "行业对比",
+    description: "同业格局、指标对比、赢家路径和反向风险",
+    aliases: [
+      "Industry Comparison",
+      "industry comparison",
+      "peer comparison",
+      "competitor analysis",
+      "sector",
+      "peers",
+      "行业对比",
+      "同业对比",
+      "竞品分析",
+      "行业研究",
+    ],
+    html: `
+      <h1>行业对比</h1>
+      <h2>对比范围</h2>
+      <ul>
+        <li>行业 / 子行业：</li>
+        <li>公司范围：</li>
+        <li>时间窗口：</li>
+        <li>研究目的：</li>
+      </ul>
+      <h2>核心结论</h2>
+      <p></p>
+      <h2>同业指标对比</h2>
+      <table>
+        <tbody>
+          <tr><th>公司</th><th>增长</th><th>利润率</th><th>估值</th><th>竞争优势</th><th>主要风险</th></tr>
+          <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <h2>结构性差异</h2>
+      <ul>
+        <li>商业模式差异：</li>
+        <li>客户结构差异：</li>
+        <li>成本结构差异：</li>
+        <li>资本强度差异：</li>
+      </ul>
+      <h2>赢家路径</h2>
+      <ul>
+        <li>最可能胜出的公司：</li>
+        <li>关键领先指标：</li>
+        <li>需要持续验证的信号：</li>
+      </ul>
+      <h2>反向风险</h2>
+      <ul>
+        <li>可能推翻结论的证据：</li>
+        <li>周期、监管或技术变化：</li>
+        <li>估值误判风险：</li>
+      </ul>
+      <h2>关联研究</h2>
+      <ul>
+        <li>公司页面：</li>
+        <li>相关报告：</li>
+        <li>相关会议：</li>
+        <li>关键指标看板：</li>
+      </ul>
+    `,
+  },
+  {
+    title: "专家电话纪要",
+    description: "专家访谈、可信度判断、关键洞见和后续追问",
+    aliases: [
+      "Expert Call Notes",
+      "expert call",
+      "expert interview",
+      "channel check",
+      "interview notes",
+      "专家电话",
+      "专家访谈",
+      "渠道调研",
+      "访谈纪要",
+    ],
+    html: `
+      <h1>专家电话纪要</h1>
+      <h2>访谈信息</h2>
+      <ul>
+        <li>主题：</li>
+        <li>专家背景：</li>
+        <li>日期 / 时间：</li>
+        <li>来源 / 平台：</li>
+        <li>合规备注：</li>
+      </ul>
+      <h2>访谈问题</h2>
+      <ul data-type="taskList">
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p></p></div></li>
+      </ul>
+      <h2>核心洞见</h2>
+      <ul>
+        <li></li>
+      </ul>
+      <h2>可信度与偏差</h2>
+      <table>
+        <tbody>
+          <tr><th>判断项</th><th>当前判断</th><th>备注</th></tr>
+          <tr><td>专家相关性</td><td></td><td></td></tr>
+          <tr><td>样本代表性</td><td></td><td></td></tr>
+          <tr><td>时间敏感性</td><td></td><td></td></tr>
+          <tr><td>潜在偏差</td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <h2>关键表述</h2>
+      <blockquote></blockquote>
+      <h2>投研影响</h2>
+      <ul>
+        <li>对投资假设的影响：</li>
+        <li>对行业判断的影响：</li>
+        <li>对模型或关键指标的影响：</li>
+        <li>需要继续验证的问题：</li>
+      </ul>
+      <h2>关联研究</h2>
+      <ul>
+        <li>公司页面：</li>
+        <li>相关报告：</li>
+        <li>会议转录稿：</li>
+        <li>会议行动项：</li>
+      </ul>
+      <h2>后续行动</h2>
+      <ul data-type="taskList">
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>补充反向验证来源</p></div></li>
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>更新公司研究或投资备忘录</p></div></li>
+      </ul>
+    `,
+  },
+  {
+    title: "管理层会议纪要",
+    description: "管理层表述、指引变化、资本配置和追问清单",
+    aliases: [
+      "Management Meeting Notes",
+      "management meeting",
+      "management call",
+      "investor meeting",
+      "NDR",
+      "管理层会议",
+      "管理层电话会",
+      "路演",
+      "投资者会议",
+    ],
+    html: `
+      <h1>管理层会议纪要</h1>
+      <h2>会议信息</h2>
+      <ul>
+        <li>公司：</li>
+        <li>管理层 / IR：</li>
+        <li>日期 / 时间：</li>
+        <li>会议类型：NDR / 业绩会 / 投资者会议 / 其他</li>
+        <li>关联公司页面：</li>
+      </ul>
+      <h2>会议前假设</h2>
+      <ul>
+        <li>最想验证的假设：</li>
+        <li>最需要追问的风险：</li>
+        <li>预期可能改变模型的事项：</li>
+      </ul>
+      <h2>管理层关键表述</h2>
+      <blockquote></blockquote>
+      <h2>指引与资本配置</h2>
+      <table>
+        <tbody>
+          <tr><th>主题</th><th>管理层表述</th><th>相对上一版变化</th><th>投研影响</th></tr>
+          <tr><td>收入增长</td><td></td><td></td><td></td></tr>
+          <tr><td>利润率</td><td></td><td></td><td></td></tr>
+          <tr><td>资本开支</td><td></td><td></td><td></td></tr>
+          <tr><td>回购 / 分红 / M&amp;A</td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <h2>追问与未回答问题</h2>
+      <ul data-type="taskList">
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p></p></div></li>
+      </ul>
+      <h2>投研影响</h2>
+      <ul>
+        <li>投资假设：</li>
+        <li>估值假设：</li>
+        <li>风险笔记：</li>
+        <li>后续催化剂：</li>
+      </ul>
+      <h2>关联研究</h2>
+      <ul>
+        <li>投资备忘录：</li>
+        <li>业绩复盘：</li>
+        <li>估值假设：</li>
+        <li>关键指标看板：</li>
+      </ul>
+    `,
+  },
+  {
+    title: "投研决策日志",
+    description: "决策结论、证据链、反向证据和复盘日期",
+    aliases: [
+      "Research Decision Log",
+      "decision log",
+      "decision journal",
+      "IC memo",
+      "thesis update",
+      "investment committee",
+      "投研决策",
+      "决策日志",
+      "投委会",
+      "结论复盘",
+    ],
+    html: `
+      <h1>投研决策日志</h1>
+      <h2>决策摘要</h2>
+      <table>
+        <tbody>
+          <tr><th>项目</th><th>当前结论</th><th>备注</th></tr>
+          <tr><td>决策</td><td></td><td></td></tr>
+          <tr><td>确信度</td><td></td><td></td></tr>
+          <tr><td>组合动作</td><td></td><td></td></tr>
+          <tr><td>触发日期</td><td></td><td></td></tr>
+          <tr><td>下次复盘日期</td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <h2>证据链</h2>
+      <table>
+        <tbody>
+          <tr><th>证据</th><th>来源</th><th>支持 / 反向</th><th>对结论影响</th></tr>
+          <tr><td></td><td></td><td></td><td></td></tr>
+          <tr><td></td><td></td><td></td><td></td></tr>
+          <tr><td></td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <h2>关键假设变动</h2>
+      <ul>
+        <li>增强的假设：</li>
+        <li>削弱的假设：</li>
+        <li>新增假设：</li>
+        <li>已被证伪的假设：</li>
+      </ul>
+      <h2>反向证据</h2>
+      <ul>
+        <li></li>
+      </ul>
+      <h2>关联研究</h2>
+      <ul>
+        <li>公司页面：</li>
+        <li>投资备忘录：</li>
+        <li>估值假设：</li>
+        <li>相关报告：</li>
+        <li>相关会议：</li>
+        <li>组合或观察名单：</li>
+      </ul>
+      <h2>待确认事项</h2>
+      <ul data-type="taskList">
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>复核证据链是否仍然成立</p></div></li>
+        <li data-type="taskItem" data-checked="false"><label><input type="checkbox" /></label><div><p>更新相关页面 relation</p></div></li>
+      </ul>
+    `,
+  },
 ];

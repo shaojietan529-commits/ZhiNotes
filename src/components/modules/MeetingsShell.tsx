@@ -81,6 +81,20 @@ const MEETING_TEMPLATE_STARTERS: ModuleStarter[] = [
     templateTitle: "会议行动项",
     icon: "ACT",
   },
+  {
+    type: "page",
+    label: "新建专家电话",
+    title: "未命名专家电话纪要",
+    templateTitle: "专家电话纪要",
+    icon: "EXP",
+  },
+  {
+    type: "page",
+    label: "新建管理层会议",
+    title: "未命名管理层会议纪要",
+    templateTitle: "管理层会议纪要",
+    icon: "MGMT",
+  },
 ];
 
 const WORKFLOW_STEPS = [
@@ -93,6 +107,11 @@ const WORKFLOW_STEPS = [
     title: "转录稿与纪要",
     detail:
       "把转录稿链接、原始笔记、管理层表述和专家电话会观察放在一个本地会议页里。",
+  },
+  {
+    title: "专家与管理层",
+    detail:
+      "把专家电话、渠道调研、管理层会议和 NDR 的可信度、表述变化、追问清单分开沉淀。",
   },
   {
     title: "行动项",

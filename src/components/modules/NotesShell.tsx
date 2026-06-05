@@ -46,6 +46,30 @@ const NOTE_TEMPLATE_STARTERS = [
     templateTitle: "研究报告",
     icon: "RPT",
   },
+  {
+    label: "报告摄取",
+    title: "未命名报告摄取清单",
+    templateTitle: "报告摄取清单",
+    icon: "FILE",
+  },
+  {
+    label: "行业对比",
+    title: "未命名行业对比",
+    templateTitle: "行业对比",
+    icon: "PEER",
+  },
+  {
+    label: "专家电话",
+    title: "未命名专家电话纪要",
+    templateTitle: "专家电话纪要",
+    icon: "EXP",
+  },
+  {
+    label: "决策日志",
+    title: "未命名投研决策日志",
+    templateTitle: "投研决策日志",
+    icon: "DEC",
+  },
 ];
 
 export default function NotesShell() {

@@ -198,6 +198,27 @@ function run() {
   }
 
   for (const snippet of [
+    'id: "new-industry-comparison"',
+    'templateTitle: "行业对比"',
+    'id: "new-research-decision-log"',
+    'templateTitle: "投研决策日志"',
+    'templateTitle: "持仓备忘录"',
+    'id: "new-expert-call-note"',
+    'templateTitle: "专家电话纪要"',
+    'id: "new-management-meeting-note"',
+    'templateTitle: "管理层会议纪要"',
+    'id: "new-report-intake-checklist"',
+    'templateTitle: "报告摄取清单"',
+  ]) {
+    assertIncludes(
+      files.quickSearch,
+      quickSearch,
+      snippet,
+      "Cmd/Ctrl+K must expose local investment research template starters."
+    );
+  }
+
+  for (const snippet of [
     "| \"heading3\"",
     "type: \"heading3\"",
     "label: \"标题 3\"",

@@ -122,6 +122,13 @@ const REPORT_TEMPLATE_STARTERS: ModuleStarter[] = [
     templateTitle: "研究报告",
     icon: "RPT",
   },
+  {
+    type: "page",
+    label: "新建报告摄取",
+    title: "未命名报告摄取清单",
+    templateTitle: "报告摄取清单",
+    icon: "FILE",
+  },
 ];
 
 const WORKFLOW_STEPS = [
@@ -129,6 +136,11 @@ const WORKFLOW_STEPS = [
     title: "收集报告",
     detail:
       "用报告页承载本地文件预览块、报告元数据和第一遍阅读笔记。",
+  },
+  {
+    title: "格式摄取",
+    detail:
+      "按 HTML、Markdown、PDF、Excel、Word 的预览状态检查可读性、可编辑性和人工确认事项。",
   },
   {
     title: "复盘与总结",
