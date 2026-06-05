@@ -48,9 +48,23 @@ schema migration 的能力默认保持关闭。
 ```bash
 npm run verify:web-beta
 npm run verify:web-beta:smoke
+npm run verify:modules
+npm run verify:editor
+npm run verify:database
+npm run verify:file-preview
+npm run verify:ai
+npm run verify:research-workflow
+npm run verify:page-structure
+npm run verify:replay-harness
 npm run lint
 npm run build
 ```
+
+`npm run verify:web-alpha` 的前四步通过，但它内部再次调用 `npm run build` 时，
+Turbopack 在当前 Codex 沙盒里两次遇到 `binding to a port: Operation not permitted`。
+单独运行 `npm run build` 已连续通过，所以这更像是当前沙盒执行组合命令时的限制，不是
+应用代码本身的构建失败。醒来后如果要生成正式 Web Alpha receipt，可以在允许权限的环境
+里重跑一次。
 
 浏览器本地检查也已通过：
 
