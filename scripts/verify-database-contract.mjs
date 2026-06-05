@@ -202,6 +202,7 @@ function run() {
     '"currency_usd"',
     '"currency_cny"',
     '"multiple"',
+    "formatCompactNumber(number)}%",
   ]) {
     assertIncludes(
       files.databaseNumberValues,

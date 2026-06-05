@@ -10,7 +10,7 @@ export function formatDatabaseNumberValue(
 
   switch (getDatabaseNumberFormat(field)) {
     case "percent":
-      return `${formatCompactNumber(number * 100)}%`;
+      return `${formatCompactNumber(number)}%`;
     case "currency_usd":
       return formatCurrency(number, "USD");
     case "currency_cny":
