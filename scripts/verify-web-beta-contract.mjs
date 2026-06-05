@@ -901,6 +901,30 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
+    "auditEventsApiGuard.disabled_response_contract.http_status",
+    "Sync UI must render the audit events disabled HTTP status."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "allowedFields={auditEventsApiGuard.request_schema.allowed_fields}",
+    "Sync UI must render audit events allowed fields."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "forbiddenFields={auditEventsApiGuard.request_schema.forbidden_fields}",
+    "Sync UI must render audit events forbidden fields."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "fixtures={auditEventsApiGuard.local_validator_report.fixtures}",
+    "Sync UI must render audit events validator fixtures."
+  );
+  assertSourceIncludes(
+    files.apiGuardPanel,
+    apiGuardPanel,
     "forbidden_field_names",
     "Sync UI must render forbidden audit fixture field names."
   );
