@@ -1302,6 +1302,18 @@ function run() {
     "Module registry must expose the File Library route."
   );
   for (const snippet of [
+    "文件预览路由总控",
+    "文件路由包导出",
+    "Page 文件块路线跳转",
+  ]) {
+    assertIncludes(
+      files.registry,
+      registry,
+      snippet,
+      "File Library registry capabilities must advertise the routing hub and page handoff."
+    );
+  }
+  for (const snippet of [
     "buildReportDecisionSummary",
     "reportDecisionSummary",
     "handleExportDecisionSummary",
