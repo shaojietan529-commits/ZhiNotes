@@ -274,6 +274,123 @@ export function buildResearchProjectBrief(
   };
 }
 
+export function buildResearchProjectBriefPageHtml(
+  brief: ResearchProjectBrief
+) {
+  const checklistItems = brief.checklist
+    .map(
+      (item) => `
+        <li data-type="taskItem" data-checked="${item.status === "ready"}">
+          <label><input type="checkbox" ${
+            item.status === "ready" ? "checked" : ""
+          } /></label>
+          <div>
+            <p><strong>${escapeHtml(item.title)}</strong> · ${escapeHtml(
+              getChecklistStatusLabel(item.status)
+            )}</p>
+            <p>${escapeHtml(item.reason)}</p>
+            <p>${escapeHtml(item.owner_decision)}</p>
+          </div>
+        </li>
+      `
+    )
+    .join("");
+  const moduleRows = brief.module_plans
+    .map(
+      (plan) => `
+        <tr>
+          <td>${escapeHtml(plan.label)}</td>
+          <td>${escapeHtml(getChecklistStatusLabel(plan.readiness))}</td>
+          <td>${plan.assets}</td>
+          <td>${plan.connected_assets}</td>
+          <td>${plan.unlinked_assets}</td>
+          <td>${plan.connection_rate}%</td>
+        </tr>
+      `
+    )
+    .join("");
+  const reviewSteps = brief.review_sequence
+    .map(
+      (step) => `
+        <li>
+          <strong>${step.order}. ${escapeHtml(step.title)}</strong>
+          <p>${escapeHtml(step.reason)}</p>
+        </li>
+      `
+    )
+    .join("");
+  const ownerDecisions = brief.required_owner_decisions
+    .map((item) => `<li>${escapeHtml(item)}</li>`)
+    .join("");
+  const blockedActions = brief.blocked_actions
+    .map((item) => `<li>${escapeHtml(item)}</li>`)
+    .join("");
+
+  return `
+    <h1>${escapeHtml(buildResearchProjectPageTitle(brief))}</h1>
+    <blockquote>
+      <p>本页面由研究图谱的投研项目启动器在本地生成。它只使用 graph/workbench summary metadata 和你手动输入的项目字段，不包含页面正文、数据库行值、文件名、文件内容、持仓或交易计划。</p>
+    </blockquote>
+    <h2>项目设置</h2>
+    <ul>
+      <li>研究主题：${escapeHtml(brief.topic || "未填写")}</li>
+      <li>项目类型：${escapeHtml(brief.project_mode_label)}</li>
+      <li>时间范围：${escapeHtml(brief.horizon)}</li>
+      <li>创建时间：${escapeHtml(brief.created_at)}</li>
+    </ul>
+    <h2>核心仪表盘</h2>
+    <table>
+      <tbody>
+        <tr><th>图谱资产</th><th>已连接资产</th><th>未连接资产</th><th>Relation 连接</th><th>工作台行动</th></tr>
+        <tr>
+          <td>${brief.summary.graph_assets}</td>
+          <td>${brief.summary.connected_assets}</td>
+          <td>${brief.summary.unlinked_assets}</td>
+          <td>${brief.summary.relation_links}</td>
+          <td>${brief.summary.workbench_actions}</td>
+        </tr>
+      </tbody>
+    </table>
+    <h2>模块准备度</h2>
+    <table>
+      <tbody>
+        <tr><th>模块</th><th>状态</th><th>资产</th><th>已连接</th><th>缺口</th><th>覆盖率</th></tr>
+        ${moduleRows}
+      </tbody>
+    </table>
+    <h2>项目 Checklist</h2>
+    <ul data-type="taskList">
+      ${checklistItems}
+    </ul>
+    <h2>推荐顺序</h2>
+    <ol>
+      ${reviewSteps}
+    </ol>
+    <h2>Owner 待确认</h2>
+    <ul>
+      ${ownerDecisions}
+    </ul>
+    <h2>保持关闭</h2>
+    <ul>
+      ${blockedActions}
+    </ul>
+    <h2>隐私边界</h2>
+    <ul>
+      <li>读取页面正文：${brief.boundary.reads_page_text ? "是" : "否"}</li>
+      <li>导出数据库行值：${brief.boundary.includes_database_row_values ? "是" : "否"}</li>
+      <li>读取文件内容：${brief.boundary.reads_file_bytes ? "是" : "否"}</li>
+      <li>写 relation 值：${brief.boundary.creates_relation_values ? "是" : "否"}</li>
+      <li>上传数据：${brief.boundary.uploads_data ? "是" : "否"}</li>
+      <li>启用 AI：${brief.boundary.enables_ai ? "是" : "否"}</li>
+    </ul>
+  `;
+}
+
+export function buildResearchProjectPageTitle(brief: ResearchProjectBrief) {
+  if (brief.topic) return `投研项目：${brief.topic}`;
+  return `${brief.project_mode_label}项目 Brief`;
+}
+
 function buildModulePlans(
   graphReport: ResearchGraphReport,
   workbench: ResearchWorkbenchPacket
@@ -569,4 +686,23 @@ function getModeFirstReason(mode: ResearchProjectMode, label: string) {
     default:
       return `${label}模块是首次覆盖的起点，先建立研究锚点再补证据。`;
   }
+}
+
+function getChecklistStatusLabel(status: ResearchProjectChecklistStatus) {
+  const labels: Record<ResearchProjectChecklistStatus, string> = {
+    ready: "Ready",
+    "needs-review": "Needs review",
+    missing: "Missing",
+    "blocked-boundary": "Blocked boundary",
+  };
+  return labels[status];
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

@@ -391,6 +391,18 @@ function run() {
     "buildResearchProjectBrief",
     "Research project brief must expose a reusable builder."
   );
+  assertIncludes(
+    files.projectBrief,
+    projectBrief,
+    "buildResearchProjectBriefPageHtml",
+    "Research project brief must expose a reusable local page renderer."
+  );
+  assertIncludes(
+    files.projectBrief,
+    projectBrief,
+    "buildResearchProjectPageTitle",
+    "Research project brief must expose a reusable local page title builder."
+  );
   for (const snippet of [
     'brief_status: "local-project-brief-only"',
     "RESEARCH_PROJECT_MODE_OPTIONS",
@@ -423,6 +435,12 @@ function run() {
     "review_sequence",
     "blocked_actions",
     "required_owner_decisions",
+    "项目设置",
+    "核心仪表盘",
+    "模块准备度",
+    "项目 Checklist",
+    "Owner 待确认",
+    "隐私边界",
     "auto_create_research_project_pages",
     "send_project_context_to_ai",
     "sync_project_assets_to_cloud",
@@ -444,13 +462,18 @@ function run() {
     "buildResearchProjectBrief",
     "projectBrief",
     "handleExportProjectBrief",
+    "handleCreateProjectPage",
+    "creatingProjectPage",
     "ResearchProjectBriefPanel",
     "ResearchProjectModuleCard",
     "ResearchProjectChecklistRow",
     "ResearchProjectStatusPill",
     "投研项目启动器",
+    "创建项目页",
     "导出 Brief",
     "research-project-brief",
+    "buildResearchProjectBriefPageHtml",
+    "buildResearchProjectPageTitle",
     "handleExportWorkbenchPacket",
     "handleDecisionOpen",
     "研究图谱决策摘要",

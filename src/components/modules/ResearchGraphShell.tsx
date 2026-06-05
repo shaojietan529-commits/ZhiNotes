@@ -7,9 +7,11 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import { usePages } from "@/hooks/usePages";
 import {
   addField,
+  createPage,
   getAllDatabases,
   getFields,
   getRows,
+  updatePage,
 } from "@/lib/db/local/queries";
 import {
   buildResearchGraph,
@@ -35,6 +37,8 @@ import {
 } from "@/lib/modules/researchWorkbench";
 import {
   RESEARCH_PROJECT_MODE_OPTIONS,
+  buildResearchProjectBriefPageHtml,
+  buildResearchProjectPageTitle,
   buildResearchProjectBrief,
   type ResearchProjectBrief,
   type ResearchProjectChecklistStatus,
@@ -81,13 +85,14 @@ function ResearchGraphContent() {
 
 function ResearchGraphDashboard() {
   const router = useRouter();
-  const { pages } = usePages();
+  const { pages, refresh: refreshPages } = usePages();
   const [databases, setDatabases] = useState<Database[]>([]);
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [exportingGraphReport, setExportingGraphReport] = useState(false);
   const [exportingWorkbenchPacket, setExportingWorkbenchPacket] =
     useState(false);
   const [exportingProjectBrief, setExportingProjectBrief] = useState(false);
+  const [creatingProjectPage, setCreatingProjectPage] = useState(false);
   const [projectTopic, setProjectTopic] = useState("");
   const [projectMode, setProjectMode] =
     useState<ResearchProjectMode>("initiation");
@@ -240,6 +245,26 @@ function ResearchGraphDashboard() {
     }
   };
 
+  const handleCreateProjectPage = async () => {
+    setCreatingProjectPage(true);
+    try {
+      const page = await createPage({
+        title: buildResearchProjectPageTitle(projectBrief),
+        icon: "🧭",
+      });
+      await updatePage(page.id, {
+        content_text: buildResearchProjectBriefPageHtml(projectBrief),
+      });
+      await refreshPages();
+      router.push(`/page/${page.id}`);
+    } catch (err) {
+      console.error("[Zhinote] Failed to create research project page:", err);
+      window.alert("研究项目页创建失败，请查看控制台。");
+    } finally {
+      setCreatingProjectPage(false);
+    }
+  };
+
   const handleDecisionOpen = (
     decision: ResearchWorkbenchPacket["decision_summary"]["decisions"][number]
   ) => {
@@ -368,10 +393,12 @@ function ResearchGraphDashboard() {
           projectMode={projectMode}
           horizon={projectHorizon}
           exporting={exportingProjectBrief}
+          creatingPage={creatingProjectPage}
           onTopicChange={setProjectTopic}
           onModeChange={setProjectMode}
           onHorizonChange={setProjectHorizon}
           onExport={handleExportProjectBrief}
+          onCreatePage={handleCreateProjectPage}
           onOpenRoute={(route) => router.push(route)}
         />
 
@@ -631,10 +658,12 @@ function ResearchProjectBriefPanel({
   projectMode,
   horizon,
   exporting,
+  creatingPage,
   onTopicChange,
   onModeChange,
   onHorizonChange,
   onExport,
+  onCreatePage,
   onOpenRoute,
 }: {
   brief: ResearchProjectBrief;
@@ -642,10 +671,12 @@ function ResearchProjectBriefPanel({
   projectMode: ResearchProjectMode;
   horizon: string;
   exporting: boolean;
+  creatingPage: boolean;
   onTopicChange: (value: string) => void;
   onModeChange: (value: ResearchProjectMode) => void;
   onHorizonChange: (value: string) => void;
   onExport: () => void;
+  onCreatePage: () => void;
   onOpenRoute: (route: string) => void;
 }) {
   const selectedMode =
@@ -676,8 +707,16 @@ function ResearchProjectBriefPanel({
         <div className="flex shrink-0 flex-wrap gap-2">
           <button
             type="button"
+            onClick={onCreatePage}
+            disabled={creatingPage}
+            className="rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+          >
+            {creatingPage ? "创建中..." : "创建项目页"}
+          </button>
+          <button
+            type="button"
             onClick={() => onOpenRoute(brief.summary.recommended_first_route)}
-            className="rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+            className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {brief.summary.recommended_first_label}
           </button>

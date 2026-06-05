@@ -406,6 +406,12 @@ Current local actions:
   module readiness view, recommended route order, and checklist across company,
   report, meeting, portfolio, relation repair, schema/tracker setup, and the
   externalization boundary.
+- Create a local research project page from the brief after a manual click. The
+  page is created inside the browser-local workspace, then ZhiNotes immediately
+  opens the new page so the workflow matches Notion-style project capture. The
+  generated page contains project settings, a module readiness table, a task
+  checklist, recommended review order, owner-confirmation items, and privacy
+  boundaries.
 - Export the research project brief as local JSON. The export can include the
   owner-entered project topic and horizon, but it does not include page bodies,
   database row values, file names, file bytes, holdings, trading plans, prompts,
@@ -437,8 +443,10 @@ what can be reviewed now, what requires owner confirmation, and what remains
 blocked.
 The research project brief follows the same boundary: it reads the local graph
 report and workbench packet only, adds owner-entered project fields, and remains
-a planning/export layer. It does not create pages, create database rows, write
-relation values, upload data, connect cloud services, or enable AI.
+a planning/export layer. Its only write path is the explicit `创建项目页`
+button, which creates one local page from the current brief and opens that page.
+It does not create database rows, write relation values, upload data, connect
+cloud services, or enable AI.
 
 ## Company Research Module
 
