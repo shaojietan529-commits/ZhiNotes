@@ -909,6 +909,12 @@ function run() {
     'receipt_status: "local-file-action-metadata-only"',
     "File preview action receipts must remain metadata-only."
   );
+  assertIncludes(
+    files.actionReceipts,
+    actionReceipts,
+    "这个 receipt 只记录动作 metadata",
+    "File preview action receipt privacy note must stay localized and metadata-only."
+  );
   for (const snippet of [
     "buildFilePreviewActionReceipt",
     "appendFilePreviewActionReceipt",
@@ -1383,6 +1389,8 @@ function run() {
     "最近文件动作 receipt",
     "导出动作 receipt",
     "不含文件名、正文、bytes 或表格值",
+    "外部资源当前",
+    "表格行已在输入确认短语后导入到新的本地数据库",
     '"native-preview"',
     '"download-retain"',
     '"editable-import"',

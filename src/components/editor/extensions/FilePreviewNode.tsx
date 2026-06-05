@@ -251,15 +251,15 @@ function FilePreviewComponent({
         actionId: "external-resource-load",
         requiredPhrase: EXTERNAL_RESOURCE_CONFIRMATION_PHRASE,
         typedPhrase: externalResourcePhrase,
-        scopeSummary: `HTML file preview block; size ${formatFileSize(
+        scopeSummary: `HTML 文件预览块；大小 ${formatFileSize(
           attrs.size
-        )}; external resources currently ${
-          allowExternalResources ? "allowed" : "blocked"
-        }; file name included: no; HTML content included: no.`,
+        )}；外部资源当前${
+          allowExternalResources ? "已允许" : "已阻止"
+        }；不包含文件名；不包含 HTML 内容。`,
         riskSummary:
-          "Allowing external resources can let the HTML report request remote images, scripts, styles, frames, fonts, media, or network endpoints referenced by the file.",
+          "允许外部资源后，这个 HTML 报告可能请求文件中引用的远程图片、脚本、样式、frame、字体、媒体或网络端点。",
         destinationSummary:
-          "Remote resources referenced by the HTML document; exact URLs are not listed in this local receipt.",
+          "HTML 文档引用的远程资源；这个本地 receipt 不列出具体 URL。",
       }),
     [allowExternalResources, attrs.size, externalResourcePhrase]
   );
@@ -269,13 +269,13 @@ function FilePreviewComponent({
         actionId: "bulk-import",
         requiredPhrase: BULK_IMPORT_CONFIRMATION_PHRASE,
         typedPhrase: bulkImportPhrase,
-        scopeSummary: `Spreadsheet file preview block; max imported rows ${SPREADSHEET_DATABASE_ROW_LIMIT}; max imported columns ${SPREADSHEET_DATABASE_COLUMN_LIMIT}; size ${formatFileSize(
+        scopeSummary: `表格文件预览块；最多导入 ${SPREADSHEET_DATABASE_ROW_LIMIT} 行；最多导入 ${SPREADSHEET_DATABASE_COLUMN_LIMIT} 列；大小 ${formatFileSize(
           attrs.size
-        )}; file name included: no; cell values included: no.`,
+        )}；不包含文件名；不包含单元格值。`,
         riskSummary:
-          "Bulk spreadsheet import creates a new local database, local fields, and local database rows from spreadsheet data after explicit confirmation.",
+          "批量表格导入会在明确确认后，根据表格数据创建一个新的本地数据库、本地字段和本地数据库行。",
         destinationSummary:
-          "Current local browser workspace; this import does not upload to cloud or external services.",
+          "当前本地浏览器工作区；这个导入不会上传到云端或外部服务。",
       }),
     [attrs.size, bulkImportPhrase]
   );
@@ -459,7 +459,7 @@ function FilePreviewComponent({
         writes_page_content: true,
         confirmation_required: true,
         confirmation_matched: true,
-        note: `${getFileKindLabel(file.kind)} converted locally and inserted as editable blocks.`,
+        note: `${getFileKindLabel(file.kind)} 已在本地转换，并插入为可编辑块。`,
       });
     } catch (err) {
       window.alert(
@@ -549,7 +549,7 @@ function FilePreviewComponent({
         confirmation_matched: bulkImportReceipt.typed_phrase_matches,
         rows_written: importedRows.length,
         fields_written: table.headers.length,
-        note: "Spreadsheet rows imported into a new local database after typed confirmation.",
+        note: "表格行已在输入确认短语后导入到新的本地数据库。",
       });
 
       router.push(`/database/${database.id}`);
@@ -643,7 +643,7 @@ function FilePreviewComponent({
         err
       );
       window.alert(
-        "External resource confirmation export failed. Please check the console."
+        "外部资源确认导出失败，请查看控制台。"
       );
     } finally {
       setExportingExternalReceipt(false);

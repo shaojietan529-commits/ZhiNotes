@@ -123,7 +123,7 @@ export function buildFilePreviewActionReceipt(
     source_surface: input.source_surface ?? "file-preview-block",
     created_at: new Date().toISOString(),
     privacy_note:
-      "Generated locally after a file preview action. This receipt records action metadata only. It does not include file names, file bytes, file text, page body text, spreadsheet cell values, tokens, credentials, prompts, cloud data, or AI output.",
+      "文件预览动作后在本地生成。这个 receipt 只记录动作 metadata，不包含文件名、文件 bytes、文件文本、页面正文、表格单元格值、token、credential、prompt、云端数据或 AI 输出。",
     file: {
       local_file_id: input.file.id,
       kind: input.file.kind,
