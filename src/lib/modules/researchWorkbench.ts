@@ -588,7 +588,7 @@ function buildReviewSequence(
       route: "/modules/company-research",
       reason:
         "公司页面是投研资料的长期锚点，报告、会议和组合最好先能连回公司。",
-      completion_signal: "Company assets have report and meeting relation paths.",
+      completion_signal: "公司资产已经具备报告和会议 relation 路径。",
     },
     {
       id: "resolve-high-priority-breaks",
@@ -597,8 +597,8 @@ function buildReviewSequence(
       route: firstHighPriority?.action_route ?? "/modules/research-graph",
       reason: firstHighPriority
         ? `${firstHighPriority.module_label}: ${firstHighPriority.title}`
-        : "No high-priority graph action is currently available.",
-      completion_signal: "High-priority unlinked assets are reviewed or routed.",
+        : "当前没有高优先级图谱行动。",
+      completion_signal: "高优先级未连接资产已经完成复核或路由。",
     },
     {
       id: "repair-most-blocked-module",
@@ -606,9 +606,9 @@ function buildReviewSequence(
       title: "修复断点最多的模块",
       route: mostBlockedModule?.module_route ?? "/modules/research-graph",
       reason: mostBlockedModule
-        ? `${mostBlockedModule.label} has ${mostBlockedModule.unlinked_assets} unlinked assets.`
-        : "No module rollup is available.",
-      completion_signal: "The module connection rate improves or missing tracker/schema setup is confirmed.",
+        ? `${mostBlockedModule.label} 有 ${mostBlockedModule.unlinked_assets} 个未连接资产。`
+        : "当前没有模块汇总。",
+      completion_signal: "模块连接率提升，或缺失的 tracker/schema 配置已经确认。",
     },
     {
       id: "review-schema-before-values",
@@ -616,8 +616,8 @@ function buildReviewSequence(
       title: "先补 relation 结构，再补 relation 值",
       route: "/modules/research-graph",
       reason:
-        "Missing relation fields block clean report-to-company, report-to-meeting, and portfolio-to-research linking.",
-      completion_signal: "Schema gaps are reviewed before any manual row linking starts.",
+        "缺失 relation 字段会阻塞报告到公司、报告到会议、组合到研究材料的清晰连接。",
+      completion_signal: "任何手动行连接开始前，schema gaps 已经完成复核。",
     },
   ];
 }

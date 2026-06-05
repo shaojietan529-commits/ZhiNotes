@@ -945,10 +945,10 @@ function ResearchProjectStatusPill({
   status: ResearchProjectChecklistStatus;
 }) {
   const labels: Record<ResearchProjectChecklistStatus, string> = {
-    ready: "Ready",
-    "needs-review": "Review",
-    missing: "Missing",
-    "blocked-boundary": "Blocked",
+    ready: "就绪",
+    "needs-review": "需复核",
+    missing: "缺失",
+    "blocked-boundary": "阻塞",
   };
   const className =
     status === "ready"
@@ -1276,10 +1276,10 @@ function ResearchWorkbenchPanel({
               />
             ))}
           </div>
-          <div className="rounded-md border border-zinc-100 p-3 dark:border-zinc-800">
-            <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-              Review sequence
-            </h3>
+	          <div className="rounded-md border border-zinc-100 p-3 dark:border-zinc-800">
+	            <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+	              复核顺序
+	            </h3>
             <div className="mt-2 grid gap-2">
               {packet.review_sequence.map((step) => (
                 <button
@@ -1396,11 +1396,11 @@ function WorkbenchStatusPill({
   status: ResearchWorkbenchActionStatus;
 }) {
   const labels: Record<ResearchWorkbenchActionStatus, string> = {
-    "ready-to-start": "Ready",
-    "needs-relation": "Relation",
-    "needs-schema": "Schema",
-    "needs-tracker": "Tracker",
-    "review-only": "Review",
+    "ready-to-start": "就绪",
+    "needs-relation": "关系",
+    "needs-schema": "结构",
+    "needs-tracker": "跟踪表",
+    "review-only": "复核",
   };
 
   const className =
