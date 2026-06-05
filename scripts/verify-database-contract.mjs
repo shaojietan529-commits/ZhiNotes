@@ -352,6 +352,25 @@ function run() {
     );
   }
   for (const snippet of [
+    "interface DatabaseFilterRule",
+    "interface DatabaseSortRule",
+    "filterRules",
+    "sortRules",
+    "parseDatabaseFilterRules",
+    "parseDatabaseSortRules",
+    "多个筛选按全部匹配处理",
+    "多个排序按从左到右处理",
+    "filterFieldId: filterRules[0]?.fieldId",
+    "sortKey: sortRules[0]?.key",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database views must support saved multi-filter and multi-sort rules while preserving legacy config keys."
+    );
+  }
+  for (const snippet of [
     '| "email"',
     '| "phone"',
     '| "multi_select"',
@@ -1411,6 +1430,7 @@ function run() {
         template_row_receipt_history: true,
         import_export_readiness: true,
         feed_field_context: true,
+        view_rule_controls: true,
         database_workbench: true,
       },
       null,

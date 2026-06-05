@@ -39,6 +39,14 @@ schema migration 的能力默认保持关闭。
 - 公式计算器是本地安全表达式解析器，只允许数字、字段引用、括号和基础四则运算，不执行任意代码，
   不读取页面正文、文件内容、云端数据或 AI 内容。
 
+### 数据库视图规则阶段
+
+- 每个数据库 view 现在可以保存多个筛选规则和多个排序规则；筛选按“全部匹配”处理，
+  排序按从左到右的优先级处理，更接近 Notion database view 的日常用法。
+- 旧的单一筛选/排序 view config 保持兼容：打开时会自动转成一条筛选规则或一条排序规则。
+- 保存视图会同时记录 row search、filter rules、sort rules、隐藏字段和 chart 分组；这些都只写入
+  view config，不会改动数据库行值、页面正文、文件 bytes、云端数据或 AI 内容。
+
 ### 文件与 Markdown 原生展示阶段
 
 - 扩展本地文件格式识别：Markdown 族现在包括 `.rmd`、`.qmd`；研究文本/引用文件包括
@@ -79,7 +87,7 @@ npm run lint
 npm run build
 ```
 
-Formula 字段阶段还做过 `/modules/databases` 浏览器只读检查，数据库模块可以正常渲染。
+Formula 字段和数据库视图规则阶段还做过 `/modules/databases` 浏览器只读检查，数据库模块可以正常渲染。
 
 文件与 Markdown 原生展示阶段已通过：
 

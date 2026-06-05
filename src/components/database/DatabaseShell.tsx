@@ -104,12 +104,24 @@ const DATABASE_IMPORT_CONFIRMATION_PHRASE =
 
 type RowWithPage = DatabaseRow & { page: Page };
 type SortDirection = "asc" | "desc";
+interface DatabaseFilterRule {
+  id: string;
+  fieldId: string;
+  value: string;
+}
+interface DatabaseSortRule {
+  id: string;
+  key: string;
+  direction: SortDirection;
+}
 interface DatabaseViewConfig {
   rowSearch: string;
   filterFieldId: string;
   filterValue: string;
+  filterRules: DatabaseFilterRule[];
   sortKey: string;
   sortDirection: SortDirection;
+  sortRules: DatabaseSortRule[];
   hiddenFieldIds: string[];
   chartGroupFieldId: string;
 }
@@ -129,10 +141,10 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
   const [rowSearch, setRowSearch] = useState(initialRowSearch);
-  const [filterFieldId, setFilterFieldId] = useState("all");
-  const [filterValue, setFilterValue] = useState("");
-  const [sortKey, setSortKey] = useState("position");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [filterRules, setFilterRules] = useState<DatabaseFilterRule[]>([]);
+  const [sortRules, setSortRules] = useState<DatabaseSortRule[]>([
+    createDatabaseSortRule("position", "asc"),
+  ]);
   const [hiddenFieldIds, setHiddenFieldIds] = useState<string[]>([]);
   const [chartGroupFieldId, setChartGroupFieldId] = useState("");
   const [relationCompletionBusyId, setRelationCompletionBusyId] =
@@ -154,10 +166,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const applyViewConfig = useCallback((configValue: string) => {
     const config = parseDatabaseViewConfig(configValue);
     setRowSearch(initialRowSearch || config.rowSearch);
-    setFilterFieldId(config.filterFieldId);
-    setFilterValue(config.filterValue);
-    setSortKey(config.sortKey);
-    setSortDirection(config.sortDirection);
+    setFilterRules(config.filterRules);
+    setSortRules(config.sortRules);
     setHiddenFieldIds(config.hiddenFieldIds);
     setChartGroupFieldId(config.chartGroupFieldId);
   }, [initialRowSearch]);
@@ -332,20 +342,16 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         fields,
         relationPages: workspacePages,
         search: rowSearch,
-        filterFieldId,
-        filterValue,
-        sortKey,
-        sortDirection,
+        filterRules,
+        sortRules,
       }),
     [
       rows,
       fields,
       workspacePages,
       rowSearch,
-      filterFieldId,
-      filterValue,
-      sortKey,
-      sortDirection,
+      filterRules,
+      sortRules,
     ]
   );
 
@@ -647,14 +653,10 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         rowSearch={rowSearch}
         initialRowSearch={initialRowSearch}
         onRowSearchChange={setRowSearch}
-        filterFieldId={filterFieldId}
-        onFilterFieldChange={setFilterFieldId}
-        filterValue={filterValue}
-        onFilterValueChange={setFilterValue}
-        sortKey={sortKey}
-        onSortKeyChange={setSortKey}
-        sortDirection={sortDirection}
-        onSortDirectionChange={setSortDirection}
+        filterRules={filterRules}
+        onFilterRulesChange={setFilterRules}
+        sortRules={sortRules}
+        onSortRulesChange={setSortRules}
         hiddenFieldIds={hiddenFieldIds}
         onHiddenFieldIdsChange={setHiddenFieldIds}
         chartGroupFieldId={chartGroupFieldId}
@@ -664,10 +666,12 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           await updateView(activeView.id, {
             config: JSON.stringify({
               rowSearch,
-              filterFieldId,
-              filterValue,
-              sortKey,
-              sortDirection,
+              filterFieldId: filterRules[0]?.fieldId ?? "all",
+              filterValue: filterRules[0]?.value ?? "",
+              filterRules,
+              sortKey: sortRules[0]?.key ?? "position",
+              sortDirection: sortRules[0]?.direction ?? "asc",
+              sortRules,
               hiddenFieldIds,
               chartGroupFieldId,
             }),
@@ -770,14 +774,10 @@ function DatabaseViewControls({
   rowSearch,
   initialRowSearch,
   onRowSearchChange,
-  filterFieldId,
-  onFilterFieldChange,
-  filterValue,
-  onFilterValueChange,
-  sortKey,
-  onSortKeyChange,
-  sortDirection,
-  onSortDirectionChange,
+  filterRules,
+  onFilterRulesChange,
+  sortRules,
+  onSortRulesChange,
   hiddenFieldIds,
   onHiddenFieldIdsChange,
   chartGroupFieldId,
@@ -791,14 +791,10 @@ function DatabaseViewControls({
   rowSearch: string;
   initialRowSearch: string;
   onRowSearchChange: (value: string) => void;
-  filterFieldId: string;
-  onFilterFieldChange: (value: string) => void;
-  filterValue: string;
-  onFilterValueChange: (value: string) => void;
-  sortKey: string;
-  onSortKeyChange: (value: string) => void;
-  sortDirection: SortDirection;
-  onSortDirectionChange: (value: SortDirection) => void;
+  filterRules: DatabaseFilterRule[];
+  onFilterRulesChange: (value: DatabaseFilterRule[]) => void;
+  sortRules: DatabaseSortRule[];
+  onSortRulesChange: (value: DatabaseSortRule[]) => void;
   hiddenFieldIds: string[];
   onHiddenFieldIdsChange: (value: string[]) => void;
   chartGroupFieldId: string;
@@ -807,121 +803,225 @@ function DatabaseViewControls({
   visibleCount: number;
   totalCount: number;
 }) {
+  const activeFilterCount = filterRules.filter((rule) => rule.value.trim()).length;
+  const hasSortControls = !isDefaultSortRules(sortRules);
   const hasControls =
     rowSearch ||
-    filterValue ||
-    sortKey !== "position" ||
+    activeFilterCount > 0 ||
+    hasSortControls ||
     hiddenFieldIds.length > 0 ||
     chartGroupFieldId;
   const chartableFields = fields.filter(isChartableField);
+  const displaySortRules = sortRules.length
+    ? sortRules
+    : [createDatabaseSortRule("position", "asc")];
+
+  const handleFilterRuleChange = (
+    ruleId: string,
+    updates: Partial<Pick<DatabaseFilterRule, "fieldId" | "value">>
+  ) => {
+    onFilterRulesChange(
+      filterRules.map((rule) =>
+        rule.id === ruleId ? { ...rule, ...updates } : rule
+      )
+    );
+  };
+
+  const handleSortRuleChange = (
+    ruleId: string,
+    updates: Partial<Pick<DatabaseSortRule, "key" | "direction">>
+  ) => {
+    onSortRulesChange(
+      displaySortRules.map((rule) =>
+        rule.id === ruleId ? { ...rule, ...updates } : rule
+      )
+    );
+  };
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2 border-y border-zinc-100 py-2 text-xs dark:border-zinc-800">
-      <input
-        type="search"
-        value={rowSearch}
-        onChange={(event) => onRowSearchChange(event.target.value)}
-        placeholder="搜索行"
-        className="h-8 w-44 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500"
-      />
-      {initialRowSearch && rowSearch === initialRowSearch && (
-        <span className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-600 dark:bg-blue-950 dark:text-blue-300">
-          来自关联补全
+    <div className="mb-4 space-y-2 border-y border-zinc-100 py-2 text-xs dark:border-zinc-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          value={rowSearch}
+          onChange={(event) => onRowSearchChange(event.target.value)}
+          placeholder="搜索行"
+          className="h-8 w-44 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500"
+        />
+        {initialRowSearch && rowSearch === initialRowSearch && (
+          <span className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+            来自关联补全
+          </span>
+        )}
+        <DatabasePropertiesButton
+          fields={fields}
+          hiddenFieldIds={hiddenFieldIds}
+          onHiddenFieldIdsChange={onHiddenFieldIdsChange}
+        />
+        {activeViewType === "chart" && (
+          <select
+            value={chartGroupFieldId}
+            onChange={(event) => onChartGroupFieldChange(event.target.value)}
+            aria-label="图表分组字段"
+            className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+          >
+            <option value="">自动分组</option>
+            {chartableFields.map((field) => (
+              <option key={field.id} value={field.id}>
+                图表：{getDatabaseFieldDisplayName(field)}
+              </option>
+            ))}
+          </select>
+        )}
+        <span className="text-zinc-400">
+          {visibleCount}/{totalCount}
         </span>
-      )}
-      <select
-        value={filterFieldId}
-        onChange={(event) => onFilterFieldChange(event.target.value)}
-        aria-label="筛选字段"
-        className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-      >
-        <option value="all">所有字段</option>
-        {fields.map((field) => (
-          <option key={field.id} value={field.id}>
-            {getDatabaseFieldDisplayName(field)}
-          </option>
-        ))}
-      </select>
-      <input
-        type="text"
-        value={filterValue}
-        onChange={(event) => onFilterValueChange(event.target.value)}
-        placeholder="筛选包含"
-        className="h-8 w-40 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500"
-      />
-      <select
-        value={sortKey}
-        onChange={(event) => onSortKeyChange(event.target.value)}
-        aria-label="排序行"
-        className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-      >
-        <option value="position">手动排序</option>
-        <option value="name">名称</option>
-        <option value="created">创建时间</option>
-        <option value="updated">更新时间</option>
-        {fields.slice(1).map((field) => (
-          <option key={field.id} value={`field:${field.id}`}>
-            {getDatabaseFieldDisplayName(field)}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        onClick={() =>
-          onSortDirectionChange(sortDirection === "asc" ? "desc" : "asc")
-        }
-        className="h-8 rounded border border-zinc-200 px-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-        title="切换排序方向"
-      >
-        {sortDirection === "asc" ? "升序" : "降序"}
-      </button>
-      <DatabasePropertiesButton
-        fields={fields}
-        hiddenFieldIds={hiddenFieldIds}
-        onHiddenFieldIdsChange={onHiddenFieldIdsChange}
-      />
-      {activeViewType === "chart" && (
-        <select
-          value={chartGroupFieldId}
-          onChange={(event) => onChartGroupFieldChange(event.target.value)}
-          aria-label="图表分组字段"
-          className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-        >
-          <option value="">自动分组</option>
-          {chartableFields.map((field) => (
-            <option key={field.id} value={field.id}>
-              图表：{getDatabaseFieldDisplayName(field)}
-            </option>
-          ))}
-        </select>
-      )}
-      <span className="text-zinc-400">
-        {visibleCount}/{totalCount}
-      </span>
-      <button
-        type="button"
-        onClick={onSaveView}
-        className="h-8 rounded border border-zinc-200 px-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-      >
-        保存视图
-      </button>
-      {hasControls && (
         <button
           type="button"
-          onClick={() => {
-            onRowSearchChange("");
-            onFilterFieldChange("all");
-            onFilterValueChange("");
-            onSortKeyChange("position");
-            onSortDirectionChange("asc");
-            onHiddenFieldIdsChange([]);
-            onChartGroupFieldChange("");
-          }}
-          className="h-8 rounded px-2 text-xs text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          onClick={onSaveView}
+          className="h-8 rounded border border-zinc-200 px-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
         >
-          清除
+          保存视图
         </button>
-      )}
+        {hasControls && (
+          <button
+            type="button"
+            onClick={() => {
+              onRowSearchChange("");
+              onFilterRulesChange([]);
+              onSortRulesChange([createDatabaseSortRule("position", "asc")]);
+              onHiddenFieldIdsChange([]);
+              onChartGroupFieldChange("");
+            }}
+            className="h-8 rounded px-2 text-xs text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          >
+            清除
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-zinc-400">筛选 {activeFilterCount}</span>
+        {filterRules.map((rule) => (
+          <span key={rule.id} className="inline-flex items-center gap-1">
+            <select
+              value={rule.fieldId}
+              onChange={(event) =>
+                handleFilterRuleChange(rule.id, { fieldId: event.target.value })
+              }
+              aria-label="筛选字段"
+              className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+            >
+              <option value="all">所有字段</option>
+              {fields.map((field) => (
+                <option key={field.id} value={field.id}>
+                  {getDatabaseFieldDisplayName(field)}
+                </option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={rule.value}
+              onChange={(event) =>
+                handleFilterRuleChange(rule.id, { value: event.target.value })
+              }
+              placeholder="包含"
+              className="h-8 w-36 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500"
+            />
+            <button
+              type="button"
+              onClick={() =>
+                onFilterRulesChange(
+                  filterRules.filter((item) => item.id !== rule.id)
+                )
+              }
+              className="h-8 rounded px-2 text-xs text-zinc-400 hover:bg-zinc-50 hover:text-red-500 dark:hover:bg-zinc-800"
+              title="删除筛选条件"
+            >
+              x
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            onFilterRulesChange([...filterRules, createDatabaseFilterRule()])
+          }
+          className="h-8 rounded border border-zinc-200 px-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          + 筛选
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-zinc-400">排序 {displaySortRules.length}</span>
+        {displaySortRules.map((rule) => (
+          <span key={rule.id} className="inline-flex items-center gap-1">
+            <select
+              value={rule.key}
+              onChange={(event) =>
+                handleSortRuleChange(rule.id, { key: event.target.value })
+              }
+              aria-label="排序行"
+              className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+            >
+              <option value="position">手动排序</option>
+              <option value="name">名称</option>
+              <option value="created">创建时间</option>
+              <option value="updated">更新时间</option>
+              {fields.slice(1).map((field) => (
+                <option key={field.id} value={`field:${field.id}`}>
+                  {getDatabaseFieldDisplayName(field)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() =>
+                handleSortRuleChange(rule.id, {
+                  direction: rule.direction === "asc" ? "desc" : "asc",
+                })
+              }
+              className="h-8 rounded border border-zinc-200 px-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              title="切换排序方向"
+            >
+              {rule.direction === "asc" ? "升序" : "降序"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const nextRules = displaySortRules.filter(
+                  (item) => item.id !== rule.id
+                );
+                onSortRulesChange(
+                  nextRules.length
+                    ? nextRules
+                    : [createDatabaseSortRule("position", "asc")]
+                );
+              }}
+              className="h-8 rounded px-2 text-xs text-zinc-400 hover:bg-zinc-50 hover:text-red-500 dark:hover:bg-zinc-800"
+              title="删除排序条件"
+            >
+              x
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            onSortRulesChange([
+              ...displaySortRules,
+              createDatabaseSortRule("position", "asc"),
+            ])
+          }
+          className="h-8 rounded border border-zinc-200 px-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          + 排序
+        </button>
+        <span className="text-[11px] text-zinc-400">
+          多个筛选按全部匹配处理，多个排序按从左到右处理。
+        </span>
+      </div>
     </div>
   );
 }
@@ -1980,42 +2080,52 @@ function getVisibleRows({
   fields,
   relationPages,
   search,
-  filterFieldId,
-  filterValue,
-  sortKey,
-  sortDirection,
+  filterRules,
+  sortRules,
 }: {
   rows: RowWithPage[];
   fields: DatabaseField[];
   relationPages: Page[];
   search: string;
-  filterFieldId: string;
-  filterValue: string;
-  sortKey: string;
-  sortDirection: SortDirection;
+  filterRules: DatabaseFilterRule[];
+  sortRules: DatabaseSortRule[];
 }) {
   const normalizedSearch = search.trim().toLowerCase();
-  const normalizedFilter = filterValue.trim().toLowerCase();
+  const activeFilterRules = filterRules
+    .map((rule) => ({
+      ...rule,
+      normalizedValue: rule.value.trim().toLowerCase(),
+    }))
+    .filter((rule) => rule.normalizedValue);
+  const activeSortRules = sortRules.length
+    ? sortRules
+    : [createDatabaseSortRule("position", "asc")];
   const filtered = rows.filter((row) => {
     const rowText = getRowSearchText(row, fields, relationPages).toLowerCase();
     if (normalizedSearch && !rowText.includes(normalizedSearch)) return false;
-    if (!normalizedFilter) return true;
 
-    if (filterFieldId === "all") {
-      return rowText.includes(normalizedFilter);
-    }
+    return activeFilterRules.every((rule) => {
+      if (rule.fieldId === "all") {
+        return rowText.includes(rule.normalizedValue);
+      }
 
-    const field = fields.find((item) => item.id === filterFieldId);
-    if (!field) return true;
+      const field = fields.find((item) => item.id === rule.fieldId);
+      if (!field) return true;
 
-    return getRowFieldText(row, field, fields, relationPages)
-      .toLowerCase()
-      .includes(normalizedFilter);
+      return getRowFieldText(row, field, fields, relationPages)
+        .toLowerCase()
+        .includes(rule.normalizedValue);
+    });
   });
 
   const sorted = [...filtered].sort((left, right) => {
-    const comparison = compareRows(left, right, fields, relationPages, sortKey);
-    return sortDirection === "asc" ? comparison : -comparison;
+    for (const rule of activeSortRules) {
+      const comparison = compareRows(left, right, fields, relationPages, rule.key);
+      if (comparison !== 0) {
+        return rule.direction === "asc" ? comparison : -comparison;
+      }
+    }
+    return left.position - right.position;
   });
 
   return sorted;
@@ -2138,21 +2248,41 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
     rowSearch: "",
     filterFieldId: "all",
     filterValue: "",
+    filterRules: [],
     sortKey: "position",
     sortDirection: "asc",
+    sortRules: [createDatabaseSortRule("position", "asc")],
     hiddenFieldIds: [],
     chartGroupFieldId: "",
   };
 
   try {
     const parsed = JSON.parse(config || "{}") as Partial<DatabaseViewConfig>;
+    const filterFieldId =
+      typeof parsed.filterFieldId === "string" ? parsed.filterFieldId : "all";
+    const filterValue =
+      typeof parsed.filterValue === "string" ? parsed.filterValue : "";
+    const sortKey = typeof parsed.sortKey === "string" ? parsed.sortKey : "position";
+    const sortDirection = parsed.sortDirection === "desc" ? "desc" : "asc";
+    const filterRules = parseDatabaseFilterRules(
+      parsed.filterRules,
+      filterFieldId,
+      filterValue
+    );
+    const sortRules = parseDatabaseSortRules(
+      parsed.sortRules,
+      sortKey,
+      sortDirection
+    );
+
     return {
       rowSearch: typeof parsed.rowSearch === "string" ? parsed.rowSearch : "",
-      filterFieldId:
-        typeof parsed.filterFieldId === "string" ? parsed.filterFieldId : "all",
-      filterValue: typeof parsed.filterValue === "string" ? parsed.filterValue : "",
-      sortKey: typeof parsed.sortKey === "string" ? parsed.sortKey : "position",
-      sortDirection: parsed.sortDirection === "desc" ? "desc" : "asc",
+      filterFieldId,
+      filterValue,
+      filterRules,
+      sortKey,
+      sortDirection,
+      sortRules,
       hiddenFieldIds: parseStringArray(parsed.hiddenFieldIds),
       chartGroupFieldId:
         typeof parsed.chartGroupFieldId === "string" ? parsed.chartGroupFieldId : "",
@@ -2184,10 +2314,108 @@ function isChartableField(field: DatabaseField) {
   ].includes(field.field_type);
 }
 
+function createDatabaseFilterRule(
+  fieldId = "all",
+  value = ""
+): DatabaseFilterRule {
+  return {
+    id: createDatabaseViewRuleId("filter"),
+    fieldId,
+    value,
+  };
+}
+
+function createDatabaseSortRule(
+  key = "position",
+  direction: SortDirection = "asc"
+): DatabaseSortRule {
+  return {
+    id: createDatabaseViewRuleId("sort"),
+    key,
+    direction,
+  };
+}
+
+function parseDatabaseFilterRules(
+  value: unknown,
+  legacyFieldId: string,
+  legacyValue: string
+): DatabaseFilterRule[] {
+  const rules = Array.isArray(value)
+    ? value
+        .map((item, index) => {
+          if (!item || typeof item !== "object") return null;
+          const candidate = item as Partial<DatabaseFilterRule>;
+          if (
+            typeof candidate.fieldId !== "string" ||
+            typeof candidate.value !== "string"
+          ) {
+            return null;
+          }
+          return {
+            id:
+              typeof candidate.id === "string"
+                ? candidate.id
+                : `filter-${index + 1}`,
+            fieldId: candidate.fieldId,
+            value: candidate.value,
+          };
+        })
+        .filter((item): item is DatabaseFilterRule => Boolean(item))
+    : [];
+
+  if (rules.length > 0) return rules;
+  if (!legacyValue.trim()) return [];
+  return [createDatabaseFilterRule(legacyFieldId || "all", legacyValue)];
+}
+
+function parseDatabaseSortRules(
+  value: unknown,
+  legacyKey: string,
+  legacyDirection: SortDirection
+): DatabaseSortRule[] {
+  const rules = Array.isArray(value)
+    ? value
+        .map((item, index) => {
+          if (!item || typeof item !== "object") return null;
+          const candidate = item as Partial<DatabaseSortRule>;
+          if (typeof candidate.key !== "string") return null;
+          return {
+            id:
+              typeof candidate.id === "string"
+                ? candidate.id
+                : `sort-${index + 1}`,
+            key: candidate.key,
+            direction: candidate.direction === "desc" ? "desc" : "asc",
+          };
+        })
+        .filter((item): item is DatabaseSortRule => Boolean(item))
+    : [];
+
+  if (rules.length > 0) return rules;
+  return [createDatabaseSortRule(legacyKey || "position", legacyDirection)];
+}
+
+function isDefaultSortRules(sortRules: DatabaseSortRule[]) {
+  return (
+    sortRules.length === 0 ||
+    (sortRules.length === 1 &&
+      sortRules[0].key === "position" &&
+      sortRules[0].direction === "asc")
+  );
+}
+
 function parseStringArray(value: unknown) {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function createDatabaseViewRuleId(prefix: "filter" | "sort") {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function downloadJsonFile(fileName: string, value: unknown) {

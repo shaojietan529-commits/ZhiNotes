@@ -311,6 +311,10 @@ Current local actions:
   view readiness, and import/export boundaries.
 - Review coverage for table, list, kanban, calendar, gallery, timeline, chart,
   form, and feed views.
+- Save Notion-like view controls per database view: row search, multiple
+  contains filters, multiple sort rules, visible properties, and chart grouping
+  are stored in each local view config. Older single-filter/single-sort view
+  configs remain compatible and open as one rule.
 - Use local database fields for text, number, formula, relation, select,
   multi-select, status, date, checkbox, URL, email, phone, unique ID, created
   time, and last edited time values. Table and form views use native
