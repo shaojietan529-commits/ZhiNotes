@@ -109,6 +109,7 @@ const REPORT_FILE_ACTION_LABEL = "上传报告文件";
 const MARKDOWN_EDITABLE_IMPORT_LABEL = "导入 Markdown 笔记";
 const MARKDOWN_EDITABLE_IMPORT_ACCEPT =
   ".md,.markdown,.mdx,.mdown,.mkd,.mkdn,.rmd,.qmd,text/markdown,text/x-markdown,text/plain";
+const IMPORTED_PAGE_TITLE_MAX_LENGTH = 120;
 
 interface ReportFileBatchMessage {
   created: number;
@@ -410,7 +411,7 @@ function ReportsDashboard() {
 
   const createReportPageFromStoredFile = async (storedFile: StoredPageFile) => {
     const page = await createPage({
-      title: reportPageTitleFromFile(storedFile.name),
+      title: reportPageTitleFromStoredFile(storedFile),
       icon: "RPT",
     });
     await updatePage(page.id, {
@@ -451,7 +452,10 @@ function ReportsDashboard() {
       }
 
       const page = await createPage({
-        title: markdownPageTitleFromFile(storedFile.name),
+        title: markdownPageTitleFromFile(
+          storedFile.name,
+          storedFile.textContent ?? ""
+        ),
         icon: "MD",
       });
       await updatePage(page.id, {
@@ -3819,12 +3823,161 @@ function reportPageTitleFromFile(fileName: string) {
   return baseName ? `${baseName} 报告` : "未命名研究报告";
 }
 
-function markdownPageTitleFromFile(fileName: string) {
+function reportPageTitleFromStoredFile(file: StoredPageFile) {
+  const documentTitle =
+    file.kind === "html"
+      ? extractHtmlDocumentTitle(file.textContent ?? "")
+      : file.kind === "markdown"
+        ? extractMarkdownDocumentTitle(file.textContent ?? "")
+        : "";
+  return documentTitle || reportPageTitleFromFile(file.name);
+}
+
+function markdownPageTitleFromFile(fileName: string, markdown = "") {
+  const documentTitle = extractMarkdownDocumentTitle(markdown);
+  if (documentTitle) return documentTitle;
+
   const baseName = fileName
     .replace(/\.[^.]+$/, "")
     .replace(/[_-]+/g, " ")
     .trim();
   return baseName ? `${baseName} 笔记` : "未命名 Markdown 笔记";
+}
+
+function extractMarkdownDocumentTitle(markdown: string) {
+  const normalizedMarkdown = markdown.replace(/\r\n/g, "\n");
+  const frontmatterTitle = extractMarkdownFrontmatterTitle(normalizedMarkdown);
+  if (frontmatterTitle) return frontmatterTitle;
+
+  return extractMarkdownHeadingTitle(
+    stripLeadingMarkdownFrontmatter(normalizedMarkdown)
+  );
+}
+
+function extractMarkdownFrontmatterTitle(markdown: string) {
+  const yamlFrontmatter = /^---\n([\s\S]*?)\n---(?:\n|$)/.exec(markdown);
+  if (yamlFrontmatter) {
+    const title = extractMetadataTitleValue(yamlFrontmatter[1], "yaml");
+    if (title) return title;
+  }
+
+  const tomlFrontmatter = /^\+\+\+\n([\s\S]*?)\n\+\+\+(?:\n|$)/.exec(
+    markdown
+  );
+  if (tomlFrontmatter) {
+    return extractMetadataTitleValue(tomlFrontmatter[1], "toml");
+  }
+
+  return "";
+}
+
+function extractMetadataTitleValue(
+  frontmatter: string,
+  format: "yaml" | "toml"
+) {
+  for (const line of frontmatter.split("\n")) {
+    const match =
+      format === "yaml"
+        ? /^\s*title\s*:\s*(.+?)\s*$/.exec(line)
+        : /^\s*title\s*=\s*(.+?)\s*$/.exec(line);
+    if (!match) continue;
+
+    const title = normalizeImportedPageTitle(
+      match[1].replace(/\s+#.*$/, "").replace(/\s+\/\/.*$/, "")
+    );
+    if (title) return title;
+  }
+
+  return "";
+}
+
+function stripLeadingMarkdownFrontmatter(markdown: string) {
+  const yamlFrontmatter = /^---\n[\s\S]*?\n---(?:\n|$)/.exec(markdown);
+  if (yamlFrontmatter) return markdown.slice(yamlFrontmatter[0].length);
+
+  const tomlFrontmatter = /^\+\+\+\n[\s\S]*?\n\+\+\+(?:\n|$)/.exec(markdown);
+  if (tomlFrontmatter) return markdown.slice(tomlFrontmatter[0].length);
+
+  return markdown;
+}
+
+function extractMarkdownHeadingTitle(markdown: string) {
+  const lines = markdown.split("\n");
+  let inFence = false;
+  let previousTextLine = "";
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (/^(```|~~~)/.test(trimmed)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+
+    const heading = /^#\s+(.+?)\s*#*$/.exec(trimmed);
+    if (heading) {
+      const title = normalizeImportedPageTitle(stripMarkdownInline(heading[1]));
+      if (title) return title;
+    }
+
+    if (/^=+\s*$/.test(trimmed) && previousTextLine) {
+      const title = normalizeImportedPageTitle(
+        stripMarkdownInline(previousTextLine)
+      );
+      if (title) return title;
+    }
+
+    previousTextLine = trimmed ? line : "";
+  }
+
+  return "";
+}
+
+function extractHtmlDocumentTitle(html: string) {
+  const titleTag = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
+  if (titleTag) {
+    const title = normalizeImportedPageTitle(titleTag[1]);
+    if (title) return title;
+  }
+
+  const heading = /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(html);
+  if (heading) {
+    return normalizeImportedPageTitle(heading[1]);
+  }
+
+  return "";
+}
+
+function stripMarkdownInline(value: string) {
+  return value
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[`*_~]/g, "");
+}
+
+function normalizeImportedPageTitle(value: string) {
+  const title = decodeBasicHtmlEntities(
+    value
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^["']|["']$/g, "")
+  ).trim();
+
+  return title.slice(0, IMPORTED_PAGE_TITLE_MAX_LENGTH).trim();
+}
+
+function decodeBasicHtmlEntities(value: string) {
+  return value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'");
 }
 
 function createReportPageContent(file: StoredPageFile) {

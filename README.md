@@ -682,6 +682,10 @@ When the Reports module creates a page from a local file, the new page includes
 a format routing table next to the file preview block. It records the preview
 path, editable-import route, database-import route, and privacy boundary for
 that file family, while the original file remains in local browser storage.
+HTML report pages now prefer the document `<title>` or first H1 for the new
+page name. Markdown imports prefer frontmatter `title` or the first top-level
+heading, then fall back to the file name. This keeps AI-generated visual reports
+and written notes closer to their original document structure after import.
 
 The Reports module also renders a local upload preflight before file selection.
 It shows how each supported format will be routed inside a page: native preview,
