@@ -606,6 +606,10 @@ function run() {
   for (const snippet of [
     "sidePeekPageId",
     "DatabaseRowSidePeekPanel",
+    "DatabaseRowOpenMode",
+    "handleUpdateViewOpenMode",
+    "parseDatabaseRowOpenMode",
+    "保存打开方式",
     "本地 side peek",
     "打开完整页面",
     "getPageTextPreview",

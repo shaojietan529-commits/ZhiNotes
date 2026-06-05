@@ -112,6 +112,7 @@ const DATABASE_IMPORT_CONFIRMATION_PHRASE =
 
 type RowWithPage = DatabaseRow & { page: Page };
 type SortDirection = "asc" | "desc";
+type DatabaseRowOpenMode = "side-peek" | "full-page";
 type DatabaseFilterMatchMode = "all" | "any";
 type DatabaseFilterOperator =
   | "contains"
@@ -142,6 +143,7 @@ interface DatabaseRowGroup {
 }
 interface DatabaseViewConfig {
   description: string;
+  openMode: DatabaseRowOpenMode;
   rowSearch: string;
   filterFieldId: string;
   filterValue: string;
@@ -450,6 +452,20 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [reload]
   );
 
+  const handleUpdateViewOpenMode = useCallback(
+    async (view: DatabaseView, openMode: DatabaseRowOpenMode) => {
+      const config = parseDatabaseViewConfig(view.config);
+      await updateView(view.id, {
+        config: JSON.stringify({
+          ...config,
+          openMode,
+        }),
+      });
+      reload();
+    },
+    [reload]
+  );
+
   const handleDuplicateView = useCallback(
     async (view: DatabaseView) => {
       const sourceName = getDatabaseViewDisplayName(view);
@@ -521,9 +537,17 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
   const handleOpenRow = useCallback(
     (pageId: string) => {
+      const view = views.find((item) => item.id === activeViewId) ?? views[0];
+      const openMode = view
+        ? parseDatabaseViewConfig(view.config).openMode
+        : "side-peek";
+      if (openMode === "full-page") {
+        router.push(`/page/${pageId}`);
+        return;
+      }
       setSidePeekPageId(pageId);
     },
-    []
+    [activeViewId, router, views]
   );
 
   const handleOpenPage = useCallback(
@@ -882,6 +906,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
                 canMoveRight={viewIndex >= 0 && viewIndex < views.length - 1}
                 onRename={handleRenameView}
                 onUpdateDescription={handleUpdateViewDescription}
+                onUpdateOpenMode={handleUpdateViewOpenMode}
                 onDuplicate={handleDuplicateView}
                 onCopyLink={handleCopyViewLink}
                 onMove={handleMoveView}
@@ -963,6 +988,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
             config: JSON.stringify({
               rowSearch,
               description: activeViewConfig?.description ?? "",
+              openMode: activeViewConfig?.openMode ?? "side-peek",
               filterFieldId: filterRules[0]?.fieldId ?? "all",
               filterValue: filterRules[0]?.value ?? "",
               filterRules,
@@ -1301,6 +1327,7 @@ function DatabaseViewActionsButton({
   canMoveRight,
   onRename,
   onUpdateDescription,
+  onUpdateOpenMode,
   onDuplicate,
   onCopyLink,
   onMove,
@@ -1312,6 +1339,7 @@ function DatabaseViewActionsButton({
   canMoveRight: boolean;
   onRename: (view: DatabaseView, name: string) => void;
   onUpdateDescription: (view: DatabaseView, description: string) => void;
+  onUpdateOpenMode: (view: DatabaseView, openMode: DatabaseRowOpenMode) => void;
   onDuplicate: (view: DatabaseView) => void;
   onCopyLink: (view: DatabaseView) => Promise<void>;
   onMove: (view: DatabaseView, direction: "left" | "right") => void;
@@ -1322,14 +1350,19 @@ function DatabaseViewActionsButton({
   const [description, setDescription] = useState(
     parseDatabaseViewConfig(view.config).description
   );
+  const [openMode, setOpenMode] = useState<DatabaseRowOpenMode>(
+    parseDatabaseViewConfig(view.config).openMode
+  );
   const menuRef = useRef<HTMLSpanElement | null>(null);
 
   useDismissFloatingMenu(open, setOpen, menuRef);
 
-  useEffect(() => {
+  const syncDraftFromView = () => {
     setName(getDatabaseViewDisplayName(view));
-    setDescription(parseDatabaseViewConfig(view.config).description);
-  }, [view]);
+    const config = parseDatabaseViewConfig(view.config);
+    setDescription(config.description);
+    setOpenMode(config.openMode);
+  };
 
   const handleRename = () => {
     const nextName = name.trim();
@@ -1343,11 +1376,19 @@ function DatabaseViewActionsButton({
     setOpen(false);
   };
 
+  const handleSaveOpenMode = () => {
+    onUpdateOpenMode(view, openMode);
+    setOpen(false);
+  };
+
   return (
     <span ref={menuRef} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          if (!open) syncDraftFromView();
+          setOpen((value) => !value);
+        }}
         className="mr-1 rounded px-1 py-1 text-xs text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
         title="视图设置"
       >
@@ -1384,6 +1425,21 @@ function DatabaseViewActionsButton({
               className="w-full resize-none rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs leading-5 text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             />
           </label>
+          <label className="mt-3 block">
+            <span className="mb-1 block text-[11px] text-zinc-500">
+              行打开方式
+            </span>
+            <select
+              value={openMode}
+              onChange={(event) =>
+                setOpenMode(parseDatabaseRowOpenMode(event.target.value))
+              }
+              className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            >
+              <option value="side-peek">侧边预览</option>
+              <option value="full-page">直接打开完整页面</option>
+            </select>
+          </label>
           <div className="mt-3 grid gap-1">
             <button
               type="button"
@@ -1398,6 +1454,13 @@ function DatabaseViewActionsButton({
               className="rounded px-2 py-1.5 text-left text-xs text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
             >
               保存说明
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveOpenMode}
+              className="rounded px-2 py-1.5 text-left text-xs text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              保存打开方式
             </button>
             <button
               type="button"
@@ -3329,6 +3392,7 @@ function getPageTextPreview(contentText: string | null | undefined) {
 function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
   const fallback: DatabaseViewConfig = {
     description: "",
+    openMode: "side-peek",
     rowSearch: "",
     filterFieldId: "all",
     filterValue: "",
@@ -3365,6 +3429,7 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
     return {
       description:
         typeof parsed.description === "string" ? parsed.description : "",
+      openMode: parseDatabaseRowOpenMode(parsed.openMode),
       rowSearch: typeof parsed.rowSearch === "string" ? parsed.rowSearch : "",
       filterFieldId,
       filterValue,
@@ -3384,6 +3449,10 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
   } catch {
     return fallback;
   }
+}
+
+function parseDatabaseRowOpenMode(value: unknown): DatabaseRowOpenMode {
+  return value === "full-page" ? "full-page" : "side-peek";
 }
 
 function getVisibleFields(fields: DatabaseField[], hiddenFieldIds: string[]) {

@@ -394,6 +394,8 @@ Current local actions:
 - Open a local database row in a side peek before entering the full page. The
   peek reads the row page title, local page preview text, and field summary,
   then leaves full-page editing behind an explicit button.
+- Save the row open mode per database view: keep the Notion-like side peek, or
+  switch a view back to opening rows directly as full pages.
 - Reorder local database rows in manual-sort table, list, and gallery views.
   Row ordering swaps local row position metadata only; it does not read or
   change field values, page bodies, files, cloud data, or AI output.
