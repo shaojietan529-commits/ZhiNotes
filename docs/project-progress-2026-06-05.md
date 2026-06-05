@@ -53,6 +53,8 @@ schema migration 的能力默认保持关闭。
   view config，只影响展示，不改 row values。
 - Kanban view 现在也会读取保存的分组字段；当字段适合 board 展示时，支持按 status、select 或
   checkbox 分栏。
+- Kanban 卡片现在会显示最多 3 个本地属性预览，包括 relation、number、formula、rollup 和系统字段，
+  用来快速扫描投研上下文。
 - Calendar 和 Timeline view 现在可以保存使用哪个日期字段；没有选择时继续自动 fallback 到第一个
   date 或系统时间字段。
 - Calendar view 会把缺少所选日期值的行保留在本地“无日期”区域，避免记录因为没填日期而消失。

@@ -318,10 +318,11 @@ Current local actions:
   single-sort view configs remain compatible and open as one rule. Table, list,
   gallery, and feed views can render grouped sections without changing row
   values. Kanban views also read saved board-friendly grouping fields, including
-  status, select, and checkbox. Calendar and timeline views can save which date
-  property they use, falling back to the first date/system-time field when no
-  date property is selected. Calendar views keep rows without that date visible
-  in a local no-date section instead of hiding them.
+  status, select, and checkbox, and show a few local card properties for faster
+  research scanning. Calendar and timeline views can save which date property
+  they use, falling back to the first date/system-time field when no date
+  property is selected. Calendar views keep rows without that date visible in a
+  local no-date section instead of hiding them.
 - Search the local property visibility menu by field name, type, or field
   description before hiding or showing properties in the current database view.
   The same menu can show all properties or collapse the view back to title-only

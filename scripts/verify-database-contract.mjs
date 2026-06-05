@@ -493,6 +493,12 @@ function run() {
     "getKanbanColumnLabel",
     "已勾选",
     "未勾选",
+    "getKanbanCardFields",
+    "formatKanbanFieldValue",
+    "stringifyRelationValue",
+    "evaluateDatabaseFormula",
+    "evaluateDatabaseRollup",
+    "relationPages",
   ]) {
     assertIncludes(
       files.kanbanView,
@@ -1869,6 +1875,7 @@ function run() {
         kanban_saved_grouping: true,
         date_view_field_selection: true,
         calendar_no_date_rows: true,
+        kanban_card_properties: true,
         view_management: true,
         view_reordering: true,
         row_reordering: true,
