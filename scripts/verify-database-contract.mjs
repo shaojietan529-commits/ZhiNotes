@@ -449,6 +449,20 @@ function run() {
     );
   }
   for (const snippet of [
+    "normalizedQuery",
+    "filteredFields",
+    'placeholder="搜索属性"',
+    "没有匹配的属性",
+    "getDatabaseFieldDescription(field)",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database property visibility menu must support local property search."
+    );
+  }
+  for (const snippet of [
     "buildDatabaseRowGroups",
     "getDatabaseRowGroupLabels",
     "isGroupedViewType",
@@ -1795,6 +1809,7 @@ function run() {
         feed_field_context: true,
         view_rule_controls: true,
         view_filter_operators: true,
+        property_visibility_search: true,
         view_grouping: true,
         view_management: true,
         view_reordering: true,

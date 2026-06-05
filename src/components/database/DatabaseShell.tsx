@@ -2011,10 +2011,24 @@ function DatabasePropertiesButton({
   onHiddenFieldIdsChange: (value: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const hiddenFieldSet = new Set(hiddenFieldIds);
   const visibleCount = fields.filter(
     (field) => field.position === 0 || !hiddenFieldSet.has(field.id)
   ).length;
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredFields = normalizedQuery
+    ? fields.filter((field) =>
+        [
+          getDatabaseFieldDisplayName(field),
+          getDatabaseFieldTypeLabel(field.field_type),
+          getDatabaseFieldDescription(field),
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery)
+      )
+    : fields;
 
   const toggleField = (field: DatabaseField) => {
     if (field.position === 0) return;
@@ -2040,8 +2054,20 @@ function DatabasePropertiesButton({
           <div className="mb-2 px-1 text-[11px] font-medium text-zinc-400">
             当前视图显示的属性
           </div>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索属性"
+            className="mb-2 h-8 w-full rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500"
+          />
           <div className="max-h-64 space-y-1 overflow-y-auto">
-            {fields.map((field) => {
+            {filteredFields.length === 0 && (
+              <p className="px-2 py-3 text-center text-xs text-zinc-400">
+                没有匹配的属性
+              </p>
+            )}
+            {filteredFields.map((field) => {
               const checked =
                 field.position === 0 || !hiddenFieldSet.has(field.id);
               return (

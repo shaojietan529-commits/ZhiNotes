@@ -318,6 +318,8 @@ Current local actions:
   single-sort view configs remain compatible and open as one rule. Table, list,
   gallery, and feed views can render grouped sections without changing row
   values.
+- Search the local property visibility menu by field name, type, or field
+  description before hiding or showing properties in the current database view.
 - Inline databases now apply saved view display config from the selected view:
   row search, filters, sort rules, hidden properties, grouped table/list/
   gallery/feed sections, chart grouping, and manual-sort eligibility are read

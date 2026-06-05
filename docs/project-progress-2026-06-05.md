@@ -48,6 +48,7 @@ schema migration 的能力默认保持关闭。
 - 旧的单一筛选/排序 view config 保持兼容：打开时会自动转成一条筛选规则或一条排序规则。
 - 保存视图会同时记录 row search、filter rules、sort rules、隐藏字段和 chart 分组；这些都只写入
   view config，不会改动数据库行值、页面正文、文件 bytes、云端数据或 AI 内容。
+- 属性显示菜单现在支持按字段名、字段类型或字段说明本地搜索，方便字段很多的投研数据库快速隐藏/显示属性。
 - 新增本地 view 分组：Table、List、Gallery、Feed 视图可以按字段分组展示；分组字段同样保存到
   view config，只影响展示，不改 row values。
 - 数据库 view tab 现在有本地管理菜单：重命名、复制视图配置、删除非最后一个视图；删除是
