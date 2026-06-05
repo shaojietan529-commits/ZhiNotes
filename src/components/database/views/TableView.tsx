@@ -72,17 +72,21 @@ export default function TableView({
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className="border-b border-zinc-200 dark:border-zinc-700">
-            <th className="text-left px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 w-8">
+            <th className="sticky left-0 z-30 w-10 min-w-10 bg-white px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
               #
             </th>
-            {fields.map((field) => {
+            {fields.map((field, fieldIndex) => {
               const fieldDescription = getDatabaseFieldDescription(field);
               const fieldName = getDatabaseFieldDisplayName(field);
               return (
                 <th
                   key={field.id}
                   title={fieldDescription || fieldName}
-                  className="text-left px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 min-w-[140px]"
+                  className={`min-w-[140px] px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 ${
+                    fieldIndex === 0
+                      ? "sticky left-10 z-30 bg-white shadow-[1px_0_0_rgb(228,228,231)] dark:bg-zinc-950 dark:shadow-[1px_0_0_rgb(63,63,70)]"
+                      : ""
+                  }`}
                 >
                   <span className="inline-flex max-w-[16rem] items-center gap-1 align-middle">
                     <span className="truncate">{fieldName}</span>
@@ -128,11 +132,21 @@ export default function TableView({
         </tbody>
         <tfoot>
           <tr className="border-t border-zinc-200 bg-zinc-50/80 text-[11px] text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-400">
-            <td className="px-3 py-2 font-medium">汇总</td>
+            <td className="sticky left-0 z-20 bg-zinc-50 px-3 py-2 font-medium dark:bg-zinc-900">
+              汇总
+            </td>
             {fields.map((field, index) => {
               const summary = columnSummaries[index];
               return (
-                <td key={field.id} className="px-3 py-2" title={summary.title}>
+                <td
+                  key={field.id}
+                  className={`px-3 py-2 ${
+                    index === 0
+                      ? "sticky left-10 z-20 bg-zinc-50 shadow-[1px_0_0_rgb(228,228,231)] dark:bg-zinc-900 dark:shadow-[1px_0_0_rgb(63,63,70)]"
+                      : ""
+                  }`}
+                  title={summary.title}
+                >
                   <div className="flex min-w-[8rem] flex-col gap-0.5">
                     <span className="font-medium text-zinc-600 dark:text-zinc-300">
                       {summary.primary}
@@ -206,6 +220,9 @@ function TableRow({
   const handleCellChange = (fieldId: string, value: unknown) => {
     onUpdate({ ...fieldValues, [fieldId]: value });
   };
+  const frozenCellBackground = focused
+    ? "bg-blue-50 dark:bg-blue-950/30"
+    : "bg-white group-hover:bg-zinc-50 dark:bg-zinc-950 dark:group-hover:bg-zinc-900";
 
   return (
     <tr
@@ -215,9 +232,20 @@ function TableRow({
           : ""
       }`}
     >
-      <td className="px-3 py-1.5 text-zinc-400 text-xs">{index}</td>
+      <td
+        className={`sticky left-0 z-10 w-10 min-w-10 px-3 py-1.5 text-xs text-zinc-400 ${frozenCellBackground}`}
+      >
+        {index}
+      </td>
       {fields.map((field, i) => (
-        <td key={field.id} className="px-3 py-1.5">
+        <td
+          key={field.id}
+          className={`px-3 py-1.5 ${
+            i === 0
+              ? `sticky left-10 z-10 shadow-[1px_0_0_rgb(228,228,231)] dark:shadow-[1px_0_0_rgb(63,63,70)] ${frozenCellBackground}`
+              : ""
+          }`}
+        >
           {i === 0 ? (
             // First field (Name) — clickable to open page
             <button

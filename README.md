@@ -401,6 +401,9 @@ Current local actions:
   summary for the current visible rows, including title coverage, checkbox
   completion, numeric/formula/rollup sum and average, date coverage, and unique
   value counts without writing row values.
+- Use wide local table views with the row number and title columns frozen on the
+  left, so long investment trackers remain readable while scrolling across many
+  fields.
 - Database row and field delete actions now ask for local confirmation first.
   Row delete soft-deletes the row and local page together; field delete removes
   the field config from the database. Neither action uploads or sends data out.

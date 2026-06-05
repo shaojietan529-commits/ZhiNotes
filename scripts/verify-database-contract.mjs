@@ -302,6 +302,19 @@ function run() {
     );
   }
   for (const snippet of [
+    "sticky left-0",
+    "sticky left-10",
+    "frozenCellBackground",
+    "shadow-[1px_0_0_rgb(228,228,231)]",
+  ]) {
+    assertIncludes(
+      files.tableView,
+      tableView,
+      snippet,
+      "Table view must freeze the row number and title columns for wide databases."
+    );
+  }
+  for (const snippet of [
     'field.field_type === "email"',
     'field.field_type === "phone"',
     'field.field_type === "multi_select"',
@@ -1923,6 +1936,7 @@ function run() {
         inline_view_config: true,
         inline_grouped_views: true,
         table_column_summaries: true,
+        table_frozen_title_column: true,
         import_export_readiness: true,
         feed_field_context: true,
         view_rule_controls: true,

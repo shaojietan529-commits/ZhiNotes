@@ -188,6 +188,11 @@ schema migration 的能力默认保持关闭。
 - 表格摘要不写入 row values，不读取页面正文，不读取文件 bytes，不连接云端，也不调用 AI；inline
   database 和分组 table 复用同一套只读摘要。
 
+### 数据库表格冻结列阶段
+
+- Full database 的 Table 现在冻结左侧序号列和标题列，宽表横向滚动时仍能看到当前记录是谁。
+- 这是 freeze column 的基础本地版，只改表格展示 CSS，不写 view config，不读取或改写 row values。
+
 ### 数据库删除确认阶段
 
 - 完整数据库页和 inline database 现在都会在删除字段或删除记录前弹出本地确认。
