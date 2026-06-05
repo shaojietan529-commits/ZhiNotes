@@ -148,17 +148,16 @@ function buildSteps(
   return [
     {
       id: "select-backup",
-      title: "Select local backup",
+      title: "选择本地备份",
       status: hasPreview ? "ready" : "pending",
       evidence: hasPreview
-        ? "A local backup package has been selected for dry-run preview."
-        : "No backup package has been selected in this session.",
-      required_action:
-        "Choose a local ZhiNotes backup JSON before any restore can be planned.",
+        ? "已选择一个本地备份包用于干跑预览。"
+        : "本次会话还没有选择备份包。",
+      required_action: "先选择本地 ZhiNotes 备份 JSON，才能规划恢复。",
     },
     {
       id: "validate-backup",
-      title: "Validate backup format",
+      title: "验证备份格式",
       status:
         planStatus === "preview-loaded"
           ? "ready"
@@ -166,48 +165,48 @@ function buildSteps(
             ? "blocked"
             : "pending",
       evidence: preview
-        ? `${preview.format ?? "unknown"} v${preview.formatVersion ?? "unknown"} with ${preview.issues.length} issues and ${preview.warnings.length} warnings.`
-        : "Backup format has not been checked yet.",
+        ? `${preview.format ?? "未知"} v${preview.formatVersion ?? "未知"}，包含 ${preview.issues.length} 个问题和 ${preview.warnings.length} 个警告。`
+        : "还没有检查备份格式。",
       required_action:
-        "Only zhinote-workspace-backup format version 1 should be eligible for restore planning.",
+        "只有 zhinote-workspace-backup 格式版本 1 应进入恢复规划。",
     },
     {
       id: "export-rollback",
-      title: "Export current workspace rollback",
+      title: "导出当前工作区回滚备份",
       status: "manual-confirmation",
       evidence:
-        "Local Backup JSON export exists, but a rollback snapshot must be created immediately before write-back.",
+        "本地备份 JSON 导出功能已经存在，但写入前必须立即创建回滚快照。",
       required_action:
-        "Download a fresh current-workspace backup and keep it before enabling restore write-back.",
+        "启用恢复写入前，先下载并保留一份最新当前工作区备份。",
     },
     {
       id: "review-scope",
-      title: "Review restore scope",
+      title: "审阅恢复范围",
       status: preview?.valid ? "ready" : "pending",
       evidence: preview?.valid
-        ? `${preview.counts.activePages} active pages, ${preview.counts.databases} databases, and ${preview.counts.uploadedFiles} uploaded files are in the selected backup.`
-        : "Restore scope cannot be trusted until the backup preview is valid.",
+        ? `所选备份包含 ${preview.counts.activePages} 个活跃页面、${preview.counts.databases} 个数据库和 ${preview.counts.uploadedFiles} 个上传文件。`
+        : "备份预览有效之前，不能信任恢复范围。",
       required_action:
-        "Review active pages, trash pages, versions, comments, databases, files, favorites, and locked pages.",
+        "审阅活跃页面、回收站页面、版本、评论、数据库、文件、收藏和锁定页面。",
     },
     {
       id: "clear-sync-risk",
-      title: "Clear pending sync risk",
+      title: "清理待同步风险",
       status: hasPendingSync ? "manual-confirmation" : "ready",
       evidence: hasPendingSync
-        ? `${input.syncSummary?.pending ?? 0} local sync rows are pending and may conflict with restore.`
-        : "No pending sync rows are currently reported.",
+        ? `${input.syncSummary?.pending ?? 0} 条本地同步行待处理，可能与恢复冲突。`
+        : "当前没有待处理同步行。",
       required_action:
-        "Resolve or export sync queue metadata before enabling restore write-back.",
+        "启用恢复写入前，先解决或导出同步队列 metadata。",
     },
     {
       id: "second-confirmation",
-      title: "Require second confirmation",
+      title: "要求第二次确认",
       status: "blocked",
       evidence:
-        "Restore write-back is intentionally disabled in the current app.",
+        "当前 app 中恢复写入被有意禁用。",
       required_action:
-        "Add a dedicated confirmation screen before any restore writes, overwrites, or deletes workspace data.",
+        "任何恢复写入、覆盖或删除工作区数据之前，都要加入专门确认页面。",
     },
   ];
 }
@@ -217,70 +216,70 @@ function buildScopes(input: RestoreRollbackPlanInput): RestoreScopeRow[] {
   return [
     scope(
       "active-pages",
-      "Active pages",
+      "活跃页面",
       input.localScope.activePages,
       preview?.counts.activePages ?? null,
       "high"
     ),
     scope(
       "trash-pages",
-      "Trash pages",
+      "回收站页面",
       input.localScope.deletedPages,
       preview?.counts.deletedPages ?? null,
       "medium"
     ),
     scope(
       "page-versions",
-      "Page versions",
+      "页面版本",
       0,
       preview?.counts.pageVersions ?? null,
       "high"
     ),
     scope(
       "page-comments",
-      "Page comments",
+      "页面评论",
       0,
       preview?.counts.pageComments ?? null,
       "high"
     ),
     scope(
       "block-comments",
-      "Block comments",
+      "块评论",
       0,
       preview?.counts.blockComments ?? null,
       "high"
     ),
     scope(
       "databases",
-      "Databases",
+      "数据库",
       input.localScope.databases,
       preview?.counts.databases ?? null,
       "high"
     ),
     scope(
       "database-rows",
-      "Database rows",
+      "数据库行",
       0,
       preview?.counts.databaseRows ?? null,
       "high"
     ),
     scope(
       "uploaded-files",
-      "Uploaded files",
+      "上传文件",
       input.localScope.uploadedFiles,
       preview?.counts.uploadedFiles ?? null,
       "high"
     ),
     scope(
       "favorites",
-      "Favorites",
+      "收藏页面",
       0,
       preview?.counts.favoritePages ?? null,
       "low"
     ),
     scope(
       "locked-pages",
-      "Locked pages",
+      "锁定页面",
       0,
       preview?.counts.lockedPages ?? null,
       "medium"

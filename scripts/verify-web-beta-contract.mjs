@@ -34,6 +34,8 @@ const files = {
   remoteBaselineReplayFixture: "src/lib/sync/remoteBaselineReplayFixture.ts",
   remoteBaselineReplayHarness: "src/lib/sync/remoteBaselineReplayHarness.ts",
   remoteBaselineReplayRunner: "src/lib/sync/remoteBaselineReplayRunner.ts",
+  restoreRollbackPlan: "src/lib/sync/restoreRollbackPlan.ts",
+  restoreWritebackContract: "src/lib/sync/restoreWritebackContract.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -237,6 +239,10 @@ function run() {
   );
   const remoteBaselineReplayRunner = readProjectFile(
     files.remoteBaselineReplayRunner
+  );
+  const restoreRollbackPlan = readProjectFile(files.restoreRollbackPlan);
+  const restoreWritebackContract = readProjectFile(
+    files.restoreWritebackContract
   );
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
@@ -5054,6 +5060,94 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "恢复干跑预览",
+      "Sync UI must keep the restore dry-run preview localized.",
+    ],
+    [
+      "选择备份 JSON",
+      "Sync UI must keep the restore backup picker localized.",
+    ],
+    [
+      "恢复回滚计划",
+      "Sync UI must keep the restore rollback panel localized.",
+    ],
+    [
+      "导出回滚计划",
+      "Sync UI must keep the rollback plan export action localized.",
+    ],
+    [
+      "恢复写入合同",
+      "Sync UI must keep the restore write-back panel localized.",
+    ],
+    [
+      "导出写入合同",
+      "Sync UI must keep the write-back contract export action localized.",
+    ],
+    [
+      "导出恢复 receipt",
+      "Sync UI must keep the restore receipt export action localized.",
+    ],
+    [
+      "恢复已禁用",
+      "Sync UI must keep the disabled restore state localized.",
+    ],
+    [
+      "查询模式",
+      "Sync UI must keep the remote baseline query label localized.",
+    ],
+    [
+      "不会发起网络请求",
+      "Sync UI must keep the remote baseline network boundary localized.",
+    ],
+    [
+      "RestorePreviewPanel",
+      "Sync UI must render the restore preview panel.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.restoreRollbackPlan,
+      restoreRollbackPlan,
+      "选择本地备份",
+      "Restore rollback plan must keep the local backup step localized.",
+    ],
+    [
+      files.restoreRollbackPlan,
+      restoreRollbackPlan,
+      "锁定页面",
+      "Restore rollback plan must keep restore scope labels localized.",
+    ],
+    [
+      files.restoreWritebackContract,
+      restoreWritebackContract,
+      "本地生成。这个恢复写入合同不会恢复、覆盖、删除、上传、同步",
+      "Restore write-back contract must keep the local privacy boundary localized.",
+    ],
+    [
+      files.restoreWritebackContract,
+      restoreWritebackContract,
+      "恢复应用 API 保持禁用",
+      "Restore write-back contract must keep the disabled API gate localized.",
+    ],
+    [
+      files.webBetaReadiness,
+      webBetaReadiness,
+      "恢复写入合同",
+      "Web Beta readiness must keep restore write-back readiness localized.",
+    ],
+    [
+      files.launchChecklist,
+      launchChecklist,
+      "备份恢复与回滚",
+      "Web Beta checklist must keep restore and rollback item localized.",
+    ],
+  ]) {
+    assertSourceIncludes(sourceLabel, source, snippet, message);
   }
 
   const expectedPageRoutes = routeCalls.filter(

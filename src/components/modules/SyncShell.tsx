@@ -1253,32 +1253,32 @@ function SyncDashboard() {
   const backupScope = useMemo(
     () => [
       {
-        label: "Active pages",
+        label: "活跃页面",
         value: pages.length,
-        detail: "Current notes and research pages",
+        detail: "当前笔记和研究页面",
       },
       {
-        label: "Trash pages",
+        label: "回收站页面",
         value: deletedPages.length,
-        detail: "Soft-deleted pages still kept locally",
+        detail: "本地保留的软删除页面",
       },
       {
-        label: "Databases",
+        label: "数据库",
         value: databases.length,
-        detail: "Local trackers and research tables",
+        detail: "本地 tracker 和研究表",
       },
       {
-        label: "Uploaded files",
+        label: "上传文件",
         value: storedFiles.length,
         detail: fileSummary.totalSize,
       },
       {
-        label: "Pending sync rows",
+        label: "待同步记录",
         value: syncSummary?.pending ?? 0,
         detail:
           syncSummary && syncSummary.total > 0
-            ? `${syncSummary.total} local sync log rows`
-            : "No queued rows recorded yet",
+            ? `${syncSummary.total} 条本地同步日志`
+            : "还没有记录队列行",
       },
     ],
     [
@@ -2143,7 +2143,7 @@ function SyncDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export restore rollback plan:", err);
-      window.alert("Restore rollback plan failed. Please check the console.");
+      window.alert("恢复回滚计划导出失败，请查看控制台。");
     } finally {
       setBusyQueueAction(null);
     }
@@ -2165,7 +2165,7 @@ function SyncDashboard() {
         err
       );
       window.alert(
-        "Restore write-back contract failed. Please check the console."
+        "恢复写入合同导出失败，请查看控制台。"
       );
     } finally {
       setBusyQueueAction(null);
@@ -2188,7 +2188,7 @@ function SyncDashboard() {
         err
       );
       window.alert(
-        "Restore confirmation receipt failed. Please check the console."
+        "恢复确认 receipt 导出失败，请查看控制台。"
       );
     } finally {
       setBusyQueueAction(null);
@@ -2800,7 +2800,7 @@ function SyncDashboard() {
       setRestorePreview(analyzeWorkspaceBackupJson(text));
     } catch (err) {
       console.error("[Zhinote] Failed to preview backup restore:", err);
-      setRestorePreviewError("Could not read this local backup file.");
+      setRestorePreviewError("无法读取这个本地备份文件。");
     } finally {
       event.target.value = "";
     }
@@ -3246,7 +3246,7 @@ function SyncDashboard() {
               tone="blocked"
             />
             <ReplaySummaryCard
-              label="Endpoint"
+              label="端点"
               value="/api/sync/replay-test"
               detail="Disabled local stub"
               tone="blocked"
@@ -3751,27 +3751,27 @@ function SyncDashboard() {
             </div>
             <div className="mt-4 grid gap-2 md:grid-cols-4">
               <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
-                <div className="text-[10px] text-zinc-400">Query mode</div>
+                <div className="text-[10px] text-zinc-400">查询模式</div>
                 <div className="mt-1 font-mono text-[11px] text-zinc-700 dark:text-zinc-200">
                   {remoteBaselineRequest.request_scope.query_mode}
                 </div>
               </div>
               <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
-                <div className="text-[10px] text-zinc-400">Cursor source</div>
+                <div className="text-[10px] text-zinc-400">游标来源</div>
                 <div className="mt-1 font-mono text-[11px] text-zinc-700 dark:text-zinc-200">
                   {remoteBaselineRequest.request_scope.cursor_source}
                 </div>
               </div>
               <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
-                <div className="text-[10px] text-zinc-400">Response handling</div>
+                <div className="text-[10px] text-zinc-400">响应处理</div>
                 <div className="mt-1 font-mono text-[11px] text-zinc-700 dark:text-zinc-200">
                   {remoteBaselineRequest.request_scope.response_handling}
                 </div>
               </div>
               <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-950 dark:text-red-300">
-                <div className="text-[10px]">Network</div>
+                <div className="text-[10px]">网络</div>
                 <div className="mt-1 font-medium">
-                  No network request is started
+                  不会发起网络请求
                 </div>
               </div>
             </div>
@@ -5056,16 +5056,14 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Restore dry-run preview
+                恢复干跑预览
               </h2>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Choose a local ZhiNotes backup JSON to validate its format and
-                preview restore scope. This reads the file locally only and does
-                not write anything back into the workspace.
+                选择一个本地 ZhiNotes 备份 JSON，先验证格式并预览恢复范围。这个步骤只在本地读取文件，不会把任何内容写回工作区。
               </p>
             </div>
             <label className="w-fit cursor-pointer rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">
-              Choose backup JSON
+              选择备份 JSON
               <input
                 type="file"
                 accept="application/json,.json"
@@ -5091,12 +5089,10 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Restore rollback plan
+                恢复回滚计划
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Dry-run rollback plan for backup restore. It requires a fresh
-                rollback backup, scope review, pending sync review, and second
-                confirmation before any restore write-back can exist.
+                备份恢复的干跑回滚计划。任何恢复写入出现之前，都必须先有新的回滚备份、范围审阅、待同步审阅和第二次确认。
               </p>
             </div>
             <button
@@ -5106,39 +5102,39 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyQueueAction === "rollback-plan"
-                ? "Exporting..."
-                : "Export rollback plan"}
+                ? "导出中..."
+                : "导出回滚计划"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <RollbackSummaryCard
-              label="Plan"
+              label="计划"
               value={restoreRollbackPlan.plan_status}
-              detail="Restore write-back disabled"
+              detail="恢复写入已禁用"
               tone="medium"
             />
             <RollbackSummaryCard
-              label="Ready"
+              label="就绪"
               value={restoreRollbackPlan.summary.ready}
-              detail="Steps already satisfied"
+              detail="已满足步骤"
               tone="low"
             />
             <RollbackSummaryCard
-              label="Confirm"
+              label="待确认"
               value={restoreRollbackPlan.summary.manual_confirmation}
-              detail="Needs explicit user gate"
+              detail="需要明确用户 gate"
               tone="medium"
             />
             <RollbackSummaryCard
-              label="Blocked"
+              label="阻塞"
               value={restoreRollbackPlan.summary.blocked}
-              detail="Write-back still disabled"
+              detail="写入仍禁用"
               tone="high"
             />
             <RollbackSummaryCard
-              label="Boundary"
-              value="Dry run"
-              detail="No writes, deletes, or uploads"
+              label="边界"
+              value="干跑"
+              detail="不写入、不删除、不上传"
               tone="low"
             />
           </div>
@@ -5160,14 +5156,10 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Restore write-back contract
+                恢复写入合同
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local contract for the high-risk restore apply step. It maps
-                backup validation, rollback snapshot, scope review, pending
-                sync clearance, permission check, audit event, second
-                confirmation, disabled write-back endpoint, and failed-restore
-                recovery proof before any restore writes can exist.
+                高风险恢复应用步骤的本地合同。任何恢复写入出现之前，必须先覆盖备份验证、回滚快照、范围审阅、待同步清理、权限检查、审计事件、第二次确认、禁用的写入端点和失败恢复证明。
               </p>
             </div>
             <button
@@ -5177,39 +5169,39 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyQueueAction === "restore-writeback"
-                ? "Exporting..."
-                : "Export write-back"}
+                ? "导出中..."
+                : "导出写入合同"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <RestoreWritebackSummaryCard
-              label="Stages"
+              label="阶段"
               value={restoreWritebackContract.summary.stages}
-              detail="Write-back flow"
+              detail="写入流程"
               status="planned"
             />
             <RestoreWritebackSummaryCard
-              label="Confirm"
+              label="待确认"
               value={restoreWritebackContract.summary.manual_confirmation}
-              detail="Manual gates"
+              detail="人工 gate"
               status="manual-confirmation"
             />
             <RestoreWritebackSummaryCard
-              label="Blocked"
+              label="阻塞"
               value={restoreWritebackContract.summary.blocked}
-              detail="Apply not enabled"
+              detail="应用未启用"
               status="blocked"
             />
             <RestoreWritebackSummaryCard
               label="Endpoint"
               value="/api/backup/restore-apply"
-              detail="Disabled local stub"
+              detail="禁用的本地 stub"
               status="blocked"
             />
             <RestoreWritebackSummaryCard
-              label="Boundary"
-              value="No write"
-              detail="No restore or delete"
+              label="边界"
+              value="不写入"
+              detail="不恢复、不删除"
               status="planned"
             />
           </div>
@@ -5249,8 +5241,8 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyQueueAction === "restore-confirmation"
-                  ? "Exporting..."
-                  : "Export restore receipt"}
+                  ? "导出中..."
+                  : "导出恢复 receipt"}
               </button>
             </div>
             <p className="mt-2 text-[11px] leading-5 text-zinc-400 dark:text-zinc-500">
@@ -8951,14 +8943,14 @@ function RollbackScopeRow({
             {scope.label}
           </div>
           <div className="mt-1 text-[11px] text-zinc-400">
-            Current {scope.current_count} / Restore{" "}
-            {scope.restore_count ?? "not previewed"}
+            当前 {scope.current_count} / 恢复{" "}
+            {scope.restore_count ?? "未预览"}
           </div>
         </div>
         <RollbackRiskPill risk={scope.risk} />
       </div>
       <div className="mt-2 border-t border-zinc-100 pt-2 text-[11px] uppercase tracking-wide text-zinc-400 dark:border-zinc-800">
-        Write status: {scope.write_status}
+        写入状态：{scope.write_status}
       </div>
     </article>
   );
@@ -8970,10 +8962,10 @@ function RollbackStatusPill({
   status: RestoreRollbackStepStatus;
 }) {
   const labels: Record<RestoreRollbackStepStatus, string> = {
-    ready: "Ready",
-    pending: "Pending",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    pending: "待处理",
+    "manual-confirmation": "待确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -8993,6 +8985,11 @@ function RollbackStatusPill({
 }
 
 function RollbackRiskPill({ risk }: { risk: RestoreRollbackRisk }) {
+  const labels: Record<RestoreRollbackRisk, string> = {
+    low: "低风险",
+    medium: "中风险",
+    high: "高风险",
+  };
   const className =
     risk === "high"
       ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
@@ -9002,7 +8999,7 @@ function RollbackRiskPill({ risk }: { risk: RestoreRollbackRisk }) {
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
-      {risk}
+      {labels[risk]}
     </span>
   );
 }
@@ -9086,9 +9083,9 @@ function RestoreWritebackStatusPill({
   status: RestoreWritebackStatus;
 }) {
   const labels: Record<RestoreWritebackStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "待确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -12455,18 +12452,18 @@ function RestorePreviewPanel({
   preview: WorkspaceRestorePreview;
 }) {
   const countRows = [
-    { label: "Active pages", value: preview.counts.activePages },
-    { label: "Trash pages", value: preview.counts.deletedPages },
-    { label: "Page versions", value: preview.counts.pageVersions },
-    { label: "Page comments", value: preview.counts.pageComments },
-    { label: "Block comments", value: preview.counts.blockComments },
-    { label: "Databases", value: preview.counts.databases },
-    { label: "Database fields", value: preview.counts.databaseFields },
-    { label: "Database rows", value: preview.counts.databaseRows },
-    { label: "Database views", value: preview.counts.databaseViews },
-    { label: "Uploaded files", value: preview.counts.uploadedFiles },
-    { label: "Favorites", value: preview.counts.favoritePages },
-    { label: "Locked pages", value: preview.counts.lockedPages },
+    { label: "活跃页面", value: preview.counts.activePages },
+    { label: "回收站页面", value: preview.counts.deletedPages },
+    { label: "页面版本", value: preview.counts.pageVersions },
+    { label: "页面评论", value: preview.counts.pageComments },
+    { label: "块评论", value: preview.counts.blockComments },
+    { label: "数据库", value: preview.counts.databases },
+    { label: "数据库字段", value: preview.counts.databaseFields },
+    { label: "数据库行", value: preview.counts.databaseRows },
+    { label: "数据库视图", value: preview.counts.databaseViews },
+    { label: "上传文件", value: preview.counts.uploadedFiles },
+    { label: "收藏页面", value: preview.counts.favoritePages },
+    { label: "锁定页面", value: preview.counts.lockedPages },
   ];
 
   return (
@@ -12474,12 +12471,12 @@ function RestorePreviewPanel({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-            {fileName || "Selected backup"}
+            {fileName || "已选择备份"}
           </div>
           <div className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            Format {preview.format || "unknown"} · Version{" "}
-            {preview.formatVersion ?? "unknown"} · Exported{" "}
-            {preview.exportedAt ? formatDate(preview.exportedAt) : "unknown"}
+            格式 {preview.format || "未知"} · 版本{" "}
+            {preview.formatVersion ?? "未知"} · 导出于{" "}
+            {preview.exportedAt ? formatDate(preview.exportedAt) : "未知"}
           </div>
         </div>
         <span
@@ -12489,7 +12486,7 @@ function RestorePreviewPanel({
               : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
           }`}
         >
-          {preview.valid ? "Valid backup" : "Needs attention"}
+          {preview.valid ? "备份有效" : "需要检查"}
         </span>
       </div>
 
@@ -12511,14 +12508,14 @@ function RestorePreviewPanel({
         <div className="mt-3 grid gap-3 lg:grid-cols-2">
           {preview.issues.length > 0 && (
             <RestoreMessageList
-              title="Issues"
+              title="问题"
               tone="issue"
               items={preview.issues}
             />
           )}
           {preview.warnings.length > 0 && (
             <RestoreMessageList
-              title="Warnings"
+              title="警告"
               tone="warning"
               items={preview.warnings}
             />
@@ -12528,15 +12525,14 @@ function RestorePreviewPanel({
 
       <div className="mt-3 flex flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
         <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-          Restore write-back is intentionally disabled until the restore contract
-          is confirmed.
+          恢复写入会保持禁用，直到恢复合同被明确确认。
         </p>
         <button
           type="button"
           disabled
           className="w-fit cursor-not-allowed rounded-md border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-400 dark:border-zinc-800"
         >
-          Restore disabled
+          恢复已禁用
         </button>
       </div>
     </div>

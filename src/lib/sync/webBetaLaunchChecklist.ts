@@ -228,18 +228,18 @@ function buildLaunchTracks(
     },
     {
       id: "restore-and-rollback",
-      title: "Backup restore and rollback",
+      title: "备份恢复与回滚",
       status:
         input.restoreRollbackPlan && input.restoreWritebackContract
           ? "partial"
           : "manual-confirmation",
       evidence: input.restoreRollbackPlan && input.restoreWritebackContract
-        ? `Restore rollback plan status is ${input.restoreRollbackPlan.plan_status}; write-back contract covers ${input.restoreWritebackContract.summary.stages} stages and disabled endpoint ${input.restoreWritebackContract.disabled_endpoint}.`
+        ? `恢复回滚计划状态为 ${input.restoreRollbackPlan.plan_status}；写入合同覆盖 ${input.restoreWritebackContract.summary.stages} 个阶段，并保持端点 ${input.restoreWritebackContract.disabled_endpoint} 禁用。`
         : input.restoreRollbackPlan
-          ? `Restore rollback plan status is ${input.restoreRollbackPlan.plan_status}; write-back contract is missing.`
-        : "Restore rollback plan is missing.",
+          ? `恢复回滚计划状态为 ${input.restoreRollbackPlan.plan_status}；缺少写入合同。`
+        : "缺少恢复回滚计划。",
       required_action:
-        "Require fresh rollback backup, restore scope review, permission check, audit event, sync replay safety, failure recovery proof, and second confirmation before restore write-back.",
+        "恢复写入前，必须要求新的回滚备份、恢复范围审阅、权限检查、审计事件、同步回放安全、失败恢复证明和第二次确认。",
     },
     {
       id: "payload-confirmations",

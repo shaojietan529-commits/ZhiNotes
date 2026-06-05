@@ -205,7 +205,7 @@ export function buildWebBetaReadinessReport(
     },
     {
       id: "restore-safety",
-      title: "Restore safety",
+      title: "恢复安全",
       status:
         input.restoreRollbackPlan?.plan_status === "preview-loaded" &&
         input.restoreWritebackContract
@@ -213,25 +213,25 @@ export function buildWebBetaReadinessReport(
           : "manual-confirmation",
       category: "recovery",
       evidence: input.restoreRollbackPlan && input.restoreWritebackContract
-        ? `Rollback plan status is ${input.restoreRollbackPlan.plan_status}; write-back contract covers ${input.restoreWritebackContract.summary.stages} stages, ${input.restoreWritebackContract.summary.gates} gates, and disabled endpoint ${input.restoreWritebackContract.disabled_endpoint}.`
+        ? `回滚计划状态为 ${input.restoreRollbackPlan.plan_status}；写入合同覆盖 ${input.restoreWritebackContract.summary.stages} 个阶段、${input.restoreWritebackContract.summary.gates} 个 gate，并保持端点 ${input.restoreWritebackContract.disabled_endpoint} 禁用。`
         : input.restoreRollbackPlan
-          ? `A local rollback plan is available with status ${input.restoreRollbackPlan.plan_status}; restore write-back contract is still missing.`
+          ? `已有本地回滚计划，状态为 ${input.restoreRollbackPlan.plan_status}；仍缺少恢复写入合同。`
         : input.restorePreviewLoaded
-          ? "A local backup file has been dry-run previewed in this session; restore write-back is still disabled."
-          : "Restore dry-run preview is available, but no restore package has been selected in this session.",
+          ? "本次会话已经干跑预览一个本地备份文件；恢复写入仍保持禁用。"
+          : "恢复干跑预览可用，但本次会话还没有选择恢复包。",
       nextAction:
-        "Require fresh rollback backup export and a second confirmation screen before restore write-back is enabled.",
+        "恢复写入启用前，必须要求新的回滚备份导出和第二次确认页面。",
     },
     {
       id: "restore-writeback-contract",
-      title: "Restore write-back contract",
+      title: "恢复写入合同",
       status: input.restoreWritebackContract ? "partial" : "blocked",
       category: "recovery",
       evidence: input.restoreWritebackContract
-        ? `Local restore write-back contract is present; ${input.restoreWritebackContract.summary.blocked} stages and ${input.restoreWritebackContract.summary.gate_blocked} gates remain blocked while /api/backup/restore-apply is disabled.`
-        : "No restore write-back contract is attached to this readiness report.",
+        ? `本地恢复写入合同已存在；/api/backup/restore-apply 禁用期间，仍有 ${input.restoreWritebackContract.summary.blocked} 个阶段和 ${input.restoreWritebackContract.summary.gate_blocked} 个 gate 被阻塞。`
+        : "这个 readiness 报告还没有附加恢复写入合同。",
       nextAction:
-        "Keep restore apply disabled until rollback snapshot, permission check, sync replay safety, audit event, second confirmation, and failure recovery proof exist.",
+        "保持恢复应用禁用，直到回滚快照、权限检查、同步回放安全、审计事件、第二次确认和失败恢复证明都存在。",
     },
     {
       id: "permission-policy",

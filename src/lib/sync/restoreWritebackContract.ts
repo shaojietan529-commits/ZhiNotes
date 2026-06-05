@@ -107,7 +107,7 @@ export function buildRestoreWritebackContract(
     can_restore_now: false,
     disabled_endpoint: "/api/backup/restore-apply",
     privacy_note:
-      "Generated locally. This restore write-back contract does not restore, overwrite, delete, upload, sync, write local workspace data, connect cloud services, read remote data, or read file bytes.",
+      "本地生成。这个恢复写入合同不会恢复、覆盖、删除、上传、同步、写入本地工作区数据、连接云服务、读取远端数据或读取文件 bytes。",
     boundary: {
       local_contract_only: true,
       writes_workspace_data: false,
@@ -157,102 +157,102 @@ function buildStages(
   return [
     {
       id: "select-backup",
-      title: "Select backup package",
+      title: "选择备份包",
       status: hasPreview ? "planned" : "manual-confirmation",
       evidence: hasPreview
-        ? "A local backup package has been selected for dry-run preview."
-        : "No local backup package has been selected in this browser session.",
+        ? "已选择一个本地备份包用于干跑预览。"
+        : "这个浏览器会话还没有选择本地备份包。",
       required_action:
-        "Keep backup selection as a local file step and require user intent before any preview or write-back.",
+        "备份选择必须保持为本地文件步骤，预览或写入前都需要用户明确意图。",
       privacy_boundary:
-        "Backup selection stays in the browser and does not upload the package.",
+        "备份选择停留在浏览器内，不上传备份包。",
     },
     {
       id: "validate-format",
-      title: "Validate restore format",
+      title: "验证恢复格式",
       status: previewValid
         ? "planned"
         : hasPreview
           ? "blocked"
           : "manual-confirmation",
       evidence: input.restorePreview
-        ? `${input.restorePreview.format ?? "unknown"} v${input.restorePreview.formatVersion ?? "unknown"} with ${input.restorePreview.issues.length} issues and ${input.restorePreview.warnings.length} warnings.`
-        : "Backup format has not been validated yet.",
+        ? `${input.restorePreview.format ?? "未知"} v${input.restorePreview.formatVersion ?? "未知"}，包含 ${input.restorePreview.issues.length} 个问题和 ${input.restorePreview.warnings.length} 个警告。`
+        : "还没有验证备份格式。",
       required_action:
-        "Accept only supported ZhiNotes backup formats before restore scope can be trusted.",
+        "只有支持的 ZhiNotes 备份格式才能进入可信恢复范围。",
       privacy_boundary:
-        "Format validation reads local JSON metadata only and does not write workspace data.",
+        "格式验证只读取本地 JSON metadata，不写入工作区数据。",
     },
     {
       id: "export-rollback-snapshot",
-      title: "Export rollback snapshot",
+      title: "导出回滚快照",
       status: hasRollbackPlan ? "manual-confirmation" : "blocked",
       evidence: hasRollbackPlan
-        ? `Rollback plan status is ${input.restoreRollbackPlan?.plan_status}; a fresh rollback backup is still required before write-back.`
-        : "No rollback plan is attached to this write-back contract.",
+        ? `回滚计划状态为 ${input.restoreRollbackPlan?.plan_status}；写入前仍需要新的回滚备份。`
+        : "这个写入合同还没有附加回滚计划。",
       required_action:
-        "Require a fresh current-workspace backup immediately before restore write-back can be enabled.",
+        "恢复写入启用前，必须立即生成一份新的当前工作区备份。",
       privacy_boundary:
-        "Rollback export is a local download and should not upload workspace data.",
+        "回滚导出是本地下载，不应上传工作区数据。",
     },
     {
       id: "review-scope",
-      title: "Review restore scope",
+      title: "审阅恢复范围",
       status: previewValid ? "manual-confirmation" : "blocked",
       evidence: previewValid
-        ? `${input.restorePreview?.counts.activePages ?? 0} active pages, ${input.restorePreview?.counts.databases ?? 0} databases, and ${input.restorePreview?.counts.uploadedFiles ?? 0} uploaded files are included in the selected backup.`
-        : "Restore scope is not eligible for review until a valid backup preview exists.",
+        ? `所选备份包含 ${input.restorePreview?.counts.activePages ?? 0} 个活跃页面、${input.restorePreview?.counts.databases ?? 0} 个数据库和 ${input.restorePreview?.counts.uploadedFiles ?? 0} 个上传文件。`
+        : "有效备份预览存在之前，恢复范围不能进入审阅。",
       required_action:
-        "Show each restore scope and require visible acceptance before any write-back route is enabled.",
+        "启用任何写入路由前，必须展示每个恢复范围并要求可见确认。",
       privacy_boundary:
-        "Scope review uses counts and labels only; it does not expose page bodies or file bytes.",
+        "范围审阅只使用计数和标签，不暴露页面正文或文件 bytes。",
     },
     {
       id: "clear-sync-risk",
-      title: "Clear pending sync risk",
+      title: "清理待同步风险",
       status: pendingSyncRows > 0 ? "manual-confirmation" : "planned",
       evidence:
         pendingSyncRows > 0
-          ? `${pendingSyncRows} pending sync rows may conflict with restore write-back.`
-          : "No pending sync rows are reported by the local rollback plan.",
+          ? `${pendingSyncRows} 条待同步行可能与恢复写入冲突。`
+          : "本地回滚计划没有报告待同步行。",
       required_action:
-        "Export or resolve sync queue metadata before restoring data into a workspace that may later sync.",
+        "向未来可能同步的工作区恢复数据前，先导出或解决同步队列 metadata。",
       privacy_boundary:
-        "Sync risk review uses queue metadata only and excludes note text or file content.",
+        "同步风险审阅只使用队列 metadata，不包含笔记正文或文件内容。",
     },
     {
       id: "second-confirmation",
-      title: "Second confirmation",
+      title: "第二次确认",
       status: "manual-confirmation",
       evidence:
-        "Restore write-back is high-risk and must not run from a single click.",
+        "恢复写入属于高风险动作，不能通过单次点击执行。",
       required_action:
-        "Add a dedicated confirmation screen showing backup source, rollback snapshot, scope, permission decision, and audit event.",
+        "加入专门确认页面，显示备份来源、回滚快照、范围、权限决定和审计事件。",
       privacy_boundary:
-        "Confirmation should display restore metadata only by default.",
+        "确认页面默认只显示恢复 metadata。",
     },
     {
       id: "apply-writeback-disabled",
-      title: "Apply write-back disabled",
+      title: "应用写入已禁用",
       status: "blocked",
       evidence:
-        "/api/backup/restore-apply is intentionally disabled and cannot write workspace data.",
+        "/api/backup/restore-apply 被有意禁用，不能写入工作区数据。",
       required_action:
-        "Keep restore apply disabled until rollback, permissions, audit, conflict, and failure recovery are proven.",
+        "在回滚、权限、审计、冲突处理和失败恢复被证明前，保持恢复应用禁用。",
       privacy_boundary:
-        "The disabled apply route must not read request bodies, restore data, overwrite pages, delete rows, or upload anything.",
+        "禁用的应用路由不得读取请求体、恢复数据、覆盖页面、删除行或上传任何内容。",
     },
     {
       id: "post-restore-audit",
       title: "Post-restore audit",
       status: "blocked",
       evidence: input.auditTrailPolicy
-        ? `Audit policy covers ${input.auditTrailPolicy.summary.events} event types, but server audit writes remain disabled.`
-        : "No audit policy is attached to this write-back contract.",
+        ? `审计策略覆盖 ${input.auditTrailPolicy.summary.events} 类事件，但服务端审计写入仍保持禁用。`
+        : "这个写入合同还没有附加审计策略。",
       required_action:
-        "Record redacted restore audit metadata only after authenticated audit events exist.",
+        "只有在已认证审计事件存在后，才记录已脱敏的恢复审计 metadata。",
       privacy_boundary:
-        "Audit rows should store ids, counts, checksums, and confirmation timestamps, not the full backup payload.",
+        "审计行应存储 id、计数、checksum 和确认时间戳，而不是完整备份 payload。",
     },
   ];
 }
@@ -263,54 +263,54 @@ function buildGates(
   return [
     {
       id: "disabled-apply-api",
-      title: "Restore apply API remains disabled",
+      title: "恢复应用 API 保持禁用",
       status: "blocked",
       evidence:
-        "/api/backup/restore-apply is a disabled local stub and cannot run restore write-back.",
+        "/api/backup/restore-apply 是禁用的本地 stub，不能执行恢复写入。",
       required_action:
-        "Enable only after owner confirmation, rollback proof, permission checks, audit events, and failure recovery are implemented.",
+        "只有在 owner 确认、回滚证明、权限检查、审计事件和失败恢复都实现后才能启用。",
     },
     {
       id: "rollback-snapshot",
-      title: "Rollback snapshot required",
+      title: "需要回滚快照",
       status: input.restoreRollbackPlan ? "manual-confirmation" : "blocked",
       evidence: input.restoreRollbackPlan
-        ? `Rollback plan has ${input.restoreRollbackPlan.summary.steps} steps and ${input.restoreRollbackPlan.summary.high_risk_scopes} high-risk scopes.`
-        : "No rollback plan is available.",
+        ? `回滚计划包含 ${input.restoreRollbackPlan.summary.steps} 个步骤和 ${input.restoreRollbackPlan.summary.high_risk_scopes} 个高风险范围。`
+        : "没有可用的回滚计划。",
       required_action:
-        "Require a fresh backup of the current workspace immediately before write-back.",
+        "写入前必须立即生成一份新的当前工作区备份。",
     },
     {
       id: "permission-check",
-      title: "Permission check required",
+      title: "需要权限检查",
       status: input.permissionDecisionReport
         ? "manual-confirmation"
         : "blocked",
       evidence: input.permissionDecisionReport
-        ? `/api/permissions/check remains disabled; ${input.permissionDecisionReport.summary.needs_confirmation} local decisions require confirmation.`
-        : "No permission decision report is available.",
+        ? `/api/permissions/check 保持禁用；${input.permissionDecisionReport.summary.needs_confirmation} 个本地决定需要确认。`
+        : "没有可用的权限决定报告。",
       required_action:
-        "Move restore permission decisions to authenticated server checks before beta restore.",
+        "Beta 恢复前，把恢复权限决定迁移到已认证的服务端检查。",
     },
     {
       id: "sync-replay-safe",
-      title: "Sync replay safety required",
+      title: "需要同步回放安全证明",
       status: "blocked",
       evidence: input.syncReplayTestPlan
-        ? `Sync replay plan has ${input.syncReplayTestPlan.summary.blocked} blocked gates and cannot run replay yet.`
-        : "No sync replay safety plan is available.",
+        ? `同步回放计划还有 ${input.syncReplayTestPlan.summary.blocked} 个阻塞 gate，暂时不能运行回放。`
+        : "没有可用的同步回放安全计划。",
       required_action:
-        "Prove push, pull, acknowledgement, conflict, retry, and rollback behavior before restore can interact with sync.",
+        "恢复与同步交互前，先证明 push、pull、ack、冲突、重试和回滚行为。",
     },
     {
       id: "audit-event",
-      title: "Restore audit event required",
+      title: "需要恢复审计事件",
       status: "blocked",
       evidence: input.auditTrailPolicy
-        ? `${input.auditTrailPolicy.summary.required_before_private_beta} audit gates remain required before private beta.`
-        : "No audit trail policy is available.",
+        ? `Private beta 前仍需要 ${input.auditTrailPolicy.summary.required_before_private_beta} 个审计 gate。`
+        : "没有可用的审计轨迹策略。",
       required_action:
-        "Create authenticated, redacted server audit events before restore apply can be enabled.",
+        "恢复应用启用前，先创建已认证、已脱敏的服务端审计事件。",
     },
     {
       id: "failure-recovery",
