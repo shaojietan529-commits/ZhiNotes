@@ -17,6 +17,7 @@ const files = {
   roadmap: "src/lib/modules/moduleRoadmap.ts",
   projectProgressSnapshot: "src/lib/modules/projectProgressSnapshot.ts",
   dashboard: "src/components/modules/ModuleDashboard.tsx",
+  projectsShell: "src/components/modules/ProjectsShell.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   readme: "README.md",
@@ -194,6 +195,7 @@ function run() {
   const roadmap = readProjectFile(files.roadmap);
   const projectProgressSnapshot = readProjectFile(files.projectProgressSnapshot);
   const dashboard = readProjectFile(files.dashboard);
+  const projectsShell = readProjectFile(files.projectsShell);
   const sidebar = readProjectFile(files.sidebar);
   const quickSearch = readProjectFile(files.quickSearch);
   const readme = readProjectFile(files.readme);
@@ -581,6 +583,25 @@ function run() {
     "Export roadmap",
     "Module center must export the module roadmap report."
   );
+  for (const snippet of [
+    "handleCreateProjectPageAndTrackerRow",
+    "buildResearchProjectTrackerIntakeDraft",
+    "findExistingResearchProjectTrackerRow",
+    "addRow",
+    "isProjectPageRelationField",
+    "创建项目页并入库",
+    "trackerIntakeMessage",
+    "Project page / 项目页",
+    "handoff=projects-module",
+    "跨模块 relation 仍需手动补",
+  ]) {
+    assertIncludes(
+      files.projectsShell,
+      projectsShell,
+      snippet,
+      "Projects module must expose explicit local project page plus tracker row intake."
+    );
+  }
   assertIncludes(
     files.sidebar,
     sidebar,
@@ -630,6 +651,7 @@ function run() {
     health_areas: requiredHealthAreas.length,
     roadmap_lanes: 4,
     project_progress_snapshot: 1,
+    projects_shell_intake: 1,
     boundary_checks: requiredBoundarySnippets.length,
   };
 

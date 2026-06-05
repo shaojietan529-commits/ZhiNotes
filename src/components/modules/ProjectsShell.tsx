@@ -6,6 +6,7 @@ import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { usePages } from "@/hooks/usePages";
 import {
+  addRow,
   createPage,
   getAllDatabases,
   getFields,
@@ -29,9 +30,13 @@ import {
   type ResearchProjectChecklistStatus,
   type ResearchProjectMode,
 } from "@/lib/modules/researchProjectBrief";
+import {
+  buildResearchProjectTrackerIntakeDraft,
+  findExistingResearchProjectTrackerRow,
+} from "@/lib/modules/researchProjectTrackerIntake";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import type { Database } from "@/lib/utils/types";
+import type { Database, DatabaseField } from "@/lib/utils/types";
 
 export default function ProjectsShell() {
   return (
@@ -68,6 +73,9 @@ function ProjectsDashboard() {
     useState<ResearchProjectMode>("initiation");
   const [horizon, setHorizon] = useState("本周");
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     void getAllDatabases()
@@ -133,6 +141,7 @@ function ProjectsDashboard() {
 
   const handleCreateProjectPage = async () => {
     setBusyAction("project-page");
+    setTrackerIntakeMessage(null);
     try {
       const page = await createPage({
         title: buildResearchProjectPageTitle(projectBrief),
@@ -151,8 +160,86 @@ function ProjectsDashboard() {
     }
   };
 
+  const handleCreateProjectPageAndTrackerRow = async () => {
+    const tracker = projectTrackerDatabases[0];
+    if (!tracker) {
+      window.alert("请先创建项目跟踪表，再把项目页入库。");
+      return;
+    }
+
+    setBusyAction("project-page-and-row");
+    setTrackerIntakeMessage(null);
+    try {
+      const trackerFields = await getFields(tracker.id);
+      const projectPageRelationField = trackerFields.find(
+        isProjectPageRelationField
+      );
+      if (!projectPageRelationField) {
+        window.alert(
+          "当前项目跟踪表缺少 Project page / 项目页 relation 字段，请先补字段后再入库。"
+        );
+        return;
+      }
+
+      const page = await createPage({
+        title: buildResearchProjectPageTitle(projectBrief),
+        icon: "PRJ",
+      });
+      await updatePage(page.id, {
+        content_text: buildResearchProjectBriefPageHtml(projectBrief),
+      });
+      const trackerRows = await getRows(tracker.id);
+      const existingRow = findExistingResearchProjectTrackerRow(
+        trackerRows,
+        trackerFields,
+        page.id
+      );
+      if (existingRow) {
+        setTrackerIntakeMessage(
+          `已存在 tracker row：${existingRow.row_title}。已打开项目跟踪表继续补 relation。`
+        );
+        await refreshPages();
+        router.push(
+          `/database/${tracker.id}?q=${encodeURIComponent(page.title)}&focus=${
+            page.id
+          }&handoff=projects-module`
+        );
+        return;
+      }
+
+      const draft = buildResearchProjectTrackerIntakeDraft(
+        {
+          project_page_id: page.id,
+          project_page_title: page.title || "未命名投研项目",
+          brief: projectBrief,
+        },
+        trackerFields
+      );
+      await addRow(tracker.id, {
+        title: draft.row_title,
+        fieldValues: draft.field_values,
+        contentText: draft.row_page_content,
+      });
+      setTrackerIntakeMessage(
+        `已创建项目页和 tracker row：${draft.row_title}。已打开项目跟踪表继续补 relation。`
+      );
+      await refreshPages();
+      router.push(
+        `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
+          page.id
+        }&handoff=projects-module`
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to create project tracker row:", err);
+      window.alert("项目入库失败，请查看控制台。");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const handleRunStarter = async (starter: ModuleStarter) => {
     setBusyAction(starter.label);
+    setTrackerIntakeMessage(null);
     try {
       const result = await executeModuleStarter(starter);
       if (result.database) {
@@ -192,7 +279,8 @@ function ProjectsDashboard() {
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
                 把一个研究主题沉淀成项目页、项目 checklist、模块准备度和本地项目跟踪表。
-                这里不会自动写 tracker row、relation 值、AI payload 或云同步。
+                只有明确点击入库时才写一条 tracker row；不会自动写跨模块 relation 值、
+                AI payload 或云同步。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -341,9 +429,9 @@ function ProjectsDashboard() {
               </div>
             </div>
 
-            <ProjectChecklistPanel
-              brief={projectBrief}
-              onOpenRoute={(route) => router.push(route)}
+          <ProjectChecklistPanel
+            brief={projectBrief}
+            onOpenRoute={(route) => router.push(route)}
             />
           </div>
         </section>
@@ -352,6 +440,9 @@ function ProjectsDashboard() {
           databases={projectTrackerDatabases}
           starter={trackerStarter}
           busyAction={busyAction}
+          trackerIntakeMessage={trackerIntakeMessage}
+          canCreateIntakeRow={projectTrackerDatabases.length > 0}
+          onCreateProjectPageAndTrackerRow={handleCreateProjectPageAndTrackerRow}
           onRunStarter={handleRunStarter}
           onOpenDatabase={(databaseId) => router.push(`/database/${databaseId}`)}
         />
@@ -421,12 +512,18 @@ function ProjectTrackerPanel({
   databases,
   starter,
   busyAction,
+  trackerIntakeMessage,
+  canCreateIntakeRow,
+  onCreateProjectPageAndTrackerRow,
   onRunStarter,
   onOpenDatabase,
 }: {
   databases: Database[];
   starter: ModuleStarter | null;
   busyAction: string | null;
+  trackerIntakeMessage: string | null;
+  canCreateIntakeRow: boolean;
+  onCreateProjectPageAndTrackerRow: () => Promise<void>;
   onRunStarter: (starter: ModuleStarter) => Promise<void>;
   onOpenDatabase: (databaseId: string) => void;
 }) {
@@ -439,20 +536,45 @@ function ProjectTrackerPanel({
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-400">
             跟踪表只创建本地 schema：Project page、Status、Project mode、
-            Related companies/reports/meetings/portfolio 等字段。具体 row 和 relation 值仍需手动写入。
+            Related companies/reports/meetings/portfolio 等字段。明确点击后可以创建一条本地 row；
+            公司、报告、会议和组合等跨模块 relation 仍需手动补。
           </p>
         </div>
-        {starter && (
+        <div className="flex shrink-0 flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => void onRunStarter(starter)}
-            disabled={busyAction === starter.label}
-            className="w-fit rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+            onClick={() => void onCreateProjectPageAndTrackerRow()}
+            disabled={!canCreateIntakeRow || busyAction === "project-page-and-row"}
+            className="w-fit rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
           >
-            {busyAction === starter.label ? "创建中..." : starter.label}
+            {busyAction === "project-page-and-row"
+              ? "入库中..."
+              : "创建项目页并入库"}
           </button>
-        )}
+          {starter && (
+            <button
+              type="button"
+              onClick={() => void onRunStarter(starter)}
+              disabled={busyAction === starter.label}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {busyAction === starter.label ? "创建中..." : starter.label}
+            </button>
+          )}
+        </div>
       </div>
+
+      {trackerIntakeMessage && (
+        <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+          {trackerIntakeMessage}
+        </p>
+      )}
+
+      {!canCreateIntakeRow && (
+        <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          先创建项目跟踪表，才能把项目页以单条 tracker row 的方式入库。
+        </p>
+      )}
 
       {databases.length === 0 ? (
         <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
@@ -528,6 +650,20 @@ function isProjectTrackerDatabase(database: Database) {
     searchable.includes("project") ||
     searchable.includes("项目") ||
     searchable.includes("投研项目")
+  );
+}
+
+function normalizeFieldName(value: string) {
+  return value.toLowerCase().replace(/[-_\s]+/g, " ").trim();
+}
+
+function isProjectPageRelationField(field: DatabaseField) {
+  const normalizedName = normalizeFieldName(field.name);
+  return (
+    field.field_type === "relation" &&
+    ["project page", "项目页", "项目页面", "投研项目页"].some(
+      (alias) => normalizeFieldName(alias) === normalizedName
+    )
   );
 }
 

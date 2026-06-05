@@ -178,11 +178,11 @@ function buildHealthAreas(): ModuleHealthArea[] {
       phase: "phase-3",
       module_ids: ["projects"],
       evidence:
-        "Projects module is beta with research project briefs, local project page creation, project tracker presets, module readiness, checklist routing, and research graph context.",
+        "Projects module is beta with research project briefs, local project page creation, explicit local tracker-row intake, project tracker presets, module readiness, checklist routing, and research graph context.",
       next_action:
         "Connect project tracker rows back to company, report, meeting, portfolio, and decision memo relations after explicit user confirmation.",
       privacy_boundary:
-        "Project workflows create local pages and tracker schemas only; they must not auto-write relation values, infer holdings, upload data, or send project context to AI.",
+        "Project workflows create local pages, tracker schemas, and explicitly requested local tracker rows only; they must not auto-write cross-module relation values, infer holdings, upload data, or send project context to AI.",
     },
     {
       id: "portfolio",

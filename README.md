@@ -396,14 +396,19 @@ Current local actions:
   views only: Project page, Status, Project mode, Priority, Horizon, Next
   review, Research question, Owner confirmation, related-company/report/meeting
   /portfolio relations, Decision memo, and Next action.
+- Create a local project page and one project tracker row after an explicit
+  user click. The intake maps Project page / 项目页, Status, Project mode,
+  Priority, Horizon, Research question, Owner confirmation, and Next action
+  from the project brief into the tracker row.
 - Review module readiness for company, report, meeting, and portfolio context
   from the shared research graph summary.
 - Export the current project brief as local JSON.
 
-The Projects module does not auto-write tracker rows, relation values, AI
-payloads, cloud sync data, holdings, trading plans, file bytes, or page bodies.
-It is a local project capture layer that turns a research topic into a page and
-optional tracker schema before any deeper automation is considered.
+The Projects module does not silently auto-write tracker rows, cross-module
+relation values, AI payloads, cloud sync data, holdings, trading plans, file
+bytes, or page bodies. It is a local project capture layer that turns a research
+topic into a page, optional tracker schema, and an explicitly requested tracker
+row before any deeper automation is considered.
 
 ## Research Graph Module
 

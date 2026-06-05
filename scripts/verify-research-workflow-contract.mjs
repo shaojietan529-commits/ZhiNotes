@@ -11,6 +11,7 @@ const files = {
   graph: "src/lib/modules/researchGraph.ts",
   workbench: "src/lib/modules/researchWorkbench.ts",
   projectBrief: "src/lib/modules/researchProjectBrief.ts",
+  projectTrackerIntake: "src/lib/modules/researchProjectTrackerIntake.ts",
   companyCoverage: "src/lib/company/companyCoverage.ts",
   companyDossier: "src/lib/company/companyResearchDossier.ts",
   companyPlaybook: "src/lib/company/companyResearchPlaybook.ts",
@@ -143,6 +144,7 @@ function run() {
   const graph = readProjectFile(files.graph);
   const workbench = readProjectFile(files.workbench);
   const projectBrief = readProjectFile(files.projectBrief);
+  const projectTrackerIntake = readProjectFile(files.projectTrackerIntake);
   const companyCoverage = readProjectFile(files.companyCoverage);
   const companyDossier = readProjectFile(files.companyDossier);
   const companyPlaybook = readProjectFile(files.companyPlaybook);
@@ -454,6 +456,61 @@ function run() {
       projectBrief,
       snippet,
       "Research project brief must keep local-only project planning boundaries."
+    );
+  }
+  assertIncludes(
+    files.projectTrackerIntake,
+    projectTrackerIntake,
+    'format: "zhinote-research-project-tracker-intake-draft"',
+    "Research project tracker intake must define a stable local draft format."
+  );
+  assertIncludes(
+    files.projectTrackerIntake,
+    projectTrackerIntake,
+    "buildResearchProjectTrackerIntakeDraft",
+    "Research project tracker intake must expose a reusable draft builder."
+  );
+  assertIncludes(
+    files.projectTrackerIntake,
+    projectTrackerIntake,
+    "findExistingResearchProjectTrackerRow",
+    "Research project tracker intake must expose existing-row detection."
+  );
+  for (const snippet of [
+    'draft_status: "local-project-tracker-row-draft"',
+    "local_row_draft_only: true",
+    "reads_project_brief_metadata: true",
+    "reads_database_fields: true",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "includes_database_row_values: false",
+    "includes_file_names: false",
+    "includes_file_bytes: false",
+    "includes_holdings: false",
+    "includes_trading_plans: false",
+    "writes_workspace_data: false",
+    "creates_database_rows: false",
+    "connects_cloud_services: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    "Project page",
+    "项目页",
+    "Status",
+    "Project mode",
+    "Priority",
+    "Horizon",
+    "Research question",
+    "Owner confirmation",
+    "Next action",
+    "project-page-relation",
+    "mapped_fields",
+    "missing_fields",
+  ]) {
+    assertIncludes(
+      files.projectTrackerIntake,
+      projectTrackerIntake,
+      snippet,
+      "Research project tracker intake must preserve local-only row draft fields and privacy boundaries."
     );
   }
   for (const snippet of [
@@ -2071,6 +2128,7 @@ function run() {
         meeting_research_queue: true,
         research_workbench_lanes: 5,
         research_workbench_local_only: true,
+        research_project_tracker_intake_fields: 8,
         meeting_playbook_actions: 7,
         meeting_tracker_intake_fields: 4,
         portfolio_review_areas: requiredPortfolioReviewAreas.length,
