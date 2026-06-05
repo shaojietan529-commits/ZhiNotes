@@ -94,7 +94,7 @@ export function buildDatabaseImportExportReadinessReport(
     report_status: "local-import-export-readiness-only",
     readiness_verdict: "ready-with-manual-value-gates",
     privacy_note:
-      "Generated locally from database schema, view metadata, and row counts. This readiness report does not read database rows, row values, page text, uploaded file bytes, spreadsheet values, prompts, tokens, credentials, cloud data, holdings, or trading plans.",
+      "由数据库结构、视图元数据和行数在本地生成。这个就绪报告不读取数据库行、行值、页面正文、已上传文件字节、表格值、prompt、token、凭证、云端数据、持仓或交易计划。",
     boundary: {
       local_report_only: true,
       reads_database_schema: true,
@@ -155,7 +155,7 @@ function buildImportExportItem(
       appendImportStatus,
     }),
     privacy_boundary:
-      "模块中心只显示导入/导出 readiness，不导出 row values、不读取 spreadsheet values；真实 CSV/XLSX 导出和追加导入仍在具体数据库页手动触发。",
+      "模块中心只显示导入/导出就绪状态，不导出行值、不读取表格值；真实 CSV/XLSX 导出和追加导入仍在具体数据库页手动触发。",
   };
 }
 
@@ -189,21 +189,21 @@ function getRecommendedNextAction(input: {
     return "先补数据库字段，再考虑 CSV/XLSX 导出或 Excel/CSV 追加导入。";
   }
   if (!input.hasBusinessFields) {
-    return "先补业务字段，例如 Status、Date、Company page、Source 或 Key takeaways。";
+    return "先补业务字段，例如状态、日期、公司页面、来源或关键结论。";
   }
   if (input.rowCount === 0) {
     return "先用模板行或追加导入创建首批行；空表导出价值有限。";
   }
   if (input.relationFields === 0) {
-    return "导出前建议补 relation 字段，把 row 连接到公司、报告、会议或 memo。";
+    return "导出前建议补关系字段，把行连接到公司、报告、会议或备忘录。";
   }
   if (input.appendImportStatus === "manual-confirmation") {
     return "可在数据库页追加导入 Excel/CSV/ODS；批量写入前必须输入确认短语。";
   }
   if (input.valueExportStatus === "manual-confirmation") {
-    return "可在数据库页导出当前可见行为 CSV/XLSX；导出会包含 row values。";
+    return "可在数据库页导出当前可见行为 CSV/XLSX；导出会包含行值。";
   }
-  return "继续补 schema、保存常用视图，并按需在具体数据库页执行导入或导出。";
+  return "继续补结构、保存常用视图，并按需在具体数据库页执行导入或导出。";
 }
 
 function summarize(
@@ -242,14 +242,14 @@ function buildGates(
       "module-metadata-only",
       "模块中心只读元数据",
       "ready",
-      "导入/导出 readiness 只使用 schema、view metadata 和 row count。",
-      "真实 row values 只能在具体数据库页由用户主动导出或导入。"
+      "导入/导出就绪报告只使用结构、视图元数据和行数。",
+      "真实行值只能在具体数据库页由用户主动导出或导入。"
     ),
     gate(
       "value-export-confirmation",
       "CSV/XLSX 值导出",
       summary.value_export_databases > 0 ? "manual-confirmation" : "ready",
-      `${summary.value_export_databases} 个数据库导出时会包含当前可见 row values。`,
+      `${summary.value_export_databases} 个数据库导出时会包含当前可见行值。`,
       "导出前在具体数据库页确认筛选、隐藏字段和可见行范围。"
     ),
     gate(
@@ -266,7 +266,7 @@ function buildGates(
       "空数据库启动",
       summary.empty_databases > 0 ? "planned" : "ready",
       `${summary.empty_databases} 个数据库还没有行。`,
-      "优先用模板行或小样本 CSV 导入启动，不建议把空表作为正式 tracker。"
+      "优先用模板行或小样本 CSV 导入启动，不建议把空表作为正式跟踪表。"
     ),
     gate(
       "schema-matching",
@@ -279,8 +279,8 @@ function buildGates(
       "cloud-ai-boundary",
       "云端和 AI 边界",
       "planned",
-      "这个 readiness 不触发云同步、AI、外部上传或服务器审计写入。",
-      "任何数据库 row values 进入云同步或 AI 前，都必须先走 payload preview 和用户确认。"
+      "这个就绪报告不触发云同步、AI、外部上传或服务器审计写入。",
+      "任何数据库行值进入云同步或 AI 前，都必须先走发送内容预览和用户确认。"
     ),
   ];
 }

@@ -950,7 +950,7 @@ function run() {
 	    "required_verification_commands",
 	    "创建本地行",
 	    "本地模板行",
-	    "视图覆盖只使用 metadata 计数",
+	    "视图覆盖只使用元数据计数",
 	    "创建行或字段",
 	  ]) {
     assertIncludes(
@@ -1039,8 +1039,8 @@ function run() {
     "database-decision-summary",
     "当前可做",
     "保持关闭",
-    "Owner 待确认",
-    "数据库决策摘要只读取本地 summary metadata",
+    "待你确认",
+    "数据库决策摘要只读取本地摘要元数据",
     "数据库工作台",
     "导出工作台包",
     "DatabaseWorkbenchPanel",
@@ -1060,8 +1060,8 @@ function run() {
     "databases-priority-actions",
     "databases-workbench-databases",
     "databases-review-sequence",
-    "不读取 row values、页面正文或表格单元格",
-    "不从模块页读取 row values",
+    "不读取行值、页面正文或表格单元格",
+    "不从模块页读取行值",
     "不批量导入",
     "不自动建",
   ]) {
@@ -1073,14 +1073,14 @@ function run() {
     );
   }
   for (const snippet of [
-	    "模板行 readiness",
-	    "导出模板行 readiness",
+	    "模板行就绪",
+	    "导出模板行就绪",
 	    "TemplateRowReadinessPanel",
 	    "TemplateRowDatabaseCard",
 	    "模板行闸门",
 	    "已就绪",
 	    "部分就绪",
-	    "不包含 field names、row values 或页面正文",
+	    "不包含字段名、行值或页面正文",
   ]) {
     assertIncludes(
       files.databaseModuleShell,
@@ -1094,15 +1094,15 @@ function run() {
     "listDatabaseTemplateRowReceipts",
     "templateRowReceipts",
     "handleExportTemplateRowReceipts",
-    "模板行 receipts",
-    "导出 receipts",
+    "模板行记录",
+    "导出记录",
     'format: "zhinote-database-template-row-receipt-history"',
     'history_status: "local-metadata-only"',
     "TemplateRowReceiptHistoryPanel",
     "TemplateRowReceiptCard",
     "summarizeTemplateRowReceipts",
-    "不含 field",
-    "row values、页面正文或敏感投资字段",
+    "不含字段名",
+    "页面正文或敏感投资字段",
     "includes_database_field_names: false",
     "includes_database_row_values: false",
     "includes_page_body_text: false",
@@ -1118,8 +1118,8 @@ function run() {
     );
   }
   for (const snippet of [
-    "导入/导出 readiness",
-    "导出导入/导出 readiness",
+    "导入/导出就绪",
+    "导出导入/导出就绪",
     "DatabaseImportExportReadinessPanel",
     "DatabaseImportExportGateRow",
     "DatabaseImportExportCard",
@@ -1128,9 +1128,9 @@ function run() {
 	    "handleExportImportExportReadiness",
 	    "导入/导出闸门",
 	    "label=\"导入\"",
-	    "不读取 row values",
+	    "不读取行值",
     "真实导入/导出仍在具体数据库页手动触发",
-    "导出含 row values",
+    "导出含行值",
     "导入需确认短语",
   ]) {
     assertIncludes(
@@ -1141,12 +1141,12 @@ function run() {
     );
   }
   for (const snippet of [
-    "视图适配 readiness",
-    "导出视图 readiness",
+    "视图适配就绪",
+    "导出视图就绪",
     "ViewReadinessGateRow",
     "ViewReadinessDatabaseCard",
     "ViewReadinessStatusPill",
-    "不读取 row values 或页面正文",
+    "不读取行值或页面正文",
   ]) {
     assertIncludes(
       files.databaseModuleShell,
@@ -1160,7 +1160,7 @@ function run() {
     "TemplateCatalogPanel",
     "CatalogMetric",
     "具体数据库页的「+ 模板行」菜单",
-    "不读取 row values",
+    "不读取行值",
     "隐私边界",
   ]) {
     assertIncludes(
@@ -1185,7 +1185,7 @@ function run() {
   assertIncludes(
     files.databaseModuleShell,
     databaseModuleShell,
-    "不读取 row values",
+    "不读取行值",
     "Databases module UI must make the row-value privacy boundary visible."
   );
   assertIncludes(

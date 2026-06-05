@@ -132,7 +132,7 @@ const TEMPLATE_ROW_REQUIREMENTS: DatabaseTemplateRowGroupRequirement[] = [
     required_field_groups: [
       fieldRequirement(
         "company-relation",
-        "公司主页 relation",
+        "公司主页关系",
         ["relation"],
         ["Company page", "公司页面", "公司主页"],
         1,
@@ -166,11 +166,11 @@ const TEMPLATE_ROW_REQUIREMENTS: DatabaseTemplateRowGroupRequirement[] = [
       ),
       fieldRequirement(
         "research-relations",
-        "报告/会议 relation",
+        "报告/会议关系",
         ["relation"],
         ["Related reports", "Related meetings", "相关报告", "相关会议"],
         2,
-        "多 relation 字段能把公司、报告和会议串起来。"
+        "多个关系字段能把公司、报告和会议串起来。"
       ),
     ],
     starter_value_hints: [
@@ -187,7 +187,7 @@ const TEMPLATE_ROW_REQUIREMENTS: DatabaseTemplateRowGroupRequirement[] = [
     required_field_groups: [
       fieldRequirement(
         "report-relation",
-        "报告页 relation",
+        "报告页关系",
         ["relation"],
         ["Report page", "报告页面", "报告页"],
         1,
@@ -221,11 +221,11 @@ const TEMPLATE_ROW_REQUIREMENTS: DatabaseTemplateRowGroupRequirement[] = [
       ),
       fieldRequirement(
         "report-context",
-        "公司/会议 relation",
+        "公司/会议关系",
         ["relation"],
         ["Company page", "Related meetings", "Related memo", "公司页面"],
         2,
-        "报告应能连接公司、会议和 memo。"
+        "报告应能连接公司、会议和备忘录。"
       ),
     ],
     starter_value_hints: [
@@ -258,7 +258,7 @@ const TEMPLATE_ROW_REQUIREMENTS: DatabaseTemplateRowGroupRequirement[] = [
       ),
       fieldRequirement(
         "meeting-relations",
-        "纪要/公司 relation",
+        "纪要/公司关系",
         ["relation"],
         ["Meeting note", "Company page", "Transcript page", "会议纪要", "公司页面"],
         2,
@@ -305,11 +305,11 @@ const TEMPLATE_ROW_REQUIREMENTS: DatabaseTemplateRowGroupRequirement[] = [
       ),
       fieldRequirement(
         "portfolio-relations",
-        "研究 relation",
+        "研究关系",
         ["relation"],
         ["Company page", "Related memo", "Related reports", "Related meetings"],
         2,
-        "组合行需要连接回公司、memo、报告和会议。"
+        "组合行需要连接回公司、备忘录、报告和会议。"
       ),
       fieldRequirement(
         "portfolio-sizing",
@@ -369,7 +369,7 @@ export function buildDatabaseTemplateRowReadinessReport(
     format_version: 1,
     report_status: "local-template-row-schema-only",
     privacy_note:
-      "Generated locally from template metadata, database field types, view metadata, and row counts. It does not include field names, database row values, page body text, file bytes, holdings, trading plans, cloud data, or AI prompts.",
+      "由模板元数据、数据库字段类型、视图元数据和行数在本地生成。它不包含字段名、数据库行值、页面正文、文件字节、持仓、交易计划、云端数据或 AI prompt。",
     boundary: {
       local_report_only: true,
       reads_template_metadata: true,
@@ -460,7 +460,7 @@ function buildReadinessItem(
     next_action: getTemplateRowNextAction(status, missingRequired),
     starter_value_hints: requirement.starter_value_hints,
     row_write_boundary:
-      "Template-row creation still happens only after the user clicks inside a database page; this readiness report does not create pages or rows.",
+      "模板行创建仍然只会在用户进入数据库页并点击后发生；这个就绪报告不会创建页面或行。",
   };
 }
 
@@ -499,7 +499,7 @@ function buildDatabaseSummary(
     missing_required_field_groups: missingGroups,
     next_action: recommended
       ? recommended.next_action
-      : "先创建一个公司、报告、会议或组合 tracker 数据库。",
+      : "先创建一个公司、报告、会议或组合跟踪表数据库。",
   };
 }
 
@@ -530,7 +530,7 @@ function buildTemplateRowGates(
           ? `${snapshots.length} 个数据库已按公司、报告、会议、组合模板检查字段适配。`
           : "还没有本地数据库可以检查模板行适配。",
       required_action:
-        "新增 tracker 模板时，同步补 required field groups，避免模板行只生成空 page。",
+        "新增跟踪表模板时，同步补必需字段组，避免模板行只生成空页面。",
     },
     {
       id: "template-row-ready-groups",
@@ -542,11 +542,11 @@ function buildTemplateRowGates(
     },
     {
       id: "relation-backed-templates",
-      title: "Relation 支撑",
+      title: "关系支撑",
       status: relationReady > 0 ? "ready" : "planned",
-      evidence: `${relationReady} 个 ready 模板组具备 relation 支撑。`,
+      evidence: `${relationReady} 个已就绪模板组具备关系支撑。`,
       required_action:
-        "公司、会议和组合模板应优先补 relation 字段，再补状态和日期字段。",
+        "公司、会议和组合模板应优先补关系字段，再补状态和日期字段。",
     },
     {
       id: "recommended-database-fit",
@@ -685,7 +685,7 @@ function getTemplateRowNextAction(
   missingRequired: Array<{ label: string; fieldTypes: string[] }>
 ) {
   if (status === "ready") {
-    return "可以在具体数据库页使用 + 模板行，并手动补 relation 和状态字段。";
+    return "可以在具体数据库页使用 + 模板行，并手动补关系和状态字段。";
   }
   const missingLabels = missingRequired.map((item) => item.label).join("、");
   if (status === "partial") {

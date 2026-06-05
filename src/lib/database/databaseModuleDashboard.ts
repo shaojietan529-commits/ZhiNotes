@@ -104,7 +104,7 @@ export function buildDatabaseModuleDashboardReport(
     format_version: 1,
     report_status: "local-database-module-only",
     privacy_note:
-      "Generated locally from database schema, views, and row counts. This dashboard does not read database row values, page text, file bytes, prompts, tokens, credentials, cloud data, or private research content.",
+      "由数据库结构、视图和行数在本地生成。这个总览不读取数据库行值、页面正文、文件字节、prompt、token、凭证、云端数据或私人研究内容。",
     boundary: {
       local_dashboard_only: true,
       reads_database_schema: true,
@@ -236,12 +236,12 @@ function buildWorkflowSteps(
   return [
     {
       id: "schema-design",
-      title: "Schema 设计",
+      title: "结构设计",
       status: hasDatabases ? "ready" : "planned",
       evidence: hasDatabases
         ? `${snapshots.length} 个本地数据库可用。`
         : "还没有本地数据库。",
-      local_boundary: "只读取数据库 schema，不读取 row values。",
+      local_boundary: "只读取数据库结构，不读取行值。",
     },
     {
       id: "view-workflow",
@@ -250,23 +250,23 @@ function buildWorkflowSteps(
       evidence: hasAdvancedViews
         ? "至少一个数据库已经配置高级视图。"
         : "可以继续添加看板、日历、画廊、时间线、图表、表单或动态视图。",
-      local_boundary: "视图总览只读取 view metadata。",
+      local_boundary: "视图总览只读取视图元数据。",
     },
     {
       id: "relation-completion",
-      title: "Relation 补全",
+      title: "关系补全",
       status: hasRelationFields ? "ready" : "planned",
       evidence: hasRelationFields
-        ? "至少一个 relation 字段可用于连接公司、报告、会议、memo 或组合。"
-        : "还没有 relation 字段。",
-      local_boundary: "Relation 补全由数据库页单条写入，不批量改动。",
+        ? "至少一个关系字段可用于连接公司、报告、会议、备忘录或组合。"
+        : "还没有关系字段。",
+      local_boundary: "关系补全由数据库页单条写入，不批量改动。",
     },
     {
       id: "template-rows",
       title: "模板行",
       status: "ready",
-      evidence: "数据库页面保留 template-row 入口，可从研究模板创建行页面。",
-      local_boundary: "模板行只创建本地 row/page，不上传。",
+      evidence: "数据库页面保留模板行入口，可从研究模板创建行页面。",
+      local_boundary: "模板行只创建本地行和页面，不上传。",
     },
     {
       id: "csv-xlsx-export",
@@ -274,7 +274,7 @@ function buildWorkflowSteps(
       status: "manual-confirmation",
       evidence: "数据库页面支持导出当前可见行。",
       local_boundary:
-        "导出会包含当前可见 row values，用户应在数据库页面主动点击导出。",
+        "导出会包含当前可见行值，用户应在数据库页面主动点击导出。",
     },
     {
       id: "spreadsheet-import",
@@ -282,7 +282,7 @@ function buildWorkflowSteps(
       status: "manual-confirmation",
       evidence:
         "Excel/CSV/ODS 文件可从数据库页面追加导入当前数据库，也可在文件预览中创建新数据库。",
-      local_boundary: "批量写入前需要 typed confirmation receipt。",
+      local_boundary: "批量写入前需要输入确认文本并留下确认记录。",
     },
   ];
 }
@@ -296,7 +296,7 @@ function getDatabaseNextAction(input: {
   rowCount: number;
 }) {
   if (input.relationFields === 0) {
-    return "补一个 relation 字段，把数据库连接到公司、报告、会议、memo 或组合页面。";
+    return "补一个关系字段，把数据库连接到公司、报告、会议、备忘录或组合页面。";
   }
   if (!input.viewTypes.includes("kanban") && input.selectLikeFields > 0) {
     return "基于 select/status 字段添加看板视图，用来管理状态流转。";
@@ -310,7 +310,7 @@ function getDatabaseNextAction(input: {
   if (input.rowCount === 0) {
     return "创建第一条模板行，把数据库变成可执行的投研流程。";
   }
-  return "继续补全 relation、保存筛选视图，并按需导出 CSV/XLSX。";
+  return "继续补全关系、保存筛选视图，并按需导出 CSV/XLSX。";
 }
 
 export function getDatabaseFieldTypeBreakdown(fields: DatabaseField[]) {

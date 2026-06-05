@@ -111,7 +111,7 @@ export const DATABASE_VIEW_READINESS_REQUIREMENTS: DatabaseViewReadinessRequirem
       [],
       ["status", "date", "relation"],
       "轻量列表视图，适合按报告、会议或公司资产快速扫一遍。",
-      "列表不需要额外字段；建议补状态、日期或 relation 字段提升扫描效率。"
+      "列表不需要额外字段；建议补状态、日期或关系字段提升扫描效率。"
     ),
     requirement(
       "kanban",
@@ -132,7 +132,7 @@ export const DATABASE_VIEW_READINESS_REQUIREMENTS: DatabaseViewReadinessRequirem
       [],
       ["url", "relation", "select", "status"],
       "用卡片方式浏览公司、报告、会议或资产页面。",
-      "画廊不需要额外字段；建议补 URL、relation、status 或分类字段。"
+      "画廊不需要额外字段；建议补 URL、关系、状态或分类字段。"
     ),
     requirement(
       "timeline",
@@ -153,14 +153,14 @@ export const DATABASE_VIEW_READINESS_REQUIREMENTS: DatabaseViewReadinessRequirem
       [],
       ["text", "select", "status", "date", "relation"],
       "把固定字段做成录入表单，适合新增报告、会议和公司跟踪项。",
-      "表单不需要额外字段；建议先设计核心字段，避免录入后再大改 schema。"
+      "表单不需要额外字段；建议先设计核心字段，避免录入后再大改结构。"
     ),
     requirement(
       "feed",
       [],
       ["date", "status", "relation"],
       "按更新顺序浏览研究资产动态，适合复盘最近新增内容。",
-      "动态视图不需要额外字段；建议补日期、状态或 relation 方便后续筛选。"
+      "动态视图不需要额外字段；建议补日期、状态或关系方便后续筛选。"
     ),
   ];
 
@@ -178,7 +178,7 @@ export function buildDatabaseViewReadinessReport(
     format_version: 1,
     report_status: "local-view-readiness-only",
     privacy_note:
-      "Generated locally from database schema, view metadata, and row counts. This report does not read database row values, page text, file bytes, prompts, credentials, cloud data, holdings, or trading plans.",
+      "由数据库结构、视图元数据和行数在本地生成。这个报告不读取数据库行值、页面正文、文件字节、prompt、凭证、云端数据、持仓或交易计划。",
     boundary: {
       local_report_only: true,
       reads_database_schema: true,
@@ -269,7 +269,7 @@ function buildDatabaseReadiness(
     recommended_next_view: recommended?.view_type ?? null,
     recommended_next_action:
       recommended?.next_action ??
-      "继续补 relation、保存常用筛选视图，并按需导出 CSV/XLSX。",
+      "继续补关系、保存常用筛选视图，并按需导出 CSV/XLSX。",
   };
 }
 
@@ -318,7 +318,7 @@ function buildReadinessGates(
       status: statusReady > 0 ? "ready" : "planned",
       evidence: `${statusReady} 个数据库具备或可添加看板视图。`,
       required_action:
-        "给报告、公司、会议和组合 tracker 补 Status、Stage 或 Priority 字段。",
+        "给报告、公司、会议和组合跟踪表补状态、阶段或优先级字段。",
     },
     {
       id: "chartable-fields",
@@ -342,7 +342,7 @@ function buildReadinessGates(
       status: needsSchema > 0 ? "manual-confirmation" : "ready",
       evidence: `${needsSchema} 个视图机会需要补字段后才能使用。`,
       required_action:
-        "优先补 date、status/select、number 和 relation 字段，避免视图只是空壳。",
+        "优先补日期、状态/选择、数字和关系字段，避免视图只是空壳。",
     },
   ];
 }

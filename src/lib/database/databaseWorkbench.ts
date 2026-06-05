@@ -209,19 +209,19 @@ const LANE_META: Record<
 > = {
   "tracker-fit": {
     id: "tracker-fit",
-    title: "Tracker 定位",
-    description: "判断哪些本地数据库适合做公司、报告、会议或组合 tracker。",
+    title: "跟踪表定位",
+    description: "判断哪些本地数据库适合做公司、报告、会议或组合跟踪表。",
     route: "/modules/databases",
     privacy_boundary:
-      "只使用数据库标题、描述、schema、view metadata 和 row count，不读取 row values。",
+      "只使用数据库标题、描述、结构、视图元数据和行数，不读取行值。",
   },
   "relation-setup": {
     id: "relation-setup",
-    title: "Relation 结构",
+    title: "关系结构",
     description: "先补公司、报告、会议、组合之间的关系字段，再补具体关系值。",
     route: "/modules/research-graph",
     privacy_boundary:
-      "只提示 relation schema 缺口，不自动创建字段、不写入 relation values。",
+      "只提示关系结构缺口，不自动创建字段、不写入关系值。",
   },
   "template-intake": {
     id: "template-intake",
@@ -229,7 +229,7 @@ const LANE_META: Record<
     description: "检查模板行能否安全创建首批结构化投研行。",
     route: "/modules/databases",
     privacy_boundary:
-      "只读取模板 metadata 和 schema；模板行写入必须在具体数据库页由用户触发。",
+      "只读取模板元数据和结构；模板行写入必须在具体数据库页由用户触发。",
   },
   "view-design": {
     id: "view-design",
@@ -237,7 +237,7 @@ const LANE_META: Record<
     description: "把看板、日历、时间线、图表、表单和动态流对齐到字段结构。",
     route: "/modules/databases",
     privacy_boundary:
-      "只读取 view metadata 和字段类型，不读取筛选后的 row values 或页面正文。",
+      "只读取视图元数据和字段类型，不读取筛选后的行值或页面正文。",
   },
   "import-export": {
     id: "import-export",
@@ -245,12 +245,12 @@ const LANE_META: Record<
     description: "把 CSV/XLSX 值导出和 Excel/CSV/ODS 追加导入留在手动确认路径里。",
     route: "/modules/databases",
     privacy_boundary:
-      "模块页不导出 row values、不读取 spreadsheet values；真实导入导出只能在具体数据库页确认。",
+      "模块页不导出行值、不读取表格值；真实导入导出只能在具体数据库页确认。",
   },
   "manual-review": {
     id: "manual-review",
     title: "人工复核",
-    description: "保留需要用户判断的 schema、模板、视图和安全边界事项。",
+    description: "保留需要用户判断的结构、模板、视图和安全边界事项。",
     route: "/modules/databases",
     privacy_boundary:
       "只形成本地 review 队列，不连接云服务、不调用 AI、不上传工作区数据。",
@@ -286,7 +286,7 @@ export function buildDatabaseWorkbenchPacket(input: {
     packet_status: "local-database-workbench-only",
     workbench_verdict: "ready-for-local-research-database-review",
     privacy_note:
-      "这份数据库工作台包只在本地生成，来源是数据库模块 dashboard、视图 readiness、模板行 readiness 和导入/导出 readiness。它把数据库 metadata 转成一个本地投研数据库行动队列；不会读取数据库行、row values、页面正文、文件 bytes、spreadsheet values、prompt、token、凭证、云端数据、持仓或交易计划；也不会写入工作区、创建行或字段、导出 row values、导入文件值、上传数据、连接云服务或启用 AI。",
+      "这份数据库工作台包只在本地生成，来源是数据库模块总览、视图就绪、模板行就绪和导入/导出就绪。它把数据库元数据转成一个本地投研数据库行动队列；不会读取数据库行、行值、页面正文、文件字节、表格值、prompt、token、凭证、云端数据、持仓或交易计划；也不会写入工作区、创建行或字段、导出行值、导入文件值、上传数据、连接云服务或启用 AI。",
     boundary: {
       local_packet_only: true,
       reads_database_dashboard: true,
@@ -380,13 +380,13 @@ function buildDecisionSummary(
   );
   const topBlockers = [
     databases.length === 0
-      ? "还没有本地 tracker，数据库模块没有承载容器。"
+      ? "还没有本地跟踪表，数据库模块没有承载容器。"
       : null,
     relationActions.length > 0
-      ? `${relationActions.length} 个 tracker 需要先补 relation schema。`
+      ? `${relationActions.length} 个跟踪表需要先补关系结构。`
       : null,
     importExportActions.length > 0
-      ? "导入导出会触碰 row values 或 spreadsheet values，必须留在具体数据库页确认。"
+      ? "导入导出会触碰行值或表格值，必须留在具体数据库页确认。"
       : null,
     "云同步、AI 执行和数据库值外发仍未启用。",
   ].filter(Boolean) as string[];
@@ -394,7 +394,7 @@ function buildDecisionSummary(
   return {
     current_state: "local-database-owner-review",
     current_conclusion:
-      "可以继续在本地复核数据库 schema、视图、relation 缺口和模板行入口；模板行写入、CSV/XLSX 导出、Excel/CSV/ODS 追加导入、云同步和 AI 使用数据库值仍然必须经过单独 owner gate。",
+      "可以继续在本地复核数据库结构、视图、关系缺口和模板行入口；模板行写入、CSV/XLSX 导出、Excel/CSV/ODS 追加导入、云同步和 AI 使用数据库值仍然必须由你单独确认。",
     can_review_schema_now: true,
     can_review_views_now: true,
     can_open_relation_schema_gate_now: true,
@@ -404,15 +404,15 @@ function buildDecisionSummary(
     can_send_database_values_to_ai_now: false,
     can_sync_database_values_now: false,
     safe_local_work: [
-      "继续用数据库中心复核 schema、view metadata、row count、模板 readiness 和 relation 缺口。",
-      "继续从工作台打开 tracker、研究图谱和 readiness 区域做人工复核。",
-      "继续导出 metadata-only 数据库工作台 packet，不包含 field names、row values 或页面正文。",
+      "继续用数据库中心复核结构、视图元数据、行数、模板就绪和关系缺口。",
+      "继续从工作台打开跟踪表、研究图谱和就绪区域做人工复核。",
+      "继续导出仅元数据数据库工作台包，不包含字段名、行值或页面正文。",
       "继续在具体数据库页手动创建模板行，敏感投资字段仍由用户手动填写。",
     ],
     blocked_work: [
-      "不能从模块中心读取、展示或导出 database row values。",
-      "不能从工作台 packet 自动创建行、schema field 或 relation values。",
-      "不能无 typed confirmation 批量导入 Excel/CSV/ODS。",
+      "不能从模块中心读取、展示或导出数据库行值。",
+      "不能从工作台包自动创建行、结构字段或关系值。",
+      "不能在没有确认文本的情况下批量导入 Excel/CSV/ODS。",
       "不能把数据库值发送给 AI、云同步、外部 API 或远端数据库。",
     ],
     required_owner_decisions: manualActions
@@ -425,9 +425,9 @@ function buildDecisionSummary(
         title: "Schema 与视图复核",
         status: "available-local",
         answer: "可以继续",
-        evidence: `${databases.length} 个本地数据库可用 schema、view metadata 和 row count 复核；${viewActions.length} 个视图行动可进入人工判断。`,
+        evidence: `${databases.length} 个本地数据库可用结构、视图元数据和行数复核；${viewActions.length} 个视图行动可进入人工判断。`,
         next_action:
-          "先在数据库中心检查字段结构、视图覆盖、row count 和 tracker 角色是否符合真实投研流程。",
+          "先在数据库中心检查字段结构、视图覆盖、行数和跟踪表角色是否符合真实投研流程。",
         route: "/modules/databases",
         target_section_id: "databases-dashboard",
         allowed_now: true,
@@ -442,18 +442,18 @@ function buildDecisionSummary(
       },
       {
         id: "relation-schema-review",
-        title: "Relation 结构",
+        title: "关系结构",
         status:
           relationActions.length > 0
             ? "requires-owner-confirmation"
             : "available-local",
-        answer: relationActions.length > 0 ? "先补 schema" : "继续复核",
+        answer: relationActions.length > 0 ? "先补结构" : "继续复核",
         evidence:
           relationActions.length > 0
-            ? `${relationActions.length} 个 tracker 缺少 relation 字段，需要你确认字段方向后再创建。`
-            : "当前 workbench 没有发现高优先级 relation schema 缺口。",
+            ? `${relationActions.length} 个跟踪表缺少关系字段，需要你确认字段方向后再创建。`
+            : "当前工作台没有发现高优先级关系结构缺口。",
         next_action:
-          "打开研究图谱或具体数据库，先确认公司、报告、会议、memo 和组合之间应该如何互相连接。",
+          "打开研究图谱或具体数据库，先确认公司、报告、会议、备忘录和组合之间应该如何互相连接。",
         route: "/modules/research-graph",
         target_section_id: "databases-relation-setup",
         allowed_now: true,
@@ -477,9 +477,9 @@ function buildDecisionSummary(
         evidence:
           templateActions.length > 0
             ? `${templateActions.length} 个模板行行动需要在具体数据库页手动触发。`
-            : "当前 workbench 没有发现必须立即处理的模板行行动。",
+            : "当前工作台没有发现必须立即处理的模板行行动。",
         next_action:
-          "只在具体数据库或 inline database 的「+ 模板行」菜单里创建本地行；方向性投资字段仍保持人工填写。",
+          "只在具体数据库或行内数据库的「+ 模板行」菜单里创建本地行；方向性投资字段仍保持人工填写。",
         route: "/modules/databases",
         target_section_id: "databases-template-readiness",
         allowed_now: true,
@@ -499,8 +499,8 @@ function buildDecisionSummary(
         answer: "只在具体数据库页",
         evidence:
           importExportActions.length > 0
-            ? `${importExportActions.length} 个数据库存在导入/导出确认动作；模块中心只显示 readiness。`
-            : "导入导出 readiness 已保留手动闸门，真实值导入或导出不在模块中心执行。",
+            ? `${importExportActions.length} 个数据库存在导入/导出确认动作；模块中心只显示就绪状态。`
+            : "导入导出就绪状态已保留手动闸门，真实值导入或导出不在模块中心执行。",
         next_action:
           "CSV/XLSX 导出、Excel/CSV/ODS 追加导入和字段映射都必须在具体数据库页复核后执行。",
         route: "/modules/databases",
@@ -521,9 +521,9 @@ function buildDecisionSummary(
         status: "blocked",
         answer: "保持关闭",
         evidence:
-          "当前数据库工作台没有连接云数据库、没有调用 AI，也没有把 row values 放进导出 packet。",
+          "当前数据库工作台没有连接云数据库、没有调用 AI，也没有把行值放进导出包。",
         next_action:
-          "等 Web beta 的账号、权限、payload preview、审计和回滚合同确认后，再决定数据库值是否进入云同步或 AI。",
+          "等 Web beta 的账号、权限、发送内容预览、审计和回滚合同确认后，再决定数据库值是否进入云同步或 AI。",
         route: "/modules/sync",
         target_section_id: "sync-architecture",
         allowed_now: false,
@@ -579,7 +579,7 @@ function buildWorkbenchDatabases(input: {
       open_route: `/database/${database.database_id}`,
       writes_workspace_data: false,
       privacy_boundary:
-        "工作台数据库汇总只使用标题、由描述推断的角色、schema 计数、view metadata、模板 readiness、导入/导出 readiness 和行数；不包含 field names、row values、页面正文、文件 bytes、持仓、交易计划或云端数据。",
+        "工作台数据库汇总只使用标题、由描述推断的角色、结构计数、视图元数据、模板就绪、导入/导出就绪和行数；不包含字段名、行值、页面正文、文件字节、持仓、交易计划或云端数据。",
     };
   });
 }
@@ -600,12 +600,12 @@ function buildWorkbenchActions(
       id: "database-workbench:create-first-tracker",
       lane_id: "tracker-fit",
       database_id: null,
-      title: "创建第一个投研 tracker",
+      title: "创建第一个投研跟踪表",
       priority: "high",
       status: "needs-tracker",
       evidence: "当前本地工作区还没有数据库。",
       next_action:
-        "从公司、报告、会议或组合 preset 里创建一个本地 tracker，再回到数据库工作台复核结构。",
+        "从公司、报告、会议或组合预设里创建一个本地跟踪表，再回到数据库工作台复核结构。",
       action_route: "/modules/databases",
       route_label: "打开数据库中心",
       requires_manual_confirmation: true,
@@ -622,18 +622,18 @@ function buildWorkbenchActions(
         id: `database-workbench:relation:${database.database_id}`,
         lane_id: "relation-setup",
         database_id: database.database_id,
-        title: `${database.title} 缺少 relation 字段`,
+        title: `${database.title} 缺少关系字段`,
         priority: "high",
         status: "needs-schema",
-        evidence: "这个数据库还不能把公司、报告、会议、memo 或组合互相连接。",
+        evidence: "这个数据库还不能把公司、报告、会议、备忘录或组合互相连接。",
         next_action:
-          "打开数据库，按需要新增 Company page、Related reports、Related meetings 或 Related memo relation 字段。",
+          "打开数据库，按需要新增公司页面、关联报告、关联会议或关联备忘录关系字段。",
         action_route: database.open_route,
         route_label: "打开数据库",
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "这个行动只会打开数据库页；创建 relation 字段仍然是手动的本地 schema 编辑。",
+          "这个行动只会打开数据库页；创建关系字段仍然是手动的本地结构编辑。",
       });
     }
 
@@ -645,7 +645,7 @@ function buildWorkbenchActions(
         title: `${database.title} 需要首批模板行`,
         priority: "high",
         status: "ready-to-use",
-        evidence: "这个 tracker 目前还是空表。",
+        evidence: "这个跟踪表目前还是空表。",
         next_action:
           "打开数据库页，用「+ 模板行」创建第一批公司、报告、会议或组合行；敏感投资字段仍手动填写。",
         action_route: database.open_route,
@@ -653,7 +653,7 @@ function buildWorkbenchActions(
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "模板行创建只会在用户进入数据库页并点击后写入本地行；工作台包不包含 row values。",
+          "模板行创建只会在用户进入数据库页并点击后写入本地行；工作台包不包含行值。",
       });
     }
 
@@ -662,20 +662,20 @@ function buildWorkbenchActions(
         id: `database-workbench:template-schema:${database.database_id}`,
         lane_id: "template-intake",
         database_id: database.database_id,
-        title: `${database.title} 模板行需要补 schema`,
+        title: `${database.title} 模板行需要补结构`,
         priority: "medium",
         status: "needs-schema",
         evidence: database.recommended_template_group_label
           ? `推荐方向是 ${database.recommended_template_group_label}，但必需字段组还不完整。`
-          : "模板行 readiness 认为这个数据库需要先补字段。",
+          : "模板行就绪报告认为这个数据库需要先补字段。",
         next_action:
-          "先补状态、日期、格式或 relation 等结构字段，再使用模板行写入本地行。",
+          "先补状态、日期、格式或关系等结构字段，再使用模板行写入本地行。",
         action_route: database.open_route,
         route_label: "打开数据库",
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "这个行动只指向 schema 复核；不会在导出包里检查 field names，也不会自动创建字段。",
+          "这个行动只指向结构复核；不会在导出包里检查字段名，也不会自动创建字段。",
       });
     } else if (database.template_row_status === "partial") {
       actions.push({
@@ -710,7 +710,7 @@ function buildWorkbenchActions(
         priority: "medium",
         status: "ready-to-add",
         evidence:
-          "视图 readiness 显示这个数据库已有适合下一种工作流视图的字段结构。",
+          "视图就绪报告显示这个数据库已有适合下一种工作流视图的字段结构。",
         next_action:
           "打开数据库页添加推荐视图，并保存常用筛选、排序和隐藏字段配置。",
         action_route: database.open_route,
@@ -718,7 +718,7 @@ function buildWorkbenchActions(
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "The workbench recommends the view only. Adding a view is a manual local metadata write in the database page.",
+          "工作台只推荐视图；新增视图仍然是在数据库页手动进行的本地元数据写入。",
       });
     }
 
@@ -735,7 +735,7 @@ function buildWorkbenchActions(
         status: "manual-confirmation",
         evidence:
           database.row_count > 0
-            ? "这个数据库的 CSV/XLSX 导出会包含当前可见 row values。"
+            ? "这个数据库的 CSV/XLSX 导出会包含当前可见行值。"
             : "这个数据库可以追加导入表格，但批量写入必须输入确认短语。",
         next_action:
           "只在具体数据库页执行 CSV/XLSX 导出或 Excel/CSV/ODS 追加导入，并先确认可见行、隐藏字段和确认短语。",
@@ -744,7 +744,7 @@ function buildWorkbenchActions(
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "Module workbench never exports values or reads spreadsheet values. Real import/export remains behind manual confirmation in the database page.",
+          "模块工作台不会导出值，也不会读取表格值。真实导入/导出仍然留在数据库页的手动确认之后。",
       });
     }
   }
@@ -764,13 +764,13 @@ function buildWorkbenchActions(
         .map((item) => item.label)
         .join("、")}。`,
       next_action:
-        "先确认这些视图是否对投研工作流有用，再在合适的 tracker 中手动添加。",
+        "先确认这些视图是否对投研工作流有用，再在合适的跟踪表中手动添加。",
       action_route: "/modules/databases",
       route_label: "查看数据库中心",
       requires_manual_confirmation: false,
       writes_workspace_data: false,
       privacy_boundary:
-        "视图覆盖只使用 metadata 计数，不读取行、值或页面正文。",
+        "视图覆盖只使用元数据计数，不读取行、值或页面正文。",
     });
   }
 
@@ -802,11 +802,11 @@ function buildReviewSequence(
       reviewStep(
         "create-first-tracker",
         1,
-        "创建第一个投研 tracker",
+        "创建第一个投研跟踪表",
         "/modules/databases",
         "databases-create-workspace",
-        "没有数据库时，后续 relation、模板行、导入导出都没有承载容器。",
-        "至少创建一个公司、报告、会议或组合 tracker。"
+        "没有数据库时，后续关系、模板行、导入导出都没有承载容器。",
+        "至少创建一个公司、报告、会议或组合跟踪表。"
       ),
     ];
   }
@@ -818,11 +818,11 @@ function buildReviewSequence(
       reviewStep(
         "relation-first",
         steps.length + 1,
-        "先补 relation 字段",
+        "先补关系字段",
         "/modules/research-graph",
         "databases-relation-setup",
-        "投研平台的核心是把公司、报告、会议、memo 和组合连接起来。",
-        "关键 tracker 至少有一个 relation 字段。"
+        "投研平台的核心是把公司、报告、会议、备忘录和组合连接起来。",
+        "关键跟踪表至少有一个关系字段。"
       )
     );
   }
@@ -836,7 +836,7 @@ function buildReviewSequence(
         "/modules/databases",
         "databases-template-readiness",
         "模板行能让投研资产用一致结构进入数据库，后面更容易搜索、关联和复盘。",
-        "空 tracker 至少有一批本地模板行，敏感投资字段保持人工填写。"
+        "空跟踪表至少有一批本地模板行，敏感投资字段保持人工填写。"
       )
     );
   }
@@ -850,7 +850,7 @@ function buildReviewSequence(
         "/modules/databases",
         "databases-view-readiness",
         "不同投研动作需要不同视角：看板看状态，日历看催化剂，时间线看事件，图表看分布。",
-        "核心 tracker 保存了适合自己字段结构的视图。"
+        "核心跟踪表保存了适合自己字段结构的视图。"
       )
     );
   }
@@ -863,8 +863,8 @@ function buildReviewSequence(
         "最后处理导入导出",
         "/modules/databases",
         "databases-import-export-readiness",
-        "导入导出会碰到真实 row values 或 spreadsheet values，应该放在结构复核之后。",
-        "只在具体数据库页手动执行导入或导出，并留下本地 receipt。"
+        "导入导出会碰到真实行值或表格值，应该放在结构复核之后。",
+        "只在具体数据库页手动执行导入或导出，并留下本地记录。"
       )
     );
   }
@@ -877,8 +877,8 @@ function buildReviewSequence(
         "人工复核数据库工作流",
         "/modules/databases",
         "databases-workbench-databases",
-        "当前没有紧急缺口，可以继续按投研流程检查 tracker 是否符合真实使用方式。",
-        "确认每个 tracker 的角色、视图、模板行和导入导出路径都清楚。"
+        "当前没有紧急缺口，可以继续按投研流程检查跟踪表是否符合真实使用方式。",
+        "确认每个跟踪表的角色、视图、模板行和导入导出路径都清楚。"
       )
     );
   }
@@ -934,7 +934,7 @@ function getDatabaseNextAction(
     | undefined
 ): string {
   if (database.relation_fields === 0) {
-    return "先补 relation 字段，让这个 tracker 能连接公司、报告、会议、memo 或组合。";
+    return "先补关系字段，让这个跟踪表能连接公司、报告、会议、备忘录或组合。";
   }
   if (template?.recommended_status === "needs-schema") {
     return template.next_action;

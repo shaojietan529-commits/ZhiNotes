@@ -268,7 +268,7 @@ function DatabasesDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export database view readiness:", err);
-      window.alert("数据库视图 readiness 导出失败，请查看控制台。");
+      window.alert("数据库视图就绪报告导出失败，请查看控制台。");
     } finally {
       setExportingViewReadiness(false);
     }
@@ -289,7 +289,7 @@ function DatabasesDashboard() {
         "[Zhinote] Failed to export database template row readiness:",
         err
       );
-      window.alert("模板行 readiness 导出失败，请查看控制台。");
+      window.alert("模板行就绪报告导出失败，请查看控制台。");
     } finally {
       setExportingTemplateReadiness(false);
     }
@@ -310,7 +310,7 @@ function DatabasesDashboard() {
         "[Zhinote] Failed to export database import/export readiness:",
         err
       );
-      window.alert("数据库导入/导出 readiness 导出失败，请查看控制台。");
+      window.alert("数据库导入/导出就绪报告导出失败，请查看控制台。");
     } finally {
       setExportingImportExportReadiness(false);
     }
@@ -390,7 +390,7 @@ function DatabasesDashboard() {
         "[Zhinote] Failed to export database template row receipts:",
         err
       );
-      window.alert("模板行 receipts 导出失败，请查看控制台。");
+      window.alert("模板行记录导出失败，请查看控制台。");
     } finally {
       setExportingTemplateRowReceipts(false);
     }
@@ -410,7 +410,7 @@ function DatabasesDashboard() {
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
                 集中查看本地数据库、字段、视图、行数、模板入口、导出路线和
-                relation 补全状态。这个页面只读 schema、view 和 row count。
+                关系补全状态。这个页面只读结构、视图和行数。
               </p>
             </div>
             <button
@@ -435,7 +435,7 @@ function DatabasesDashboard() {
           <Metric label="视图" value={dashboardReport.summary.views} />
           <Metric label="行数" value={dashboardReport.summary.rows_counted} />
           <Metric
-            label="Relation"
+            label="关系"
             value={dashboardReport.summary.relation_fields}
           />
           <Metric
@@ -505,7 +505,7 @@ function DatabasesDashboard() {
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 可以创建空白数据库，也可以用公司、报告、会议、组合这些投研模板生成
-                带 relation 字段和多视图的本地 tracker。所有动作只写本地浏览器数据库。
+                带关系字段和多视图的本地跟踪表。所有动作只写本地浏览器数据库。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -539,8 +539,8 @@ function DatabasesDashboard() {
                 数据库模块总览
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                本地可导出的 dashboard report。它只包含数据库标题、描述、字段数量、
-                视图类型和 row count，不包含 row values 或页面正文。
+                本地可导出的数据库总览报告。它只包含数据库标题、描述、字段数量、
+                视图类型和行数，不包含行值或页面正文。
               </p>
             </div>
             <button
@@ -601,12 +601,12 @@ function DatabasesDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                视图适配 readiness
+                视图适配就绪
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 按字段类型判断每个数据库是否适合添加看板、日历、画廊、时间线、
-                图表、表单和动态视图。这个报告只读 schema、view metadata 和 row count，
-                不读取 row values 或页面正文。
+                图表、表单和动态视图。这个报告只读结构、视图元数据和行数，
+                不读取行值或页面正文。
               </p>
             </div>
             <button
@@ -615,7 +615,7 @@ function DatabasesDashboard() {
               disabled={exportingViewReadiness}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingViewReadiness ? "导出中..." : "导出视图 readiness"}
+              {exportingViewReadiness ? "导出中..." : "导出视图就绪"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
@@ -648,14 +648,14 @@ function DatabasesDashboard() {
               value={viewReadiness.summary.chart_ready_databases}
             />
             <Metric
-              label="Relation"
+              label="关系"
               value={viewReadiness.summary.relation_ready_databases}
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
             <div className="space-y-2">
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Readiness gates
+                就绪门槛
               </div>
               {viewReadiness.gates.map((gate) => (
                 <ViewReadinessGateRow key={gate.id} gate={gate} />
@@ -677,7 +677,7 @@ function DatabasesDashboard() {
                 </div>
               ) : (
                 <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-                  还没有数据库。创建 tracker 后，这里会按字段类型推荐适合添加的视图。
+                  还没有数据库。创建跟踪表后，这里会按字段类型推荐适合添加的视图。
                 </p>
               )}
             </div>
@@ -705,7 +705,7 @@ function DatabasesDashboard() {
             ) : (
               <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
                 还没有本地数据库。可以先创建空白数据库，或用公司、报告、会议、
-                组合模板生成 tracker。
+                组合模板生成跟踪表。
               </p>
             )}
           </div>
@@ -719,15 +719,15 @@ function DatabasesDashboard() {
             </h2>
             <div className="mt-3 space-y-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
               <p>
-                当前模块页只读取数据库 schema、view metadata 和 row count，
-                不读取 row values、页面正文、文件 bytes、prompt、token 或云端数据。
+                当前模块页只读取数据库结构、视图元数据和行数，
+                不读取行值、页面正文、文件字节、prompt、token 或云端数据。
               </p>
               <p>
                 CSV/XLSX 导出仍在具体数据库页面里手动触发，因为导出会包含当前可见行值。
               </p>
               <p>
                 Excel/CSV/ODS 可以在具体数据库页面追加导入当前数据库，或在文件预览中创建新数据库；
-                批量写入仍需要 typed confirmation receipt。云同步和 AI 使用数据库内容前也需要单独确认 payload。
+                批量写入仍需要输入确认文本并留下确认记录。云同步和 AI 使用数据库内容前也需要单独确认发送内容。
               </p>
             </div>
           </div>
@@ -796,7 +796,7 @@ function DatabaseDecisionSummaryPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Database Decision Summary
+            数据库决策摘要
           </p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             数据库决策摘要
@@ -829,7 +829,7 @@ function DatabaseDecisionSummaryPanel({
         <DatabaseDecisionList title="当前可做" items={summary.safe_local_work} />
         <DatabaseDecisionList title="保持关闭" items={summary.blocked_work} />
         <DatabaseDecisionList
-          title="Owner 待确认"
+          title="待你确认"
           items={summary.required_owner_decisions}
         />
       </div>
@@ -839,8 +839,8 @@ function DatabaseDecisionSummaryPanel({
         {summary.top_blockers.length > 0
           ? summary.top_blockers.join("；")
           : "暂无"}
-        。数据库决策摘要只读取本地 summary metadata，不包含 field names、row
-        values、页面正文、spreadsheet values、prompt、token 或 credentials。
+        。数据库决策摘要只读取本地摘要元数据，不包含字段名、行值、页面正文、
+        表格值、prompt、token 或凭证。
       </div>
     </section>
   );
@@ -968,9 +968,8 @@ function DatabaseWorkbenchPanel({
             数据库工作台
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            把 dashboard、视图 readiness、模板行 readiness 和导入/导出
-            readiness 合成一个本地行动包。它只读 schema、view metadata、模板
-            metadata 和 row count，不读取 row values、页面正文或表格单元格。
+            把数据库总览、视图就绪、模板行就绪和导入/导出就绪合成一个本地行动包。
+            它只读结构、视图元数据、模板元数据和行数，不读取行值、页面正文或表格单元格。
           </p>
         </div>
         <button
@@ -990,7 +989,7 @@ function DatabaseWorkbenchPanel({
           value={packet.summary.manual_confirmation_actions}
         />
         <Metric
-          label="Relation"
+          label="关系"
           value={packet.summary.relation_schema_actions}
         />
         <Metric
@@ -1035,7 +1034,7 @@ function DatabaseWorkbenchPanel({
             </div>
           ) : (
             <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              当前没有紧急数据库行动。可以继续人工复核 tracker 角色、视图和 relation
+              当前没有紧急数据库行动。可以继续人工复核跟踪表角色、视图和关系
               结构。
             </p>
           )}
@@ -1044,7 +1043,7 @@ function DatabaseWorkbenchPanel({
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <div id="databases-workbench-databases" className="scroll-mt-6 space-y-2">
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-            Tracker 对齐
+            跟踪表对齐
           </div>
           {visibleDatabases.length > 0 ? (
             <div className="grid gap-2 md:grid-cols-2">
@@ -1058,7 +1057,7 @@ function DatabaseWorkbenchPanel({
             </div>
           ) : (
             <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有数据库。先创建本地 tracker，工作台会自动生成 relation、模板行、
+              还没有数据库。先创建本地跟踪表，工作台会自动生成关系、模板行、
               视图和导入导出建议。
             </p>
           )}
@@ -1075,8 +1074,8 @@ function DatabaseWorkbenchPanel({
             />
           ))}
           <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-            禁止动作：不从模块页读取 row values、不导出值、不批量导入、不自动建
-            row 或字段、不连接云数据库、不上传数据、不启用 AI。
+            禁止动作：不从模块页读取行值、不导出值、不批量导入、不自动建
+            行或字段、不连接云数据库、不上传数据、不启用 AI。
           </p>
         </div>
       </div>
@@ -1099,7 +1098,7 @@ function DatabaseWorkbenchLaneCard({
             {lane.title}
           </h3>
           <p className="mt-1 text-zinc-400">
-            {lane.action_count} actions · {lane.high_priority_count} high
+            {lane.action_count} 个动作 · {lane.high_priority_count} 个高优先级
           </p>
         </div>
         <button
@@ -1192,7 +1191,7 @@ function DatabaseWorkbenchDatabaseCard({
         <Chip label={`${database.field_count} 个字段`} />
         <Chip label={`${database.row_count} 行`} />
         <Chip label={`${database.view_count} 个视图`} />
-        <Chip label={`${database.relation_fields} 个 relation`} />
+        <Chip label={`${database.relation_fields} 个关系字段`} />
         {database.template_row_status && (
           <Chip label={`模板 ${database.template_row_status}`} />
         )}
@@ -1276,9 +1275,9 @@ function DatabaseWorkbenchStatusPill({
   const labels: Record<DatabaseWorkbenchActionStatus, string> = {
     "ready-to-use": "可开始",
     "ready-to-add": "可添加",
-    "needs-schema": "需补 schema",
+    "needs-schema": "需补结构",
     "manual-confirmation": "需确认",
-    "needs-tracker": "需建 tracker",
+    "needs-tracker": "需建跟踪表",
     "review-only": "复核",
   };
   const className =
@@ -1311,7 +1310,7 @@ function TemplateCatalogPanel({
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             这些模板会出现在具体数据库页的「+ 模板行」菜单里，用于把公司、报告、
-            会议和组合资产写成本地 row。当前目录只读模板 metadata，不读取 row values
+            会议和组合资产写成本地行。当前目录只读模板元数据，不读取行值
             或页面正文。
           </p>
         </div>
@@ -1402,12 +1401,12 @@ function TemplateRowReadinessPanel({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            模板行 readiness
+            模板行就绪
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             按公司、报告、会议和组合模板检查每个数据库是否具备推荐字段。
-            这个报告只读 template metadata、schema、view metadata 和 row count，
-            不包含 field names、row values 或页面正文。
+            这个报告只读模板元数据、结构、视图元数据和行数，
+            不包含字段名、行值或页面正文。
           </p>
         </div>
         <button
@@ -1416,7 +1415,7 @@ function TemplateRowReadinessPanel({
           disabled={exporting}
           className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
-          {exporting ? "导出中..." : "导出模板行 readiness"}
+          {exporting ? "导出中..." : "导出模板行就绪"}
         </button>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
@@ -1424,8 +1423,8 @@ function TemplateRowReadinessPanel({
         <Metric label="模板行" value={report.summary.template_rows} />
         <Metric label="已就绪" value={report.summary.ready_items} />
         <Metric label="部分就绪" value={report.summary.partial_items} />
-        <Metric label="需补 schema" value={report.summary.needs_schema_items} />
-        <Metric label="缺 Relation" value={report.summary.missing_relation_requirements} />
+        <Metric label="需补结构" value={report.summary.needs_schema_items} />
+        <Metric label="缺关系" value={report.summary.missing_relation_requirements} />
         <Metric label="缺 Status" value={report.summary.missing_status_requirements} />
         <Metric label="缺 Date" value={report.summary.missing_date_requirements} />
       </div>
@@ -1454,7 +1453,7 @@ function TemplateRowReadinessPanel({
             </div>
           ) : (
             <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有数据库。创建 tracker 后，这里会判断它适合哪些模板行。
+              还没有数据库。创建跟踪表后，这里会判断它适合哪些模板行。
             </p>
           )}
         </div>
@@ -1551,7 +1550,7 @@ function TemplateRowStatusPill({
   const labels: Record<DatabaseTemplateRowReadinessStatus, string> = {
     ready: "已就绪",
     partial: "部分就绪",
-    "needs-schema": "需补 schema",
+    "needs-schema": "需补结构",
   };
   const className =
     status === "ready"
@@ -1585,12 +1584,12 @@ function TemplateRowReceiptHistoryPanel({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            模板行 receipts
+            模板行记录
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            记录从完整数据库页和 inline database 创建模板行后的本地 receipt 历史。
-            这里读取浏览器 localStorage 里的 metadata-only receipts，不含 field
-            names、row values、页面正文或敏感投资字段。
+            记录从完整数据库页和行内数据库创建模板行后的本地记录历史。
+            这里读取浏览器 localStorage 里的仅元数据记录，不含字段名、行值、
+            页面正文或敏感投资字段。
           </p>
         </div>
         <button
@@ -1599,18 +1598,18 @@ function TemplateRowReceiptHistoryPanel({
           disabled={exporting || receipts.length === 0}
           className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
-          {exporting ? "导出中..." : "导出 receipts"}
+          {exporting ? "导出中..." : "导出记录"}
         </button>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
-        <Metric label="Receipts" value={summary.total} />
-        <Metric label="DB page" value={summary.database_page} />
-        <Metric label="Inline" value={summary.inline_database} />
-        <Metric label="Company" value={summary.company} />
-        <Metric label="Report" value={summary.report} />
-        <Metric label="Meeting" value={summary.meeting} />
-        <Metric label="Portfolio" value={summary.portfolio} />
+        <Metric label="记录" value={summary.total} />
+        <Metric label="数据库页" value={summary.database_page} />
+        <Metric label="行内库" value={summary.inline_database} />
+        <Metric label="公司" value={summary.company} />
+        <Metric label="报告" value={summary.report} />
+        <Metric label="会议" value={summary.meeting} />
+        <Metric label="组合" value={summary.portfolio} />
         <Metric label="已预填字段" value={summary.prefilled_fields} />
       </div>
 
@@ -1625,7 +1624,7 @@ function TemplateRowReceiptHistoryPanel({
         </div>
       ) : (
         <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-          暂时没有模板行 receipt。你在完整数据库页或 inline database 里使用
+          暂时没有模板行记录。你在完整数据库页或行内数据库里使用
           「+ 模板行」后，这里会显示最近的本地创建记录。
         </p>
       )}
@@ -1649,12 +1648,12 @@ function DatabaseImportExportReadinessPanel({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            导入/导出 readiness
+            导入/导出就绪
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             检查每个数据库是否适合 CSV/XLSX 导出或 Excel/CSV/ODS 追加导入。
-            模块中心只读 schema、view metadata 和 row count，不读取 row values、
-            spreadsheet values 或页面正文；真实导入/导出仍在具体数据库页手动触发。
+            模块中心只读结构、视图元数据和行数，不读取行值、
+            表格值或页面正文；真实导入/导出仍在具体数据库页手动触发。
           </p>
         </div>
         <button
@@ -1663,7 +1662,7 @@ function DatabaseImportExportReadinessPanel({
           disabled={exporting}
           className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
-          {exporting ? "导出中..." : "导出导入/导出 readiness"}
+          {exporting ? "导出中..." : "导出导入/导出就绪"}
         </button>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
@@ -1675,7 +1674,7 @@ function DatabaseImportExportReadinessPanel({
           value={report.summary.append_import_ready_databases}
         />
         <Metric label="空表" value={report.summary.empty_databases} />
-        <Metric label="需补 schema" value={report.summary.needs_schema_databases} />
+        <Metric label="需补结构" value={report.summary.needs_schema_databases} />
         <Metric
           label="需确认"
           value={report.summary.import_confirmation_databases}
@@ -1707,8 +1706,8 @@ function DatabaseImportExportReadinessPanel({
             </div>
           ) : (
             <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有数据库。创建 tracker 后，这里会显示哪些数据库适合导出、
-              追加导入或先补 schema。
+              还没有数据库。创建跟踪表后，这里会显示哪些数据库适合导出、
+              追加导入或先补结构。
             </p>
           )}
         </div>
@@ -1782,7 +1781,7 @@ function DatabaseImportExportCard({
         <DatabaseImportExportRiskPill label="导入风险" risk={database.import_risk} />
         {database.values_included_on_export && (
           <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
-            导出含 row values
+            导出含行值
           </span>
         )}
         {database.typed_confirmation_required_for_import && (
@@ -1816,7 +1815,7 @@ function DatabaseImportExportStatusPill({
   const labels: Record<DatabaseImportExportStatus, string> = {
     ready: "已就绪",
     "manual-confirmation": "需确认",
-    "needs-schema": "需补 schema",
+    "needs-schema": "需补结构",
     empty: "空表",
   };
   const className =
@@ -1905,7 +1904,7 @@ function TemplateRowReceiptCard({
         ))}
       </div>
       <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-        本地 receipt 只记录模板行动作 metadata。不含 field names、row values、
+        本地记录只记录模板行动作元数据。不含字段名、行值、
         页面正文或敏感投资字段。
       </p>
     </article>
@@ -2073,7 +2072,7 @@ function DatabaseCard({
         <Chip label={`字段 ${item.field_count}`} />
         <Chip label={`行数 ${item.row_count}`} />
         <Chip label={`视图 ${item.view_count}`} />
-        <Chip label={`Relation ${item.relation_fields}`} />
+        <Chip label={`关系字段 ${item.relation_fields}`} />
         {item.view_types.map((viewType) => (
           <Chip key={viewType} label={getDatabaseViewTypeLabel(viewType)} />
         ))}
