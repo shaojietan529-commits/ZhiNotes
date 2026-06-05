@@ -80,6 +80,7 @@ import { evaluateDatabaseRollup } from "@/lib/database/rollup";
 import {
   getDatabaseSystemFieldValue,
   isDatabaseSystemField,
+  isDatabaseSystemTimeField,
 } from "@/lib/database/systemFields";
 import {
   applyDatabaseImportPreview,
@@ -141,6 +142,7 @@ interface DatabaseViewConfig {
   groupFieldId: string;
   hiddenFieldIds: string[];
   chartGroupFieldId: string;
+  dateFieldId: string;
 }
 
 export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
@@ -165,6 +167,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [groupFieldId, setGroupFieldId] = useState("");
   const [hiddenFieldIds, setHiddenFieldIds] = useState<string[]>([]);
   const [chartGroupFieldId, setChartGroupFieldId] = useState("");
+  const [dateFieldId, setDateFieldId] = useState("");
   const [relationCompletionBusyId, setRelationCompletionBusyId] =
     useState<string | null>(null);
   const [databaseImportPreview, setDatabaseImportPreview] =
@@ -189,6 +192,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     setGroupFieldId(config.groupFieldId);
     setHiddenFieldIds(config.hiddenFieldIds);
     setChartGroupFieldId(config.chartGroupFieldId);
+    setDateFieldId(config.dateFieldId);
   }, [initialRowSearch]);
 
   const reload = useCallback(async () => {
@@ -719,6 +723,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     focusPageId,
     focusPage,
     groupFieldId,
+    dateFieldId,
   };
   const visibleFieldViewProps = {
     ...allFieldViewProps,
@@ -889,6 +894,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         onHiddenFieldIdsChange={setHiddenFieldIds}
         chartGroupFieldId={chartGroupFieldId}
         onChartGroupFieldChange={setChartGroupFieldId}
+        dateFieldId={dateFieldId}
+        onDateFieldChange={setDateFieldId}
         onSaveView={async () => {
           if (!activeView) return;
           await updateView(activeView.id, {
@@ -903,6 +910,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
               groupFieldId,
               hiddenFieldIds,
               chartGroupFieldId,
+              dateFieldId,
             }),
           });
           reload();
@@ -1209,6 +1217,8 @@ function DatabaseViewControls({
   onHiddenFieldIdsChange,
   chartGroupFieldId,
   onChartGroupFieldChange,
+  dateFieldId,
+  onDateFieldChange,
   onSaveView,
   visibleCount,
   totalCount,
@@ -1228,6 +1238,8 @@ function DatabaseViewControls({
   onHiddenFieldIdsChange: (value: string[]) => void;
   chartGroupFieldId: string;
   onChartGroupFieldChange: (value: string) => void;
+  dateFieldId: string;
+  onDateFieldChange: (value: string) => void;
   onSaveView: () => void;
   visibleCount: number;
   totalCount: number;
@@ -1240,8 +1252,12 @@ function DatabaseViewControls({
     hasSortControls ||
     groupFieldId ||
     hiddenFieldIds.length > 0 ||
-    chartGroupFieldId;
+    chartGroupFieldId ||
+    dateFieldId;
   const chartableFields = fields.filter(isChartableField);
+  const dateFields = fields.filter(
+    (field) => field.field_type === "date" || isDatabaseSystemTimeField(field)
+  );
   const groupableFields = fields.filter(isGroupableField);
   const displaySortRules = sortRules.length
     ? sortRules
@@ -1304,6 +1320,21 @@ function DatabaseViewControls({
             ))}
           </select>
         )}
+        {(activeViewType === "calendar" || activeViewType === "timeline") && (
+          <select
+            value={dateFieldId}
+            onChange={(event) => onDateFieldChange(event.target.value)}
+            aria-label="日期字段"
+            className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+          >
+            <option value="">自动日期</option>
+            {dateFields.map((field) => (
+              <option key={field.id} value={field.id}>
+                日期：{getDatabaseFieldDisplayName(field)}
+              </option>
+            ))}
+          </select>
+        )}
         <span className="text-zinc-400">
           {visibleCount}/{totalCount}
         </span>
@@ -1324,6 +1355,7 @@ function DatabaseViewControls({
               onGroupFieldChange("");
               onHiddenFieldIdsChange([]);
               onChartGroupFieldChange("");
+              onDateFieldChange("");
             }}
             className="h-8 rounded px-2 text-xs text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
           >
@@ -2965,6 +2997,7 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
     groupFieldId: "",
     hiddenFieldIds: [],
     chartGroupFieldId: "",
+    dateFieldId: "",
   };
 
   try {
@@ -2999,6 +3032,8 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
       hiddenFieldIds: parseStringArray(parsed.hiddenFieldIds),
       chartGroupFieldId:
         typeof parsed.chartGroupFieldId === "string" ? parsed.chartGroupFieldId : "",
+      dateFieldId:
+        typeof parsed.dateFieldId === "string" ? parsed.dateFieldId : "",
     };
   } catch {
     return fallback;

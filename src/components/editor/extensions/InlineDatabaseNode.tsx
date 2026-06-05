@@ -104,6 +104,7 @@ interface InlineDatabaseViewConfig {
   groupFieldId: string;
   hiddenFieldIds: string[];
   chartGroupFieldId: string;
+  dateFieldId: string;
 }
 
 function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
@@ -420,6 +421,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
     onOpenPage: handleOpenPage,
     relationPages: workspacePages,
     groupFieldId: activeViewConfig.groupFieldId,
+    dateFieldId: activeViewConfig.dateFieldId,
   };
   const visibleFieldViewProps = {
     ...viewProps,
@@ -649,6 +651,7 @@ function parseInlineDatabaseViewConfig(config: string): InlineDatabaseViewConfig
     groupFieldId: "",
     hiddenFieldIds: [],
     chartGroupFieldId: "",
+    dateFieldId: "",
   };
 
   try {
@@ -684,6 +687,8 @@ function parseInlineDatabaseViewConfig(config: string): InlineDatabaseViewConfig
         typeof parsed.chartGroupFieldId === "string"
           ? parsed.chartGroupFieldId
           : "",
+      dateFieldId:
+        typeof parsed.dateFieldId === "string" ? parsed.dateFieldId : "",
     };
   } catch {
     return fallback;

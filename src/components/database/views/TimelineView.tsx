@@ -24,6 +24,7 @@ interface TimelineViewProps {
   onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
   relationPages: Page[];
+  dateFieldId?: string;
 }
 
 interface TimelineRow {
@@ -40,8 +41,15 @@ export default function TimelineView({
   onDuplicateRow,
   onOpenRow,
   relationPages,
+  dateFieldId = "",
 }: TimelineViewProps) {
+  const selectedDateField = fields.find(
+    (field) =>
+      field.id === dateFieldId &&
+      (field.field_type === "date" || isDatabaseSystemTimeField(field))
+  );
   const dateField =
+    selectedDateField ||
     fields.find((field) => field.field_type === "date") ||
     fields.find(isDatabaseSystemTimeField);
 
@@ -83,6 +91,9 @@ export default function TimelineView({
 
   return (
     <div>
+      <p className="mb-3 text-[11px] text-zinc-400">
+        日期字段：{getDatabaseFieldDisplayName(dateField)}
+      </p>
       {timelineRows.length === 0 ? (
         <p className="py-8 text-center text-sm text-zinc-400">还没有行。</p>
       ) : (

@@ -428,6 +428,10 @@ function run() {
     "filterRules",
     "sortRules",
     "groupFieldId",
+    "dateFieldId",
+    "onDateFieldChange",
+    'aria-label="日期字段"',
+    "日期：{getDatabaseFieldDisplayName(field)}",
     "parseDatabaseFilterRules",
     "parseDatabaseFilterOperator",
     "matchesDatabaseFilterText",
@@ -817,12 +821,19 @@ function run() {
     [files.timelineView, timelineView],
     [files.calendarView, calendarView],
   ]) {
-    assertIncludes(
-      sourceLabel,
-      source,
+    for (const snippet of [
+      "dateFieldId",
+      "selectedDateField",
       "fields.find(isDatabaseSystemTimeField)",
-      "Timeline and calendar fallbacks must use system time fields, not unique ID fields."
-    );
+      "日期字段：",
+    ]) {
+      assertIncludes(
+        sourceLabel,
+        source,
+        snippet,
+        "Timeline and calendar views must use saved date fields and fall back to system time fields."
+      );
+    }
   }
   assertIncludes(
     files.databaseExport,
@@ -999,6 +1010,7 @@ function run() {
     "matchesInlineDatabaseFilterText",
     "activeViewConfig.sortRules",
     "activeViewConfig.groupFieldId",
+    "activeViewConfig.dateFieldId",
     "activeViewConfig.hiddenFieldIds",
     "buildInlineDatabaseRowGroups",
     "isInlineGroupedViewType",
@@ -1842,6 +1854,7 @@ function run() {
         property_visibility_search: true,
         view_grouping: true,
         kanban_saved_grouping: true,
+        date_view_field_selection: true,
         view_management: true,
         view_reordering: true,
         row_reordering: true,

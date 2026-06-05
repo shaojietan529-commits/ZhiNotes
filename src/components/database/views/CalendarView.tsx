@@ -17,6 +17,7 @@ interface CalendarViewProps {
   onDeleteRow: (rowId: string) => void;
   onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
+  dateFieldId?: string;
 }
 
 export default function CalendarView({
@@ -24,9 +25,16 @@ export default function CalendarView({
   rows,
   onDuplicateRow,
   onOpenRow,
+  dateFieldId = "",
 }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const selectedDateField = fields.find(
+    (field) =>
+      field.id === dateFieldId &&
+      (field.field_type === "date" || isDatabaseSystemTimeField(field))
+  );
   const dateField =
+    selectedDateField ||
     fields.find((field) => field.field_type === "date") ||
     fields.find(isDatabaseSystemTimeField);
 
@@ -118,6 +126,9 @@ export default function CalendarView({
           今天
         </button>
       </div>
+      <p className="mb-2 text-[11px] text-zinc-400">
+        日期字段：{dateField.name}
+      </p>
 
       {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-px bg-zinc-200 dark:bg-zinc-700 rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700">
