@@ -119,8 +119,9 @@ schema migration 的能力默认保持关闭。
 - Calendar 和 Timeline view 现在可以保存使用哪个日期字段；没有选择时继续自动 fallback 到第一个
   date 或系统时间字段。
 - Calendar view 会把缺少所选日期值的行保留在本地“无日期”区域，避免记录因为没填日期而消失。
-- 数据库 view tab 现在有本地管理菜单：重命名、复制视图配置、复制视图链接、删除非最后一个视图；
-  删除是 soft delete，复制链接只生成带 `?view=` 的本地 URL；这些动作不删除行、页面、字段或文件。
+- 数据库 view tab 现在有本地管理菜单：重命名、保存视图说明、复制视图配置、复制视图链接、
+  删除非最后一个视图；删除是 soft delete，复制链接只生成带 `?view=` 的本地 URL；
+  视图说明写入 view config；这些动作不删除行、页面、字段或文件。
 - Inline database 现在会应用已保存的 view config：row search、筛选、排序、隐藏属性、图表
   分组和手动排序启用状态都会按所选 view 本地计算展示；inline 本身不写 view config。
 - Inline database 的 Table、List、Gallery、Feed 也会读取保存的分组字段并渲染分组区块；

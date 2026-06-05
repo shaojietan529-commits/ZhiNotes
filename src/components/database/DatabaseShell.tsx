@@ -139,6 +139,7 @@ interface DatabaseRowGroup {
   rows: RowWithPage[];
 }
 interface DatabaseViewConfig {
+  description: string;
   rowSearch: string;
   filterFieldId: string;
   filterValue: string;
@@ -432,6 +433,20 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [reload]
   );
 
+  const handleUpdateViewDescription = useCallback(
+    async (view: DatabaseView, description: string) => {
+      const config = parseDatabaseViewConfig(view.config);
+      await updateView(view.id, {
+        config: JSON.stringify({
+          ...config,
+          description: description.trim(),
+        }),
+      });
+      reload();
+    },
+    [reload]
+  );
+
   const handleDuplicateView = useCallback(
     async (view: DatabaseView) => {
       const sourceName = getDatabaseViewDisplayName(view);
@@ -520,6 +535,10 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   }, [databaseId, router]);
 
   const activeView = views.find((v) => v.id === activeViewId) || views[0];
+  const activeViewConfig = activeView
+    ? parseDatabaseViewConfig(activeView.config)
+    : null;
+  const activeViewDescription = activeViewConfig?.description.trim() ?? "";
   const visibleFields = useMemo(
     () => getVisibleFields(fields, hiddenFieldIds),
     [fields, hiddenFieldIds]
@@ -852,6 +871,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
                 canMoveLeft={viewIndex > 0}
                 canMoveRight={viewIndex >= 0 && viewIndex < views.length - 1}
                 onRename={handleRenameView}
+                onUpdateDescription={handleUpdateViewDescription}
                 onDuplicate={handleDuplicateView}
                 onCopyLink={handleCopyViewLink}
                 onMove={handleMoveView}
@@ -932,6 +952,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           await updateView(activeView.id, {
             config: JSON.stringify({
               rowSearch,
+              description: activeViewConfig?.description ?? "",
               filterFieldId: filterRules[0]?.fieldId ?? "all",
               filterValue: filterRules[0]?.value ?? "",
               filterRules,
@@ -950,6 +971,17 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         visibleCount={visibleRows.length}
         totalCount={rows.length}
       />
+
+      {activeViewDescription && (
+        <section className="mb-4 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+            视图说明
+          </div>
+          <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-zinc-600 dark:text-zinc-300">
+            {activeViewDescription}
+          </p>
+        </section>
+      )}
 
       {databaseImportPreview && (
         <DatabaseImportPreviewPanel
@@ -1116,6 +1148,7 @@ function DatabaseViewActionsButton({
   canMoveLeft,
   canMoveRight,
   onRename,
+  onUpdateDescription,
   onDuplicate,
   onCopyLink,
   onMove,
@@ -1126,6 +1159,7 @@ function DatabaseViewActionsButton({
   canMoveLeft: boolean;
   canMoveRight: boolean;
   onRename: (view: DatabaseView, name: string) => void;
+  onUpdateDescription: (view: DatabaseView, description: string) => void;
   onDuplicate: (view: DatabaseView) => void;
   onCopyLink: (view: DatabaseView) => Promise<void>;
   onMove: (view: DatabaseView, direction: "left" | "right") => void;
@@ -1133,11 +1167,24 @@ function DatabaseViewActionsButton({
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(getDatabaseViewDisplayName(view));
+  const [description, setDescription] = useState(
+    parseDatabaseViewConfig(view.config).description
+  );
+
+  useEffect(() => {
+    setName(getDatabaseViewDisplayName(view));
+    setDescription(parseDatabaseViewConfig(view.config).description);
+  }, [view]);
 
   const handleRename = () => {
     const nextName = name.trim();
     if (!nextName) return;
     onRename(view, nextName);
+    setOpen(false);
+  };
+
+  const handleSaveDescription = () => {
+    onUpdateDescription(view, description);
     setOpen(false);
   };
 
@@ -1170,6 +1217,18 @@ function DatabaseViewActionsButton({
               className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             />
           </label>
+          <label className="mt-3 block">
+            <span className="mb-1 block text-[11px] text-zinc-500">
+              视图说明
+            </span>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={3}
+              placeholder="例如：只看最近 30 天需要复盘的报告"
+              className="w-full resize-none rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs leading-5 text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+          </label>
           <div className="mt-3 grid gap-1">
             <button
               type="button"
@@ -1177,6 +1236,13 @@ function DatabaseViewActionsButton({
               className="rounded px-2 py-1.5 text-left text-xs text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
             >
               保存名称
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveDescription}
+              className="rounded px-2 py-1.5 text-left text-xs text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              保存说明
             </button>
             <button
               type="button"
@@ -3069,6 +3135,7 @@ function stringifyValue(value: unknown) {
 
 function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
   const fallback: DatabaseViewConfig = {
+    description: "",
     rowSearch: "",
     filterFieldId: "all",
     filterValue: "",
@@ -3103,6 +3170,8 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
     );
 
     return {
+      description:
+        typeof parsed.description === "string" ? parsed.description : "",
       rowSearch: typeof parsed.rowSearch === "string" ? parsed.rowSearch : "",
       filterFieldId,
       filterValue,

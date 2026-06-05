@@ -368,10 +368,10 @@ Current local actions:
   row search, filters, sort rules, hidden properties, grouped table/list/
   gallery/feed sections, chart grouping, and manual-sort eligibility are read
   locally for display without writing row values.
-- Manage local database views from each view tab: rename a view, duplicate its
-  current config into a copy, copy a direct local link to that view, or
-  soft-delete a non-final view without deleting any rows, pages, files, or field
-  values.
+- Manage local database views from each view tab: rename a view, write a local
+  view description, duplicate its current config into a copy, copy a direct
+  local link to that view, or soft-delete a non-final view without deleting any
+  rows, pages, files, or field values.
 - Reorder local database view tabs from each view tab menu. View ordering only
   swaps local view position metadata; it does not change view rules or row
   values.
