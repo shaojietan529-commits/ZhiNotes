@@ -178,9 +178,18 @@ https://your-vercel-domain.vercel.app/auth/callback
 - `POST /api/files/presign`
 - `POST /api/permissions/check`
 - `POST /api/audit/events`
+- `POST /api/backup/restore-preview`
 - `POST /api/backup/restore-apply`
+- `POST /api/cloud/migrations/apply`
 
-这些会真正接触 workspace 数据、文件或权限，所以必须等 payload preview、权限检查、冲突处理和 rollback 证明完成后再打开。
+这些会真正接触 workspace 数据、文件、权限、恢复写入或云 schema，所以必须等
+payload preview、权限检查、冲突处理、rollback、scope review、migration rollback
+和 owner confirmation 证明完成后再打开。
+
+同步页的 API 防护面板已统一到共享组件，覆盖 sync push、sync pull、file presign、
+audit events、restore preview、restore apply 和 cloud migration apply。共享组件只是本地
+展示和导出 disabled guard；不会读取 request body、连接 cloud、生成 signed URL、写
+server data、运行 migration、上传文件或同步 workspace data。
 
 ## Private Alpha 判定
 

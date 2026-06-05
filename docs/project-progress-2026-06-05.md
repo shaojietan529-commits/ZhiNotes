@@ -1,0 +1,77 @@
+# ZhiNotes 当前进度记录
+
+日期：2026-06-05
+
+## 当前定位
+
+ZhiNotes 的目标是 web-based 模块化投研平台。笔记/page 是底层知识库，数据库、报告、
+公司研究、会议、组合、文件、AI 和云同步都作为模块接入。
+
+当前仍是 local-first 阶段：本地页面、数据库、文件预览、备份、导出和 Web Beta
+准备度检查可以运行；会触碰云端写入、文件上传、AI 外发、权限执行、恢复写入和
+schema migration 的能力默认保持关闭。
+
+## 已完成的核心底座
+
+- 模块中心：Notes、Databases、Reports、Files、Company Research、Meetings、
+  Portfolio、Projects、Research Graph、AI、Sync 都已有模块入口。
+- 笔记底座：page/tree、breadcrumbs、图标、backlinks、版本历史、评论、toggle、
+  callout、目录、cover、快捷键、slash command 和创建 page 后自动进入新页面。
+- 数据库底座：table/list/kanban/calendar/gallery/timeline/chart/form/feed、多视图、
+  字段设置、显示属性、CSV/XLSX 导出、确认后的 spreadsheet import。
+- 文件/报告底座：HTML、Markdown、PDF、Office、notebook、archive、media 的本地
+  metadata routing、预览准备度、上传前检查和高风险边界。
+- 投研模块底座：公司研究、会议、报告库、组合、项目、research graph 都有本地 tracker
+  和模块入口。
+- Web Beta 安全底座：登录、workspace、sync、file presign、audit、permissions、
+  restore、cloud migration 相关 route 都有默认关闭合同和本地验证。
+
+## 本轮完成
+
+- 新增共享 `ApiGuardPanel`，统一 API 防护展示结构。
+- 已迁移到共享面板的防护：
+  - `POST /api/sync/push`
+  - `GET /api/sync/pull`
+  - `POST /api/files/presign`
+  - `POST /api/audit/events`
+  - `POST /api/backup/restore-preview`
+  - `POST /api/backup/restore-apply`
+  - `POST /api/cloud/migrations/apply`
+- `SyncShell.tsx` 删除多套重复 summary/field/fixture/gate 小组件，后续新增类似防护时可以
+  复用统一模板。
+- `docs/cloud-deployment.md` 已补齐 disabled API 列表和共享防护面板说明。
+
+## 本轮本地验证
+
+以下命令已通过：
+
+```bash
+npm run verify:web-beta
+npm run verify:web-beta:smoke
+npm run lint
+npm run build
+```
+
+浏览器本地检查也已通过：
+
+- `/modules/sync` 能渲染共享 API 防护面板。
+- 文件签名、审计事件、恢复预览、恢复应用、同步推送、同步拉取、云迁移应用防护均可见。
+- 检查后浏览器已切回用户原本的 page。
+
+## 仍然阻塞或待用户确认
+
+- GitHub push：本地提交已完成，但 HTTPS 认证仍需要用户回来处理。
+- 云上线：还不能正式打开 cloud writes 或 cloud sync；需要 Supabase/Vercel 环境变量、
+  preview smoke、Auth redirect、migration rollback 和 owner decision。
+- 文件上传：`/api/files/presign` 仍是 disabled guard，不生成 signed URL，不上传文件。
+- 恢复写入：restore preview/apply 仍是 disabled guard，不读取备份 payload，不写 workspace。
+- 云迁移：cloud migration apply 仍是 disabled guard，不运行 SQL，不写 cloud schema。
+- AI：仍需要用户明确选择上下文并确认外发边界后才能执行真实 AI 请求。
+
+## 醒来后建议试用
+
+1. 打开 `/modules` 看模块总览和进度快照。
+2. 打开 `/modules/notes` 和一个 page，检查笔记工作流是否顺手。
+3. 打开 `/modules/reports`，试用 HTML/Markdown 报告的本地预览和 intake 流程。
+4. 打开 `/modules/sync`，检查 Web Beta、备份恢复、文件、防护面板和导出按钮是否清楚。
+5. 如果要继续上云，下一步先解决 GitHub push 认证，再做 Vercel preview 和 Supabase 测试项目。
