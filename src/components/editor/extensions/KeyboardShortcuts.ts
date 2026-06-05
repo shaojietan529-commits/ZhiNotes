@@ -27,9 +27,16 @@ export const KeyboardShortcuts = Extension.create({
       new Plugin({
         props: {
           handleKeyDown: (_view, event) => {
-            if (!isHeadingThreeShortcut(event)) return false;
-            event.preventDefault();
-            return this.editor.chain().focus().setHeading({ level: 3 }).run();
+            if (isHeadingThreeShortcut(event)) {
+              event.preventDefault();
+              return this.editor.chain().focus().setHeading({ level: 3 }).run();
+            }
+
+            if (handleNotionMarkdownShortcut(this.editor, event)) {
+              return true;
+            }
+
+            return false;
           },
         },
       }),
@@ -174,4 +181,62 @@ function toggleAllToggleBlocks(editor: Editor) {
   editor.view.dispatch(tr.scrollIntoView());
   editor.view.focus();
   return true;
+}
+
+function handleNotionMarkdownShortcut(editor: Editor, event: KeyboardEvent) {
+  if (
+    event.key !== " " ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.altKey ||
+    !editor.state.selection.empty
+  ) {
+    return false;
+  }
+
+  const { $from } = editor.state.selection;
+  if ($from.parent.type.name !== "paragraph") return false;
+
+  const textBefore = $from.parent.textBetween(0, $from.parentOffset, "\n");
+  const textAfter = $from.parent
+    .textBetween($from.parentOffset, $from.parent.content.size, "\n")
+    .trim();
+  if (textAfter) return false;
+
+  const replacementRange = {
+    from: $from.pos - textBefore.length,
+    to: $from.pos,
+  };
+
+  if (textBefore === ">") {
+    event.preventDefault();
+    return editor
+      .chain()
+      .focus()
+      .deleteRange(replacementRange)
+      .insertToggleBlock()
+      .run();
+  }
+
+  if (textBefore === "\"") {
+    event.preventDefault();
+    return editor
+      .chain()
+      .focus()
+      .deleteRange(replacementRange)
+      .setBlockquote()
+      .run();
+  }
+
+  if (textBefore === "---") {
+    event.preventDefault();
+    return editor
+      .chain()
+      .focus()
+      .deleteRange(replacementRange)
+      .setHorizontalRule()
+      .run();
+  }
+
+  return false;
 }

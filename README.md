@@ -221,6 +221,9 @@ Current local actions:
   comment shortcut while keeping the comment body in local storage.
 - Open the local block action menu with Cmd/Ctrl+/, matching Notion's block edit
   shortcut for changing block type, moving, duplicating, copying, or commenting.
+- Use Notion-style Markdown block triggers while typing: `>` followed by space
+  creates a toggle, `"` followed by space creates a quote, and `---` followed
+  by space creates a divider.
 - Add page icons, covers, sub-pages, local page links, duplicate pages, lock
   editing, switch page width, save named versions, and export HTML, Markdown, or
   browser PDF. Page cover controls, table-of-contents blocks, and callout
