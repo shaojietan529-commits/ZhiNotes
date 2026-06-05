@@ -20,9 +20,11 @@ interface GalleryViewProps {
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
   onDuplicateRow: (rowId: string) => void;
+  onMoveRow: (rowId: string, direction: "up" | "down") => void;
   onOpenRow: (pageId: string) => void;
   relationPages: Page[];
   showAddRow?: boolean;
+  canMoveRows?: boolean;
 }
 
 export default function GalleryView({
@@ -31,9 +33,11 @@ export default function GalleryView({
   onAddRow,
   onDeleteRow,
   onDuplicateRow,
+  onMoveRow,
   onOpenRow,
   relationPages,
   showAddRow = true,
+  canMoveRows = true,
 }: GalleryViewProps) {
   return (
     <div>
@@ -41,7 +45,7 @@ export default function GalleryView({
         <p className="py-8 text-center text-sm text-zinc-400">还没有行。</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {rows.map((row) => {
+          {rows.map((row, index) => {
             const fieldValues = parseFieldValues(row.field_values);
             const extraFields = fields.slice(1, 5).filter((field) => {
               if (field.field_type === "formula") {
@@ -173,6 +177,24 @@ export default function GalleryView({
                   </div>
                 </button>
                 <div className="flex justify-end gap-2 border-t border-zinc-100 px-3 py-2 opacity-0 transition-opacity group-hover:opacity-100 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    disabled={!canMoveRows || index === 0}
+                    onClick={() => onMoveRow(row.id, "up")}
+                    className="text-xs text-zinc-400 hover:text-zinc-700 disabled:cursor-default disabled:opacity-30 dark:hover:text-zinc-200"
+                    title="上移行：只调整本地手动排序，不改字段值"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canMoveRows || index === rows.length - 1}
+                    onClick={() => onMoveRow(row.id, "down")}
+                    className="text-xs text-zinc-400 hover:text-zinc-700 disabled:cursor-default disabled:opacity-30 dark:hover:text-zinc-200"
+                    title="下移行：只调整本地手动排序，不改字段值"
+                  >
+                    ↓
+                  </button>
                   <button
                     type="button"
                     onClick={() => onDuplicateRow(row.id)}

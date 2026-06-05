@@ -21,9 +21,11 @@ interface ListViewProps {
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
   onDuplicateRow: (rowId: string) => void;
+  onMoveRow: (rowId: string, direction: "up" | "down") => void;
   onOpenRow: (pageId: string) => void;
   relationPages: Page[];
   showAddRow?: boolean;
+  canMoveRows?: boolean;
 }
 
 export default function ListView({
@@ -32,9 +34,11 @@ export default function ListView({
   onAddRow,
   onDeleteRow,
   onDuplicateRow,
+  onMoveRow,
   onOpenRow,
   relationPages,
   showAddRow = true,
+  canMoveRows = true,
 }: ListViewProps) {
   return (
     <div>
@@ -44,7 +48,7 @@ export default function ListView({
         </p>
       ) : (
         <ul className="space-y-1">
-          {rows.map((row) => {
+          {rows.map((row, index) => {
             const fieldValues: Record<string, unknown> =
               typeof row.field_values === "string"
                 ? JSON.parse(row.field_values || "{}")
@@ -133,6 +137,24 @@ export default function ListView({
                 <span className="text-[10px] text-zinc-400 shrink-0">
                   {formatRelativeDate(row.created_at)}
                 </span>
+                <button
+                  type="button"
+                  disabled={!canMoveRows || index === 0}
+                  onClick={() => onMoveRow(row.id, "up")}
+                  className="opacity-0 transition-opacity text-xs text-zinc-400 hover:text-zinc-700 disabled:cursor-default disabled:opacity-30 group-hover:opacity-100 dark:hover:text-zinc-200"
+                  title="上移行：只调整本地手动排序，不改字段值"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  disabled={!canMoveRows || index === rows.length - 1}
+                  onClick={() => onMoveRow(row.id, "down")}
+                  className="opacity-0 transition-opacity text-xs text-zinc-400 hover:text-zinc-700 disabled:cursor-default disabled:opacity-30 group-hover:opacity-100 dark:hover:text-zinc-200"
+                  title="下移行：只调整本地手动排序，不改字段值"
+                >
+                  ↓
+                </button>
                 <button
                   type="button"
                   onClick={() => onDuplicateRow(row.id)}

@@ -336,6 +336,9 @@ Current local actions:
   timeline, feed, and inline database views. Row duplicate creates a new local
   row/page with the source row title and field values, but it intentionally
   does not copy the source page body, uploaded files, cloud data, or AI output.
+- Reorder local database rows in manual-sort table, list, and gallery views.
+  Row ordering swaps local row position metadata only; it does not read or
+  change field values, page bodies, files, cloud data, or AI output.
 - Database row and field delete actions now ask for local confirmation first.
   Row delete soft-deletes the row and local page together; field delete removes
   the field config from the database. Neither action uploads or sends data out.

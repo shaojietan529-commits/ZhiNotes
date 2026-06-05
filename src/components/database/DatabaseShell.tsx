@@ -354,6 +354,27 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [reload, rows]
   );
 
+  const handleMoveRow = useCallback(
+    async (rowId: string, direction: "up" | "down") => {
+      const orderedRows = [...rows].sort(
+        (left, right) => left.position - right.position
+      );
+      const currentIndex = orderedRows.findIndex((row) => row.id === rowId);
+      const targetIndex =
+        direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      const currentRow = orderedRows[currentIndex];
+      const targetRow = orderedRows[targetIndex];
+      if (!currentRow || !targetRow) return;
+
+      await Promise.all([
+        updateRow(currentRow.id, { position: targetRow.position }),
+        updateRow(targetRow.id, { position: currentRow.position }),
+      ]);
+      reload();
+    },
+    [reload, rows]
+  );
+
   const handleDuplicateRow = useCallback(
     async (rowId: string) => {
       const sourceRow = rows.find((row) => row.id === rowId);
@@ -684,6 +705,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     onUpdateRow: handleUpdateRow,
     onDeleteRow: handleDeleteRow,
     onDuplicateRow: handleDuplicateRow,
+    onMoveRow: handleMoveRow,
+    canMoveRows: isDefaultSortRules(sortRules),
     onOpenRow: handleOpenRow,
     onOpenPage: handleOpenPage,
     relationPages: workspacePages,

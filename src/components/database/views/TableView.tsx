@@ -27,12 +27,14 @@ interface TableViewProps {
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
   onDuplicateRow: (rowId: string) => void;
+  onMoveRow: (rowId: string, direction: "up" | "down") => void;
   onOpenRow: (pageId: string) => void;
   onOpenPage: (pageId: string) => void;
   relationPages: Page[];
   focusPageId?: string;
   focusPage?: Page | null;
   showAddRow?: boolean;
+  canMoveRows?: boolean;
 }
 
 export default function TableView({
@@ -42,12 +44,14 @@ export default function TableView({
   onUpdateRow,
   onDeleteRow,
   onDuplicateRow,
+  onMoveRow,
   onOpenRow,
   onOpenPage,
   relationPages,
   focusPageId,
   focusPage,
   showAddRow = true,
+  canMoveRows = true,
 }: TableViewProps) {
   return (
     <div className="overflow-x-auto">
@@ -68,7 +72,7 @@ export default function TableView({
             <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 w-20">
               创建
             </th>
-            <th className="w-20" />
+            <th className="w-32" />
           </tr>
         </thead>
         <tbody>
@@ -81,6 +85,10 @@ export default function TableView({
               onUpdate={(fieldValues) => onUpdateRow(row.id, fieldValues)}
               onDelete={() => onDeleteRow(row.id)}
               onDuplicate={() => onDuplicateRow(row.id)}
+              onMoveUp={() => onMoveRow(row.id, "up")}
+              onMoveDown={() => onMoveRow(row.id, "down")}
+              canMoveUp={canMoveRows && index > 0}
+              canMoveDown={canMoveRows && index < rows.length - 1}
               onOpen={() => onOpenRow(row.page_id)}
               onOpenPage={onOpenPage}
               relationPages={relationPages}
@@ -113,6 +121,10 @@ function TableRow({
   onUpdate,
   onDelete,
   onDuplicate,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   onOpen,
   onOpenPage,
   relationPages,
@@ -125,6 +137,10 @@ function TableRow({
   onUpdate: (fieldValues: Record<string, unknown>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   onOpen: () => void;
   onOpenPage: (pageId: string) => void;
   relationPages: Page[];
@@ -178,6 +194,24 @@ function TableRow({
       </td>
       <td className="px-1 py-1.5">
         <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={!canMoveUp}
+            className="rounded px-1 py-0.5 text-xs text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-default disabled:opacity-35 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="上移行：只调整本地手动排序，不改字段值"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={!canMoveDown}
+            className="rounded px-1 py-0.5 text-xs text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-default disabled:opacity-35 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="下移行：只调整本地手动排序，不改字段值"
+          >
+            ↓
+          </button>
           <button
             type="button"
             onClick={onDuplicate}

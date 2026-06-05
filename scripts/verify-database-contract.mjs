@@ -530,6 +530,49 @@ function run() {
     );
   }
   for (const snippet of [
+    "handleMoveRow",
+    "updateRow(currentRow.id, { position: targetRow.position })",
+    "canMoveRows",
+    "isDefaultSortRules(sortRules)",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Full database pages must support metadata-only manual row ordering."
+    );
+  }
+  for (const snippet of [
+    "handleMoveRow",
+    "updateRow(currentRow.id, { position: targetRow.position })",
+    "canMoveRows: true",
+  ]) {
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline databases must support metadata-only manual row ordering."
+    );
+  }
+  for (const [sourceLabel, source] of [
+    [files.tableView, tableView],
+    [files.listView, listView],
+    [files.galleryView, galleryView],
+  ]) {
+    for (const snippet of [
+      "onMoveRow",
+      "上移行：只调整本地手动排序，不改字段值",
+      "下移行：只调整本地手动排序，不改字段值",
+    ]) {
+      assertIncludes(
+        sourceLabel,
+        source,
+        snippet,
+        "Manual row order controls must expose local-only row movement in sortable database views."
+      );
+    }
+  }
+  for (const snippet of [
     "handleDuplicateField",
     "onDuplicate={handleDuplicateField}",
     "复制字段配置，不复制已有行值",
@@ -1692,6 +1735,7 @@ function run() {
         view_grouping: true,
         view_management: true,
         view_reordering: true,
+        row_reordering: true,
         row_duplicate_actions: true,
         field_duplicate_actions: true,
         field_descriptions: true,
