@@ -20,10 +20,12 @@ const files = {
   structure: "src/lib/files/filePreviewStructure.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
+  slashSuggestion: "src/components/editor/extensions/SlashCommandSuggestion.ts",
   localStore: "src/lib/files/localStore.ts",
   fileLibrary: "src/lib/files/fileLibraryWorkbench.ts",
   previewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
   reportsShell: "src/components/modules/ReportsShell.tsx",
+  quickSearch: "src/components/sidebar/QuickSearch.tsx",
   filesShell: "src/components/modules/FilesShell.tsx",
   filesRoute: "src/app/(workspace)/modules/files/page.tsx",
   registry: "src/lib/modules/registry.ts",
@@ -169,10 +171,12 @@ function run() {
   const structure = readProjectFile(files.structure);
   const actionReceipts = readProjectFile(files.actionReceipts);
   const upload = readProjectFile(files.upload);
+  const slashSuggestion = readProjectFile(files.slashSuggestion);
   const localStore = readProjectFile(files.localStore);
   const fileLibrary = readProjectFile(files.fileLibrary);
   const previewNode = readProjectFile(files.previewNode);
   const reportsShell = readProjectFile(files.reportsShell);
+  const quickSearch = readProjectFile(files.quickSearch);
   const filesShell = readProjectFile(files.filesShell);
   const filesRoute = readProjectFile(files.filesRoute);
   const registry = readProjectFile(files.registry);
@@ -287,9 +291,9 @@ function run() {
                 snippet.startsWith("numbers:") ||
                 snippet.startsWith("keynote:")
               ? files.trackerIntake
-            : snippet === "iWork 本地留存"
-              ? files.reviewQueue
-              : files.capabilities;
+              : snippet === "iWork 本地留存"
+                ? files.reviewQueue
+                : files.capabilities;
     const source =
       sourceLabel === files.localStore
         ? localStore
@@ -307,6 +311,18 @@ function run() {
       source,
       snippet,
       "Apple iWork files must be recognized as local download-retain formats instead of unknown files."
+    );
+  }
+
+  for (const [sourceLabel, source] of [
+    [files.slashSuggestion, slashSuggestion],
+    [files.quickSearch, quickSearch],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      '"iwork"',
+      "Apple iWork aliases must stay searchable from file preview entrypoints."
     );
   }
 
