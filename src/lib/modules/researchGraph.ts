@@ -286,6 +286,7 @@ export interface ResearchGraphHealthSummary {
 }
 
 const RELATION_FIELD_LABELS: Array<[string, string]> = [
+  ["project page", "项目页"],
   ["company page", "公司页面"],
   ["report page", "报告页面"],
   ["meeting note", "会议纪要"],
@@ -301,6 +302,8 @@ const RELATION_FIELD_LABELS: Array<[string, string]> = [
   ["会议", "会议"],
   ["电话会", "电话会"],
   ["转录稿", "转录稿"],
+  ["项目页", "项目页"],
+  ["投研项目", "投研项目"],
   ["备忘录", "备忘录"],
 ];
 

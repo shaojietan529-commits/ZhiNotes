@@ -18,6 +18,7 @@ const files = {
   projectProgressSnapshot: "src/lib/modules/projectProgressSnapshot.ts",
   dashboard: "src/components/modules/ModuleDashboard.tsx",
   projectsShell: "src/components/modules/ProjectsShell.tsx",
+  databaseShell: "src/components/database/DatabaseShell.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   readme: "README.md",
@@ -196,6 +197,7 @@ function run() {
   const projectProgressSnapshot = readProjectFile(files.projectProgressSnapshot);
   const dashboard = readProjectFile(files.dashboard);
   const projectsShell = readProjectFile(files.projectsShell);
+  const databaseShell = readProjectFile(files.databaseShell);
   const sidebar = readProjectFile(files.sidebar);
   const quickSearch = readProjectFile(files.quickSearch);
   const readme = readProjectFile(files.readme);
@@ -602,6 +604,22 @@ function run() {
       "Projects module must expose explicit local project page plus tracker row intake."
     );
   }
+  for (const snippet of [
+    "relationHandoffSource",
+    "getRelationCompletionFields(fields, focusPage, relationHandoffSource)",
+    "isProjectModuleHandoff",
+    "isProjectPageRelationFieldName",
+    "Project page",
+    "项目页",
+    "投研项目模块",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database handoff must filter project module relation completion to project page fields."
+    );
+  }
   assertIncludes(
     files.sidebar,
     sidebar,
@@ -652,6 +670,7 @@ function run() {
     roadmap_lanes: 4,
     project_progress_snapshot: 1,
     projects_shell_intake: 1,
+    database_project_handoff: 1,
     boundary_checks: requiredBoundarySnippets.length,
   };
 

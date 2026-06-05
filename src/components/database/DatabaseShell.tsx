@@ -446,8 +446,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   }, [templateRowReceipt]);
 
   const relationCompletionFields = useMemo(
-    () => getRelationCompletionFields(fields, focusPage),
-    [fields, focusPage]
+    () => getRelationCompletionFields(fields, focusPage, relationHandoffSource),
+    [fields, focusPage, relationHandoffSource]
   );
   const relationCompletionRows = useMemo(
     () => getRelationCompletionRows(rows, visibleRows, focusPageId),
@@ -1786,9 +1786,16 @@ function AddViewButton({
 
 function getRelationCompletionFields(
   fields: DatabaseField[],
-  focusPage: Page | null
+  focusPage: Page | null,
+  handoffSource = ""
 ) {
   const relationFields = fields.filter((field) => field.field_type === "relation");
+  if (isProjectModuleHandoff(handoffSource)) {
+    const projectPageFields = relationFields.filter((field) =>
+      isProjectPageRelationFieldName(field.name)
+    );
+    return projectPageFields.length > 0 ? projectPageFields : relationFields;
+  }
   if (!focusPage) return relationFields;
 
   const focusKind = classifyResearchPage(focusPage);
@@ -1823,7 +1830,26 @@ function getRelationHandoffSourceLabel(source: string) {
   if (source === "company-workbench") return "公司工作台";
   if (source === "meeting-workbench") return "会议工作台";
   if (source === "portfolio-workbench") return "组合工作台";
+  if (source === "projects-module") return "投研项目模块";
   return "本地模块";
+}
+
+function isProjectModuleHandoff(source: string) {
+  return source === "projects-module";
+}
+
+function isProjectPageRelationFieldName(fieldName: string) {
+  const normalizedName = normalizeRelationFieldName(fieldName);
+  return ["Project page", "项目页", "项目页面", "投研项目页"].some((alias) => {
+    const normalizedAlias = normalizeRelationFieldName(alias);
+    return (
+      normalizedName === normalizedAlias || normalizedName.includes(normalizedAlias)
+    );
+  });
+}
+
+function normalizeRelationFieldName(value: string) {
+  return value.toLowerCase().replace(/[-_\s]+/g, " ").trim();
 }
 
 function getVisibleRows({

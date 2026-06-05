@@ -400,6 +400,10 @@ Current local actions:
   user click. The intake maps Project page / 项目页, Status, Project mode,
   Priority, Horizon, Research question, Owner confirmation, and Next action
   from the project brief into the tracker row.
+- When the project module opens the tracker database with `handoff=projects-module`,
+  the database relation assistant prioritizes Project page / 项目页 relation
+  fields so the project page is not accidentally added to company, report,
+  meeting, or portfolio relation fields.
 - Review module readiness for company, report, meeting, and portfolio context
   from the shared research graph summary.
 - Export the current project brief as local JSON.
