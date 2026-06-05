@@ -9,6 +9,8 @@ export const DATABASE_FIELD_TYPES = [
   { value: "date", label: "日期" },
   { value: "checkbox", label: "复选框" },
   { value: "url", label: "链接" },
+  { value: "email", label: "邮箱" },
+  { value: "phone", label: "电话" },
 ];
 
 export function isSelectLikeFieldType(fieldType: string) {

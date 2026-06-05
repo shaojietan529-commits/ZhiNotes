@@ -9,6 +9,8 @@ const FIELD_TYPE_LABELS: Record<string, string> = {
   date: "日期",
   checkbox: "复选框",
   url: "链接",
+  email: "邮箱",
+  phone: "电话",
 };
 
 const VIEW_TYPE_LABELS: Record<DatabaseView["view_type"], string> = {

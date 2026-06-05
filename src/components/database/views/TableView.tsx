@@ -236,32 +236,55 @@ function CellEditor({
     );
   }
 
-  if (field.field_type === "url") {
+  if (
+    field.field_type === "url" ||
+    field.field_type === "email" ||
+    field.field_type === "phone"
+  ) {
+    const inputType =
+      field.field_type === "email"
+        ? "email"
+        : field.field_type === "phone"
+          ? "tel"
+          : "url";
+    const placeholder =
+      field.field_type === "email"
+        ? "name@example.com"
+        : field.field_type === "phone"
+          ? "+65..."
+          : "https://...";
+
     if (editing) {
       return (
         <input
-          type="url"
+          type={inputType}
           value={(value as string) || ""}
           onChange={(e) => onChange(e.target.value)}
           onBlur={() => setEditing(false)}
           autoFocus
           className="text-sm bg-transparent border-none outline-none text-zinc-700 dark:text-zinc-300 w-full"
-          placeholder="https://..."
+          placeholder={placeholder}
         />
       );
     }
-    const url = value as string;
-    if (url) {
+    const linkValue = value as string;
+    if (linkValue) {
+      const href =
+        field.field_type === "email"
+          ? `mailto:${linkValue}`
+          : field.field_type === "phone"
+            ? `tel:${linkValue}`
+            : linkValue;
       return (
         <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={href}
+          target={field.field_type === "url" ? "_blank" : undefined}
+          rel={field.field_type === "url" ? "noopener noreferrer" : undefined}
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={() => setEditing(true)}
           className="text-sm text-blue-500 hover:underline truncate block max-w-[200px]"
         >
-          {url}
+          {linkValue}
         </a>
       );
     }

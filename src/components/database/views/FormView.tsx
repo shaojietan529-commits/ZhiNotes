@@ -144,7 +144,11 @@ function FormField({
         ? "date"
         : field.field_type === "url"
           ? "url"
-          : "text";
+          : field.field_type === "email"
+            ? "email"
+            : field.field_type === "phone"
+              ? "tel"
+              : "text";
 
   return (
     <label className="block">

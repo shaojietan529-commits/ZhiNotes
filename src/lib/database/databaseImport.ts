@@ -12,7 +12,9 @@ export type DatabaseImportFieldType =
   | "number"
   | "date"
   | "checkbox"
-  | "url";
+  | "url"
+  | "email"
+  | "phone";
 
 type SpreadsheetCell = string | number | boolean | null;
 
@@ -379,8 +381,10 @@ function inferFieldType(values: string[]): DatabaseImportFieldType {
   if (nonEmpty.length === 0) return "text";
   if (nonEmpty.every(isBooleanValue)) return "checkbox";
   if (nonEmpty.every(isIsoDateValue)) return "date";
-  if (nonEmpty.every(isNumberValue)) return "number";
   if (nonEmpty.every(isUrlValue)) return "url";
+  if (nonEmpty.every(isEmailValue)) return "email";
+  if (nonEmpty.every(isPhoneValue)) return "phone";
+  if (nonEmpty.every(isNumberValue)) return "number";
   return "text";
 }
 
@@ -389,7 +393,9 @@ function coerceFieldType(fieldType: string): DatabaseImportFieldType {
     fieldType === "number" ||
     fieldType === "date" ||
     fieldType === "checkbox" ||
-    fieldType === "url"
+    fieldType === "url" ||
+    fieldType === "email" ||
+    fieldType === "phone"
   ) {
     return fieldType;
   }
@@ -433,6 +439,16 @@ function isNumberValue(value: string) {
 
 function isUrlValue(value: string) {
   return /^https?:\/\/\S+$/i.test(value.trim());
+}
+
+function isEmailValue(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function isPhoneValue(value: string) {
+  const trimmed = value.trim();
+  const digitCount = (trimmed.match(/\d/g) ?? []).length;
+  return digitCount >= 7 && /[+()\-\s.]/.test(trimmed) && /^[+()\-\s.\d]+$/.test(trimmed);
 }
 
 function normalizeName(value: string) {

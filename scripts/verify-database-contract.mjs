@@ -22,7 +22,10 @@ const files = {
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
+  databaseFields: "src/lib/database/fields.ts",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
+  tableView: "src/components/database/views/TableView.tsx",
+  formView: "src/components/database/views/FormView.tsx",
   timelineView: "src/components/database/views/TimelineView.tsx",
   feedView: "src/components/database/views/FeedView.tsx",
   moduleActions: "src/lib/modules/actions.ts",
@@ -96,7 +99,10 @@ function run() {
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
+  const databaseFields = readProjectFile(files.databaseFields);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
+  const tableView = readProjectFile(files.tableView);
+  const formView = readProjectFile(files.formView);
   const timelineView = readProjectFile(files.timelineView);
   const feedView = readProjectFile(files.feedView);
   const moduleActions = readProjectFile(files.moduleActions);
@@ -112,6 +118,67 @@ function run() {
     '"xlsx"',
     "Excel import/export requires the xlsx dependency."
   );
+  for (const snippet of [
+    '{ value: "email", label: "邮箱" }',
+    '{ value: "phone", label: "电话" }',
+  ]) {
+    assertIncludes(
+      files.databaseFields,
+      databaseFields,
+      snippet,
+      "Database field picker must expose common Notion-like email and phone fields."
+    );
+  }
+  for (const snippet of ['email: "邮箱"', 'phone: "电话"']) {
+    assertIncludes(
+      files.display,
+      display,
+      snippet,
+      "Database field display labels must include email and phone."
+    );
+  }
+  for (const snippet of [
+    'field.field_type === "email"',
+    'field.field_type === "phone"',
+    'type={inputType}',
+    'mailto:${linkValue}',
+    'tel:${linkValue}',
+  ]) {
+    assertIncludes(
+      files.tableView,
+      tableView,
+      snippet,
+      "Table view must edit and display email/phone fields with native input/link behavior."
+    );
+  }
+  for (const snippet of [
+    'field.field_type === "email"',
+    'field.field_type === "phone"',
+    '? "email"',
+    '? "tel"',
+  ]) {
+    assertIncludes(
+      files.formView,
+      formView,
+      snippet,
+      "Form view must use native email and phone inputs."
+    );
+  }
+  for (const snippet of [
+    '| "email"',
+    '| "phone"',
+    "isEmailValue",
+    "isPhoneValue",
+    'fieldType === "email"',
+    'fieldType === "phone"',
+  ]) {
+    assertIncludes(
+      files.databaseImport,
+      databaseImport,
+      snippet,
+      "Spreadsheet import should infer and preserve email/phone field types locally."
+    );
+  }
   assertIncludes(
     files.databaseExport,
     databaseExport,
@@ -984,6 +1051,10 @@ function run() {
     "onOpenPage",
     "relationPages",
     "formatUrlLabel",
+    'field.field_type === "email"',
+    'field.field_type === "phone"',
+    "mailto:${String(value)}",
+    "tel:${String(value)}",
     "更新于",
     "删除",
   ]) {

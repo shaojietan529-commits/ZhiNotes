@@ -203,12 +203,22 @@ function FeedFieldChip({
   const displayValue = formatFeedFieldValue(field, value);
   if (!displayValue) return null;
 
-  if (field.field_type === "url") {
+  if (
+    field.field_type === "url" ||
+    field.field_type === "email" ||
+    field.field_type === "phone"
+  ) {
+    const href =
+      field.field_type === "email"
+        ? `mailto:${String(value)}`
+        : field.field_type === "phone"
+          ? `tel:${String(value)}`
+          : String(value);
     return (
       <a
-        href={String(value)}
-        target="_blank"
-        rel="noopener noreferrer"
+        href={href}
+        target={field.field_type === "url" ? "_blank" : undefined}
+        rel={field.field_type === "url" ? "noopener noreferrer" : undefined}
         className="max-w-full truncate rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
       >
         {label}: {displayValue}
@@ -263,7 +273,9 @@ function compareFeedFields(left: DatabaseField, right: DatabaseField) {
     checkbox: 4,
     number: 5,
     url: 6,
-    text: 7,
+    email: 7,
+    phone: 8,
+    text: 9,
   };
   return (
     (priority[left.field_type] ?? 10) - (priority[right.field_type] ?? 10) ||
