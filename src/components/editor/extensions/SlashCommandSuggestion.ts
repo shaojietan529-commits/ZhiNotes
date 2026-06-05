@@ -96,12 +96,23 @@ function getSlashCommands(): SlashCommandItem[] {
         const title = window.prompt("新页面标题：", "未命名页面");
         if (title === null) return;
 
+        const pageTitle = title.trim() || "未命名页面";
         const currentPageId = useWorkspaceStore.getState().currentPageId;
+        const parentPageId = currentPageId ?? null;
         const page = await createPage({
-          title: title.trim() || "未命名页面",
-          parentId: currentPageId,
+          title: pageTitle,
+          parentId: parentPageId,
         });
         const allPages = await getAllPages();
+        const parentPage = parentPageId
+          ? allPages.find((candidate) => candidate.id === parentPageId)
+          : null;
+        await updatePage(page.id, {
+          content_text: buildChildPageInitialHtml({
+            parentPageId,
+            parentTitle: parentPage?.title ?? null,
+          }),
+        });
         useWorkspaceStore.getState().setPages(allPages);
 
         editor
@@ -791,6 +802,32 @@ function getLinkedPageIds(editor: SlashCommandItemCommandEditor) {
     }
   });
   return linkedPageIds;
+}
+
+function buildChildPageInitialHtml({
+  parentPageId,
+  parentTitle,
+}: {
+  parentPageId: string | null;
+  parentTitle: string | null;
+}) {
+  const parentLabel = escapeHtml(parentTitle || "父页面");
+  const parentLink = parentPageId
+    ? `<p>父页面：<span data-type="mention" data-id="${escapeHtml(
+        parentPageId
+      )}" data-label="${parentLabel}">📄 ${parentLabel}</span></p>`
+    : "";
+
+  return `${parentLink}<p>开始记录...</p>`;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 type SlashCommandItemCommandEditor = Parameters<

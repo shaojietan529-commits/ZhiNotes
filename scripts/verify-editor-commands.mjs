@@ -89,6 +89,11 @@ function run() {
     "\"new\"",
     "\"新页面\"",
     "window.location.href = `/page/${page.id}`",
+    "buildChildPageInitialHtml",
+    "updatePage(page.id",
+    "父页面：",
+    "开始记录...",
+    "data-type=\"mention\"",
     "updateWikiLinks",
   ]) {
     assertIncludes(
@@ -179,10 +184,11 @@ function run() {
     JSON.stringify(
       {
         h3_shortcut_paths: 3,
-        page_slash_aliases: 6,
+        page_slash_aliases: 8,
         block_insert_heading_levels: 3,
         file_workflow_entrypoints: 3,
         page_command_opens_new_page: true,
+        page_command_seeds_child_page: true,
         local_only: true,
       },
       null,

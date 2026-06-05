@@ -204,9 +204,10 @@ Current local actions:
   inline databases, comments, backlinks, and version history. The block insert
   menu supports Heading 1, Heading 2, and Heading 3 so mouse-driven block
   editing matches the heading shortcut set.
-- Use `/page` from the slash menu to create a child page, insert the page link,
-  and automatically enter the new page. Heading 3 supports Cmd/Ctrl+Shift+3
-  when the browser receives it, plus Cmd/Ctrl+Alt+3 as the browser-safe fallback
+- Use `/page` from the slash menu to create a child page, seed it with its
+  parent-page link and a starting paragraph, insert the page link, and
+  automatically enter the new page. Heading 3 supports Cmd/Ctrl+Shift+3 when
+  the browser receives it, plus Cmd/Ctrl+Alt+3 as the browser-safe fallback
   because macOS can reserve Cmd+Shift+3 for screenshots.
 - Add page icons, covers, sub-pages, local page links, duplicate pages, lock
   editing, switch page width, save named versions, and export HTML, Markdown, or
