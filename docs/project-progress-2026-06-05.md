@@ -28,6 +28,23 @@ schema migration 的能力默认保持关闭。
 
 ## 本轮完成
 
+### 文件与 Markdown 原生展示阶段
+
+- 扩展本地文件格式识别：Markdown 族现在包括 `.rmd`、`.qmd`；研究文本/引用文件包括
+  LaTeX、BibTeX、RIS、reStructuredText、AsciiDoc、Mermaid、Org、Stata、SAS、Julia
+  等常见格式。
+- 增强文本预览高亮：LaTeX、BibTeX、RIS、Mermaid、Julia、SAS、Stata 等文件会进入更
+  准确的语言映射和代码块语言菜单。
+- 报告模块导入页面标题更接近原文件：HTML 优先使用 `<title>` 或第一个 H1；Markdown
+  优先使用 frontmatter `title` 或第一个一级标题。
+- 编辑器内直接上传文件也会生成本地 metadata-only receipt；receipt 不包含文件名、文件
+  bytes、文件正文、页面正文或表格值。
+- 报告模块的文件动作 receipt 卡片会显示来源：编辑器上传、页面预览块或报告模块。
+- Markdown 从报告模块导入为页面时，`[[已有页面名]]` 会解析为本地页面 mention，并写入
+  wiki link 关系；找不到同名页面时仍保留未解析 wiki-reference。
+
+### Sync/API 防护阶段
+
 - 新增共享 `ApiGuardPanel`，统一 API 防护展示结构。
 - 已迁移到共享面板的防护：
   - `POST /api/sync/push`
@@ -44,6 +61,17 @@ schema migration 的能力默认保持关闭。
 ## 本轮本地验证
 
 以下命令已通过：
+
+```bash
+npm run verify:file-preview
+npm run verify:editor
+npm run lint
+npm run build
+```
+
+文件与 Markdown 原生展示阶段的每个小提交都至少跑过上述相关验证；最终版本已再次通过。
+
+此前 Sync/API 防护阶段也已通过：
 
 ```bash
 npm run verify:web-beta
@@ -86,6 +114,11 @@ Turbopack 在当前 Codex 沙盒里两次遇到 `binding to a port: Operation no
 
 1. 打开 `/modules` 看模块总览和进度快照。
 2. 打开 `/modules/notes` 和一个 page，检查笔记工作流是否顺手。
-3. 打开 `/modules/reports`，试用 HTML/Markdown 报告的本地预览和 intake 流程。
-4. 打开 `/modules/sync`，检查 Web Beta、备份恢复、文件、防护面板和导出按钮是否清楚。
-5. 如果要继续上云，下一步先解决 GitHub push 认证，再做 Vercel preview 和 Supabase 测试项目。
+3. 打开 `/modules/reports`，上传一个 HTML 报告，确认新页面标题是否来自 `<title>` 或 H1，
+   并检查预览块、格式路线、receipt 来源是否清楚。
+4. 在 `/modules/reports` 导入一个 Markdown/R Markdown/Quarto 笔记，确认页面标题、
+   可编辑内容和 `[[已有页面名]]` 内部链接解析是否符合预期。
+5. 在普通 page 里用工具栏或 `/file` 上传文件，确认页面预览正常，并在报告模块的 receipt
+   历史里看到来源为“编辑器上传”。
+6. 打开 `/modules/sync`，检查 Web Beta、备份恢复、文件、防护面板和导出按钮是否清楚。
+7. 如果要继续上云，下一步先解决 GitHub push 认证，再做 Vercel preview 和 Supabase 测试项目。
