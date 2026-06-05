@@ -113,6 +113,12 @@ type SortDirection = "asc" | "desc";
 type DatabaseFilterOperator =
   | "contains"
   | "does_not_contain"
+  | "equals"
+  | "does_not_equal"
+  | "greater_than"
+  | "less_than"
+  | "before"
+  | "after"
   | "is_empty"
   | "is_not_empty";
 interface DatabaseFilterRule {
@@ -1395,6 +1401,12 @@ function DatabaseViewControls({
             >
               <option value="contains">包含</option>
               <option value="does_not_contain">不包含</option>
+              <option value="equals">等于</option>
+              <option value="does_not_equal">不等于</option>
+              <option value="greater_than">大于</option>
+              <option value="less_than">小于</option>
+              <option value="before">早于</option>
+              <option value="after">晚于</option>
               <option value="is_empty">为空</option>
               <option value="is_not_empty">不为空</option>
             </select>
@@ -3189,6 +3201,12 @@ function parseDatabaseFilterOperator(
   value: unknown
 ): DatabaseFilterOperator {
   return value === "does_not_contain" ||
+    value === "equals" ||
+    value === "does_not_equal" ||
+    value === "greater_than" ||
+    value === "less_than" ||
+    value === "before" ||
+    value === "after" ||
     value === "is_empty" ||
     value === "is_not_empty"
     ? value
@@ -3198,7 +3216,7 @@ function parseDatabaseFilterOperator(
 function isValueBasedDatabaseFilterOperator(
   operator: DatabaseFilterOperator
 ) {
-  return operator === "contains" || operator === "does_not_contain";
+  return operator !== "is_empty" && operator !== "is_not_empty";
 }
 
 function isActiveDatabaseFilterRule(rule: DatabaseFilterRule) {
@@ -3215,6 +3233,28 @@ function matchesDatabaseFilterText(
   if (rule.operator === "does_not_contain") {
     return !normalizedText.includes(rule.normalizedValue);
   }
+  if (rule.operator === "equals") {
+    return normalizedText === rule.normalizedValue;
+  }
+  if (rule.operator === "does_not_equal") {
+    return normalizedText !== rule.normalizedValue;
+  }
+  if (rule.operator === "greater_than") {
+    return (
+      compareDatabaseFilterComparable(normalizedText, rule.normalizedValue) > 0
+    );
+  }
+  if (rule.operator === "less_than") {
+    return (
+      compareDatabaseFilterComparable(normalizedText, rule.normalizedValue) < 0
+    );
+  }
+  if (rule.operator === "before") {
+    return compareDatabaseFilterDates(normalizedText, rule.normalizedValue) < 0;
+  }
+  if (rule.operator === "after") {
+    return compareDatabaseFilterDates(normalizedText, rule.normalizedValue) > 0;
+  }
   if (rule.operator === "is_empty") {
     return normalizedText.length === 0;
   }
@@ -3226,9 +3266,43 @@ function matchesDatabaseFilterText(
 
 function getDatabaseFilterOperatorLabel(operator: DatabaseFilterOperator) {
   if (operator === "does_not_contain") return "不包含";
+  if (operator === "equals") return "等于";
+  if (operator === "does_not_equal") return "不等于";
+  if (operator === "greater_than") return "大于";
+  if (operator === "less_than") return "小于";
+  if (operator === "before") return "早于";
+  if (operator === "after") return "晚于";
   if (operator === "is_empty") return "为空";
   if (operator === "is_not_empty") return "不为空";
   return "包含";
+}
+
+function compareDatabaseFilterComparable(left: string, right: string) {
+  const leftNumber = parseDatabaseFilterNumber(left);
+  const rightNumber = parseDatabaseFilterNumber(right);
+  if (leftNumber !== null && rightNumber !== null) {
+    return leftNumber - rightNumber;
+  }
+  return compareDatabaseFilterDates(left, right);
+}
+
+function compareDatabaseFilterDates(left: string, right: string) {
+  const leftDate = Date.parse(left);
+  const rightDate = Date.parse(right);
+  if (Number.isFinite(leftDate) && Number.isFinite(rightDate)) {
+    return leftDate - rightDate;
+  }
+  return left.localeCompare(right, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function parseDatabaseFilterNumber(value: string) {
+  const cleaned = value.replace(/[$¥,%x\s]/g, "").replace(/,/g, "");
+  if (!cleaned) return null;
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : null;
 }
 
 function parseDatabaseSortRules(

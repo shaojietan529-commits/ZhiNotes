@@ -43,8 +43,9 @@ schema migration 的能力默认保持关闭。
 
 - 每个数据库 view 现在可以保存多个筛选规则和多个排序规则；筛选按“全部匹配”处理，
   排序按从左到右的优先级处理，更接近 Notion database view 的日常用法。
-- 筛选规则现在支持 `包含`、`不包含`、`为空`、`不为空`；旧 view config 没有 operator 时继续按
-  `包含` 处理，inline database 读取保存视图时也会应用同一套 operator。
+- 筛选规则现在支持 `包含`、`不包含`、`等于`、`不等于`、`大于`、`小于`、`早于`、`晚于`、
+  `为空`、`不为空`；旧 view config 没有 operator 时继续按 `包含` 处理，inline database 读取
+  保存视图时也会应用同一套 operator。
 - 旧的单一筛选/排序 view config 保持兼容：打开时会自动转成一条筛选规则或一条排序规则。
 - 保存视图会同时记录 row search、filter rules、sort rules、隐藏字段和 chart 分组；这些都只写入
   view config，不会改动数据库行值、页面正文、文件 bytes、云端数据或 AI 内容。

@@ -71,6 +71,12 @@ type SortDirection = "asc" | "desc";
 type InlineDatabaseFilterOperator =
   | "contains"
   | "does_not_contain"
+  | "equals"
+  | "does_not_equal"
+  | "greater_than"
+  | "less_than"
+  | "before"
+  | "after"
   | "is_empty"
   | "is_not_empty";
 
@@ -972,6 +978,12 @@ function parseInlineDatabaseFilterOperator(
   value: unknown
 ): InlineDatabaseFilterOperator {
   return value === "does_not_contain" ||
+    value === "equals" ||
+    value === "does_not_equal" ||
+    value === "greater_than" ||
+    value === "less_than" ||
+    value === "before" ||
+    value === "after" ||
     value === "is_empty" ||
     value === "is_not_empty"
     ? value
@@ -981,7 +993,7 @@ function parseInlineDatabaseFilterOperator(
 function isValueBasedInlineDatabaseFilterOperator(
   operator: InlineDatabaseFilterOperator
 ) {
-  return operator === "contains" || operator === "does_not_contain";
+  return operator !== "is_empty" && operator !== "is_not_empty";
 }
 
 function isActiveInlineDatabaseFilterRule(rule: InlineDatabaseFilterRule) {
@@ -998,6 +1010,34 @@ function matchesInlineDatabaseFilterText(
   if (rule.operator === "does_not_contain") {
     return !normalizedText.includes(rule.normalizedValue);
   }
+  if (rule.operator === "equals") {
+    return normalizedText === rule.normalizedValue;
+  }
+  if (rule.operator === "does_not_equal") {
+    return normalizedText !== rule.normalizedValue;
+  }
+  if (rule.operator === "greater_than") {
+    return compareInlineDatabaseFilterComparable(
+      normalizedText,
+      rule.normalizedValue
+    ) > 0;
+  }
+  if (rule.operator === "less_than") {
+    return compareInlineDatabaseFilterComparable(
+      normalizedText,
+      rule.normalizedValue
+    ) < 0;
+  }
+  if (rule.operator === "before") {
+    return (
+      compareInlineDatabaseFilterDates(normalizedText, rule.normalizedValue) < 0
+    );
+  }
+  if (rule.operator === "after") {
+    return (
+      compareInlineDatabaseFilterDates(normalizedText, rule.normalizedValue) > 0
+    );
+  }
   if (rule.operator === "is_empty") {
     return normalizedText.length === 0;
   }
@@ -1005,6 +1045,34 @@ function matchesInlineDatabaseFilterText(
     return normalizedText.length > 0;
   }
   return normalizedText.includes(rule.normalizedValue);
+}
+
+function compareInlineDatabaseFilterComparable(left: string, right: string) {
+  const leftNumber = parseInlineDatabaseFilterNumber(left);
+  const rightNumber = parseInlineDatabaseFilterNumber(right);
+  if (leftNumber !== null && rightNumber !== null) {
+    return leftNumber - rightNumber;
+  }
+  return compareInlineDatabaseFilterDates(left, right);
+}
+
+function compareInlineDatabaseFilterDates(left: string, right: string) {
+  const leftDate = Date.parse(left);
+  const rightDate = Date.parse(right);
+  if (Number.isFinite(leftDate) && Number.isFinite(rightDate)) {
+    return leftDate - rightDate;
+  }
+  return left.localeCompare(right, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function parseInlineDatabaseFilterNumber(value: string) {
+  const cleaned = value.replace(/[$¥,%x\s]/g, "").replace(/,/g, "");
+  if (!cleaned) return null;
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : null;
 }
 
 function parseInlineDatabaseSortRules(
