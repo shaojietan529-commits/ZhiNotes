@@ -226,7 +226,7 @@ const LANE_META: Record<
   "template-intake": {
     id: "template-intake",
     title: "模板行入库",
-    description: "检查模板行能否安全创建首批结构化投研 rows。",
+    description: "检查模板行能否安全创建首批结构化投研行。",
     route: "/modules/databases",
     privacy_boundary:
       "只读取模板 metadata 和 schema；模板行写入必须在具体数据库页由用户触发。",
@@ -286,7 +286,7 @@ export function buildDatabaseWorkbenchPacket(input: {
     packet_status: "local-database-workbench-only",
     workbench_verdict: "ready-for-local-research-database-review",
     privacy_note:
-      "Generated locally from the database module dashboard, view readiness, template-row readiness, and import/export readiness. This packet turns database metadata into a local research-database workbench queue. It does not read database rows, row values, page text, file bytes, spreadsheet values, prompts, tokens, credentials, cloud data, holdings, or trading plans; it does not write workspace data, create rows or fields, export row values, import file values, upload data, connect cloud services, or enable AI.",
+      "这份数据库工作台包只在本地生成，来源是数据库模块 dashboard、视图 readiness、模板行 readiness 和导入/导出 readiness。它把数据库 metadata 转成一个本地投研数据库行动队列；不会读取数据库行、row values、页面正文、文件 bytes、spreadsheet values、prompt、token、凭证、云端数据、持仓或交易计划；也不会写入工作区、创建行或字段、导出 row values、导入文件值、上传数据、连接云服务或启用 AI。",
     boundary: {
       local_packet_only: true,
       reads_database_dashboard: true,
@@ -411,7 +411,7 @@ function buildDecisionSummary(
     ],
     blocked_work: [
       "不能从模块中心读取、展示或导出 database row values。",
-      "不能从工作台 packet 自动创建 row、schema field 或 relation values。",
+      "不能从工作台 packet 自动创建行、schema field 或 relation values。",
       "不能无 typed confirmation 批量导入 Excel/CSV/ODS。",
       "不能把数据库值发送给 AI、云同步、外部 API 或远端数据库。",
     ],
@@ -479,7 +479,7 @@ function buildDecisionSummary(
             ? `${templateActions.length} 个模板行行动需要在具体数据库页手动触发。`
             : "当前 workbench 没有发现必须立即处理的模板行行动。",
         next_action:
-          "只在具体数据库或 inline database 的「+ 模板行」菜单里创建 rows；方向性投资字段仍保持人工填写。",
+          "只在具体数据库或 inline database 的「+ 模板行」菜单里创建本地行；方向性投资字段仍保持人工填写。",
         route: "/modules/databases",
         target_section_id: "databases-template-readiness",
         allowed_now: true,
@@ -579,7 +579,7 @@ function buildWorkbenchDatabases(input: {
       open_route: `/database/${database.database_id}`,
       writes_workspace_data: false,
       privacy_boundary:
-        "Workbench database rollup uses title, description-derived role, schema counts, view metadata, template readiness, import/export readiness, and row count only. It does not include field names, row values, page text, file bytes, holdings, trading plans, or cloud data.",
+        "工作台数据库汇总只使用标题、由描述推断的角色、schema 计数、view metadata、模板 readiness、导入/导出 readiness 和行数；不包含 field names、row values、页面正文、文件 bytes、持仓、交易计划或云端数据。",
     };
   });
 }
@@ -611,7 +611,7 @@ function buildWorkbenchActions(
       requires_manual_confirmation: true,
       writes_workspace_data: false,
       privacy_boundary:
-        "Only routes the user to the local database module. It does not create a database until the user clicks a starter.",
+        "这里只把用户带到本地数据库模块；只有用户点击 starter 后才会创建数据库。",
     });
     return actions;
   }
@@ -633,7 +633,7 @@ function buildWorkbenchActions(
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "This action opens the database page only. Creating a relation field remains a manual local schema edit.",
+          "这个行动只会打开数据库页；创建 relation 字段仍然是手动的本地 schema 编辑。",
       });
     }
 
@@ -647,13 +647,13 @@ function buildWorkbenchActions(
         status: "ready-to-use",
         evidence: "这个 tracker 目前还是空表。",
         next_action:
-          "打开数据库页，用「+ 模板行」创建第一批公司、报告、会议或组合 row；敏感投资字段仍手动填写。",
+          "打开数据库页，用「+ 模板行」创建第一批公司、报告、会议或组合行；敏感投资字段仍手动填写。",
         action_route: database.open_route,
         route_label: "打开数据库",
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "Template-row creation writes local rows only after the user clicks in the database page. The workbench packet contains no row values.",
+          "模板行创建只会在用户进入数据库页并点击后写入本地行；工作台包不包含 row values。",
       });
     }
 
@@ -669,13 +669,13 @@ function buildWorkbenchActions(
           ? `推荐方向是 ${database.recommended_template_group_label}，但必需字段组还不完整。`
           : "模板行 readiness 认为这个数据库需要先补字段。",
         next_action:
-          "先补状态、日期、格式或 relation 等结构字段，再使用模板行写入本地 rows。",
+          "先补状态、日期、格式或 relation 等结构字段，再使用模板行写入本地行。",
         action_route: database.open_route,
         route_label: "打开数据库",
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "This action only points to schema work. It does not inspect field names in the exported packet or create fields automatically.",
+          "这个行动只指向 schema 复核；不会在导出包里检查 field names，也不会自动创建字段。",
       });
     } else if (database.template_row_status === "partial") {
       actions.push({
@@ -695,7 +695,7 @@ function buildWorkbenchActions(
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "Template-row usage stays in the database page and writes local rows only after manual user action.",
+          "模板行使用仍然留在数据库页，并且只在用户手动操作后写入本地行。",
       });
     }
 
@@ -770,7 +770,7 @@ function buildWorkbenchActions(
       requires_manual_confirmation: false,
       writes_workspace_data: false,
       privacy_boundary:
-        "View coverage uses metadata counts only and does not read rows, values, or page text.",
+        "视图覆盖只使用 metadata 计数，不读取行、值或页面正文。",
     });
   }
 
@@ -836,7 +836,7 @@ function buildReviewSequence(
         "/modules/databases",
         "databases-template-readiness",
         "模板行能让投研资产用一致结构进入数据库，后面更容易搜索、关联和复盘。",
-        "空 tracker 至少有一批本地模板 rows，敏感投资字段保持人工填写。"
+        "空 tracker 至少有一批本地模板行，敏感投资字段保持人工填写。"
       )
     );
   }
@@ -940,7 +940,7 @@ function getDatabaseNextAction(
     return template.next_action;
   }
   if (database.row_count === 0) {
-    return "先用模板行创建首批本地 rows，再补人工字段。";
+    return "先用模板行创建首批本地行，再补人工字段。";
   }
   if (view?.recommended_next_view) {
     return `下一步可添加 ${getDatabaseViewTypeLabel(

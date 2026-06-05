@@ -859,8 +859,10 @@ function run() {
     "values_included_on_export",
     "csv_export_route",
     "xlsx_export_route",
-    "append_import_route",
-  ]) {
+	    "append_import_route",
+	    "创建首批行",
+	    "还没有行",
+	  ]) {
     assertIncludes(
       files.databaseImportExportReadiness,
       databaseImportExportReadiness,
@@ -944,9 +946,13 @@ function run() {
     "auto_create_schema_fields_from_packet",
     "bulk_import_spreadsheet_without_typed_confirmation",
     "read_database_row_values_from_module_center",
-    "send_database_values_to_ai",
-    "required_verification_commands",
-  ]) {
+	    "send_database_values_to_ai",
+	    "required_verification_commands",
+	    "创建本地行",
+	    "本地模板行",
+	    "视图覆盖只使用 metadata 计数",
+	    "创建行或字段",
+	  ]) {
     assertIncludes(
       files.databaseWorkbench,
       databaseWorkbench,
@@ -1045,8 +1051,11 @@ function run() {
     "handleWorkbenchStepNavigate",
     "onReviewStepOpen",
     "scrollIntoView",
-    "打开步骤",
-    "databases-workbench",
+	    "打开步骤",
+	    "分数",
+	    "个字段",
+	    "个视图",
+	    "databases-workbench",
     "databases-workbench-routes",
     "databases-priority-actions",
     "databases-workbench-databases",
@@ -1064,11 +1073,14 @@ function run() {
     );
   }
   for (const snippet of [
-    "模板行 readiness",
-    "导出模板行 readiness",
-    "TemplateRowReadinessPanel",
-    "TemplateRowDatabaseCard",
-    "不包含 field names、row values 或页面正文",
+	    "模板行 readiness",
+	    "导出模板行 readiness",
+	    "TemplateRowReadinessPanel",
+	    "TemplateRowDatabaseCard",
+	    "模板行闸门",
+	    "已就绪",
+	    "部分就绪",
+	    "不包含 field names、row values 或页面正文",
   ]) {
     assertIncludes(
       files.databaseModuleShell,
@@ -1112,9 +1124,11 @@ function run() {
     "DatabaseImportExportGateRow",
     "DatabaseImportExportCard",
     "DatabaseImportExportStatusPill",
-    "DatabaseImportExportRiskPill",
-    "handleExportImportExportReadiness",
-    "不读取 row values",
+	    "DatabaseImportExportRiskPill",
+	    "handleExportImportExportReadiness",
+	    "导入/导出闸门",
+	    "label=\"导入\"",
+	    "不读取 row values",
     "真实导入/导出仍在具体数据库页手动触发",
     "导出含 row values",
     "导入需确认短语",

@@ -1177,7 +1177,7 @@ function DatabaseWorkbenchDatabaseCard({
             {database.title}
           </h3>
           <p className="mt-1 text-zinc-400">
-            {database.role_label} · score {database.readiness_score}
+            {database.role_label} · 分数 {database.readiness_score}
           </p>
         </div>
         <button
@@ -1189,10 +1189,10 @@ function DatabaseWorkbenchDatabaseCard({
         </button>
       </div>
       <div className="mt-3 flex flex-wrap gap-1">
-        <Chip label={`${database.field_count} fields`} />
-        <Chip label={`${database.row_count} rows`} />
-        <Chip label={`${database.view_count} views`} />
-        <Chip label={`${database.relation_fields} relation`} />
+        <Chip label={`${database.field_count} 个字段`} />
+        <Chip label={`${database.row_count} 行`} />
+        <Chip label={`${database.view_count} 个视图`} />
+        <Chip label={`${database.relation_fields} 个 relation`} />
         {database.template_row_status && (
           <Chip label={`模板 ${database.template_row_status}`} />
         )}
@@ -1250,9 +1250,9 @@ function DatabaseWorkbenchPriorityPill({
   priority: DatabaseWorkbenchPriority;
 }) {
   const labels: Record<DatabaseWorkbenchPriority, string> = {
-    high: "High",
-    medium: "Medium",
-    low: "Low",
+    high: "高",
+    medium: "中",
+    low: "低",
   };
   const className =
     priority === "high"
@@ -1341,7 +1341,7 @@ function TemplateCatalogPanel({
               </div>
               <span className="w-fit rounded bg-zinc-100 px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                 {group.templates.filter((template) => template.available).length}/
-                {group.templates.length} ready
+                {group.templates.length} 已就绪
               </span>
             </div>
             <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
@@ -1422,8 +1422,8 @@ function TemplateRowReadinessPanel({
       <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
         <Metric label="模板组" value={report.summary.template_groups} />
         <Metric label="模板行" value={report.summary.template_rows} />
-        <Metric label="Ready" value={report.summary.ready_items} />
-        <Metric label="Partial" value={report.summary.partial_items} />
+        <Metric label="已就绪" value={report.summary.ready_items} />
+        <Metric label="部分就绪" value={report.summary.partial_items} />
         <Metric label="需补 schema" value={report.summary.needs_schema_items} />
         <Metric label="缺 Relation" value={report.summary.missing_relation_requirements} />
         <Metric label="缺 Status" value={report.summary.missing_status_requirements} />
@@ -1432,7 +1432,7 @@ function TemplateRowReadinessPanel({
       <div className="mt-4 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
         <div className="space-y-2">
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-            Template-row gates
+            模板行闸门
           </div>
           {report.gates.map((gate) => (
             <TemplateRowGateRow key={gate.id} gate={gate} />
@@ -1475,9 +1475,6 @@ function TemplateRowGateRow({
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
             {gate.title}
           </div>
-          <div className="mt-1 font-mono text-[10px] text-zinc-400">
-            {gate.id}
-          </div>
         </div>
         <StepStatusPill status={gate.status} />
       </div>
@@ -1506,7 +1503,7 @@ function TemplateRowDatabaseCard({
             {database.title}
           </h3>
           <p className="mt-1 text-zinc-400">
-            {database.field_count} fields · {database.row_count} rows
+            {database.field_count} 个字段 · {database.row_count} 行
           </p>
         </div>
         <button
@@ -1525,10 +1522,10 @@ function TemplateRowDatabaseCard({
           <Chip label={`推荐 ${database.recommended_group_label}`} />
         )}
         {database.ready_group_ids.length > 0 && (
-          <Chip label={`Ready ${database.ready_group_ids.length}`} />
+          <Chip label={`已就绪 ${database.ready_group_ids.length}`} />
         )}
         {database.partial_group_ids.length > 0 && (
-          <Chip label={`Partial ${database.partial_group_ids.length}`} />
+          <Chip label={`部分就绪 ${database.partial_group_ids.length}`} />
         )}
         {database.needs_schema_group_ids.length > 0 && (
           <Chip label={`需补 ${database.needs_schema_group_ids.length}`} />
@@ -1552,8 +1549,8 @@ function TemplateRowStatusPill({
   status: DatabaseTemplateRowReadinessStatus;
 }) {
   const labels: Record<DatabaseTemplateRowReadinessStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
+    ready: "已就绪",
+    partial: "部分就绪",
     "needs-schema": "需补 schema",
   };
   const className =
@@ -1688,7 +1685,7 @@ function DatabaseImportExportReadinessPanel({
       <div className="mt-4 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
         <div className="space-y-2">
           <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-            Import/export gates
+            导入/导出闸门
           </div>
           {report.gates.map((gate) => (
             <DatabaseImportExportGateRow key={gate.id} gate={gate} />
@@ -1732,9 +1729,6 @@ function DatabaseImportExportGateRow({
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
             {gate.title}
           </div>
-          <div className="mt-1 font-mono text-[10px] text-zinc-400">
-            {gate.id}
-          </div>
         </div>
         <StepStatusPill status={gate.status} />
       </div>
@@ -1763,8 +1757,8 @@ function DatabaseImportExportCard({
             {database.title}
           </h3>
           <p className="mt-1 text-zinc-400">
-            {database.field_count} fields · {database.row_count} rows ·{" "}
-            {database.view_count} views
+            {database.field_count} 个字段 · {database.row_count} 行 ·{" "}
+            {database.view_count} 个视图
           </p>
         </div>
         <button
@@ -1800,7 +1794,7 @@ function DatabaseImportExportCard({
       <div className="mt-3 grid gap-2">
         <RouteNote label="CSV" value={database.csv_export_route} />
         <RouteNote label="XLSX" value={database.xlsx_export_route} />
-        <RouteNote label="Import" value={database.append_import_route} />
+        <RouteNote label="导入" value={database.append_import_route} />
       </div>
       <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
         {database.recommended_next_action}
@@ -1820,7 +1814,7 @@ function DatabaseImportExportStatusPill({
   status: DatabaseImportExportStatus;
 }) {
   const labels: Record<DatabaseImportExportStatus, string> = {
-    ready: "Ready",
+    ready: "已就绪",
     "manual-confirmation": "需确认",
     "needs-schema": "需补 schema",
     empty: "空表",
@@ -1975,9 +1969,6 @@ function ViewReadinessGateRow({
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
             {gate.title}
           </div>
-          <div className="mt-1 font-mono text-[10px] text-zinc-400">
-            {gate.id}
-          </div>
         </div>
         <StepStatusPill status={gate.status} />
       </div>
@@ -2006,7 +1997,7 @@ function ViewReadinessDatabaseCard({
             {item.title}
           </h3>
           <p className="mt-1 text-zinc-400">
-            {item.field_count} fields · {item.row_count} rows
+            {item.field_count} 个字段 · {item.row_count} 行
           </p>
         </div>
         <button

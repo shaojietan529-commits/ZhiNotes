@@ -192,7 +192,7 @@ function getRecommendedNextAction(input: {
     return "先补业务字段，例如 Status、Date、Company page、Source 或 Key takeaways。";
   }
   if (input.rowCount === 0) {
-    return "先用模板行或追加导入创建首批 rows；空表导出价值有限。";
+    return "先用模板行或追加导入创建首批行；空表导出价值有限。";
   }
   if (input.relationFields === 0) {
     return "导出前建议补 relation 字段，把 row 连接到公司、报告、会议或 memo。";
@@ -265,7 +265,7 @@ function buildGates(
       "empty-database-bootstrap",
       "空数据库启动",
       summary.empty_databases > 0 ? "planned" : "ready",
-      `${summary.empty_databases} 个数据库还没有 rows。`,
+      `${summary.empty_databases} 个数据库还没有行。`,
       "优先用模板行或小样本 CSV 导入启动，不建议把空表作为正式 tracker。"
     ),
     gate(
