@@ -10,6 +10,7 @@ interface KanbanViewProps {
   onAddRow: () => void;
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
+  onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
 }
 
@@ -17,6 +18,7 @@ export default function KanbanView({
   fields,
   rows,
   onDeleteRow,
+  onDuplicateRow,
   onOpenRow,
 }: KanbanViewProps) {
   // Use Status first, then fall back to the first Select field.
@@ -96,13 +98,24 @@ export default function KanbanView({
                   <span className="text-[10px] text-zinc-400">
                     {row.page?.icon || "📄"}
                   </span>
-                  <button
-                    onClick={() => onDeleteRow(row.id)}
-                    className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-400 hover:text-red-500 transition-opacity"
-                    title="删除行"
-                  >
-                    删除
-                  </button>
+                  <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => onDuplicateRow(row.id)}
+                      className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                      title="复制行：只复制本地字段值，不复制页面正文"
+                    >
+                      复制
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteRow(row.id)}
+                      className="text-[10px] text-zinc-400 hover:text-red-500"
+                      title="删除行"
+                    >
+                      删除
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

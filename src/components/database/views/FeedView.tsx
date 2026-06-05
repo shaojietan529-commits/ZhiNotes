@@ -21,6 +21,7 @@ interface FeedViewProps {
   onAddRow: () => void;
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
+  onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
   onOpenPage: (pageId: string) => void;
   relationPages: Page[];
@@ -33,6 +34,7 @@ export default function FeedView({
   onAddRow,
   onUpdateRow,
   onDeleteRow,
+  onDuplicateRow,
   onOpenRow,
   onOpenPage,
   relationPages,
@@ -59,6 +61,7 @@ export default function FeedView({
               onOpenRow={onOpenRow}
               onOpenPage={onOpenPage}
               onDeleteRow={onDeleteRow}
+              onDuplicateRow={onDuplicateRow}
               onUpdateRow={onUpdateRow}
             />
           ))}
@@ -94,6 +97,7 @@ function FeedCard({
   onOpenRow,
   onOpenPage,
   onDeleteRow,
+  onDuplicateRow,
   onUpdateRow,
 }: {
   row: DatabaseRow & { page: Page };
@@ -102,6 +106,7 @@ function FeedCard({
   onOpenRow: (pageId: string) => void;
   onOpenPage: (pageId: string) => void;
   onDeleteRow: (rowId: string) => void;
+  onDuplicateRow: (rowId: string) => void;
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
 }) {
   const fieldValues = parseRowFieldValues(row.field_values);
@@ -136,14 +141,24 @@ function FeedCard({
             更新于 {formatRelativeDate(row.page?.updated_at || row.updated_at)}
           </p>
         </button>
-        <button
-          type="button"
-          onClick={() => onDeleteRow(row.id)}
-          className="text-xs text-zinc-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
-          title="删除行"
-        >
-          删除
-        </button>
+        <div className="flex shrink-0 items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={() => onDuplicateRow(row.id)}
+            className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+            title="复制行：只复制本地字段值，不复制页面正文"
+          >
+            复制
+          </button>
+          <button
+            type="button"
+            onClick={() => onDeleteRow(row.id)}
+            className="text-xs text-zinc-400 hover:text-red-500"
+            title="删除行"
+          >
+            删除
+          </button>
+        </div>
       </div>
 
       {feedFields.length > 0 && (

@@ -320,6 +320,10 @@ Current local actions:
 - Manage local database views from each view tab: rename a view, duplicate its
   current config into a copy, or soft-delete a non-final view without deleting
   any rows, pages, files, or field values.
+- Duplicate local database rows from table, list, kanban, calendar, gallery,
+  timeline, feed, and inline database views. Row duplicate creates a new local
+  row/page with the source row title and field values, but it intentionally
+  does not copy the source page body, uploaded files, cloud data, or AI output.
 - Use local database fields for text, number, formula, rollup, relation,
   select, multi-select, status, date, checkbox, URL, email, phone, unique ID,
   created time, and last edited time values. Table and form views use native

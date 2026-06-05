@@ -31,6 +31,7 @@ const files = {
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
   tableView: "src/components/database/views/TableView.tsx",
   listView: "src/components/database/views/ListView.tsx",
+  kanbanView: "src/components/database/views/KanbanView.tsx",
   calendarView: "src/components/database/views/CalendarView.tsx",
   galleryView: "src/components/database/views/GalleryView.tsx",
   formView: "src/components/database/views/FormView.tsx",
@@ -117,6 +118,7 @@ function run() {
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
   const tableView = readProjectFile(files.tableView);
   const listView = readProjectFile(files.listView);
+  const kanbanView = readProjectFile(files.kanbanView);
   const calendarView = readProjectFile(files.calendarView);
   const galleryView = readProjectFile(files.galleryView);
   const formView = readProjectFile(files.formView);
@@ -456,6 +458,47 @@ function run() {
       databaseShell,
       snippet,
       "Database view tabs must expose local rename, duplicate, and protected delete actions."
+    );
+  }
+  for (const snippet of [
+    "handleDuplicateRow",
+    "sourceRow.page?.title",
+    "fieldValues",
+    "onDuplicateRow: handleDuplicateRow",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Full database pages must duplicate rows locally from existing row field values."
+    );
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline databases must share local row duplicate behavior."
+    );
+  }
+  for (const [sourceLabel, source] of [
+    [files.tableView, tableView],
+    [files.listView, listView],
+    [files.kanbanView, kanbanView],
+    [files.calendarView, calendarView],
+    [files.galleryView, galleryView],
+    [files.timelineView, timelineView],
+    [files.feedView, feedView],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "onDuplicateRow",
+      "Database row/card views must expose local duplicate row actions."
+    );
+    assertIncludes(
+      sourceLabel,
+      source,
+      "复制行：只复制本地字段值，不复制页面正文",
+      "Database duplicate row actions must clearly state the privacy boundary."
     );
   }
   for (const snippet of [
@@ -1529,6 +1572,7 @@ function run() {
         view_rule_controls: true,
         view_grouping: true,
         view_management: true,
+        row_duplicate_actions: true,
         local_rollup_fields: true,
         database_workbench: true,
       },

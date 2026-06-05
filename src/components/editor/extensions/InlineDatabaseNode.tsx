@@ -184,6 +184,20 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
     [reload]
   );
 
+  const handleDuplicateRow = useCallback(
+    async (rowId: string) => {
+      const sourceRow = rows.find((row) => row.id === rowId);
+      if (!sourceRow) return;
+      const fieldValues = parseFieldValues(sourceRow.field_values);
+      await addRow(databaseId, {
+        title: `${sourceRow.page?.title || "未命名页面"} 副本`,
+        fieldValues,
+      });
+      reload();
+    },
+    [databaseId, reload, rows]
+  );
+
   const handleAddView = useCallback(
     async (name: string, viewType: DatabaseView["view_type"]) => {
       const view = await addView(databaseId, { name, viewType });
@@ -235,6 +249,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
     onAddRow: handleAddRow,
     onUpdateRow: handleUpdateRow,
     onDeleteRow: handleDeleteRow,
+    onDuplicateRow: handleDuplicateRow,
     onOpenRow: handleOpenRow,
     onOpenPage: handleOpenPage,
     relationPages: workspacePages,
@@ -355,6 +370,14 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
       </div>
     </NodeViewWrapper>
   );
+}
+
+function parseFieldValues(fieldValues: string) {
+  try {
+    return JSON.parse(fieldValues || "{}") as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
 // ─── Small helper components ────────────────────────────────

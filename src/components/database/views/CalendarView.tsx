@@ -15,12 +15,14 @@ interface CalendarViewProps {
   onAddRow: () => void;
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
+  onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
 }
 
 export default function CalendarView({
   fields,
   rows,
+  onDuplicateRow,
   onOpenRow,
 }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -158,13 +160,26 @@ export default function CalendarView({
                     {day}
                   </div>
                   {dayRows.map((row) => (
-                    <button
+                    <div
                       key={row.id}
-                      onClick={() => onOpenRow(row.page_id)}
-                      className="w-full text-left text-[10px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 truncate mb-0.5"
+                      className="group/event mb-0.5 flex items-center gap-0.5 rounded bg-blue-50 px-1 py-0.5 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
                     >
-                      {row.page?.title || "未命名页面"}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => onOpenRow(row.page_id)}
+                        className="min-w-0 flex-1 truncate text-left text-[10px] hover:text-blue-800 dark:hover:text-blue-200"
+                      >
+                        {row.page?.title || "未命名页面"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDuplicateRow(row.id)}
+                        className="hidden shrink-0 text-[10px] text-blue-400 hover:text-blue-800 group-hover/event:inline dark:text-blue-500 dark:hover:text-blue-200"
+                        title="复制行：只复制本地字段值，不复制页面正文"
+                      >
+                        复制
+                      </button>
+                    </div>
                   ))}
                 </>
               )}

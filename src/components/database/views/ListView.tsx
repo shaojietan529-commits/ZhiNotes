@@ -20,6 +20,7 @@ interface ListViewProps {
   onAddRow: () => void;
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
+  onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
   relationPages: Page[];
   showAddRow?: boolean;
@@ -30,6 +31,7 @@ export default function ListView({
   rows,
   onAddRow,
   onDeleteRow,
+  onDuplicateRow,
   onOpenRow,
   relationPages,
   showAddRow = true,
@@ -132,6 +134,15 @@ export default function ListView({
                   {formatRelativeDate(row.created_at)}
                 </span>
                 <button
+                  type="button"
+                  onClick={() => onDuplicateRow(row.id)}
+                  className="opacity-0 transition-opacity text-xs text-zinc-400 hover:text-zinc-700 group-hover:opacity-100 dark:hover:text-zinc-200"
+                  title="复制行：只复制本地字段值，不复制页面正文"
+                >
+                  复制
+                </button>
+                <button
+                  type="button"
                   onClick={() => onDeleteRow(row.id)}
                   className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 text-xs transition-opacity"
                   title="删除行"

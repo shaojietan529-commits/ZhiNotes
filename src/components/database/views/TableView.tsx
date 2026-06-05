@@ -26,6 +26,7 @@ interface TableViewProps {
   onAddRow: () => void;
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
+  onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
   onOpenPage: (pageId: string) => void;
   relationPages: Page[];
@@ -40,6 +41,7 @@ export default function TableView({
   onAddRow,
   onUpdateRow,
   onDeleteRow,
+  onDuplicateRow,
   onOpenRow,
   onOpenPage,
   relationPages,
@@ -66,7 +68,7 @@ export default function TableView({
             <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 w-20">
               创建
             </th>
-            <th className="w-8" />
+            <th className="w-20" />
           </tr>
         </thead>
         <tbody>
@@ -78,6 +80,7 @@ export default function TableView({
               fields={fields}
               onUpdate={(fieldValues) => onUpdateRow(row.id, fieldValues)}
               onDelete={() => onDeleteRow(row.id)}
+              onDuplicate={() => onDuplicateRow(row.id)}
               onOpen={() => onOpenRow(row.page_id)}
               onOpenPage={onOpenPage}
               relationPages={relationPages}
@@ -109,6 +112,7 @@ function TableRow({
   fields,
   onUpdate,
   onDelete,
+  onDuplicate,
   onOpen,
   onOpenPage,
   relationPages,
@@ -120,6 +124,7 @@ function TableRow({
   fields: DatabaseField[];
   onUpdate: (fieldValues: Record<string, unknown>) => void;
   onDelete: () => void;
+  onDuplicate: () => void;
   onOpen: () => void;
   onOpenPage: (pageId: string) => void;
   relationPages: Page[];
@@ -172,13 +177,24 @@ function TableRow({
         {formatRelativeDate(row.created_at)}
       </td>
       <td className="px-1 py-1.5">
-        <button
-          onClick={onDelete}
-          className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 text-xs transition-opacity"
-          title="删除行"
-        >
-          x
-        </button>
+        <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={onDuplicate}
+            className="rounded px-1.5 py-0.5 text-xs text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="复制行：只复制本地字段值，不复制页面正文"
+          >
+            复制
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="rounded px-1 py-0.5 text-xs text-zinc-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950"
+            title="删除行"
+          >
+            x
+          </button>
+        </div>
       </td>
     </tr>
   );

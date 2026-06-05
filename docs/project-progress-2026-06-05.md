@@ -60,6 +60,15 @@ schema migration 的能力默认保持关闭。
 - Rollup 只读取本地 relation id 和页面标题，不读取关联页面正文、文件 bytes、云端数据或 AI 内容；
   后续如果要做跨数据库属性 rollup，再单独设计权限和数据边界。
 
+### 数据库记录复制阶段
+
+- 数据库记录现在支持本地复制：Table、List、Kanban、Calendar、Gallery、Timeline、Feed
+  和 inline database 视图都能从已有记录创建副本。
+- 复制记录会新建一个本地 row/page，并复制原记录的标题和字段值；页面正文默认不复制，避免误把长篇
+  投研 memo、会议纪要或报告正文复制出多份。
+- 这个能力不改数据库 schema，不删除任何记录，不读取上传文件 bytes，不连接云端，不调用 AI，
+  也不外发任何私人内容。
+
 ### 文件与 Markdown 原生展示阶段
 
 - 扩展本地文件格式识别：Markdown 族现在包括 `.rmd`、`.qmd`；研究文本/引用文件包括
@@ -100,7 +109,7 @@ npm run lint
 npm run build
 ```
 
-Formula 字段、数据库视图规则、view 分组和 Rollup 阶段还做过 `/modules/databases`
+Formula 字段、数据库视图规则、view 分组、Rollup 和记录复制阶段还做过 `/modules/databases`
 浏览器只读检查，数据库模块可以正常渲染。
 
 文件与 Markdown 原生展示阶段已通过：

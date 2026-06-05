@@ -21,6 +21,7 @@ interface TimelineViewProps {
   onAddRow: () => void;
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
+  onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
   relationPages: Page[];
 }
@@ -36,6 +37,7 @@ export default function TimelineView({
   rows,
   onAddRow,
   onDeleteRow,
+  onDuplicateRow,
   onOpenRow,
   relationPages,
 }: TimelineViewProps) {
@@ -108,14 +110,24 @@ export default function TimelineView({
                       {row.page?.icon ? `${row.page.icon} ` : ""}
                       {row.page?.title || "未命名页面"}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteRow(row.id)}
-                      className="opacity-0 text-xs text-zinc-400 transition-opacity hover:text-red-500 group-hover:opacity-100"
-                      title="删除行"
-                    >
-                      删除
-                    </button>
+                    <div className="flex shrink-0 items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => onDuplicateRow(row.id)}
+                        className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                        title="复制行：只复制本地字段值，不复制页面正文"
+                      >
+                        复制
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteRow(row.id)}
+                        className="text-xs text-zinc-400 hover:text-red-500"
+                        title="删除行"
+                      >
+                        删除
+                      </button>
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
                     <span className="rounded bg-zinc-100 px-2 py-0.5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">

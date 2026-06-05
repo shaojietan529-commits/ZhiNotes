@@ -19,6 +19,7 @@ interface GalleryViewProps {
   onAddRow: () => void;
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
   onDeleteRow: (rowId: string) => void;
+  onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
   relationPages: Page[];
   showAddRow?: boolean;
@@ -29,6 +30,7 @@ export default function GalleryView({
   rows,
   onAddRow,
   onDeleteRow,
+  onDuplicateRow,
   onOpenRow,
   relationPages,
   showAddRow = true,
@@ -170,7 +172,15 @@ export default function GalleryView({
                     )}
                   </div>
                 </button>
-                <div className="flex justify-end border-t border-zinc-100 px-3 py-2 opacity-0 transition-opacity group-hover:opacity-100 dark:border-zinc-800">
+                <div className="flex justify-end gap-2 border-t border-zinc-100 px-3 py-2 opacity-0 transition-opacity group-hover:opacity-100 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => onDuplicateRow(row.id)}
+                    className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                    title="复制行：只复制本地字段值，不复制页面正文"
+                  >
+                    复制
+                  </button>
                   <button
                     type="button"
                     onClick={() => onDeleteRow(row.id)}
