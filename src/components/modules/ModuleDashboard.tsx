@@ -892,6 +892,22 @@ function ProjectProgressSnapshotPanel({
               />
             ))}
           </div>
+          {snapshot.owner_gate_routes.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                上线前 owner gate
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {snapshot.owner_gate_routes.map((route) => (
+                  <ProjectProgressTrialRouteRow
+                    key={route.module_id}
+                    route={route}
+                    onOpen={() => onOpenRoute(route.route)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

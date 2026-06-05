@@ -87,6 +87,7 @@ export interface ProjectProgressSnapshot {
   recommended_sleep_run_work: string[];
   phases: ProjectProgressPhase[];
   trial_routes: ProjectProgressTrialRoute[];
+  owner_gate_routes: ProjectProgressTrialRoute[];
   blockers: ProjectProgressBlocker[];
   required_verification_commands: string[];
 }
@@ -104,6 +105,7 @@ export function buildProjectProgressSnapshot(
 ): ProjectProgressSnapshot {
   const phases = buildPhases(input.health);
   const trialRoutes = buildTrialRoutes(input);
+  const ownerGateRoutes = buildOwnerGateRoutes(input);
   const blockers = buildBlockers(input);
   const ownerGatedDecisions =
     input.roadmap.decision_summary.decisions.filter(
@@ -159,6 +161,7 @@ export function buildProjectProgressSnapshot(
     ],
     phases,
     trial_routes: trialRoutes,
+    owner_gate_routes: ownerGateRoutes,
     blockers,
     required_verification_commands: [
       "npm run verify:modules",
@@ -214,6 +217,21 @@ function buildTrialRoutes(
       route: getTrialRoute(module.id, module.route as string),
       status: module.status,
       readiness: module.status === "active" ? "ready-local" : "beta-hardening",
+      recommended_test: getRecommendedTest(module.id),
+    }));
+}
+
+function buildOwnerGateRoutes(
+  input: ProjectProgressSnapshotInput
+): ProjectProgressTrialRoute[] {
+  return input.manifest.modules
+    .filter((module) => module.route && module.status === "planned")
+    .map((module) => ({
+      module_id: module.id,
+      title: module.title,
+      route: getTrialRoute(module.id, module.route as string),
+      status: module.status,
+      readiness: "owner-gated",
       recommended_test: getRecommendedTest(module.id),
     }));
 }
@@ -300,6 +318,8 @@ function getRecommendedTest(moduleId: string) {
     portfolio: "直达组合工作台，检查 memo、watchlist、sizing、catalyst、risk 和 relation 入口。",
     meetings: "直达会议研究队列，检查 transcript、action items、follow-up 和 relation 入口。",
     "research-graph": "直达研究图谱工作台，查看 relation handoff、schema gap 和 unlinked asset 队列。",
+    "ai-workbench": "直达 AI payload review，只审阅发送内容预览、确认短语和 provider 边界，不启用 AI。",
+    sync: "直达 Web Beta owner review，只审阅登录、云同步、恢复、权限和部署 gate，不连接云服务。",
   };
 
   return tests[moduleId] ?? "打开模块页面，确认入口、边界说明和导出动作都可用。";
@@ -316,6 +336,7 @@ function getTrialRoute(moduleId: string, route: string) {
     reports: "/modules/reports#reports-preview-routing",
     databases: "/modules/databases#databases-import-export-readiness",
     "research-graph": "/modules/research-graph#research-graph-workbench",
+    "ai-workbench": "/modules/ai#ai-payload-review",
     sync: "/modules/sync#web-beta-owner-review",
   };
 
