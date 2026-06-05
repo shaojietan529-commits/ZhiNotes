@@ -7,6 +7,7 @@ export type EditorLocalCommand =
   | "breadcrumb"
   | "bullet-list"
   | "callout"
+  | "child-page"
   | "clear-formatting"
   | "code-block"
   | "columns"

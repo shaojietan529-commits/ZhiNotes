@@ -7,7 +7,13 @@ import {
   Fragment,
   type Node as ProseMirrorNode,
 } from "@tiptap/pm/model";
-import { addBlockComment } from "@/lib/db/local/queries";
+import {
+  addBlockComment,
+  createPage,
+  getAllPages,
+  updatePage,
+  updateWikiLinks,
+} from "@/lib/db/local/queries";
 import {
   BLOCK_COMMENTS_CHANGED_EVENT,
   INLINE_COMMENT_DELETED_EVENT,
@@ -58,6 +64,8 @@ import { InlineCommentMark } from "./extensions/InlineCommentMark";
 import { CodeSyntaxHighlight } from "./extensions/CodeSyntaxHighlight";
 import { PasteLinkOnSelection } from "./extensions/PasteLinkOnSelection";
 import { promptForLink } from "./extensions/linkHelpers";
+import { buildChildPageInitialHtml } from "@/lib/pages/childPageSeed";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { BlockDragHandleLayer } from "./BlockDragHandleLayer";
 import {
   FILE_PREVIEW_IMPORT_PROGRESS_EVENT,
@@ -419,8 +427,14 @@ const Editor = forwardRef<EditorRef, EditorProps>(
           return;
         }
 
-        const changed = runEditorLocalCommand(editor, command, pageId);
-        if (changed) persistEditorNow(editor);
+        void Promise.resolve(runEditorLocalCommand(editor, command, pageId))
+          .then((changed) => {
+            if (changed) persistEditorNow(editor);
+          })
+          .catch((err) => {
+            console.error("[Zhinote] Failed to run editor command:", err);
+            window.alert("Command failed. Please check the console.");
+          });
       };
 
       window.addEventListener(
@@ -934,10 +948,12 @@ function runEditorLocalCommand(
   editor: TiptapEditor,
   command: EditorLocalCommand,
   pageId: string
-) {
+): boolean | Promise<boolean> {
   const chain = editor.chain().focus();
 
   switch (command) {
+    case "child-page":
+      return createChildPageFromEditorCommand(editor, pageId);
     case "bold":
       return chain.toggleBold().run();
     case "italic":
@@ -998,6 +1014,50 @@ function runEditorLocalCommand(
     default:
       return false;
   }
+}
+
+async function createChildPageFromEditorCommand(
+  editor: TiptapEditor,
+  parentPageId: string
+) {
+  const title = window.prompt("新页面标题：", "未命名页面");
+  if (title === null) return false;
+
+  const pageTitle = title.trim() || "未命名页面";
+  const page = await createPage({
+    title: pageTitle,
+    parentId: parentPageId,
+  });
+  const allPages = await getAllPages();
+  const parentPage = allPages.find((candidate) => candidate.id === parentPageId);
+  await updatePage(page.id, {
+    content_text: buildChildPageInitialHtml({
+      parentPageId,
+      parentTitle: parentPage?.title ?? null,
+    }),
+  });
+  useWorkspaceStore.getState().setPages(allPages);
+
+  editor
+    .chain()
+    .focus()
+    .insertContent([
+      {
+        type: "mention",
+        attrs: {
+          id: page.id,
+          label: page.title || pageTitle,
+        },
+      },
+      { type: "text", text: " " },
+    ])
+    .run();
+
+  await updatePage(parentPageId, { content_text: editor.getHTML() });
+  await updateWikiLinks(parentPageId, getLinkedPageIds(editor));
+
+  window.location.href = `/page/${page.id}`;
+  return false;
 }
 
 function FileImportProgressBar({

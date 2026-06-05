@@ -1072,6 +1072,15 @@ function getEditorCommandActions(
       run: () => runEditorCommand("heading-3"),
     },
     {
+      id: "editor-child-page",
+      title: "新建子页面",
+      description: "创建子页面，插入页面链接，并自动进入新页面",
+      icon: "PAGE",
+      category: "Editor",
+      aliases: ["page", "subpage", "new page", "create page", "页面", "新页面", "子页面"],
+      run: () => runEditorCommand("child-page"),
+    },
+    {
       id: "editor-text",
       title: "正文块",
       description: "把当前块转换成普通文本",

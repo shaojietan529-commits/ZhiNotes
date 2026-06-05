@@ -7,6 +7,8 @@ import process from "node:process";
 const root = process.cwd();
 const files = {
   packageJson: "package.json",
+  editorLocalCommands: "src/lib/editorLocalCommands.ts",
+  childPageSeed: "src/lib/pages/childPageSeed.ts",
   keyboardShortcuts: "src/components/editor/extensions/KeyboardShortcuts.ts",
   slashSuggestion: "src/components/editor/extensions/SlashCommandSuggestion.ts",
   filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
@@ -35,6 +37,8 @@ function assertIncludes(sourceLabel, source, snippet, message) {
 
 function run() {
   const packageJson = readProjectFile(files.packageJson);
+  const editorLocalCommands = readProjectFile(files.editorLocalCommands);
+  const childPageSeed = readProjectFile(files.childPageSeed);
   const keyboardShortcuts = readProjectFile(files.keyboardShortcuts);
   const slashSuggestion = readProjectFile(files.slashSuggestion);
   const filePreviewUpload = readProjectFile(files.filePreviewUpload);
@@ -93,9 +97,6 @@ function run() {
     "window.location.href = `/page/${page.id}`",
     "buildChildPageInitialHtml",
     "updatePage(page.id",
-    "父页面：",
-    "开始记录...",
-    "data-type=\"mention\"",
     "updateWikiLinks",
   ]) {
     assertIncludes(
@@ -103,6 +104,49 @@ function run() {
       slashSuggestion,
       snippet,
       "/page slash command must stay discoverable and open the new page."
+    );
+  }
+
+  for (const snippet of [
+    "父页面：",
+    "开始记录...",
+    "data-type=\"mention\"",
+    "escapeHtml",
+  ]) {
+    assertIncludes(
+      files.childPageSeed,
+      childPageSeed,
+      snippet,
+      "Child pages must keep a reusable safe seed with a parent-page mention."
+    );
+  }
+
+  for (const snippet of [
+    "| \"child-page\"",
+    "case \"child-page\"",
+    "createChildPageFromEditorCommand",
+    "runEditorCommand(\"child-page\")",
+    "id: \"editor-child-page\"",
+    "title: \"新建子页面\"",
+  ]) {
+    const sourceLabel = snippet.includes("| \"child-page\"")
+      ? files.editorLocalCommands
+      : snippet.includes("runEditorCommand") ||
+          snippet.includes("editor-child-page") ||
+          snippet.includes("新建子页面")
+        ? files.quickSearch
+        : files.editor;
+    const source =
+      sourceLabel === files.editorLocalCommands
+        ? editorLocalCommands
+        : sourceLabel === files.quickSearch
+          ? quickSearch
+          : editor;
+    assertIncludes(
+      sourceLabel,
+      source,
+      snippet,
+      "Cmd/Ctrl+K must expose the same child-page workflow as /page."
     );
   }
 
@@ -207,6 +251,7 @@ function run() {
         file_workflow_entrypoints: 3,
         page_command_opens_new_page: true,
         page_command_seeds_child_page: true,
+        cmdk_child_page_command: true,
         local_only: true,
       },
       null,
