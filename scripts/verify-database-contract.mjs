@@ -423,6 +423,24 @@ function run() {
     );
   }
   for (const snippet of [
+    "DatabaseViewActionsButton",
+    "handleRenameView",
+    "handleDuplicateView",
+    "handleDeleteView",
+    "deleteView",
+    "复制视图",
+    "删除视图",
+    "至少保留一个视图",
+    "不会删除任何行或页面",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database view tabs must expose local rename, duplicate, and protected delete actions."
+    );
+  }
+  for (const snippet of [
     '| "email"',
     '| "phone"',
     '| "multi_select"',
@@ -1491,6 +1509,7 @@ function run() {
         import_export_readiness: true,
         feed_field_context: true,
         view_rule_controls: true,
+        view_management: true,
         local_rollup_fields: true,
         database_workbench: true,
       },

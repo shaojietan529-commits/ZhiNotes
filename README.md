@@ -315,6 +315,9 @@ Current local actions:
   contains filters, multiple sort rules, visible properties, and chart grouping
   are stored in each local view config. Older single-filter/single-sort view
   configs remain compatible and open as one rule.
+- Manage local database views from each view tab: rename a view, duplicate its
+  current config into a copy, or soft-delete a non-final view without deleting
+  any rows, pages, files, or field values.
 - Use local database fields for text, number, formula, rollup, relation,
   select, multi-select, status, date, checkbox, URL, email, phone, unique ID,
   created time, and last edited time values. Table and form views use native

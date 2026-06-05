@@ -20,6 +20,7 @@ import {
   updateRow,
   deleteRow,
   deleteField,
+  deleteView,
   updateField,
   addView,
   updateView,
@@ -303,6 +304,53 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       reload();
     },
     [databaseId, reload]
+  );
+
+  const handleRenameView = useCallback(
+    async (view: DatabaseView, name: string) => {
+      const nextName = name.trim();
+      if (!nextName) return;
+      await updateView(view.id, { name: nextName });
+      reload();
+    },
+    [reload]
+  );
+
+  const handleDuplicateView = useCallback(
+    async (view: DatabaseView) => {
+      const sourceName = getDatabaseViewDisplayName(view);
+      const copiedView = await addView(databaseId, {
+        name: `${sourceName} 副本`,
+        viewType: view.view_type,
+      });
+      await updateView(copiedView.id, { config: view.config });
+      setActiveViewId(copiedView.id);
+      applyViewConfig(view.config);
+      reload();
+    },
+    [applyViewConfig, databaseId, reload]
+  );
+
+  const handleDeleteView = useCallback(
+    async (view: DatabaseView) => {
+      if (views.length <= 1) {
+        window.alert("至少保留一个视图。");
+        return;
+      }
+      const ok = window.confirm(
+        `要删除视图「${getDatabaseViewDisplayName(view)}」吗？这只会删除当前数据库的视图配置，不会删除任何行或页面。`
+      );
+      if (!ok) return;
+
+      const nextView = views.find((item) => item.id !== view.id) ?? null;
+      await deleteView(view.id);
+      if (activeViewId === view.id) {
+        setActiveViewId(nextView?.id ?? null);
+        if (nextView) applyViewConfig(nextView.config);
+      }
+      reload();
+    },
+    [activeViewId, applyViewConfig, reload, views]
   );
 
   const handleOpenRow = useCallback(
@@ -594,29 +642,41 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       {/* View tabs + add view */}
       <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-zinc-700 mb-4">
         {views.map((view) => (
-          <button
+          <span
             key={view.id}
-            onClick={() => {
-              setActiveViewId(view.id);
-              applyViewConfig(view.config);
-            }}
-            className={`px-3 py-1.5 text-sm rounded-t-md transition-colors ${
+            className={`inline-flex items-center rounded-t-md transition-colors ${
               activeView?.id === view.id
                 ? "bg-white dark:bg-zinc-800 border border-b-0 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-medium -mb-px"
                 : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
             }`}
           >
-            {view.view_type === "table" && "⊞ "}
-            {view.view_type === "list" && "☰ "}
-            {view.view_type === "kanban" && "▥ "}
-            {view.view_type === "calendar" && "📅 "}
-            {view.view_type === "gallery" && "▦ "}
-            {view.view_type === "timeline" && "↔ "}
-            {view.view_type === "chart" && "▤ "}
-            {view.view_type === "form" && "□ "}
-            {view.view_type === "feed" && "☷ "}
-            {getDatabaseViewDisplayName(view)}
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveViewId(view.id);
+                applyViewConfig(view.config);
+              }}
+              className="px-3 py-1.5 text-sm"
+            >
+              {view.view_type === "table" && "⊞ "}
+              {view.view_type === "list" && "☰ "}
+              {view.view_type === "kanban" && "▥ "}
+              {view.view_type === "calendar" && "📅 "}
+              {view.view_type === "gallery" && "▦ "}
+              {view.view_type === "timeline" && "↔ "}
+              {view.view_type === "chart" && "▤ "}
+              {view.view_type === "form" && "□ "}
+              {view.view_type === "feed" && "☷ "}
+              {getDatabaseViewDisplayName(view)}
+            </button>
+            <DatabaseViewActionsButton
+              view={view}
+              canDelete={views.length > 1}
+              onRename={handleRenameView}
+              onDuplicate={handleDuplicateView}
+              onDelete={handleDeleteView}
+            />
+          </span>
         ))}
         {/* Add view dropdown */}
         <AddViewButton onAdd={handleAddView} />
@@ -772,6 +832,97 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       )}
       {activeView?.view_type === "feed" && <FeedView {...allFieldViewProps} />}
     </div>
+  );
+}
+
+function DatabaseViewActionsButton({
+  view,
+  canDelete,
+  onRename,
+  onDuplicate,
+  onDelete,
+}: {
+  view: DatabaseView;
+  canDelete: boolean;
+  onRename: (view: DatabaseView, name: string) => void;
+  onDuplicate: (view: DatabaseView) => void;
+  onDelete: (view: DatabaseView) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(getDatabaseViewDisplayName(view));
+
+  const handleRename = () => {
+    const nextName = name.trim();
+    if (!nextName) return;
+    onRename(view, nextName);
+    setOpen(false);
+  };
+
+  return (
+    <span className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="mr-1 rounded px-1 py-1 text-xs text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+        title="视图设置"
+      >
+        ⋯
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          <div className="mb-2 text-[11px] font-medium text-zinc-400">
+            视图设置
+          </div>
+          <label className="block">
+            <span className="mb-1 block text-[11px] text-zinc-500">
+              视图名称
+            </span>
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") handleRename();
+              }}
+              className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+          </label>
+          <div className="mt-3 grid gap-1">
+            <button
+              type="button"
+              onClick={handleRename}
+              className="rounded px-2 py-1.5 text-left text-xs text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              保存名称
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onDuplicate(view);
+                setOpen(false);
+              }}
+              className="rounded px-2 py-1.5 text-left text-xs text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              复制视图
+            </button>
+            <button
+              type="button"
+              disabled={!canDelete}
+              onClick={() => {
+                onDelete(view);
+                setOpen(false);
+              }}
+              className="rounded px-2 py-1.5 text-left text-xs text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-zinc-300 dark:hover:bg-red-950 dark:disabled:text-zinc-600"
+            >
+              删除视图
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] leading-5 text-zinc-400">
+            这些动作只修改当前数据库的 view config，不会删除行、页面或文件。
+          </p>
+        </div>
+      )}
+    </span>
   );
 }
 
