@@ -323,6 +323,9 @@ Current local actions:
 - Duplicate local database fields from full database pages or inline databases.
   Field duplicate copies the field name, type, and configuration into a new
   local field, but does not copy existing row values.
+- Add local field descriptions from field settings in full database pages or
+  inline databases. Field descriptions document property definitions and
+  research assumptions without reading or changing row values.
 - Duplicate local database rows from table, list, kanban, calendar, gallery,
   timeline, feed, and inline database views. Row duplicate creates a new local
   row/page with the source row title and field values, but it intentionally

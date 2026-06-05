@@ -152,6 +152,7 @@ function run() {
     "getDatabaseNumberFormat",
     "getDatabaseFormulaExpression",
     "getDatabaseRollupConfig",
+    "getDatabaseFieldDescription",
     'fieldType === "multi_select"',
     'fieldType === "number"',
     'fieldType === "formula"',
@@ -518,6 +519,37 @@ function run() {
       inlineDatabaseNode,
       snippet,
       "Inline database field settings must support local field config duplication without copying row values."
+    );
+  }
+  for (const snippet of [
+    "getDatabaseFieldDescription",
+    "description",
+  ]) {
+    assertIncludes(
+      files.databaseFields,
+      databaseFields,
+      snippet,
+      "Database field config helpers must preserve optional field descriptions."
+    );
+  }
+  for (const snippet of [
+    "getDatabaseFieldDescription",
+    "fieldDescription",
+    "字段说明",
+    "只保存字段",
+    "description",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Full database field settings must support local field descriptions."
+    );
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline database field settings must support local field descriptions."
     );
   }
   for (const snippet of [
@@ -1613,6 +1645,7 @@ function run() {
         view_management: true,
         row_duplicate_actions: true,
         field_duplicate_actions: true,
+        field_descriptions: true,
         delete_confirmations: true,
         local_rollup_fields: true,
         database_workbench: true,

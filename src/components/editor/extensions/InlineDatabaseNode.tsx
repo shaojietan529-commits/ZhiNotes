@@ -47,6 +47,7 @@ import {
   buildFieldConfig,
   DATABASE_FIELD_TYPES,
   formatFieldOptions,
+  getDatabaseFieldDescription,
   isSelectLikeFieldType,
 } from "@/lib/database/fields";
 import {
@@ -334,31 +335,40 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
         {/* Field bar */}
         <div className="flex items-center gap-2 px-4 py-2 flex-wrap border-b border-zinc-100 dark:border-zinc-800">
           <span className="text-[10px] text-zinc-400">字段：</span>
-          {fields.map((field) => (
-            <span
-              key={field.id}
-              className="inline-flex items-center gap-1 text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded px-1.5 py-0.5"
-            >
-              {getDatabaseFieldDisplayName(field)}
-              <span className="text-zinc-400">
-                ({getDatabaseFieldTypeLabel(field.field_type)})
+          {fields.map((field) => {
+            const fieldDescription = getDatabaseFieldDescription(field);
+            return (
+              <span
+                key={field.id}
+                title={fieldDescription || undefined}
+                className="inline-flex items-center gap-1 text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded px-1.5 py-0.5"
+              >
+                {getDatabaseFieldDisplayName(field)}
+                <span className="text-zinc-400">
+                  ({getDatabaseFieldTypeLabel(field.field_type)})
+                </span>
+                {fieldDescription && (
+                  <span className="rounded bg-white px-1 text-[9px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+                    说明
+                  </span>
+                )}
+                <InlineFieldSettingsButton
+                  field={field}
+                  onUpdate={handleUpdateField}
+                  onDuplicate={handleDuplicateField}
+                />
+                {field.position !== 0 && (
+                  <button
+                    onClick={() => handleDeleteField(field.id)}
+                    className="text-zinc-400 hover:text-red-500 ml-0.5"
+                    title="删除字段"
+                  >
+                    x
+                  </button>
+                )}
               </span>
-              <InlineFieldSettingsButton
-                field={field}
-                onUpdate={handleUpdateField}
-                onDuplicate={handleDuplicateField}
-              />
-              {field.position !== 0 && (
-                <button
-                  onClick={() => handleDeleteField(field.id)}
-                  className="text-zinc-400 hover:text-red-500 ml-0.5"
-                  title="删除字段"
-                >
-                  x
-                </button>
-              )}
-            </span>
-          ))}
+            );
+          })}
           <InlineAddFieldButton onAdd={handleAddField} />
           <InlineTemplateRowButton
             fields={fields}
@@ -423,12 +433,16 @@ function InlineFieldSettingsButton({
   const [name, setName] = useState(getDatabaseFieldDisplayName(field));
   const [type, setType] = useState(field.field_type);
   const [options, setOptions] = useState(formatFieldOptions(field));
+  const [fieldDescription, setFieldDescription] = useState(
+    getDatabaseFieldDescription(field)
+  );
   const isTitleField = field.position === 0;
 
   useEffect(() => {
     setName(getDatabaseFieldDisplayName(field));
     setType(field.field_type);
     setOptions(formatFieldOptions(field));
+    setFieldDescription(getDatabaseFieldDescription(field));
   }, [field]);
 
   const handleSave = () => {
@@ -436,7 +450,15 @@ function InlineFieldSettingsButton({
     onUpdate(field.id, {
       name: name.trim() || getDatabaseFieldDisplayName(field),
       field_type: nextType,
-      config: buildFieldConfig(nextType, options),
+      config: buildFieldConfig(
+        nextType,
+        options,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        fieldDescription
+      ),
     });
     setOpen(false);
   };
@@ -485,6 +507,21 @@ function InlineFieldSettingsButton({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="mt-2 block">
+            <span className="mb-1 block text-[10px] font-medium text-zinc-500">
+              字段说明
+            </span>
+            <textarea
+              value={fieldDescription}
+              onChange={(event) => setFieldDescription(event.target.value)}
+              rows={3}
+              placeholder="写字段口径说明"
+              className="w-full resize-none rounded border border-zinc-200 bg-white px-2 py-1 text-[11px] leading-5 text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+            <span className="mt-1 block text-[10px] text-zinc-400">
+              只保存字段说明，不读取或改写行值。
+            </span>
           </label>
           {isSelectLikeFieldType(type) && (
             <label className="mt-2 block">

@@ -82,6 +82,19 @@ export function formatFieldOptions(field: Pick<DatabaseField, "config">) {
   return getFieldOptions(field).join(", ");
 }
 
+export function getDatabaseFieldDescription(
+  field: Pick<DatabaseField, "config">
+) {
+  try {
+    const config = field.config ? JSON.parse(field.config) : {};
+    return typeof config.description === "string"
+      ? config.description.trim()
+      : "";
+  } catch {
+    return "";
+  }
+}
+
 export function getDatabaseNumberFormat(
   field: Pick<DatabaseField, "config">
 ): DatabaseNumberFormat {
@@ -135,38 +148,63 @@ export function buildFieldConfig(
   numberFormat: string = DEFAULT_DATABASE_NUMBER_FORMAT,
   formulaExpression: string = "",
   rollupRelationFieldId: string = "",
-  rollupAggregation: string = DEFAULT_DATABASE_ROLLUP_AGGREGATION
+  rollupAggregation: string = DEFAULT_DATABASE_ROLLUP_AGGREGATION,
+  description: string = ""
 ) {
   if (isSelectLikeFieldType(fieldType)) {
-    return JSON.stringify({ options: parseSelectOptions(optionsText) });
+    return stringifyFieldConfig(
+      { options: parseSelectOptions(optionsText) },
+      description
+    );
   }
   if (fieldType === "rollup") {
-    return JSON.stringify({
-      relationFieldId: rollupRelationFieldId,
-      aggregation: isDatabaseRollupAggregation(rollupAggregation)
-        ? rollupAggregation
-        : DEFAULT_DATABASE_ROLLUP_AGGREGATION,
-    });
+    return stringifyFieldConfig(
+      {
+        relationFieldId: rollupRelationFieldId,
+        aggregation: isDatabaseRollupAggregation(rollupAggregation)
+          ? rollupAggregation
+          : DEFAULT_DATABASE_ROLLUP_AGGREGATION,
+      },
+      description
+    );
   }
   if (fieldType === "formula") {
-    return JSON.stringify({
-      formula: formulaExpression.trim(),
-      numberFormat: isDatabaseNumberFormat(numberFormat)
-        ? numberFormat
-        : DEFAULT_DATABASE_NUMBER_FORMAT,
-    });
+    return stringifyFieldConfig(
+      {
+        formula: formulaExpression.trim(),
+        numberFormat: isDatabaseNumberFormat(numberFormat)
+          ? numberFormat
+          : DEFAULT_DATABASE_NUMBER_FORMAT,
+      },
+      description
+    );
   }
   if (
     fieldType === "number" &&
     numberFormat !== DEFAULT_DATABASE_NUMBER_FORMAT
   ) {
-    return JSON.stringify({
-      numberFormat: isDatabaseNumberFormat(numberFormat)
-        ? numberFormat
-        : DEFAULT_DATABASE_NUMBER_FORMAT,
-    });
+    return stringifyFieldConfig(
+      {
+        numberFormat: isDatabaseNumberFormat(numberFormat)
+          ? numberFormat
+          : DEFAULT_DATABASE_NUMBER_FORMAT,
+      },
+      description
+    );
   }
-  return null;
+  return stringifyFieldConfig({}, description);
+}
+
+function stringifyFieldConfig(
+  config: Record<string, unknown>,
+  description: string
+) {
+  const nextConfig = { ...config };
+  const nextDescription = description.trim();
+  if (nextDescription) {
+    nextConfig.description = nextDescription;
+  }
+  return Object.keys(nextConfig).length > 0 ? JSON.stringify(nextConfig) : null;
 }
 
 function isDatabaseNumberFormat(value: unknown): value is DatabaseNumberFormat {

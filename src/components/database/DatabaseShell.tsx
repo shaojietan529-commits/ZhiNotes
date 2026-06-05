@@ -69,6 +69,7 @@ import {
   DATABASE_NUMBER_FORMATS,
   DATABASE_ROLLUP_AGGREGATIONS,
   formatFieldOptions,
+  getDatabaseFieldDescription,
   getDatabaseFormulaExpression,
   getDatabaseNumberFormat,
   getDatabaseRollupConfig,
@@ -752,32 +753,41 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       {/* Field management bar */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="text-xs text-zinc-400">字段：</span>
-        {fields.map((field) => (
-          <span
-            key={field.id}
-            className="inline-flex items-center gap-1 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded px-2 py-0.5"
-          >
-            {getDatabaseFieldDisplayName(field)}
-            <span className="text-zinc-400 dark:text-zinc-500">
-              ({getDatabaseFieldTypeLabel(field.field_type)})
+        {fields.map((field) => {
+          const fieldDescription = getDatabaseFieldDescription(field);
+          return (
+            <span
+              key={field.id}
+              title={fieldDescription || undefined}
+              className="inline-flex items-center gap-1 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded px-2 py-0.5"
+            >
+              {getDatabaseFieldDisplayName(field)}
+              <span className="text-zinc-400 dark:text-zinc-500">
+                ({getDatabaseFieldTypeLabel(field.field_type)})
+              </span>
+              {fieldDescription && (
+                <span className="rounded bg-white px-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+                  说明
+                </span>
+              )}
+              <FieldSettingsButton
+                field={field}
+                fields={fields}
+                onUpdate={handleUpdateField}
+                onDuplicate={handleDuplicateField}
+              />
+              {field.position !== 0 && (
+                <button
+                  onClick={() => handleDeleteField(field.id)}
+                  className="text-zinc-400 hover:text-red-500 ml-0.5"
+                  title="删除字段"
+                >
+                  x
+                </button>
+              )}
             </span>
-            <FieldSettingsButton
-              field={field}
-              fields={fields}
-              onUpdate={handleUpdateField}
-              onDuplicate={handleDuplicateField}
-            />
-            {field.position !== 0 && (
-              <button
-                onClick={() => handleDeleteField(field.id)}
-                className="text-zinc-400 hover:text-red-500 ml-0.5"
-                title="删除字段"
-              >
-                x
-              </button>
-            )}
-          </span>
-        ))}
+          );
+        })}
         <AddFieldButton fields={fields} onAdd={handleAddField} />
         <DatabaseTemplateButton fields={fields} onSelect={handleAddTemplateRow} />
       </div>
@@ -1954,6 +1964,9 @@ function FieldSettingsButton({
   const [name, setName] = useState(getDatabaseFieldDisplayName(field));
   const [type, setType] = useState(field.field_type);
   const [options, setOptions] = useState(formatFieldOptions(field));
+  const [fieldDescription, setFieldDescription] = useState(
+    getDatabaseFieldDescription(field)
+  );
   const [numberFormat, setNumberFormat] = useState<string>(
     getDatabaseNumberFormat(field)
   );
@@ -1976,6 +1989,7 @@ function FieldSettingsButton({
     setName(getDatabaseFieldDisplayName(field));
     setType(field.field_type);
     setOptions(formatFieldOptions(field));
+    setFieldDescription(getDatabaseFieldDescription(field));
     setNumberFormat(getDatabaseNumberFormat(field));
     setFormulaExpression(getDatabaseFormulaExpression(field));
     setRollupRelationFieldId(getDatabaseRollupConfig(field).relationFieldId);
@@ -1996,7 +2010,8 @@ function FieldSettingsButton({
         numberFormat,
         formulaExpression,
         nextRollupRelationFieldId,
-        rollupAggregation
+        rollupAggregation,
+        fieldDescription
       ),
     });
     setOpen(false);
@@ -2068,6 +2083,21 @@ function FieldSettingsButton({
                 名称字段负责打开页面，类型固定为文本。
               </span>
             )}
+          </label>
+          <label className="mt-3 block">
+            <span className="mb-1 block text-[11px] font-medium text-zinc-500">
+              字段说明
+            </span>
+            <textarea
+              value={fieldDescription}
+              onChange={(event) => setFieldDescription(event.target.value)}
+              rows={3}
+              placeholder="例如：目标价使用 12 个月 base case；催化剂日期使用事件预期发生日。"
+              className="w-full resize-none rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs leading-5 text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+            <span className="mt-1 block text-[11px] text-zinc-400">
+              只保存字段口径说明，不读取或改写任何行值。
+            </span>
           </label>
           {isSelectLikeFieldType(type) && (
             <label className="mt-3 block">
