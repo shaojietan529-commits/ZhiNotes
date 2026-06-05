@@ -23,6 +23,7 @@ interface CalendarViewProps {
 export default function CalendarView({
   fields,
   rows,
+  onDeleteRow,
   onDuplicateRow,
   onOpenRow,
   dateFieldId = "",
@@ -56,19 +57,17 @@ export default function CalendarView({
     if (!dateField) return map;
 
     for (const row of rows) {
-      const fieldValues: Record<string, unknown> =
-        typeof row.field_values === "string"
-          ? JSON.parse(row.field_values || "{}")
-          : row.field_values || {};
-      const dateVal = isDatabaseSystemField(dateField)
-        ? getDatabaseSystemFieldDateKey(row, dateField)
-        : (fieldValues[dateField.id] as string);
+      const dateVal = getCalendarRowDateValue(row, dateField);
       if (dateVal) {
         if (!map[dateVal]) map[dateVal] = [];
         map[dateVal].push(row);
       }
     }
     return map;
+  }, [rows, dateField]);
+  const rowsWithoutDate = useMemo(() => {
+    if (!dateField) return [];
+    return rows.filter((row) => !getCalendarRowDateValue(row, dateField));
   }, [rows, dateField]);
 
   const prevMonth = () =>
@@ -198,6 +197,64 @@ export default function CalendarView({
           );
         })}
       </div>
+      {rowsWithoutDate.length > 0 && (
+        <section className="mt-3 rounded-lg border border-dashed border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-700 dark:bg-zinc-900/60">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h4 className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+              无日期
+            </h4>
+            <span className="text-[11px] text-zinc-400">
+              {rowsWithoutDate.length} 行
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {rowsWithoutDate.map((row) => (
+              <span
+                key={row.id}
+                className="group/event inline-flex max-w-full items-center gap-1 rounded bg-white px-2 py-1 text-xs text-zinc-600 shadow-sm dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                <button
+                  type="button"
+                  onClick={() => onOpenRow(row.page_id)}
+                  className="min-w-0 truncate text-left hover:text-blue-600 dark:hover:text-blue-300"
+                >
+                  {row.page?.title || "未命名页面"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDuplicateRow(row.id)}
+                  className="hidden shrink-0 text-[10px] text-zinc-400 hover:text-zinc-700 group-hover/event:inline dark:hover:text-zinc-100"
+                  title="复制行：只复制本地字段值，不复制页面正文"
+                >
+                  复制
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDeleteRow(row.id)}
+                  className="hidden shrink-0 text-[10px] text-zinc-400 hover:text-red-500 group-hover/event:inline"
+                  title="删除行"
+                >
+                  删除
+                </button>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
+}
+
+function getCalendarRowDateValue(
+  row: DatabaseRow & { page: Page },
+  dateField: DatabaseField
+) {
+  if (isDatabaseSystemField(dateField)) {
+    return getDatabaseSystemFieldDateKey(row, dateField);
+  }
+  const fieldValues: Record<string, unknown> =
+    typeof row.field_values === "string"
+      ? JSON.parse(row.field_values || "{}")
+      : row.field_values || {};
+  return String(fieldValues[dateField.id] ?? "");
 }

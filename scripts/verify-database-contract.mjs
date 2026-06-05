@@ -835,6 +835,19 @@ function run() {
       );
     }
   }
+  for (const snippet of [
+    "rowsWithoutDate",
+    "getCalendarRowDateValue",
+    "无日期",
+    "onDeleteRow(row.id)",
+  ]) {
+    assertIncludes(
+      files.calendarView,
+      calendarView,
+      snippet,
+      "Calendar views must keep rows without the selected date field visible locally."
+    );
+  }
   assertIncludes(
     files.databaseExport,
     databaseExport,
@@ -1855,6 +1868,7 @@ function run() {
         view_grouping: true,
         kanban_saved_grouping: true,
         date_view_field_selection: true,
+        calendar_no_date_rows: true,
         view_management: true,
         view_reordering: true,
         row_reordering: true,
