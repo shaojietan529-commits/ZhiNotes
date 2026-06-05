@@ -44,6 +44,8 @@ const files = {
   syncPushRoute: "src/app/api/sync/push/route.ts",
   syncPullApiStub: "src/lib/sync/syncPullApiStub.ts",
   syncPullRoute: "src/app/api/sync/pull/route.ts",
+  cloudMigrationApplyApiStub: "src/lib/sync/cloudMigrationApplyApiStub.ts",
+  cloudMigrationApplyRoute: "src/app/api/cloud/migrations/apply/route.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -261,6 +263,12 @@ function run() {
   const syncPushRoute = readProjectFile(files.syncPushRoute);
   const syncPullApiStub = readProjectFile(files.syncPullApiStub);
   const syncPullRoute = readProjectFile(files.syncPullRoute);
+  const cloudMigrationApplyApiStub = readProjectFile(
+    files.cloudMigrationApplyApiStub
+  );
+  const cloudMigrationApplyRoute = readProjectFile(
+    files.cloudMigrationApplyRoute
+  );
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -324,6 +332,8 @@ function run() {
     [files.syncPushRoute, syncPushRoute],
     [files.syncPullApiStub, syncPullApiStub],
     [files.syncPullRoute, syncPullRoute],
+    [files.cloudMigrationApplyApiStub, cloudMigrationApplyApiStub],
+    [files.cloudMigrationApplyRoute, cloudMigrationApplyRoute],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
     [files.auditEventEnvelope, auditEventEnvelope],
@@ -419,6 +429,12 @@ function run() {
       assertRouteGuard(
         routeFile,
         "buildSyncPullApiDisabledResponse",
+        routeLabel
+      );
+    } else if (stub.id === "cloud-migration-apply") {
+      assertRouteGuard(
+        routeFile,
+        "buildCloudMigrationApplyApiDisabledResponse",
         routeLabel
       );
     } else if (stub.id === "file-presign") {
@@ -2150,6 +2166,144 @@ function run() {
   ]) {
     assertSourceIncludes(files.deploymentTarget, deploymentTarget, snippet, message);
   }
+  assertSourceIncludes(
+    files.cloudMigrationApplyApiStub,
+    cloudMigrationApplyApiStub,
+    'format: "zhinote-cloud-migration-apply-api-disabled"',
+    "Cloud migration apply API guard must expose a stable disabled response format."
+  );
+  assertSourceIncludes(
+    files.cloudMigrationApplyApiStub,
+    cloudMigrationApplyApiStub,
+    "buildCloudMigrationApplyApiDisabledResponse",
+    "Cloud migration apply API guard must expose a reusable disabled response builder."
+  );
+  for (const item of [
+    ['api_id: "cloud-migration-apply"', "Cloud migration apply API guard must identify the migration route."],
+    ['path: "/api/cloud/migrations/apply"', "Cloud migration apply API guard must bind to migration apply path."],
+    ['method: "POST"', "Cloud migration apply API guard must document POST."],
+    ['stub_status: "disabled-local-stub"', "Cloud migration apply API guard must stay disabled."],
+    ["can_apply_migration_now: false", "Cloud migration apply API guard must not apply migrations."],
+    ["can_read_request_body_now: false", "Cloud migration apply API guard must not read request bodies."],
+    ["can_read_sql_payload_now: false", "Cloud migration apply API guard must not read SQL."],
+    ["can_connect_database_now: false", "Cloud migration apply API guard must not connect databases."],
+    ["can_write_server_data_now: false", "Cloud migration apply API guard must not write server data."],
+    ["can_create_cloud_resources_now: false", "Cloud migration apply API guard must not create cloud resources."],
+    ["can_read_secret_values_now: false", "Cloud migration apply API guard must not read secrets."],
+    ["no_request_argument: true", "Cloud migration apply API guard must not accept a request argument."],
+    ["endpoint_disabled: true", "Cloud migration apply API guard must preserve disabled endpoint boundary."],
+    ["reads_request_body: false", "Cloud migration apply API guard must keep body reads disabled."],
+    ["reads_sql_payload: false", "Cloud migration apply API guard must not read SQL payloads."],
+    ["accepts_migration_sql: false", "Cloud migration apply API guard must not accept SQL."],
+    ["applies_migration: false", "Cloud migration apply API guard must not apply SQL."],
+    ["connects_database: false", "Cloud migration apply API guard must not connect databases."],
+    ["creates_cloud_resources: false", "Cloud migration apply API guard must not create resources."],
+    ["writes_server_data: false", "Cloud migration apply API guard must not write server data."],
+    ["uploads_workspace_data: false", "Cloud migration apply API guard must not upload workspace data."],
+    ["returns_database_url: false", "Cloud migration apply API guard must not return DB URLs."],
+    ["returns_service_role_key: false", "Cloud migration apply API guard must not return service keys."],
+    ["requires_owner_approval_before_enablement: true", "Cloud migration apply API guard must require owner approval."],
+    ["requires_disposable_replay_before_enablement: true", "Cloud migration apply API guard must require disposable replay."],
+    ["requires_down_migration_before_enablement: true", "Cloud migration apply API guard must require down migration."],
+    ["requires_rls_proof_before_enablement: true", "Cloud migration apply API guard must require RLS proof."],
+    ["requires_backup_snapshot_before_enablement: true", "Cloud migration apply API guard must require backup snapshot."],
+    ["requires_migration_lock_before_enablement: true", "Cloud migration apply API guard must require migration lock."],
+    ["requires_audit_event_before_enablement: true", "Cloud migration apply API guard must require audit events."],
+    ["requires_deployment_gate_before_enablement: true", "Cloud migration apply API guard must require deployment gate."],
+    ['schema_status: "planned-metadata-only"', "Cloud migration apply API guard must expose metadata-only request schema."],
+    ['schema_status: "planned-migration-receipt-only"', "Cloud migration apply API guard must expose migration receipt response schema."],
+    ['format: "zhinote-cloud-migration-apply-api-validator-fixtures"', "Cloud migration apply API guard must include validator fixtures."],
+    ['validator_status: "not-executing-route"', "Cloud migration apply validator must not execute the route."],
+    '"metadata-cloud-migration-apply-request"',
+    '"sql-payload-blocked"',
+    '"credential-fields-blocked"',
+    '"workspace-content-blocked"',
+    '"destructive-flags-blocked"',
+    "forbidden_field_names",
+    "forbidden_fields_covered",
+    "migration_sql",
+    "down_migration_sql",
+    "sql_payload",
+    "database_url",
+    "service_role_key",
+    "secret_values",
+    "drop_tables",
+    "disable_rls",
+    "create_cloud_project",
+    '"owner-approval"',
+    '"disposable-replay"',
+    '"down-migration"',
+    '"rls-proof"',
+    '"backup-snapshot"',
+    '"migration-lock"',
+    '"audit-event"',
+    '"deployment-gate"',
+  ]) {
+    const expected = Array.isArray(item) ? item[0] : item;
+    const message = Array.isArray(item)
+      ? item[1]
+      : "Cloud migration apply API guard must preserve schema, fixtures, and enablement gates.";
+    assertSourceIncludes(
+      files.cloudMigrationApplyApiStub,
+      cloudMigrationApplyApiStub,
+      expected,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.cloudMigrationApplyRoute,
+    cloudMigrationApplyRoute,
+    "buildCloudMigrationApplyApiDisabledResponse",
+    "Cloud migration apply route must return the dedicated disabled response."
+  );
+  assertSourceIncludes(
+    files.cloudMigrationApplyRoute,
+    cloudMigrationApplyRoute,
+    "WEB_BETA_API_STUB_HTTP_STATUS",
+    "Cloud migration apply route must keep the disabled Web Beta HTTP status."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildCloudMigrationApplyApiDisabledResponse",
+    "Sync UI must build the cloud migration apply API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportCloudMigrationApplyApiGuard",
+    "Sync UI must export the cloud migration apply API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "云迁移应用 API 防护",
+    "Sync UI must render the cloud migration apply API guard panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "导出迁移防护",
+    "Sync UI must render the cloud migration apply API guard export button."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "value={cloudMigrationApplyApiGuard.format}",
+    "Sync UI must render the cloud migration apply disabled response format."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "CloudMigrationApplyApiFixtureRow",
+    "Sync UI must render cloud migration apply validator fixtures."
+  );
+  assertSourceIncludes(
+    files.smokeTestVerifier,
+    smokeTestVerifier,
+    "buildCloudMigrationApplyApiDisabledResponse",
+    "Smoke tests must require the dedicated cloud migration apply disabled response."
+  );
   assertSourceIncludes(
     files.contract,
     contract,

@@ -170,6 +170,11 @@ import {
   type WebBetaDeploymentTarget,
 } from "@/lib/sync/webBetaDeploymentTarget";
 import {
+  buildCloudMigrationApplyApiDisabledResponse,
+  type CloudMigrationApplyApiDisabledResponse,
+  type CloudMigrationApplyApiValidationStatus,
+} from "@/lib/sync/cloudMigrationApplyApiStub";
+import {
   buildWebBetaSmokeTestPlan,
   type WebBetaSmokeTestPlan,
   type WebBetaSmokeTestStatus,
@@ -359,6 +364,7 @@ type WebBetaContractAction =
   | "account-session"
   | "high-risk-registry"
   | "migration-sql"
+  | "cloud-migration-api-guard"
   | "next-actions"
   | "stage-gate"
   | "deployment-target"
@@ -1066,6 +1072,10 @@ function SyncDashboard() {
       cloudSchemaMigrationPlan,
       permissionDecisionReport,
     ]
+  );
+  const cloudMigrationApplyApiGuard = useMemo(
+    () => buildCloudMigrationApplyApiDisabledResponse(),
+    []
   );
   const webBetaDeploymentTarget = useMemo(
     () => buildWebBetaDeploymentTarget(),
@@ -2718,6 +2728,27 @@ function SyncDashboard() {
       window.alert(
         "Cloud migration SQL draft export failed. Please check the console."
       );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportCloudMigrationApplyApiGuard = () => {
+    setBusyContractAction("cloud-migration-api-guard");
+    try {
+      downloadJsonFile(
+        `zhinote-cloud-migration-apply-api-disabled-${fileSafeTimestamp()}.json`,
+        {
+          ...cloudMigrationApplyApiGuard,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export cloud migration apply API guard:",
+        err
+      );
+      window.alert("云迁移应用 API 防护导出失败，请查看控制台。");
     } finally {
       setBusyContractAction(null);
     }
@@ -6154,6 +6185,132 @@ function SyncDashboard() {
                 ))}
               </div>
             </div>
+          </ContractPanel>
+
+          <ContractPanel title="云迁移应用 API 防护" className="mt-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                `/api/cloud/migrations/apply` 的专用关闭响应。它把未来迁移应用拆成
+                metadata-only 请求、migration receipt、本地 fixture 和启用门槛；当前 route
+                仍拒绝读取 SQL、连接数据库、应用迁移、写 server、创建云资源、读取 secrets 或返回数据库凭证。
+              </p>
+              <button
+                type="button"
+                onClick={handleExportCloudMigrationApplyApiGuard}
+                disabled={busyContractAction === "cloud-migration-api-guard"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyContractAction === "cloud-migration-api-guard"
+                  ? "导出中..."
+                  : "导出迁移防护"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-7">
+              <CloudMigrationApplyApiSummaryCard
+                label="格式"
+                value={cloudMigrationApplyApiGuard.format}
+                detail="专用响应"
+                status="accepted"
+              />
+              <CloudMigrationApplyApiSummaryCard
+                label="HTTP"
+                value={
+                  cloudMigrationApplyApiGuard.disabled_response_contract
+                    .http_status
+                }
+                detail="关闭状态"
+                status="rejected"
+              />
+              <CloudMigrationApplyApiSummaryCard
+                label="SQL"
+                value={
+                  cloudMigrationApplyApiGuard.can_read_sql_payload_now
+                    ? "是"
+                    : "否"
+                }
+                detail="不读取 SQL"
+                status="rejected"
+              />
+              <CloudMigrationApplyApiSummaryCard
+                label="数据库"
+                value={
+                  cloudMigrationApplyApiGuard.can_connect_database_now
+                    ? "是"
+                    : "否"
+                }
+                detail="不连接"
+                status="rejected"
+              />
+              <CloudMigrationApplyApiSummaryCard
+                label="云资源"
+                value={
+                  cloudMigrationApplyApiGuard.can_create_cloud_resources_now
+                    ? "是"
+                    : "否"
+                }
+                detail="不创建"
+                status="rejected"
+              />
+              <CloudMigrationApplyApiSummaryCard
+                label="禁止字段"
+                value={
+                  cloudMigrationApplyApiGuard.request_schema.forbidden_fields
+                    .length
+                }
+                detail="载荷已阻止"
+                status="rejected"
+              />
+              <CloudMigrationApplyApiSummaryCard
+                label="Fixture 字段"
+                value={
+                  cloudMigrationApplyApiGuard.local_validator_report.summary
+                    .forbidden_fields_covered
+                }
+                detail="本地覆盖"
+                status="rejected"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+              <ContractPanel title="请求结构">
+                <div className="space-y-2">
+                  {cloudMigrationApplyApiGuard.request_schema.allowed_fields
+                    .slice(0, 6)
+                    .map((field) => (
+                      <CloudMigrationApplyApiFieldRow
+                        key={field.field}
+                        field={field}
+                      />
+                    ))}
+                  {cloudMigrationApplyApiGuard.request_schema.forbidden_fields
+                    .slice(0, 6)
+                    .map((field) => (
+                      <CloudMigrationApplyApiFieldRow
+                        key={field.field}
+                        field={field}
+                      />
+                    ))}
+                </div>
+              </ContractPanel>
+              <ContractPanel title="Fixture 检查">
+                <div className="space-y-2">
+                  {cloudMigrationApplyApiGuard.local_validator_report.fixtures.map(
+                    (fixture) => (
+                      <CloudMigrationApplyApiFixtureRow
+                        key={fixture.id}
+                        fixture={fixture}
+                      />
+                    )
+                  )}
+                </div>
+              </ContractPanel>
+            </div>
+            <ContractPanel title="启用门槛" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                {cloudMigrationApplyApiGuard.enablement_gates.map((gate) => (
+                  <CloudMigrationApplyApiGateRow key={gate.id} gate={gate} />
+                ))}
+              </div>
+            </ContractPanel>
           </ContractPanel>
 
           <ContractPanel title="环境预检" className="mt-4">
@@ -9901,6 +10058,108 @@ function RestoreWritebackGateRow({
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function CloudMigrationApplyApiSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: CloudMigrationApplyApiValidationStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <RestoreApplyApiValidationPill status={status} />
+      </div>
+      <div className="mt-2 break-all text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function CloudMigrationApplyApiFieldRow({
+  field,
+}: {
+  field: CloudMigrationApplyApiDisabledResponse["request_schema"]["allowed_fields"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+          {field.field}
+        </div>
+        <RestoreApplyApiFieldStatusPill status={field.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {field.reason}
+      </p>
+    </article>
+  );
+}
+
+function CloudMigrationApplyApiFixtureRow({
+  fixture,
+}: {
+  fixture: CloudMigrationApplyApiDisabledResponse["local_validator_report"]["fixtures"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {fixture.id}
+          </div>
+          <div className="mt-1 text-[10px] text-zinc-400">
+            预期 {fixture.expected_status}
+          </div>
+        </div>
+        <RestoreApplyApiValidationPill status={fixture.actual_status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {fixture.reason}
+      </p>
+      {fixture.forbidden_field_names.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+          {fixture.forbidden_field_names.map((fieldName) => (
+            <span
+              key={fieldName}
+              className="rounded-md bg-white px-2 py-1 font-mono text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"
+            >
+              {fieldName}
+            </span>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function CloudMigrationApplyApiGateRow({
+  gate,
+}: {
+  gate: CloudMigrationApplyApiDisabledResponse["enablement_gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {gate.title}
+      </div>
+      <div className="mt-1 font-mono text-[10px] text-zinc-400">
+        {gate.id}
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.required_before_enablement}
       </p>
     </article>
   );
