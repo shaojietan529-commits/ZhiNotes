@@ -272,6 +272,11 @@ import {
   type RestoreWritebackStatus,
 } from "@/lib/sync/restoreWritebackContract";
 import {
+  buildRestorePreviewApiDisabledResponse,
+  type RestorePreviewApiDisabledResponse,
+  type RestorePreviewApiValidationStatus,
+} from "@/lib/sync/restorePreviewApiStub";
+import {
   buildRestoreApplyApiDisabledResponse,
   type RestoreApplyApiDisabledResponse,
   type RestoreApplyApiFieldStatus,
@@ -310,6 +315,7 @@ type SyncQueueAction =
   | "sync-confirmation"
   | "rollback-plan"
   | "restore-writeback"
+  | "restore-preview-api-guard"
   | "restore-apply-api-guard"
   | "restore-confirmation"
   | "replay-test-plan";
@@ -973,6 +979,10 @@ function SyncDashboard() {
       syncReplayTestPlan,
       workspaceIdentity,
     ]
+  );
+  const restorePreviewApiGuard = useMemo(
+    () => buildRestorePreviewApiDisabledResponse(),
+    []
   );
   const restoreApplyApiGuard = useMemo(
     () => buildRestoreApplyApiDisabledResponse(),
@@ -2174,6 +2184,24 @@ function SyncDashboard() {
     } catch (err) {
       console.error("[Zhinote] Failed to export restore rollback plan:", err);
       window.alert("恢复回滚计划导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportRestorePreviewApiGuard = () => {
+    setBusyQueueAction("restore-preview-api-guard");
+    try {
+      downloadJsonFile(
+        `zhinote-restore-preview-api-disabled-${fileSafeTimestamp()}.json`,
+        {
+          ...restorePreviewApiGuard,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export restore preview API guard:", err);
+      window.alert("恢复预览 API 防护导出失败，请查看控制台。");
     } finally {
       setBusyQueueAction(null);
     }
@@ -5236,6 +5264,118 @@ function SyncDashboard() {
               {restorePreviewError}
             </p>
           )}
+          <ContractPanel title="恢复预览 API 防护" className="mt-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                `/api/backup/restore-preview` 的专用关闭响应。当前可用的是上方本地文件预览；
+                服务器 API 仍拒绝读取请求体、接收备份 payload、验证备份包、返回恢复范围或回传页面正文与文件 bytes。
+              </p>
+              <button
+                type="button"
+                onClick={handleExportRestorePreviewApiGuard}
+                disabled={busyQueueAction === "restore-preview-api-guard"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyQueueAction === "restore-preview-api-guard"
+                  ? "导出中..."
+                  : "导出恢复预览防护"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-7">
+              <RestorePreviewApiSummaryCard
+                label="格式"
+                value={restorePreviewApiGuard.format}
+                detail="专用响应"
+                status="accepted"
+              />
+              <RestorePreviewApiSummaryCard
+                label="HTTP"
+                value={restorePreviewApiGuard.disabled_response_contract.http_status}
+                detail="关闭状态"
+                status="rejected"
+              />
+              <RestorePreviewApiSummaryCard
+                label="请求体"
+                value={
+                  restorePreviewApiGuard.can_read_request_body_now ? "是" : "否"
+                }
+                detail="不读取正文"
+                status="rejected"
+              />
+              <RestorePreviewApiSummaryCard
+                label="返回范围"
+                value={
+                  restorePreviewApiGuard.can_return_restore_scope_now
+                    ? "是"
+                    : "否"
+                }
+                detail="只做禁用合同"
+                status="rejected"
+              />
+              <RestorePreviewApiSummaryCard
+                label="允许字段"
+                value={restorePreviewApiGuard.request_schema.allowed_fields.length}
+                detail="未来元数据"
+                status="accepted"
+              />
+              <RestorePreviewApiSummaryCard
+                label="禁止字段"
+                value={restorePreviewApiGuard.request_schema.forbidden_fields.length}
+                detail="载荷已阻止"
+                status="rejected"
+              />
+              <RestorePreviewApiSummaryCard
+                label="Fixture 字段"
+                value={
+                  restorePreviewApiGuard.local_validator_report.summary
+                    .forbidden_fields_covered
+                }
+                detail="本地覆盖"
+                status="rejected"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+              <ContractPanel title="请求结构">
+                <div className="space-y-2">
+                  {restorePreviewApiGuard.request_schema.allowed_fields
+                    .slice(0, 6)
+                    .map((field) => (
+                      <RestorePreviewApiFieldRow
+                        key={field.field}
+                        field={field}
+                      />
+                    ))}
+                  {restorePreviewApiGuard.request_schema.forbidden_fields
+                    .slice(0, 6)
+                    .map((field) => (
+                      <RestorePreviewApiFieldRow
+                        key={field.field}
+                        field={field}
+                      />
+                    ))}
+                </div>
+              </ContractPanel>
+              <ContractPanel title="Fixture 检查">
+                <div className="space-y-2">
+                  {restorePreviewApiGuard.local_validator_report.fixtures.map(
+                    (fixture) => (
+                      <RestorePreviewApiFixtureRow
+                        key={fixture.id}
+                        fixture={fixture}
+                      />
+                    )
+                  )}
+                </div>
+              </ContractPanel>
+            </div>
+            <ContractPanel title="启用门槛" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {restorePreviewApiGuard.enablement_gates.map((gate) => (
+                  <RestorePreviewApiGateRow key={gate.id} gate={gate} />
+                ))}
+              </div>
+            </ContractPanel>
+          </ContractPanel>
           {restorePreview && (
             <RestorePreviewPanel
               fileName={restoreFileName}
@@ -9503,6 +9643,108 @@ function RestoreWritebackGateRow({
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         {gate.required_action}
+      </p>
+    </article>
+  );
+}
+
+function RestorePreviewApiSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: RestorePreviewApiValidationStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <RestoreApplyApiValidationPill status={status} />
+      </div>
+      <div className="mt-2 break-all text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function RestorePreviewApiFieldRow({
+  field,
+}: {
+  field: RestorePreviewApiDisabledResponse["request_schema"]["allowed_fields"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+          {field.field}
+        </div>
+        <RestoreApplyApiFieldStatusPill status={field.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {field.reason}
+      </p>
+    </article>
+  );
+}
+
+function RestorePreviewApiFixtureRow({
+  fixture,
+}: {
+  fixture: RestorePreviewApiDisabledResponse["local_validator_report"]["fixtures"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {fixture.id}
+          </div>
+          <div className="mt-1 text-[10px] text-zinc-400">
+            预期 {fixture.expected_status}
+          </div>
+        </div>
+        <RestoreApplyApiValidationPill status={fixture.actual_status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {fixture.reason}
+      </p>
+      {fixture.forbidden_field_names.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+          {fixture.forbidden_field_names.map((fieldName) => (
+            <span
+              key={fieldName}
+              className="rounded-md bg-white px-2 py-1 font-mono text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"
+            >
+              {fieldName}
+            </span>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function RestorePreviewApiGateRow({
+  gate,
+}: {
+  gate: RestorePreviewApiDisabledResponse["enablement_gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {gate.title}
+      </div>
+      <div className="mt-1 font-mono text-[10px] text-zinc-400">
+        {gate.id}
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.required_before_enablement}
       </p>
     </article>
   );

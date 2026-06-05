@@ -36,6 +36,8 @@ const files = {
   remoteBaselineReplayRunner: "src/lib/sync/remoteBaselineReplayRunner.ts",
   restoreRollbackPlan: "src/lib/sync/restoreRollbackPlan.ts",
   restoreWritebackContract: "src/lib/sync/restoreWritebackContract.ts",
+  restorePreviewApiStub: "src/lib/sync/restorePreviewApiStub.ts",
+  restorePreviewRoute: "src/app/api/backup/restore-preview/route.ts",
   restoreApplyApiStub: "src/lib/sync/restoreApplyApiStub.ts",
   restoreApplyRoute: "src/app/api/backup/restore-apply/route.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
@@ -247,6 +249,8 @@ function run() {
   const restoreWritebackContract = readProjectFile(
     files.restoreWritebackContract
   );
+  const restorePreviewApiStub = readProjectFile(files.restorePreviewApiStub);
+  const restorePreviewRoute = readProjectFile(files.restorePreviewRoute);
   const restoreApplyApiStub = readProjectFile(files.restoreApplyApiStub);
   const restoreApplyRoute = readProjectFile(files.restoreApplyRoute);
   const syncOptInGate = readProjectFile(files.syncOptInGate);
@@ -304,6 +308,8 @@ function run() {
     [files.remoteBaselineReplayHarness, remoteBaselineReplayHarness],
     [files.remoteBaselineReplayRunner, remoteBaselineReplayRunner],
     [files.syncOptInGate, syncOptInGate],
+    [files.restorePreviewApiStub, restorePreviewApiStub],
+    [files.restorePreviewRoute, restorePreviewRoute],
     [files.restoreApplyApiStub, restoreApplyApiStub],
     [files.restoreApplyRoute, restoreApplyRoute],
     [files.workspaceIdentity, workspaceIdentity],
@@ -407,6 +413,12 @@ function run() {
       assertRouteGuard(
         routeFile,
         "buildPermissionCheckApiDisabledResponse",
+        routeLabel
+      );
+    } else if (stub.id === "restore-preview") {
+      assertRouteGuard(
+        routeFile,
+        "buildRestorePreviewApiDisabledResponse",
         routeLabel
       );
     } else if (stub.id === "restore-apply") {
@@ -5385,6 +5397,150 @@ function run() {
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
+  assertSourceIncludes(
+    files.restorePreviewApiStub,
+    restorePreviewApiStub,
+    'format: "zhinote-restore-preview-api-disabled"',
+    "Restore preview API guard must expose a stable disabled response format."
+  );
+  assertSourceIncludes(
+    files.restorePreviewApiStub,
+    restorePreviewApiStub,
+    "buildRestorePreviewApiDisabledResponse",
+    "Restore preview API guard must expose a reusable disabled response builder."
+  );
+  for (const item of [
+    ['api_id: "restore-preview"', "Restore preview API guard must identify the restore-preview route."],
+    ['path: "/api/backup/restore-preview"', "Restore preview API guard must bind to /api/backup/restore-preview."],
+    ['method: "POST"', "Restore preview API guard must document POST."],
+    ['stub_status: "disabled-local-stub"', "Restore preview API guard must stay disabled."],
+    ["can_preview_restore_now: false", "Restore preview API guard must not preview restore now."],
+    ["can_read_request_body_now: false", "Restore preview API guard must not read request bodies."],
+    ["can_read_backup_payload_now: false", "Restore preview API guard must not read backups."],
+    ["can_validate_backup_package_now: false", "Restore preview API guard must not validate packages."],
+    ["can_return_restore_scope_now: false", "Restore preview API guard must not return scope."],
+    ["can_write_workspace_data_now: false", "Restore preview API guard must not write workspace data."],
+    ["can_upload_workspace_data_now: false", "Restore preview API guard must not upload workspace data."],
+    ["no_request_argument: true", "Restore preview API guard must not accept a request argument."],
+    ["endpoint_disabled: true", "Restore preview API guard must preserve disabled endpoint boundary."],
+    ["reads_request_body: false", "Restore preview API guard must keep body reads disabled."],
+    ["accepts_backup_payload: false", "Restore preview API guard must not accept backup payloads."],
+    ["validates_backup_package: false", "Restore preview API guard must not validate packages."],
+    ["returns_restore_scope: false", "Restore preview API guard must not return scope."],
+    ["returns_page_body_text: false", "Restore preview API guard must not return page text."],
+    ["returns_database_row_values: false", "Restore preview API guard must not return database values."],
+    ["returns_comment_bodies: false", "Restore preview API guard must not return comments."],
+    ["returns_file_bytes: false", "Restore preview API guard must not return file bytes."],
+    ["writes_workspace_data: false", "Restore preview API guard must not write workspace data."],
+    ["overwrites_pages: false", "Restore preview API guard must not overwrite pages."],
+    ["deletes_rows: false", "Restore preview API guard must not delete rows."],
+    ["uploads_workspace_data: false", "Restore preview API guard must not upload workspace data."],
+    ["syncs_preview_data: false", "Restore preview API guard must not sync preview data."],
+    ["reads_page_body_text: false", "Restore preview API guard must not read page text."],
+    ["reads_database_row_values: false", "Restore preview API guard must not read database values."],
+    ["reads_comment_bodies: false", "Restore preview API guard must not read comments."],
+    ["reads_file_bytes: false", "Restore preview API guard must not read files."],
+    ["reads_backup_payload: false", "Restore preview API guard must not read backup payloads."],
+    ["reads_secret_values: false", "Restore preview API guard must not read secrets."],
+    ["requires_local_file_selection_before_enablement: true", "Restore preview API guard must require local file selection."],
+    ["requires_checksum_validation_before_enablement: true", "Restore preview API guard must require checksum validation."],
+    ["requires_size_limit_before_enablement: true", "Restore preview API guard must require size limits."],
+    ["requires_schema_parser_before_enablement: true", "Restore preview API guard must require schema parser."],
+    ["requires_permission_check_before_enablement: true", "Restore preview API guard must require permission checks."],
+    ["requires_audit_event_before_enablement: true", "Restore preview API guard must require audit events."],
+    ["requires_no_content_echo_before_enablement: true", "Restore preview API guard must forbid content echo."],
+    ['schema_status: "planned-metadata-only"', "Restore preview API guard must expose metadata-only request schema."],
+    ['schema_status: "planned-scope-receipt-only"', "Restore preview API guard must expose scope receipt response schema."],
+    ['format: "zhinote-restore-preview-api-validator-fixtures"', "Restore preview API guard must include local validator fixtures."],
+    ['validator_status: "not-executing-route"', "Restore preview validator must not execute the route."],
+    "forbidden_field_names",
+    "forbidden_fields_covered",
+    '"metadata-restore-preview-request"',
+    '"backup-payload-blocked"',
+    '"workspace-content-blocked"',
+    '"file-bytes-blocked"',
+    '"scope-forgery-blocked"',
+    '"credential-fields-blocked"',
+    "backup_manifest_id",
+    "backup_file_name_hash",
+    "backup_checksum",
+    "preview_scope_request",
+    "backup_payload",
+    "full_backup_json",
+    "database_cell_values",
+    "uploaded_file_bytes",
+    "scope_counts",
+    "apply_now",
+    "delete_all",
+    "overwrite_all",
+    "secret_values",
+    '"local-file-selection"',
+    '"checksum-validation"',
+    '"size-limit"',
+    '"schema-parser"',
+    '"permission-check"',
+    '"audit-event"',
+    '"no-content-echo"',
+  ]) {
+    const expected = Array.isArray(item) ? item[0] : item;
+    const message = Array.isArray(item)
+      ? item[1]
+      : "Restore preview API guard must preserve schema, fixtures, and enablement gates.";
+    assertSourceIncludes(
+      files.restorePreviewApiStub,
+      restorePreviewApiStub,
+      expected,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.restorePreviewRoute,
+    restorePreviewRoute,
+    "buildRestorePreviewApiDisabledResponse",
+    "Restore preview route must return the dedicated disabled response."
+  );
+  assertSourceIncludes(
+    files.restorePreviewRoute,
+    restorePreviewRoute,
+    "WEB_BETA_API_STUB_HTTP_STATUS",
+    "Restore preview route must keep the disabled Web Beta HTTP status."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildRestorePreviewApiDisabledResponse",
+    "Sync UI must build the restore preview API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportRestorePreviewApiGuard",
+    "Sync UI must export the restore preview API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "恢复预览 API 防护",
+    "Sync UI must render the restore preview API guard panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "导出恢复预览防护",
+    "Sync UI must render the restore preview API guard export button."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "value={restorePreviewApiGuard.format}",
+    "Sync UI must render the restore preview disabled response format."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "RestorePreviewApiFixtureRow",
+    "Sync UI must render restore preview validator fixtures."
+  );
   assertSourceIncludes(
     files.restoreApplyApiStub,
     restoreApplyApiStub,

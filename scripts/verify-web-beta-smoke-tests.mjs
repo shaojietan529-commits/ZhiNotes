@@ -69,6 +69,10 @@ const gatedOrDisabledApiRoutes = [
     guard: "buildAuditEventsApiDisabledResponse",
   },
   {
+    path: "src/app/api/backup/restore-preview/route.ts",
+    guard: "buildRestorePreviewApiDisabledResponse",
+  },
+  {
     path: "src/app/api/backup/restore-apply/route.ts",
     guard: "buildRestoreApplyApiDisabledResponse",
   },
