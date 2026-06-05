@@ -67,6 +67,7 @@ const files = {
   webLaunchWorkbench: "src/lib/sync/webLaunchWorkbench.ts",
   webBetaAutonomyQueue: "src/lib/sync/webBetaAutonomyQueue.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
+  apiGuardPanel: "src/components/modules/sync/ApiGuardPanel.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
 };
 
@@ -295,6 +296,7 @@ function run() {
   const webLaunchWorkbench = readProjectFile(files.webLaunchWorkbench);
   const webBetaAutonomyQueue = readProjectFile(files.webBetaAutonomyQueue);
   const syncShell = readProjectFile(files.syncShell);
+  const apiGuardPanel = readProjectFile(files.apiGuardPanel);
   const migration = readProjectFile(files.migration);
 
   const requiredEnvKeys = extractQuotedValues(environmentPreflight, "key");
@@ -352,8 +354,38 @@ function run() {
     [files.webLaunchWorkbench, webLaunchWorkbench],
     [files.webBetaAutonomyQueue, webBetaAutonomyQueue],
     [files.syncShell, syncShell],
+    [files.apiGuardPanel, apiGuardPanel],
   ]) {
     assertNoLegacySingularEnv(source, label);
+  }
+
+  for (const [snippet, message] of [
+    [
+      "export function ApiGuardPanel",
+      "Shared API guard panel must be exported for sync UI reuse.",
+    ],
+    [
+      "function ApiGuardSummaryCard",
+      "Shared API guard panel must render summary cards.",
+    ],
+    [
+      "function ApiGuardFieldRow",
+      "Shared API guard panel must render allowed and forbidden fields.",
+    ],
+    [
+      "function ApiGuardFixtureRow",
+      "Shared API guard panel must render local validator fixtures.",
+    ],
+    [
+      "function ApiGuardGateRow",
+      "Shared API guard panel must render enablement gates.",
+    ],
+    [
+      "function ApiGuardValidationPill",
+      "Shared API guard panel must render validation status badges.",
+    ],
+  ]) {
+    assertSourceIncludes(files.apiGuardPanel, apiGuardPanel, snippet, message);
   }
 
   for (const [file, source, snippet, message] of [
@@ -1940,13 +1972,13 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "value={syncPushApiGuard.format}",
+    "value: syncPushApiGuard.format",
     "Sync UI must render the sync push disabled response format."
   );
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "SyncPushApiFixtureRow",
+    "fixtures={syncPushApiGuard.local_validator_report.fixtures}",
     "Sync UI must render sync push validator fixtures."
   );
   assertSourceIncludes(
@@ -2088,13 +2120,13 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "value={syncPullApiGuard.format}",
+    "value: syncPullApiGuard.format",
     "Sync UI must render the sync pull disabled response format."
   );
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "SyncPullApiFixtureRow",
+    "fixtures={syncPullApiGuard.local_validator_report.fixtures}",
     "Sync UI must render sync pull validator fixtures."
   );
   assertSourceIncludes(
@@ -2289,13 +2321,13 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "value={cloudMigrationApplyApiGuard.format}",
+    "value: cloudMigrationApplyApiGuard.format",
     "Sync UI must render the cloud migration apply disabled response format."
   );
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "CloudMigrationApplyApiFixtureRow",
+    "fixtures={cloudMigrationApplyApiGuard.local_validator_report.fixtures}",
     "Sync UI must render cloud migration apply validator fixtures."
   );
   assertSourceIncludes(
