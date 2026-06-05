@@ -665,11 +665,18 @@ being blocked at the picker.
 
 Inside the editor slash menu, `/html` now opens the HTML/XHTML report path
 directly and inserts a sandboxed native preview block. `/markdown preview`
-inserts a local Markdown/MDX/MDown/MKD/MKDN file preview block and keeps the
-original file attached. `/markdown import` imports a Markdown-family file into
-the current page as editable blocks. This separates the two common workflows:
-AI-generated HTML reports stay as native previews, while personal Markdown
-notes can either stay attached or be converted into editable page content.
+inserts a local Markdown/MDX/MDown/MKD/MKDN/R Markdown/Quarto file preview block
+and keeps the original file attached. `/markdown import` imports a
+Markdown-family file into the current page as editable blocks. This separates
+the two common workflows: AI-generated HTML reports stay as native previews,
+while personal Markdown notes can either stay attached or be converted into
+editable page content.
+
+The generic file preview path also recognizes common research text and
+reference files such as LaTeX, BibTeX, RIS, reStructuredText, AsciiDoc,
+Mermaid, Org, Stata, SAS, Julia, and related code/text formats as local text
+previews. They stay in browser storage and do not trigger external conversion,
+cloud sync, AI, or upload.
 
 When the Reports module creates a page from a local file, the new page includes
 a format routing table next to the file preview block. It records the preview
@@ -756,8 +763,12 @@ Current local actions:
 - Route HTML reports, Markdown notes, PDFs, Office files, notebooks, archives,
   spreadsheets, media, and unknown files into native preview, editable import,
   database import, metadata review, local retain, or cloud/AI boundary lanes.
-- Route XHTML and common Markdown variants (`.mdown`, `.mkd`, `.mkdn`) through
-  the same local HTML/Markdown paths instead of unknown-file retention.
+- Route XHTML and common Markdown variants (`.mdown`, `.mkd`, `.mkdn`, `.rmd`,
+  `.qmd`) through the same local HTML/Markdown paths instead of unknown-file
+  retention.
+- Route research text/reference files such as `.tex`, `.bib`, `.ris`, `.rst`,
+  `.adoc`, `.mmd`, `.mermaid`, `.org`, `.do`, `.sas`, and `.jl` through local
+  text preview instead of unknown-file retention.
 - Open each file workbench lane directly from its card. Local lanes scroll to
   the matching file-library section; cross-module lanes open Reports,
   Databases, or Sync with a section anchor such as `#reports-preview-routing`,

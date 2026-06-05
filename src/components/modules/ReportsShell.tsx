@@ -108,7 +108,7 @@ import type { Database, Page } from "@/lib/utils/types";
 const REPORT_FILE_ACTION_LABEL = "上传报告文件";
 const MARKDOWN_EDITABLE_IMPORT_LABEL = "导入 Markdown 笔记";
 const MARKDOWN_EDITABLE_IMPORT_ACCEPT =
-  ".md,.markdown,.mdx,.mdown,.mkd,.mkdn,text/markdown,text/x-markdown,text/plain";
+  ".md,.markdown,.mdx,.mdown,.mkd,.mkdn,.rmd,.qmd,text/markdown,text/x-markdown,text/plain";
 
 interface ReportFileBatchMessage {
   created: number;
@@ -444,7 +444,9 @@ function ReportsDashboard() {
     try {
       const storedFile = await savePageFile(file);
       if (storedFile.kind !== "markdown") {
-        window.alert("请选择 .md、.markdown、.mdx、.mdown、.mkd 或 .mkdn 文件。");
+        window.alert(
+          "请选择 .md、.markdown、.mdx、.mdown、.mkd、.mkdn、.rmd 或 .qmd 文件。"
+        );
         return;
       }
 
@@ -3887,7 +3889,7 @@ function createMarkdownImportedPageContent(file: StoredPageFile) {
     <h2>源文件</h2>
     <ul>
       <li>文件名：${escapeHtml(file.name)}</li>
-      <li>格式：Markdown / MDX / MDown</li>
+      <li>格式：Markdown / MDX / MDown / R Markdown / Quarto</li>
       <li>本地原文件：</li>
     </ul>
     ${createFilePreviewBlockHtml(file)}

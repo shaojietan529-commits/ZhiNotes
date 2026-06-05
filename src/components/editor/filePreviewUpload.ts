@@ -16,6 +16,8 @@ export const FILE_PREVIEW_ACCEPT = [
   ".mdown",
   ".mkd",
   ".mkdn",
+  ".rmd",
+  ".qmd",
   ".opml",
   ".rtf",
   ".epub",
@@ -63,6 +65,19 @@ export const FILE_PREVIEW_ACCEPT = [
   ".scss",
   ".less",
   ".sql",
+  ".tex",
+  ".bib",
+  ".ris",
+  ".rst",
+  ".adoc",
+  ".asciidoc",
+  ".mmd",
+  ".mermaid",
+  ".org",
+  ".do",
+  ".sas",
+  ".jl",
+  ".scala",
   ".py",
   ".r",
   ".sh",
@@ -123,7 +138,7 @@ export const FILE_PREVIEW_ACCEPT = [
 ].join(",");
 export const HTML_REPORT_ACCEPT = ".html,.htm,.xhtml,text/html,application/xhtml+xml";
 export const MARKDOWN_FILE_ACCEPT =
-  ".md,.markdown,.mdx,.mdown,.mkd,.mkdn,text/markdown,text/x-markdown,text/plain";
+  ".md,.markdown,.mdx,.mdown,.mkd,.mkdn,.rmd,.qmd,text/markdown,text/x-markdown,text/plain";
 
 export interface FilePreviewImportProgress {
   status: "started" | "progress" | "done";

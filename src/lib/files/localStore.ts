@@ -35,6 +35,19 @@ const TEXT_FILE_EXTENSIONS = [
   ".scss",
   ".less",
   ".sql",
+  ".tex",
+  ".bib",
+  ".ris",
+  ".rst",
+  ".adoc",
+  ".asciidoc",
+  ".mmd",
+  ".mermaid",
+  ".org",
+  ".do",
+  ".sas",
+  ".jl",
+  ".scala",
   ".graphql",
   ".gql",
   ".py",
@@ -180,7 +193,9 @@ export function getPageFileKind(name: string, mimeType: string): PageFileKind {
     lowerName.endsWith(".mdx") ||
     lowerName.endsWith(".mdown") ||
     lowerName.endsWith(".mkd") ||
-    lowerName.endsWith(".mkdn")
+    lowerName.endsWith(".mkdn") ||
+    lowerName.endsWith(".rmd") ||
+    lowerName.endsWith(".qmd")
   ) {
     return "markdown";
   }

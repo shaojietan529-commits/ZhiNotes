@@ -41,7 +41,16 @@ const requiredCapabilities = [
   {
     id: "markdown-note",
     kind: "markdown",
-    extensions: [".md", ".markdown", ".mdx", ".mdown", ".mkd", ".mkdn"],
+    extensions: [
+      ".md",
+      ".markdown",
+      ".mdx",
+      ".mdown",
+      ".mkd",
+      ".mkdn",
+      ".rmd",
+      ".qmd",
+    ],
     snippets: ["markdownToHtml", "handleImportMarkdown"],
   },
   {
@@ -108,7 +117,26 @@ const requiredCapabilities = [
   {
     id: "media-and-text",
     kind: "image",
-    extensions: ["image/*", "audio/*", "video/*", ".txt", ".json", ".opml"],
+    extensions: [
+      "image/*",
+      "audio/*",
+      "video/*",
+      ".txt",
+      ".json",
+      ".opml",
+      ".tex",
+      ".bib",
+      ".ris",
+      ".rst",
+      ".adoc",
+      ".asciidoc",
+      ".mmd",
+      ".mermaid",
+      ".org",
+      ".do",
+      ".sas",
+      ".jl",
+    ],
     snippets: [
       'file.kind === "image"',
       'file.kind === "audio"',
@@ -1474,6 +1502,8 @@ function run() {
     ".mdown",
     ".mkd",
     ".mkdn",
+    ".rmd",
+    ".qmd",
     "handleReportFileSelected",
     "selectedFiles",
     "createReportPageFromStoredFile",
@@ -1495,7 +1525,7 @@ function run() {
     "markdownToHtml",
     "source_surface: \"reports-module\"",
     "导入 Markdown 笔记",
-    "Markdown / MDX / MDown",
+    "Markdown / MDX / MDown / R Markdown / Quarto",
     "Markdown 已从报告库模块导入为本地可编辑页面。",
   ]) {
     assertIncludes(
