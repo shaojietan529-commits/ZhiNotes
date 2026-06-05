@@ -561,6 +561,39 @@ function getSlashCommands(): SlashCommandItem[] {
         dispatchEditorLocalCommand("block-comment");
       },
     },
+    {
+      title: "复制块链接",
+      description: "复制当前块的本地页面锚点链接",
+      icon: "LNK",
+      category: "高级",
+      aliases: ["copy link", "copy block link", "block link", "复制块链接"],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        dispatchEditorLocalCommand("copy-block-link");
+      },
+    },
+    {
+      title: "复制块 Markdown",
+      description: "把当前块或选中多个块复制为 Markdown",
+      icon: "MD",
+      category: "高级",
+      aliases: ["copy markdown", "copy md", "block markdown", "复制 Markdown"],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        dispatchEditorLocalCommand("copy-block-markdown");
+      },
+    },
+    {
+      title: "复制块 HTML",
+      description: "把当前块或选中多个块复制为 HTML",
+      icon: "HTML",
+      category: "高级",
+      aliases: ["copy html", "block html", "复制 HTML", "复制块 HTML"],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        dispatchEditorLocalCommand("copy-block-html");
+      },
+    },
     // ── Inline ──
     {
       title: "链接到页面",

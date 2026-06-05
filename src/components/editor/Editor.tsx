@@ -967,6 +967,15 @@ function runEditorLocalCommand(
         pageId,
         onPersistContent ?? (() => undefined)
       ).then(() => false);
+    case "copy-block-html":
+      return copyCurrentBlockHtml(editor).then(() => false);
+    case "copy-block-markdown":
+      return copyCurrentBlockMarkdown(editor).then(() => false);
+    case "copy-block-link":
+      return copyCurrentBlockLink(
+        editor,
+        onPersistContent ?? (() => undefined)
+      ).then(() => false);
     case "child-page":
       return createChildPageFromEditorCommand(editor, pageId);
     case "bold":

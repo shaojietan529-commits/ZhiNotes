@@ -314,6 +314,12 @@ function run() {
     "moveCurrentBlockDown",
     "title: \"评论当前块\"",
     "dispatchEditorLocalCommand(\"block-comment\")",
+    "title: \"复制块链接\"",
+    "dispatchEditorLocalCommand(\"copy-block-link\")",
+    "title: \"复制块 Markdown\"",
+    "dispatchEditorLocalCommand(\"copy-block-markdown\")",
+    "title: \"复制块 HTML\"",
+    "dispatchEditorLocalCommand(\"copy-block-html\")",
   ]) {
     assertIncludes(
       files.slashSuggestion,
@@ -325,15 +331,31 @@ function run() {
 
   for (const snippet of [
     "| \"block-comment\"",
+    "| \"copy-block-html\"",
+    "| \"copy-block-link\"",
+    "| \"copy-block-markdown\"",
     "case \"block-comment\"",
+    "case \"copy-block-html\"",
+    "case \"copy-block-markdown\"",
+    "case \"copy-block-link\"",
     "commentCurrentBlock(",
+    "copyCurrentBlockHtml(editor)",
+    "copyCurrentBlockMarkdown(editor)",
+    "copyCurrentBlockLink(",
     "runEditorLocalCommand(editor, command, pageId, persistEditorNow)",
     "id: \"editor-block-comment\"",
+    "id: \"editor-copy-block-link\"",
+    "id: \"editor-copy-block-markdown\"",
+    "id: \"editor-copy-block-html\"",
     "runEditorCommand(\"block-comment\")",
+    "runEditorCommand(\"copy-block-link\")",
+    "runEditorCommand(\"copy-block-markdown\")",
+    "runEditorCommand(\"copy-block-html\")",
   ]) {
-    const sourceLabel = snippet.includes("| \"block-comment\"")
+    const sourceLabel = snippet.startsWith("| \"")
       ? files.editorLocalCommands
       : snippet.includes("id: \"editor-block-comment\"") ||
+          snippet.includes("id: \"editor-copy-block") ||
           snippet.includes("runEditorCommand")
         ? files.quickSearch
         : files.editor;
@@ -347,7 +369,7 @@ function run() {
       sourceLabel,
       source,
       snippet,
-      "Block comments must be available from slash commands and Cmd/Ctrl+K."
+      "Block comments and copy/export commands must be available from slash commands and Cmd/Ctrl+K."
     );
   }
 
@@ -684,7 +706,8 @@ function run() {
         h3_shortcut_paths: 3,
         page_slash_aliases: 8,
         block_insert_heading_levels: 3,
-        advanced_block_slash_commands: 5,
+        advanced_block_slash_commands: 8,
+        block_copy_export_commands: 3,
         notion_style_slash_aliases: 7,
         file_workflow_entrypoints: 3,
         localized_shared_note_controls: true,
@@ -692,6 +715,7 @@ function run() {
         page_command_seeds_child_page: true,
         cmdk_child_page_command: true,
         cmdk_block_comment_command: true,
+        cmdk_block_copy_export_commands: true,
         local_only: true,
       },
       null,
