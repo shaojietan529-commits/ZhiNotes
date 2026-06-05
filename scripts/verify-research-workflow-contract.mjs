@@ -37,6 +37,7 @@ const files = {
   portfolioShell: "src/components/modules/PortfolioShell.tsx",
   registry: "src/lib/modules/registry.ts",
   moduleActions: "src/lib/modules/actions.ts",
+  researchTemplateStarters: "src/lib/modules/researchTemplateStarters.ts",
   noteTemplates: "src/lib/templates/noteTemplates.ts",
   readme: "README.md",
 };
@@ -171,6 +172,9 @@ function run() {
   const portfolioShell = readProjectFile(files.portfolioShell);
   const registry = readProjectFile(files.registry);
   const moduleActions = readProjectFile(files.moduleActions);
+  const researchTemplateStarters = readProjectFile(
+    files.researchTemplateStarters
+  );
   const noteTemplates = readProjectFile(files.noteTemplates);
   const readme = readProjectFile(files.readme);
 
@@ -1471,21 +1475,27 @@ function run() {
       `Meeting tracker intake must map ${fieldName}.`
     );
   }
+  assertIncludes(
+    files.meetingsShell,
+    meetingsShell,
+    'getResearchTemplateStarters("meeting")',
+    "Meetings module must reuse the shared meeting template starter group."
+  );
   for (const snippet of [
-    "新建转录稿",
-    "新建行动项",
-    "新建专家电话",
-    "新建管理层会议",
-    "templateTitle: \"会议转录稿\"",
-    "templateTitle: \"会议行动项\"",
-    "templateTitle: \"专家电话纪要\"",
-    "templateTitle: \"管理层会议纪要\"",
+    '"新建转录稿"',
+    '"新建行动项"',
+    '"新建专家电话"',
+    '"新建管理层会议"',
+    '"会议转录稿"',
+    '"会议行动项"',
+    '"专家电话纪要"',
+    '"管理层会议纪要"',
   ]) {
     assertIncludes(
-      files.meetingsShell,
-      meetingsShell,
+      files.researchTemplateStarters,
+      researchTemplateStarters,
       snippet,
-      "Meetings module must expose transcript and action-item page starters."
+      "Shared starter catalog must expose transcript and action-item page starters."
     );
   }
   assertIncludes(
@@ -1780,15 +1790,30 @@ function run() {
     "buildCompanyTrackerIntakeDraft",
     "Company module must build local tracker intake drafts."
   );
+  assertIncludes(
+    files.companyShell,
+    companyShell,
+    'getResearchTemplateStarters("company")',
+    "Company module must reuse the shared company template starter group."
+  );
   for (const snippet of [
-    "新建估值假设",
-    "新建关键指标",
-    "新建行业对比",
-    "新建决策日志",
-    'templateTitle: "估值假设"',
-    'templateTitle: "关键指标看板"',
-    'templateTitle: "行业对比"',
-    'templateTitle: "投研决策日志"',
+    '"新建估值假设"',
+    '"新建关键指标"',
+    '"新建行业对比"',
+    '"新建决策日志"',
+    '"估值假设"',
+    '"关键指标看板"',
+    '"行业对比"',
+    '"投研决策日志"',
+  ]) {
+    assertIncludes(
+      files.researchTemplateStarters,
+      researchTemplateStarters,
+      snippet,
+      "Shared starter catalog must expose valuation and key-metric starter assets."
+    );
+  }
+  for (const snippet of [
     'Metric label="估值假设"',
     'Metric label="关键指标"',
   ]) {
@@ -1796,7 +1821,7 @@ function run() {
       files.companyShell,
       companyShell,
       snippet,
-      "Company module must expose valuation and key-metric starter assets."
+      "Company module must expose valuation and key-metric summary metrics."
     );
   }
   assertIncludes(
@@ -1853,16 +1878,24 @@ function run() {
     'ResearchWorkflowSchemaPanel kind="report"',
     "Reports module must show its object model."
   );
-  for (const snippet of [
-    "新建报告摄取",
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
+    'getResearchTemplateStarters("report")',
+    "Reports module must reuse the shared report template starter group."
+  );
+  assertIncludes(
+    files.reportsShell,
+    reportsShell,
     "格式摄取",
-    'templateTitle: "报告摄取清单"',
-  ]) {
+    "Reports module must render the format review workflow."
+  );
+  for (const snippet of ['"新建报告摄取"', '"报告摄取清单"']) {
     assertIncludes(
-      files.reportsShell,
-      reportsShell,
+      files.researchTemplateStarters,
+      researchTemplateStarters,
       snippet,
-      "Reports module must expose report intake page starters and format review workflow."
+      "Shared starter catalog must expose report intake page starters."
     );
   }
   assertIncludes(
@@ -2044,18 +2077,24 @@ function run() {
     "导出复盘",
     "Portfolio module must export the review report."
   );
+  assertIncludes(
+    files.portfolioShell,
+    portfolioShell,
+    'getResearchTemplateStarters("portfolio")',
+    "Portfolio module must reuse the shared portfolio template starter group."
+  );
   for (const snippet of [
-    "新建观察名单",
-    "新建催化剂复盘",
-    "templateTitle: \"持仓备忘录\"",
-    "templateTitle: \"观察名单\"",
-    "templateTitle: \"催化剂与风险复盘\"",
+    '"新建观察名单"',
+    '"新建催化剂复盘"',
+    '"持仓备忘录"',
+    '"观察名单"',
+    '"催化剂与风险复盘"',
   ]) {
     assertIncludes(
-      files.portfolioShell,
-      portfolioShell,
+      files.researchTemplateStarters,
+      researchTemplateStarters,
       snippet,
-      "Portfolio module must expose position, watchlist, catalyst, and risk page starters."
+      "Shared starter catalog must expose position, watchlist, catalyst, and risk page starters."
     );
   }
 

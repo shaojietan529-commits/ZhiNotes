@@ -25,6 +25,7 @@ import {
 } from "@/lib/editorLocalCommands";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
+import { RESEARCH_TEMPLATE_QUICK_ACTIONS } from "@/lib/modules/researchTemplateStarters";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -391,6 +392,17 @@ export default function QuickSearch() {
     [currentPageId]
   );
 
+  const templateQuickActions: CommandPaletteAction[] =
+    RESEARCH_TEMPLATE_QUICK_ACTIONS.map((action) => ({
+      id: action.id,
+      title: action.title,
+      description: action.description,
+      icon: action.starter.icon ?? "PAGE",
+      category: action.category,
+      aliases: action.aliases,
+      run: () => void handleModuleStarter(action.starter),
+    }));
+
   const commandActions: CommandPaletteAction[] = [
     {
       id: "new-page",
@@ -445,118 +457,7 @@ export default function QuickSearch() {
       ],
       run: handleOpenProjects,
     },
-    {
-      id: "new-company-profile",
-      title: "新建公司研究页",
-      description: "创建一个本地公司研究页面",
-      icon: "CO",
-      category: "Page",
-      aliases: ["company", "profile", "coverage", "deep dive", "公司", "研究"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建公司研究页",
-          title: "未命名公司研究",
-          templateTitle: "公司研究",
-          icon: "CO",
-        }),
-    },
-    {
-      id: "new-investment-memo",
-      title: "新建投资备忘录",
-      description: "创建一个本地投资备忘录页面",
-      icon: "MEMO",
-      category: "Page",
-      aliases: ["investment", "memo", "thesis", "stock", "投资", "备忘录"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建投资备忘录",
-          title: "未命名投资备忘录",
-          templateTitle: "投资备忘录",
-          icon: "MEMO",
-        }),
-    },
-    {
-      id: "new-earnings-review",
-      title: "新建业绩复盘",
-      description: "创建一个本地业绩复盘页面",
-      icon: "Q",
-      category: "Page",
-      aliases: ["earnings", "quarter", "results", "call", "业绩", "复盘"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建业绩复盘",
-          title: "未命名业绩复盘",
-          templateTitle: "业绩复盘",
-          icon: "Q",
-        }),
-    },
-    {
-      id: "new-industry-comparison",
-      title: "新建行业对比",
-      description: "创建一个本地行业与同业对比页面",
-      icon: "PEER",
-      category: "Page",
-      aliases: ["industry", "peers", "comparison", "sector", "行业", "同业", "对比"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建行业对比",
-          title: "未命名行业对比",
-          templateTitle: "行业对比",
-          icon: "PEER",
-        }),
-    },
-    {
-      id: "new-valuation-assumptions",
-      title: "新建估值假设",
-      description: "创建一个本地估值假设页面",
-      icon: "VAL",
-      category: "Page",
-      aliases: ["valuation", "assumptions", "target price", "scenario", "估值", "目标价", "情景"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建估值假设",
-          title: "未命名估值假设",
-          templateTitle: "估值假设",
-          icon: "VAL",
-        }),
-    },
-    {
-      id: "new-key-metrics",
-      title: "新建关键指标",
-      description: "创建一个本地 KPI 和单位经济看板页面",
-      icon: "KPI",
-      category: "Page",
-      aliases: ["metrics", "kpi", "dashboard", "unit economics", "关键指标", "指标", "单位经济"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建关键指标",
-          title: "未命名关键指标看板",
-          templateTitle: "关键指标看板",
-          icon: "KPI",
-        }),
-    },
-    {
-      id: "new-research-decision-log",
-      title: "新建投研决策日志",
-      description: "创建一个本地投研决策复盘页面",
-      icon: "DEC",
-      category: "Page",
-      aliases: ["decision", "decision log", "ic", "committee", "决策", "投委会", "复盘"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建投研决策日志",
-          title: "未命名投研决策日志",
-          templateTitle: "投研决策日志",
-          icon: "DEC",
-        }),
-    },
+    ...templateQuickActions,
     {
       id: "create-company-tracker",
       title: "创建公司跟踪表",
@@ -593,54 +494,6 @@ export default function QuickSearch() {
       run: handleOpenPortfolio,
     },
     {
-      id: "new-position-memo",
-      title: "新建持仓备忘录",
-      description: "创建一个本地持仓备忘录页面",
-      icon: "PF",
-      category: "Page",
-      aliases: ["portfolio", "position", "memo", "sizing", "thesis", "持仓", "备忘录"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建持仓备忘录",
-          title: "未命名持仓备忘录",
-          templateTitle: "持仓备忘录",
-          icon: "PF",
-        }),
-    },
-    {
-      id: "new-watchlist-note",
-      title: "新建观察名单",
-      description: "创建一个本地观察名单或想法队列页面",
-      icon: "WL",
-      category: "Page",
-      aliases: ["watchlist", "idea", "pipeline", "观察名单", "想法", "研究队列"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建观察名单",
-          title: "未命名观察名单",
-          templateTitle: "观察名单",
-          icon: "WL",
-        }),
-    },
-    {
-      id: "new-catalyst-risk-review",
-      title: "新建催化剂复盘",
-      description: "创建一个本地催化剂和风险复盘页面",
-      icon: "CAT",
-      category: "Page",
-      aliases: ["catalyst", "risk review", "risk notes", "review", "催化剂", "风险复盘", "风险笔记"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建催化剂复盘",
-          title: "未命名催化剂与风险复盘",
-          templateTitle: "催化剂与风险复盘",
-          icon: "CAT",
-        }),
-    },
-    {
       id: "create-portfolio-tracker",
       title: "创建组合跟踪表",
       description: "创建本地组合与观察名单数据库",
@@ -666,86 +519,6 @@ export default function QuickSearch() {
       category: "Workspace",
       aliases: ["meeting", "meetings", "call", "calls", "transcript", "会议", "电话会"],
       run: handleOpenMeetings,
-    },
-    {
-      id: "new-meeting-note",
-      title: "新建会议纪要",
-      description: "创建一个本地会议纪要页面",
-      icon: "MTG",
-      category: "Page",
-      aliases: ["meeting", "notes", "call", "transcript", "action items", "会议", "纪要"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建会议纪要",
-          title: "未命名会议纪要",
-          templateTitle: "会议纪要",
-          icon: "MTG",
-        }),
-    },
-    {
-      id: "new-meeting-transcript",
-      title: "新建会议转录稿",
-      description: "创建一个本地会议 transcript 页面",
-      icon: "TRN",
-      category: "Page",
-      aliases: ["transcript", "recording", "raw notes", "转录稿", "会议转录", "录音"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建会议转录稿",
-          title: "未命名会议转录稿",
-          templateTitle: "会议转录稿",
-          icon: "TRN",
-        }),
-    },
-    {
-      id: "new-meeting-action-items",
-      title: "新建会议行动项",
-      description: "创建一个本地会议 follow-up 和开放问题页面",
-      icon: "ACT",
-      category: "Page",
-      aliases: ["action items", "follow up", "todo", "open questions", "行动项", "开放问题", "待办"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建会议行动项",
-          title: "未命名会议行动项",
-          templateTitle: "会议行动项",
-          icon: "ACT",
-        }),
-    },
-    {
-      id: "new-expert-call-note",
-      title: "新建专家电话纪要",
-      description: "创建一个本地专家访谈或渠道调研页面",
-      icon: "EXP",
-      category: "Page",
-      aliases: ["expert", "expert call", "interview", "channel check", "专家", "访谈", "渠道调研"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建专家电话纪要",
-          title: "未命名专家电话纪要",
-          templateTitle: "专家电话纪要",
-          icon: "EXP",
-        }),
-    },
-    {
-      id: "new-management-meeting-note",
-      title: "新建管理层会议纪要",
-      description: "创建一个本地管理层会议或 NDR 页面",
-      icon: "MGMT",
-      category: "Page",
-      aliases: ["management", "management meeting", "ndr", "investor meeting", "管理层", "路演"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建管理层会议纪要",
-          title: "未命名管理层会议纪要",
-          templateTitle: "管理层会议纪要",
-          icon: "MGMT",
-        }),
     },
     {
       id: "create-meeting-tracker",
@@ -784,38 +557,6 @@ export default function QuickSearch() {
         "附件",
       ],
       run: handleOpenFiles,
-    },
-    {
-      id: "new-report-note",
-      title: "新建报告笔记",
-      description: "创建一个本地研究报告页面",
-      icon: "RPT",
-      category: "Page",
-      aliases: ["report", "research report", "html report", "pdf", "file note", "报告", "笔记"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建报告笔记",
-          title: "未命名研究报告",
-          templateTitle: "研究报告",
-          icon: "RPT",
-        }),
-    },
-    {
-      id: "new-report-intake-checklist",
-      title: "新建报告摄取清单",
-      description: "创建一个本地报告格式、预览和关联复核页面",
-      icon: "FILE",
-      category: "Page",
-      aliases: ["report intake", "file intake", "html report", "markdown", "pdf", "excel", "word", "报告摄取", "格式复核"],
-      run: () =>
-        void handleModuleStarter({
-          type: "page",
-          label: "新建报告摄取清单",
-          title: "未命名报告摄取清单",
-          templateTitle: "报告摄取清单",
-          icon: "FILE",
-        }),
     },
     {
       id: "create-report-tracker",

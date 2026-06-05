@@ -56,46 +56,11 @@ import {
 } from "@/lib/meetings/meetingWorkbench";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
+import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
-const MEETING_TEMPLATE_STARTERS: ModuleStarter[] = [
-  {
-    type: "page",
-    label: "新建会议纪要",
-    title: "未命名会议纪要",
-    templateTitle: "会议纪要",
-    icon: "MTG",
-  },
-  {
-    type: "page",
-    label: "新建转录稿",
-    title: "未命名会议转录稿",
-    templateTitle: "会议转录稿",
-    icon: "TRN",
-  },
-  {
-    type: "page",
-    label: "新建行动项",
-    title: "未命名会议行动项",
-    templateTitle: "会议行动项",
-    icon: "ACT",
-  },
-  {
-    type: "page",
-    label: "新建专家电话",
-    title: "未命名专家电话纪要",
-    templateTitle: "专家电话纪要",
-    icon: "EXP",
-  },
-  {
-    type: "page",
-    label: "新建管理层会议",
-    title: "未命名管理层会议纪要",
-    templateTitle: "管理层会议纪要",
-    icon: "MGMT",
-  },
-];
+const MEETING_TEMPLATE_STARTERS = getResearchTemplateStarters("meeting");
 
 const WORKFLOW_STEPS = [
   {

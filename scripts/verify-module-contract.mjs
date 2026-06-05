@@ -17,7 +17,13 @@ const files = {
   roadmap: "src/lib/modules/moduleRoadmap.ts",
   projectProgressSnapshot: "src/lib/modules/projectProgressSnapshot.ts",
   projectFields: "src/lib/modules/researchProjectFields.ts",
+  researchTemplateStarters: "src/lib/modules/researchTemplateStarters.ts",
   dashboard: "src/components/modules/ModuleDashboard.tsx",
+  notesShell: "src/components/modules/NotesShell.tsx",
+  companyResearchShell: "src/components/modules/CompanyResearchShell.tsx",
+  meetingsShell: "src/components/modules/MeetingsShell.tsx",
+  reportsShell: "src/components/modules/ReportsShell.tsx",
+  portfolioShell: "src/components/modules/PortfolioShell.tsx",
   projectsShell: "src/components/modules/ProjectsShell.tsx",
   databaseProvider: "src/components/providers/DatabaseProvider.tsx",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -109,6 +115,42 @@ const requiredStarterPackRiskGates = [
   "bulk-or-destructive-action",
 ];
 
+const requiredResearchTemplateGroups = [
+  '"notes"',
+  '"company"',
+  '"report"',
+  '"meeting"',
+  '"portfolio"',
+];
+
+const requiredResearchTemplateNames = [
+  '"报告摄取清单"',
+  '"行业对比"',
+  '"投研决策日志"',
+  '"专家电话纪要"',
+  '"管理层会议纪要"',
+];
+
+const requiredResearchTemplateActionIds = [
+  '"new-company-profile"',
+  '"new-investment-memo"',
+  '"new-earnings-review"',
+  '"new-industry-comparison"',
+  '"new-valuation-assumptions"',
+  '"new-key-metrics"',
+  '"new-research-decision-log"',
+  '"new-position-memo"',
+  '"new-watchlist-note"',
+  '"new-catalyst-risk-review"',
+  '"new-meeting-note"',
+  '"new-meeting-transcript"',
+  '"new-meeting-action-items"',
+  '"new-expert-call-note"',
+  '"new-management-meeting-note"',
+  '"new-report-note"',
+  '"new-report-intake-checklist"',
+];
+
 const requiredBoundarySnippets = [
   "local_contract_only: true",
   "creates_modules: false",
@@ -198,7 +240,15 @@ function run() {
   const roadmap = readProjectFile(files.roadmap);
   const projectProgressSnapshot = readProjectFile(files.projectProgressSnapshot);
   const projectFields = readProjectFile(files.projectFields);
+  const researchTemplateStarters = readProjectFile(
+    files.researchTemplateStarters
+  );
   const dashboard = readProjectFile(files.dashboard);
+  const notesShell = readProjectFile(files.notesShell);
+  const companyResearchShell = readProjectFile(files.companyResearchShell);
+  const meetingsShell = readProjectFile(files.meetingsShell);
+  const reportsShell = readProjectFile(files.reportsShell);
+  const portfolioShell = readProjectFile(files.portfolioShell);
   const projectsShell = readProjectFile(files.projectsShell);
   const databaseProvider = readProjectFile(files.databaseProvider);
   const databaseShell = readProjectFile(files.databaseShell);
@@ -516,6 +566,56 @@ function run() {
       `Module starter pack must include risk gate ${riskGate}.`
     );
   }
+  for (const snippet of [
+    "RESEARCH_TEMPLATE_STARTERS",
+    "RESEARCH_TEMPLATE_QUICK_ACTIONS",
+    "getResearchTemplateStarters",
+  ]) {
+    assertIncludes(
+      files.researchTemplateStarters,
+      researchTemplateStarters,
+      snippet,
+      "Research template starters must stay centralized for module pages and quick search."
+    );
+  }
+  for (const group of requiredResearchTemplateGroups) {
+    assertIncludes(
+      files.researchTemplateStarters,
+      researchTemplateStarters,
+      group,
+      `Research template starter group ${group} must stay registered.`
+    );
+  }
+  for (const templateName of requiredResearchTemplateNames) {
+    assertIncludes(
+      files.researchTemplateStarters,
+      researchTemplateStarters,
+      templateName,
+      `Research template ${templateName} must stay available from the shared starter catalog.`
+    );
+  }
+  for (const actionId of requiredResearchTemplateActionIds) {
+    assertIncludes(
+      files.researchTemplateStarters,
+      researchTemplateStarters,
+      actionId,
+      `Quick action ${actionId} must stay available from the shared starter catalog.`
+    );
+  }
+  for (const [sourceLabel, source, group] of [
+    [files.notesShell, notesShell, "notes"],
+    [files.companyResearchShell, companyResearchShell, "company"],
+    [files.meetingsShell, meetingsShell, "meeting"],
+    [files.reportsShell, reportsShell, "report"],
+    [files.portfolioShell, portfolioShell, "portfolio"],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      `getResearchTemplateStarters("${group}")`,
+      `Module shell must reuse the shared ${group} research template starter group.`
+    );
+  }
   assertIncludes(
     files.dashboard,
     dashboard,
@@ -699,6 +799,18 @@ function run() {
     "PLATFORM_MODULES",
     "Quick search must read module actions from the module registry."
   );
+  for (const snippet of [
+    "RESEARCH_TEMPLATE_QUICK_ACTIONS",
+    "templateQuickActions",
+    "handleModuleStarter(action.starter)",
+  ]) {
+    assertIncludes(
+      files.quickSearch,
+      quickSearch,
+      snippet,
+      "Quick search must read page template actions from the shared starter catalog."
+    );
+  }
   assertIncludes(
     files.readme,
     readme,
@@ -734,6 +846,8 @@ function run() {
     starter_pack_checklist: requiredStarterPackChecklist.length,
     starter_pack_risk_gates: requiredStarterPackRiskGates.length,
     health_areas: requiredHealthAreas.length,
+    research_template_groups: requiredResearchTemplateGroups.length,
+    research_template_quick_actions: requiredResearchTemplateActionIds.length,
     roadmap_lanes: 4,
     project_progress_snapshot: 1,
     projects_shell_intake: 1,

@@ -19,58 +19,10 @@ import {
   type NotesModulePriority,
   type NotesModuleWorkbenchReport,
 } from "@/lib/pages/notesModule";
+import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
-const NOTE_TEMPLATE_STARTERS = [
-  {
-    label: "投资备忘录",
-    title: "未命名投资备忘录",
-    templateTitle: "投资备忘录",
-    icon: "MEMO",
-  },
-  {
-    label: "公司研究页",
-    title: "未命名公司研究",
-    templateTitle: "公司研究",
-    icon: "CO",
-  },
-  {
-    label: "会议纪要",
-    title: "未命名会议纪要",
-    templateTitle: "会议纪要",
-    icon: "MTG",
-  },
-  {
-    label: "研究报告",
-    title: "未命名研究报告",
-    templateTitle: "研究报告",
-    icon: "RPT",
-  },
-  {
-    label: "报告摄取",
-    title: "未命名报告摄取清单",
-    templateTitle: "报告摄取清单",
-    icon: "FILE",
-  },
-  {
-    label: "行业对比",
-    title: "未命名行业对比",
-    templateTitle: "行业对比",
-    icon: "PEER",
-  },
-  {
-    label: "专家电话",
-    title: "未命名专家电话纪要",
-    templateTitle: "专家电话纪要",
-    icon: "EXP",
-  },
-  {
-    label: "决策日志",
-    title: "未命名投研决策日志",
-    templateTitle: "投研决策日志",
-    icon: "DEC",
-  },
-];
+const NOTE_TEMPLATE_STARTERS = getResearchTemplateStarters("notes");
 
 export default function NotesShell() {
   return (

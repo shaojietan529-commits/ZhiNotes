@@ -29,6 +29,7 @@ const files = {
   pageComments: "src/components/shared/PageComments.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
+  researchTemplateStarters: "src/lib/modules/researchTemplateStarters.ts",
   readme: "README.md",
   sideBySideDiff: "src/components/comparison/SideBySideDiff.tsx",
   subPageTree: "src/components/shared/SubPageTree.tsx",
@@ -83,6 +84,9 @@ function run() {
   const pageComments = readProjectFile(files.pageComments);
   const pageShell = readProjectFile(files.pageShell);
   const quickSearch = readProjectFile(files.quickSearch);
+  const researchTemplateStarters = readProjectFile(
+    files.researchTemplateStarters
+  );
   const readme = readProjectFile(files.readme);
   const sideBySideDiff = readProjectFile(files.sideBySideDiff);
   const subPageTree = readProjectFile(files.subPageTree);
@@ -198,35 +202,48 @@ function run() {
   }
 
   for (const snippet of [
-    'id: "new-industry-comparison"',
-    'templateTitle: "行业对比"',
-    'id: "new-valuation-assumptions"',
-    'templateTitle: "估值假设"',
-    'id: "new-key-metrics"',
-    'templateTitle: "关键指标看板"',
-    'id: "new-research-decision-log"',
-    'templateTitle: "投研决策日志"',
-    'templateTitle: "持仓备忘录"',
-    'id: "new-watchlist-note"',
-    'templateTitle: "观察名单"',
-    'id: "new-catalyst-risk-review"',
-    'templateTitle: "催化剂与风险复盘"',
-    'id: "new-meeting-transcript"',
-    'templateTitle: "会议转录稿"',
-    'id: "new-meeting-action-items"',
-    'templateTitle: "会议行动项"',
-    'id: "new-expert-call-note"',
-    'templateTitle: "专家电话纪要"',
-    'id: "new-management-meeting-note"',
-    'templateTitle: "管理层会议纪要"',
-    'id: "new-report-intake-checklist"',
-    'templateTitle: "报告摄取清单"',
+    "RESEARCH_TEMPLATE_QUICK_ACTIONS",
+    "templateQuickActions",
+    "handleModuleStarter(action.starter)",
   ]) {
     assertIncludes(
       files.quickSearch,
       quickSearch,
       snippet,
-      "Cmd/Ctrl+K must expose local investment research template starters."
+      "Cmd/Ctrl+K must source investment research template starters from the shared catalog."
+    );
+  }
+
+  for (const snippet of [
+    '"new-industry-comparison"',
+    '"行业对比"',
+    '"new-valuation-assumptions"',
+    '"估值假设"',
+    '"new-key-metrics"',
+    '"关键指标看板"',
+    '"new-research-decision-log"',
+    '"投研决策日志"',
+    '"持仓备忘录"',
+    '"new-watchlist-note"',
+    '"观察名单"',
+    '"new-catalyst-risk-review"',
+    '"催化剂与风险复盘"',
+    '"new-meeting-transcript"',
+    '"会议转录稿"',
+    '"new-meeting-action-items"',
+    '"会议行动项"',
+    '"new-expert-call-note"',
+    '"专家电话纪要"',
+    '"new-management-meeting-note"',
+    '"管理层会议纪要"',
+    '"new-report-intake-checklist"',
+    '"报告摄取清单"',
+  ]) {
+    assertIncludes(
+      files.researchTemplateStarters,
+      researchTemplateStarters,
+      snippet,
+      "Shared template catalog must expose local investment research template starters."
     );
   }
 

@@ -57,6 +57,7 @@ import { savePageFile, type StoredPageFile } from "@/lib/files/localStore";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
+import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
 import {
   buildReportIntakeReport,
   type ReportIntakeItem,
@@ -115,22 +116,7 @@ interface ReportFileBatchMessage {
   total: number;
 }
 
-const REPORT_TEMPLATE_STARTERS: ModuleStarter[] = [
-  {
-    type: "page",
-    label: "新建报告笔记",
-    title: "未命名研究报告",
-    templateTitle: "研究报告",
-    icon: "RPT",
-  },
-  {
-    type: "page",
-    label: "新建报告摄取",
-    title: "未命名报告摄取清单",
-    templateTitle: "报告摄取清单",
-    icon: "FILE",
-  },
-];
+const REPORT_TEMPLATE_STARTERS = getResearchTemplateStarters("report");
 
 const WORKFLOW_STEPS = [
   {

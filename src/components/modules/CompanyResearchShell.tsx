@@ -43,60 +43,11 @@ import {
 } from "@/lib/company/companyResearchWorkbench";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
+import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
-const COMPANY_TEMPLATE_STARTERS: ModuleStarter[] = [
-  {
-    type: "page",
-    label: "新建公司研究页",
-    title: "未命名公司研究",
-    templateTitle: "公司研究",
-    icon: "CO",
-  },
-  {
-    type: "page",
-    label: "新建投资备忘录",
-    title: "未命名投资备忘录",
-    templateTitle: "投资备忘录",
-    icon: "MEMO",
-  },
-  {
-    type: "page",
-    label: "新建业绩复盘",
-    title: "未命名业绩复盘",
-    templateTitle: "业绩复盘",
-    icon: "Q",
-  },
-  {
-    type: "page",
-    label: "新建估值假设",
-    title: "未命名估值假设",
-    templateTitle: "估值假设",
-    icon: "VAL",
-  },
-  {
-    type: "page",
-    label: "新建关键指标",
-    title: "未命名关键指标看板",
-    templateTitle: "关键指标看板",
-    icon: "KPI",
-  },
-  {
-    type: "page",
-    label: "新建行业对比",
-    title: "未命名行业对比",
-    templateTitle: "行业对比",
-    icon: "PEER",
-  },
-  {
-    type: "page",
-    label: "新建决策日志",
-    title: "未命名投研决策日志",
-    templateTitle: "投研决策日志",
-    icon: "DEC",
-  },
-];
+const COMPANY_TEMPLATE_STARTERS = getResearchTemplateStarters("company");
 
 const WORKFLOW_STEPS = [
   {

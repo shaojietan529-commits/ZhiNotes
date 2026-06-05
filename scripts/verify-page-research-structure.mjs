@@ -13,6 +13,7 @@ const files = {
   displayTitle: "src/lib/pages/displayTitle.ts",
   pageShell: "src/components/providers/PageShell.tsx",
   notesShell: "src/components/modules/NotesShell.tsx",
+  researchTemplateStarters: "src/lib/modules/researchTemplateStarters.ts",
   pageTree: "src/components/sidebar/PageTree.tsx",
   notesRoute: "src/app/(workspace)/modules/notes/page.tsx",
   registry: "src/lib/modules/registry.ts",
@@ -45,6 +46,9 @@ function run() {
   const displayTitle = readProjectFile(files.displayTitle);
   const pageShell = readProjectFile(files.pageShell);
   const notesShell = readProjectFile(files.notesShell);
+  const researchTemplateStarters = readProjectFile(
+    files.researchTemplateStarters
+  );
   const pageTree = readProjectFile(files.pageTree);
   const notesRoute = readProjectFile(files.notesRoute);
   const registry = readProjectFile(files.registry);
@@ -270,14 +274,7 @@ function run() {
     "notes-priority-actions",
     "notes-focus-pages",
     "notes-review-sequence",
-    "报告摄取",
-    "行业对比",
-    "专家电话",
-    "决策日志",
-    'templateTitle: "报告摄取清单"',
-    'templateTitle: "行业对比"',
-    'templateTitle: "专家电话纪要"',
-    'templateTitle: "投研决策日志"',
+    'getResearchTemplateStarters("notes")',
     "不包含页面正文、评论正文或文件字节",
     "不读取数据库行值",
     "不自动删除或覆盖页面",
@@ -288,6 +285,23 @@ function run() {
       notesShell,
       snippet,
       "Notes module UI must render the local notes workbench and privacy boundary."
+    );
+  }
+
+  for (const snippet of [
+    '"报告摄取"',
+    '"行业对比"',
+    '"专家电话"',
+    '"决策日志"',
+    '"报告摄取清单"',
+    '"专家电话纪要"',
+    '"投研决策日志"',
+  ]) {
+    assertIncludes(
+      files.researchTemplateStarters,
+      researchTemplateStarters,
+      snippet,
+      "Notes module template starters must stay available from the shared starter catalog."
     );
   }
 
