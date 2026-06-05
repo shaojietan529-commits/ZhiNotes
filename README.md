@@ -236,6 +236,9 @@ Current local actions:
 - Copy the current page as Markdown or standalone HTML from the page toolbar or
   Cmd/Ctrl+K. This is a local clipboard action for moving one page into emails,
   reports, AI prompt drafts, or another writing tool without downloading a file.
+- Download the current page as HTML or Markdown from the page toolbar or
+  Cmd/Ctrl+K. These actions are separate from the workspace-level all-page
+  Markdown export.
 - Review the Info panel for page metadata, local word/block counts, file/table
   counts, and the new 投研结构 summary.
 - Use the 投研结构 panel as a local checklist for outline coverage, investment

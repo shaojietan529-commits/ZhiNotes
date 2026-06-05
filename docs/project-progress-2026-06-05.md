@@ -225,6 +225,8 @@ schema migration 的能力默认保持关闭。
   或可独立打开的 HTML 文本。
 - `Cmd/Ctrl+K` 也新增“复制页面 Markdown”和“复制页面 HTML”动作，和页面工具栏走同一套
   本地 copy pipeline。
+- `Cmd/Ctrl+K` 现在也能搜索“导出当前页面 HTML”和“导出当前页面 Markdown”，和页面顶部的
+  HTML/MD 下载按钮走同一套本地导出 pipeline，并和 workspace 级“导出 Markdown”区分开。
 - Markdown 复制复用现有 HTML-to-Markdown 转换器，保留标题、列表、toggle、callout、目录、
   文件预览链接、公式、同步块和嵌入等已有导出语义；HTML 复制复用现有 standalone HTML 导出结构。
 - 这个能力只在用户主动触发时读取当前编辑器 HTML，并写入浏览器本地剪贴板；不会下载文件、

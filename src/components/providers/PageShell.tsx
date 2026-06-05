@@ -212,6 +212,14 @@ function PageContent({ pageId }: { pageId: string }) {
         setShowHistory(true);
         return;
       }
+      if (command === "export-html") {
+        handleExportHtml();
+        return;
+      }
+      if (command === "export-markdown") {
+        handleExportMarkdown();
+        return;
+      }
       if (command === "copy-link") {
         void handleCopyPageLink();
         return;
@@ -236,6 +244,8 @@ function PageContent({ pageId }: { pageId: string }) {
     handleCopyPageHtml,
     handleCopyPageLink,
     handleCopyPageMarkdown,
+    handleExportHtml,
+    handleExportMarkdown,
     handlePrintPdf,
   ]);
 

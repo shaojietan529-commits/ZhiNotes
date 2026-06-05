@@ -545,6 +545,8 @@ function run() {
   for (const snippet of [
     "| \"copy-html\"",
     "| \"copy-markdown\"",
+    "| \"export-html\"",
+    "| \"export-markdown\"",
     "PAGE_LOCAL_COMMAND_EVENT",
     "dispatchPageLocalCommand",
   ]) {
@@ -556,6 +558,12 @@ function run() {
     );
   }
   for (const snippet of [
+    "export-current-page-html",
+    "导出当前页面 HTML",
+    "export-html",
+    "export-current-page-markdown",
+    "导出当前页面 Markdown",
+    "export-markdown",
     "copy-page-markdown",
     "复制页面 Markdown",
     "copy-markdown",

@@ -4,6 +4,8 @@ export type PageLocalCommand =
   | "copy-html"
   | "copy-link"
   | "copy-markdown"
+  | "export-html"
+  | "export-markdown"
   | "history"
   | "info"
   | "print-pdf";
