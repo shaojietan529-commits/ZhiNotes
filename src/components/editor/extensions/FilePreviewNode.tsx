@@ -2043,30 +2043,44 @@ async function convertSpreadsheetToHtml(file: StoredPageFile) {
       }
     );
     const visibleRows = rows.slice(0, 200);
-    const visibleColumnCount = Math.min(
-      50,
-      visibleRows.reduce((max, row) => Math.max(max, row.length), 0)
+    const visibleColumnCount = Math.max(
+      1,
+      Math.min(
+        50,
+        visibleRows.reduce((max, row) => Math.max(max, row.length), 0)
+      )
     );
 
     if (visibleRows.length === 0) {
       return `<section><h2>${escapeHtml(sheetName)}</h2><p>这个工作表为空。</p></section>`;
     }
 
-    const tableRows = visibleRows
-      .map((row) => {
-        const cells = Array.from({ length: visibleColumnCount }, (_value, index) =>
-          `<td>${escapeHtml(String(row[index] ?? ""))}</td>`
-        ).join("");
-        return `<tr>${cells}</tr>`;
-      })
-      .join("");
+    const headerRow = visibleRows[0] ?? [];
+    const bodyRows = visibleRows.slice(1);
+    const headerCells = Array.from({ length: visibleColumnCount }, (_value, index) => {
+      const value = String(headerRow[index] ?? "").trim() || `列 ${index + 1}`;
+      return `<th scope="col">${escapeHtml(value)}</th>`;
+    }).join("");
+    const tableRows =
+      bodyRows.length > 0
+        ? bodyRows
+            .map((row) => {
+              const cells = Array.from(
+                { length: visibleColumnCount },
+                (_value, index) => `<td>${escapeHtml(String(row[index] ?? ""))}</td>`
+              ).join("");
+              return `<tr>${cells}</tr>`;
+            })
+            .join("")
+        : `<tr><td colspan="${visibleColumnCount}">这个工作表没有数据行。</td></tr>`;
+    const summary = `<p><small>工作表预览：共 ${rows.length} 行，显示 ${visibleRows.length} 行、${visibleColumnCount} 列。</small></p>`;
 
     const truncated =
       rows.length > visibleRows.length
         ? `<p><small>仅显示前 ${visibleRows.length} 行。</small></p>`
         : "";
 
-    return `<section><h2>${escapeHtml(sheetName)}</h2>${truncated}<table><tbody>${tableRows}</tbody></table></section>`;
+    return `<section><h2>${escapeHtml(sheetName)}</h2>${summary}${truncated}<table><thead>${headerCells}</thead><tbody>${tableRows}</tbody></table></section>`;
   });
 
   const sheetNotice =

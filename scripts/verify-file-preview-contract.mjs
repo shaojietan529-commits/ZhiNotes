@@ -56,6 +56,9 @@ const requiredCapabilities = [
       "convertSpreadsheetToHtml",
       "handleImportSpreadsheetDatabase",
       "BULK_IMPORT_CONFIRMATION_PHRASE",
+      "工作表预览",
+      "<thead>",
+      "这个工作表没有数据行",
     ],
   },
   {
