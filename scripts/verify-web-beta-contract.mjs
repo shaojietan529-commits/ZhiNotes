@@ -55,6 +55,7 @@ const files = {
   webBetaStageGate: "src/lib/sync/webBetaStageGate.ts",
   webBetaNextActions: "src/lib/sync/webBetaNextActions.ts",
   webLaunchWorkbench: "src/lib/sync/webLaunchWorkbench.ts",
+  webBetaAutonomyQueue: "src/lib/sync/webBetaAutonomyQueue.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
 };
@@ -268,6 +269,7 @@ function run() {
   const webBetaStageGate = readProjectFile(files.webBetaStageGate);
   const webBetaNextActions = readProjectFile(files.webBetaNextActions);
   const webLaunchWorkbench = readProjectFile(files.webLaunchWorkbench);
+  const webBetaAutonomyQueue = readProjectFile(files.webBetaAutonomyQueue);
   const syncShell = readProjectFile(files.syncShell);
   const migration = readProjectFile(files.migration);
 
@@ -314,6 +316,7 @@ function run() {
     [files.webBetaStageGate, webBetaStageGate],
     [files.webBetaNextActions, webBetaNextActions],
     [files.webLaunchWorkbench, webLaunchWorkbench],
+    [files.webBetaAutonomyQueue, webBetaAutonomyQueue],
     [files.syncShell, syncShell],
   ]) {
     assertNoLegacySingularEnv(source, label);
@@ -2522,6 +2525,174 @@ function run() {
     [
       "web-beta-owner-review",
       "Sync UI must expose a stable owner review section id.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  assertSourceIncludes(
+    files.webBetaAutonomyQueue,
+    webBetaAutonomyQueue,
+    'format: "zhinote-web-beta-autonomy-queue"',
+    "Autonomy queue must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.webBetaAutonomyQueue,
+    webBetaAutonomyQueue,
+    "buildWebBetaAutonomyQueue",
+    "Autonomy queue must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'queue_status: "local-autonomy-queue-only"',
+      "Autonomy queue must remain local-only.",
+    ],
+    [
+      "can_continue_local_code_work: true",
+      "Autonomy queue must allow local code work to continue.",
+    ],
+    [
+      "web_beta_can_launch_now: false",
+      "Autonomy queue must not allow Web Beta launch.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Autonomy queue must not allow cloud sync.",
+    ],
+    [
+      "reads_next_action_metadata: true",
+      "Autonomy queue must only use next-action metadata.",
+    ],
+    [
+      "reads_owner_review_metadata: true",
+      "Autonomy queue must use owner-review metadata.",
+    ],
+    [
+      "reads_workbench_metadata: true",
+      "Autonomy queue must use workbench metadata.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Autonomy queue must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Autonomy queue must not read database rows.",
+    ],
+    [
+      "reads_file_names: false",
+      "Autonomy queue must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Autonomy queue must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Autonomy queue must not read secret values.",
+    ],
+    [
+      "reads_tokens_or_cookies: false",
+      "Autonomy queue must not read tokens or cookies.",
+    ],
+    [
+      "reads_holdings_or_trading_plans: false",
+      "Autonomy queue must not read holdings or trading plans.",
+    ],
+    [
+      "deploys_app: false",
+      "Autonomy queue must not deploy.",
+    ],
+    [
+      "creates_accounts: false",
+      "Autonomy queue must not create accounts.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Autonomy queue must not connect cloud services.",
+    ],
+    [
+      "writes_workspace_data: false",
+      "Autonomy queue must not write workspace data.",
+    ],
+    [
+      "writes_server_data: false",
+      "Autonomy queue must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Autonomy queue must not upload workspace data.",
+    ],
+    [
+      "enables_sync: false",
+      "Autonomy queue must not enable sync.",
+    ],
+    [
+      "enables_ai: false",
+      "Autonomy queue must not enable AI.",
+    ],
+    [
+      '"continue-locally"',
+      "Autonomy queue must classify local work.",
+    ],
+    [
+      '"hold-for-owner"',
+      "Autonomy queue must classify owner-held work.",
+    ],
+    [
+      '"hold-for-cloud"',
+      "Autonomy queue must classify cloud-held work.",
+    ],
+    [
+      '"forbidden"',
+      "Autonomy queue must classify forbidden work.",
+    ],
+    [
+      "recommended_local_batch",
+      "Autonomy queue must expose a recommended local batch.",
+    ],
+    [
+      "required_verification_commands",
+      "Autonomy queue must expose verification commands for local work.",
+    ],
+  ]) {
+    assertSourceIncludes(files.webBetaAutonomyQueue, webBetaAutonomyQueue, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "buildWebBetaAutonomyQueue",
+      "Sync UI must build the autonomy queue.",
+    ],
+    [
+      "handleExportAutonomyQueue",
+      "Sync UI must export the autonomy queue.",
+    ],
+    [
+      "本地自主队列",
+      "Sync UI must render the autonomy queue panel.",
+    ],
+    [
+      "导出本地自主队列",
+      "Sync UI must render the autonomy queue export button.",
+    ],
+    [
+      "睡眠期间可继续的工作",
+      "Sync UI must describe overnight local work.",
+    ],
+    [
+      "AutonomyQueueItemCard",
+      "Sync UI must include an autonomy queue item component.",
+    ],
+    [
+      "AutonomyQueueStatusPill",
+      "Sync UI must include autonomy queue status labels.",
+    ],
+    [
+      'id="web-beta-autonomy-queue"',
+      "Sync UI must expose a stable autonomy queue section id.",
+    ],
+    [
+      '"autonomy-queue"',
+      "Sync UI must include autonomy queue export busy state.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
@@ -5213,6 +5384,7 @@ function run() {
     permission_server_readiness_checks: 29,
     web_beta_stage_gate_checks: 35,
     web_launch_workbench_checks: 73,
+    web_beta_autonomy_queue_checks: 37,
     web_alpha_launch_decision_checks: 39,
     web_beta_owner_review_packet_checks: 40,
     warnings: warnings.length,

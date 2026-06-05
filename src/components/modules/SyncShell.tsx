@@ -147,6 +147,11 @@ import {
   type WebLaunchWorkbenchPacket,
 } from "@/lib/sync/webLaunchWorkbench";
 import {
+  buildWebBetaAutonomyQueue,
+  type WebBetaAutonomyQueue,
+  type WebBetaAutonomyQueueStatus,
+} from "@/lib/sync/webBetaAutonomyQueue";
+import {
   buildWebBetaOwnerReviewPacket,
   type WebBetaOwnerReviewPacket,
   type WebBetaOwnerReviewStatus,
@@ -334,6 +339,7 @@ type WebBetaContractAction =
   | "deployment-target"
   | "smoke-test-plan"
   | "web-launch-workbench"
+  | "autonomy-queue"
   | "web-alpha-handoff"
   | "web-alpha-launch-decision"
   | "web-beta-owner-review"
@@ -1248,6 +1254,19 @@ function SyncDashboard() {
       webBetaOwnerReviewPacket,
       webBetaRoutePreflight,
       webBetaStageGate,
+    ]
+  );
+  const webBetaAutonomyQueue = useMemo(
+    () =>
+      buildWebBetaAutonomyQueue({
+        nextActionPlan: webBetaNextActionPlan,
+        ownerReviewPacket: webBetaOwnerReviewPacket,
+        workbench: webLaunchWorkbenchPacket,
+      }),
+    [
+      webBetaNextActionPlan,
+      webBetaOwnerReviewPacket,
+      webLaunchWorkbenchPacket,
     ]
   );
   const backupScope = useMemo(
@@ -2528,6 +2547,26 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportAutonomyQueue = () => {
+    setBusyContractAction("autonomy-queue");
+    try {
+      downloadJsonFile(
+        `zhinote-web-beta-autonomy-queue-${fileSafeTimestamp()}.json`,
+        {
+          ...webBetaAutonomyQueue,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export autonomy queue:", err);
+      window.alert(
+        "Web Beta autonomy queue export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
   const handleExportCloudSchemaMigrationPlan = () => {
     setBusyContractAction("cloud-schema-plan");
     try {
@@ -2885,6 +2924,119 @@ function SyncDashboard() {
           onExportAlphaDecision={handleExportWebAlphaLaunchDecisionReceipt}
           onExportOwnerReview={handleExportWebBetaOwnerReviewPacket}
         />
+
+        <section
+          id="web-beta-autonomy-queue"
+          className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+        >
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+                本地自主队列
+              </p>
+              <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                睡眠期间可继续的工作
+              </h2>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把下一步动作拆成四组：可本地继续、等待用户确认、等待云环境、
+                确认前禁止。这个队列只读上线元数据，不读页面正文、文件内容、
+                密钥、token、持仓或交易计划。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportAutonomyQueue}
+              disabled={busyContractAction === "autonomy-queue"}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {busyContractAction === "autonomy-queue"
+                ? "导出中..."
+                : "导出本地自主队列"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+            <BetaSummaryCard
+              label="本地继续"
+              value={webBetaAutonomyQueue.summary.continue_locally}
+              detail="无需确认"
+              tone="ready"
+            />
+            <BetaSummaryCard
+              label="等用户"
+              value={webBetaAutonomyQueue.summary.hold_for_owner}
+              detail="醒后确认"
+              tone={
+                webBetaAutonomyQueue.summary.hold_for_owner > 0
+                  ? "manual-confirmation"
+                  : "ready"
+              }
+            />
+            <BetaSummaryCard
+              label="等云环境"
+              value={webBetaAutonomyQueue.summary.hold_for_cloud}
+              detail="不私自处理"
+              tone={
+                webBetaAutonomyQueue.summary.hold_for_cloud > 0
+                  ? "blocked"
+                  : "ready"
+              }
+            />
+            <BetaSummaryCard
+              label="禁止"
+              value={webBetaAutonomyQueue.summary.forbidden}
+              detail="确认前不碰"
+              tone={
+                webBetaAutonomyQueue.summary.forbidden > 0
+                  ? "blocked"
+                  : "ready"
+              }
+            />
+            <BetaSummaryCard
+              label="验证命令"
+              value={webBetaAutonomyQueue.summary.verification_commands}
+              detail="本地可跑"
+              tone="partial"
+            />
+            <BetaSummaryCard
+              label="排除载荷"
+              value={webBetaAutonomyQueue.summary.excluded_payload_classes}
+              detail="隐私边界"
+              tone="partial"
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                可以继续的本地批次
+              </div>
+              <div className="mt-2 space-y-2">
+                {webBetaAutonomyQueue.items
+                  .filter((item) => item.status === "continue-locally")
+                  .slice(0, 5)
+                  .map((item) => (
+                    <AutonomyQueueItemCard key={item.id} item={item} />
+                  ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                主动跳过的事项
+              </div>
+              <div className="mt-2 space-y-2">
+                {webBetaAutonomyQueue.items
+                  .filter((item) => item.status !== "continue-locally")
+                  .slice(0, 5)
+                  .map((item) => (
+                    <AutonomyQueueItemCard key={item.id} item={item} />
+                  ))}
+              </div>
+            </div>
+          </div>
+          <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            本地自主队列不会部署、连云、创建账号、上传数据、启用同步、启用 AI
+            或写入服务器数据；需要你确认的事情会留到你醒来后统一决定。
+          </p>
+        </section>
 
         <section
           id="web-launch-workbench"
@@ -7505,6 +7657,13 @@ function localizeSyncDecisionText(value: string) {
     "需要补齐本地完成证据。": "需要补齐本地完成证据。",
     "Deployment, route preflight, and rollback": "部署、路由预检和回滚",
     "Run local verification command bundle": "运行本地验证命令包",
+    "Fresh rollback backup is required before restore apply.":
+      "恢复写入前必须先生成新的回滚备份。",
+    "Conflict resolution UI": "冲突复核界面",
+    "Side-by-side conflict review covers page, database, file, permission, and restore conflicts.":
+      "并排冲突复核已经覆盖页面、数据库、文件、权限和恢复冲突。",
+    "Owner beta launch decision": "用户 Beta 上线决策",
+    "Private file storage": "私有文件存储",
   };
 
   let next = exact[value] ?? value;
@@ -7641,6 +7800,74 @@ function WebLaunchActionCard({
         </span>
       </div>
     </article>
+  );
+}
+
+function AutonomyQueueItemCard({
+  item,
+}: {
+  item: WebBetaAutonomyQueue["items"][number];
+}) {
+  const primaryDetail =
+    item.status === "continue-locally"
+      ? item.completion_evidence[0] ?? item.next_action
+      : item.hold_reason;
+
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <AutonomyQueueStatusPill status={item.status} />
+            <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] font-medium text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+              {item.priority.toString().toUpperCase()}
+            </span>
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+              {localizeSyncDecisionText(item.title)}
+            </span>
+          </div>
+          <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+            {localizeSyncDecisionText(primaryDetail)}
+          </p>
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+          {item.can_start_without_owner ? "无需用户确认" : "等待用户确认"}
+        </span>
+        <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+          {item.can_start_without_cloud ? "无需云环境" : "等待云环境"}
+        </span>
+        <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+          {item.verification_commands.length} 个验证命令
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function AutonomyQueueStatusPill({
+  status,
+}: {
+  status: WebBetaAutonomyQueueStatus;
+}) {
+  const labels: Record<WebBetaAutonomyQueueStatus, string> = {
+    "continue-locally": "本地继续",
+    "hold-for-owner": "等用户",
+    "hold-for-cloud": "等云环境",
+    forbidden: "禁止",
+  };
+  const className =
+    status === "continue-locally"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "hold-for-owner"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
