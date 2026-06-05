@@ -3554,6 +3554,7 @@ function FileActionReceiptCard({
         <FileActionReceiptPill actionKind={receipt.action_kind} />
       </div>
       <div className="mt-2 grid gap-2 leading-5 text-zinc-500 dark:text-zinc-400 md:grid-cols-2">
+        <span>来源：{getFileActionSourceLabel(receipt.source_surface)}</span>
         <span>格式：{receipt.file.kind}</span>
         <span>扩展：{receipt.file.extension || "未知"}</span>
         <span>大小：{receipt.file.size_label}</span>
@@ -3678,6 +3679,17 @@ function getFileActionLabel(actionKind: FilePreviewActionKind) {
     "external-resource-disable": "关闭 HTML 外部资源",
   };
   return labels[actionKind];
+}
+
+function getFileActionSourceLabel(
+  source: FilePreviewActionReceipt["source_surface"]
+) {
+  const labels: Record<FilePreviewActionReceipt["source_surface"], string> = {
+    "editor-file-preview": "编辑器上传",
+    "file-preview-block": "页面预览块",
+    "reports-module": "报告模块",
+  };
+  return labels[source];
 }
 
 function getReportFileReceiptActionKind(

@@ -1507,6 +1507,9 @@ function run() {
     "本地原生预览",
     "本地留存下载",
     "FileActionReceiptCard",
+    "getFileActionSourceLabel",
+    "来源：",
+    "编辑器上传",
   ]) {
     assertIncludes(
       files.reportsShell,
