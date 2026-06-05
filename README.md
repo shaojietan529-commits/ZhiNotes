@@ -47,6 +47,9 @@ Current module foundation:
 - Meetings and Calls: beta module at `/modules/meetings` for meeting notes,
   transcripts, action items, follow-ups, linked company pages, linked reports,
   local tracker-row intake, and a local meeting tracker database.
+- Research Projects: beta module at `/modules/projects` for turning a research
+  question into a local project page, project checklist, module readiness view,
+  project tracker schema, and research graph handoff.
 - Research Graph: beta module at `/modules/research-graph` for a local map of
   company, report, meeting, and portfolio relation coverage, with manually
   confirmed local schema helpers.
@@ -77,6 +80,12 @@ Each module declares:
 
 Current preset workspace starters:
 
+- Project Tracker: project-page relation, status, project mode, priority,
+  horizon, next review, research question, owner confirmation, related-company
+  relations, related-report relations, related-meeting relations,
+  related-portfolio relations, decision memo relation, and next action, plus
+  project table, status board, review calendar, priority feed, and project
+  status chart views.
 - Company Research Tracker: company ticker, sector, status, rating, catalyst,
   company-page relation, thesis, valuation assumptions, key metrics,
   latest-report URL, related-report relations, and related-meeting relations,
@@ -366,6 +375,35 @@ Current relation scope:
   relation fields, links, completion suggestions, and relation schema gaps,
   without including page bodies, database row values, uploaded file bytes,
   prompts, tokens, or cloud data.
+
+## Research Projects Module
+
+Open the research projects module at:
+
+```txt
+http://localhost:3000/modules/projects
+```
+
+Current local actions:
+
+- Turn one research question into a local project brief with first-coverage,
+  earnings-review, variant-view, meeting-follow-up, or portfolio-review mode.
+- Create a local project page from the brief. The page opens immediately after
+  creation and contains project settings, graph metrics, module readiness, a
+  task checklist, review order, owner-confirmation items, and privacy
+  boundaries.
+- Create a local project tracker database preset. The preset creates schema and
+  views only: Project page, Status, Project mode, Priority, Horizon, Next
+  review, Research question, Owner confirmation, related-company/report/meeting
+  /portfolio relations, Decision memo, and Next action.
+- Review module readiness for company, report, meeting, and portfolio context
+  from the shared research graph summary.
+- Export the current project brief as local JSON.
+
+The Projects module does not auto-write tracker rows, relation values, AI
+payloads, cloud sync data, holdings, trading plans, file bytes, or page bodies.
+It is a local project capture layer that turns a research topic into a page and
+optional tracker schema before any deeper automation is considered.
 
 ## Research Graph Module
 

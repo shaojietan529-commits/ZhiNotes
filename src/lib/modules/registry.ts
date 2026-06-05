@@ -45,6 +45,7 @@ export type ModuleStarter =
       label: string;
       title: string;
       preset:
+        | "project-tracker"
         | "company-research"
         | "meeting-tracker"
         | "report-library"
@@ -304,6 +305,42 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       title: "会议跟踪表",
       preset: "meeting-tracker",
       icon: "MTG",
+    },
+  },
+  {
+    id: "projects",
+    title: "投研项目",
+    shortTitle: "项目",
+    description:
+      "把研究主题沉淀成项目页、项目 checklist、模块准备度和本地项目跟踪表。",
+    category: "Research",
+    status: "beta",
+    route: "/modules/projects",
+    icon: "PRJ",
+    capabilities: [
+      "独立模块页面",
+      "研究项目 Brief",
+      "本地项目页生成",
+      "项目跟踪表 preset",
+      "模块准备度",
+      "Owner 确认清单",
+      "研究图谱连接",
+    ],
+    dataSurfaces: [
+      "pages",
+      "databases",
+      "database_fields",
+      "database_rows",
+      "relations",
+      "research graph metadata",
+    ],
+    extensionSlots: ["sidebar.navigation", "quick-search.actions", "database.views"],
+    starter: {
+      type: "workspace",
+      label: "创建项目跟踪表",
+      title: "投研项目跟踪表",
+      preset: "project-tracker",
+      icon: "PRJ",
     },
   },
   {

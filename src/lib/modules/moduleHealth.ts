@@ -9,6 +9,7 @@ export type ModuleHealthAreaId =
   | "files-reports"
   | "company-research"
   | "meetings"
+  | "projects"
   | "portfolio"
   | "research-graph"
   | "ai"
@@ -169,6 +170,19 @@ function buildHealthAreas(): ModuleHealthArea[] {
         "Connect meeting assistant imports, transcript parsing, action item follow-up, and company/report relation capture.",
       privacy_boundary:
         "Meeting workflows must not join calls, publish notes, or upload transcripts without explicit user confirmation.",
+    },
+    {
+      id: "projects",
+      title: "投研项目",
+      status: moduleStatus("projects") === "beta" ? "partial" : "blocked",
+      phase: "phase-3",
+      module_ids: ["projects"],
+      evidence:
+        "Projects module is beta with research project briefs, local project page creation, project tracker presets, module readiness, checklist routing, and research graph context.",
+      next_action:
+        "Connect project tracker rows back to company, report, meeting, portfolio, and decision memo relations after explicit user confirmation.",
+      privacy_boundary:
+        "Project workflows create local pages and tracker schemas only; they must not auto-write relation values, infer holdings, upload data, or send project context to AI.",
     },
     {
       id: "portfolio",

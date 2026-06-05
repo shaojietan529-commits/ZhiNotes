@@ -72,6 +72,11 @@ const LOCAL_WORKSPACE_AND_MODULE_ROUTES: WebBetaExpectedRoute[] = [
     "Verify meetings module does not join calls or publish notes."
   ),
   localRoute(
+    "/modules/projects",
+    "module",
+    "Verify projects module creates local project pages and tracker schemas only."
+  ),
+  localRoute(
     "/modules/reports",
     "module",
     "Verify report module keeps file previews local."

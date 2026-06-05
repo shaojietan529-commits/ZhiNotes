@@ -302,7 +302,7 @@ function buildSmokeTestCases(
       evidence:
         "The platform is browser-based and must remain usable in narrow desktop and mobile review surfaces.",
       pass_condition:
-        "Open /modules, /modules/sync, /modules/reports, /modules/company-research, and a page route at narrow width and confirm controls do not overlap.",
+        "Open /modules, /modules/sync, /modules/projects, /modules/reports, /modules/company-research, and a page route at narrow width and confirm controls do not overlap.",
       failure_response:
         "Fix layout overflow before inviting beta testers to the preview URL.",
       privacy_boundary:

@@ -101,10 +101,60 @@ async function applyWorkspacePreset(
   databaseId: string,
   preset:
     | "company-research"
+    | "project-tracker"
     | "meeting-tracker"
     | "report-library"
     | "portfolio-tracker"
 ): Promise<Database | null> {
+  if (preset === "project-tracker") {
+    await updateDatabase(databaseId, {
+      description:
+        "Local research project tracker for project briefs, status, mode, horizon, owner confirmation, and links to companies, reports, meetings, and portfolio review.",
+    });
+    await addPresetFields(databaseId, [
+      { name: "Project page", fieldType: "relation" },
+      {
+        name: "Status",
+        fieldType: "status",
+        options: ["Idea", "Scoping", "Researching", "Review", "Decision", "Archived"],
+      },
+      {
+        name: "Project mode",
+        fieldType: "select",
+        options: [
+          "First coverage",
+          "Earnings review",
+          "Variant view",
+          "Meeting follow-up",
+          "Portfolio review",
+        ],
+      },
+      {
+        name: "Priority",
+        fieldType: "select",
+        options: ["High", "Medium", "Low", "Paused"],
+      },
+      { name: "Horizon", fieldType: "text" },
+      { name: "Next review", fieldType: "date" },
+      { name: "Research question", fieldType: "text" },
+      { name: "Owner confirmation", fieldType: "checkbox" },
+      { name: "Related companies", fieldType: "relation" },
+      { name: "Related reports", fieldType: "relation" },
+      { name: "Related meetings", fieldType: "relation" },
+      { name: "Related portfolio", fieldType: "relation" },
+      { name: "Decision memo", fieldType: "relation" },
+      { name: "Next action", fieldType: "text" },
+    ]);
+    await addPresetViews(databaseId, [
+      { name: "Project table", viewType: "table" },
+      { name: "Status board", viewType: "kanban" },
+      { name: "Review calendar", viewType: "calendar" },
+      { name: "Priority feed", viewType: "feed" },
+      { name: "项目状态分布", viewType: "chart" },
+    ]);
+    return updateDatabase(databaseId, {});
+  }
+
   if (preset === "company-research") {
     await updateDatabase(databaseId, {
       description:

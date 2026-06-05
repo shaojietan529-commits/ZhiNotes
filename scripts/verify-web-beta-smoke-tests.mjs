@@ -20,6 +20,7 @@ const requiredPageRoutes = [
   "src/app/(workspace)/modules/sync/page.tsx",
   "src/app/(workspace)/modules/reports/page.tsx",
   "src/app/(workspace)/modules/company-research/page.tsx",
+  "src/app/(workspace)/modules/projects/page.tsx",
   "src/app/(workspace)/modules/ai/page.tsx",
   "src/app/(workspace)/modules/portfolio/page.tsx",
   "src/app/(workspace)/modules/meetings/page.tsx",

@@ -216,6 +216,13 @@ export default function QuickSearch() {
     router.push("/modules/company-research");
   };
 
+  const handleOpenProjects = () => {
+    setOpen(false);
+    setQuery("");
+    setResults([]);
+    router.push("/modules/projects");
+  };
+
   const handleOpenPortfolio = () => {
     setOpen(false);
     setQuery("");
@@ -289,6 +296,14 @@ export default function QuickSearch() {
     const starter = PLATFORM_MODULES.find(
       (module) => module.id === "company-research"
     )?.starter;
+    if (starter) {
+      await handleModuleStarter(starter);
+    }
+  };
+
+  const handleCreateProjectTracker = async () => {
+    const starter = PLATFORM_MODULES.find((module) => module.id === "projects")
+      ?.starter;
     if (starter) {
       await handleModuleStarter(starter);
     }
@@ -414,6 +429,23 @@ export default function QuickSearch() {
       run: handleOpenCompanyResearch,
     },
     {
+      id: "projects-module",
+      title: "投研项目",
+      description: "打开投研项目模块，创建项目页和项目跟踪表",
+      icon: "PRJ",
+      category: "Workspace",
+      aliases: [
+        "project",
+        "projects",
+        "research project",
+        "project brief",
+        "项目",
+        "投研项目",
+        "专题",
+      ],
+      run: handleOpenProjects,
+    },
+    {
       id: "new-company-profile",
       title: "新建公司研究页",
       description: "创建一个本地公司研究页面",
@@ -469,6 +501,23 @@ export default function QuickSearch() {
       category: "Database",
       aliases: ["company", "tracker", "coverage", "database", "watchlist", "公司", "跟踪表"],
       run: () => void handleCreateCompanyTracker(),
+    },
+    {
+      id: "create-project-tracker",
+      title: "创建项目跟踪表",
+      description: "创建本地投研项目数据库",
+      icon: "PRJ",
+      category: "Database",
+      aliases: [
+        "project",
+        "tracker",
+        "brief",
+        "database",
+        "项目",
+        "投研项目",
+        "跟踪表",
+      ],
+      run: () => void handleCreateProjectTracker(),
     },
     {
       id: "portfolio-module",

@@ -324,6 +324,13 @@ function buildRouteChecks(): WebBetaRouteCheck[] {
     ),
     route(
       "GET",
+      "/modules/projects",
+      "module",
+      "local-route",
+      "Verify projects module creates local project pages and tracker schemas only."
+    ),
+    route(
+      "GET",
       "/modules/reports",
       "module",
       "local-route",

@@ -70,6 +70,7 @@ const requiredHealthAreas = [
   "files-reports",
   "company-research",
   "meetings",
+  "projects",
   "portfolio",
   "research-graph",
   "ai",
@@ -256,6 +257,7 @@ function run() {
     );
   }
   for (const preset of [
+    "project-tracker",
     "company-research",
     "meeting-tracker",
     "report-library",
