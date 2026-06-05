@@ -1386,6 +1386,9 @@ function run() {
     "MARKDOWN_EDITABLE_IMPORT_LABEL",
     "REPORT_FILE_ACTION_LABEL",
     "MARKDOWN_EDITABLE_IMPORT_ACCEPT",
+    ".mdown",
+    ".mkd",
+    ".mkdn",
     "handleReportFileSelected",
     "selectedFiles",
     "createReportPageFromStoredFile",
@@ -1401,6 +1404,7 @@ function run() {
     "markdownToHtml",
     "source_surface: \"reports-module\"",
     "导入 Markdown 笔记",
+    "Markdown / MDX / MDown",
     "Markdown 已从报告库模块导入为本地可编辑页面。",
   ]) {
     assertIncludes(
