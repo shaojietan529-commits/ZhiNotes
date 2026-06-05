@@ -201,7 +201,8 @@ Current local actions:
   it does not create a page until the user clicks one.
 - Use the notes 格式入口 panel to route Markdown notes, HTML visual reports,
   PDF/Word/PPT documents, and Excel/CSV files into the right local module before
-  they become page-linked knowledge assets.
+  they become page-linked knowledge assets. The same format check appears in
+  the notes review sequence.
 - Create blank research notes or template-backed local pages for investment
   memos, company research, meeting notes, research reports, report intake,
   industry comparison, expert calls, and research decision logs from the notes

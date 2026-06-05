@@ -246,6 +246,8 @@ schema migration 的能力默认保持关闭。
   Excel/CSV 应先进入哪个本地模块。
 - Markdown 和 HTML 报告会引导到 Reports，PDF/Word/PPT 先进入 Files，Excel/CSV 进入
   Databases 做确认后的结构化导入。
+- Notes 工作台的“建议顺序”现在也会包含“确认文件格式入口”，空工作区时排在创建第一篇笔记之后，
+  已有页面时作为固定复核步骤。
 - 这个面板只做路由说明和跳转，不读取文件、不创建页面、不写数据库、不上传、不调用 AI。
 
 ### Sync/API 防护阶段

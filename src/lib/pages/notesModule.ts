@@ -778,6 +778,15 @@ function buildReviewSequence(
         "笔记页面是 ZhiNotes 的知识库底座，没有页面就没有后续模块承载。",
         "至少有一篇本地页面。"
       ),
+      reviewStep(
+        "review-format-entry",
+        2,
+        "确认文件格式入口",
+        "/modules/notes",
+        "notes-format-entry",
+        "Markdown、HTML、PDF、Office 和 Excel 应先走最合适的本地模块，再回到页面知识库。",
+        "常用文件格式都有明确入口，不需要临时猜路径。"
+      ),
     ];
   }
 
@@ -821,11 +830,23 @@ function buildReviewSequence(
       )
     );
   }
-  if (steps.length === 0) {
+  const hasActionSteps = steps.length > 0;
+  steps.push(
+    reviewStep(
+      "review-format-entry",
+      steps.length + 1,
+      "确认文件格式入口",
+      "/modules/notes",
+      "notes-format-entry",
+      "Markdown、HTML、PDF、Office 和 Excel 应先走最合适的本地模块，再回到页面知识库。",
+      "常用文件格式都有明确入口，不需要临时猜路径。"
+    )
+  );
+  if (!hasActionSteps) {
     steps.push(
       reviewStep(
         "keep-notes-operable",
-        1,
+        steps.length + 1,
         "保持笔记库可导航",
         "/modules/notes",
         "notes-workbench-routes",
