@@ -566,6 +566,15 @@ function run() {
     );
   }
   for (const snippet of [
+    "handleOpenDatabases",
+    "markdown-note-entry",
+    "Markdown 笔记入口",
+    "html-report-entry",
+    "HTML 报告入口",
+    "document-file-entry",
+    "PDF / Office 文件入口",
+    "spreadsheet-entry",
+    "Excel / CSV 导入入口",
     "export-current-page-html",
     "导出当前页面 HTML",
     "export-html",

@@ -210,6 +210,13 @@ export default function QuickSearch() {
     router.push("/modules/notes");
   };
 
+  const handleOpenDatabases = () => {
+    setOpen(false);
+    setQuery("");
+    setResults([]);
+    router.push("/modules/databases");
+  };
+
   const handleOpenCompanyResearch = () => {
     setOpen(false);
     setQuery("");
@@ -539,6 +546,39 @@ export default function QuickSearch() {
       run: handleOpenReports,
     },
     {
+      id: "markdown-note-entry",
+      title: "Markdown 笔记入口",
+      description: "打开可编辑 Markdown 笔记导入路线",
+      icon: "MD",
+      category: "Workspace",
+      aliases: [
+        "markdown",
+        "md",
+        "markdown note",
+        "import markdown",
+        "notes format",
+        "格式入口",
+        "Markdown 笔记",
+      ],
+      run: handleOpenReports,
+    },
+    {
+      id: "html-report-entry",
+      title: "HTML 报告入口",
+      description: "打开 HTML 可视化报告预览和报告页路线",
+      icon: "HTML",
+      category: "Workspace",
+      aliases: [
+        "html",
+        "html report",
+        "visual report",
+        "ai report",
+        "格式入口",
+        "HTML 报告",
+      ],
+      run: handleOpenReports,
+    },
+    {
       id: "files-module",
       title: "文件库",
       description: "打开本地文件库工作台",
@@ -561,6 +601,40 @@ export default function QuickSearch() {
         "附件",
       ],
       run: handleOpenFiles,
+    },
+    {
+      id: "document-file-entry",
+      title: "PDF / Office 文件入口",
+      description: "打开 PDF、Word、PPT 等文件的本地预览路线",
+      icon: "FILE",
+      category: "Workspace",
+      aliases: [
+        "pdf",
+        "office",
+        "word",
+        "ppt",
+        "powerpoint",
+        "document",
+        "文件入口",
+      ],
+      run: handleOpenFiles,
+    },
+    {
+      id: "spreadsheet-entry",
+      title: "Excel / CSV 导入入口",
+      description: "打开表格文件到本地数据库的确认导入路线",
+      icon: "XLS",
+      category: "Workspace",
+      aliases: [
+        "excel",
+        "csv",
+        "spreadsheet",
+        "xlsx",
+        "database import",
+        "表格导入",
+        "Excel 导入",
+      ],
+      run: handleOpenDatabases,
     },
     {
       id: "create-report-tracker",
