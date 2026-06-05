@@ -718,6 +718,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     relationPages: workspacePages,
     focusPageId,
     focusPage,
+    groupFieldId,
   };
   const visibleFieldViewProps = {
     ...allFieldViewProps,

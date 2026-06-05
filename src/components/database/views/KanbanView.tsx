@@ -12,6 +12,7 @@ interface KanbanViewProps {
   onDeleteRow: (rowId: string) => void;
   onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
+  groupFieldId?: string;
 }
 
 export default function KanbanView({
@@ -20,14 +21,23 @@ export default function KanbanView({
   onDeleteRow,
   onDuplicateRow,
   onOpenRow,
+  groupFieldId = "",
 }: KanbanViewProps) {
-  // Use Status first, then fall back to the first Select field.
+  // Use the saved view grouping field when it is board-friendly, then fall back.
+  const savedGroupField = fields.find(
+    (field) => field.id === groupFieldId && isKanbanGroupField(field)
+  );
   const groupField =
-    fields.find((f) => f.field_type === "status") ||
-    fields.find((f) => f.field_type === "select");
+    savedGroupField ||
+    fields.find((field) => field.field_type === "status") ||
+    fields.find((field) => field.field_type === "select") ||
+    fields.find((field) => field.field_type === "checkbox");
 
   const columns = useMemo(() => {
     if (!groupField) return [];
+    if (groupField.field_type === "checkbox") {
+      return ["false", "true"];
+    }
     const config = groupField.config ? JSON.parse(groupField.config) : {};
     const options: string[] = config.options || [];
     // Keep rows without a value visible in their own column.
@@ -44,7 +54,9 @@ export default function KanbanView({
         typeof row.field_values === "string"
           ? JSON.parse(row.field_values || "{}")
           : row.field_values || {};
-      const val = groupField ? (fieldValues[groupField.id] as string) || "" : "";
+      const val = groupField
+        ? getKanbanGroupValue(fieldValues[groupField.id], groupField)
+        : "";
       if (!groups[val]) groups[val] = [];
       groups[val].push(row);
     }
@@ -55,10 +67,10 @@ export default function KanbanView({
     return (
       <div className="text-center py-8">
         <p className="text-sm text-zinc-400 mb-2">
-          看板视图需要一个状态或单选字段。
+          看板视图需要一个状态、单选或复选框字段。
         </p>
         <p className="text-xs text-zinc-400">
-          请先添加带选项的状态或单选字段，再使用看板视图。
+          请先添加可分组字段，再使用看板视图。
         </p>
       </div>
     );
@@ -74,7 +86,7 @@ export default function KanbanView({
           {/* Column header */}
           <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              {col || "无状态"}
+              {getKanbanColumnLabel(col, groupField)}
             </span>
             <span className="text-xs text-zinc-400">
               {groupedRows[col]?.length || 0}
@@ -124,4 +136,26 @@ export default function KanbanView({
       ))}
     </div>
   );
+}
+
+function isKanbanGroupField(field: DatabaseField) {
+  return (
+    field.field_type === "status" ||
+    field.field_type === "select" ||
+    field.field_type === "checkbox"
+  );
+}
+
+function getKanbanGroupValue(value: unknown, field: DatabaseField) {
+  if (field.field_type === "checkbox") {
+    return value ? "true" : "false";
+  }
+  return typeof value === "string" ? value : "";
+}
+
+function getKanbanColumnLabel(value: string, field: DatabaseField) {
+  if (field.field_type === "checkbox") {
+    return value === "true" ? "已勾选" : "未勾选";
+  }
+  return value || "无状态";
 }

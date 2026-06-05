@@ -51,6 +51,8 @@ schema migration 的能力默认保持关闭。
 - 属性显示菜单现在支持按字段名、字段类型或字段说明本地搜索，并能一键全部显示或只显示名称列。
 - 新增本地 view 分组：Table、List、Gallery、Feed 视图可以按字段分组展示；分组字段同样保存到
   view config，只影响展示，不改 row values。
+- Kanban view 现在也会读取保存的分组字段；当字段适合 board 展示时，支持按 status、select 或
+  checkbox 分栏。
 - 数据库 view tab 现在有本地管理菜单：重命名、复制视图配置、删除非最后一个视图；删除是
   soft delete，只影响 view config，不删除行、页面、字段或文件。
 - Inline database 现在会应用已保存的 view config：row search、筛选、排序、隐藏属性、图表

@@ -317,7 +317,8 @@ Current local actions:
   grouping are stored in each local view config. Older single-filter/
   single-sort view configs remain compatible and open as one rule. Table, list,
   gallery, and feed views can render grouped sections without changing row
-  values.
+  values. Kanban views also read saved board-friendly grouping fields, including
+  status, select, and checkbox.
 - Search the local property visibility menu by field name, type, or field
   description before hiding or showing properties in the current database view.
   The same menu can show all properties or collapse the view back to title-only

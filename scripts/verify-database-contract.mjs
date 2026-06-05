@@ -482,6 +482,34 @@ function run() {
     );
   }
   for (const snippet of [
+    "groupFieldId",
+    "savedGroupField",
+    "isKanbanGroupField",
+    "getKanbanGroupValue",
+    "getKanbanColumnLabel",
+    "已勾选",
+    "未勾选",
+  ]) {
+    assertIncludes(
+      files.kanbanView,
+      kanbanView,
+      snippet,
+      "Kanban views must use saved local grouping fields when they are board-friendly."
+    );
+  }
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "groupFieldId,",
+    "Full database view props must pass the saved grouping field to Kanban views."
+  );
+  assertIncludes(
+    files.inlineDatabaseNode,
+    inlineDatabaseNode,
+    "groupFieldId: activeViewConfig.groupFieldId",
+    "Inline database view props must pass the saved grouping field to Kanban views."
+  );
+  for (const snippet of [
     "DatabaseViewActionsButton",
     "handleRenameView",
     "handleDuplicateView",
@@ -1813,6 +1841,7 @@ function run() {
         view_filter_operators: true,
         property_visibility_search: true,
         view_grouping: true,
+        kanban_saved_grouping: true,
         view_management: true,
         view_reordering: true,
         row_reordering: true,

@@ -419,6 +419,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
     onOpenRow: handleOpenRow,
     onOpenPage: handleOpenPage,
     relationPages: workspacePages,
+    groupFieldId: activeViewConfig.groupFieldId,
   };
   const visibleFieldViewProps = {
     ...viewProps,
