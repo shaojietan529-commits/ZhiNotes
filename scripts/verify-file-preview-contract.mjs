@@ -1221,12 +1221,22 @@ function run() {
   }
   for (const snippet of [
     "buildFileLibraryWorkbenchReport",
+    "buildFilePreviewRoutingPacket",
+    "filePreviewRouting",
+    "handleExportPreviewRouting",
+    "FilePreviewRoutingHubPanel",
+    "FilePreviewRoutingRouteCard",
+    "FilePreviewRoutingReviewStepCard",
+    "FilePreviewRoutingStatusPill",
+    "buildFilesModuleIntakeReport",
     "listStoredPageFiles",
     "文件库中心",
     "文件工作台",
+    "文件预览路由总控",
     "格式路线矩阵",
     "FileFormatGroupCard",
     "导出文件工作台",
+    "导出路由包",
     "文件接入入口",
     "files-decision-summary",
     "文件格式接入决策摘要",
@@ -1258,6 +1268,7 @@ function run() {
     "scrollIntoView",
     "打开步骤",
     "files-intake-entrypoints",
+    "files-preview-routing",
     "files-workbench-lanes",
     "files-format-matrix",
     "files-local-files",
@@ -1265,6 +1276,7 @@ function run() {
     "files-review-sequence",
     "files-privacy-boundary",
     "导出不包含文件名、字节或正文",
+    "不读取文件名、正文、字节、表格值",
     "不自动删除",
   ]) {
     assertIncludes(

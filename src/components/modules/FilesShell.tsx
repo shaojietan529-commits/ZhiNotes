@@ -13,11 +13,27 @@ import {
   type FileLibraryPriority,
   type FileLibraryWorkbenchReport,
 } from "@/lib/files/fileLibraryWorkbench";
-import type { FilePreviewSupportLevel } from "@/lib/files/filePreviewCapabilities";
 import {
+  getFilePreviewCapabilityByKind,
+  type FilePreviewSupportLevel,
+} from "@/lib/files/filePreviewCapabilities";
+import { buildFilePreviewReadinessReport } from "@/lib/files/filePreviewReadiness";
+import {
+  buildFilePreviewRoutingPacket,
+  type FilePreviewRoutingPacket,
+  type FilePreviewRoutingStatus,
+} from "@/lib/files/filePreviewRouting";
+import {
+  formatFileSize,
   listStoredPageFiles,
   type StoredPageFile,
 } from "@/lib/files/localStore";
+import { buildReportFormatCoverageReport } from "@/lib/reports/reportFormatCoverage";
+import {
+  REPORT_INTAKE_LANES,
+  type ReportIntakeReport,
+} from "@/lib/reports/reportIntake";
+import { buildReportReviewQueue } from "@/lib/reports/reportReviewQueue";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 export default function FilesShell() {
@@ -50,6 +66,7 @@ function FilesDashboard() {
   const [storedFiles, setStoredFiles] = useState<StoredPageFile[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exportingWorkbench, setExportingWorkbench] = useState(false);
+  const [exportingPreviewRouting, setExportingPreviewRouting] = useState(false);
 
   const loadStoredFiles = useCallback(async () => {
     try {
@@ -68,6 +85,35 @@ function FilesDashboard() {
   const workbench = useMemo(
     () => buildFileLibraryWorkbenchReport(storedFiles),
     [storedFiles]
+  );
+  const fileIntake = useMemo(
+    () => buildFilesModuleIntakeReport(storedFiles),
+    [storedFiles]
+  );
+  const filePreviewReadiness = useMemo(
+    () => buildFilePreviewReadinessReport(),
+    []
+  );
+  const reportFormatCoverage = useMemo(
+    () =>
+      buildReportFormatCoverageReport({
+        intake: fileIntake,
+        readiness: filePreviewReadiness,
+      }),
+    [fileIntake, filePreviewReadiness]
+  );
+  const reportReviewQueue = useMemo(
+    () => buildReportReviewQueue(fileIntake),
+    [fileIntake]
+  );
+  const filePreviewRouting = useMemo(
+    () =>
+      buildFilePreviewRoutingPacket({
+        readiness: filePreviewReadiness,
+        coverage: reportFormatCoverage,
+        reviewQueue: reportReviewQueue,
+      }),
+    [filePreviewReadiness, reportFormatCoverage, reportReviewQueue]
   );
 
   const fileNameById = useMemo(
@@ -90,10 +136,45 @@ function FilesDashboard() {
     }
   };
 
+  const handleExportPreviewRouting = () => {
+    setExportingPreviewRouting(true);
+    try {
+      downloadJsonFile(
+        `zhinote-file-preview-routing-${fileSafeTimestamp()}.json`,
+        {
+          ...filePreviewRouting,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export file preview routing:", err);
+      window.alert("文件预览路由包导出失败，请查看控制台。");
+    } finally {
+      setExportingPreviewRouting(false);
+    }
+  };
+
   const handleReviewStepOpen = (
     step: FileLibraryWorkbenchReport["review_sequence"][number]
   ) => {
     openFileWorkflowRoute(step.route, step.target_section_id, router.push);
+  };
+
+  const handlePreviewRoutingStepOpen = (
+    step: FilePreviewRoutingPacket["review_sequence"][number]
+  ) => {
+    openFileWorkflowRoute(step.route, step.target_section_id, router.push);
+  };
+
+  const handlePreviewRoutingRouteOpen = (
+    route: FilePreviewRoutingPacket["routes"][number]
+  ) => {
+    const destination = getPreviewRoutingRouteDestination(route);
+    openFileWorkflowRoute(
+      destination.route,
+      destination.target_section_id,
+      router.push
+    );
   };
 
   const handleDecisionOpen = (
@@ -179,6 +260,14 @@ function FilesDashboard() {
         <FileNativeStrategyPanel
           strategy={workbench.native_strategy}
           onOpenStrategy={handleNativeStrategyOpen}
+        />
+
+        <FilePreviewRoutingHubPanel
+          packet={filePreviewRouting}
+          exportingPreviewRouting={exportingPreviewRouting}
+          onExportPreviewRouting={handleExportPreviewRouting}
+          onOpenReviewStep={handlePreviewRoutingStepOpen}
+          onOpenRoute={handlePreviewRoutingRouteOpen}
         />
 
         <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
@@ -739,6 +828,260 @@ function NativeStrategyList({
   );
 }
 
+function FilePreviewRoutingHubPanel({
+  packet,
+  exportingPreviewRouting,
+  onExportPreviewRouting,
+  onOpenReviewStep,
+  onOpenRoute,
+}: {
+  packet: FilePreviewRoutingPacket;
+  exportingPreviewRouting: boolean;
+  onExportPreviewRouting: () => void;
+  onOpenReviewStep: (
+    step: FilePreviewRoutingPacket["review_sequence"][number]
+  ) => void;
+  onOpenRoute: (route: FilePreviewRoutingPacket["routes"][number]) => void;
+}) {
+  return (
+    <section
+      id="files-preview-routing"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            文件预览路由
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            文件预览路由总控
+          </h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            把文件预览就绪度、格式覆盖和复核队列汇总成每种文件进入
+            ZhiNotes page 的路线：原生预览、可编辑导入、表格入库、
+            元数据复核或本地留存。不读取文件名、正文、字节、表格值，
+            不写入、不上传、不调用 AI。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExportPreviewRouting}
+          disabled={exportingPreviewRouting}
+          className="w-fit whitespace-nowrap rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+        >
+          {exportingPreviewRouting ? "导出中..." : "导出路由包"}
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <FilePreviewRoutingFact label="路线" value={packet.summary.routes} />
+        <FilePreviewRoutingFact
+          label="活跃文件"
+          value={packet.summary.active_items}
+        />
+        <FilePreviewRoutingFact
+          label="原生路线"
+          value={packet.summary.native_routes}
+        />
+        <FilePreviewRoutingFact
+          label="可编辑导入"
+          value={packet.summary.editable_import_routes}
+        />
+        <FilePreviewRoutingFact
+          label="表格候选"
+          value={packet.summary.database_import_candidates}
+        />
+        <FilePreviewRoutingFact
+          label="需确认"
+          value={packet.summary.confirmation_routes}
+        />
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {packet.lanes.map((lane) => (
+          <article
+            key={lane.id}
+            className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-semibold text-zinc-950 dark:text-zinc-50">
+                {lane.title}
+              </h3>
+              <span className="rounded-full bg-zinc-200 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                {lane.route_count} 路线
+              </span>
+            </div>
+            <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+              {lane.description}
+            </p>
+            <p className="mt-3 text-xs leading-5 text-zinc-400">
+              {lane.active_items} 个活跃项 · {lane.confirmation_routes} 条确认路线
+            </p>
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-5">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+            格式路线
+          </h3>
+          <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            每张卡只展示格式级路线和动作，不展示真实文件名或文件内容。
+          </p>
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {packet.routes.map((route) => (
+            <FilePreviewRoutingRouteCard
+              key={route.id}
+              route={route}
+              onOpen={() => onOpenRoute(route)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+          复核顺序
+        </h3>
+        <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {packet.review_sequence.map((step) => (
+            <FilePreviewRoutingReviewStepCard
+              key={step.id}
+              step={step}
+              onOpen={() => onOpenReviewStep(step)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <p className="mt-5 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+        {packet.privacy_note}
+      </p>
+    </section>
+  );
+}
+
+function FilePreviewRoutingFact({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800">
+      <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+        {label}
+      </div>
+      <div className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function FilePreviewRoutingRouteCard({
+  route,
+  onOpen,
+}: {
+  route: FilePreviewRoutingPacket["routes"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="flex min-h-[250px] flex-col justify-between rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-zinc-950 dark:text-zinc-50">
+              {route.label}
+            </h3>
+            <p className="mt-1 text-xs text-zinc-400">
+              {route.extensions.length > 0
+                ? route.extensions.join(" / ")
+                : "未登记扩展名"}
+            </p>
+          </div>
+          <FilePreviewRoutingStatusPill status={route.status} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+          <span>{getPreviewRoutingLaneLabel(route.lane_id)}</span>
+          <span>{getSupportLevelLabel(route.support_level)}</span>
+          <span>{getPreviewRoutingSurfaceLabel(route.display_surface)}</span>
+          {route.confirmation_required && <span>需确认</span>}
+        </div>
+        <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+          {route.primary_action}
+        </p>
+        <p className="mt-2 text-xs leading-5 text-zinc-400">
+          {route.secondary_action}
+        </p>
+      </div>
+      <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+        <p className="text-xs leading-5 text-zinc-400">
+          {route.active_items} 个活跃项 · {route.privacy_boundary}
+        </p>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-3 rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-white dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+        >
+          打开路线
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function FilePreviewRoutingReviewStepCard({
+  step,
+  onOpen,
+}: {
+  step: FilePreviewRoutingPacket["review_sequence"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <span className="text-xs font-medium text-zinc-400">
+        步骤 {step.order}
+      </span>
+      <h3 className="mt-2 font-semibold text-zinc-950 dark:text-zinc-50">
+        {step.title}
+      </h3>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {step.reason}
+      </p>
+      <p className="mt-3 text-xs leading-5 text-zinc-400">
+        完成信号：{step.completion_signal}
+      </p>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-3 rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-white dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+      >
+        打开步骤
+      </button>
+    </article>
+  );
+}
+
+function FilePreviewRoutingStatusPill({
+  status,
+}: {
+  status: FilePreviewRoutingStatus;
+}) {
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${getPreviewRoutingStatusClassName(
+        status
+      )}`}
+    >
+      {getPreviewRoutingStatusLabel(status)}
+    </span>
+  );
+}
+
 function getNativeStrategyValueLabel(value: string) {
   const labels: Record<string, string> = {
     "zhinote-page": "ZhiNotes Page",
@@ -1016,9 +1359,214 @@ function getForbiddenActionLabel(action: string): string {
   return labels[action] ?? action;
 }
 
-function downloadJsonFile(fileName: string, payload: FileLibraryWorkbenchReport & {
-  exported_at: string;
-}) {
+function buildFilesModuleIntakeReport(
+  storedFiles: StoredPageFile[]
+): ReportIntakeReport {
+  const items = storedFiles.map((file, index) => {
+    const capability = getFilePreviewCapabilityByKind(file.kind);
+    const priority = getFilesModuleIntakePriority(file.kind);
+
+    return {
+      id: `files-module:${index + 1}:${file.kind}`,
+      page_id: "files-module",
+      page_title: "文件库本地文件",
+      file_id: `local-file-${index + 1}`,
+      file_name: getSyntheticFileRouteLabel(file.kind, index),
+      file_kind: file.kind,
+      file_size: file.size,
+      file_size_label: formatFileSize(file.size),
+      mime_type: file.mimeType || "application/octet-stream",
+      stage: getFilesModuleIntakeStage(file.kind),
+      priority,
+      preview_support: capability?.support_level ?? "unknown",
+      next_action: getFilesModuleIntakeNextAction(file.kind),
+      relation_gaps: ["待确认"],
+      privacy_boundary:
+        capability?.privacy_boundary ??
+        "本地文件只保存在浏览器工作区；未知格式默认只做本地保存和下载。",
+      updated_at: file.createdAt,
+    } satisfies ReportIntakeReport["items"][number];
+  });
+  const uniqueFileKinds = new Set(items.map((item) => item.file_kind));
+
+  return {
+    format: "zhinote-report-intake-report",
+    format_version: 1,
+    report_status: "local-report-intake-only",
+    privacy_note:
+      "由文件库本地元数据生成，只用于格式路线计数；不导出真实文件名、文件字节、文件正文、页面正文、云端数据、AI prompt、token 或凭证。",
+    boundary: {
+      local_report_only: true,
+      reads_local_page_html: true,
+      extracts_file_preview_attributes_only: true,
+      reads_file_bytes: false,
+      reads_file_text: false,
+      writes_workspace_data: false,
+      connects_cloud_services: false,
+      uploads_data: false,
+      enables_ai: false,
+    },
+    summary: {
+      pages_scanned: 0,
+      intake_items: items.length,
+      high_priority: items.filter((item) => item.priority === "high").length,
+      medium_priority: items.filter((item) => item.priority === "medium").length,
+      low_priority: items.filter((item) => item.priority === "low").length,
+      unique_file_kinds: uniqueFileKinds.size,
+      html_reports: items.filter((item) => item.file_kind === "html").length,
+      spreadsheet_candidates: items.filter(
+        (item) => item.file_kind === "spreadsheet"
+      ).length,
+    },
+    lanes: REPORT_INTAKE_LANES,
+    items,
+  };
+}
+
+function getFilesModuleIntakeStage(
+  kind: StoredPageFile["kind"]
+): ReportIntakeReport["items"][number]["stage"] {
+  if (kind === "spreadsheet") return "database-review";
+  if (kind === "archive" || kind === "unknown") return "source-triage";
+  if (kind === "image" || kind === "audio" || kind === "video") {
+    return "source-triage";
+  }
+  return "reading-review";
+}
+
+function getFilesModuleIntakePriority(
+  kind: StoredPageFile["kind"]
+): ReportIntakeReport["items"][number]["priority"] {
+  if (
+    kind === "html" ||
+    kind === "markdown" ||
+    kind === "pdf" ||
+    kind === "spreadsheet" ||
+    kind === "word" ||
+    kind === "presentation" ||
+    kind === "notebook"
+  ) {
+    return "high";
+  }
+  if (kind === "archive" || kind === "epub" || kind === "rtf" || kind === "text") {
+    return "medium";
+  }
+  return "low";
+}
+
+function getFilesModuleIntakeNextAction(kind: StoredPageFile["kind"]) {
+  if (kind === "spreadsheet") {
+    return "确认字段、行数和导入边界后，再决定是否转成本地数据库。";
+  }
+  if (kind === "html") {
+    return "保持外部资源阻止，先在 page 内阅读 AI 可视化报告。";
+  }
+  if (kind === "markdown") {
+    return "导入为可编辑 page 内容后，继续补结论、假设影响和后续问题。";
+  }
+  if (kind === "pdf" || kind === "word" || kind === "presentation") {
+    return "先做阅读或转换复核，再关联公司、会议和备忘录。";
+  }
+  if (kind === "notebook") {
+    return "只复核输出和图表，不执行 notebook 代码。";
+  }
+  if (kind === "archive") {
+    return "先查看压缩包目录，不自动解包写入工作区。";
+  }
+  return "确认研究用途、来源可信度和是否需要转为标准报告页。";
+}
+
+function getSyntheticFileRouteLabel(kind: StoredPageFile["kind"], index: number) {
+  return `local-${kind}-file-${index + 1}`;
+}
+
+function getPreviewRoutingRouteDestination(
+  route: FilePreviewRoutingPacket["routes"][number]
+) {
+  if (route.lane_id === "database-import") {
+    return {
+      route: "/modules/databases",
+      target_section_id: "databases-import-export-readiness",
+    };
+  }
+  if (route.lane_id === "metadata-review" || route.lane_id === "gap-review") {
+    return { route: "/modules/files", target_section_id: "files-format-matrix" };
+  }
+  if (route.lane_id === "download-retain") {
+    return { route: "/modules/files", target_section_id: "files-local-files" };
+  }
+  if (route.lane_id === "editable-import") {
+    return {
+      route: "/modules/reports",
+      target_section_id: "reports-conversion-review",
+    };
+  }
+  return { route: "/modules/reports", target_section_id: "reports-preview-routing" };
+}
+
+function getPreviewRoutingLaneLabel(
+  laneId: FilePreviewRoutingPacket["routes"][number]["lane_id"]
+) {
+  const labels: Record<typeof laneId, string> = {
+    "native-preview": "原生预览",
+    "editable-import": "可编辑导入",
+    "database-import": "表格入库",
+    "metadata-review": "元数据复核",
+    "download-retain": "本地留存",
+    "gap-review": "缺口复核",
+  };
+  return labels[laneId];
+}
+
+function getPreviewRoutingSurfaceLabel(
+  surface: FilePreviewRoutingPacket["routes"][number]["display_surface"]
+) {
+  const labels: Record<typeof surface, string> = {
+    "sandboxed-iframe": "沙盒 iframe",
+    "browser-native": "浏览器原生",
+    "converted-html": "转换 HTML",
+    "metadata-list": "元数据列表",
+    "download-retain": "下载留存",
+  };
+  return labels[surface];
+}
+
+function getPreviewRoutingStatusLabel(status: FilePreviewRoutingStatus) {
+  const labels: Record<FilePreviewRoutingStatus, string> = {
+    "native-ready": "原生可用",
+    "external-confirmation": "外部资源确认",
+    "converted-review": "转换复核",
+    "database-confirmation": "入库确认",
+    "metadata-review": "元数据复核",
+    "download-retain": "本地留存",
+    "blocked-limited": "受限",
+    unsupported: "未支持",
+  };
+  return labels[status];
+}
+
+function getPreviewRoutingStatusClassName(status: FilePreviewRoutingStatus) {
+  const classNames: Record<FilePreviewRoutingStatus, string> = {
+    "native-ready":
+      "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200",
+    "external-confirmation":
+      "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200",
+    "converted-review":
+      "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200",
+    "database-confirmation":
+      "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200",
+    "metadata-review":
+      "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200",
+    "download-retain":
+      "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200",
+    "blocked-limited":
+      "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-200",
+    unsupported: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-200",
+  };
+  return classNames[status];
+}
+
+function downloadJsonFile(fileName: string, payload: unknown) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
   });
