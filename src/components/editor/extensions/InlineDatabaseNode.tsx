@@ -68,6 +68,7 @@ import {
 
 type RowWithPage = DatabaseRow & { page: Page };
 type SortDirection = "asc" | "desc";
+type InlineDatabaseFilterMatchMode = "all" | "any";
 type InlineDatabaseFilterOperator =
   | "contains"
   | "does_not_contain"
@@ -104,6 +105,7 @@ interface InlineDatabaseViewConfig {
   filterFieldId: string;
   filterValue: string;
   filterRules: InlineDatabaseFilterRule[];
+  filterMatchMode: InlineDatabaseFilterMatchMode;
   sortKey: string;
   sortDirection: SortDirection;
   sortRules: InlineDatabaseSortRule[];
@@ -361,6 +363,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
         relationPages: workspacePages,
         search: activeViewConfig.rowSearch,
         filterRules: activeViewConfig.filterRules,
+        filterMatchMode: activeViewConfig.filterMatchMode,
         sortRules: activeViewConfig.sortRules,
       }),
     [
@@ -369,6 +372,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
       workspacePages,
       activeViewConfig.rowSearch,
       activeViewConfig.filterRules,
+      activeViewConfig.filterMatchMode,
       activeViewConfig.sortRules,
     ]
   );
@@ -651,6 +655,7 @@ function parseInlineDatabaseViewConfig(config: string): InlineDatabaseViewConfig
     filterFieldId: "all",
     filterValue: "",
     filterRules: [],
+    filterMatchMode: "all",
     sortKey: "position",
     sortDirection: "asc",
     sortRules: [createInlineDatabaseSortRule("position", "asc")],
@@ -678,6 +683,9 @@ function parseInlineDatabaseViewConfig(config: string): InlineDatabaseViewConfig
         parsed.filterRules,
         filterFieldId,
         filterValue
+      ),
+      filterMatchMode: parseInlineDatabaseFilterMatchMode(
+        parsed.filterMatchMode
       ),
       sortKey,
       sortDirection,
@@ -717,6 +725,7 @@ function getInlineVisibleRows({
   relationPages,
   search,
   filterRules,
+  filterMatchMode,
   sortRules,
 }: {
   rows: RowWithPage[];
@@ -724,6 +733,7 @@ function getInlineVisibleRows({
   relationPages: Page[];
   search: string;
   filterRules: InlineDatabaseFilterRule[];
+  filterMatchMode: InlineDatabaseFilterMatchMode;
   sortRules: InlineDatabaseSortRule[];
 }) {
   const normalizedSearch = search.trim().toLowerCase();
@@ -741,7 +751,9 @@ function getInlineVisibleRows({
     const rowText = getInlineRowSearchText(row, fields, relationPages).toLowerCase();
     if (normalizedSearch && !rowText.includes(normalizedSearch)) return false;
 
-    return activeFilterRules.every((rule) => {
+    const matchesRule = (
+      rule: InlineDatabaseFilterRule & { normalizedValue: string }
+    ) => {
       if (rule.fieldId === "all") {
         return matchesInlineDatabaseFilterText(rowText, rule);
       }
@@ -753,7 +765,12 @@ function getInlineVisibleRows({
         getInlineRowFieldText(row, field, fields, relationPages).toLowerCase(),
         rule
       );
-    });
+    };
+
+    if (activeFilterRules.length === 0) return true;
+    return filterMatchMode === "any"
+      ? activeFilterRules.some(matchesRule)
+      : activeFilterRules.every(matchesRule);
   });
 
   return [...filtered].sort((left, right) => {
@@ -988,6 +1005,12 @@ function parseInlineDatabaseFilterOperator(
     value === "is_not_empty"
     ? value
     : "contains";
+}
+
+function parseInlineDatabaseFilterMatchMode(
+  value: unknown
+): InlineDatabaseFilterMatchMode {
+  return value === "any" ? "any" : "all";
 }
 
 function isValueBasedInlineDatabaseFilterOperator(

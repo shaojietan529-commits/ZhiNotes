@@ -110,6 +110,7 @@ const DATABASE_IMPORT_CONFIRMATION_PHRASE =
 
 type RowWithPage = DatabaseRow & { page: Page };
 type SortDirection = "asc" | "desc";
+type DatabaseFilterMatchMode = "all" | "any";
 type DatabaseFilterOperator =
   | "contains"
   | "does_not_contain"
@@ -142,6 +143,7 @@ interface DatabaseViewConfig {
   filterFieldId: string;
   filterValue: string;
   filterRules: DatabaseFilterRule[];
+  filterMatchMode: DatabaseFilterMatchMode;
   sortKey: string;
   sortDirection: SortDirection;
   sortRules: DatabaseSortRule[];
@@ -167,6 +169,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [loading, setLoading] = useState(true);
   const [rowSearch, setRowSearch] = useState(initialRowSearch);
   const [filterRules, setFilterRules] = useState<DatabaseFilterRule[]>([]);
+  const [filterMatchMode, setFilterMatchMode] =
+    useState<DatabaseFilterMatchMode>("all");
   const [sortRules, setSortRules] = useState<DatabaseSortRule[]>([
     createDatabaseSortRule("position", "asc"),
   ]);
@@ -194,6 +198,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     const config = parseDatabaseViewConfig(configValue);
     setRowSearch(initialRowSearch || config.rowSearch);
     setFilterRules(config.filterRules);
+    setFilterMatchMode(config.filterMatchMode);
     setSortRules(config.sortRules);
     setGroupFieldId(config.groupFieldId);
     setHiddenFieldIds(config.hiddenFieldIds);
@@ -526,6 +531,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         relationPages: workspacePages,
         search: rowSearch,
         filterRules,
+        filterMatchMode,
         sortRules,
       }),
     [
@@ -534,6 +540,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       workspacePages,
       rowSearch,
       filterRules,
+      filterMatchMode,
       sortRules,
     ]
   );
@@ -892,6 +899,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         onRowSearchChange={setRowSearch}
         filterRules={filterRules}
         onFilterRulesChange={setFilterRules}
+        filterMatchMode={filterMatchMode}
+        onFilterMatchModeChange={setFilterMatchMode}
         sortRules={sortRules}
         onSortRulesChange={setSortRules}
         groupFieldId={groupFieldId}
@@ -910,6 +919,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
               filterFieldId: filterRules[0]?.fieldId ?? "all",
               filterValue: filterRules[0]?.value ?? "",
               filterRules,
+              filterMatchMode,
               sortKey: sortRules[0]?.key ?? "position",
               sortDirection: sortRules[0]?.direction ?? "asc",
               sortRules,
@@ -1215,6 +1225,8 @@ function DatabaseViewControls({
   onRowSearchChange,
   filterRules,
   onFilterRulesChange,
+  filterMatchMode,
+  onFilterMatchModeChange,
   sortRules,
   onSortRulesChange,
   groupFieldId,
@@ -1236,6 +1248,8 @@ function DatabaseViewControls({
   onRowSearchChange: (value: string) => void;
   filterRules: DatabaseFilterRule[];
   onFilterRulesChange: (value: DatabaseFilterRule[]) => void;
+  filterMatchMode: DatabaseFilterMatchMode;
+  onFilterMatchModeChange: (value: DatabaseFilterMatchMode) => void;
   sortRules: DatabaseSortRule[];
   onSortRulesChange: (value: DatabaseSortRule[]) => void;
   groupFieldId: string;
@@ -1255,6 +1269,7 @@ function DatabaseViewControls({
   const hasControls =
     rowSearch ||
     activeFilterCount > 0 ||
+    filterMatchMode !== "all" ||
     hasSortControls ||
     groupFieldId ||
     hiddenFieldIds.length > 0 ||
@@ -1357,6 +1372,7 @@ function DatabaseViewControls({
             onClick={() => {
               onRowSearchChange("");
               onFilterRulesChange([]);
+              onFilterMatchModeChange("all");
               onSortRulesChange([createDatabaseSortRule("position", "asc")]);
               onGroupFieldChange("");
               onHiddenFieldIdsChange([]);
@@ -1372,6 +1388,19 @@ function DatabaseViewControls({
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-zinc-400">筛选 {activeFilterCount}</span>
+        <select
+          value={filterMatchMode}
+          onChange={(event) =>
+            onFilterMatchModeChange(
+              parseDatabaseFilterMatchMode(event.target.value)
+            )
+          }
+          aria-label="筛选匹配模式"
+          className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+        >
+          <option value="all">全部匹配</option>
+          <option value="any">任一匹配</option>
+        </select>
         {filterRules.map((rule) => (
           <span key={rule.id} className="inline-flex items-center gap-1">
             <select
@@ -1516,7 +1545,7 @@ function DatabaseViewControls({
           + 排序
         </button>
         <span className="text-[11px] text-zinc-400">
-          多个筛选按全部匹配处理，多个排序按从左到右处理。
+          多个筛选可按全部或任一匹配处理，多个排序按从左到右处理。
         </span>
       </div>
 
@@ -2826,6 +2855,7 @@ function getVisibleRows({
   relationPages,
   search,
   filterRules,
+  filterMatchMode,
   sortRules,
 }: {
   rows: RowWithPage[];
@@ -2833,6 +2863,7 @@ function getVisibleRows({
   relationPages: Page[];
   search: string;
   filterRules: DatabaseFilterRule[];
+  filterMatchMode: DatabaseFilterMatchMode;
   sortRules: DatabaseSortRule[];
 }) {
   const normalizedSearch = search.trim().toLowerCase();
@@ -2849,7 +2880,7 @@ function getVisibleRows({
     const rowText = getRowSearchText(row, fields, relationPages).toLowerCase();
     if (normalizedSearch && !rowText.includes(normalizedSearch)) return false;
 
-    return activeFilterRules.every((rule) => {
+    const matchesRule = (rule: DatabaseFilterRule & { normalizedValue: string }) => {
       if (rule.fieldId === "all") {
         return matchesDatabaseFilterText(rowText, rule);
       }
@@ -2861,7 +2892,12 @@ function getVisibleRows({
         getRowFieldText(row, field, fields, relationPages).toLowerCase(),
         rule
       );
-    });
+    };
+
+    if (activeFilterRules.length === 0) return true;
+    return filterMatchMode === "any"
+      ? activeFilterRules.some(matchesRule)
+      : activeFilterRules.every(matchesRule);
   });
 
   const sorted = [...filtered].sort((left, right) => {
@@ -3003,6 +3039,7 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
     filterFieldId: "all",
     filterValue: "",
     filterRules: [],
+    filterMatchMode: "all",
     sortKey: "position",
     sortDirection: "asc",
     sortRules: [createDatabaseSortRule("position", "asc")],
@@ -3036,6 +3073,7 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
       filterFieldId,
       filterValue,
       filterRules,
+      filterMatchMode: parseDatabaseFilterMatchMode(parsed.filterMatchMode),
       sortKey,
       sortDirection,
       sortRules,
@@ -3211,6 +3249,12 @@ function parseDatabaseFilterOperator(
     value === "is_not_empty"
     ? value
     : "contains";
+}
+
+function parseDatabaseFilterMatchMode(
+  value: unknown
+): DatabaseFilterMatchMode {
+  return value === "any" ? "any" : "all";
 }
 
 function isValueBasedDatabaseFilterOperator(

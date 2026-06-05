@@ -315,11 +315,12 @@ Current local actions:
   filters with contains / does not contain / equals / not equals / greater than
   / less than / before / after / empty / not empty operators, multiple sort
   rules, local row grouping, visible properties, and chart grouping are stored
-  in each local view config. Older single-filter/single-sort view configs
-  remain compatible and open as one rule. Table, list, gallery, and feed views
-  can render grouped sections without changing row values. Kanban views also
-  read saved board-friendly grouping fields, including status, select, and
-  checkbox, and show a few local card properties for faster research scanning.
+  in each local view config. Multiple filters can be evaluated as all-match or
+  any-match rules. Older single-filter/single-sort view configs remain
+  compatible and open as one rule. Table, list, gallery, and feed views can
+  render grouped sections without changing row values. Kanban views also read
+  saved board-friendly grouping fields, including status, select, and checkbox,
+  and show a few local card properties for faster research scanning.
   Calendar and timeline views can save which date property they use, falling
   back to the first date/system-time field when no date property is selected.
   Calendar views keep rows without that date visible in a local no-date section
