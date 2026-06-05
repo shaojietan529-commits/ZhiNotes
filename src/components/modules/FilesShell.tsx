@@ -1,9 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
+import { usePages } from "@/hooks/usePages";
+import { createPage, updatePage } from "@/lib/db/local/queries";
+import {
+  appendFilePreviewActionReceipt,
+  buildFilePreviewActionReceipt,
+} from "@/lib/files/filePreviewActionReceipts";
 import {
   buildFileLibraryWorkbenchReport,
   type FileLibraryActionStatus,
@@ -26,8 +39,15 @@ import {
 import {
   formatFileSize,
   listStoredPageFiles,
+  savePageFile,
   type StoredPageFile,
 } from "@/lib/files/localStore";
+import {
+  buildFileLibraryPageContent,
+  buildFileLibraryPageTitle,
+  FILE_LIBRARY_PAGE_ACTION_LABEL,
+  getFileLibraryReceiptActionKind,
+} from "@/lib/files/filePage";
 import { buildReportFormatCoverageReport } from "@/lib/reports/reportFormatCoverage";
 import {
   REPORT_INTAKE_LANES,
@@ -63,10 +83,18 @@ function FilesContent() {
 
 function FilesDashboard() {
   const router = useRouter();
+  const { refresh: refreshPages } = usePages();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [storedFiles, setStoredFiles] = useState<StoredPageFile[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exportingWorkbench, setExportingWorkbench] = useState(false);
   const [exportingPreviewRouting, setExportingPreviewRouting] = useState(false);
+  const [creatingFilePages, setCreatingFilePages] = useState(false);
+  const [filePageBatchMessage, setFilePageBatchMessage] = useState<{
+    created: number;
+    failed: number;
+    total: number;
+  } | null>(null);
 
   const loadStoredFiles = useCallback(async () => {
     try {
@@ -154,6 +182,85 @@ function FilesDashboard() {
     }
   };
 
+  const handleChooseFiles = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFilesSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (selectedFiles.length === 0) return;
+
+    setCreatingFilePages(true);
+    setFilePageBatchMessage(null);
+    try {
+      const createdPages: Array<{ id: string }> = [];
+      let failed = 0;
+
+      for (const file of selectedFiles) {
+        try {
+          const storedFile = await savePageFile(file);
+          const page = await createFileLibraryPageFromStoredFile(storedFile);
+          createdPages.push(page);
+        } catch (err) {
+          failed += 1;
+          console.error("[Zhinote] Failed to create file page:", err);
+        }
+      }
+
+      await Promise.all([loadStoredFiles(), refreshPages()]);
+      if (selectedFiles.length === 1 && createdPages[0]) {
+        router.push(`/page/${createdPages[0].id}`);
+        return;
+      }
+
+      setFilePageBatchMessage({
+        created: createdPages.length,
+        failed,
+        total: selectedFiles.length,
+      });
+
+      if (createdPages.length === 0) {
+        window.alert(
+          "没有成功创建文件页面。文件没有上传；请检查浏览器是否允许本地存储。"
+        );
+      }
+    } catch (err) {
+      console.error("[Zhinote] Failed to create file pages:", err);
+      window.alert(
+        "无法从这些本地文件创建页面。文件没有上传；请检查浏览器是否允许本地存储。"
+      );
+    } finally {
+      setCreatingFilePages(false);
+    }
+  };
+
+  const createFileLibraryPageFromStoredFile = async (storedFile: StoredPageFile) => {
+    const page = await createPage({
+      title: buildFileLibraryPageTitle(storedFile),
+      icon: "FILE",
+    });
+    await updatePage(page.id, {
+      content_text: buildFileLibraryPageContent(storedFile),
+    });
+    const actionKind = getFileLibraryReceiptActionKind(storedFile);
+    appendFilePreviewActionReceipt(
+      buildFilePreviewActionReceipt({
+        file: storedFile,
+        action_kind: actionKind,
+        source_surface: "files-module",
+        writes_page_content: true,
+        confirmation_required: false,
+        confirmation_matched: true,
+        note:
+          actionKind === "download-retain"
+            ? "文件已从文件模块本地留存，并创建通用文件页面；没有上传、同步或调用 AI。"
+            : "文件已从文件模块创建为本地页面预览；没有上传、同步或调用 AI。",
+      })
+    );
+    return page;
+  };
+
   const handleReviewStepOpen = (
     step: FileLibraryWorkbenchReport["review_sequence"][number]
   ) => {
@@ -226,6 +333,21 @@ function FilesDashboard() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(event) => void handleFilesSelected(event)}
+              />
+              <button
+                type="button"
+                onClick={handleChooseFiles}
+                disabled={creatingFilePages}
+                className="rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+              >
+                {creatingFilePages ? "创建中..." : FILE_LIBRARY_PAGE_ACTION_LABEL}
+              </button>
               <button
                 type="button"
                 onClick={() => void loadStoredFiles()}
@@ -247,6 +369,14 @@ function FilesDashboard() {
         {loadError && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
             {loadError}
+          </div>
+        )}
+
+        {filePageBatchMessage && (
+          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
+            已处理 {filePageBatchMessage.total} 个本地文件，创建{" "}
+            {filePageBatchMessage.created} 个文件页面，失败{" "}
+            {filePageBatchMessage.failed} 个。文件没有上传、同步或调用 AI。
           </div>
         )}
 
@@ -294,12 +424,21 @@ function FilesDashboard() {
                 上传、写作和入库分开处理
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                真实文件上传仍从报告库进入；Markdown 笔记继续走笔记中心；
-                Excel/CSV 入库必须走数据库中心的确认门槛。本地界面显示文件名；
+                不确定文件属于哪个模块时，先在文件库创建通用文件页面；
+                HTML/PDF/PPT 等研究材料可后续进入报告库，Markdown/Word 可进入笔记，
+                Excel/CSV 入库仍必须走数据库中心的确认门槛。本地界面显示文件名；
                 导出不包含文件名、字节或正文。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleChooseFiles}
+                disabled={creatingFilePages}
+                className="rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+              >
+                {creatingFilePages ? "创建中..." : FILE_LIBRARY_PAGE_ACTION_LABEL}
+              </button>
               <RouteButton label="打开报告库上传" route="/modules/reports" />
               <RouteButton label="打开笔记中心" route="/modules/notes" />
               <RouteButton label="打开数据库中心" route="/modules/databases" />
@@ -385,7 +524,7 @@ function FilesDashboard() {
               {workbench.files.length === 0 ? (
                 <EmptyState
                   title="当前没有本地文件"
-                  body="先从报告库上传 HTML、Markdown、PDF、Excel、Word 或 PPT，再回到文件库复核路线。"
+                  body="先在文件库创建通用文件页面，或从报告库上传 HTML、Markdown、PDF、Excel、Word 或 PPT，再回到这里复核路线。"
                 />
               ) : (
                 workbench.files.slice(0, 12).map((file) => (

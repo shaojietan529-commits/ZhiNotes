@@ -33,7 +33,8 @@ export interface FilePreviewActionReceiptInput {
     | "editor-file-preview"
     | "file-preview-block"
     | "reports-module"
-    | "meetings-module";
+    | "meetings-module"
+    | "files-module";
   writes_page_content?: boolean;
   creates_database?: boolean;
   creates_database_rows?: boolean;
@@ -57,7 +58,8 @@ export interface FilePreviewActionReceipt {
     | "editor-file-preview"
     | "file-preview-block"
     | "reports-module"
-    | "meetings-module";
+    | "meetings-module"
+    | "files-module";
   created_at: string;
   privacy_note: string;
   file: {

@@ -838,6 +838,10 @@ Current local actions:
   is the preferred editable format for written notes, spreadsheets become local
   database candidates, and Office/PDF/Notebook/archive formats stay behind local
   preview, conversion review, metadata retain, or owner-gated import paths.
+- Create generic local file pages from user-selected files. The Files module
+  saves the selected file in browser-local storage, creates a ZhiNotes page with
+  a file preview block, and adds a format route table, recommended destination,
+  review checklist, research-linking section, and local-only safety boundary.
 - Review a local file workbench generated from IndexedDB file metadata and the
   file preview capability matrix.
 - Review the file library format route matrix directly in `/modules/files`,
@@ -859,17 +863,17 @@ Current local actions:
   reading file bytes or writing workspace data.
 - Use the file review sequence to jump to the matching local module or section
   for native preview, conversion review, database import, and sync/AI boundary.
-- Open the Reports module for real local file upload, the Notes module for
+- Open the Reports module for report-specific file pages, the Notes module for
   editable writing, and the Databases module for confirmed spreadsheet import.
 - Export a metadata-only file workbench. The export excludes file names, file
   bytes, file text, page body text, spreadsheet values, cloud data, AI prompts,
   tokens, and credentials.
 
-The File Library module is a local routing desk, not a bulk importer. It does
-not delete files, upload files, sync files, call AI, load HTML external
-resources, execute notebooks, unzip archives into the workspace, or create
-database rows. Those higher-risk actions must stay behind the existing Reports,
-Databases, Sync, and AI confirmation gates.
+The File Library module is a local routing and page-creation desk, not a cloud
+importer. It does not delete files, upload files, sync files, call AI, load HTML
+external resources, execute notebooks, unzip archives into the workspace, or
+create database rows. Those higher-risk actions must stay behind the existing
+Reports, Databases, Sync, and AI confirmation gates.
 
 ## Portfolio and Watchlist Module
 

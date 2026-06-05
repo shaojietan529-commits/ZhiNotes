@@ -206,6 +206,17 @@ schema migration 的能力默认保持关闭。
 - Markdown 从报告模块导入为页面时，`[[已有页面名]]` 会解析为本地页面 mention，并写入
   wiki link 关系；找不到同名页面时仍保留未解析 wiki-reference。
 
+### 通用文件页面入口阶段
+
+- Files 模块新增“创建文件页面”入口；用户主动选择任意本地文件后，ZhiNotes 会把文件保存到
+  浏览器本地 IndexedDB，并创建一个通用文件 page。
+- 新页面会自动包含本地文件预览块、格式路线表、推荐去向、复核清单、研究关联区和安全边界，
+  适合先把“不知道属于报告/会议/笔记/数据库哪个模块”的文件放入统一 page 容器。
+- 该入口仍不会自动扫描本地磁盘，不上传、不云同步、不调用 AI、不加载 HTML 外部资源、不执行文件、
+  不解压写入工作区、不删除原文件，也不会创建数据库行。
+- 文件动作 receipt 的来源新增 `files-module`；receipt 仍不包含文件名、文件 bytes、文件正文、
+  页面正文、表格值、token、credential、prompt、云端数据或 AI 输出。
+
 ### Sync/API 防护阶段
 
 - 新增共享 `ApiGuardPanel`，统一 API 防护展示结构。
@@ -244,6 +255,17 @@ npm run build
 ```
 
 文件与 Markdown 原生展示阶段的每个小提交都至少跑过上述相关验证；最终版本已再次通过。
+
+通用文件页面入口阶段已通过：
+
+```bash
+npm run verify:file-preview
+npm run lint
+npm run build
+```
+
+浏览器只读检查也已通过：`/modules/files` 能渲染“创建文件页面”入口、通用文件入口说明和
+本地/导出边界，页面没有运行时错误。
 
 会议转录稿接入准备阶段已通过：
 

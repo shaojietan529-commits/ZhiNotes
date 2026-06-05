@@ -3692,6 +3692,7 @@ function getFileActionSourceLabel(
     "file-preview-block": "页面预览块",
     "reports-module": "报告模块",
     "meetings-module": "会议模块",
+    "files-module": "文件模块",
   };
   return labels[source];
 }

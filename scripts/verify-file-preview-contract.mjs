@@ -17,6 +17,7 @@ const files = {
   readiness: "src/lib/files/filePreviewReadiness.ts",
   routing: "src/lib/files/filePreviewRouting.ts",
   preflight: "src/lib/files/fileUploadPreflight.ts",
+  filePage: "src/lib/files/filePage.ts",
   structure: "src/lib/files/filePreviewStructure.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
@@ -215,6 +216,7 @@ function run() {
   const readiness = readProjectFile(files.readiness);
   const routing = readProjectFile(files.routing);
   const preflight = readProjectFile(files.preflight);
+  const filePage = readProjectFile(files.filePage);
   const structure = readProjectFile(files.structure);
   const actionReceipts = readProjectFile(files.actionReceipts);
   const upload = readProjectFile(files.upload);
@@ -1077,6 +1079,7 @@ function run() {
     '"editor-file-preview"',
     '"reports-module"',
     '"meetings-module"',
+    '"files-module"',
     '"native-preview"',
     '"download-retain"',
     '"editable-import"',
@@ -1595,6 +1598,27 @@ function run() {
     );
   }
   for (const snippet of [
+    "FILE_LIBRARY_PAGE_ACTION_LABEL",
+    "buildFileLibraryPageTitle",
+    "buildFileLibraryPageContent",
+    "getFileLibraryReceiptActionKind",
+    "createFilePreviewBlockHtml",
+    "getFilePreviewCapabilityByKind",
+    "推荐去向",
+    "复核清单",
+    "研究关联",
+    "不上传、不云同步、不调用 AI、不加载外部资源、不执行文件、不删除原文件",
+    "download-retain",
+    "native-preview",
+  ]) {
+    assertIncludes(
+      files.filePage,
+      filePage,
+      snippet,
+      "Generic file page builder must reuse local file preview blocks and preserve local-only boundaries."
+    );
+  }
+  for (const snippet of [
     "MEETING_TRANSCRIPT_FILE_ACTION_LABEL",
     "buildMeetingTranscriptPageTitle",
     "buildMeetingTranscriptPageContent",
@@ -1615,6 +1639,27 @@ function run() {
       meetingTranscriptPage,
       snippet,
       "Meeting transcript page builder must reuse local file preview blocks and preserve local-only boundaries."
+    );
+  }
+  for (const snippet of [
+    "fileInputRef",
+    "handleChooseFiles",
+    "handleFilesSelected",
+    "createFileLibraryPageFromStoredFile",
+    "savePageFile(file)",
+    "source_surface: \"files-module\"",
+    "buildFilePreviewActionReceipt",
+    "appendFilePreviewActionReceipt",
+    "buildFileLibraryPageContent",
+    "FILE_LIBRARY_PAGE_ACTION_LABEL",
+    "文件没有上传、同步或调用 AI",
+    "不确定文件属于哪个模块时",
+  ]) {
+    assertIncludes(
+      files.filesShell,
+      filesShell,
+      snippet,
+      "Files module must create generic local file pages from user-selected files without upload or AI."
     );
   }
   for (const snippet of [
