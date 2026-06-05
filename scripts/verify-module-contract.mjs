@@ -403,6 +403,12 @@ function run() {
     "trial_routes",
     "required_verification_commands",
     "阶段 3：投研核心模块 beta hardening",
+    "文件预览路由",
+    "getTrialRoute",
+    "/modules/files#files-preview-routing",
+    "/modules/reports#reports-preview-routing",
+    "/modules/databases#databases-import-export-readiness",
+    "直达文件预览路由总控",
     "创建项目页并入库",
     "项目 handoff",
   ]) {

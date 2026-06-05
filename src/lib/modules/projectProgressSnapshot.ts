@@ -154,7 +154,7 @@ export function buildProjectProgressSnapshot(
     owner_gated_work: buildOwnerGatedWork(input.roadmap),
     recommended_sleep_run_work: [
       "继续做本地 UI、数据结构、验证脚本、README 和浏览器试用，不触碰云服务、GitHub 凭证、AI 外发或批量删除。",
-      "优先强化 beta 模块：文件/报告、公司研究、会议、组合、研究图谱之间的入口、关系和试用闭环。",
+      "优先强化 beta 模块：文件预览路由、报告、公司研究、会议、组合、研究图谱之间的入口、关系和试用闭环。",
       "每个阶段完成后保留本地 commit 和截图，GitHub push 等 owner 醒来后处理 SSH key 或凭证。",
     ],
     phases,
@@ -211,7 +211,7 @@ function buildTrialRoutes(
     .map((module) => ({
       module_id: module.id,
       title: module.title,
-      route: module.route as string,
+      route: getTrialRoute(module.id, module.route as string),
       status: module.status,
       readiness: module.status === "active" ? "ready-local" : "beta-hardening",
       recommended_test: getRecommendedTest(module.id),
@@ -293,7 +293,7 @@ function getRecommendedTest(moduleId: string) {
     notes: "新建一篇研究笔记，检查 slash command、结构摘要、backlinks 和版本痕迹。",
     databases: "打开数据库模块，检查 table/list/kanban/calendar/gallery/timeline/form/feed 入口。",
     reports: "上传或打开一个本地 HTML/Markdown/PDF 报告，确认 native preview 和路由提示。",
-    files: "查看文件库对 HTML、Markdown、PDF、Excel、Word、PPT 的本地处理路线。",
+    files: "直达文件预览路由总控，检查 HTML、Markdown、PDF、Excel、Word、PPT 如何进入 page、导入或入库。",
     "company-research": "创建或打开公司研究 tracker，检查 memo、估值、报告和会议关系入口。",
     projects:
       "打开投研项目模块，创建项目跟踪表，再用“创建项目页并入库”检查项目页、tracker row 和项目 handoff。",
@@ -303,6 +303,17 @@ function getRecommendedTest(moduleId: string) {
   };
 
   return tests[moduleId] ?? "打开模块页面，确认入口、边界说明和导出动作都可用。";
+}
+
+function getTrialRoute(moduleId: string, route: string) {
+  const deepLinks: Record<string, string> = {
+    files: "/modules/files#files-preview-routing",
+    reports: "/modules/reports#reports-preview-routing",
+    databases: "/modules/databases#databases-import-export-readiness",
+    sync: "/modules/sync#web-beta-owner-review",
+  };
+
+  return deepLinks[moduleId] ?? route;
 }
 
 function unique(values: string[]) {
