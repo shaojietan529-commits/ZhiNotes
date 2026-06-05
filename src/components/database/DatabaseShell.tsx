@@ -2444,6 +2444,7 @@ function DatabasePropertiesButton({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const hiddenFieldSet = new Set(hiddenFieldIds);
   const visibleCount = fields.filter(
     (field) => field.position === 0 || !hiddenFieldSet.has(field.id)
@@ -2471,8 +2472,10 @@ function DatabasePropertiesButton({
     onHiddenFieldIdsChange([...hiddenFieldIds, field.id]);
   };
 
+  useDismissFloatingMenu(open, setOpen, menuRef);
+
   return (
-    <div className="relative">
+    <div ref={menuRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -2562,6 +2565,7 @@ function DatabaseFrozenColumnsButton({
   onFrozenFieldIdsChange: (value: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const freezeableFields = fields.filter((field) => field.position !== 0);
   const freezeableFieldIds = new Set(freezeableFields.map((field) => field.id));
   const normalizedFrozenFieldIds = frozenFieldIds.filter((id) =>
@@ -2582,8 +2586,10 @@ function DatabaseFrozenColumnsButton({
     onFrozenFieldIdsChange([...normalizedFrozenFieldIds, field.id]);
   };
 
+  useDismissFloatingMenu(open, setOpen, menuRef);
+
   return (
-    <div className="relative">
+    <div ref={menuRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}

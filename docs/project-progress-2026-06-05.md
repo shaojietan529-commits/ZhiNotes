@@ -201,6 +201,7 @@ schema migration 的能力默认保持关闭。
 - Full database 的 Table 现在冻结左侧序号列和标题列，宽表横向滚动时仍能看到当前记录是谁。
 - Table view 现在可额外选择最多 3 个字段固定在左侧；配置写入当前 view config，只影响该 view
   展示，不改变字段顺序，不读取或改写 row values。
+- 属性显示菜单和冻结列菜单现在支持点外面或按 Escape 关闭；这是本地 UI 状态，不写字段、不写行值。
 
 ### 数据库删除确认阶段
 

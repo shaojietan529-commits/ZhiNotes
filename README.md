@@ -364,6 +364,8 @@ Current local actions:
   description before hiding or showing properties in the current database view.
   The same menu can show all properties or collapse the view back to title-only
   without moving or editing fields.
+- Property visibility and frozen-column menus close on outside pointer input or
+  Escape, so table view controls behave like lightweight Notion-style popovers.
 - Inline databases now apply saved view display config from the selected view:
   row search, filters, sort rules, hidden properties, grouped table/list/
   gallery/feed sections, chart grouping, and manual-sort eligibility are read

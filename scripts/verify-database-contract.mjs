@@ -330,6 +330,7 @@ function run() {
     "DATABASE_TABLE_FROZEN_FIELD_LIMIT",
     "当前 Table 额外冻结列",
     "清除冻结",
+    "useDismissFloatingMenu(open, setOpen, menuRef)",
   ]) {
     assertIncludes(
       files.databaseShell,
