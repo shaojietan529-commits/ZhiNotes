@@ -33,13 +33,13 @@ const requiredCapabilities = [
   {
     id: "html-report",
     kind: "html",
-    extensions: [".html", ".htm"],
+    extensions: [".html", ".htm", ".xhtml"],
     snippets: ["normalizeHtmlDocument", "EXTERNAL_RESOURCE_CONFIRMATION_PHRASE"],
   },
   {
     id: "markdown-note",
     kind: "markdown",
-    extensions: [".md", ".markdown", ".mdx"],
+    extensions: [".md", ".markdown", ".mdx", ".mdown", ".mkd", ".mkdn"],
     snippets: ["markdownToHtml", "handleImportMarkdown"],
   },
   {

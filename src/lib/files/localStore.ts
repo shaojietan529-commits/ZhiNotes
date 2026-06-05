@@ -161,8 +161,10 @@ export function getPageFileKind(name: string, mimeType: string): PageFileKind {
 
   if (
     lowerMime === "text/html" ||
+    lowerMime === "application/xhtml+xml" ||
     lowerName.endsWith(".html") ||
-    lowerName.endsWith(".htm")
+    lowerName.endsWith(".htm") ||
+    lowerName.endsWith(".xhtml")
   ) {
     return "html";
   }
@@ -172,7 +174,10 @@ export function getPageFileKind(name: string, mimeType: string): PageFileKind {
     lowerMime === "text/x-markdown" ||
     lowerName.endsWith(".md") ||
     lowerName.endsWith(".markdown") ||
-    lowerName.endsWith(".mdx")
+    lowerName.endsWith(".mdx") ||
+    lowerName.endsWith(".mdown") ||
+    lowerName.endsWith(".mkd") ||
+    lowerName.endsWith(".mkdn")
   ) {
     return "markdown";
   }

@@ -9,9 +9,13 @@ export const FILE_PREVIEW_IMPORT_PROGRESS_EVENT =
 export const FILE_PREVIEW_ACCEPT = [
   ".html",
   ".htm",
+  ".xhtml",
   ".md",
   ".markdown",
   ".mdx",
+  ".mdown",
+  ".mkd",
+  ".mkdn",
   ".opml",
   ".rtf",
   ".epub",
@@ -89,6 +93,7 @@ export const FILE_PREVIEW_ACCEPT = [
   "audio/*",
   "video/*",
   "application/pdf",
+  "application/xhtml+xml",
   "application/rtf",
   "text/rtf",
   "application/epub+zip",
@@ -106,9 +111,9 @@ export const FILE_PREVIEW_ACCEPT = [
   "application/msword",
   "application/vnd.oasis.opendocument.text",
 ].join(",");
-export const HTML_REPORT_ACCEPT = ".html,.htm,text/html";
+export const HTML_REPORT_ACCEPT = ".html,.htm,.xhtml,text/html,application/xhtml+xml";
 export const MARKDOWN_FILE_ACCEPT =
-  ".md,.markdown,.mdx,text/markdown,text/x-markdown,text/plain";
+  ".md,.markdown,.mdx,.mdown,.mkd,.mkdn,text/markdown,text/x-markdown,text/plain";
 
 export interface FilePreviewImportProgress {
   status: "started" | "progress" | "done";
