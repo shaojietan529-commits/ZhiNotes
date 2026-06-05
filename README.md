@@ -333,7 +333,8 @@ Current local actions:
   local field, but does not copy existing row values.
 - Add local field descriptions from field settings in full database pages or
   inline databases. Field descriptions document property definitions and
-  research assumptions without reading or changing row values.
+  research assumptions without reading or changing row values, and table
+  headers surface a local tooltip marker when a field has a description.
 - Reorder local database fields from field settings. The title/name field stays
   fixed as the page-opening field, while other fields can move forward or
   backward by swapping local metadata positions only.

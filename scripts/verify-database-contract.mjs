@@ -645,6 +645,18 @@ function run() {
     );
   }
   for (const snippet of [
+    "getDatabaseFieldDescription",
+    "fieldDescription",
+    'aria-label="字段说明"',
+  ]) {
+    assertIncludes(
+      files.tableView,
+      tableView,
+      snippet,
+      "Table headers must surface local field descriptions without reading row values."
+    );
+  }
+  for (const snippet of [
     "handleMoveField",
     "字段顺序",
     "前移",
@@ -1790,6 +1802,7 @@ function run() {
         row_duplicate_actions: true,
         field_duplicate_actions: true,
         field_descriptions: true,
+        field_description_headers: true,
         field_reordering: true,
         delete_confirmations: true,
         local_rollup_fields: true,

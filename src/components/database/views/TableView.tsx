@@ -6,7 +6,10 @@ import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import RelationFieldEditor from "@/components/database/RelationFieldEditor";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
-import { getFieldOptions } from "@/lib/database/fields";
+import {
+  getDatabaseFieldDescription,
+  getFieldOptions,
+} from "@/lib/database/fields";
 import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import { evaluateDatabaseRollup } from "@/lib/database/rollup";
 import {
@@ -72,14 +75,29 @@ export default function TableView({
             <th className="text-left px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 w-8">
               #
             </th>
-            {fields.map((field) => (
-              <th
-                key={field.id}
-                className="text-left px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 min-w-[140px]"
-              >
-                {getDatabaseFieldDisplayName(field)}
-              </th>
-            ))}
+            {fields.map((field) => {
+              const fieldDescription = getDatabaseFieldDescription(field);
+              const fieldName = getDatabaseFieldDisplayName(field);
+              return (
+                <th
+                  key={field.id}
+                  title={fieldDescription || fieldName}
+                  className="text-left px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 min-w-[140px]"
+                >
+                  <span className="inline-flex max-w-[16rem] items-center gap-1 align-middle">
+                    <span className="truncate">{fieldName}</span>
+                    {fieldDescription && (
+                      <span
+                        aria-label="字段说明"
+                        className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-zinc-300 text-[9px] font-semibold text-zinc-400 dark:border-zinc-600"
+                      >
+                        i
+                      </span>
+                    )}
+                  </span>
+                </th>
+              );
+            })}
             <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 w-20">
               创建
             </th>
