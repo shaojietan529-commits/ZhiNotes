@@ -819,6 +819,7 @@ function run() {
     "SyncedBlockRegistryPanel",
     "导出 registry",
     "本地同步块实例清单",
+    "打开本地页面",
   ]) {
     assertIncludes(
       files.notesShell,

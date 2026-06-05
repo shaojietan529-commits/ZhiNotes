@@ -357,6 +357,7 @@ function NotesDashboard() {
           report={syncedBlockRegistry}
           exporting={exportingSyncedRegistry}
           onExport={handleExportSyncedRegistry}
+          onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
         />
 
         <NotesWorkbenchPanel
@@ -441,10 +442,12 @@ function SyncedBlockRegistryPanel({
   report,
   exporting,
   onExport,
+  onOpenPage,
 }: {
   report: SyncedBlockRegistryReport;
   exporting: boolean;
   onExport: () => void;
+  onOpenPage: (pageId: string) => void;
 }) {
   const visibleGroups = report.groups.slice(0, 6);
 
@@ -512,7 +515,11 @@ function SyncedBlockRegistryPanel({
               </p>
             ) : (
               visibleGroups.map((group) => (
-                <SyncedBlockGroupCard key={group.sync_id} group={group} />
+                <SyncedBlockGroupCard
+                  key={group.sync_id}
+                  group={group}
+                  onOpenPage={onOpenPage}
+                />
               ))
             )}
           </div>
@@ -535,9 +542,13 @@ function SyncedBlockRegistryPanel({
 
 function SyncedBlockGroupCard({
   group,
+  onOpenPage,
 }: {
   group: SyncedBlockRegistryReport["groups"][number];
+  onOpenPage: (pageId: string) => void;
 }) {
+  const pageRefs = uniqueByPageId(group.refs).slice(0, 4);
+
   return (
     <article className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex flex-wrap items-center gap-2">
@@ -553,8 +564,16 @@ function SyncedBlockGroupCard({
         {group.next_action}
       </p>
       <div className="mt-2 flex flex-wrap gap-1">
-        {group.page_titles.slice(0, 4).map((title) => (
-          <Chip key={title} label={title} />
+        {pageRefs.map((ref) => (
+          <button
+            key={ref.page_id}
+            type="button"
+            onClick={() => onOpenPage(ref.page_id)}
+            className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 transition-colors hover:bg-white hover:text-zinc-800 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+            title="打开本地页面"
+          >
+            {ref.page_title}
+          </button>
         ))}
       </div>
     </article>
@@ -587,6 +606,17 @@ function SyncedBlockStatusPill({
       {labels[status]}
     </span>
   );
+}
+
+function uniqueByPageId(
+  refs: SyncedBlockRegistryReport["groups"][number]["refs"]
+) {
+  const seen = new Set<string>();
+  return refs.filter((ref) => {
+    if (seen.has(ref.page_id)) return false;
+    seen.add(ref.page_id);
+    return true;
+  });
 }
 
 function NotesEmptyStartPanel({

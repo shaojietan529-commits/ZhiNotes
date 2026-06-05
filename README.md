@@ -210,7 +210,8 @@ Current local actions:
 - Review and export a local synced-block registry from the notes module. The
   registry scans local page HTML for synced block ids and page titles only; it
   does not read synced block body content, perform cross-page syncing, upload
-  data, or call AI.
+  data, or call AI. Registry page chips open the matching local page for manual
+  review.
 - Write and edit Notion-like page content with headings, lists, tasks, toggles,
   callouts, tables, formulas, synced blocks, embeds, wiki links, file previews,
   inline databases, comments, backlinks, and version history. The block insert
