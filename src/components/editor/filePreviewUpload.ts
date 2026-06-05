@@ -1,7 +1,16 @@
 "use client";
 
 import type { Editor } from "@tiptap/core";
-import { savePageFile } from "@/lib/files/localStore";
+import {
+  savePageFile,
+  type PageFileKind,
+  type StoredPageFile,
+} from "@/lib/files/localStore";
+import {
+  appendFilePreviewActionReceipt,
+  buildFilePreviewActionReceipt,
+  type FilePreviewActionKind,
+} from "@/lib/files/filePreviewActionReceipts";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
 
 export const FILE_PREVIEW_IMPORT_PROGRESS_EVENT =
@@ -176,6 +185,7 @@ export async function insertFilesAsPreviews(editor: Editor, files: File[]) {
           size: stored.size,
         })
         .run();
+      recordInsertedFilePreviewReceipt(stored);
     } catch (err) {
       failed += 1;
       console.error("[Zhinote] Failed to import file preview:", err);
@@ -218,6 +228,44 @@ export function promptAndInsertFilePreview(
   };
 
   input.click();
+}
+
+function recordInsertedFilePreviewReceipt(file: StoredPageFile) {
+  appendFilePreviewActionReceipt(
+    buildFilePreviewActionReceipt({
+      file,
+      action_kind: getInsertedFilePreviewActionKind(file),
+      source_surface: "editor-file-preview",
+      writes_page_content: true,
+      confirmation_required: false,
+      confirmation_matched: true,
+      note:
+        file.kind === "archive" || isDownloadRetainOnlyFile(file.kind, file.name)
+          ? "文件已从编辑器插入为本地留存预览块；没有上传、转换或调用外部服务。"
+          : "文件已从编辑器插入为本地文件预览块；没有上传、云同步或调用 AI。",
+    })
+  );
+}
+
+function getInsertedFilePreviewActionKind(
+  file: Pick<StoredPageFile, "kind" | "name">
+): FilePreviewActionKind {
+  return isDownloadRetainOnlyFile(file.kind, file.name)
+    ? "download-retain"
+    : "native-preview";
+}
+
+function isDownloadRetainOnlyFile(kind: PageFileKind, fileName: string) {
+  const lowerName = fileName.toLowerCase();
+  return (
+    kind === "archive" ||
+    kind === "unknown" ||
+    kind === "pages" ||
+    kind === "numbers" ||
+    kind === "keynote" ||
+    (kind === "word" && lowerName.endsWith(".doc")) ||
+    (kind === "presentation" && lowerName.endsWith(".ppt"))
+  );
 }
 
 export function promptAndInsertHtmlReportPreview(editor: Editor) {

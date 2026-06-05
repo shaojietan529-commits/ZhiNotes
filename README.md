@@ -1459,9 +1459,9 @@ npm run build
 The current app is local-first:
 
 - Uploaded files are stored in local browser storage.
-- Report uploads create local metadata-only native-preview or download-retain
-  receipts without file names, file bytes, extracted text, page body text, or
-  spreadsheet values.
+- Editor and report uploads create local metadata-only native-preview or
+  download-retain receipts without file names, file bytes, extracted text,
+  page body text, or spreadsheet values.
 - HTML report previews block external resources by default.
 - HTML external resources require a typed local confirmation receipt before
   they can be enabled for a trusted preview.

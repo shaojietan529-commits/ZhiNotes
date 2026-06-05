@@ -237,6 +237,21 @@ function run() {
     "accept: MARKDOWN_FILE_ACCEPT",
     "Markdown preview entrypoint should still restrict the picker to Markdown/Text."
   );
+  for (const snippet of [
+    "recordInsertedFilePreviewReceipt",
+    "getInsertedFilePreviewActionKind",
+    "isDownloadRetainOnlyFile",
+    "source_surface: \"editor-file-preview\"",
+    "appendFilePreviewActionReceipt",
+    "buildFilePreviewActionReceipt",
+  ]) {
+    assertIncludes(
+      files.upload,
+      upload,
+      snippet,
+      "Editor file preview insertion must create a local metadata-only action receipt."
+    );
+  }
 
   for (const requirement of requiredCapabilities) {
     assertIncludes(
@@ -1040,6 +1055,7 @@ function run() {
     "appendFilePreviewActionReceipt",
     "listFilePreviewActionReceipts",
     "FILE_PREVIEW_ACTION_RECEIPT_EVENT",
+    '"editor-file-preview"',
     '"reports-module"',
     '"native-preview"',
     '"download-retain"',
