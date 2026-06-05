@@ -775,13 +775,13 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Audit events API guard",
+    "审计事件 API 防护",
     "Sync UI must render the audit events API guard panel."
   );
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Export audit API guard",
+    "导出审计 API 防护",
     "Sync UI must render the audit events API guard export button."
   );
   assertSourceIncludes(
@@ -1780,7 +1780,7 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Deployment target",
+    "部署目标",
     "Sync UI must render the deployment target panel."
   );
   assertSourceIncludes(
@@ -1920,7 +1920,7 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Export storage policy",
+    "导出存储政策",
     "Sync UI must render the private file storage policy export button."
   );
   assertSourceIncludes(
@@ -2059,13 +2059,13 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "File presign API guard",
+    "文件签名 API 防护",
     "Sync UI must render the file presign API guard panel."
   );
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Export file presign guard",
+    "导出文件签名防护",
     "Sync UI must render the file presign guard export button."
   );
   assertSourceIncludes(
@@ -2228,15 +2228,15 @@ function run() {
       "Sync UI must render cloud dependency labels for next actions.",
     ],
     [
-      "Verification",
+      "验证",
       "Sync UI must render verification commands for next actions.",
     ],
     [
-      "Completion evidence",
+      "完成证据",
       "Sync UI must render completion evidence for next actions.",
     ],
     [
-      "Forbidden before confirmation",
+      "确认前禁止",
       "Sync UI must render forbidden-before-confirmation boundaries.",
     ],
     [
@@ -2595,7 +2595,7 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Smoke test plan",
+    "冒烟测试计划",
     "Sync UI must render the smoke test plan panel."
   );
   assertSourceIncludes(
@@ -2845,13 +2845,13 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Web Alpha handoff bundle",
+    "Web Alpha 交接包",
     "Sync UI must render the Web Alpha handoff bundle panel."
   );
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Export handoff bundle",
+    "导出交接包",
     "Sync UI must expose the handoff bundle export button."
   );
   assertSourceIncludes(
@@ -2995,13 +2995,13 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Web Alpha launch decision receipt",
+    "Web Alpha 上线决策收据",
     "Sync UI must render the Web Alpha launch decision panel."
   );
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Export launch decision",
+    "导出上线决策",
     "Sync UI must expose the launch decision export button."
   );
   assertSourceIncludes(
@@ -3164,13 +3164,13 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Web Beta owner review packet",
+    "Web Beta 用户复核包",
     "Sync UI must render the Web Beta owner review panel."
   );
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Export owner review",
+    "导出用户复核",
     "Sync UI must expose the owner review export button."
   );
   assertSourceIncludes(
@@ -4646,7 +4646,7 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "Conflict resolution contract",
+    "冲突解决合同",
     "Sync UI must render the conflict resolution panel."
   );
   for (const [snippet, message] of [
@@ -4655,11 +4655,11 @@ function run() {
       "Sync UI must export the side-by-side conflict review UI contract.",
     ],
     [
-      "Side-by-side conflict review",
+      "并排冲突复核",
       "Sync UI must render the side-by-side conflict review preview.",
     ],
     [
-      "Export review UI",
+      "导出复核界面",
       "Sync UI must expose the review UI export action.",
     ],
     [
@@ -4671,7 +4671,7 @@ function run() {
       "Sync UI must render base/local/remote lane cards.",
     ],
     [
-      "Apply disabled",
+      "应用已禁用",
       "Sync UI must keep conflict apply disabled in the preview.",
     ],
   ]) {
@@ -4687,11 +4687,11 @@ function run() {
       "Sync UI must export the remote baseline request contract.",
     ],
     [
-      "Remote baseline request contract",
+      "远端基线请求合同",
       "Sync UI must render the remote baseline request panel.",
     ],
     [
-      "Export baseline request",
+      "导出基线请求",
       "Sync UI must expose the remote baseline export action.",
     ],
     [
@@ -4719,11 +4719,11 @@ function run() {
       "Sync UI must export the remote baseline staging contract.",
     ],
     [
-      "Remote baseline staging contract",
+      "远端基线暂存合同",
       "Sync UI must render the remote baseline staging panel.",
     ],
     [
-      "Export baseline staging",
+      "导出基线暂存",
       "Sync UI must expose the remote baseline staging export action.",
     ],
     [
@@ -4755,11 +4755,11 @@ function run() {
       "Sync UI must export the remote baseline stage schema contract.",
     ],
     [
-      "Remote baseline stage schema and cursor proof",
+      "远端基线暂存结构和游标证明",
       "Sync UI must render the remote baseline stage schema panel.",
     ],
     [
-      "Export stage schema",
+      "导出阶段结构",
       "Sync UI must expose the remote baseline stage schema export action.",
     ],
     [
@@ -4779,7 +4779,7 @@ function run() {
       "Sync UI must render schema SQL draft rows.",
     ],
     [
-      "Final schema enablement",
+      "最终结构启用条件",
       "Sync UI must render final schema enablement conditions.",
     ],
   ]) {
@@ -4795,11 +4795,11 @@ function run() {
       "Sync UI must export the remote baseline stage replay contract.",
     ],
     [
-      "Remote baseline disposable replay and RLS proof",
+      "远端基线一次性回放和 RLS 证明",
       "Sync UI must render the remote baseline stage replay panel.",
     ],
     [
-      "Export stage replay",
+      "导出阶段回放",
       "Sync UI must expose the remote baseline stage replay export action.",
     ],
     [
@@ -4819,7 +4819,7 @@ function run() {
       "Sync UI must render rollback proof rows.",
     ],
     [
-      "Final replay enablement",
+      "最终回放启用条件",
       "Sync UI must render final replay enablement conditions.",
     ],
     [
@@ -4831,11 +4831,11 @@ function run() {
       "Sync UI must export the disposable replay confirmation receipt.",
     ],
     [
-      "Disposable replay owner confirmation receipt",
+      "一次性回放用户确认收据",
       "Sync UI must render the disposable replay confirmation panel.",
     ],
     [
-      "Export replay receipt",
+      "导出回放收据",
       "Sync UI must expose the disposable replay receipt export action.",
     ],
     [
@@ -4855,11 +4855,11 @@ function run() {
       "Sync UI must export the disposable replay empty-fixture package.",
     ],
     [
-      "Empty-fixture replay package",
+      "空 fixture 回放包",
       "Sync UI must render the disposable replay empty-fixture panel.",
     ],
     [
-      "Export empty fixture",
+      "导出空 fixture",
       "Sync UI must expose the disposable replay empty-fixture export action.",
     ],
     [
@@ -4883,11 +4883,11 @@ function run() {
       "Sync UI must export the disposable replay harness preflight.",
     ],
     [
-      "Disposable replay harness preflight",
+      "一次性回放脚手架预检",
       "Sync UI must render the disposable replay harness preflight panel.",
     ],
     [
-      "Export harness preflight",
+      "导出脚手架预检",
       "Sync UI must expose the disposable replay harness export action.",
     ],
     [
@@ -4915,11 +4915,11 @@ function run() {
       "Sync UI must export the disabled replay runner skeleton.",
     ],
     [
-      "Disabled replay runner skeleton",
+      "已关闭的回放 runner 骨架",
       "Sync UI must render the disabled replay runner panel.",
     ],
     [
-      "Export runner skeleton",
+      "导出 runner 骨架",
       "Sync UI must expose the disabled replay runner export action.",
     ],
     [
@@ -4951,11 +4951,11 @@ function run() {
       "Sync UI must export the audit event envelope contract.",
     ],
     [
-      "Audit event envelope",
+      "审计事件信封",
       "Sync UI must render the audit event envelope panel.",
     ],
     [
-      "Export audit envelope",
+      "导出审计信封",
       "Sync UI must expose the audit envelope export action.",
     ],
     [
@@ -4995,11 +4995,11 @@ function run() {
       "Sync UI must export the permission check envelope contract.",
     ],
     [
-      "Permission check envelope",
+      "权限检查信封",
       "Sync UI must render the permission check envelope panel.",
     ],
     [
-      "Export permission envelope",
+      "导出权限信封",
       "Sync UI must expose the permission envelope export action.",
     ],
     [
@@ -5015,7 +5015,7 @@ function run() {
       "Sync UI must render permission check fields.",
     ],
     [
-      "Permission request validator",
+      "权限请求校验器",
       "Sync UI must render the permission check request validator panel.",
     ],
     [
@@ -5023,11 +5023,11 @@ function run() {
       "Sync UI must render permission check validator fixture rows.",
     ],
     [
-      "Validator cases",
+      "校验案例",
       "Sync UI must render permission validator coverage metric.",
     ],
     [
-      "Server permission test matrix",
+      "服务端权限测试矩阵",
       "Sync UI must render the server permission test matrix panel.",
     ],
     [
@@ -5035,7 +5035,7 @@ function run() {
       "Sync UI must render server permission matrix case rows.",
     ],
     [
-      "Server cases",
+      "服务端案例",
       "Sync UI must render server permission matrix coverage metric.",
     ],
     [
@@ -5043,7 +5043,7 @@ function run() {
       "Sync UI must build the server permission readiness report.",
     ],
     [
-      "Server permission readiness",
+      "服务端权限准备度",
       "Sync UI must render the server permission readiness panel.",
     ],
     [
@@ -5051,7 +5051,7 @@ function run() {
       "Sync UI must render server permission readiness gates.",
     ],
     [
-      "Ready gates",
+      "就绪门槛",
       "Sync UI must render server permission readiness metrics.",
     ],
     [
@@ -5087,7 +5087,7 @@ function run() {
       "Sync UI must keep the write-back contract export action localized.",
     ],
     [
-      "导出恢复 receipt",
+      "导出恢复收据",
       "Sync UI must keep the restore receipt export action localized.",
     ],
     [

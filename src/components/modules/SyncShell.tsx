@@ -364,75 +364,75 @@ const READINESS_ITEMS: Array<{
   detail: string;
 }> = [
   {
-    title: "Local data foundation",
+    title: "本地数据基础",
     status: "Ready",
     detail:
-      "Pages, databases, relation fields, comments, versions, and uploaded files already run locally in the browser.",
+      "页面、数据库、关系字段、评论、版本和上传文件已经可以在浏览器本地运行。",
   },
   {
-    title: "Local backup exports",
+    title: "本地备份导出",
     status: "Ready",
     detail:
-      "JSON backup, workspace ZIP, and Markdown export are available as browser downloads.",
+      "JSON 备份、工作区 ZIP 和 Markdown 导出已经可以通过浏览器下载。",
   },
   {
-    title: "Sync queue table",
+    title: "同步队列表",
     status: "Partial",
     detail:
-      "Core local page, database, comment, relation, and version changes now enter sync_log, but remote replay is not finished.",
+      "核心页面、数据库、评论、关系和版本变更已经进入 sync_log，但远端回放还未完成。",
   },
   {
-    title: "Restore flow",
+    title: "恢复流程",
     status: "Needs confirmation",
     detail:
-      "Restore would write data back into the workspace, so it should be built only after the restore contract is confirmed.",
+      "恢复会把数据写回工作区，所以必须先确认恢复合同后再继续实现。",
   },
   {
-    title: "Login and cloud database",
+    title: "登录和云数据库",
     status: "Missing",
     detail:
-      "User accounts, server database, workspace identity, and remote storage have not been implemented yet.",
+      "用户账号、服务端数据库、工作区身份和远端存储还没有正式实现。",
   },
   {
-    title: "Permissions and sharing",
+    title: "权限和分享",
     status: "Missing",
     detail:
-      "Private workspace boundaries, role checks, and sharing controls still need a dedicated model.",
+      "私有工作区边界、角色检查和分享控制还需要独立模型。",
   },
   {
-    title: "Conflict handling",
+    title: "冲突处理",
     status: "Missing",
     detail:
-      "Multi-device edit conflicts need deterministic merge rules before web beta can be treated as safe.",
+      "多设备编辑冲突需要确定性的合并规则，才能把 Web Beta 视为安全。",
   },
 ];
 
 const PRIVACY_BOUNDARIES = [
-  "This module reads local counts only and does not upload notes, files, backups, or databases.",
-  "Cloud sync, AI analysis, external report assets, and shared links still require explicit confirmation before implementation.",
-  "Restore, bulk import, and destructive cleanup remain separate high-risk actions and should not run silently.",
+  "这个模块只读取本地数量统计，不上传笔记、文件、备份或数据库。",
+  "云同步、AI 分析、外部报告资源和分享链接仍然需要明确确认后才能实现。",
+  "恢复、批量导入和破坏性清理都属于独立高风险动作，不能静默执行。",
 ];
 
 const WEB_BETA_STACK = [
   {
-    title: "1. Account layer",
-    detail: "Login, workspace identity, session handling, and private workspace ownership.",
+    title: "1. 账号层",
+    detail: "登录、工作区身份、会话处理和私有工作区所有权。",
   },
   {
-    title: "2. Cloud data layer",
-    detail: "Server database schema for pages, databases, files, comments, versions, and relations.",
+    title: "2. 云数据层",
+    detail: "页面、数据库、文件、评论、版本和关系的服务端数据库结构。",
   },
   {
-    title: "3. Sync layer",
-    detail: "Pending queue, pull/push API, retry behavior, conflict detection, and device snapshots.",
+    title: "3. 同步层",
+    detail: "待处理队列、拉取/推送 API、重试行为、冲突检测和设备快照。",
   },
   {
-    title: "4. Recovery layer",
-    detail: "Backup restore, import validation, rollback snapshots, and error recovery.",
+    title: "4. 恢复层",
+    detail: "备份恢复、导入校验、回滚快照和错误恢复。",
   },
   {
-    title: "5. Permission layer",
-    detail: "Workspace roles, sharing policy, module-level access, and audit history.",
+    title: "5. 权限层",
+    detail: "工作区角色、分享策略、模块级访问和审计历史。",
   },
 ];
 
@@ -564,12 +564,12 @@ function SyncDashboard() {
         setEnvironmentPreflightError(
           loadedEnvironmentPreflight
             ? null
-            : "Environment preflight is not available from the local API."
+            : "本地 API 暂时无法提供环境预检。"
         );
       } catch (err) {
         console.error("[Zhinote] Failed to load sync readiness data:", err);
         if (mounted) {
-          setLoadError("Could not load all local readiness data.");
+          setLoadError("无法加载全部本地准备度数据。");
         }
       }
     }
@@ -647,12 +647,12 @@ function SyncDashboard() {
           cloudSession?.user?.email ?? cloudSession?.user?.id ?? null,
         localWorkspaceId: workspaceIdentity?.workspace_id ?? null,
         cloudWorkspaceId: workspaceIdentity?.cloud_workspace_id ?? null,
-        scopeSummary: `${syncOptInGate.payload_scope.pending_count} pending sync rows; ${syncOptInGate.payload_scope.high_risk_tables} high-risk table groups; page text included: no; file bytes included: no.`,
+        scopeSummary: `${syncOptInGate.payload_scope.pending_count} 条待同步记录；${syncOptInGate.payload_scope.high_risk_tables} 组高风险表；不包含页面正文；不包含文件字节。`,
         riskSummary:
-          "First cloud sync can transmit private research metadata and later workspace content after explicit enablement.",
+          "第一次云同步在明确启用后可能传输私人研究元数据，并在后续传输工作区内容。",
         destinationSummary: workspaceIdentity?.cloud_workspace_id
           ? `Supabase workspace ${workspaceIdentity.cloud_workspace_id}`
-          : "No cloud workspace linked.",
+          : "尚未连接云工作区。",
       }),
     [
       cloudSession,
@@ -971,13 +971,13 @@ function SyncDashboard() {
           cloudSession?.user?.email ?? cloudSession?.user?.id ?? null,
         localWorkspaceId: workspaceIdentity?.workspace_id ?? null,
         scopeSummary: restorePreview
-          ? `${restorePreview.counts.activePages} active pages; ${restorePreview.counts.deletedPages} trash pages; ${restorePreview.counts.databases} databases; ${restorePreview.counts.databaseRows} database rows; ${restorePreview.counts.uploadedFiles} uploaded file records.`
-          : "No restore backup preview loaded.",
+          ? `${restorePreview.counts.activePages} 个活跃页面；${restorePreview.counts.deletedPages} 个回收站页面；${restorePreview.counts.databases} 个数据库；${restorePreview.counts.databaseRows} 条数据库行；${restorePreview.counts.uploadedFiles} 条上传文件记录。`
+          : "尚未加载恢复备份预览。",
         riskSummary:
-          "A future restore write-back can overwrite or add local workspace pages, databases, comments, versions, files, favorites, and locks after explicit enablement.",
+          "未来恢复写回在明确启用后，可能覆盖或新增本地工作区页面、数据库、评论、版本、文件、收藏和锁定状态。",
         destinationSummary: workspaceIdentity
           ? `Local browser workspace ${workspaceIdentity.workspace_id}`
-          : "No local workspace identity available.",
+          : "没有可用的本地工作区身份。",
       }),
     [
       cloudSession,
@@ -1361,7 +1361,7 @@ function SyncDashboard() {
       setCloudMessage({
         tone: "error",
         title: "登录请求失败",
-        detail: err instanceof Error ? err.message : "Unknown cloud error",
+        detail: err instanceof Error ? err.message : "未知云端错误",
       });
     } finally {
       setBusyCloudAction(null);
@@ -1429,7 +1429,7 @@ function SyncDashboard() {
       setCloudMessage({
         tone: "error",
         title: "Session 检查失败",
-        detail: err instanceof Error ? err.message : "Unknown cloud error",
+        detail: err instanceof Error ? err.message : "未知云端错误",
       });
     } finally {
       setBusyCloudAction(null);
@@ -1785,7 +1785,7 @@ function SyncDashboard() {
       }
     } catch (err) {
       console.error("[Zhinote] Failed to run sync export action:", err);
-      window.alert("Export failed. Please check the console for details.");
+      window.alert("导出失败。请打开控制台查看详情。");
     } finally {
       setBusyAction(null);
     }
@@ -3040,13 +3040,12 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Cloud sync opt-in gate
+                云同步选择加入门槛
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local safety gate before any future cloud push can enter an
-                owner confirmation flow. It checks cloud workspace link,
-                payload preview, sensitivity, conflict baseline, disabled push
-                API, and explicit opt-in wording without uploading data.
+                这是未来云端推送进入用户确认流程前的本地安全门槛。它检查云工作区连接、
+                发送内容预览、敏感度、冲突基线、关闭状态的推送 API 和明确确认短语；
+                当前不会上传数据。
               </p>
             </div>
             <button
@@ -3056,39 +3055,39 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyQueueAction === "opt-in-gate"
-                ? "Exporting..."
-                : "Export opt-in gate"}
+                ? "导出中..."
+                : "导出同步确认门槛"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <SyncOptInSummaryCard
-              label="Verdict"
-              value="Blocked"
-              detail="Push API remains disabled"
+              label="结论"
+              value="阻塞"
+              detail="推送 API 仍关闭"
               status="blocked"
             />
             <SyncOptInSummaryCard
-              label="Ready"
+              label="就绪"
               value={syncOptInGate.summary.ready}
-              detail="Satisfied gates"
+              detail="已满足门槛"
               status="ready"
             />
             <SyncOptInSummaryCard
-              label="Confirm"
+              label="确认"
               value={syncOptInGate.summary.manual_confirmation}
-              detail="Needs owner review"
+              detail="需要用户复核"
               status="manual-confirmation"
             />
             <SyncOptInSummaryCard
-              label="Blocked"
+              label="阻塞"
               value={syncOptInGate.summary.blocked}
-              detail="Must be resolved first"
+              detail="必须先解决"
               status="blocked"
             />
             <SyncOptInSummaryCard
-              label="Phrase"
+              label="短语"
               value={syncOptInGate.confirmation.required_phrase}
-              detail="Collected locally"
+              detail="仅本地收集"
               status="manual-confirmation"
             />
           </div>
@@ -3098,30 +3097,30 @@ function SyncDashboard() {
                 <SyncOptInGateRow key={gate.id} gate={gate} />
               ))}
             </div>
-            <ContractPanel title="Opt-in boundary">
+            <ContractPanel title="选择加入边界">
               <div className="grid gap-2 md:grid-cols-2">
                 <IdentityMetric
-                  label="Cloud workspace"
+                  label="云工作区"
                   value={
                     syncOptInGate.workspace_identity.cloud_workspace_id ??
-                    "Not linked"
+                    "未连接"
                   }
                   detail={
                     syncOptInGate.workspace_identity.cloud_role ??
-                    "No cloud role"
+                    "没有云端角色"
                   }
                 />
                 <IdentityMetric
-                  label="Pending rows"
+                  label="待同步行"
                   value={String(syncOptInGate.payload_scope.pending_count)}
-                  detail={`${syncOptInGate.payload_scope.high_risk_tables} high-risk table groups`}
+                  detail={`${syncOptInGate.payload_scope.high_risk_tables} 组高风险表`}
                 />
                 <IdentityMetric
-                  label="Bootstrap proof"
+                  label="启动证明"
                   value={
                     syncOptInGate.workspace_identity.bootstrap_checked_at
-                      ? "Present"
-                      : "Missing"
+                      ? "已存在"
+                      : "缺失"
                   }
                   detail={
                     syncOptInGate.workspace_identity.bootstrap_checked_at
@@ -3129,31 +3128,31 @@ function SyncDashboard() {
                           syncOptInGate.workspace_identity
                             .bootstrap_checked_at
                         )}; ${syncOptInGate.workspace_identity.bootstrap_module_count ?? 0} modules`
-                      : "Run workspace bootstrap before link"
+                      : "连接前先做工作区启动检查"
                   }
                 />
                 <IdentityMetric
-                  label="Sync flags"
+                  label="同步开关"
                   value={`push ${
                     syncOptInGate.workspace_identity.sync_push_enabled
-                      ? "on"
-                      : "off"
+                      ? "开"
+                      : "关"
                   } / pull ${
                     syncOptInGate.workspace_identity.sync_pull_enabled
-                      ? "on"
-                      : "off"
+                      ? "开"
+                      : "关"
                   }`}
-                  detail="Must stay off before first sync"
+                  detail="首次同步前必须保持关闭"
                 />
                 <IdentityMetric
-                  label="Uploads"
-                  value="Disabled"
-                  detail="No notes, files, or rows uploaded"
+                  label="上传"
+                  value="已关闭"
+                  detail="不上传笔记、文件或行"
                 />
                 <IdentityMetric
-                  label="Push route"
+                  label="推送路由"
                   value="/api/sync/push"
-                  detail="Disabled local stub"
+                  detail="已关闭的本地桩接口"
                 />
               </div>
               <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
@@ -3180,32 +3179,32 @@ function SyncDashboard() {
                     className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                   >
                     {busyQueueAction === "sync-confirmation"
-                      ? "Exporting..."
-                      : "Export confirmation receipt"}
+                      ? "导出中..."
+                      : "导出确认收据"}
                   </button>
                 </div>
                 <p className="mt-2 text-[11px] leading-5 text-zinc-400 dark:text-zinc-500">
-                  即使短语匹配，当前仍不会上传；push API disabled. 收据只记录本地确认状态，不包含页面正文、文件内容、token 或 secret。
+                  即使短语匹配，当前仍不会上传；推送 API 仍是关闭状态。收据只记录本地确认状态，不包含页面正文、文件内容、token 或 secret。
                 </p>
                 <div className="mt-3 grid gap-2 md:grid-cols-3">
                   <IdentityMetric
-                    label="Phrase match"
+                    label="短语匹配"
                     value={
                       syncConfirmationReceipt.typed_phrase_matches
-                        ? "Yes"
-                        : "No"
+                        ? "是"
+                        : "否"
                     }
                     detail={syncConfirmationReceipt.status}
                   />
                   <IdentityMetric
-                    label="Receipt boundary"
-                    value="Local only"
-                    detail="No upload, write, delete, or AI call"
+                    label="收据边界"
+                    value="仅本地"
+                    detail="不上传、不写入、不删除、不调用 AI"
                   />
                   <IdentityMetric
-                    label="Destination"
+                    label="目标"
                     value={syncConfirmationReceipt.destination_summary}
-                    detail="Reviewed before future upload"
+                    detail="未来上传前复核"
                   />
                 </div>
               </div>
@@ -3217,13 +3216,11 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Sync replay test plan
+                同步回放测试计划
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local test plan for future push, pull, acknowledgement, retry,
-                conflict, high-risk gate, and rollback behavior. It does not
-                read remote data, upload notes, write workspace data, or
-                acknowledge sync rows.
+                用于未来推送、拉取、确认、重试、冲突、高风险门槛和回滚行为的本地测试计划。
+                它不会读取远端数据、上传笔记、写入工作区数据或确认同步行。
               </p>
             </div>
             <button
@@ -3233,39 +3230,39 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyQueueAction === "replay-test-plan"
-                ? "Exporting..."
-                : "Export replay plan"}
+                ? "导出中..."
+                : "导出回放计划"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <ReplaySummaryCard
-              label="Scenarios"
+              label="场景"
               value={syncReplayTestPlan.summary.scenarios}
-              detail="Replay cases"
+              detail="回放案例"
               tone="planned"
             />
             <ReplaySummaryCard
-              label="Confirm"
+              label="确认"
               value={syncReplayTestPlan.summary.manual_confirmation}
-              detail="Needs user gate"
+              detail="需要用户门槛"
               tone="manual-confirmation"
             />
             <ReplaySummaryCard
-              label="Blocked"
+              label="阻塞"
               value={syncReplayTestPlan.summary.blocked}
-              detail="Server gaps"
+              detail="服务端缺口"
               tone="blocked"
             />
             <ReplaySummaryCard
               label="端点"
               value="/api/sync/replay-test"
-              detail="Disabled local stub"
+              detail="已关闭的本地桩接口"
               tone="blocked"
             />
             <ReplaySummaryCard
-              label="Boundary"
-              value="No replay"
-              detail="No cloud calls"
+              label="边界"
+              value="不回放"
+              detail="不调用云端"
               tone="planned"
             />
           </div>
@@ -3287,12 +3284,11 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Local workspace identity
+                本地工作区身份
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Anonymous browser-local workspace and device id for future sync
-                metadata. This is not an account, does not connect to cloud
-                services, and does not include note text or file content.
+                用于未来同步元数据的匿名浏览器本地工作区和设备 id。
+                这不是账号，不连接云服务，也不包含笔记正文或文件内容。
               </p>
             </div>
             <button
@@ -3302,34 +3298,34 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyContractAction === "identity"
-                ? "Exporting..."
-                : "Export identity"}
+                ? "导出中..."
+                : "导出身份"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4">
             <IdentityMetric
-              label="Workspace"
-              value={workspaceIdentity?.workspace_id ?? "Loading"}
-              detail={workspaceIdentity?.workspace_name ?? "Local identity"}
+              label="工作区"
+              value={workspaceIdentity?.workspace_id ?? "加载中"}
+              detail={workspaceIdentity?.workspace_name ?? "本地身份"}
             />
             <IdentityMetric
-              label="Device"
-              value={workspaceIdentity?.device_id ?? "Loading"}
-              detail="Browser-local device id"
+              label="设备"
+              value={workspaceIdentity?.device_id ?? "加载中"}
+              detail="浏览器本地设备 id"
             />
             <IdentityMetric
-              label="Cloud status"
+              label="云状态"
               value={workspaceIdentity?.cloud_status ?? "local-only"}
-              detail="No account or cloud sync"
+              detail="没有账号或云同步"
             />
             <IdentityMetric
-              label="Created"
+              label="创建时间"
               value={
                 workspaceIdentity
                   ? formatDate(workspaceIdentity.created_at)
-                  : "Loading"
+                  : "加载中"
               }
-              detail="Generated locally"
+              detail="本地生成"
             />
           </div>
         </section>
@@ -3338,14 +3334,12 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Account session boundary
+                账号会话边界
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local contract for future Web Beta login. It maps login start,
-                session read, workspace bootstrap, logout/revoke, and
-                local-to-cloud link rules without creating accounts, reading
-                emails, passwords, tokens, cookies, or connecting auth
-                providers.
+                这是未来 Web Beta 登录的本地合同。它描述登录启动、会话读取、工作区启动、
+                登出/撤销、本地到云端连接规则；不会创建账号、读取邮箱/密码/token/cookie，
+                也不会连接认证服务。
               </p>
             </div>
             <button
@@ -3355,51 +3349,51 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyContractAction === "account-session"
-                ? "Exporting..."
-                : "Export account boundary"}
+                ? "导出中..."
+                : "导出账号边界"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <AccountBoundarySummaryCard
-              label="Phases"
+              label="阶段"
               value={accountSessionBoundary.summary.phases}
-              detail="Login lifecycle steps"
+              detail="登录生命周期步骤"
               status="planned"
             />
             <AccountBoundarySummaryCard
-              label="Blocked"
+              label="阻塞"
               value={accountSessionBoundary.summary.blocked}
-              detail="Provider/session gaps"
+              detail="服务商/会话缺口"
               status="blocked"
             />
             <AccountBoundarySummaryCard
-              label="Confirm"
+              label="确认"
               value={accountSessionBoundary.summary.manual_confirmation}
-              detail="Local-to-cloud link"
+              detail="本地连接云端"
               status="manual-confirmation"
             />
             <AccountBoundarySummaryCard
-              label="Auth routes"
+              label="认证路由"
               value={accountSessionBoundary.local_evidence.auth_disabled_routes}
-              detail="Disabled local stubs"
+              detail="已关闭的本地桩接口"
               status="blocked"
             />
             <AccountBoundarySummaryCard
-              label="Forbidden"
+              label="禁止字段"
               value={accountSessionBoundary.summary.forbidden_fields}
-              detail="Credential fields"
+              detail="凭证字段"
               status="manual-confirmation"
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
-            <ContractPanel title="Account lifecycle phases">
+            <ContractPanel title="账号生命周期阶段">
               <div className="space-y-2">
                 {accountSessionBoundary.phases.map((phase) => (
                   <AccountPhaseRow key={phase.id} phase={phase} />
                 ))}
               </div>
             </ContractPanel>
-            <ContractPanel title="Account enablement gates">
+            <ContractPanel title="账号启用门槛">
               <div className="space-y-2">
                 {accountSessionBoundary.gates.map((gate) => (
                   <AccountGateRow key={gate.id} gate={gate} />
@@ -3407,7 +3401,7 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
           </div>
-          <ContractPanel title="Auth/session field policy" className="mt-4">
+          <ContractPanel title="认证 / 会话字段策略" className="mt-4">
             <div className="grid gap-2 md:grid-cols-2">
               {accountSessionBoundary.fields.map((field) => (
                 <AccountFieldRow key={field.field} field={field} />
@@ -3420,13 +3414,11 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Sync payload preview
+                同步发送内容预览
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Metadata-only preview for a future cloud push. It summarizes
-                pending tables, operations, changed fields, and privacy
-                boundaries without page text, file bytes, account creation, or
-                cloud upload.
+                面向未来云端推送的“仅元数据”预览。它汇总待同步表、操作、变更字段和隐私边界；
+                不包含页面正文、文件字节，不创建账号，也不上传云端。
               </p>
             </div>
             <button
@@ -3436,43 +3428,43 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyQueueAction === "payload-preview"
-                ? "Exporting..."
-                : "Export preview"}
+                ? "导出中..."
+                : "导出预览"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <PayloadSummaryCard
-              label="Pending"
+              label="待同步"
               value={syncPayloadPreview.summary.pending_count}
-              detail="Rows waiting in sync_log"
+              detail="sync_log 中等待的行"
               tone="medium"
             />
             <PayloadSummaryCard
-              label="Included"
+              label="已纳入"
               value={syncPayloadPreview.summary.included_count}
               detail={
                 syncPayloadPreview.summary.truncated
-                  ? "Preview is capped"
-                  : "Preview covers loaded rows"
+                  ? "预览有上限"
+                  : "预览覆盖已加载行"
               }
               tone="low"
             />
             <PayloadSummaryCard
-              label="High risk"
+              label="高风险"
               value={syncPayloadPreview.summary.high_risk_tables}
-              detail="Content-sensitive tables"
+              detail="内容敏感表"
               tone="high"
             />
             <PayloadSummaryCard
-              label="Medium risk"
+              label="中风险"
               value={syncPayloadPreview.summary.medium_risk_tables}
-              detail="Structure or relation metadata"
+              detail="结构或关系元数据"
               tone="medium"
             />
             <PayloadSummaryCard
-              label="Boundary"
-              value="Metadata"
-              detail="No page text or file bytes"
+              label="边界"
+              value="仅元数据"
+              detail="没有页面正文或文件字节"
               tone="low"
             />
           </div>
@@ -3484,9 +3476,8 @@ function SyncDashboard() {
             </div>
           ) : (
             <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-              No pending sync rows are currently available for preview. This
-              preview will populate as local page, database, comment, relation,
-              or version changes enter sync_log.
+              当前没有可预览的待同步行。等本地页面、数据库、评论、关系或版本变更进入
+              sync_log 后，这里会自动出现预览。
             </p>
           )}
         </section>
@@ -3495,13 +3486,11 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Conflict review scaffold
+                冲突复核框架
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local policy scaffold for future multi-device conflicts. It
-                maps conflict surfaces to review actions without reading remote
-                data, merging changes, writing workspace data, or uploading
-                anything.
+                面向未来多设备冲突的本地策略框架。它把冲突类型映射到复核动作；
+                不读取远端数据、不合并变更、不写入工作区，也不上传任何内容。
               </p>
             </div>
             <button
@@ -3511,39 +3500,39 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyQueueAction === "conflict-review"
-                ? "Exporting..."
-                : "Export conflicts"}
+                ? "导出中..."
+                : "导出冲突复核"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <ConflictSummaryCard
-              label="Surfaces"
+              label="冲突面"
               value={syncConflictReview.summary.surfaces}
-              detail="Policies covered"
+              detail="已覆盖策略"
               tone="medium"
             />
             <ConflictSummaryCard
-              label="Policy ready"
+              label="策略就绪"
               value={syncConflictReview.summary.policy_ready}
-              detail="No local pending rows"
+              detail="没有本地待同步行"
               tone="low"
             />
             <ConflictSummaryCard
-              label="Needs baseline"
+              label="需要基线"
               value={syncConflictReview.summary.needs_remote_baseline}
-              detail="Requires remote latest"
+              detail="需要远端最新版本"
               tone="medium"
             />
             <ConflictSummaryCard
-              label="Manual only"
+              label="仅手动"
               value={syncConflictReview.summary.manual_only}
-              detail="Never auto-merge"
+              detail="绝不自动合并"
               tone="high"
             />
             <ConflictSummaryCard
-              label="Boundary"
-              value="No merge"
-              detail="No writes or uploads"
+              label="边界"
+              value="不合并"
+              detail="不写入、不上传"
               tone="low"
             />
           </div>
@@ -3558,15 +3547,13 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Conflict resolution contract
+                冲突解决合同
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local contract for future conflict decisions. It maps each
-                conflict surface to allowed manual actions such as keep local,
-                accept remote, manual merge, append-only, keep both, or skip
-                and flag. It does not read remote data, merge changes, write
-                workspace data, update permissions, run restore, or acknowledge
-                remote rows.
+                面向未来冲突决策的本地合同。它把每类冲突映射到允许的手动动作，
+                例如保留本地、接受远端、手动合并、只追加、两者保留或跳过并标记。
+                它不读取远端数据、不合并变更、不写工作区、不更新权限、不执行恢复，
+                也不确认远端行。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -3577,8 +3564,8 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyQueueAction === "conflict-resolution"
-                  ? "Exporting..."
-                  : "Export resolution"}
+                  ? "导出中..."
+                  : "导出解决合同"}
               </button>
               <button
                 type="button"
@@ -3587,8 +3574,8 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyQueueAction === "conflict-review-ui"
-                  ? "Exporting..."
-                  : "Export review UI"}
+                  ? "导出中..."
+                  : "导出复核界面"}
               </button>
               <button
                 type="button"
@@ -3597,8 +3584,8 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyQueueAction === "remote-baseline"
-                  ? "Exporting..."
-                  : "Export baseline request"}
+                  ? "导出中..."
+                  : "导出基线请求"}
               </button>
               <button
                 type="button"
@@ -3607,8 +3594,8 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyQueueAction === "remote-baseline-staging"
-                  ? "Exporting..."
-                  : "Export baseline staging"}
+                  ? "导出中..."
+                  : "导出基线暂存"}
               </button>
               <button
                 type="button"
@@ -3617,8 +3604,8 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyQueueAction === "remote-baseline-stage-schema"
-                  ? "Exporting..."
-                  : "Export stage schema"}
+                  ? "导出中..."
+                  : "导出阶段结构"}
               </button>
               <button
                 type="button"
@@ -3627,61 +3614,60 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyQueueAction === "remote-baseline-stage-replay"
-                  ? "Exporting..."
-                  : "Export stage replay"}
+                  ? "导出中..."
+                  : "导出阶段回放"}
               </button>
             </div>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
             <ResolutionSummaryCard
-              label="Surfaces"
+              label="冲突面"
               value={syncConflictResolution.summary.surfaces}
-              detail="Resolution plans"
+              detail="解决方案"
               status="manual-confirmation"
             />
             <ResolutionSummaryCard
-              label="Review UI"
+              label="复核界面"
               value={syncConflictResolution.summary.side_by_side_surfaces}
-              detail="Side-by-side preview"
+              detail="并排预览"
               status="planned"
             />
             <ResolutionSummaryCard
-              label="Options"
+              label="选项"
               value={syncConflictResolution.summary.options}
-              detail="Manual actions"
+              detail="手动动作"
               status="planned"
             />
             <ResolutionSummaryCard
-              label="Apply"
-              value="Disabled"
+              label="应用"
+              value="已关闭"
               detail="/api/sync/pull"
               status="blocked"
             />
             <ResolutionSummaryCard
-              label="Blocked"
+              label="阻塞"
               value={syncConflictResolution.summary.blocked_gates}
-              detail="Must be built first"
+              detail="必须先构建"
               status="blocked"
             />
             <ResolutionSummaryCard
-              label="Confirm"
+              label="确认"
               value={syncConflictResolution.summary.manual_confirmation_gates}
-              detail="Owner review"
+              detail="用户复核"
               status="manual-confirmation"
             />
             <ResolutionSummaryCard
-              label="Boundary"
-              value="No merge"
-              detail="No writes/uploads"
+              label="边界"
+              value="不合并"
+              detail="不写入/不上传"
               status="planned"
             />
           </div>
-          <ContractPanel title="Side-by-side conflict review" className="mt-4">
+          <ContractPanel title="并排冲突复核" className="mt-4">
             <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 md:flex-row md:items-start md:justify-between">
               <p className="max-w-3xl">
-                Local preview for base, local, and remote evidence lanes. It
-                uses placeholders only, keeps every action disabled, and does
-                not contact cloud services or load private content.
+                base、本地和远端证据分栏的本地预览。当前只使用占位内容，
+                所有动作保持关闭，不联系云服务，也不加载私人内容。
               </p>
               <span className="w-fit rounded-md bg-blue-50 px-2 py-1 text-[10px] text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                 {syncConflictResolution.review_ui.status}
@@ -3708,13 +3694,12 @@ function SyncDashboard() {
               ))}
             </div>
           </ContractPanel>
-          <ContractPanel title="Remote baseline request contract" className="mt-4">
+          <ContractPanel title="远端基线请求合同" className="mt-4">
             <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl">
-                Local contract for the future remote baseline fetch. It defines
-                the metadata-only pull scope before cloud data can be staged
-                into the Base / Local / Remote review lanes. The endpoint is
-                still disabled and no network request is started.
+                未来拉取远端基线前的本地合同。它定义“仅元数据”的拉取范围，
+                先于任何云数据进入 Base / Local / Remote 复核分栏。端点仍关闭，
+                不会发起网络请求。
               </p>
               <span className="w-fit rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
                 {remoteBaselineRequest.request_status}
@@ -3722,41 +3707,41 @@ function SyncDashboard() {
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
               <ResolutionSummaryCard
-                label="Endpoint"
+                label="端点"
                 value={remoteBaselineRequest.request_scope.endpoint}
                 detail={remoteBaselineRequest.method}
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Surfaces"
+                label="冲突面"
                 value={remoteBaselineRequest.summary.surface_requests}
-                detail="Metadata plans"
+                detail="元数据计划"
                 status="manual-confirmation"
               />
               <ResolutionSummaryCard
-                label="Need baseline"
+                label="需要基线"
                 value={
                   remoteBaselineRequest.local_evidence.surfaces_needing_baseline
                 }
-                detail="Conflict surfaces"
+                detail="冲突面"
                 status="manual-confirmation"
               />
               <ResolutionSummaryCard
-                label="Blocked gates"
+                label="阻塞门槛"
                 value={remoteBaselineRequest.summary.blocked}
-                detail="Must stay disabled"
+                detail="必须保持关闭"
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Allowed fields"
+                label="允许字段"
                 value={remoteBaselineRequest.summary.allowed_fields}
-                detail="Metadata only"
+                detail="仅元数据"
                 status="planned"
               />
               <ResolutionSummaryCard
-                label="Forbidden"
+                label="禁止字段"
                 value={remoteBaselineRequest.summary.forbidden_fields}
-                detail="Private payload"
+                detail="私人载荷"
                 status="blocked"
               />
             </div>
@@ -3787,7 +3772,7 @@ function SyncDashboard() {
               </div>
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-              <ContractPanel title="Baseline surface requests">
+              <ContractPanel title="基线冲突面请求">
                 <div className="space-y-2">
                   {remoteBaselineRequest.surface_requests.map((request) => (
                     <RemoteBaselineSurfaceRow
@@ -3797,7 +3782,7 @@ function SyncDashboard() {
                   ))}
                 </div>
               </ContractPanel>
-              <ContractPanel title="Baseline gates">
+              <ContractPanel title="基线门槛">
                 <div className="space-y-2">
                   {remoteBaselineRequest.gates.map((gate) => (
                     <RemoteBaselineGateRow key={gate.id} gate={gate} />
@@ -3805,7 +3790,7 @@ function SyncDashboard() {
                 </div>
               </ContractPanel>
             </div>
-            <ContractPanel title="Baseline field boundary" className="mt-4">
+            <ContractPanel title="基线字段边界" className="mt-4">
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {remoteBaselineRequest.fields.map((field) => (
                   <RemoteBaselineFieldRow key={field.field} field={field} />
@@ -3814,16 +3799,14 @@ function SyncDashboard() {
             </ContractPanel>
           </ContractPanel>
           <ContractPanel
-            title="Remote baseline staging contract"
+            title="远端基线暂存合同"
             className="mt-4"
           >
             <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl">
-                Local contract for the future staging step between
-                metadata-only pull and the side-by-side review UI. It defines a
-                planned remote_baseline_stage store and maps staged metadata to
-                the Remote lane only. Staging, persistence, acknowledgement,
-                apply, writes, and uploads remain disabled.
+                面向未来“仅元数据拉取”和并排复核界面之间暂存步骤的本地合同。
+                它定义计划中的 remote_baseline_stage 存储，并且只把暂存元数据映射到
+                Remote 分栏。暂存、持久化、确认、应用、写入和上传仍保持关闭。
               </p>
               <span className="w-fit rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
                 {remoteBaselineStaging.staging_status}
@@ -3831,55 +3814,55 @@ function SyncDashboard() {
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
               <ResolutionSummaryCard
-                label="Stage store"
+                label="暂存表"
                 value={remoteBaselineStaging.disabled_stage_table}
                 detail={remoteBaselineStaging.stage_store.write_status}
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Surfaces"
+                label="冲突面"
                 value={remoteBaselineStaging.summary.stage_surfaces}
-                detail="Remote lane maps"
+                detail="远端分栏映射"
                 status="manual-confirmation"
               />
               <ResolutionSummaryCard
-                label="Blocked"
+                label="阻塞"
                 value={remoteBaselineStaging.summary.blocked}
-                detail="Must stay disabled"
+                detail="必须保持关闭"
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Allowed fields"
+                label="允许字段"
                 value={remoteBaselineStaging.summary.allowed_fields}
-                detail="Metadata only"
+                detail="仅元数据"
                 status="planned"
               />
               <ResolutionSummaryCard
-                label="Forbidden"
+                label="禁止字段"
                 value={remoteBaselineStaging.summary.forbidden_fields}
-                detail="Payload body"
+                detail="载荷正文"
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Persist"
-                value="Disabled"
-                detail="No stage writes"
+                label="持久化"
+                value="已关闭"
+                detail="不写暂存"
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Apply"
-                value="Disabled"
-                detail="Review only"
+                label="应用"
+                value="已关闭"
+                detail="仅复核"
                 status="blocked"
               />
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-              <ContractPanel title="Stage store boundary">
+              <ContractPanel title="暂存表边界">
                 <RemoteBaselineStageStoreCard
                   store={remoteBaselineStaging.stage_store}
                 />
               </ContractPanel>
-              <ContractPanel title="Staging gates">
+              <ContractPanel title="暂存门槛">
                 <div className="space-y-2">
                   {remoteBaselineStaging.gates.map((gate) => (
                     <RemoteBaselineStageGateRow key={gate.id} gate={gate} />
@@ -3887,7 +3870,7 @@ function SyncDashboard() {
                 </div>
               </ContractPanel>
             </div>
-            <ContractPanel title="Remote-lane surface staging" className="mt-4">
+            <ContractPanel title="远端分栏冲突面暂存" className="mt-4">
               <div className="grid gap-2 xl:grid-cols-2">
                 {remoteBaselineStaging.surface_stages.map((surface) => (
                   <RemoteBaselineStageSurfaceRow
@@ -3897,7 +3880,7 @@ function SyncDashboard() {
                 ))}
               </div>
             </ContractPanel>
-            <ContractPanel title="Staging field boundary" className="mt-4">
+            <ContractPanel title="暂存字段边界" className="mt-4">
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {remoteBaselineStaging.fields.map((field) => (
                   <RemoteBaselineStageFieldRow key={field.field} field={field} />
@@ -3906,16 +3889,14 @@ function SyncDashboard() {
             </ContractPanel>
           </ContractPanel>
           <ContractPanel
-            title="Remote baseline stage schema and cursor proof"
+            title="远端基线暂存结构和游标证明"
             className="mt-4"
           >
             <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl">
-                Local schema and cursor proof draft for remote_baseline_stage.
-                It defines metadata-only columns, forbidden payload columns,
-                cursor monotonicity rules, idempotency rules, and SQL review
-                statements. SQL apply, cursor persistence, stage writes, and
-                remote apply remain disabled.
+                remote_baseline_stage 的本地结构和游标证明草案。它定义仅元数据字段、
+                禁止载荷字段、游标单调性规则、幂等规则和 SQL 复核语句。
+                SQL 应用、游标持久化、暂存写入和远端应用仍保持关闭。
               </p>
               <span className="w-fit rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
                 {remoteBaselineStageSchema.schema_status}
@@ -3923,62 +3904,62 @@ function SyncDashboard() {
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
               <ResolutionSummaryCard
-                label="Stage table"
+                label="暂存表"
                 value={remoteBaselineStageSchema.stage_table.table_name}
                 detail={remoteBaselineStageSchema.stage_table.create_status}
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Cursor proof"
+                label="游标证明"
                 value={remoteBaselineStageSchema.cursor_proof.table_name}
                 detail={remoteBaselineStageSchema.cursor_proof.persist_status}
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Allowed cols"
+                label="允许列"
                 value={remoteBaselineStageSchema.summary.allowed_columns}
-                detail="Metadata only"
+                detail="仅元数据"
                 status="planned"
               />
               <ResolutionSummaryCard
-                label="Forbidden"
+                label="禁止列"
                 value={remoteBaselineStageSchema.summary.forbidden_columns}
-                detail="Payload columns"
+                detail="载荷列"
                 status="blocked"
               />
               <ResolutionSummaryCard
                 label="SQL draft"
                 value={remoteBaselineStageSchema.summary.sql_statements}
-                detail="Apply disabled"
+                detail="应用关闭"
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Gates"
+                label="门槛"
                 value={remoteBaselineStageSchema.summary.gates}
-                detail="Schema proof"
+                detail="结构证明"
                 status="manual-confirmation"
               />
               <ResolutionSummaryCard
-                label="Blocked"
+                label="阻塞"
                 value={remoteBaselineStageSchema.summary.blocked}
-                detail="Must prove first"
+                detail="必须先证明"
                 status="blocked"
               />
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-              <ContractPanel title="Stage schema draft">
+              <ContractPanel title="暂存结构草案">
                 <RemoteBaselineStageSchemaTableCard
                   table={remoteBaselineStageSchema.stage_table}
                 />
               </ContractPanel>
-              <ContractPanel title="Cursor proof draft">
+              <ContractPanel title="游标证明草案">
                 <RemoteBaselineCursorProofCard
                   proof={remoteBaselineStageSchema.cursor_proof}
                 />
               </ContractPanel>
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-              <ContractPanel title="Schema proof gates">
+              <ContractPanel title="结构证明门槛">
                 <div className="space-y-2">
                   {remoteBaselineStageSchema.gates.map((gate) => (
                     <RemoteBaselineStageSchemaGateRow
@@ -3988,7 +3969,7 @@ function SyncDashboard() {
                   ))}
                 </div>
               </ContractPanel>
-              <ContractPanel title="SQL draft">
+              <ContractPanel title="SQL 草案">
                 <div className="space-y-2">
                   {remoteBaselineStageSchema.sql_draft.map((statement) => (
                     <RemoteBaselineStageSchemaSqlRow
@@ -3999,7 +3980,7 @@ function SyncDashboard() {
                 </div>
               </ContractPanel>
             </div>
-            <ContractPanel title="Final schema enablement" className="mt-4">
+            <ContractPanel title="最终结构启用条件" className="mt-4">
               <div className="grid gap-2 md:grid-cols-2">
                 {remoteBaselineStageSchema.final_enablement_conditions.map(
                   (condition) => (
@@ -4015,16 +3996,14 @@ function SyncDashboard() {
             </ContractPanel>
           </ContractPanel>
           <ContractPanel
-            title="Remote baseline disposable replay and RLS proof"
+            title="远端基线一次性回放和 RLS 证明"
             className="mt-4"
           >
             <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl">
-                Local replay contract for proving the stage schema on
-                disposable data. It covers up/down SQL replay, payload denylist,
-                RLS workspace isolation, cursor monotonicity, idempotency, and
-                rollback. Replay, database connection, SQL apply, writes, and
-                staging remain disabled.
+                用一次性数据证明暂存结构的本地回放合同。它覆盖 up/down SQL 回放、
+                载荷拒绝名单、RLS 工作区隔离、游标单调性、幂等和回滚。
+                回放、数据库连接、SQL 应用、写入和暂存仍保持关闭。
               </p>
               <span className="w-fit rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
                 {remoteBaselineStageReplay.replay_status}
@@ -4032,59 +4011,57 @@ function SyncDashboard() {
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
               <ResolutionSummaryCard
-                label="Scenarios"
+                label="场景"
                 value={remoteBaselineStageReplay.summary.scenarios}
-                detail="Disposable only"
+                detail="仅一次性数据"
                 status="manual-confirmation"
               />
               <ResolutionSummaryCard
-                label="RLS proofs"
+                label="RLS 证明"
                 value={remoteBaselineStageReplay.summary.rls_proofs}
-                detail="Workspace isolation"
+                detail="工作区隔离"
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Rollback"
+                label="回滚"
                 value={remoteBaselineStageReplay.summary.rollback_proofs}
-                detail="Down path"
+                detail="反向路径"
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Gates"
+                label="门槛"
                 value={remoteBaselineStageReplay.summary.gates}
-                detail="Replay gates"
+                detail="回放门槛"
                 status="manual-confirmation"
               />
               <ResolutionSummaryCard
-                label="Blocked"
+                label="阻塞"
                 value={remoteBaselineStageReplay.summary.blocked}
-                detail="Must prove first"
+                detail="必须先证明"
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Apply"
-                value="Disabled"
+                label="应用"
+                value="已关闭"
                 detail="/api/cloud/migrations/apply"
                 status="blocked"
               />
               <ResolutionSummaryCard
-                label="Replay"
-                value="Disabled"
+                label="回放"
+                value="已关闭"
                 detail="/api/sync/replay-test"
                 status="blocked"
               />
             </div>
             <ContractPanel
-              title="Disposable replay owner confirmation receipt"
+              title="一次性回放用户确认收据"
               className="mt-4"
             >
               <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
                 <p className="max-w-3xl">
-                  Type the exact phrase only after reviewing that replay would
-                  use empty disposable workspace fixtures. Exporting this
-                  receipt does not run replay, connect a database, apply SQL,
-                  stage remote rows, upload data, or enable
-                  /api/sync/replay-test.
+                  只有在确认回放会使用空的一次性工作区 fixture 后，才输入完全一致的短语。
+                  导出这个收据不会运行回放、连接数据库、应用 SQL、暂存远端行、上传数据，
+                  也不会启用 /api/sync/replay-test。
                 </p>
                 <span className="w-fit rounded-md bg-amber-50 px-2 py-1 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                   {remoteBaselineReplayConfirmationReceipt.status}
@@ -4114,45 +4091,43 @@ function SyncDashboard() {
                   className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   {busyQueueAction === "remote-baseline-replay-confirmation"
-                    ? "Exporting..."
-                    : "Export replay receipt"}
+                    ? "导出中..."
+                    : "导出回放收据"}
                 </button>
               </div>
               <div className="mt-3 grid gap-2 md:grid-cols-4">
                 <IdentityMetric
-                  label="Required phrase"
+                  label="必需短语"
                   value={remoteBaselineReplayConfirmationReceipt.required_phrase}
-                  detail="Case-sensitive"
+                  detail="区分大小写"
                 />
                 <IdentityMetric
-                  label="Phrase match"
+                  label="短语匹配"
                   value={
                     remoteBaselineReplayConfirmationReceipt.typed_phrase_matches
-                      ? "Yes"
-                      : "No"
+                      ? "是"
+                      : "否"
                   }
                   detail={remoteBaselineReplayConfirmationReceipt.status}
                 />
                 <IdentityMetric
-                  label="Receipt boundary"
-                  value="Local only"
-                  detail="No page text or file bytes"
+                  label="收据边界"
+                  value="仅本地"
+                  detail="没有页面正文或文件字节"
                 />
                 <IdentityMetric
-                  label="Replay route"
+                  label="回放路由"
                   value="/api/sync/replay-test"
-                  detail="Still disabled"
+                  detail="仍然关闭"
                 />
               </div>
             </ContractPanel>
-            <ContractPanel title="Empty-fixture replay package" className="mt-4">
+            <ContractPanel title="空 fixture 回放包" className="mt-4">
               <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
                 <p className="max-w-3xl">
-                  Local package for the next disposable replay step. It
-                  contains empty workspace fixtures, anonymous fixture users,
-                  zero staged rows, zero cursor rows, and a payload denylist.
-                  Exporting it does not connect a database, run replay, apply
-                  SQL, write server data, or upload workspace data.
+                  下一步一次性回放的本地包。它包含空工作区 fixture、匿名 fixture 用户、
+                  0 条暂存行、0 条游标行和载荷拒绝名单。导出它不会连接数据库、
+                  运行回放、应用 SQL、写服务端数据或上传工作区数据。
                 </p>
                 <button
                   type="button"
@@ -4161,30 +4136,30 @@ function SyncDashboard() {
                   className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   {busyQueueAction === "remote-baseline-replay-fixture"
-                    ? "Exporting..."
-                    : "Export empty fixture"}
+                    ? "导出中..."
+                    : "导出空 fixture"}
                 </button>
               </div>
               <div className="mt-3 grid gap-2 md:grid-cols-4">
                 <IdentityMetric
-                  label="Fixture workspaces"
+                  label="Fixture 工作区"
                   value={`${remoteBaselineReplayFixturePackage.summary.fixture_workspaces}`}
-                  detail="Empty only"
+                  detail="仅空数据"
                 />
                 <IdentityMetric
-                  label="Stage rows"
+                  label="暂存行"
                   value={`${remoteBaselineReplayFixturePackage.summary.stage_seed_rows}`}
-                  detail="No remote rows"
+                  detail="没有远端行"
                 />
                 <IdentityMetric
-                  label="Cursor rows"
+                  label="游标行"
                   value={`${remoteBaselineReplayFixturePackage.summary.cursor_proof_seed_rows}`}
-                  detail="No ack movement"
+                  detail="没有确认位移"
                 />
                 <IdentityMetric
-                  label="Denylist fields"
+                  label="拒绝字段"
                   value={`${remoteBaselineReplayFixturePackage.summary.forbidden_payload_columns}`}
-                  detail="Payload blocked"
+                  detail="载荷已阻止"
                 />
               </div>
               <div className="mt-3 flex flex-wrap gap-1">
@@ -4211,16 +4186,14 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
             <ContractPanel
-              title="Disposable replay harness preflight"
+              title="一次性回放脚手架预检"
               className="mt-4"
             >
               <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
                 <p className="max-w-3xl">
-                  Local dry-run checklist that connects the confirmation
-                  receipt, empty fixture package, stage schema, and replay/RLS
-                  proof contract. It does not run a harness, connect a database,
-                  apply SQL, write server data, stage remote rows, or upload
-                  workspace data.
+                  本地 dry-run 清单，用来连接确认收据、空 fixture 包、暂存结构和
+                  回放/RLS 证明合同。它不会运行脚手架、连接数据库、应用 SQL、
+                  写服务端数据、暂存远端行或上传工作区数据。
                 </p>
                 <button
                   type="button"
@@ -4229,34 +4202,34 @@ function SyncDashboard() {
                   className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   {busyQueueAction === "remote-baseline-replay-harness"
-                    ? "Exporting..."
-                    : "Export harness preflight"}
+                    ? "导出中..."
+                    : "导出脚手架预检"}
                 </button>
               </div>
               <div className="mt-3 grid gap-2 md:grid-cols-4">
                 <IdentityMetric
-                  label="Steps"
+                  label="步骤"
                   value={`${remoteBaselineReplayHarnessPreflight.summary.steps}`}
-                  detail="Dry-run only"
+                  detail="仅 dry-run"
                 />
                 <IdentityMetric
-                  label="Assertions"
+                  label="断言"
                   value={`${remoteBaselineReplayHarnessPreflight.summary.assertions}`}
-                  detail="Local checks"
+                  detail="本地检查"
                 />
                 <IdentityMetric
-                  label="Ready checks"
+                  label="就绪检查"
                   value={`${remoteBaselineReplayHarnessPreflight.summary.ready}`}
-                  detail="Can inspect now"
+                  detail="当前可检查"
                 />
                 <IdentityMetric
-                  label="Blocked"
+                  label="阻塞"
                   value={`${remoteBaselineReplayHarnessPreflight.summary.blocked}`}
-                  detail="No runner yet"
+                  detail="还没有 runner"
                 />
               </div>
               <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-                <ContractPanel title="Harness dry-run steps">
+                <ContractPanel title="脚手架 dry-run 步骤">
                   <div className="space-y-2">
                     {remoteBaselineReplayHarnessPreflight.steps.map((step) => (
                       <RemoteBaselineReplayHarnessStepRow
@@ -4266,7 +4239,7 @@ function SyncDashboard() {
                     ))}
                   </div>
                 </ContractPanel>
-                <ContractPanel title="Harness assertions">
+                <ContractPanel title="脚手架断言">
                   <div className="space-y-2">
                     {remoteBaselineReplayHarnessPreflight.assertions.map(
                       (assertion) => (
@@ -4279,7 +4252,7 @@ function SyncDashboard() {
                   </div>
                 </ContractPanel>
               </div>
-              <ContractPanel title="Harness gates" className="mt-4">
+              <ContractPanel title="脚手架门槛" className="mt-4">
                 <div className="grid gap-2 md:grid-cols-2">
                   {remoteBaselineReplayHarnessPreflight.gates.map((gate) => (
                     <RemoteBaselineReplayHarnessGateRow
@@ -4291,17 +4264,14 @@ function SyncDashboard() {
               </ContractPanel>
             </ContractPanel>
             <ContractPanel
-              title="Disabled replay runner skeleton"
+              title="已关闭的回放 runner 骨架"
               className="mt-4"
             >
               <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
                 <p className="max-w-3xl">
-                  Local-only runner map for the future disposable replay test.
-                  The export lists entrypoints, phases, and refusal reasons, but
-                  the runner is disabled by default: it cannot connect a
-                  database, start network requests, apply SQL, write server
-                  data, stage remote rows, acknowledge cursors, or upload
-                  workspace data.
+                  未来一次性回放测试的本地 runner 地图。导出内容只列出入口、阶段和拒绝原因；
+                  runner 默认关闭，不能连接数据库、发起网络请求、应用 SQL、写服务端数据、
+                  暂存远端行、确认游标或上传工作区数据。
                 </p>
                 <button
                   type="button"
@@ -4310,34 +4280,34 @@ function SyncDashboard() {
                   className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   {busyQueueAction === "remote-baseline-replay-runner"
-                    ? "Exporting..."
-                    : "Export runner skeleton"}
+                    ? "导出中..."
+                    : "导出 runner 骨架"}
                 </button>
               </div>
               <div className="mt-3 grid gap-2 md:grid-cols-4">
                 <IdentityMetric
-                  label="Entry points"
+                  label="入口"
                   value={`${remoteBaselineReplayRunnerSkeleton.summary.entrypoints}`}
-                  detail="Export only"
+                  detail="仅导出"
                 />
                 <IdentityMetric
-                  label="Phases"
+                  label="阶段"
                   value={`${remoteBaselineReplayRunnerSkeleton.summary.phases}`}
-                  detail="Runner disabled"
+                  detail="Runner 已关闭"
                 />
                 <IdentityMetric
-                  label="Refusals"
+                  label="拒绝项"
                   value={`${remoteBaselineReplayRunnerSkeleton.summary.refusal_reasons}`}
-                  detail="Run blocked"
+                  detail="运行已阻止"
                 />
                 <IdentityMetric
-                  label="Blocked"
+                  label="阻塞"
                   value={`${remoteBaselineReplayRunnerSkeleton.summary.blocked}`}
-                  detail="No live replay"
+                  detail="没有实时回放"
                 />
               </div>
               <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-                <ContractPanel title="Runner entrypoints">
+                <ContractPanel title="Runner 入口">
                   <div className="space-y-2">
                     {remoteBaselineReplayRunnerSkeleton.entrypoints.map(
                       (entrypoint) => (
@@ -4349,7 +4319,7 @@ function SyncDashboard() {
                     )}
                   </div>
                 </ContractPanel>
-                <ContractPanel title="Runner phases">
+                <ContractPanel title="Runner 阶段">
                   <div className="space-y-2">
                     {remoteBaselineReplayRunnerSkeleton.phases.map((phase) => (
                       <RemoteBaselineReplayRunnerPhaseRow
@@ -4360,7 +4330,7 @@ function SyncDashboard() {
                   </div>
                 </ContractPanel>
               </div>
-              <ContractPanel title="Runner refusal reasons" className="mt-4">
+              <ContractPanel title="Runner 拒绝原因" className="mt-4">
                 <div className="grid gap-2 md:grid-cols-2">
                   {remoteBaselineReplayRunnerSkeleton.refusal_reasons.map(
                     (reason) => (
@@ -4374,7 +4344,7 @@ function SyncDashboard() {
               </ContractPanel>
             </ContractPanel>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-              <ContractPanel title="Disposable replay scenarios">
+              <ContractPanel title="一次性回放场景">
                 <div className="space-y-2">
                   {remoteBaselineStageReplay.scenarios.map((scenario) => (
                     <RemoteBaselineStageReplayScenarioRow
@@ -4384,7 +4354,7 @@ function SyncDashboard() {
                   ))}
                 </div>
               </ContractPanel>
-              <ContractPanel title="Replay gates">
+              <ContractPanel title="回放门槛">
                 <div className="space-y-2">
                   {remoteBaselineStageReplay.gates.map((gate) => (
                     <RemoteBaselineStageReplayGateRow
@@ -4396,14 +4366,14 @@ function SyncDashboard() {
               </ContractPanel>
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-              <ContractPanel title="RLS proof matrix">
+              <ContractPanel title="RLS 证明矩阵">
                 <div className="space-y-2">
                   {remoteBaselineStageReplay.rls_proofs.map((proof) => (
                     <RemoteBaselineRlsProofRow key={proof.id} proof={proof} />
                   ))}
                 </div>
               </ContractPanel>
-              <ContractPanel title="Rollback proof plan">
+              <ContractPanel title="回滚证明计划">
                 <div className="space-y-2">
                   {remoteBaselineStageReplay.rollback_proofs.map((proof) => (
                     <RemoteBaselineRollbackProofRow
@@ -4414,7 +4384,7 @@ function SyncDashboard() {
                 </div>
               </ContractPanel>
             </div>
-            <ContractPanel title="Final replay enablement" className="mt-4">
+            <ContractPanel title="最终回放启用条件" className="mt-4">
               <div className="grid gap-2 md:grid-cols-2">
                 {remoteBaselineStageReplay.final_enablement_conditions.map(
                   (condition) => (
@@ -4430,7 +4400,7 @@ function SyncDashboard() {
             </ContractPanel>
           </ContractPanel>
           <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-            <ContractPanel title="Surface resolution plans">
+            <ContractPanel title="冲突面解决计划">
               <div className="space-y-2">
                 {syncConflictResolution.surface_plans.map((surface) => (
                   <ResolutionSurfacePlanRow
@@ -4440,7 +4410,7 @@ function SyncDashboard() {
                 ))}
               </div>
             </ContractPanel>
-            <ContractPanel title="Resolution gates">
+            <ContractPanel title="解决门槛">
               <div className="space-y-2">
                 {syncConflictResolution.gates.map((gate) => (
                   <ResolutionGateRow key={gate.id} gate={gate} />
@@ -4448,7 +4418,7 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
           </div>
-          <ContractPanel title="Manual resolution options" className="mt-4">
+          <ContractPanel title="手动解决选项" className="mt-4">
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {syncConflictResolution.options.map((option) => (
                 <ResolutionOptionRow key={option.id} option={option} />
@@ -4464,11 +4434,9 @@ function SyncDashboard() {
                 Web Beta 阶段门禁
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                本地-only launch gate for deciding whether ZhiNotes can move
-                from local workbench to private Web Beta. It summarizes the
-                account, cloud database, private file storage, sync,
-                permissions, recovery, and deployment blockers without
-                connecting cloud services, uploading data, or enabling sync.
+                这是判断 ZhiNotes 是否能从本地工作台进入私有 Web Beta 的本地上线门禁。
+                它汇总账号、云数据库、私有文件存储、同步、权限、恢复和部署阻塞项；
+                不连接云服务、不上传数据，也不启用同步。
               </p>
             </div>
             <button
@@ -4478,41 +4446,41 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyContractAction === "stage-gate"
-                ? "Exporting..."
-                : "Export stage gate"}
+                ? "导出中..."
+                : "导出阶段门禁"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <BetaSummaryCard
-              label="Local app"
-              value={webBetaStageGate.local_app_can_continue_now ? "Yes" : "No"}
-              detail="Keep building locally"
+              label="本地应用"
+              value={webBetaStageGate.local_app_can_continue_now ? "是" : "否"}
+              detail="继续本地构建"
               tone="ready"
             />
             <BetaSummaryCard
               label="Web Beta"
-              value={webBetaStageGate.web_beta_can_launch_now ? "Ready" : "No"}
-              detail="Launch still blocked"
+              value={webBetaStageGate.web_beta_can_launch_now ? "就绪" : "否"}
+              detail="上线仍阻塞"
               tone="blocked"
             />
             <BetaSummaryCard
-              label="Cloud sync"
-              value={webBetaStageGate.cloud_sync_can_start_now ? "Ready" : "No"}
-              detail="Uploads disabled"
+              label="云同步"
+              value={webBetaStageGate.cloud_sync_can_start_now ? "就绪" : "否"}
+              detail="上传已关闭"
               tone="blocked"
             />
             <BetaSummaryCard
-              label="P0 blockers"
+              label="P0 阻塞"
               value={webBetaStageGate.summary.p0_blockers}
-              detail="Must clear first"
+              detail="必须先清除"
               tone={
                 webBetaStageGate.summary.p0_blockers > 0 ? "blocked" : "ready"
               }
             />
             <BetaSummaryCard
-              label="Missing env"
+              label="缺失环境"
               value={webBetaStageGate.summary.required_environment_missing}
-              detail="Required settings"
+              detail="必需设置"
               tone={
                 webBetaStageGate.summary.required_environment_missing > 0
                   ? "blocked"
@@ -4520,9 +4488,9 @@ function SyncDashboard() {
               }
             />
             <BetaSummaryCard
-              label="Stage blocked"
+              label="阶段阻塞"
               value={webBetaStageGate.summary.blocked}
-              detail="Overall gates"
+              detail="整体门槛"
               tone={
                 webBetaStageGate.summary.blocked > 0 ? "blocked" : "ready"
               }
@@ -4542,10 +4510,10 @@ function SyncDashboard() {
                 私有文件存储政策
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Web Beta 前的本地-only storage policy。它把未来 HTML 报告、
-                PDF、Office、notebook、archive 和 media 文件上云前必须满足的
-                private bucket、signed URL、checksum、size limit、permission
-                和 audit gate 列清楚；当前不创建 bucket、不生成 URL、不上传文件。
+                Web Beta 前的本地存储政策。它列清未来 HTML 报告、PDF、Office、
+                notebook、压缩包和媒体文件上云前必须满足的私有 bucket、签名 URL、
+                checksum、大小限制、权限和审计门槛；当前不创建 bucket、不生成 URL、
+                不上传文件。
               </p>
             </div>
             <button
@@ -4555,51 +4523,51 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyContractAction === "private-file-storage-policy"
-                ? "Exporting..."
-                : "Export storage policy"}
+                ? "导出中..."
+                : "导出存储政策"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <PrivateFileStorageSummaryCard
-              label="Local files"
+              label="本地文件"
               value={privateFileStoragePolicy.local_evidence.uploaded_files}
-              detail="Count only"
+              detail="仅数量"
               status="planned"
             />
             <PrivateFileStorageSummaryCard
               label="Buckets"
               value={privateFileStoragePolicy.summary.buckets}
-              detail="Private only"
+              detail="仅私有"
               status="planned"
             />
             <PrivateFileStorageSummaryCard
-              label="Blocked"
+              label="阻塞"
               value={privateFileStoragePolicy.summary.blocked}
-              detail="Before file sync"
+              detail="文件同步前"
               status="blocked"
             />
             <PrivateFileStorageSummaryCard
-              label="Signed URL"
+              label="签名 URL"
               value={`${privateFileStoragePolicy.summary.signed_url_ttl_minutes}m`}
-              detail="Future max TTL"
+              detail="未来最大 TTL"
               status="manual-confirmation"
             />
             <PrivateFileStorageSummaryCard
-              label="Max size"
+              label="最大大小"
               value={`${privateFileStoragePolicy.summary.max_upload_size_mb}MB`}
-              detail="Default limit"
+              detail="默认限制"
               status="manual-confirmation"
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-            <ContractPanel title="Storage gates">
+            <ContractPanel title="存储门槛">
               <div className="space-y-2">
                 {privateFileStoragePolicy.gates.map((gate) => (
                   <PrivateFileStorageGateRow key={gate.id} gate={gate} />
                 ))}
               </div>
             </ContractPanel>
-            <ContractPanel title="Bucket and route policy">
+            <ContractPanel title="Bucket 和路由政策">
               <div className="grid gap-2 md:grid-cols-2">
                 {privateFileStoragePolicy.buckets.map((bucket) => (
                   <PrivateFileStorageBucketRow
@@ -4613,7 +4581,7 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
           </div>
-          <ContractPanel title="File class strategy" className="mt-4">
+          <ContractPanel title="文件类型策略" className="mt-4">
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               {privateFileStoragePolicy.file_classes.map((fileClass) => (
                 <PrivateFileStorageClassRow
@@ -4623,14 +4591,12 @@ function SyncDashboard() {
               ))}
             </div>
           </ContractPanel>
-          <ContractPanel title="File presign API guard" className="mt-4">
+          <ContractPanel title="文件签名 API 防护" className="mt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Dedicated disabled response for `/api/files/presign`. It
-                exposes the future metadata-only request and no-URL response
-                schema, fixture checks, and enablement gates while the route
-                still refuses to read request bodies, create signed URLs, upload
-                files, or expose public links.
+                `/api/files/presign` 的专用关闭响应。它展示未来“仅元数据”请求、
+                不返回 URL 的响应结构、fixture 检查和启用门槛；路由当前仍拒绝读取请求体、
+                创建签名 URL、上传文件或暴露公开链接。
               </p>
               <button
                 type="button"
@@ -4639,39 +4605,39 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "file-presign-api-guard"
-                  ? "Exporting..."
-                  : "Export file presign guard"}
+                  ? "导出中..."
+                  : "导出文件签名防护"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <FilePresignSummaryCard
                 label="HTTP"
                 value={filePresignApiGuard.disabled_response_contract.http_status}
-                detail="Disabled status"
+                detail="关闭状态"
                 status="rejected"
               />
               <FilePresignSummaryCard
-                label="Request body"
-                value={filePresignApiGuard.can_read_request_body_now ? "Yes" : "No"}
-                detail="No body reads"
+                label="请求体"
+                value={filePresignApiGuard.can_read_request_body_now ? "是" : "否"}
+                detail="不读取正文"
                 status="rejected"
               />
               <FilePresignSummaryCard
-                label="Signed URLs"
-                value={filePresignApiGuard.can_create_signed_urls_now ? "Yes" : "No"}
-                detail="No URL creation"
+                label="签名 URL"
+                value={filePresignApiGuard.can_create_signed_urls_now ? "是" : "否"}
+                detail="不创建 URL"
                 status="rejected"
               />
               <FilePresignSummaryCard
-                label="Allowed fields"
+                label="允许字段"
                 value={filePresignApiGuard.request_schema.allowed_fields.length}
-                detail="Future metadata"
+                detail="未来元数据"
                 status="accepted"
               />
               <FilePresignSummaryCard
-                label="Forbidden"
+                label="禁止字段"
                 value={filePresignApiGuard.request_schema.forbidden_fields.length}
-                detail="Payload blocked"
+                detail="载荷已阻止"
                 status="rejected"
               />
             </div>
@@ -4703,7 +4669,7 @@ function SyncDashboard() {
                 </div>
               </ContractPanel>
             </div>
-            <ContractPanel title="Enablement gates" className="mt-4">
+            <ContractPanel title="启用门槛" className="mt-4">
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {filePresignApiGuard.enablement_gates.map((gate) => (
                   <FilePresignGateRow key={gate.id} gate={gate} />
@@ -4717,13 +4683,11 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Private beta launch gates
+                私有 Beta 上线门槛
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local readiness report for the web launch path. It summarizes
-                local evidence, manual confirmation points, and blocked gates
-                without creating accounts, connecting cloud services, uploading
-                notes, or syncing files.
+                Web 上线路径的本地准备度报告。它汇总本地证据、人工确认点和阻塞门槛；
+                不创建账号、不连接云服务、不上传笔记，也不同步文件。
               </p>
             </div>
             <button
@@ -4733,39 +4697,39 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyContractAction === "readiness"
-                ? "Exporting..."
-                : "Export readiness"}
+                ? "导出中..."
+                : "导出准备度"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <BetaSummaryCard
-              label="Launch verdict"
-              value="Not ready"
-              detail="Cloud and conflict gates still block beta."
+              label="上线结论"
+              value="未就绪"
+              detail="云端和冲突门槛仍阻塞 Beta。"
               tone="blocked"
             />
             <BetaSummaryCard
-              label="Ready"
+              label="就绪"
               value={webBetaReadinessReport.summary.ready}
-              detail="Local escape hatch and data visibility."
+              detail="本地兜底和数据可见性。"
               tone="ready"
             />
             <BetaSummaryCard
-              label="Partial"
+              label="部分"
               value={webBetaReadinessReport.summary.partial}
-              detail="Drafted locally, not enforced remotely."
+              detail="本地已起草，远端未强制。"
               tone="partial"
             />
             <BetaSummaryCard
-              label="Confirm"
+              label="确认"
               value={webBetaReadinessReport.summary.manual_confirmation}
-              detail="Needs explicit user gate."
+              detail="需要明确用户门槛。"
               tone="manual-confirmation"
             />
             <BetaSummaryCard
-              label="Blocked"
+              label="阻塞"
               value={webBetaReadinessReport.summary.blocked}
-              detail="Must be implemented before web beta."
+              detail="Web Beta 前必须实现。"
               tone="blocked"
             />
           </div>
@@ -4780,13 +4744,12 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Audit trail policy
+                审计轨迹政策
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local policy for future server-side audit logs. It defines
-                which auth, sync, restore, AI, file, export, permission, and
-                admin actions must be recorded, while keeping page text, prompt
-                text, file bytes, and secret values out of audit rows.
+                面向未来服务端审计日志的本地政策。它定义哪些认证、同步、恢复、AI、
+                文件、导出、权限和管理动作必须记录，同时把页面正文、prompt 文本、
+                文件字节和密钥值排除在审计行之外。
               </p>
             </div>
             <button
@@ -4796,55 +4759,55 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyContractAction === "audit-policy"
-                ? "Exporting..."
-                : "Export audit policy"}
+                ? "导出中..."
+                : "导出审计政策"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <AuditSummaryCard
-              label="Events"
+              label="事件"
               value={auditTrailPolicy.summary.events}
-              detail="Action types covered"
+              detail="已覆盖动作类型"
               tone="planned"
             />
             <AuditSummaryCard
-              label="Blocked"
+              label="阻塞"
               value={auditTrailPolicy.summary.blocked}
-              detail="Needs server auth/logs"
+              detail="需要服务端认证/日志"
               tone="blocked"
             />
             <AuditSummaryCard
-              label="Confirm"
+              label="确认"
               value={auditTrailPolicy.summary.manual_confirmation}
-              detail="Retention and redaction"
+              detail="留存和脱敏"
               tone="manual-confirmation"
             />
             <AuditSummaryCard
-              label="Endpoint"
+              label="端点"
               value="/api/audit/events"
-              detail="Disabled local stub"
+              detail="已关闭的本地桩接口"
               tone="blocked"
             />
             <AuditSummaryCard
-              label="Forbidden"
+              label="禁止字段"
               value={
                 auditTrailPolicy.fields.filter(
                   (field) => field.status === "forbidden"
                 ).length
               }
-              detail="Sensitive field types"
+              detail="敏感字段类型"
               tone="manual-confirmation"
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
-            <ContractPanel title="Audit event coverage">
+            <ContractPanel title="审计事件覆盖">
               <div className="space-y-2">
                 {auditTrailPolicy.events.map((event) => (
                   <AuditEventRow key={event.id} event={event} />
                 ))}
               </div>
             </ContractPanel>
-            <ContractPanel title="Audit enablement gates">
+            <ContractPanel title="审计启用门槛">
               <div className="space-y-2">
                 {auditTrailPolicy.gates.map((gate) => (
                   <AuditGateRow key={gate.id} gate={gate} />
@@ -4852,15 +4815,13 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
           </div>
-          <ContractPanel title="Audit event envelope" className="mt-4">
+          <ContractPanel title="审计事件信封" className="mt-4">
             <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl">
-                Local redaction contract for future audit writes. It defines
-                the metadata-only event shape before `/api/audit/events` can
-                read request bodies or write server audit rows. Page text,
-                database values, comment bodies, file bytes, prompts, model
-                raw output, tokens, cookies, signed URLs, and environment values
-                remain forbidden.
+                未来审计写入前的本地脱敏合同。它定义“仅元数据”的事件结构，
+                先于 `/api/audit/events` 读取请求体或写入服务端审计行。页面正文、
+                数据库值、评论正文、文件字节、prompts、模型原始输出、tokens、cookies、
+                签名 URL 和环境值仍然禁止。
               </p>
               <button
                 type="button"
@@ -4869,34 +4830,34 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "audit-envelope"
-                  ? "Exporting..."
-                  : "Export audit envelope"}
+                  ? "导出中..."
+                  : "导出审计信封"}
               </button>
             </div>
             <div className="mt-3 grid gap-2 md:grid-cols-4">
-              <IdentityMetric
-                label="Allowed fields"
+                <IdentityMetric
+                label="允许字段"
                 value={`${auditEventEnvelopeContract.summary.allowed_fields}`}
-                detail="Metadata only"
+                detail="仅元数据"
               />
               <IdentityMetric
-                label="Forbidden fields"
+                label="禁止字段"
                 value={`${auditEventEnvelopeContract.summary.forbidden_fields}`}
-                detail="Payload blocked"
+                detail="载荷已阻止"
               />
               <IdentityMetric
-                label="Redaction checks"
+                label="脱敏检查"
                 value={`${auditEventEnvelopeContract.summary.redaction_checks}`}
-                detail="Before write"
+                detail="写入前"
               />
               <IdentityMetric
-                label="Blocked"
+                label="阻塞"
                 value={`${auditEventEnvelopeContract.summary.blocked}`}
-                detail="Endpoint disabled"
+                detail="端点已关闭"
               />
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
-              <ContractPanel title="Envelope templates">
+              <ContractPanel title="信封模板">
                 <div className="space-y-2">
                   {auditEventEnvelopeContract.templates.map((template) => (
                     <AuditEnvelopeTemplateRow
@@ -4906,7 +4867,7 @@ function SyncDashboard() {
                   ))}
                 </div>
               </ContractPanel>
-              <ContractPanel title="Redaction checks">
+              <ContractPanel title="脱敏检查">
                 <div className="space-y-2">
                   {auditEventEnvelopeContract.redaction_checks.map((check) => (
                     <AuditEnvelopeRedactionCheckRow
@@ -4917,7 +4878,7 @@ function SyncDashboard() {
                 </div>
               </ContractPanel>
             </div>
-            <ContractPanel title="Envelope gates" className="mt-4">
+            <ContractPanel title="信封门槛" className="mt-4">
               <div className="grid gap-2 md:grid-cols-2">
                 {auditEventEnvelopeContract.gates.map((gate) => (
                   <AuditEnvelopeGateRow key={gate.id} gate={gate} />
@@ -4925,14 +4886,12 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
           </ContractPanel>
-          <ContractPanel title="Audit events API guard" className="mt-4">
+          <ContractPanel title="审计事件 API 防护" className="mt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Dedicated disabled response for `/api/audit/events`. It shows
-                the future metadata-only audit request and receipt-only response
-                schema, local fixture checks, and required gates while the route
-                still refuses to read request bodies, accept event payloads,
-                write audit rows, or expose sensitive payloads.
+                `/api/audit/events` 的专用关闭响应。它展示未来“仅元数据”审计请求、
+                仅收据响应结构、本地 fixture 检查和必需门槛；路由当前仍拒绝读取请求体、
+                接收事件载荷、写审计行或暴露敏感载荷。
               </p>
               <button
                 type="button"
@@ -4941,48 +4900,48 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "audit-events-api-guard"
-                  ? "Exporting..."
-                  : "Export audit API guard"}
+                  ? "导出中..."
+                  : "导出审计 API 防护"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <AuditEventsApiSummaryCard
                 label="HTTP"
                 value={auditEventsApiGuard.disabled_response_contract.http_status}
-                detail="Disabled status"
+                detail="关闭状态"
                 status="rejected"
               />
               <AuditEventsApiSummaryCard
-                label="Request body"
-                value={auditEventsApiGuard.can_read_request_body_now ? "Yes" : "No"}
-                detail="No body reads"
+                label="请求体"
+                value={auditEventsApiGuard.can_read_request_body_now ? "是" : "否"}
+                detail="不读取正文"
                 status="rejected"
               />
               <AuditEventsApiSummaryCard
-                label="Audit write"
+                label="审计写入"
                 value={
                   auditEventsApiGuard.can_write_audit_events_table_now
-                    ? "Yes"
-                    : "No"
+                    ? "是"
+                    : "否"
                 }
-                detail="No server writes"
+                detail="不写服务端"
                 status="rejected"
               />
               <AuditEventsApiSummaryCard
-                label="Allowed"
+                label="允许字段"
                 value={auditEventsApiGuard.request_schema.allowed_fields.length}
-                detail="Future metadata"
+                detail="未来元数据"
                 status="accepted"
               />
               <AuditEventsApiSummaryCard
-                label="Forbidden"
+                label="禁止字段"
                 value={auditEventsApiGuard.request_schema.forbidden_fields.length}
-                detail="Payload blocked"
+                detail="载荷已阻止"
                 status="rejected"
               />
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
-              <ContractPanel title="Request schema">
+              <ContractPanel title="请求结构">
                 <div className="space-y-2">
                   {auditEventsApiGuard.request_schema.allowed_fields
                     .slice(0, 6)
@@ -5002,7 +4961,7 @@ function SyncDashboard() {
                     ))}
                 </div>
               </ContractPanel>
-              <ContractPanel title="Fixture checks">
+              <ContractPanel title="Fixture 检查">
                 <div className="space-y-2">
                   {auditEventsApiGuard.local_validator_report.fixtures.map(
                     (fixture) => (
@@ -5015,7 +4974,7 @@ function SyncDashboard() {
                 </div>
               </ContractPanel>
             </div>
-            <ContractPanel title="Enablement gates" className="mt-4">
+            <ContractPanel title="启用门槛" className="mt-4">
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {auditEventsApiGuard.enablement_gates.map((gate) => (
                   <AuditEventsApiGateRow key={gate.id} gate={gate} />
@@ -5023,7 +4982,7 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
           </ContractPanel>
-          <ContractPanel title="Audit payload policy" className="mt-4">
+          <ContractPanel title="审计载荷政策" className="mt-4">
             <div className="grid gap-2 md:grid-cols-2">
               {auditTrailPolicy.fields.map((field) => (
                 <AuditFieldRow key={field.field} field={field} />
@@ -5036,21 +4995,20 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Local backup actions
+                本地备份动作
               </h2>
               <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                These downloads are generated in the browser. They do not upload
-                workspace data or connect to a server.
+                这些下载都在浏览器里生成，不上传工作区数据，也不连接服务器。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <ExportButton
-                label="Backup JSON"
+                label="备份 JSON"
                 busy={busyAction === "backup"}
                 onClick={() => void runExport("backup")}
               />
               <ExportButton
-                label="Workspace ZIP"
+                label="工作区 ZIP"
                 busy={busyAction === "zip"}
                 onClick={() => void runExport("zip")}
               />
@@ -5204,7 +5162,7 @@ function SyncDashboard() {
               status="blocked"
             />
             <RestoreWritebackSummaryCard
-              label="Endpoint"
+              label="端点"
               value="/api/backup/restore-apply"
               detail="禁用的本地 stub"
               status="blocked"
@@ -5253,31 +5211,31 @@ function SyncDashboard() {
               >
                 {busyQueueAction === "restore-confirmation"
                   ? "导出中..."
-                  : "导出恢复 receipt"}
+                  : "导出恢复收据"}
               </button>
             </div>
             <p className="mt-2 text-[11px] leading-5 text-zinc-400 dark:text-zinc-500">
-              即使短语匹配，当前仍不会恢复、覆盖或删除任何数据；/api/backup/restore-apply disabled. 收据只记录本地确认状态和范围摘要。
+              即使短语匹配，当前仍不会恢复、覆盖或删除任何数据；/api/backup/restore-apply 仍关闭。收据只记录本地确认状态和范围摘要。
             </p>
             <div className="mt-3 grid gap-2 md:grid-cols-3">
               <IdentityMetric
-                label="Phrase match"
+                label="短语匹配"
                 value={
                   restoreConfirmationReceipt.typed_phrase_matches
-                    ? "Yes"
-                    : "No"
+                    ? "是"
+                    : "否"
                 }
                 detail={restoreConfirmationReceipt.status}
               />
               <IdentityMetric
-                label="Receipt boundary"
-                value="Local only"
-                detail="No restore, write, delete, or upload"
+                label="收据边界"
+                value="仅本地"
+                detail="不恢复、不写入、不删除、不上传"
               />
               <IdentityMetric
-                label="Destination"
+                label="目标"
                 value={restoreConfirmationReceipt.destination_summary}
-                detail="Current browser workspace"
+                detail="当前浏览器工作区"
               />
             </div>
           </div>
@@ -5287,10 +5245,10 @@ function SyncDashboard() {
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Readiness checklist
+                准备度清单
               </h2>
               <span className="text-xs text-zinc-400">
-                Local first, cloud pending
+                本地优先，云端待完成
               </span>
             </div>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -5302,7 +5260,7 @@ function SyncDashboard() {
 
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Privacy boundary
+              隐私边界
             </h2>
             <div className="mt-3 space-y-3">
               {PRIVACY_BOUNDARIES.map((boundary) => (
@@ -5321,13 +5279,11 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Web beta contract
+                Web Beta 合同
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local draft for the private beta launch boundary: account
-                login, cloud tables, sync APIs, conflict handling, deployment
-                gates, and privacy confirmations. Exporting it does not create
-                accounts, connect cloud services, upload files, or share notes.
+                私有 Beta 上线边界的本地草案：账号登录、云端表、同步 API、冲突处理、
+                部署门槛和隐私确认。导出它不会创建账号、连接云服务、上传文件或分享笔记。
               </p>
             </div>
             <button
@@ -5337,13 +5293,13 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyContractAction === "contract"
-                ? "Exporting..."
-                : "Export contract"}
+                ? "导出中..."
+                : "导出合同"}
             </button>
           </div>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-            <ContractPanel title="Account and privacy gates">
+            <ContractPanel title="账号和隐私门槛">
               <div className="space-y-2">
                 {AUTH_CONTRACT_ITEMS.map((item) => (
                   <ContractTextRow
@@ -5357,7 +5313,7 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
 
-            <ContractPanel title="Cloud schema contract">
+            <ContractPanel title="云结构合同">
               <div className="grid gap-2 md:grid-cols-2">
                 {CLOUD_SCHEMA_TABLES.map((table) => (
                   <ContractTextRow
@@ -5365,20 +5321,18 @@ function SyncDashboard() {
                     title={table.tableName}
                     status={table.status}
                     detail={table.cloudPurpose}
-                    meta={`Local source: ${table.localSource}. ${table.privacyBoundary}`}
+                    meta={`本地来源：${table.localSource}。${table.privacyBoundary}`}
                   />
                 ))}
               </div>
             </ContractPanel>
           </div>
 
-          <ContractPanel title="Cloud schema migration plan" className="mt-4">
+          <ContractPanel title="云结构迁移计划" className="mt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local plan for turning the cloud schema contract into versioned
-                migrations. It keeps migration order, rollback requirements,
-                privacy boundaries, and local evidence visible before any cloud
-                database is connected.
+                把云结构合同变成版本化迁移的本地计划。在连接任何云数据库之前，
+                它会保留迁移顺序、回滚要求、隐私边界和本地证据。
               </p>
               <button
                 type="button"
@@ -5387,39 +5341,39 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "cloud-schema-plan"
-                  ? "Exporting..."
-                  : "Export migration plan"}
+                  ? "导出中..."
+                  : "导出迁移计划"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <MigrationSummaryCard
-                label="Tables"
+                label="表"
                 value={cloudSchemaMigrationPlan.summary.contracted_tables}
-                detail="Contracted cloud tables"
+                detail="已定义云端表"
                 tone="medium"
               />
               <MigrationSummaryCard
-                label="Required"
+                label="必需"
                 value={cloudSchemaMigrationPlan.summary.required_tables}
-                detail="Needed before beta sync"
+                detail="Beta 同步前需要"
                 tone="high"
               />
               <MigrationSummaryCard
-                label="High risk"
+                label="高风险"
                 value={cloudSchemaMigrationPlan.summary.high_sensitivity_tables}
-                detail="Content or file-sensitive"
+                detail="内容或文件敏感"
                 tone="high"
               />
               <MigrationSummaryCard
-                label="Blocked"
+                label="阻塞"
                 value={cloudSchemaMigrationPlan.summary.blocked_steps}
-                detail="Needs cloud decisions"
+                detail="需要云端决策"
                 tone="high"
               />
               <MigrationSummaryCard
-                label="Boundary"
-                value="Local"
-                detail="No DB connection"
+                label="边界"
+                value="本地"
+                detail="不连接数据库"
                 tone="low"
               />
             </div>
@@ -5437,13 +5391,11 @@ function SyncDashboard() {
             </div>
           </ContractPanel>
 
-          <ContractPanel title="Cloud migration SQL draft" className="mt-4">
+          <ContractPanel title="云迁移 SQL 草案" className="mt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local Postgres DDL draft for the contracted cloud schema. It
-                generates reviewable SQL up/down statements, but does not
-                connect a database, apply SQL, create migrations, write server
-                data, or upload workspace content.
+                已定义云结构的本地 Postgres DDL 草案。它生成可复核的 SQL up/down 语句，
+                但不连接数据库、不应用 SQL、不创建迁移、不写服务端数据，也不上传工作区内容。
               </p>
               <button
                 type="button"
@@ -5452,39 +5404,39 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "migration-sql"
-                  ? "Exporting..."
-                  : "Export SQL draft"}
+                  ? "导出中..."
+                  : "导出 SQL 草案"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <MigrationSqlSummaryCard
-                label="Statements"
+                label="语句"
                 value={cloudMigrationSqlDraft.summary.statements}
-                detail="DDL drafts"
+                detail="DDL 草案"
                 tone="drafted"
               />
               <MigrationSqlSummaryCard
-                label="Required"
+                label="必需"
                 value={cloudMigrationSqlDraft.summary.required_tables}
-                detail="Before beta sync"
+                detail="Beta 同步前"
                 tone="manual-confirmation"
               />
               <MigrationSqlSummaryCard
-                label="Blocked"
+                label="阻塞"
                 value={cloudMigrationSqlDraft.summary.blocked}
-                detail="Apply gates"
+                detail="应用门槛"
                 tone="blocked"
               />
               <MigrationSqlSummaryCard
-                label="Endpoint"
+                label="端点"
                 value="/api/cloud/migrations/apply"
-                detail="Disabled local stub"
+                detail="已关闭的本地桩接口"
                 tone="blocked"
               />
               <MigrationSqlSummaryCard
-                label="Boundary"
-                value="No apply"
-                detail="No DB connection"
+                label="边界"
+                value="不应用"
+                detail="不连接数据库"
                 tone="drafted"
               />
             </div>
@@ -5505,13 +5457,11 @@ function SyncDashboard() {
             </div>
           </ContractPanel>
 
-          <ContractPanel title="Environment preflight" className="mt-4">
+          <ContractPanel title="环境预检" className="mt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local server check for Web Beta environment settings. It only
-                returns whether expected variables are present or missing; it
-                never returns secret values, tokens, connection strings, or
-                storage credentials.
+                Web Beta 环境设置的本地服务端检查。它只返回预期变量是否存在或缺失；
+                永远不返回密钥值、tokens、连接字符串或存储凭证。
               </p>
               <button
                 type="button"
@@ -5523,8 +5473,8 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "environment-preflight"
-                  ? "Exporting..."
-                  : "Export preflight"}
+                  ? "导出中..."
+                  : "导出预检"}
               </button>
             </div>
             {environmentPreflightError && (
@@ -5536,21 +5486,21 @@ function SyncDashboard() {
               <>
                 <div className="mt-4 grid gap-3 md:grid-cols-5">
                   <PreflightSummaryCard
-                    label="Required"
+                    label="必需"
                     value={environmentPreflight.summary.required}
-                    detail="Required env settings"
+                    detail="必需环境设置"
                     tone="missing"
                   />
                   <PreflightSummaryCard
-                    label="Present"
+                    label="已存在"
                     value={environmentPreflight.summary.present_required}
-                    detail="Required settings found"
+                    detail="已找到必需设置"
                     tone="present"
                   />
                   <PreflightSummaryCard
-                    label="Missing"
+                    label="缺失"
                     value={environmentPreflight.summary.missing_required}
-                    detail="Required before beta"
+                    detail="Beta 前必需"
                     tone={
                       environmentPreflight.summary.missing_required > 0
                         ? "missing"
@@ -5558,15 +5508,15 @@ function SyncDashboard() {
                     }
                   />
                   <PreflightSummaryCard
-                    label="Optional"
+                    label="可选"
                     value={environmentPreflight.summary.optional}
-                    detail="Optional settings tracked"
+                    detail="跟踪可选设置"
                     tone="optional-missing"
                   />
                   <PreflightSummaryCard
-                    label="Boundary"
-                    value="No secrets"
-                    detail="Presence only"
+                    label="边界"
+                    value="不含密钥"
+                    detail="只检查是否存在"
                     tone="present"
                   />
                 </div>
@@ -5585,22 +5535,21 @@ function SyncDashboard() {
               </>
             ) : (
               <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Environment preflight has not loaded yet.
+                环境预检尚未加载。
               </p>
             )}
           </ContractPanel>
 
           <ContractPanel
             id="web-beta-deployment-target"
-            title="Deployment target"
+            title="部署目标"
             className="mt-4"
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local deployment target for the first Web Alpha. It keeps
-                Vercel as the current Next.js app host, Supabase as the cloud
-                data plane, and Cloudflare as DNS/CDN/WAF before any future
-                Worker runtime review.
+                首个 Web Alpha 的本地部署目标。当前建议保持 Vercel 作为 Next.js 应用宿主、
+                Supabase 作为云数据平面、Cloudflare 作为 DNS/CDN/WAF；未来再单独复核
+                Worker runtime。
               </p>
               <button
                 type="button"
@@ -5609,39 +5558,39 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "deployment-target"
-                  ? "Exporting..."
-                  : "Export deployment target"}
+                  ? "导出中..."
+                  : "导出部署目标"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <DeploymentTargetSummaryCard
-                label="App host"
+                label="应用宿主"
                 value={webBetaDeploymentTarget.selected_strategy.first_web_alpha}
-                detail="First Web Alpha"
+                detail="首个 Web Alpha"
                 status="planned"
               />
               <DeploymentTargetSummaryCard
-                label="Backend"
+                label="后端"
                 value={webBetaDeploymentTarget.selected_strategy.cloud_backend}
-                detail="Auth, Postgres, storage"
+                detail="认证、Postgres、存储"
                 status="planned"
               />
               <DeploymentTargetSummaryCard
-                label="Edge"
+                label="边缘层"
                 value={webBetaDeploymentTarget.selected_strategy.edge_layer}
                 detail="DNS, CDN, WAF"
                 status="manual-confirmation"
               />
               <DeploymentTargetSummaryCard
-                label="Blocked"
+                label="阻塞"
                 value={webBetaDeploymentTarget.summary.blocked}
-                detail="Must clear before beta"
+                detail="Beta 前必须清除"
                 status="blocked"
               />
               <DeploymentTargetSummaryCard
-                label="Boundary"
-                value="No deploy"
-                detail="Contract export only"
+                label="边界"
+                value="不部署"
+                detail="仅导出合同"
                 status="local-draft"
               />
             </div>
@@ -5662,13 +5611,11 @@ function SyncDashboard() {
             </div>
           </ContractPanel>
 
-          <ContractPanel title="Web Beta launch checklist" className="mt-4">
+          <ContractPanel title="Web Beta 上线清单" className="mt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local launch checklist for private beta. It connects product,
-                auth, cloud schema, file storage, sync replay, conflict review,
-                restore rollback, payload confirmation, deployment gates, and
-                observability into one preflight view.
+                私有 Beta 的本地上线清单。它把产品、认证、云结构、文件存储、同步回放、
+                冲突复核、恢复回滚、发送内容确认、部署门槛和可观测性合并到一个预检视图。
               </p>
               <button
                 type="button"
@@ -5677,39 +5624,39 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "launch-checklist"
-                  ? "Exporting..."
-                  : "Export launch checklist"}
+                  ? "导出中..."
+                  : "导出上线清单"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <LaunchSummaryCard
-                label="Tracks"
+                label="工作流"
                 value={webBetaLaunchChecklist.summary.tracks}
-                detail="Launch workstreams"
+                detail="上线工作流"
                 tone="partial"
               />
               <LaunchSummaryCard
-                label="Partial"
+                label="部分"
                 value={webBetaLaunchChecklist.summary.partial}
-                detail="Local scaffolds ready"
+                detail="本地脚手架就绪"
                 tone="partial"
               />
               <LaunchSummaryCard
-                label="Blocked"
+                label="阻塞"
                 value={webBetaLaunchChecklist.summary.blocked}
-                detail="Cloud work required"
+                detail="需要云端工作"
                 tone="blocked"
               />
               <LaunchSummaryCard
-                label="Routes"
+                label="路由"
                 value={webBetaLaunchChecklist.summary.local_routes}
-                detail="Local pages to verify"
+                detail="待验证本地页面"
                 tone="ready"
               />
               <LaunchSummaryCard
-                label="Boundary"
-                value="No deploy"
-                detail="Local checklist only"
+                label="边界"
+                value="不部署"
+                detail="仅本地清单"
                 tone="manual-confirmation"
               />
             </div>
@@ -5730,13 +5677,11 @@ function SyncDashboard() {
             </div>
           </ContractPanel>
 
-          <ContractPanel title="Route and API preflight" className="mt-4">
+          <ContractPanel title="路由和 API 预检" className="mt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local route-contract check for workspace pages, module pages,
-                disabled API stubs, Cloud Alpha metadata routes, and the
-                environment preflight endpoint. It does not send requests,
-                connect cloud services, upload data, or read private content.
+                工作区页面、模块页面、已关闭 API 桩、Cloud Alpha 元数据路由和环境预检端点的
+                本地路由合同检查。它不发送请求、不连接云服务、不上传数据，也不读取私人内容。
               </p>
               <button
                 type="button"
@@ -5745,27 +5690,27 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "route-preflight"
-                  ? "Exporting..."
-                  : "Export route preflight"}
+                  ? "导出中..."
+                  : "导出路由预检"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <RoutePreflightSummaryCard
-                label="Expected"
+                label="预期"
                 value={webBetaRoutePreflight.summary.expected_routes}
-                detail="Route contracts"
+                detail="路由合同"
                 status="covered"
               />
               <RoutePreflightSummaryCard
-                label="Covered"
+                label="已覆盖"
                 value={webBetaRoutePreflight.summary.covered}
-                detail="In launch checklist"
+                detail="已进入上线清单"
                 status="covered"
               />
               <RoutePreflightSummaryCard
-                label="Mismatch"
+                label="错配"
                 value={webBetaRoutePreflight.summary.status_mismatch}
-                detail="Status differs"
+                detail="状态不同"
                 status={
                   webBetaRoutePreflight.summary.status_mismatch > 0
                     ? "status-mismatch"
@@ -5773,9 +5718,9 @@ function SyncDashboard() {
                 }
               />
               <RoutePreflightSummaryCard
-                label="Missing"
+                label="缺失"
                 value={webBetaRoutePreflight.summary.missing}
-                detail="Not listed"
+                detail="未列入"
                 status={
                   webBetaRoutePreflight.summary.missing > 0
                     ? "missing"
@@ -5785,7 +5730,7 @@ function SyncDashboard() {
               <RoutePreflightSummaryCard
                 label="Cloud Alpha"
                 value={webBetaRoutePreflight.summary.cloud_alpha_gated}
-                detail="Metadata only"
+                detail="仅元数据"
                 status="covered"
               />
             </div>
@@ -5796,14 +5741,12 @@ function SyncDashboard() {
             </div>
           </ContractPanel>
 
-          <ContractPanel title="Smoke test plan" className="mt-4">
+          <ContractPanel title="冒烟测试计划" className="mt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local smoke test plan for a future preview deployment. It
-                defines pre-deploy checks, preview route checks, auth callback
-                checks, disabled cloud defaults, private storage boundaries,
-                rollback, observability, and narrow-layout review without
-                running tests or sending network requests.
+                未来预览部署的本地冒烟测试计划。它定义部署前检查、预览路由检查、
+                认证 callback 检查、默认关闭的云端开关、私有存储边界、回滚、可观测性
+                和窄屏布局复核；不会运行测试或发送网络请求。
               </p>
               <button
                 type="button"
@@ -5812,39 +5755,39 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "smoke-test-plan"
-                  ? "Exporting..."
-                  : "Export smoke test plan"}
+                  ? "导出中..."
+                  : "导出冒烟测试计划"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <SmokeTestSummaryCard
-                label="Cases"
+                label="案例"
                 value={webBetaSmokeTestPlan.summary.cases}
-                detail="Preview checks"
+                detail="预览检查"
                 status="ready-to-run"
               />
               <SmokeTestSummaryCard
-                label="Automated"
+                label="自动"
                 value={webBetaSmokeTestPlan.summary.automated}
-                detail="Command/checkable"
+                detail="命令可检查"
                 status="ready-to-run"
               />
               <SmokeTestSummaryCard
-                label="Manual"
+                label="手动"
                 value={webBetaSmokeTestPlan.summary.manual}
-                detail="Owner review"
+                detail="用户复核"
                 status="manual-confirmation"
               />
               <SmokeTestSummaryCard
-                label="Blocked"
+                label="阻塞"
                 value={webBetaSmokeTestPlan.summary.blocked}
-                detail="Cloud/setup gaps"
+                detail="云端/设置缺口"
                 status="blocked"
               />
               <SmokeTestSummaryCard
-                label="Boundary"
-                value="No run"
-                detail="Plan export only"
+                label="边界"
+                value="不运行"
+                detail="仅导出计划"
                 status="manual-confirmation"
               />
             </div>
@@ -5855,14 +5798,12 @@ function SyncDashboard() {
             </div>
           </ContractPanel>
 
-          <ContractPanel title="Web Alpha handoff bundle" className="mt-4">
+          <ContractPanel title="Web Alpha 交接包" className="mt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local handoff bundle for a future private Web Alpha review. It
-                summarizes launch contracts, stage gates, route preflight,
-                smoke tests, next actions, owner decisions, and command checks
-                into one export without deploying, connecting cloud services,
-                uploading workspace data, or exposing secrets.
+                未来私有 Web Alpha 复核用的本地交接包。它把上线合同、阶段门禁、
+                路由预检、冒烟测试、后续动作、用户决策和命令检查汇总到一个导出中；
+                不部署、不连接云服务、不上传工作区数据，也不暴露密钥。
               </p>
               <button
                 type="button"
@@ -5871,27 +5812,27 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "web-alpha-handoff"
-                  ? "Exporting..."
-                  : "Export handoff bundle"}
+                  ? "导出中..."
+                  : "导出交接包"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <HandoffSummaryCard
-                label="Sources"
+                label="来源"
                 value={webAlphaHandoffBundle.summary.source_reports}
-                detail="Reports included"
+                detail="已包含报告"
                 status="partial"
               />
               <HandoffSummaryCard
-                label="Commands"
+                label="命令"
                 value={webAlphaHandoffBundle.summary.commands}
-                detail="Must pass"
+                detail="必须通过"
                 status="ready"
               />
               <HandoffSummaryCard
-                label="Blocked"
+                label="阻塞"
                 value={webAlphaHandoffBundle.summary.blocked}
-                detail="Cannot launch"
+                detail="不能上线"
                 status={
                   webAlphaHandoffBundle.summary.blocked > 0
                     ? "blocked"
@@ -5901,7 +5842,7 @@ function SyncDashboard() {
               <HandoffSummaryCard
                 label="P0"
                 value={webAlphaHandoffBundle.summary.p0_actions}
-                detail="Build blockers"
+                detail="构建阻塞"
                 status={
                   webAlphaHandoffBundle.summary.p0_actions > 0
                     ? "blocked"
@@ -5909,13 +5850,13 @@ function SyncDashboard() {
                 }
               />
               <HandoffSummaryCard
-                label="Cloud sync"
+                label="云同步"
                 value={
                   webAlphaHandoffBundle.cloud_sync_can_start_now
-                    ? "Ready"
-                    : "No"
+                    ? "就绪"
+                    : "否"
                 }
-                detail="Separate approval"
+                detail="需要单独批准"
                 status="blocked"
               />
             </div>
@@ -5947,16 +5888,14 @@ function SyncDashboard() {
           </ContractPanel>
 
           <ContractPanel
-            title="Web Alpha launch decision receipt"
+            title="Web Alpha 上线决策收据"
             className="mt-4"
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local go/no-go receipt for deciding whether ZhiNotes can move
-                from local development to a shareable Web Alpha preview. It
-                summarizes blockers and owner decisions without deploying,
-                connecting cloud services, uploading workspace data, enabling
-                sync, or reading private content.
+                判断 ZhiNotes 是否能从本地开发进入可分享 Web Alpha 预览的本地 go/no-go 收据。
+                它汇总阻塞项和用户决策；不部署、不连接云服务、不上传工作区数据、
+                不启用同步，也不读取私人内容。
               </p>
               <button
                 type="button"
@@ -5965,51 +5904,51 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "web-alpha-launch-decision"
-                  ? "Exporting..."
-                  : "Export launch decision"}
+                  ? "导出中..."
+                  : "导出上线决策"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-5">
               <LaunchDecisionSummaryCard
-                label="Verdict"
+                label="结论"
                 value={webAlphaLaunchDecisionReceipt.release_verdict}
-                detail="No preview yet"
+                detail="暂不开放预览"
                 status="no-go-preview"
               />
               <LaunchDecisionSummaryCard
-                label="Local work"
+                label="本地工作"
                 value={
                   webAlphaLaunchDecisionReceipt.local_app_can_continue_now
-                    ? "Yes"
-                    : "No"
+                    ? "是"
+                    : "否"
                 }
-                detail="Continue build"
+                detail="继续构建"
                 status="go-local-only"
               />
               <LaunchDecisionSummaryCard
-                label="Preview"
+                label="预览"
                 value={
                   webAlphaLaunchDecisionReceipt.web_alpha_preview_can_be_shared_now
-                    ? "Yes"
-                    : "No"
+                    ? "是"
+                    : "否"
                 }
-                detail="Owner gated"
+                detail="用户门槛"
                 status="no-go-preview"
               />
               <LaunchDecisionSummaryCard
-                label="Cloud sync"
+                label="云同步"
                 value={
                   webAlphaLaunchDecisionReceipt.cloud_sync_can_start_now
-                    ? "Yes"
-                    : "No"
+                    ? "是"
+                    : "否"
                 }
-                detail="Still disabled"
+                detail="仍然关闭"
                 status="no-go-cloud"
               />
               <LaunchDecisionSummaryCard
                 label="P0"
                 value={webAlphaLaunchDecisionReceipt.summary.p0_actions}
-                detail="Before preview"
+                detail="预览前"
                 status="no-go-preview"
               />
             </div>
@@ -6037,16 +5976,14 @@ function SyncDashboard() {
 
           <ContractPanel
             id="web-beta-owner-review"
-            title="Web Beta owner review packet"
+            title="Web Beta 用户复核包"
             className="mt-4"
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local owner-review rehearsal for the private Web Beta decision.
-                It turns stage gates, next actions, smoke tests, and environment
-                presence into review questions and evidence without deploying,
-                connecting cloud services, uploading workspace data, enabling
-                sync, or reading private content.
+                私有 Web Beta 决策的本地用户复核演练。它把阶段门禁、后续动作、
+                冒烟测试和环境存在情况转成复核问题与证据；不部署、不连接云服务、
+                不上传工作区数据、不启用同步，也不读取私人内容。
               </p>
               <button
                 type="button"
@@ -6055,52 +5992,52 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "web-beta-owner-review"
-                  ? "Exporting..."
-                  : "Export owner review"}
+                  ? "导出中..."
+                  : "导出用户复核"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-6">
               <OwnerReviewSummaryCard
-                label="Verdict"
+                label="结论"
                 value={webBetaOwnerReviewPacket.launch_verdict}
-                detail="No beta launch"
+                detail="不启动 Beta"
                 status="blocked"
               />
               <OwnerReviewSummaryCard
-                label="Local work"
+                label="本地工作"
                 value={
                   webBetaOwnerReviewPacket.local_app_can_continue_now
-                    ? "Yes"
-                    : "No"
+                    ? "是"
+                    : "否"
                 }
-                detail="Continue build"
+                detail="继续构建"
                 status="local-only"
               />
               <OwnerReviewSummaryCard
                 label="P0"
                 value={webBetaOwnerReviewPacket.summary.p0_blockers}
-                detail="Owner blockers"
+                detail="用户阻塞项"
                 status="blocked"
               />
               <OwnerReviewSummaryCard
-                label="Decision"
+                label="决策"
                 value={webBetaOwnerReviewPacket.summary.owner_decisions}
-                detail="Owner choices"
+                detail="用户选择"
                 status="owner-review"
               />
               <OwnerReviewSummaryCard
-                label="Local first"
+                label="本地优先"
                 value={webBetaOwnerReviewPacket.summary.local_first_ready}
-                detail="Can start safely"
+                detail="可安全开始"
                 status="local-only"
               />
               <OwnerReviewSummaryCard
-                label="Missing env"
+                label="缺失环境"
                 value={
                   webBetaOwnerReviewPacket.summary
-                    .missing_required_environment ?? "Unknown"
+                    .missing_required_environment ?? "未知"
                 }
-                detail="Presence only"
+                detail="仅检查是否存在"
                 status={
                   webBetaOwnerReviewPacket.summary
                     .missing_required_environment === 0
@@ -6136,12 +6073,11 @@ function SyncDashboard() {
             </div>
           </ContractPanel>
 
-          <ContractPanel title="Web Beta next actions" className="mt-4">
+          <ContractPanel title="Web Beta 后续动作" className="mt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local action plan that turns readiness and launch blockers into
-                ordered build work. It does not deploy, connect cloud services,
-                create accounts, upload workspace data, or read private content.
+                把准备度和上线阻塞项转成有顺序构建工作的本地行动计划。
+                它不部署、不连接云服务、不创建账号、不上传工作区数据，也不读取私人内容。
               </p>
               <button
                 type="button"
@@ -6150,45 +6086,45 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "next-actions"
-                  ? "Exporting..."
-                  : "Export next actions"}
+                  ? "导出中..."
+                  : "导出后续动作"}
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-6">
               <NextActionSummaryCard
-                label="Actions"
+                label="动作"
                 value={webBetaNextActionPlan.summary.actions}
-                detail="Ordered work items"
+                detail="有序工作项"
                 status="ready-to-build"
               />
               <NextActionSummaryCard
                 label="P0"
                 value={webBetaNextActionPlan.summary.p0}
-                detail="Must finish first"
+                detail="必须先完成"
                 priority="p0"
               />
               <NextActionSummaryCard
-                label="Ready"
+                label="就绪"
                 value={webBetaNextActionPlan.summary.ready_to_build}
-                detail="Can start locally"
+                detail="可本地开始"
                 status="ready-to-build"
               />
               <NextActionSummaryCard
-                label="Local first"
+                label="本地优先"
                 value={webBetaNextActionPlan.summary.local_first}
-                detail="No cloud write needed"
+                detail="不需要云写入"
                 executionPath="local-first"
               />
               <NextActionSummaryCard
-                label="Decision"
+                label="决策"
                 value={webBetaNextActionPlan.summary.needs_owner_decision}
-                detail="Needs owner choice"
+                detail="需要用户选择"
                 status="needs-owner-decision"
               />
               <NextActionSummaryCard
-                label="Missing env"
+                label="缺失环境"
                 value={webBetaNextActionPlan.summary.missing_environment_required}
-                detail="Required settings"
+                detail="必需设置"
                 status="blocked-by-missing-cloud"
               />
             </div>
@@ -6200,7 +6136,7 @@ function SyncDashboard() {
           </ContractPanel>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-            <ContractPanel title="Web Beta API contract">
+            <ContractPanel title="Web Beta API 合同">
               <div className="space-y-2">
                 {SYNC_API_CONTRACTS.map((api) => (
                   <ContractApiRow key={api.id} api={api} />
@@ -6208,12 +6144,11 @@ function SyncDashboard() {
               </div>
               <div className="mt-4 border-t border-zinc-100 pt-3 dark:border-zinc-800">
                 <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                  Local disabled API stubs
+                  本地禁用 API 桩
                 </div>
                 <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  These routes exist locally, but they return disabled responses
-                  and do not read request bodies, create sessions, store server
-                  data, restore backups, upload files, or sync notes.
+                  这些路由在本地存在，但只返回禁用响应；不会读取请求体、创建会话、
+                  存储服务端数据、恢复备份、上传文件或同步笔记。
                 </p>
                 <div className="mt-3 space-y-2">
                   {WEB_BETA_API_STUBS.map((stub) => (
@@ -6223,7 +6158,7 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
 
-            <ContractPanel title="Conflict policies">
+            <ContractPanel title="冲突政策">
               <div className="space-y-2">
                 {CONFLICT_POLICIES.map((policy) => (
                   <ContractTextRow
@@ -6238,7 +6173,7 @@ function SyncDashboard() {
             </ContractPanel>
           </div>
 
-          <ContractPanel title="Deployment gates" className="mt-4">
+          <ContractPanel title="部署门槛" className="mt-4">
             <div className="grid gap-2 md:grid-cols-2">
               {DEPLOYMENT_GATES.map((gate) => (
                 <ContractTextRow
@@ -6257,14 +6192,12 @@ function SyncDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Permission decision preview
+                权限决策预览
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Local evaluator for Owner, Researcher, and Viewer role
-                decisions. It previews allow, deny, and confirmation outcomes
-                for resource actions, but it does not create users, grant
-                access, revoke access, upload data, or enforce server
-                permissions.
+                Owner、Researcher、Viewer 角色决策的本地评估器。它预览资源动作的允许、
+                拒绝和确认结果；但不创建用户、不授予访问、不撤销访问、不上传数据，
+                也不执行服务端权限。
               </p>
             </div>
             <button
@@ -6274,44 +6207,44 @@ function SyncDashboard() {
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               {busyContractAction === "permission-decisions"
-                ? "Exporting..."
-                : "Export decisions"}
+                ? "导出中..."
+                : "导出权限决策"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <PermissionDecisionSummaryCard
-              label="Matrix"
+              label="矩阵"
               value={permissionDecisionReport.summary.matrix_decisions}
-              detail="Role/resource/action checks"
+              detail="角色/资源/动作检查"
               status="local-allowed"
             />
             <PermissionDecisionSummaryCard
-              label="Scenarios"
+              label="场景"
               value={permissionDecisionReport.summary.high_risk_scenarios}
-              detail="High-risk samples"
+              detail="高风险样本"
               status="needs-confirmation"
             />
             <PermissionDecisionSummaryCard
-              label="Confirm"
+              label="确认"
               value={permissionDecisionReport.summary.needs_confirmation}
-              detail="Allowed but gated"
+              detail="允许但需门槛"
               status="needs-confirmation"
             />
             <PermissionDecisionSummaryCard
-              label="Denied"
+              label="拒绝"
               value={permissionDecisionReport.summary.local_denied}
-              detail="Blocked by local role"
+              detail="被本地角色阻止"
               status="local-denied"
             />
             <PermissionDecisionSummaryCard
-              label="Endpoint"
+              label="端点"
               value="/api/permissions/check"
-              detail="Disabled local stub"
+              detail="已关闭的本地桩接口"
               status="server-blocked"
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
-            <ContractPanel title="High-risk decisions">
+            <ContractPanel title="高风险决策">
               <div className="space-y-2">
                 {permissionDecisionReport.high_risk_scenarios.map(
                   (scenario) => (
@@ -6323,7 +6256,7 @@ function SyncDashboard() {
                 )}
               </div>
             </ContractPanel>
-            <ContractPanel title="Permission enablement gates">
+            <ContractPanel title="权限启用门槛">
               <div className="space-y-2">
                 {permissionDecisionReport.gates.map((gate) => (
                   <PermissionDecisionGateRow key={gate.id} gate={gate} />
@@ -6331,15 +6264,12 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
           </div>
-          <ContractPanel title="Permission check envelope" className="mt-4">
+          <ContractPanel title="权限检查信封" className="mt-4">
             <div className="flex flex-col gap-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl">
-                Local contract for the future server-side permission check. It
-                defines metadata-only request and response fields before
-                `/api/permissions/check` can read request bodies or enforce
-                roles. Page text, database values, comments, files, prompts,
-                tokens, cookies, signed URLs, and environment values remain
-                forbidden.
+                未来服务端权限检查的本地合同。它定义“仅元数据”的请求和响应字段，
+                先于 `/api/permissions/check` 读取请求体或执行角色权限。页面正文、
+                数据库值、评论、文件、prompts、tokens、cookies、签名 URL 和环境值仍禁止。
               </p>
               <button
                 type="button"
@@ -6348,44 +6278,44 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "permission-check-envelope"
-                  ? "Exporting..."
-                  : "Export permission envelope"}
+                  ? "导出中..."
+                  : "导出权限信封"}
               </button>
             </div>
             <div className="mt-3 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
               <IdentityMetric
-                label="Request fields"
+                label="请求字段"
                 value={`${permissionCheckEnvelopeContract.summary.request_allowed_fields}`}
-                detail="Metadata only"
+                detail="仅元数据"
               />
               <IdentityMetric
-                label="Response fields"
+                label="响应字段"
                 value={`${permissionCheckEnvelopeContract.summary.response_allowed_fields}`}
-                detail="Decision only"
+                detail="仅决策"
               />
               <IdentityMetric
-                label="Forbidden"
+                label="禁止字段"
                 value={`${permissionCheckEnvelopeContract.summary.forbidden_fields}`}
-                detail="Payload blocked"
+                detail="载荷已阻止"
               />
               <IdentityMetric
-                label="Blocked"
+                label="阻塞"
                 value={`${permissionCheckEnvelopeContract.summary.blocked}`}
-                detail="Endpoint disabled"
+                detail="端点已关闭"
               />
               <IdentityMetric
-                label="Validator cases"
+                label="校验案例"
                 value={`${permissionCheckValidatorReport.summary.passed}/${permissionCheckValidatorReport.summary.fixtures}`}
-                detail="Local fixtures"
+                detail="本地 fixtures"
               />
               <IdentityMetric
-                label="Server cases"
+                label="服务端案例"
                 value={`${permissionServerTestMatrix.summary.cases}`}
-                detail="Future tests"
+                detail="未来测试"
               />
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
-              <ContractPanel title="Permission check scenarios">
+              <ContractPanel title="权限检查场景">
                 <div className="space-y-2">
                   {permissionCheckEnvelopeContract.scenarios.map((scenario) => (
                     <PermissionCheckScenarioRow
@@ -6395,7 +6325,7 @@ function SyncDashboard() {
                   ))}
                 </div>
               </ContractPanel>
-              <ContractPanel title="Permission check gates">
+              <ContractPanel title="权限检查门槛">
                 <div className="space-y-2">
                   {permissionCheckEnvelopeContract.gates.map((gate) => (
                     <PermissionCheckGateRow key={gate.id} gate={gate} />
@@ -6403,7 +6333,7 @@ function SyncDashboard() {
                 </div>
               </ContractPanel>
             </div>
-            <ContractPanel title="Permission request fields" className="mt-4">
+            <ContractPanel title="权限请求字段" className="mt-4">
               <div className="grid gap-2 md:grid-cols-2">
                 {permissionCheckEnvelopeContract.request_fields.map((field) => (
                   <PermissionCheckFieldRow key={field.field} field={field} />
@@ -6411,29 +6341,29 @@ function SyncDashboard() {
               </div>
             </ContractPanel>
             <ContractPanel
-              title="Permission request validator"
+              title="权限请求校验器"
               className="mt-4"
             >
               <div className="grid gap-2 md:grid-cols-3">
                 <IdentityMetric
-                  label="Accepted"
+                  label="已接受"
                   value={`${permissionCheckValidatorReport.summary.accepted}`}
-                  detail="Metadata only"
+                  detail="仅元数据"
                 />
                 <IdentityMetric
-                  label="Forbidden"
+                  label="禁止字段"
                   value={`${permissionCheckValidatorReport.summary.rejected_forbidden_payload}`}
-                  detail="Private payload"
+                  detail="私人载荷"
                 />
                 <IdentityMetric
-                  label="Other rejects"
+                  label="其他拒绝"
                   value={`${
                     permissionCheckValidatorReport.summary
                       .rejected_unknown_field +
                     permissionCheckValidatorReport.summary
                       .rejected_invalid_shape
                   }`}
-                  detail="Schema guard"
+                  detail="结构防护"
                 />
               </div>
               <div className="mt-3 grid gap-2 lg:grid-cols-2">
@@ -6447,30 +6377,30 @@ function SyncDashboard() {
                 )}
               </div>
             </ContractPanel>
-            <ContractPanel title="Server permission test matrix" className="mt-4">
+            <ContractPanel title="服务端权限测试矩阵" className="mt-4">
               <div className="grid gap-2 md:grid-cols-4">
                 <IdentityMetric
-                  label="Allow"
+                  label="允许"
                   value={`${
                     permissionServerTestMatrix.summary.allow_read_only +
                     permissionServerTestMatrix.summary.allow_after_confirmation
                   }`}
-                  detail="With gates"
+                  detail="带门槛"
                 />
                 <IdentityMetric
-                  label="Deny"
+                  label="拒绝"
                   value={`${permissionServerTestMatrix.summary.denied}`}
-                  detail="403 cases"
+                  detail="403 案例"
                 />
                 <IdentityMetric
-                  label="Reject"
+                  label="驳回"
                   value={`${permissionServerTestMatrix.summary.rejected_request}`}
-                  detail="422 payload"
+                  detail="422 载荷"
                 />
                 <IdentityMetric
-                  label="Confirm"
+                  label="确认"
                   value={`${permissionServerTestMatrix.summary.manual_confirmation}`}
-                  detail="High risk"
+                  detail="高风险"
                 />
               </div>
               <div className="mt-3 grid gap-2 xl:grid-cols-3">
@@ -6482,27 +6412,27 @@ function SyncDashboard() {
                 ))}
               </div>
             </ContractPanel>
-            <ContractPanel title="Server permission readiness" className="mt-4">
+            <ContractPanel title="服务端权限准备度" className="mt-4">
               <div className="grid gap-2 md:grid-cols-4">
                 <IdentityMetric
-                  label="Verdict"
+                  label="结论"
                   value={permissionServerReadinessReport.readiness_verdict}
-                  detail="Endpoint disabled"
+                  detail="端点已关闭"
                 />
                 <IdentityMetric
-                  label="Ready gates"
+                  label="就绪门槛"
                   value={`${permissionServerReadinessReport.summary.ready}`}
-                  detail={`${permissionServerReadinessReport.summary.gates} total`}
+                  detail={`共 ${permissionServerReadinessReport.summary.gates} 个`}
                 />
                 <IdentityMetric
-                  label="Blocked gates"
+                  label="阻塞门槛"
                   value={`${permissionServerReadinessReport.summary.blocked}`}
-                  detail="Before beta"
+                  detail="Beta 前"
                 />
                 <IdentityMetric
-                  label="Confirm gates"
+                  label="确认门槛"
                   value={`${permissionServerReadinessReport.summary.manual_confirmation}`}
-                  detail="High risk"
+                  detail="高风险"
                 />
               </div>
               <div className="mt-3 grid gap-2 lg:grid-cols-2">
@@ -6522,11 +6452,10 @@ function SyncDashboard() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Permission matrix
+                  权限矩阵
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  Local draft only. This does not create users, enforce access,
-                  or share workspace data.
+                  仅本地草案。它不创建用户、不执行访问控制，也不分享工作区数据。
                 </p>
               </div>
               <button
@@ -6536,8 +6465,8 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyPermissionAction === "policy"
-                  ? "Exporting..."
-                  : "Export policy"}
+                  ? "导出中..."
+                  : "导出政策"}
               </button>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -6563,12 +6492,11 @@ function SyncDashboard() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  High-risk action registry
+                  高风险动作注册表
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  Local registry for typed confirmations across sync, restore,
-                  AI, file preview, database import, sharing, and delete
-                  workflows. Exporting it does not enable any action.
+                  同步、恢复、AI、文件预览、数据库导入、分享和删除流程的本地输入确认注册表。
+                  导出它不会启用任何动作。
                 </p>
               </div>
               <button
@@ -6578,25 +6506,25 @@ function SyncDashboard() {
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 {busyContractAction === "high-risk-registry"
-                  ? "Exporting..."
-                  : "Export registry"}
+                  ? "导出中..."
+                  : "导出注册表"}
               </button>
             </div>
             <div className="mt-3 grid gap-2 md:grid-cols-3">
               <HighRiskRegistrySummaryCard
-                label="Actions"
+                label="动作"
                 value={highRiskActionRegistry.summary.actions}
-                detail="Registered gates"
+                detail="已注册门槛"
               />
               <HighRiskRegistrySummaryCard
-                label="Receipts"
+                label="收据"
                 value={highRiskActionRegistry.summary.local_receipt_available}
-                detail="Local receipt ready"
+                detail="本地收据就绪"
               />
               <HighRiskRegistrySummaryCard
-                label="Planned"
+                label="计划中"
                 value={highRiskActionRegistry.summary.planned}
-                detail="Reserved gates"
+                detail="预留门槛"
               />
             </div>
             <div className="mt-3 space-y-2">
@@ -6615,11 +6543,10 @@ function SyncDashboard() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Sync log visibility
+                  同步日志可见性
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  Local queue metadata only. No page text or file content is
-                  exported here.
+                  这里只显示本地队列元数据，不导出页面正文或文件内容。
                 </p>
               </div>
               <button
@@ -6628,7 +6555,7 @@ function SyncDashboard() {
                 disabled={busyQueueAction === "queue"}
                 className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
-                {busyQueueAction === "queue" ? "Exporting..." : "Export queue"}
+                {busyQueueAction === "queue" ? "导出中..." : "导出队列"}
               </button>
             </div>
             {syncSummary && syncSummary.tables.length > 0 ? (
@@ -6645,13 +6572,13 @@ function SyncDashboard() {
                         </div>
                         <div className="mt-1 text-zinc-400">
                           {table.lastChangeAt
-                            ? `Last change ${formatDate(table.lastChangeAt)}`
-                            : "No timestamp"}
+                            ? `最近变更 ${formatDate(table.lastChangeAt)}`
+                            : "没有时间戳"}
                         </div>
                       </div>
                       <div className="text-right text-zinc-500 dark:text-zinc-400">
-                        <div>{table.pending} pending</div>
-                        <div>{table.total} total</div>
+                        <div>{table.pending} 待处理</div>
+                        <div>{table.total} 总计</div>
                       </div>
                     </div>
                   ))}
@@ -6659,7 +6586,7 @@ function SyncDashboard() {
                 {syncEntries.length > 0 && (
                   <div className="border-t border-zinc-100 pt-3 dark:border-zinc-800">
                     <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                      Recent pending changes
+                      最近待处理变更
                     </h3>
                     <div className="mt-2 space-y-2">
                       {syncEntries.slice(0, 8).map((entry) => (
@@ -6671,16 +6598,15 @@ function SyncDashboard() {
               </div>
             ) : (
               <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                No sync log rows are currently recorded. New local page,
-                database, comment, relation, and version changes will be added
-                to this queue while cloud push/pull remains disabled.
+                当前还没有同步日志行。新的本地页面、数据库、评论、关系和版本变更会进入这个队列；
+                云端 push/pull 仍保持关闭。
               </p>
             )}
           </div>
 
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              File coverage
+              文件覆盖
             </h2>
             {fileSummary.kinds.length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -6695,7 +6621,7 @@ function SyncDashboard() {
               </div>
             ) : (
               <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                No uploaded files are stored in the local file database yet.
+                本地文件数据库里还没有上传文件。
               </p>
             )}
           </div>
@@ -6703,7 +6629,7 @@ function SyncDashboard() {
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Web beta build order
+            Web Beta 构建顺序
           </h2>
           <div className="mt-3 grid gap-3 md:grid-cols-5">
             {WEB_BETA_STACK.map((step) => (
@@ -7577,6 +7503,8 @@ function localizeSyncDecisionText(value: string) {
       "身份服务和会话模型已选择。",
     "Local completion evidence required.": "需要补齐本地完成证据。",
     "需要补齐本地完成证据。": "需要补齐本地完成证据。",
+    "Deployment, route preflight, and rollback": "部署、路由预检和回滚",
+    "Run local verification command bundle": "运行本地验证命令包",
   };
 
   let next = exact[value] ?? value;
@@ -7585,6 +7513,37 @@ function localizeSyncDecisionText(value: string) {
     .replaceAll("Private beta cannot start until account login, session storage, workspace membership, and local-to-cloud linking are specified.", "账号登录、会话存储、工作区成员关系和本地到云端连接规则明确前，不能启动私有 Beta。")
     .replaceAll("Choose auth provider, session cookie design, device revoke behavior, workspace membership rules, and owner confirmation for local-to-cloud linking.", "选择身份服务、会话 cookie 设计、设备撤销行为、工作区成员规则，以及本地连接云端前的用户确认。")
     .replaceAll("Versioned migrations exist for the contracted cloud tables.", "约定云表已有版本化迁移。")
+    .replaceAll("Deployment target selects vercel-nextjs for the first Web Alpha, supabase-cloud for cloud data, and", "部署目标为首个 Web Alpha 选择 vercel-nextjs，为云端数据选择 supabase-cloud，并且仍有")
+    .replaceAll("blocked deployment items remain.", "个部署阻塞项。")
+    .replaceAll("Use the target contract to decide provider setup, preview deployment, secrets, rollback, and owner confirmation before going live.", "上线前，用目标合同确认服务商配置、预览部署、密钥、回滚和用户确认。")
+    .replaceAll("Run deployment gates as repeatable checks before any private preview is shared.", "分享任何私有预览前，把部署门槛作为可重复检查来执行。")
+    .replaceAll("Implement authenticated audit_events writes only after envelope redaction, retention, owner-only audit export, and incident review are proven before private beta.", "只有在私有 Beta 前证明信封脱敏、保留策略、仅用户审计导出和事故复核都可行后，才实现已认证的 audit_events 写入。")
+    .replaceAll("Route preflight has", "路由预检有")
+    .replaceAll("missing or mismatched route contracts.", "个缺失或不匹配的路由合同。")
+    .replaceAll("Baseline request contract", "基线请求合同")
+    .replaceAll("Remote baseline request contract exists and keeps request, stage, and apply disabled.", "远端基线请求合同已存在，并保持请求、暂存和应用全部关闭。")
+    .replaceAll("Enable metadata-only remote request only after auth, cursor, permissions, audit, and review staging are proven.", "只有在认证、游标、权限、审计和复核暂存都被证明可行后，才能启用仅元数据的远端请求。")
+    .replaceAll("Stage store schema", "暂存表结构")
+    .replaceAll("remote_baseline_stage is a planned table only; no persistence schema exists yet.", "remote_baseline_stage 目前只是计划中的表，还没有持久化结构。")
+    .replaceAll("Add a schema migration before any remote metadata can be staged for review.", "任何远端元数据进入复核暂存前，先补齐结构迁移。")
+    .replaceAll("Smoke test plan requires lint, verify:web-beta, verify:replay-harness, and production build before preview review.", "预览复核前，冒烟测试计划要求 lint、verify:web-beta、verify:replay-harness 和生产构建全部通过。")
+    .replaceAll("All command bundle checks pass on the deployment branch.", "部署分支上的命令包检查全部通过。")
+    .replaceAll("Review command output before sharing a preview URL or changing launch status.", "分享预览 URL 或更改上线状态前，先复核命令输出。")
+    .replaceAll("Review command output before sharing a preview URL or changing cloud flags.", "分享预览 URL 或改动云端开关前，先复核命令输出。")
+    .replaceAll("Deployment target", "部署目标")
+    .replaceAll("Deployment", "部署")
+    .replaceAll("deployment", "部署")
+    .replaceAll("Contract", "合同")
+    .replaceAll("contract", "合同")
+    .replaceAll("Gates", "门槛")
+    .replaceAll("gates", "门槛")
+    .replaceAll("Gate", "门槛")
+    .replaceAll("gate", "门槛")
+    .replaceAll("Remote baseline", "远端基线")
+    .replaceAll("remote baseline", "远端基线")
+    .replaceAll("Smoke test plan", "冒烟测试计划")
+    .replaceAll("smoke test plan", "冒烟测试计划")
+    .replaceAll("preview review", "预览复核")
     .replaceAll("Owner", "用户")
     .replaceAll("owner", "用户")
     .replaceAll("cloud sync", "云同步")
@@ -7863,7 +7822,7 @@ function AccountFieldRow({
               : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
           }`}
         >
-          {allowed ? "Allowed" : "Forbidden"}
+          {allowed ? "允许" : "禁止"}
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
@@ -7879,9 +7838,9 @@ function AccountStatusPill({
   status: AccountSessionBoundaryStatus;
 }) {
   const labels: Record<AccountSessionBoundaryStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -8006,7 +7965,7 @@ function AuditEnvelopeTemplateRow({
         ))}
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        Forbidden payload classes: {template.forbidden_payloads.length}
+        禁止载荷类型：{template.forbidden_payloads.length}
       </p>
     </article>
   );
@@ -8050,7 +8009,7 @@ function AuditEnvelopeGateRow({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {gate.title}
+            {localizeSyncDecisionText(gate.title)}
           </div>
           <div className="mt-1 font-mono text-[10px] text-zinc-400">
             {gate.id}
@@ -8126,7 +8085,7 @@ function AuditEventsApiFixtureRow({
             {fixture.id}
           </div>
           <div className="mt-1 text-[10px] text-zinc-400">
-            expected {fixture.expected_status}
+            预期 {fixture.expected_status}
           </div>
         </div>
         <AuditEventsApiValidationPill status={fixture.actual_status} />
@@ -8170,7 +8129,7 @@ function AuditEventsApiFieldStatusPill({
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
-      {status}
+      {status === "allowed" ? "允许" : "禁止"}
     </span>
   );
 }
@@ -8187,7 +8146,7 @@ function AuditEventsApiValidationPill({
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
-      {status}
+      {status === "accepted" ? "已接受" : "已拒绝"}
     </span>
   );
 }
@@ -8212,7 +8171,7 @@ function AuditFieldRow({
               : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
           }`}
         >
-          {allowed ? "Allowed" : "Forbidden"}
+          {allowed ? "允许" : "禁止"}
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
@@ -8224,9 +8183,9 @@ function AuditFieldRow({
 
 function AuditStatusPill({ status }: { status: AuditTrailStatus }) {
   const labels: Record<AuditTrailStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -8249,9 +8208,9 @@ function AuditEnvelopeStatusPill({
   status: AuditEventEnvelopeStatus;
 }) {
   const labels: Record<AuditEventEnvelopeStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -8365,8 +8324,8 @@ function PermissionCheckScenarioRow({
         <PermissionCheckStatusPill status={scenario.status} />
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        Expected: {scenario.expected_decision}. Confirmation:{" "}
-        {scenario.required_confirmation ? "required" : "not required"}.
+        预期：{scenario.expected_decision}。确认：{" "}
+        {scenario.required_confirmation ? "必需" : "不需要"}。
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         {scenario.required_evidence}
@@ -8428,7 +8387,7 @@ function PermissionCheckFieldRow({
               : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
           }`}
         >
-          {allowed ? "Allowed" : "Forbidden"}
+          {allowed ? "允许" : "禁止"}
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
@@ -8444,10 +8403,10 @@ function PermissionCheckValidatorFixtureRow({
   fixture: PermissionCheckValidatorReport["fixture_results"][number];
 }) {
   const detailItems = [
-    ...fixture.forbidden_field_paths.map((item) => `Forbidden: ${item}`),
-    ...fixture.unknown_field_names.map((item) => `Unknown: ${item}`),
-    ...fixture.missing_required_fields.map((item) => `Missing: ${item}`),
-    ...fixture.invalid_field_names.map((item) => `Invalid: ${item}`),
+    ...fixture.forbidden_field_paths.map((item) => `禁止：${item}`),
+    ...fixture.unknown_field_names.map((item) => `未知：${item}`),
+    ...fixture.missing_required_fields.map((item) => `缺失：${item}`),
+    ...fixture.invalid_field_names.map((item) => `无效：${item}`),
   ];
 
   return (
@@ -8464,11 +8423,11 @@ function PermissionCheckValidatorFixtureRow({
         <PermissionCheckValidationStatusPill status={fixture.actual_status} />
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        Expected {fixture.expected_status};{" "}
-        {fixture.passed ? "fixture passed" : "fixture failed"}.
+        预期 {fixture.expected_status}；{" "}
+        {fixture.passed ? "fixture 通过" : "fixture 失败"}。
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        {detailItems.length > 0 ? detailItems.join(" · ") : "No private fields detected."}
+        {detailItems.length > 0 ? detailItems.join(" · ") : "未检测到私人字段。"}
       </p>
     </article>
   );
@@ -8484,7 +8443,7 @@ function PermissionServerMatrixCaseRow({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {testCase.title}
+            {localizeSyncDecisionText(testCase.title)}
           </div>
           <div className="mt-1 font-mono text-[10px] text-zinc-400">
             {testCase.role_id} · {testCase.resource_id} ·{" "}
@@ -8545,10 +8504,10 @@ function PermissionDecisionStatusPill({
   status: PermissionDecisionStatus;
 }) {
   const labels: Record<PermissionDecisionStatus, string> = {
-    "local-allowed": "Allowed",
-    "local-denied": "Denied",
-    "needs-confirmation": "Confirm",
-    "server-blocked": "Server blocked",
+    "local-allowed": "允许",
+    "local-denied": "拒绝",
+    "needs-confirmation": "确认",
+    "server-blocked": "服务端阻塞",
   };
 
   const className =
@@ -8571,9 +8530,9 @@ function PermissionServerReadinessStatusPill({
   status: PermissionServerReadinessStatus;
 }) {
   const labels: Record<PermissionServerReadinessStatus, string> = {
-    ready: "Ready",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -8596,10 +8555,10 @@ function PermissionServerDecisionPill({
   decision: PermissionServerExpectedDecision;
 }) {
   const labels: Record<PermissionServerExpectedDecision, string> = {
-    "allow-read-only": "Allow",
-    "allow-after-confirmation": "Confirm",
-    deny: "Deny",
-    "reject-request": "Reject",
+    "allow-read-only": "允许",
+    "allow-after-confirmation": "确认",
+    deny: "拒绝",
+    "reject-request": "驳回",
   };
 
   const className =
@@ -8622,9 +8581,9 @@ function PermissionServerCaseStatusPill({
   status: PermissionServerMatrixCaseStatus;
 }) {
   const labels: Record<PermissionServerMatrixCaseStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -8647,10 +8606,10 @@ function PermissionCheckValidationStatusPill({
   status: PermissionCheckRequestValidationStatus;
 }) {
   const labels: Record<PermissionCheckRequestValidationStatus, string> = {
-    "metadata-only-accepted": "Accepted",
-    "rejected-forbidden-payload": "Payload blocked",
-    "rejected-unknown-field": "Unknown blocked",
-    "rejected-invalid-shape": "Invalid blocked",
+    "metadata-only-accepted": "已接受",
+    "rejected-forbidden-payload": "载荷阻止",
+    "rejected-unknown-field": "未知字段阻止",
+    "rejected-invalid-shape": "无效结构阻止",
   };
 
   const className =
@@ -8673,9 +8632,9 @@ function PermissionCheckStatusPill({
   status: PermissionCheckEnvelopeStatus;
 }) {
   const labels: Record<PermissionCheckEnvelopeStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -8722,7 +8681,7 @@ function HighRiskActionRegistryRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {action.title}
+            {localizeSyncDecisionText(action.title)}
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
@@ -8743,8 +8702,8 @@ function HighRiskActionRegistryRow({
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         {action.can_execute_today
-          ? "Can execute today only after typed confirmation and visible local review."
-          : "Reserved or blocked until missing server, audit, rollback, or permission controls exist."}
+          ? "今天可以执行，但必须先输入确认短语并完成可见本地复核。"
+          : "在缺失的服务端、审计、回滚或权限控制补齐前保持预留或阻塞。"}
       </p>
     </article>
   );
@@ -8756,9 +8715,9 @@ function HighRiskCoveragePill({
   coverage: HighRiskActionCoverage;
 }) {
   const labels: Record<HighRiskActionCoverage, string> = {
-    "local-receipt-available": "Receipt",
-    planned: "Planned",
-    blocked: "Blocked",
+    "local-receipt-available": "收据",
+    planned: "计划中",
+    blocked: "阻塞",
   };
 
   const className =
@@ -8813,7 +8772,7 @@ function PayloadTableRow({
             {table.table_name}
           </div>
           <div className="mt-1 text-[11px] text-zinc-400">
-            {table.included_count} included / {table.pending_count} pending
+            {table.included_count} 已纳入 / {table.pending_count} 待处理
           </div>
         </div>
         <PayloadRiskPill risk={table.sensitivity} />
@@ -8945,9 +8904,9 @@ function ReplayGateRow({
 
 function ReplayStatusPill({ status }: { status: SyncReplayTestStatus }) {
   const labels: Record<SyncReplayTestStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -9254,7 +9213,7 @@ function MigrationTableRow({
             </span>
           </div>
           <div className="mt-1 text-[11px] text-zinc-400">
-            Source: {table.local_source}
+            来源：{table.local_source}
           </div>
         </div>
         <MigrationSensitivityPill sensitivity={table.sensitivity} />
@@ -9275,9 +9234,9 @@ function MigrationStatusPill({
   status: CloudMigrationStepStatus;
 }) {
   const labels: Record<CloudMigrationStepStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -9397,9 +9356,9 @@ function MigrationSqlStatusPill({
   status: CloudMigrationSqlStatus;
 }) {
   const labels: Record<CloudMigrationSqlStatus, string> = {
-    drafted: "Drafted",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    drafted: "已起草",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -9456,7 +9415,7 @@ function PreflightGroupRow({
             {group.group}
           </div>
           <div className="mt-1 text-[11px] text-zinc-400">
-            {group.present}/{group.required} required present
+            {group.present}/{group.required} 个必需项已存在
           </div>
         </div>
         <PreflightStatusPill status={complete ? "present" : "missing"} />
@@ -9499,9 +9458,9 @@ function PreflightStatusPill({
   status: WebBetaEnvironmentCheckStatus;
 }) {
   const labels: Record<WebBetaEnvironmentCheckStatus, string> = {
-    present: "Present",
-    missing: "Missing",
-    "optional-missing": "Optional",
+    present: "已存在",
+    missing: "缺失",
+    "optional-missing": "可选",
   };
 
   const className =
@@ -9584,7 +9543,7 @@ function PrivateFileStorageBucketRow({
             {bucket.id}
           </div>
           <div className="mt-1 text-[10px] text-zinc-400">
-            {bucket.bucket_name_env} · public {bucket.public_access}
+            {bucket.bucket_name_env} · 公开访问 {bucket.public_access}
           </div>
         </div>
         <PrivateFileStorageStatusPill status={bucket.status} />
@@ -9633,7 +9592,7 @@ function PrivateFileStorageRouteRow({
         {route.purpose}
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        Forbidden: {route.forbidden_payload_fields.slice(0, 6).join(", ")}
+        禁止字段：{route.forbidden_payload_fields.slice(0, 6).join(", ")}
       </p>
     </article>
   );
@@ -9685,9 +9644,9 @@ function PrivateFileStorageStatusPill({
   status: PrivateFileStoragePolicyStatus;
 }) {
   const labels: Record<PrivateFileStoragePolicyStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
   const className =
     status === "blocked"
@@ -9761,7 +9720,7 @@ function FilePresignFixtureRow({
             {fixture.id}
           </div>
           <div className="mt-1 text-[10px] text-zinc-400">
-            expected {fixture.expected_status}
+            预期 {fixture.expected_status}
           </div>
         </div>
         <FilePresignValidationPill status={fixture.actual_status} />
@@ -9805,7 +9764,7 @@ function FilePresignFieldStatusPill({
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
-      {status}
+      {status === "allowed" ? "允许" : "禁止"}
     </span>
   );
 }
@@ -9822,7 +9781,7 @@ function FilePresignValidationPill({
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
-      {status}
+      {status === "accepted" ? "已接受" : "已拒绝"}
     </span>
   );
 }
@@ -9985,7 +9944,7 @@ function LaunchRouteRow({
                 : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
           }`}
         >
-          {routeCheck.status}
+          {formatRouteStatus(routeCheck.status)}
         </span>
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
@@ -10042,10 +10001,13 @@ function RoutePreflightRow({
               {check.surface}
             </span>
             <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-400 dark:bg-zinc-800">
-              expected: {check.expected_status}
+              预期：{formatRouteStatus(check.expected_status)}
             </span>
             <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-400 dark:bg-zinc-800">
-              actual: {check.actual_status ?? "missing"}
+              实际：
+              {check.actual_status
+                ? formatRouteStatus(check.actual_status)
+                : "缺失"}
             </span>
           </div>
         </div>
@@ -10067,9 +10029,9 @@ function RoutePreflightStatusPill({
   status: WebBetaRoutePreflightStatus;
 }) {
   const labels: Record<WebBetaRoutePreflightStatus, string> = {
-    covered: "Covered",
-    "status-mismatch": "Mismatch",
-    missing: "Missing",
+    covered: "已覆盖",
+    "status-mismatch": "状态不一致",
+    missing: "缺失",
   };
 
   const className =
@@ -10084,6 +10046,17 @@ function RoutePreflightStatusPill({
       {labels[status]}
     </span>
   );
+}
+
+function formatRouteStatus(status: string) {
+  const labels: Record<string, string> = {
+    "local-route": "本地路由",
+    "disabled-stub": "已禁用桩接口",
+    "cloud-alpha-gated": "云 Alpha 门禁",
+    missing: "缺失",
+  };
+
+  return labels[status] ?? status;
 }
 
 function SmokeTestSummaryCard({
@@ -10121,7 +10094,7 @@ function SmokeTestCaseRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {testCase.title}
+            {localizeSyncDecisionText(testCase.title)}
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
@@ -10135,13 +10108,13 @@ function SmokeTestCaseRow({
         <SmokeTestStatusPill status={testCase.status} />
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        {testCase.evidence}
+        {localizeSyncDecisionText(testCase.evidence)}
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-        {testCase.pass_condition}
+        {localizeSyncDecisionText(testCase.pass_condition)}
       </p>
       <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
-        {testCase.failure_response}
+        {localizeSyncDecisionText(testCase.failure_response)}
       </p>
     </article>
   );
@@ -10153,9 +10126,9 @@ function SmokeTestStatusPill({
   status: WebBetaSmokeTestStatus;
 }) {
   const labels: Record<WebBetaSmokeTestStatus, string> = {
-    "ready-to-run": "Ready",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    "ready-to-run": "就绪",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -10207,20 +10180,20 @@ function HandoffItemRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {item.title}
+            {localizeSyncDecisionText(item.title)}
           </div>
           <div className="mt-1 text-[11px] text-zinc-400">{item.source}</div>
         </div>
         <HandoffStatusPill status={item.status} />
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        {item.evidence}
+        {localizeSyncDecisionText(item.evidence)}
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-        {item.required_before_preview}
+        {localizeSyncDecisionText(item.required_before_preview)}
       </p>
       <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
-        {item.owner_review}
+        {localizeSyncDecisionText(item.owner_review)}
       </p>
     </article>
   );
@@ -10243,7 +10216,7 @@ function HandoffCommandRow({
           </p>
         </div>
         <span className="shrink-0 rounded-md bg-green-50 px-2 py-1 text-[10px] text-green-700 dark:bg-green-950 dark:text-green-300">
-          Required
+          必需
         </span>
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
@@ -10271,14 +10244,14 @@ function HandoffDecisionRow({
               : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
           }`}
         >
-          Default {decision.default_answer}
+          默认 {decision.default_answer === "yes" ? "是" : "否"}
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
         {decision.rationale}
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        Required before: {decision.required_before}
+        必需前置条件：{decision.required_before}
       </p>
     </article>
   );
@@ -10290,10 +10263,10 @@ function HandoffStatusPill({
   status: WebAlphaHandoffStatus;
 }) {
   const labels: Record<WebAlphaHandoffStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    partial: "部分",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -10351,7 +10324,7 @@ function LaunchDecisionQuestionRow({
         <LaunchDecisionStatusPill status={question.status} />
       </div>
       <div className="mt-2 text-[11px] uppercase tracking-wide text-zinc-400">
-        Answer: {question.answer}
+        答案：{question.answer}
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
         {question.evidence}
@@ -10373,7 +10346,7 @@ function LaunchDecisionBlockerRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {blocker.title}
+            {localizeSyncDecisionText(blocker.title)}
           </div>
           <div className="mt-1 text-[11px] text-zinc-400">
             {blocker.source}
@@ -10384,10 +10357,10 @@ function LaunchDecisionBlockerRow({
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        {blocker.evidence}
+        {localizeSyncDecisionText(blocker.evidence)}
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        {blocker.required_action}
+        {localizeSyncDecisionText(blocker.required_action)}
       </p>
     </article>
   );
@@ -10399,9 +10372,9 @@ function LaunchDecisionStatusPill({
   status: WebAlphaLaunchDecisionStatus;
 }) {
   const labels: Record<WebAlphaLaunchDecisionStatus, string> = {
-    "go-local-only": "Local only",
-    "no-go-preview": "No preview",
-    "no-go-cloud": "No cloud",
+    "go-local-only": "仅本地",
+    "no-go-preview": "无预览",
+    "no-go-cloud": "不上云",
   };
 
   const className =
@@ -10457,7 +10430,7 @@ function OwnerReviewQuestionRow({
         <OwnerReviewStatusPill status={question.status} />
       </div>
       <div className="mt-2 text-[11px] uppercase tracking-wide text-zinc-400">
-        Answer: {question.answer}
+        答案：{question.answer}
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
         {question.evidence}
@@ -10523,7 +10496,7 @@ function OwnerReviewLocalWorkRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {item.title}
+            {localizeSyncDecisionText(item.title)}
           </div>
           <div className="mt-1 text-[11px] text-green-700 dark:text-green-300">
             {item.phase}
@@ -10532,7 +10505,9 @@ function OwnerReviewLocalWorkRow({
         <NextActionPriorityPill priority={item.priority} />
       </div>
       <p className="mt-2 leading-5 text-green-700 dark:text-green-300">
-        {item.completion_evidence[0] ?? "Local completion evidence required."}
+        {localizeSyncDecisionText(
+          item.completion_evidence[0] ?? "需要本地完成证据。"
+        )}
       </p>
     </article>
   );
@@ -10544,9 +10519,9 @@ function OwnerReviewStatusPill({
   status: WebBetaOwnerReviewStatus;
 }) {
   const labels: Record<WebBetaOwnerReviewStatus, string> = {
-    "local-only": "Local only",
-    blocked: "Blocked",
-    "owner-review": "Owner",
+    "local-only": "仅本地",
+    blocked: "阻塞",
+    "owner-review": "用户",
   };
 
   const className =
@@ -10626,17 +10601,17 @@ function NextActionRow({
         <NextActionStatusPill status={action.status} />
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        {action.evidence}
+        {localizeSyncDecisionText(action.evidence)}
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-        {action.required_action}
+        {localizeSyncDecisionText(action.required_action)}
       </p>
       <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
-        Unlocks: {action.unlocks}
+        解锁：{localizeSyncDecisionText(action.unlocks)}
       </p>
       <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
         <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-300">
-          Verification
+          验证
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
           {action.verification_commands.map((command) => (
@@ -10652,21 +10627,21 @@ function NextActionRow({
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         <div>
           <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-300">
-            Completion evidence
+            完成证据
           </div>
           <ul className="mt-1 list-disc space-y-1 pl-4 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
             {action.completion_evidence.slice(0, 3).map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item}>{localizeSyncDecisionText(item)}</li>
             ))}
           </ul>
         </div>
         <div>
           <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-300">
-            Forbidden before confirmation
+            确认前禁止
           </div>
           <ul className="mt-1 list-disc space-y-1 pl-4 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
             {action.forbidden_until_confirmed.slice(0, 3).map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item}>{localizeSyncDecisionText(item)}</li>
             ))}
           </ul>
         </div>
@@ -10696,9 +10671,9 @@ function NextActionPriorityPill({
 
 function NextActionOwnerPill({ owner }: { owner: WebBetaNextActionOwner }) {
   const labels: Record<WebBetaNextActionOwner, string> = {
-    owner: "Owner",
-    developer: "Dev",
-    "cloud-admin": "Cloud",
+    owner: "用户",
+    developer: "开发",
+    "cloud-admin": "云端",
   };
   const className =
     owner === "owner"
@@ -10720,9 +10695,9 @@ function NextActionExecutionPathPill({
   path: WebBetaNextActionExecutionPath;
 }) {
   const labels: Record<WebBetaNextActionExecutionPath, string> = {
-    "local-first": "Local first",
-    "cloud-required": "Cloud req",
-    "owner-decision": "Decision",
+    "local-first": "本地优先",
+    "cloud-required": "需要云端",
+    "owner-decision": "待决策",
   };
   const className =
     path === "local-first"
@@ -10744,11 +10719,11 @@ function NextActionCloudDependencyPill({
   dependency: WebBetaNextActionCloudDependency;
 }) {
   const labels: Record<WebBetaNextActionCloudDependency, string> = {
-    none: "cloud: none",
-    "auth-provider": "cloud: auth",
-    supabase: "cloud: supabase",
-    "private-storage": "cloud: storage",
-    "deployment-env": "cloud: env",
+    none: "云：无",
+    "auth-provider": "云：认证",
+    supabase: "云：Supabase",
+    "private-storage": "云：存储",
+    "deployment-env": "云：环境",
   };
   const className =
     dependency === "none"
@@ -10768,9 +10743,9 @@ function NextActionStatusPill({
   status: WebBetaNextActionStatus;
 }) {
   const labels: Record<WebBetaNextActionStatus, string> = {
-    "ready-to-build": "Ready",
-    "needs-owner-decision": "Decision",
-    "blocked-by-missing-cloud": "Blocked",
+    "ready-to-build": "就绪",
+    "needs-owner-decision": "待决策",
+    "blocked-by-missing-cloud": "阻塞",
   };
 
   const className =
@@ -10789,10 +10764,10 @@ function NextActionStatusPill({
 
 function LaunchStatusPill({ status }: { status: WebBetaLaunchStatus }) {
   const labels: Record<WebBetaLaunchStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    partial: "部分",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -10854,7 +10829,7 @@ function ConflictSurfaceRow({
           </div>
         </div>
         <div className="shrink-0 text-right text-[11px] text-zinc-400">
-          {surface.active_local_tables.length} active tables
+          {surface.active_local_tables.length} 个活跃表
         </div>
       </div>
       {surface.active_local_tables.length > 0 && (
@@ -10888,9 +10863,9 @@ function ConflictStatusPill({
   status: SyncConflictReviewStatus;
 }) {
   const labels: Record<SyncConflictReviewStatus, string> = {
-    "policy-ready": "Policy ready",
-    "needs-remote-baseline": "Needs baseline",
-    "manual-only": "Manual only",
+    "policy-ready": "政策就绪",
+    "needs-remote-baseline": "需要基线",
+    "manual-only": "仅人工",
   };
 
   const className =
@@ -10912,6 +10887,12 @@ function ConflictSeverityPill({
 }: {
   severity: SyncConflictSeverity;
 }) {
+  const labels: Record<SyncConflictSeverity, string> = {
+    high: "高",
+    medium: "中",
+    low: "低",
+  };
+
   const className =
     severity === "high"
       ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
@@ -10921,7 +10902,7 @@ function ConflictSeverityPill({
 
   return (
     <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
-      {severity}
+      {labels[severity]}
     </span>
   );
 }
@@ -10973,7 +10954,7 @@ function ResolutionSurfacePlanRow({
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        Default: {surface.default_action}
+        默认动作：{surface.default_action}
       </p>
       <div className="mt-2 flex flex-wrap gap-1">
         {surface.allowed_actions.map((action) => (
@@ -11005,19 +10986,19 @@ function ResolutionGateRow({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {gate.title}
+            {localizeSyncDecisionText(gate.title)}
           </div>
           <div className="mt-1 font-mono text-[10px] text-zinc-400">
             {gate.id}
           </div>
           <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
-            {gate.evidence}
+            {localizeSyncDecisionText(gate.evidence)}
           </p>
         </div>
         <ResolutionStatusPill status={gate.status} />
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        {gate.required_action}
+        {localizeSyncDecisionText(gate.required_action)}
       </p>
     </article>
   );
@@ -11055,7 +11036,7 @@ function ResolutionOptionRow({
         {option.required_evidence}
       </p>
       <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
-        {option.risk_note} Write status: {option.write_status}.
+        {option.risk_note} 写入状态：{option.write_status}。
       </p>
     </article>
   );
@@ -11079,7 +11060,7 @@ function ResolutionReviewSurfaceRow({
           </div>
         </div>
         <span className="w-fit rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
-          Apply disabled
+          应用已禁用
         </span>
       </div>
       <div className="mt-3 grid gap-2 lg:grid-cols-3">
@@ -11164,7 +11145,7 @@ function RemoteBaselineSurfaceRow({
       </p>
       <div className="mt-2">
         <div className="text-[10px] font-semibold text-zinc-400">
-          Allowed remote metadata
+          允许的远端元数据
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
           {request.required_remote_metadata.map((field) => (
@@ -11179,7 +11160,7 @@ function RemoteBaselineSurfaceRow({
       </div>
       <div className="mt-2">
         <div className="text-[10px] font-semibold text-zinc-400">
-          Forbidden payload
+          禁止载荷
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
           {request.forbidden_remote_payload.map((field) => (
@@ -11209,19 +11190,19 @@ function RemoteBaselineGateRow({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {gate.title}
+            {localizeSyncDecisionText(gate.title)}
           </div>
           <div className="mt-1 font-mono text-[10px] text-zinc-400">
             {gate.id}
           </div>
           <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
-            {gate.evidence}
+            {localizeSyncDecisionText(gate.evidence)}
           </p>
         </div>
         <RemoteBaselineStatusPill status={gate.status} />
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        {gate.required_action}
+        {localizeSyncDecisionText(gate.required_action)}
       </p>
     </article>
   );
@@ -11236,6 +11217,7 @@ function RemoteBaselineFieldRow({
     field.status === "allowed"
       ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+  const label = field.status === "allowed" ? "允许" : "禁止";
 
   return (
     <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
@@ -11244,7 +11226,7 @@ function RemoteBaselineFieldRow({
           {field.field}
         </div>
         <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
-          {field.status}
+          {label}
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
@@ -11267,7 +11249,7 @@ function RemoteBaselineStageStoreCard({
             {store.table_name}
           </div>
           <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
-            Retention: {store.retention}
+            保留策略：{store.retention}
           </p>
         </div>
         <RemoteBaselineStageStatusPill status={store.status} />
@@ -11275,7 +11257,7 @@ function RemoteBaselineStageStoreCard({
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         <div>
           <div className="text-[10px] font-semibold text-zinc-400">
-            Allowed columns
+            允许字段
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             {store.allowed_columns.map((field) => (
@@ -11290,7 +11272,7 @@ function RemoteBaselineStageStoreCard({
         </div>
         <div>
           <div className="text-[10px] font-semibold text-zinc-400">
-            Forbidden columns
+            禁止字段
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             {store.forbidden_columns.map((field) => (
@@ -11306,7 +11288,7 @@ function RemoteBaselineStageStoreCard({
       </div>
       <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
         <div className="text-[10px] font-semibold text-zinc-400">
-          Required indexes
+          必需索引
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
           {store.required_indexes.map((field) => (
@@ -11338,7 +11320,7 @@ function RemoteBaselineStageSurfaceRow({
           <div className="mt-1 flex flex-wrap gap-1">
             <RemoteBaselineStageStatusPill status={surface.status} />
             <span className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
-              {surface.target_review_lane} lane
+              {surface.target_review_lane} 复核列
             </span>
           </div>
         </div>
@@ -11347,13 +11329,13 @@ function RemoteBaselineStageSurfaceRow({
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        Target review surface: {surface.target_review_surface}. Source:
+        目标复核面：{surface.target_review_surface}。来源：
         {` ${surface.source_contract}`}.
       </p>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         <div>
           <div className="text-[10px] font-semibold text-zinc-400">
-            Metadata fields
+            元数据字段
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             {surface.allowed_metadata_fields.map((field) => (
@@ -11368,7 +11350,7 @@ function RemoteBaselineStageSurfaceRow({
         </div>
         <div>
           <div className="text-[10px] font-semibold text-zinc-400">
-            Rejected payload
+            拒绝载荷
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             {surface.forbidden_payload_fields.map((field) => (
@@ -11384,7 +11366,7 @@ function RemoteBaselineStageSurfaceRow({
       </div>
       <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
         <div className="text-[10px] font-semibold text-zinc-400">
-          Validation
+          验证步骤
         </div>
         <ul className="mt-1 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
           {surface.validation_steps.map((step) => (
@@ -11409,19 +11391,19 @@ function RemoteBaselineStageGateRow({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {gate.title}
+            {localizeSyncDecisionText(gate.title)}
           </div>
           <div className="mt-1 font-mono text-[10px] text-zinc-400">
             {gate.id}
           </div>
           <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
-            {gate.evidence}
+            {localizeSyncDecisionText(gate.evidence)}
           </p>
         </div>
         <RemoteBaselineStageStatusPill status={gate.status} />
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        {gate.required_action}
+        {localizeSyncDecisionText(gate.required_action)}
       </p>
     </article>
   );
@@ -11436,6 +11418,7 @@ function RemoteBaselineStageFieldRow({
     field.status === "allowed"
       ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+  const label = field.status === "allowed" ? "允许" : "禁止";
 
   return (
     <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
@@ -11449,7 +11432,7 @@ function RemoteBaselineStageFieldRow({
           </div>
         </div>
         <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
-          {field.status}
+          {label}
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
@@ -11472,18 +11455,18 @@ function RemoteBaselineStageSchemaTableCard({
             {table.table_name}
           </div>
           <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
-            Retention: {table.retention}. Create status: {table.create_status}.
+            保留策略：{table.retention}。创建状态：{table.create_status}。
           </p>
         </div>
         <RemoteBaselineStageSchemaStatusPill status={table.status} />
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-2">
         <RemoteBaselineSchemaColumnGroup
-          title="Allowed columns"
+          title="允许字段"
           columns={table.allowed_columns}
         />
         <RemoteBaselineSchemaColumnGroup
-          title="Forbidden columns"
+          title="禁止字段"
           columns={table.forbidden_columns}
         />
       </div>
@@ -11576,19 +11559,19 @@ function RemoteBaselineCursorProofCard({
             {proof.table_name}
           </div>
           <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
-            Persist status: {proof.persist_status}
+            持久化状态：{proof.persist_status}
           </p>
         </div>
         <RemoteBaselineStageSchemaStatusPill status={proof.status} />
       </div>
       <RemoteBaselineSchemaColumnGroup
-        title="Required cursor columns"
+        title="必需游标字段"
         columns={proof.required_columns}
       />
       <div className="mt-3 grid gap-2 md:grid-cols-2">
         <div>
           <div className="text-[10px] font-semibold text-zinc-400">
-            Monotonic rules
+            单调递增规则
           </div>
           <ul className="mt-1 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
             {proof.monotonic_rules.map((rule) => (
@@ -11598,7 +11581,7 @@ function RemoteBaselineCursorProofCard({
         </div>
         <div>
           <div className="text-[10px] font-semibold text-zinc-400">
-            Idempotency rules
+            幂等规则
           </div>
           <ul className="mt-1 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
             {proof.idempotency_rules.map((rule) => (
@@ -11621,19 +11604,19 @@ function RemoteBaselineStageSchemaGateRow({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {gate.title}
+            {localizeSyncDecisionText(gate.title)}
           </div>
           <div className="mt-1 font-mono text-[10px] text-zinc-400">
             {gate.id}
           </div>
           <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
-            {gate.evidence}
+            {localizeSyncDecisionText(gate.evidence)}
           </p>
         </div>
         <RemoteBaselineStageSchemaStatusPill status={gate.status} />
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        {gate.required_action}
+        {localizeSyncDecisionText(gate.required_action)}
       </p>
     </article>
   );
@@ -11661,7 +11644,7 @@ function RemoteBaselineStageSchemaSqlRow({
         {statement.sql}
       </pre>
       <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
-        Apply status: {statement.apply_status}. {statement.privacy_boundary}
+        应用状态：{statement.apply_status}。{statement.privacy_boundary}
       </p>
     </article>
   );
@@ -11673,9 +11656,9 @@ function RemoteBaselineStageSchemaStatusPill({
   status: RemoteBaselineStageSchemaStatus;
 }) {
   const labels: Record<RemoteBaselineStageSchemaStatus, string> = {
-    drafted: "Drafted",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    drafted: "已起草",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -11711,13 +11694,13 @@ function RemoteBaselineStageReplayScenarioRow({
         <RemoteBaselineStageReplayStatusPill status={scenario.status} />
       </div>
       <div className="mt-2 rounded-md bg-white px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-300">
-        Fixture: {scenario.fixture_scope}
+        测试夹具：{scenario.fixture_scope}
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        Expected: {scenario.expected_result}
+        预期结果：{scenario.expected_result}
       </p>
       <p className="mt-2 leading-5 text-red-700 dark:text-red-300">
-        Forbidden: {scenario.forbidden_result}
+        禁止结果：{scenario.forbidden_result}
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         {scenario.evidence}
@@ -11736,7 +11719,7 @@ function RemoteBaselineStageReplayGateRow({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {gate.title}
+            {localizeSyncDecisionText(gate.title)}
           </div>
           <div className="mt-1 font-mono text-[10px] text-zinc-400">
             {gate.id}
@@ -11804,7 +11787,7 @@ function RemoteBaselineReplayHarnessStepRow({
         <RemoteBaselineReplayHarnessStatusPill status={step.status} />
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        Input: {step.input_source}. Blocked until: {step.blocked_until}
+        输入：{step.input_source}。解除阻塞条件：{step.blocked_until}
       </p>
     </article>
   );
@@ -11888,8 +11871,8 @@ function RemoteBaselineReplayRunnerEntryPointRow({
         <RemoteBaselineReplayRunnerStatusPill status={entrypoint.status} />
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        Target: {entrypoint.target}. Allowed now:{" "}
-        {entrypoint.allowed_now ? "yes" : "no"}.
+        目标：{entrypoint.target}。当前允许：
+        {entrypoint.allowed_now ? "是" : "否"}。
       </p>
     </article>
   );
@@ -11917,7 +11900,7 @@ function RemoteBaselineReplayRunnerPhaseRow({
         <RemoteBaselineReplayRunnerStatusPill status={phase.status} />
       </div>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        Input: {phase.input_source}. Blocked until: {phase.blocked_until}
+        输入：{phase.input_source}。解除阻塞条件：{phase.blocked_until}
       </p>
     </article>
   );
@@ -11936,7 +11919,7 @@ function RemoteBaselineReplayRunnerRefusalRow({
             {reason.title}
           </div>
           <div className="mt-1 font-mono text-[10px] text-zinc-400">
-            {reason.id} · refuses {reason.refused_action}
+            {reason.id} · 拒绝 {reason.refused_action}
           </div>
           <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
             {reason.evidence}
@@ -11970,10 +11953,10 @@ function RemoteBaselineRlsProofRow({
         <RemoteBaselineStageReplayStatusPill status={proof.status} />
       </div>
       <p className="mt-2 leading-5 text-green-700 dark:text-green-300">
-        Allow: {proof.allow_rule}
+        允许：{proof.allow_rule}
       </p>
       <p className="mt-2 leading-5 text-red-700 dark:text-red-300">
-        Deny: {proof.deny_rule}
+        拒绝：{proof.deny_rule}
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
         {proof.proof_method}
@@ -12001,13 +11984,13 @@ function RemoteBaselineRollbackProofRow({
         <RemoteBaselineStageReplayStatusPill status={proof.status} />
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        Scope: {proof.rollback_scope}
+        范围：{proof.rollback_scope}
       </p>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        Recovery: {proof.expected_recovery}
+        恢复预期：{proof.expected_recovery}
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        Blocked until: {proof.blocked_until}
+        解除阻塞条件：{proof.blocked_until}
       </p>
     </article>
   );
@@ -12019,9 +12002,9 @@ function RemoteBaselineStageReplayStatusPill({
   status: RemoteBaselineStageReplayStatus;
 }) {
   const labels: Record<RemoteBaselineStageReplayStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -12044,9 +12027,9 @@ function RemoteBaselineReplayFixtureStatusPill({
   status: RemoteBaselineReplayFixtureStatus;
 }) {
   const labels: Record<RemoteBaselineReplayFixtureStatus, string> = {
-    ready: "Ready",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -12069,9 +12052,9 @@ function RemoteBaselineReplayHarnessStatusPill({
   status: RemoteBaselineReplayHarnessStatus;
 }) {
   const labels: Record<RemoteBaselineReplayHarnessStatus, string> = {
-    ready: "Ready",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -12094,9 +12077,9 @@ function RemoteBaselineReplayRunnerStatusPill({
   status: RemoteBaselineReplayRunnerStatus;
 }) {
   const labels: Record<RemoteBaselineReplayRunnerStatus, string> = {
-    ready: "Ready",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -12119,9 +12102,9 @@ function RemoteBaselineStageStatusPill({
   status: RemoteBaselineStagingStatus;
 }) {
   const labels: Record<RemoteBaselineStagingStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -12144,9 +12127,9 @@ function RemoteBaselineStatusPill({
   status: RemoteBaselineRequestStatus;
 }) {
   const labels: Record<RemoteBaselineRequestStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -12178,13 +12161,13 @@ function StageGateRow({ gate }: { gate: WebBetaStageGate }) {
         <BetaStatusPill status={gate.status} />
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        {gate.current_state}
+        {localizeSyncDecisionText(gate.current_state)}
       </p>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        Missing: {gate.missing_before_web_beta}
+        Web Beta 前缺口：{localizeSyncDecisionText(gate.missing_before_web_beta)}
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        {gate.next_action}
+        {localizeSyncDecisionText(gate.next_action)}
       </p>
     </article>
   );
@@ -12196,9 +12179,9 @@ function ResolutionStatusPill({
   status: SyncConflictResolutionStatus;
 }) {
   const labels: Record<SyncConflictResolutionStatus, string> = {
-    planned: "Planned",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    planned: "计划中",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -12221,7 +12204,7 @@ function BetaGateRow({ gate }: { gate: WebBetaReadinessGate }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {gate.title}
+            {localizeSyncDecisionText(gate.title)}
           </div>
           <div className="mt-1 text-[11px] uppercase tracking-wide text-zinc-400">
             {gate.category}
@@ -12230,10 +12213,10 @@ function BetaGateRow({ gate }: { gate: WebBetaReadinessGate }) {
         <BetaStatusPill status={gate.status} />
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        {gate.evidence}
+        {localizeSyncDecisionText(gate.evidence)}
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-        {gate.nextAction}
+        {localizeSyncDecisionText(gate.nextAction)}
       </p>
     </article>
   );
@@ -12361,7 +12344,7 @@ function ApiStubRow({ stub }: { stub: WebBetaApiStub }) {
           </div>
         </div>
         <span className="shrink-0 rounded-md bg-amber-50 px-2 py-1 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-          Disabled stub
+          已禁用桩接口
         </span>
       </div>
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
@@ -12380,11 +12363,11 @@ function ContractStatusPill({
   status: WebBetaContractStatus;
 }) {
   const labels: Record<WebBetaContractStatus, string> = {
-    "local-draft": "Local draft",
-    planned: "Planned",
-    required: "Required",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    "local-draft": "本地草案",
+    planned: "计划中",
+    required: "必需",
+    "manual-confirmation": "确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -12465,7 +12448,7 @@ function PermissionMatrix({ roleId }: { roleId: PermissionRoleId }) {
           <thead>
             <tr>
               <th className="border-b border-zinc-200 pb-2 pr-3 text-left font-semibold text-zinc-500 dark:border-zinc-800">
-                Resource
+                资源
               </th>
               {matrix[0]?.actions.map(({ action }) => (
                 <th
@@ -12500,7 +12483,7 @@ function PermissionMatrix({ roleId }: { roleId: PermissionRoleId }) {
                           : "bg-zinc-100 text-zinc-300 dark:bg-zinc-900 dark:text-zinc-700"
                       }`}
                     >
-                      {allowed ? "Y" : "-"}
+                      {allowed ? "是" : "-"}
                     </span>
                   </td>
                 ))}
@@ -12685,7 +12668,7 @@ function ExportButton({
       disabled={busy}
       className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
     >
-      {busy ? "Exporting..." : label}
+      {busy ? "导出中..." : label}
     </button>
   );
 }
@@ -12715,6 +12698,13 @@ function ReadinessCard({
 }
 
 function StatusPill({ status }: { status: ReadinessStatus }) {
+  const labels: Record<ReadinessStatus, string> = {
+    Ready: "就绪",
+    Partial: "部分",
+    Missing: "缺失",
+    "Needs confirmation": "需确认",
+  };
+
   const className =
     status === "Ready"
       ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
@@ -12726,7 +12716,7 @@ function StatusPill({ status }: { status: ReadinessStatus }) {
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
-      {status}
+      {labels[status]}
     </span>
   );
 }

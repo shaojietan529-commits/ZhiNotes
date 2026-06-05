@@ -210,13 +210,13 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
-    "Smoke test plan",
+    "冒烟测试计划",
     "Sync UI must render the smoke test plan panel."
   );
   assertIncludes(
     files.syncShell,
     syncShell,
-    "Export smoke test plan",
+    "导出冒烟测试计划",
     "Sync UI must expose smoke test plan export."
   );
   assertIncludes(

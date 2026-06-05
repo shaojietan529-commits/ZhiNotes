@@ -490,13 +490,13 @@ function run() {
     [
       files.syncShell,
       syncShell,
-      "Disposable replay harness preflight",
+      "一次性回放脚手架预检",
       "Sync UI must render harness preflight panel.",
     ],
     [
       files.syncShell,
       syncShell,
-      "Export harness preflight",
+      "导出脚手架预检",
       "Sync UI must expose harness export action.",
     ],
     [
@@ -520,13 +520,13 @@ function run() {
     [
       files.syncShell,
       syncShell,
-      "Disabled replay runner skeleton",
+      "已关闭的回放 runner 骨架",
       "Sync UI must render runner skeleton panel.",
     ],
     [
       files.syncShell,
       syncShell,
-      "Export runner skeleton",
+      "导出 runner 骨架",
       "Sync UI must expose runner skeleton export action.",
     ],
     [
