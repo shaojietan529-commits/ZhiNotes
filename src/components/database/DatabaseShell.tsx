@@ -118,6 +118,11 @@ interface DatabaseSortRule {
   key: string;
   direction: SortDirection;
 }
+interface DatabaseRowGroup {
+  id: string;
+  label: string;
+  rows: RowWithPage[];
+}
 interface DatabaseViewConfig {
   rowSearch: string;
   filterFieldId: string;
@@ -126,6 +131,7 @@ interface DatabaseViewConfig {
   sortKey: string;
   sortDirection: SortDirection;
   sortRules: DatabaseSortRule[];
+  groupFieldId: string;
   hiddenFieldIds: string[];
   chartGroupFieldId: string;
 }
@@ -149,6 +155,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [sortRules, setSortRules] = useState<DatabaseSortRule[]>([
     createDatabaseSortRule("position", "asc"),
   ]);
+  const [groupFieldId, setGroupFieldId] = useState("");
   const [hiddenFieldIds, setHiddenFieldIds] = useState<string[]>([]);
   const [chartGroupFieldId, setChartGroupFieldId] = useState("");
   const [relationCompletionBusyId, setRelationCompletionBusyId] =
@@ -172,6 +179,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     setRowSearch(initialRowSearch || config.rowSearch);
     setFilterRules(config.filterRules);
     setSortRules(config.sortRules);
+    setGroupFieldId(config.groupFieldId);
     setHiddenFieldIds(config.hiddenFieldIds);
     setChartGroupFieldId(config.chartGroupFieldId);
   }, [initialRowSearch]);
@@ -376,6 +384,10 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     () => getVisibleFields(fields, hiddenFieldIds),
     [fields, hiddenFieldIds]
   );
+  const groupField = useMemo(
+    () => fields.find((field) => field.id === groupFieldId) ?? null,
+    [fields, groupFieldId]
+  );
   const focusPage = useMemo(
     () =>
       focusPageId
@@ -405,6 +417,22 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       sortRules,
     ]
   );
+  const rowGroups = useMemo(
+    () =>
+      groupField
+        ? buildDatabaseRowGroups({
+            rows: visibleRows,
+            fields,
+            field: groupField,
+            relationPages: workspacePages,
+          })
+        : [],
+    [fields, groupField, visibleRows, workspacePages]
+  );
+  const usesGroupedRows =
+    Boolean(groupField) &&
+    Boolean(activeView) &&
+    isGroupedViewType(activeView?.view_type);
 
   const handleExportXlsx = useCallback(async () => {
     if (!database) return;
@@ -724,6 +752,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         onFilterRulesChange={setFilterRules}
         sortRules={sortRules}
         onSortRulesChange={setSortRules}
+        groupFieldId={groupFieldId}
+        onGroupFieldChange={setGroupFieldId}
         hiddenFieldIds={hiddenFieldIds}
         onHiddenFieldIdsChange={setHiddenFieldIds}
         chartGroupFieldId={chartGroupFieldId}
@@ -739,6 +769,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
               sortKey: sortRules[0]?.key ?? "position",
               sortDirection: sortRules[0]?.direction ?? "asc",
               sortRules,
+              groupFieldId,
               hiddenFieldIds,
               chartGroupFieldId,
             }),
@@ -807,30 +838,103 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       )}
 
       {/* Active view */}
-      {activeView?.view_type === "table" && <TableView {...visibleFieldViewProps} />}
-      {activeView?.view_type === "list" && <ListView {...visibleFieldViewProps} />}
-      {activeView?.view_type === "kanban" && <KanbanView {...allFieldViewProps} />}
-      {activeView?.view_type === "calendar" && <CalendarView {...allFieldViewProps} />}
-      {activeView?.view_type === "gallery" && <GalleryView {...visibleFieldViewProps} />}
-      {activeView?.view_type === "timeline" && <TimelineView {...allFieldViewProps} />}
-      {activeView?.view_type === "chart" && (
-        <ChartView
-          fields={fields}
-          rows={visibleRows}
-          chartGroupFieldId={chartGroupFieldId}
-          relationPages={workspacePages}
-          onOpenRow={handleOpenRow}
-        />
+      {usesGroupedRows ? (
+        <div className="space-y-4">
+          {rowGroups.length === 0 ? (
+            <p className="rounded-md border border-dashed border-zinc-200 px-3 py-6 text-center text-sm text-zinc-400 dark:border-zinc-700">
+              当前分组没有可显示的行。
+            </p>
+          ) : (
+            rowGroups.map((group) => (
+              <section
+                key={group.id}
+                className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900"
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h3 className="min-w-0 truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                    {group.label}
+                  </h3>
+                  <span className="shrink-0 rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                    {group.rows.length} 行
+                  </span>
+                </div>
+                {activeView?.view_type === "table" && (
+                  <TableView
+                    {...visibleFieldViewProps}
+                    rows={group.rows}
+                    showAddRow={false}
+                  />
+                )}
+                {activeView?.view_type === "list" && (
+                  <ListView
+                    {...visibleFieldViewProps}
+                    rows={group.rows}
+                    showAddRow={false}
+                  />
+                )}
+                {activeView?.view_type === "gallery" && (
+                  <GalleryView
+                    {...visibleFieldViewProps}
+                    rows={group.rows}
+                    showAddRow={false}
+                  />
+                )}
+                {activeView?.view_type === "feed" && (
+                  <FeedView
+                    {...allFieldViewProps}
+                    rows={group.rows}
+                    showAddRow={false}
+                  />
+                )}
+              </section>
+            ))
+          )}
+          <button
+            type="button"
+            onClick={handleAddRow}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            新建行
+          </button>
+        </div>
+      ) : (
+        <>
+          {activeView?.view_type === "table" && <TableView {...visibleFieldViewProps} />}
+          {activeView?.view_type === "list" && <ListView {...visibleFieldViewProps} />}
+          {activeView?.view_type === "kanban" && <KanbanView {...allFieldViewProps} />}
+          {activeView?.view_type === "calendar" && <CalendarView {...allFieldViewProps} />}
+          {activeView?.view_type === "gallery" && <GalleryView {...visibleFieldViewProps} />}
+          {activeView?.view_type === "timeline" && <TimelineView {...allFieldViewProps} />}
+          {activeView?.view_type === "chart" && (
+            <ChartView
+              fields={fields}
+              rows={visibleRows}
+              chartGroupFieldId={chartGroupFieldId}
+              relationPages={workspacePages}
+              onOpenRow={handleOpenRow}
+            />
+          )}
+          {activeView?.view_type === "form" && (
+            <FormView
+              fields={visibleFields}
+              relationPages={workspacePages}
+              onOpenPage={handleOpenPage}
+              onCreateRow={handleCreateRow}
+            />
+          )}
+          {activeView?.view_type === "feed" && <FeedView {...allFieldViewProps} />}
+        </>
       )}
-      {activeView?.view_type === "form" && (
-        <FormView
-          fields={visibleFields}
-          relationPages={workspacePages}
-          onOpenPage={handleOpenPage}
-          onCreateRow={handleCreateRow}
-        />
-      )}
-      {activeView?.view_type === "feed" && <FeedView {...allFieldViewProps} />}
     </div>
   );
 }
@@ -936,6 +1040,8 @@ function DatabaseViewControls({
   onFilterRulesChange,
   sortRules,
   onSortRulesChange,
+  groupFieldId,
+  onGroupFieldChange,
   hiddenFieldIds,
   onHiddenFieldIdsChange,
   chartGroupFieldId,
@@ -953,6 +1059,8 @@ function DatabaseViewControls({
   onFilterRulesChange: (value: DatabaseFilterRule[]) => void;
   sortRules: DatabaseSortRule[];
   onSortRulesChange: (value: DatabaseSortRule[]) => void;
+  groupFieldId: string;
+  onGroupFieldChange: (value: string) => void;
   hiddenFieldIds: string[];
   onHiddenFieldIdsChange: (value: string[]) => void;
   chartGroupFieldId: string;
@@ -967,9 +1075,11 @@ function DatabaseViewControls({
     rowSearch ||
     activeFilterCount > 0 ||
     hasSortControls ||
+    groupFieldId ||
     hiddenFieldIds.length > 0 ||
     chartGroupFieldId;
   const chartableFields = fields.filter(isChartableField);
+  const groupableFields = fields.filter(isGroupableField);
   const displaySortRules = sortRules.length
     ? sortRules
     : [createDatabaseSortRule("position", "asc")];
@@ -1048,6 +1158,7 @@ function DatabaseViewControls({
               onRowSearchChange("");
               onFilterRulesChange([]);
               onSortRulesChange([createDatabaseSortRule("position", "asc")]);
+              onGroupFieldChange("");
               onHiddenFieldIdsChange([]);
               onChartGroupFieldChange("");
             }}
@@ -1178,6 +1289,26 @@ function DatabaseViewControls({
         </button>
         <span className="text-[11px] text-zinc-400">
           多个筛选按全部匹配处理，多个排序按从左到右处理。
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-zinc-400">分组</span>
+        <select
+          value={groupFieldId}
+          onChange={(event) => onGroupFieldChange(event.target.value)}
+          aria-label="分组字段"
+          className="h-8 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+        >
+          <option value="">不分组</option>
+          {groupableFields.map((field) => (
+            <option key={field.id} value={field.id}>
+              {getDatabaseFieldDisplayName(field)}
+            </option>
+          ))}
+        </select>
+        <span className="text-[11px] text-zinc-400">
+          分组只影响当前视图展示，可保存到 view config。
         </span>
       </div>
     </div>
@@ -2532,6 +2663,7 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
     sortKey: "position",
     sortDirection: "asc",
     sortRules: [createDatabaseSortRule("position", "asc")],
+    groupFieldId: "",
     hiddenFieldIds: [],
     chartGroupFieldId: "",
   };
@@ -2563,6 +2695,8 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
       sortKey,
       sortDirection,
       sortRules,
+      groupFieldId:
+        typeof parsed.groupFieldId === "string" ? parsed.groupFieldId : "",
       hiddenFieldIds: parseStringArray(parsed.hiddenFieldIds),
       chartGroupFieldId:
         typeof parsed.chartGroupFieldId === "string" ? parsed.chartGroupFieldId : "",
@@ -2593,6 +2727,71 @@ function isChartableField(field: DatabaseField) {
     "formula",
     "rollup",
   ].includes(field.field_type);
+}
+
+function isGroupableField(field: DatabaseField) {
+  return !["url", "email", "phone"].includes(field.field_type);
+}
+
+function isGroupedViewType(viewType: DatabaseView["view_type"] | undefined) {
+  return ["table", "list", "gallery", "feed"].includes(viewType ?? "");
+}
+
+function buildDatabaseRowGroups({
+  rows,
+  fields,
+  field,
+  relationPages,
+}: {
+  rows: RowWithPage[];
+  fields: DatabaseField[];
+  field: DatabaseField;
+  relationPages: Page[];
+}): DatabaseRowGroup[] {
+  const groups = new Map<string, DatabaseRowGroup>();
+
+  for (const row of rows) {
+    const labels = getDatabaseRowGroupLabels(row, field, fields, relationPages);
+    for (const label of labels) {
+      const groupId = `${field.id}:${label}`;
+      const group = groups.get(groupId) ?? { id: groupId, label, rows: [] };
+      group.rows.push(row);
+      groups.set(groupId, group);
+    }
+  }
+
+  return Array.from(groups.values());
+}
+
+function getDatabaseRowGroupLabels(
+  row: RowWithPage,
+  field: DatabaseField,
+  fields: DatabaseField[],
+  relationPages: Page[]
+) {
+  if (field.position === 0 || field.name === "Name") {
+    return [row.page?.title || "无值"];
+  }
+
+  if (field.field_type === "checkbox") {
+    return [getRowFieldValue(row, field, fields, relationPages) ? "是" : "否"];
+  }
+
+  if (
+    field.field_type === "date" ||
+    field.field_type === "created_time" ||
+    field.field_type === "last_edited_time"
+  ) {
+    const value = String(getRowFieldValue(row, field, fields, relationPages) ?? "");
+    return [value ? value.slice(0, 7) : "无日期"];
+  }
+
+  const text = getRowFieldText(row, field, fields, relationPages).trim();
+  const labels = text
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return labels.length > 0 ? labels : ["无值"];
 }
 
 function createDatabaseFilterRule(

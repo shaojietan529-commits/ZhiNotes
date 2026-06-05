@@ -31,6 +31,7 @@ interface TableViewProps {
   relationPages: Page[];
   focusPageId?: string;
   focusPage?: Page | null;
+  showAddRow?: boolean;
 }
 
 export default function TableView({
@@ -44,6 +45,7 @@ export default function TableView({
   relationPages,
   focusPageId,
   focusPage,
+  showAddRow = true,
 }: TableViewProps) {
   return (
     <div className="overflow-x-auto">
@@ -86,16 +88,17 @@ export default function TableView({
         </tbody>
       </table>
 
-      {/* Add row button */}
-      <button
-        onClick={onAddRow}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-700 transition-colors"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        新建行
-      </button>
+      {showAddRow && (
+        <button
+          onClick={onAddRow}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-700 transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          新建行
+        </button>
+      )}
     </div>
   );
 }

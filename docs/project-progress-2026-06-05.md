@@ -46,6 +46,8 @@ schema migration 的能力默认保持关闭。
 - 旧的单一筛选/排序 view config 保持兼容：打开时会自动转成一条筛选规则或一条排序规则。
 - 保存视图会同时记录 row search、filter rules、sort rules、隐藏字段和 chart 分组；这些都只写入
   view config，不会改动数据库行值、页面正文、文件 bytes、云端数据或 AI 内容。
+- 新增本地 view 分组：Table、List、Gallery、Feed 视图可以按字段分组展示；分组字段同样保存到
+  view config，只影响展示，不改 row values。
 - 数据库 view tab 现在有本地管理菜单：重命名、复制视图配置、删除非最后一个视图；删除是
   soft delete，只影响 view config，不删除行、页面、字段或文件。
 
@@ -98,8 +100,8 @@ npm run lint
 npm run build
 ```
 
-Formula 字段、数据库视图规则和 Rollup 阶段还做过 `/modules/databases` 浏览器只读检查，
-数据库模块可以正常渲染。
+Formula 字段、数据库视图规则、view 分组和 Rollup 阶段还做过 `/modules/databases`
+浏览器只读检查，数据库模块可以正常渲染。
 
 文件与 Markdown 原生展示阶段已通过：
 

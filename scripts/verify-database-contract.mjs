@@ -408,6 +408,7 @@ function run() {
     "interface DatabaseSortRule",
     "filterRules",
     "sortRules",
+    "groupFieldId",
     "parseDatabaseFilterRules",
     "parseDatabaseSortRules",
     "多个筛选按全部匹配处理",
@@ -420,6 +421,23 @@ function run() {
       databaseShell,
       snippet,
       "Database views must support saved multi-filter and multi-sort rules while preserving legacy config keys."
+    );
+  }
+  for (const snippet of [
+    "buildDatabaseRowGroups",
+    "getDatabaseRowGroupLabels",
+    "isGroupedViewType",
+    "isGroupableField",
+    "分组只影响当前视图展示",
+    "当前分组没有可显示的行",
+    "groupFieldId",
+    "showAddRow={false}",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database views must support saved local grouping rules for table, list, gallery, and feed views."
     );
   }
   for (const snippet of [
@@ -1509,6 +1527,7 @@ function run() {
         import_export_readiness: true,
         feed_field_context: true,
         view_rule_controls: true,
+        view_grouping: true,
         view_management: true,
         local_rollup_fields: true,
         database_workbench: true,

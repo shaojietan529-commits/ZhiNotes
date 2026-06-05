@@ -312,9 +312,11 @@ Current local actions:
 - Review coverage for table, list, kanban, calendar, gallery, timeline, chart,
   form, and feed views.
 - Save Notion-like view controls per database view: row search, multiple
-  contains filters, multiple sort rules, visible properties, and chart grouping
-  are stored in each local view config. Older single-filter/single-sort view
-  configs remain compatible and open as one rule.
+  contains filters, multiple sort rules, local row grouping, visible
+  properties, and chart grouping are stored in each local view config. Older
+  single-filter/single-sort view configs remain compatible and open as one
+  rule. Table, list, gallery, and feed views can render grouped sections
+  without changing row values.
 - Manage local database views from each view tab: rename a view, duplicate its
   current config into a copy, or soft-delete a non-final view without deleting
   any rows, pages, files, or field values.

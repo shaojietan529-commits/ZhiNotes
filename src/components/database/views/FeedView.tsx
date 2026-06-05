@@ -24,6 +24,7 @@ interface FeedViewProps {
   onOpenRow: (pageId: string) => void;
   onOpenPage: (pageId: string) => void;
   relationPages: Page[];
+  showAddRow?: boolean;
 }
 
 export default function FeedView({
@@ -35,6 +36,7 @@ export default function FeedView({
   onOpenRow,
   onOpenPage,
   relationPages,
+  showAddRow = true,
 }: FeedViewProps) {
   const sortedRows = [...rows].sort((left, right) =>
     String(right.page?.updated_at || right.updated_at).localeCompare(
@@ -62,23 +64,25 @@ export default function FeedView({
           ))}
         </div>
       )}
-      <button
-        type="button"
-        onClick={onAddRow}
-        className="mt-3 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
+      {showAddRow && (
+        <button
+          type="button"
+          onClick={onAddRow}
+          className="mt-3 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
         >
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        新建行
-      </button>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          新建行
+        </button>
+      )}
     </div>
   );
 }
