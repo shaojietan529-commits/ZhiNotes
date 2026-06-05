@@ -454,6 +454,8 @@ function run() {
     'placeholder="搜索属性"',
     "没有匹配的属性",
     "getDatabaseFieldDescription(field)",
+    "只显示名称",
+    "field.position !== 0",
   ]) {
     assertIncludes(
       files.databaseShell,

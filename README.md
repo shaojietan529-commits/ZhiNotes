@@ -320,6 +320,8 @@ Current local actions:
   values.
 - Search the local property visibility menu by field name, type, or field
   description before hiding or showing properties in the current database view.
+  The same menu can show all properties or collapse the view back to title-only
+  without moving or editing fields.
 - Inline databases now apply saved view display config from the selected view:
   row search, filters, sort rules, hidden properties, grouped table/list/
   gallery/feed sections, chart grouping, and manual-sort eligibility are read

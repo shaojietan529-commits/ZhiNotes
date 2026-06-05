@@ -2092,13 +2092,28 @@ function DatabasePropertiesButton({
               );
             })}
           </div>
-          <button
-            type="button"
-            onClick={() => onHiddenFieldIdsChange([])}
-            className="mt-2 rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
-          >
-            全部显示
-          </button>
+          <div className="mt-2 flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => onHiddenFieldIdsChange([])}
+              className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+            >
+              全部显示
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onHiddenFieldIdsChange(
+                  fields
+                    .filter((field) => field.position !== 0)
+                    .map((field) => field.id)
+                )
+              }
+              className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+            >
+              只显示名称
+            </button>
+          </div>
         </div>
       )}
     </div>
