@@ -46,7 +46,7 @@ export default function IconPicker({
         }}
         disabled={disabled}
         className="text-3xl hover:bg-zinc-100 disabled:cursor-default disabled:hover:bg-transparent dark:hover:bg-zinc-800 dark:disabled:hover:bg-transparent rounded-md p-1 transition-colors"
-        title="Change icon"
+        title="更换图标"
       >
         {currentIcon || "📄"}
       </button>
@@ -54,7 +54,7 @@ export default function IconPicker({
       {open && (
         <div className="absolute top-full left-0 mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-50 p-2 w-[280px]">
           <p className="text-[10px] text-zinc-400 uppercase tracking-wider mb-2 px-1">
-            Pick an icon
+            选择图标
           </p>
           <div className="grid grid-cols-10 gap-0.5">
             {EMOJI_LIST.map((emoji) => (

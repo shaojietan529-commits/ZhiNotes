@@ -40,7 +40,7 @@ const WikiLinkList = forwardRef<WikiLinkListRef, WikiLinkListProps>(
         if (event.key === "Enter") {
           const item = items[selectedIndex];
           if (item) {
-            command({ id: item.id, label: item.title || "Untitled" });
+            command({ id: item.id, label: item.title || "未命名页面" });
           }
           return true;
         }
@@ -51,7 +51,7 @@ const WikiLinkList = forwardRef<WikiLinkListRef, WikiLinkListProps>(
     if (items.length === 0) {
       return (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg p-3 text-sm text-zinc-400">
-          No pages found
+          没有找到页面
         </div>
       );
     }
@@ -62,7 +62,7 @@ const WikiLinkList = forwardRef<WikiLinkListRef, WikiLinkListProps>(
           <button
             key={item.id}
             onClick={() =>
-              command({ id: item.id, label: item.title || "Untitled" })
+              command({ id: item.id, label: item.title || "未命名页面" })
             }
             className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
               index === selectedIndex
@@ -71,7 +71,7 @@ const WikiLinkList = forwardRef<WikiLinkListRef, WikiLinkListProps>(
             }`}
           >
             <span className="shrink-0">{item.icon || "📄"}</span>
-            <span className="truncate">{item.title || "Untitled"}</span>
+            <span className="truncate">{item.title || "未命名页面"}</span>
           </button>
         ))}
       </div>

@@ -43,7 +43,7 @@ function BreadcrumbBlockComponent({ node, updateAttributes }: NodeViewProps) {
             </span>
           ))
         ) : (
-          <span>Page path</span>
+          <span>页面路径</span>
         )}
       </div>
     </NodeViewWrapper>
@@ -60,7 +60,7 @@ function getPagePath(pageId: string, pages: Page[]) {
     seen.add(cursor);
     const page = pagesById.get(cursor);
     if (!page) break;
-    path.unshift(page.title || "Untitled");
+    path.unshift(page.title || "未命名页面");
     cursor = page.parent_id;
   }
 
@@ -104,7 +104,7 @@ export const BreadcrumbBlockNode = Node.create({
     return [
       "div",
       mergeAttributes(HTMLAttributes, { "data-type": "breadcrumb-block" }),
-      node.attrs.path || "Page path",
+      node.attrs.path || "页面路径",
     ];
   },
 

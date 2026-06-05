@@ -82,7 +82,7 @@ export default function PagePositionTree({ pageId }: PagePositionTreeProps) {
           <path d="M21 12H9M21 6H9M21 18H9M5 12H3M5 6H3M5 18H3" />
         </svg>
         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Page Structure
+          页面结构
         </span>
       </div>
 
@@ -200,13 +200,13 @@ function PageRow({
 
       {/* Title */}
       <span className="truncate flex-1">
-        {page.title || "Untitled"}
+        {page.title || "未命名页面"}
       </span>
 
       {/* Current page indicator */}
       {isCurrent && (
         <span className="text-[10px] text-blue-500 dark:text-blue-400 bg-blue-100 dark:bg-blue-900 rounded px-1.5 shrink-0">
-          current
+          当前页
         </span>
       )}
 

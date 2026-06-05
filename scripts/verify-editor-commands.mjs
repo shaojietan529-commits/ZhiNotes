@@ -15,16 +15,25 @@ const files = {
   blockDragHandle: "src/components/editor/BlockDragHandleLayer.tsx",
   blockComments: "src/components/shared/BlockComments.tsx",
   backlinks: "src/components/shared/Backlinks.tsx",
+  breadcrumb: "src/components/shared/Breadcrumb.tsx",
+  breadcrumbBlock: "src/components/editor/extensions/BreadcrumbBlockNode.tsx",
   calloutNode: "src/components/editor/extensions/CalloutNode.tsx",
+  dateDisplay: "src/components/shared/DateDisplay.tsx",
+  dates: "src/lib/utils/dates.ts",
   editor: "src/components/editor/Editor.tsx",
   hoverSummary: "src/components/comparison/HoverSummary.tsx",
+  iconPicker: "src/components/shared/IconPicker.tsx",
   pageComments: "src/components/shared/PageComments.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   readme: "README.md",
+  subPageTree: "src/components/shared/SubPageTree.tsx",
+  syncedBlockNode: "src/components/editor/extensions/SyncedBlockNode.tsx",
   tableOfContentsNode:
     "src/components/editor/extensions/TableOfContentsNode.tsx",
   versionHistoryPanel: "src/components/comparison/VersionHistoryPanel.tsx",
+  wikiLinkList: "src/components/editor/extensions/WikiLinkList.tsx",
+  wikiReferenceNode: "src/components/editor/extensions/WikiReferenceNode.tsx",
 };
 
 const failures = [];
@@ -54,15 +63,24 @@ function run() {
   const blockDragHandle = readProjectFile(files.blockDragHandle);
   const blockComments = readProjectFile(files.blockComments);
   const backlinks = readProjectFile(files.backlinks);
+  const breadcrumb = readProjectFile(files.breadcrumb);
+  const breadcrumbBlock = readProjectFile(files.breadcrumbBlock);
   const calloutNode = readProjectFile(files.calloutNode);
+  const dateDisplay = readProjectFile(files.dateDisplay);
+  const dates = readProjectFile(files.dates);
   const editor = readProjectFile(files.editor);
   const hoverSummary = readProjectFile(files.hoverSummary);
+  const iconPicker = readProjectFile(files.iconPicker);
   const pageComments = readProjectFile(files.pageComments);
   const pageShell = readProjectFile(files.pageShell);
   const quickSearch = readProjectFile(files.quickSearch);
   const readme = readProjectFile(files.readme);
+  const subPageTree = readProjectFile(files.subPageTree);
+  const syncedBlockNode = readProjectFile(files.syncedBlockNode);
   const tableOfContentsNode = readProjectFile(files.tableOfContentsNode);
   const versionHistoryPanel = readProjectFile(files.versionHistoryPanel);
+  const wikiLinkList = readProjectFile(files.wikiLinkList);
+  const wikiReferenceNode = readProjectFile(files.wikiReferenceNode);
 
   assertIncludes(
     files.packageJson,
@@ -354,6 +372,90 @@ function run() {
       "Block comments must keep the default notes UI in Chinese."
     );
   }
+  for (const snippet of ["刚刚", "分钟前", "小时前", "天前", "zh-CN"]) {
+    assertIncludes(
+      files.dates,
+      dates,
+      snippet,
+      "Shared date formatting must default to Chinese labels and locale."
+    );
+  }
+  for (const snippet of ["创建于", "更新于"]) {
+    assertIncludes(
+      files.dateDisplay,
+      dateDisplay,
+      snippet,
+      "Page metadata date display must keep Chinese labels."
+    );
+  }
+  for (const snippet of ["首页", "未命名页面"]) {
+    assertIncludes(
+      files.breadcrumb,
+      breadcrumb,
+      snippet,
+      "Page breadcrumbs must keep Chinese navigation labels."
+    );
+  }
+  for (const snippet of ["更换图标", "选择图标"]) {
+    assertIncludes(
+      files.iconPicker,
+      iconPicker,
+      snippet,
+      "Page icon picker must keep Chinese control labels."
+    );
+  }
+  for (const snippet of ["页面结构", "当前页", "未命名页面"]) {
+    assertIncludes(
+      files.subPageTree,
+      subPageTree,
+      snippet,
+      "Page structure panel must keep Chinese labels."
+    );
+  }
+  for (const snippet of ["页面路径", "未命名页面"]) {
+    assertIncludes(
+      files.breadcrumbBlock,
+      breadcrumbBlock,
+      snippet,
+      "Breadcrumb editor block must keep Chinese fallback labels."
+    );
+  }
+  for (const snippet of [
+    "Wiki 引用：",
+    "未解析的 Wiki 引用",
+    "未命名页面",
+  ]) {
+    assertIncludes(
+      files.wikiReferenceNode,
+      wikiReferenceNode,
+      snippet,
+      "Wiki reference editor controls must keep Chinese labels."
+    );
+  }
+  for (const snippet of ["没有找到页面", "未命名页面"]) {
+    assertIncludes(
+      files.wikiLinkList,
+      wikiLinkList,
+      snippet,
+      "Wiki link autocomplete must keep Chinese empty and fallback labels."
+    );
+  }
+  for (const snippet of ["同步块", "新同步组", "将此块移到新的同步组"]) {
+    assertIncludes(
+      files.syncedBlockNode,
+      syncedBlockNode,
+      snippet,
+      "Synced block controls must keep Chinese labels."
+    );
+  }
+  for (const snippet of ["page structure", "breadcrumbs", "synced blocks"]) {
+    assertIncludes(
+      files.readme,
+      readme,
+      snippet,
+      "README must document the expanded Chinese notes UI coverage."
+    );
+  }
 
   if (failures.length > 0) {
     console.error("Editor command verification failed");
@@ -371,6 +473,7 @@ function run() {
         page_slash_aliases: 8,
         block_insert_heading_levels: 3,
         file_workflow_entrypoints: 3,
+        localized_shared_note_controls: true,
         page_command_opens_new_page: true,
         page_command_seeds_child_page: true,
         cmdk_child_page_command: true,

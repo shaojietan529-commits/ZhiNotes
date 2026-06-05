@@ -21,7 +21,7 @@ function SyncedBlockComponent({ node, updateAttributes }: NodeViewProps) {
     <NodeViewWrapper className="my-3" data-type="synced-block">
       <div className="rounded-lg border border-sky-200 bg-sky-50/70 px-3 py-3 dark:border-sky-900 dark:bg-sky-950/40">
         <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-sky-700 dark:text-sky-300">
-          <span className="font-semibold">Synced</span>
+          <span className="font-semibold">同步块</span>
           <span className="max-w-[180px] truncate rounded bg-white/70 px-2 py-0.5 font-mono text-[10px] text-sky-600 dark:bg-black/20 dark:text-sky-300">
             {syncId}
           </span>
@@ -30,9 +30,9 @@ function SyncedBlockComponent({ node, updateAttributes }: NodeViewProps) {
             onClick={() => updateAttributes({ syncId: nanoid() })}
             className="rounded border border-sky-200 bg-white/70 px-2 py-0.5 text-[11px] text-sky-700 hover:bg-white dark:border-sky-900 dark:bg-black/20 dark:text-sky-300 dark:hover:bg-black/30"
             contentEditable={false}
-            title="Detach this block from the current synced group"
+            title="将此块移到新的同步组"
           >
-            New group
+            新同步组
           </button>
         </div>
         <NodeViewContent className="min-h-7 text-sm leading-6 outline-none [&>p:first-child]:mt-0 [&>p:last-child]:mb-0" />
@@ -100,7 +100,7 @@ export const SyncedBlockNode = Node.create({
     return [
       "div",
       mergeAttributes(HTMLAttributes, { "data-type": "synced-block" }),
-      ["div", { "data-synced-label": "" }, "Synced block"],
+      ["div", { "data-synced-label": "" }, "同步块"],
       ["div", { "data-synced-content": "" }, 0],
     ];
   },

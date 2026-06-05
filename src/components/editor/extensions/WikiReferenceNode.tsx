@@ -6,12 +6,12 @@ import type { NodeViewProps } from "@tiptap/react";
 
 function WikiReferenceComponent({ node, updateAttributes }: NodeViewProps) {
   const target = String(node.attrs.target || "");
-  const label = String(node.attrs.label || target || "Untitled");
+  const label = String(node.attrs.label || target || "未命名页面");
 
   const handleEdit = () => {
     const current =
       target && label && target !== label ? `${target}|${label}` : label || target;
-    const nextValue = window.prompt("Wiki reference:", current);
+    const nextValue = window.prompt("Wiki 引用：", current);
     if (nextValue === null) return;
 
     const next = parseWikiReferenceValue(nextValue);
@@ -30,12 +30,12 @@ function WikiReferenceComponent({ node, updateAttributes }: NodeViewProps) {
         onDoubleClick={handleEdit}
         title={
           target && target !== label
-            ? `Unresolved wiki reference to ${target}`
-            : "Unresolved wiki reference"
+            ? `未解析的 Wiki 引用：${target}`
+            : "未解析的 Wiki 引用"
         }
         className="mx-0.5 rounded bg-blue-50 px-1.5 py-0.5 text-[0.9em] font-medium text-blue-700 ring-1 ring-inset ring-blue-100 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-900 dark:hover:bg-blue-900"
       >
-        [[{label || target || "Untitled"}]]
+        [[{label || target || "未命名页面"}]]
       </button>
     </NodeViewWrapper>
   );
@@ -145,8 +145,8 @@ function parseWikiReferenceValue(value: string) {
   const label = sanitizeWikiReferencePart(labelParts.join("|")) || target;
 
   return {
-    target: target || label || "Untitled",
-    label: label || target || "Untitled",
+    target: target || label || "未命名页面",
+    label: label || target || "未命名页面",
   };
 }
 
@@ -156,7 +156,7 @@ function extractWikiReferenceText(value: string) {
 
 function formatWikiReferenceValue(target: string, label: string) {
   if (target && label && target !== label) return `[[${target}|${label}]]`;
-  return `[[${label || target || "Untitled"}]]`;
+  return `[[${label || target || "未命名页面"}]]`;
 }
 
 function sanitizeWikiReferencePart(value: unknown) {

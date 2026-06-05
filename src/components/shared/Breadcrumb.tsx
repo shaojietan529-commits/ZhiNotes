@@ -42,7 +42,7 @@ export default function Breadcrumb({ pageId }: BreadcrumbProps) {
         onClick={() => router.push("/")}
         className="hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
       >
-        Home
+        首页
       </button>
       {ancestors.map((ancestor) => (
         <span key={ancestor.id} className="flex items-center gap-1">
@@ -52,7 +52,7 @@ export default function Breadcrumb({ pageId }: BreadcrumbProps) {
             className="hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors max-w-[150px] truncate"
           >
             {ancestor.icon ? `${ancestor.icon} ` : ""}
-            {ancestor.title || "Untitled"}
+            {ancestor.title || "未命名页面"}
           </button>
         </span>
       ))}
