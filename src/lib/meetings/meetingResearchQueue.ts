@@ -218,9 +218,9 @@ function buildQueueItems(
         trigger: "缺会议跟踪表",
         missing_structures: ["会议跟踪表"],
         next_action:
-          "先创建会议跟踪表，再把会议页入库为本地 tracker row，后续手动补 relation 值。",
+          "先创建会议跟踪表，再把会议页入库为本地 tracker 行，后续手动补 relation 值。",
         privacy_boundary:
-          "只检查 tracker metadata，不读取或导出 tracker row values、参会人详情、meeting passcodes 或 transcript text。",
+          "只检查 tracker metadata，不读取或导出 tracker 行值、参会人详情、meeting passcodes 或 transcript text。",
         updated_at: item.updated_at,
       });
     }
@@ -393,7 +393,7 @@ function buildGates(
             ? "当前没有 relation 或 tracker 入库结构缺口。"
             : "还没有会议页，无法检查 relation。",
       next_action:
-        "把会议页连接到公司页、报告、memo、业绩复盘，并确认是否需要创建 tracker row。",
+        "把会议页连接到公司页、报告、memo、业绩复盘，并确认是否需要创建 tracker 行。",
       privacy_boundary:
         "只检查 relation 和 tracker metadata，不导出数据库 row values、会议正文或参会人详情。",
     },
@@ -561,15 +561,15 @@ function riskWeight(risk: MeetingResearchQueueRisk) {
 export function getMeetingResearchQueueWorkstreamLabel(
   workstream: MeetingResearchQueueWorkstream
 ) {
-  const labels: Record<MeetingResearchQueueWorkstream, string> = {
-    "transcript-review": "Transcript 复盘",
-    "decision-capture": "会议结论",
-    "model-update": "模型更新",
-    "risk-catalyst": "风险/催化剂",
-    "open-question": "开放问题",
-    "relation-linking": "Relation",
-    "tracker-intake": "Tracker 入库",
-  };
+	  const labels: Record<MeetingResearchQueueWorkstream, string> = {
+	    "transcript-review": "转录稿复盘",
+	    "decision-capture": "会议结论",
+	    "model-update": "模型更新",
+	    "risk-catalyst": "风险/催化剂",
+	    "open-question": "开放问题",
+	    "relation-linking": "关系补全",
+	    "tracker-intake": "跟踪表入库",
+	  };
 
   return labels[workstream];
 }
@@ -577,21 +577,21 @@ export function getMeetingResearchQueueWorkstreamLabel(
 export function getMeetingResearchQueueStatusLabel(
   status: MeetingResearchQueueStatus
 ) {
-  const labels: Record<MeetingResearchQueueStatus, string> = {
-    ready: "Ready",
-    "review-needed": "待复核",
-    blocked: "Blocked",
-  };
+	  const labels: Record<MeetingResearchQueueStatus, string> = {
+	    ready: "就绪",
+	    "review-needed": "待复核",
+	    blocked: "阻塞",
+	  };
 
   return labels[status];
 }
 
 export function getMeetingResearchQueueRiskLabel(risk: MeetingResearchQueueRisk) {
-  const labels: Record<MeetingResearchQueueRisk, string> = {
-    high: "High risk",
-    medium: "Medium risk",
-    low: "Low risk",
-  };
+	  const labels: Record<MeetingResearchQueueRisk, string> = {
+	    high: "高风险",
+	    medium: "中风险",
+	    low: "低风险",
+	  };
 
   return labels[risk];
 }

@@ -349,7 +349,7 @@ function MeetingsDashboard() {
       );
       if (existingRow) {
         setTrackerIntakeMessage(
-          `已存在 tracker row：${existingRow.row_title}。已打开跟踪表继续补 relation。`
+          `已存在 tracker 行：${existingRow.row_title}。已打开跟踪表继续补 relation。`
         );
         router.push(
           `/database/${tracker.id}?q=${encodeURIComponent(
@@ -365,7 +365,7 @@ function MeetingsDashboard() {
       );
       if (!hasMeetingNoteRelation) {
         window.alert(
-          "当前会议跟踪表缺少 Meeting note relation 字段，请先补字段后再入库。"
+          "当前会议跟踪表缺少会议页 relation 字段，请先补字段后再入库。"
         );
         return;
       }
@@ -376,7 +376,7 @@ function MeetingsDashboard() {
         contentText: draft.row_page_content,
       });
       setTrackerIntakeMessage(
-        `已创建 tracker row：${draft.row_title}。已打开跟踪表继续补 relation。`
+        `已创建 tracker 行：${draft.row_title}。已打开跟踪表继续补 relation。`
       );
       router.push(
         `/database/${tracker.id}?q=${encodeURIComponent(
@@ -568,12 +568,12 @@ function MeetingsDashboard() {
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 会议研究任务队列
               </h2>
-              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把 follow-up 队列和投研闭环合并成可执行的本地任务：
-                Transcript 复盘、会议结论、模型更新、风险/催化剂、开放问题、
-                relation 和 tracker 入库。导出只包含结构状态，不包含会议正文、
-                transcript text、录音 bytes、参会人详情、meeting passcodes、
-                数据库 row values、持仓或交易计划。
+	              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+	                把 follow-up 队列和投研闭环合并成可执行的本地任务：
+	                转录稿复盘、会议结论、模型更新、风险/催化剂、开放问题、
+	                relation 和 tracker 入库。导出只包含结构状态，不包含会议正文、
+	                transcript text、录音 bytes、参会人详情、meeting passcodes、
+	                数据库 row values、持仓或交易计划。
               </p>
             </div>
             <button
@@ -586,10 +586,10 @@ function MeetingsDashboard() {
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-9">
-            <MeetingResearchQueueMetric
-              label="任务"
-              value={meetingResearchQueue.summary.queue_items}
-              detail="Research queue"
+	            <MeetingResearchQueueMetric
+	              label="任务"
+	              value={meetingResearchQueue.summary.queue_items}
+	              detail="研究队列"
               status={queueMetricStatus(
                 meetingResearchQueue.summary.queue_items
               )}
@@ -597,15 +597,15 @@ function MeetingsDashboard() {
             <MeetingResearchQueueMetric
               label="待复核"
               value={meetingResearchQueue.summary.review_needed_items}
-              detail="Needs review"
+              detail="需复核"
               status={queueMetricStatus(
                 meetingResearchQueue.summary.review_needed_items
               )}
             />
             <MeetingResearchQueueMetric
-              label="Blocked"
+              label="阻塞"
               value={meetingResearchQueue.summary.blocked_items}
-              detail="Setup first"
+              detail="先补设置"
               status={
                 meetingResearchQueue.summary.blocked_items > 0
                   ? "blocked"
@@ -613,9 +613,9 @@ function MeetingsDashboard() {
               }
             />
             <MeetingResearchQueueMetric
-              label="High"
+              label="高优先级"
               value={meetingResearchQueue.summary.high_priority_items}
-              detail="Priority"
+              detail="优先级"
               status={
                 meetingResearchQueue.summary.high_priority_items > 0
                   ? "review-needed"
@@ -623,7 +623,7 @@ function MeetingsDashboard() {
               }
             />
             <MeetingResearchQueueMetric
-              label="Transcript"
+	              label="转录稿"
               value={meetingResearchQueue.summary.transcript_review_items}
               detail="复盘"
               status={queueMetricStatus(
@@ -633,7 +633,7 @@ function MeetingsDashboard() {
             <MeetingResearchQueueMetric
               label="结论"
               value={meetingResearchQueue.summary.decision_capture_items}
-              detail="Decision"
+              detail="结论"
               status={queueMetricStatus(
                 meetingResearchQueue.summary.decision_capture_items
               )}
@@ -641,15 +641,15 @@ function MeetingsDashboard() {
             <MeetingResearchQueueMetric
               label="模型"
               value={meetingResearchQueue.summary.model_update_items}
-              detail="Model"
+              detail="模型"
               status={queueMetricStatus(
                 meetingResearchQueue.summary.model_update_items
               )}
             />
-            <MeetingResearchQueueMetric
-              label="风险/催化"
-              value={meetingResearchQueue.summary.risk_catalyst_items}
-              detail="Risk"
+	            <MeetingResearchQueueMetric
+	              label="风险/催化"
+	              value={meetingResearchQueue.summary.risk_catalyst_items}
+	              detail="风险"
               status={queueMetricStatus(
                 meetingResearchQueue.summary.risk_catalyst_items
               )}
@@ -660,28 +660,28 @@ function MeetingsDashboard() {
                 meetingResearchQueue.summary.relation_linking_items +
                 meetingResearchQueue.summary.tracker_intake_items
               }
-              detail="Relation"
+	              detail="关系"
               status={queueMetricStatus(
                 meetingResearchQueue.summary.relation_linking_items +
                   meetingResearchQueue.summary.tracker_intake_items
               )}
             />
           </div>
-          <div className="mt-4 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Research queue gates
-              </div>
+	          <div className="mt-4 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+	            <div className="space-y-2">
+	              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+	                研究队列闸门
+	              </div>
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-1">
                 {meetingResearchQueue.gates.map((gate) => (
                   <MeetingResearchQueueGateRow key={gate.id} gate={gate} />
                 ))}
               </div>
             </div>
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Top research tasks
-              </div>
+	            <div className="space-y-2">
+	              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+	                优先研究任务
+	              </div>
               {meetingResearchQueue.items.length > 0 ? (
                 <div className="grid gap-3 lg:grid-cols-2">
                   {meetingResearchQueue.items.slice(0, 8).map((item) => (
@@ -710,11 +710,11 @@ function MeetingsDashboard() {
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 会议入库台
               </h2>
-              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把单个会议页创建成会议跟踪表 row，并自动填入 Meeting note relation、
-                Status、Follow-up needed 和 Action items。点击后只做本地单条写入，
-                不会自动入会、录音、发布、同步、上传或调用 AI。
-              </p>
+	              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+	                把单个会议页创建成会议跟踪表行，并自动填入会议页 relation、
+	                状态、follow-up 标记和行动项。点击后只做本地单条写入，
+	                不会自动入会、录音、发布、同步、上传或调用 AI。
+	              </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
               <span
@@ -777,20 +777,20 @@ function MeetingsDashboard() {
               disabled={exportingFollowUp}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingFollowUp ? "Exporting..." : "Export follow-up"}
+	              {exportingFollowUp ? "导出中..." : "导出 follow-up"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-7">
             <FollowUpMetric
               label="会议页"
               value={meetingFollowUp.summary.meeting_pages}
-              detail="Local notes"
+	              detail="本地笔记"
               status={meetingFollowUp.summary.meeting_pages > 0 ? "ready" : "missing"}
             />
             <FollowUpMetric
               label="待处理"
               value={meetingFollowUp.summary.follow_up_items}
-              detail="Queue items"
+	              detail="队列事项"
               status={
                 meetingFollowUp.summary.follow_up_items > 0 ? "partial" : "ready"
               }
@@ -798,7 +798,7 @@ function MeetingsDashboard() {
             <FollowUpMetric
               label="高优先级"
               value={meetingFollowUp.summary.high_priority}
-              detail="Needs review"
+	              detail="需复核"
               status={
                 meetingFollowUp.summary.high_priority > 0 ? "missing" : "ready"
               }
@@ -806,7 +806,7 @@ function MeetingsDashboard() {
             <FollowUpMetric
               label="缺转录"
               value={meetingFollowUp.summary.missing_transcripts}
-              detail="Transcript"
+	              detail="转录稿"
               status={
                 meetingFollowUp.summary.missing_transcripts > 0
                   ? "missing"
@@ -816,7 +816,7 @@ function MeetingsDashboard() {
             <FollowUpMetric
               label="缺行动项"
               value={meetingFollowUp.summary.missing_action_items}
-              detail="Action items"
+	              detail="行动项"
               status={
                 meetingFollowUp.summary.missing_action_items > 0
                   ? "missing"
@@ -903,20 +903,20 @@ function MeetingsDashboard() {
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-8">
+	            <MeetingDecisionMetric
+	              label="信号面"
+	              value={meetingDecisionLedger.summary.decision_signals}
+	              detail="结论检查"
+	              status="partial"
+	            />
             <MeetingDecisionMetric
-              label="信号面"
-              value={meetingDecisionLedger.summary.decision_signals}
-              detail="Decision checks"
-              status="partial"
-            />
-            <MeetingDecisionMetric
-              label="Ready"
+	              label="已就绪"
               value={meetingDecisionLedger.summary.ready_signals}
               detail="全会议覆盖"
               status="ready"
             />
             <MeetingDecisionMetric
-              label="Missing"
+	              label="缺失"
               value={meetingDecisionLedger.summary.missing_signals}
               detail="完全缺失"
               status={
@@ -1016,11 +1016,11 @@ function MeetingsDashboard() {
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 会议研究 Playbook
               </h2>
-              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把 follow-up 队列转成本地行动队列：补会议背景、Transcript 页面、
-                action items、公司/报告 relation、会议跟踪表和复盘节奏。导出只包含结构状态，
-                不包含会议正文、transcript text、录音 bytes、参会人详情或 meeting passcodes。
-              </p>
+	              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+	                把 follow-up 队列转成本地行动队列：补会议背景、转录稿页面、
+	                行动项、公司/报告 relation、会议跟踪表和复盘节奏。导出只包含结构状态，
+	                不包含会议正文、transcript text、录音 bytes、参会人详情或 meeting passcodes。
+	              </p>
             </div>
             <button
               type="button"
@@ -1035,17 +1035,17 @@ function MeetingsDashboard() {
             <MeetingPlaybookMetric
               label="步骤"
               value={meetingPlaybook.summary.workflow_steps}
-              detail="Workflow"
+	              detail="工作流"
               status="partial"
             />
             <MeetingPlaybookMetric
-              label="Ready"
+	              label="已就绪"
               value={meetingPlaybook.summary.ready_steps}
               detail="已覆盖"
               status="ready"
             />
             <MeetingPlaybookMetric
-              label="Missing"
+	              label="缺失"
               value={meetingPlaybook.summary.missing_steps}
               detail="待补齐"
               status={
@@ -1061,7 +1061,7 @@ function MeetingsDashboard() {
             <MeetingPlaybookMetric
               label="行动队列"
               value={meetingPlaybook.summary.action_queue_items}
-              detail="Next actions"
+	              detail="下一步"
               status={
                 meetingPlaybook.summary.action_queue_items > 0
                   ? "missing"
@@ -1071,7 +1071,7 @@ function MeetingsDashboard() {
             <MeetingPlaybookMetric
               label="候选会议"
               value={meetingPlaybook.summary.candidate_meetings}
-              detail="Needs work"
+	              detail="需处理"
               status={
                 meetingPlaybook.summary.candidate_meetings > 0
                   ? "missing"
@@ -1079,7 +1079,7 @@ function MeetingsDashboard() {
               }
             />
             <MeetingPlaybookMetric
-              label="Transcript"
+	              label="转录稿"
               value={meetingPlaybook.summary.transcript_gaps}
               detail="待连接"
               status={
@@ -1089,7 +1089,7 @@ function MeetingsDashboard() {
               }
             />
             <MeetingPlaybookMetric
-              label="Action items"
+	              label="行动项"
               value={meetingPlaybook.summary.action_item_gaps}
               detail="待提取"
               status={
@@ -1519,9 +1519,9 @@ function MeetingWorkbenchStatusPill({
   status: MeetingWorkbenchStatus;
 }) {
   const labels: Record<MeetingWorkbenchStatus, string> = {
-    ready: "Ready",
+    ready: "就绪",
     "review-needed": "需复核",
-    missing: "Missing",
+    missing: "缺失",
     "blocked-boundary": "边界阻止",
   };
   const className =
@@ -1661,13 +1661,13 @@ function MeetingTrackerIntakeCard({
         <FollowUpPriorityPill priority={item.priority} />
       </div>
       <div className="mt-3 grid gap-1 sm:grid-cols-2">
-        <FollowUpFlag label="Transcript" ready={item.has_transcript} />
-        <FollowUpFlag label="Action items" ready={item.has_action_items} />
-        <FollowUpFlag label="Company" ready={item.has_company_link} />
-        <FollowUpFlag label="Report" ready={item.has_report_link} />
+        <FollowUpFlag label="转录稿" ready={item.has_transcript} />
+        <FollowUpFlag label="行动项" ready={item.has_action_items} />
+        <FollowUpFlag label="公司" ready={item.has_company_link} />
+        <FollowUpFlag label="报告" ready={item.has_report_link} />
       </div>
       <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
-        将创建一条本地 tracker row，写入 Meeting note relation、状态、
+        将创建一条本地 tracker 行，写入会议页 relation、状态、
         follow-up 标记和下一步动作。
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
@@ -1680,7 +1680,7 @@ function MeetingTrackerIntakeCard({
           disabled={!trackerReady || busy}
           className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
         >
-          {busy ? "创建中..." : "创建 tracker row"}
+	          {busy ? "创建中..." : "创建 tracker 行"}
         </button>
         <button
           type="button"
@@ -1717,9 +1717,9 @@ function FollowUpPriorityPill({
   priority: MeetingFollowUpPriority;
 }) {
   const labels: Record<MeetingFollowUpPriority, string> = {
-    high: "High",
-    medium: "Medium",
-    low: "Low",
+    high: "高",
+    medium: "中",
+    low: "低",
   };
   const className =
     priority === "high"
@@ -1748,11 +1748,11 @@ function FollowUpStatusPill({
 }: {
   status: "ready" | "partial" | "missing";
 }) {
-  const labels = {
-    ready: "Ready",
-    partial: "Partial",
-    missing: "Missing",
-  };
+	  const labels = {
+	    ready: "就绪",
+	    partial: "部分就绪",
+	    missing: "缺失",
+	  };
   const className =
     status === "ready"
       ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
@@ -1873,9 +1873,9 @@ function MeetingDecisionStatusPill({
   status: MeetingDecisionStatus;
 }) {
   const labels: Record<MeetingDecisionStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
-    missing: "Missing",
+    ready: "就绪",
+    partial: "部分就绪",
+    missing: "缺失",
   };
   const className =
     status === "ready"
@@ -1897,9 +1897,9 @@ function MeetingDecisionPriorityPill({
   priority: MeetingDecisionPriority;
 }) {
   const labels: Record<MeetingDecisionPriority, string> = {
-    high: "High",
-    medium: "Medium",
-    low: "Low",
+    high: "高",
+    medium: "中",
+    low: "低",
   };
   const className =
     priority === "high"
@@ -2174,9 +2174,9 @@ function MeetingPlaybookStatusPill({
   status: MeetingResearchPlaybookStatus;
 }) {
   const labels: Record<MeetingResearchPlaybookStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
-    missing: "Missing",
+    ready: "就绪",
+    partial: "部分就绪",
+    missing: "缺失",
     "manual-confirmation": "需确认",
   };
   const className =

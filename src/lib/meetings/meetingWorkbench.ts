@@ -268,7 +268,7 @@ export function buildMeetingWorkbenchPacket(input: {
     format_version: 1,
     packet_status: "local-meeting-workbench-only",
     privacy_note:
-      "Generated locally from meeting follow-up, decision ledger, research queue, playbook, and tracker-intake metadata. It exports aggregated action routing only. It does not include meeting titles, page text, transcript text, recording bytes, participant details, meeting passcodes, database row values, holdings, trading plans, cloud data, AI prompts, tokens, or credentials; it does not join calls, record audio, publish notes, create tracker rows, write relation values, upload data, connect cloud services, or enable AI.",
+      "这份会议工作台包只在本地生成，来源是 follow-up、decision ledger、research queue、playbook 和 tracker-intake metadata。它只导出聚合行动路由，不包含会议标题、页面正文、transcript text、录音 bytes、参会人详情、meeting passcodes、数据库 row values、持仓、交易计划、云端数据、AI prompt、token 或凭证；也不会入会、录音、发布纪要、创建 tracker 行、写 relation values、上传数据、连接云服务或启用 AI。",
     boundary: {
       local_packet_only: true,
       reads_meeting_follow_up_report: true,
@@ -399,7 +399,7 @@ function buildDecisionSummary(
     blocked_work: [
       "不能从会议 workbench 自动入会、录音、发布纪要或触发 meeting agent。",
       "不能导出会议标题、页面正文、transcript text、recording bytes、participant details 或 meeting passcodes。",
-      "不能批量创建 tracker rows、批量更新数据库或自动写 relation values。",
+      "不能批量创建 tracker 行、批量更新数据库或自动写 relation values。",
       "不能把会议上下文发送给 AI、云同步、外部 API 或远端存储。",
     ],
     required_owner_decisions:
@@ -527,7 +527,7 @@ function buildDecisionSummary(
             : "继续保持",
         evidence: `${relationActions.length} 个 relation 行动，${input.trackerIntakeItems.length} 个 tracker intake 候选。`,
         next_action:
-          "通过研究图谱手动补公司/报告 relation；会议 tracker row 只能在入库台逐条点击创建。",
+          "通过研究图谱手动补公司/报告 relation；会议 tracker 行只能在入库台逐条点击创建。",
         route: "/modules/meetings",
         target_section_id: "meeting-tracker-intake",
         allowed_now: true,
@@ -717,7 +717,7 @@ function buildActions(input: {
         status: "missing",
         evidence: "当前缺少会议跟踪表。",
         next_action:
-          "创建会议跟踪表后，再逐条把会议页接入 tracker row。",
+          "创建会议跟踪表后，再逐条把会议页接入 tracker 行。",
         action_route: "/modules/meetings",
         route_label: "创建会议跟踪表",
         requires_manual_confirmation: true,
@@ -740,7 +740,7 @@ function buildActions(input: {
         evidence: `${input.trackerIntakeItems.length} 个会议页可进入会议入库台。`,
         next_action:
           input.followUp.summary.tracker_databases > 0
-            ? "逐条确认会议页是否应创建 tracker row；不要批量写入。"
+            ? "逐条确认会议页是否应创建 tracker 行；不要批量写入。"
             : "先创建会议跟踪表，再逐条处理入库候选。",
         action_route: "/modules/meetings",
         route_label: "查看入库台",
@@ -872,7 +872,7 @@ function buildReviewSequence(input: {
       "最后逐条入会议跟踪表",
       "/modules/meetings",
       "meeting-tracker-intake",
-      "tracker row 是本地写入动作，必须逐条确认，不能由工作台批量写入。",
+      "tracker 行是本地写入动作，必须逐条确认，不能由工作台批量写入。",
       input.trackerIntakeItems.length > 0
         ? `${input.trackerIntakeItems.length} 个候选等待会议入库台复核。`
         : "当前没有 tracker intake 候选。"

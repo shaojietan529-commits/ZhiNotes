@@ -261,7 +261,7 @@ function buildPlaybookSteps(
           ? `${followUp.summary.tracker_databases} 个会议跟踪表可用于统一管理状态、平台、行动项和 relation。`
           : "还没有会议跟踪表，无法集中管理会议状态和 relation 字段。",
       next_action:
-        "创建会议跟踪表，并保留 Meeting note、Transcript page、Action items、Company page 和 Related report 字段。",
+        "创建会议跟踪表，并保留会议页、转录稿页面、行动项、公司页和关联报告字段。",
       privacy_boundary:
         "只检查数据库 metadata，不读取或导出数据库 row values。",
     },

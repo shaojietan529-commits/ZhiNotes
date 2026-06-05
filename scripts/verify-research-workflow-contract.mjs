@@ -56,13 +56,13 @@ const requiredKinds = [
     relationKinds: ["company", "meeting"],
     keyFields: ["Report page", "Company page", "Key takeaways"],
   },
-  {
-    kind: "meeting",
-    route: "/modules/meetings",
-    preset: "meeting-tracker",
-    relationKinds: ["company", "report"],
-    keyFields: ["Meeting note", "Transcript page", "Action items"],
-  },
+	  {
+	    kind: "meeting",
+	    route: "/modules/meetings",
+	    preset: "meeting-tracker",
+	    relationKinds: ["company", "report"],
+	    keyFields: ["会议页", "转录稿页面", "行动项"],
+	  },
   {
     kind: "portfolio",
     route: "/modules/portfolio",
@@ -1333,9 +1333,10 @@ function run() {
     '"privacy-boundary"',
     "target_section_id",
     "meeting-create-assets",
-    "meeting-research-queue",
-    "meeting-tracker-intake",
-    "forbidden_actions",
+	    "meeting-research-queue",
+	    "meeting-tracker-intake",
+	    "tracker 行",
+	    "forbidden_actions",
     "required_verification_commands",
     "join_calls_from_meeting_workbench",
     "record_audio_from_meeting_workbench",
@@ -1876,12 +1877,12 @@ function run() {
     "会议入库台",
     "Meetings module must render the tracker intake desk."
   );
-  assertIncludes(
-    files.meetingsShell,
-    meetingsShell,
-    "创建 tracker row",
-    "Meetings module must expose a tracker-row creation action."
-  );
+	assertIncludes(
+	  files.meetingsShell,
+	  meetingsShell,
+	  "创建 tracker 行",
+	  "Meetings module must expose a tracker-row creation action."
+	);
   assertIncludes(
     files.meetingsShell,
     meetingsShell,
@@ -1907,19 +1908,27 @@ function run() {
     "Meetings module must export the decision ledger report."
   );
   for (const snippet of [
-    "会议研究任务队列",
-    "导出任务队列",
-    "meetingResearchQueue",
+	  "会议研究任务队列",
+	  "导出任务队列",
+	    "研究队列",
+	    "阻塞",
+	    "高优先级",
+	    "研究队列闸门",
+	    "优先研究任务",
+	    "就绪",
+	    "部分就绪",
+	    "缺失",
+	    "转录稿",
+	    "行动项",
+	  "meetingResearchQueue",
     "handleExportResearchQueue",
     "MeetingResearchQueueGateRow",
     "MeetingResearchQueueItemCard",
     "MeetingResearchQueueStatusPill",
-    "MeetingResearchQueueRiskPill",
-    "MeetingResearchQueueWorkstreamPill",
-    "Research queue gates",
-    "Top research tasks",
-    "不包含会议正文",
-  ]) {
+	    "MeetingResearchQueueRiskPill",
+	    "MeetingResearchQueueWorkstreamPill",
+	    "不包含会议正文",
+	  ]) {
     assertIncludes(
       files.meetingsShell,
       meetingsShell,
@@ -1933,12 +1942,12 @@ function run() {
     "会议研究 Playbook",
     "Meetings module must render the research playbook panel."
   );
-  assertIncludes(
-    files.meetingsShell,
-    meetingsShell,
-    "Export follow-up",
-    "Meetings module must export the follow-up report."
-  );
+	assertIncludes(
+	  files.meetingsShell,
+	  meetingsShell,
+	  "导出 follow-up",
+	  "Meetings module must export the follow-up report."
+	);
   assertIncludes(
     files.meetingsShell,
     meetingsShell,
