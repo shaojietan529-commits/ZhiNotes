@@ -9,6 +9,7 @@ const files = {
   packageJson: "package.json",
   editorLocalCommands: "src/lib/editorLocalCommands.ts",
   childPageSeed: "src/lib/pages/childPageSeed.ts",
+  compareShell: "src/components/comparison/CompareShell.tsx",
   keyboardShortcuts: "src/components/editor/extensions/KeyboardShortcuts.ts",
   slashSuggestion: "src/components/editor/extensions/SlashCommandSuggestion.ts",
   filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
@@ -27,6 +28,7 @@ const files = {
   pageShell: "src/components/providers/PageShell.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   readme: "README.md",
+  sideBySideDiff: "src/components/comparison/SideBySideDiff.tsx",
   subPageTree: "src/components/shared/SubPageTree.tsx",
   syncedBlockNode: "src/components/editor/extensions/SyncedBlockNode.tsx",
   tableOfContentsNode:
@@ -57,6 +59,7 @@ function run() {
   const packageJson = readProjectFile(files.packageJson);
   const editorLocalCommands = readProjectFile(files.editorLocalCommands);
   const childPageSeed = readProjectFile(files.childPageSeed);
+  const compareShell = readProjectFile(files.compareShell);
   const keyboardShortcuts = readProjectFile(files.keyboardShortcuts);
   const slashSuggestion = readProjectFile(files.slashSuggestion);
   const filePreviewUpload = readProjectFile(files.filePreviewUpload);
@@ -75,6 +78,7 @@ function run() {
   const pageShell = readProjectFile(files.pageShell);
   const quickSearch = readProjectFile(files.quickSearch);
   const readme = readProjectFile(files.readme);
+  const sideBySideDiff = readProjectFile(files.sideBySideDiff);
   const subPageTree = readProjectFile(files.subPageTree);
   const syncedBlockNode = readProjectFile(files.syncedBlockNode);
   const tableOfContentsNode = readProjectFile(files.tableOfContentsNode);
@@ -323,6 +327,30 @@ function run() {
       versionHistoryPanel,
       snippet,
       "Version history panel must keep the default notes UI in Chinese."
+    );
+  }
+  for (const snippet of [
+    "当前页面",
+    "未知版本",
+    "恢复前",
+    "返回页面",
+    "版本对比",
+    "还没有可对比的保存版本。",
+    "恢复“",
+  ]) {
+    assertIncludes(
+      files.compareShell,
+      compareShell,
+      snippet,
+      "Version compare page must keep the default notes UI in Chinese."
+    );
+  }
+  for (const snippet of ["新增", "删除", "没有文本差异"]) {
+    assertIncludes(
+      files.sideBySideDiff,
+      sideBySideDiff,
+      snippet,
+      "Side-by-side diff stats must keep Chinese labels."
     );
   }
   for (const snippet of ["还没有保存版本。编辑时会自动生成版本。", "最近变化"]) {

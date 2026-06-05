@@ -33,17 +33,17 @@ export default function SideBySideDiff({
         {stats.addedWords > 0 && (
           <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
             <span className="w-2 h-2 rounded-sm bg-green-400 inline-block" />
-            +{stats.addedWords} words added
+            新增 {stats.addedWords} 个词
           </span>
         )}
         {stats.removedWords > 0 && (
           <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
             <span className="w-2 h-2 rounded-sm bg-red-400 inline-block" />
-            −{stats.removedWords} words removed
+            删除 {stats.removedWords} 个词
           </span>
         )}
         {!stats.hasChanges && (
-          <span className="text-zinc-400">No textual differences</span>
+          <span className="text-zinc-400">没有文本差异</span>
         )}
       </div>
 

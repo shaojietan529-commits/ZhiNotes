@@ -57,11 +57,11 @@ function CompareContent({ pageId }: { pageId: string }) {
   const resolveLabel = useCallback(
     (id: string | null): string => {
       if (!id) return "";
-      if (id === CURRENT) return "Current (live)";
+      if (id === CURRENT) return "当前页面";
       const v = versions.find((x) => x.id === id);
       return v
         ? `v${v.version_num} · ${formatRelativeDate(v.created_at)}`
-        : "Unknown";
+        : "未知版本";
     },
     [versions]
   );
@@ -70,7 +70,7 @@ function CompareContent({ pageId }: { pageId: string }) {
     async (version: PageVersion) => {
       if (!page) return;
       const ok = window.confirm(
-        `Restore this page to v${version.version_num}? Your current content will be saved as a new version first.`
+        `要把这个页面恢复到 v${version.version_num} 吗？当前内容会先保存为一个新版本，方便回退。`
       );
       if (!ok) return;
       // Snapshot current content so the restore is reversible
@@ -78,14 +78,14 @@ function CompareContent({ pageId }: { pageId: string }) {
         pageId,
         page.title,
         page.content_text || "",
-        "Before restore"
+        "恢复前"
       );
       await updatePage(pageId, { content_text: version.content_text || "" });
       await manualSnapshot(
         pageId,
         page.title,
         version.content_text || "",
-        `Restored from v${version.version_num}`
+        `从 v${version.version_num} 恢复`
       );
       await refresh();
       router.push(`/page/${pageId}`);
@@ -121,26 +121,25 @@ function CompareContent({ pageId }: { pageId: string }) {
                 onClick={() => router.push(`/page/${pageId}`)}
                 className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 mb-1"
               >
-                ← Back to page
+                ← 返回页面
               </button>
               <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
                 {page?.icon ? `${page.icon} ` : ""}
-                Compare versions — {page?.title || "Untitled"}
+                版本对比 - {page?.title || "未命名页面"}
               </h1>
             </div>
           </div>
 
           {versions.length === 0 ? (
             <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg px-4 py-10 text-center text-sm text-zinc-400">
-              No saved versions to compare yet. Edit the page a bit, or save a
-              version manually, then come back.
+              还没有可对比的保存版本。编辑页面或手动保存一个版本后再回来查看。
             </div>
           ) : (
             <>
               {/* Version pickers */}
               <div className="flex items-center gap-3 mb-5 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-zinc-400">From</label>
+                  <label className="text-xs text-zinc-400">从</label>
                   <select
                     value={fromId ?? ""}
                     onChange={(e) => setFromId(e.target.value)}
@@ -155,13 +154,13 @@ function CompareContent({ pageId }: { pageId: string }) {
                 </div>
                 <span className="text-zinc-300 dark:text-zinc-600">→</span>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-zinc-400">To</label>
+                  <label className="text-xs text-zinc-400">到</label>
                   <select
                     value={toId}
                     onChange={(e) => setToId(e.target.value)}
                     className="text-sm px-2 py-1 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none"
                   >
-                    <option value={CURRENT}>Current (live)</option>
+                    <option value={CURRENT}>当前页面</option>
                     {versions.map((v) => (
                       <option key={v.id} value={v.id}>
                         {resolveLabel(v.id)}
@@ -174,7 +173,7 @@ function CompareContent({ pageId }: { pageId: string }) {
                     onClick={() => handleRestore(fromVersion)}
                     className="ml-auto text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 px-2 py-1 rounded border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                   >
-                    Restore “{resolveLabel(fromId)}”
+                    恢复“{resolveLabel(fromId)}”
                   </button>
                 )}
               </div>
