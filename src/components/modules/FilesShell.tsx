@@ -87,6 +87,7 @@ function FilesDashboard() {
   const { refresh: refreshPages } = usePages();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [storedFiles, setStoredFiles] = useState<StoredPageFile[]>([]);
+  const [fileFilterId, setFileFilterId] = useState<FileLibraryFilterId>("all");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exportingWorkbench, setExportingWorkbench] = useState(false);
   const [exportingPreviewRouting, setExportingPreviewRouting] = useState(false);
@@ -158,6 +159,16 @@ function FilesDashboard() {
     () => new Map(storedFiles.map((file) => [file.id, file])),
     [storedFiles]
   );
+  const filteredFiles = useMemo(
+    () =>
+      workbench.files.filter((file) =>
+        matchesFileLibraryFilter(file, fileFilterId)
+      ),
+    [fileFilterId, workbench.files]
+  );
+  const activeFileFilter =
+    FILE_LIBRARY_FILTERS.find((filter) => filter.id === fileFilterId) ??
+    FILE_LIBRARY_FILTERS[0];
 
   const handleExportWorkbench = () => {
     setExportingWorkbench(true);
@@ -564,21 +575,57 @@ function FilesDashboard() {
             id="files-local-files"
             className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
           >
-            <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
-              本地文件
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-              这里显示本机浏览器里的文件名，方便你识别；导出的 JSON 只保留
-              脱敏标签和路线信息。
-            </p>
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+                  本地文件
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                  这里显示本机浏览器里的文件名，方便你识别；导出的 JSON 只保留
+                  脱敏标签和路线信息。
+                </p>
+              </div>
+              <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+                当前筛选：{activeFileFilter.label} · {filteredFiles.length}/
+                {workbench.files.length}
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {FILE_LIBRARY_FILTERS.map((filter) => {
+                const active = filter.id === fileFilterId;
+                const count = workbench.files.filter((file) =>
+                  matchesFileLibraryFilter(file, filter.id)
+                ).length;
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setFileFilterId(filter.id)}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      active
+                        ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-950"
+                        : "border-zinc-200 text-zinc-500 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-950"
+                    }`}
+                    title={filter.description}
+                  >
+                    {filter.label} {count}
+                  </button>
+                );
+              })}
+            </div>
             <div className="mt-4 flex flex-col gap-3">
               {workbench.files.length === 0 ? (
                 <EmptyState
                   title="当前没有本地文件"
                   body="先在文件库创建通用文件页面，或从报告库上传 HTML、Markdown、PDF、Excel、Word 或 PPT，再回到这里复核路线。"
                 />
+              ) : filteredFiles.length === 0 ? (
+                <EmptyState
+                  title="当前筛选没有文件"
+                  body="切回“全部”，或上传对应格式后再复核。本筛选只读取本地文件元数据，不读取文件正文或字节。"
+                />
               ) : (
-                workbench.files.slice(0, 12).map((file) => (
+                filteredFiles.slice(0, 12).map((file) => (
                   <FileCard
                     key={file.local_file_id}
                     item={file}
@@ -1896,6 +1943,78 @@ function getPreviewRoutingStatusClassName(status: FilePreviewRoutingStatus) {
     unsupported: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-200",
   };
   return classNames[status];
+}
+
+type FileLibraryFilterId =
+  | "all"
+  | "html"
+  | "markdown"
+  | "native"
+  | "editable"
+  | "database"
+  | "metadata"
+  | "retain";
+
+const FILE_LIBRARY_FILTERS: Array<{
+  id: FileLibraryFilterId;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "all",
+    label: "全部",
+    description: "显示所有本地文件。",
+  },
+  {
+    id: "html",
+    label: "HTML",
+    description: "AI 生成的 HTML 可视化报告优先原生预览。",
+  },
+  {
+    id: "markdown",
+    label: "Markdown",
+    description: "个人笔记和可编辑导入优先格式。",
+  },
+  {
+    id: "native",
+    label: "原生预览",
+    description: "HTML、PDF、图片、音频、视频和文本等本地预览路线。",
+  },
+  {
+    id: "editable",
+    label: "可编辑导入",
+    description: "Markdown、Word、PPT、RTF、EPUB、Notebook 等转换复核路线。",
+  },
+  {
+    id: "database",
+    label: "表格入库",
+    description: "Excel、CSV、TSV、ODS 等数据库导入候选。",
+  },
+  {
+    id: "metadata",
+    label: "元数据复核",
+    description: "ZIP、未知或需要先看格式路线的文件。",
+  },
+  {
+    id: "retain",
+    label: "本地留存",
+    description: "暂不安全转换、只保留下载和后续手动复核的文件。",
+  },
+];
+
+function matchesFileLibraryFilter(
+  file: FileLibraryFileItem,
+  filterId: FileLibraryFilterId
+) {
+  if (filterId === "all") return true;
+  if (filterId === "html") return file.kind === "html";
+  if (filterId === "markdown") return file.kind === "markdown";
+  if (filterId === "native") return file.lane_id === "native-preview";
+  if (filterId === "editable") return file.editable_import_candidate;
+  if (filterId === "database") return file.database_import_candidate;
+  if (filterId === "metadata") return file.lane_id === "metadata-review";
+  if (filterId === "retain") return file.download_only;
+  return true;
 }
 
 function downloadJsonFile(fileName: string, payload: unknown) {

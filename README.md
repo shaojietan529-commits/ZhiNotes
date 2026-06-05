@@ -880,6 +880,10 @@ Current local actions:
   reselecting, uploading, syncing, or calling AI.
 - Review a local file workbench generated from IndexedDB file metadata and the
   file preview capability matrix.
+- Filter the local file list by all files, HTML, Markdown, native preview,
+  editable import, database import, metadata review, or local retain. These
+  filters only use stored file metadata and format routes; they do not read file
+  text or bytes.
 - Review the file library format route matrix directly in `/modules/files`,
   including supported extensions, local file counts, confirmation needs, and
   privacy boundaries for each format family.
