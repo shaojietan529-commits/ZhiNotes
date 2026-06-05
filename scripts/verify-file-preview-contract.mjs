@@ -18,6 +18,7 @@ const files = {
   routing: "src/lib/files/filePreviewRouting.ts",
   preflight: "src/lib/files/fileUploadPreflight.ts",
   filePage: "src/lib/files/filePage.ts",
+  zipImportPreflight: "src/lib/files/zipImportPreflight.ts",
   structure: "src/lib/files/filePreviewStructure.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
@@ -217,6 +218,7 @@ function run() {
   const routing = readProjectFile(files.routing);
   const preflight = readProjectFile(files.preflight);
   const filePage = readProjectFile(files.filePage);
+  const zipImportPreflight = readProjectFile(files.zipImportPreflight);
   const structure = readProjectFile(files.structure);
   const actionReceipts = readProjectFile(files.actionReceipts);
   const upload = readProjectFile(files.upload);
@@ -1379,9 +1381,40 @@ function run() {
     );
   }
   for (const snippet of [
+    'format: "zhinote-zip-import-preflight-contract"',
+    'report_status: "metadata-contract-only"',
+    "reads_zip_file_now: false",
+    "reads_entry_file_names_now: false",
+    "reads_entry_bytes_now: false",
+    "extracts_files_now: false",
+    "creates_pages_now: false",
+    "creates_databases_now: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    "markdown-text-pages",
+    "html-pages",
+    "spreadsheet-databases",
+    "unknown-blocked",
+    "entry-manifest-preview",
+    "batch-create-confirmation",
+    "rollback-receipt",
+    "buildZipImportPreflightContract",
+  ]) {
+    assertIncludes(
+      files.zipImportPreflight,
+      zipImportPreflight,
+      snippet,
+      "ZIP import preflight must stay metadata-contract-only until owner review."
+    );
+  }
+  for (const snippet of [
     "buildFileLibraryWorkbenchReport",
     "buildFilePreviewRoutingPacket",
+    "buildZipImportPreflightContract",
     "filePreviewRouting",
+    "zipImportPreflight",
+    "handleExportZipPreflight",
+    "ZipImportPreflightPanel",
     "handleExportPreviewRouting",
     "FilePreviewRoutingHubPanel",
     "FilePreviewRoutingRouteCard",
@@ -1392,6 +1425,11 @@ function run() {
     "文件库中心",
     "文件工作台",
     "文件预览路由总控",
+    "ZIP 批量导入预检",
+    "导出 ZIP 预检合同",
+    "先定义路线，不读取真实 ZIP",
+    "files-zip-import-preflight",
+    "getZipRouteLabel",
     "格式路线矩阵",
     "FileFormatGroupCard",
     "导出文件工作台",

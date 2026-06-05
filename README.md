@@ -869,6 +869,9 @@ Current local actions:
 - Review the file library format route matrix directly in `/modules/files`,
   including supported extensions, local file counts, confirmation needs, and
   privacy boundaries for each format family.
+- Review and export the ZIP import preflight contract. It defines how future ZIP
+  imports should map page formats, database formats, local-retain formats, and
+  blocked formats before any real ZIP is read or extracted.
 - Route HTML reports, Markdown notes, PDFs, Office files, notebooks, archives,
   spreadsheets, media, and unknown files into native preview, editable import,
   database import, metadata review, local retain, or cloud/AI boundary lanes.

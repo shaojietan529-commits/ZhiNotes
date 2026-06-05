@@ -48,6 +48,7 @@ import {
   FILE_LIBRARY_PAGE_ACTION_LABEL,
   getFileLibraryReceiptActionKind,
 } from "@/lib/files/filePage";
+import { buildZipImportPreflightContract } from "@/lib/files/zipImportPreflight";
 import { buildReportFormatCoverageReport } from "@/lib/reports/reportFormatCoverage";
 import {
   REPORT_INTAKE_LANES,
@@ -89,6 +90,7 @@ function FilesDashboard() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exportingWorkbench, setExportingWorkbench] = useState(false);
   const [exportingPreviewRouting, setExportingPreviewRouting] = useState(false);
+  const [exportingZipPreflight, setExportingZipPreflight] = useState(false);
   const [creatingFilePages, setCreatingFilePages] = useState(false);
   const [creatingExistingFilePageId, setCreatingExistingFilePageId] = useState<
     string | null
@@ -146,6 +148,7 @@ function FilesDashboard() {
       }),
     [filePreviewReadiness, reportFormatCoverage, reportReviewQueue]
   );
+  const zipImportPreflight = useMemo(() => buildZipImportPreflightContract(), []);
 
   const fileNameById = useMemo(
     () => new Map(storedFiles.map((file) => [file.id, file.name])),
@@ -186,6 +189,24 @@ function FilesDashboard() {
       window.alert("文件预览路由包导出失败，请查看控制台。");
     } finally {
       setExportingPreviewRouting(false);
+    }
+  };
+
+  const handleExportZipPreflight = () => {
+    setExportingZipPreflight(true);
+    try {
+      downloadJsonFile(
+        `zhinote-zip-import-preflight-${fileSafeTimestamp()}.json`,
+        {
+          ...zipImportPreflight,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export ZIP preflight:", err);
+      window.alert("ZIP 预检合同导出失败，请查看控制台。");
+    } finally {
+      setExportingZipPreflight(false);
     }
   };
 
@@ -422,6 +443,12 @@ function FilesDashboard() {
           onExportPreviewRouting={handleExportPreviewRouting}
           onOpenReviewStep={handlePreviewRoutingStepOpen}
           onOpenRoute={handlePreviewRoutingRouteOpen}
+        />
+
+        <ZipImportPreflightPanel
+          contract={zipImportPreflight}
+          exporting={exportingZipPreflight}
+          onExport={handleExportZipPreflight}
         />
 
         <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
@@ -669,6 +696,112 @@ function FilesDashboard() {
         </section>
       </div>
     </div>
+  );
+}
+
+function ZipImportPreflightPanel({
+  contract,
+  exporting,
+  onExport,
+}: {
+  contract: ReturnType<typeof buildZipImportPreflightContract>;
+  exporting: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="files-zip-import-preflight"
+      className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            ZIP 批量导入预检
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            先定义路线，不读取真实 ZIP
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            这个合同只描述未来 ZIP 导入如何把 Markdown/HTML/Word/EPUB/OPML
+            映射为页面，把 CSV/Excel/ODS 映射为数据库，把 PDF/PPT/未知格式留在
+            本地复核队列。当前不会读取 ZIP、文件名、条目字节，也不会解压或写入工作区。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={exporting}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {exporting ? "导出中..." : "导出 ZIP 预检合同"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <Metric label="页面格式" value={contract.summary.planned_page_formats} />
+        <Metric
+          label="数据库格式"
+          value={contract.summary.planned_database_formats}
+        />
+        <Metric
+          label="本地留存"
+          value={contract.summary.planned_local_retain_formats}
+        />
+        <Metric
+          label="阻塞复核"
+          value={contract.summary.blocked_until_owner_review}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-2 md:grid-cols-2">
+          {contract.format_routes.map((route) => (
+            <article
+              key={route.id}
+              className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    {route.label}
+                  </h3>
+                  <p className="mt-1 text-zinc-400">
+                    {route.extensions.join(", ")}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-1 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                  {getZipRouteLabel(route.planned_route)}
+                </span>
+              </div>
+              <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+                {route.privacy_boundary}
+              </p>
+            </article>
+          ))}
+        </div>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            必需 gate
+          </div>
+          {contract.required_gates.map((gate) => (
+            <article
+              key={gate.id}
+              className="rounded-md bg-zinc-50 p-3 text-xs dark:bg-zinc-950"
+            >
+              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                {gate.label}
+              </h3>
+              <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                {gate.required_before}
+              </p>
+              <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+                {gate.reason}
+              </p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1327,6 +1460,18 @@ function RouteButton({ label, route }: { label: string; route: string }) {
       {label}
     </button>
   );
+}
+
+function getZipRouteLabel(
+  route: "page-import" | "database-import" | "local-retain" | "blocked-review"
+) {
+  const labels: Record<typeof route, string> = {
+    "page-import": "页面",
+    "database-import": "数据库",
+    "local-retain": "本地留存",
+    "blocked-review": "阻塞复核",
+  };
+  return labels[route];
 }
 
 function getFileLaneTargetSectionId(laneId: FileLibraryLane["id"]) {

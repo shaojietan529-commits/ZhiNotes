@@ -253,6 +253,15 @@ schema migration 的能力默认保持关闭。
   和“Excel / CSV 导入入口”。
 - 这个面板只做路由说明和跳转，不读取文件、不创建页面、不写数据库、不上传、不调用 AI。
 
+### ZIP 批量导入预检合同阶段
+
+- Files 模块新增“ZIP 批量导入预检”面板和导出合同。
+- 当前合同只定义未来 ZIP 导入路线：Markdown/HTML/Word/EPUB/OPML 进入 page/import，
+  CSV/Excel/ODS 进入 database import，PDF/PPT 先本地留存，未知格式进入阻塞复核。
+- 这个阶段不会读取真实 ZIP、ZIP 内文件名、条目 bytes，不解压、不创建页面、不创建数据库、
+  不上传、不调用 AI。
+- 合同列出未来必须 gate：条目清单预览、批量创建确认、HTML assets 安全复核和 rollback receipt。
+
 ### Sync/API 防护阶段
 
 - 新增共享 `ApiGuardPanel`，统一 API 防护展示结构。
