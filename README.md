@@ -726,6 +726,9 @@ Current local actions:
 - Route HTML reports, Markdown notes, PDFs, Office files, notebooks, archives,
   spreadsheets, media, and unknown files into native preview, editable import,
   database import, metadata review, local retain, or cloud/AI boundary lanes.
+- Open each file workbench lane directly from its card. Local lanes scroll to
+  the matching file-library section; cross-module lanes open Reports,
+  Databases, or Sync without reading file bytes or writing workspace data.
 - Use the file review sequence to jump to the matching local module or section
   for native preview, conversion review, database import, and sync/AI boundary.
 - Open the Reports module for real local file upload, the Notes module for

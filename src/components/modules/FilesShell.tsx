@@ -9,6 +9,7 @@ import {
   type FileLibraryActionStatus,
   type FileLibraryDecisionStatus,
   type FileLibraryFileItem,
+  type FileLibraryLane,
   type FileLibraryPriority,
   type FileLibraryWorkbenchReport,
 } from "@/lib/files/fileLibraryWorkbench";
@@ -124,6 +125,17 @@ function FilesDashboard() {
     }
 
     router.push(item.route);
+  };
+
+  const handleLaneOpen = (lane: FileLibraryLane) => {
+    if (lane.route === "/modules/files") {
+      document
+        .getElementById(getFileLaneTargetSectionId(lane.id))
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    router.push(lane.route);
   };
 
   return (
@@ -248,27 +260,11 @@ function FilesDashboard() {
 
           <div className="mt-5 grid gap-3 lg:grid-cols-3">
             {workbench.lanes.map((lane) => (
-              <div
+              <FileLibraryLaneCard
                 key={lane.id}
-                className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-                    {lane.title}
-                  </h3>
-                  <span className="rounded-full bg-zinc-200 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                    {lane.file_count} 文件
-                  </span>
-                </div>
-                <p className="mt-2 text-sm leading-5 text-zinc-500 dark:text-zinc-400">
-                  {lane.description}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  <span>{lane.action_count} 动作</span>
-                  <span>{lane.high_priority_count} 高优先级</span>
-                  <span>{lane.route}</span>
-                </div>
-              </div>
+                lane={lane}
+                onOpen={() => handleLaneOpen(lane)}
+              />
             ))}
           </div>
         </section>
@@ -751,6 +747,49 @@ function NativeStrategyList({
   );
 }
 
+function FileLibraryLaneCard({
+  lane,
+  onOpen,
+}: {
+  lane: FileLibraryLane;
+  onOpen: () => void;
+}) {
+  return (
+    <article className="flex min-h-[210px] flex-col justify-between rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+            {lane.title}
+          </h3>
+          <span className="rounded-full bg-zinc-200 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+            {lane.file_count} 文件
+          </span>
+        </div>
+        <p className="mt-2 text-sm leading-5 text-zinc-500 dark:text-zinc-400">
+          {lane.description}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+          <span>{lane.action_count} 动作</span>
+          <span>{lane.high_priority_count} 高优先级</span>
+          <span>{lane.route}</span>
+        </div>
+      </div>
+      <div className="mt-4 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+        <p className="text-xs leading-5 text-zinc-400">
+          {lane.privacy_boundary}
+        </p>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-3 rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-white dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+        >
+          打开路线
+        </button>
+      </div>
+    </article>
+  );
+}
+
 function RouteButton({ label, route }: { label: string; route: string }) {
   const router = useRouter();
   return (
@@ -762,6 +801,18 @@ function RouteButton({ label, route }: { label: string; route: string }) {
       {label}
     </button>
   );
+}
+
+function getFileLaneTargetSectionId(laneId: FileLibraryLane["id"]) {
+  const targets: Record<FileLibraryLane["id"], string> = {
+    "native-preview": "files-intake-entrypoints",
+    "editable-import": "files-intake-entrypoints",
+    "database-import": "files-intake-entrypoints",
+    "metadata-review": "files-format-matrix",
+    "download-retain": "files-local-files",
+    "cloud-ai-boundary": "files-privacy-boundary",
+  };
+  return targets[laneId];
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) {
