@@ -938,6 +938,24 @@ function run() {
       "File preview action receipts must preserve metadata-only local boundaries."
     );
   }
+  for (const snippet of [
+    "Markdown 已在本地转换",
+    "HTML 已在本地清理",
+    "HTML 预览已在输入确认短语后允许外部资源。",
+    "导出导入 receipt",
+    "导出资源 receipt",
+    "短语匹配",
+    "默认阻止",
+    "receipt 不含表格单元格值或文件 bytes。",
+    "receipt 不含报告文本、URL、token 或文件 bytes。",
+  ]) {
+    assertIncludes(
+      files.previewNode,
+      previewNode,
+      snippet,
+      "File preview receipt UI must keep privacy and confirmation labels in Chinese."
+    );
+  }
   assertIncludes(
     files.reportsShell,
     reportsShell,
@@ -1357,7 +1375,7 @@ function run() {
     "handleRecordDownloadRetainReceipt",
     "shouldShowDownloadRetainReceiptAction",
     "记录留存 receipt",
-    "File retained locally for metadata or download-only preview",
+    "文件已保留在本地，用于 metadata 或仅下载预览。",
     "handleExportLastActionReceipt",
     "最近文件动作 receipt",
     "导出动作 receipt",

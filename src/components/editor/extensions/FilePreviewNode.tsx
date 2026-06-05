@@ -338,7 +338,7 @@ function FilePreviewComponent({
       .run();
     recordActionReceipt("editable-import", {
       writes_page_content: true,
-      note: "Markdown converted locally and inserted after the file preview block.",
+      note: "Markdown 已在本地转换，并插入到文件预览块之后。",
     });
   };
 
@@ -353,7 +353,7 @@ function FilePreviewComponent({
       .run();
     recordActionReceipt("editable-import", {
       writes_page_content: true,
-      note: "OPML converted locally and inserted as editable outline blocks.",
+      note: "OPML 已在本地转换，并插入为可编辑大纲块。",
     });
   };
 
@@ -368,7 +368,7 @@ function FilePreviewComponent({
       .run();
     recordActionReceipt("editable-import", {
       writes_page_content: true,
-      note: "RTF converted locally and inserted as editable text blocks.",
+      note: "RTF 已在本地转换，并插入为可编辑文本块。",
     });
   };
 
@@ -386,7 +386,7 @@ function FilePreviewComponent({
       .run();
     recordActionReceipt("editable-import", {
       writes_page_content: true,
-      note: "Notebook cells converted locally and inserted as editable blocks.",
+      note: "Notebook 单元格已在本地转换，并插入为可编辑块。",
     });
   };
 
@@ -404,7 +404,7 @@ function FilePreviewComponent({
       .run();
     recordActionReceipt("editable-import", {
       writes_page_content: true,
-      note: "Text file inserted locally as an editable code block.",
+      note: "文本文件已在本地插入为可编辑代码块。",
     });
   };
 
@@ -427,7 +427,7 @@ function FilePreviewComponent({
       writes_page_content: true,
       confirmation_required: true,
       confirmation_matched: true,
-      note: "HTML sanitized locally and inserted as editable blocks after user confirmation.",
+      note: "HTML 已在本地清理，并在用户确认后插入为可编辑块。",
     });
   };
 
@@ -592,8 +592,8 @@ function FilePreviewComponent({
           ? externalResourceReceipt.typed_phrase_matches
           : true,
         note: nextAllowExternalResources
-          ? "HTML preview external resources enabled after typed confirmation."
-          : "HTML preview external resources blocked again locally.",
+          ? "HTML 预览已在输入确认短语后允许外部资源。"
+          : "HTML 预览已在本地重新阻止外部资源。",
       }
     );
   };
@@ -607,7 +607,7 @@ function FilePreviewComponent({
       confirmation_required: false,
       confirmation_matched: true,
       note:
-        "File retained locally for metadata or download-only preview. No conversion, upload, cloud sync, or AI action was run.",
+        "文件已保留在本地，用于 metadata 或仅下载预览。没有运行转换、上传、云同步或 AI 动作。",
     });
   };
 
@@ -854,20 +854,19 @@ function FilePreviewComponent({
                 className="w-fit rounded-md border border-blue-200 bg-white px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:border-blue-900 dark:bg-zinc-950 dark:text-blue-300 dark:hover:bg-blue-950"
               >
                 {exportingBulkImportReceipt
-                  ? "Exporting..."
-                  : "Export import receipt"}
+                  ? "导出中..."
+                  : "导出导入 receipt"}
               </button>
             </div>
             <div className="mt-2 grid gap-2 text-[11px] leading-5 text-blue-800 dark:text-blue-200 md:grid-cols-3">
               <span>
-                Phrase match:{" "}
-                {bulkImportReceipt.typed_phrase_matches ? "Yes" : "No"}
+                短语匹配：{bulkImportReceipt.typed_phrase_matches ? "是" : "否"}
               </span>
               <span>
-                Limit: up to {SPREADSHEET_DATABASE_ROW_LIMIT} rows and{" "}
-                {SPREADSHEET_DATABASE_COLUMN_LIMIT} columns
+                限制：最多 {SPREADSHEET_DATABASE_ROW_LIMIT} 行、{" "}
+                {SPREADSHEET_DATABASE_COLUMN_LIMIT} 列
               </span>
-              <span>No spreadsheet cell values or file bytes in receipt.</span>
+              <span>receipt 不含表格单元格值或文件 bytes。</span>
             </div>
           </div>
         )}
@@ -899,20 +898,18 @@ function FilePreviewComponent({
                 className="w-fit rounded-md border border-amber-200 bg-white px-3 py-2 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-wait disabled:opacity-60 dark:border-amber-900 dark:bg-zinc-950 dark:text-amber-300 dark:hover:bg-amber-950"
               >
                 {exportingExternalReceipt
-                  ? "Exporting..."
-                  : "Export resource receipt"}
+                  ? "导出中..."
+                  : "导出资源 receipt"}
               </button>
             </div>
             <div className="mt-2 grid gap-2 text-[11px] leading-5 text-amber-800 dark:text-amber-200 md:grid-cols-3">
               <span>
-                Phrase match:{" "}
-                {externalResourceReceipt.typed_phrase_matches ? "Yes" : "No"}
+                短语匹配：{externalResourceReceipt.typed_phrase_matches ? "是" : "否"}
               </span>
               <span>
-                Current state:{" "}
-                {allowExternalResources ? "External resources allowed" : "Blocked by default"}
+                当前状态：{allowExternalResources ? "已允许外部资源" : "默认阻止"}
               </span>
-              <span>No report text, URLs, tokens, or file bytes in receipt.</span>
+              <span>receipt 不含报告文本、URL、token 或文件 bytes。</span>
             </div>
           </div>
         )}
