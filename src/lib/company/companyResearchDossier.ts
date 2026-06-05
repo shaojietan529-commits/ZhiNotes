@@ -119,7 +119,7 @@ export function buildCompanyResearchDossierPlan(
     format_version: 1,
     plan_status: "local-company-dossier-only",
     privacy_note:
-      "Generated locally from the company coverage report. It creates a company-level dossier checklist for pages, memos, earnings reviews, valuation assumptions, key metrics, related reports, related meetings, and tracker setup. It does not read or export page text, database row values, file bytes, holdings, trading plans, cloud data, AI prompts, tokens, or credentials.",
+      "由本地公司覆盖报告生成。它创建公司级档案清单，覆盖页面、备忘录、业绩复盘、估值假设、关键指标、相关报告、相关会议和跟踪表设置；不会读取或导出页面正文、数据库行值、文件字节、持仓、交易计划、云端数据、AI prompt、token 或凭证。",
     boundary: {
       local_plan_only: true,
       reads_company_coverage_report: true,
@@ -191,10 +191,10 @@ function buildDossier(
     sections,
     next_action:
       missingSections.length === 0
-        ? "Dossier 基础结构已齐，下一步手动复核 relation 值、最新结论和复盘节奏。"
+        ? "公司档案基础结构已齐，下一步手动复核 relation 值、最新结论和复盘节奏。"
         : `优先补齐 ${missingSections.map(getCoverageAreaLabel).join("、")}。`,
     privacy_boundary:
-      "Dossier 只整理结构缺口，不读取或导出页面正文、数据库 row values、文件 bytes、持仓或交易计划。",
+      "公司档案只整理结构缺口，不读取或导出页面正文、数据库行值、文件字节、持仓或交易计划。",
   };
 }
 
@@ -228,7 +228,7 @@ function buildDossierSection(
     writes_workspace_data: false,
     privacy_boundary:
       area?.privacy_boundary ??
-      "只标记结构状态，不读取正文、row values、文件 bytes、持仓或交易计划。",
+      "只标记结构状态，不读取正文、数据库行值、文件字节、持仓或交易计划。",
   };
 }
 
@@ -244,7 +244,7 @@ function buildGlobalActions(
       title: "先创建公司研究页",
       status: "missing",
       applies_to: ["company-home"],
-      reason: "还没有公司研究主页，无法形成 company-level dossier。",
+      reason: "还没有公司研究主页，无法形成公司级档案。",
       target_route: "/modules/company-research",
     });
   }
@@ -258,8 +258,8 @@ function buildGlobalActions(
         applies_to: [areaId],
         reason:
           areaId === "related-reports"
-            ? "公司 Dossier 需要挂回报告库，才能从公司页追溯重要报告。"
-            : "公司 Dossier 需要挂回会议纪要，才能追踪管理层会议、专家电话会和行动项。",
+            ? "公司档案需要挂回报告库，才能从公司页追溯重要报告。"
+            : "公司档案需要挂回会议纪要，才能追踪管理层会议、专家电话会和行动项。",
         target_route:
           areaId === "related-reports" ? "/modules/reports" : "/modules/meetings",
       });
@@ -272,7 +272,7 @@ function buildGlobalActions(
       title: "创建公司跟踪表",
       status: "missing",
       applies_to: ["tracker-database"],
-      reason: "缺少公司跟踪表时，Dossier 只能停留在页面清单，无法进入数据库化跟踪。",
+      reason: "缺少公司跟踪表时，公司档案只能停留在页面清单，无法进入数据库化跟踪。",
       target_route: "/modules/company-research",
     });
   }
@@ -280,7 +280,7 @@ function buildGlobalActions(
   if (coverage.summary.candidates_needing_work > 0) {
     actions.push({
       id: "review-company-dossiers",
-      title: "逐个复核公司 Dossier",
+      title: "逐个复核公司档案",
       status: "manual-confirmation",
       applies_to: [
         "investment-memo",
@@ -302,7 +302,7 @@ function buildGlobalActions(
       status: "ready",
       applies_to: ["tracker-database"],
       reason:
-        "公司 Dossier 基础结构已齐，下一步手动维护 relation 值、催化剂、复盘日期和最新结论。",
+        "公司档案基础结构已齐，下一步手动维护 relation 值、催化剂、复盘日期和最新结论。",
       target_route: "/modules/company-research",
     });
   }
@@ -336,13 +336,13 @@ function getSectionTargetRoute(areaId: CompanyCoverageAreaId, pageRoute: string)
 function missingSectionAction(areaId: CompanyCoverageAreaId) {
   const actions: Record<CompanyCoverageAreaId, string> = {
     "company-home": "打开公司研究页，补商业模式、行业结构和关键问题。",
-    "investment-memo": "补投资 memo，沉淀假设、风险收益、催化剂和下一步动作。",
+    "investment-memo": "补投资备忘录，沉淀假设、风险收益、催化剂和下一步动作。",
     "earnings-review": "补业绩复盘，记录季度数据、管理层表述和模型影响。",
     valuation: "补估值假设，把收入、利润率、倍数或 DCF 假设放到可复盘结构里。",
     "key-metrics": "补关键指标，维护 KPI、单位经济和运营指标入口。",
     "related-reports": "去报告库补公司 relation 或页面链接。",
     "related-meetings": "去会议模块补公司 relation 或页面链接。",
-    "tracker-database": "创建公司跟踪表，并把公司页入库为 tracker row。",
+    "tracker-database": "创建公司跟踪表，并把公司页入库为跟踪表行。",
   };
 
   return actions[areaId];

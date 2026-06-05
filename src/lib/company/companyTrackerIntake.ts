@@ -57,12 +57,12 @@ export interface CompanyTrackerExistingRow {
 }
 
 const COMPANY_TRACKER_REQUIRED_FIELDS = [
-  "Company page",
-  "Ticker",
-  "Status",
-  "Thesis",
-  "Valuation assumptions",
-  "Key metrics",
+  { label: "公司页", aliases: ["公司页", "公司页面", "Company page"] },
+  { label: "股票代码", aliases: ["股票代码", "代码", "Ticker"] },
+  { label: "状态", aliases: ["状态", "Status"] },
+  { label: "投资假设", aliases: ["投资假设", "Thesis"] },
+  { label: "估值假设", aliases: ["估值假设", "估值", "Valuation assumptions"] },
+  { label: "关键指标", aliases: ["关键指标", "KPI", "Key metrics"] },
 ];
 
 export function buildCompanyTrackerIntakeDraft(
@@ -72,7 +72,7 @@ export function buildCompanyTrackerIntakeDraft(
   const mappedFields: CompanyTrackerIntakeDraft["mapped_fields"] = [];
   const fieldValues: Record<string, unknown> = {};
 
-  const companyPageField = findField(fields, ["Company page", "公司页面"]);
+  const companyPageField = findField(fields, ["公司页", "Company page", "公司页面"]);
   const tickerField = findField(fields, ["Ticker", "股票代码", "代码"]);
   const statusField = findField(fields, ["Status", "状态"]);
   const thesisField = findField(fields, ["Thesis", "投资假设"]);
@@ -108,7 +108,7 @@ export function buildCompanyTrackerIntakeDraft(
 
   if (statusField) {
     fieldValues[statusField.id] =
-      item.missing_sections.length > 0 ? "Researching" : "Active coverage";
+      item.missing_sections.length > 0 ? "研究中" : "正式覆盖";
     mappedFields.push({
       field_name: statusField.name,
       field_type: statusField.field_type,
@@ -148,7 +148,7 @@ export function buildCompanyTrackerIntakeDraft(
     format_version: 1,
     draft_status: "local-company-tracker-row-draft",
     privacy_note:
-      "Generated locally from one company coverage candidate and the selected company tracker field schema. It creates a row draft with relation ids and structural status only. It does not read or export page text, database row values, file bytes, holdings, trading plans, cloud data, AI prompts, tokens, or credentials.",
+      "由一个公司覆盖候选和所选公司跟踪表字段结构在本地生成。它只创建带 relation id 和结构状态的行草稿，不读取或导出页面正文、数据库行值、文件字节、持仓、交易计划、云端数据、AI prompt、token 或凭证。",
     boundary: {
       local_row_draft_only: true,
       reads_company_coverage_candidate: true,
@@ -169,11 +169,13 @@ export function buildCompanyTrackerIntakeDraft(
     field_values: fieldValues,
     mapped_fields: mappedFields,
     missing_fields: COMPANY_TRACKER_REQUIRED_FIELDS.filter(
-      (fieldName) =>
-        !mappedFields.some(
-          (field) => normalizeName(field.field_name) === normalizeName(fieldName)
+      (requiredField) =>
+        !mappedFields.some((field) =>
+          requiredField.aliases.some(
+            (alias) => normalizeName(field.field_name) === normalizeName(alias)
+          )
         )
-    ),
+    ).map((requiredField) => requiredField.label),
   };
 }
 
@@ -182,7 +184,7 @@ export function findExistingCompanyTrackerRow(
   fields: DatabaseField[],
   companyPageId: string
 ): CompanyTrackerExistingRow | null {
-  const companyPageField = findField(fields, ["Company page", "公司页面"]);
+  const companyPageField = findField(fields, ["公司页", "Company page", "公司页面"]);
   if (!companyPageField) return null;
 
   for (const row of rows) {
@@ -211,17 +213,17 @@ function buildCompanyTrackerRowContent(item: CompanyTrackerIntakeItem) {
 
   return `
     <h1>${escapeHtml(`公司跟踪 - ${item.page_title}`)}</h1>
-    <p>由公司研究模块本地入库创建。这个 row 用来把公司主页接入公司跟踪表。</p>
+    <p>由公司研究模块本地入库创建。这个行用来把公司主页接入公司跟踪表。</p>
     <h2>已连接</h2>
     <ul>
-      <li>Company page relation: ${escapeHtml(item.page_title)}</li>
+      <li>公司页 relation: ${escapeHtml(item.page_title)}</li>
     </ul>
     <h2>下一步</h2>
     <ul>
       <li>${escapeHtml(item.next_action)}</li>
       ${missingSections}
     </ul>
-    <p><strong>隐私边界：</strong>本地单条写入，不读取页面正文、数据库 row values、文件 bytes、持仓或交易计划。</p>
+    <p><strong>隐私边界：</strong>本地单条写入，不读取页面正文、数据库行值、文件字节、持仓或交易计划。</p>
   `.trim();
 }
 

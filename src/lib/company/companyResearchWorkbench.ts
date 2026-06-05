@@ -171,7 +171,7 @@ const LANE_META: Record<
   "company-foundation": {
     id: "company-foundation",
     title: "公司中枢",
-    description: "先确保每个重点公司都有长期主页和公司级 dossier 入口。",
+    description: "先确保每个重点公司都有长期主页和公司级档案入口。",
     route: "/modules/company-research",
     privacy_boundary:
       "只读取公司覆盖报告的结构状态，不导出公司名称、页面正文、持仓或交易计划。",
@@ -179,10 +179,10 @@ const LANE_META: Record<
   "thesis-workflow": {
     id: "thesis-workflow",
     title: "投资假设",
-    description: "把公司主页连接到投资 memo、风险收益和下一步研究动作。",
+    description: "把公司主页连接到投资备忘录、风险收益和下一步研究动作。",
     route: "/modules/company-research",
     privacy_boundary:
-      "只提示 memo 结构缺口，不读取或生成投资结论、仓位建议或交易计划。",
+      "只提示备忘录结构缺口，不读取或生成投资结论、仓位建议或交易计划。",
   },
   "earnings-valuation": {
     id: "earnings-valuation",
@@ -198,20 +198,20 @@ const LANE_META: Record<
     description: "把报告库和会议模块挂回公司研究上下文。",
     route: "/modules/research-graph",
     privacy_boundary:
-      "只使用关系结构状态，不读取报告正文、会议正文、transcript、文件 bytes 或 row values。",
+      "只使用关系结构状态，不读取报告正文、会议正文、转录稿、文件字节或数据库行值。",
   },
   "tracker-intake": {
     id: "tracker-intake",
     title: "公司跟踪表",
-    description: "将公司页转成公司跟踪表候选 row，但真实写入必须由用户点击。",
+    description: "将公司页转成公司跟踪表候选行，但真实写入必须由用户点击。",
     route: "/modules/company-research",
     privacy_boundary:
-      "工作台不创建 database rows；单条 tracker row 写入仍在公司入库台手动触发。",
+      "工作台不创建数据库行；单条跟踪表行写入仍在公司入库台手动触发。",
   },
   "review-cadence": {
     id: "review-cadence",
     title: "复盘节奏",
-    description: "设定覆盖频率、催化剂复盘、下次更新和手动 review 节点。",
+    description: "设定覆盖频率、催化剂复盘、下次更新和手动复核节点。",
     route: "/modules/company-research",
     privacy_boundary:
       "只提示复盘流程，不推断持仓、交易计划、评级变化或未确认投资动作。",
@@ -219,7 +219,7 @@ const LANE_META: Record<
   "privacy-boundary": {
     id: "privacy-boundary",
     title: "隐私和外发边界",
-    description: "任何 AI、云同步、批量 row 写入或关系自动补全都必须单独确认。",
+    description: "任何 AI、云同步、批量行写入或关系自动补全都必须单独确认。",
     route: "/modules/sync",
     privacy_boundary:
       "公司研究工作台不会上传数据、调用 AI、连接云服务或自动写 relation。",
@@ -255,7 +255,7 @@ export function buildCompanyResearchWorkbenchPacket(input: {
     format_version: 1,
     packet_status: "local-company-workbench-only",
     privacy_note:
-      "Generated locally from company coverage, playbook, dossier, and tracker-intake metadata. The packet exports aggregated routing and action counts only. It does not include company names, page titles, page text, database row values, file names, file bytes, holdings, trading plans, cloud data, AI prompts, tokens, or credentials; it does not create pages, create tracker rows, update relation values, upload data, connect cloud services, or enable AI.",
+      "由本地公司覆盖、行动手册、档案和入库台 metadata 生成。动作包只导出汇总路由和动作数量，不包含公司名、页面标题、页面正文、数据库行值、文件名、文件字节、持仓、交易计划、云端数据、AI prompt、token 或凭证；它不会创建页面、创建跟踪表行、更新 relation 值、上传数据、连接云服务或启用 AI。",
     boundary: {
       local_packet_only: true,
       reads_company_coverage_report: true,
@@ -345,18 +345,18 @@ function buildDecisionSummary(
       ? `${input.coverage.summary.missing} 个公司研究覆盖面缺失。`
       : null,
     input.dossier.summary.incomplete_dossiers > 0
-      ? `${input.dossier.summary.incomplete_dossiers} 个公司 Dossier 需要补齐。`
+      ? `${input.dossier.summary.incomplete_dossiers} 个公司档案需要补齐。`
       : null,
     input.trackerIntakeItems.length > 0
-      ? `${input.trackerIntakeItems.length} 个公司页等待逐条 tracker intake。`
+      ? `${input.trackerIntakeItems.length} 个公司页等待逐条入库。`
       : null,
-    "公司研究 AI、云同步、批量 row 写入和 relation 自动补全仍未启用。",
+    "公司研究 AI、云同步、批量行写入和 relation 自动补全仍未启用。",
   ].filter(Boolean) as string[];
 
   return {
     current_state: "local-company-owner-review",
     current_conclusion:
-      "可以继续在本地搭建公司主页、投资 memo、业绩复盘、估值假设、关键指标、报告/会议关联和公司跟踪表；tracker row 写入、relation 补全、AI 处理、云同步、批量更新以及任何持仓/交易计划推断仍然必须经过单独 owner gate。",
+      "可以继续在本地搭建公司主页、投资备忘录、业绩复盘、估值假设、关键指标、报告/会议关联和公司跟踪表；跟踪表行写入、relation 补全、AI 处理、云同步、批量更新以及任何持仓/交易计划推断仍然必须经过单独用户确认。",
     can_create_local_research_assets_now: true,
     can_review_coverage_now: true,
     can_review_dossier_now: true,
@@ -365,14 +365,14 @@ function buildDecisionSummary(
     can_send_company_research_to_ai_now: false,
     can_sync_company_research_now: false,
     safe_local_work: [
-      "继续创建本地公司主页、投资 memo、业绩复盘、估值假设、关键指标和公司 tracker。",
-      "继续复核 coverage radar、playbook、dossier 和 tracker intake metadata。",
+      "继续创建本地公司主页、投资备忘录、业绩复盘、估值假设、关键指标和公司跟踪表。",
+      "继续复核覆盖雷达、行动手册、档案和入库台 metadata。",
       "继续从公司研究模块跳转到研究图谱，手动补报告和会议 relation。",
-      "继续导出 metadata-only 公司 workbench，不包含公司名、页面标题、正文、row values 或文件 bytes。",
+      "继续导出仅 metadata 的公司工作台，不包含公司名、页面标题、正文、数据库行值或文件字节。",
     ],
     blocked_work: [
-      "不能从公司 workbench 导出公司名、页面标题、页面正文或数据库 row values。",
-      "不能批量创建 tracker rows、批量更新数据库、自动写 relation values。",
+      "不能从公司工作台导出公司名、页面标题、页面正文或数据库行值。",
+      "不能批量创建跟踪表行、批量更新数据库、自动写 relation 值。",
       "不能推断持仓、仓位、评级变化、交易计划或未确认投资动作。",
       "不能把公司研究内容发送给 AI、云同步、外部 API 或远端数据库。",
     ],
@@ -396,9 +396,9 @@ function buildDecisionSummary(
           input.coverage.summary.company_pages > 0
             ? "可以继续"
             : "先建公司主页",
-        evidence: `${input.coverage.summary.company_pages} 个公司主页，${companyFoundationActions.length} 个中枢/Dossier 行动。`,
+        evidence: `${input.coverage.summary.company_pages} 个公司主页，${companyFoundationActions.length} 个中枢/档案行动。`,
         next_action:
-          "先用公司研究页建立长期研究中枢，再把 memo、报告、会议、指标和 tracker 挂回公司页。",
+          "先用公司研究页建立长期研究中枢，再把备忘录、报告、会议、指标和跟踪表挂回公司页。",
         route: "/modules/company-research",
         target_section_id: "company-create-assets",
         allowed_now: true,
@@ -418,7 +418,7 @@ function buildDecisionSummary(
       },
       {
         id: "thesis-dossier",
-        title: "投资 memo 与 Dossier",
+        title: "投资备忘录与档案",
         status:
           thesisActions.length > 0 || input.dossier.summary.incomplete_dossiers > 0
             ? "requires-owner-confirmation"
@@ -427,9 +427,9 @@ function buildDecisionSummary(
           thesisActions.length > 0 || input.dossier.summary.incomplete_dossiers > 0
             ? "需要补齐"
             : "继续复核",
-        evidence: `${input.coverage.summary.investment_memos} 个投资 memo，${input.dossier.summary.incomplete_dossiers} 个待补 Dossier。`,
+        evidence: `${input.coverage.summary.investment_memos} 个投资备忘录，${input.dossier.summary.incomplete_dossiers} 个待补档案。`,
         next_action:
-          "按 Dossier 清单补投资假设、相关报告、相关会议和 tracker 结构；投资结论仍由用户填写。",
+          "按档案清单补投资假设、相关报告、相关会议和跟踪表结构；投资结论仍由用户填写。",
         route: "/modules/company-research",
         target_section_id: "company-dossier",
         allowed_now: true,
@@ -457,7 +457,7 @@ function buildDecisionSummary(
             : "available-local",
         answer:
           earningsValuationActions.length > 0 ? "需要补结构" : "继续保持",
-        evidence: `${earningsValuationActions.length} 个业绩/估值/指标行动；workbench 不导出目标价、模型数值或财务模型内容。`,
+        evidence: `${earningsValuationActions.length} 个业绩/估值/指标行动；工作台不导出目标价、模型数值或财务模型内容。`,
         next_action:
           "补齐业绩复盘、估值假设和关键指标入口，让公司研究可以从事实、模型影响和后续问题复盘。",
         route: "/modules/company-research",
@@ -479,7 +479,7 @@ function buildDecisionSummary(
       },
       {
         id: "links-tracker-intake",
-        title: "关联与 Tracker 入库",
+        title: "关联与跟踪表入库",
         status:
           linkActions.length + trackerActions.length > 0
             ? "requires-owner-confirmation"
@@ -488,9 +488,9 @@ function buildDecisionSummary(
           linkActions.length + trackerActions.length > 0
             ? "逐条确认"
             : "继续复核",
-        evidence: `${linkActions.length} 个报告/会议关联行动，${input.trackerIntakeItems.length} 个 tracker intake 候选。`,
+        evidence: `${linkActions.length} 个报告/会议关联行动，${input.trackerIntakeItems.length} 个入库候选。`,
         next_action:
-          "通过研究图谱手动补报告/会议 relation；公司 tracker row 只能在入库台逐条点击创建。",
+          "通过研究图谱手动补报告/会议 relation；公司跟踪表行只能在入库台逐条点击创建。",
         route: "/modules/company-research",
         target_section_id: "company-tracker-intake",
         allowed_now: true,
@@ -514,7 +514,7 @@ function buildDecisionSummary(
         status: "blocked",
         answer: "保持关闭",
         evidence:
-          "当前公司研究 workbench 不读取页面正文、不导出公司名、不上传、不调用 AI，也不推断持仓或交易计划。",
+          "当前公司研究工作台不读取页面正文、不导出公司名、不上传、不调用 AI，也不推断持仓或交易计划。",
         next_action:
           "等 AI payload preview、账号权限、同步审计、回滚和敏感投资字段排除合同确认后，再决定是否启用外发。",
         route: "/modules/sync",
@@ -575,11 +575,11 @@ function buildActions(input: {
       action({
         id: "company-workbench:create-investment-memo",
         lane_id: "thesis-workflow",
-        title: "补投资 memo",
+        title: "补投资备忘录",
         priority: "high",
         status: "missing",
         applies_to: ["investment-memo"],
-        evidence: "公司研究覆盖中缺少投资 memo 结构。",
+        evidence: "公司研究覆盖中缺少投资备忘录结构。",
         next_action:
           "创建投资备忘录，沉淀投资假设、风险收益、催化剂和下一步动作。",
         action_route: "/modules/company-research",
@@ -649,9 +649,9 @@ function buildActions(input: {
         priority: "high",
         status: "missing",
         applies_to: ["tracker-database"],
-        evidence: "当前公司研究缺少本地 tracker database。",
+        evidence: "当前公司研究缺少本地跟踪表。",
         next_action:
-          "创建公司跟踪表后，再将公司页逐条纳入 tracker row。",
+          "创建公司跟踪表后，再将公司页逐条纳入跟踪表行。",
         action_route: "/modules/company-research",
         route_label: "创建跟踪表",
         requires_manual_confirmation: true,
@@ -675,7 +675,7 @@ function buildActions(input: {
         evidence: `${input.trackerIntakeItems.length} 个公司页可进入公司入库台。`,
         next_action:
           input.coverage.summary.tracker_databases > 0
-            ? "逐条确认公司页是否应创建 tracker row；不要批量写入。"
+            ? "逐条确认公司页是否应创建跟踪表行；不要批量写入。"
             : "先创建公司跟踪表，再逐条处理入库候选。",
         action_route: "/modules/company-research",
         route_label: "查看入库台",
@@ -689,7 +689,7 @@ function buildActions(input: {
       action({
         id: "company-workbench:review-incomplete-dossiers",
         lane_id: "company-foundation",
-        title: "复核待补齐 Dossier",
+        title: "复核待补齐档案",
         priority: "medium",
         status: "manual-confirmation",
         applies_to: [
@@ -700,11 +700,11 @@ function buildActions(input: {
           "related-reports",
           "related-meetings",
         ],
-        evidence: `${input.dossier.summary.incomplete_dossiers} 个公司级 dossier 仍不完整。`,
+        evidence: `${input.dossier.summary.incomplete_dossiers} 个公司级档案仍不完整。`,
         next_action:
-          "先按 Dossier 清单补结构，再进入 relation 和 tracker 清理。",
+          "先按档案清单补结构，再进入 relation 和跟踪表清理。",
         action_route: "/modules/company-research",
-        route_label: "查看 Dossier",
+        route_label: "查看档案",
         requires_manual_confirmation: false,
       })
     );
@@ -721,9 +721,9 @@ function buildActions(input: {
         applies_to: ["tracker-database"],
         evidence: `${input.playbook.summary.manual_confirmation_steps} 个步骤需要人工确认复盘节奏。`,
         next_action:
-          "在 tracker 中维护覆盖状态、下次复盘、下一催化剂和手动 review 节点。",
+          "在跟踪表中维护覆盖状态、下次复盘、下一催化剂和手动复核节点。",
         action_route: "/modules/company-research",
-        route_label: "查看 Playbook",
+        route_label: "查看行动手册",
         requires_manual_confirmation: true,
       })
     );
@@ -754,7 +754,7 @@ function action(input: Omit<CompanyResearchWorkbenchAction, "writes_workspace_da
     ...input,
     writes_workspace_data: false,
     privacy_boundary:
-      "Workbench action is metadata-only and does not include company names, page titles, page bodies, row values, file names, file bytes, holdings, trading plans, cloud data, AI prompts, tokens, or credentials.",
+      "工作台动作只处理 metadata，不包含公司名、页面标题、页面正文、数据库行值、文件名、文件字节、持仓、交易计划、云端数据、AI prompt、token 或凭证。",
   };
 }
 
@@ -781,10 +781,10 @@ function buildReviewSequence(input: {
     reviewStep(
       "company-foundation",
       1,
-      "先建公司研究主页和 Dossier",
+      "先建公司研究主页和档案",
       "/modules/company-research",
       "company-create-assets",
-      "公司主页是所有 memo、报告、会议、指标和 tracker 的研究中枢。",
+      "公司主页是所有备忘录、报告、会议、指标和跟踪表的研究中枢。",
       input.coverage.summary.company_pages > 0
         ? "已有公司研究主页。"
         : "至少创建一个公司研究主页。"
@@ -792,13 +792,13 @@ function buildReviewSequence(input: {
     reviewStep(
       "thesis-workflow",
       2,
-      "再补投资 memo",
+      "再补投资备忘录",
       "/modules/company-research",
       "company-coverage-radar",
-      "投资 memo 承载投资假设、风险收益、催化剂和决策上下文。",
+      "投资备忘录承载投资假设、风险收益、催化剂和决策上下文。",
       input.coverage.summary.investment_memos > 0
-        ? "已有投资 memo 结构。"
-        : "至少创建一个投资 memo。"
+        ? "已有投资备忘录结构。"
+        : "至少创建一个投资备忘录。"
     ),
     reviewStep(
       "earnings-valuation",
@@ -808,8 +808,8 @@ function buildReviewSequence(input: {
       "company-playbook",
       "业绩、估值和 KPI 是公司研究进入可复盘状态的核心。",
       input.playbook.summary.missing_steps === 0
-        ? "Playbook 无结构性 missing steps。"
-        : "缺失结构已进入 Playbook action queue。"
+        ? "行动手册无结构性缺口。"
+        : "缺失结构已进入行动队列。"
     ),
     reviewStep(
       "research-links",
@@ -829,10 +829,10 @@ function buildReviewSequence(input: {
       "最后逐条入公司跟踪表",
       "/modules/company-research",
       "company-tracker-intake",
-      "tracker row 是本地写入动作，必须逐条确认，不能由工作台批量写入。",
+      "跟踪表行是本地写入动作，必须逐条确认，不能由工作台批量写入。",
       input.trackerIntakeItems.length > 0
         ? `${input.trackerIntakeItems.length} 个候选等待公司入库台复核。`
-        : "当前没有 tracker intake 候选。"
+        : "当前没有公司入库候选。"
     ),
     reviewStep(
       "privacy-boundary",
@@ -841,7 +841,7 @@ function buildReviewSequence(input: {
       "/modules/sync",
       "company-privacy-boundary",
       "AI、云同步、批量写入、自动 relation 都是高风险动作。",
-      "当前 packet 只做本地 metadata-only 排队。",
+      "当前动作包只做本地 metadata 排队。",
     ),
   ];
 

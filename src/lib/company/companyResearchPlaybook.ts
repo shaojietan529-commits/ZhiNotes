@@ -86,7 +86,7 @@ export function buildCompanyResearchPlaybook(
     format_version: 1,
     playbook_status: "local-company-playbook-only",
     privacy_note:
-      "Generated locally from the company coverage report and shared research workflow schema. This playbook does not read or export page text, database row values, file bytes, holdings, trading plans, cloud data, AI prompts, tokens, or credentials.",
+      "由本地公司覆盖报告和共享研究工作流 schema 生成。行动手册不读取或导出页面正文、数据库行值、文件字节、持仓、交易计划、云端数据、AI prompt、token 或凭证。",
     boundary: {
       local_playbook_only: true,
       reads_company_coverage_report: true,
@@ -163,7 +163,7 @@ function buildPlaybookSteps(
       next_action:
         "在公司跟踪表中维护状态、下一催化剂、评级、估值假设和下次复盘动作。",
       privacy_boundary:
-        "只提示复盘结构，不读取持仓、交易计划、目标价或数据库 row values。",
+        "只提示复盘结构，不读取持仓、交易计划、目标价或数据库行值。",
     },
   ];
 }
@@ -185,7 +185,7 @@ function areaStep(
       area?.next_action ?? `补齐 ${getCoverageAreaLabel(areaId)} 结构。`,
     privacy_boundary:
       area?.privacy_boundary ??
-      "只生成结构化行动项，不导出页面正文或数据库 row values。",
+      "只生成结构化行动项，不导出页面正文或数据库行值。",
   };
 }
 
@@ -268,9 +268,9 @@ function actionItem(
       suggested_destination: "新建公司研究页",
     },
     "create-investment-memo": {
-      title: "创建投资 memo",
+      title: "创建投资备忘录",
       status: "missing",
-      reason: "投资假设、风险收益、催化剂和下一步动作需要沉淀到 memo。",
+      reason: "投资假设、风险收益、催化剂和下一步动作需要沉淀到备忘录。",
       suggested_destination: "新建投资备忘录",
     },
     "create-earnings-review": {

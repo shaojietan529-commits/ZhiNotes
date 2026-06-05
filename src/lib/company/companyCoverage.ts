@@ -150,11 +150,11 @@ export function buildCompanyCoverageReport(
     },
     {
       id: "investment-memo",
-      title: "投资 memo",
+      title: "投资备忘录",
       status: countStatus(investmentMemos.length),
       evidence: `${investmentMemos.length} 个页面匹配投资备忘录。`,
       next_action:
-        "把核心投资假设、风险收益、催化剂、仓位纪律和下一步动作沉淀到 memo。",
+        "把核心投资假设、风险收益、催化剂、仓位纪律和下一步动作沉淀到备忘录。",
       privacy_boundary: "只统计本地页面结构，不推断持仓或投资计划。",
     },
     {
@@ -222,7 +222,7 @@ export function buildCompanyCoverageReport(
     format_version: 1,
     report_status: "local-company-coverage-only",
     privacy_note:
-      "Generated locally from page titles, page HTML structure, and database metadata. It identifies company research coverage areas and missing sections only. It does not export page text, database row values, file bytes, cloud data, AI prompts, holdings, or investment plans.",
+      "由本地页面标题、页面 HTML 结构和数据库 metadata 生成。它只识别公司研究覆盖面和缺失结构，不导出页面正文、数据库行值、文件字节、云端数据、AI prompt、持仓或投资计划。",
     boundary: {
       local_report_only: true,
       reads_local_page_html: true,
@@ -312,7 +312,7 @@ function countStatus(count: number): CompanyCoverageStatus {
 export function getCoverageAreaLabel(areaId: CompanyCoverageAreaId) {
   const labels: Record<CompanyCoverageAreaId, string> = {
     "company-home": "公司主页",
-    "investment-memo": "投资 memo",
+    "investment-memo": "投资备忘录",
     "earnings-review": "业绩复盘",
     valuation: "估值假设",
     "key-metrics": "关键指标",

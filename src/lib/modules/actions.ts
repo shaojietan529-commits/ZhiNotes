@@ -158,48 +158,48 @@ async function applyWorkspacePreset(
   if (preset === "company-research") {
     await updateDatabase(databaseId, {
       description:
-        "Company-level research tracker for coverage status, catalysts, thesis, valuation assumptions, linked reports, and linked meetings.",
+        "公司级研究跟踪表，用来管理覆盖状态、催化剂、投资假设、估值假设、关联报告和关联会议。",
     });
     await addPresetFields(databaseId, [
-      { name: "Ticker", fieldType: "text" },
-      { name: "Company page", fieldType: "relation" },
+      { name: "股票代码", fieldType: "text" },
+      { name: "公司页", fieldType: "relation" },
       {
-        name: "Sector",
+        name: "行业",
         fieldType: "select",
         options: [
-          "Software",
-          "Internet",
-          "Consumer",
-          "Financials",
-          "Healthcare",
-          "Industrials",
-          "Energy",
+          "软件",
+          "互联网",
+          "消费",
+          "金融",
+          "医疗健康",
+          "工业",
+          "能源",
         ],
       },
       {
-        name: "Status",
+        name: "状态",
         fieldType: "status",
-        options: ["Idea", "Researching", "Active coverage", "Watchlist", "Archived"],
+        options: ["想法", "研究中", "正式覆盖", "观察名单", "已归档"],
       },
       {
-        name: "Rating",
+        name: "评级",
         fieldType: "select",
-        options: ["Bullish", "Neutral", "Bearish", "Avoid"],
+        options: ["看多", "中性", "看空", "回避"],
       },
-      { name: "Next catalyst", fieldType: "date" },
-      { name: "Thesis", fieldType: "text" },
-      { name: "Valuation assumptions", fieldType: "text" },
-      { name: "Key metrics", fieldType: "text" },
-      { name: "Latest report", fieldType: "url" },
-      { name: "Related reports", fieldType: "relation" },
-      { name: "Related meetings", fieldType: "relation" },
+      { name: "下一催化剂", fieldType: "date" },
+      { name: "投资假设", fieldType: "text" },
+      { name: "估值假设", fieldType: "text" },
+      { name: "关键指标", fieldType: "text" },
+      { name: "最新报告", fieldType: "url" },
+      { name: "关联报告", fieldType: "relation" },
+      { name: "关联会议", fieldType: "relation" },
     ]);
     await addPresetViews(databaseId, [
-      { name: "Status board", viewType: "kanban" },
-      { name: "Catalyst timeline", viewType: "timeline" },
-      { name: "Valuation watchlist", viewType: "table" },
+      { name: "状态看板", viewType: "kanban" },
+      { name: "催化剂时间线", viewType: "timeline" },
+      { name: "估值观察", viewType: "table" },
       { name: "状态分布", viewType: "chart" },
-      { name: "Research feed", viewType: "feed" },
+      { name: "研究动态", viewType: "feed" },
     ]);
     return updateDatabase(databaseId, {});
   }

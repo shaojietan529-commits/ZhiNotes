@@ -277,7 +277,7 @@ function CompanyResearchDashboard() {
       });
     } catch (err) {
       console.error("[Zhinote] Failed to export company coverage:", err);
-      window.alert("Company coverage export failed. Please check the console.");
+      window.alert("公司覆盖报告导出失败，请查看控制台。");
     } finally {
       setExportingCoverage(false);
     }
@@ -295,7 +295,7 @@ function CompanyResearchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export company playbook:", err);
-      window.alert("公司研究 Playbook 导出失败，请查看控制台。");
+      window.alert("公司研究行动手册导出失败，请查看控制台。");
     } finally {
       setExportingPlaybook(false);
     }
@@ -313,7 +313,7 @@ function CompanyResearchDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to export company dossier:", err);
-      window.alert("公司研究 Dossier 导出失败，请查看控制台。");
+      window.alert("公司研究档案导出失败，请查看控制台。");
     } finally {
       setExportingDossier(false);
     }
@@ -358,7 +358,7 @@ function CompanyResearchDashboard() {
       );
       if (existingRow) {
         setTrackerIntakeMessage(
-          `已存在 tracker row：${existingRow.row_title}。已打开公司跟踪表继续补 relation。`
+          `已存在跟踪表行：${existingRow.row_title}。已打开公司跟踪表继续补 relation。`
         );
         router.push(
           `/database/${tracker.id}?q=${encodeURIComponent(item.page_title)}&focus=${
@@ -374,7 +374,7 @@ function CompanyResearchDashboard() {
       );
       if (!hasCompanyPageRelation) {
         window.alert(
-          "当前公司跟踪表缺少 Company page relation 字段，请先补字段后再入库。"
+          "当前公司跟踪表缺少公司页 relation 字段，请先补字段后再入库。"
         );
         return;
       }
@@ -385,7 +385,7 @@ function CompanyResearchDashboard() {
         contentText: draft.row_page_content,
       });
       setTrackerIntakeMessage(
-        `已创建 tracker row：${draft.row_title}。已打开公司跟踪表继续补 relation。`
+        `已创建跟踪表行：${draft.row_title}。已打开公司跟踪表继续补 relation。`
       );
       router.push(
         `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
@@ -484,10 +484,10 @@ function CompanyResearchDashboard() {
                 公司研究工作台
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把 coverage、Playbook、Dossier 和公司入库台合并成一个本地
-                action packet：先建公司中枢，再补投资假设、业绩估值、研究关联、
-                tracker intake 和复盘节奏。导出不包含公司名称、页面标题、页面正文、
-                数据库 row values、文件名、文件 bytes、持仓或交易计划。
+                把覆盖雷达、行动手册、公司档案和公司入库台合并成一个本地
+                动作包：先建公司中枢，再补投资假设、业绩估值、研究关联、
+                公司入库和复盘节奏。导出不包含公司名称、页面标题、页面正文、
+                数据库行值、文件名、文件字节、持仓或交易计划。
               </p>
             </div>
             <button
@@ -501,7 +501,7 @@ function CompanyResearchDashboard() {
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
             <CompanyWorkbenchMetric
-              label="Coverage 缺口"
+              label="覆盖缺口"
               value={companyWorkbench.summary.missing_areas}
             />
             <CompanyWorkbenchMetric
@@ -509,11 +509,11 @@ function CompanyResearchDashboard() {
               value={companyWorkbench.summary.company_pages}
             />
             <CompanyWorkbenchMetric
-              label="待补 Dossier"
+              label="待补档案"
               value={companyWorkbench.summary.incomplete_dossiers}
             />
             <CompanyWorkbenchMetric
-              label="Playbook 动作"
+              label="行动手册动作"
               value={companyWorkbench.summary.playbook_actions}
             />
             <CompanyWorkbenchMetric
@@ -536,7 +536,7 @@ function CompanyResearchDashboard() {
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
             <div>
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                工作台 lanes
+                工作台分组
               </div>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
                 {companyWorkbench.lanes.map((lane) => (
@@ -577,12 +577,12 @@ function CompanyResearchDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                公司研究 Dossier
+                公司研究档案
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把覆盖雷达按公司页整理成研究档案：公司主页、投资 memo、业绩复盘、
+                把覆盖雷达按公司页整理成研究档案：公司主页、投资备忘录、业绩复盘、
                 估值假设、关键指标、相关报告、相关会议和公司跟踪表。导出只包含结构状态，
-                不包含页面正文、数据库 row values、文件 bytes、持仓或交易计划。
+                不包含页面正文、数据库行值、文件字节、持仓或交易计划。
               </p>
             </div>
             <button
@@ -591,14 +591,14 @@ function CompanyResearchDashboard() {
               disabled={exportingDossier}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingDossier ? "导出中..." : "导出 Dossier"}
+              {exportingDossier ? "导出中..." : "导出档案"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
             <CoverageMetric
               label="公司页"
               value={companyDossier.summary.company_pages}
-              detail="Dossier base"
+              detail="档案基础"
               status={
                 companyDossier.summary.company_pages > 0 ? "ready" : "missing"
               }
@@ -606,7 +606,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="候选公司"
               value={companyDossier.summary.company_candidates}
-              detail="Needs review"
+              detail="需要复核"
               status={
                 companyDossier.summary.company_candidates > 0
                   ? "missing"
@@ -616,7 +616,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="完整档案"
               value={companyDossier.summary.complete_dossiers}
-              detail="Complete"
+              detail="完整"
               status={
                 companyDossier.summary.complete_dossiers > 0
                   ? "ready"
@@ -626,7 +626,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="待补档案"
               value={companyDossier.summary.incomplete_dossiers}
-              detail="Incomplete"
+              detail="待补"
               status={
                 companyDossier.summary.incomplete_dossiers > 0
                   ? "missing"
@@ -634,9 +634,9 @@ function CompanyResearchDashboard() {
               }
             />
             <CoverageMetric
-              label="缺 Memo"
+              label="缺备忘录"
               value={companyDossier.summary.missing_memos}
-              detail="Thesis"
+              detail="投资假设"
               status={
                 companyDossier.summary.missing_memos > 0 ? "missing" : "ready"
               }
@@ -644,7 +644,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="缺报告"
               value={companyDossier.summary.missing_related_reports}
-              detail="Reports"
+              detail="报告"
               status={
                 companyDossier.summary.missing_related_reports > 0
                   ? "missing"
@@ -654,7 +654,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="缺会议"
               value={companyDossier.summary.missing_related_meetings}
-              detail="Meetings"
+              detail="会议"
               status={
                 companyDossier.summary.missing_related_meetings > 0
                   ? "missing"
@@ -664,7 +664,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="手动动作"
               value={companyDossier.summary.manual_actions}
-              detail="Relations"
+              detail="关系"
               status={
                 companyDossier.summary.manual_actions > 0 ? "partial" : "ready"
               }
@@ -688,8 +688,8 @@ function CompanyResearchDashboard() {
                 </div>
               ) : (
                 <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-                  暂无待补齐公司 Dossier。已有公司页会在缺少 memo、业绩复盘、
-                  估值、指标、报告、会议或 tracker 结构时进入这里。
+                  暂无待补齐公司档案。已有公司页会在缺少备忘录、业绩复盘、
+                  估值、指标、报告、会议或跟踪表结构时进入这里。
                 </p>
               )}
             </div>
@@ -718,9 +718,9 @@ function CompanyResearchDashboard() {
                 公司入库台
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把单个公司研究页创建成公司跟踪表 row，并自动填入 Company page relation、
-                Status、Thesis，以及可识别时的 Ticker。点击后只做本地单条写入，
-                不读取页面正文、数据库 row values、文件 bytes、持仓或交易计划。
+                把单个公司研究页创建成公司跟踪表行，并自动填入公司页 relation、
+                状态、投资假设，以及可识别时的股票代码。点击后只做本地单条写入，
+                不读取页面正文、数据库行值、文件字节、持仓或交易计划。
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
@@ -731,7 +731,7 @@ function CompanyResearchDashboard() {
                     : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                 }`}
               >
-                {companyTrackers.length > 0 ? "Tracker ready" : "缺公司跟踪表"}
+                {companyTrackers.length > 0 ? "跟踪表就绪" : "缺公司跟踪表"}
               </span>
               <span className="rounded-md bg-blue-50 px-2 py-1 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                 本地单条写入
@@ -758,7 +758,7 @@ function CompanyResearchDashboard() {
             </div>
           ) : (
             <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有可入库的公司研究页。先新建公司研究页，再把它创建成公司跟踪表 row。
+              还没有可入库的公司研究页。先新建公司研究页，再把它创建成公司跟踪表行。
             </p>
           )}
         </section>
@@ -773,9 +773,9 @@ function CompanyResearchDashboard() {
                 公司覆盖雷达
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                本地扫描公司研究页面和数据库元数据，检查公司主页、投资 memo、
+                本地扫描公司研究页面和数据库元数据，检查公司主页、投资备忘录、
                 业绩复盘、估值假设、关键指标、相关报告、相关会议和公司跟踪表是否齐备。
-                导出不会包含页面正文、数据库 row 值、文件 bytes、持仓或投资计划。
+                导出不会包含页面正文、数据库行值、文件字节、持仓或投资计划。
               </p>
             </div>
             <button
@@ -784,40 +784,40 @@ function CompanyResearchDashboard() {
               disabled={exportingCoverage}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingCoverage ? "Exporting..." : "Export coverage"}
+              {exportingCoverage ? "导出中..." : "导出覆盖报告"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-7">
             <CoverageMetric
               label="覆盖面"
               value={companyCoverage.summary.coverage_areas}
-              detail="Research areas"
+              detail="研究结构面"
               status="ready"
             />
             <CoverageMetric
-              label="Ready"
+              label="就绪"
               value={companyCoverage.summary.ready}
-              detail="Has structure"
+              detail="已有结构"
               status="ready"
             />
             <CoverageMetric
-              label="Missing"
+              label="缺失"
               value={companyCoverage.summary.missing}
-              detail="Needs setup"
+              detail="需要补齐"
               status="missing"
             />
             <CoverageMetric
               label="公司页"
               value={companyCoverage.summary.company_pages}
-              detail="Home pages"
+              detail="主页"
               status={
                 companyCoverage.summary.company_pages > 0 ? "ready" : "missing"
               }
             />
             <CoverageMetric
-              label="Memo"
+              label="备忘录"
               value={companyCoverage.summary.investment_memos}
-              detail="Thesis docs"
+              detail="投资假设"
               status={
                 companyCoverage.summary.investment_memos > 0
                   ? "ready"
@@ -827,7 +827,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="业绩复盘"
               value={companyCoverage.summary.earnings_reviews}
-              detail="Reviews"
+              detail="复盘"
               status={
                 companyCoverage.summary.earnings_reviews > 0
                   ? "ready"
@@ -837,7 +837,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="待补齐"
               value={companyCoverage.summary.candidates_needing_work}
-              detail="Company pages"
+              detail="公司页"
               status={
                 companyCoverage.summary.candidates_needing_work > 0
                   ? "missing"
@@ -862,7 +862,7 @@ function CompanyResearchDashboard() {
             </div>
           ) : (
             <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              暂无需要补齐的公司页。新建公司研究页后，这里会提示缺少的 memo、业绩复盘、
+              暂无需要补齐的公司页。新建公司研究页后，这里会提示缺少的备忘录、业绩复盘、
               估值、指标、报告或会议结构。
             </p>
           )}
@@ -875,12 +875,12 @@ function CompanyResearchDashboard() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                公司研究 Playbook
+                公司研究行动手册
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把覆盖雷达转成行动队列：先补公司主页，再补投资 memo、业绩复盘、
+                把覆盖雷达转成行动队列：先补公司主页，再补投资备忘录、业绩复盘、
                 估值假设、关键指标、相关报告、相关会议和公司跟踪表。导出只包含结构状态，
-                不包含页面正文、数据库 row values、持仓或交易计划。
+                不包含页面正文、数据库行值、持仓或交易计划。
               </p>
             </div>
             <button
@@ -889,24 +889,24 @@ function CompanyResearchDashboard() {
               disabled={exportingPlaybook}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingPlaybook ? "导出中..." : "导出 Playbook"}
+              {exportingPlaybook ? "导出中..." : "导出行动手册"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
             <CoverageMetric
               label="步骤"
               value={companyPlaybook.summary.workflow_steps}
-              detail="Workflow"
+              detail="工作流"
               status="partial"
             />
             <CoverageMetric
-              label="Ready"
+              label="就绪"
               value={companyPlaybook.summary.ready_steps}
               detail="已覆盖"
               status="ready"
             />
             <CoverageMetric
-              label="Missing"
+              label="缺失"
               value={companyPlaybook.summary.missing_steps}
               detail="待补齐"
               status={
@@ -922,7 +922,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="行动队列"
               value={companyPlaybook.summary.action_queue_items}
-              detail="Next actions"
+              detail="下一步"
               status={
                 companyPlaybook.summary.action_queue_items > 0
                   ? "missing"
@@ -932,7 +932,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="候选公司"
               value={companyPlaybook.summary.candidate_companies}
-              detail="Needs work"
+              detail="待处理"
               status={
                 companyPlaybook.summary.candidate_companies > 0
                   ? "missing"
@@ -942,7 +942,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="跟踪表"
               value={companyPlaybook.summary.tracker_databases}
-              detail="Local DB"
+              detail="本地表"
               status={
                 companyPlaybook.summary.tracker_databases > 0
                   ? "ready"
@@ -952,7 +952,7 @@ function CompanyResearchDashboard() {
             <CoverageMetric
               label="关系门"
               value={companyPlaybook.summary.relation_gates}
-              detail="Reports/meetings"
+              detail="报告/会议"
               status={
                 companyPlaybook.summary.relation_gates > 0
                   ? "missing"
@@ -1042,11 +1042,11 @@ function CompanyResearchDashboard() {
           />
           <ResourceList
             title="公司跟踪表"
-            emptyText="还没有公司跟踪数据库。"
+            emptyText="还没有公司跟踪表。"
             items={companyTrackers.map((database) => ({
               id: database.id,
               label: database.title || "公司研究跟踪表",
-              meta: database.description ?? "本地研究数据库",
+              meta: database.description ?? "本地公司跟踪表",
               onOpen: () => router.push(`/database/${database.id}`),
             }))}
           />
@@ -1077,7 +1077,7 @@ function CompanyDecisionSummaryPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Company Decision Summary
+            公司研究决策摘要
           </p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             公司研究决策摘要
@@ -1110,7 +1110,7 @@ function CompanyDecisionSummaryPanel({
         <CompanyDecisionList title="当前可做" items={summary.safe_local_work} />
         <CompanyDecisionList title="保持关闭" items={summary.blocked_work} />
         <CompanyDecisionList
-          title="Owner 待确认"
+          title="用户待确认"
           items={summary.required_owner_decisions}
         />
       </div>
@@ -1121,7 +1121,7 @@ function CompanyDecisionSummaryPanel({
           ? summary.top_blockers.join("；")
           : "暂无"}
         。公司研究决策摘要只读取本地 summary metadata，不包含公司名、页面标题、
-        页面正文、database row values、file names、file bytes、持仓、交易计划、
+        页面正文、数据库行值、文件名、文件字节、持仓、交易计划、
         prompt、token 或 credentials。
       </div>
     </section>
@@ -1249,7 +1249,7 @@ function CompanyWorkbenchReviewStepCard({
     <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-[11px] text-zinc-400">Step {step.order}</div>
+          <div className="text-[11px] text-zinc-400">步骤 {step.order}</div>
           <div className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
             {step.title}
           </div>
@@ -1377,8 +1377,8 @@ function CompanyWorkbenchStatusPill({
   status: CompanyResearchWorkbenchStatus;
 }) {
   const labels: Record<CompanyResearchWorkbenchStatus, string> = {
-    ready: "Ready",
-    missing: "Missing",
+    ready: "就绪",
+    missing: "缺失",
     "manual-confirmation": "需确认",
     "blocked-boundary": "边界阻止",
   };
@@ -1542,16 +1542,15 @@ function CompanyTrackerIntakeCard({
           ))
         ) : (
           <span className="rounded bg-green-50 px-1.5 py-0.5 text-[10px] text-green-700 dark:bg-green-950 dark:text-green-300">
-            Ready
+            就绪
           </span>
         )}
       </div>
       <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
-        将创建一条本地 company tracker row，写入 Company page relation、
-        Status、Thesis，并在标题可识别时填入 Ticker。
+        将创建一条本地公司跟踪表行，写入公司页 relation、状态、投资假设，并在标题可识别时填入股票代码。
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
-        本地单条写入；不读取页面正文、数据库 row values、持仓、交易计划或文件 bytes。
+        本地单条写入；不读取页面正文、数据库行值、持仓、交易计划或文件字节。
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
@@ -1560,7 +1559,7 @@ function CompanyTrackerIntakeCard({
           disabled={!trackerReady || busy}
           className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
         >
-          {busy ? "创建中..." : "创建 tracker row"}
+          {busy ? "创建中..." : "创建跟踪表行"}
         </button>
         <button
           type="button"
@@ -1769,9 +1768,9 @@ function CompanyCoverageStatusPill({
   status: CompanyCoverageStatus;
 }) {
   const labels: Record<CompanyCoverageStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
-    missing: "Missing",
+    ready: "就绪",
+    partial: "部分就绪",
+    missing: "缺失",
   };
   const className =
     status === "ready"
@@ -1793,9 +1792,9 @@ function CompanyPlaybookStatusPill({
   status: CompanyResearchPlaybookStatus;
 }) {
   const labels: Record<CompanyResearchPlaybookStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
-    missing: "Missing",
+    ready: "就绪",
+    partial: "部分就绪",
+    missing: "缺失",
     "manual-confirmation": "需确认",
   };
   const className =
@@ -1820,9 +1819,9 @@ function CompanyDossierStatusPill({
   status: CompanyResearchDossierStatus;
 }) {
   const labels: Record<CompanyResearchDossierStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
-    missing: "Missing",
+    ready: "就绪",
+    partial: "部分就绪",
+    missing: "缺失",
     "manual-confirmation": "需确认",
   };
   const className =
@@ -1849,7 +1848,7 @@ function getSurfaceLabel(surface: CompanyResearchPlaybook["steps"][number]["surf
     page: "页面",
     database: "数据库",
     file: "文件",
-    relation: "Relation",
+    relation: "关系",
     analysis: "分析结构",
   };
 

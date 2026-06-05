@@ -47,7 +47,7 @@ const requiredKinds = [
     route: "/modules/company-research",
     preset: "company-research",
     relationKinds: ["report", "meeting"],
-    keyFields: ["Ticker", "Company page", "Valuation assumptions"],
+    keyFields: ["股票代码", "公司页", "估值假设"],
   },
   {
     kind: "report",
@@ -716,7 +716,7 @@ function run() {
     "company-decision-summary",
     "当前可做",
     "保持关闭",
-    "Owner 待确认",
+    "用户待确认",
     "公司研究决策摘要只读取本地 summary metadata",
     "公司研究工作台",
     "导出公司工作台",
@@ -800,9 +800,9 @@ function run() {
   }
   for (const snippet of [
     "buildCompanyResearchDossierPlan",
-    "公司研究 Dossier",
+    "公司研究档案",
     "handleExportDossier",
-    "导出 Dossier",
+    "导出档案",
     "CompanyDossierCard",
     "CompanyDossierActionCard",
     "CompanyDossierStatusPill",
@@ -1017,12 +1017,12 @@ function run() {
     );
   }
   for (const fieldName of [
-    "Company page",
-    "Ticker",
-    "Status",
-    "Thesis",
-    "Valuation assumptions",
-    "Key metrics",
+    "公司页",
+    "股票代码",
+    "状态",
+    "投资假设",
+    "估值假设",
+    "关键指标",
   ]) {
     assertIncludes(
       files.companyTrackerIntake,
@@ -1790,7 +1790,7 @@ function run() {
   assertIncludes(
     files.companyShell,
     companyShell,
-    "创建 tracker row",
+    "创建跟踪表行",
     "Company module must expose a tracker-row creation action."
   );
   assertIncludes(
@@ -1808,19 +1808,19 @@ function run() {
   assertIncludes(
     files.companyShell,
     companyShell,
-    "公司研究 Playbook",
+    "公司研究行动手册",
     "Company module must render the research playbook panel."
   );
   assertIncludes(
     files.companyShell,
     companyShell,
-    "Export coverage",
+    "导出覆盖报告",
     "Company module must export the coverage report."
   );
   assertIncludes(
     files.companyShell,
     companyShell,
-    "导出 Playbook",
+    "导出行动手册",
     "Company module must export the research playbook."
   );
   assertIncludes(
