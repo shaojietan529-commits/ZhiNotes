@@ -48,6 +48,12 @@ import {
   type MeetingTrackerFollowUpItem,
 } from "@/lib/meetings/meetingTrackerIntake";
 import {
+  buildMeetingTranscriptIntakeReadiness,
+  getMeetingTranscriptIntakeStatusLabel,
+  type MeetingTranscriptIntakeReport,
+  type MeetingTranscriptIntakeStatus,
+} from "@/lib/meetings/meetingTranscriptIntake";
+import {
   buildMeetingWorkbenchPacket,
   type MeetingDecisionSummaryStatus,
   type MeetingWorkbenchPacket,
@@ -125,6 +131,8 @@ function MeetingsDashboard() {
   const [exportingResearchQueue, setExportingResearchQueue] = useState(false);
   const [exportingPlaybook, setExportingPlaybook] = useState(false);
   const [exportingWorkbench, setExportingWorkbench] = useState(false);
+  const [exportingTranscriptIntake, setExportingTranscriptIntake] =
+    useState(false);
   const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
     null
   );
@@ -166,6 +174,10 @@ function MeetingsDashboard() {
   const meetingPlaybook = useMemo(
     () => buildMeetingResearchPlaybook(meetingFollowUp),
     [meetingFollowUp]
+  );
+  const meetingTranscriptIntake = useMemo(
+    () => buildMeetingTranscriptIntakeReadiness(),
+    []
   );
   const meetingWorkbench = useMemo(
     () =>
@@ -291,6 +303,24 @@ function MeetingsDashboard() {
       window.alert("会议研究 Playbook 导出失败，请查看控制台。");
     } finally {
       setExportingPlaybook(false);
+    }
+  };
+
+  const handleExportTranscriptIntake = () => {
+    setExportingTranscriptIntake(true);
+    try {
+      downloadJsonFile(
+        `zhinote-meeting-transcript-intake-${fileSafeTimestamp()}.json`,
+        {
+          ...meetingTranscriptIntake,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export transcript intake:", err);
+      window.alert("会议转录稿接入矩阵导出失败，请查看控制台。");
+    } finally {
+      setExportingTranscriptIntake(false);
     }
   };
 
@@ -448,6 +478,13 @@ function MeetingsDashboard() {
             </div>
           </div>
         </section>
+
+        <MeetingTranscriptIntakePanel
+          report={meetingTranscriptIntake}
+          exporting={exportingTranscriptIntake}
+          onExport={handleExportTranscriptIntake}
+          onOpenFiles={() => router.push("/modules/files")}
+        />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -1325,6 +1362,263 @@ function MeetingDecisionList({
       )}
     </article>
   );
+}
+
+function MeetingTranscriptIntakePanel({
+  report,
+  exporting,
+  onExport,
+  onOpenFiles,
+}: {
+  report: MeetingTranscriptIntakeReport;
+  exporting: boolean;
+  onExport: () => void;
+  onOpenFiles: () => void;
+}) {
+  return (
+    <section
+      id="meeting-transcript-intake"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Transcript Intake
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            会议转录稿接入准备
+          </h2>
+          <p className="mt-2 max-w-4xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            先把字幕、Markdown、HTML、PDF、Word、Excel、音视频和 ZIP
+            等格式映射到本地预览路线。这个矩阵只读取内置格式能力，
+            不读取你的真实文件名、文件内容、录音字节、参会人或会议密码。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onOpenFiles}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            打开文件模块
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={exporting}
+            className="rounded-md bg-zinc-950 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+          >
+            {exporting ? "导出中..." : "导出接入矩阵"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <MeetingTranscriptMetric
+          label="格式路线"
+          value={report.summary.formats}
+          detail="能力矩阵"
+        />
+        <MeetingTranscriptMetric
+          label="转录文本"
+          value={report.summary.transcript_text_preview_formats}
+          detail="可预览"
+        />
+        <MeetingTranscriptMetric
+          label="原生预览"
+          value={report.summary.native_preview_formats}
+          detail="浏览器内"
+        />
+        <MeetingTranscriptMetric
+          label="转换预览"
+          value={report.summary.converted_preview_formats}
+          detail="本地转换"
+        />
+        <MeetingTranscriptMetric
+          label="录音索引"
+          value={report.summary.recording_index_formats}
+          detail="不转写"
+        />
+        <MeetingTranscriptMetric
+          label="需确认"
+          value={report.summary.owner_confirmation_required_formats}
+          detail="高风险入口"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <div>
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            格式接入路线
+          </div>
+          <div className="mt-2 grid gap-3 md:grid-cols-2">
+            {report.formats.map((format) => (
+              <MeetingTranscriptFormatCard key={format.id} format={format} />
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          <MeetingTranscriptTextList
+            title="推荐顺序"
+            items={report.recommended_sequence}
+          />
+          <MeetingTranscriptTextList
+            title="保持关闭"
+            items={report.blocked_actions}
+          />
+          <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            {report.privacy_note}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MeetingTranscriptMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function MeetingTranscriptFormatCard({
+  format,
+}: {
+  format: MeetingTranscriptIntakeReport["formats"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {format.label}
+          </div>
+          <div className="mt-1 text-zinc-400">
+            {getMeetingTranscriptRoleLabel(format.role)}
+          </div>
+        </div>
+        <MeetingTranscriptStatusPill status={format.status} />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {format.examples.map((example) => (
+          <span
+            key={example}
+            className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {example}
+          </span>
+        ))}
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {format.next_action}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        {format.editable_import_candidate && (
+          <span className="rounded bg-green-50 px-1.5 py-0.5 text-[10px] text-green-700 dark:bg-green-950 dark:text-green-300">
+            可编辑导入候选
+          </span>
+        )}
+        {format.database_import_candidate && (
+          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+            数据库导入候选
+          </span>
+        )}
+        {format.recording_index_only && (
+          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            只做录音索引
+          </span>
+        )}
+        {format.owner_confirmation_required && (
+          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+            需确认
+          </span>
+        )}
+      </div>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {format.privacy_boundary}
+      </p>
+      {format.limitation && (
+        <p className="mt-2 leading-5 text-amber-700 dark:text-amber-300">
+          限制：{format.limitation}
+        </p>
+      )}
+    </article>
+  );
+}
+
+function MeetingTranscriptStatusPill({
+  status,
+}: {
+  status: MeetingTranscriptIntakeStatus;
+}) {
+  const className: Record<MeetingTranscriptIntakeStatus, string> = {
+    "native-preview":
+      "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
+    "converted-preview":
+      "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+    "metadata-only":
+      "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+    "download-only":
+      "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    unsupported: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+  };
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className[status]}`}>
+      {getMeetingTranscriptIntakeStatusLabel(status)}
+    </span>
+  );
+}
+
+function MeetingTranscriptTextList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {title}
+      </div>
+      <ul className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+function getMeetingTranscriptRoleLabel(role: MeetingTranscriptIntakeReport["formats"][number]["role"]) {
+  const labels: Record<
+    MeetingTranscriptIntakeReport["formats"][number]["role"],
+    string
+  > = {
+    "transcript-text": "转录文本",
+    "meeting-note": "会议笔记",
+    "report-attachment": "会议材料",
+    "recording-index": "录音/视频索引",
+    "data-attachment": "行动项数据",
+    "retained-file": "本地留存",
+  };
+
+  return labels[role];
 }
 
 function MeetingSummaryStatusPill({

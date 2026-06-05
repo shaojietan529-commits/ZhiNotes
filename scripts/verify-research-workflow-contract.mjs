@@ -22,6 +22,7 @@ const files = {
   meetingDecisionLedger: "src/lib/meetings/meetingDecisionLedger.ts",
   meetingResearchQueue: "src/lib/meetings/meetingResearchQueue.ts",
   meetingPlaybook: "src/lib/meetings/meetingResearchPlaybook.ts",
+  meetingTranscriptIntake: "src/lib/meetings/meetingTranscriptIntake.ts",
   meetingWorkbench: "src/lib/meetings/meetingWorkbench.ts",
   meetingTrackerIntake: "src/lib/meetings/meetingTrackerIntake.ts",
   portfolioReview: "src/lib/portfolio/portfolioReview.ts",
@@ -157,6 +158,7 @@ function run() {
   const meetingDecisionLedger = readProjectFile(files.meetingDecisionLedger);
   const meetingResearchQueue = readProjectFile(files.meetingResearchQueue);
   const meetingPlaybook = readProjectFile(files.meetingPlaybook);
+  const meetingTranscriptIntake = readProjectFile(files.meetingTranscriptIntake);
   const meetingWorkbench = readProjectFile(files.meetingWorkbench);
   const meetingTrackerIntake = readProjectFile(files.meetingTrackerIntake);
   const portfolioReview = readProjectFile(files.portfolioReview);
@@ -1277,6 +1279,65 @@ function run() {
     );
   }
   assertIncludes(
+    files.meetingTranscriptIntake,
+    meetingTranscriptIntake,
+    'format: "zhinote-meeting-transcript-intake-readiness"',
+    "Meeting transcript intake must define a local capability format."
+  );
+  assertIncludes(
+    files.meetingTranscriptIntake,
+    meetingTranscriptIntake,
+    "buildMeetingTranscriptIntakeReadiness",
+    "Meeting transcript intake must expose a reusable readiness builder."
+  );
+  for (const snippet of [
+    'report_status: "local-transcript-intake-capability-only"',
+    "local_report_only: true",
+    "reads_static_format_matrix: true",
+    "reads_file_names: false",
+    "reads_file_bytes: false",
+    "reads_page_text: false",
+    "includes_page_text: false",
+    "reads_transcript_text: false",
+    "includes_transcript_text: false",
+    "reads_recording_bytes: false",
+    "includes_recording_bytes: false",
+    "includes_participant_details: false",
+    "includes_meeting_passcodes: false",
+    "includes_database_row_values: false",
+    "writes_workspace_data: false",
+    "creates_pages: false",
+    "uploads_data: false",
+    "connects_cloud_services: false",
+    "enables_ai: false",
+    "caption-transcript",
+    "html-ai-report",
+    "spreadsheet-action-log",
+    "recording-index",
+    ".srt",
+    ".vtt",
+    ".webvtt",
+    ".ttml",
+    ".md",
+    ".html",
+    ".pdf",
+    ".docx",
+    ".xlsx",
+    ".m4a",
+    ".mp4",
+    "auto_read_transcript_text",
+    "auto_transcribe_recordings",
+    "upload_meeting_files",
+    "send_meeting_context_to_ai",
+  ]) {
+    assertIncludes(
+      files.meetingTranscriptIntake,
+      meetingTranscriptIntake,
+      snippet,
+      "Meeting transcript intake must preserve local format-only coverage and privacy boundaries."
+    );
+  }
+  assertIncludes(
     files.meetingWorkbench,
     meetingWorkbench,
     'format: "zhinote-meeting-workbench-packet"',
@@ -1399,6 +1460,14 @@ function run() {
     "MeetingWorkbenchLaneCard",
     "MeetingWorkbenchActionCard",
     "MeetingWorkbenchReviewStepCard",
+    "buildMeetingTranscriptIntakeReadiness",
+    "MeetingTranscriptIntakePanel",
+    "meetingTranscriptIntake",
+    "handleExportTranscriptIntake",
+    "meeting-transcript-intake",
+    "导出接入矩阵",
+    "打开文件模块",
+    "会议转录稿接入准备",
     "handleReviewStepNavigate",
     "scrollIntoView",
     "打开步骤",

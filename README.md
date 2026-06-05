@@ -963,6 +963,12 @@ Current local actions:
   action items, company/report relations, meeting tracker setup, and follow-up
   cadence without exporting page text, transcript text, recording bytes,
   participant details, meeting passcodes, or database row values.
+- Review and export a local meeting transcript intake readiness matrix. The
+  matrix maps subtitle/transcript files, Markdown, HTML reports, PDF, Word,
+  Excel/CSV action logs, audio/video recordings, ZIP bundles, and iWork files
+  into local preview or retention routes without reading real file names, file
+  bytes, page text, transcript text, recording bytes, participant details,
+  meeting passcodes, database row values, sync, upload, or AI.
 - Review and export a local meeting workbench packet. The packet combines
   follow-up, decision ledger, research queue, playbook, and tracker-intake
   metadata into one action queue for meeting capture, transcript review,
