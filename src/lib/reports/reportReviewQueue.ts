@@ -236,6 +236,24 @@ function getQueuePolicy(item: ReportIntakeItem): {
     };
   }
 
+  if (
+    item.file_kind === "pages" ||
+    item.file_kind === "numbers" ||
+    item.file_kind === "keynote"
+  ) {
+    return {
+      workstream: "local-retain",
+      status: "review-needed",
+      risk: "medium",
+      actionLabel: "iWork 本地留存",
+      evidence:
+        "Pages、Numbers、Keynote 已识别为 Apple iWork 文件；当前路线是本地留存和下载复核，不自动转换。",
+      nextStep:
+        "需要可编辑内容或数据库导入时，先导出为 Word、Excel/CSV 或 PowerPoint 后再进入标准路线。",
+      requiredConfirmation: false,
+    };
+  }
+
   if (item.file_kind === "archive" || item.file_kind === "unknown") {
     return {
       workstream: "source-triage",

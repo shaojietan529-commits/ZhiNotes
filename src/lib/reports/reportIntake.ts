@@ -222,6 +222,9 @@ function normalizeFileKind(value: string): PageFileKind {
     "spreadsheet",
     "word",
     "presentation",
+    "pages",
+    "numbers",
+    "keynote",
     "unknown",
   ];
   return supportedKinds.includes(value as PageFileKind)
@@ -231,7 +234,15 @@ function normalizeFileKind(value: string): PageFileKind {
 
 function getIntakeStage(kind: PageFileKind): ReportIntakeStage {
   if (kind === "spreadsheet") return "database-review";
-  if (kind === "archive" || kind === "unknown") return "source-triage";
+  if (
+    kind === "archive" ||
+    kind === "pages" ||
+    kind === "numbers" ||
+    kind === "keynote" ||
+    kind === "unknown"
+  ) {
+    return "source-triage";
+  }
   if (kind === "image" || kind === "audio" || kind === "video") {
     return "source-triage";
   }
@@ -250,7 +261,15 @@ function getIntakePriority(kind: PageFileKind): ReportIntakePriority {
   ) {
     return "high";
   }
-  if (kind === "archive" || kind === "epub" || kind === "rtf" || kind === "text") {
+  if (
+    kind === "archive" ||
+    kind === "epub" ||
+    kind === "rtf" ||
+    kind === "text" ||
+    kind === "pages" ||
+    kind === "numbers" ||
+    kind === "keynote"
+  ) {
     return "medium";
   }
   return "low";
@@ -274,6 +293,9 @@ function getNextAction(kind: PageFileKind) {
   }
   if (kind === "archive") {
     return "先查看压缩包目录，确认是否需要拆成多个报告资产。";
+  }
+  if (kind === "pages" || kind === "numbers" || kind === "keynote") {
+    return "先本地留存并确认用途；如需可编辑或入库，先导出为 Word、Excel 或 PowerPoint。";
   }
   return "确认研究用途、来源可信度和是否需要转为标准报告页。";
 }

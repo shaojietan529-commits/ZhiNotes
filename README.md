@@ -646,7 +646,9 @@ confirmation.
 The report module includes a local format support matrix for HTML/XHTML
 reports, Markdown/MDX/MDown/MKD/MKDN, PDF, Excel/CSV/ODS, Word/ODT,
 PowerPoint/ODP, RTF, EPUB, ZIP, Jupyter notebooks, media, text, code, and
-OPML. Legacy `.doc` and `.ppt` files are saved locally and downloadable, but
+OPML. Apple Pages/Numbers/Keynote files are recognized and kept as local
+download-retain attachments until exported as Word, Excel/CSV, or PowerPoint.
+Legacy `.doc` and `.ppt` files are saved locally and downloadable, but
 conversion requires `.docx` or `.pptx`.
 
 The native format strategy is now explicit: a ZhiNotes page is the canonical

@@ -190,6 +190,9 @@ function getReportTrackerFormat(item: ReportIntakeItem) {
     spreadsheet: "Excel",
     word: "Word",
     presentation: "PowerPoint",
+    pages: "Pages",
+    numbers: "Numbers",
+    keynote: "Keynote",
     unknown: "其他",
   };
 

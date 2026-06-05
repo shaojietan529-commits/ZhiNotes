@@ -74,6 +74,12 @@ const requiredCapabilities = [
     snippets: ["convertPresentationToHtml", "convertPptxToHtml", "convertOdpToHtml"],
   },
   {
+    id: "apple-iwork",
+    kind: "pages",
+    extensions: [".pages", ".numbers", ".key", ".keynote"],
+    snippets: ['pages: "Pages"', 'numbers: "Numbers"', 'keynote: "Keynote"'],
+  },
+  {
     id: "rtf",
     kind: "rtf",
     extensions: [".rtf"],
@@ -239,6 +245,69 @@ function run() {
         `Preview node must implement ${requirement.id}.`
       );
     }
+  }
+
+  for (const snippet of [
+    'return "numbers"',
+    'return "keynote"',
+    '"application/vnd.apple.pages"',
+    '"application/vnd.apple.numbers"',
+    '"application/vnd.apple.keynote"',
+    '"application/x-iwork-pages-sffpages"',
+    '"application/x-iwork-numbers-sffnumbers"',
+    '"application/x-iwork-keynote-sffkey"',
+    'kinds: ["pages", "numbers", "keynote"]',
+    'support_level: "download-only"',
+    "Numbers 文件需先导出为 Excel/CSV",
+    '"pages"',
+    '"numbers"',
+    '"keynote"',
+    "iWork 本地留存",
+    "Pages 文档",
+    "Numbers 表格",
+    "Keynote 演示文稿",
+    'pages: "Pages"',
+    'numbers: "Numbers"',
+    'keynote: "Keynote"',
+  ]) {
+    const sourceLabel =
+      snippet.startsWith('"application/x-iwork')
+        ? files.upload
+        : snippet.startsWith('return "') ||
+            snippet.startsWith('"application') ||
+            snippet === '"pages"' ||
+            snippet === '"numbers"' ||
+            snippet === '"keynote"'
+          ? files.localStore
+          : snippet === "Pages 文档" ||
+              snippet === "Numbers 表格" ||
+              snippet === "Keynote 演示文稿"
+            ? files.reportsShell
+            : snippet.startsWith("pages:") ||
+                snippet.startsWith("numbers:") ||
+                snippet.startsWith("keynote:")
+              ? files.trackerIntake
+            : snippet === "iWork 本地留存"
+              ? files.reviewQueue
+              : files.capabilities;
+    const source =
+      sourceLabel === files.localStore
+        ? localStore
+        : sourceLabel === files.upload
+          ? upload
+        : sourceLabel === files.reportsShell
+          ? reportsShell
+          : sourceLabel === files.trackerIntake
+            ? trackerIntake
+          : sourceLabel === files.reviewQueue
+            ? reviewQueue
+            : capabilities;
+    assertIncludes(
+      sourceLabel,
+      source,
+      snippet,
+      "Apple iWork files must be recognized as local download-retain formats instead of unknown files."
+    );
   }
 
   assertIncludes(

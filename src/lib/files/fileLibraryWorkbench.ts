@@ -1092,6 +1092,9 @@ function getKindLabel(kind: PageFileKind) {
     spreadsheet: "表格",
     word: "Word",
     presentation: "PPT",
+    pages: "Pages",
+    numbers: "Numbers",
+    keynote: "Keynote",
     unknown: "未知",
   };
   return labels[kind];

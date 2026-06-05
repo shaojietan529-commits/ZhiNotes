@@ -345,12 +345,18 @@ function getRoutePolicy(kind: PageFileKind): {
     kind === "image" ||
     kind === "audio" ||
     kind === "video" ||
+    kind === "pages" ||
+    kind === "numbers" ||
+    kind === "keynote" ||
     kind === "unknown"
   ) {
     return {
       action: "metadata-review",
       stage: "source-triage",
-      pageHandling: "先查看本地元数据或原生媒体预览，不自动解包、不转写、不外发。",
+      pageHandling:
+        kind === "pages" || kind === "numbers" || kind === "keynote"
+          ? "先本地留存并下载复核；需要转换时先导出为标准 Office 或 CSV 格式。"
+          : "先查看本地元数据或原生媒体预览，不自动解包、不转写、不外发。",
       confirmationStatus: "recommended",
       confirmationReason: "先确认来源可信度、用途和是否需要拆分为标准报告资产。",
       relationTarget: ["来源", "公司", "会议"],

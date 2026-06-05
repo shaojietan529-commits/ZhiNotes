@@ -94,6 +94,9 @@ export type PageFileKind =
   | "spreadsheet"
   | "word"
   | "presentation"
+  | "pages"
+  | "numbers"
+  | "keynote"
   | "unknown";
 
 export interface StoredPageFile {
@@ -300,6 +303,31 @@ export function getPageFileKind(name: string, mimeType: string): PageFileKind {
     lowerMime === "application/vnd.oasis.opendocument.presentation"
   ) {
     return "presentation";
+  }
+
+  if (
+    lowerName.endsWith(".pages") ||
+    lowerMime.includes("iwork-pages") ||
+    lowerMime === "application/vnd.apple.pages"
+  ) {
+    return "pages";
+  }
+
+  if (
+    lowerName.endsWith(".numbers") ||
+    lowerMime.includes("iwork-numbers") ||
+    lowerMime === "application/vnd.apple.numbers"
+  ) {
+    return "numbers";
+  }
+
+  if (
+    lowerName.endsWith(".key") ||
+    lowerName.endsWith(".keynote") ||
+    lowerMime.includes("iwork-keynote") ||
+    lowerMime === "application/vnd.apple.keynote"
+  ) {
+    return "keynote";
   }
 
   if (lowerMime.startsWith("text/")) {

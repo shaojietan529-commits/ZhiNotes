@@ -91,6 +91,20 @@ export const FILE_PREVIEW_CAPABILITIES: FilePreviewCapability[] = [
     limitation: "旧版 .ppt 暂不转换，仍可本地保存和下载。",
   },
   {
+    id: "apple-iwork",
+    label: "Apple iWork",
+    kinds: ["pages", "numbers", "keynote"],
+    extensions: [".pages", ".numbers", ".key", ".keynote"],
+    support_level: "download-only",
+    preview: "先作为本地附件留存并下载复核，暂不自动转换。",
+    editable_import: "暂不导入为可编辑块；建议先导出为 Word、Excel 或 PowerPoint。",
+    database_import: "Numbers 文件需先导出为 Excel/CSV 后再走数据库导入。",
+    privacy_boundary:
+      "文件保存在浏览器本地 IndexedDB；不会上传、不会调用外部转换服务。",
+    limitation:
+      "Pages、Numbers、Keynote 的原生转换需要后续接入安全的本地转换路线。",
+  },
+  {
     id: "rtf",
     label: "RTF",
     kinds: ["rtf"],

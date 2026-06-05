@@ -3910,6 +3910,9 @@ function getReportFileKindLabel(file: StoredPageFile) {
   if (file.kind === "spreadsheet") return "表格文件";
   if (file.kind === "word") return "Word 文档";
   if (file.kind === "presentation") return "PPT 演示文稿";
+  if (file.kind === "pages") return "Pages 文档";
+  if (file.kind === "numbers") return "Numbers 表格";
+  if (file.kind === "keynote") return "Keynote 演示文稿";
   if (file.kind === "notebook") return "Notebook";
   if (file.kind === "archive") return "压缩包";
   if (file.kind === "epub") return "EPUB";

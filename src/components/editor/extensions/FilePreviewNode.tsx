@@ -87,6 +87,9 @@ const FILE_KIND_LABELS: Record<PageFileKind, string> = {
   spreadsheet: "表格",
   word: "Word",
   presentation: "PPT",
+  pages: "Pages",
+  numbers: "Numbers",
+  keynote: "Keynote",
   unknown: "未知",
 };
 
