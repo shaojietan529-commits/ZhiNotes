@@ -1819,7 +1819,15 @@ function getTextFileLanguage(fileName: string) {
   ) {
     return "json";
   }
-  if (lowerName.endsWith(".xml")) return "xml";
+  if (
+    lowerName.endsWith(".xml") ||
+    lowerName.endsWith(".xbrl") ||
+    lowerName.endsWith(".xsd") ||
+    lowerName.endsWith(".xsl") ||
+    lowerName.endsWith(".xslt")
+  ) {
+    return "xml";
+  }
   if (lowerName.endsWith(".yaml") || lowerName.endsWith(".yml")) return "yaml";
   if (lowerName.endsWith(".toml")) return "toml";
   if (
