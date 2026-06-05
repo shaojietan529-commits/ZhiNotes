@@ -127,10 +127,10 @@ schema migration 的能力默认保持关闭。
   分组和手动排序启用状态都会按所选 view 本地计算展示；inline 本身不写 view config。
 - Inline database 的 Table、List、Gallery、Feed 也会读取保存的分组字段并渲染分组区块；
   分组只影响 page 内展示，不写入 row values、页面正文、文件 bytes、云端数据或 AI 内容。
-- 数据库行点击现在先打开本地 side peek，显示页面标题、本地正文预览和字段摘要；完整页面编辑仍需点击
-  “打开完整页面”。这个预览不上传、不调用 AI、不批量写字段。
-- 每个 database view 现在可保存“行打开方式”：默认侧边预览，或切回直接打开完整页面。设置写入
-  view config，只影响当前 view 的打开体验。
+- 数据库行点击现在可先打开本地 side peek 或 center peek，显示页面标题、本地正文预览和字段摘要；
+  完整页面编辑仍需点击“打开完整页面”。这个预览不上传、不调用 AI、不批量写字段。
+- 每个 database view 现在可保存“行打开方式”：默认侧边预览、居中预览，或切回直接打开完整页面。
+  设置写入 view config，只影响当前 view 的打开体验。
 
 ### 数据库 Rollup 汇总字段阶段
 

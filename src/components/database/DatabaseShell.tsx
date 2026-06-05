@@ -113,7 +113,8 @@ const DATABASE_IMPORT_CONFIRMATION_PHRASE =
 
 type RowWithPage = DatabaseRow & { page: Page };
 type SortDirection = "asc" | "desc";
-type DatabaseRowOpenMode = "side-peek" | "full-page";
+type DatabaseRowOpenMode = "side-peek" | "center-peek" | "full-page";
+type DatabaseRowPeekMode = Exclude<DatabaseRowOpenMode, "full-page">;
 type DatabaseFilterMatchMode = "all" | "any";
 type DatabaseFilterOperator =
   | "contains"
@@ -173,6 +174,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [views, setViews] = useState<DatabaseView[]>([]);
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const [sidePeekPageId, setSidePeekPageId] = useState<string | null>(null);
+  const [rowPeekMode, setRowPeekMode] =
+    useState<DatabaseRowPeekMode>("side-peek");
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
   const [rowSearch, setRowSearch] = useState(initialRowSearch);
@@ -546,6 +549,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         router.push(`/page/${pageId}`);
         return;
       }
+      setRowPeekMode(openMode);
       setSidePeekPageId(pageId);
     },
     [activeViewId, router, views]
@@ -1180,6 +1184,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         <DatabaseRowSidePeekPanel
           database={database}
           row={sidePeekRow}
+          mode={rowPeekMode}
           fields={fields}
           relationPages={workspacePages}
           onClose={() => setSidePeekPageId(null)}
@@ -1196,6 +1201,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 function DatabaseRowSidePeekPanel({
   database,
   row,
+  mode,
   fields,
   relationPages,
   onClose,
@@ -1203,11 +1209,13 @@ function DatabaseRowSidePeekPanel({
 }: {
   database: Database;
   row: RowWithPage;
+  mode: DatabaseRowPeekMode;
   fields: DatabaseField[];
   relationPages: Page[];
   onClose: () => void;
   onOpenFullPage: (pageId: string) => void;
 }) {
+  const isCenterPeek = mode === "center-peek";
   const pageTitle = row.page?.title || "未命名页面";
   const pagePreview = getPageTextPreview(row.page?.content_text);
   const fieldSummaries = fields
@@ -1223,19 +1231,28 @@ function DatabaseRowSidePeekPanel({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex justify-end bg-zinc-950/10 backdrop-blur-[1px]"
+      className={
+        isCenterPeek
+          ? "fixed inset-0 z-40 flex items-center justify-center bg-zinc-950/30 p-4 backdrop-blur-sm"
+          : "fixed inset-0 z-40 flex justify-end bg-zinc-950/10 backdrop-blur-[1px]"
+      }
       onMouseDown={onClose}
       role="presentation"
     >
       <aside
-        className="flex h-full w-full max-w-xl flex-col border-l border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-950"
+        className={
+          isCenterPeek
+            ? "flex max-h-[calc(100vh-3rem)] w-full max-w-3xl flex-col rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-950"
+            : "flex h-full w-full max-w-xl flex-col border-l border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-950"
+        }
         onMouseDown={(event) => event.stopPropagation()}
-        aria-label="数据库行侧边预览"
+        aria-label={isCenterPeek ? "数据库行居中预览" : "数据库行侧边预览"}
       >
         <header className="flex items-start justify-between gap-3 border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
           <div className="min-w-0">
             <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-              本地 side peek · {database.title || "未命名数据库"}
+              {isCenterPeek ? "本地 center peek" : "本地 side peek"} ·{" "}
+              {database.title || "未命名数据库"}
             </div>
             <h2 className="mt-2 flex min-w-0 items-center gap-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
               <span className="shrink-0">{row.page?.icon || "📄"}</span>
@@ -1250,7 +1267,7 @@ function DatabaseRowSidePeekPanel({
             type="button"
             onClick={onClose}
             className="rounded px-2 py-1 text-sm text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-            aria-label="关闭侧边预览"
+            aria-label={isCenterPeek ? "关闭居中预览" : "关闭侧边预览"}
           >
             x
           </button>
@@ -1438,6 +1455,7 @@ function DatabaseViewActionsButton({
               className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             >
               <option value="side-peek">侧边预览</option>
+              <option value="center-peek">居中预览</option>
               <option value="full-page">直接打开完整页面</option>
             </select>
           </label>
@@ -3499,7 +3517,9 @@ function parseDatabaseViewConfig(config: string): DatabaseViewConfig {
 }
 
 function parseDatabaseRowOpenMode(value: unknown): DatabaseRowOpenMode {
-  return value === "full-page" ? "full-page" : "side-peek";
+  if (value === "center-peek") return "center-peek";
+  if (value === "full-page") return "full-page";
+  return "side-peek";
 }
 
 function getVisibleFields(fields: DatabaseField[], hiddenFieldIds: string[]) {
