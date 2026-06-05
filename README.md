@@ -219,6 +219,8 @@ Current local actions:
   `/blue background` are searchable too.
 - Add local comments from the keyboard with Cmd/Ctrl+Shift+M, matching Notion's
   comment shortcut while keeping the comment body in local storage.
+- Open the local block action menu with Cmd/Ctrl+/, matching Notion's block edit
+  shortcut for changing block type, moving, duplicating, copying, or commenting.
 - Add page icons, covers, sub-pages, local page links, duplicate pages, lock
   editing, switch page width, save named versions, and export HTML, Markdown, or
   browser PDF. Page cover controls, table-of-contents blocks, and callout

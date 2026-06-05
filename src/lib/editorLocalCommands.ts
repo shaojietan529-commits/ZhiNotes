@@ -1,4 +1,5 @@
 export const EDITOR_LOCAL_COMMAND_EVENT = "zhinote:editor-local-command";
+export const EDITOR_BLOCK_MENU_EVENT = "zhinote:editor-block-menu";
 
 export type EditorLocalCommand =
   | "block-comment"
@@ -40,4 +41,8 @@ export function dispatchEditorLocalCommand(command: EditorLocalCommand) {
       detail: { command },
     })
   );
+}
+
+export function dispatchEditorBlockMenu() {
+  window.dispatchEvent(new Event(EDITOR_BLOCK_MENU_EVENT));
 }

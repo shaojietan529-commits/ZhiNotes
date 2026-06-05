@@ -140,12 +140,32 @@ function run() {
     "dispatchEditorLocalCommand",
     "\"Mod-Shift-m\"",
     "dispatchEditorLocalCommand(\"block-comment\")",
+    "dispatchEditorBlockMenu",
+    "\"Mod-/\"",
   ]) {
     assertIncludes(
       files.keyboardShortcuts,
       keyboardShortcuts,
       snippet,
-      "Keyboard shortcuts must expose Notion-style comment creation."
+      "Keyboard shortcuts must expose Notion-style comment and block menu actions."
+    );
+  }
+
+  for (const snippet of [
+    "EDITOR_BLOCK_MENU_EVENT",
+    "dispatchEditorBlockMenu",
+    "setBlockMenuOpen(true)",
+    "window.addEventListener(EDITOR_BLOCK_MENU_EVENT",
+  ]) {
+    const sourceLabel =
+      snippet === "dispatchEditorBlockMenu" ? files.editorLocalCommands : files.editor;
+    const source =
+      sourceLabel === files.editorLocalCommands ? editorLocalCommands : editor;
+    assertIncludes(
+      sourceLabel,
+      source,
+      snippet,
+      "Cmd/Ctrl+/ must open the local editor block menu."
     );
   }
 
@@ -724,6 +744,7 @@ function run() {
       {
         h3_shortcut_paths: 3,
         comment_shortcut: "Mod-Shift-m",
+        block_menu_shortcut: "Mod-/",
         page_slash_aliases: 8,
         block_insert_heading_levels: 3,
         advanced_block_slash_commands: 8,

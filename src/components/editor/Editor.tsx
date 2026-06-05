@@ -21,6 +21,7 @@ import {
 } from "@/components/shared/BlockComments";
 import { htmlToMarkdown } from "@/lib/export/pageExport";
 import {
+  EDITOR_BLOCK_MENU_EVENT,
   EDITOR_LOCAL_COMMAND_EVENT,
   type EditorLocalCommand,
 } from "@/lib/editorLocalCommands";
@@ -398,6 +399,26 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         window.removeEventListener("hashchange", handleHashChange);
       };
     }, [editor, pageId, initialContent]);
+
+    useEffect(() => {
+      if (!editor) return;
+
+      const handleEditorBlockMenu = () => {
+        if (!editableRef.current) {
+          window.alert("当前页面已锁定，解锁后才能编辑。");
+          return;
+        }
+        editor.commands.focus();
+        setBlockMenuOpen(true);
+      };
+
+      window.addEventListener(EDITOR_BLOCK_MENU_EVENT, handleEditorBlockMenu);
+      return () =>
+        window.removeEventListener(
+          EDITOR_BLOCK_MENU_EVENT,
+          handleEditorBlockMenu
+        );
+    }, [editor]);
 
     useEffect(() => {
       if (!editor) return;

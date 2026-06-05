@@ -2,7 +2,10 @@ import { Extension, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin } from "@tiptap/pm/state";
 import { promptForLink } from "./linkHelpers";
-import { dispatchEditorLocalCommand } from "@/lib/editorLocalCommands";
+import {
+  dispatchEditorBlockMenu,
+  dispatchEditorLocalCommand,
+} from "@/lib/editorLocalCommands";
 
 /**
  * Notion-compatible keyboard shortcuts for Zhinote.
@@ -64,6 +67,11 @@ export const KeyboardShortcuts = Extension.create({
         this.editor.chain().focus().toggleBlockquote().run(),
 
       // ── Text Formatting ───────────────────────────────────────
+      "Mod-/": () => {
+        dispatchEditorBlockMenu();
+        return true;
+      },
+
       "Mod-k": () => promptForLink(this.editor),
 
       "Mod-Shift-m": () => {
