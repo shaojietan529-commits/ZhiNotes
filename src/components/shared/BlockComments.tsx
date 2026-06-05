@@ -117,7 +117,7 @@ export default function BlockComments({
     <section className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-700">
       <div className="mb-3 flex items-center gap-2">
         <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          Comments
+          块评论
         </h3>
         <span className="rounded-full bg-zinc-100 px-1.5 text-xs text-zinc-400 dark:bg-zinc-800">
           {comments.length}
@@ -126,7 +126,7 @@ export default function BlockComments({
 
       {disabled && (
         <p className="mb-4 text-xs text-zinc-400">
-          Unlock this page to resolve or delete comments.
+          解锁页面后可以解决或删除评论。
         </p>
       )}
 
@@ -162,7 +162,7 @@ export default function BlockComments({
                     onClick={() => scrollToBlock(comment.block_ref)}
                     className="text-[11px] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                   >
-                    Jump
+                    跳转
                   </button>
                   <button
                     type="button"
@@ -170,7 +170,7 @@ export default function BlockComments({
                     disabled={disabled}
                     className="text-[11px] text-zinc-400 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-zinc-200"
                   >
-                    {resolved ? "Reopen" : "Resolve"}
+                    {resolved ? "重新打开" : "解决"}
                   </button>
                   <button
                     type="button"
@@ -178,7 +178,7 @@ export default function BlockComments({
                     disabled={disabled}
                     className="text-[11px] text-zinc-400 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Delete
+                    删除
                   </button>
                 </div>
               </div>
@@ -197,9 +197,9 @@ export default function BlockComments({
 }
 
 function formatBlockRef(blockRef: string) {
-  if (blockRef.startsWith("inline_")) return `Text ${blockRef.slice(7, 13)}`;
+  if (blockRef.startsWith("inline_")) return `文本 ${blockRef.slice(7, 13)}`;
   if (!blockRef.startsWith("blk_")) return blockRef;
-  return `Block ${blockRef.slice(4, 10)}`;
+  return `块 ${blockRef.slice(4, 10)}`;
 }
 
 function scrollToBlock(blockRef: string) {

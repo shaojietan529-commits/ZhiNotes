@@ -13,10 +13,12 @@ const files = {
   slashSuggestion: "src/components/editor/extensions/SlashCommandSuggestion.ts",
   filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
   blockDragHandle: "src/components/editor/BlockDragHandleLayer.tsx",
+  blockComments: "src/components/shared/BlockComments.tsx",
   backlinks: "src/components/shared/Backlinks.tsx",
   calloutNode: "src/components/editor/extensions/CalloutNode.tsx",
   editor: "src/components/editor/Editor.tsx",
   hoverSummary: "src/components/comparison/HoverSummary.tsx",
+  pageComments: "src/components/shared/PageComments.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   readme: "README.md",
@@ -50,10 +52,12 @@ function run() {
   const slashSuggestion = readProjectFile(files.slashSuggestion);
   const filePreviewUpload = readProjectFile(files.filePreviewUpload);
   const blockDragHandle = readProjectFile(files.blockDragHandle);
+  const blockComments = readProjectFile(files.blockComments);
   const backlinks = readProjectFile(files.backlinks);
   const calloutNode = readProjectFile(files.calloutNode);
   const editor = readProjectFile(files.editor);
   const hoverSummary = readProjectFile(files.hoverSummary);
+  const pageComments = readProjectFile(files.pageComments);
   const pageShell = readProjectFile(files.pageShell);
   const quickSearch = readProjectFile(files.quickSearch);
   const readme = readProjectFile(files.readme);
@@ -317,6 +321,37 @@ function run() {
       backlinks,
       snippet,
       "Backlinks panel must keep the default notes UI in Chinese."
+    );
+  }
+  for (const snippet of [
+    "评论",
+    "添加本地评论...",
+    "还没有评论。",
+    "重新打开",
+    "解决",
+    "删除",
+  ]) {
+    assertIncludes(
+      files.pageComments,
+      pageComments,
+      snippet,
+      "Page comments must keep the default notes UI in Chinese."
+    );
+  }
+  for (const snippet of [
+    "块评论",
+    "跳转",
+    "重新打开",
+    "解决",
+    "删除",
+    "文本 ",
+    "块 ",
+  ]) {
+    assertIncludes(
+      files.blockComments,
+      blockComments,
+      snippet,
+      "Block comments must keep the default notes UI in Chinese."
     );
   }
 
