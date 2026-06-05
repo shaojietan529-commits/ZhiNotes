@@ -18,10 +18,22 @@ export type DatabaseNumberFormat =
 
 export const DEFAULT_DATABASE_NUMBER_FORMAT: DatabaseNumberFormat = "plain";
 
+export const DATABASE_ROLLUP_AGGREGATIONS = [
+  { value: "count", label: "关联数量" },
+  { value: "titles", label: "页面标题" },
+] as const;
+
+export type DatabaseRollupAggregation =
+  (typeof DATABASE_ROLLUP_AGGREGATIONS)[number]["value"];
+
+export const DEFAULT_DATABASE_ROLLUP_AGGREGATION: DatabaseRollupAggregation =
+  "count";
+
 export const DATABASE_FIELD_TYPES = [
   { value: "text", label: "文本" },
   { value: "number", label: "数字" },
   { value: "relation", label: "关联" },
+  { value: "rollup", label: "汇总" },
   { value: "select", label: "单选" },
   { value: "multi_select", label: "多选" },
   { value: "status", label: "状态" },
@@ -95,14 +107,46 @@ export function getDatabaseFormulaExpression(
   }
 }
 
+export function getDatabaseRollupConfig(
+  field: Pick<DatabaseField, "config">
+) {
+  try {
+    const config = field.config ? JSON.parse(field.config) : {};
+    return {
+      relationFieldId:
+        typeof config.relationFieldId === "string"
+          ? config.relationFieldId
+          : "",
+      aggregation: isDatabaseRollupAggregation(config.aggregation)
+        ? config.aggregation
+        : DEFAULT_DATABASE_ROLLUP_AGGREGATION,
+    };
+  } catch {
+    return {
+      relationFieldId: "",
+      aggregation: DEFAULT_DATABASE_ROLLUP_AGGREGATION,
+    };
+  }
+}
+
 export function buildFieldConfig(
   fieldType: string,
   optionsText: string,
   numberFormat: string = DEFAULT_DATABASE_NUMBER_FORMAT,
-  formulaExpression: string = ""
+  formulaExpression: string = "",
+  rollupRelationFieldId: string = "",
+  rollupAggregation: string = DEFAULT_DATABASE_ROLLUP_AGGREGATION
 ) {
   if (isSelectLikeFieldType(fieldType)) {
     return JSON.stringify({ options: parseSelectOptions(optionsText) });
+  }
+  if (fieldType === "rollup") {
+    return JSON.stringify({
+      relationFieldId: rollupRelationFieldId,
+      aggregation: isDatabaseRollupAggregation(rollupAggregation)
+        ? rollupAggregation
+        : DEFAULT_DATABASE_ROLLUP_AGGREGATION,
+    });
   }
   if (fieldType === "formula") {
     return JSON.stringify({
@@ -127,4 +171,12 @@ export function buildFieldConfig(
 
 function isDatabaseNumberFormat(value: unknown): value is DatabaseNumberFormat {
   return DATABASE_NUMBER_FORMATS.some((format) => format.value === value);
+}
+
+function isDatabaseRollupAggregation(
+  value: unknown
+): value is DatabaseRollupAggregation {
+  return DATABASE_ROLLUP_AGGREGATIONS.some(
+    (aggregation) => aggregation.value === value
+  );
 }

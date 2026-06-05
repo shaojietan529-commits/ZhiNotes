@@ -18,6 +18,7 @@ export type DatabaseImportFieldType =
   | "phone"
   | "multi_select"
   | "formula"
+  | "rollup"
   | "created_time"
   | "last_edited_time"
   | "unique_id";
@@ -410,7 +411,8 @@ function coerceFieldType(fieldType: string): DatabaseImportFieldType {
     fieldType === "email" ||
     fieldType === "phone" ||
     fieldType === "multi_select" ||
-    fieldType === "formula"
+    fieldType === "formula" ||
+    fieldType === "rollup"
   ) {
     return fieldType;
   }
@@ -434,7 +436,11 @@ function coerceFieldValue(
 }
 
 function isDatabaseImportReadOnlyFieldType(fieldType: string) {
-  return fieldType === "formula" || isDatabaseSystemFieldType(fieldType);
+  return (
+    fieldType === "formula" ||
+    fieldType === "rollup" ||
+    isDatabaseSystemFieldType(fieldType)
+  );
 }
 
 function isBooleanValue(value: string) {

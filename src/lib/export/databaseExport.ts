@@ -3,6 +3,7 @@
 import type { Database, DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import { evaluateDatabaseFormula } from "@/lib/database/formula";
+import { evaluateDatabaseRollup } from "@/lib/database/rollup";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
@@ -67,6 +68,9 @@ function buildDatabaseExportTable(
       }
       if (field.field_type === "formula") {
         return evaluateDatabaseFormula(field, fields, row, values).label;
+      }
+      if (field.field_type === "rollup") {
+        return evaluateDatabaseRollup(field, fields, values, relationPages).label;
       }
       return stringifyCell(values[field.id], field, relationPages);
     });

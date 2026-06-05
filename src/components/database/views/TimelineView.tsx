@@ -5,6 +5,7 @@ import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import { evaluateDatabaseFormula } from "@/lib/database/formula";
+import { evaluateDatabaseRollup } from "@/lib/database/rollup";
 import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
@@ -90,7 +91,8 @@ export default function TimelineView({
               fields,
               dateField,
               row,
-              fieldValues
+              fieldValues,
+              relationPages
             );
 
             return (
@@ -183,7 +185,8 @@ function getTimelineDisplayFields(
   fields: DatabaseField[],
   dateField: DatabaseField,
   row: DatabaseRow & { page: Page },
-  fieldValues: Record<string, unknown>
+  fieldValues: Record<string, unknown>,
+  relationPages: Page[]
 ) {
   return fields
     .filter((field) => {
@@ -192,6 +195,11 @@ function getTimelineDisplayFields(
       if (field.field_type === "formula") {
         return Boolean(
           evaluateDatabaseFormula(field, fields, row, fieldValues).label
+        );
+      }
+      if (field.field_type === "rollup") {
+        return Boolean(
+          evaluateDatabaseRollup(field, fields, fieldValues, relationPages).label
         );
       }
       const value = isDatabaseSystemField(field)
@@ -212,6 +220,10 @@ function formatTimelineFieldValue(
 ) {
   if (field.field_type === "formula") {
     return evaluateDatabaseFormula(field, fields, row, fieldValues).label;
+  }
+
+  if (field.field_type === "rollup") {
+    return evaluateDatabaseRollup(field, fields, fieldValues, relationPages).label;
   }
 
   if (field.field_type === "relation") {

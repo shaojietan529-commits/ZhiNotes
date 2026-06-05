@@ -66,12 +66,15 @@ import {
   buildFieldConfig,
   DATABASE_FIELD_TYPES,
   DATABASE_NUMBER_FORMATS,
+  DATABASE_ROLLUP_AGGREGATIONS,
   formatFieldOptions,
   getDatabaseFormulaExpression,
   getDatabaseNumberFormat,
+  getDatabaseRollupConfig,
   isSelectLikeFieldType,
 } from "@/lib/database/fields";
 import { evaluateDatabaseFormula } from "@/lib/database/formula";
+import { evaluateDatabaseRollup } from "@/lib/database/rollup";
 import {
   getDatabaseSystemFieldValue,
   isDatabaseSystemField,
@@ -631,7 +634,11 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
             <span className="text-zinc-400 dark:text-zinc-500">
               ({getDatabaseFieldTypeLabel(field.field_type)})
             </span>
-            <FieldSettingsButton field={field} onUpdate={handleUpdateField} />
+            <FieldSettingsButton
+              field={field}
+              fields={fields}
+              onUpdate={handleUpdateField}
+            />
             {field.position !== 0 && (
               <button
                 onClick={() => handleDeleteField(field.id)}
@@ -643,7 +650,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
             )}
           </span>
         ))}
-        <AddFieldButton onAdd={handleAddField} />
+        <AddFieldButton fields={fields} onAdd={handleAddField} />
         <DatabaseTemplateButton fields={fields} onSelect={handleAddTemplateRow} />
       </div>
 
@@ -1609,9 +1616,11 @@ function DatabasePropertiesButton({
 
 function FieldSettingsButton({
   field,
+  fields,
   onUpdate,
 }: {
   field: DatabaseField;
+  fields: DatabaseField[];
   onUpdate: (
     fieldId: string,
     updates: Partial<Pick<DatabaseField, "name" | "field_type" | "config">>
@@ -1627,6 +1636,16 @@ function FieldSettingsButton({
   const [formulaExpression, setFormulaExpression] = useState(
     getDatabaseFormulaExpression(field)
   );
+  const [rollupRelationFieldId, setRollupRelationFieldId] = useState(
+    getDatabaseRollupConfig(field).relationFieldId
+  );
+  const [rollupAggregation, setRollupAggregation] = useState<string>(
+    getDatabaseRollupConfig(field).aggregation
+  );
+  const relationFields = fields.filter(
+    (candidate) =>
+      candidate.field_type === "relation" && candidate.id !== field.id
+  );
   const isTitleField = field.position === 0;
 
   useEffect(() => {
@@ -1635,11 +1654,15 @@ function FieldSettingsButton({
     setOptions(formatFieldOptions(field));
     setNumberFormat(getDatabaseNumberFormat(field));
     setFormulaExpression(getDatabaseFormulaExpression(field));
+    setRollupRelationFieldId(getDatabaseRollupConfig(field).relationFieldId);
+    setRollupAggregation(getDatabaseRollupConfig(field).aggregation);
   }, [field]);
 
   const handleSave = () => {
     const nextName = name.trim() || getDatabaseFieldDisplayName(field);
     const nextType = isTitleField ? field.field_type : type;
+    const nextRollupRelationFieldId =
+      rollupRelationFieldId || relationFields[0]?.id || "";
     onUpdate(field.id, {
       name: nextName,
       field_type: nextType,
@@ -1647,7 +1670,9 @@ function FieldSettingsButton({
         nextType,
         options,
         numberFormat,
-        formulaExpression
+        formulaExpression,
+        nextRollupRelationFieldId,
+        rollupAggregation
       ),
     });
     setOpen(false);
@@ -1769,6 +1794,52 @@ function FieldSettingsButton({
               </span>
             </label>
           )}
+          {type === "rollup" && (
+            <div className="mt-3 space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-medium text-zinc-500">
+                  汇总来源
+                </span>
+                <select
+                  value={rollupRelationFieldId || relationFields[0]?.id || ""}
+                  onChange={(event) =>
+                    setRollupRelationFieldId(event.target.value)
+                  }
+                  disabled={relationFields.length === 0}
+                  className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-zinc-400 disabled:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                >
+                  {relationFields.length === 0 ? (
+                    <option value="">请先添加关联字段</option>
+                  ) : (
+                    relationFields.map((relationField) => (
+                      <option key={relationField.id} value={relationField.id}>
+                        {getDatabaseFieldDisplayName(relationField)}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-medium text-zinc-500">
+                  汇总方式
+                </span>
+                <select
+                  value={rollupAggregation}
+                  onChange={(event) => setRollupAggregation(event.target.value)}
+                  className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                >
+                  {DATABASE_ROLLUP_AGGREGATIONS.map((aggregation) => (
+                    <option key={aggregation.value} value={aggregation.value}>
+                      {aggregation.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-[11px] leading-5 text-zinc-400">
+                  只汇总当前行 relation 里的页面 id；不会读取关联页面正文。
+                </span>
+              </label>
+            </div>
+          )}
           <div className="mt-3 flex justify-end gap-2">
             <button
               type="button"
@@ -1792,8 +1863,10 @@ function FieldSettingsButton({
 }
 
 function AddFieldButton({
+  fields,
   onAdd,
 }: {
+  fields: DatabaseField[];
   onAdd: (name: string, type: string, config?: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -1802,18 +1875,33 @@ function AddFieldButton({
   const [options, setOptions] = useState("未开始, 进行中, 已完成");
   const [numberFormat, setNumberFormat] = useState("plain");
   const [formulaExpression, setFormulaExpression] = useState("");
+  const [rollupRelationFieldId, setRollupRelationFieldId] = useState("");
+  const [rollupAggregation, setRollupAggregation] = useState("count");
+  const relationFields = fields.filter(
+    (field) => field.field_type === "relation"
+  );
 
   const handleSubmit = () => {
     if (!name.trim()) return;
+    const nextRollupRelationFieldId =
+      rollupRelationFieldId || relationFields[0]?.id || "";
     const config =
-      buildFieldConfig(type, options, numberFormat, formulaExpression) ??
-      undefined;
+      buildFieldConfig(
+        type,
+        options,
+        numberFormat,
+        formulaExpression,
+        nextRollupRelationFieldId,
+        rollupAggregation
+      ) ?? undefined;
     onAdd(name.trim(), type, config);
     setName("");
     setType("text");
     setOptions("未开始, 进行中, 已完成");
     setNumberFormat("plain");
     setFormulaExpression("");
+    setRollupRelationFieldId("");
+    setRollupAggregation("count");
     setOpen(false);
   };
 
@@ -1884,6 +1972,39 @@ function AddFieldButton({
           className="text-xs px-2 py-0.5 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-56 font-mono outline-none"
           title="公式表达式"
         />
+      )}
+      {type === "rollup" && (
+        <>
+          <select
+            value={rollupRelationFieldId || relationFields[0]?.id || ""}
+            onChange={(e) => setRollupRelationFieldId(e.target.value)}
+            disabled={relationFields.length === 0}
+            className="px-2 py-1.5 text-xs border border-zinc-200 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none disabled:text-zinc-400"
+            title="汇总来源"
+          >
+            {relationFields.length === 0 ? (
+              <option value="">先添加关联字段</option>
+            ) : (
+              relationFields.map((relationField) => (
+                <option key={relationField.id} value={relationField.id}>
+                  {getDatabaseFieldDisplayName(relationField)}
+                </option>
+              ))
+            )}
+          </select>
+          <select
+            value={rollupAggregation}
+            onChange={(e) => setRollupAggregation(e.target.value)}
+            className="px-2 py-1.5 text-xs border border-zinc-200 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none"
+            title="汇总方式"
+          >
+            {DATABASE_ROLLUP_AGGREGATIONS.map((aggregation) => (
+              <option key={aggregation.value} value={aggregation.value}>
+                {aggregation.label}
+              </option>
+            ))}
+          </select>
+        </>
       )}
       <button onClick={handleSubmit} className="text-xs text-blue-500 hover:text-blue-600">
         添加
@@ -2154,8 +2275,8 @@ function compareRows(
       );
     }
     return compareValues(
-      getRowFieldValue(left, field, fields),
-      getRowFieldValue(right, field, fields)
+      getRowFieldValue(left, field, fields, relationPages),
+      getRowFieldValue(right, field, fields, relationPages)
     );
   }
 
@@ -2200,7 +2321,7 @@ function getRowFieldText(
   if (field.position === 0 || field.name === "Name") {
     return row.page?.title ?? "";
   }
-  const value = getRowFieldValue(row, field, fields);
+  const value = getRowFieldValue(row, field, fields, relationPages);
   if (field.field_type === "relation") {
     return stringifyRelationValue(value, relationPages);
   }
@@ -2211,13 +2332,18 @@ function getRowFieldText(
     const values = parseFieldValues(row.field_values);
     return evaluateDatabaseFormula(field, fields, row, values).label;
   }
+  if (field.field_type === "rollup") {
+    const values = parseFieldValues(row.field_values);
+    return evaluateDatabaseRollup(field, fields, values, relationPages).label;
+  }
   return stringifyValue(value);
 }
 
 function getRowFieldValue(
   row: RowWithPage,
   field: DatabaseField,
-  fields: DatabaseField[]
+  fields: DatabaseField[],
+  relationPages: Page[]
 ) {
   if (isDatabaseSystemField(field)) {
     return getDatabaseSystemFieldValue(row, field);
@@ -2225,6 +2351,9 @@ function getRowFieldValue(
   const values = parseFieldValues(row.field_values);
   if (field.field_type === "formula") {
     return evaluateDatabaseFormula(field, fields, row, values).value;
+  }
+  if (field.field_type === "rollup") {
+    return evaluateDatabaseRollup(field, fields, values, relationPages).value;
   }
   return values[field.id];
 }
@@ -2311,6 +2440,7 @@ function isChartableField(field: DatabaseField) {
     "checkbox",
     "number",
     "formula",
+    "rollup",
   ].includes(field.field_type);
 }
 

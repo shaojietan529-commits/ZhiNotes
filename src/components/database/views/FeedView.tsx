@@ -5,6 +5,7 @@ import { formatRelativeDate } from "@/lib/utils/dates";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import { getFieldOptions } from "@/lib/database/fields";
 import { evaluateDatabaseFormula } from "@/lib/database/formula";
+import { evaluateDatabaseRollup } from "@/lib/database/rollup";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { getRelationPages } from "@/lib/database/relationValues";
@@ -100,11 +101,16 @@ function FeedCard({
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
 }) {
   const fieldValues = parseRowFieldValues(row.field_values);
-  const feedFields = getFeedFields(fields, row, fieldValues);
+  const feedFields = getFeedFields(fields, row, fieldValues, relationPages);
 
   const handleFieldChange = (fieldId: string, value: unknown) => {
     const field = fields.find((item) => item.id === fieldId);
-    if (field && (isDatabaseSystemField(field) || field.field_type === "formula")) {
+    if (
+      field &&
+      (isDatabaseSystemField(field) ||
+        field.field_type === "formula" ||
+        field.field_type === "rollup")
+    ) {
       return;
     }
     onUpdateRow(row.id, { ...fieldValues, [fieldId]: value });
@@ -201,6 +207,19 @@ function FeedFieldChip({
     );
   }
 
+  if (field.field_type === "rollup") {
+    const result = evaluateDatabaseRollup(field, fields, fieldValues, relationPages);
+    if (!result.label) return null;
+    return (
+      <span
+        className="max-w-full truncate rounded-md bg-indigo-50 px-2 py-1 text-xs text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200"
+        title={result.detail}
+      >
+        {label}: {result.label}
+      </span>
+    );
+  }
+
   if (field.field_type === "relation") {
     const related = getRelationPages(value, relationPages).slice(0, 4);
     if (related.length === 0) return null;
@@ -285,11 +304,14 @@ function FeedFieldChip({
 function getFeedFields(
   fields: DatabaseField[],
   row: DatabaseRow & { page: Page },
-  fieldValues: Record<string, unknown>
+  fieldValues: Record<string, unknown>,
+  relationPages: Page[]
 ) {
   return fields
     .slice(1)
-    .filter((field) => hasDisplayValue(field, fields, row, fieldValues))
+    .filter((field) =>
+      hasDisplayValue(field, fields, row, fieldValues, relationPages)
+    )
     .sort(compareFeedFields)
     .slice(0, 6);
 }
@@ -298,13 +320,19 @@ function hasDisplayValue(
   field: DatabaseField,
   fields: DatabaseField[],
   row: DatabaseRow & { page: Page },
-  fieldValues: Record<string, unknown>
+  fieldValues: Record<string, unknown>,
+  relationPages: Page[]
 ) {
   if (isDatabaseSystemField(field)) {
     return Boolean(getDatabaseSystemFieldValue(row, field));
   }
   if (field.field_type === "formula") {
     return Boolean(evaluateDatabaseFormula(field, fields, row, fieldValues).label);
+  }
+  if (field.field_type === "rollup") {
+    return Boolean(
+      evaluateDatabaseRollup(field, fields, fieldValues, relationPages).label
+    );
   }
   if (!(field.id in fieldValues)) return false;
   const value = fieldValues[field.id];
@@ -326,10 +354,11 @@ function compareFeedFields(left: DatabaseField, right: DatabaseField) {
     checkbox: 8,
     number: 9,
     formula: 10,
-    url: 11,
-    email: 12,
-    phone: 13,
-    text: 14,
+    rollup: 11,
+    url: 12,
+    email: 13,
+    phone: 14,
+    text: 15,
   };
   return (
     (priority[left.field_type] ?? 10) - (priority[right.field_type] ?? 10) ||

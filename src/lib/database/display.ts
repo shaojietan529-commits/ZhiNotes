@@ -4,6 +4,7 @@ const FIELD_TYPE_LABELS: Record<string, string> = {
   text: "文本",
   number: "数字",
   relation: "关联",
+  rollup: "汇总",
   select: "单选",
   multi_select: "多选",
   status: "状态",

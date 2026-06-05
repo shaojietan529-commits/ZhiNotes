@@ -8,6 +8,7 @@ import RelationFieldEditor from "@/components/database/RelationFieldEditor";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import { getFieldOptions } from "@/lib/database/fields";
 import { evaluateDatabaseFormula } from "@/lib/database/formula";
+import { evaluateDatabaseRollup } from "@/lib/database/rollup";
 import {
   normalizeMultiSelectValue,
   toggleMultiSelectValue,
@@ -208,6 +209,28 @@ function CellEditor({
       <span
         className={`text-sm ${
           result.status === "ready"
+            ? "font-medium text-zinc-700 dark:text-zinc-300"
+            : "text-amber-600 dark:text-amber-300"
+        }`}
+        title={result.detail}
+      >
+        {result.label}
+      </span>
+    );
+  }
+
+  if (field.field_type === "rollup") {
+    const fieldValues = parseFieldValues(row.field_values);
+    const result = evaluateDatabaseRollup(
+      field,
+      fields,
+      fieldValues,
+      relationPages
+    );
+    return (
+      <span
+        className={`text-sm ${
+          result.status === "ready" || result.status === "empty"
             ? "font-medium text-zinc-700 dark:text-zinc-300"
             : "text-amber-600 dark:text-amber-300"
         }`}

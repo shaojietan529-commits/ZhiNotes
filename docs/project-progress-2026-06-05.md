@@ -47,6 +47,15 @@ schema migration 的能力默认保持关闭。
 - 保存视图会同时记录 row search、filter rules、sort rules、隐藏字段和 chart 分组；这些都只写入
   view config，不会改动数据库行值、页面正文、文件 bytes、云端数据或 AI 内容。
 
+### 数据库 Rollup 汇总字段阶段
+
+- 新增本地只读 Rollup/汇总字段；当前保守版本只基于同一行的 relation 字段做汇总，
+  支持“关联数量”和“关联页面标题”两种方式。
+- Rollup 结果已接入 Table、List、Gallery、Timeline、Feed、Chart、搜索、排序和 CSV/XLSX 导出；
+  Form 和 spreadsheet import 会跳过 Rollup 写入，避免把计算结果当成手填字段。
+- Rollup 只读取本地 relation id 和页面标题，不读取关联页面正文、文件 bytes、云端数据或 AI 内容；
+  后续如果要做跨数据库属性 rollup，再单独设计权限和数据边界。
+
 ### 文件与 Markdown 原生展示阶段
 
 - 扩展本地文件格式识别：Markdown 族现在包括 `.rmd`、`.qmd`；研究文本/引用文件包括
@@ -87,7 +96,8 @@ npm run lint
 npm run build
 ```
 
-Formula 字段和数据库视图规则阶段还做过 `/modules/databases` 浏览器只读检查，数据库模块可以正常渲染。
+Formula 字段、数据库视图规则和 Rollup 阶段还做过 `/modules/databases` 浏览器只读检查，
+数据库模块可以正常渲染。
 
 文件与 Markdown 原生展示阶段已通过：
 

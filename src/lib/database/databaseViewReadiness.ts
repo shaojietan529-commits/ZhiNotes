@@ -143,10 +143,10 @@ export const DATABASE_VIEW_READINESS_REQUIREMENTS: DatabaseViewReadinessRequirem
     ),
     requirement(
       "chart",
-      ["number", "formula", "select", "status"],
+      ["number", "formula", "rollup", "select", "status"],
       ["date", "relation"],
       "做状态分布、行业分类、分数、权重或估值假设的快速图表。",
-      "新增 number、formula、select 或 status 字段，例如 Rating、Score、Upside、Status。"
+      "新增 number、formula、rollup、select 或 status 字段，例如 Rating、Score、Upside、Related reports、Status。"
     ),
     requirement(
       "form",

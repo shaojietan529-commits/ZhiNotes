@@ -24,6 +24,7 @@ const files = {
   databaseImport: "src/lib/database/databaseImport.ts",
   databaseFields: "src/lib/database/fields.ts",
   databaseFormula: "src/lib/database/formula.ts",
+  databaseRollup: "src/lib/database/rollup.ts",
   databaseMultiSelect: "src/lib/database/multiSelectValues.ts",
   databaseNumberValues: "src/lib/database/numberValues.ts",
   databaseSystemFields: "src/lib/database/systemFields.ts",
@@ -109,6 +110,7 @@ function run() {
   const databaseImport = readProjectFile(files.databaseImport);
   const databaseFields = readProjectFile(files.databaseFields);
   const databaseFormula = readProjectFile(files.databaseFormula);
+  const databaseRollup = readProjectFile(files.databaseRollup);
   const databaseMultiSelect = readProjectFile(files.databaseMultiSelect);
   const databaseNumberValues = readProjectFile(files.databaseNumberValues);
   const databaseSystemFields = readProjectFile(files.databaseSystemFields);
@@ -138,16 +140,20 @@ function run() {
     '{ value: "email", label: "邮箱" }',
     '{ value: "phone", label: "电话" }',
     '{ value: "formula", label: "公式" }',
+    '{ value: "rollup", label: "汇总" }',
     '{ value: "multi_select", label: "多选" }',
     "DATABASE_CREATED_TIME_FIELD",
     "DATABASE_LAST_EDITED_TIME_FIELD",
     "DATABASE_UNIQUE_ID_FIELD",
     "DATABASE_NUMBER_FORMATS",
+    "DATABASE_ROLLUP_AGGREGATIONS",
     "getDatabaseNumberFormat",
     "getDatabaseFormulaExpression",
+    "getDatabaseRollupConfig",
     'fieldType === "multi_select"',
     'fieldType === "number"',
     'fieldType === "formula"',
+    'fieldType === "rollup"',
   ]) {
     assertIncludes(
       files.databaseFields,
@@ -160,6 +166,7 @@ function run() {
     'email: "邮箱"',
     'phone: "电话"',
     'formula: "公式"',
+    'rollup: "汇总"',
     'multi_select: "多选"',
     'created_time: "创建时间"',
     'last_edited_time: "最后编辑时间"',
@@ -235,12 +242,31 @@ function run() {
     );
   }
   for (const snippet of [
+    "evaluateDatabaseRollup",
+    "getDatabaseRollupConfig",
+    "normalizeRelationValue",
+    "stringifyRelationValue",
+    "未配置汇总",
+    "关联字段不存在",
+    "只读取本地页面标题，不读取页面正文。",
+    "只读取本地 relation id。",
+  ]) {
+    assertIncludes(
+      files.databaseRollup,
+      databaseRollup,
+      snippet,
+      "Rollup fields must use local relation ids and page titles without reading page bodies."
+    );
+  }
+  for (const snippet of [
     'field.field_type === "email"',
     'field.field_type === "phone"',
     'field.field_type === "multi_select"',
     'field.field_type === "number"',
     'field.field_type === "formula"',
+    'field.field_type === "rollup"',
     "evaluateDatabaseFormula(field, fields, row, fieldValues)",
+    "evaluateDatabaseRollup(",
     'type={inputType}',
     'mailto:${linkValue}',
     'tel:${linkValue}',
@@ -262,12 +288,14 @@ function run() {
     'field.field_type === "phone"',
     'field.field_type === "multi_select"',
     'field.field_type === "formula"',
+    'field.field_type === "rollup"',
     '? "email"',
     '? "tel"',
     "toggleMultiSelectValue",
     "isDatabaseSystemField",
     "创建行后自动生成",
     "创建行后按公式自动计算",
+    "创建行后按关联字段自动汇总",
   ]) {
     assertIncludes(
       files.formView,
@@ -322,10 +350,29 @@ function run() {
       "Database views and search helpers must display local formula results."
     );
   }
+  for (const [sourceLabel, source] of [
+    [files.databaseShell, databaseShell],
+    [files.tableView, tableView],
+    [files.listView, listView],
+    [files.galleryView, galleryView],
+    [files.timelineView, timelineView],
+    [files.feedView, feedView],
+    [files.chartView, chartView],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "evaluateDatabaseRollup",
+      "Database views and search helpers must display local rollup results."
+    );
+  }
   for (const snippet of [
     'field.field_type === "formula"',
+    'field.field_type === "rollup"',
     '"formula"',
+    '"rollup"',
     "evaluateDatabaseFormula(field, fields, row, values).value",
+    "evaluateDatabaseRollup(field, fields, values, relationPages).value",
   ]) {
     assertIncludes(
       files.chartView,
@@ -339,10 +386,15 @@ function run() {
     "数字格式",
     "只改变显示方式，原始值仍按数字保存。",
     "公式表达式",
+    "汇总来源",
+    "汇总方式",
     "只改变公式结果显示方式，不写入行值。",
+    "不会读取关联页面正文",
     '"{字段名}"',
     "buildFieldConfig(",
     "formulaExpression",
+    "rollupRelationFieldId",
+    "rollupAggregation",
   ]) {
     assertIncludes(
       files.databaseShell,
@@ -375,6 +427,7 @@ function run() {
     '| "phone"',
     '| "multi_select"',
     '| "formula"',
+    '| "rollup"',
     '| "created_time"',
     '| "last_edited_time"',
     '| "unique_id"',
@@ -385,6 +438,7 @@ function run() {
     'fieldType === "phone"',
     'fieldType === "multi_select"',
     'fieldType === "formula"',
+    'fieldType === "rollup"',
     "isDatabaseImportReadOnlyFieldType",
     "isDatabaseSystemFieldType",
   ]) {
@@ -406,6 +460,12 @@ function run() {
     databaseExport,
     "evaluateDatabaseFormula",
     "CSV/XLSX export must include local formula results."
+  );
+  assertIncludes(
+    files.databaseExport,
+    databaseExport,
+    "evaluateDatabaseRollup",
+    "CSV/XLSX export must include local rollup results."
   );
   assertIncludes(
     files.databaseExport,
@@ -1431,6 +1491,7 @@ function run() {
         import_export_readiness: true,
         feed_field_context: true,
         view_rule_controls: true,
+        local_rollup_fields: true,
         database_workbench: true,
       },
       null,

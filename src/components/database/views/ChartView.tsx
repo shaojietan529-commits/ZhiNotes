@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { evaluateDatabaseFormula } from "@/lib/database/formula";
+import { evaluateDatabaseRollup } from "@/lib/database/rollup";
 import { normalizeMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
@@ -153,6 +154,7 @@ function pickChartGroupField(
     fields.find((field) => field.field_type === "checkbox") ||
     fields.find((field) => field.field_type === "number") ||
     fields.find((field) => field.field_type === "formula") ||
+    fields.find((field) => field.field_type === "rollup") ||
     null
   );
 }
@@ -177,6 +179,8 @@ function buildBuckets({
     const value =
       field.field_type === "formula"
         ? evaluateDatabaseFormula(field, fields, row, values).value
+        : field.field_type === "rollup"
+          ? evaluateDatabaseRollup(field, fields, values, relationPages).value
         : isDatabaseSystemTimeField(field)
           ? getDatabaseSystemFieldValue(row, field)
           : values[field.id];
@@ -244,6 +248,17 @@ function getBucketLabels(
     return ["100+"];
   }
 
+  if (field.field_type === "rollup") {
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) return ["无汇总"];
+      if (value === 0) return ["0"];
+      if (value < 3) return ["1-2"];
+      if (value < 6) return ["3-5"];
+      return ["6+"];
+    }
+    return splitRelationLabel(String(value ?? ""));
+  }
+
   const text = String(value ?? "").trim();
   return [text || "无值"];
 }
@@ -269,6 +284,7 @@ function isChartableField(field: DatabaseField) {
     "checkbox",
     "number",
     "formula",
+    "rollup",
   ].includes(field.field_type);
 }
 

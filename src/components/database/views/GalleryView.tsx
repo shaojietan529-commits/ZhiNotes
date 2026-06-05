@@ -3,6 +3,7 @@
 import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { evaluateDatabaseFormula } from "@/lib/database/formula";
+import { evaluateDatabaseRollup } from "@/lib/database/rollup";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
@@ -42,6 +43,16 @@ export default function GalleryView({
               if (field.field_type === "formula") {
                 return Boolean(
                   evaluateDatabaseFormula(field, fields, row, fieldValues).label
+                );
+              }
+              if (field.field_type === "rollup") {
+                return Boolean(
+                  evaluateDatabaseRollup(
+                    field,
+                    fields,
+                    fieldValues,
+                    relationPages
+                  ).label
                 );
               }
               const value = isDatabaseSystemField(field)
@@ -88,6 +99,28 @@ export default function GalleryView({
                               fields,
                               row,
                               fieldValues
+                            );
+                            if (!result.label) return null;
+                            return (
+                              <div key={field.id} className="flex gap-2 text-xs">
+                                <dt className="w-20 shrink-0 truncate text-zinc-400">
+                                  {field.name}
+                                </dt>
+                                <dd
+                                  className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300"
+                                  title={result.detail}
+                                >
+                                  {result.label}
+                                </dd>
+                              </div>
+                            );
+                          }
+                          if (field.field_type === "rollup") {
+                            const result = evaluateDatabaseRollup(
+                              field,
+                              fields,
+                              fieldValues,
+                              relationPages
                             );
                             if (!result.label) return null;
                             return (

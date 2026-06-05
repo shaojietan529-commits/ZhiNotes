@@ -196,6 +196,17 @@ function FormField({
     );
   }
 
+  if (field.field_type === "rollup") {
+    return (
+      <div className="block">
+        {label}
+        <div className="rounded border border-dashed border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900">
+          创建行后按关联字段自动汇总
+        </div>
+      </div>
+    );
+  }
+
   const inputType =
     field.field_type === "number"
       ? "number"

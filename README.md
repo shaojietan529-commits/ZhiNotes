@@ -315,17 +315,20 @@ Current local actions:
   contains filters, multiple sort rules, visible properties, and chart grouping
   are stored in each local view config. Older single-filter/single-sort view
   configs remain compatible and open as one rule.
-- Use local database fields for text, number, formula, relation, select,
-  multi-select, status, date, checkbox, URL, email, phone, unique ID, created
-  time, and last edited time values. Table and form views use native
+- Use local database fields for text, number, formula, rollup, relation,
+  select, multi-select, status, date, checkbox, URL, email, phone, unique ID,
+  created time, and last edited time values. Table and form views use native
   email/phone inputs, multi-select chips, and read-only system properties.
   Formula fields are local read-only computed fields that reference same-row
-  fields with `{Field Name}` and basic + - * / arithmetic; feed chips make them
-  visible, number/formula fields can display as plain values, percentages, USD,
-  CNY, or multiples without changing stored values, charts can group
-  multi-select options, formula buckets, or system time months, and CSV/XLSX
-  append import can infer email/phone columns, preserve matched multi-select
-  fields locally, or skip writes to read-only system/formula fields.
+  fields with `{Field Name}` and basic + - * / arithmetic. Rollup fields are
+  local read-only summaries over one relation field, currently supporting
+  related-page counts or related-page titles without reading related page
+  bodies. Feed chips make computed fields visible, number/formula fields can
+  display as plain values, percentages, USD, CNY, or multiples without changing
+  stored values, charts can group multi-select options, formula buckets, rollup
+  buckets, or system time months, and CSV/XLSX append import can infer
+  email/phone columns, preserve matched multi-select fields locally, or skip
+  writes to read-only system/formula/rollup fields.
 - Review and export local template-row readiness. The report checks whether
   each database has the recommended field groups for company, report, meeting,
   and portfolio template rows before the user creates rows in a database page.
