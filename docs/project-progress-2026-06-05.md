@@ -43,6 +43,7 @@ schema migration 的能力默认保持关闭。
   段落本地复用到报告、邮件或模型输入前的人工整理流程。
 - `Cmd/Ctrl+Shift+M` 现在会触发本地评论入口，和 Notion 的评论快捷键保持一致。
 - `Cmd/Ctrl+/` 现在会打开本地块菜单，用键盘访问转换块类型、移动、复制、复制链接和评论等操作。
+- `Cmd/Ctrl+Shift+9` 现在会运行本地 child-page 流程，和 `/page` 一样创建子页面并自动进入新页面。
 - Markdown 输入触发也更接近 Notion：`>` + 空格创建 toggle，`"` + 空格创建 quote，
   `---` + 空格创建 divider。
 - `评论当前块` 和块复制导出命令同步加入 Cmd/Ctrl+K 编辑器命令；它们复用现有本地 block

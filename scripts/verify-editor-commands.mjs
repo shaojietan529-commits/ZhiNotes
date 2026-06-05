@@ -142,6 +142,8 @@ function run() {
     "dispatchEditorLocalCommand(\"block-comment\")",
     "dispatchEditorBlockMenu",
     "\"Mod-/\"",
+    "\"Mod-Shift-9\"",
+    "dispatchEditorLocalCommand(\"child-page\")",
   ]) {
     assertIncludes(
       files.keyboardShortcuts,
@@ -770,6 +772,7 @@ function run() {
         h3_shortcut_paths: 3,
         comment_shortcut: "Mod-Shift-m",
         block_menu_shortcut: "Mod-/",
+        page_shortcut: "Mod-Shift-9",
         markdown_block_triggers: [">", "\"", "---"],
         page_slash_aliases: 8,
         block_insert_heading_levels: 3,

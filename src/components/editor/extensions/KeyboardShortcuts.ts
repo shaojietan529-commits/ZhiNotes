@@ -70,8 +70,10 @@ export const KeyboardShortcuts = Extension.create({
         this.editor.chain().focus().insertToggleBlock().run(),
       "Mod-Shift-8": () =>
         this.editor.chain().focus().toggleCodeBlock().run(),
-      "Mod-Shift-9": () =>
-        this.editor.chain().focus().toggleBlockquote().run(),
+      "Mod-Shift-9": () => {
+        dispatchEditorLocalCommand("child-page");
+        return true;
+      },
 
       // ── Text Formatting ───────────────────────────────────────
       "Mod-/": () => {

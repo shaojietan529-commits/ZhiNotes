@@ -210,6 +210,7 @@ Current local actions:
   the page link, and automatically enter the new page. Heading 3 supports
   Cmd/Ctrl+Shift+3 when the browser receives it, plus Cmd/Ctrl+Alt+3 as the
   browser-safe fallback because macOS can reserve Cmd+Shift+3 for screenshots.
+  Cmd/Ctrl+Shift+9 runs the same child-page workflow for the current page.
 - Use Notion-style slash aliases such as `/num`, `/div`, `/turnbullet`,
   `/duplicate`, `/delete`, `/move up`, `/move down`, and `/comment` for common
   block transforms and local block operations. The same local block comment
