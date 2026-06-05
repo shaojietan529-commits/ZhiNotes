@@ -81,6 +81,12 @@ interface InlineDatabaseSortRule {
   direction: SortDirection;
 }
 
+interface InlineDatabaseRowGroup {
+  id: string;
+  label: string;
+  rows: RowWithPage[];
+}
+
 interface InlineDatabaseViewConfig {
   rowSearch: string;
   filterFieldId: string;
@@ -89,6 +95,7 @@ interface InlineDatabaseViewConfig {
   sortKey: string;
   sortDirection: SortDirection;
   sortRules: InlineDatabaseSortRule[];
+  groupFieldId: string;
   hiddenFieldIds: string[];
   chartGroupFieldId: string;
 }
@@ -352,6 +359,27 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
       activeViewConfig.sortRules,
     ]
   );
+  const groupField = useMemo(
+    () => fields.find((field) => field.id === activeViewConfig.groupFieldId) ?? null,
+    [fields, activeViewConfig.groupFieldId]
+  );
+  const rowGroups = useMemo(
+    () =>
+      groupField && isInlineGroupableField(groupField)
+        ? buildInlineDatabaseRowGroups({
+            rows: visibleRows,
+            fields,
+            field: groupField,
+            relationPages: workspacePages,
+          })
+        : [],
+    [fields, groupField, visibleRows, workspacePages]
+  );
+  const usesGroupedRows =
+    groupField !== null &&
+    Boolean(activeView) &&
+    isInlineGroupableField(groupField) &&
+    isInlineGroupedViewType(activeView?.view_type);
 
   if (loading) {
     return (
@@ -491,30 +519,103 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
 
         {/* View content */}
         <div className="px-4 py-3">
-          {activeView?.view_type === "table" && <TableView {...visibleFieldViewProps} />}
-          {activeView?.view_type === "list" && <ListView {...visibleFieldViewProps} />}
-          {activeView?.view_type === "kanban" && <KanbanView {...viewProps} />}
-          {activeView?.view_type === "calendar" && <CalendarView {...viewProps} />}
-          {activeView?.view_type === "gallery" && <GalleryView {...visibleFieldViewProps} />}
-          {activeView?.view_type === "timeline" && <TimelineView {...viewProps} />}
-          {activeView?.view_type === "chart" && (
-            <ChartView
-              fields={fields}
-              rows={visibleRows}
-              chartGroupFieldId={activeViewConfig.chartGroupFieldId}
-              relationPages={workspacePages}
-              onOpenRow={handleOpenRow}
-            />
+          {usesGroupedRows ? (
+            <div className="space-y-3">
+              {rowGroups.length === 0 ? (
+                <p className="rounded-md border border-dashed border-zinc-200 px-3 py-5 text-center text-xs text-zinc-400 dark:border-zinc-700">
+                  当前分组没有可显示的行。
+                </p>
+              ) : (
+                rowGroups.map((group) => (
+                  <section
+                    key={group.id}
+                    className="rounded-md border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <h4 className="min-w-0 truncate text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+                        {group.label}
+                      </h4>
+                      <span className="shrink-0 rounded bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                        {group.rows.length} 行
+                      </span>
+                    </div>
+                    {activeView?.view_type === "table" && (
+                      <TableView
+                        {...visibleFieldViewProps}
+                        rows={group.rows}
+                        showAddRow={false}
+                      />
+                    )}
+                    {activeView?.view_type === "list" && (
+                      <ListView
+                        {...visibleFieldViewProps}
+                        rows={group.rows}
+                        showAddRow={false}
+                      />
+                    )}
+                    {activeView?.view_type === "gallery" && (
+                      <GalleryView
+                        {...visibleFieldViewProps}
+                        rows={group.rows}
+                        showAddRow={false}
+                      />
+                    )}
+                    {activeView?.view_type === "feed" && (
+                      <FeedView
+                        {...viewProps}
+                        rows={group.rows}
+                        showAddRow={false}
+                      />
+                    )}
+                  </section>
+                ))
+              )}
+              <button
+                type="button"
+                onClick={handleAddRow}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+              >
+                + 新建行
+              </button>
+            </div>
+          ) : (
+            <>
+              {activeView?.view_type === "table" && (
+                <TableView {...visibleFieldViewProps} />
+              )}
+              {activeView?.view_type === "list" && (
+                <ListView {...visibleFieldViewProps} />
+              )}
+              {activeView?.view_type === "kanban" && <KanbanView {...viewProps} />}
+              {activeView?.view_type === "calendar" && (
+                <CalendarView {...viewProps} />
+              )}
+              {activeView?.view_type === "gallery" && (
+                <GalleryView {...visibleFieldViewProps} />
+              )}
+              {activeView?.view_type === "timeline" && (
+                <TimelineView {...viewProps} />
+              )}
+              {activeView?.view_type === "chart" && (
+                <ChartView
+                  fields={fields}
+                  rows={visibleRows}
+                  chartGroupFieldId={activeViewConfig.chartGroupFieldId}
+                  relationPages={workspacePages}
+                  onOpenRow={handleOpenRow}
+                />
+              )}
+              {activeView?.view_type === "form" && (
+                <FormView
+                  fields={visibleFields}
+                  relationPages={workspacePages}
+                  onOpenPage={handleOpenPage}
+                  onCreateRow={handleCreateRow}
+                />
+              )}
+              {activeView?.view_type === "feed" && <FeedView {...viewProps} />}
+            </>
           )}
-          {activeView?.view_type === "form" && (
-            <FormView
-              fields={visibleFields}
-              relationPages={workspacePages}
-              onOpenPage={handleOpenPage}
-              onCreateRow={handleCreateRow}
-            />
-          )}
-          {activeView?.view_type === "feed" && <FeedView {...viewProps} />}
         </div>
       </div>
     </NodeViewWrapper>
@@ -538,6 +639,7 @@ function parseInlineDatabaseViewConfig(config: string): InlineDatabaseViewConfig
     sortKey: "position",
     sortDirection: "asc",
     sortRules: [createInlineDatabaseSortRule("position", "asc")],
+    groupFieldId: "",
     hiddenFieldIds: [],
     chartGroupFieldId: "",
   };
@@ -568,6 +670,8 @@ function parseInlineDatabaseViewConfig(config: string): InlineDatabaseViewConfig
         sortKey,
         sortDirection
       ),
+      groupFieldId:
+        typeof parsed.groupFieldId === "string" ? parsed.groupFieldId : "",
       hiddenFieldIds: parseInlineStringArray(parsed.hiddenFieldIds),
       chartGroupFieldId:
         typeof parsed.chartGroupFieldId === "string"
@@ -648,6 +752,82 @@ function getInlineVisibleRows({
     }
     return left.position - right.position;
   });
+}
+
+function isInlineGroupableField(field: DatabaseField) {
+  return !["url", "email", "phone"].includes(field.field_type);
+}
+
+function isInlineGroupedViewType(
+  viewType: DatabaseView["view_type"] | undefined
+) {
+  return ["table", "list", "gallery", "feed"].includes(viewType ?? "");
+}
+
+function buildInlineDatabaseRowGroups({
+  rows,
+  fields,
+  field,
+  relationPages,
+}: {
+  rows: RowWithPage[];
+  fields: DatabaseField[];
+  field: DatabaseField;
+  relationPages: Page[];
+}): InlineDatabaseRowGroup[] {
+  const groups = new Map<string, InlineDatabaseRowGroup>();
+
+  for (const row of rows) {
+    const labels = getInlineDatabaseRowGroupLabels(
+      row,
+      field,
+      fields,
+      relationPages
+    );
+    for (const label of labels) {
+      const groupId = `${field.id}:${label}`;
+      const group = groups.get(groupId) ?? { id: groupId, label, rows: [] };
+      group.rows.push(row);
+      groups.set(groupId, group);
+    }
+  }
+
+  return Array.from(groups.values());
+}
+
+function getInlineDatabaseRowGroupLabels(
+  row: RowWithPage,
+  field: DatabaseField,
+  fields: DatabaseField[],
+  relationPages: Page[]
+) {
+  if (field.position === 0 || field.name === "Name") {
+    return [row.page?.title || "无值"];
+  }
+
+  if (field.field_type === "checkbox") {
+    return [
+      getInlineRowFieldValue(row, field, fields, relationPages) ? "是" : "否",
+    ];
+  }
+
+  if (
+    field.field_type === "date" ||
+    field.field_type === "created_time" ||
+    field.field_type === "last_edited_time"
+  ) {
+    const value = String(
+      getInlineRowFieldValue(row, field, fields, relationPages) ?? ""
+    );
+    return [value ? value.slice(0, 7) : "无日期"];
+  }
+
+  const text = getInlineRowFieldText(row, field, fields, relationPages).trim();
+  const labels = text
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return labels.length > 0 ? labels : ["无值"];
 }
 
 function compareInlineRows(

@@ -52,6 +52,8 @@ schema migration 的能力默认保持关闭。
   soft delete，只影响 view config，不删除行、页面、字段或文件。
 - Inline database 现在会应用已保存的 view config：row search、筛选、排序、隐藏属性、图表
   分组和手动排序启用状态都会按所选 view 本地计算展示；inline 本身不写 view config。
+- Inline database 的 Table、List、Gallery、Feed 也会读取保存的分组字段并渲染分组区块；
+  分组只影响 page 内展示，不写入 row values、页面正文、文件 bytes、云端数据或 AI 内容。
 
 ### 数据库 Rollup 汇总字段阶段
 

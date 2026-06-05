@@ -917,9 +917,13 @@ function run() {
     "activeViewConfig.rowSearch",
     "activeViewConfig.filterRules",
     "activeViewConfig.sortRules",
+    "activeViewConfig.groupFieldId",
     "activeViewConfig.hiddenFieldIds",
+    "buildInlineDatabaseRowGroups",
+    "isInlineGroupedViewType",
     "chartGroupFieldId={activeViewConfig.chartGroupFieldId}",
     "isDefaultInlineSortRules(activeViewConfig.sortRules)",
+    "showAddRow={false}",
   ]) {
     assertIncludes(
       files.inlineDatabaseNode,
@@ -1748,6 +1752,7 @@ function run() {
         template_row_receipts: true,
         template_row_receipt_history: true,
         inline_view_config: true,
+        inline_grouped_views: true,
         import_export_readiness: true,
         feed_field_context: true,
         view_rule_controls: true,
