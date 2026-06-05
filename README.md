@@ -192,7 +192,9 @@ Current local actions:
   module.
 - Write and edit Notion-like page content with headings, lists, tasks, toggles,
   callouts, tables, formulas, synced blocks, embeds, wiki links, file previews,
-  inline databases, comments, backlinks, and version history.
+  inline databases, comments, backlinks, and version history. The block insert
+  menu supports Heading 1, Heading 2, and Heading 3 so mouse-driven block
+  editing matches the heading shortcut set.
 - Use `/page` from the slash menu to create a child page, insert the page link,
   and automatically enter the new page. Heading 3 supports Cmd/Ctrl+Shift+3
   when the browser receives it, plus Cmd/Ctrl+Alt+3 as the browser-safe fallback

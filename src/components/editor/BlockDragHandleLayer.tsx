@@ -46,6 +46,7 @@ type InsertMenuItemType =
   | "text"
   | "heading1"
   | "heading2"
+  | "heading3"
   | "bulletList"
   | "taskList"
   | "toggle"
@@ -93,6 +94,12 @@ const DEFAULT_INSERT_ITEMS: InsertMenuItem[] = [
     label: "标题 2",
     description: "二级章节标题",
     aliases: ["h2", "subtitle", "标题"],
+  },
+  {
+    type: "heading3",
+    label: "标题 3",
+    description: "三级小标题",
+    aliases: ["h3", "subheading", "三级标题", "小标题"],
   },
   {
     type: "bulletList",
@@ -759,6 +766,8 @@ function getInsertContent(
       return { type: "heading", attrs: { level: 1 } };
     case "heading2":
       return { type: "heading", attrs: { level: 2 } };
+    case "heading3":
+      return { type: "heading", attrs: { level: 3 } };
     case "bulletList":
       return {
         type: "bulletList",

@@ -10,6 +10,7 @@ const files = {
   keyboardShortcuts: "src/components/editor/extensions/KeyboardShortcuts.ts",
   slashSuggestion: "src/components/editor/extensions/SlashCommandSuggestion.ts",
   filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
+  blockDragHandle: "src/components/editor/BlockDragHandleLayer.tsx",
   editor: "src/components/editor/Editor.tsx",
   readme: "README.md",
 };
@@ -36,6 +37,7 @@ function run() {
   const keyboardShortcuts = readProjectFile(files.keyboardShortcuts);
   const slashSuggestion = readProjectFile(files.slashSuggestion);
   const filePreviewUpload = readProjectFile(files.filePreviewUpload);
+  const blockDragHandle = readProjectFile(files.blockDragHandle);
   const editor = readProjectFile(files.editor);
   const readme = readProjectFile(files.readme);
 
@@ -94,6 +96,22 @@ function run() {
       slashSuggestion,
       snippet,
       "/page slash command must stay discoverable and open the new page."
+    );
+  }
+
+  for (const snippet of [
+    "| \"heading3\"",
+    "type: \"heading3\"",
+    "label: \"标题 3\"",
+    "aliases: [\"h3\", \"subheading\", \"三级标题\", \"小标题\"]",
+    "case \"heading3\"",
+    "attrs: { level: 3 }",
+  ]) {
+    assertIncludes(
+      files.blockDragHandle,
+      blockDragHandle,
+      snippet,
+      "Block insert menu must expose Heading 3 alongside Heading 1 and Heading 2."
     );
   }
 
@@ -162,6 +180,7 @@ function run() {
       {
         h3_shortcut_paths: 3,
         page_slash_aliases: 6,
+        block_insert_heading_levels: 3,
         file_workflow_entrypoints: 3,
         page_command_opens_new_page: true,
         local_only: true,
