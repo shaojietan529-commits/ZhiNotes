@@ -233,6 +233,9 @@ Current local actions:
   icon picking, date display, synced blocks, version history, hover change
   summaries, backlinks/reference panels, and page/block comments are localized
   too.
+- Copy the current page as Markdown or standalone HTML from the page toolbar or
+  Cmd/Ctrl+K. This is a local clipboard action for moving one page into emails,
+  reports, AI prompt drafts, or another writing tool without downloading a file.
 - Review the Info panel for page metadata, local word/block counts, file/table
   counts, and the new 投研结构 summary.
 - Use the 投研结构 panel as a local checklist for outline coverage, investment
@@ -257,6 +260,11 @@ not upload data, connect cloud services, call AI, or write workspace data.
 The local page research structure panel remains the per-page drill-down for
 current-page outline, gates, signals, and suggested-only scaffold insertion.
 It does not read linked page bodies, database row values, uploaded file bytes, AI prompts, tokens, credentials, cloud data, or private research content.
+Current-page copy/export actions only run after the user clicks the action or
+selects it from Cmd/Ctrl+K. They read the current editor HTML in the browser,
+then either download a local file, open the browser print flow, or write text to
+the local clipboard; they do not upload, sync, call AI, or connect cloud
+services.
 The notes workbench export excludes page body text, comment body text, linked
 page bodies, database row values, file bytes, tokens, credentials, cloud data,
 and AI output.

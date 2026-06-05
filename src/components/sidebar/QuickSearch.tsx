@@ -658,6 +658,39 @@ export default function QuickSearch() {
       run: () => handlePageLocalCommand("copy-link"),
     },
     {
+      id: "copy-page-markdown",
+      title: "复制页面 Markdown",
+      description: "把当前页面复制为 Markdown 文本",
+      icon: "MD",
+      category: "Page",
+      aliases: [
+        "copy",
+        "markdown",
+        "md",
+        "current page",
+        "page markdown",
+        "复制",
+        "页面 Markdown",
+      ],
+      run: () => handlePageLocalCommand("copy-markdown"),
+    },
+    {
+      id: "copy-page-html",
+      title: "复制页面 HTML",
+      description: "把当前页面复制为可独立打开的 HTML 文本",
+      icon: "HTML",
+      category: "Page",
+      aliases: [
+        "copy",
+        "html",
+        "current page",
+        "page html",
+        "复制",
+        "页面 HTML",
+      ],
+      run: () => handlePageLocalCommand("copy-html"),
+    },
+    {
       id: "print-pdf",
       title: "打印 / PDF",
       description: "打开当前页面的浏览器打印流程",
@@ -910,6 +943,10 @@ export default function QuickSearch() {
                     onPageInfo={() => handlePageLocalCommand("info")}
                     onHistory={() => handlePageLocalCommand("history")}
                     onCopyPageLink={() => handlePageLocalCommand("copy-link")}
+                    onCopyPageMarkdown={() =>
+                      handlePageLocalCommand("copy-markdown")
+                    }
+                    onCopyPageHtml={() => handlePageLocalCommand("copy-html")}
                     onPrintPdf={() => handlePageLocalCommand("print-pdf")}
                     onExportMarkdown={() => void handleExportMarkdown()}
                     onExportZip={() => void handleExportZip()}
@@ -946,6 +983,10 @@ export default function QuickSearch() {
                     onPageInfo={() => handlePageLocalCommand("info")}
                     onHistory={() => handlePageLocalCommand("history")}
                     onCopyPageLink={() => handlePageLocalCommand("copy-link")}
+                    onCopyPageMarkdown={() =>
+                      handlePageLocalCommand("copy-markdown")
+                    }
+                    onCopyPageHtml={() => handlePageLocalCommand("copy-html")}
                     onPrintPdf={() => handlePageLocalCommand("print-pdf")}
                     onExportMarkdown={() => void handleExportMarkdown()}
                     onExportZip={() => void handleExportZip()}
@@ -1443,6 +1484,8 @@ function CommandActions({
   onPageInfo,
   onHistory,
   onCopyPageLink,
+  onCopyPageMarkdown,
+  onCopyPageHtml,
   onPrintPdf,
   onExportMarkdown,
   onExportZip,
@@ -1452,6 +1495,8 @@ function CommandActions({
   onPageInfo: () => void;
   onHistory: () => void;
   onCopyPageLink: () => void;
+  onCopyPageMarkdown: () => void;
+  onCopyPageHtml: () => void;
   onPrintPdf: () => void;
   onExportMarkdown: () => void;
   onExportZip: () => void;
@@ -1467,6 +1512,8 @@ function CommandActions({
         <CommandActionButton label="信息" onClick={onPageInfo} />
         <CommandActionButton label="历史" onClick={onHistory} />
         <CommandActionButton label="复制链接" onClick={onCopyPageLink} />
+        <CommandActionButton label="复制 MD" onClick={onCopyPageMarkdown} />
+        <CommandActionButton label="复制 HTML" onClick={onCopyPageHtml} />
         <CommandActionButton label="PDF" onClick={onPrintPdf} />
         <CommandActionButton label="导出 MD" onClick={onExportMarkdown} />
         <CommandActionButton label="ZIP" onClick={onExportZip} />

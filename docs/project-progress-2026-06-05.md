@@ -219,6 +219,17 @@ schema migration 的能力默认保持关闭。
 - 文件动作 receipt 的来源新增 `files-module`；receipt 仍不包含文件名、文件 bytes、文件正文、
   页面正文、表格值、token、credential、prompt、云端数据或 AI 输出。
 
+### 页面复制导出阶段
+
+- 普通 page 顶部操作区新增“复制 MD”和“复制 HTML”，可以把当前页面直接复制为 Markdown
+  或可独立打开的 HTML 文本。
+- `Cmd/Ctrl+K` 也新增“复制页面 Markdown”和“复制页面 HTML”动作，和页面工具栏走同一套
+  本地 copy pipeline。
+- Markdown 复制复用现有 HTML-to-Markdown 转换器，保留标题、列表、toggle、callout、目录、
+  文件预览链接、公式、同步块和嵌入等已有导出语义；HTML 复制复用现有 standalone HTML 导出结构。
+- 这个能力只在用户主动触发时读取当前编辑器 HTML，并写入浏览器本地剪贴板；不会下载文件、
+  上传、云同步、调用 AI、读取链接页面正文、读取数据库 row values 或读取上传文件 bytes。
+
 ### Sync/API 防护阶段
 
 - 新增共享 `ApiGuardPanel`，统一 API 防护展示结构。

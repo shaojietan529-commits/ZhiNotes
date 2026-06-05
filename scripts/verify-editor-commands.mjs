@@ -27,6 +27,7 @@ const files = {
   hoverSummary: "src/components/comparison/HoverSummary.tsx",
   iconPicker: "src/components/shared/IconPicker.tsx",
   pageComments: "src/components/shared/PageComments.tsx",
+  pageLocalCommands: "src/lib/pageLocalCommands.ts",
   pageShell: "src/components/providers/PageShell.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   researchTemplateStarters: "src/lib/modules/researchTemplateStarters.ts",
@@ -82,6 +83,7 @@ function run() {
   const hoverSummary = readProjectFile(files.hoverSummary);
   const iconPicker = readProjectFile(files.iconPicker);
   const pageComments = readProjectFile(files.pageComments);
+  const pageLocalCommands = readProjectFile(files.pageLocalCommands);
   const pageShell = readProjectFile(files.pageShell);
   const quickSearch = readProjectFile(files.quickSearch);
   const researchTemplateStarters = readProjectFile(
@@ -512,6 +514,9 @@ function run() {
     );
   }
   for (const snippet of [
+    "buildPageMarkdownDocument",
+    "buildPageHtmlDocument",
+    "copyTextToClipboard",
     "请选择图片文件作为页面封面。",
     "封面图片 URL：",
     "添加封面",
@@ -523,6 +528,10 @@ function run() {
     "添加子页面",
     "保存版本",
     "复制链接",
+    "复制 MD",
+    "复制 HTML",
+    "已复制 Markdown",
+    "已复制 HTML",
     "复制页面",
     "查看版本历史",
   ]) {
@@ -531,6 +540,34 @@ function run() {
       pageShell,
       snippet,
       "Page cover controls must keep the default notes UI in Chinese."
+    );
+  }
+  for (const snippet of [
+    "| \"copy-html\"",
+    "| \"copy-markdown\"",
+    "PAGE_LOCAL_COMMAND_EVENT",
+    "dispatchPageLocalCommand",
+  ]) {
+    assertIncludes(
+      files.pageLocalCommands,
+      pageLocalCommands,
+      snippet,
+      "Page local commands must expose current-page copy actions."
+    );
+  }
+  for (const snippet of [
+    "copy-page-markdown",
+    "复制页面 Markdown",
+    "copy-markdown",
+    "copy-page-html",
+    "复制页面 HTML",
+    "copy-html",
+  ]) {
+    assertIncludes(
+      files.quickSearch,
+      quickSearch,
+      snippet,
+      "Cmd/Ctrl+K must expose current-page Markdown and HTML copy actions."
     );
   }
   for (const snippet of [
@@ -695,6 +732,8 @@ function run() {
     );
   }
   for (const snippet of [
+    "buildPageMarkdownDocument",
+    "htmlToMarkdown(contentHtml)",
     "页面路径：",
     "模板按钮：",
     "插入模板",

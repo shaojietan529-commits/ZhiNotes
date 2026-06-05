@@ -33,6 +33,8 @@ import HoverSummary from "@/components/comparison/HoverSummary";
 import VersionHistoryPanel from "@/components/comparison/VersionHistoryPanel";
 import type { PageVersion } from "@/lib/utils/types";
 import {
+  buildPageHtmlDocument,
+  buildPageMarkdownDocument,
   exportPageAsHtml,
   exportPageAsMarkdown,
 } from "@/lib/export/pageExport";
@@ -62,6 +64,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const router = useRouter();
   const editorRef = useRef<EditorRef>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const copyNoticeTimeoutRef = useRef<number | null>(null);
   const { page, loading, update, remove } = usePage(pageId);
   const { refresh } = usePages();
   const { versions, refresh: refreshVersions } = useVersions(pageId);
@@ -73,6 +76,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const { isFavorite, toggleFavorite } = usePageFavorites();
   const favorite = isFavorite(pageId);
   const [showInfo, setShowInfo] = useState(false);
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [exportingPageStructure, setExportingPageStructure] = useState(false);
   const [applyingResearchActionId, setApplyingResearchActionId] =
     useState<string | null>(null);
@@ -148,6 +152,39 @@ function PageContent({ pageId }: { pageId: string }) {
     exportPageAsMarkdown(title || "未命名页面", html);
   }, [page, title]);
 
+  const showCopyNotice = useCallback((message: string) => {
+    setCopyNotice(message);
+    if (copyNoticeTimeoutRef.current !== null) {
+      window.clearTimeout(copyNoticeTimeoutRef.current);
+    }
+    copyNoticeTimeoutRef.current = window.setTimeout(() => {
+      setCopyNotice(null);
+      copyNoticeTimeoutRef.current = null;
+    }, 1800);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyNoticeTimeoutRef.current !== null) {
+        window.clearTimeout(copyNoticeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopyPageMarkdown = useCallback(async () => {
+    const html = editorRef.current?.getHTML() ?? page?.content_text ?? "";
+    const markdown = buildPageMarkdownDocument(title || "未命名页面", html);
+    const copied = await copyTextToClipboard(markdown, "复制页面 Markdown：");
+    showCopyNotice(copied ? "已复制 Markdown" : "请在弹窗中手动复制 Markdown");
+  }, [page, showCopyNotice, title]);
+
+  const handleCopyPageHtml = useCallback(async () => {
+    const html = editorRef.current?.getHTML() ?? page?.content_text ?? "";
+    const exportedHtml = buildPageHtmlDocument(title || "未命名页面", html);
+    const copied = await copyTextToClipboard(exportedHtml, "复制页面 HTML：");
+    showCopyNotice(copied ? "已复制 HTML" : "请在弹窗中手动复制 HTML");
+  }, [page, showCopyNotice, title]);
+
   const handleCopyPageLink = useCallback(async () => {
     const url = `${window.location.origin}/page/${pageId}`;
     try {
@@ -179,6 +216,14 @@ function PageContent({ pageId }: { pageId: string }) {
         void handleCopyPageLink();
         return;
       }
+      if (command === "copy-markdown") {
+        void handleCopyPageMarkdown();
+        return;
+      }
+      if (command === "copy-html") {
+        void handleCopyPageHtml();
+        return;
+      }
       if (command === "print-pdf") {
         handlePrintPdf();
       }
@@ -187,7 +232,12 @@ function PageContent({ pageId }: { pageId: string }) {
     window.addEventListener(PAGE_LOCAL_COMMAND_EVENT, handlePageLocalCommand);
     return () =>
       window.removeEventListener(PAGE_LOCAL_COMMAND_EVENT, handlePageLocalCommand);
-  }, [handleCopyPageLink, handlePrintPdf]);
+  }, [
+    handleCopyPageHtml,
+    handleCopyPageLink,
+    handleCopyPageMarkdown,
+    handlePrintPdf,
+  ]);
 
   const handleCompareVersion = useCallback(
     (version: PageVersion) => {
@@ -613,12 +663,31 @@ function PageContent({ pageId }: { pageId: string }) {
                   MD
                 </button>
                 <button
+                  onClick={() => void handleCopyPageMarkdown()}
+                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                  title="复制页面 Markdown 到剪贴板"
+                >
+                  复制 MD
+                </button>
+                <button
+                  onClick={() => void handleCopyPageHtml()}
+                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                  title="复制页面 HTML 到剪贴板"
+                >
+                  复制 HTML
+                </button>
+                <button
                   onClick={handlePrintPdf}
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                   title="打印或另存为 PDF"
                 >
                   PDF
                 </button>
+                {copyNotice && (
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                    {copyNotice}
+                  </span>
+                )}
                 <button
                   onClick={handleCopyPageLink}
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
@@ -713,6 +782,19 @@ function PageContent({ pageId }: { pageId: string }) {
       </main>
     </div>
   );
+}
+
+async function copyTextToClipboard(value: string, promptLabel: string) {
+  try {
+    if (!window.navigator.clipboard?.writeText) {
+      throw new Error("Clipboard API unavailable");
+    }
+    await window.navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    window.prompt(promptLabel, value);
+    return false;
+  }
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {

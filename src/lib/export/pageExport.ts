@@ -198,8 +198,12 @@ export function exportPageAsMarkdown(title: string, contentHtml: string) {
   downloadTextFile(
     `${safeFileName(title || "未命名页面")}.md`,
     "text/markdown;charset=utf-8",
-    `# ${title || "未命名页面"}\n\n${htmlToMarkdown(contentHtml)}`
+    buildPageMarkdownDocument(title, contentHtml)
   );
+}
+
+export function buildPageMarkdownDocument(title: string, contentHtml: string) {
+  return `# ${title || "未命名页面"}\n\n${htmlToMarkdown(contentHtml)}`;
 }
 
 export function downloadTextFile(fileName: string, mimeType: string, content: string) {
