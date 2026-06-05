@@ -1832,6 +1832,21 @@ function getTextFileLanguage(fileName: string) {
     return "ini";
   }
   if (lowerName.endsWith(".log") || lowerName.endsWith(".lock")) return "log";
+  if (lowerName.endsWith(".tex")) return "latex";
+  if (lowerName.endsWith(".bib")) return "bibtex";
+  if (lowerName.endsWith(".ris")) return "ris";
+  if (lowerName.endsWith(".rst") || lowerName.endsWith(".adoc")) {
+    return "markdown";
+  }
+  if (lowerName.endsWith(".asciidoc") || lowerName.endsWith(".org")) {
+    return "markdown";
+  }
+  if (lowerName.endsWith(".mmd") || lowerName.endsWith(".mermaid")) {
+    return "mermaid";
+  }
+  if (lowerName.endsWith(".do")) return "stata";
+  if (lowerName.endsWith(".sas")) return "sas";
+  if (lowerName.endsWith(".jl")) return "julia";
   if (
     lowerName.endsWith(".js") ||
     lowerName.endsWith(".jsx") ||

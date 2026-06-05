@@ -20,6 +20,8 @@ const files = {
   structure: "src/lib/files/filePreviewStructure.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
+  editor: "src/components/editor/Editor.tsx",
+  codeHighlight: "src/lib/codeHighlight.ts",
   slashSuggestion: "src/components/editor/extensions/SlashCommandSuggestion.ts",
   localStore: "src/lib/files/localStore.ts",
   fileLibrary: "src/lib/files/fileLibraryWorkbench.ts",
@@ -199,6 +201,8 @@ function run() {
   const structure = readProjectFile(files.structure);
   const actionReceipts = readProjectFile(files.actionReceipts);
   const upload = readProjectFile(files.upload);
+  const editor = readProjectFile(files.editor);
+  const codeHighlight = readProjectFile(files.codeHighlight);
   const slashSuggestion = readProjectFile(files.slashSuggestion);
   const localStore = readProjectFile(files.localStore);
   const fileLibrary = readProjectFile(files.fileLibrary);
@@ -1533,6 +1537,37 @@ function run() {
       reportsShell,
       snippet,
       "Reports module must support direct local Markdown import into editable pages."
+    );
+  }
+
+  for (const [sourceLabel, source, snippet] of [
+    [files.previewNode, previewNode, 'lowerName.endsWith(".tex")'],
+    [files.previewNode, previewNode, 'return "latex"'],
+    [files.previewNode, previewNode, 'return "bibtex"'],
+    [files.previewNode, previewNode, 'return "ris"'],
+    [files.previewNode, previewNode, 'return "mermaid"'],
+    [files.previewNode, previewNode, 'return "stata"'],
+    [files.previewNode, previewNode, 'return "sas"'],
+    [files.previewNode, previewNode, 'return "julia"'],
+    [files.editor, editor, '{ label: "LaTeX", value: "latex" }'],
+    [files.editor, editor, '{ label: "BibTeX", value: "bibtex" }'],
+    [files.editor, editor, '{ label: "Mermaid", value: "mermaid" }'],
+    [files.editor, editor, '{ label: "Julia", value: "julia" }'],
+    [files.editor, editor, '{ label: "SAS", value: "sas" }'],
+    [files.editor, editor, '{ label: "Stata", value: "stata" }'],
+    [files.codeHighlight, codeHighlight, 'tex: "latex"'],
+    [files.codeHighlight, codeHighlight, 'bib: "bibtex"'],
+    [files.codeHighlight, codeHighlight, 'mmd: "mermaid"'],
+    [files.codeHighlight, codeHighlight, 'if (language === "latex" || language === "bibtex")'],
+    [files.codeHighlight, codeHighlight, 'if (language === "mermaid")'],
+    [files.codeHighlight, codeHighlight, 'if (language === "julia" || language === "sas" || language === "stata")'],
+    [files.codeHighlight, codeHighlight, 'if (language === "ris")'],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      snippet,
+      "Research text previews must keep specialized language mapping and highlighting."
     );
   }
   for (const snippet of [
