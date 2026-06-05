@@ -553,6 +553,27 @@ function run() {
     );
   }
   for (const snippet of [
+    "handleMoveField",
+    "字段顺序",
+    "前移",
+    "后移",
+    "只调整字段位置，不改行值",
+    "targetField.position === 0",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Full database field settings must support local field ordering without moving the title field."
+    );
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline database field settings must support local field ordering without moving the title field."
+    );
+  }
+  for (const snippet of [
     "要删除字段",
     "不会删除页面正文、文件、云端数据或 AI 内容",
     "要删除记录",
@@ -1646,6 +1667,7 @@ function run() {
         row_duplicate_actions: true,
         field_duplicate_actions: true,
         field_descriptions: true,
+        field_reordering: true,
         delete_confirmations: true,
         local_rollup_fields: true,
         database_workbench: true,

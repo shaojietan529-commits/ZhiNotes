@@ -150,6 +150,30 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
     [reload]
   );
 
+  const handleMoveField = useCallback(
+    async (fieldId: string, direction: "up" | "down") => {
+      const orderedFields = [...fields].sort(
+        (left, right) => left.position - right.position
+      );
+      const currentIndex = orderedFields.findIndex(
+        (field) => field.id === fieldId
+      );
+      if (currentIndex <= 0) return;
+      const targetIndex =
+        direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      const currentField = orderedFields[currentIndex];
+      const targetField = orderedFields[targetIndex];
+      if (!currentField || !targetField || targetField.position === 0) return;
+
+      await Promise.all([
+        updateField(currentField.id, { position: targetField.position }),
+        updateField(targetField.id, { position: currentField.position }),
+      ]);
+      reload();
+    },
+    [fields, reload]
+  );
+
   const handleAddRow = useCallback(async () => {
     await addRow(databaseId);
     reload();
@@ -354,9 +378,11 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
                 )}
                 <InlineFieldSettingsButton
                   field={field}
+                  fields={fields}
                   onUpdate={handleUpdateField}
                   onDuplicate={handleDuplicateField}
-                />
+                  onMove={handleMoveField}
+              />
                 {field.position !== 0 && (
                   <button
                     onClick={() => handleDeleteField(field.id)}
@@ -419,15 +445,19 @@ function parseFieldValues(fieldValues: string) {
 
 function InlineFieldSettingsButton({
   field,
+  fields,
   onUpdate,
   onDuplicate,
+  onMove,
 }: {
   field: DatabaseField;
+  fields: DatabaseField[];
   onUpdate: (
     fieldId: string,
     updates: Partial<Pick<DatabaseField, "name" | "field_type" | "config">>
   ) => void;
   onDuplicate: (field: DatabaseField) => void;
+  onMove: (fieldId: string, direction: "up" | "down") => void;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(getDatabaseFieldDisplayName(field));
@@ -437,6 +467,12 @@ function InlineFieldSettingsButton({
     getDatabaseFieldDescription(field)
   );
   const isTitleField = field.position === 0;
+  const orderedFields = [...fields].sort(
+    (left, right) => left.position - right.position
+  );
+  const fieldIndex = orderedFields.findIndex((item) => item.id === field.id);
+  const canMoveUp = fieldIndex > 1;
+  const canMoveDown = fieldIndex >= 1 && fieldIndex < orderedFields.length - 1;
 
   useEffect(() => {
     setName(getDatabaseFieldDisplayName(field));
@@ -465,6 +501,11 @@ function InlineFieldSettingsButton({
 
   const handleDuplicate = () => {
     onDuplicate(field);
+    setOpen(false);
+  };
+
+  const handleMove = (direction: "up" | "down") => {
+    onMove(field.id, direction);
     setOpen(false);
   };
 
@@ -536,6 +577,31 @@ function InlineFieldSettingsButton({
               />
             </label>
           )}
+          <div className="mt-2 rounded-md border border-zinc-100 p-2 dark:border-zinc-700">
+            <p className="text-[10px] font-medium text-zinc-500">
+              字段顺序
+            </p>
+            <div className="mt-2 flex gap-1">
+              <button
+                type="button"
+                onClick={() => handleMove("up")}
+                disabled={!canMoveUp}
+                className="rounded border border-zinc-200 px-2 py-1 text-[10px] text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 disabled:cursor-default disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                title="只调整字段位置，不改行值"
+              >
+                前移
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMove("down")}
+                disabled={!canMoveDown}
+                className="rounded border border-zinc-200 px-2 py-1 text-[10px] text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 disabled:cursor-default disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                title="只调整字段位置，不改行值"
+              >
+                后移
+              </button>
+            </div>
+          </div>
           <div className="mt-2 flex flex-wrap justify-end gap-1">
             <button
               type="button"

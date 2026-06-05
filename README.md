@@ -326,6 +326,9 @@ Current local actions:
 - Add local field descriptions from field settings in full database pages or
   inline databases. Field descriptions document property definitions and
   research assumptions without reading or changing row values.
+- Reorder local database fields from field settings. The title/name field stays
+  fixed as the page-opening field, while other fields can move forward or
+  backward by swapping local metadata positions only.
 - Duplicate local database rows from table, list, kanban, calendar, gallery,
   timeline, feed, and inline database views. Row duplicate creates a new local
   row/page with the source row title and field values, but it intentionally
