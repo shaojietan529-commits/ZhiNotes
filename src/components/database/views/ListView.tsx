@@ -5,6 +5,10 @@ import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
+import {
+  getDatabaseSystemFieldValue,
+  isDatabaseSystemField,
+} from "@/lib/database/systemFields";
 
 interface ListViewProps {
   fields: DatabaseField[];
@@ -55,10 +59,14 @@ export default function ListView({
                     {row.page?.title || "未命名页面"}
                   </span>
                   {extraFields.map((field) => {
-                    const val = fieldValues[field.id];
+                    const val = isDatabaseSystemField(field)
+                      ? getDatabaseSystemFieldValue(row, field)
+                      : fieldValues[field.id];
                     if (val === undefined || val === null || val === "") return null;
                     const label =
-                      field.field_type === "relation"
+                      isDatabaseSystemField(field)
+                        ? formatRelativeDate(String(val))
+                      : field.field_type === "relation"
                         ? stringifyRelationValue(val, relationPages)
                         : field.field_type === "multi_select"
                           ? stringifyMultiSelectValue(val)

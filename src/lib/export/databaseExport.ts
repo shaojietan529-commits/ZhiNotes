@@ -4,6 +4,10 @@ import type { Database, DatabaseField, DatabaseRow, Page } from "@/lib/utils/typ
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
+import {
+  getDatabaseSystemFieldValue,
+  isDatabaseSystemField,
+} from "@/lib/database/systemFields";
 import { downloadTextFile } from "./pageExport";
 
 type RowWithPage = DatabaseRow & { page: Page };
@@ -57,6 +61,9 @@ function buildDatabaseExportTable(
     const values = parseFieldValues(row.field_values);
     return fields.map((field, index) => {
       if (index === 0) return row.page?.title || "";
+      if (isDatabaseSystemField(field)) {
+        return getDatabaseSystemFieldValue(row, field);
+      }
       return stringifyCell(values[field.id], field, relationPages);
     });
   });

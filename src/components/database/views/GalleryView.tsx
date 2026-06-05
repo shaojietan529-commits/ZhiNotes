@@ -4,6 +4,10 @@ import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
+import {
+  getDatabaseSystemFieldValue,
+  isDatabaseSystemField,
+} from "@/lib/database/systemFields";
 
 interface GalleryViewProps {
   fields: DatabaseField[];
@@ -32,7 +36,9 @@ export default function GalleryView({
           {rows.map((row) => {
             const fieldValues = parseFieldValues(row.field_values);
             const extraFields = fields.slice(1, 5).filter((field) => {
-              const value = fieldValues[field.id];
+              const value = isDatabaseSystemField(field)
+                ? getDatabaseSystemFieldValue(row, field)
+                : fieldValues[field.id];
               return value !== undefined && value !== null && value !== "";
             });
 
@@ -68,9 +74,13 @@ export default function GalleryView({
                     {extraFields.length > 0 && (
                       <dl className="mt-3 space-y-1">
                         {extraFields.map((field) => {
-                          const value = fieldValues[field.id];
+                          const value = isDatabaseSystemField(field)
+                            ? getDatabaseSystemFieldValue(row, field)
+                            : fieldValues[field.id];
                           const label =
-                            field.field_type === "relation"
+                            isDatabaseSystemField(field)
+                              ? formatRelativeDate(String(value))
+                            : field.field_type === "relation"
                               ? stringifyRelationValue(value, relationPages)
                               : field.field_type === "multi_select"
                                 ? stringifyMultiSelectValue(value)

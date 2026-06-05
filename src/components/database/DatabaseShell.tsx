@@ -68,6 +68,10 @@ import {
   isSelectLikeFieldType,
 } from "@/lib/database/fields";
 import {
+  getDatabaseSystemFieldValue,
+  isDatabaseSystemField,
+} from "@/lib/database/systemFields";
+import {
   applyDatabaseImportPreview,
   buildDatabaseImportPreview,
   DATABASE_DIRECT_IMPORT_COLUMN_LIMIT,
@@ -2001,6 +2005,9 @@ function getRowFieldText(
 }
 
 function getRowFieldValue(row: RowWithPage, field: DatabaseField) {
+  if (isDatabaseSystemField(field)) {
+    return getDatabaseSystemFieldValue(row, field);
+  }
   const values = parseFieldValues(row.field_values);
   return values[field.id];
 }
@@ -2059,8 +2066,11 @@ function isChartableField(field: DatabaseField) {
   return [
     "status",
     "select",
+    "multi_select",
     "relation",
     "date",
+    "created_time",
+    "last_edited_time",
     "checkbox",
     "number",
   ].includes(field.field_type);

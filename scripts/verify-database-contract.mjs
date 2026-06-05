@@ -24,8 +24,12 @@ const files = {
   databaseImport: "src/lib/database/databaseImport.ts",
   databaseFields: "src/lib/database/fields.ts",
   databaseMultiSelect: "src/lib/database/multiSelectValues.ts",
+  databaseSystemFields: "src/lib/database/systemFields.ts",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
   tableView: "src/components/database/views/TableView.tsx",
+  listView: "src/components/database/views/ListView.tsx",
+  calendarView: "src/components/database/views/CalendarView.tsx",
+  galleryView: "src/components/database/views/GalleryView.tsx",
   formView: "src/components/database/views/FormView.tsx",
   chartView: "src/components/database/views/ChartView.tsx",
   timelineView: "src/components/database/views/TimelineView.tsx",
@@ -103,8 +107,12 @@ function run() {
   const databaseImport = readProjectFile(files.databaseImport);
   const databaseFields = readProjectFile(files.databaseFields);
   const databaseMultiSelect = readProjectFile(files.databaseMultiSelect);
+  const databaseSystemFields = readProjectFile(files.databaseSystemFields);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
   const tableView = readProjectFile(files.tableView);
+  const listView = readProjectFile(files.listView);
+  const calendarView = readProjectFile(files.calendarView);
+  const galleryView = readProjectFile(files.galleryView);
   const formView = readProjectFile(files.formView);
   const chartView = readProjectFile(files.chartView);
   const timelineView = readProjectFile(files.timelineView);
@@ -126,6 +134,8 @@ function run() {
     '{ value: "email", label: "邮箱" }',
     '{ value: "phone", label: "电话" }',
     '{ value: "multi_select", label: "多选" }',
+    "DATABASE_CREATED_TIME_FIELD",
+    "DATABASE_LAST_EDITED_TIME_FIELD",
     'fieldType === "multi_select"',
   ]) {
     assertIncludes(
@@ -135,12 +145,32 @@ function run() {
       "Database field picker must expose common Notion-like email, phone, and multi-select fields."
     );
   }
-  for (const snippet of ['email: "邮箱"', 'phone: "电话"', 'multi_select: "多选"']) {
+  for (const snippet of [
+    'email: "邮箱"',
+    'phone: "电话"',
+    'multi_select: "多选"',
+    'created_time: "创建时间"',
+    'last_edited_time: "最后编辑时间"',
+  ]) {
     assertIncludes(
       files.display,
       display,
       snippet,
-      "Database field display labels must include email, phone, and multi-select."
+      "Database field display labels must include email, phone, multi-select, and system time fields."
+    );
+  }
+  for (const snippet of [
+    "DATABASE_CREATED_TIME_FIELD",
+    "DATABASE_LAST_EDITED_TIME_FIELD",
+    "isDatabaseSystemFieldType",
+    "getDatabaseSystemFieldValue",
+    "getDatabaseSystemFieldDateKey",
+  ]) {
+    assertIncludes(
+      files.databaseSystemFields,
+      databaseSystemFields,
+      snippet,
+      "System time fields must share one read-only row/page timestamp helper."
     );
   }
   for (const snippet of [
@@ -163,6 +193,8 @@ function run() {
     'mailto:${linkValue}',
     'tel:${linkValue}',
     "toggleMultiSelectValue",
+    "isDatabaseSystemField",
+    "getDatabaseSystemFieldValue",
   ]) {
     assertIncludes(
       files.tableView,
@@ -178,6 +210,8 @@ function run() {
     '? "email"',
     '? "tel"',
     "toggleMultiSelectValue",
+    "isDatabaseSystemField",
+    "创建行后自动生成",
   ]) {
     assertIncludes(
       files.formView,
@@ -186,16 +220,35 @@ function run() {
       "Form view must use native email/phone inputs and multi-select chips."
     );
   }
+  for (const [sourceLabel, source] of [
+    [files.listView, listView],
+    [files.galleryView, galleryView],
+    [files.timelineView, timelineView],
+    [files.calendarView, calendarView],
+    [files.feedView, feedView],
+  ]) {
+    for (const snippet of ["isDatabaseSystemField", "getDatabaseSystemField"]) {
+      assertIncludes(
+        sourceLabel,
+        source,
+        snippet,
+        "Database views must read created/edited system fields from row/page metadata."
+      );
+    }
+  }
   for (const snippet of [
     '| "email"',
     '| "phone"',
     '| "multi_select"',
+    '| "created_time"',
+    '| "last_edited_time"',
     "isEmailValue",
     "isPhoneValue",
     "parseMultiSelectValue",
     'fieldType === "email"',
     'fieldType === "phone"',
     'fieldType === "multi_select"',
+    "isDatabaseSystemFieldType",
   ]) {
     assertIncludes(
       files.databaseImport,
@@ -210,12 +263,31 @@ function run() {
     "stringifyMultiSelectValue",
     "CSV/XLSX export must render multi-select arrays as readable text."
   );
+  assertIncludes(
+    files.databaseExport,
+    databaseExport,
+    "getDatabaseSystemFieldValue",
+    "CSV/XLSX export must include read-only database system timestamps."
+  );
   for (const snippet of ["normalizeMultiSelectValue", '"multi_select"']) {
     assertIncludes(
       files.chartView,
       chartView,
       snippet,
       "Chart view must group multi-select fields by selected option."
+    );
+  }
+  for (const snippet of [
+    "isDatabaseSystemField",
+    "getDatabaseSystemFieldValue",
+    '"created_time"',
+    '"last_edited_time"',
+  ]) {
+    assertIncludes(
+      files.chartView,
+      chartView,
+      snippet,
+      "Chart view must group read-only system time fields by month."
     );
   }
   assertIncludes(

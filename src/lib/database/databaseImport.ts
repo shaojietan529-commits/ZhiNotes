@@ -1,6 +1,7 @@
 "use client";
 
 import { addField, addRow } from "@/lib/db/local/queries";
+import { isDatabaseSystemFieldType } from "@/lib/database/systemFields";
 import { formatFileSize } from "@/lib/files/localStore";
 import type { DatabaseField } from "@/lib/utils/types";
 
@@ -15,7 +16,9 @@ export type DatabaseImportFieldType =
   | "url"
   | "email"
   | "phone"
-  | "multi_select";
+  | "multi_select"
+  | "created_time"
+  | "last_edited_time";
 
 type SpreadsheetCell = string | number | boolean | null;
 
@@ -218,6 +221,11 @@ export async function applyDatabaseImportPreview(
   for (const column of preview.columns) {
     if (column.target_status === "title-field") continue;
 
+    if (isDatabaseSystemFieldType(column.target_field_type)) {
+      if (column.target_field_id) fieldsMatched += 1;
+      continue;
+    }
+
     if (column.target_field_id) {
       fieldIdBySourceColumnIndex.set(
         column.source_column_index,
@@ -239,6 +247,7 @@ export async function applyDatabaseImportPreview(
     const fieldValues: Record<string, unknown> = {};
     for (const column of preview.columns) {
       if (column.target_status === "title-field") continue;
+      if (isDatabaseSystemFieldType(column.target_field_type)) continue;
       const fieldId = fieldIdBySourceColumnIndex.get(column.source_column_index);
       const value = row.field_values[String(column.source_column_index)];
       if (fieldId && value !== "" && value !== null && value !== undefined) {
@@ -336,6 +345,7 @@ function buildRowDraft(
   const fieldValues: DatabaseImportRowDraft["field_values"] = {};
 
   for (const column of columns.slice(1)) {
+    if (isDatabaseSystemFieldType(column.target_field_type)) continue;
     const rawValue = stringifyCell(row[column.source_column_index]);
     const value = coerceFieldValue(rawValue, column.target_field_type);
     if (value !== "" && value !== null) {
@@ -400,6 +410,9 @@ function coerceFieldType(fieldType: string): DatabaseImportFieldType {
     fieldType === "multi_select"
   ) {
     return fieldType;
+  }
+  if (isDatabaseSystemFieldType(fieldType)) {
+    return fieldType as DatabaseImportFieldType;
   }
   return "text";
 }

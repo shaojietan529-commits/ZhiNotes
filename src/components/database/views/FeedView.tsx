@@ -6,6 +6,10 @@ import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import { getFieldOptions } from "@/lib/database/fields";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { getRelationPages } from "@/lib/database/relationValues";
+import {
+  getDatabaseSystemFieldValue,
+  isDatabaseSystemField,
+} from "@/lib/database/systemFields";
 
 interface FeedViewProps {
   fields: DatabaseField[];
@@ -93,9 +97,11 @@ function FeedCard({
   onUpdateRow: (rowId: string, fieldValues: Record<string, unknown>) => void;
 }) {
   const fieldValues = parseRowFieldValues(row.field_values);
-  const feedFields = getFeedFields(fields, fieldValues);
+  const feedFields = getFeedFields(fields, row, fieldValues);
 
   const handleFieldChange = (fieldId: string, value: unknown) => {
+    const field = fields.find((item) => item.id === fieldId);
+    if (field && isDatabaseSystemField(field)) return;
     onUpdateRow(row.id, { ...fieldValues, [fieldId]: value });
   };
 
@@ -131,7 +137,11 @@ function FeedCard({
             <FeedFieldChip
               key={field.id}
               field={field}
-              value={fieldValues[field.id]}
+              value={
+                isDatabaseSystemField(field)
+                  ? getDatabaseSystemFieldValue(row, field)
+                  : fieldValues[field.id]
+              }
               relationPages={relationPages}
               onOpenPage={onOpenPage}
               onChange={(value) => handleFieldChange(field.id, value)}
@@ -234,7 +244,7 @@ function FeedFieldChip({
         ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-200"
         : field.field_type === "multi_select"
           ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-200"
-          : field.field_type === "date"
+          : field.field_type === "date" || isDatabaseSystemField(field)
             ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-200"
             : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-200";
 
@@ -247,19 +257,24 @@ function FeedFieldChip({
 
 function getFeedFields(
   fields: DatabaseField[],
+  row: DatabaseRow & { page: Page },
   fieldValues: Record<string, unknown>
 ) {
   return fields
     .slice(1)
-    .filter((field) => hasDisplayValue(field, fieldValues))
+    .filter((field) => hasDisplayValue(field, row, fieldValues))
     .sort(compareFeedFields)
     .slice(0, 6);
 }
 
 function hasDisplayValue(
   field: DatabaseField,
+  row: DatabaseRow & { page: Page },
   fieldValues: Record<string, unknown>
 ) {
+  if (isDatabaseSystemField(field)) {
+    return Boolean(getDatabaseSystemFieldValue(row, field));
+  }
   if (!(field.id in fieldValues)) return false;
   const value = fieldValues[field.id];
   if (field.field_type === "checkbox") return true;
@@ -273,13 +288,15 @@ function compareFeedFields(left: DatabaseField, right: DatabaseField) {
     select: 1,
     multi_select: 2,
     date: 3,
-    relation: 4,
-    checkbox: 5,
-    number: 6,
-    url: 7,
-    email: 8,
-    phone: 9,
-    text: 10,
+    created_time: 4,
+    last_edited_time: 5,
+    relation: 6,
+    checkbox: 7,
+    number: 8,
+    url: 9,
+    email: 10,
+    phone: 11,
+    text: 12,
   };
   return (
     (priority[left.field_type] ?? 10) - (priority[right.field_type] ?? 10) ||
@@ -296,6 +313,9 @@ function formatFeedFieldValue(field: DatabaseField, value: unknown) {
   }
   if (field.field_type === "multi_select") {
     return stringifyMultiSelectValue(value);
+  }
+  if (isDatabaseSystemField(field)) {
+    return formatRelativeDate(String(value));
   }
   if (field.field_type === "number") {
     return typeof value === "number" ? value.toLocaleString() : String(value);

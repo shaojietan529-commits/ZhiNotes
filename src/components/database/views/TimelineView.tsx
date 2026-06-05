@@ -5,6 +5,11 @@ import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
+import {
+  getDatabaseSystemFieldDateKey,
+  getDatabaseSystemFieldValue,
+  isDatabaseSystemField,
+} from "@/lib/database/systemFields";
 
 interface TimelineViewProps {
   fields: DatabaseField[];
@@ -30,7 +35,9 @@ export default function TimelineView({
   onOpenRow,
   relationPages,
 }: TimelineViewProps) {
-  const dateField = fields.find((field) => field.field_type === "date");
+  const dateField =
+    fields.find((field) => field.field_type === "date") ||
+    fields.find(isDatabaseSystemField);
 
   const timelineRows = useMemo(() => {
     if (!dateField) return [];
@@ -38,7 +45,9 @@ export default function TimelineView({
     return rows
       .map((row): TimelineRow => {
         const values = parseFieldValues(row.field_values);
-        const dateValue = String(values[dateField.id] ?? "");
+        const dateValue = isDatabaseSystemField(dateField)
+          ? getDatabaseSystemFieldDateKey(row, dateField)
+          : String(values[dateField.id] ?? "");
         return {
           row,
           dateValue,
@@ -77,6 +86,7 @@ export default function TimelineView({
             const extraFields = getTimelineDisplayFields(
               fields,
               dateField,
+              row,
               fieldValues
             );
 
@@ -111,7 +121,9 @@ export default function TimelineView({
                   {extraFields.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {extraFields.map((field) => {
-                        const value = fieldValues[field.id];
+                        const value = isDatabaseSystemField(field)
+                          ? getDatabaseSystemFieldValue(row, field)
+                          : fieldValues[field.id];
                         const labelText = formatTimelineFieldValue(
                           field,
                           value,
@@ -164,13 +176,16 @@ export default function TimelineView({
 function getTimelineDisplayFields(
   fields: DatabaseField[],
   dateField: DatabaseField,
+  row: DatabaseRow & { page: Page },
   fieldValues: Record<string, unknown>
 ) {
   return fields
     .filter((field) => {
       if (field.id === dateField.id) return false;
       if (field.position === 0 && field.name === "Name") return false;
-      const value = fieldValues[field.id];
+      const value = isDatabaseSystemField(field)
+        ? getDatabaseSystemFieldValue(row, field)
+        : fieldValues[field.id];
       return value !== undefined && value !== null && value !== "";
     })
     .slice(0, 4);
@@ -191,6 +206,10 @@ function formatTimelineFieldValue(
 
   if (Array.isArray(value)) {
     return value.map(String).filter(Boolean).join(", ");
+  }
+
+  if (isDatabaseSystemField(field)) {
+    return value ? formatRelativeDate(String(value)) : "";
   }
 
   return String(value ?? "").trim();

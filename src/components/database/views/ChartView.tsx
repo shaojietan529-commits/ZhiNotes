@@ -5,6 +5,10 @@ import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { normalizeMultiSelectValue } from "@/lib/database/multiSelectValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
+  getDatabaseSystemFieldValue,
+  isDatabaseSystemField,
+} from "@/lib/database/systemFields";
+import {
   getDatabaseFieldDisplayName,
   getDatabaseFieldTypeLabel,
 } from "@/lib/database/display";
@@ -57,7 +61,7 @@ export default function ChartView({
           图表视图会按属性统计行数。
         </p>
         <p className="mt-1 text-xs text-zinc-400">
-          请先添加状态、单选、日期、关联、复选框或数字字段，再使用图表。
+          请先添加状态、单选、日期、系统时间、关联、复选框或数字字段，再使用图表。
         </p>
       </div>
     );
@@ -143,6 +147,7 @@ function pickChartGroupField(
     fields.find((field) => field.field_type === "multi_select") ||
     fields.find((field) => field.field_type === "relation") ||
     fields.find((field) => field.field_type === "date") ||
+    fields.find(isDatabaseSystemField) ||
     fields.find((field) => field.field_type === "checkbox") ||
     fields.find((field) => field.field_type === "number") ||
     null
@@ -164,7 +169,10 @@ function buildBuckets({
 
   for (const row of rows) {
     const values = parseFieldValues(row.field_values);
-    const labels = getBucketLabels(values[field.id], field, relationPages);
+    const value = isDatabaseSystemField(field)
+      ? getDatabaseSystemFieldValue(row, field)
+      : values[field.id];
+    const labels = getBucketLabels(value, field, relationPages);
     for (const label of labels) {
       const group = groups.get(label) ?? [];
       group.push(row);
@@ -212,7 +220,7 @@ function getBucketLabels(
     return selected.length > 0 ? selected : ["无值"];
   }
 
-  if (field.field_type === "date") {
+  if (field.field_type === "date" || isDatabaseSystemField(field)) {
     const text = String(value ?? "");
     return [text ? text.slice(0, 7) : "无日期"];
   }
@@ -248,6 +256,8 @@ function isChartableField(field: DatabaseField) {
     "multi_select",
     "relation",
     "date",
+    "created_time",
+    "last_edited_time",
     "checkbox",
     "number",
   ].includes(field.field_type);

@@ -7,6 +7,7 @@ import {
   normalizeMultiSelectValue,
   toggleMultiSelectValue,
 } from "@/lib/database/multiSelectValues";
+import { isDatabaseSystemField } from "@/lib/database/systemFields";
 import type { DatabaseField, Page } from "@/lib/utils/types";
 
 interface FormViewProps {
@@ -91,6 +92,17 @@ function FormField({
       {getDatabaseFieldDisplayName(field)}
     </span>
   );
+
+  if (isDatabaseSystemField(field)) {
+    return (
+      <div className="block">
+        {label}
+        <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-400 dark:border-zinc-700 dark:bg-zinc-950">
+          创建行后自动生成
+        </div>
+      </div>
+    );
+  }
 
   if (field.field_type === "checkbox") {
     return (

@@ -11,6 +11,10 @@ import {
   normalizeMultiSelectValue,
   toggleMultiSelectValue,
 } from "@/lib/database/multiSelectValues";
+import {
+  getDatabaseSystemFieldValue,
+  isDatabaseSystemField,
+} from "@/lib/database/systemFields";
 
 interface TableViewProps {
   fields: DatabaseField[];
@@ -146,6 +150,7 @@ function TableRow({
           ) : (
             <CellEditor
               field={field}
+              row={row}
               value={fieldValues[field.id]}
               relationPages={relationPages}
               focusPage={focusPage}
@@ -173,6 +178,7 @@ function TableRow({
 
 function CellEditor({
   field,
+  row,
   value,
   onChange,
   onOpenPage,
@@ -180,6 +186,7 @@ function CellEditor({
   focusPage,
 }: {
   field: DatabaseField;
+  row: DatabaseRow & { page: Page };
   value: unknown;
   onChange: (value: unknown) => void;
   onOpenPage: (pageId: string) => void;
@@ -187,6 +194,18 @@ function CellEditor({
   focusPage?: Page | null;
 }) {
   const [editing, setEditing] = useState(false);
+
+  if (isDatabaseSystemField(field)) {
+    const systemValue = getDatabaseSystemFieldValue(row, field);
+    return (
+      <span
+        className="text-sm text-zinc-500 dark:text-zinc-400"
+        title={systemValue || undefined}
+      >
+        {systemValue ? formatRelativeDate(systemValue) : "—"}
+      </span>
+    );
+  }
 
   if (field.field_type === "checkbox") {
     return (

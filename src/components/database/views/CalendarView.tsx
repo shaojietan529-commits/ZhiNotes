@@ -3,6 +3,10 @@
 import { useState, useMemo } from "react";
 import type { DatabaseField, DatabaseRow } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
+import {
+  getDatabaseSystemFieldDateKey,
+  isDatabaseSystemField,
+} from "@/lib/database/systemFields";
 
 interface CalendarViewProps {
   fields: DatabaseField[];
@@ -19,7 +23,9 @@ export default function CalendarView({
   onOpenRow,
 }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const dateField = fields.find((f) => f.field_type === "date");
+  const dateField =
+    fields.find((field) => field.field_type === "date") ||
+    fields.find(isDatabaseSystemField);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -43,7 +49,9 @@ export default function CalendarView({
         typeof row.field_values === "string"
           ? JSON.parse(row.field_values || "{}")
           : row.field_values || {};
-      const dateVal = fieldValues[dateField.id] as string;
+      const dateVal = isDatabaseSystemField(dateField)
+        ? getDatabaseSystemFieldDateKey(row, dateField)
+        : (fieldValues[dateField.id] as string);
       if (dateVal) {
         if (!map[dateVal]) map[dateVal] = [];
         map[dateVal].push(row);
