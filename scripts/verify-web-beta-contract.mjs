@@ -6035,13 +6035,13 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "value={restorePreviewApiGuard.format}",
+    "value: restorePreviewApiGuard.format",
     "Sync UI must render the restore preview disabled response format."
   );
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "RestorePreviewApiFixtureRow",
+    "fixtures={restorePreviewApiGuard.local_validator_report.fixtures}",
     "Sync UI must render restore preview validator fixtures."
   );
   assertSourceIncludes(
@@ -6172,13 +6172,13 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "value={restoreApplyApiGuard.format}",
+    "value: restoreApplyApiGuard.format",
     "Sync UI must render the restore apply disabled response format."
   );
   assertSourceIncludes(
     files.syncShell,
     syncShell,
-    "RestoreApplyApiFixtureRow",
+    "fixtures={restoreApplyApiGuard.local_validator_report.fixtures}",
     "Sync UI must render restore apply validator fixtures."
   );
 
