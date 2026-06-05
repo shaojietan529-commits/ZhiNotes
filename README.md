@@ -214,7 +214,9 @@ Current local actions:
   `/duplicate`, `/delete`, `/move up`, `/move down`, and `/comment` for common
   block transforms and local block operations. The same local block comment
   action is also available from Cmd/Ctrl+K. Block link, Markdown, and HTML copy
-  commands are exposed from both slash and Cmd/Ctrl+K for local reuse.
+  commands are exposed from both slash and Cmd/Ctrl+K for local reuse. Formatting
+  and color aliases such as `/bold`, `/clear formatting`, `/red text`, and
+  `/blue background` are searchable too.
 - Add page icons, covers, sub-pages, local page links, duplicate pages, lock
   editing, switch page width, save named versions, and export HTML, Markdown, or
   browser PDF. Page cover controls, table-of-contents blocks, and callout

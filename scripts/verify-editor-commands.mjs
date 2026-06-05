@@ -294,6 +294,12 @@ function run() {
     "\"div\"",
     "\"book\"",
     "\"web bookmark\"",
+    "\"bold\"",
+    "\"clear formatting\"",
+    "\"align left\"",
+    "\"red text\"",
+    "\"blue background\"",
+    "\"gray text\"",
   ]) {
     assertIncludes(
       files.slashSuggestion,
@@ -708,7 +714,8 @@ function run() {
         block_insert_heading_levels: 3,
         advanced_block_slash_commands: 8,
         block_copy_export_commands: 3,
-        notion_style_slash_aliases: 7,
+        notion_style_slash_aliases: 13,
+        formatting_color_aliases: true,
         file_workflow_entrypoints: 3,
         localized_shared_note_controls: true,
         page_command_opens_new_page: true,

@@ -629,6 +629,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "加粗文字",
       icon: "B",
       category: "文字格式",
+      aliases: ["bold", "strong", "加粗"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleBold().run();
       },
@@ -638,6 +639,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "文字斜体",
       icon: "I",
       category: "文字格式",
+      aliases: ["italic", "emphasis", "italics", "斜体"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleItalic().run();
       },
@@ -647,6 +649,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "给文字加下划线",
       icon: "U",
       category: "文字格式",
+      aliases: ["underline", "underlined", "下划线"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleUnderline().run();
       },
@@ -656,6 +659,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "给文字加删除线",
       icon: "S̶",
       category: "文字格式",
+      aliases: ["strike", "strikethrough", "delete line", "删除线"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleStrike().run();
       },
@@ -665,6 +669,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "把文字设为行内代码",
       icon: "`",
       category: "文字格式",
+      aliases: ["inline code", "code", "code text", "行内代码"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleCode().run();
       },
@@ -674,6 +679,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "高亮文字",
       icon: "🖍",
       category: "文字格式",
+      aliases: ["highlight", "mark", "高亮"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleHighlight().run();
       },
@@ -683,6 +689,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "移除文字样式并重置当前块",
       icon: "X",
       category: "文字格式",
+      aliases: ["clear", "clear format", "clear formatting", "remove formatting", "清除格式"],
       command: ({ editor, range }) => {
         editor
           .chain()
@@ -699,6 +706,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "文字左对齐",
       icon: "⫷",
       category: "对齐",
+      aliases: ["left", "align left", "left align", "左对齐"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setTextAlign("left").run();
       },
@@ -708,6 +716,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "文字居中对齐",
       icon: "⫸",
       category: "对齐",
+      aliases: ["center", "align center", "center align", "居中"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setTextAlign("center").run();
       },
@@ -717,6 +726,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "文字右对齐",
       icon: "⫸",
       category: "对齐",
+      aliases: ["right", "align right", "right align", "右对齐"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setTextAlign("right").run();
       },
@@ -727,6 +737,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "把文字颜色设为红色",
       icon: "🔴",
       category: "颜色",
+      aliases: ["red", "red text", "text red", "红色"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setColor("#ef4444").run();
       },
@@ -736,6 +747,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "把文字颜色设为橙色",
       icon: "🟠",
       category: "颜色",
+      aliases: ["orange", "orange text", "text orange", "橙色"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setColor("#f97316").run();
       },
@@ -745,6 +757,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "把文字颜色设为黄色",
       icon: "🟡",
       category: "颜色",
+      aliases: ["yellow", "yellow text", "text yellow", "黄色"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setColor("#eab308").run();
       },
@@ -754,6 +767,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "把文字颜色设为绿色",
       icon: "🟢",
       category: "颜色",
+      aliases: ["green", "green text", "text green", "绿色"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setColor("#22c55e").run();
       },
@@ -763,6 +777,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "把文字颜色设为蓝色",
       icon: "🔵",
       category: "颜色",
+      aliases: ["blue", "blue text", "text blue", "蓝色"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setColor("#3b82f6").run();
       },
@@ -772,6 +787,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "把文字颜色设为紫色",
       icon: "🟣",
       category: "颜色",
+      aliases: ["purple", "purple text", "text purple", "紫色"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setColor("#a855f7").run();
       },
@@ -781,6 +797,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "把文字颜色设为灰色",
       icon: "⚪",
       category: "颜色",
+      aliases: ["gray", "grey", "gray text", "grey text", "text gray", "灰色"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setColor("#9ca3af").run();
       },
@@ -792,6 +809,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "用红色背景高亮",
       icon: "🔴",
       category: "背景色",
+      aliases: ["red background", "red bg", "background red", "红色背景"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleHighlight({ color: "#fecaca" }).run();
       },
@@ -801,6 +819,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "用黄色背景高亮",
       icon: "🟡",
       category: "背景色",
+      aliases: ["yellow background", "yellow bg", "background yellow", "黄色背景"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleHighlight({ color: "#fef08a" }).run();
       },
@@ -810,6 +829,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "用绿色背景高亮",
       icon: "🟢",
       category: "背景色",
+      aliases: ["green background", "green bg", "background green", "绿色背景"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleHighlight({ color: "#bbf7d0" }).run();
       },
@@ -819,6 +839,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "用蓝色背景高亮",
       icon: "🔵",
       category: "背景色",
+      aliases: ["blue background", "blue bg", "background blue", "蓝色背景"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleHighlight({ color: "#bfdbfe" }).run();
       },
@@ -828,6 +849,7 @@ function getSlashCommands(): SlashCommandItem[] {
       description: "用紫色背景高亮",
       icon: "🟣",
       category: "背景色",
+      aliases: ["purple background", "purple bg", "background purple", "紫色背景"],
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleHighlight({ color: "#e9d5ff" }).run();
       },
