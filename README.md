@@ -196,6 +196,9 @@ Current local actions:
 - Use the notes workbench review sequence to jump through the note workflow:
   create a first note, review structure gaps, connect research context, and
   handle review trail issues.
+- When the workspace has no pages, the notes module shows a 第一篇笔记 panel
+  with blank-note and template starters. The panel only presents local buttons;
+  it does not create a page until the user clicks one.
 - Create blank research notes or template-backed local pages for investment
   memos, company research, meeting notes, research reports, report intake,
   industry comparison, expert calls, and research decision logs from the notes

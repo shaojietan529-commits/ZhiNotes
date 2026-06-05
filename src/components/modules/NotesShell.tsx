@@ -230,6 +230,16 @@ function NotesDashboard() {
           <Metric label="行动" value={workbench.summary.actions} />
         </section>
 
+        {workbench.summary.pages === 0 && (
+          <NotesEmptyStartPanel
+            busyAction={busyAction}
+            onCreateBlankPage={() => void handleCreateBlankPage()}
+            onCreateTemplatePage={(starter) =>
+              void handleCreateTemplatePage(starter)
+            }
+          />
+        )}
+
         <NotesDecisionSummaryPanel
           summary={workbench.decision_summary}
           exportingWorkbench={exportingWorkbench}
@@ -279,6 +289,51 @@ function NotesDashboard() {
         />
       </div>
     </div>
+  );
+}
+
+function NotesEmptyStartPanel({
+  busyAction,
+  onCreateBlankPage,
+  onCreateTemplatePage,
+}: {
+  busyAction: string | null;
+  onCreateBlankPage: () => void;
+  onCreateTemplatePage: (starter: (typeof NOTE_TEMPLATE_STARTERS)[number]) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/40">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+            第一篇笔记
+          </p>
+          <h2 className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            还没有本地页面
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900/80 dark:text-emerald-100/80">
+            可以先创建一篇空白研究笔记，或直接从投研模板开始。这里只显示入口，
+            不会自动写入页面、上传、同步或调用 AI。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <ActionButton
+            label="新建空白笔记"
+            busy={busyAction === "blank-page"}
+            emphasis
+            onClick={onCreateBlankPage}
+          />
+          {NOTE_TEMPLATE_STARTERS.slice(0, 4).map((starter) => (
+            <ActionButton
+              key={starter.label}
+              label={starter.label}
+              busy={busyAction === starter.label}
+              onClick={() => onCreateTemplatePage(starter)}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
