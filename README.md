@@ -640,6 +640,11 @@ Current local actions:
   the page-native preview, editable import review, spreadsheet database import,
   legacy/unknown retention, and Cloud/AI/Sync boundaries explicit before any
   file leaves local preview.
+- Review the native format strategy. ZhiNotes page is the canonical container;
+  HTML is the preferred native format for AI-generated visual reports, Markdown
+  is the preferred editable format for written notes, spreadsheets become local
+  database candidates, and Office/PDF/Notebook/archive formats stay behind local
+  preview, conversion review, metadata retain, or owner-gated import paths.
 - Review a local file workbench generated from IndexedDB file metadata and the
   file preview capability matrix.
 - Review the file library format route matrix directly in `/modules/files`,

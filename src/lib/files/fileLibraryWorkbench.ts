@@ -141,6 +141,45 @@ export interface FileLibraryDecisionSummary {
   decisions: FileLibraryDecision[];
 }
 
+export interface FileLibraryNativeStrategyItem {
+  id:
+    | "html-report-native"
+    | "markdown-editable"
+    | "pdf-native"
+    | "spreadsheet-database"
+    | "office-conversion"
+    | "notebook-epub-rtf"
+    | "archive-retain"
+    | "media-text-native";
+  label: string;
+  default_route:
+    | "page-native-preview"
+    | "editable-page-import"
+    | "database-import-candidate"
+    | "conversion-review"
+    | "metadata-retain";
+  native_preference: "primary" | "supported" | "review-required" | "retain-only";
+  best_for: string;
+  page_behavior: string;
+  owner_gate: string;
+  route: string;
+  target_section_id: string;
+  privacy_boundary: string;
+}
+
+export interface FileLibraryNativeStrategy {
+  format: "zhinote-file-native-strategy";
+  canonical_container: "zhinote-page";
+  primary_generated_report_format: "html";
+  primary_written_note_format: "markdown";
+  editable_page_format: "tiptap-html";
+  current_recommendation: string;
+  safe_defaults: string[];
+  blocked_defaults: string[];
+  items: FileLibraryNativeStrategyItem[];
+  privacy_boundary: string;
+}
+
 export interface FileLibraryWorkbenchReport {
   format: "zhinote-file-library-workbench";
   format_version: 1;
@@ -184,6 +223,7 @@ export interface FileLibraryWorkbenchReport {
     high_priority_actions: number;
   };
   decision_summary: FileLibraryDecisionSummary;
+  native_strategy: FileLibraryNativeStrategy;
   lanes: FileLibraryLane[];
   format_groups: FileLibraryFormatGroup[];
   files: FileLibraryFileItem[];
@@ -298,6 +338,7 @@ export function buildFileLibraryWorkbenchReport(
     },
     summary: summarize(fileItems, actions),
     decision_summary: buildDecisionSummary(fileItems, actions),
+    native_strategy: buildNativeStrategy(),
     lanes,
     format_groups: formatGroups,
     files: fileItems,
@@ -310,6 +351,156 @@ export function buildFileLibraryWorkbenchReport(
       "npm run lint",
       "npm run build",
     ],
+  };
+}
+
+function buildNativeStrategy(): FileLibraryNativeStrategy {
+  return {
+    format: "zhinote-file-native-strategy",
+    canonical_container: "zhinote-page",
+    primary_generated_report_format: "html",
+    primary_written_note_format: "markdown",
+    editable_page_format: "tiptap-html",
+    current_recommendation:
+      "如果必须选一个原生容器，ZhiNotes page 是统一容器；AI 生成的可视化报告优先用 HTML 沙盒原生预览，个人写作优先用 Markdown 导入为可编辑块，表格资料优先转为本地数据库候选。",
+    safe_defaults: [
+      "HTML 报告默认以 sandbox iframe 在 page 内原生预览，并阻止外部资源。",
+      "Markdown/MDX 默认可本地预览，也可以导入为可编辑 page 内容。",
+      "PDF、图片、音频、视频和文本优先使用浏览器本地原生预览。",
+      "Excel/CSV/ODS 默认只进入数据库导入候选，真实入库前必须 typed confirmation。",
+    ],
+    blocked_defaults: [
+      "不默认加载 HTML 外部图片、脚本、样式、字体或 frame。",
+      "不默认把 Office/PDF/Notebook/Spreadsheet 内容发送给 AI 或云端。",
+      "不默认批量导入 spreadsheet cell values，也不自动创建数据库 rows。",
+      "不默认执行 notebook 代码、解包 ZIP 到 workspace、或删除本地文件。",
+    ],
+    items: [
+      nativeStrategyItem(
+        "html-report-native",
+        "HTML 可视化报告",
+        "page-native-preview",
+        "primary",
+        "AI 生成的可交互投研报告、图表和 dashboard。",
+        "在 page 中以 sandbox iframe 原生展示，保留原始布局；复杂报告不强制转成编辑块。",
+        "加载外部资源前必须 typed confirmation。",
+        "/modules/reports",
+        "reports-preview-routing",
+        "默认阻止外部网络资源，文件 bytes 保留在本地。"
+      ),
+      nativeStrategyItem(
+        "markdown-editable",
+        "Markdown / MDX 笔记",
+        "editable-page-import",
+        "primary",
+        "个人笔记、研究框架、会议纪要和 memo 草稿。",
+        "可保留为文件预览，也可导入为 Tiptap 可编辑 page 内容。",
+        "导入前只在本地解析；不上传文本。",
+        "/modules/reports",
+        "reports-conversion-review",
+        "本地文本解析，导出的 workbench 不包含 Markdown 正文。"
+      ),
+      nativeStrategyItem(
+        "pdf-native",
+        "PDF",
+        "page-native-preview",
+        "supported",
+        "券商报告、公告、长 PDF 附件。",
+        "优先使用浏览器 PDF 原生预览；暂不把 PDF 自动转成可编辑正文。",
+        "AI 摘要或全文提取必须另走 payload preview 和 owner gate。",
+        "/modules/reports",
+        "reports-preview-routing",
+        "PDF bytes 保存在本地 IndexedDB，不上传。"
+      ),
+      nativeStrategyItem(
+        "spreadsheet-database",
+        "Excel / CSV / ODS",
+        "database-import-candidate",
+        "review-required",
+        "模型表、跟踪表、财务数据、指标表和交易 comps。",
+        "先显示本地表格预览，再作为数据库导入候选；不把 spreadsheet 当普通文档处理。",
+        "导入数据库前必须 typed confirmation，不批量静默写 rows。",
+        "/modules/databases",
+        "databases-import-export-readiness",
+        "工作台不读取或导出 cell values。"
+      ),
+      nativeStrategyItem(
+        "office-conversion",
+        "Word / PowerPoint / OpenDocument",
+        "conversion-review",
+        "review-required",
+        "投资备忘录、会议材料、路演 PPT、外部文档。",
+        "DOCX/PPTX/ODT/ODP 走本地转换预览；旧版 DOC/PPT 保留下载并提示转换。",
+        "导入为编辑块前需要人工复核版式损失。",
+        "/modules/reports",
+        "reports-conversion-review",
+        "转换在浏览器本地完成，不上传文档内容。"
+      ),
+      nativeStrategyItem(
+        "notebook-epub-rtf",
+        "Notebook / EPUB / RTF",
+        "conversion-review",
+        "review-required",
+        "研究 notebook、电子书章节、富文本资料。",
+        "本地解析为预览 HTML，可选择导入为可编辑块；Notebook 只读 cells，不执行代码。",
+        "执行代码、加载远程资源或 AI 处理保持关闭。",
+        "/modules/files",
+        "files-format-matrix",
+        "本地解析结构，不执行 notebook，不加载 EPUB 远程资源。"
+      ),
+      nativeStrategyItem(
+        "archive-retain",
+        "ZIP / Archive",
+        "metadata-retain",
+        "retain-only",
+        "原始资料包、批量附件、导出的 workspace assets。",
+        "只显示 archive metadata 和保留/下载路线；不自动解包写入 workspace。",
+        "解包、批量导入或覆盖写入必须单独确认。",
+        "/modules/files",
+        "files-format-matrix",
+        "只读取目录元数据，不写入 workspace。"
+      ),
+      nativeStrategyItem(
+        "media-text-native",
+        "图片 / 音频 / 视频 / 文本",
+        "page-native-preview",
+        "supported",
+        "截图、录音、视频、纯文本、JSON、OPML。",
+        "媒体和文本尽量用浏览器原生预览；文本、代码和 OPML 可导入为可编辑块。",
+        "外发、转写、AI 处理或云同步前必须 owner gate。",
+        "/modules/reports",
+        "reports-preview-routing",
+        "所有内容保留本地，工作台导出不含 bytes 或正文。"
+      ),
+    ],
+    privacy_boundary:
+      "Native strategy is generated from static capability metadata only. It does not inspect local file bytes, file text, page bodies, spreadsheet cell values, cloud data, prompts, tokens, credentials, or private research content.",
+  };
+}
+
+function nativeStrategyItem(
+  id: FileLibraryNativeStrategyItem["id"],
+  label: string,
+  defaultRoute: FileLibraryNativeStrategyItem["default_route"],
+  nativePreference: FileLibraryNativeStrategyItem["native_preference"],
+  bestFor: string,
+  pageBehavior: string,
+  ownerGate: string,
+  route: string,
+  targetSectionId: string,
+  privacyBoundary: string
+): FileLibraryNativeStrategyItem {
+  return {
+    id,
+    label,
+    default_route: defaultRoute,
+    native_preference: nativePreference,
+    best_for: bestFor,
+    page_behavior: pageBehavior,
+    owner_gate: ownerGate,
+    route,
+    target_section_id: targetSectionId,
+    privacy_boundary: privacyBoundary,
   };
 }
 

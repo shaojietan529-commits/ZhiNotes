@@ -113,6 +113,19 @@ function FilesDashboard() {
     router.push(decision.route);
   };
 
+  const handleNativeStrategyOpen = (
+    item: FileLibraryWorkbenchReport["native_strategy"]["items"][number]
+  ) => {
+    if (item.route === "/modules/files") {
+      document
+        .getElementById(item.target_section_id)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    router.push(item.route);
+  };
+
   return (
     <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -161,6 +174,11 @@ function FilesDashboard() {
           exportingWorkbench={exportingWorkbench}
           onExportWorkbench={handleExportWorkbench}
           onOpenDecision={handleDecisionOpen}
+        />
+
+        <FileNativeStrategyPanel
+          strategy={workbench.native_strategy}
+          onOpenStrategy={handleNativeStrategyOpen}
         />
 
         <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
@@ -559,6 +577,177 @@ function FileDecisionStatusPill({
     <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${className[status]}`}>
       {label[status]}
     </span>
+  );
+}
+
+function FileNativeStrategyPanel({
+  strategy,
+  onOpenStrategy,
+}: {
+  strategy: FileLibraryWorkbenchReport["native_strategy"];
+  onOpenStrategy: (
+    item: FileLibraryWorkbenchReport["native_strategy"]["items"][number]
+  ) => void;
+}) {
+  return (
+    <section
+      id="files-native-strategy"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Native Format Strategy
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            原生格式策略
+          </h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            {strategy.current_recommendation}
+          </p>
+        </div>
+        <div className="grid min-w-[260px] gap-2 text-xs sm:grid-cols-3">
+          <NativeStrategyFact
+            label="统一容器"
+            value={strategy.canonical_container}
+          />
+          <NativeStrategyFact
+            label="报告首选"
+            value={strategy.primary_generated_report_format}
+          />
+          <NativeStrategyFact
+            label="笔记首选"
+            value={strategy.primary_written_note_format}
+          />
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {strategy.items.map((item) => (
+          <FileNativeStrategyCard
+            key={item.id}
+            item={item}
+            onOpen={() => onOpenStrategy(item)}
+          />
+        ))}
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <NativeStrategyList title="安全默认" items={strategy.safe_defaults} />
+        <NativeStrategyList title="默认保持关闭" items={strategy.blocked_defaults} />
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+        {strategy.privacy_boundary}
+      </p>
+    </section>
+  );
+}
+
+function NativeStrategyFact({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800">
+      <div className="text-[10px] uppercase tracking-wider text-zinc-400">
+        {label}
+      </div>
+      <div className="mt-1 font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function FileNativeStrategyCard({
+  item,
+  onOpen,
+}: {
+  item: FileLibraryWorkbenchReport["native_strategy"]["items"][number];
+  onOpen: () => void;
+}) {
+  return (
+    <article className="flex min-h-[260px] flex-col justify-between rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-zinc-950 dark:text-zinc-50">
+              {item.label}
+            </h3>
+            <p className="mt-1 font-mono text-[11px] text-zinc-400">
+              {item.default_route}
+            </p>
+          </div>
+          <NativePreferencePill preference={item.native_preference} />
+        </div>
+        <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+          {item.best_for}
+        </p>
+        <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+          {item.page_behavior}
+        </p>
+      </div>
+      <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+        <p className="text-xs leading-5 text-zinc-400">{item.owner_gate}</p>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-3 rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-white dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+        >
+          打开路线
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function NativePreferencePill({
+  preference,
+}: {
+  preference: FileLibraryWorkbenchReport["native_strategy"]["items"][number]["native_preference"];
+}) {
+  const label: Record<typeof preference, string> = {
+    primary: "首选",
+    supported: "支持",
+    "review-required": "复核",
+    "retain-only": "保留",
+  };
+  const className: Record<typeof preference, string> = {
+    primary: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200",
+    supported: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200",
+    "review-required":
+      "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200",
+    "retain-only":
+      "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200",
+  };
+
+  return (
+    <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${className[preference]}`}>
+      {label[preference]}
+    </span>
+  );
+}
+
+function NativeStrategyList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <article className="rounded-lg bg-zinc-50 px-4 py-3 text-sm dark:bg-zinc-950">
+      <h3 className="font-semibold text-zinc-950 dark:text-zinc-50">{title}</h3>
+      <ul className="mt-2 space-y-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </article>
   );
 }
 
