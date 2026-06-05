@@ -547,9 +547,9 @@ function run() {
     "ModuleDecisionSummaryPanel",
     "ModuleDecisionCard",
     "ModuleDecisionStatusPill",
-    "Export roadmap",
-    "Export onboarding",
-    "Export starter pack",
+    "导出路线图",
+    "导出接入清单",
+    "导出 Starter Pack",
     "module-manifest",
     "module-onboarding",
     "module-starter-pack",
@@ -564,7 +564,7 @@ function run() {
   assertIncludes(
     files.dashboard,
     dashboard,
-    "Export onboarding",
+    "导出接入清单",
     "Module center must export the onboarding contract."
   );
   assertIncludes(
@@ -576,19 +576,19 @@ function run() {
   assertIncludes(
     files.dashboard,
     dashboard,
-    "Export starter pack",
+    "导出 Starter Pack",
     "Module center must export the starter pack contract."
   );
   assertIncludes(
     files.dashboard,
     dashboard,
-    "Export health",
+    "导出健康度",
     "Module center must export the module health report."
   );
   assertIncludes(
     files.dashboard,
     dashboard,
-    "Export roadmap",
+    "导出路线图",
     "Module center must export the module roadmap report."
   );
   for (const snippet of [

@@ -71,7 +71,7 @@ export function buildAiPayloadPreview(
 ): AiPayloadPreview {
   const selectedPages = input.selectedPages.map((page) => ({
     page_id: page.id,
-    title: page.title || "Untitled",
+    title: page.title || "未命名页面",
     content_included: false as const,
     risk: "high" as const,
   }));

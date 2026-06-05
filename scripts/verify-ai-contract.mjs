@@ -272,6 +272,7 @@ function run() {
     "ai-context-packet",
     "ai-research-runbook",
     "ai-output-review",
+    "未命名页面",
   ]) {
     assertIncludes(
       files.aiShell,

@@ -921,31 +921,31 @@ function AiWorkbenchDashboard() {
               <ExecutionMetric
                 label="Prompt 段"
                 value={aiPromptBlueprint.summary.prompt_sections}
-                detail="Template"
+                detail="模板"
                 status="planned"
               />
               <ExecutionMetric
                 label="输出字段"
                 value={aiPromptBlueprint.summary.output_fields}
-                detail="Schema"
+                detail="结构"
                 status="planned"
               />
               <ExecutionMetric
                 label="引用规则"
                 value={aiPromptBlueprint.summary.citation_rules}
-                detail="Sources"
+                detail="来源"
                 status="manual-confirmation"
               />
               <ExecutionMetric
                 label="检查项"
                 value={aiPromptBlueprint.summary.validation_checks}
-                detail="Before save"
+                detail="保存前"
                 status="manual-confirmation"
               />
               <ExecutionMetric
                 label="阻塞"
                 value={aiPromptBlueprint.summary.blockers}
-                detail="No AI run"
+                detail="不执行 AI"
                 status="blocked"
               />
               <ExecutionMetric
@@ -2233,7 +2233,7 @@ function ContextPageRow({
           className="h-4 w-4 rounded border-zinc-300"
         />
         <span className="truncate text-sm text-zinc-800 dark:text-zinc-200">
-          {page.title || "Untitled"}
+          {page.title || "未命名页面"}
         </span>
       </label>
       <button

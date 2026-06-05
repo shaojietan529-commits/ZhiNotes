@@ -325,38 +325,38 @@ export default function ModuleDashboard() {
               disabled={exportingRoadmap}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingRoadmap ? "Exporting..." : "Export roadmap"}
+              {exportingRoadmap ? "导出中..." : "导出路线图"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <RoadmapMetric
-              label="Modules"
+              label="模块"
               value={moduleRoadmap.summary.modules}
-              detail="Tracked"
+              detail="已追踪"
               readiness="ready-local"
             />
             <RoadmapMetric
-              label="Active"
+              label="当前可用"
               value={moduleRoadmap.summary.active_now}
-              detail="Local now"
+              detail="本地可用"
               readiness="ready-local"
             />
             <RoadmapMetric
               label="Beta"
               value={moduleRoadmap.summary.beta_hardening}
-              detail="Hardening"
+              detail="强化中"
               readiness="needs-hardening"
             />
             <RoadmapMetric
-              label="Planned"
+              label="已规划"
               value={moduleRoadmap.summary.planned_contracts}
-              detail="Contract only"
+              detail="仅合同"
               readiness="contract-only"
             />
             <RoadmapMetric
-              label="P0 gaps"
+              label="P0 缺口"
               value={moduleRoadmap.summary.p0_gaps}
-              detail="Before launch"
+              detail="上线前"
               readiness="blocked-by-launch-gates"
             />
           </div>
@@ -402,39 +402,39 @@ export default function ModuleDashboard() {
               disabled={exportingManifest}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingManifest ? "Exporting..." : "Export manifest"}
+              {exportingManifest ? "导出中..." : "导出 manifest"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-6">
             <ManifestMetric
-              label="Modules"
+              label="模块"
               value={moduleManifest.summary.modules}
-              detail="Registered"
+              detail="已登记"
             />
             <ManifestMetric
-              label="Routes"
+              label="路由"
               value={moduleManifest.summary.routable}
-              detail="Module pages"
+              detail="模块页面"
             />
             <ManifestMetric
-              label="Starters"
+              label="启动动作"
               value={moduleManifest.summary.starters}
-              detail="Local actions"
+              detail="本地动作"
             />
             <ManifestMetric
-              label="Slots"
+              label="插槽"
               value={moduleManifest.summary.extension_slots}
-              detail="Extension points"
+              detail="扩展点"
             />
             <ManifestMetric
-              label="Surfaces"
+              label="数据面"
               value={moduleManifest.summary.unique_data_surfaces}
-              detail="Data contracts"
+              detail="数据合同"
             />
             <ManifestMetric
-              label="Gates"
+              label="Gate"
               value={moduleManifest.summary.ready}
-              detail={`${moduleManifest.summary.partial} partial`}
+              detail={`${moduleManifest.summary.partial} 个部分完成`}
             />
           </div>
           <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
@@ -465,38 +465,38 @@ export default function ModuleDashboard() {
               disabled={exportingHealth}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingHealth ? "Exporting..." : "Export health"}
+              {exportingHealth ? "导出中..." : "导出健康度"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <HealthMetric
-              label="Areas"
+              label="目标面"
               value={moduleHealth.summary.areas}
-              detail="Goal surfaces"
+              detail="目标范围"
               status="partial"
             />
             <HealthMetric
-              label="Ready"
+              label="就绪"
               value={moduleHealth.summary.ready}
-              detail="Usable locally"
+              detail="本地可用"
               status="ready"
             />
             <HealthMetric
-              label="Partial"
+              label="部分"
               value={moduleHealth.summary.partial}
-              detail="Beta/staged"
+              detail="Beta/阶段化"
               status="partial"
             />
             <HealthMetric
-              label="Blocked"
+              label="阻塞"
               value={moduleHealth.summary.blocked}
-              detail="Needs gates"
+              detail="需 gate"
               status="blocked"
             />
             <HealthMetric
-              label="Modules"
+              label="模块"
               value={moduleHealth.summary.registry_modules}
-              detail="Registered"
+              detail="已登记"
               status="ready"
             />
           </div>
@@ -528,38 +528,38 @@ export default function ModuleDashboard() {
               disabled={exportingOnboarding}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingOnboarding ? "Exporting..." : "Export onboarding"}
+              {exportingOnboarding ? "导出中..." : "导出接入清单"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             <OnboardingMetric
-              label="Steps"
+              label="步骤"
               value={moduleOnboarding.summary.steps}
-              detail="Onboarding gates"
+              detail="接入 gate"
               status="ready"
             />
             <OnboardingMetric
-              label="Ready"
+              label="就绪"
               value={moduleOnboarding.summary.ready}
-              detail="Static contracts"
+              detail="静态合同"
               status="ready"
             />
             <OnboardingMetric
-              label="Confirm"
+              label="待确认"
               value={moduleOnboarding.summary.manual_confirmation}
-              detail="Needs owner review"
+              detail="需 owner 审阅"
               status="manual-confirmation"
             />
             <OnboardingMetric
-              label="Blocked"
+              label="阻塞"
               value={moduleOnboarding.summary.blocked}
-              detail="High-risk gates"
+              detail="高风险 gate"
               status="blocked"
             />
             <OnboardingMetric
-              label="Boundary"
-              value="Local"
-              detail="No writes"
+              label="边界"
+              value="本地"
+              detail="不写入"
               status="manual-confirmation"
             />
           </div>
@@ -592,51 +592,51 @@ export default function ModuleDashboard() {
               disabled={exportingStarterPack}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingStarterPack ? "Exporting..." : "Export starter pack"}
+              {exportingStarterPack ? "导出中..." : "导出 Starter Pack"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-6">
             <StarterPackMetric
-              label="Files"
+              label="文件"
               value={moduleStarterPack.summary.files}
-              detail="Templates"
+              detail="模板"
               status="manual-confirmation"
             />
             <StarterPackMetric
-              label="Checklist"
+              label="清单"
               value={moduleStarterPack.summary.checklist_items}
-              detail="Required steps"
+              detail="必要步骤"
               status="ready"
             />
             <StarterPackMetric
-              label="Risk gates"
+              label="风险 gate"
               value={moduleStarterPack.summary.risk_gates}
-              detail="Blocked by default"
+              detail="默认阻塞"
               status="blocked"
             />
             <StarterPackMetric
-              label="Slots"
+              label="插槽"
               value={moduleStarterPack.summary.extension_slots}
-              detail="Integration points"
+              detail="接入点"
               status="ready"
             />
             <StarterPackMetric
-              label="Starters"
+              label="启动器"
               value={moduleStarterPack.summary.starter_modules}
-              detail="Current modules"
+              detail="当前模块"
               status="ready"
             />
             <StarterPackMetric
-              label="Blocked"
+              label="阻塞"
               value={moduleStarterPack.summary.blocked}
-              detail="Needs gates"
+              detail="需 gate"
               status="blocked"
             />
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
             <div>
               <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Required files
+                必要文件
               </h3>
               <div className="mt-2 space-y-2">
                 {moduleStarterPack.required_files.map((file) => (
@@ -649,7 +649,7 @@ export default function ModuleDashboard() {
             </div>
             <div>
               <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Onboarding checklist
+                接入清单
               </h3>
               <div className="mt-2 space-y-2">
                 {moduleStarterPack.checklist.map((item) => (
@@ -661,7 +661,7 @@ export default function ModuleDashboard() {
           <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
             <div>
               <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Extension slot decisions
+                扩展插槽决策
               </h3>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
                 {moduleStarterPack.extension_slots.map((slot) => (
@@ -671,7 +671,7 @@ export default function ModuleDashboard() {
             </div>
             <div>
               <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                High-risk gates
+                高风险 gate
               </h3>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
                 {moduleStarterPack.risk_gates.map((gate) => (
@@ -682,7 +682,7 @@ export default function ModuleDashboard() {
           </div>
           <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
             <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-              Verification commands
+              验证命令
             </div>
             <div className="mt-2 flex flex-wrap gap-1">
               {moduleStarterPack.verification_commands.map((command) => (
@@ -785,7 +785,7 @@ function ProjectProgressSnapshotPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Project Progress Snapshot
+            项目进度快照
           </p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             当前项目进度快照
@@ -812,7 +812,7 @@ function ProjectProgressSnapshotPanel({
             disabled={exportingProgress}
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
-            {exportingProgress ? "Exporting..." : "导出进度快照"}
+            {exportingProgress ? "导出中..." : "导出进度快照"}
           </button>
           <button
             type="button"
@@ -833,37 +833,37 @@ function ProjectProgressSnapshotPanel({
 
       <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-6">
         <ProjectProgressMetric
-          label="Ready areas"
+          label="就绪目标"
           value={snapshot.summary.ready_areas}
           detail="本地可用"
           status="ready-local"
         />
         <ProjectProgressMetric
-          label="Partial areas"
+          label="部分目标"
           value={snapshot.summary.partial_areas}
           detail="Beta 强化"
           status="beta-hardening"
         />
         <ProjectProgressMetric
-          label="Blocked"
+          label="阻塞"
           value={snapshot.summary.blocked_areas}
           detail="需 owner gate"
           status="blocked"
         />
         <ProjectProgressMetric
-          label="Active modules"
+          label="活跃模块"
           value={snapshot.summary.active_modules}
           detail="可稳定试用"
           status="ready-local"
         />
         <ProjectProgressMetric
-          label="Beta modules"
+          label="Beta 模块"
           value={snapshot.summary.beta_modules}
           detail="继续打磨"
           status="beta-hardening"
         />
         <ProjectProgressMetric
-          label="Web blockers"
+          label="上线阻塞"
           value={snapshot.summary.web_launch_blockers}
           detail="上线前处理"
           status="owner-gated"
@@ -1094,10 +1094,10 @@ function ProjectProgressStatusPill({
   status: ProjectProgressStatus;
 }) {
   const labels: Record<ProjectProgressStatus, string> = {
-    "ready-local": "Ready",
-    "beta-hardening": "Hardening",
-    "owner-gated": "Owner gate",
-    blocked: "Blocked",
+    "ready-local": "本地就绪",
+    "beta-hardening": "强化中",
+    "owner-gated": "需确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -1145,7 +1145,7 @@ function ModuleDecisionSummaryPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Module Decision Summary
+            模块决策摘要
           </p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             新模块接入决策摘要
@@ -1161,7 +1161,7 @@ function ModuleDecisionSummaryPanel({
             disabled={exportingRoadmap}
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
-            {exportingRoadmap ? "Exporting..." : "Export roadmap"}
+            {exportingRoadmap ? "导出中..." : "导出路线图"}
           </button>
           <button
             type="button"
@@ -1169,7 +1169,7 @@ function ModuleDecisionSummaryPanel({
             disabled={exportingOnboarding}
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
-            {exportingOnboarding ? "Exporting..." : "Export onboarding"}
+            {exportingOnboarding ? "导出中..." : "导出接入清单"}
           </button>
           <button
             type="button"
@@ -1177,7 +1177,7 @@ function ModuleDecisionSummaryPanel({
             disabled={exportingStarterPack}
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
-            {exportingStarterPack ? "Exporting..." : "Export starter pack"}
+            {exportingStarterPack ? "导出中..." : "导出 Starter Pack"}
           </button>
         </div>
       </div>
@@ -1418,8 +1418,8 @@ function ModuleRoadmapLaneRow({
             {lane.title}
           </div>
           <div className="mt-1 text-[11px] text-zinc-400">
-            {lane.module_count} modules ·{" "}
-            {lane.owner_decision_required ? "owner review" : "local build"}
+            {lane.module_count} 个模块 ·{" "}
+            {lane.owner_decision_required ? "owner 审阅" : "本地构建"}
           </div>
         </div>
         <ModuleRoadmapReadinessPill readiness={lane.readiness} />
@@ -1454,7 +1454,7 @@ function ModuleRoadmapItemRow({
             {item.title}
           </div>
           <div className="mt-1 text-[11px] text-zinc-400">
-            {item.module_id} · {item.starter_type ?? "no starter"}
+            {item.module_id} · {item.starter_type ?? "无启动器"}
           </div>
         </div>
         <ModuleRoadmapReadinessPill readiness={item.readiness} />
@@ -1507,10 +1507,10 @@ function ModuleRoadmapReadinessPill({
   readiness: ModuleRoadmapReadiness;
 }) {
   const labels: Record<ModuleRoadmapReadiness, string> = {
-    "ready-local": "Ready",
-    "needs-hardening": "Hardening",
-    "contract-only": "Contract",
-    "blocked-by-launch-gates": "Blocked",
+    "ready-local": "本地就绪",
+    "needs-hardening": "强化中",
+    "contract-only": "仅合同",
+    "blocked-by-launch-gates": "阻塞",
   };
 
   const className =
@@ -1568,9 +1568,9 @@ function ModuleHealthStatusPill({
   status: ModuleHealthStatus;
 }) {
   const labels: Record<ModuleHealthStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
-    blocked: "Blocked",
+    ready: "就绪",
+    partial: "部分",
+    blocked: "阻塞",
   };
 
   const className =
@@ -1621,9 +1621,9 @@ function ModuleOnboardingStatusPill({
   status: ModuleOnboardingStatus;
 }) {
   const labels: Record<ModuleOnboardingStatus, string> = {
-    ready: "Ready",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    "manual-confirmation": "待确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -1780,9 +1780,9 @@ function ModuleStarterPackStatusPill({
   status: ModuleStarterPackStatus;
 }) {
   const labels: Record<ModuleStarterPackStatus, string> = {
-    ready: "Ready",
-    "manual-confirmation": "Confirm",
-    blocked: "Blocked",
+    ready: "就绪",
+    "manual-confirmation": "待确认",
+    blocked: "阻塞",
   };
 
   const className =
@@ -1828,9 +1828,9 @@ function ModuleManifestGatePill({
   status: ModuleManifestGateStatus;
 }) {
   const labels: Record<ModuleManifestGateStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
-    blocked: "Blocked",
+    ready: "就绪",
+    partial: "部分",
+    blocked: "阻塞",
   };
 
   const className =
