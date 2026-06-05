@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -9,10 +15,17 @@ import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSc
 import { usePages } from "@/hooks/usePages";
 import {
   addRow,
+  createPage,
   getAllDatabases,
   getFields,
   getRows,
+  updatePage,
 } from "@/lib/db/local/queries";
+import {
+  appendFilePreviewActionReceipt,
+  buildFilePreviewActionReceipt,
+} from "@/lib/files/filePreviewActionReceipts";
+import { savePageFile, type StoredPageFile } from "@/lib/files/localStore";
 import {
   buildMeetingFollowUpReport,
   getMeetingFollowUpStageLabel,
@@ -47,6 +60,12 @@ import {
   findExistingMeetingTrackerRow,
   type MeetingTrackerFollowUpItem,
 } from "@/lib/meetings/meetingTrackerIntake";
+import {
+  buildMeetingTranscriptPageContent,
+  buildMeetingTranscriptPageTitle,
+  getMeetingTranscriptReceiptActionKind,
+  MEETING_TRANSCRIPT_FILE_ACTION_LABEL,
+} from "@/lib/meetings/meetingTranscriptPage";
 import {
   buildMeetingTranscriptIntakeReadiness,
   getMeetingTranscriptIntakeStatusLabel,
@@ -124,6 +143,7 @@ function MeetingsContent() {
 function MeetingsDashboard() {
   const router = useRouter();
   const { pages, refresh } = usePages();
+  const transcriptFileInputRef = useRef<HTMLInputElement | null>(null);
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingFollowUp, setExportingFollowUp] = useState(false);
@@ -139,6 +159,11 @@ function MeetingsDashboard() {
   const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
     null
   );
+  const [transcriptFileBatchMessage, setTranscriptFileBatchMessage] = useState<{
+    created: number;
+    failed: number;
+    total: number;
+  } | null>(null);
 
   useEffect(() => {
     void getAllDatabases()
@@ -235,6 +260,91 @@ function MeetingsDashboard() {
     } finally {
       setBusyAction(null);
     }
+  };
+
+  const handleChooseTranscriptFiles = () => {
+    transcriptFileInputRef.current?.click();
+  };
+
+  const handleTranscriptFilesSelected = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (selectedFiles.length === 0) return;
+
+    setBusyAction(MEETING_TRANSCRIPT_FILE_ACTION_LABEL);
+    setTranscriptFileBatchMessage(null);
+    try {
+      const createdPages: Page[] = [];
+      let failed = 0;
+
+      for (const file of selectedFiles) {
+        try {
+          const storedFile = await savePageFile(file);
+          const page = await createMeetingTranscriptPageFromStoredFile(storedFile);
+          createdPages.push(page);
+        } catch (err) {
+          failed += 1;
+          console.error(
+            "[Zhinote] Failed to create meeting transcript page from file:",
+            err
+          );
+        }
+      }
+
+      await refresh();
+      if (selectedFiles.length === 1 && createdPages[0]) {
+        router.push(`/page/${createdPages[0].id}`);
+        return;
+      }
+
+      setTranscriptFileBatchMessage({
+        created: createdPages.length,
+        failed,
+        total: selectedFiles.length,
+      });
+
+      if (createdPages.length === 0) {
+        window.alert(
+          "没有成功创建会议文件页。文件没有上传；请检查浏览器是否允许本地存储。"
+        );
+      }
+    } catch (err) {
+      console.error("[Zhinote] Failed to create meeting file pages:", err);
+      window.alert(
+        "无法从这些本地文件创建会议页面。文件没有上传；请检查浏览器是否允许本地存储。"
+      );
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const createMeetingTranscriptPageFromStoredFile = async (
+    storedFile: StoredPageFile
+  ) => {
+    const page = await createPage({
+      title: buildMeetingTranscriptPageTitle(storedFile),
+      icon: "TRN",
+    });
+    await updatePage(page.id, {
+      content_text: buildMeetingTranscriptPageContent(storedFile),
+    });
+    appendFilePreviewActionReceipt(
+      buildFilePreviewActionReceipt({
+        file: storedFile,
+        action_kind: getMeetingTranscriptReceiptActionKind(storedFile),
+        source_surface: "meetings-module",
+        writes_page_content: true,
+        confirmation_required: false,
+        confirmation_matched: true,
+        note:
+          getMeetingTranscriptReceiptActionKind(storedFile) === "download-retain"
+            ? "会议文件已从会议模块本地留存，并创建会议附件页面；没有上传、转写或调用 AI。"
+            : "会议文件已从会议模块创建为本地页面预览；没有上传、转写或调用 AI。",
+      })
+    );
+    return page;
   };
 
   const handleExportFollowUp = () => {
@@ -459,6 +569,19 @@ function MeetingsDashboard() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <input
+                ref={transcriptFileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(event) => void handleTranscriptFilesSelected(event)}
+              />
+              <StarterButton
+                label={MEETING_TRANSCRIPT_FILE_ACTION_LABEL}
+                busy={busyAction === MEETING_TRANSCRIPT_FILE_ACTION_LABEL}
+                emphasis
+                onClick={handleChooseTranscriptFiles}
+              />
               {MEETING_TEMPLATE_STARTERS.map((starter) => (
                 <StarterButton
                   key={starter.label}
@@ -483,6 +606,9 @@ function MeetingsDashboard() {
           report={meetingTranscriptIntake}
           exporting={exportingTranscriptIntake}
           onExport={handleExportTranscriptIntake}
+          onChooseFiles={handleChooseTranscriptFiles}
+          fileBusy={busyAction === MEETING_TRANSCRIPT_FILE_ACTION_LABEL}
+          batchMessage={transcriptFileBatchMessage}
           onOpenFiles={() => router.push("/modules/files")}
         />
 
@@ -1368,11 +1494,17 @@ function MeetingTranscriptIntakePanel({
   report,
   exporting,
   onExport,
+  onChooseFiles,
+  fileBusy,
+  batchMessage,
   onOpenFiles,
 }: {
   report: MeetingTranscriptIntakeReport;
   exporting: boolean;
   onExport: () => void;
+  onChooseFiles: () => void;
+  fileBusy: boolean;
+  batchMessage: { created: number; failed: number; total: number } | null;
   onOpenFiles: () => void;
 }) {
   return (
@@ -1397,6 +1529,14 @@ function MeetingTranscriptIntakePanel({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            onClick={onChooseFiles}
+            disabled={fileBusy}
+            className="rounded-md bg-zinc-950 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+          >
+            {fileBusy ? "接入中..." : "选择会议文件"}
+          </button>
+          <button
+            type="button"
             onClick={onOpenFiles}
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
@@ -1412,6 +1552,12 @@ function MeetingTranscriptIntakePanel({
           </button>
         </div>
       </div>
+      {batchMessage && (
+        <p className="mt-3 rounded-md bg-green-50 px-3 py-2 text-xs leading-5 text-green-700 dark:bg-green-950 dark:text-green-300">
+          已处理 {batchMessage.total} 个本地文件，创建 {batchMessage.created}{" "}
+          个会议文件页，失败 {batchMessage.failed} 个。文件没有上传、同步或调用 AI。
+        </p>
+      )}
 
       <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
         <MeetingTranscriptMetric

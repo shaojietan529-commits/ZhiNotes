@@ -3691,6 +3691,7 @@ function getFileActionSourceLabel(
     "editor-file-preview": "编辑器上传",
     "file-preview-block": "页面预览块",
     "reports-module": "报告模块",
+    "meetings-module": "会议模块",
   };
   return labels[source];
 }

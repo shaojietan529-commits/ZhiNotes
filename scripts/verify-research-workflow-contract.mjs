@@ -23,6 +23,7 @@ const files = {
   meetingResearchQueue: "src/lib/meetings/meetingResearchQueue.ts",
   meetingPlaybook: "src/lib/meetings/meetingResearchPlaybook.ts",
   meetingTranscriptIntake: "src/lib/meetings/meetingTranscriptIntake.ts",
+  meetingTranscriptPage: "src/lib/meetings/meetingTranscriptPage.ts",
   meetingWorkbench: "src/lib/meetings/meetingWorkbench.ts",
   meetingTrackerIntake: "src/lib/meetings/meetingTrackerIntake.ts",
   portfolioReview: "src/lib/portfolio/portfolioReview.ts",
@@ -159,6 +160,7 @@ function run() {
   const meetingResearchQueue = readProjectFile(files.meetingResearchQueue);
   const meetingPlaybook = readProjectFile(files.meetingPlaybook);
   const meetingTranscriptIntake = readProjectFile(files.meetingTranscriptIntake);
+  const meetingTranscriptPage = readProjectFile(files.meetingTranscriptPage);
   const meetingWorkbench = readProjectFile(files.meetingWorkbench);
   const meetingTrackerIntake = readProjectFile(files.meetingTrackerIntake);
   const portfolioReview = readProjectFile(files.portfolioReview);
@@ -1337,6 +1339,28 @@ function run() {
       "Meeting transcript intake must preserve local format-only coverage and privacy boundaries."
     );
   }
+  for (const snippet of [
+    "MEETING_TRANSCRIPT_FILE_ACTION_LABEL",
+    "buildMeetingTranscriptPageTitle",
+    "buildMeetingTranscriptPageContent",
+    "getMeetingTranscriptReceiptActionKind",
+    "createFilePreviewBlockHtml",
+    "会议转录稿",
+    "会议录音索引",
+    "会议行动项表",
+    "关键表述",
+    "行动项",
+    "投研影响",
+    "研究关联",
+    "不上传、不云同步、不调用 AI、不发布纪要、不自动转写录音",
+  ]) {
+    assertIncludes(
+      files.meetingTranscriptPage,
+      meetingTranscriptPage,
+      snippet,
+      "Meeting transcript page builder must preserve local transcript review structure."
+    );
+  }
   assertIncludes(
     files.meetingWorkbench,
     meetingWorkbench,
@@ -1464,10 +1488,17 @@ function run() {
     "MeetingTranscriptIntakePanel",
     "meetingTranscriptIntake",
     "handleExportTranscriptIntake",
+    "handleChooseTranscriptFiles",
+    "handleTranscriptFilesSelected",
+    "createMeetingTranscriptPageFromStoredFile",
+    "source_surface: \"meetings-module\"",
+    "savePageFile(file)",
     "meeting-transcript-intake",
     "导出接入矩阵",
     "打开文件模块",
     "会议转录稿接入准备",
+    "选择会议文件",
+    "MEETING_TRANSCRIPT_FILE_ACTION_LABEL",
     "handleReviewStepNavigate",
     "scrollIntoView",
     "打开步骤",

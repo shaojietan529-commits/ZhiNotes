@@ -969,6 +969,11 @@ Current local actions:
   into local preview or retention routes without reading real file names, file
   bytes, page text, transcript text, recording bytes, participant details,
   meeting passcodes, database row values, sync, upload, or AI.
+- Create local meeting file pages from user-selected files. The meetings module
+  saves the selected file in browser-local storage, creates a local page with a
+  file preview block, and prebuilds transcript review, action items, investment
+  impact, and research-linking sections. The action does not upload, sync,
+  transcribe recordings, publish notes, or call AI.
 - Review and export a local meeting workbench packet. The packet combines
   follow-up, decision ledger, research queue, playbook, and tracker-intake
   metadata into one action queue for meeting capture, transcript review,

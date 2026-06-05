@@ -27,6 +27,8 @@ const files = {
   fileLibrary: "src/lib/files/fileLibraryWorkbench.ts",
   previewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
   reportsShell: "src/components/modules/ReportsShell.tsx",
+  meetingsShell: "src/components/modules/MeetingsShell.tsx",
+  meetingTranscriptPage: "src/lib/meetings/meetingTranscriptPage.ts",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   filesShell: "src/components/modules/FilesShell.tsx",
   filesRoute: "src/app/(workspace)/modules/files/page.tsx",
@@ -223,6 +225,8 @@ function run() {
   const fileLibrary = readProjectFile(files.fileLibrary);
   const previewNode = readProjectFile(files.previewNode);
   const reportsShell = readProjectFile(files.reportsShell);
+  const meetingsShell = readProjectFile(files.meetingsShell);
+  const meetingTranscriptPage = readProjectFile(files.meetingTranscriptPage);
   const quickSearch = readProjectFile(files.quickSearch);
   const filesShell = readProjectFile(files.filesShell);
   const filesRoute = readProjectFile(files.filesRoute);
@@ -1072,6 +1076,7 @@ function run() {
     "FILE_PREVIEW_ACTION_RECEIPT_EVENT",
     '"editor-file-preview"',
     '"reports-module"',
+    '"meetings-module"',
     '"native-preview"',
     '"download-retain"',
     '"editable-import"',
@@ -1587,6 +1592,50 @@ function run() {
       reportsShell,
       snippet,
       "Reports module must support direct local Markdown import into editable pages."
+    );
+  }
+  for (const snippet of [
+    "MEETING_TRANSCRIPT_FILE_ACTION_LABEL",
+    "buildMeetingTranscriptPageTitle",
+    "buildMeetingTranscriptPageContent",
+    "getMeetingTranscriptReceiptActionKind",
+    "createFilePreviewBlockHtml",
+    "getFilePreviewCapabilityByKind",
+    "会议转录稿",
+    "会议录音索引",
+    "会议行动项表",
+    "会议材料",
+    "本地文件预览",
+    "不上传、不云同步、不调用 AI、不发布纪要、不自动转写录音",
+    "download-retain",
+    "native-preview",
+  ]) {
+    assertIncludes(
+      files.meetingTranscriptPage,
+      meetingTranscriptPage,
+      snippet,
+      "Meeting transcript page builder must reuse local file preview blocks and preserve local-only boundaries."
+    );
+  }
+  for (const snippet of [
+    "transcriptFileInputRef",
+    "handleChooseTranscriptFiles",
+    "handleTranscriptFilesSelected",
+    "createMeetingTranscriptPageFromStoredFile",
+    "savePageFile(file)",
+    "source_surface: \"meetings-module\"",
+    "buildFilePreviewActionReceipt",
+    "appendFilePreviewActionReceipt",
+    "buildMeetingTranscriptPageContent",
+    "选择会议文件",
+    "MEETING_TRANSCRIPT_FILE_ACTION_LABEL",
+    "文件没有上传、同步或调用 AI",
+  ]) {
+    assertIncludes(
+      files.meetingsShell,
+      meetingsShell,
+      snippet,
+      "Meetings module must create local transcript pages from user-selected files without upload or AI."
     );
   }
 
