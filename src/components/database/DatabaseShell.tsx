@@ -45,6 +45,7 @@ import {
   normalizeRelationValue,
   stringifyRelationValue,
 } from "@/lib/database/relationValues";
+import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import {
   classifyResearchPage,
   getResearchAssetKindLabel,
@@ -64,7 +65,9 @@ import {
 import {
   buildFieldConfig,
   DATABASE_FIELD_TYPES,
+  DATABASE_NUMBER_FORMATS,
   formatFieldOptions,
+  getDatabaseNumberFormat,
   isSelectLikeFieldType,
 } from "@/lib/database/fields";
 import {
@@ -1516,12 +1519,16 @@ function FieldSettingsButton({
   const [name, setName] = useState(getDatabaseFieldDisplayName(field));
   const [type, setType] = useState(field.field_type);
   const [options, setOptions] = useState(formatFieldOptions(field));
+  const [numberFormat, setNumberFormat] = useState<string>(
+    getDatabaseNumberFormat(field)
+  );
   const isTitleField = field.position === 0;
 
   useEffect(() => {
     setName(getDatabaseFieldDisplayName(field));
     setType(field.field_type);
     setOptions(formatFieldOptions(field));
+    setNumberFormat(getDatabaseNumberFormat(field));
   }, [field]);
 
   const handleSave = () => {
@@ -1530,7 +1537,7 @@ function FieldSettingsButton({
     onUpdate(field.id, {
       name: nextName,
       field_type: nextType,
-      config: buildFieldConfig(nextType, options),
+      config: buildFieldConfig(nextType, options, numberFormat),
     });
     setOpen(false);
   };
@@ -1611,6 +1618,27 @@ function FieldSettingsButton({
               />
             </label>
           )}
+          {type === "number" && (
+            <label className="mt-3 block">
+              <span className="mb-1 block text-[11px] font-medium text-zinc-500">
+                数字格式
+              </span>
+              <select
+                value={numberFormat}
+                onChange={(event) => setNumberFormat(event.target.value)}
+                className="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              >
+                {DATABASE_NUMBER_FORMATS.map((format) => (
+                  <option key={format.value} value={format.value}>
+                    {format.label}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-[11px] text-zinc-400">
+                只改变显示方式，原始值仍按数字保存。
+              </span>
+            </label>
+          )}
           <div className="mt-3 flex justify-end gap-2">
             <button
               type="button"
@@ -1642,14 +1670,16 @@ function AddFieldButton({
   const [name, setName] = useState("");
   const [type, setType] = useState("text");
   const [options, setOptions] = useState("未开始, 进行中, 已完成");
+  const [numberFormat, setNumberFormat] = useState("plain");
 
   const handleSubmit = () => {
     if (!name.trim()) return;
-    const config = buildFieldConfig(type, options) ?? undefined;
+    const config = buildFieldConfig(type, options, numberFormat) ?? undefined;
     onAdd(name.trim(), type, config);
     setName("");
     setType("text");
     setOptions("未开始, 进行中, 已完成");
+    setNumberFormat("plain");
     setOpen(false);
   };
 
@@ -1695,6 +1725,20 @@ function AddFieldButton({
           placeholder="选项"
           className="text-xs px-2 py-0.5 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-48 outline-none"
         />
+      )}
+      {type === "number" && (
+        <select
+          value={numberFormat}
+          onChange={(e) => setNumberFormat(e.target.value)}
+          className="px-2 py-1.5 text-xs border border-zinc-200 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none"
+          title="数字格式"
+        >
+          {DATABASE_NUMBER_FORMATS.map((format) => (
+            <option key={format.value} value={format.value}>
+              {format.label}
+            </option>
+          ))}
+        </select>
       )}
       <button onClick={handleSubmit} className="text-xs text-blue-500 hover:text-blue-600">
         添加
@@ -2000,6 +2044,9 @@ function getRowFieldText(
   const value = getRowFieldValue(row, field);
   if (field.field_type === "relation") {
     return stringifyRelationValue(value, relationPages);
+  }
+  if (field.field_type === "number") {
+    return formatDatabaseNumberValue(value, field);
   }
   return stringifyValue(value);
 }

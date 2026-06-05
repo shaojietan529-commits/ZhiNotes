@@ -11,6 +11,7 @@ import {
   normalizeMultiSelectValue,
   toggleMultiSelectValue,
 } from "@/lib/database/multiSelectValues";
+import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import {
   getDatabaseSystemFieldValue,
   isDatabaseSystemField,
@@ -281,14 +282,30 @@ function CellEditor({
   }
 
   if (field.field_type === "number") {
+    if (editing) {
+      return (
+        <input
+          type="number"
+          value={(value as number) ?? ""}
+          onChange={(e) =>
+            onChange(e.target.value ? Number(e.target.value) : null)
+          }
+          onBlur={() => setEditing(false)}
+          onKeyDown={(e) => e.key === "Enter" && setEditing(false)}
+          autoFocus
+          className="text-sm bg-transparent border-none outline-none text-zinc-700 dark:text-zinc-300 w-full"
+          placeholder="—"
+        />
+      );
+    }
+    const formattedNumber = formatDatabaseNumberValue(value, field);
     return (
-      <input
-        type="number"
-        value={(value as number) ?? ""}
-        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
-        className="text-sm bg-transparent border-none outline-none text-zinc-700 dark:text-zinc-300 w-full"
-        placeholder="—"
-      />
+      <button
+        onClick={() => setEditing(true)}
+        className="text-left text-sm text-zinc-700 dark:text-zinc-300"
+      >
+        {formattedNumber || <span className="text-zinc-400">—</span>}
+      </button>
     );
   }
 

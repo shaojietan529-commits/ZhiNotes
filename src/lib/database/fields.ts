@@ -5,6 +5,19 @@ import {
   DATABASE_UNIQUE_ID_FIELD,
 } from "@/lib/database/systemFields";
 
+export const DATABASE_NUMBER_FORMATS = [
+  { value: "plain", label: "普通数字" },
+  { value: "percent", label: "百分比" },
+  { value: "currency_usd", label: "美元" },
+  { value: "currency_cny", label: "人民币" },
+  { value: "multiple", label: "倍数" },
+] as const;
+
+export type DatabaseNumberFormat =
+  (typeof DATABASE_NUMBER_FORMATS)[number]["value"];
+
+export const DEFAULT_DATABASE_NUMBER_FORMAT: DatabaseNumberFormat = "plain";
+
 export const DATABASE_FIELD_TYPES = [
   { value: "text", label: "文本" },
   { value: "number", label: "数字" },
@@ -56,8 +69,38 @@ export function formatFieldOptions(field: Pick<DatabaseField, "config">) {
   return getFieldOptions(field).join(", ");
 }
 
-export function buildFieldConfig(fieldType: string, optionsText: string) {
-  return isSelectLikeFieldType(fieldType)
-    ? JSON.stringify({ options: parseSelectOptions(optionsText) })
-    : null;
+export function getDatabaseNumberFormat(
+  field: Pick<DatabaseField, "config">
+): DatabaseNumberFormat {
+  try {
+    const config = field.config ? JSON.parse(field.config) : {};
+    const value = config.numberFormat;
+    return isDatabaseNumberFormat(value)
+      ? value
+      : DEFAULT_DATABASE_NUMBER_FORMAT;
+  } catch {
+    return DEFAULT_DATABASE_NUMBER_FORMAT;
+  }
+}
+
+export function buildFieldConfig(
+  fieldType: string,
+  optionsText: string,
+  numberFormat: string = DEFAULT_DATABASE_NUMBER_FORMAT
+) {
+  if (isSelectLikeFieldType(fieldType)) {
+    return JSON.stringify({ options: parseSelectOptions(optionsText) });
+  }
+  if (fieldType === "number" && numberFormat !== DEFAULT_DATABASE_NUMBER_FORMAT) {
+    return JSON.stringify({
+      numberFormat: isDatabaseNumberFormat(numberFormat)
+        ? numberFormat
+        : DEFAULT_DATABASE_NUMBER_FORMAT,
+    });
+  }
+  return null;
+}
+
+function isDatabaseNumberFormat(value: unknown): value is DatabaseNumberFormat {
+  return DATABASE_NUMBER_FORMATS.some((format) => format.value === value);
 }

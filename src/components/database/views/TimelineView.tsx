@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
+import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
   getDatabaseSystemFieldDateKey,
@@ -203,6 +204,10 @@ function formatTimelineFieldValue(
 
   if (field.field_type === "checkbox") {
     return value ? "是" : "否";
+  }
+
+  if (field.field_type === "number") {
+    return formatDatabaseNumberValue(value, field);
   }
 
   if (Array.isArray(value)) {

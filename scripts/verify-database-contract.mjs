@@ -24,6 +24,7 @@ const files = {
   databaseImport: "src/lib/database/databaseImport.ts",
   databaseFields: "src/lib/database/fields.ts",
   databaseMultiSelect: "src/lib/database/multiSelectValues.ts",
+  databaseNumberValues: "src/lib/database/numberValues.ts",
   databaseSystemFields: "src/lib/database/systemFields.ts",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
   tableView: "src/components/database/views/TableView.tsx",
@@ -107,6 +108,7 @@ function run() {
   const databaseImport = readProjectFile(files.databaseImport);
   const databaseFields = readProjectFile(files.databaseFields);
   const databaseMultiSelect = readProjectFile(files.databaseMultiSelect);
+  const databaseNumberValues = readProjectFile(files.databaseNumberValues);
   const databaseSystemFields = readProjectFile(files.databaseSystemFields);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
   const tableView = readProjectFile(files.tableView);
@@ -137,7 +139,10 @@ function run() {
     "DATABASE_CREATED_TIME_FIELD",
     "DATABASE_LAST_EDITED_TIME_FIELD",
     "DATABASE_UNIQUE_ID_FIELD",
+    "DATABASE_NUMBER_FORMATS",
+    "getDatabaseNumberFormat",
     'fieldType === "multi_select"',
+    'fieldType === "number"',
   ]) {
     assertIncludes(
       files.databaseFields,
@@ -191,13 +196,30 @@ function run() {
     );
   }
   for (const snippet of [
+    "formatDatabaseNumberValue",
+    "getDatabaseNumberFormat",
+    '"percent"',
+    '"currency_usd"',
+    '"currency_cny"',
+    '"multiple"',
+  ]) {
+    assertIncludes(
+      files.databaseNumberValues,
+      databaseNumberValues,
+      snippet,
+      "Number fields must share one display formatter for percentages, currencies, and multiples."
+    );
+  }
+  for (const snippet of [
     'field.field_type === "email"',
     'field.field_type === "phone"',
     'field.field_type === "multi_select"',
+    'field.field_type === "number"',
     'type={inputType}',
     'mailto:${linkValue}',
     'tel:${linkValue}',
     "toggleMultiSelectValue",
+    "formatDatabaseNumberValue",
     "isDatabaseSystemField",
     "isDatabaseSystemTimeField",
     "getDatabaseSystemFieldValue",
@@ -241,6 +263,34 @@ function run() {
         "Database views must read created/edited system fields from row/page metadata."
       );
     }
+  }
+  for (const [sourceLabel, source] of [
+    [files.databaseShell, databaseShell],
+    [files.listView, listView],
+    [files.galleryView, galleryView],
+    [files.timelineView, timelineView],
+    [files.feedView, feedView],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "formatDatabaseNumberValue",
+      "Formatted number fields must display consistently across database search and summary views."
+    );
+  }
+  for (const snippet of [
+    "DATABASE_NUMBER_FORMATS",
+    "数字格式",
+    "只改变显示方式，原始值仍按数字保存。",
+    "buildFieldConfig(nextType, options, numberFormat)",
+    "buildFieldConfig(type, options, numberFormat)",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Field settings and add-field UI must expose number display formats without changing stored values."
+    );
   }
   for (const snippet of [
     '| "email"',

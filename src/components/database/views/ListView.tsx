@@ -4,6 +4,7 @@ import type { DatabaseField, DatabaseRow } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
+import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
   getDatabaseSystemFieldValue,
@@ -73,6 +74,8 @@ export default function ListView({
                         ? stringifyRelationValue(val, relationPages)
                         : field.field_type === "multi_select"
                           ? stringifyMultiSelectValue(val)
+                        : field.field_type === "number"
+                          ? formatDatabaseNumberValue(val, field)
                         : String(val);
                     if (!label) return null;
                     return (

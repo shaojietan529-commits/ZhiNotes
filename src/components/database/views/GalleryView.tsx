@@ -3,6 +3,7 @@
 import type { DatabaseField, DatabaseRow, Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
+import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { stringifyRelationValue } from "@/lib/database/relationValues";
 import {
   getDatabaseSystemFieldValue,
@@ -87,6 +88,8 @@ export default function GalleryView({
                               ? stringifyRelationValue(value, relationPages)
                               : field.field_type === "multi_select"
                                 ? stringifyMultiSelectValue(value)
+                              : field.field_type === "number"
+                                ? formatDatabaseNumberValue(value, field)
                               : String(value);
                           if (!label) return null;
                           return (

@@ -5,6 +5,7 @@ import { formatRelativeDate } from "@/lib/utils/dates";
 import { getDatabaseFieldDisplayName } from "@/lib/database/display";
 import { getFieldOptions } from "@/lib/database/fields";
 import { stringifyMultiSelectValue } from "@/lib/database/multiSelectValues";
+import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { getRelationPages } from "@/lib/database/relationValues";
 import {
   getDatabaseSystemFieldValue,
@@ -322,7 +323,7 @@ function formatFeedFieldValue(field: DatabaseField, value: unknown) {
       : String(value);
   }
   if (field.field_type === "number") {
-    return typeof value === "number" ? value.toLocaleString() : String(value);
+    return formatDatabaseNumberValue(value, field);
   }
   if (field.field_type === "url") {
     return formatUrlLabel(String(value));
