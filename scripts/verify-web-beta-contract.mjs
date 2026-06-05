@@ -42,6 +42,8 @@ const files = {
   restoreApplyRoute: "src/app/api/backup/restore-apply/route.ts",
   syncPushApiStub: "src/lib/sync/syncPushApiStub.ts",
   syncPushRoute: "src/app/api/sync/push/route.ts",
+  syncPullApiStub: "src/lib/sync/syncPullApiStub.ts",
+  syncPullRoute: "src/app/api/sync/pull/route.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -257,6 +259,8 @@ function run() {
   const restoreApplyRoute = readProjectFile(files.restoreApplyRoute);
   const syncPushApiStub = readProjectFile(files.syncPushApiStub);
   const syncPushRoute = readProjectFile(files.syncPushRoute);
+  const syncPullApiStub = readProjectFile(files.syncPullApiStub);
+  const syncPullRoute = readProjectFile(files.syncPullRoute);
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -318,6 +322,8 @@ function run() {
     [files.restoreApplyRoute, restoreApplyRoute],
     [files.syncPushApiStub, syncPushApiStub],
     [files.syncPushRoute, syncPushRoute],
+    [files.syncPullApiStub, syncPullApiStub],
+    [files.syncPullRoute, syncPullRoute],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
     [files.auditEventEnvelope, auditEventEnvelope],
@@ -407,6 +413,12 @@ function run() {
       assertRouteGuard(
         routeFile,
         "buildSyncPushApiDisabledResponse",
+        routeLabel
+      );
+    } else if (stub.id === "sync-pull") {
+      assertRouteGuard(
+        routeFile,
+        "buildSyncPullApiDisabledResponse",
         routeLabel
       );
     } else if (stub.id === "file-presign") {
@@ -1926,6 +1938,154 @@ function run() {
     smokeTestVerifier,
     "buildSyncPushApiDisabledResponse",
     "Smoke tests must require the dedicated sync push disabled response."
+  );
+  assertSourceIncludes(
+    files.syncPullApiStub,
+    syncPullApiStub,
+    'format: "zhinote-sync-pull-api-disabled"',
+    "Sync pull API guard must expose a stable disabled response format."
+  );
+  assertSourceIncludes(
+    files.syncPullApiStub,
+    syncPullApiStub,
+    "buildSyncPullApiDisabledResponse",
+    "Sync pull API guard must expose a reusable disabled response builder."
+  );
+  for (const item of [
+    ['api_id: "sync-pull"', "Sync pull API guard must identify the sync-pull route."],
+    ['path: "/api/sync/pull?cursor=:cursor"', "Sync pull API guard must bind to /api/sync/pull."],
+    ['method: "GET"', "Sync pull API guard must document GET."],
+    ['stub_status: "disabled-local-stub"', "Sync pull API guard must stay disabled."],
+    ["can_pull_now: false", "Sync pull API guard must not pull now."],
+    ["can_read_cursor_query_now: false", "Sync pull API guard must not read cursor queries."],
+    ["can_connect_cloud_now: false", "Sync pull API guard must not connect cloud."],
+    ["can_read_remote_data_now: false", "Sync pull API guard must not read remote data."],
+    ["can_fetch_remote_baseline_now: false", "Sync pull API guard must not fetch baseline."],
+    ["can_stage_remote_rows_now: false", "Sync pull API guard must not stage rows."],
+    ["can_apply_remote_rows_now: false", "Sync pull API guard must not apply remote rows."],
+    ["can_acknowledge_remote_rows_now: false", "Sync pull API guard must not acknowledge rows."],
+    ["can_write_workspace_data_now: false", "Sync pull API guard must not write workspace data."],
+    ["no_request_argument: true", "Sync pull API guard must not accept a request argument."],
+    ["endpoint_disabled: true", "Sync pull API guard must preserve disabled endpoint boundary."],
+    ["reads_cursor_query: false", "Sync pull API guard must not read cursor queries."],
+    ["connects_cloud_services: false", "Sync pull API guard must not connect cloud services."],
+    ["reads_remote_data: false", "Sync pull API guard must not read remote data."],
+    ["fetches_remote_rows: false", "Sync pull API guard must not fetch remote rows."],
+    ["fetches_remote_baseline: false", "Sync pull API guard must not fetch remote baseline."],
+    ["stages_remote_rows: false", "Sync pull API guard must not stage remote rows."],
+    ["applies_remote_changes: false", "Sync pull API guard must not apply remote changes."],
+    ["acknowledges_remote_rows: false", "Sync pull API guard must not acknowledge remote rows."],
+    ["writes_workspace_data: false", "Sync pull API guard must not write workspace data."],
+    ["overwrites_local_data: false", "Sync pull API guard must not overwrite local data."],
+    ["deletes_local_rows: false", "Sync pull API guard must not delete local rows."],
+    ["uploads_workspace_data: false", "Sync pull API guard must not upload workspace data."],
+    ["returns_remote_rows: false", "Sync pull API guard must not return remote rows."],
+    ["returns_page_body_text: false", "Sync pull API guard must not return page text."],
+    ["returns_database_row_values: false", "Sync pull API guard must not return database values."],
+    ["returns_comment_bodies: false", "Sync pull API guard must not return comments."],
+    ["returns_file_bytes: false", "Sync pull API guard must not return file bytes."],
+    ["reads_secret_values: false", "Sync pull API guard must not read secrets."],
+    ["requires_authenticated_session_before_enablement: true", "Sync pull API guard must require auth."],
+    ["requires_workspace_membership_before_enablement: true", "Sync pull API guard must require membership."],
+    ["requires_cursor_contract_before_enablement: true", "Sync pull API guard must require cursor contract."],
+    ["requires_remote_baseline_staging_before_enablement: true", "Sync pull API guard must require staging."],
+    ["requires_side_by_side_review_before_enablement: true", "Sync pull API guard must require side-by-side review."],
+    ["requires_permission_check_before_enablement: true", "Sync pull API guard must require permission checks."],
+    ["requires_audit_event_before_enablement: true", "Sync pull API guard must require audit events."],
+    ["requires_rollback_snapshot_before_apply: true", "Sync pull API guard must require rollback before apply."],
+    ["requires_owner_confirmation_before_apply: true", "Sync pull API guard must require owner confirmation."],
+    ['schema_status: "planned-query-metadata-only"', "Sync pull API guard must expose query metadata request schema."],
+    ['schema_status: "planned-stage-receipt-only"', "Sync pull API guard must expose stage receipt response schema."],
+    ['format: "zhinote-sync-pull-api-validator-fixtures"', "Sync pull API guard must include local validator fixtures."],
+    ['validator_status: "not-executing-route"', "Sync pull validator must not execute the route."],
+    "forbidden_field_names",
+    "forbidden_fields_covered",
+    '"metadata-sync-pull-request"',
+    '"remote-payload-blocked"',
+    '"workspace-content-blocked"',
+    '"file-url-blocked"',
+    '"credential-fields-blocked"',
+    '"apply-ack-blocked"',
+    "remote_baseline_request_id",
+    "conflict_surface_ids",
+    "remote_rows_payload",
+    "raw_response_body",
+    "signed_download_url",
+    "apply_now",
+    "accept_remote",
+    "overwrite_local",
+    "mark_acknowledged",
+    "delete_local",
+    "cursor_override",
+    '"authenticated-session"',
+    '"workspace-membership"',
+    '"cursor-contract"',
+    '"remote-baseline-staging"',
+    '"side-by-side-review"',
+    '"permission-check"',
+    '"audit-event"',
+    '"rollback-snapshot"',
+    '"owner-confirmation"',
+  ]) {
+    const expected = Array.isArray(item) ? item[0] : item;
+    const message = Array.isArray(item)
+      ? item[1]
+      : "Sync pull API guard must preserve schema, fixtures, and enablement gates.";
+    assertSourceIncludes(files.syncPullApiStub, syncPullApiStub, expected, message);
+  }
+  assertSourceIncludes(
+    files.syncPullRoute,
+    syncPullRoute,
+    "buildSyncPullApiDisabledResponse",
+    "Sync pull route must return the dedicated disabled response."
+  );
+  assertSourceIncludes(
+    files.syncPullRoute,
+    syncPullRoute,
+    "WEB_BETA_API_STUB_HTTP_STATUS",
+    "Sync pull route must keep the disabled Web Beta HTTP status."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildSyncPullApiDisabledResponse",
+    "Sync UI must build the sync pull API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportSyncPullApiGuard",
+    "Sync UI must export the sync pull API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "同步拉取 API 防护",
+    "Sync UI must render the sync pull API guard panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "导出同步拉取防护",
+    "Sync UI must render the sync pull API guard export button."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "value={syncPullApiGuard.format}",
+    "Sync UI must render the sync pull disabled response format."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "SyncPullApiFixtureRow",
+    "Sync UI must render sync pull validator fixtures."
+  );
+  assertSourceIncludes(
+    files.smokeTestVerifier,
+    smokeTestVerifier,
+    "buildSyncPullApiDisabledResponse",
+    "Smoke tests must require the dedicated sync pull disabled response."
   );
   assertSourceIncludes(
     files.accountSessionBoundary,

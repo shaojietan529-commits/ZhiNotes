@@ -261,6 +261,11 @@ import {
   type SyncPushApiValidationStatus,
 } from "@/lib/sync/syncPushApiStub";
 import {
+  buildSyncPullApiDisabledResponse,
+  type SyncPullApiDisabledResponse,
+  type SyncPullApiValidationStatus,
+} from "@/lib/sync/syncPullApiStub";
+import {
   buildSyncReplayTestPlan,
   type SyncReplayTestPlan,
   type SyncReplayTestStatus,
@@ -319,6 +324,7 @@ type SyncQueueAction =
   | "opt-in-gate"
   | "sync-confirmation"
   | "sync-push-api-guard"
+  | "sync-pull-api-guard"
   | "rollback-plan"
   | "restore-writeback"
   | "restore-preview-api-guard"
@@ -664,6 +670,10 @@ function SyncDashboard() {
   );
   const syncPushApiGuard = useMemo(
     () => buildSyncPushApiDisabledResponse(),
+    []
+  );
+  const syncPullApiGuard = useMemo(
+    () => buildSyncPullApiDisabledResponse(),
     []
   );
   const syncConfirmationReceipt = useMemo(
@@ -2181,6 +2191,24 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncPullApiGuard = () => {
+    setBusyQueueAction("sync-pull-api-guard");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-pull-api-disabled-${fileSafeTimestamp()}.json`,
+        {
+          ...syncPullApiGuard,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export sync pull API guard:", err);
+      window.alert("同步拉取 API 防护导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncReplayTestPlan = () => {
     setBusyQueueAction("replay-test-plan");
     try {
@@ -3544,6 +3572,107 @@ function SyncDashboard() {
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {syncPushApiGuard.enablement_gates.map((gate) => (
                   <SyncPushApiGateRow key={gate.id} gate={gate} />
+                ))}
+              </div>
+            </ContractPanel>
+          </ContractPanel>
+          <ContractPanel title="同步拉取 API 防护" className="mt-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                `/api/sync/pull?cursor=:cursor` 的专用关闭响应。它把未来远端基线拉取拆成
+                query metadata、stage 收据、本地 fixture 和启用门槛；当前 route
+                仍拒绝读取 cursor、连接云、获取远端行、暂存远端行、应用远端变更、确认行或写入本地工作区。
+              </p>
+              <button
+                type="button"
+                onClick={handleExportSyncPullApiGuard}
+                disabled={busyQueueAction === "sync-pull-api-guard"}
+                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {busyQueueAction === "sync-pull-api-guard"
+                  ? "导出中..."
+                  : "导出同步拉取防护"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-7">
+              <SyncPullApiSummaryCard
+                label="格式"
+                value={syncPullApiGuard.format}
+                detail="专用响应"
+                status="accepted"
+              />
+              <SyncPullApiSummaryCard
+                label="HTTP"
+                value={syncPullApiGuard.disabled_response_contract.http_status}
+                detail="关闭状态"
+                status="rejected"
+              />
+              <SyncPullApiSummaryCard
+                label="Cursor"
+                value={syncPullApiGuard.can_read_cursor_query_now ? "是" : "否"}
+                detail="不读取查询"
+                status="rejected"
+              />
+              <SyncPullApiSummaryCard
+                label="远端读取"
+                value={syncPullApiGuard.can_read_remote_data_now ? "是" : "否"}
+                detail="不连云"
+                status="rejected"
+              />
+              <SyncPullApiSummaryCard
+                label="本地写入"
+                value={syncPullApiGuard.can_write_workspace_data_now ? "是" : "否"}
+                detail="不应用变更"
+                status="rejected"
+              />
+              <SyncPullApiSummaryCard
+                label="禁止字段"
+                value={syncPullApiGuard.request_schema.forbidden_fields.length}
+                detail="载荷已阻止"
+                status="rejected"
+              />
+              <SyncPullApiSummaryCard
+                label="Fixture 字段"
+                value={
+                  syncPullApiGuard.local_validator_report.summary
+                    .forbidden_fields_covered
+                }
+                detail="本地覆盖"
+                status="rejected"
+              />
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+              <ContractPanel title="请求结构">
+                <div className="space-y-2">
+                  {syncPullApiGuard.request_schema.allowed_fields
+                    .slice(0, 6)
+                    .map((field) => (
+                      <SyncPullApiFieldRow key={field.field} field={field} />
+                    ))}
+                  {syncPullApiGuard.request_schema.forbidden_fields
+                    .slice(0, 6)
+                    .map((field) => (
+                      <SyncPullApiFieldRow key={field.field} field={field} />
+                    ))}
+                </div>
+              </ContractPanel>
+              <ContractPanel title="Fixture 检查">
+                <div className="space-y-2">
+                  {syncPullApiGuard.local_validator_report.fixtures.map(
+                    (fixture) => (
+                      <SyncPullApiFixtureRow
+                        key={fixture.id}
+                        fixture={fixture}
+                      />
+                    )
+                  )}
+                </div>
+              </ContractPanel>
+            </div>
+            <ContractPanel title="启用门槛" className="mt-4">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {syncPullApiGuard.enablement_gates.map((gate) => (
+                  <SyncPullApiGateRow key={gate.id} gate={gate} />
                 ))}
               </div>
             </ContractPanel>
@@ -9863,6 +9992,108 @@ function SyncPushApiGateRow({
   gate,
 }: {
   gate: SyncPushApiDisabledResponse["enablement_gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+        {gate.title}
+      </div>
+      <div className="mt-1 font-mono text-[10px] text-zinc-400">
+        {gate.id}
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.required_before_enablement}
+      </p>
+    </article>
+  );
+}
+
+function SyncPullApiSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: SyncPullApiValidationStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <RestoreApplyApiValidationPill status={status} />
+      </div>
+      <div className="mt-2 break-all text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function SyncPullApiFieldRow({
+  field,
+}: {
+  field: SyncPullApiDisabledResponse["request_schema"]["allowed_fields"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+          {field.field}
+        </div>
+        <RestoreApplyApiFieldStatusPill status={field.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {field.reason}
+      </p>
+    </article>
+  );
+}
+
+function SyncPullApiFixtureRow({
+  fixture,
+}: {
+  fixture: SyncPullApiDisabledResponse["local_validator_report"]["fixtures"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {fixture.id}
+          </div>
+          <div className="mt-1 text-[10px] text-zinc-400">
+            预期 {fixture.expected_status}
+          </div>
+        </div>
+        <RestoreApplyApiValidationPill status={fixture.actual_status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {fixture.reason}
+      </p>
+      {fixture.forbidden_field_names.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+          {fixture.forbidden_field_names.map((fieldName) => (
+            <span
+              key={fieldName}
+              className="rounded-md bg-white px-2 py-1 font-mono text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"
+            >
+              {fieldName}
+            </span>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function SyncPullApiGateRow({
+  gate,
+}: {
+  gate: SyncPullApiDisabledResponse["enablement_gates"][number];
 }) {
   return (
     <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
