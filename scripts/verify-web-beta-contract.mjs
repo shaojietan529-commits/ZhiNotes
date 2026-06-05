@@ -2652,6 +2652,30 @@ function run() {
     "Sync UI must render the file presign guard export button."
   );
   assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "filePresignApiGuard.disabled_response_contract.http_status",
+    "Sync UI must render the file presign disabled HTTP status."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "allowedFields={filePresignApiGuard.request_schema.allowed_fields}",
+    "Sync UI must render file presign allowed fields."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "forbiddenFields={filePresignApiGuard.request_schema.forbidden_fields}",
+    "Sync UI must render file presign forbidden fields."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "fixtures={filePresignApiGuard.local_validator_report.fixtures}",
+    "Sync UI must render file presign validator fixtures."
+  );
+  assertSourceIncludes(
     files.webBetaStageGate,
     webBetaStageGate,
     'format: "zhinote-web-beta-stage-gate"',

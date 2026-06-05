@@ -22,7 +22,7 @@ export interface ApiGuardFixture {
   id: string;
   expected_status: ApiGuardValidationStatus;
   actual_status: ApiGuardValidationStatus;
-  forbidden_field_names: string[];
+  forbidden_field_names?: string[];
   reason: string;
 }
 
@@ -44,6 +44,7 @@ interface ApiGuardPanelProps {
   forbiddenFields: ApiGuardField[];
   fixtures: ApiGuardFixture[];
   gates: ApiGuardGate[];
+  summaryColumnsClassName?: string;
   gateColumnsClassName?: string;
 }
 
@@ -59,6 +60,7 @@ export function ApiGuardPanel({
   forbiddenFields,
   fixtures,
   gates,
+  summaryColumnsClassName = "mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-7",
   gateColumnsClassName = "grid gap-2 md:grid-cols-2 xl:grid-cols-3",
 }: ApiGuardPanelProps) {
   return (
@@ -79,7 +81,7 @@ export function ApiGuardPanel({
       <p className="mt-3 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
         {description}
       </p>
-      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-7">
+      <div className={summaryColumnsClassName}>
         {summaries.map((item) => (
           <ApiGuardSummaryCard key={item.label} item={item} />
         ))}
@@ -171,6 +173,8 @@ function ApiGuardFieldRow({ field }: { field: ApiGuardField }) {
 }
 
 function ApiGuardFixtureRow({ fixture }: { fixture: ApiGuardFixture }) {
+  const forbiddenFieldNames = fixture.forbidden_field_names ?? [];
+
   return (
     <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
       <div className="flex items-start justify-between gap-3">
@@ -187,9 +191,9 @@ function ApiGuardFixtureRow({ fixture }: { fixture: ApiGuardFixture }) {
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
         {fixture.reason}
       </p>
-      {fixture.forbidden_field_names.length > 0 && (
+      {forbiddenFieldNames.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
-          {fixture.forbidden_field_names.map((fieldName) => (
+          {forbiddenFieldNames.map((fieldName) => (
             <span
               key={fieldName}
               className="rounded-md bg-white px-2 py-1 font-mono text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"

@@ -130,9 +130,6 @@ import {
 } from "@/lib/sync/privateFileStoragePolicy";
 import {
   buildFilePresignApiDisabledResponse,
-  type FilePresignApiDisabledResponse,
-  type FilePresignFieldStatus,
-  type FilePresignValidationStatus,
 } from "@/lib/sync/filePresignApiStub";
 import {
   buildWebBetaNextActionPlan,
@@ -4987,92 +4984,55 @@ function SyncDashboard() {
               ))}
             </div>
           </ContractPanel>
-          <ContractPanel title="文件签名 API 防护" className="mt-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                `/api/files/presign` 的专用关闭响应。它展示未来“仅元数据”请求、
-                不返回 URL 的响应结构、fixture 检查和启用门槛；路由当前仍拒绝读取请求体、
-                创建签名 URL、上传文件或暴露公开链接。
-              </p>
-              <button
-                type="button"
-                onClick={handleExportFilePresignApiGuard}
-                disabled={busyContractAction === "file-presign-api-guard"}
-                className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-              >
-                {busyContractAction === "file-presign-api-guard"
-                  ? "导出中..."
-                  : "导出文件签名防护"}
-              </button>
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-5">
-              <FilePresignSummaryCard
-                label="HTTP"
-                value={filePresignApiGuard.disabled_response_contract.http_status}
-                detail="关闭状态"
-                status="rejected"
-              />
-              <FilePresignSummaryCard
-                label="请求体"
-                value={filePresignApiGuard.can_read_request_body_now ? "是" : "否"}
-                detail="不读取正文"
-                status="rejected"
-              />
-              <FilePresignSummaryCard
-                label="签名 URL"
-                value={filePresignApiGuard.can_create_signed_urls_now ? "是" : "否"}
-                detail="不创建 URL"
-                status="rejected"
-              />
-              <FilePresignSummaryCard
-                label="允许字段"
-                value={filePresignApiGuard.request_schema.allowed_fields.length}
-                detail="未来元数据"
-                status="accepted"
-              />
-              <FilePresignSummaryCard
-                label="禁止字段"
-                value={filePresignApiGuard.request_schema.forbidden_fields.length}
-                detail="载荷已阻止"
-                status="rejected"
-              />
-            </div>
-            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
-              <ContractPanel title="Request schema">
-                <div className="space-y-2">
-                  {filePresignApiGuard.request_schema.allowed_fields
-                    .slice(0, 6)
-                    .map((field) => (
-                      <FilePresignFieldRow key={field.field} field={field} />
-                    ))}
-                  {filePresignApiGuard.request_schema.forbidden_fields
-                    .slice(0, 6)
-                    .map((field) => (
-                      <FilePresignFieldRow key={field.field} field={field} />
-                    ))}
-                </div>
-              </ContractPanel>
-              <ContractPanel title="Fixture checks">
-                <div className="space-y-2">
-                  {filePresignApiGuard.local_validator_report.fixtures.map(
-                    (fixture) => (
-                      <FilePresignFixtureRow
-                        key={fixture.id}
-                        fixture={fixture}
-                      />
-                    )
-                  )}
-                </div>
-              </ContractPanel>
-            </div>
-            <ContractPanel title="启用门槛" className="mt-4">
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {filePresignApiGuard.enablement_gates.map((gate) => (
-                  <FilePresignGateRow key={gate.id} gate={gate} />
-                ))}
-              </div>
-            </ContractPanel>
-          </ContractPanel>
+          <ApiGuardPanel
+            title="文件签名 API 防护"
+            description="`/api/files/presign` 的专用关闭响应。它展示未来“仅元数据”请求、不返回 URL 的响应结构、fixture 检查和启用门槛；路由当前仍拒绝读取请求体、创建签名 URL、上传文件或暴露公开链接。"
+            exportLabel="导出文件签名防护"
+            busy={busyContractAction === "file-presign-api-guard"}
+            onExport={handleExportFilePresignApiGuard}
+            summaryColumnsClassName="mt-4 grid gap-3 md:grid-cols-5"
+            summaries={[
+              {
+                label: "HTTP",
+                value:
+                  filePresignApiGuard.disabled_response_contract.http_status,
+                detail: "关闭状态",
+                status: "rejected",
+              },
+              {
+                label: "请求体",
+                value: filePresignApiGuard.can_read_request_body_now
+                  ? "是"
+                  : "否",
+                detail: "不读取正文",
+                status: "rejected",
+              },
+              {
+                label: "签名 URL",
+                value: filePresignApiGuard.can_create_signed_urls_now
+                  ? "是"
+                  : "否",
+                detail: "不创建 URL",
+                status: "rejected",
+              },
+              {
+                label: "允许字段",
+                value: filePresignApiGuard.request_schema.allowed_fields.length,
+                detail: "未来元数据",
+                status: "accepted",
+              },
+              {
+                label: "禁止字段",
+                value: filePresignApiGuard.request_schema.forbidden_fields.length,
+                detail: "载荷已阻止",
+                status: "rejected",
+              },
+            ]}
+            allowedFields={filePresignApiGuard.request_schema.allowed_fields}
+            forbiddenFields={filePresignApiGuard.request_schema.forbidden_fields}
+            fixtures={filePresignApiGuard.local_validator_report.fixtures}
+            gates={filePresignApiGuard.enablement_gates}
+          />
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -10350,130 +10310,6 @@ function PrivateFileStorageStatusPill({
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[status]}
-    </span>
-  );
-}
-
-function FilePresignSummaryCard({
-  label,
-  value,
-  detail,
-  status,
-}: {
-  label: string;
-  value: number | string;
-  detail: string;
-  status: FilePresignValidationStatus;
-}) {
-  return (
-    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-xs text-zinc-400">{label}</div>
-        <FilePresignValidationPill status={status} />
-      </div>
-      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
-        {value}
-      </div>
-      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
-    </div>
-  );
-}
-
-function FilePresignFieldRow({
-  field,
-}: {
-  field: FilePresignApiDisabledResponse["request_schema"]["allowed_fields"][number];
-}) {
-  return (
-    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
-      <div className="flex items-start justify-between gap-3">
-        <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
-          {field.field}
-        </div>
-        <FilePresignFieldStatusPill status={field.status} />
-      </div>
-      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        {field.reason}
-      </p>
-    </article>
-  );
-}
-
-function FilePresignFixtureRow({
-  fixture,
-}: {
-  fixture: FilePresignApiDisabledResponse["local_validator_report"]["fixtures"][number];
-}) {
-  return (
-    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
-            {fixture.id}
-          </div>
-          <div className="mt-1 text-[10px] text-zinc-400">
-            预期 {fixture.expected_status}
-          </div>
-        </div>
-        <FilePresignValidationPill status={fixture.actual_status} />
-      </div>
-      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
-        {fixture.reason}
-      </p>
-    </article>
-  );
-}
-
-function FilePresignGateRow({
-  gate,
-}: {
-  gate: FilePresignApiDisabledResponse["enablement_gates"][number];
-}) {
-  return (
-    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
-      <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-        {gate.title}
-      </div>
-      <div className="mt-1 font-mono text-[10px] text-zinc-400">
-        {gate.id}
-      </div>
-      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-        {gate.required_before_enablement}
-      </p>
-    </article>
-  );
-}
-
-function FilePresignFieldStatusPill({
-  status,
-}: {
-  status: FilePresignFieldStatus;
-}) {
-  const className =
-    status === "allowed"
-      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
-
-  return (
-    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
-      {status === "allowed" ? "允许" : "禁止"}
-    </span>
-  );
-}
-
-function FilePresignValidationPill({
-  status,
-}: {
-  status: FilePresignValidationStatus;
-}) {
-  const className =
-    status === "accepted"
-      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
-
-  return (
-    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
-      {status === "accepted" ? "已接受" : "已拒绝"}
     </span>
   );
 }
