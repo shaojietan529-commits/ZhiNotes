@@ -92,50 +92,37 @@ function FilesDashboard() {
   const handleReviewStepOpen = (
     step: FileLibraryWorkbenchReport["review_sequence"][number]
   ) => {
-    if (step.route === "/modules/files") {
-      document
-        .getElementById(step.target_section_id)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-    router.push(step.route);
+    openFileWorkflowRoute(step.route, step.target_section_id, router.push);
   };
 
   const handleDecisionOpen = (
     decision: FileLibraryWorkbenchReport["decision_summary"]["decisions"][number]
   ) => {
-    if (decision.route === "/modules/files") {
-      document
-        .getElementById(decision.target_section_id)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-
-    router.push(decision.route);
+    openFileWorkflowRoute(decision.route, decision.target_section_id, router.push);
   };
 
   const handleNativeStrategyOpen = (
     item: FileLibraryWorkbenchReport["native_strategy"]["items"][number]
   ) => {
-    if (item.route === "/modules/files") {
-      document
-        .getElementById(item.target_section_id)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-
-    router.push(item.route);
+    openFileWorkflowRoute(item.route, item.target_section_id, router.push);
   };
 
   const handleLaneOpen = (lane: FileLibraryLane) => {
-    if (lane.route === "/modules/files") {
-      document
-        .getElementById(getFileLaneTargetSectionId(lane.id))
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
+    openFileWorkflowRoute(
+      lane.route,
+      getFileLaneTargetSectionId(lane.id),
+      router.push
+    );
+  };
 
-    router.push(lane.route);
+  const handleActionOpen = (
+    action: FileLibraryWorkbenchReport["actions"][number]
+  ) => {
+    openFileWorkflowRoute(
+      action.action_route,
+      getFileLaneTargetSectionId(action.lane_id),
+      router.push
+    );
   };
 
   return (
@@ -356,7 +343,7 @@ function FilesDashboard() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => router.push(action.action_route)}
+                    onClick={() => handleActionOpen(action)}
                     className="mt-3 rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                   >
                     {action.route_label}
@@ -805,14 +792,29 @@ function RouteButton({ label, route }: { label: string; route: string }) {
 
 function getFileLaneTargetSectionId(laneId: FileLibraryLane["id"]) {
   const targets: Record<FileLibraryLane["id"], string> = {
-    "native-preview": "files-intake-entrypoints",
-    "editable-import": "files-intake-entrypoints",
-    "database-import": "files-intake-entrypoints",
+    "native-preview": "reports-preview-routing",
+    "editable-import": "reports-conversion-review",
+    "database-import": "databases-import-export-readiness",
     "metadata-review": "files-format-matrix",
     "download-retain": "files-local-files",
-    "cloud-ai-boundary": "files-privacy-boundary",
+    "cloud-ai-boundary": "web-beta-owner-review",
   };
   return targets[laneId];
+}
+
+function openFileWorkflowRoute(
+  route: string,
+  targetSectionId: string,
+  navigate: (route: string) => void
+) {
+  if (route === "/modules/files") {
+    document
+      .getElementById(targetSectionId)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+
+  navigate(`${route}#${targetSectionId}`);
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) {

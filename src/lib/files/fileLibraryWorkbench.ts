@@ -596,7 +596,7 @@ function buildDecisionSummary(
         next_action:
           "入库前确认字段、行数、目标数据库、回滚边界和 typed confirmation。",
         route: "/modules/databases",
-        target_section_id: "database-import-export-readiness",
+        target_section_id: "databases-import-export-readiness",
         allowed_now: false,
         requires_owner_confirmation: true,
         blocks_file_externalization: false,
@@ -634,7 +634,7 @@ function buildDecisionSummary(
         next_action:
           "任何 AI、云同步、分享链接或外部资源动作，都先走 payload preview、权限检查、审计和 owner confirmation。",
         route: "/modules/sync",
-        target_section_id: "sync-ai-provider-boundary",
+        target_section_id: "web-beta-owner-review",
         allowed_now: false,
         requires_owner_confirmation: true,
         blocks_file_externalization: true,
@@ -934,7 +934,7 @@ function buildReviewSequence(
         steps.length + 1,
         "表格最后入库",
         "/modules/databases",
-        "database-import-export-readiness",
+        "databases-import-export-readiness",
         "Spreadsheet 入库会创建字段和 rows，属于批量写入，必须晚于结构复核。",
         "导入前确认字段、行数、目标数据库、回滚边界和 typed confirmation。"
       )
@@ -946,7 +946,7 @@ function buildReviewSequence(
       steps.length + 1,
       "任何外发都走同步和权限边界",
       "/modules/sync",
-      "sync-ai-provider-boundary",
+      "web-beta-owner-review",
       "文件是高敏感数据源，AI、云同步、共享链接和外部资源加载必须单独确认。",
       "没有文件 bytes、文件文本或文件名被发送到外部。"
     )
