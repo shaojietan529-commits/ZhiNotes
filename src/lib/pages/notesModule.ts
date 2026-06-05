@@ -3,6 +3,7 @@ import {
   buildPageResearchStructureReport,
   type PageResearchStructureStatus,
 } from "@/lib/pages/pageResearchStructure";
+import { displayPageTitle } from "@/lib/pages/displayTitle";
 import type { Page } from "@/lib/utils/types";
 
 export type NotesModuleLaneId =
@@ -288,7 +289,7 @@ export function buildNotesModuleWorkbenchReport(
     format_version: 1,
     report_status: "local-notes-module-only",
     privacy_note:
-      "Generated locally from active page metadata, local page HTML structure, version counts, comment counts, wiki-link counts, local favorite state, and local lock state. It does not read database rows, row values, file bytes, linked page bodies, cloud data, prompts, tokens, credentials, holdings, or trading plans. The exported workbench includes structure counts and statuses, not page body text or comment body text, and it does not write workspace data, connect cloud services, upload data, or enable AI.",
+      "这份笔记工作台只在本地生成，只读取活跃页面 metadata、本地页面 HTML 结构、版本数量、评论数量、wiki link 数量、本地收藏状态和锁定状态。它不读取数据库行、row values、文件 bytes、linked page bodies、云端数据、prompt、token、凭证、持仓或交易计划。导出的工作台只包含结构计数和状态，不包含页面正文或评论正文，也不会写入工作区、连接云服务、上传数据或启用 AI。",
     boundary: {
       local_report_only: true,
       reads_page_metadata: true,
@@ -519,13 +520,14 @@ function buildDecisionSummary(
 
 function buildPageItem(snapshot: NotesModuleSnapshot): NotesModulePageItem {
   const page = snapshot.page;
+  const displayTitle = displayPageTitle(page.title);
   const counts = snapshot.counts ?? {
     ...EMPTY_COUNTS,
     pageId: page.id,
   };
   const structure = buildPageResearchStructureReport({
     html: page.content_text ?? "",
-    title: page.title || "未命名页面",
+    title: displayTitle,
     metadata: {
       favorite: snapshot.favorite,
       hasCover: Boolean(page.cover_url),
@@ -541,7 +543,7 @@ function buildPageItem(snapshot: NotesModuleSnapshot): NotesModulePageItem {
 
   return {
     page_id: page.id,
-    title: page.title || "未命名页面",
+    title: displayTitle,
     parent_id: page.parent_id,
     is_root: !page.parent_id,
     favorite: snapshot.favorite,
@@ -575,7 +577,7 @@ function buildPageItem(snapshot: NotesModuleSnapshot): NotesModulePageItem {
     next_action: getPageNextAction(structure.structure_status, counts, structure.summary),
     open_route: `/page/${page.id}`,
     privacy_boundary:
-      "Page rollup is generated locally. It stores page title, structure counts, metadata counts, and routes only; it does not include page body text, comment body text, linked page bodies, database row values, or file bytes.",
+      "Page 汇总只在本地生成，只保存页面标题、结构计数、metadata 计数和路由；不包含页面正文、评论正文、linked page bodies、数据库 row values 或文件 bytes。",
   };
 }
 
@@ -598,7 +600,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
       writes_workspace_data: false,
       requires_manual_confirmation: true,
       privacy_boundary:
-        "The workbench only shows the route. Creating a page is a separate local user click.",
+        "工作台只显示入口路由；创建页面仍然是独立的本地用户点击。",
     });
     return actions;
   }
@@ -612,7 +614,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         title: `${page.title} 还是空白页`,
         priority: "high",
         status: "needs-structure",
-        evidence: `${page.word_count} words · ${page.block_count} blocks`,
+        evidence: `${page.word_count} 字 · ${page.block_count} 个块`,
         next_action:
           "打开页面，用 slash command 或投研结构面板插入 H2/H3、结论、证据和下一步。",
         action_route: page.open_route,
@@ -620,7 +622,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         writes_workspace_data: false,
         requires_manual_confirmation: false,
         privacy_boundary:
-          "Opening a page does not edit it. Structure insertion still happens inside the page after the user clicks.",
+          "打开页面不会编辑内容；结构插入仍然要在页面内由用户点击后发生。",
       });
     } else if (page.structure_status === "needs-structure") {
       actions.push({
@@ -630,7 +632,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         title: `${page.title} 需要补投研结构`,
         priority: "high",
         status: "needs-structure",
-        evidence: `${page.heading_count} headings · ${page.word_count} words`,
+        evidence: `${page.heading_count} 个标题 · ${page.word_count} 字`,
         next_action:
           "打开页面的信息面板，按“下一步队列”补标题骨架、结论、证据来源或行动项。",
         action_route: page.open_route,
@@ -638,7 +640,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         writes_workspace_data: false,
         requires_manual_confirmation: false,
         privacy_boundary:
-          "The module report does not write page content. Any scaffold insertion is a manual page-level action.",
+          "工作台报告不会写入页面内容；任何 scaffold 插入都是页面级手动操作。",
       });
     } else if (page.structure_status === "thin") {
       actions.push({
@@ -648,7 +650,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         title: `${page.title} 内容偏薄`,
         priority: "medium",
         status: "needs-structure",
-        evidence: `${page.word_count} words · ${page.heading_count} headings`,
+        evidence: `${page.word_count} 字 · ${page.heading_count} 个标题`,
         next_action:
           "补充核心结论、来源、风险、催化剂或后续行动，让笔记可复盘。",
         action_route: page.open_route,
@@ -656,7 +658,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         writes_workspace_data: false,
         requires_manual_confirmation: false,
         privacy_boundary:
-          "The workbench only recommends review. It does not generate content or call AI.",
+          "工作台只建议复核，不生成内容，也不会调用 AI。",
       });
     }
 
@@ -671,7 +673,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         title: `${page.title} 尚未连接研究上下文`,
         priority: "medium",
         status: "needs-linking",
-        evidence: "0 wiki/page relations detected.",
+        evidence: "检测到 0 个 wiki/page relation。",
         next_action:
           "用 [[页面链接]]、报告文件块或 inline database，把它连接到公司、报告、会议或组合资产。",
         action_route: page.open_route,
@@ -679,7 +681,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         writes_workspace_data: false,
         requires_manual_confirmation: false,
         privacy_boundary:
-          "Relation suggestions use link counts only and do not read linked page bodies or database row values.",
+          "关系建议只使用 link 计数，不读取 linked page bodies 或数据库 row values。",
       });
     }
 
@@ -691,7 +693,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         title: `${page.title} 没有保存版本`,
         priority: "low",
         status: "needs-review",
-        evidence: "0 saved versions.",
+        evidence: "0 个保存版本。",
         next_action:
           "打开页面后保存一个 named version，方便后续比较投资假设变化。",
         action_route: page.open_route,
@@ -699,7 +701,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         writes_workspace_data: false,
         requires_manual_confirmation: false,
         privacy_boundary:
-          "Version recommendation uses version count only and does not export version content.",
+          "版本建议只使用版本数量，不导出版本内容。",
       });
     }
 
@@ -711,7 +713,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         title: `${page.title} 有未解决评论`,
         priority: "medium",
         status: "needs-review",
-        evidence: `${page.unresolved_comments} unresolved comments.`,
+        evidence: `${page.unresolved_comments} 个未解决评论。`,
         next_action:
           "打开页面处理评论或 block comment，确认哪些是行动项、观点变化或待查证问题。",
         action_route: page.open_route,
@@ -719,7 +721,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
         writes_workspace_data: false,
         requires_manual_confirmation: false,
         privacy_boundary:
-          "The workbench uses comment counts only. It does not include comment body text or anchor text.",
+          "工作台只使用评论数量，不包含评论正文或 anchor text。",
       });
     }
   }
@@ -733,7 +735,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
       title: "根页面较多，建议整理知识库层级",
       priority: "low",
       status: "review-only",
-      evidence: `${rootPages} root pages.`,
+      evidence: `${rootPages} 个根页面。`,
       next_action:
         "把临时笔记归入公司、报告、会议、组合或研究框架页面下，减少侧边栏噪音。",
       action_route: "/modules/notes",
@@ -741,7 +743,7 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
       writes_workspace_data: false,
       requires_manual_confirmation: false,
       privacy_boundary:
-        "This is a metadata-only organization suggestion. It does not move pages automatically.",
+        "这是只基于 metadata 的整理建议，不会自动移动页面。",
     });
   }
 

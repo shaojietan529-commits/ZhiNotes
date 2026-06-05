@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { createPage } from "@/lib/db/local/queries";
+import { displayPageTitle } from "@/lib/pages/displayTitle";
 import { usePages } from "@/hooks/usePages";
 import type { Page } from "@/lib/utils/types";
 
@@ -29,6 +30,7 @@ function PageTreeItem({
 
   const children = allPages.filter((p) => p.parent_id === page.id);
   const hasChildren = children.length > 0;
+  const title = displayPageTitle(page.title);
 
   const handleAddChild = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -83,7 +85,7 @@ function PageTreeItem({
 
         {/* Title */}
         <span className="truncate flex-1 ml-1">
-          {page.title || "未命名"}
+          {title}
         </span>
 
         {/* Actions (visible on hover) */}

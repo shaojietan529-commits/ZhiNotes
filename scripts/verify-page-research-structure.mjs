@@ -10,8 +10,10 @@ const files = {
   editor: "src/components/editor/Editor.tsx",
   pageStructure: "src/lib/pages/pageResearchStructure.ts",
   notesModule: "src/lib/pages/notesModule.ts",
+  displayTitle: "src/lib/pages/displayTitle.ts",
   pageShell: "src/components/providers/PageShell.tsx",
   notesShell: "src/components/modules/NotesShell.tsx",
+  pageTree: "src/components/sidebar/PageTree.tsx",
   notesRoute: "src/app/(workspace)/modules/notes/page.tsx",
   registry: "src/lib/modules/registry.ts",
   queries: "src/lib/db/local/queries.ts",
@@ -40,8 +42,10 @@ function run() {
   const editor = readProjectFile(files.editor);
   const pageStructure = readProjectFile(files.pageStructure);
   const notesModule = readProjectFile(files.notesModule);
+  const displayTitle = readProjectFile(files.displayTitle);
   const pageShell = readProjectFile(files.pageShell);
   const notesShell = readProjectFile(files.notesShell);
+  const pageTree = readProjectFile(files.pageTree);
   const notesRoute = readProjectFile(files.notesRoute);
   const registry = readProjectFile(files.registry);
   const queries = readProjectFile(files.queries);
@@ -176,12 +180,44 @@ function run() {
     "auto_delete_pages",
     "auto_sync_notes",
     "required_verification_commands",
+    "个标题",
+    "个块",
+    "0 个保存版本",
+    "工作台报告不会写入页面内容",
+    "工作台只使用评论数量",
+    "displayPageTitle(page.title)",
   ]) {
     assertIncludes(
       files.notesModule,
       notesModule,
       snippet,
       "Notes module workbench must keep local-only page structure and review boundaries."
+    );
+  }
+
+  for (const snippet of [
+    "displayPageTitle",
+    'fallback = "未命名页面"',
+    'normalized.toLowerCase() === "untitled"',
+  ]) {
+    assertIncludes(
+      files.displayTitle,
+      displayTitle,
+      snippet,
+      "Default page titles must be displayed in Chinese without changing stored page data."
+    );
+  }
+
+  for (const snippet of [
+    'import { displayPageTitle } from "@/lib/pages/displayTitle"',
+    "const title = displayPageTitle(page.title)",
+    "{title}",
+  ]) {
+    assertIncludes(
+      files.pageTree,
+      pageTree,
+      snippet,
+      "Sidebar page tree must render localized fallback titles."
     );
   }
 
@@ -224,6 +260,11 @@ function run() {
     "onReviewStepOpen",
     "scrollIntoView",
     "打开步骤",
+    "内联数据库",
+    "反向链接",
+    "个行动",
+    "个链接",
+    "个版本",
     "notes-create-entry",
     "notes-workbench-routes",
     "notes-priority-actions",

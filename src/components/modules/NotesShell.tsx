@@ -520,10 +520,10 @@ function NotesWorkbenchPanel({
         <Metric label="偏薄" value={report.summary.thin_pages} />
         <Metric label="文件块" value={report.summary.pages_with_files} />
         <Metric
-          label="Inline DB"
+          label="内联数据库"
           value={report.summary.pages_with_inline_databases}
         />
-        <Metric label="Backlinks" value={report.summary.pages_with_backlinks} />
+        <Metric label="反向链接" value={report.summary.pages_with_backlinks} />
         <Metric
           label="未解评论"
           value={report.summary.pages_with_unresolved_comments}
@@ -625,7 +625,7 @@ function NotesLaneCard({
             {lane.title}
           </h3>
           <p className="mt-1 text-zinc-400">
-            {lane.action_count} actions · {lane.high_priority_count} high
+            {lane.action_count} 个行动 · {lane.high_priority_count} 个高优先
           </p>
         </div>
         <button
@@ -698,7 +698,7 @@ function NotesPageCard({
             {page.title}
           </h3>
           <p className="mt-1 text-zinc-400">
-            {getRoleLabel(page.role)} · score {page.readiness_score}
+            {getRoleLabel(page.role)} · 分数 {page.readiness_score}
           </p>
         </div>
         <button
@@ -711,10 +711,10 @@ function NotesPageCard({
       </div>
       <div className="mt-3 flex flex-wrap gap-1">
         <Chip label={page.structure_status} />
-        <Chip label={`${page.word_count} words`} />
-        <Chip label={`${page.heading_count} H`} />
-        <Chip label={`${page.outgoing_links + page.backlinks} links`} />
-        <Chip label={`${page.versions} versions`} />
+        <Chip label={`${page.word_count} 字`} />
+        <Chip label={`${page.heading_count} 个标题`} />
+        <Chip label={`${page.outgoing_links + page.backlinks} 个链接`} />
+        <Chip label={`${page.versions} 个版本`} />
         {page.favorite && <Chip label="收藏" />}
         {page.locked && <Chip label="锁定" />}
         {page.unresolved_comments > 0 && (
@@ -801,9 +801,9 @@ function ActionButton({
 
 function NotesPriorityPill({ priority }: { priority: NotesModulePriority }) {
   const labels: Record<NotesModulePriority, string> = {
-    high: "High",
-    medium: "Medium",
-    low: "Low",
+    high: "高",
+    medium: "中",
+    low: "低",
   };
   const className =
     priority === "high"
