@@ -165,10 +165,10 @@ const LANE_META: Record<
   "idea-intake": {
     id: "idea-intake",
     title: "想法和观察名单",
-    description: "先建立观察名单或持仓 memo，避免投资想法散落在普通笔记里。",
+    description: "先建立观察名单或持仓备忘录，避免投资想法散落在普通笔记里。",
     route: "/modules/portfolio",
     privacy_boundary:
-      "只使用结构状态，不导出页面标题、公司名、ticker、持仓名或观察名单条目。",
+      "只使用结构状态，不导出页面标题、公司名、股票代码、持仓名或观察名单条目。",
   },
   "position-discipline": {
     id: "position-discipline",
@@ -197,18 +197,18 @@ const LANE_META: Record<
   "research-links": {
     id: "research-links",
     title: "研究关联",
-    description: "把组合条目连接回公司页、报告、会议和研究 memo。",
+    description: "把组合条目连接回公司页、报告、会议和研究备忘录。",
     route: "/modules/research-graph",
     privacy_boundary:
-      "只提示 relation 缺口，不自动写 relation、不读取公司/报告/会议正文。",
+      "只提示 relation 缺口，不自动写 relation，不读取公司、报告或会议正文。",
   },
   "tracker-intake": {
     id: "tracker-intake",
     title: "组合跟踪表",
-    description: "将持仓 memo 或观察名单逐条接入组合跟踪表。",
+    description: "将持仓备忘录或观察名单逐条接入组合跟踪表。",
     route: "/modules/portfolio",
     privacy_boundary:
-      "工作台不创建 database rows；组合入库台单条写入仍需用户手动触发。",
+      "工作台不创建数据库行；组合入库台单条写入仍需用户手动触发。",
   },
   "privacy-boundary": {
     id: "privacy-boundary",
@@ -248,7 +248,7 @@ export function buildPortfolioWorkbenchPacket(input: {
     format_version: 1,
     packet_status: "local-portfolio-workbench-only",
     privacy_note:
-      "Generated locally from portfolio review and tracker-intake metadata. It exports aggregated routing and redacted structure counts only. It does not include page text, page titles, position names, tickers, weights, holdings, trading plans, transactions, brokerage data, prices, file bytes, cloud data, AI prompts, tokens, or credentials; it does not create pages, create tracker rows, update relation values, connect brokerage accounts, fetch prices, upload data, connect cloud services, or enable AI.",
+      "由本地组合复盘和入库台 metadata 生成。导出只包含汇总路由和脱敏结构数量，不包含页面正文、页面标题、持仓名、股票代码、权重、持仓、交易计划、交易记录、券商数据、价格、文件字节、云端数据、AI prompt、token 或凭证；它不会创建页面、创建跟踪表行、更新 relation 值、连接券商、抓取价格、上传数据、连接云服务或启用 AI。",
     boundary: {
       local_packet_only: true,
       reads_portfolio_review_report: true,
@@ -333,7 +333,7 @@ function buildDecisionSummary(
   return {
     current_state: "local-portfolio-owner-review",
     current_conclusion:
-      "组合模块可以继续本地创建持仓 memo、观察名单、催化剂复盘和组合跟踪表，并复核仓位纪律、thesis、风险、研究关联和入库候选；券商连接、实时价格、AI、云同步、批量 row 更新和任何持仓外发仍保持关闭，必须经过 owner confirmation。",
+      "组合模块可以继续本地创建持仓备忘录、观察名单、催化剂复盘和组合跟踪表，并复核仓位纪律、投资假设、风险、研究关联和入库候选；券商连接、实时价格、AI、云同步、批量行更新和任何持仓外发仍保持关闭，必须经过用户确认。",
     can_create_local_portfolio_assets_now: true,
     can_review_position_discipline_now: true,
     can_review_research_links_now: true,
@@ -346,20 +346,20 @@ function buildDecisionSummary(
     safe_local_work: [
       "新建持仓备忘录、观察名单、催化剂复盘和组合跟踪表，全部留在本地浏览器工作区。",
       "复核仓位纪律、确信度、投资假设、风险笔记和催化剂结构，但不导出具体权重或观点正文。",
-      "用研究图谱查看组合与公司、报告、会议和 memo 的 relation 缺口，不自动写 relation。",
-      "用组合入库台逐条创建 tracker row，继续使用脱敏标签和本地单条写入。",
+      "用研究图谱查看组合与公司、报告、会议和备忘录的 relation 缺口，不自动写 relation。",
+      "用组合入库台逐条创建跟踪表行，继续使用脱敏标签和本地单条写入。",
     ],
     blocked_work: [
       "不能默认连接券商账户、读取账户 ID、余额、持仓、交易记录或订单。",
       "不能默认抓取实时价格、估值数据或外部行情源。",
-      "不能把组合上下文、持仓名、ticker、权重、交易计划或交易记录发送给 AI 或云端。",
-      "不能批量创建 tracker rows、批量更新数据库、自动写 relation 或同步组合数据。",
+      "不能把组合上下文、持仓名、股票代码、权重、交易计划或交易记录发送给 AI 或云端。",
+      "不能批量创建跟踪表行、批量更新数据库、自动写 relation 或同步组合数据。",
     ],
     required_owner_decisions: [
-      "确认组合跟踪表字段和 relation 后，再逐条创建 tracker row。",
+      "确认组合跟踪表字段和 relation 后，再逐条创建跟踪表行。",
       "确认任何外部价格源、券商连接或账户导入前的权限范围、payload preview 和审计事件。",
       "确认 AI 或云同步前是否允许包含组合上下文，以及哪些敏感字段必须排除。",
-      "确认批量更新数据库前的目标 rows、字段、回滚边界和 typed confirmation。",
+      "确认批量更新数据库前的目标行、字段、回滚边界和 typed confirmation。",
     ],
     decisions: [
       {
@@ -367,9 +367,9 @@ function buildDecisionSummary(
         title: "组合资产入口",
         status: hasPortfolioAsset ? "available-local" : "requires-owner-confirmation",
         answer: hasPortfolioAsset ? "本地可做" : "先建资产",
-        evidence: `${review.summary.portfolio_memos} 个持仓 memo，${review.summary.watchlist_pages} 个观察名单页面；创建动作只写本地页面。`,
+        evidence: `${review.summary.portfolio_memos} 个持仓备忘录，${review.summary.watchlist_pages} 个观察名单页面；创建动作只写本地页面。`,
         next_action:
-          "继续新建或补齐持仓 memo、观察名单和催化剂复盘，把想法放进可复盘结构。",
+          "继续新建或补齐持仓备忘录、观察名单和催化剂复盘，把想法放进可复盘结构。",
         route: "/modules/portfolio",
         target_section_id: "portfolio-create-assets",
         allowed_now: true,
@@ -383,13 +383,13 @@ function buildDecisionSummary(
       },
       {
         id: "position-discipline-thesis-risk",
-        title: "仓位纪律 / Thesis / 风险",
+        title: "仓位纪律 / 投资假设 / 风险",
         status:
           disciplineGaps + thesisRiskGaps > 0
             ? "requires-owner-confirmation"
             : "available-local",
         answer: disciplineGaps + thesisRiskGaps > 0 ? "先复核" : "结构可用",
-        evidence: `${disciplineGaps} 个仓位纪律缺口，${thesisRiskGaps} 个 thesis/risk 缺口；摘要不包含权重、ticker 或观点正文。`,
+        evidence: `${disciplineGaps} 个仓位纪律缺口，${thesisRiskGaps} 个投资假设/风险缺口；摘要不包含权重、股票代码或观点正文。`,
         next_action:
           "逐个打开来源页补结构，确认是否需要进入 tracker 或公司研究，而不是批量导出敏感内容。",
         route: "/modules/portfolio",
@@ -411,7 +411,7 @@ function buildDecisionSummary(
             ? "requires-owner-confirmation"
             : "available-local",
         answer: catalystLinkGaps > 0 ? "补 relation" : "结构可用",
-        evidence: `${catalystLinkGaps} 个催化剂或研究关联缺口；工作台只提示结构，不写 relation values。`,
+        evidence: `${catalystLinkGaps} 个催化剂或研究关联缺口；工作台只提示结构，不写 relation 值。`,
         next_action:
           "用研究图谱把组合资产连接回公司、报告、会议和 memo，确认对象后再手动补 relation。",
         route: "/modules/research-graph",
@@ -427,12 +427,12 @@ function buildDecisionSummary(
       },
       {
         id: "tracker-row-intake",
-        title: "Tracker 单条入库",
+        title: "跟踪表单条入库",
         status: "requires-owner-confirmation",
-        answer: trackerReady ? "单条确认后写" : "先建 tracker",
-        evidence: `${trackerIntakeItems.length} 个脱敏入库候选，${review.summary.tracker_databases} 个组合跟踪表；禁止自动或批量写 row。`,
+        answer: trackerReady ? "单条确认后写" : "先建跟踪表",
+        evidence: `${trackerIntakeItems.length} 个脱敏入库候选，${review.summary.tracker_databases} 个组合跟踪表；禁止自动或批量写行。`,
         next_action:
-          "确认 Related memo relation、Status、Conviction、Thesis 和 Risk notes 后，再逐条创建本地 tracker row。",
+          "确认关联备忘录、状态、确信度、投资假设和风险笔记字段后，再逐条创建本地跟踪表行。",
         route: "/modules/portfolio",
         target_section_id: "portfolio-tracker-intake",
         allowed_now: false,
@@ -495,11 +495,11 @@ function buildActions(
       action({
         id: "portfolio-workbench:create-first-asset",
         lane_id: "idea-intake",
-        title: "先建立观察名单或持仓 memo",
+        title: "先建立观察名单或持仓备忘录",
         priority: "high",
         status: "missing",
         applies_to: ["position-memo", "watchlist"],
-        evidence: "当前缺少组合 memo 和观察名单结构。",
+        evidence: "当前缺少组合备忘录和观察名单结构。",
         next_action:
           "新建观察名单或持仓备忘录，把投资想法放进可复盘的本地页面。",
         action_route: "/modules/portfolio",
@@ -565,7 +565,7 @@ function buildActions(
         priority: "high",
         status: "review-needed",
         applies_to: missingThesisRisk,
-        evidence: `${missingThesisRisk.length} 个 thesis/risk 结构面缺失。`,
+        evidence: `${missingThesisRisk.length} 个投资假设/风险结构面缺失。`,
         next_action:
           "补核心假设、反向证据、下行情景、风险监控项和降权/退出触发条件。",
         action_route: "/modules/portfolio",
@@ -605,7 +605,7 @@ function buildActions(
         applies_to: ["research-links"],
         evidence: "当前缺少研究关联结构。",
         next_action:
-          "用研究图谱把组合资产连接回公司页、报告、会议或 memo。",
+          "用研究图谱把组合资产连接回公司页、报告、会议或备忘录。",
         action_route: "/modules/research-graph",
         route_label: "打开研究图谱",
         requires_manual_confirmation: true,
@@ -624,7 +624,7 @@ function buildActions(
         applies_to: ["tracker-database"],
         evidence: "当前缺少组合跟踪表。",
         next_action:
-          "创建组合跟踪表后，再逐条把持仓 memo 或观察名单接入 tracker row。",
+          "创建组合跟踪表后，再逐条把持仓备忘录或观察名单接入跟踪表行。",
         action_route: "/modules/portfolio",
         route_label: "创建组合跟踪表",
         requires_manual_confirmation: true,
@@ -647,7 +647,7 @@ function buildActions(
         evidence: `${trackerIntakeItems.length} 个脱敏组合资产可进入组合入库台。`,
         next_action:
           review.summary.tracker_databases > 0
-            ? "逐条确认是否创建 tracker row；不要批量写入，不导出敏感资产名称。"
+            ? "逐条确认是否创建跟踪表行；不要批量写入，不导出敏感资产名称。"
             : "先创建组合跟踪表，再逐条处理入库候选。",
         action_route: "/modules/portfolio",
         route_label: "查看入库台",
@@ -674,7 +674,7 @@ function buildActions(
         ],
         evidence: `${review.summary.items_needing_review} 个脱敏组合资产仍有结构缺口。`,
         next_action:
-          "按脱敏标签逐个打开来源页，补结构，不在导出包里暴露名称或 ticker。",
+          "按脱敏标签逐个打开来源页，补结构，不在导出包里暴露名称或股票代码。",
         action_route: "/modules/portfolio",
         route_label: "查看复盘雷达",
         requires_manual_confirmation: false,
@@ -717,7 +717,7 @@ function action(
     connects_brokerage_accounts: false,
     fetches_prices: false,
     privacy_boundary:
-      "Workbench action is metadata-only and does not include page text, page titles, position names, tickers, weights, holdings, trading plans, transactions, brokerage data, prices, cloud data, AI prompts, tokens, or credentials.",
+      "工作台动作只处理 metadata，不包含页面正文、页面标题、持仓名、股票代码、权重、持仓、交易计划、交易记录、券商数据、价格、云端数据、AI prompt、token 或凭证。",
   };
 }
 
@@ -742,13 +742,13 @@ function buildReviewSequence(
     reviewStep(
       "idea-intake",
       1,
-      "先建观察名单或持仓 memo",
+      "先建观察名单或持仓备忘录",
       "/modules/portfolio",
       "portfolio-create-assets",
-      "组合想法需要进入观察名单或持仓 memo，才有复盘和关联基础。",
+      "组合想法需要进入观察名单或持仓备忘录，才有复盘和关联基础。",
       review.summary.portfolio_memos > 0 || review.summary.watchlist_pages > 0
         ? "已有组合资产页面。"
-        : "至少创建一个观察名单或持仓 memo。"
+        : "至少创建一个观察名单或持仓备忘录。"
     ),
     reviewStep(
       "position-discipline",
@@ -768,7 +768,7 @@ function buildReviewSequence(
       "补投资假设和风险",
       "/modules/portfolio",
       "portfolio-review-radar",
-      "组合条目需要明确 thesis、风险、反证和证伪条件。",
+      "组合条目需要明确投资假设、风险、反证和证伪条件。",
       review.areas.find((area) => area.id === "thesis")?.status === "ready" &&
       review.areas.find((area) => area.id === "risk-notes")?.status === "ready"
         ? "投资假设和风险结构已覆盖。"
@@ -803,10 +803,10 @@ function buildReviewSequence(
       "最后逐条入组合跟踪表",
       "/modules/portfolio",
       "portfolio-tracker-intake",
-      "tracker row 是本地写入动作，必须逐条确认，不能由工作台批量写入。",
+      "跟踪表行是本地写入动作，必须逐条确认，不能由工作台批量写入。",
       trackerIntakeItems.length > 0
         ? `${trackerIntakeItems.length} 个脱敏候选等待组合入库台复核。`
-        : "当前没有 tracker intake 候选。"
+        : "当前没有组合入库候选。"
     ),
     reviewStep(
       "privacy-boundary",
@@ -815,7 +815,7 @@ function buildReviewSequence(
       "/modules/sync",
       "portfolio-privacy-boundary",
       "价格源、券商、AI、云同步和批量写入都是高风险动作。",
-      "当前 packet 只做本地 metadata-only 排队。"
+      "当前动作包只做本地 metadata 排队。"
     ),
   ];
 }

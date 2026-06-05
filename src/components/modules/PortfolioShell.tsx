@@ -213,7 +213,7 @@ function PortfolioDashboard() {
       });
     } catch (err) {
       console.error("[Zhinote] Failed to export portfolio review:", err);
-      window.alert("Portfolio review export failed. Please check the console.");
+      window.alert("组合复盘导出失败，请查看控制台。");
     } finally {
       setExportingReview(false);
     }
@@ -258,7 +258,7 @@ function PortfolioDashboard() {
       );
       if (existingRow) {
         setTrackerIntakeMessage(
-          "已存在 tracker row。已打开组合跟踪表继续补 relation 和复盘字段。"
+          "已存在跟踪表行。已打开组合跟踪表继续补 relation 和复盘字段。"
         );
         router.push(
           `/database/${tracker.id}?q=${encodeURIComponent(
@@ -274,7 +274,7 @@ function PortfolioDashboard() {
       );
       if (!hasRelatedMemoRelation) {
         window.alert(
-          "当前组合跟踪表缺少 Related memo relation 字段，请先补字段后再入库。"
+          "当前组合跟踪表缺少关联备忘录 relation 字段，请先补字段后再入库。"
         );
         return;
       }
@@ -285,7 +285,7 @@ function PortfolioDashboard() {
         contentText: draft.row_page_content,
       });
       setTrackerIntakeMessage(
-        "已创建脱敏 tracker row。已打开组合跟踪表继续补 relation 和复盘字段。"
+        "已创建脱敏跟踪表行。已打开组合跟踪表继续补 relation 和复盘字段。"
       );
       router.push(
         `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
@@ -385,10 +385,10 @@ function PortfolioDashboard() {
                 组合工作台
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把组合复盘雷达和组合入库台合并成一个本地 action packet：
-                先建立观察名单或持仓 memo，再补仓位纪律、投资假设、风险、
-                催化剂、研究关联、tracker intake 和隐私边界。导出不包含页面标题、
-                ticker、权重、持仓名、交易计划、交易记录、券商账户或价格源。
+                把组合复盘雷达和组合入库台合并成一个本地动作包：
+                先建立观察名单或持仓备忘录，再补仓位纪律、投资假设、风险、
+                催化剂、研究关联、组合入库和隐私边界。导出不包含页面标题、
+                股票代码、权重、持仓名、交易计划、交易记录、券商账户或价格源。
               </p>
             </div>
             <button
@@ -402,11 +402,11 @@ function PortfolioDashboard() {
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
             <PortfolioWorkbenchMetric
-              label="Review 缺口"
+              label="复盘缺口"
               value={portfolioWorkbench.summary.missing_areas}
             />
             <PortfolioWorkbenchMetric
-              label="Memo"
+              label="备忘录"
               value={portfolioWorkbench.summary.portfolio_memos}
             />
             <PortfolioWorkbenchMetric
@@ -437,7 +437,7 @@ function PortfolioDashboard() {
           <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
             <div>
               <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                工作台 lanes
+                工作台分组
               </div>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
                 {portfolioWorkbench.lanes.map((lane) => (
@@ -481,10 +481,10 @@ function PortfolioDashboard() {
                 组合入库台
               </h2>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                把本地持仓 memo 或观察名单页面创建成组合跟踪表 row，并自动填入
-                Related memo relation、Status、Conviction、Thesis 和 Risk notes。
-                点击后只做本地单条写入，不读取页面正文、页面标题、数据库 row values、
-                ticker、权重、持仓名、交易计划或交易记录，不连接券商或价格源。
+                把本地持仓备忘录或观察名单页面创建成组合跟踪表行，并自动填入
+                关联备忘录、状态、确信度、投资假设和风险笔记。
+                点击后只做本地单条写入，不读取页面正文、页面标题、数据库行值、
+                股票代码、权重、持仓名、交易计划或交易记录，不连接券商或价格源。
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
@@ -495,7 +495,7 @@ function PortfolioDashboard() {
                     : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                 }`}
               >
-                {portfolioTrackers.length > 0 ? "Tracker ready" : "缺组合跟踪表"}
+                {portfolioTrackers.length > 0 ? "跟踪表就绪" : "缺组合跟踪表"}
               </span>
               <span className="rounded-md bg-blue-50 px-2 py-1 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                 本地单条写入
@@ -525,7 +525,7 @@ function PortfolioDashboard() {
             </div>
           ) : (
             <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-400 dark:bg-zinc-900">
-              还没有可入库的持仓 memo 或观察名单页面。先新建组合资产，再把它创建成组合跟踪表 row。
+              还没有可入库的持仓备忘录或观察名单页面。先新建组合资产，再把它创建成组合跟踪表行。
             </p>
           )}
         </section>
@@ -542,7 +542,7 @@ function PortfolioDashboard() {
               <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 本地扫描组合页面和数据库元数据，检查持仓 memo、观察名单、仓位纪律、
                 确信度、催化剂、风险笔记、投资假设、研究关联和组合跟踪表结构。
-                导出不会包含页面标题、ticker、权重、持仓名、交易计划或交易记录。
+                导出不会包含页面标题、股票代码、权重、持仓名、交易计划或交易记录。
               </p>
             </div>
             <button
@@ -551,34 +551,34 @@ function PortfolioDashboard() {
               disabled={exportingReview}
               className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {exportingReview ? "Exporting..." : "Export review"}
+              {exportingReview ? "导出中..." : "导出复盘"}
             </button>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-7">
             <ReviewMetric
               label="复盘面"
               value={portfolioReview.summary.review_areas}
-              detail="Review areas"
+              detail="复盘结构面"
               status="ready"
             />
             <ReviewMetric
-              label="Ready"
+              label="就绪"
               value={portfolioReview.summary.ready}
-              detail="Has structure"
+              detail="已有结构"
               status="ready"
             />
             <ReviewMetric
-              label="Missing"
+              label="缺失"
               value={portfolioReview.summary.missing}
-              detail="Needs setup"
+              detail="需要补齐"
               status={
                 portfolioReview.summary.missing > 0 ? "missing" : "ready"
               }
             />
             <ReviewMetric
-              label="Memo"
+              label="备忘录"
               value={portfolioReview.summary.portfolio_memos}
-              detail="Local only"
+              detail="仅本地"
               status={
                 portfolioReview.summary.portfolio_memos > 0
                   ? "ready"
@@ -588,7 +588,7 @@ function PortfolioDashboard() {
             <ReviewMetric
               label="观察名单"
               value={portfolioReview.summary.watchlist_pages}
-              detail="Ideas"
+              detail="想法池"
               status={
                 portfolioReview.summary.watchlist_pages > 0
                   ? "ready"
@@ -598,7 +598,7 @@ function PortfolioDashboard() {
             <ReviewMetric
               label="跟踪表"
               value={portfolioReview.summary.tracker_databases}
-              detail="Metadata"
+              detail="元数据"
               status={
                 portfolioReview.summary.tracker_databases > 0
                   ? "ready"
@@ -608,7 +608,7 @@ function PortfolioDashboard() {
             <ReviewMetric
               label="待复盘"
               value={portfolioReview.summary.items_needing_review}
-              detail="Redacted"
+              detail="脱敏"
               status={
                 portfolioReview.summary.items_needing_review > 0
                   ? "missing"
@@ -692,11 +692,11 @@ function PortfolioDashboard() {
           />
           <ResourceList
             title="组合跟踪表"
-            emptyText="还没有组合跟踪数据库。"
+            emptyText="还没有组合跟踪表。"
             items={portfolioTrackers.map((database) => ({
               id: database.id,
               label: database.title || "组合跟踪表",
-              meta: database.description ?? "本地组合数据库",
+              meta: database.description ?? "本地组合跟踪表",
               onOpen: () => router.push(`/database/${database.id}`),
             }))}
           />
@@ -744,7 +744,7 @@ function PortfolioDecisionSummaryPanel({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Portfolio Decision Summary
+            组合决策摘要
           </p>
           <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             组合决策摘要
@@ -784,9 +784,8 @@ function PortfolioDecisionSummaryPanel({
 
       <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
         组合决策摘要只读取本地 summary metadata，不包含页面标题、页面正文、
-        position names、tickers、weights、holdings、trading plans、
-        transactions、brokerage data、prices、prompt、token、credentials、
-        cloud data 或 AI output。
+        持仓名、股票代码、权重、持仓、交易计划、交易记录、券商数据、价格、
+        prompt、token、credentials、cloud data 或 AI output。
       </p>
     </section>
   );
@@ -890,7 +889,7 @@ function PortfolioWorkbenchReviewStepCard({
     <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-[11px] text-zinc-400">Step {step.order}</div>
+          <div className="text-[11px] text-zinc-400">步骤 {step.order}</div>
           <div className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
             {step.title}
           </div>
@@ -1021,9 +1020,9 @@ function PortfolioWorkbenchStatusPill({
   status: PortfolioWorkbenchStatus;
 }) {
   const labels: Record<PortfolioWorkbenchStatus, string> = {
-    ready: "Ready",
+    ready: "就绪",
     "review-needed": "需复核",
-    missing: "Missing",
+    missing: "缺失",
     "blocked-boundary": "边界阻止",
   };
   const className =
@@ -1116,7 +1115,7 @@ function PortfolioReviewItemCard({
             {item.label}
           </div>
           <div className="mt-1 text-zinc-400">
-            已隐藏页面标题、ticker、持仓名和权重
+            已隐藏页面标题、股票代码、持仓名和权重
           </div>
         </div>
         <button
@@ -1165,8 +1164,8 @@ function PortfolioTrackerIntakeCard({
             {item.redacted_label}
           </div>
           <div className="mt-1 text-zinc-400">
-            {item.source_kind === "watchlist" ? "观察名单" : "持仓 memo"} ·
-            已隐藏页面标题、ticker、持仓名和权重
+            {item.source_kind === "watchlist" ? "观察名单" : "持仓备忘录"} ·
+            已隐藏页面标题、股票代码、持仓名和权重
           </div>
         </div>
         <PortfolioReviewStatusPill
@@ -1185,16 +1184,15 @@ function PortfolioTrackerIntakeCard({
           ))
         ) : (
           <span className="rounded bg-green-50 px-1.5 py-0.5 text-[10px] text-green-700 dark:bg-green-950 dark:text-green-300">
-            Ready
+            就绪
           </span>
         )}
       </div>
       <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
-        将创建一条本地 portfolio tracker row，写入 Related memo relation、
-        Status、Conviction、Thesis 和 Risk notes。
+        将创建一条本地组合跟踪表行，写入关联备忘录、状态、确信度、投资假设和风险笔记。
       </p>
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800">
-        本地单条写入；不读取页面正文、页面标题、ticker、权重、持仓名、交易计划、
+        本地单条写入；不读取页面正文、页面标题、股票代码、权重、持仓名、交易计划、
         交易记录、券商账户或价格源。
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -1204,7 +1202,7 @@ function PortfolioTrackerIntakeCard({
           disabled={!trackerReady || busy}
           className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
         >
-          {busy ? "创建中..." : "创建 tracker row"}
+          {busy ? "创建中..." : "创建跟踪表行"}
         </button>
         <button
           type="button"
@@ -1224,9 +1222,9 @@ function PortfolioReviewStatusPill({
   status: PortfolioReviewStatus;
 }) {
   const labels: Record<PortfolioReviewStatus, string> = {
-    ready: "Ready",
-    partial: "Partial",
-    missing: "Missing",
+    ready: "就绪",
+    partial: "部分就绪",
+    missing: "缺失",
   };
   const className =
     status === "ready"

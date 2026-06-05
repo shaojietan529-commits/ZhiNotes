@@ -254,50 +254,50 @@ async function applyWorkspacePreset(
   if (preset === "portfolio-tracker") {
     await updateDatabase(databaseId, {
       description:
-        "Local portfolio and watchlist tracker for position status, sizing, thesis, catalysts, risks, and linked research.",
+        "本地组合与观察名单跟踪表，用来管理状态、仓位纪律、投资假设、催化剂、风险和关联研究。",
     });
     await addPresetFields(databaseId, [
-      { name: "Ticker", fieldType: "text" },
-      { name: "Company page", fieldType: "relation" },
+      { name: "股票代码", fieldType: "text" },
+      { name: "公司页", fieldType: "relation" },
       {
-        name: "Status",
+        name: "状态",
         fieldType: "status",
-        options: ["Watchlist", "Researching", "Active", "Trimming", "Exited", "Avoid"],
+        options: ["观察名单", "研究中", "持仓中", "降仓中", "已退出", "回避"],
       },
       {
-        name: "Portfolio role",
+        name: "组合角色",
         fieldType: "select",
-        options: ["Core", "Satellite", "Hedge", "Event", "Short candidate", "Cash proxy"],
+        options: ["核心", "卫星", "对冲", "事件驱动", "潜在做空", "现金替代"],
       },
       {
-        name: "Direction",
+        name: "方向",
         fieldType: "select",
-        options: ["Long", "Short", "Pair", "Neutral"],
+        options: ["做多", "做空", "配对", "中性"],
       },
       {
-        name: "Conviction",
+        name: "确信度",
         fieldType: "select",
-        options: ["High", "Medium", "Low", "Review"],
+        options: ["高", "中", "低", "复核中"],
       },
-      { name: "Target weight", fieldType: "number" },
-      { name: "Current weight", fieldType: "number" },
-      { name: "Entry price", fieldType: "number" },
-      { name: "Target price", fieldType: "number" },
-      { name: "Downside price", fieldType: "number" },
-      { name: "Next catalyst", fieldType: "date" },
-      { name: "Thesis", fieldType: "text" },
-      { name: "Risk notes", fieldType: "text" },
-      { name: "Related memo", fieldType: "relation" },
-      { name: "Related reports", fieldType: "relation" },
-      { name: "Related meetings", fieldType: "relation" },
+      { name: "目标权重", fieldType: "number" },
+      { name: "当前权重", fieldType: "number" },
+      { name: "建仓价", fieldType: "number" },
+      { name: "目标价", fieldType: "number" },
+      { name: "下行价", fieldType: "number" },
+      { name: "下一催化剂", fieldType: "date" },
+      { name: "投资假设", fieldType: "text" },
+      { name: "风险笔记", fieldType: "text" },
+      { name: "关联备忘录", fieldType: "relation" },
+      { name: "关联报告", fieldType: "relation" },
+      { name: "关联会议", fieldType: "relation" },
     ]);
     await addPresetViews(databaseId, [
-      { name: "Portfolio table", viewType: "table" },
-      { name: "Status board", viewType: "kanban" },
-      { name: "Catalyst timeline", viewType: "timeline" },
-      { name: "Sizing watchlist", viewType: "table" },
+      { name: "组合表", viewType: "table" },
+      { name: "状态看板", viewType: "kanban" },
+      { name: "催化剂时间线", viewType: "timeline" },
+      { name: "仓位观察", viewType: "table" },
       { name: "持仓状态分布", viewType: "chart" },
-      { name: "Position review", viewType: "feed" },
+      { name: "持仓复盘", viewType: "feed" },
     ]);
     return updateDatabase(databaseId, {});
   }

@@ -68,7 +68,7 @@ const requiredKinds = [
     route: "/modules/portfolio",
     preset: "portfolio-tracker",
     relationKinds: ["company", "report", "meeting"],
-    keyFields: ["Target weight", "Conviction", "Risk notes"],
+    keyFields: ["目标权重", "确信度", "风险笔记"],
   },
 ];
 
@@ -1705,11 +1705,11 @@ function run() {
     );
   }
   for (const fieldName of [
-    "Related memo",
-    "Status",
-    "Conviction",
-    "Thesis",
-    "Risk notes",
+    "关联备忘录",
+    "状态",
+    "确信度",
+    "投资假设",
+    "风险笔记",
   ]) {
     assertIncludes(
       files.portfolioTrackerIntake,
@@ -2005,7 +2005,7 @@ function run() {
   assertIncludes(
     files.portfolioShell,
     portfolioShell,
-    "Export review",
+    "导出复盘",
     "Portfolio module must export the review report."
   );
   for (const snippet of [

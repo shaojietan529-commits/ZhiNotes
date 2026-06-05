@@ -66,11 +66,14 @@ export interface PortfolioTrackerExistingRow {
 }
 
 const PORTFOLIO_TRACKER_REQUIRED_FIELDS = [
-  "Related memo",
-  "Status",
-  "Conviction",
-  "Thesis",
-  "Risk notes",
+  {
+    label: "关联备忘录",
+    aliases: ["关联备忘录", "相关备忘录", "Related memo", "Memo"],
+  },
+  { label: "状态", aliases: ["状态", "Status"] },
+  { label: "确信度", aliases: ["确信度", "Conviction"] },
+  { label: "投资假设", aliases: ["投资假设", "Thesis"] },
+  { label: "风险笔记", aliases: ["风险笔记", "风险", "Risk notes"] },
 ];
 
 export function buildPortfolioTrackerIntakeDraft(
@@ -81,6 +84,7 @@ export function buildPortfolioTrackerIntakeDraft(
   const fieldValues: Record<string, unknown> = {};
 
   const relatedMemoField = findField(fields, [
+    "关联备忘录",
     "Related memo",
     "相关备忘录",
     "Memo",
@@ -109,7 +113,7 @@ export function buildPortfolioTrackerIntakeDraft(
   }
 
   if (convictionField) {
-    fieldValues[convictionField.id] = "Review";
+    fieldValues[convictionField.id] = "复核中";
     mappedFields.push({
       field_name: convictionField.name,
       field_type: convictionField.field_type,
@@ -140,7 +144,7 @@ export function buildPortfolioTrackerIntakeDraft(
     format_version: 1,
     draft_status: "local-portfolio-tracker-row-draft",
     privacy_note:
-      "Generated locally from one redacted portfolio review item and the selected portfolio tracker field schema. It creates a row draft with relation ids and structural status only. It does not read or export page text, page titles, database row values, position names, tickers, weights, holdings, trading plans, transactions, brokerage data, prices, cloud data, AI prompts, tokens, or credentials.",
+      "由本地脱敏组合复盘条目和所选组合跟踪表字段结构生成。它只创建带 relation id 和结构状态的行草稿，不读取或导出页面正文、页面标题、数据库行值、持仓名、股票代码、权重、持仓、交易计划、交易记录、券商数据、价格、云端数据、AI prompt、token 或凭证。",
     boundary: {
       local_row_draft_only: true,
       reads_portfolio_review_item: true,
@@ -167,11 +171,13 @@ export function buildPortfolioTrackerIntakeDraft(
     field_values: fieldValues,
     mapped_fields: mappedFields,
     missing_fields: PORTFOLIO_TRACKER_REQUIRED_FIELDS.filter(
-      (fieldName) =>
-        !mappedFields.some(
-          (field) => normalizeName(field.field_name) === normalizeName(fieldName)
+      (requiredField) =>
+        !mappedFields.some((field) =>
+          requiredField.aliases.some(
+            (alias) => normalizeName(field.field_name) === normalizeName(alias)
+          )
         )
-    ),
+    ).map((requiredField) => requiredField.label),
   };
 }
 
@@ -181,6 +187,7 @@ export function findExistingPortfolioTrackerRow(
   memoPageId: string
 ): PortfolioTrackerExistingRow | null {
   const relatedMemoField = findField(fields, [
+    "关联备忘录",
     "Related memo",
     "相关备忘录",
     "Memo",
@@ -204,9 +211,9 @@ export function findExistingPortfolioTrackerRow(
 }
 
 function getPortfolioTrackerStatus(item: PortfolioTrackerIntakeItem) {
-  if (item.source_kind === "watchlist") return "Watchlist";
-  if (item.missing_areas.length > 0) return "Researching";
-  return "Active";
+  if (item.source_kind === "watchlist") return "观察名单";
+  if (item.missing_areas.length > 0) return "研究中";
+  return "持仓中";
 }
 
 function buildPortfolioTrackerRowContent(item: PortfolioTrackerIntakeItem) {
@@ -215,22 +222,22 @@ function buildPortfolioTrackerRowContent(item: PortfolioTrackerIntakeItem) {
       ? item.missing_areas
           .map((area) => `<li>${escapeHtml(getPortfolioReviewAreaLabel(area))}</li>`)
           .join("")
-      : "<li>基础结构已覆盖，继续补 relation 值和最新复盘结论。</li>";
+      : "<li>基础结构已覆盖，继续补关联值和最新复盘结论。</li>";
 
   return `
     <h1>${escapeHtml(`组合跟踪 - ${item.redacted_label}`)}</h1>
-    <p>由组合模块本地入库创建。这个 row 用来把本地持仓或观察名单 memo 接入组合跟踪表。</p>
+    <p>由组合模块本地入库创建。这个行用来把本地持仓或观察名单备忘录接入组合跟踪表。</p>
     <h2>已连接</h2>
     <ul>
-      <li>Related memo relation: ${escapeHtml(item.redacted_label)}</li>
-      <li>来源类型：${item.source_kind === "watchlist" ? "观察名单" : "持仓 memo"}</li>
+      <li>关联备忘录 relation: ${escapeHtml(item.redacted_label)}</li>
+      <li>来源类型：${item.source_kind === "watchlist" ? "观察名单" : "持仓备忘录"}</li>
     </ul>
     <h2>下一步</h2>
     <ul>
       <li>${escapeHtml(item.next_action)}</li>
       ${missingAreas}
     </ul>
-    <p><strong>隐私边界：</strong>本地单条写入，不读取页面正文、页面标题、ticker、权重、持仓名、交易计划、交易记录、券商账户或价格源。</p>
+    <p><strong>隐私边界：</strong>本地单条写入，不读取页面正文、页面标题、股票代码、权重、持仓名、交易计划、交易记录、券商账户或价格源。</p>
   `.trim();
 }
 
