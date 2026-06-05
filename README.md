@@ -317,6 +317,10 @@ Current local actions:
   single-filter/single-sort view configs remain compatible and open as one
   rule. Table, list, gallery, and feed views can render grouped sections
   without changing row values.
+- Inline databases now apply saved view display config from the selected view:
+  row search, filters, sort rules, hidden properties, chart grouping, and
+  manual-sort eligibility are read locally for display without writing row
+  values.
 - Manage local database views from each view tab: rename a view, duplicate its
   current config into a copy, or soft-delete a non-final view without deleting
   any rows, pages, files, or field values.

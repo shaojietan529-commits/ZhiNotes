@@ -545,7 +545,7 @@ function run() {
   for (const snippet of [
     "handleMoveRow",
     "updateRow(currentRow.id, { position: targetRow.position })",
-    "canMoveRows: true",
+    "canMoveRows: isDefaultInlineSortRules(activeViewConfig.sortRules)",
   ]) {
     assertIncludes(
       files.inlineDatabaseNode,
@@ -910,6 +910,24 @@ function run() {
     "appendDatabaseTemplateRowReceipt",
     "Inline database UI must append local template-row write receipts."
   );
+  for (const snippet of [
+    "parseInlineDatabaseViewConfig",
+    "getInlineVisibleRows",
+    "getInlineVisibleFields",
+    "activeViewConfig.rowSearch",
+    "activeViewConfig.filterRules",
+    "activeViewConfig.sortRules",
+    "activeViewConfig.hiddenFieldIds",
+    "chartGroupFieldId={activeViewConfig.chartGroupFieldId}",
+    "isDefaultInlineSortRules(activeViewConfig.sortRules)",
+  ]) {
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline databases must apply saved database view config for display without writing row values."
+    );
+  }
   assertIncludes(
     files.inlineDatabaseNode,
     inlineDatabaseNode,
@@ -1729,6 +1747,7 @@ function run() {
         template_row_field_drafts: true,
         template_row_receipts: true,
         template_row_receipt_history: true,
+        inline_view_config: true,
         import_export_readiness: true,
         feed_field_context: true,
         view_rule_controls: true,

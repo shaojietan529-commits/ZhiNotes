@@ -50,6 +50,8 @@ schema migration 的能力默认保持关闭。
   view config，只影响展示，不改 row values。
 - 数据库 view tab 现在有本地管理菜单：重命名、复制视图配置、删除非最后一个视图；删除是
   soft delete，只影响 view config，不删除行、页面、字段或文件。
+- Inline database 现在会应用已保存的 view config：row search、筛选、排序、隐藏属性、图表
+  分组和手动排序启用状态都会按所选 view 本地计算展示；inline 本身不写 view config。
 
 ### 数据库 Rollup 汇总字段阶段
 

@@ -3,7 +3,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { usePages } from "@/hooks/usePages";
 import {
@@ -50,6 +50,14 @@ import {
   getDatabaseFieldDescription,
   isSelectLikeFieldType,
 } from "@/lib/database/fields";
+import { stringifyRelationValue } from "@/lib/database/relationValues";
+import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
+import { evaluateDatabaseFormula } from "@/lib/database/formula";
+import { evaluateDatabaseRollup } from "@/lib/database/rollup";
+import {
+  getDatabaseSystemFieldValue,
+  isDatabaseSystemField,
+} from "@/lib/database/systemFields";
 import {
   appendDatabaseTemplateRowReceipt,
   buildDatabaseTemplateRowDraft,
@@ -59,6 +67,31 @@ import {
 // ─── React Component rendered inside the editor ─────────────
 
 type RowWithPage = DatabaseRow & { page: Page };
+type SortDirection = "asc" | "desc";
+
+interface InlineDatabaseFilterRule {
+  id: string;
+  fieldId: string;
+  value: string;
+}
+
+interface InlineDatabaseSortRule {
+  id: string;
+  key: string;
+  direction: SortDirection;
+}
+
+interface InlineDatabaseViewConfig {
+  rowSearch: string;
+  filterFieldId: string;
+  filterValue: string;
+  filterRules: InlineDatabaseFilterRule[];
+  sortKey: string;
+  sortDirection: SortDirection;
+  sortRules: InlineDatabaseSortRule[];
+  hiddenFieldIds: string[];
+  chartGroupFieldId: string;
+}
 
 function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
   const router = useRouter();
@@ -291,6 +324,35 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
     [router]
   );
 
+  const activeView = views.find((v) => v.id === activeViewId) || views[0];
+  const activeViewConfig = useMemo(
+    () => parseInlineDatabaseViewConfig(activeView?.config ?? "{}"),
+    [activeView?.config]
+  );
+  const visibleFields = useMemo(
+    () => getInlineVisibleFields(fields, activeViewConfig.hiddenFieldIds),
+    [fields, activeViewConfig.hiddenFieldIds]
+  );
+  const visibleRows = useMemo(
+    () =>
+      getInlineVisibleRows({
+        rows,
+        fields,
+        relationPages: workspacePages,
+        search: activeViewConfig.rowSearch,
+        filterRules: activeViewConfig.filterRules,
+        sortRules: activeViewConfig.sortRules,
+      }),
+    [
+      rows,
+      fields,
+      workspacePages,
+      activeViewConfig.rowSearch,
+      activeViewConfig.filterRules,
+      activeViewConfig.sortRules,
+    ]
+  );
+
   if (loading) {
     return (
       <NodeViewWrapper className="my-4">
@@ -311,20 +373,22 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
     );
   }
 
-  const activeView = views.find((v) => v.id === activeViewId) || views[0];
-
   const viewProps = {
     fields,
-    rows,
+    rows: visibleRows,
     onAddRow: handleAddRow,
     onUpdateRow: handleUpdateRow,
     onDeleteRow: handleDeleteRow,
     onDuplicateRow: handleDuplicateRow,
     onMoveRow: handleMoveRow,
-    canMoveRows: true,
+    canMoveRows: isDefaultInlineSortRules(activeViewConfig.sortRules),
     onOpenRow: handleOpenRow,
     onOpenPage: handleOpenPage,
     relationPages: workspacePages,
+  };
+  const visibleFieldViewProps = {
+    ...viewProps,
+    fields: visibleFields,
   };
 
   return (
@@ -427,23 +491,24 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
 
         {/* View content */}
         <div className="px-4 py-3">
-          {activeView?.view_type === "table" && <TableView {...viewProps} />}
-          {activeView?.view_type === "list" && <ListView {...viewProps} />}
+          {activeView?.view_type === "table" && <TableView {...visibleFieldViewProps} />}
+          {activeView?.view_type === "list" && <ListView {...visibleFieldViewProps} />}
           {activeView?.view_type === "kanban" && <KanbanView {...viewProps} />}
           {activeView?.view_type === "calendar" && <CalendarView {...viewProps} />}
-          {activeView?.view_type === "gallery" && <GalleryView {...viewProps} />}
+          {activeView?.view_type === "gallery" && <GalleryView {...visibleFieldViewProps} />}
           {activeView?.view_type === "timeline" && <TimelineView {...viewProps} />}
           {activeView?.view_type === "chart" && (
             <ChartView
               fields={fields}
-              rows={rows}
+              rows={visibleRows}
+              chartGroupFieldId={activeViewConfig.chartGroupFieldId}
               relationPages={workspacePages}
               onOpenRow={handleOpenRow}
             />
           )}
           {activeView?.view_type === "form" && (
             <FormView
-              fields={fields}
+              fields={visibleFields}
               relationPages={workspacePages}
               onOpenPage={handleOpenPage}
               onCreateRow={handleCreateRow}
@@ -462,6 +527,338 @@ function parseFieldValues(fieldValues: string) {
   } catch {
     return {};
   }
+}
+
+function parseInlineDatabaseViewConfig(config: string): InlineDatabaseViewConfig {
+  const fallback: InlineDatabaseViewConfig = {
+    rowSearch: "",
+    filterFieldId: "all",
+    filterValue: "",
+    filterRules: [],
+    sortKey: "position",
+    sortDirection: "asc",
+    sortRules: [createInlineDatabaseSortRule("position", "asc")],
+    hiddenFieldIds: [],
+    chartGroupFieldId: "",
+  };
+
+  try {
+    const parsed = JSON.parse(config || "{}") as Partial<InlineDatabaseViewConfig>;
+    const filterFieldId =
+      typeof parsed.filterFieldId === "string" ? parsed.filterFieldId : "all";
+    const filterValue =
+      typeof parsed.filterValue === "string" ? parsed.filterValue : "";
+    const sortKey =
+      typeof parsed.sortKey === "string" ? parsed.sortKey : "position";
+    const sortDirection = parsed.sortDirection === "desc" ? "desc" : "asc";
+
+    return {
+      rowSearch: typeof parsed.rowSearch === "string" ? parsed.rowSearch : "",
+      filterFieldId,
+      filterValue,
+      filterRules: parseInlineDatabaseFilterRules(
+        parsed.filterRules,
+        filterFieldId,
+        filterValue
+      ),
+      sortKey,
+      sortDirection,
+      sortRules: parseInlineDatabaseSortRules(
+        parsed.sortRules,
+        sortKey,
+        sortDirection
+      ),
+      hiddenFieldIds: parseInlineStringArray(parsed.hiddenFieldIds),
+      chartGroupFieldId:
+        typeof parsed.chartGroupFieldId === "string"
+          ? parsed.chartGroupFieldId
+          : "",
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function getInlineVisibleFields(
+  fields: DatabaseField[],
+  hiddenFieldIds: string[]
+) {
+  const hiddenFieldSet = new Set(hiddenFieldIds);
+  return fields.filter(
+    (field) => field.position === 0 || !hiddenFieldSet.has(field.id)
+  );
+}
+
+function getInlineVisibleRows({
+  rows,
+  fields,
+  relationPages,
+  search,
+  filterRules,
+  sortRules,
+}: {
+  rows: RowWithPage[];
+  fields: DatabaseField[];
+  relationPages: Page[];
+  search: string;
+  filterRules: InlineDatabaseFilterRule[];
+  sortRules: InlineDatabaseSortRule[];
+}) {
+  const normalizedSearch = search.trim().toLowerCase();
+  const activeFilterRules = filterRules
+    .map((rule) => ({
+      ...rule,
+      normalizedValue: rule.value.trim().toLowerCase(),
+    }))
+    .filter((rule) => rule.normalizedValue);
+  const activeSortRules = sortRules.length
+    ? sortRules
+    : [createInlineDatabaseSortRule("position", "asc")];
+
+  const filtered = rows.filter((row) => {
+    const rowText = getInlineRowSearchText(row, fields, relationPages).toLowerCase();
+    if (normalizedSearch && !rowText.includes(normalizedSearch)) return false;
+
+    return activeFilterRules.every((rule) => {
+      if (rule.fieldId === "all") {
+        return rowText.includes(rule.normalizedValue);
+      }
+
+      const field = fields.find((item) => item.id === rule.fieldId);
+      if (!field) return true;
+
+      return getInlineRowFieldText(row, field, fields, relationPages)
+        .toLowerCase()
+        .includes(rule.normalizedValue);
+    });
+  });
+
+  return [...filtered].sort((left, right) => {
+    for (const rule of activeSortRules) {
+      const comparison = compareInlineRows(
+        left,
+        right,
+        fields,
+        relationPages,
+        rule.key
+      );
+      if (comparison !== 0) {
+        return rule.direction === "asc" ? comparison : -comparison;
+      }
+    }
+    return left.position - right.position;
+  });
+}
+
+function compareInlineRows(
+  left: RowWithPage,
+  right: RowWithPage,
+  fields: DatabaseField[],
+  relationPages: Page[],
+  sortKey: string
+) {
+  if (sortKey === "position") return left.position - right.position;
+  if (sortKey === "name") return compareInlineValues(left.page?.title, right.page?.title);
+  if (sortKey === "created") return compareInlineValues(left.created_at, right.created_at);
+  if (sortKey === "updated") return compareInlineValues(left.updated_at, right.updated_at);
+
+  if (sortKey.startsWith("field:")) {
+    const fieldId = sortKey.slice("field:".length);
+    const field = fields.find((item) => item.id === fieldId);
+    if (!field) return 0;
+    if (field.field_type === "relation") {
+      return compareInlineValues(
+        getInlineRowFieldText(left, field, fields, relationPages),
+        getInlineRowFieldText(right, field, fields, relationPages)
+      );
+    }
+    return compareInlineValues(
+      getInlineRowFieldValue(left, field, fields, relationPages),
+      getInlineRowFieldValue(right, field, fields, relationPages)
+    );
+  }
+
+  return 0;
+}
+
+function getInlineRowSearchText(
+  row: RowWithPage,
+  fields: DatabaseField[],
+  relationPages: Page[]
+) {
+  return [
+    row.page?.title ?? "",
+    row.created_at,
+    row.updated_at,
+    ...fields.map((field) =>
+      getInlineRowFieldText(row, field, fields, relationPages)
+    ),
+  ].join(" ");
+}
+
+function getInlineRowFieldText(
+  row: RowWithPage,
+  field: DatabaseField,
+  fields: DatabaseField[],
+  relationPages: Page[]
+) {
+  if (field.position === 0 || field.name === "Name") {
+    return row.page?.title ?? "";
+  }
+  const value = getInlineRowFieldValue(row, field, fields, relationPages);
+  if (field.field_type === "relation") {
+    return stringifyRelationValue(value, relationPages);
+  }
+  if (field.field_type === "number") {
+    return formatDatabaseNumberValue(value, field);
+  }
+  if (field.field_type === "formula") {
+    const values = parseFieldValues(row.field_values);
+    return evaluateDatabaseFormula(field, fields, row, values).label;
+  }
+  if (field.field_type === "rollup") {
+    const values = parseFieldValues(row.field_values);
+    return evaluateDatabaseRollup(field, fields, values, relationPages).label;
+  }
+  return stringifyInlineValue(value);
+}
+
+function getInlineRowFieldValue(
+  row: RowWithPage,
+  field: DatabaseField,
+  fields: DatabaseField[],
+  relationPages: Page[]
+) {
+  if (isDatabaseSystemField(field)) {
+    return getDatabaseSystemFieldValue(row, field);
+  }
+  const values = parseFieldValues(row.field_values);
+  if (field.field_type === "formula") {
+    return evaluateDatabaseFormula(field, fields, row, values).value;
+  }
+  if (field.field_type === "rollup") {
+    return evaluateDatabaseRollup(field, fields, values, relationPages).value;
+  }
+  return values[field.id];
+}
+
+function parseInlineDatabaseFilterRules(
+  value: unknown,
+  legacyFieldId: string,
+  legacyValue: string
+): InlineDatabaseFilterRule[] {
+  const rules = Array.isArray(value)
+    ? value
+        .map((item, index) => {
+          if (!item || typeof item !== "object") return null;
+          const candidate = item as Partial<InlineDatabaseFilterRule>;
+          if (
+            typeof candidate.fieldId !== "string" ||
+            typeof candidate.value !== "string"
+          ) {
+            return null;
+          }
+          return {
+            id:
+              typeof candidate.id === "string"
+                ? candidate.id
+                : `inline-filter-${index + 1}`,
+            fieldId: candidate.fieldId,
+            value: candidate.value,
+          };
+        })
+        .filter((item): item is InlineDatabaseFilterRule => Boolean(item))
+    : [];
+
+  if (rules.length > 0) return rules;
+  if (!legacyValue.trim()) return [];
+  return [createInlineDatabaseFilterRule(legacyFieldId || "all", legacyValue)];
+}
+
+function parseInlineDatabaseSortRules(
+  value: unknown,
+  legacyKey: string,
+  legacyDirection: SortDirection
+): InlineDatabaseSortRule[] {
+  const rules = Array.isArray(value)
+    ? value
+        .map((item, index) => {
+          if (!item || typeof item !== "object") return null;
+          const candidate = item as Partial<InlineDatabaseSortRule>;
+          if (typeof candidate.key !== "string") return null;
+          return {
+            id:
+              typeof candidate.id === "string"
+                ? candidate.id
+                : `inline-sort-${index + 1}`,
+            key: candidate.key,
+            direction: candidate.direction === "desc" ? "desc" : "asc",
+          };
+        })
+        .filter((item): item is InlineDatabaseSortRule => Boolean(item))
+    : [];
+
+  if (rules.length > 0) return rules;
+  return [createInlineDatabaseSortRule(legacyKey || "position", legacyDirection)];
+}
+
+function createInlineDatabaseFilterRule(
+  fieldId = "all",
+  value = ""
+): InlineDatabaseFilterRule {
+  return {
+    id: `inline-filter-${fieldId}`,
+    fieldId,
+    value,
+  };
+}
+
+function createInlineDatabaseSortRule(
+  key = "position",
+  direction: SortDirection = "asc"
+): InlineDatabaseSortRule {
+  return {
+    id: `inline-sort-${key}`,
+    key,
+    direction,
+  };
+}
+
+function isDefaultInlineSortRules(sortRules: InlineDatabaseSortRule[]) {
+  return (
+    sortRules.length === 0 ||
+    (sortRules.length === 1 &&
+      sortRules[0].key === "position" &&
+      sortRules[0].direction === "asc")
+  );
+}
+
+function parseInlineStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function compareInlineValues(left: unknown, right: unknown) {
+  const leftText = stringifyInlineValue(left);
+  const rightText = stringifyInlineValue(right);
+  const leftNumber = Number(leftText);
+  const rightNumber = Number(rightText);
+
+  if (leftText && rightText && Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
+    return leftNumber - rightNumber;
+  }
+
+  return leftText.localeCompare(rightText, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function stringifyInlineValue(value: unknown) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  return String(value);
 }
 
 // ─── Small helper components ────────────────────────────────
