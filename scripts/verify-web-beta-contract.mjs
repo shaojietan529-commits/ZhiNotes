@@ -40,6 +40,8 @@ const files = {
   restorePreviewRoute: "src/app/api/backup/restore-preview/route.ts",
   restoreApplyApiStub: "src/lib/sync/restoreApplyApiStub.ts",
   restoreApplyRoute: "src/app/api/backup/restore-apply/route.ts",
+  syncPushApiStub: "src/lib/sync/syncPushApiStub.ts",
+  syncPushRoute: "src/app/api/sync/push/route.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
   workspaceIdentity: "src/lib/sync/workspaceIdentity.ts",
   accountSessionBoundary: "src/lib/security/accountSessionBoundary.ts",
@@ -253,6 +255,8 @@ function run() {
   const restorePreviewRoute = readProjectFile(files.restorePreviewRoute);
   const restoreApplyApiStub = readProjectFile(files.restoreApplyApiStub);
   const restoreApplyRoute = readProjectFile(files.restoreApplyRoute);
+  const syncPushApiStub = readProjectFile(files.syncPushApiStub);
+  const syncPushRoute = readProjectFile(files.syncPushRoute);
   const syncOptInGate = readProjectFile(files.syncOptInGate);
   const workspaceIdentity = readProjectFile(files.workspaceIdentity);
   const accountSessionBoundary = readProjectFile(files.accountSessionBoundary);
@@ -312,6 +316,8 @@ function run() {
     [files.restorePreviewRoute, restorePreviewRoute],
     [files.restoreApplyApiStub, restoreApplyApiStub],
     [files.restoreApplyRoute, restoreApplyRoute],
+    [files.syncPushApiStub, syncPushApiStub],
+    [files.syncPushRoute, syncPushRoute],
     [files.workspaceIdentity, workspaceIdentity],
     [files.accountSessionBoundary, accountSessionBoundary],
     [files.auditEventEnvelope, auditEventEnvelope],
@@ -397,6 +403,12 @@ function run() {
 
     if (isCloudAlphaStub(stub.id)) {
       assertRouteGuard(routeFile, `cloudNotConfiguredResponse("${stub.id}")`, routeLabel);
+    } else if (stub.id === "sync-push") {
+      assertRouteGuard(
+        routeFile,
+        "buildSyncPushApiDisabledResponse",
+        routeLabel
+      );
     } else if (stub.id === "file-presign") {
       assertRouteGuard(
         routeFile,
@@ -1769,6 +1781,151 @@ function run() {
     syncOptInGate,
     "cloud_bootstrap_checked_at",
     "Sync opt-in gate must expose bootstrap proof metadata."
+  );
+  assertSourceIncludes(
+    files.syncPushApiStub,
+    syncPushApiStub,
+    'format: "zhinote-sync-push-api-disabled"',
+    "Sync push API guard must expose a stable disabled response format."
+  );
+  assertSourceIncludes(
+    files.syncPushApiStub,
+    syncPushApiStub,
+    "buildSyncPushApiDisabledResponse",
+    "Sync push API guard must expose a reusable disabled response builder."
+  );
+  for (const item of [
+    ['api_id: "sync-push"', "Sync push API guard must identify the sync-push route."],
+    ['path: "/api/sync/push"', "Sync push API guard must bind to /api/sync/push."],
+    ['method: "POST"', "Sync push API guard must document POST."],
+    ['stub_status: "disabled-local-stub"', "Sync push API guard must stay disabled."],
+    ["can_push_now: false", "Sync push API guard must not push now."],
+    ["can_read_request_body_now: false", "Sync push API guard must not read request bodies."],
+    ["can_accept_sync_batch_now: false", "Sync push API guard must not accept batches."],
+    ["can_upload_workspace_data_now: false", "Sync push API guard must not upload data."],
+    ["can_write_server_data_now: false", "Sync push API guard must not write server data."],
+    ["can_acknowledge_rows_now: false", "Sync push API guard must not acknowledge rows."],
+    ["can_mark_local_rows_synced_now: false", "Sync push API guard must not mutate local sync state."],
+    ["no_request_argument: true", "Sync push API guard must not accept a request argument."],
+    ["endpoint_disabled: true", "Sync push API guard must preserve disabled endpoint boundary."],
+    ["reads_request_body: false", "Sync push API guard must keep body reads disabled."],
+    ["accepts_sync_batch: false", "Sync push API guard must not accept sync batches."],
+    ["accepts_workspace_payload: false", "Sync push API guard must not accept workspace payloads."],
+    ["writes_server_data: false", "Sync push API guard must not write server data."],
+    ["uploads_workspace_data: false", "Sync push API guard must not upload workspace data."],
+    ["acknowledges_sync_rows: false", "Sync push API guard must not acknowledge sync rows."],
+    ["mutates_local_sync_status: false", "Sync push API guard must not mutate local sync status."],
+    ["returns_remote_rows: false", "Sync push API guard must not return remote rows."],
+    ["connects_cloud_services: false", "Sync push API guard must not connect cloud services."],
+    ["reads_page_body_text: false", "Sync push API guard must not read page text."],
+    ["reads_database_row_values: false", "Sync push API guard must not read database values."],
+    ["reads_comment_bodies: false", "Sync push API guard must not read comments."],
+    ["reads_file_bytes: false", "Sync push API guard must not read files."],
+    ["reads_backup_payload: false", "Sync push API guard must not read backups."],
+    ["reads_secret_values: false", "Sync push API guard must not read secrets."],
+    ["requires_payload_preview_before_enablement: true", "Sync push API guard must require payload preview."],
+    ["requires_permission_check_before_enablement: true", "Sync push API guard must require permission checks."],
+    ["requires_audit_event_before_enablement: true", "Sync push API guard must require audit events."],
+    ["requires_idempotency_before_enablement: true", "Sync push API guard must require idempotency."],
+    ["requires_durable_remote_ack_before_enablement: true", "Sync push API guard must require durable ack."],
+    ["requires_retry_dead_letter_before_enablement: true", "Sync push API guard must require retry/dead-letter."],
+    ["requires_rollback_proof_before_enablement: true", "Sync push API guard must require rollback proof."],
+    ["requires_conflict_baseline_before_enablement: true", "Sync push API guard must require conflict baseline."],
+    ["requires_first_push_confirmation_before_enablement: true", "Sync push API guard must require first push confirmation."],
+    ['schema_status: "planned-metadata-only"', "Sync push API guard must expose metadata-only request schema."],
+    ['schema_status: "planned-ack-receipt-only"', "Sync push API guard must expose ack receipt response schema."],
+    ['format: "zhinote-sync-push-api-validator-fixtures"', "Sync push API guard must include local validator fixtures."],
+    ['validator_status: "not-executing-route"', "Sync push validator must not execute the route."],
+    "forbidden_field_names",
+    "forbidden_fields_covered",
+    '"metadata-sync-push-request"',
+    '"sync-payload-blocked"',
+    '"workspace-content-blocked"',
+    '"file-backup-blocked"',
+    '"credential-fields-blocked"',
+    '"ack-mutation-blocked"',
+    "local_batch_id",
+    "sync_log_row_ids",
+    "changed_field_names",
+    "payload_preview_id",
+    "sync_log_payload",
+    "page_snapshot_json",
+    "database_cell_values",
+    "backup_payload",
+    "enable_sync_push",
+    "force_acknowledge",
+    "mark_synced",
+    "overwrite_remote",
+    "delete_remote",
+    '"payload-preview"',
+    '"permission-check"',
+    '"audit-event"',
+    '"idempotency"',
+    '"durable-remote-ack"',
+    '"retry-dead-letter"',
+    '"rollback-proof"',
+    '"conflict-baseline"',
+    '"first-push-confirmation"',
+  ]) {
+    const expected = Array.isArray(item) ? item[0] : item;
+    const message = Array.isArray(item)
+      ? item[1]
+      : "Sync push API guard must preserve schema, fixtures, and enablement gates.";
+    assertSourceIncludes(files.syncPushApiStub, syncPushApiStub, expected, message);
+  }
+  assertSourceIncludes(
+    files.syncPushRoute,
+    syncPushRoute,
+    "buildSyncPushApiDisabledResponse",
+    "Sync push route must return the dedicated disabled response."
+  );
+  assertSourceIncludes(
+    files.syncPushRoute,
+    syncPushRoute,
+    "WEB_BETA_API_STUB_HTTP_STATUS",
+    "Sync push route must keep the disabled Web Beta HTTP status."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildSyncPushApiDisabledResponse",
+    "Sync UI must build the sync push API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportSyncPushApiGuard",
+    "Sync UI must export the sync push API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "同步推送 API 防护",
+    "Sync UI must render the sync push API guard panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "导出同步推送防护",
+    "Sync UI must render the sync push API guard export button."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "value={syncPushApiGuard.format}",
+    "Sync UI must render the sync push disabled response format."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "SyncPushApiFixtureRow",
+    "Sync UI must render sync push validator fixtures."
+  );
+  assertSourceIncludes(
+    files.smokeTestVerifier,
+    smokeTestVerifier,
+    "buildSyncPushApiDisabledResponse",
+    "Smoke tests must require the dedicated sync push disabled response."
   );
   assertSourceIncludes(
     files.accountSessionBoundary,

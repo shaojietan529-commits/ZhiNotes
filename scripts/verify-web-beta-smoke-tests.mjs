@@ -50,7 +50,7 @@ const gatedOrDisabledApiRoutes = [
   },
   {
     path: "src/app/api/sync/push/route.ts",
-    guard: 'buildWebBetaApiStubResponse("sync-push")',
+    guard: "buildSyncPushApiDisabledResponse",
   },
   {
     path: "src/app/api/sync/pull/route.ts",
