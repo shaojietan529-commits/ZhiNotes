@@ -591,6 +591,21 @@ function run() {
     );
   }
   for (const snippet of [
+    "sidePeekPageId",
+    "DatabaseRowSidePeekPanel",
+    "本地 side peek",
+    "打开完整页面",
+    "getPageTextPreview",
+    "只读取本地页面和当前行字段",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database rows must support a local side peek before opening the full page."
+    );
+  }
+  for (const snippet of [
     'Pick<DatabaseView, "name" | "config" | "position">',
     'changedCols.push("position")',
   ]) {

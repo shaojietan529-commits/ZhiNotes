@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePages } from "@/hooks/usePages";
+import { formatRelativeDate } from "@/lib/utils/dates";
 import {
   getDatabase,
   getFields,
@@ -168,6 +169,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [rows, setRows] = useState<RowWithPage[]>([]);
   const [views, setViews] = useState<DatabaseView[]>([]);
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
+  const [sidePeekPageId, setSidePeekPageId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
   const [rowSearch, setRowSearch] = useState(initialRowSearch);
@@ -519,9 +521,9 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
   const handleOpenRow = useCallback(
     (pageId: string) => {
-      router.push(`/page/${pageId}`);
+      setSidePeekPageId(pageId);
     },
-    [router]
+    []
   );
 
   const handleOpenPage = useCallback(
@@ -540,6 +542,13 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     ? parseDatabaseViewConfig(activeView.config)
     : null;
   const activeViewDescription = activeViewConfig?.description.trim() ?? "";
+  const sidePeekRow = useMemo(
+    () =>
+      sidePeekPageId
+        ? rows.find((row) => row.page_id === sidePeekPageId) ?? null
+        : null,
+    [rows, sidePeekPageId]
+  );
   const visibleFields = useMemo(
     () => getVisibleFields(fields, hiddenFieldIds),
     [fields, hiddenFieldIds]
@@ -1139,6 +1148,148 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           {activeView?.view_type === "feed" && <FeedView {...allFieldViewProps} />}
         </>
       )}
+
+      {sidePeekRow && (
+        <DatabaseRowSidePeekPanel
+          database={database}
+          row={sidePeekRow}
+          fields={fields}
+          relationPages={workspacePages}
+          onClose={() => setSidePeekPageId(null)}
+          onOpenFullPage={(pageId) => {
+            setSidePeekPageId(null);
+            router.push(`/page/${pageId}`);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function DatabaseRowSidePeekPanel({
+  database,
+  row,
+  fields,
+  relationPages,
+  onClose,
+  onOpenFullPage,
+}: {
+  database: Database;
+  row: RowWithPage;
+  fields: DatabaseField[];
+  relationPages: Page[];
+  onClose: () => void;
+  onOpenFullPage: (pageId: string) => void;
+}) {
+  const pageTitle = row.page?.title || "未命名页面";
+  const pagePreview = getPageTextPreview(row.page?.content_text);
+  const fieldSummaries = fields
+    .filter((field) => field.position !== 0)
+    .map((field) => ({
+      id: field.id,
+      name: getDatabaseFieldDisplayName(field),
+      type: getDatabaseFieldTypeLabel(field.field_type),
+      value: getRowFieldText(row, field, fields, relationPages),
+    }))
+    .filter((item) => item.value.trim())
+    .slice(0, 10);
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex justify-end bg-zinc-950/10 backdrop-blur-[1px]"
+      onMouseDown={onClose}
+      role="presentation"
+    >
+      <aside
+        className="flex h-full w-full max-w-xl flex-col border-l border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-950"
+        onMouseDown={(event) => event.stopPropagation()}
+        aria-label="数据库行侧边预览"
+      >
+        <header className="flex items-start justify-between gap-3 border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+              本地 side peek · {database.title || "未命名数据库"}
+            </div>
+            <h2 className="mt-2 flex min-w-0 items-center gap-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+              <span className="shrink-0">{row.page?.icon || "📄"}</span>
+              <span className="truncate">{pageTitle}</span>
+            </h2>
+            <p className="mt-1 text-xs text-zinc-400">
+              创建 {formatRelativeDate(row.created_at)} · 更新{" "}
+              {formatRelativeDate(row.updated_at)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded px-2 py-1 text-sm text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            aria-label="关闭侧边预览"
+          >
+            x
+          </button>
+        </header>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          <section className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+              页面预览
+            </div>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+              {pagePreview || "暂无页面正文预览。"}
+            </p>
+          </section>
+
+          <section className="mt-4">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                字段摘要
+              </h3>
+              <span className="text-[11px] text-zinc-400">
+                {fieldSummaries.length}/{Math.max(fields.length - 1, 0)}
+              </span>
+            </div>
+            {fieldSummaries.length === 0 ? (
+              <p className="rounded-md border border-dashed border-zinc-200 px-3 py-4 text-center text-xs text-zinc-400 dark:border-zinc-800">
+                暂无可展示的字段值。
+              </p>
+            ) : (
+              <dl className="divide-y divide-zinc-100 rounded-md border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
+                {fieldSummaries.map((item) => (
+                  <div
+                    key={item.id}
+                    className="grid grid-cols-[9rem_1fr] gap-3 px-3 py-2 text-sm"
+                  >
+                    <dt className="min-w-0">
+                      <span className="block truncate text-zinc-500 dark:text-zinc-400">
+                        {item.name}
+                      </span>
+                      <span className="text-[10px] text-zinc-400">
+                        {item.type}
+                      </span>
+                    </dt>
+                    <dd className="min-w-0 whitespace-pre-wrap break-words text-zinc-800 dark:text-zinc-200">
+                      {item.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </section>
+        </div>
+
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-5 py-3 dark:border-zinc-800">
+          <p className="text-[11px] text-zinc-400">
+            只读取本地页面和当前行字段，不上传、不调用 AI。
+          </p>
+          <button
+            type="button"
+            onClick={() => onOpenFullPage(row.page_id)}
+            className="rounded bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          >
+            打开完整页面
+          </button>
+        </footer>
+      </aside>
     </div>
   );
 }
@@ -3165,6 +3316,14 @@ function stringifyValue(value: unknown) {
   if (value === null || value === undefined) return "";
   if (typeof value === "boolean") return value ? "true" : "false";
   return String(value);
+}
+
+function getPageTextPreview(contentText: string | null | undefined) {
+  return (contentText ?? "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 360);
 }
 
 function parseDatabaseViewConfig(config: string): DatabaseViewConfig {

@@ -102,18 +102,19 @@ ZhiNotes 当前已有：
 - Table/List/Kanban/Calendar/Gallery/Timeline/Chart/Form/Feed 和 inline database 视图。
 - 已有多筛选、多排序、字段显示、row search、view 分组、Kanban 分栏、Calendar/Timeline 日期字段选择。
 - 已有 Formula、Rollup、字段说明、字段复制、字段排序、视图排序、行排序和表格摘要。
+- 已有 view rename、duplicate、delete、copy link、view description 和本地 side peek。数据库行点击先打开侧边预览，
+  再由用户选择进入完整页面。
 
 仍缺口：
 
 - 还没有 sub-group 二级分组。
-- 还没有 side peek / center peek 的 database item 预览层。
-- 还没有 view copy link、freeze column、nested advanced filter groups。
+- 还没有 center peek / full-page 默认打开方式选择。
+- 还没有 freeze column、nested advanced filter groups。
 - 多人协作前，还不能区分“只对我生效”和“保存给所有人”的 view 设置。
 
 建议下一步：
 
-- 先做 side peek 的本地预览层，因为它对 Notion-like 使用体验提升最大。
-- 第二批做 freeze column 和 view copy link。
+- 第二批做 freeze column 和 center peek / full-page 默认打开方式选择。
 - Nested filter groups 需要重新设计 view config 结构，建议放在数据库硬化阶段。
 
 ### Synced blocks
