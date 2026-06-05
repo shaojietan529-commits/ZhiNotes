@@ -1839,7 +1839,18 @@ function getTextFileLanguage(fileName: string) {
   ) {
     return "ini";
   }
-  if (lowerName.endsWith(".log") || lowerName.endsWith(".lock")) return "log";
+  if (
+    lowerName.endsWith(".log") ||
+    lowerName.endsWith(".lock") ||
+    lowerName.endsWith(".srt") ||
+    lowerName.endsWith(".vtt") ||
+    lowerName.endsWith(".webvtt") ||
+    lowerName.endsWith(".sbv") ||
+    lowerName.endsWith(".lrc") ||
+    lowerName.endsWith(".ttml")
+  ) {
+    return "log";
+  }
   if (lowerName.endsWith(".tex")) return "latex";
   if (lowerName.endsWith(".bib")) return "bibtex";
   if (lowerName.endsWith(".ris")) return "ris";

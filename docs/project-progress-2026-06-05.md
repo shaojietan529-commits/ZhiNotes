@@ -56,6 +56,9 @@ schema migration 的能力默认保持关闭。
   YAML、TOML 等研究数据/披露文本格式。
 - `.xbrl`、`.xsd`、`.xsl`、`.xslt` 会作为本地文本/ XML 预览处理；这只做本地高亮和
   可编辑文本导入路线，不做 XBRL 语义解析、不上传、不调用外部转换、不连接云端或 AI。
+- 会议 transcript/subtitle 文件 `.srt`、`.vtt`、`.webvtt`、`.sbv`、`.lrc`、`.ttml`
+  也会作为本地文本预览处理，便于会议模块后续人工关联 transcript 页面；这不自动参会、
+  不录音、不转写、不调用 AI。
 
 ### 数据库 Formula 字段阶段
 

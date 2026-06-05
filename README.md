@@ -751,10 +751,11 @@ cleanup.
 
 The generic file preview path also recognizes common research text and
 reference files such as LaTeX, BibTeX, RIS, reStructuredText, AsciiDoc,
-Mermaid, Org, Stata, SAS, Julia, SEC/XBRL disclosure files, XML schema/style
-files, YAML, TOML, JSONL, and related code/text formats as local text previews.
-They stay in browser storage and do not trigger external conversion, cloud
-sync, AI, or upload.
+Mermaid, Org, Stata, SAS, Julia, meeting transcript/subtitle files
+(`.srt`, `.vtt`, `.webvtt`, `.sbv`, `.lrc`, `.ttml`), SEC/XBRL disclosure
+files, XML schema/style files, YAML, TOML, JSONL, and related code/text formats
+as local text previews. They stay in browser storage and do not trigger
+external conversion, cloud sync, AI, or upload.
 
 When the Reports module creates a page from a local file, the new page includes
 a format routing table next to the file preview block. It records the preview
