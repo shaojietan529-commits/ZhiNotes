@@ -1298,6 +1298,26 @@ function run() {
       "Permission check request validator must include token rejection fixture.",
     ],
     [
+      "database-cell-values-blocked",
+      "Permission check request validator must include database value rejection fixture.",
+    ],
+    [
+      "comment-body-blocked",
+      "Permission check request validator must include comment body rejection fixture.",
+    ],
+    [
+      "file-bytes-blocked",
+      "Permission check request validator must include file bytes rejection fixture.",
+    ],
+    [
+      "cookie-blocked",
+      "Permission check request validator must include cookie rejection fixture.",
+    ],
+    [
+      "signed-url-blocked",
+      "Permission check request validator must include signed URL rejection fixture.",
+    ],
+    [
       "unknown-payload-field-blocked",
       "Permission check request validator must include unknown payload rejection fixture.",
     ],
@@ -1449,6 +1469,18 @@ function run() {
     [
       "prompt-payload-rejected",
       "Permission server test matrix must include prompt payload rejection case.",
+    ],
+    [
+      "database-values-payload-rejected",
+      "Permission server test matrix must include database value payload rejection case.",
+    ],
+    [
+      "file-bytes-payload-rejected",
+      "Permission server test matrix must include file bytes payload rejection case.",
+    ],
+    [
+      "signed-url-payload-rejected",
+      "Permission server test matrix must include signed URL payload rejection case.",
     ],
     [
       "validatePermissionCheckMetadataRequest",
@@ -1604,7 +1636,7 @@ function run() {
       "Permission server readiness report must require validator fixtures to pass.",
     ],
     [
-      "input.serverTestMatrix.summary.cases >= 9",
+      "input.serverTestMatrix.summary.cases >= 12",
       "Permission server readiness report must require server matrix coverage.",
     ],
   ]) {
@@ -5379,8 +5411,8 @@ function run() {
     audit_event_envelope_checks: 52,
     permission_check_envelope_checks: 68,
     permission_check_api_stub_checks: 46,
-    permission_check_request_validator_checks: 28,
-    permission_server_test_matrix_checks: 32,
+    permission_check_request_validator_checks: 33,
+    permission_server_test_matrix_checks: 35,
     permission_server_readiness_checks: 29,
     web_beta_stage_gate_checks: 35,
     web_launch_workbench_checks: 73,

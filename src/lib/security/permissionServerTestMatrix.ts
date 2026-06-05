@@ -278,6 +278,33 @@ function buildServerMatrixCases(): PermissionServerMatrixCase[] {
       riskActionId: "ai-execution",
       injectedField: "prompt_text",
     }),
+    rejectedPayloadCase({
+      id: "database-values-payload-rejected",
+      title: "Private database values payload is rejected",
+      roleId: "owner",
+      resourceId: "databases",
+      actionId: "export",
+      riskActionId: null,
+      injectedField: "database_cell_values",
+    }),
+    rejectedPayloadCase({
+      id: "file-bytes-payload-rejected",
+      title: "Private file bytes payload is rejected",
+      roleId: "owner",
+      resourceId: "files",
+      actionId: "export",
+      riskActionId: null,
+      injectedField: "file_bytes",
+    }),
+    rejectedPayloadCase({
+      id: "signed-url-payload-rejected",
+      title: "Signed download URL payload is rejected",
+      roleId: "owner",
+      resourceId: "files",
+      actionId: "view",
+      riskActionId: null,
+      injectedField: "signed_download_url",
+    }),
   ];
 }
 
@@ -335,7 +362,12 @@ function rejectedPayloadCase(input: {
   resourceId: PermissionResourceId;
   actionId: PermissionActionId;
   riskActionId: string | null;
-  injectedField: "page_body_text" | "prompt_text";
+  injectedField:
+    | "page_body_text"
+    | "prompt_text"
+    | "database_cell_values"
+    | "file_bytes"
+    | "signed_download_url";
 }): PermissionServerMatrixCase {
   const decision = evaluatePermissionDecision({
     roleId: input.roleId,

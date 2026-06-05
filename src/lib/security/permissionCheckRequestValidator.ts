@@ -140,6 +140,65 @@ export const PERMISSION_CHECK_REQUEST_VALIDATOR_FIXTURES: PermissionCheckValidat
       expected_forbidden_fields: ["token"],
     },
     {
+      id: "database-cell-values-blocked",
+      title: "Database row values are rejected",
+      request: {
+        ...metadataOnlyRequest(),
+        database_cell_values: {
+          row_id: "row_fixture",
+          thesis: "PRIVATE_DATABASE_VALUE",
+        },
+      },
+      expected_status: "rejected-forbidden-payload",
+      expected_forbidden_fields: ["database_cell_values"],
+    },
+    {
+      id: "comment-body-blocked",
+      title: "Comment body is rejected",
+      request: {
+        ...metadataOnlyRequest(),
+        review: {
+          comment_body: "PRIVATE_COMMENT_BODY",
+        },
+      },
+      expected_status: "rejected-forbidden-payload",
+      expected_forbidden_fields: ["review.comment_body"],
+    },
+    {
+      id: "file-bytes-blocked",
+      title: "Nested file bytes are rejected",
+      request: {
+        ...metadataOnlyRequest(),
+        upload: {
+          file_bytes: "PRIVATE_FILE_BYTES",
+        },
+      },
+      expected_status: "rejected-forbidden-payload",
+      expected_forbidden_fields: ["upload.file_bytes"],
+    },
+    {
+      id: "cookie-blocked",
+      title: "Cookie field is rejected",
+      request: {
+        ...metadataOnlyRequest(),
+        cookie: "PRIVATE_COOKIE",
+      },
+      expected_status: "rejected-forbidden-payload",
+      expected_forbidden_fields: ["cookie"],
+    },
+    {
+      id: "signed-url-blocked",
+      title: "Signed download URL is rejected",
+      request: {
+        ...metadataOnlyRequest(),
+        file_access: {
+          signed_download_url: "https://signed.example.invalid/private",
+        },
+      },
+      expected_status: "rejected-forbidden-payload",
+      expected_forbidden_fields: ["file_access.signed_download_url"],
+    },
+    {
       id: "unknown-payload-field-blocked",
       title: "Unknown payload field is rejected",
       request: {

@@ -130,7 +130,7 @@ function buildReadinessGates(input: {
     input.validatorReport.summary.fixtures > 0 &&
     input.validatorReport.summary.failed === 0;
   const matrixComplete =
-    input.serverTestMatrix.summary.cases >= 9 &&
+    input.serverTestMatrix.summary.cases >= 12 &&
     input.serverTestMatrix.summary.denied > 0 &&
     input.serverTestMatrix.summary.rejected_request > 0 &&
     input.serverTestMatrix.summary.allow_after_confirmation > 0;
