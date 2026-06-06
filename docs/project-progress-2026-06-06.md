@@ -33,14 +33,33 @@
    - 中途任意一步失败，自动回退本次已创建的全部页面，工作区恢复原状。
    - 本地执行：仅在确认导入时读取字节，创建本地页面，绝不上传 / 同步 / 调用 AI。
 
+### Database button 本地动作运行器（第二优先级起步）
+
+- 新增 `src/lib/database/buttonActions.ts`：纯逻辑、可撤销的本地动作运行器。
+- 按钮只能设置**同一行**字段（状态/单选、复选框、日期），动作类型为 set-select、
+  set-checkbox、toggle-checkbox、set-date-today、clear-field。
+- 每次运行返回新值 + 撤销快照 + 变更字段列表；不写库、不建页/库、不联网、不调用 AI。
+- 向后兼容：未配置动作的按钮仍是预览态。验证脚本：`npm run verify:button-actions`。
+- 这是对齐 Notion database button 的第一步；接 UI（按钮单元格 + 撤销回执）放后续阶段。
+
+### 编辑器浮动工具条（Notion 对齐 UI）
+
+- 新增 `EditorBubbleMenu`：选中文字时出现的浮动工具条，含加粗/斜体/下划线/删除线/
+  行内代码/高亮、链接和清除格式，复用编辑器已有命令。
+- 自动跳过图片、内嵌数据库、文件预览等节点选择；自包含组件，挂载在编辑器表面，
+  带浅色/深色样式。新增直接依赖 `@tiptap/extension-bubble-menu`。
+- 纯本地 UI，无任何 I/O；补齐高频 Notion 交互缺口。
+
 ## 本轮本地验证
 
 以下命令均通过：
 
 ```bash
-npm run verify:page-import   # 新增
+npm run verify:page-import      # 新增
+npm run verify:button-actions   # 新增
 npm run verify:file-preview
 npm run verify:editor
+npm run verify:database
 npm run verify:modules
 npm run lint
 npm run build
