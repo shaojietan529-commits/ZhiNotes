@@ -11,6 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
+import PageImportPlanPanel from "@/components/modules/PageImportPlanPanel";
 import { usePages } from "@/hooks/usePages";
 import { createPage, updatePage } from "@/lib/db/local/queries";
 import {
@@ -525,6 +526,8 @@ function FilesDashboard() {
           onExportPreview={handleExportZipDirectoryPreview}
           onChoosePreview={handleChooseZipPreview}
         />
+
+        <PageImportPlanPanel />
 
         <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
           <Metric label="文件" value={workbench.summary.files} />
