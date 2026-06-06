@@ -24,6 +24,7 @@
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "3.51.2-build8",
     "@tiptap/core": "^3.21.0",
+    "@tiptap/extension-bubble-menu": "3.21.0",
     "@tiptap/extension-collaboration": "^3.21.0",
     "@tiptap/extension-color": "^3.21.0",
     "@tiptap/extension-highlight": "^3.21.0",

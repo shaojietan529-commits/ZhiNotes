@@ -68,6 +68,7 @@ import { promptForLink } from "./extensions/linkHelpers";
 import { buildChildPageInitialHtml } from "@/lib/pages/childPageSeed";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { BlockDragHandleLayer } from "./BlockDragHandleLayer";
+import EditorBubbleMenu from "./EditorBubbleMenu";
 import {
   FILE_PREVIEW_IMPORT_PROGRESS_EVENT,
   type FilePreviewImportProgress,
@@ -963,6 +964,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         >
           <BlockDragHandleLayer editor={editor} editable={editable} />
           <CodeBlockCopyLayer editor={editor} />
+          <EditorBubbleMenu editor={editor} editable={editable} />
           <EditorContent editor={editor} />
         </div>
       </div>
