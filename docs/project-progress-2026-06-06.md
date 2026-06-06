@@ -40,7 +40,10 @@
   set-checkbox、toggle-checkbox、set-date-today、clear-field。
 - 每次运行返回新值 + 撤销快照 + 变更字段列表；不写库、不建页/库、不联网、不调用 AI。
 - 向后兼容：未配置动作的按钮仍是预览态。验证脚本：`npm run verify:button-actions`。
-- 这是对齐 Notion database button 的第一步；接 UI（按钮单元格 + 撤销回执）放后续阶段。
+- **已接 UI（端到端可用）**：字段设置可配置一个同一行动作（设为选项值、勾选/取消勾选/
+  切换复选框、日期设为今天、清空字段）并选择目标字段；表格按钮单元格点击即执行并写入本行，
+  旁边提供"撤销"。未配置动作的按钮仍只显示预览。全程本地可逆，不建页、不上传、不调用 AI。
+  这补齐了 Notion database button 在低风险同一行自动化上的对齐缺口。
 
 ### 编辑器浮动工具条（Notion 对齐 UI）
 
