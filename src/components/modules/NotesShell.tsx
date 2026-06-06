@@ -63,6 +63,59 @@ const NOTES_FORMAT_ENTRIES: NotesFormatEntry[] = [
   },
 ];
 
+const NOTES_NOTION_PARITY_ITEMS: NotesNotionParityItem[] = [
+  {
+    id: "page-hierarchy",
+    area: "页面层级",
+    status: "covered",
+    notionCapability: "顶部层级路径、深层路径折叠、父级快速跳转。",
+    zhinoteCoverage: "已改为紧凑层级路径，超过 3 层显示最高级 / ... / 上一层 / 当前页。",
+    nextStep: "... 菜单可展开中间页面；下一步继续补移动页面和重排层级的批量入口。",
+    route: "/modules/notes",
+    routeLabel: "查看笔记",
+  },
+  {
+    id: "page-native-formats",
+    area: "文件进页面",
+    status: "partial",
+    notionCapability: "Markdown、HTML、PDF、Word、CSV/Excel 可导入或转成页面/database。",
+    zhinoteCoverage: "HTML 和 Markdown 已有本地报告/笔记入口，Office/PDF/Excel 仍走文件库或数据库预检。",
+    nextStep: "先补 ZIP/folder metadata-only 预检，再做 Markdown/HTML 批量 page 创建。",
+    route: "/modules/reports",
+    routeLabel: "打开报告库",
+  },
+  {
+    id: "database-preview",
+    area: "Database 体验",
+    status: "partial",
+    notionCapability: "视图筛选、排序、分组、预览层、item 作为页面打开。",
+    zhinoteCoverage: "已有多视图、字段显示、行搜索、side/center peek、view 设置和冻结列。",
+    nextStep: "继续做 sub-group 和 nested filters；这需要数据库 view config 结构升级。",
+    route: "/modules/databases",
+    routeLabel: "打开数据库",
+  },
+  {
+    id: "synced-blocks",
+    area: "同步块",
+    status: "partial",
+    notionCapability: "一段内容复用到多个页面，任一实例更新后同步。",
+    zhinoteCoverage: "已有本地 synced block 节点和 registry，可列出 sync id、实例和跨页面复用状态。",
+    nextStep: "定义原始块、实例列表、删除/解除同步语义；云权限上线前不跨用户同步正文。",
+    route: "/modules/notes",
+    routeLabel: "查看 registry",
+  },
+  {
+    id: "cloud-ai-boundary",
+    area: "云端与 AI",
+    status: "blocked",
+    notionCapability: "多人协作、权限、AI 辅助、云端同步。",
+    zhinoteCoverage: "本地高风险 API 默认关闭，已有 sync/permission/audit 的 disabled guard 和检查面板。",
+    nextStep: "等 GitHub 凭据、Supabase/Vercel preview、权限和烟测通过后再启用云写入。",
+    route: "/modules/sync",
+    routeLabel: "查看同步",
+  },
+];
+
 interface NotesFormatEntry {
   id: string;
   title: string;
@@ -70,6 +123,19 @@ interface NotesFormatEntry {
   route: string;
   routeLabel: string;
   boundary: string;
+}
+
+type NotesNotionParityStatus = "covered" | "partial" | "blocked";
+
+interface NotesNotionParityItem {
+  id: string;
+  area: string;
+  status: NotesNotionParityStatus;
+  notionCapability: string;
+  zhinoteCoverage: string;
+  nextStep: string;
+  route: string;
+  routeLabel: string;
 }
 
 export default function NotesShell() {
@@ -353,6 +419,8 @@ function NotesDashboard() {
 
         <NotesFormatEntryPanel onOpenRoute={(route) => router.push(route)} />
 
+        <NotesNotionParityPanel onOpenRoute={(route) => router.push(route)} />
+
         <SyncedBlockRegistryPanel
           report={syncedBlockRegistry}
           exporting={exportingSyncedRegistry}
@@ -369,6 +437,119 @@ function NotesDashboard() {
         />
       </div>
     </div>
+  );
+}
+
+function NotesNotionParityPanel({
+  onOpenRoute,
+}: {
+  onOpenRoute: (route: string) => void;
+}) {
+  const summary = NOTES_NOTION_PARITY_ITEMS.reduce(
+    (acc, item) => {
+      acc[item.status] += 1;
+      return acc;
+    },
+    { covered: 0, partial: 0, blocked: 0 }
+  );
+
+  return (
+    <section
+      id="notes-notion-parity-roadmap"
+      className="scroll-mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Notion 对齐
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            笔记模块路线图
+          </h2>
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            按 Notion 的通用能力拆成可检查的本地路线图。这里只读取代码里的能力清单，
+            不读取页面正文、数据库行值、评论正文、文件字节，不上传、不调用 AI。
+          </p>
+        </div>
+        <div className="grid w-full gap-2 text-xs sm:grid-cols-3 lg:w-auto">
+          <Metric label="已覆盖" value={summary.covered} />
+          <Metric label="部分覆盖" value={summary.partial} />
+          <Metric label="需确认" value={summary.blocked} />
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-5">
+        {NOTES_NOTION_PARITY_ITEMS.map((item) => (
+          <NotesNotionParityCard
+            key={item.id}
+            item={item}
+            onOpen={() => onOpenRoute(item.route)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function NotesNotionParityCard({
+  item,
+  onOpen,
+}: {
+  item: NotesNotionParityItem;
+  onOpen: () => void;
+}) {
+  return (
+    <article className="flex min-h-[260px] flex-col justify-between rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800">
+      <div>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.area}
+          </h3>
+          <NotesNotionParityStatusPill status={item.status} />
+        </div>
+        <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+          Notion：{item.notionCapability}
+        </p>
+        <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+          ZhiNotes：{item.zhinoteCoverage}
+        </p>
+        <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+          下一步：{item.nextStep}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-3 w-fit rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        {item.routeLabel}
+      </button>
+    </article>
+  );
+}
+
+function NotesNotionParityStatusPill({
+  status,
+}: {
+  status: NotesNotionParityStatus;
+}) {
+  const labels: Record<NotesNotionParityStatus, string> = {
+    covered: "已覆盖",
+    partial: "部分覆盖",
+    blocked: "需确认",
+  };
+  const className: Record<NotesNotionParityStatus, string> = {
+    covered: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200",
+    partial: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-200",
+    blocked: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200",
+  };
+
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium ${className[status]}`}
+    >
+      {labels[status]}
+    </span>
   );
 }
 

@@ -74,6 +74,8 @@ ZhiNotes 当前已有：
 - HTML 是 AI 可视化报告的优先原生预览格式；Markdown 是个人笔记的优先可编辑格式。
 - Files 模块可以把任意本地文件放进 page 容器；Reports 模块可以为 HTML/Markdown 创建报告页。
 - Notes 模块新增格式入口和 Cmd/Ctrl+K 格式入口命令，只做本地路由，不读文件、不上传、不调用 AI。
+- Notes 模块新增 Notion 对齐路线图，把页面层级、文件进页面、Database 体验、同步块、
+  云端与 AI 拆成“已覆盖 / 部分覆盖 / 需确认”，只读取代码里的能力清单。
 
 仍缺口：
 
