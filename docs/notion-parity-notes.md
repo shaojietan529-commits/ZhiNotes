@@ -80,19 +80,20 @@ ZhiNotes 当前已有：
   不读取条目文件名或字节，也不创建 page/database。
 - 文件库新增 ZIP central directory metadata-only preview builder；它只返回条目数量、
   扩展名分布、压缩后大小和目标模块，不返回 ZIP 内部文件名或条目 bytes。
+- Files 模块已接入“选择 ZIP 只读预览”，用户主动选择 ZIP 后只显示扩展名分布、
+  条目数量和压缩后大小，不保存 ZIP、不解压、不创建 page/database。
 
 仍缺口：
 
-- ZIP/folder 已有 metadata-only 预检合同和 central directory 预览 builder，但还没有接入
-  用户可点击的 ZIP 预览 UI，也还没有把多文件确认后拆成 pages/databases。
+- ZIP/folder 已有 metadata-only 预检合同、central directory 预览 builder 和 Files UI 入口，
+  但还没有把多文件确认后拆成 pages/databases。
 - DOCX/PDF 还没有本地文本抽取后转成可编辑 page 的稳定路径。
 - HTML 还没有“同目录 assets/ZIP assets”保真导入路线。
 - 文件导入还缺统一进度队列、失败恢复、部分成功报告和批量导入 receipt。
 
 建议下一步：
 
-- 先把 ZIP central directory 预览 builder 接到 Files UI，只显示条目数量、扩展名分布和总大小。
-- 再做用户确认后的 Markdown/HTML 批量 page 创建；PDF/DOCX 等需要本地转换器确认后再启用。
+- 下一步做用户确认后的 Markdown/HTML 批量 page 创建；PDF/DOCX 等需要本地转换器确认后再启用。
 
 ### Database 视图体验
 

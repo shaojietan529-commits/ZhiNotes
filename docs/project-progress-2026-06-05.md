@@ -26,7 +26,9 @@ schema migration 的能力默认保持关闭。
 - 文件导入路线图已校准：ZIP metadata-only 预检合同和 Files 导出入口已经存在；下一步是
   只读 ZIP central directory 预览和确认后的 Markdown/HTML 批量 page 创建。
 - ZIP central directory metadata-only preview builder 已新增，只返回条目数量、扩展名分布、
-  压缩后大小和目标模块，不返回 ZIP 内部文件名或条目 bytes；下一步接入 Files UI。
+  压缩后大小和目标模块，不返回 ZIP 内部文件名或条目 bytes。
+- Files 模块已接入“选择 ZIP 只读预览”，用户主动选择 ZIP 后只展示扩展名分布和数量；
+  不保存 ZIP、不解压、不创建 page/database、不上传、不调用 AI。
 - 数据库底座：table/list/kanban/calendar/gallery/timeline/chart/form/feed、多视图、
   字段设置、显示属性、CSV/XLSX 导出、确认后的 spreadsheet import。
 - 文件/报告底座：HTML、Markdown、PDF、Office、notebook、archive、media 的本地

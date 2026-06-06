@@ -48,7 +48,11 @@ import {
   FILE_LIBRARY_PAGE_ACTION_LABEL,
   getFileLibraryReceiptActionKind,
 } from "@/lib/files/filePage";
-import { buildZipImportPreflightContract } from "@/lib/files/zipImportPreflight";
+import {
+  buildZipCentralDirectoryPreview,
+  buildZipImportPreflightContract,
+  type ZipCentralDirectoryPreview,
+} from "@/lib/files/zipImportPreflight";
 import { buildReportFormatCoverageReport } from "@/lib/reports/reportFormatCoverage";
 import {
   REPORT_INTAKE_LANES,
@@ -86,12 +90,17 @@ function FilesDashboard() {
   const router = useRouter();
   const { refresh: refreshPages } = usePages();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const zipPreviewInputRef = useRef<HTMLInputElement | null>(null);
   const [storedFiles, setStoredFiles] = useState<StoredPageFile[]>([]);
   const [fileFilterId, setFileFilterId] = useState<FileLibraryFilterId>("all");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exportingWorkbench, setExportingWorkbench] = useState(false);
   const [exportingPreviewRouting, setExportingPreviewRouting] = useState(false);
   const [exportingZipPreflight, setExportingZipPreflight] = useState(false);
+  const [readingZipPreview, setReadingZipPreview] = useState(false);
+  const [zipDirectoryPreview, setZipDirectoryPreview] =
+    useState<ZipCentralDirectoryPreview | null>(null);
+  const [zipPreviewError, setZipPreviewError] = useState<string | null>(null);
   const [creatingFilePages, setCreatingFilePages] = useState(false);
   const [creatingExistingFilePageId, setCreatingExistingFilePageId] = useState<
     string | null
@@ -223,6 +232,33 @@ function FilesDashboard() {
 
   const handleChooseFiles = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleChooseZipPreview = () => {
+    zipPreviewInputRef.current?.click();
+  };
+
+  const handleZipPreviewSelected = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setReadingZipPreview(true);
+    setZipPreviewError(null);
+    setZipDirectoryPreview(null);
+    try {
+      const preview = buildZipCentralDirectoryPreview(await file.arrayBuffer());
+      setZipDirectoryPreview(preview);
+    } catch (err) {
+      console.error("[Zhinote] Failed to preview ZIP central directory:", err);
+      setZipPreviewError(
+        "无法读取这个 ZIP 的目录信息。没有保存文件、没有解压、没有创建页面。"
+      );
+    } finally {
+      setReadingZipPreview(false);
+    }
   };
 
   const handleFilesSelected = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -396,6 +432,13 @@ function FilesDashboard() {
                 className="hidden"
                 onChange={(event) => void handleFilesSelected(event)}
               />
+              <input
+                ref={zipPreviewInputRef}
+                type="file"
+                accept=".zip,application/zip,application/x-zip-compressed"
+                className="hidden"
+                onChange={(event) => void handleZipPreviewSelected(event)}
+              />
               <button
                 type="button"
                 onClick={handleChooseFiles}
@@ -459,7 +502,11 @@ function FilesDashboard() {
         <ZipImportPreflightPanel
           contract={zipImportPreflight}
           exporting={exportingZipPreflight}
+          readingPreview={readingZipPreview}
+          preview={zipDirectoryPreview}
+          previewError={zipPreviewError}
           onExport={handleExportZipPreflight}
+          onChoosePreview={handleChooseZipPreview}
         />
 
         <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
@@ -749,11 +796,19 @@ function FilesDashboard() {
 function ZipImportPreflightPanel({
   contract,
   exporting,
+  readingPreview,
+  preview,
+  previewError,
   onExport,
+  onChoosePreview,
 }: {
   contract: ReturnType<typeof buildZipImportPreflightContract>;
   exporting: boolean;
+  readingPreview: boolean;
+  preview: ZipCentralDirectoryPreview | null;
+  previewError: string | null;
   onExport: () => void;
+  onChoosePreview: () => void;
 }) {
   return (
     <section
@@ -774,15 +829,33 @@ function ZipImportPreflightPanel({
             本地复核队列。当前不会读取 ZIP、文件名、条目字节，也不会解压或写入工作区。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onExport}
-          disabled={exporting}
-          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        >
-          {exporting ? "导出中..." : "导出 ZIP 预检合同"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onChoosePreview}
+            disabled={readingPreview}
+            className="w-fit rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+          >
+            {readingPreview ? "读取中..." : "选择 ZIP 只读预览"}
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={exporting}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exporting ? "导出中..." : "导出 ZIP 预检合同"}
+          </button>
+        </div>
       </div>
+
+      {previewError && (
+        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          {previewError}
+        </div>
+      )}
+
+      {preview && <ZipCentralDirectoryPreviewPanel preview={preview} />}
 
       <div className="mt-4 grid gap-3 md:grid-cols-4">
         <Metric label="页面格式" value={contract.summary.planned_page_formats} />
@@ -849,6 +922,81 @@ function ZipImportPreflightPanel({
         </div>
       </div>
     </section>
+  );
+}
+
+function ZipCentralDirectoryPreviewPanel({
+  preview,
+}: {
+  preview: ZipCentralDirectoryPreview;
+}) {
+  return (
+    <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-900 dark:bg-sky-950/40">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-sky-700 dark:text-sky-300">
+            ZIP 只读目录预览
+          </p>
+          <h3 className="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+            只显示扩展名分布，不展示内部文件名
+          </h3>
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-sky-900/80 dark:text-sky-100/80">
+            {preview.privacy_note}
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-white px-2 py-1 text-[10px] font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-200">
+          {preview.preview_status}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-5">
+        <Metric label="条目" value={preview.summary.entries} />
+        <Metric label="文件" value={preview.summary.files} />
+        <Metric label="文件夹" value={preview.summary.directories} />
+        <Metric
+          label="压缩后大小"
+          value={formatFileSize(preview.summary.total_compressed_size_bytes)}
+        />
+        <Metric label="扩展名组" value={preview.summary.extension_groups} />
+      </div>
+
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {preview.extension_groups.map((group) => (
+          <article
+            key={group.extension}
+            className="rounded-md border border-sky-100 bg-white p-3 text-xs dark:border-sky-900 dark:bg-zinc-950"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h4 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {group.extension}
+                </h4>
+                <p className="mt-1 text-zinc-400">
+                  {group.entries} 个条目 ·{" "}
+                  {formatFileSize(group.total_compressed_size_bytes)}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-sky-100 px-2 py-1 text-[10px] font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-200">
+                {getZipRouteLabel(group.planned_route)}
+              </span>
+            </div>
+            <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+              目标模块：{getZipDestinationModuleLabel(group.destination_module)}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      {preview.summary.truncated_extension_groups > 0 && (
+        <p className="mt-3 text-xs leading-5 text-sky-800 dark:text-sky-200">
+          还有 {preview.summary.truncated_extension_groups} 组扩展名未显示；预览仍不返回文件名。
+        </p>
+      )}
+
+      <div className="mt-4 rounded-md bg-white/80 px-3 py-2 text-xs leading-5 text-sky-900 dark:bg-sky-950 dark:text-sky-100">
+        边界：不读取条目 bytes、不解压、不创建 page/database、不上传、不调用 AI。
+      </div>
+    </div>
   );
 }
 
@@ -1519,6 +1667,18 @@ function getZipRouteLabel(
     "blocked-review": "阻塞复核",
   };
   return labels[route];
+}
+
+function getZipDestinationModuleLabel(
+  module: "notes" | "reports" | "databases" | "files"
+) {
+  const labels: Record<typeof module, string> = {
+    notes: "笔记",
+    reports: "报告",
+    databases: "数据库",
+    files: "文件",
+  };
+  return labels[module];
 }
 
 function getFileLaneTargetSectionId(laneId: FileLibraryLane["id"]) {
