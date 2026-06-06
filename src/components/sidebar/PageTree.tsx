@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { createPage } from "@/lib/db/local/queries";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import { getModuleRootIdsSync } from "@/lib/pages/moduleWorkspaces";
 import { usePages } from "@/hooks/usePages";
 import type { Page } from "@/lib/utils/types";
 
@@ -127,8 +128,12 @@ export default function PageTree() {
   const { pages, refresh } = usePages();
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
 
-  // Top-level pages (no parent)
-  const rootPages = pages.filter((p) => p.parent_id === null);
+  // Top-level pages (no parent), excluding the special module workspace roots
+  // (每日纪要 / 产业链研究 / 会议日程) which have their own sidebar entries.
+  const moduleRootIds = new Set(getModuleRootIdsSync());
+  const rootPages = pages.filter(
+    (p) => p.parent_id === null && !moduleRootIds.has(p.id)
+  );
 
   const handleNavigate = useCallback(
     (id: string) => {

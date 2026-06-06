@@ -16,6 +16,7 @@ import {
   exportWorkspaceZip,
 } from "@/lib/export/workspaceBackup";
 import { PLATFORM_MODULES } from "@/lib/modules/registry";
+import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
 
 export default function Sidebar() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function Sidebar() {
   const [backupRunning, setBackupRunning] = useState(false);
   const [markdownExportRunning, setMarkdownExportRunning] = useState(false);
   const [zipExportRunning, setZipExportRunning] = useState(false);
+  const [modulesOpen, setModulesOpen] = useState(false);
   const sidebarModules = PLATFORM_MODULES.filter(
     (module) => module.route && module.route !== "/"
   );
@@ -154,35 +156,70 @@ export default function Sidebar() {
         </button>
       </div>
 
-      <div className="px-2 pb-3">
-        <p className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-          平台
-        </p>
-        <button
-          type="button"
-          onClick={() => router.push("/modules")}
-          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-        >
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-200 text-[9px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-            模块
-          </span>
-          <span className="truncate">模块中心</span>
-        </button>
-        {sidebarModules.map((module) => (
+      {/* Primary workspaces (the three big categories) */}
+      <div className="px-2 pb-2">
+        {MODULE_WORKSPACE_LIST.map((workspace) => (
           <button
-            key={module.id}
+            key={workspace.key}
             type="button"
-            onClick={() => {
-              if (module.route) router.push(module.route);
-            }}
-            className="mt-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            onClick={() => router.push(workspace.route)}
+            className="mt-0.5 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-200 text-[9px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              {module.icon}
-            </span>
-            <span className="truncate">{module.shortTitle}</span>
+            <span className="shrink-0 text-base">{workspace.icon}</span>
+            <span className="truncate">{workspace.label}</span>
           </button>
         ))}
+      </div>
+
+      {/* Secondary modules, collapsed by default */}
+      <div className="px-2 pb-3">
+        <button
+          type="button"
+          onClick={() => setModulesOpen((value) => !value)}
+          className="flex w-full items-center justify-between rounded-md px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-300"
+        >
+          <span>备选模块</span>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={`transition-transform ${modulesOpen ? "rotate-90" : ""}`}
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+        {modulesOpen && (
+          <div className="mt-1">
+            <button
+              type="button"
+              onClick={() => router.push("/modules")}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            >
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-200 text-[9px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                模块
+              </span>
+              <span className="truncate">模块中心</span>
+            </button>
+            {sidebarModules.map((module) => (
+              <button
+                key={module.id}
+                type="button"
+                onClick={() => {
+                  if (module.route) router.push(module.route);
+                }}
+                className="mt-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              >
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-200 text-[9px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  {module.icon}
+                </span>
+                <span className="truncate">{module.shortTitle}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Page tree */}
