@@ -81,6 +81,63 @@ import {
 import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import { evaluateDatabaseRollup } from "@/lib/database/rollup";
 import {
+  getButtonActions,
+  type ButtonAction,
+} from "@/lib/database/buttonActions";
+
+// Friendly UI keys for a single button action, mapped to (operation, value).
+const BUTTON_ACTION_CHOICES: {
+  key: string;
+  label: string;
+  targetFilter: (fieldType: string) => boolean;
+  needsOptionValue: boolean;
+}[] = [
+  { key: "", label: "仅预览（不执行）", targetFilter: () => false, needsOptionValue: false },
+  {
+    key: "set-select",
+    label: "设为选项值",
+    targetFilter: (t) => t === "select" || t === "status" || t === "multi_select",
+    needsOptionValue: true,
+  },
+  { key: "check-on", label: "勾选复选框", targetFilter: (t) => t === "checkbox", needsOptionValue: false },
+  { key: "check-off", label: "取消勾选复选框", targetFilter: (t) => t === "checkbox", needsOptionValue: false },
+  { key: "toggle-checkbox", label: "切换复选框", targetFilter: (t) => t === "checkbox", needsOptionValue: false },
+  { key: "set-date-today", label: "日期设为今天", targetFilter: (t) => t === "date", needsOptionValue: false },
+  { key: "clear-field", label: "清空字段", targetFilter: () => true, needsOptionValue: false },
+];
+
+function buttonActionToKey(action: ButtonAction | undefined): string {
+  if (!action) return "";
+  if (action.operation === "set-checkbox") {
+    return action.value === "false" ? "check-off" : "check-on";
+  }
+  return action.operation;
+}
+
+function buttonActionKeyToParts(
+  key: string,
+  targetFieldId: string,
+  optionValue: string
+): { targetFieldId: string; operation: string; value?: string } | null {
+  if (!key || !targetFieldId) return null;
+  switch (key) {
+    case "set-select":
+      return { targetFieldId, operation: "set-select", value: optionValue };
+    case "check-on":
+      return { targetFieldId, operation: "set-checkbox", value: "true" };
+    case "check-off":
+      return { targetFieldId, operation: "set-checkbox", value: "false" };
+    case "toggle-checkbox":
+      return { targetFieldId, operation: "toggle-checkbox" };
+    case "set-date-today":
+      return { targetFieldId, operation: "set-date-today" };
+    case "clear-field":
+      return { targetFieldId, operation: "clear-field" };
+    default:
+      return null;
+  }
+}
+import {
   getDatabaseSystemFieldValue,
   isDatabaseSystemField,
   isDatabaseSystemTimeField,
@@ -2703,6 +2760,16 @@ function FieldSettingsButton({
   const [buttonActionPreview, setButtonActionPreview] = useState(
     getDatabaseButtonConfig(field).actionPreview
   );
+  const initialButtonAction = getButtonActions(field)[0];
+  const [buttonActionOp, setButtonActionOp] = useState<string>(
+    buttonActionToKey(initialButtonAction)
+  );
+  const [buttonActionTargetId, setButtonActionTargetId] = useState<string>(
+    initialButtonAction?.targetFieldId ?? ""
+  );
+  const [buttonActionValue, setButtonActionValue] = useState<string>(
+    initialButtonAction?.value ?? ""
+  );
   const relationFields = fields.filter(
     (candidate) =>
       candidate.field_type === "relation" && candidate.id !== field.id
@@ -2716,16 +2783,22 @@ function FieldSettingsButton({
   const canMoveDown = fieldIndex >= 1 && fieldIndex < orderedFields.length - 1;
 
   useEffect(() => {
-    setName(getDatabaseFieldDisplayName(field));
-    setType(field.field_type);
-    setOptions(formatFieldOptions(field));
-    setFieldDescription(getDatabaseFieldDescription(field));
-    setNumberFormat(getDatabaseNumberFormat(field));
-    setFormulaExpression(getDatabaseFormulaExpression(field));
-    setRollupRelationFieldId(getDatabaseRollupConfig(field).relationFieldId);
-    setRollupAggregation(getDatabaseRollupConfig(field).aggregation);
-    setButtonLabel(getDatabaseButtonConfig(field).label);
-    setButtonActionPreview(getDatabaseButtonConfig(field).actionPreview);
+    queueMicrotask(() => {
+      setName(getDatabaseFieldDisplayName(field));
+      setType(field.field_type);
+      setOptions(formatFieldOptions(field));
+      setFieldDescription(getDatabaseFieldDescription(field));
+      setNumberFormat(getDatabaseNumberFormat(field));
+      setFormulaExpression(getDatabaseFormulaExpression(field));
+      setRollupRelationFieldId(getDatabaseRollupConfig(field).relationFieldId);
+      setRollupAggregation(getDatabaseRollupConfig(field).aggregation);
+      setButtonLabel(getDatabaseButtonConfig(field).label);
+      setButtonActionPreview(getDatabaseButtonConfig(field).actionPreview);
+      const action = getButtonActions(field)[0];
+      setButtonActionOp(buttonActionToKey(action));
+      setButtonActionTargetId(action?.targetFieldId ?? "");
+      setButtonActionValue(action?.value ?? "");
+    });
   }, [field]);
 
   const handleSave = () => {
@@ -2733,6 +2806,15 @@ function FieldSettingsButton({
     const nextType = isTitleField ? field.field_type : type;
     const nextRollupRelationFieldId =
       rollupRelationFieldId || relationFields[0]?.id || "";
+    const resolvedAction =
+      nextType === "button"
+        ? buttonActionKeyToParts(
+            buttonActionOp,
+            buttonActionTargetId,
+            buttonActionValue
+          )
+        : null;
+    const nextButtonActions = resolvedAction ? [resolvedAction] : [];
     onUpdate(field.id, {
       name: nextName,
       field_type: nextType,
@@ -2745,7 +2827,8 @@ function FieldSettingsButton({
         rollupAggregation,
         fieldDescription,
         buttonLabel,
-        buttonActionPreview
+        buttonActionPreview,
+        nextButtonActions
       ),
     });
     setOpen(false);
@@ -2966,8 +3049,80 @@ function FieldSettingsButton({
                   className="w-full resize-none rounded border border-blue-200 bg-white px-2 py-1.5 text-xs leading-5 text-zinc-900 outline-none focus:border-blue-400 dark:border-blue-900 dark:bg-zinc-950 dark:text-zinc-100"
                 />
               </label>
+              <div className="space-y-2 border-t border-blue-100 pt-2 dark:border-blue-900">
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-medium text-blue-700 dark:text-blue-300">
+                    点击动作（同一行，可撤销）
+                  </span>
+                  <select
+                    value={buttonActionOp}
+                    onChange={(event) => {
+                      setButtonActionOp(event.target.value);
+                      setButtonActionTargetId("");
+                      setButtonActionValue("");
+                    }}
+                    className="w-full rounded border border-blue-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-blue-400 dark:border-blue-900 dark:bg-zinc-950 dark:text-zinc-100"
+                  >
+                    {BUTTON_ACTION_CHOICES.map((choice) => (
+                      <option key={choice.key} value={choice.key}>
+                        {choice.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {buttonActionOp && (
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-medium text-blue-700 dark:text-blue-300">
+                      目标字段
+                    </span>
+                    <select
+                      value={buttonActionTargetId}
+                      onChange={(event) =>
+                        setButtonActionTargetId(event.target.value)
+                      }
+                      className="w-full rounded border border-blue-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-blue-400 dark:border-blue-900 dark:bg-zinc-950 dark:text-zinc-100"
+                    >
+                      <option value="">选择字段…</option>
+                      {fields
+                        .filter((candidate) => {
+                          if (candidate.id === field.id) return false;
+                          if (candidate.position === 0) return false;
+                          const choice = BUTTON_ACTION_CHOICES.find(
+                            (item) => item.key === buttonActionOp
+                          );
+                          return choice
+                            ? choice.targetFilter(candidate.field_type)
+                            : false;
+                        })
+                        .map((candidate) => (
+                          <option key={candidate.id} value={candidate.id}>
+                            {getDatabaseFieldDisplayName(candidate)}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                )}
+                {buttonActionOp === "set-select" && (
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-medium text-blue-700 dark:text-blue-300">
+                      设为的选项值
+                    </span>
+                    <input
+                      type="text"
+                      value={buttonActionValue}
+                      onChange={(event) =>
+                        setButtonActionValue(event.target.value)
+                      }
+                      placeholder="例如：已完成"
+                      className="w-full rounded border border-blue-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-blue-400 dark:border-blue-900 dark:bg-zinc-950 dark:text-zinc-100"
+                    />
+                  </label>
+                )}
+              </div>
               <p className="text-[11px] leading-5 text-blue-700 dark:text-blue-300">
-                当前按钮字段只是动作草案；点击单元格按钮只显示预览，不写行、不建页、不调用 AI。
+                {buttonActionOp
+                  ? "点击单元格按钮会修改本行所选字段，并提供撤销；只在本地生效，不建页、不上传、不调用 AI。"
+                  : "未配置动作时，点击单元格按钮只显示动作预览，不写入数据。"}
               </p>
             </div>
           )}

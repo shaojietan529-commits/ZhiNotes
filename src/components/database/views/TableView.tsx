@@ -14,6 +14,11 @@ import {
 import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import { evaluateDatabaseRollup } from "@/lib/database/rollup";
 import {
+  getButtonActions,
+  computeButtonActionResult,
+  summarizeButtonActionResult,
+} from "@/lib/database/buttonActions";
+import {
   normalizeMultiSelectValue,
   toggleMultiSelectValue,
 } from "@/lib/database/multiSelectValues";
@@ -319,6 +324,7 @@ function TableRow({
                 focusPage={focusPage}
                 onOpenPage={onOpenPage}
                 onChange={(val) => handleCellChange(field.id, val)}
+                onApplyValues={(values) => onUpdate(values)}
               />
             )}
           </td>
@@ -541,6 +547,7 @@ function CellEditor({
   row,
   value,
   onChange,
+  onApplyValues,
   onOpenPage,
   relationPages,
   focusPage,
@@ -550,6 +557,7 @@ function CellEditor({
   row: DatabaseRow & { page: Page };
   value: unknown;
   onChange: (value: unknown) => void;
+  onApplyValues: (values: Record<string, unknown>) => void;
   onOpenPage: (pageId: string) => void;
   relationPages: Page[];
   focusPage?: Page | null;
@@ -612,20 +620,13 @@ function CellEditor({
   }
 
   if (field.field_type === "button") {
-    const buttonConfig = getDatabaseButtonConfig(field);
     return (
-      <button
-        type="button"
-        onClick={() =>
-          window.alert(
-            `按钮动作预览：${buttonConfig.actionPreview}\n\n当前版本不会写入行值、创建页面或调用 AI。`
-          )
-        }
-        className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
-        title="当前按钮字段只显示动作预览，不执行写入"
-      >
-        {buttonConfig.label}
-      </button>
+      <ButtonActionCell
+        field={field}
+        fields={fields}
+        row={row}
+        onApplyValues={onApplyValues}
+      />
     );
   }
 
@@ -821,6 +822,91 @@ function CellEditor({
     >
       {(value as string) || <span className="text-zinc-400">—</span>}
     </button>
+  );
+}
+
+function ButtonActionCell({
+  field,
+  fields,
+  row,
+  onApplyValues,
+}: {
+  field: DatabaseField;
+  fields: DatabaseField[];
+  row: DatabaseRow & { page: Page };
+  onApplyValues: (values: Record<string, unknown>) => void;
+}) {
+  const buttonConfig = getDatabaseButtonConfig(field);
+  const actions = getButtonActions(field);
+  const [undoValues, setUndoValues] = useState<Record<string, unknown> | null>(
+    null
+  );
+  const [message, setMessage] = useState<string | null>(null);
+
+  // Preview-only button (no actions configured): keep the original behavior.
+  if (actions.length === 0) {
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          window.alert(
+            `按钮动作预览：${buttonConfig.actionPreview}\n\n当前按钮未配置动作，不会写入行值、创建页面或调用 AI。`
+          )
+        }
+        className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+        title="当前按钮字段只显示动作预览，不执行写入"
+      >
+        {buttonConfig.label}
+      </button>
+    );
+  }
+
+  const handleRun = () => {
+    const current = parseFieldValues(row.field_values);
+    const result = computeButtonActionResult(actions, fields, current);
+    if (!result.has_changes) {
+      setMessage("值未变化");
+      setUndoValues(null);
+      return;
+    }
+    onApplyValues(result.next_values);
+    setUndoValues({ ...current, ...result.undo_values });
+    setMessage(summarizeButtonActionResult(result));
+  };
+
+  const handleUndo = () => {
+    if (!undoValues) return;
+    onApplyValues(undoValues);
+    setUndoValues(null);
+    setMessage("已撤销");
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={handleRun}
+        className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+        title="点击执行本行动作（可撤销，仅本地生效）"
+      >
+        {buttonConfig.label}
+      </button>
+      {undoValues && (
+        <button
+          type="button"
+          onClick={handleUndo}
+          className="rounded px-1.5 py-0.5 text-[11px] text-zinc-500 underline hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+          title="撤销刚才的改动"
+        >
+          撤销
+        </button>
+      )}
+      {message && (
+        <span className="max-w-[10rem] truncate text-[11px] text-zinc-400" title={message}>
+          {message}
+        </span>
+      )}
+    </div>
   );
 }
 

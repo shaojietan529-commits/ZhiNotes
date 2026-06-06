@@ -174,7 +174,8 @@ export function buildFieldConfig(
   rollupAggregation: string = DEFAULT_DATABASE_ROLLUP_AGGREGATION,
   description: string = "",
   buttonLabel: string = "",
-  buttonActionPreview: string = ""
+  buttonActionPreview: string = "",
+  buttonActions: { targetFieldId: string; operation: string; value?: string }[] = []
 ) {
   if (isSelectLikeFieldType(fieldType)) {
     return stringifyFieldConfig(
@@ -205,12 +206,27 @@ export function buildFieldConfig(
     );
   }
   if (fieldType === "button") {
+    const cleanActions = buttonActions
+      .filter(
+        (action) =>
+          action &&
+          typeof action.targetFieldId === "string" &&
+          action.targetFieldId &&
+          typeof action.operation === "string" &&
+          action.operation
+      )
+      .map((action) => ({
+        targetFieldId: action.targetFieldId,
+        operation: action.operation,
+        ...(typeof action.value === "string" ? { value: action.value } : {}),
+      }));
     return stringifyFieldConfig(
       {
         buttonLabel: buttonLabel.trim() || "预览动作",
         buttonActionPreview:
           buttonActionPreview.trim() ||
           "尚未配置动作。当前按钮只显示预览，不会写入数据。",
+        ...(cleanActions.length > 0 ? { buttonActions: cleanActions } : {}),
       },
       description
     );
