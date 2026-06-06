@@ -30,7 +30,7 @@ This version has breaking changes. APIs, conventions, and file structure may dif
 - Product direction: local-first, Notion-like knowledge base optimized for investment research, with modules that can be added over time.
 - Notes/pages are the foundation; databases, reports, files, company research, meetings, portfolio, projects, research graph, AI, and sync are modular surfaces.
 - Current GitHub branch: `claude/plan-knowledge-management-app-OSoEs`.
-- Current verified handoff commit: `8d49fd7 feat: show zip preview confirmation queue`.
+- Current verified handoff commit: `ad7c406 feat: workspace polish — daily/meeting templates, chain inline rename, verifier`.
 
 ## Current Verified State
 
