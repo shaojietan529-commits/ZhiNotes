@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
-import { createPage } from "@/lib/db/local/queries";
+import { createPage, updatePage } from "@/lib/db/local/queries";
 import { getModuleRootId } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import type { Page } from "@/lib/utils/types";
@@ -36,6 +36,14 @@ export default function IndustryChainShell() {
       if (navigate) router.push(`/page/${child.id}`);
     },
     [refresh, router]
+  );
+
+  const renameNode = useCallback(
+    async (id: string, title: string) => {
+      await updatePage(id, { title });
+      await refresh();
+    },
+    [refresh]
   );
 
   return (
@@ -90,14 +98,15 @@ export default function IndustryChainShell() {
                   level={0}
                   onOpen={(id) => router.push(`/page/${id}`)}
                   onAddChild={(id) => void addChild(id, false)}
+                  onRename={(id, title) => void renameNode(id, title)}
                 />
               ))}
             </ul>
           )}
 
           <p className="mt-8 text-xs leading-5 text-zinc-400">
-            提示：节点的重命名、删除、添加内容都在节点页面里完成（点开节点 →
-            右上角 ••• 菜单）。这里的看板只负责浏览和快速展开整条产业链。
+            提示：单击节点进入页面，双击节点就地重命名；删除和添加内容在节点页面里完成
+            （右上角 ••• 菜单）。这里的看板负责浏览、重命名和快速展开整条产业链。
           </p>
         </div>
       </main>
@@ -111,16 +120,27 @@ function ChainNode({
   level,
   onOpen,
   onAddChild,
+  onRename,
 }: {
   node: Page;
   allPages: Page[];
   level: number;
   onOpen: (id: string) => void;
   onAddChild: (id: string) => void;
+  onRename: (id: string, title: string) => void;
 }) {
   const [expanded, setExpanded] = useState(level < 1);
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState(node.title);
   const children = allPages.filter((p) => p.parent_id === node.id);
   const hasChildren = children.length > 0;
+
+  const commitRename = () => {
+    setRenaming(false);
+    const next = draft.trim();
+    if (next && next !== node.title) onRename(node.id, next);
+    else setDraft(node.title);
+  };
 
   // Soften the background by depth so the hierarchy reads at a glance.
   const tint =
@@ -159,18 +179,40 @@ function ChainNode({
 
         <span className="shrink-0">{node.icon || "📄"}</span>
 
-        <button
-          type="button"
-          onClick={() => onOpen(node.id)}
-          className={`min-w-0 flex-1 truncate text-left text-sm transition-colors hover:text-blue-600 dark:hover:text-blue-400 ${
-            level === 0
-              ? "font-semibold text-zinc-800 dark:text-zinc-100"
-              : "text-zinc-700 dark:text-zinc-200"
-          }`}
-          title={displayPageTitle(node.title)}
-        >
-          {displayPageTitle(node.title)}
-        </button>
+        {renaming ? (
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") {
+                setDraft(node.title);
+                setRenaming(false);
+              }
+            }}
+            className="min-w-0 flex-1 rounded bg-white px-1 py-0.5 text-sm text-zinc-800 outline-none ring-1 ring-zinc-300 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-600"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => onOpen(node.id)}
+            onDoubleClick={(e) => {
+              e.preventDefault();
+              setDraft(node.title);
+              setRenaming(true);
+            }}
+            className={`min-w-0 flex-1 truncate text-left text-sm transition-colors hover:text-blue-600 dark:hover:text-blue-400 ${
+              level === 0
+                ? "font-semibold text-zinc-800 dark:text-zinc-100"
+                : "text-zinc-700 dark:text-zinc-200"
+            }`}
+            title={`${displayPageTitle(node.title)}（点击进入，双击重命名）`}
+          >
+            {displayPageTitle(node.title)}
+          </button>
+        )}
 
         {hasChildren && (
           <span className="shrink-0 rounded-full bg-zinc-200 px-1.5 text-[10px] text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">
@@ -201,6 +243,7 @@ function ChainNode({
               level={level + 1}
               onOpen={onOpen}
               onAddChild={onAddChild}
+              onRename={onRename}
             />
           ))}
         </ul>

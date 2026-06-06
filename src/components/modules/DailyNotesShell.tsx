@@ -5,9 +5,20 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
-import { createPage, listPages } from "@/lib/db/local/queries";
+import { createPage, listPages, updatePage } from "@/lib/db/local/queries";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
+import {
+  createPageProperty,
+  parsePageProperties,
+  stringifyPageProperties,
+} from "@/lib/pages/pageProperties";
 import type { Page } from "@/lib/utils/types";
+
+// Light Notion-style daily journal scaffold inserted into new day pages.
+const DAILY_BODY_TEMPLATE =
+  "<h2>今日要点</h2><ul><li><p></p></li></ul>" +
+  "<h2>会议与交流</h2><ul><li><p></p></li></ul>" +
+  "<h2>跟进事项</h2><ul><li><p></p></li></ul>";
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 const MONTH_LABELS = [
@@ -50,11 +61,12 @@ export default function DailyNotesShell() {
     });
   }, [dbReady, load]);
 
-  // Map of date key (YYYY-MM-DD) -> daily note page.
+  // Map of date key (YYYY-MM-DD) -> daily note page. Matched by the 日期
+  // property first (so renaming the title never orphans a day), then title.
   const notesByDate = useMemo(() => {
     const map = new Map<string, Page>();
     for (const note of notes) {
-      map.set(note.title.trim(), note);
+      map.set(dailyNoteDateKey(note), note);
     }
     return map;
   }, [notes]);
@@ -73,6 +85,16 @@ export default function DailyNotesShell() {
         parentId: rootId,
         icon: "📝",
       });
+      // Seed the Notion-style daily template: Date / 要点 / Summary + a light body.
+      const props = [
+        { ...createPageProperty("date", "日期"), value: key },
+        createPageProperty("text", "要点"),
+        createPageProperty("text", "Summary"),
+      ];
+      await updatePage(page.id, {
+        properties: stringifyPageProperties(props),
+        content_text: DAILY_BODY_TEMPLATE,
+      });
       await refresh();
       router.push(`/page/${page.id}`);
     },
@@ -85,7 +107,7 @@ export default function DailyNotesShell() {
   const recent = useMemo(
     () =>
       [...notes]
-        .sort((a, b) => b.title.localeCompare(a.title))
+        .sort((a, b) => dailyNoteDateKey(b).localeCompare(dailyNoteDateKey(a)))
         .slice(0, 8),
     [notes]
   );
@@ -235,6 +257,15 @@ function CalNavButton({
       {label}
     </button>
   );
+}
+
+// Resolve the day a note belongs to: prefer the 日期 property, fall back to
+// the page title (which we always create as the date key).
+function dailyNoteDateKey(page: Page): string {
+  const dateProp = parsePageProperties(page.properties).find(
+    (property) => property.name === "日期" && property.value
+  );
+  return (dateProp?.value || page.title || "").trim();
 }
 
 interface MonthCell {

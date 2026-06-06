@@ -13,6 +13,7 @@
     "verify:file-preview": "node scripts/verify-file-preview-contract.mjs",
     "verify:button-actions": "node scripts/verify-button-actions.mjs",
     "verify:modules": "node scripts/verify-module-contract.mjs",
+    "verify:module-workspaces": "node scripts/verify-module-workspaces.mjs",
     "verify:page-import": "node scripts/verify-page-import-plan.mjs",
     "verify:page-structure": "node scripts/verify-page-research-structure.mjs",
     "verify:research-workflow": "node scripts/verify-research-workflow-contract.mjs",
