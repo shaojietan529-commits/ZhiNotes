@@ -20,6 +20,7 @@ schema migration 的能力默认保持关闭。
   高级块操作和创建 page 后自动进入新页面。
 - 页面结构已从大块树状卡片改为顶部紧凑层级路径：3 层以内完整展示，超过 3 层时
   展示最高级 / ... / 上一层 / 当前页，更接近 Notion 页面左上角工作流。
+- 层级路径里的 ... 可以展开被折叠的中间页面，用于从深层研究笔记快速跳回中间目录。
 - 数据库底座：table/list/kanban/calendar/gallery/timeline/chart/form/feed、多视图、
   字段设置、显示属性、CSV/XLSX 导出、确认后的 spreadsheet import。
 - 文件/报告底座：HTML、Markdown、PDF、Office、notebook、archive、media 的本地

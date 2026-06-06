@@ -243,9 +243,9 @@ Current local actions:
   browser PDF. Page cover controls, table-of-contents blocks, and callout
   controls keep the default notes UI in Chinese; compact Notion-style page
   hierarchy breadcrumbs collapse deep paths to root / ... / parent / current.
-  Icon picking, date display, synced blocks, version history, hover change
-  summaries, backlinks/reference panels, and page/block comments are localized
-  too.
+  The ellipsis opens the hidden middle levels for fast navigation. Icon picking,
+  date display, synced blocks, version history, hover change summaries,
+  backlinks/reference panels, and page/block comments are localized too.
 - Copy the current page as Markdown or standalone HTML from the page
   导出/复制 menu or Cmd/Ctrl+K. This is a local clipboard action for moving one
   page into emails, reports, AI prompt drafts, or another writing tool without

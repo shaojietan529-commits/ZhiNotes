@@ -708,7 +708,9 @@ function run() {
   }
   for (const snippet of [
     "buildNotionBreadcrumbTrail",
-    "中间层级已折叠",
+    "展开中间层级",
+    "已折叠的页面层级",
+    "hiddenPages",
     "...",
     "未命名页面",
   ]) {
