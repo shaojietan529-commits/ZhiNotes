@@ -1,3 +1,5 @@
+import { listZipEntries } from "@/lib/files/zipReader";
+
 export interface ZipImportPreflightContract {
   format: "zhinote-zip-import-preflight-contract";
   format_version: 1;
@@ -21,6 +23,43 @@ export interface ZipImportPreflightContract {
   format_routes: ZipImportFormatRoute[];
   required_gates: ZipImportGate[];
   next_steps: string[];
+}
+
+export interface ZipCentralDirectoryPreview {
+  format: "zhinote-zip-central-directory-preview";
+  format_version: 1;
+  preview_status: "metadata-only";
+  summary: {
+    entries: number;
+    files: number;
+    directories: number;
+    total_compressed_size_bytes: number;
+    extension_groups: number;
+    truncated_extension_groups: number;
+  };
+  boundaries: {
+    reads_zip_file_now: true;
+    reads_entry_file_names_now: true;
+    returns_entry_file_names: false;
+    reads_entry_bytes_now: false;
+    extracts_files_now: false;
+    creates_pages_now: false;
+    creates_databases_now: false;
+    uploads_data: false;
+    enables_ai: false;
+  };
+  extension_groups: ZipCentralDirectoryExtensionGroup[];
+  required_gates: ZipImportGate[];
+  privacy_note: string;
+  next_steps: string[];
+}
+
+export interface ZipCentralDirectoryExtensionGroup {
+  extension: string;
+  entries: number;
+  total_compressed_size_bytes: number;
+  planned_route: ZipImportFormatRoute["planned_route"];
+  destination_module: ZipImportFormatRoute["destination_module"];
 }
 
 export interface ZipImportFormatRoute {
@@ -145,6 +184,8 @@ const REQUIRED_GATES: ZipImportGate[] = [
   },
 ];
 
+const ZIP_PREVIEW_EXTENSION_GROUP_LIMIT = 12;
+
 export function buildZipImportPreflightContract(): ZipImportPreflightContract {
   return {
     format: "zhinote-zip-import-preflight-contract",
@@ -183,4 +224,94 @@ export function buildZipImportPreflightContract(): ZipImportPreflightContract {
       "任何批量创建都必须生成本地 rollback receipt。",
     ],
   };
+}
+
+export function buildZipCentralDirectoryPreview(
+  arrayBuffer: ArrayBuffer
+): ZipCentralDirectoryPreview {
+  const entries = listZipEntries(arrayBuffer);
+  const fileEntries = entries.filter((entry) => !entry.path.endsWith("/"));
+  const directoryCount = entries.length - fileEntries.length;
+  const byExtension = new Map<string, ZipCentralDirectoryExtensionGroup>();
+
+  for (const entry of fileEntries) {
+    const extension = getZipEntryExtension(entry.path);
+    const route = getZipRouteForExtension(extension);
+    const existing = byExtension.get(extension) ?? {
+      extension,
+      entries: 0,
+      total_compressed_size_bytes: 0,
+      planned_route: route.planned_route,
+      destination_module: route.destination_module,
+    };
+    existing.entries += 1;
+    existing.total_compressed_size_bytes += entry.compressedSize;
+    byExtension.set(extension, existing);
+  }
+
+  const extensionGroups = Array.from(byExtension.values()).sort(
+    (a, b) =>
+      b.entries - a.entries ||
+      b.total_compressed_size_bytes - a.total_compressed_size_bytes ||
+      a.extension.localeCompare(b.extension)
+  );
+  const visibleExtensionGroups = extensionGroups.slice(
+    0,
+    ZIP_PREVIEW_EXTENSION_GROUP_LIMIT
+  );
+
+  return {
+    format: "zhinote-zip-central-directory-preview",
+    format_version: 1,
+    preview_status: "metadata-only",
+    summary: {
+      entries: entries.length,
+      files: fileEntries.length,
+      directories: directoryCount,
+      total_compressed_size_bytes: fileEntries.reduce(
+        (sum, entry) => sum + entry.compressedSize,
+        0
+      ),
+      extension_groups: extensionGroups.length,
+      truncated_extension_groups: Math.max(
+        0,
+        extensionGroups.length - visibleExtensionGroups.length
+      ),
+    },
+    boundaries: {
+      reads_zip_file_now: true,
+      reads_entry_file_names_now: true,
+      returns_entry_file_names: false,
+      reads_entry_bytes_now: false,
+      extracts_files_now: false,
+      creates_pages_now: false,
+      creates_databases_now: false,
+      uploads_data: false,
+      enables_ai: false,
+    },
+    extension_groups: visibleExtensionGroups,
+    required_gates: REQUIRED_GATES,
+    privacy_note:
+      "这个预览只返回条目数量、扩展名分布、压缩后大小和目标模块；不会返回 ZIP 内部文件名、目录名、条目 bytes、页面正文、数据库行值、token、凭证或 AI 输出。",
+    next_steps: [
+      "先展示 extension_groups 和 summary，供用户确认是否继续。",
+      "创建 pages/databases 前必须展示条目清单、目标模块和失败恢复策略。",
+      "Markdown/HTML/Text 可进入批量 page 创建确认；表格进入数据库导入预览。",
+      "PDF/Office/unknown 继续留在本地文件复核队列。",
+    ],
+  };
+}
+
+function getZipEntryExtension(path: string) {
+  const fileName = path.split("/").filter(Boolean).at(-1) ?? "";
+  const dotIndex = fileName.lastIndexOf(".");
+  if (dotIndex <= 0 || dotIndex === fileName.length - 1) return "unknown";
+  return fileName.slice(dotIndex).toLowerCase();
+}
+
+function getZipRouteForExtension(extension: string) {
+  return (
+    FORMAT_ROUTES.find((route) => route.extensions.includes(extension)) ??
+    FORMAT_ROUTES.find((route) => route.id === "unknown-blocked")!
+  );
 }

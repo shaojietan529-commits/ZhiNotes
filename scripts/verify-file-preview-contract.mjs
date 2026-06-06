@@ -1399,6 +1399,12 @@ function run() {
     "batch-create-confirmation",
     "rollback-receipt",
     "buildZipImportPreflightContract",
+    'format: "zhinote-zip-central-directory-preview"',
+    'preview_status: "metadata-only"',
+    "buildZipCentralDirectoryPreview",
+    "returns_entry_file_names: false",
+    "extension_groups",
+    "getZipEntryExtension",
   ]) {
     assertIncludes(
       files.zipImportPreflight,
