@@ -230,6 +230,22 @@ function FilesDashboard() {
     }
   };
 
+  const handleExportZipDirectoryPreview = () => {
+    if (!zipDirectoryPreview) return;
+    try {
+      downloadJsonFile(
+        `zhinote-zip-directory-preview-${fileSafeTimestamp()}.json`,
+        {
+          ...zipDirectoryPreview,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export ZIP directory preview:", err);
+      window.alert("ZIP 目录预览导出失败，请查看控制台。");
+    }
+  };
+
   const handleChooseFiles = () => {
     fileInputRef.current?.click();
   };
@@ -506,6 +522,7 @@ function FilesDashboard() {
           preview={zipDirectoryPreview}
           previewError={zipPreviewError}
           onExport={handleExportZipPreflight}
+          onExportPreview={handleExportZipDirectoryPreview}
           onChoosePreview={handleChooseZipPreview}
         />
 
@@ -800,6 +817,7 @@ function ZipImportPreflightPanel({
   preview,
   previewError,
   onExport,
+  onExportPreview,
   onChoosePreview,
 }: {
   contract: ReturnType<typeof buildZipImportPreflightContract>;
@@ -808,6 +826,7 @@ function ZipImportPreflightPanel({
   preview: ZipCentralDirectoryPreview | null;
   previewError: string | null;
   onExport: () => void;
+  onExportPreview: () => void;
   onChoosePreview: () => void;
 }) {
   return (
@@ -855,7 +874,12 @@ function ZipImportPreflightPanel({
         </div>
       )}
 
-      {preview && <ZipCentralDirectoryPreviewPanel preview={preview} />}
+      {preview && (
+        <ZipCentralDirectoryPreviewPanel
+          preview={preview}
+          onExportPreview={onExportPreview}
+        />
+      )}
 
       <div className="mt-4 grid gap-3 md:grid-cols-4">
         <Metric label="页面格式" value={contract.summary.planned_page_formats} />
@@ -927,8 +951,10 @@ function ZipImportPreflightPanel({
 
 function ZipCentralDirectoryPreviewPanel({
   preview,
+  onExportPreview,
 }: {
   preview: ZipCentralDirectoryPreview;
+  onExportPreview: () => void;
 }) {
   return (
     <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-900 dark:bg-sky-950/40">
@@ -944,9 +970,18 @@ function ZipCentralDirectoryPreviewPanel({
             {preview.privacy_note}
           </p>
         </div>
-        <span className="w-fit rounded-full bg-white px-2 py-1 text-[10px] font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-200">
-          {preview.preview_status}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="w-fit rounded-full bg-white px-2 py-1 text-[10px] font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-200">
+            {preview.preview_status}
+          </span>
+          <button
+            type="button"
+            onClick={onExportPreview}
+            className="rounded-md border border-sky-200 bg-white px-2 py-1 text-xs font-medium text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200 dark:hover:bg-sky-900"
+          >
+            导出 ZIP 目录预览
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-5">

@@ -82,6 +82,8 @@ ZhiNotes 当前已有：
   扩展名分布、压缩后大小和目标模块，不返回 ZIP 内部文件名或条目 bytes。
 - Files 模块已接入“选择 ZIP 只读预览”，用户主动选择 ZIP 后只显示扩展名分布、
   条目数量和压缩后大小，不保存 ZIP、不解压、不创建 page/database。
+- ZIP 只读预览结果可以导出为 metadata-only JSON，便于之后复核批量导入路线；
+  导出仍不包含 ZIP 内部文件名、目录名或条目 bytes。
 
 仍缺口：
 

@@ -29,6 +29,8 @@ schema migration 的能力默认保持关闭。
   压缩后大小和目标模块，不返回 ZIP 内部文件名或条目 bytes。
 - Files 模块已接入“选择 ZIP 只读预览”，用户主动选择 ZIP 后只展示扩展名分布和数量；
   不保存 ZIP、不解压、不创建 page/database、不上传、不调用 AI。
+- ZIP 只读预览结果可导出为 metadata-only JSON，用于复核批量导入路线；导出不包含
+  ZIP 内部文件名、目录名或条目 bytes。
 - 数据库底座：table/list/kanban/calendar/gallery/timeline/chart/form/feed、多视图、
   字段设置、显示属性、CSV/XLSX 导出、确认后的 spreadsheet import。
 - 文件/报告底座：HTML、Markdown、PDF、Office、notebook、archive、media 的本地
