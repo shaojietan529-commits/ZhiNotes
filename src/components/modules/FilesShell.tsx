@@ -1028,6 +1028,17 @@ function ZipCentralDirectoryPreviewPanel({
         </p>
       )}
 
+      <div className="mt-4 rounded-md bg-white/80 p-3 text-xs dark:bg-sky-950">
+        <h4 className="font-semibold text-sky-900 dark:text-sky-100">
+          预览后的确认队列
+        </h4>
+        <ul className="mt-2 space-y-1 leading-5 text-sky-900 dark:text-sky-100">
+          {preview.next_steps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ul>
+      </div>
+
       <div className="mt-4 rounded-md bg-white/80 px-3 py-2 text-xs leading-5 text-sky-900 dark:bg-sky-950 dark:text-sky-100">
         边界：不读取条目 bytes、不解压、不创建 page/database、不上传、不调用 AI。
       </div>

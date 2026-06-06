@@ -1427,6 +1427,7 @@ function run() {
     "ZipCentralDirectoryPreviewPanel",
     "选择 ZIP 只读预览",
     "导出 ZIP 目录预览",
+    "预览后的确认队列",
     "只显示扩展名分布，不展示内部文件名",
     "不读取条目 bytes、不解压、不创建 page/database、不上传、不调用 AI",
     "handleExportPreviewRouting",

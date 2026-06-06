@@ -31,6 +31,8 @@ schema migration 的能力默认保持关闭。
   不保存 ZIP、不解压、不创建 page/database、不上传、不调用 AI。
 - ZIP 只读预览结果可导出为 metadata-only JSON，用于复核批量导入路线；导出不包含
   ZIP 内部文件名、目录名或条目 bytes。
+- ZIP 只读预览 UI 会展示确认队列，提醒真正创建 pages/databases 前仍要展示清单、
+  目标模块和失败恢复策略。
 - 数据库底座：table/list/kanban/calendar/gallery/timeline/chart/form/feed、多视图、
   字段设置、显示属性、CSV/XLSX 导出、确认后的 spreadsheet import。
 - 文件/报告底座：HTML、Markdown、PDF、Office、notebook、archive、media 的本地
