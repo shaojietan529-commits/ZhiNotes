@@ -76,18 +76,21 @@ ZhiNotes 当前已有：
 - Notes 模块新增格式入口和 Cmd/Ctrl+K 格式入口命令，只做本地路由，不读文件、不上传、不调用 AI。
 - Notes 模块新增 Notion 对齐路线图，把页面层级、文件进页面、Database 体验、同步块、
   云端与 AI 拆成“已覆盖 / 部分覆盖 / 需确认”，只读取代码里的能力清单。
+- Files 模块已有 ZIP 批量导入 metadata-only 预检合同和导出入口；它不读取真实 ZIP、
+  不读取条目文件名或字节，也不创建 page/database。
 
 仍缺口：
 
-- ZIP/folder 批量导入还没有把多文件自动拆成 pages/databases。
+- ZIP/folder 已有 metadata-only 预检合同，但还没有读取 ZIP central directory 的只读预览，
+  也还没有把多文件确认后拆成 pages/databases。
 - DOCX/PDF 还没有本地文本抽取后转成可编辑 page 的稳定路径。
 - HTML 还没有“同目录 assets/ZIP assets”保真导入路线。
 - 文件导入还缺统一进度队列、失败恢复、部分成功报告和批量导入 receipt。
 
 建议下一步：
 
-- 先做 metadata-only 的 ZIP 导入预检报告，列出将被创建为 page/database/local-retain 的文件数量。
-- 再做 Markdown/HTML 批量 page 创建；PDF/DOCX 等需要本地转换器确认后再启用。
+- 先做只读 ZIP central directory 预览，只显示条目数量、扩展名分布和总大小。
+- 再做用户确认后的 Markdown/HTML 批量 page 创建；PDF/DOCX 等需要本地转换器确认后再启用。
 
 ### Database 视图体验
 

@@ -271,7 +271,7 @@ function run() {
     "页面层级",
     "文件进页面",
     "Database 体验",
-    "ZIP/folder metadata-only 预检",
+    "ZIP central directory",
     "nested filters",
     "这里只读取代码里的能力清单",
     "NotesDecisionSummaryPanel",
