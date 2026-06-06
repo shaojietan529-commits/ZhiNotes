@@ -63,6 +63,12 @@ function assertIncludes(sourceLabel, source, snippet, message) {
   }
 }
 
+function assertNotIncludes(sourceLabel, source, snippet, message) {
+  if (source.includes(snippet)) {
+    failures.push(`${sourceLabel} unexpectedly includes ${snippet}: ${message}`);
+  }
+}
+
 function run() {
   const packageJson = readProjectFile(files.packageJson);
   const editorLocalCommands = readProjectFile(files.editorLocalCommands);
@@ -700,14 +706,25 @@ function run() {
       "Page metadata date display must keep Chinese labels."
     );
   }
-  for (const snippet of ["首页", "未命名页面"]) {
+  for (const snippet of [
+    "buildNotionBreadcrumbTrail",
+    "中间层级已折叠",
+    "...",
+    "未命名页面",
+  ]) {
     assertIncludes(
       files.breadcrumb,
       breadcrumb,
       snippet,
-      "Page breadcrumbs must keep Chinese navigation labels."
+      "Page breadcrumbs must keep Notion-like hierarchy labels and collapse logic."
     );
   }
+  assertNotIncludes(
+    files.pageShell,
+    pageShell,
+    "PagePositionTree",
+    "Page shell should use the compact top-left breadcrumb instead of the large page structure block."
+  );
   for (const snippet of ["更换图标", "选择图标"]) {
     assertIncludes(
       files.iconPicker,

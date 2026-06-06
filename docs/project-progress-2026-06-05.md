@@ -18,6 +18,8 @@ schema migration 的能力默认保持关闭。
 - 笔记底座：page/tree、breadcrumbs、图标、backlinks、版本历史、评论、toggle、
   callout、目录、cover、快捷键、slash command、Notion-style slash alias、
   高级块操作和创建 page 后自动进入新页面。
+- 页面结构已从大块树状卡片改为顶部紧凑层级路径：3 层以内完整展示，超过 3 层时
+  展示最高级 / ... / 上一层 / 当前页，更接近 Notion 页面左上角工作流。
 - 数据库底座：table/list/kanban/calendar/gallery/timeline/chart/form/feed、多视图、
   字段设置、显示属性、CSV/XLSX 导出、确认后的 spreadsheet import。
 - 文件/报告底座：HTML、Markdown、PDF、Office、notebook、archive、media 的本地

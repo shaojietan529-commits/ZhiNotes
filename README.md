@@ -241,8 +241,9 @@ Current local actions:
 - Add page icons, covers, sub-pages, local page links, duplicate pages, lock
   editing, switch page width, save named versions, and export HTML, Markdown, or
   browser PDF. Page cover controls, table-of-contents blocks, and callout
-  controls keep the default notes UI in Chinese; page structure, breadcrumbs,
-  icon picking, date display, synced blocks, version history, hover change
+  controls keep the default notes UI in Chinese; compact Notion-style page
+  hierarchy breadcrumbs collapse deep paths to root / ... / parent / current.
+  Icon picking, date display, synced blocks, version history, hover change
   summaries, backlinks/reference panels, and page/block comments are localized
   too.
 - Copy the current page as Markdown or standalone HTML from the page

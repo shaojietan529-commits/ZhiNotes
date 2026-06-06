@@ -14,7 +14,6 @@ import type { EditorRef } from "@/components/editor/Editor";
 import DateDisplay from "@/components/shared/DateDisplay";
 import Breadcrumb from "@/components/shared/Breadcrumb";
 import IconPicker from "@/components/shared/IconPicker";
-import PagePositionTree from "@/components/shared/SubPageTree";
 import Backlinks from "@/components/shared/Backlinks";
 import PageComments from "@/components/shared/PageComments";
 import BlockComments from "@/components/shared/BlockComments";
@@ -779,9 +778,6 @@ function PageContent({ pageId }: { pageId: string }) {
               </div>
             </div>
           </div>
-
-          {/* Sub-page tree */}
-          <PagePositionTree pageId={pageId} />
 
           {showInfo && (
             <PageInfoPanel
