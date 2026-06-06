@@ -11,12 +11,18 @@ import DatabaseProvider from "./DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import Editor from "@/components/editor/Editor";
 import type { EditorRef } from "@/components/editor/Editor";
-import DateDisplay from "@/components/shared/DateDisplay";
 import Breadcrumb from "@/components/shared/Breadcrumb";
 import IconPicker from "@/components/shared/IconPicker";
 import Backlinks from "@/components/shared/Backlinks";
 import PageComments from "@/components/shared/PageComments";
 import BlockComments from "@/components/shared/BlockComments";
+import PageProperties from "@/components/page/PageProperties";
+import PageActionsMenu from "@/components/page/PageActionsMenu";
+import {
+  parsePageProperties,
+  stringifyPageProperties,
+  type PageProperty,
+} from "@/lib/pages/pageProperties";
 import { usePage } from "@/hooks/usePage";
 import { usePages } from "@/hooks/usePages";
 import { useVersions } from "@/hooks/useVersions";
@@ -28,7 +34,6 @@ import {
   updateWikiLinks,
 } from "@/lib/db/local/queries";
 import { maybeSnapshot, manualSnapshot } from "@/lib/comparison/versioning";
-import HoverSummary from "@/components/comparison/HoverSummary";
 import VersionHistoryPanel from "@/components/comparison/VersionHistoryPanel";
 import type { PageVersion } from "@/lib/utils/types";
 import {
@@ -64,19 +69,18 @@ function PageContent({ pageId }: { pageId: string }) {
   const editorRef = useRef<EditorRef>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const copyNoticeTimeoutRef = useRef<number | null>(null);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
   const { page, loading, update, remove } = usePage(pageId);
   const { refresh } = usePages();
   const { versions, refresh: refreshVersions } = useVersions(pageId);
   const setCurrentPageId = useWorkspaceStore((s) => s.setCurrentPageId);
   const [title, setTitle] = useState("");
+  const [properties, setProperties] = useState<PageProperty[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [locked, setLocked] = useState(false);
   const [widePage, setWidePage] = useState(false);
   const { isFavorite, toggleFavorite } = usePageFavorites();
   const favorite = isFavorite(pageId);
   const [showInfo, setShowInfo] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [exportingPageStructure, setExportingPageStructure] = useState(false);
   const [applyingResearchActionId, setApplyingResearchActionId] =
@@ -91,6 +95,7 @@ function PageContent({ pageId }: { pageId: string }) {
     if (!page) return;
     queueMicrotask(() => {
       setTitle(page.title);
+      setProperties(parsePageProperties(page.properties));
     });
   }, [page]);
 
@@ -113,6 +118,16 @@ function PageContent({ pageId }: { pageId: string }) {
       if (locked) return;
       setTitle(newTitle);
       await update({ title: newTitle });
+      refresh();
+    },
+    [locked, update, refresh]
+  );
+
+  const handlePropertiesChange = useCallback(
+    async (next: PageProperty[]) => {
+      if (locked) return;
+      setProperties(next);
+      await update({ properties: stringifyPageProperties(next) });
       refresh();
     },
     [locked, update, refresh]
@@ -171,31 +186,6 @@ function PageContent({ pageId }: { pageId: string }) {
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (!showExportMenu) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (
-        target instanceof Node &&
-        exportMenuRef.current?.contains(target)
-      ) {
-        return;
-      }
-      setShowExportMenu(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setShowExportMenu(false);
-    };
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [showExportMenu]);
 
   const handleCopyPageMarkdown = useCallback(async () => {
     const html = editorRef.current?.getHTML() ?? page?.content_text ?? "";
@@ -568,30 +558,60 @@ function PageContent({ pageId }: { pageId: string }) {
                 </div>
               </div>
             </div>
-          ) : !locked ? (
-            <div className="mb-3 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => coverInputRef.current?.click()}
-                className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-              >
-                添加封面
-              </button>
-              <button
-                type="button"
-                onClick={handleCoverUrl}
-                className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-              >
-                封面 URL
-              </button>
-            </div>
           ) : null}
 
-          {/* Breadcrumb */}
-          <Breadcrumb pageId={pageId} />
+          {/* Top bar: breadcrumb on the left, favorite + actions menu on the right */}
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <Breadcrumb pageId={pageId} />
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleToggleFavorite}
+                className={`flex h-7 w-7 items-center justify-center rounded transition-colors ${
+                  favorite
+                    ? "text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                    : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+                }`}
+                title={favorite ? "取消收藏" : "添加到收藏"}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill={favorite ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m12 2 3.1 6.4 7 .9-5.1 4.9 1.3 6.9L12 17.8 5.7 21.1l1.3-6.9L1.9 9.3l7-.9L12 2Z" />
+                </svg>
+              </button>
+              <PageActionsMenu
+                locked={locked}
+                widePage={widePage}
+                versionsCount={versions.length}
+                onAddSubPage={handleAddSubPage}
+                onAddCover={() => coverInputRef.current?.click()}
+                onToggleLock={handleToggleLock}
+                onToggleWidth={handleToggleWidth}
+                onSaveVersion={handleSaveVersion}
+                onToggleHistory={() => setShowHistory((s) => !s)}
+                onToggleInfo={() => setShowInfo((current) => !current)}
+                onDuplicate={handleDuplicatePage}
+                onCopyLink={() => void handleCopyPageLink()}
+                onExportHtml={handleExportHtml}
+                onExportMarkdown={handleExportMarkdown}
+                onCopyMarkdown={() => void handleCopyPageMarkdown()}
+                onCopyHtml={() => void handleCopyPageHtml()}
+                onPrintPdf={handlePrintPdf}
+                onDelete={handleDelete}
+              />
+            </div>
+          </div>
 
-          {/* Page header */}
-          <div className="mb-6">
+          {/* Page header: icon + title */}
+          <div className="mb-3">
             <div className="flex items-start gap-2">
               <IconPicker
                 currentIcon={page.icon}
@@ -610,174 +630,19 @@ function PageContent({ pageId }: { pageId: string }) {
                 className="zhinote-title-input w-full text-3xl font-bold bg-transparent border-none outline-none text-zinc-900 disabled:cursor-default dark:text-zinc-100 placeholder-zinc-300 dark:placeholder-zinc-600 mt-1"
               />
             </div>
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <DateDisplay
-                createdAt={page.created_at}
-                updatedAt={page.updated_at}
-              />
-              <div className="zhinote-page-actions flex flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
-                <button
-                  onClick={handleToggleFavorite}
-                  className={`flex items-center gap-1 text-xs transition-colors ${
-                    favorite
-                      ? "text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
-                      : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                  }`}
-                  title={favorite ? "取消收藏" : "添加到收藏"}
-                >
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill={favorite ? "currentColor" : "none"}
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="m12 2 3.1 6.4 7 .9-5.1 4.9 1.3 6.9L12 17.8 5.7 21.1l1.3-6.9L1.9 9.3l7-.9L12 2Z" />
-                  </svg>
-                  {favorite ? "已收藏" : "收藏"}
-                </button>
-                <button
-                  onClick={handleAddSubPage}
-                  disabled={locked}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-zinc-300 transition-colors"
-                  title="添加子页面"
-                >
-                  + 子页面
-                </button>
-                <button
-                  onClick={handleToggleLock}
-                  className={`text-xs transition-colors ${
-                    locked
-                      ? "text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
-                      : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                  }`}
-                  title={locked ? "解锁页面编辑" : "锁定页面编辑"}
-                >
-                  {locked ? "已锁定" : "锁定"}
-                </button>
-                <button
-                  onClick={handleToggleWidth}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title={widePage ? "使用标准页面宽度" : "使用宽页面"}
-                >
-                  {widePage ? "标准宽度" : "宽页面"}
-                </button>
-                <button
-                  onClick={() => setShowInfo((current) => !current)}
-                  className={`text-xs transition-colors ${
-                    showInfo
-                      ? "text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                      : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                  }`}
-                  title="查看本地页面信息"
-                >
-                  信息
-                </button>
-                <button
-                  onClick={handleSaveVersion}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="保存命名版本快照"
-                >
-                  📌 保存版本
-                </button>
-                <div ref={exportMenuRef} className="relative">
-                  <button
-                    onClick={() => setShowExportMenu((current) => !current)}
-                    className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                    title="导出、复制或打印当前页面"
-                    aria-expanded={showExportMenu}
-                  >
-                    导出/复制
-                  </button>
-                  {showExportMenu && (
-                    <div className="absolute right-0 top-6 z-30 w-44 overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-xs shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-                      <PageActionMenuButton
-                        label="下载 HTML"
-                        onClick={() => {
-                          setShowExportMenu(false);
-                          handleExportHtml();
-                        }}
-                      />
-                      <PageActionMenuButton
-                        label="下载 Markdown"
-                        onClick={() => {
-                          setShowExportMenu(false);
-                          handleExportMarkdown();
-                        }}
-                      />
-                      <PageActionMenuButton
-                        label="复制 MD"
-                        onClick={() => {
-                          setShowExportMenu(false);
-                          void handleCopyPageMarkdown();
-                        }}
-                      />
-                      <PageActionMenuButton
-                        label="复制 HTML"
-                        onClick={() => {
-                          setShowExportMenu(false);
-                          void handleCopyPageHtml();
-                        }}
-                      />
-                      <PageActionMenuButton
-                        label="打印 / PDF"
-                        onClick={() => {
-                          setShowExportMenu(false);
-                          handlePrintPdf();
-                        }}
-                      />
-                      <PageActionMenuButton
-                        label="复制链接"
-                        onClick={() => {
-                          setShowExportMenu(false);
-                          void handleCopyPageLink();
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-                {copyNotice && (
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                    {copyNotice}
-                  </span>
-                )}
-                <button
-                  onClick={handleDuplicatePage}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="复制这个页面"
-                >
-                  复制页面
-                </button>
-                <div className="group relative">
-                  <button
-                    onClick={() => setShowHistory((s) => !s)}
-                    className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                    title="查看版本历史"
-                  >
-                    🕘 历史
-                    {versions.length > 0 && (
-                      <span className="ml-1 text-zinc-300 dark:text-zinc-600">
-                        ({versions.length})
-                      </span>
-                    )}
-                  </button>
-                  <HoverSummary versions={versions} />
-                </div>
-                <button
-                  onClick={handleDelete}
-                  disabled={locked}
-                  className="text-xs text-zinc-400 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
-                  title="删除页面"
-                >
-                  删除
-                </button>
-              </div>
-            </div>
+            {copyNotice && (
+              <span className="mt-1 inline-block text-xs text-emerald-600 dark:text-emerald-400">
+                {copyNotice}
+              </span>
+            )}
           </div>
+
+          {/* Properties (Notion-style, directly under the title) */}
+          <PageProperties
+            properties={properties}
+            disabled={locked}
+            onChange={handlePropertiesChange}
+          />
 
           {showInfo && (
             <PageInfoPanel
@@ -810,6 +675,11 @@ function PageContent({ pageId }: { pageId: string }) {
             />
           )}
 
+          {/* Page-level comments sit between properties and the body */}
+          <PageComments pageId={pageId} disabled={locked} />
+
+          <div className="my-4 border-t border-zinc-100 dark:border-zinc-800" />
+
           {/* Editor - now loads/saves HTML */}
           <Editor
             ref={editorRef}
@@ -821,31 +691,11 @@ function PageContent({ pageId }: { pageId: string }) {
 
           <BlockComments pageId={pageId} disabled={locked} />
 
-          <PageComments pageId={pageId} disabled={locked} />
-
           {/* Backlinks - pages that link to this page */}
           <Backlinks pageId={pageId} pageTitle={title || page.title || ""} />
         </div>
       </main>
     </div>
-  );
-}
-
-function PageActionMenuButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="block w-full px-3 py-2 text-left text-xs text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-    >
-      {label}
-    </button>
   );
 }
 

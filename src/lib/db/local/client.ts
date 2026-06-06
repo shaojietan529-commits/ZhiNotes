@@ -82,6 +82,11 @@ async function initializeDb(): Promise<SqliteDb> {
   // Create all tables
   db.run(CREATE_TABLES_SQL);
 
+  // Additive, non-destructive migrations for databases created before a column
+  // existed. Each step only ADDs a nullable column if it is missing, so no data
+  // is ever dropped or rewritten.
+  ensureColumn(db, "pages", "properties", "TEXT");
+
   // Ensure the default solo user exists
   const users = db.query(
     "SELECT id FROM users WHERE id = ?",
@@ -96,4 +101,23 @@ async function initializeDb(): Promise<SqliteDb> {
   }
 
   return db;
+}
+
+// Adds a column to an existing table only when it is not already present.
+// This keeps older local databases working without dropping any rows.
+function ensureColumn(
+  db: SqliteDb,
+  table: string,
+  column: string,
+  type: string
+) {
+  try {
+    const columns = db.query(`PRAGMA table_info(${table})`);
+    const exists = columns.some((row) => row.name === column);
+    if (!exists) {
+      db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    }
+  } catch (e) {
+    console.warn(`[Zhinote] ensureColumn ${table}.${column} failed:`, e);
+  }
 }

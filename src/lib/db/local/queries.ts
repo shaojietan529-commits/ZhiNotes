@@ -249,7 +249,7 @@ export async function createPage(opts?: {
 
 export async function updatePage(
   id: string,
-  updates: Partial<Pick<Page, "title" | "icon" | "cover_url" | "content_text" | "parent_id" | "position">> & {
+  updates: Partial<Pick<Page, "title" | "icon" | "cover_url" | "content_text" | "properties" | "parent_id" | "position">> & {
     content_yjs?: Uint8Array;
   }
 ): Promise<Page | null> {
@@ -284,6 +284,11 @@ export async function updatePage(
     setClauses.push("content_yjs = ?");
     values.push(updates.content_yjs);
     changedCols.push("content_yjs");
+  }
+  if (updates.properties !== undefined) {
+    setClauses.push("properties = ?");
+    values.push(updates.properties);
+    changedCols.push("properties");
   }
   if (updates.parent_id !== undefined) {
     setClauses.push("parent_id = ?");

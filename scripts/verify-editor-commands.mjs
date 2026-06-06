@@ -30,6 +30,8 @@ const files = {
   pageComments: "src/components/shared/PageComments.tsx",
   pageLocalCommands: "src/lib/pageLocalCommands.ts",
   pageShell: "src/components/providers/PageShell.tsx",
+  pageActionsMenu: "src/components/page/PageActionsMenu.tsx",
+  pageProperties: "src/components/page/PageProperties.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   researchTemplateStarters: "src/lib/modules/researchTemplateStarters.ts",
   readme: "README.md",
@@ -94,6 +96,8 @@ function run() {
   const pageComments = readProjectFile(files.pageComments);
   const pageLocalCommands = readProjectFile(files.pageLocalCommands);
   const pageShell = readProjectFile(files.pageShell);
+  const pageActionsMenu = readProjectFile(files.pageActionsMenu);
+  const pageProperties = readProjectFile(files.pageProperties);
   const quickSearch = readProjectFile(files.quickSearch);
   const researchTemplateStarters = readProjectFile(
     files.researchTemplateStarters
@@ -529,35 +533,57 @@ function run() {
     "copyTextToClipboard",
     "请选择图片文件作为页面封面。",
     "封面图片 URL：",
-    "添加封面",
-    "封面 URL",
     "移除",
     "页面未找到",
     "返回首页",
-    "已收藏",
-    "添加子页面",
-    "保存版本",
-    "导出/复制",
-    "exportMenuRef",
-    "pointerdown",
-    "Escape",
-    "下载 HTML",
-    "下载 Markdown",
-    "复制链接",
-    "复制 MD",
-    "复制 HTML",
-    "打印 / PDF",
-    "PageActionMenuButton",
     "已复制 Markdown",
     "已复制 HTML",
-    "复制页面",
-    "查看版本历史",
+    "PageActionsMenu",
+    "PageProperties",
+    "handlePropertiesChange",
   ]) {
     assertIncludes(
       files.pageShell,
       pageShell,
       snippet,
-      "Page cover controls must keep the default notes UI in Chinese."
+      "Page shell must keep cover controls and wire the clean Notion-style header."
+    );
+  }
+  for (const snippet of [
+    "添加子页面",
+    "添加封面",
+    "保存版本",
+    "版本历史",
+    "页面信息",
+    "复制页面",
+    "复制链接",
+    "导出 HTML",
+    "导出 Markdown",
+    "复制 Markdown",
+    "复制 HTML",
+    "打印 / PDF",
+    "删除页面",
+    "pointerdown",
+    "Escape",
+  ]) {
+    assertIncludes(
+      files.pageActionsMenu,
+      pageActionsMenu,
+      snippet,
+      "Page actions menu must consolidate every page-level action in Chinese."
+    );
+  }
+  for (const snippet of [
+    "createPageProperty",
+    "updatePageProperty",
+    "添加属性",
+    "新建选项...",
+  ]) {
+    assertIncludes(
+      files.pageProperties,
+      pageProperties,
+      snippet,
+      "Page properties block must offer Notion-style editable properties."
     );
   }
   for (const snippet of [

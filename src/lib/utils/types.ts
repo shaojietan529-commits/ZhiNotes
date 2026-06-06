@@ -8,6 +8,7 @@ export interface Page {
   cover_url: string | null;
   content_yjs: Uint8Array | null;
   content_text: string | null;
+  properties: string | null;
   position: number;
   depth: number;
   created_at: string;
