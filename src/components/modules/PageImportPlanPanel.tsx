@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
+import { usePages } from "@/hooks/usePages";
 import {
   buildPageImportPlan,
   buildExportablePageImportManifest,
@@ -8,6 +10,11 @@ import {
   type PageImportPlan,
   type PageImportSourceFile,
 } from "@/lib/files/pageImportPlan";
+import {
+  executePageImportPlan,
+  countExecutableItems,
+  type PageImportExecutionResult,
+} from "@/lib/files/pageImportExecutor";
 
 const LANE_BADGE: Record<
   PageImportLaneId,
@@ -68,8 +75,14 @@ function downloadJson(fileName: string, value: unknown) {
  * bytes, create pages/databases, upload, or call AI.
  */
 export default function PageImportPlanPanel() {
+  const router = useRouter();
+  const { refresh: refreshPages } = usePages();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [plan, setPlan] = useState<PageImportPlan | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [confirmed, setConfirmed] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<PageImportExecutionResult | null>(null);
 
   const handleChoose = () => inputRef.current?.click();
 
@@ -77,12 +90,17 @@ export default function PageImportPlanPanel() {
     const fileList = event.target.files;
     event.target.value = "";
     if (!fileList || fileList.length === 0) return;
-    // Metadata only: read name + size, never the bytes.
-    const sources: PageImportSourceFile[] = Array.from(fileList).map((f) => ({
+    const selected = Array.from(fileList);
+    // Plan is built from metadata only (name + size); bytes are read only later
+    // if the user explicitly confirms the import.
+    const sources: PageImportSourceFile[] = selected.map((f) => ({
       name: f.name,
       size_bytes: f.size,
     }));
+    setFiles(selected);
     setPlan(buildPageImportPlan(sources));
+    setConfirmed(false);
+    setResult(null);
   };
 
   const handleExportManifest = () => {
@@ -92,7 +110,36 @@ export default function PageImportPlanPanel() {
     downloadJson(`zhinote-page-import-manifest-${stamp}.json`, manifest);
   };
 
-  const handleClear = () => setPlan(null);
+  const handleClear = () => {
+    setPlan(null);
+    setFiles([]);
+    setConfirmed(false);
+    setResult(null);
+  };
+
+  const handleConfirmImport = async () => {
+    if (!plan || !confirmed || importing) return;
+    setImporting(true);
+    try {
+      const res = await executePageImportPlan(files, plan);
+      setResult(res);
+      await refreshPages();
+      if (res.status === "completed" && res.first_page_id) {
+        router.push(`/page/${res.first_page_id}`);
+      }
+    } catch (err) {
+      console.error("[Zhinote] import execution error:", err);
+      setResult(null);
+      window.alert("批量导入失败。文件没有上传或外发；请检查浏览器是否允许本地存储。");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const executableCount = useMemo(
+    () => (plan ? countExecutableItems(plan) : 0),
+    [plan]
+  );
 
   const manifest = useMemo(
     () => (plan ? buildExportablePageImportManifest(plan) : null),
@@ -247,6 +294,68 @@ export default function PageImportPlanPanel() {
               ))}
             </ul>
           </div>
+
+          {/* Confirmed execution gate */}
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+              确认后执行导入
+            </p>
+            <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              本次会创建 {executableCount} 个本地页面（Markdown / 纯文本转为页面正文，
+              其它文件创建为本地文件页）。表格走数据库模块的列映射确认，未知格式需单独复核，
+              本步骤会跳过。中途任何一步失败会自动回退本次已创建的页面。导入只在本地进行，
+              不上传、不同步、不调用 AI。
+            </p>
+            <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-200">
+              <input
+                type="checkbox"
+                checked={confirmed}
+                onChange={(e) => setConfirmed(e.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
+              />
+              我已查看导入计划，确认创建这些本地页面
+            </label>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleConfirmImport()}
+                disabled={!confirmed || importing || executableCount === 0}
+                className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {importing ? "导入中..." : `确认并导入 ${executableCount} 个页面`}
+              </button>
+              {executableCount === 0 && (
+                <span className="text-xs text-zinc-400">
+                  当前没有可在本步骤直接创建的文件。
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Result */}
+          {result && (
+            <div
+              className={`rounded-lg border px-4 py-3 text-sm ${
+                result.status === "completed"
+                  ? "border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200"
+                  : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+              }`}
+            >
+              {result.status === "completed" ? (
+                <p>
+                  导入完成：创建页面 {result.created_pages} 个、文件页{" "}
+                  {result.retained_file_pages} 个；跳过数据库候选{" "}
+                  {result.skipped_database} 个、待复核 {result.skipped_blocked} 个。
+                  文件没有上传或调用 AI。
+                </p>
+              ) : (
+                <p>
+                  导入中途失败，已回退本次创建的 {result.rolled_back_pages}{" "}
+                  个页面，工作区恢复到导入前状态。文件没有上传或外发。
+                </p>
+              )}
+            </div>
+          )}
 
           <p className="text-xs leading-5 text-zinc-400">
             {plan.privacy_note}

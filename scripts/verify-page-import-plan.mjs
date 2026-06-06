@@ -120,6 +120,44 @@ if (manifestTypeMatch) {
   );
 }
 
+// ── Executor contract ────────────────────────────────────────
+const executorFile = "src/lib/files/pageImportExecutor.ts";
+const executorPath = path.join(root, executorFile);
+check(existsSync(executorPath), `${executorFile} 不存在`);
+const executorSource = existsSync(executorPath)
+  ? readFileSync(executorPath, "utf8")
+  : "";
+
+check(
+  executorSource.includes("export async function executePageImportPlan"),
+  "缺少 executePageImportPlan 执行器"
+);
+check(
+  executorSource.includes("export function countExecutableItems"),
+  "缺少 countExecutableItems 辅助函数"
+);
+// Rollback must exist and soft-delete created pages.
+check(
+  executorSource.includes("rollback") && executorSource.includes("deletePage"),
+  "执行器必须在失败时回退并软删除已创建页面"
+);
+check(
+  executorSource.includes('"rolled-back"'),
+  "执行器必须能返回 rolled-back 状态"
+);
+// Executor must not upload or call AI.
+check(
+  executorSource.includes("uploads_data: false") &&
+    executorSource.includes("enables_ai: false"),
+  "执行器必须声明不上传、不调用 AI"
+);
+// Spreadsheets and unknown formats must be skipped (not created) in this stage.
+check(
+  executorSource.includes("skippedDatabase") &&
+    executorSource.includes("skippedBlocked"),
+  "执行器必须跳过数据库候选和待复核文件"
+);
+
 if (errors.length > 0) {
   console.error("Page import plan contract verification FAILED:");
   for (const err of errors) console.error(`  - ${err}`);
