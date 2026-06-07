@@ -13,6 +13,7 @@ import {
   stringifyPageProperties,
   type PageProperty,
 } from "@/lib/pages/pageProperties";
+import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
@@ -57,6 +58,11 @@ export default function MeetingScheduleShell() {
   });
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(() => emptyForm(toDateKey(new Date())));
+  const [contextMenu, setContextMenu] = useState<{
+    pageId: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const load = useCallback(async () => {
     const id = await getModuleRootId("meeting-schedule");
@@ -309,6 +315,14 @@ export default function MeetingScheduleShell() {
                         key={entry.page.id}
                         type="button"
                         onClick={() => router.push(`/page/${entry.page.id}`)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setContextMenu({
+                            pageId: entry.page.id,
+                            x: e.clientX,
+                            y: e.clientY,
+                          });
+                        }}
                         className="truncate rounded bg-blue-50 px-1 py-0.5 text-left text-[10px] text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300"
                         title={`${entry.time ? entry.time + " " : ""}${entry.topic}`}
                       >
@@ -338,6 +352,14 @@ export default function MeetingScheduleShell() {
                     <button
                       type="button"
                       onClick={() => router.push(`/page/${entry.page.id}`)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setContextMenu({
+                          pageId: entry.page.id,
+                          x: e.clientX,
+                          y: e.clientY,
+                        });
+                      }}
                       className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                     >
                       <span className="w-24 shrink-0 text-xs text-zinc-400">
@@ -360,6 +382,18 @@ export default function MeetingScheduleShell() {
           )}
         </div>
       </main>
+
+      {contextMenu && (
+        <PageContextMenu
+          pageId={contextMenu.pageId}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onOpen={(id) => router.push(`/page/${id}`)}
+          onOpenFull={(id) => router.push(`/page/${id}`)}
+          onChanged={() => void load()}
+        />
+      )}
     </div>
   );
 }

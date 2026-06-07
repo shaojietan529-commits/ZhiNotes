@@ -8,6 +8,7 @@ import { usePages } from "@/hooks/usePages";
 import { createPage, updatePage } from "@/lib/db/local/queries";
 import { getModuleRootId } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
 
 export default function IndustryChainShell() {
@@ -15,6 +16,11 @@ export default function IndustryChainShell() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const { pages, refresh } = usePages();
   const [rootId, setRootId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    pageId: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -99,6 +105,9 @@ export default function IndustryChainShell() {
                   onOpen={(id) => router.push(`/page/${id}`)}
                   onAddChild={(id) => void addChild(id, false)}
                   onRename={(id, title) => void renameNode(id, title)}
+                  onContextMenu={(id, x, y) =>
+                    setContextMenu({ pageId: id, x, y })
+                  }
                 />
               ))}
             </ul>
@@ -110,6 +119,18 @@ export default function IndustryChainShell() {
           </p>
         </div>
       </main>
+
+      {contextMenu && (
+        <PageContextMenu
+          pageId={contextMenu.pageId}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onOpen={(id) => router.push(`/page/${id}`)}
+          onOpenFull={(id) => router.push(`/page/${id}`)}
+          onChanged={() => void refresh()}
+        />
+      )}
     </div>
   );
 }
@@ -121,6 +142,7 @@ function ChainNode({
   onOpen,
   onAddChild,
   onRename,
+  onContextMenu,
 }: {
   node: Page;
   allPages: Page[];
@@ -128,6 +150,7 @@ function ChainNode({
   onOpen: (id: string) => void;
   onAddChild: (id: string) => void;
   onRename: (id: string, title: string) => void;
+  onContextMenu: (id: string, x: number, y: number) => void;
 }) {
   const [expanded, setExpanded] = useState(level < 1);
   const [renaming, setRenaming] = useState(false);
@@ -203,6 +226,10 @@ function ChainNode({
               setDraft(node.title);
               setRenaming(true);
             }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              onContextMenu(node.id, e.clientX, e.clientY);
+            }}
             className={`min-w-0 flex-1 truncate text-left text-sm transition-colors hover:text-blue-600 dark:hover:text-blue-400 ${
               level === 0
                 ? "font-semibold text-zinc-800 dark:text-zinc-100"
@@ -244,6 +271,7 @@ function ChainNode({
               onOpen={onOpen}
               onAddChild={onAddChild}
               onRename={onRename}
+              onContextMenu={onContextMenu}
             />
           ))}
         </ul>
