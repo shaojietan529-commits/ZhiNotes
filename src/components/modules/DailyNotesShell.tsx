@@ -13,6 +13,7 @@ import {
   stringifyPageProperties,
 } from "@/lib/pages/pageProperties";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import PagePeekModal from "@/components/page/PagePeekModal";
 import type { Page } from "@/lib/utils/types";
 
 // Light Notion-style daily journal scaffold inserted into new note pages.
@@ -35,6 +36,7 @@ export default function DailyNotesShell() {
   const { refresh } = usePages();
   const [rootId, setRootId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Page[]>([]);
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
   const [viewMonth, setViewMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -85,9 +87,11 @@ export default function DailyNotesShell() {
         content_text: DAILY_BODY_TEMPLATE,
       });
       await refresh();
-      router.push(`/page/${page.id}`);
+      await load();
+      // Pop the freshly created note in a modal instead of leaving the calendar.
+      setPeekPageId(page.id);
     },
-    [rootId, router, refresh]
+    [rootId, refresh, load]
   );
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
@@ -177,6 +181,14 @@ export default function DailyNotesShell() {
                   }`}
                 >
                   <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => void addNote(key)}
+                      className="flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                      title="在这天新增纪要"
+                    >
+                      +
+                    </button>
                     <span
                       className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
                         isToday
@@ -188,21 +200,13 @@ export default function DailyNotesShell() {
                     >
                       {cell.date.getDate()}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => void addNote(key)}
-                      className="flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-                      title="在这天新增纪要"
-                    >
-                      +
-                    </button>
                   </div>
                   <div className="mt-0.5 flex flex-col gap-0.5 overflow-y-auto">
                     {dayNotes.map((note) => (
                       <button
                         key={note.id}
                         type="button"
-                        onClick={() => router.push(`/page/${note.id}`)}
+                        onClick={() => setPeekPageId(note.id)}
                         className="flex items-center gap-1 truncate rounded bg-zinc-100 px-1 py-0.5 text-left text-[10px] text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
                         title={displayPageTitle(note.title)}
                       >
@@ -229,7 +233,7 @@ export default function DailyNotesShell() {
                   <li key={note.id}>
                     <button
                       type="button"
-                      onClick={() => router.push(`/page/${note.id}`)}
+                      onClick={() => setPeekPageId(note.id)}
                       className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                     >
                       <span className="w-24 shrink-0 text-xs text-zinc-400">
@@ -249,6 +253,15 @@ export default function DailyNotesShell() {
           )}
         </div>
       </main>
+
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          onClose={() => setPeekPageId(null)}
+          onOpenFull={(id) => router.push(`/page/${id}`)}
+          onChanged={() => void load()}
+        />
+      )}
     </div>
   );
 }
