@@ -189,7 +189,7 @@ function run() {
   for (const snippet of [
     "EDITOR_BLOCK_MENU_EVENT",
     "dispatchEditorBlockMenu",
-    "setBlockMenuOpen(true)",
+    'insertContent("/")',
     "window.addEventListener(EDITOR_BLOCK_MENU_EVENT",
   ]) {
     const sourceLabel =
@@ -200,7 +200,7 @@ function run() {
       sourceLabel,
       source,
       snippet,
-      "Cmd/Ctrl+/ must open the local editor block menu."
+      "Cmd/Ctrl+/ must trigger the local slash command menu."
     );
   }
 
