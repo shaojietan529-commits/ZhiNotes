@@ -60,8 +60,8 @@ for (const [name, source] of Object.entries(shells)) {
   }
 }
 
-// Daily: calendar + find-or-create per day + Notion-style template
-for (const token of ["buildMonthGrid", "openDay", "日期", "要点", "Summary"]) {
+// Daily: calendar + per-day add + Notion-style template
+for (const token of ["buildMonthGrid", "addNote", "日期", "要点", "Summary"]) {
   check(shells.daily.includes(token), `DailyNotesShell 缺少 ${token}`);
 }
 

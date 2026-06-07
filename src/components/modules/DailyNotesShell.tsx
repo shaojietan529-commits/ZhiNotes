@@ -12,28 +12,21 @@ import {
   parsePageProperties,
   stringifyPageProperties,
 } from "@/lib/pages/pageProperties";
+import { displayPageTitle } from "@/lib/pages/displayTitle";
 import type { Page } from "@/lib/utils/types";
 
-// Light Notion-style daily journal scaffold inserted into new day pages.
+// Light Notion-style daily journal scaffold inserted into new note pages.
 const DAILY_BODY_TEMPLATE =
   "<h2>今日要点</h2><ul><li><p></p></li></ul>" +
   "<h2>会议与交流</h2><ul><li><p></p></li></ul>" +
   "<h2>跟进事项</h2><ul><li><p></p></li></ul>";
 
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 const MONTH_LABELS = [
-  "1 月",
-  "2 月",
-  "3 月",
-  "4 月",
-  "5 月",
-  "6 月",
-  "7 月",
-  "8 月",
-  "9 月",
-  "10 月",
-  "11 月",
-  "12 月",
+  "1 月", "2 月", "3 月", "4 月", "5 月", "6 月",
+  "7 月", "8 月", "9 月", "10 月", "11 月", "12 月",
 ];
 
 export default function DailyNotesShell() {
@@ -50,8 +43,7 @@ export default function DailyNotesShell() {
   const load = useCallback(async () => {
     const id = await getModuleRootId("daily");
     setRootId(id);
-    const children = await listPages(id);
-    setNotes(children);
+    setNotes(await listPages(id));
   }, []);
 
   useEffect(() => {
@@ -61,33 +53,30 @@ export default function DailyNotesShell() {
     });
   }, [dbReady, load]);
 
-  // Map of date key (YYYY-MM-DD) -> daily note page. Matched by the 日期
-  // property first (so renaming the title never orphans a day), then title.
+  // Each day can hold multiple note pages (Notion-style), grouped by 日期.
   const notesByDate = useMemo(() => {
-    const map = new Map<string, Page>();
+    const map = new Map<string, Page[]>();
     for (const note of notes) {
-      map.set(dailyNoteDateKey(note), note);
+      const key = dailyNoteDateKey(note);
+      if (!key) continue;
+      const list = map.get(key) ?? [];
+      list.push(note);
+      map.set(key, list);
     }
     return map;
   }, [notes]);
 
-  const openDay = useCallback(
-    async (date: Date) => {
+  // Add a new note page on the given day, then open it for editing.
+  const addNote = useCallback(
+    async (dateKey: string) => {
       if (!rootId) return;
-      const key = toDateKey(date);
-      const existing = notesByDate.get(key);
-      if (existing) {
-        router.push(`/page/${existing.id}`);
-        return;
-      }
       const page = await createPage({
-        title: key,
+        title: "未命名纪要",
         parentId: rootId,
         icon: "📝",
       });
-      // Seed the Notion-style daily template: Date / 要点 / Summary + a light body.
       const props = [
-        { ...createPageProperty("date", "日期"), value: key },
+        { ...createPageProperty("date", "日期"), value: dateKey },
         createPageProperty("text", "要点"),
         createPageProperty("text", "Summary"),
       ];
@@ -98,7 +87,7 @@ export default function DailyNotesShell() {
       await refresh();
       router.push(`/page/${page.id}`);
     },
-    [rootId, notesByDate, router, refresh]
+    [rootId, router, refresh]
   );
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
@@ -132,15 +121,15 @@ export default function DailyNotesShell() {
                 <span>📅</span> 每日纪要
               </h1>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                点任意一天，进入或创建当天的纪要页面。
+                按日历浏览每天的纪要。鼠标悬停某一天，点 + 即可新增一篇纪要。
               </p>
             </div>
             <button
               type="button"
-              onClick={() => void openDay(new Date())}
+              onClick={() => void addNote(todayKey)}
               className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
-              今天的纪要
+              + 今天新增
             </button>
           </div>
 
@@ -178,34 +167,53 @@ export default function DailyNotesShell() {
           <div className="grid grid-cols-7">
             {grid.map((cell) => {
               const key = toDateKey(cell.date);
-              const hasNote = notesByDate.has(key);
+              const dayNotes = notesByDate.get(key) ?? [];
               const isToday = key === todayKey;
               return (
-                <button
+                <div
                   key={key}
-                  type="button"
-                  onClick={() => void openDay(cell.date)}
-                  className={`group relative flex h-20 flex-col items-start border-b border-r border-zinc-100 p-1.5 text-left transition-colors hover:bg-zinc-50 dark:border-zinc-800/70 dark:hover:bg-zinc-800/40 ${
+                  className={`group flex h-28 flex-col border-b border-r border-zinc-100 p-1 dark:border-zinc-800/70 ${
                     cell.inMonth ? "" : "bg-zinc-50/50 dark:bg-zinc-900/40"
                   }`}
                 >
-                  <span
-                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                      isToday
-                        ? "bg-zinc-900 font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
-                        : cell.inMonth
-                          ? "text-zinc-700 dark:text-zinc-200"
-                          : "text-zinc-300 dark:text-zinc-600"
-                    }`}
-                  >
-                    {cell.date.getDate()}
-                  </span>
-                  {hasNote && (
-                    <span className="mt-1 inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
-                      纪要
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
+                        isToday
+                          ? "bg-zinc-900 font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
+                          : cell.inMonth
+                            ? "text-zinc-600 dark:text-zinc-300"
+                            : "text-zinc-300 dark:text-zinc-600"
+                      }`}
+                    >
+                      {cell.date.getDate()}
                     </span>
-                  )}
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => void addNote(key)}
+                      className="flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                      title="在这天新增纪要"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div className="mt-0.5 flex flex-col gap-0.5 overflow-y-auto">
+                    {dayNotes.map((note) => (
+                      <button
+                        key={note.id}
+                        type="button"
+                        onClick={() => router.push(`/page/${note.id}`)}
+                        className="flex items-center gap-1 truncate rounded bg-zinc-100 px-1 py-0.5 text-left text-[10px] text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                        title={displayPageTitle(note.title)}
+                      >
+                        <span className="shrink-0">{note.icon || "📝"}</span>
+                        <span className="truncate">
+                          {displayPageTitle(note.title)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -222,10 +230,17 @@ export default function DailyNotesShell() {
                     <button
                       type="button"
                       onClick={() => router.push(`/page/${note.id}`)}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800/50"
+                      className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                     >
-                      <span>{note.icon || "📝"}</span>
-                      <span className="truncate">{note.title}</span>
+                      <span className="w-24 shrink-0 text-xs text-zinc-400">
+                        {dailyNoteDateKey(note)}
+                      </span>
+                      <span className="flex items-center gap-1.5 truncate text-zinc-700 dark:text-zinc-200">
+                        <span>{note.icon || "📝"}</span>
+                        <span className="truncate">
+                          {displayPageTitle(note.title)}
+                        </span>
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -236,6 +251,17 @@ export default function DailyNotesShell() {
       </main>
     </div>
   );
+}
+
+// Resolve the day a note belongs to: prefer the 日期 property, fall back to a
+// date-formatted title (older daily pages were titled with the date directly).
+function dailyNoteDateKey(page: Page): string {
+  const dateProp = parsePageProperties(page.properties).find(
+    (property) => property.name === "日期" && property.value
+  );
+  if (dateProp?.value) return dateProp.value.trim();
+  const title = (page.title || "").trim();
+  return DATE_KEY_PATTERN.test(title) ? title : "";
 }
 
 function CalNavButton({
@@ -259,15 +285,6 @@ function CalNavButton({
   );
 }
 
-// Resolve the day a note belongs to: prefer the 日期 property, fall back to
-// the page title (which we always create as the date key).
-function dailyNoteDateKey(page: Page): string {
-  const dateProp = parsePageProperties(page.properties).find(
-    (property) => property.name === "日期" && property.value
-  );
-  return (dateProp?.value || page.title || "").trim();
-}
-
 interface MonthCell {
   date: Date;
   inMonth: boolean;
@@ -278,10 +295,8 @@ function buildMonthGrid(monthStart: Date): MonthCell[] {
   const year = monthStart.getFullYear();
   const month = monthStart.getMonth();
   const first = new Date(year, month, 1);
-  // JS getDay(): 0 = Sunday. Convert to Monday-first offset.
   const offset = (first.getDay() + 6) % 7;
   const gridStart = new Date(year, month, 1 - offset);
-
   const cells: MonthCell[] = [];
   for (let i = 0; i < 42; i += 1) {
     const date = new Date(
