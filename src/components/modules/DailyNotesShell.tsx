@@ -14,6 +14,7 @@ import {
 } from "@/lib/pages/pageProperties";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import PagePeekModal from "@/components/page/PagePeekModal";
+import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
 
 // Light Notion-style daily journal scaffold inserted into new note pages.
@@ -37,6 +38,11 @@ export default function DailyNotesShell() {
   const [rootId, setRootId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Page[]>([]);
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    pageId: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const [viewMonth, setViewMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -207,6 +213,14 @@ export default function DailyNotesShell() {
                         key={note.id}
                         type="button"
                         onClick={() => setPeekPageId(note.id)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setContextMenu({
+                            pageId: note.id,
+                            x: e.clientX,
+                            y: e.clientY,
+                          });
+                        }}
                         className="flex items-center gap-1 truncate rounded bg-zinc-100 px-1 py-0.5 text-left text-[10px] text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
                         title={displayPageTitle(note.title)}
                       >
@@ -234,6 +248,14 @@ export default function DailyNotesShell() {
                     <button
                       type="button"
                       onClick={() => setPeekPageId(note.id)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setContextMenu({
+                          pageId: note.id,
+                          x: e.clientX,
+                          y: e.clientY,
+                        });
+                      }}
                       className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                     >
                       <span className="w-24 shrink-0 text-xs text-zinc-400">
@@ -258,6 +280,18 @@ export default function DailyNotesShell() {
         <PagePeekModal
           pageId={peekPageId}
           onClose={() => setPeekPageId(null)}
+          onOpenFull={(id) => router.push(`/page/${id}`)}
+          onChanged={() => void load()}
+        />
+      )}
+
+      {contextMenu && (
+        <PageContextMenu
+          pageId={contextMenu.pageId}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onOpen={(id) => setPeekPageId(id)}
           onOpenFull={(id) => router.push(`/page/${id}`)}
           onChanged={() => void load()}
         />
