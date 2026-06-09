@@ -7,7 +7,6 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
-import DatabaseProvider from "./DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import Editor from "@/components/editor/Editor";
 import type { EditorRef } from "@/components/editor/Editor";
@@ -57,11 +56,7 @@ import {
 } from "@/lib/pages/pageResearchStructure";
 
 export default function PageShell({ pageId }: { pageId: string }) {
-  return (
-    <DatabaseProvider>
-      <PageContent pageId={pageId} />
-    </DatabaseProvider>
-  );
+  return <PageContent pageId={pageId} />;
 }
 
 function PageContent({ pageId }: { pageId: string }) {

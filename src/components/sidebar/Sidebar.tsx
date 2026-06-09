@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createPage, createDatabase, getAllDatabases } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
@@ -159,15 +160,15 @@ export default function Sidebar() {
       {/* Primary workspaces (the three big categories) */}
       <div className="px-2 pb-2">
         {MODULE_WORKSPACE_LIST.map((workspace) => (
-          <button
+          <Link
             key={workspace.key}
-            type="button"
-            onClick={() => router.push(workspace.route)}
+            href={workspace.route}
+            prefetch
             className="mt-0.5 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             <span className="shrink-0 text-base">{workspace.icon}</span>
             <span className="truncate">{workspace.label}</span>
-          </button>
+          </Link>
         ))}
       </div>
 
@@ -193,30 +194,26 @@ export default function Sidebar() {
         </button>
         {modulesOpen && (
           <div className="mt-1">
-            <button
-              type="button"
-              onClick={() => router.push("/modules")}
+            <Link
+              href="/modules"
               className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
             >
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-200 text-[9px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 模块
               </span>
               <span className="truncate">模块中心</span>
-            </button>
+            </Link>
             {sidebarModules.map((module) => (
-              <button
+              <Link
                 key={module.id}
-                type="button"
-                onClick={() => {
-                  if (module.route) router.push(module.route);
-                }}
+                href={module.route || "/modules"}
                 className="mt-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               >
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-200 text-[9px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                   {module.icon}
                 </span>
                 <span className="truncate">{module.shortTitle}</span>
-              </button>
+              </Link>
             ))}
           </div>
         )}

@@ -1,7 +1,11 @@
+"use client";
+
+import DatabaseProvider from "@/components/providers/DatabaseProvider";
+
 export default function WorkspaceLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return <DatabaseProvider>{children}</DatabaseProvider>;
 }
