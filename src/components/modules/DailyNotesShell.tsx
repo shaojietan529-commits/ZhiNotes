@@ -17,11 +17,6 @@ import PagePeekModal from "@/components/page/PagePeekModal";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
 
-// Light Notion-style daily journal scaffold inserted into new note pages.
-const DAILY_BODY_TEMPLATE =
-  "<h2>今日要点</h2><ul><li><p></p></li></ul>" +
-  "<h2>会议与交流</h2><ul><li><p></p></li></ul>" +
-  "<h2>跟进事项</h2><ul><li><p></p></li></ul>";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -90,7 +85,6 @@ export default function DailyNotesShell() {
       ];
       await updatePage(page.id, {
         properties: stringifyPageProperties(props),
-        content_text: DAILY_BODY_TEMPLATE,
       });
       await refresh();
       await load();

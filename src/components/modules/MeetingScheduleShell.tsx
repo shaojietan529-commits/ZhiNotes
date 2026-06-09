@@ -21,11 +21,6 @@ const MONTH_LABELS = [
   "1 月", "2 月", "3 月", "4 月", "5 月", "6 月",
   "7 月", "8 月", "9 月", "10 月", "11 月", "12 月",
 ];
-// Scaffold inserted into a new meeting page (the Agent will later fill these in).
-const MEETING_BODY_TEMPLATE =
-  "<h2>会议信息</h2><ul><li><p></p></li></ul>" +
-  "<h2>会议纪要</h2><ul><li><p></p></li></ul>" +
-  "<h2>跟进事项</h2><ul><li><p></p></li></ul>";
 
 const PLATFORMS = [
   "腾讯会议",
@@ -125,7 +120,6 @@ export default function MeetingScheduleShell() {
     ];
     await updatePage(page.id, {
       properties: stringifyPageProperties(props),
-      content_text: MEETING_BODY_TEMPLATE,
     });
 
     setFormOpen(false);
