@@ -117,6 +117,8 @@ export default function MeetingScheduleShell() {
         options: PLATFORMS,
       },
       { ...createPageProperty("text", "组织者"), value: organizer },
+      createPageProperty("tags", "相关公司"),
+      createPageProperty("tags", "相关行业"),
     ];
     await updatePage(page.id, {
       properties: stringifyPageProperties(props),

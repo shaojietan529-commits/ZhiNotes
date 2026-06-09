@@ -137,6 +137,7 @@ export default function PagePeekModal({
 
               <PageProperties
                 properties={properties}
+                pageId={pageId}
                 onChange={handlePropertiesChange}
               />
 

@@ -9,7 +9,8 @@ export type PagePropertyType =
   | "date"
   | "select"
   | "checkbox"
-  | "url";
+  | "url"
+  | "tags";
 
 export interface PageProperty {
   id: string;
@@ -32,6 +33,7 @@ export const PAGE_PROPERTY_TYPES: {
   { value: "select", label: "单选", icon: "⛓" },
   { value: "checkbox", label: "复选框", icon: "✓" },
   { value: "url", label: "链接", icon: "🔗" },
+  { value: "tags", label: "标签", icon: "🏷️" },
 ];
 
 export function getPagePropertyTypeLabel(type: PagePropertyType): string {
@@ -113,4 +115,13 @@ export function removePageProperty(
   id: string
 ): PageProperty[] {
   return properties.filter((property) => property.id !== id);
+}
+
+export function parseTagsValue(value: string): string[] {
+  if (!value) return [];
+  return value.split(",").map((t) => t.trim()).filter(Boolean);
+}
+
+export function joinTagsValue(tags: string[]): string {
+  return tags.join(",");
 }

@@ -82,6 +82,8 @@ export default function DailyNotesShell() {
         { ...createPageProperty("date", "日期"), value: dateKey },
         createPageProperty("text", "要点"),
         createPageProperty("text", "Summary"),
+        createPageProperty("tags", "相关公司"),
+        createPageProperty("tags", "相关行业"),
       ];
       await updatePage(page.id, {
         properties: stringifyPageProperties(props),

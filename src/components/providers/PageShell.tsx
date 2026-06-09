@@ -641,6 +641,7 @@ function PageContent({ pageId }: { pageId: string }) {
           <PageProperties
             properties={properties}
             disabled={locked}
+            pageId={pageId}
             onChange={handlePropertiesChange}
           />
 

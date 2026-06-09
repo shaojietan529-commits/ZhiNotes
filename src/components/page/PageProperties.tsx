@@ -1,19 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   PAGE_PROPERTY_TYPES,
   createPageProperty,
   getPagePropertyTypeIcon,
+  joinTagsValue,
+  parseTagsValue,
   removePageProperty,
   updatePageProperty,
   type PageProperty,
   type PagePropertyType,
 } from "@/lib/pages/pageProperties";
+import { getPage } from "@/lib/db/local/queries";
+import { findIndustryChainPageId } from "@/lib/pages/industryChainSearch";
 
 interface PagePropertiesProps {
   properties: PageProperty[];
   disabled?: boolean;
+  pageId?: string;
   onChange: (next: PageProperty[]) => void;
 }
 
@@ -21,10 +27,73 @@ interface PagePropertiesProps {
 export default function PageProperties({
   properties,
   disabled = false,
+  pageId,
   onChange,
 }: PagePropertiesProps) {
   const [showAdd, setShowAdd] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const addRef = useRef<HTMLDivElement>(null);
+
+  const hasTagsProperties = properties.some((p) => p.type === "tags");
+
+  const handleAiAnalyze = useCallback(async () => {
+    if (!pageId || aiLoading) return;
+    setAiLoading(true);
+    try {
+      const page = await getPage(pageId);
+      const content = page?.content_text ?? "";
+      if (!content.replace(/<[^>]*>/g, "").trim()) {
+        window.alert("页面内容为空，无法识别相关标签。");
+        return;
+      }
+
+      const res = await fetch("/api/ai/analyze-tags", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+
+      if (res.status === 501) {
+        window.alert(
+          "AI 功能尚未配置。请在 Vercel 项目设置 → Environment Variables 中添加 ANTHROPIC_API_KEY。"
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        window.alert("AI 识别失败，请稍后重试。");
+        return;
+      }
+
+      const data: { companies?: string[]; industries?: string[] } =
+        await res.json();
+      let next = [...properties];
+
+      const companyProp = next.find((p) => p.name === "相关公司");
+      if (companyProp && data.companies?.length) {
+        const existing = parseTagsValue(companyProp.value);
+        const merged = [...new Set([...existing, ...data.companies])];
+        next = updatePageProperty(next, companyProp.id, {
+          value: joinTagsValue(merged),
+        });
+      }
+
+      const industryProp = next.find((p) => p.name === "相关行业");
+      if (industryProp && data.industries?.length) {
+        const existing = parseTagsValue(industryProp.value);
+        const merged = [...new Set([...existing, ...data.industries])];
+        next = updatePageProperty(next, industryProp.id, {
+          value: joinTagsValue(merged),
+        });
+      }
+
+      onChange(next);
+    } catch {
+      window.alert("AI 识别出错，请检查网络连接。");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [pageId, aiLoading, properties, onChange]);
 
   useEffect(() => {
     if (!showAdd) return;
@@ -65,30 +134,49 @@ export default function PageProperties({
       </div>
 
       {!disabled && (
-        <div ref={addRef} className="relative mt-1">
-          <button
-            type="button"
-            onClick={() => setShowAdd((value) => !value)}
-            className="flex items-center gap-1.5 rounded px-1.5 py-1 text-sm text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-          >
-            <span className="text-base leading-none">+</span> 添加属性
-          </button>
-          {showAdd && (
-            <div className="absolute left-0 top-9 z-30 w-44 overflow-hidden rounded-md border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-              {PAGE_PROPERTY_TYPES.map((entry) => (
-                <button
-                  key={entry.value}
-                  type="button"
-                  onClick={() => handleAdd(entry.value)}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                >
-                  <span className="w-4 text-center text-zinc-400">
-                    {entry.icon}
-                  </span>
-                  {entry.label}
-                </button>
-              ))}
-            </div>
+        <div className="mt-1 flex items-center gap-2">
+          <div ref={addRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setShowAdd((value) => !value)}
+              className="flex items-center gap-1.5 rounded px-1.5 py-1 text-sm text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            >
+              <span className="text-base leading-none">+</span> 添加属性
+            </button>
+            {showAdd && (
+              <div className="absolute left-0 top-9 z-30 w-44 overflow-hidden rounded-md border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                {PAGE_PROPERTY_TYPES.map((entry) => (
+                  <button
+                    key={entry.value}
+                    type="button"
+                    onClick={() => handleAdd(entry.value)}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                  >
+                    <span className="w-4 text-center text-zinc-400">
+                      {entry.icon}
+                    </span>
+                    {entry.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {hasTagsProperties && pageId && (
+            <button
+              type="button"
+              onClick={() => void handleAiAnalyze()}
+              disabled={aiLoading}
+              className="flex items-center gap-1 rounded px-2 py-1 text-sm text-zinc-400 transition-colors hover:bg-violet-50 hover:text-violet-600 disabled:opacity-50 dark:hover:bg-violet-950/40 dark:hover:text-violet-400"
+            >
+              {aiLoading ? (
+                <>
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border border-zinc-300 border-t-violet-500" />
+                  识别中…
+                </>
+              ) : (
+                <>✨ AI 识别</>
+              )}
+            </button>
           )}
         </div>
       )}
@@ -257,6 +345,16 @@ function PropertyValueEditor({
     );
   }
 
+  if (property.type === "tags") {
+    return (
+      <TagsValueEditor
+        property={property}
+        disabled={disabled}
+        onChange={onChange}
+      />
+    );
+  }
+
   if (property.type === "select") {
     return (
       <SelectValueEditor
@@ -383,6 +481,115 @@ function SelectValueEditor({
             </button>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+const TAG_COLORS = [
+  "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+  "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+];
+
+function tagColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  }
+  return TAG_COLORS[Math.abs(hash) % TAG_COLORS.length];
+}
+
+function TagsValueEditor({
+  property,
+  disabled,
+  onChange,
+}: {
+  property: PageProperty;
+  disabled: boolean;
+  onChange: (patch: Partial<Omit<PageProperty, "id">>) => void;
+}) {
+  const router = useRouter();
+  const [draft, setDraft] = useState("");
+  const [navigating, setNavigating] = useState<string | null>(null);
+  const tags = parseTagsValue(property.value);
+
+  const addTag = () => {
+    const next = draft.trim();
+    if (!next || tags.includes(next)) {
+      setDraft("");
+      return;
+    }
+    onChange({ value: joinTagsValue([...tags, next]) });
+    setDraft("");
+  };
+
+  const removeTag = (tag: string) => {
+    onChange({ value: joinTagsValue(tags.filter((t) => t !== tag)) });
+  };
+
+  const handleTagClick = async (tag: string) => {
+    setNavigating(tag);
+    try {
+      const pageId = await findIndustryChainPageId(tag);
+      if (pageId) {
+        router.push(`/page/${pageId}`);
+      } else {
+        router.push("/industry-chain");
+      }
+    } finally {
+      setNavigating(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 py-0.5">
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${tagColor(tag)}`}
+        >
+          <button
+            type="button"
+            onClick={() => void handleTagClick(tag)}
+            disabled={navigating === tag}
+            className="hover:underline"
+            title={`跳转到产业链：${tag}`}
+          >
+            {navigating === tag ? "…" : tag}
+          </button>
+          {!disabled && (
+            <button
+              type="button"
+              onClick={() => removeTag(tag)}
+              className="ml-0.5 opacity-60 hover:opacity-100"
+              title="移除"
+            >
+              ×
+            </button>
+          )}
+        </span>
+      ))}
+      {!disabled && (
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addTag();
+            }
+          }}
+          onBlur={addTag}
+          placeholder={tags.length === 0 ? "输入标签…" : "+"}
+          className="min-w-[60px] max-w-[120px] flex-shrink bg-transparent px-1 py-0.5 text-sm text-zinc-700 outline-none placeholder:text-zinc-300 dark:text-zinc-200 dark:placeholder:text-zinc-600"
+        />
+      )}
+      {tags.length === 0 && disabled && (
+        <span className="text-sm text-zinc-300 dark:text-zinc-600">空</span>
       )}
     </div>
   );
