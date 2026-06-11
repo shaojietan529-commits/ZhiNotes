@@ -146,6 +146,18 @@ export default function PortfolioBoardShell() {
         lastEmailMessageId: loadLastEmailMessageId(),
         updatedAt: now,
       });
+      if (pushed.status === "ok" && pushed.data) {
+        const serverTags = pushed.data;
+        if (JSON.stringify(serverTags) !== JSON.stringify(mergedTags)) {
+          lastPayloadRef.current = corePayload(
+            snapshotToUse,
+            serverTags,
+            allocToUse
+          );
+          setTagMap(serverTags);
+          saveTagMap(serverTags);
+        }
+      }
       setSyncStatus(pushed.status === "ok" ? "synced" : "error");
       syncReadyRef.current = true;
     },
@@ -170,6 +182,18 @@ export default function PortfolioBoardShell() {
         lastEmailMessageId: loadLastEmailMessageId(),
         updatedAt: now,
       }).then((result) => {
+        if (result.status === "ok" && result.data) {
+          const serverTags = result.data;
+          if (JSON.stringify(serverTags) !== JSON.stringify(tagMap)) {
+            lastPayloadRef.current = corePayload(
+              snapshot,
+              serverTags,
+              allocation
+            );
+            setTagMap(serverTags);
+            saveTagMap(serverTags);
+          }
+        }
         setSyncStatus(result.status === "ok" ? "synced" : "error");
       });
     }, 1500);

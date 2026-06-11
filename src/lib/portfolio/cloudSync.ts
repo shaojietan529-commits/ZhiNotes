@@ -56,10 +56,11 @@ export async function pullCloudData(
   }
 }
 
+// On success returns the server-merged tag map (cloud union of all devices).
 export async function pushCloudData(
   passcode: string,
   data: CloudPortfolioData
-): Promise<SyncResult<null>> {
+): Promise<SyncResult<TagMap | null>> {
   try {
     const res = await fetch("/api/portfolio/sync", {
       method: "POST",
@@ -69,7 +70,14 @@ export async function pushCloudData(
     if (res.status === 501) return { status: "unconfigured" };
     if (res.status === 403) return { status: "unauthorized" };
     if (!res.ok) return { status: "error" };
-    return { status: "ok", data: null };
+    const result = await res.json();
+    return {
+      status: "ok",
+      data:
+        result.tagMap && typeof result.tagMap === "object"
+          ? (result.tagMap as TagMap)
+          : null,
+    };
   } catch {
     return { status: "error" };
   }

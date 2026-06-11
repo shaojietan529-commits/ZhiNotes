@@ -98,12 +98,34 @@ export async function POST(req: Request) {
       if (!body.data || typeof body.data !== "object") {
         return NextResponse.json({ error: "缺少数据" }, { status: 400 });
       }
-      const serialized = JSON.stringify(body.data);
+      const incoming = body.data as Record<string, unknown>;
+
+      // Server-side tag union: a device pushing a stale/empty tag map can
+      // never wipe labels added elsewhere. Incoming values win per stock.
+      const incomingTags =
+        incoming.tagMap && typeof incoming.tagMap === "object"
+          ? (incoming.tagMap as Record<string, string>)
+          : {};
+      let mergedTags = incomingTags;
+      const existingRaw = await kvGet(env, DATA_KEY);
+      if (existingRaw) {
+        try {
+          const existing = JSON.parse(existingRaw);
+          if (existing?.tagMap && typeof existing.tagMap === "object") {
+            mergedTags = { ...existing.tagMap, ...incomingTags };
+          }
+        } catch {
+          // corrupt existing payload — overwrite it
+        }
+      }
+      incoming.tagMap = mergedTags;
+
+      const serialized = JSON.stringify(incoming);
       if (serialized.length > MAX_PAYLOAD_BYTES) {
         return NextResponse.json({ error: "数据过大" }, { status: 413 });
       }
       await kvSet(env, DATA_KEY, serialized);
-      return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: true, tagMap: mergedTags });
     }
 
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
