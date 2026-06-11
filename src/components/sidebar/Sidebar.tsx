@@ -18,6 +18,7 @@ import {
 } from "@/lib/export/workspaceBackup";
 import { PLATFORM_MODULES } from "@/lib/modules/registry";
 import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
+import { ZhiNoteLogo, ZhiNoteMark } from "@/components/brand/ZhiNoteLogo";
 
 export default function Sidebar() {
   const router = useRouter();
@@ -104,12 +105,10 @@ export default function Sidebar() {
     return (
       <button
         onClick={toggleSidebar}
-        className="fixed top-4 left-4 z-50 p-2 bg-white dark:bg-zinc-900 rounded-lg shadow-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+        className="fixed top-4 left-4 z-50 rounded-lg border border-white/10 bg-[#111821] p-1.5 shadow-md transition-colors hover:bg-[#182233]"
         title="打开侧边栏"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M3 12h18M3 6h18M3 18h18" />
-        </svg>
+        <ZhiNoteMark className="h-8 w-8" />
       </button>
     );
   }
@@ -117,13 +116,18 @@ export default function Sidebar() {
   return (
     <aside className="w-64 h-screen flex flex-col bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 shrink-0">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
-        <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          Zhinote
-        </h1>
+      <div className="flex items-center justify-between border-b border-black/20 bg-[#111821] px-3 py-2.5">
+        <button
+          type="button"
+          onClick={() => router.push("/modules")}
+          className="rounded-md p-1 transition-colors hover:bg-white/5"
+          title="打开模块中心"
+        >
+          <ZhiNoteLogo className="h-9 w-[150px]" />
+        </button>
         <button
           onClick={toggleSidebar}
-          className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors text-zinc-500"
+          className="p-1 rounded text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
           title="收起侧边栏"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

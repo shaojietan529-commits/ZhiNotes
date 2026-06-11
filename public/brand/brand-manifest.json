@@ -1,0 +1,22 @@
+{
+  "name": "ZhiNote",
+  "palette": {
+    "ink": "#111821",
+    "blue": "#586CF2",
+    "teal": "#2BB8C7",
+    "paper": "#F4F6FB",
+    "orange": "#FFB33E"
+  },
+  "assets": {
+    "mark": "/brand/zhinote-mark.svg",
+    "appIcon": "/brand/zhinote-app-icon.svg",
+    "horizontal": "/brand/zhinote-logo-horizontal.svg",
+    "horizontalDark": "/brand/zhinote-logo-horizontal-dark.svg",
+    "stackedDark": "/brand/zhinote-logo-stacked-dark.svg",
+    "wordmark": "/brand/zhinote-wordmark.svg",
+    "socialCard": "/brand/zhinote-social-card.svg",
+    "appIconPng": "/brand/zhinote-app-icon-512.png",
+    "horizontalDarkPng": "/brand/zhinote-logo-horizontal-dark-1200.png",
+    "socialCardPng": "/brand/zhinote-social-card-1200.png"
+  }
+}

@@ -2,8 +2,29 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Zhinote",
+  title: {
+    default: "ZhiNote",
+    template: "%s | ZhiNote",
+  },
+  applicationName: "ZhiNote",
   description: "Offline-first knowledge management for investment research",
+  icons: {
+    icon: [
+      {
+        url: "/icon.svg",
+        type: "image/svg+xml",
+      },
+      {
+        url: "/favicon.ico",
+      },
+    ],
+    apple: [
+      {
+        url: "/brand/zhinote-app-icon.svg",
+        type: "image/svg+xml",
+      },
+    ],
+  },
 };
 
 export default function RootLayout({

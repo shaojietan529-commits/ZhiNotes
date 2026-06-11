@@ -1,0 +1,10 @@
+<svg role="img" aria-label="ZhiNote mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <path d="M146 50h76l-14 54h74v62h-85v60h78v62h-87c-11 64-40 116-88 156l-54-43c39-31 63-68 73-113H61v-62h64v-60H86v-26c27-32 47-69 60-110Z" fill="#586CF2"/>
+  <path d="M205 308l56 154h-70l-37-104c19-13 36-30 51-50Z" fill="#2BB8C7"/>
+  <path d="M298 96h126c45 0 80 35 80 80v172h-66V178c0-11-9-20-20-20H298V96Z" fill="#F4F6FB"/>
+  <rect x="300" y="374" width="100" height="62" fill="#F4F6FB"/>
+  <path d="M400 374h78l-78 78v-78Z" fill="#FFB33E"/>
+  <rect x="316" y="202" width="116" height="24" rx="12" fill="#F4F6FB"/>
+  <rect x="316" y="256" width="110" height="24" rx="12" fill="#F4F6FB"/>
+  <rect x="316" y="310" width="82" height="24" rx="12" fill="#F4F6FB"/>
+</svg>
