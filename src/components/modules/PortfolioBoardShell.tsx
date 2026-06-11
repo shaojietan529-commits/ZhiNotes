@@ -405,6 +405,7 @@ export default function PortfolioBoardShell() {
                       title="按 Tag"
                       icon="🏷️"
                       exposures={tagExposures}
+                      allocation={allocation}
                     />
                   )}
                   {countryExposures && (
@@ -412,6 +413,7 @@ export default function PortfolioBoardShell() {
                       title="按 Country"
                       icon="🌏"
                       exposures={countryExposures}
+                      allocation={allocation}
                     />
                   )}
                 </div>
@@ -735,9 +737,11 @@ function ExposureTable({
   title,
   icon,
   exposures,
+  allocation,
 }: {
   title: string;
   icon: string;
+  allocation: number;
   exposures: {
     rows: {
       label: string;
@@ -749,7 +753,7 @@ function ExposureTable({
     totalGross: number;
   };
 }) {
-  const { rows, totalGross } = exposures;
+  const { rows } = exposures;
   const totalLong = rows.reduce((sum, row) => sum + row.long, 0);
   const totalShort = rows.reduce((sum, row) => sum + row.short, 0);
   const maxGross = rows.length > 0 ? rows[0].gross : 0;
@@ -770,11 +774,14 @@ function ExposureTable({
                 {title.replace("按 ", "")}
               </th>
               <th className="px-3 py-2 text-right font-medium">Long</th>
+              <th className="px-3 py-2 text-right font-medium">Long %</th>
               <th className="px-3 py-2 text-right font-medium">Short</th>
+              <th className="px-3 py-2 text-right font-medium">Short %</th>
               <th className="px-3 py-2 text-right font-medium">Net</th>
-              <th className="px-3 py-2 text-right font-medium">Total</th>
-              <th className="px-3 py-2 text-right font-medium">Total %</th>
-              <th className="w-1/4 px-3 py-2 font-medium">L / S</th>
+              <th className="px-3 py-2 text-right font-medium">Net %</th>
+              <th className="px-3 py-2 text-right font-medium">Gross</th>
+              <th className="px-3 py-2 text-right font-medium">Gross %</th>
+              <th className="w-1/5 px-3 py-2 font-medium">L / S</th>
             </tr>
           </thead>
           <tbody>
@@ -792,27 +799,34 @@ function ExposureTable({
                   <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
                     {formatMoney(row.long)}
                   </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-emerald-600/70 dark:text-emerald-400/70">
+                    {formatAllocPct(row.long, allocation)}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-400">
                     {formatMoney(row.short)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-rose-600/70 dark:text-rose-400/70">
+                    {formatAllocPct(row.short, allocation)}
                   </td>
                   <td
                     className={`px-3 py-2 text-right font-medium tabular-nums ${pnlColor(row.net)}`}
                   >
                     {formatSignedMoney(row.net)}
                   </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                    {formatSignedAllocPct(row.net, allocation)}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
                     {formatMoney(row.gross)}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-                    {totalGross > 0
-                      ? `${((row.gross / totalGross) * 100).toFixed(1)}%`
-                      : "—"}
+                    {formatAllocPct(row.gross, allocation)}
                   </td>
                   <td className="px-3 py-2">
                     <div
                       className="flex h-2.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
                       style={{ width: `${Math.max(barScale * 100, 4)}%` }}
-                      title={`Long ${formatMoney(row.long)} / Short ${formatMoney(row.short)}`}
+                      title={`Long ${formatAllocPct(row.long, allocation)} / Short ${formatAllocPct(row.short, allocation)}`}
                     >
                       <div
                         className="bg-emerald-500"
@@ -836,18 +850,29 @@ function ExposureTable({
               <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
                 {formatMoney(totalLong)}
               </td>
+              <td className="px-3 py-2 text-right tabular-nums text-emerald-600/70 dark:text-emerald-400/70">
+                {formatAllocPct(totalLong, allocation)}
+              </td>
               <td className="px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-400">
                 {formatMoney(totalShort)}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums text-rose-600/70 dark:text-rose-400/70">
+                {formatAllocPct(totalShort, allocation)}
               </td>
               <td
                 className={`px-3 py-2 text-right tabular-nums ${pnlColor(totalLong - totalShort)}`}
               >
                 {formatSignedMoney(totalLong - totalShort)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
-                {formatMoney(totalGross)}
+              <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                {formatSignedAllocPct(totalLong - totalShort, allocation)}
               </td>
-              <td className="px-3 py-2 text-right text-zinc-500">100%</td>
+              <td className="px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
+                {formatMoney(totalLong + totalShort)}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                {formatAllocPct(totalLong + totalShort, allocation)}
+              </td>
               <td />
             </tr>
           </tfoot>
