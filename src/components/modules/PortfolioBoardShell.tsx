@@ -1105,7 +1105,7 @@ function PositionTable({
   );
 }
 
-function SortableTh({
+function SortableTh<K extends string>({
   label,
   sortKey,
   activeKey,
@@ -1115,10 +1115,10 @@ function SortableTh({
   className,
 }: {
   label: string;
-  sortKey: PositionSortKey;
-  activeKey: PositionSortKey | null;
+  sortKey: K;
+  activeKey: K | null;
   dir: "desc" | "asc";
-  onSort: (key: PositionSortKey) => void;
+  onSort: (key: K) => void;
   align?: "right";
   className?: string;
 }) {
@@ -1218,6 +1218,8 @@ function TagEditor({
   );
 }
 
+type ExposureSortKey = "label" | "long" | "short" | "net" | "gross";
+
 function ExposureTable({
   title,
   icon,
@@ -1239,7 +1241,31 @@ function ExposureTable({
   const { rows } = exposures;
   const totalLong = rows.reduce((sum, row) => sum + row.long, 0);
   const totalShort = rows.reduce((sum, row) => sum + row.short, 0);
-  const maxGross = rows.length > 0 ? rows[0].gross : 0;
+  const maxGross = rows.reduce((max, row) => Math.max(max, row.gross), 0);
+
+  const [sortKey, setSortKey] = useState<ExposureSortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+
+  const handleSort = (key: ExposureSortKey) => {
+    if (sortKey === key) {
+      setSortDir((dir) => (dir === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
+
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return rows;
+    const flip = sortDir === "desc" ? -1 : 1;
+    return [...rows].sort((a, b) => {
+      const cmp =
+        sortKey === "label"
+          ? a.label.localeCompare(b.label)
+          : a[sortKey] - b[sortKey];
+      return cmp * flip;
+    });
+  }, [rows, sortKey, sortDir]);
 
   const toggle = (label: string) => {
     const next = new Set(expanded);
@@ -1260,22 +1286,83 @@ function ExposureTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-100 text-left text-[11px] uppercase tracking-wide text-zinc-400 dark:border-zinc-800">
-              <th className="px-4 py-2 font-medium">
-                {title.replace("按 ", "")}
-              </th>
-              <th className="px-3 py-2 text-right font-medium">Long %</th>
-              <th className="px-3 py-2 text-right font-medium">Long</th>
-              <th className="px-3 py-2 text-right font-medium">Short %</th>
-              <th className="px-3 py-2 text-right font-medium">Short</th>
-              <th className="px-3 py-2 text-right font-medium">Net %</th>
-              <th className="px-3 py-2 text-right font-medium">Net</th>
-              <th className="px-3 py-2 text-right font-medium">Gross %</th>
-              <th className="px-3 py-2 text-right font-medium">Gross</th>
+              <SortableTh
+                label={title.replace("按 ", "")}
+                sortKey="label"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                className="px-4 py-2"
+              />
+              <SortableTh
+                label="Long %"
+                sortKey="long"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+              />
+              <SortableTh
+                label="Long"
+                sortKey="long"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+              />
+              <SortableTh
+                label="Short %"
+                sortKey="short"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+              />
+              <SortableTh
+                label="Short"
+                sortKey="short"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+              />
+              <SortableTh
+                label="Net %"
+                sortKey="net"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+              />
+              <SortableTh
+                label="Net"
+                sortKey="net"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+              />
+              <SortableTh
+                label="Gross %"
+                sortKey="gross"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+              />
+              <SortableTh
+                label="Gross"
+                sortKey="gross"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+              />
               <th className="w-1/5 px-3 py-2 font-medium">L / S</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {sortedRows.map((row) => {
               const barScale = maxGross > 0 ? row.gross / maxGross : 0;
               const longShare = row.gross > 0 ? row.long / row.gross : 0;
               const isOpen = expanded.has(row.label);
