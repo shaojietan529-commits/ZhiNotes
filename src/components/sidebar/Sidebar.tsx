@@ -157,7 +157,7 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Primary workspaces (the three big categories) */}
+      {/* Primary workspaces (the three big categories + portfolio) */}
       <div className="px-2 pb-2">
         {MODULE_WORKSPACE_LIST.map((workspace) => (
           <Link
@@ -170,6 +170,14 @@ export default function Sidebar() {
             <span className="truncate">{workspace.label}</span>
           </Link>
         ))}
+        <Link
+          href="/portfolio"
+          prefetch
+          className="mt-0.5 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          <span className="shrink-0 text-base">💼</span>
+          <span className="truncate">组合管理</span>
+        </Link>
       </div>
 
       {/* Secondary modules, collapsed by default */}
