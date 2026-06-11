@@ -12,17 +12,28 @@ import {
 } from "@/lib/portfolio/positionReport";
 import {
   loadAllocation,
+  loadDataUpdatedAt,
   loadLastEmailMessageId,
   loadSnapshot,
   loadTagMap,
   saveAllocation,
+  saveDataUpdatedAt,
   saveLastEmailMessageId,
   saveSnapshot,
   saveTagMap,
   DEFAULT_GMV_ALLOCATION,
 } from "@/lib/portfolio/portfolioStore";
+import {
+  clearSyncPasscode,
+  loadSyncPasscode,
+  pullCloudData,
+  pushCloudData,
+  saveSyncPasscode,
+  type CloudPortfolioData,
+} from "@/lib/portfolio/cloudSync";
 
 type BoardTab = "positions" | "analysis";
+type SyncStatus = "off" | "syncing" | "synced" | "error";
 
 export default function PortfolioBoardShell() {
   const [snapshot, setSnapshot] = useState<PortfolioSnapshot | null>(null);
@@ -33,16 +44,162 @@ export default function PortfolioBoardShell() {
   const [notice, setNotice] = useState<string | null>(null);
   const [aiTagging, setAiTagging] = useState(false);
   const [emailChecking, setEmailChecking] = useState(false);
+  const [syncPasscode, setSyncPasscode] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("off");
   const posInputRef = useRef<HTMLInputElement>(null);
   const bookInputRef = useRef<HTMLInputElement>(null);
+  const syncReadyRef = useRef(false);
+  const lastPayloadRef = useRef<string | null>(null);
+  const pushTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
       setSnapshot(loadSnapshot());
       setTagMap(loadTagMap());
       setAllocation(loadAllocation());
+      const code = loadSyncPasscode();
+      if (code) {
+        setSyncPasscode(code);
+        void runInitialSync(code, false);
+      }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ----- cloud sync -----------------------------------------------------------
+  // One cloud copy in the project's KV store, shared by every device that
+  // enters the same sync passcode. Last write wins.
+
+  const corePayload = (
+    snap: PortfolioSnapshot | null,
+    tags: TagMap,
+    alloc: number
+  ) => JSON.stringify({ snapshot: snap, tagMap: tags, allocation: alloc });
+
+  const applyCloudData = useCallback((cloud: CloudPortfolioData) => {
+    if (cloud.snapshot) {
+      saveSnapshot(cloud.snapshot);
+      setSnapshot(cloud.snapshot);
+    }
+    setTagMap(cloud.tagMap ?? {});
+    saveTagMap(cloud.tagMap ?? {});
+    const alloc = cloud.allocation > 0 ? cloud.allocation : DEFAULT_GMV_ALLOCATION;
+    setAllocation(alloc);
+    saveAllocation(alloc);
+    if (cloud.lastEmailMessageId) saveLastEmailMessageId(cloud.lastEmailMessageId);
+    saveDataUpdatedAt(cloud.updatedAt);
+  }, []);
+
+  const runInitialSync = useCallback(
+    async (code: string, manual: boolean) => {
+      setSyncStatus("syncing");
+      const result = await pullCloudData(code);
+      if (result.status === "unconfigured") {
+        setSyncStatus("off");
+        if (manual) {
+          window.alert(
+            "云端存储还没有开通。请在 Vercel 项目里：Storage → Create Database → 选 Redis（Upstash）→ 连接到 zhi-notes 项目，然后 Redeploy 一次。"
+          );
+        }
+        return;
+      }
+      if (result.status === "unauthorized") {
+        setSyncStatus("error");
+        clearSyncPasscode();
+        setSyncPasscode(null);
+        window.alert("同步密码不正确：云端已有数据，请输入当初设置的同一个密码。");
+        return;
+      }
+      if (result.status === "error") {
+        setSyncStatus("error");
+        return;
+      }
+
+      const cloud = result.data;
+      const localUpdated = loadDataUpdatedAt();
+      const localSnapshot = loadSnapshot();
+      const localTags = loadTagMap();
+      const localAlloc = loadAllocation();
+
+      if (cloud && (!localUpdated || cloud.updatedAt > localUpdated)) {
+        applyCloudData(cloud);
+        lastPayloadRef.current = corePayload(
+          cloud.snapshot,
+          cloud.tagMap ?? {},
+          cloud.allocation > 0 ? cloud.allocation : DEFAULT_GMV_ALLOCATION
+        );
+        setSyncStatus("synced");
+      } else {
+        const now = new Date().toISOString();
+        const pushed = await pushCloudData(code, {
+          snapshot: localSnapshot,
+          tagMap: localTags,
+          allocation: localAlloc,
+          lastEmailMessageId: loadLastEmailMessageId(),
+          updatedAt: localUpdated ?? now,
+        });
+        lastPayloadRef.current = corePayload(localSnapshot, localTags, localAlloc);
+        setSyncStatus(pushed.status === "ok" ? "synced" : "error");
+      }
+      syncReadyRef.current = true;
+    },
+    [applyCloudData]
+  );
+
+  // Push local changes to the cloud (debounced) once initial sync completed.
+  useEffect(() => {
+    if (!syncPasscode || !syncReadyRef.current) return;
+    const payload = corePayload(snapshot, tagMap, allocation);
+    if (payload === lastPayloadRef.current) return;
+    lastPayloadRef.current = payload;
+    if (pushTimerRef.current) window.clearTimeout(pushTimerRef.current);
+    setSyncStatus("syncing");
+    pushTimerRef.current = window.setTimeout(() => {
+      const now = new Date().toISOString();
+      saveDataUpdatedAt(now);
+      void pushCloudData(syncPasscode, {
+        snapshot,
+        tagMap,
+        allocation,
+        lastEmailMessageId: loadLastEmailMessageId(),
+        updatedAt: now,
+      }).then((result) => {
+        setSyncStatus(result.status === "ok" ? "synced" : "error");
+      });
+    }, 1500);
+  }, [snapshot, tagMap, allocation, syncPasscode]);
+
+  const handleEnableSync = useCallback(async () => {
+    const code = window.prompt(
+      "设置一个云同步密码（至少 6 位）。\n所有设备输入同一个密码即可共享持仓数据。请使用专门的密码，不要复用其他账号密码。"
+    );
+    if (!code) return;
+    const trimmed = code.trim();
+    if (trimmed.length < 6) {
+      window.alert("密码至少需要 6 位。");
+      return;
+    }
+    saveSyncPasscode(trimmed);
+    setSyncPasscode(trimmed);
+    await runInitialSync(trimmed, true);
+  }, [runInitialSync]);
+
+  const handleSyncChipClick = useCallback(() => {
+    if (!syncPasscode) return;
+    if (syncStatus === "error") {
+      void runInitialSync(syncPasscode, true);
+      return;
+    }
+    const off = window.confirm(
+      "要在这台设备上关闭云同步吗？云端数据会保留，本机数据也保留，只是不再互相同步。"
+    );
+    if (off) {
+      clearSyncPasscode();
+      setSyncPasscode(null);
+      setSyncStatus("off");
+      syncReadyRef.current = false;
+    }
+  }, [syncPasscode, syncStatus, runInitialSync]);
 
   const handleAllocationChange = useCallback((value: number) => {
     if (!Number.isFinite(value) || value <= 0) return;
@@ -362,6 +519,32 @@ export default function PortfolioBoardShell() {
                   if (file) void handleImportBookTags(file);
                 }}
               />
+              <button
+                type="button"
+                onClick={() =>
+                  syncPasscode ? handleSyncChipClick() : void handleEnableSync()
+                }
+                title={
+                  syncPasscode
+                    ? "云同步已开启，点击管理"
+                    : "开启后持仓数据保存到云端，可跨设备使用"
+                }
+                className={`rounded-lg border px-3.5 py-2 text-sm shadow-sm transition-colors ${
+                  syncStatus === "error"
+                    ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
+                    : syncPasscode
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                }`}
+              >
+                {!syncPasscode
+                  ? "☁️ 开启云同步"
+                  : syncStatus === "syncing"
+                    ? "☁️ 同步中…"
+                    : syncStatus === "error"
+                      ? "☁️ 同步失败，点击重试"
+                      : "☁️ 已同步"}
+              </button>
               <button
                 type="button"
                 onClick={() => posInputRef.current?.click()}
