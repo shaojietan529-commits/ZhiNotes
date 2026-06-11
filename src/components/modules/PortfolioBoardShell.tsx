@@ -1,11 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import {
   buildExposures,
   parseBookTagRows,
   parsePositionRows,
+  type ExposureRow,
   type PortfolioPosition,
   type PortfolioSnapshot,
   type TagMap,
@@ -1047,13 +1055,7 @@ function ExposureTable({
   icon: string;
   allocation: number;
   exposures: {
-    rows: {
-      label: string;
-      long: number;
-      short: number;
-      net: number;
-      gross: number;
-    }[];
+    rows: ExposureRow[];
     totalGross: number;
   };
 }) {
@@ -1061,6 +1063,16 @@ function ExposureTable({
   const totalLong = rows.reduce((sum, row) => sum + row.long, 0);
   const totalShort = rows.reduce((sum, row) => sum + row.short, 0);
   const maxGross = rows.length > 0 ? rows[0].gross : 0;
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggle = (label: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
 
   return (
     <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -1092,57 +1104,116 @@ function ExposureTable({
             {rows.map((row) => {
               const barScale = maxGross > 0 ? row.gross / maxGross : 0;
               const longShare = row.gross > 0 ? row.long / row.gross : 0;
+              const isOpen = expanded.has(row.label);
+              const sorted = isOpen
+                ? [...row.positions].sort(
+                    (a, b) => Math.abs(b.nmv) - Math.abs(a.nmv)
+                  )
+                : [];
               return (
-                <tr
-                  key={row.label}
-                  className="border-b border-zinc-50 transition-colors last:border-0 hover:bg-zinc-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/40"
-                >
-                  <td className="px-4 py-2 font-medium text-zinc-800 dark:text-zinc-100">
-                    {row.label}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
-                    {formatMoney(row.long)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-emerald-600/70 dark:text-emerald-400/70">
-                    {formatAllocPct(row.long, allocation)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-400">
-                    {formatMoney(row.short)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-rose-600/70 dark:text-rose-400/70">
-                    {formatAllocPct(row.short, allocation)}
-                  </td>
-                  <td
-                    className={`px-3 py-2 text-right font-medium tabular-nums ${pnlColor(row.net)}`}
+                <Fragment key={row.label}>
+                  <tr
+                    onClick={() => toggle(row.label)}
+                    className="cursor-pointer border-b border-zinc-50 transition-colors last:border-0 hover:bg-zinc-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/40"
                   >
-                    {formatSignedMoney(row.net)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-                    {formatSignedAllocPct(row.net, allocation)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
-                    {formatMoney(row.gross)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-                    {formatAllocPct(row.gross, allocation)}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div
-                      className="flex h-2.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
-                      style={{ width: `${Math.max(barScale * 100, 4)}%` }}
-                      title={`Long ${formatAllocPct(row.long, allocation)} / Short ${formatAllocPct(row.short, allocation)}`}
+                    <td className="px-4 py-2 font-medium text-zinc-800 dark:text-zinc-100">
+                      <span className="mr-1.5 inline-block w-3 text-[10px] text-zinc-400">
+                        {isOpen ? "▼" : "▶"}
+                      </span>
+                      {row.label}
+                      <span className="ml-1.5 text-[11px] font-normal text-zinc-400">
+                        ({row.positions.length})
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                      {formatMoney(row.long)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-emerald-600/70 dark:text-emerald-400/70">
+                      {formatAllocPct(row.long, allocation)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-400">
+                      {formatMoney(row.short)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-rose-600/70 dark:text-rose-400/70">
+                      {formatAllocPct(row.short, allocation)}
+                    </td>
+                    <td
+                      className={`px-3 py-2 text-right font-medium tabular-nums ${pnlColor(row.net)}`}
                     >
+                      {formatSignedMoney(row.net)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                      {formatSignedAllocPct(row.net, allocation)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
+                      {formatMoney(row.gross)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                      {formatAllocPct(row.gross, allocation)}
+                    </td>
+                    <td className="px-3 py-2">
                       <div
-                        className="bg-emerald-500"
-                        style={{ width: `${longShare * 100}%` }}
-                      />
-                      <div
-                        className="bg-rose-500"
-                        style={{ width: `${(1 - longShare) * 100}%` }}
-                      />
-                    </div>
-                  </td>
-                </tr>
+                        className="flex h-2.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
+                        style={{ width: `${Math.max(barScale * 100, 4)}%` }}
+                        title={`Long ${formatAllocPct(row.long, allocation)} / Short ${formatAllocPct(row.short, allocation)}`}
+                      >
+                        <div
+                          className="bg-emerald-500"
+                          style={{ width: `${longShare * 100}%` }}
+                        />
+                        <div
+                          className="bg-rose-500"
+                          style={{ width: `${(1 - longShare) * 100}%` }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                  {isOpen &&
+                    sorted.map((p) => (
+                      <tr
+                        key={p.key}
+                        className="border-b border-zinc-50/50 bg-zinc-50/50 dark:border-zinc-800/30 dark:bg-zinc-800/20"
+                      >
+                        <td className="py-1.5 pl-10 pr-3 font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                          {p.ticker}
+                          <span className="ml-1.5 font-sans text-zinc-400 dark:text-zinc-500">
+                            {p.name}
+                          </span>
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-emerald-600 dark:text-emerald-400">
+                          {p.nmv >= 0 ? formatMoney(p.nmv) : ""}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-emerald-600/70 dark:text-emerald-400/70">
+                          {p.nmv >= 0
+                            ? formatAllocPct(p.nmv, allocation)
+                            : ""}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-rose-600 dark:text-rose-400">
+                          {p.nmv < 0 ? formatMoney(-p.nmv) : ""}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-rose-600/70 dark:text-rose-400/70">
+                          {p.nmv < 0
+                            ? formatAllocPct(-p.nmv, allocation)
+                            : ""}
+                        </td>
+                        <td
+                          className={`px-3 py-1.5 text-right tabular-nums text-xs ${pnlColor(p.nmv)}`}
+                        >
+                          {formatSignedMoney(p.nmv)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
+                          {formatSignedAllocPct(p.nmv, allocation)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-zinc-700 dark:text-zinc-200">
+                          {formatMoney(Math.abs(p.nmv))}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
+                          {formatAllocPct(Math.abs(p.nmv), allocation)}
+                        </td>
+                        <td />
+                      </tr>
+                    ))}
+                </Fragment>
               );
             })}
           </tbody>

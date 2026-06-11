@@ -233,6 +233,7 @@ export interface ExposureRow {
   short: number; // USD, positive
   net: number;
   gross: number;
+  positions: PortfolioPosition[];
 }
 
 export function buildExposures(
@@ -242,13 +243,19 @@ export function buildExposures(
   const byLabel = new Map<string, ExposureRow>();
   for (const position of positions) {
     const label = labelOf(position) || "未分类";
-    const row =
-      byLabel.get(label) ??
-      ({ label, long: 0, short: 0, net: 0, gross: 0 } as ExposureRow);
+    const row = byLabel.get(label) ?? {
+      label,
+      long: 0,
+      short: 0,
+      net: 0,
+      gross: 0,
+      positions: [] as PortfolioPosition[],
+    };
     if (position.nmv >= 0) row.long += position.nmv;
     else row.short += -position.nmv;
     row.net = row.long - row.short;
     row.gross = row.long + row.short;
+    row.positions.push(position);
     byLabel.set(label, row);
   }
   const rows = [...byLabel.values()].sort((a, b) => b.gross - a.gross);
