@@ -29,7 +29,6 @@ import {
   pullCloudData,
   pushCloudData,
   saveSyncPasscode,
-  type CloudPortfolioData,
 } from "@/lib/portfolio/cloudSync";
 
 type BoardTab = "positions" | "analysis";
@@ -68,27 +67,14 @@ export default function PortfolioBoardShell() {
 
   // ----- cloud sync -----------------------------------------------------------
   // One cloud copy in the project's KV store, shared by every device that
-  // enters the same sync passcode. Last write wins.
+  // enters the same sync passcode. Snapshots follow the newer side; tag maps
+  // are always merged (union) so syncing can never wipe labels.
 
   const corePayload = (
     snap: PortfolioSnapshot | null,
     tags: TagMap,
     alloc: number
   ) => JSON.stringify({ snapshot: snap, tagMap: tags, allocation: alloc });
-
-  const applyCloudData = useCallback((cloud: CloudPortfolioData) => {
-    if (cloud.snapshot) {
-      saveSnapshot(cloud.snapshot);
-      setSnapshot(cloud.snapshot);
-    }
-    setTagMap(cloud.tagMap ?? {});
-    saveTagMap(cloud.tagMap ?? {});
-    const alloc = cloud.allocation > 0 ? cloud.allocation : DEFAULT_GMV_ALLOCATION;
-    setAllocation(alloc);
-    saveAllocation(alloc);
-    if (cloud.lastEmailMessageId) saveLastEmailMessageId(cloud.lastEmailMessageId);
-    saveDataUpdatedAt(cloud.updatedAt);
-  }, []);
 
   const runInitialSync = useCallback(
     async (code: string, manual: boolean) => {
@@ -121,29 +107,49 @@ export default function PortfolioBoardShell() {
       const localTags = loadTagMap();
       const localAlloc = loadAllocation();
 
-      if (cloud && (!localUpdated || cloud.updatedAt > localUpdated)) {
-        applyCloudData(cloud);
-        lastPayloadRef.current = corePayload(
-          cloud.snapshot,
-          cloud.tagMap ?? {},
-          cloud.allocation > 0 ? cloud.allocation : DEFAULT_GMV_ALLOCATION
-        );
-        setSyncStatus("synced");
-      } else {
-        const now = new Date().toISOString();
-        const pushed = await pushCloudData(code, {
-          snapshot: localSnapshot,
-          tagMap: localTags,
-          allocation: localAlloc,
-          lastEmailMessageId: loadLastEmailMessageId(),
-          updatedAt: localUpdated ?? now,
-        });
-        lastPayloadRef.current = corePayload(localSnapshot, localTags, localAlloc);
-        setSyncStatus(pushed.status === "ok" ? "synced" : "error");
+      const cloudNewer = Boolean(
+        cloud && (!localUpdated || cloud.updatedAt > localUpdated)
+      );
+
+      // Union of both tag maps; the newer side wins per-stock conflicts.
+      const mergedTags: TagMap = cloudNewer
+        ? { ...localTags, ...(cloud?.tagMap ?? {}) }
+        : { ...(cloud?.tagMap ?? {}), ...localTags };
+
+      const snapshotToUse =
+        cloudNewer && cloud?.snapshot ? cloud.snapshot : localSnapshot;
+      const allocToUse =
+        cloudNewer && cloud && cloud.allocation > 0
+          ? cloud.allocation
+          : localAlloc;
+
+      if (snapshotToUse) {
+        saveSnapshot(snapshotToUse);
+        setSnapshot(snapshotToUse);
       }
+      setTagMap(mergedTags);
+      saveTagMap(mergedTags);
+      setAllocation(allocToUse);
+      saveAllocation(allocToUse);
+      if (cloud?.lastEmailMessageId) {
+        saveLastEmailMessageId(cloud.lastEmailMessageId);
+      }
+
+      // Push the merged result back so the cloud copy includes everything.
+      const now = new Date().toISOString();
+      saveDataUpdatedAt(now);
+      lastPayloadRef.current = corePayload(snapshotToUse, mergedTags, allocToUse);
+      const pushed = await pushCloudData(code, {
+        snapshot: snapshotToUse,
+        tagMap: mergedTags,
+        allocation: allocToUse,
+        lastEmailMessageId: loadLastEmailMessageId(),
+        updatedAt: now,
+      });
+      setSyncStatus(pushed.status === "ok" ? "synced" : "error");
       syncReadyRef.current = true;
     },
-    [applyCloudData]
+    []
   );
 
   // Push local changes to the cloud (debounced) once initial sync completed.
