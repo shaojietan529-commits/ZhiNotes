@@ -874,6 +874,22 @@ function TabButton({
   );
 }
 
+// Column sort accessors. Numbers sort numerically; strings sort with
+// localeCompare. First header click sorts high→low, second low→high.
+const POSITION_SORT_ACCESSORS = {
+  ticker: (p: PortfolioPosition) => p.key,
+  name: (p: PortfolioPosition) => p.name,
+  size: (p: PortfolioPosition) => Math.abs(p.nmv),
+  pnlDaily: (p: PortfolioPosition) => p.pnlDaily,
+  pnlMtd: (p: PortfolioPosition) => p.pnlMtd,
+  pnlYtd: (p: PortfolioPosition) => p.pnlYtd,
+  pnlItd: (p: PortfolioPosition) => p.pnlItd,
+  change1d: (p: PortfolioPosition) => p.priceChange1dPct,
+  country: (p: PortfolioPosition) => p.country,
+} as const;
+
+type PositionSortKey = keyof typeof POSITION_SORT_ACCESSORS | "tag";
+
 function PositionTable({
   title,
   tone,
@@ -898,6 +914,36 @@ function PositionTable({
     tone === "long"
       ? "text-emerald-600 dark:text-emerald-400"
       : "text-rose-600 dark:text-rose-400";
+
+  const [sortKey, setSortKey] = useState<PositionSortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+
+  const handleSort = (key: PositionSortKey) => {
+    if (sortKey === key) {
+      setSortDir((dir) => (dir === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return positions;
+    const accessor =
+      sortKey === "tag"
+        ? tagOf
+        : POSITION_SORT_ACCESSORS[sortKey];
+    const flip = sortDir === "desc" ? -1 : 1;
+    return [...positions].sort((a, b) => {
+      const va = accessor(a);
+      const vb = accessor(b);
+      const cmp =
+        typeof va === "number" && typeof vb === "number"
+          ? va - vb
+          : String(va).localeCompare(String(vb));
+      return cmp * flip;
+    });
+  }, [positions, sortKey, sortDir, tagOf]);
 
   return (
     <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -925,21 +971,95 @@ function PositionTable({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-100 text-left text-[11px] uppercase tracking-wide text-zinc-400 dark:border-zinc-800">
-                <th className="px-4 py-2 font-medium">Ticker</th>
-                <th className="px-3 py-2 font-medium">名称</th>
-                <th className="px-3 py-2 text-right font-medium">仓位 ($)</th>
-                <th className="px-3 py-2 text-right font-medium">% Alloc</th>
-                <th className="px-3 py-2 text-right font-medium">Daily PnL</th>
-                <th className="px-3 py-2 text-right font-medium">MTD PnL</th>
-                <th className="px-3 py-2 text-right font-medium">YTD PnL</th>
-                <th className="px-3 py-2 text-right font-medium">ITD PnL</th>
-                <th className="px-3 py-2 text-right font-medium">1D %</th>
-                <th className="px-3 py-2 font-medium">Country</th>
-                <th className="px-3 py-2 font-medium">Tag</th>
+                <SortableTh
+                  label="Ticker"
+                  sortKey="ticker"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                  className="px-4 py-2"
+                />
+                <SortableTh
+                  label="名称"
+                  sortKey="name"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                />
+                <SortableTh
+                  label="仓位 ($)"
+                  sortKey="size"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <SortableTh
+                  label="% Alloc"
+                  sortKey="size"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <SortableTh
+                  label="Daily PnL"
+                  sortKey="pnlDaily"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <SortableTh
+                  label="MTD PnL"
+                  sortKey="pnlMtd"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <SortableTh
+                  label="YTD PnL"
+                  sortKey="pnlYtd"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <SortableTh
+                  label="ITD PnL"
+                  sortKey="pnlItd"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <SortableTh
+                  label="1D %"
+                  sortKey="change1d"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <SortableTh
+                  label="Country"
+                  sortKey="country"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                />
+                <SortableTh
+                  label="Tag"
+                  sortKey="tag"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                />
               </tr>
             </thead>
             <tbody>
-              {positions.map((position) => (
+              {sorted.map((position) => (
                 <tr
                   key={position.key}
                   className="border-b border-zinc-50 transition-colors last:border-0 hover:bg-zinc-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/40"
@@ -982,6 +1102,47 @@ function PositionTable({
         </div>
       )}
     </section>
+  );
+}
+
+function SortableTh({
+  label,
+  sortKey,
+  activeKey,
+  dir,
+  onSort,
+  align,
+  className,
+}: {
+  label: string;
+  sortKey: PositionSortKey;
+  activeKey: PositionSortKey | null;
+  dir: "desc" | "asc";
+  onSort: (key: PositionSortKey) => void;
+  align?: "right";
+  className?: string;
+}) {
+  const active = activeKey === sortKey;
+  return (
+    <th
+      className={`${className ?? "px-3 py-2"} font-medium ${
+        align === "right" ? "text-right" : ""
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        title="点击排序"
+        className={`inline-flex items-center gap-0.5 uppercase tracking-wide transition-colors hover:text-zinc-700 dark:hover:text-zinc-200 ${
+          active ? "text-zinc-700 dark:text-zinc-200" : ""
+        }`}
+      >
+        {label}
+        <span className="w-3 text-[9px]">
+          {active ? (dir === "desc" ? "▼" : "▲") : ""}
+        </span>
+      </button>
+    </th>
   );
 }
 
