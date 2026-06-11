@@ -12,9 +12,11 @@ import {
 } from "@/lib/portfolio/positionReport";
 import {
   loadAllocation,
+  loadLastEmailMessageId,
   loadSnapshot,
   loadTagMap,
   saveAllocation,
+  saveLastEmailMessageId,
   saveSnapshot,
   saveTagMap,
   DEFAULT_GMV_ALLOCATION,
@@ -30,6 +32,7 @@ export default function PortfolioBoardShell() {
   const [importError, setImportError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [aiTagging, setAiTagging] = useState(false);
+  const [emailChecking, setEmailChecking] = useState(false);
   const posInputRef = useRef<HTMLInputElement>(null);
   const bookInputRef = useRef<HTMLInputElement>(null);
 
@@ -114,6 +117,84 @@ export default function PortfolioBoardShell() {
     },
     [tagMap, showNotice]
   );
+
+  // ----- email auto-import ----------------------------------------------------
+  // Asks the server to relay the newest "Roger Pos" attachment from the
+  // configured mailbox; parsing and storage stay in this browser.
+
+  const handleEmailCheck = useCallback(
+    async (auto: boolean) => {
+      if (emailChecking) return;
+      setEmailChecking(true);
+      try {
+        const res = await fetch("/api/portfolio/email-position");
+        if (res.status === 501) {
+          if (!auto) {
+            window.alert(
+              "邮箱自动导入尚未配置。需要在 Vercel 项目设置中添加 MS_GRAPH_CLIENT_ID 和 MS_GRAPH_REFRESH_TOKEN。"
+            );
+          }
+          return;
+        }
+        if (!res.ok) {
+          if (!auto) {
+            const data = await res.json().catch(() => null);
+            setImportError(data?.error ?? "读取邮箱失败，请稍后重试。");
+          }
+          return;
+        }
+        const data: {
+          found?: boolean;
+          messageId?: string;
+          fileName?: string;
+          receivedAt?: string;
+          contentBase64?: string;
+        } = await res.json();
+        if (!data.found || !data.messageId || !data.contentBase64) {
+          if (!auto) showNotice("邮箱里最近 30 天没有找到 Roger Pos 持仓邮件。");
+          return;
+        }
+        if (data.messageId === loadLastEmailMessageId()) {
+          if (!auto) {
+            showNotice(`邮箱里最新的持仓（${data.fileName}）已经导入过了。`);
+          }
+          return;
+        }
+
+        const bytes = Uint8Array.from(atob(data.contentBase64), (c) =>
+          c.charCodeAt(0)
+        );
+        const XLSX = await import("xlsx");
+        const workbook = XLSX.read(bytes);
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
+        const result = parsePositionRows(rows, data.fileName ?? "邮件附件");
+        if ("error" in result) {
+          if (!auto) setImportError(`邮件附件解析失败：${result.error}`);
+          return;
+        }
+        saveSnapshot(result.snapshot);
+        setSnapshot(result.snapshot);
+        saveLastEmailMessageId(data.messageId);
+        showNotice(
+          `已从邮箱自动导入 ${data.fileName}（${result.snapshot.positions.length} 条持仓，收件 ${formatImportTime(data.receivedAt ?? "")}），数据仅保存在本机。`
+        );
+      } catch (err) {
+        console.error("[Zhinote] Email position check failed:", err);
+        if (!auto) setImportError("检查邮箱持仓时出错，请稍后重试。");
+      } finally {
+        setEmailChecking(false);
+      }
+    },
+    [emailChecking, showNotice]
+  );
+
+  // On open, quietly look for a newer position email and import it.
+  useEffect(() => {
+    const timer = window.setTimeout(() => void handleEmailCheck(true), 800);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ----- tags ---------------------------------------------------------------
 
@@ -293,6 +374,15 @@ export default function PortfolioBoardShell() {
                 className="rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm text-zinc-600 shadow-sm transition-colors hover:border-zinc-400 hover:text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
               >
                 导入 Book 标签
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleEmailCheck(false)}
+                disabled={emailChecking}
+                title="从 zhinote1@outlook.com 邮箱获取最新的 Roger Pos 持仓文件"
+                className="rounded-lg border border-sky-200 bg-sky-50 px-3.5 py-2 text-sm text-sky-700 shadow-sm transition-colors hover:border-sky-300 disabled:opacity-50 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-300"
+              >
+                {emailChecking ? "检查邮箱中…" : "📧 检查邮箱持仓"}
               </button>
               {untagged.length > 0 && (
                 <button

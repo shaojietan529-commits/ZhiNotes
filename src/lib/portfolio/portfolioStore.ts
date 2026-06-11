@@ -6,6 +6,7 @@ import type { PortfolioSnapshot, TagMap } from "./positionReport";
 const SNAPSHOT_KEY = "zhinote.portfolio.snapshot.v1";
 const TAGS_KEY = "zhinote.portfolio.tags.v1";
 const ALLOCATION_KEY = "zhinote.portfolio.allocation.v1";
+const EMAIL_MESSAGE_KEY = "zhinote.portfolio.lastEmailMessage.v1";
 
 export const DEFAULT_GMV_ALLOCATION = 108_700_000;
 
@@ -58,4 +59,17 @@ export function loadAllocation(): number {
 
 export function saveAllocation(value: number) {
   window.localStorage.setItem(ALLOCATION_KEY, String(value));
+}
+
+export function loadLastEmailMessageId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(EMAIL_MESSAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveLastEmailMessageId(id: string) {
+  window.localStorage.setItem(EMAIL_MESSAGE_KEY, id);
 }
