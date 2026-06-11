@@ -1279,10 +1279,15 @@ function ExposureTable({
               const barScale = maxGross > 0 ? row.gross / maxGross : 0;
               const longShare = row.gross > 0 ? row.long / row.gross : 0;
               const isOpen = expanded.has(row.label);
+              // Longs block on top, shorts block below; each block sorted by
+              // position size descending.
               const sorted = isOpen
-                ? [...row.positions].sort(
-                    (a, b) => Math.abs(b.nmv) - Math.abs(a.nmv)
-                  )
+                ? [...row.positions].sort((a, b) => {
+                    const aLong = a.nmv >= 0;
+                    const bLong = b.nmv >= 0;
+                    if (aLong !== bLong) return aLong ? -1 : 1;
+                    return Math.abs(b.nmv) - Math.abs(a.nmv);
+                  })
                 : [];
               return (
                 <Fragment key={row.label}>
@@ -1343,10 +1348,14 @@ function ExposureTable({
                     </td>
                   </tr>
                   {isOpen &&
-                    sorted.map((p) => (
+                    sorted.map((p, i) => (
                       <tr
                         key={p.key}
-                        className="border-b border-zinc-50/50 bg-zinc-50/50 dark:border-zinc-800/30 dark:bg-zinc-800/20"
+                        className={`border-b border-zinc-50/50 bg-zinc-50/50 dark:border-zinc-800/30 dark:bg-zinc-800/20 ${
+                          i > 0 && p.nmv < 0 && sorted[i - 1].nmv >= 0
+                            ? "border-t border-t-zinc-200 dark:border-t-zinc-700"
+                            : ""
+                        }`}
                       >
                         <td className="py-1.5 pl-10 pr-3 font-mono text-xs text-zinc-500 dark:text-zinc-400">
                           {p.ticker}
@@ -1384,7 +1393,23 @@ function ExposureTable({
                         <td className="px-3 py-1.5 text-right tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
                           {formatAllocPct(Math.abs(p.nmv), allocation)}
                         </td>
-                        <td />
+                        <td className="px-3 py-1.5">
+                          {/* Same scale as the group rows so lengths compare */}
+                          <div
+                            className={`h-1.5 rounded-full ${
+                              p.nmv >= 0 ? "bg-emerald-500" : "bg-rose-500"
+                            }`}
+                            style={{
+                              width: `${Math.max(
+                                maxGross > 0
+                                  ? (Math.abs(p.nmv) / maxGross) * 100
+                                  : 0,
+                                2
+                              )}%`,
+                            }}
+                            title={`${p.nmv >= 0 ? "Long" : "Short"} ${formatAllocPct(Math.abs(p.nmv), allocation)}`}
+                          />
+                        </td>
                       </tr>
                     ))}
                 </Fragment>
