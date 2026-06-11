@@ -130,9 +130,10 @@ export default function PortfolioBoardShell() {
         const res = await fetch("/api/portfolio/email-position");
         if (res.status === 501) {
           if (!auto) {
-            window.alert(
-              "邮箱自动导入尚未配置。需要在 Vercel 项目设置中添加 MS_GRAPH_CLIENT_ID 和 MS_GRAPH_REFRESH_TOKEN。"
+            const go = window.confirm(
+              "邮箱自动导入还没有授权。要打开授权设置页吗？（一次性设置，约 10 分钟）"
             );
+            if (go) window.location.assign("/portfolio/email-setup");
           }
           return;
         }
