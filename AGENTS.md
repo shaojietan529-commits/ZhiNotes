@@ -86,3 +86,7 @@ Run focused verifiers after related changes:
 - If aligning closer to Notion databases: continue nested filter groups, relation/rollup UX, templates, and database button execution previews while keeping execution disabled.
 - If preparing web launch: keep local-first behavior intact, then add production deployment, Postgres/cloud sync, auth, audit, backup/restore, and permission gates as separate owner-confirmed stages.
 - Do not jump directly to cloud sync, AI execution, or bulk import without showing the user the data boundary and confirmation workflow first.
+
+## Imported Claude Cowork project instructions
+
+你作为  claude code 的辅助来同步完善一些功能
