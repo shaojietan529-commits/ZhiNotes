@@ -20,8 +20,8 @@ export const metadata: Metadata = {
     ],
     apple: [
       {
-        url: "/brand/zhinote-app-icon.svg",
-        type: "image/svg+xml",
+        url: "/brand/zhinote-app-icon-512.png",
+        type: "image/png",
       },
     ],
   },

@@ -17,6 +17,10 @@
     "socialCard": "/brand/zhinote-social-card.svg",
     "appIconPng": "/brand/zhinote-app-icon-512.png",
     "horizontalDarkPng": "/brand/zhinote-logo-horizontal-dark-1200.png",
-    "socialCardPng": "/brand/zhinote-social-card-1200.png"
+    "socialCardPng": "/brand/zhinote-social-card-1200.png",
+    "sourceHorizontal": "/brand/source/zhinote-reference-horizontal.png",
+    "sourceMark": "/brand/source/zhinote-reference-mark.png",
+    "sourceAppIcon": "/brand/source/zhinote-reference-app-icon.png",
+    "sourceFull": "/brand/source/zhinote-reference-full.png"
   }
 }
