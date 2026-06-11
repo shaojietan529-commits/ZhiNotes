@@ -17,6 +17,7 @@ import PageComments from "@/components/shared/PageComments";
 import BlockComments from "@/components/shared/BlockComments";
 import PageProperties from "@/components/page/PageProperties";
 import PageActionsMenu from "@/components/page/PageActionsMenu";
+import ChildPageTree from "@/components/page/ChildPageTree";
 import {
   parsePageProperties,
   stringifyPageProperties,
@@ -673,6 +674,9 @@ function PageContent({ pageId }: { pageId: string }) {
 
           {/* Page-level comments sit between properties and the body */}
           <PageComments pageId={pageId} disabled={locked} />
+
+          {/* Industry-chain pages show their sub-page hierarchy up front */}
+          <ChildPageTree pageId={pageId} />
 
           <div className="my-4 border-t border-zinc-100 dark:border-zinc-800" />
 

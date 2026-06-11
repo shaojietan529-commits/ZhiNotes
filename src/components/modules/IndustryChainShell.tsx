@@ -85,18 +85,6 @@ export default function IndustryChainShell() {
     [pages, rootId]
   );
 
-  // Count every descendant of a node so the root cards can show their scale.
-  const countDescendants = useCallback(
-    (id: string): number => {
-      const children = pages.filter((p) => p.parent_id === id);
-      return children.reduce(
-        (sum, child) => sum + 1 + countDescendants(child.id),
-        0
-      );
-    },
-    [pages]
-  );
-
   const addChild = useCallback(
     async (parentId: string, navigate: boolean) => {
       const child = await createPage({ parentId, title: "未命名分类" });
@@ -165,7 +153,7 @@ export default function IndustryChainShell() {
                   sector={sector}
                   allPages={pages}
                   theme={SECTOR_THEMES[index % SECTOR_THEMES.length]}
-                  descendantCount={countDescendants(sector.id)}
+                  descendantCount={countDescendants(pages, sector.id)}
                   onOpen={(id) => router.push(`/page/${id}`)}
                   onAddChild={(id) => void addChild(id, false)}
                   onRename={(id, title) => void renameNode(id, title)}
@@ -196,6 +184,15 @@ export default function IndustryChainShell() {
         />
       )}
     </div>
+  );
+}
+
+// Count every descendant of a node so the root cards can show their scale.
+function countDescendants(pages: Page[], id: string): number {
+  const children = pages.filter((p) => p.parent_id === id);
+  return children.reduce(
+    (sum, child) => sum + 1 + countDescendants(pages, child.id),
+    0
   );
 }
 
