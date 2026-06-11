@@ -1444,9 +1444,15 @@ function ExposureTable({
                             : ""
                         }`}
                       >
-                        <td className="py-1.5 pl-10 pr-3 font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                        <td
+                          className={`py-1.5 pl-10 pr-3 font-mono text-xs ${
+                            p.nmv >= 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-rose-600 dark:text-rose-400"
+                          }`}
+                        >
                           {p.ticker}
-                          <span className="ml-1.5 font-sans text-zinc-400 dark:text-zinc-500">
+                          <span className="ml-1.5 font-sans opacity-80">
                             {p.name}
                           </span>
                         </td>
