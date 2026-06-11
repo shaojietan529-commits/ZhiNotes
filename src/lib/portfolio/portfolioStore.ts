@@ -5,6 +5,9 @@ import type { PortfolioSnapshot, TagMap } from "./positionReport";
 
 const SNAPSHOT_KEY = "zhinote.portfolio.snapshot.v1";
 const TAGS_KEY = "zhinote.portfolio.tags.v1";
+const ALLOCATION_KEY = "zhinote.portfolio.allocation.v1";
+
+export const DEFAULT_GMV_ALLOCATION = 108_700_000;
 
 export function loadSnapshot(): PortfolioSnapshot | null {
   if (typeof window === "undefined") return null;
@@ -38,4 +41,21 @@ export function loadTagMap(): TagMap {
 
 export function saveTagMap(map: TagMap) {
   window.localStorage.setItem(TAGS_KEY, JSON.stringify(map));
+}
+
+export function loadAllocation(): number {
+  if (typeof window === "undefined") return DEFAULT_GMV_ALLOCATION;
+  try {
+    const raw = window.localStorage.getItem(ALLOCATION_KEY);
+    if (!raw) return DEFAULT_GMV_ALLOCATION;
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    return DEFAULT_GMV_ALLOCATION;
+  } catch {
+    return DEFAULT_GMV_ALLOCATION;
+  }
+}
+
+export function saveAllocation(value: number) {
+  window.localStorage.setItem(ALLOCATION_KEY, String(value));
 }

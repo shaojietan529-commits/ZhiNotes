@@ -11,10 +11,13 @@ import {
   type TagMap,
 } from "@/lib/portfolio/positionReport";
 import {
+  loadAllocation,
   loadSnapshot,
   loadTagMap,
+  saveAllocation,
   saveSnapshot,
   saveTagMap,
+  DEFAULT_GMV_ALLOCATION,
 } from "@/lib/portfolio/portfolioStore";
 
 type BoardTab = "positions" | "analysis";
@@ -22,6 +25,7 @@ type BoardTab = "positions" | "analysis";
 export default function PortfolioBoardShell() {
   const [snapshot, setSnapshot] = useState<PortfolioSnapshot | null>(null);
   const [tagMap, setTagMap] = useState<TagMap>({});
+  const [allocation, setAllocation] = useState<number>(DEFAULT_GMV_ALLOCATION);
   const [tab, setTab] = useState<BoardTab>("positions");
   const [importError, setImportError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -33,7 +37,14 @@ export default function PortfolioBoardShell() {
     queueMicrotask(() => {
       setSnapshot(loadSnapshot());
       setTagMap(loadTagMap());
+      setAllocation(loadAllocation());
     });
+  }, []);
+
+  const handleAllocationChange = useCallback((value: number) => {
+    if (!Number.isFinite(value) || value <= 0) return;
+    setAllocation(value);
+    saveAllocation(value);
   }, []);
 
   const showNotice = useCallback((message: string) => {
@@ -323,20 +334,27 @@ export default function PortfolioBoardShell() {
           ) : (
             <>
               {/* Summary cards */}
-              <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <AllocationCard
+                  allocation={allocation}
+                  onChange={handleAllocationChange}
+                />
                 <StatCard
                   label="Total Long GMV"
                   value={formatMoney(totalLongGmv)}
+                  sub={formatAllocPct(totalLongGmv, allocation)}
                   tone="long"
                 />
                 <StatCard
                   label="Total Short GMV"
                   value={formatMoney(totalShortGmv)}
+                  sub={formatAllocPct(totalShortGmv, allocation)}
                   tone="short"
                 />
                 <StatCard
                   label="NMV（净敞口）"
                   value={formatSignedMoney(totalNmv)}
+                  sub={formatSignedAllocPct(totalNmv, allocation)}
                   tone={totalNmv >= 0 ? "long" : "short"}
                 />
               </div>
@@ -364,6 +382,7 @@ export default function PortfolioBoardShell() {
                     tone="long"
                     positions={longs}
                     subtotal={totalLongGmv}
+                    allocation={allocation}
                     tagOf={tagOf}
                     knownTags={knownTags}
                     onTagChange={handleTagChange}
@@ -373,6 +392,7 @@ export default function PortfolioBoardShell() {
                     tone="short"
                     positions={shorts}
                     subtotal={totalShortGmv}
+                    allocation={allocation}
                     tagOf={tagOf}
                     knownTags={knownTags}
                     onTagChange={handleTagChange}
@@ -409,10 +429,12 @@ export default function PortfolioBoardShell() {
 function StatCard({
   label,
   value,
+  sub,
   tone,
 }: {
   label: string;
   value: string;
+  sub?: string;
   tone: "long" | "short";
 }) {
   return (
@@ -429,6 +451,75 @@ function StatCard({
       >
         {value}
       </div>
+      {sub && (
+        <div className="mt-0.5 text-xs font-medium tabular-nums text-zinc-400">
+          {sub} of allocation
+        </div>
+      )}
+    </div>
+  );
+}
+
+// GMV allocation is the denominator for all % metrics. Click the number to
+// edit; the value is stored locally in the browser only.
+function AllocationCard({
+  allocation,
+  onChange,
+}: {
+  allocation: number;
+  onChange: (value: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const startEdit = () => {
+    setDraft((allocation / 1_000_000).toFixed(1));
+    setEditing(true);
+  };
+
+  const commit = () => {
+    setEditing(false);
+    const parsed = Number(draft.replace(/[,\s]/g, ""));
+    if (Number.isFinite(parsed) && parsed > 0) onChange(parsed * 1_000_000);
+  };
+
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+        GMV Allocation
+      </div>
+      {editing ? (
+        <div className="mt-1 flex items-baseline gap-1">
+          <span className="text-2xl font-bold text-zinc-800 dark:text-zinc-100">
+            $
+          </span>
+          <input
+            autoFocus
+            inputMode="decimal"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commit();
+              if (e.key === "Escape") setEditing(false);
+            }}
+            className="w-20 rounded border border-zinc-300 bg-white px-1 text-2xl font-bold tabular-nums text-zinc-800 outline-none dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+          />
+          <span className="text-2xl font-bold text-zinc-800 dark:text-zinc-100">
+            M
+          </span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={startEdit}
+          title="点击修改 GMV allocation"
+          className="mt-1 rounded text-2xl font-bold tabular-nums text-zinc-800 transition-colors hover:text-zinc-500 dark:text-zinc-100 dark:hover:text-zinc-300"
+        >
+          {formatMoney(allocation)}
+        </button>
+      )}
+      <div className="mt-0.5 text-xs text-zinc-400">所有 % 的分母</div>
     </div>
   );
 }
@@ -462,6 +553,7 @@ function PositionTable({
   tone,
   positions,
   subtotal,
+  allocation,
   tagOf,
   knownTags,
   onTagChange,
@@ -470,6 +562,7 @@ function PositionTable({
   tone: "long" | "short";
   positions: PortfolioPosition[];
   subtotal: number;
+  allocation: number;
   tagOf: (position: PortfolioPosition) => string;
   knownTags: string[];
   onTagChange: (key: string, tag: string) => void;
@@ -494,6 +587,9 @@ function PositionTable({
         </div>
         <div className={`text-sm font-bold tabular-nums ${toneText}`}>
           Total {title} GMV：{formatMoney(subtotal)}
+          <span className="ml-1.5 font-medium opacity-70">
+            ({formatAllocPct(subtotal, allocation)})
+          </span>
         </div>
       </div>
       {positions.length === 0 ? (
@@ -506,6 +602,7 @@ function PositionTable({
                 <th className="px-4 py-2 font-medium">Ticker</th>
                 <th className="px-3 py-2 font-medium">名称</th>
                 <th className="px-3 py-2 text-right font-medium">仓位 ($)</th>
+                <th className="px-3 py-2 text-right font-medium">% Alloc</th>
                 <th className="px-3 py-2 text-right font-medium">Daily PnL</th>
                 <th className="px-3 py-2 text-right font-medium">MTD PnL</th>
                 <th className="px-3 py-2 text-right font-medium">YTD PnL</th>
@@ -529,6 +626,9 @@ function PositionTable({
                   </td>
                   <td className="px-3 py-2 text-right font-medium tabular-nums text-zinc-800 dark:text-zinc-100">
                     {formatMoney(Math.abs(position.nmv))}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                    {formatAllocPct(Math.abs(position.nmv), allocation)}
                   </td>
                   <PnlCell value={position.pnlDaily} />
                   <PnlCell value={position.pnlMtd} />
@@ -771,6 +871,18 @@ function formatSignedMoney(value: number): string {
   if (value > 0) return `+${formatted}`;
   if (value < 0) return `-${formatted}`;
   return formatted;
+}
+
+function formatAllocPct(value: number, allocation: number): string {
+  if (allocation <= 0) return "—";
+  return `${((value / allocation) * 100).toFixed(1)}%`;
+}
+
+function formatSignedAllocPct(value: number, allocation: number): string {
+  if (allocation <= 0) return "—";
+  const pct = (value / allocation) * 100;
+  const sign = pct > 0 ? "+" : "";
+  return `${sign}${pct.toFixed(1)}%`;
 }
 
 function formatPct(value: number): string {
