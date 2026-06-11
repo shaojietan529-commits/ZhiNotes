@@ -53,6 +53,14 @@ export default function PortfolioBoardShell() {
   const [emailChecking, setEmailChecking] = useState(false);
   const [syncPasscode, setSyncPasscode] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("off");
+  // Expanded exposure rows live here (not in ExposureTable) so they survive
+  // switching between the 当前持仓 / 持仓分析 tabs.
+  const [expandedTagRows, setExpandedTagRows] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [expandedCountryRows, setExpandedCountryRows] = useState<Set<string>>(
+    () => new Set()
+  );
   const posInputRef = useRef<HTMLInputElement>(null);
   const bookInputRef = useRef<HTMLInputElement>(null);
   const syncReadyRef = useRef(false);
@@ -718,6 +726,8 @@ export default function PortfolioBoardShell() {
                       icon="🏷️"
                       exposures={tagExposures}
                       allocation={allocation}
+                      expanded={expandedTagRows}
+                      onExpandedChange={setExpandedTagRows}
                     />
                   )}
                   {countryExposures && (
@@ -726,6 +736,8 @@ export default function PortfolioBoardShell() {
                       icon="🌏"
                       exposures={countryExposures}
                       allocation={allocation}
+                      expanded={expandedCountryRows}
+                      onExpandedChange={setExpandedCountryRows}
                     />
                   )}
                 </div>
@@ -1050,6 +1062,8 @@ function ExposureTable({
   icon,
   exposures,
   allocation,
+  expanded,
+  onExpandedChange,
 }: {
   title: string;
   icon: string;
@@ -1058,20 +1072,19 @@ function ExposureTable({
     rows: ExposureRow[];
     totalGross: number;
   };
+  expanded: Set<string>;
+  onExpandedChange: (next: Set<string>) => void;
 }) {
   const { rows } = exposures;
   const totalLong = rows.reduce((sum, row) => sum + row.long, 0);
   const totalShort = rows.reduce((sum, row) => sum + row.short, 0);
   const maxGross = rows.length > 0 ? rows[0].gross : 0;
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const toggle = (label: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
+    const next = new Set(expanded);
+    if (next.has(label)) next.delete(label);
+    else next.add(label);
+    onExpandedChange(next);
   };
 
   return (
