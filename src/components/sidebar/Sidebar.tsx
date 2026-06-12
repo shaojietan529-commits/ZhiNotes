@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
   useEffect,
-  type DragEvent,
   type PointerEvent,
   type MouseEvent,
 } from "react";
@@ -196,9 +195,6 @@ export default function Sidebar() {
   const [accountLabel, setAccountLabel] = useState("账号");
   const [primaryItems, setPrimaryItems] = useState(DEFAULT_PRIMARY_ITEMS);
   const [draggedPrimaryId, setDraggedPrimaryId] = useState<string | null>(null);
-  const [dragOverPrimaryId, setDragOverPrimaryId] = useState<string | null>(
-    null
-  );
   const [primaryCustomizations, setPrimaryCustomizations] = useState<
     Record<string, SidebarPrimaryCustomization>
   >({});
@@ -335,46 +331,9 @@ export default function Sidebar() {
     }
   };
 
-  const handlePrimaryDragStart = (
-    e: DragEvent,
-    itemId: string
-  ) => {
-    setDraggedPrimaryId(itemId);
-    setDragOverPrimaryId(itemId);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("application/x-zhinote-sidebar-primary", itemId);
-    e.dataTransfer.setData("text/plain", itemId);
-  };
-
-  const handlePrimaryDragOver = (e: DragEvent, targetId: string) => {
-    if (!draggedPrimaryId || draggedPrimaryId === targetId) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverPrimaryId(targetId);
-    setPrimaryItems((items) =>
-      moveSidebarPrimaryItem(items, draggedPrimaryId, targetId)
-    );
-  };
-
-  const handlePrimaryDrop = (e: DragEvent) => {
-    e.preventDefault();
-    setPrimaryItems((items) => {
-      persistSidebarPrimaryOrder(items);
-      return items;
-    });
-    setDraggedPrimaryId(null);
-    setDragOverPrimaryId(null);
-  };
-
-  const handlePrimaryDragEnd = () => {
-    setPrimaryItems((items) => {
-      persistSidebarPrimaryOrder(items);
-      return items;
-    });
-    setDraggedPrimaryId(null);
-    setDragOverPrimaryId(null);
-  };
-
+  // Pointer-based drag to reorder the primary sidebar items. We deliberately
+  // avoid HTML5 drag-and-drop here: anchors start a native drag that cancels
+  // pointer events mid-gesture, so the two systems cannot coexist on a Link.
   const handlePrimaryPointerDown = (
     e: PointerEvent<HTMLElement>,
     itemId: string
@@ -394,35 +353,42 @@ export default function Sidebar() {
     const drag = primaryPointerDragRef.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
 
-    const distance = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+    const distance = Math.hypot(
+      e.clientX - drag.startX,
+      e.clientY - drag.startY
+    );
     if (distance < 6 && !drag.hasMoved) return;
 
-    drag.hasMoved = true;
-    suppressPrimaryClickRef.current = true;
-    setDraggedPrimaryId(drag.itemId);
+    if (!drag.hasMoved) {
+      drag.hasMoved = true;
+      suppressPrimaryClickRef.current = true;
+      setDraggedPrimaryId(drag.itemId);
+    }
 
+    // Pointer capture routes all events to the pressed element, so hit-test
+    // the cursor position to find which row we are hovering.
     const target = document
       .elementFromPoint(e.clientX, e.clientY)
       ?.closest<HTMLElement>("[data-sidebar-primary-id]");
     const targetId = target?.dataset.sidebarPrimaryId;
     if (!targetId || targetId === drag.itemId) return;
 
-    setDragOverPrimaryId(targetId);
     setPrimaryItems((items) =>
       moveSidebarPrimaryItem(items, drag.itemId, targetId)
     );
   };
 
-  const handlePrimaryPointerUp = (e: PointerEvent<HTMLElement>) => {
+  const handlePrimaryPointerEnd = (e: PointerEvent<HTMLElement>) => {
     const drag = primaryPointerDragRef.current;
     if (drag?.pointerId === e.pointerId) {
       primaryPointerDragRef.current = null;
-      setPrimaryItems((items) => {
-        persistSidebarPrimaryOrder(items);
-        return items;
-      });
+      if (drag.hasMoved) {
+        setPrimaryItems((items) => {
+          persistSidebarPrimaryOrder(items);
+          return items;
+        });
+      }
       setDraggedPrimaryId(null);
-      setDragOverPrimaryId(null);
     }
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
@@ -549,37 +515,25 @@ export default function Sidebar() {
         {primaryItems.map((item) => (
           <div key={item.id} className="relative">
             <div
-              draggable
               data-sidebar-primary-id={item.id}
               onPointerDown={(e) => handlePrimaryPointerDown(e, item.id)}
               onPointerMove={handlePrimaryPointerMove}
-              onPointerUp={handlePrimaryPointerUp}
-              onPointerCancel={handlePrimaryPointerUp}
-              onDragStart={(e) => handlePrimaryDragStart(e, item.id)}
-              onDragOver={(e) => handlePrimaryDragOver(e, item.id)}
-              onDrop={handlePrimaryDrop}
-              onDragEnd={handlePrimaryDragEnd}
-              className={`group mt-0.5 flex w-full cursor-grab items-center gap-1 rounded-md text-sm font-medium text-zinc-700 transition-colors active:cursor-grabbing dark:text-zinc-200 ${
+              onPointerUp={handlePrimaryPointerEnd}
+              onPointerCancel={handlePrimaryPointerEnd}
+              onDragStart={(e) => e.preventDefault()}
+              className={`group mt-0.5 flex w-full select-none items-center gap-1 rounded-md text-sm font-medium text-zinc-700 transition-colors dark:text-zinc-200 ${
                 draggedPrimaryId === item.id
-                  ? "bg-zinc-200 opacity-60 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-700"
-                  : dragOverPrimaryId === item.id
-                    ? "bg-zinc-100 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-700"
-                    : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              }`}
-              title="拖动调整左侧栏顺序"
+                  ? "bg-zinc-200 opacity-70 shadow-sm ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-600"
+                  : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              } ${draggedPrimaryId ? "cursor-grabbing" : ""}`}
             >
               <Link
                 href={item.href}
                 prefetch
+                draggable={false}
                 onClick={handlePrimaryClick}
                 className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-2"
               >
-                <span
-                  className="shrink-0 text-zinc-300 transition-colors group-hover:text-zinc-500 dark:text-zinc-600 dark:group-hover:text-zinc-400"
-                  aria-hidden="true"
-                >
-                  ⋮⋮
-                </span>
                 <span className="w-5 shrink-0 text-center text-base">
                   {item.icon}
                 </span>
