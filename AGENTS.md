@@ -44,6 +44,7 @@ This version has breaking changes. APIs, conventions, and file structure may dif
 - Files/reports: local metadata routing for HTML, Markdown, PDF, Excel, Word, PowerPoint, notebooks, archives, media, transcripts, SEC/XBRL-style research text, and local file pages.
 - ZIP preview: metadata-only central directory preview is implemented in the Files module. It shows counts, extension groups, compressed size, destination routing, exportable JSON, and a confirmation queue. It does not extract files, read entry bytes, create pages/databases, upload, or call AI.
 - Web beta: auth, workspace, sync, file presign, audit, permissions, restore, and migration routes exist as gated contracts; production cloud behavior remains owner-gated.
+- Multi-account login: email-code auth (`/account` page, `/api/account/*`, `src/lib/account/server.ts`) backed by the existing KV store + Resend; inactive (501) until `RESEND_API_KEY` and `ZHINOTES_ACCOUNT_ALLOWED_EMAILS` are set. Codes are hashed/single-use/rate-limited; sessions are revocable httpOnly cookies (90d sliding). Owner setup + China-access (Cloudflare) plan: `docs/multi-account-china-access.md`. Verifier: `npm run verify:account`.
 
 ## Privacy And Safety Boundaries
 
