@@ -866,7 +866,7 @@ function AllocationCard({
               <span className="ml-1">({usedPct.toFixed(1)}%)</span>
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200/80 ring-1 ring-inset ring-zinc-300/60 dark:bg-zinc-700 dark:ring-zinc-600/60">
             <div
               className={`h-full rounded-full transition-all ${
                 overBudget
