@@ -34,6 +34,8 @@ import {
 } from "@/lib/account/clientProfile";
 
 const SIDEBAR_PRIMARY_ORDER_KEY = "zhinote.sidebar.primaryOrder.v1";
+const SIDEBAR_PRIMARY_CUSTOMIZATION_KEY =
+  "zhinote.sidebar.primaryCustomization.v1";
 
 interface SidebarPrimaryItem {
   id: string;
@@ -48,6 +50,11 @@ interface SidebarPrimaryPointerDrag {
   startX: number;
   startY: number;
   hasMoved: boolean;
+}
+
+interface SidebarPrimaryCustomization {
+  icon?: string;
+  label?: string;
 }
 
 const DEFAULT_PRIMARY_ITEMS: SidebarPrimaryItem[] = [
@@ -65,7 +72,65 @@ const DEFAULT_PRIMARY_ITEMS: SidebarPrimaryItem[] = [
   },
 ];
 
-function applySidebarPrimaryOrder(order: unknown): SidebarPrimaryItem[] {
+function normalizePrimaryIcon(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  return value.trim().slice(0, 8) || fallback;
+}
+
+function normalizePrimaryLabel(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  return value.trim().replace(/\s+/g, " ").slice(0, 24) || fallback;
+}
+
+function parseSidebarPrimaryCustomizations(
+  value: unknown
+): Record<string, SidebarPrimaryCustomization> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const parsed: Record<string, SidebarPrimaryCustomization> = {};
+  const defaults = new Map(DEFAULT_PRIMARY_ITEMS.map((item) => [item.id, item]));
+  for (const [id, customization] of Object.entries(value)) {
+    const fallback = defaults.get(id);
+    if (
+      !fallback ||
+      !customization ||
+      typeof customization !== "object" ||
+      Array.isArray(customization)
+    ) {
+      continue;
+    }
+    parsed[id] = {
+      icon: normalizePrimaryIcon(
+        (customization as SidebarPrimaryCustomization).icon,
+        fallback.icon
+      ),
+      label: normalizePrimaryLabel(
+        (customization as SidebarPrimaryCustomization).label,
+        fallback.label
+      ),
+    };
+  }
+  return parsed;
+}
+
+function applySidebarPrimaryCustomizations(
+  items: SidebarPrimaryItem[],
+  customizations: Record<string, SidebarPrimaryCustomization>
+): SidebarPrimaryItem[] {
+  return items.map((item) => {
+    const customization = customizations[item.id];
+    if (!customization) return item;
+    return {
+      ...item,
+      icon: normalizePrimaryIcon(customization.icon, item.icon),
+      label: normalizePrimaryLabel(customization.label, item.label),
+    };
+  });
+}
+
+function applySidebarPrimaryOrder(
+  order: unknown,
+  customizations: Record<string, SidebarPrimaryCustomization> = {}
+): SidebarPrimaryItem[] {
   const byId = new Map(DEFAULT_PRIMARY_ITEMS.map((item) => [item.id, item]));
   const ordered: SidebarPrimaryItem[] = [];
   if (Array.isArray(order)) {
@@ -83,7 +148,7 @@ function applySidebarPrimaryOrder(order: unknown): SidebarPrimaryItem[] {
       ordered.push(item);
     }
   }
-  return ordered;
+  return applySidebarPrimaryCustomizations(ordered, customizations);
 }
 
 function moveSidebarPrimaryItem(
@@ -108,6 +173,15 @@ function persistSidebarPrimaryOrder(items: SidebarPrimaryItem[]) {
   );
 }
 
+function persistSidebarPrimaryCustomizations(
+  customizations: Record<string, SidebarPrimaryCustomization>
+) {
+  window.localStorage.setItem(
+    SIDEBAR_PRIMARY_CUSTOMIZATION_KEY,
+    JSON.stringify(customizations)
+  );
+}
+
 export default function Sidebar() {
   const router = useRouter();
   const { refresh } = usePages();
@@ -125,6 +199,14 @@ export default function Sidebar() {
   const [dragOverPrimaryId, setDragOverPrimaryId] = useState<string | null>(
     null
   );
+  const [primaryCustomizations, setPrimaryCustomizations] = useState<
+    Record<string, SidebarPrimaryCustomization>
+  >({});
+  const [editingPrimaryItem, setEditingPrimaryItem] = useState<{
+    id: string;
+    icon: string;
+    label: string;
+  } | null>(null);
   const primaryPointerDragRef = useRef<SidebarPrimaryPointerDrag | null>(null);
   const suppressPrimaryClickRef = useRef(false);
   const pageSync = usePageCloudSync();
@@ -159,10 +241,23 @@ export default function Sidebar() {
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(SIDEBAR_PRIMARY_ORDER_KEY);
-      setPrimaryItems(applySidebarPrimaryOrder(raw ? JSON.parse(raw) : null));
+      const orderRaw = window.localStorage.getItem(SIDEBAR_PRIMARY_ORDER_KEY);
+      const customizationRaw = window.localStorage.getItem(
+        SIDEBAR_PRIMARY_CUSTOMIZATION_KEY
+      );
+      const customizations = parseSidebarPrimaryCustomizations(
+        customizationRaw ? JSON.parse(customizationRaw) : null
+      );
+      setPrimaryCustomizations(customizations);
+      setPrimaryItems(
+        applySidebarPrimaryOrder(
+          orderRaw ? JSON.parse(orderRaw) : null,
+          customizations
+        )
+      );
     } catch {
       setPrimaryItems(DEFAULT_PRIMARY_ITEMS);
+      setPrimaryCustomizations({});
     }
   }, []);
 
@@ -340,6 +435,55 @@ export default function Sidebar() {
     suppressPrimaryClickRef.current = false;
   };
 
+  const openPrimaryEditor = (item: SidebarPrimaryItem) => {
+    setEditingPrimaryItem({
+      id: item.id,
+      icon: item.icon,
+      label: item.label,
+    });
+  };
+
+  const handlePrimaryEditSave = () => {
+    if (!editingPrimaryItem) return;
+    const defaults = new Map(DEFAULT_PRIMARY_ITEMS.map((item) => [item.id, item]));
+    const fallback = defaults.get(editingPrimaryItem.id);
+    if (!fallback) return;
+    const icon = normalizePrimaryIcon(editingPrimaryItem.icon, fallback.icon);
+    const label = normalizePrimaryLabel(editingPrimaryItem.label, fallback.label);
+    const nextCustomizations = {
+      ...primaryCustomizations,
+      [editingPrimaryItem.id]: { icon, label },
+    };
+    setPrimaryCustomizations(nextCustomizations);
+    persistSidebarPrimaryCustomizations(nextCustomizations);
+    setPrimaryItems((items) =>
+      items.map((item) =>
+        item.id === editingPrimaryItem.id ? { ...item, icon, label } : item
+      )
+    );
+    setEditingPrimaryItem(null);
+  };
+
+  const handlePrimaryEditReset = () => {
+    if (!editingPrimaryItem) return;
+    const fallback = DEFAULT_PRIMARY_ITEMS.find(
+      (item) => item.id === editingPrimaryItem.id
+    );
+    if (!fallback) return;
+    const nextCustomizations = { ...primaryCustomizations };
+    delete nextCustomizations[editingPrimaryItem.id];
+    setPrimaryCustomizations(nextCustomizations);
+    persistSidebarPrimaryCustomizations(nextCustomizations);
+    setPrimaryItems((items) =>
+      items.map((item) =>
+        item.id === editingPrimaryItem.id
+          ? { ...item, icon: fallback.icon, label: fallback.label }
+          : item
+      )
+    );
+    setEditingPrimaryItem(null);
+  };
+
   if (!sidebarOpen) {
     return (
       <button
@@ -403,39 +547,135 @@ export default function Sidebar() {
       {/* Primary workspaces (the three big categories + portfolio) */}
       <div className="px-2 pb-2">
         {primaryItems.map((item) => (
-          <Link
-            key={item.id}
-            href={item.href}
-            prefetch
-            draggable
-            data-sidebar-primary-id={item.id}
-            onPointerDown={(e) => handlePrimaryPointerDown(e, item.id)}
-            onPointerMove={handlePrimaryPointerMove}
-            onPointerUp={handlePrimaryPointerUp}
-            onPointerCancel={handlePrimaryPointerUp}
-            onClick={handlePrimaryClick}
-            onDragStart={(e) => handlePrimaryDragStart(e, item.id)}
-            onDragOver={(e) => handlePrimaryDragOver(e, item.id)}
-            onDrop={handlePrimaryDrop}
-            onDragEnd={handlePrimaryDragEnd}
-            className={`group mt-0.5 flex w-full cursor-grab items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors active:cursor-grabbing dark:text-zinc-200 ${
-              draggedPrimaryId === item.id
-                ? "bg-zinc-200 opacity-60 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-700"
-                : dragOverPrimaryId === item.id
-                  ? "bg-zinc-100 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-700"
-                  : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            }`}
-            title="拖动调整左侧栏顺序"
-          >
-            <span
-              className="shrink-0 text-zinc-300 transition-colors group-hover:text-zinc-500 dark:text-zinc-600 dark:group-hover:text-zinc-400"
-              aria-hidden="true"
+          <div key={item.id} className="relative">
+            <div
+              draggable
+              data-sidebar-primary-id={item.id}
+              onPointerDown={(e) => handlePrimaryPointerDown(e, item.id)}
+              onPointerMove={handlePrimaryPointerMove}
+              onPointerUp={handlePrimaryPointerUp}
+              onPointerCancel={handlePrimaryPointerUp}
+              onDragStart={(e) => handlePrimaryDragStart(e, item.id)}
+              onDragOver={(e) => handlePrimaryDragOver(e, item.id)}
+              onDrop={handlePrimaryDrop}
+              onDragEnd={handlePrimaryDragEnd}
+              className={`group mt-0.5 flex w-full cursor-grab items-center gap-1 rounded-md text-sm font-medium text-zinc-700 transition-colors active:cursor-grabbing dark:text-zinc-200 ${
+                draggedPrimaryId === item.id
+                  ? "bg-zinc-200 opacity-60 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-700"
+                  : dragOverPrimaryId === item.id
+                    ? "bg-zinc-100 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-700"
+                    : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              }`}
+              title="拖动调整左侧栏顺序"
             >
-              ⋮⋮
-            </span>
-            <span className="shrink-0 text-base">{item.icon}</span>
-            <span className="truncate">{item.label}</span>
-          </Link>
+              <Link
+                href={item.href}
+                prefetch
+                onClick={handlePrimaryClick}
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-2"
+              >
+                <span
+                  className="shrink-0 text-zinc-300 transition-colors group-hover:text-zinc-500 dark:text-zinc-600 dark:group-hover:text-zinc-400"
+                  aria-hidden="true"
+                >
+                  ⋮⋮
+                </span>
+                <span className="w-5 shrink-0 text-center text-base">
+                  {item.icon}
+                </span>
+                <span className="truncate">{item.label}</span>
+              </Link>
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openPrimaryEditor(item);
+                }}
+                className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 opacity-0 transition-colors hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                title="编辑名称和图标"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </button>
+            </div>
+
+            {editingPrimaryItem?.id === item.id && (
+              <div className="mt-1 rounded-lg border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                <div className="flex items-center gap-2">
+                  <label className="w-12 text-[11px] text-zinc-400">
+                    图标
+                    <input
+                      value={editingPrimaryItem.icon}
+                      onChange={(e) =>
+                        setEditingPrimaryItem((current) =>
+                          current
+                            ? { ...current, icon: e.target.value }
+                            : current
+                        )
+                      }
+                      className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-center text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                    />
+                  </label>
+                  <label className="min-w-0 flex-1 text-[11px] text-zinc-400">
+                    名称
+                    <input
+                      value={editingPrimaryItem.label}
+                      onChange={(e) =>
+                        setEditingPrimaryItem((current) =>
+                          current
+                            ? { ...current, label: e.target.value }
+                            : current
+                        )
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handlePrimaryEditSave();
+                        if (e.key === "Escape") setEditingPrimaryItem(null);
+                      }}
+                      className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                    />
+                  </label>
+                </div>
+                <div className="mt-2 flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handlePrimaryEditReset}
+                    className="rounded-md px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                  >
+                    重置
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingPrimaryItem(null)}
+                    className="rounded-md px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePrimaryEditSave}
+                    disabled={!editingPrimaryItem.label.trim()}
+                    className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                  >
+                    保存
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         ))}
       </div>
 

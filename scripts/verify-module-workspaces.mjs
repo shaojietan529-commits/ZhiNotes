@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Verifies the three primary workspace surfaces contract:
+// Verifies the primary workspace surfaces contract:
 // - Each is backed by a singleton local root page (no new tables, no cloud).
 // - Routes and shells exist and stay local (no external fetch/upload/AI/recording).
 // - Sidebar promotes the three categories and demotes others to 备选模块.
@@ -34,6 +34,7 @@ for (const token of [
   "每日纪要",
   "产业链研究",
   "会议日程",
+  "知识库",
 ]) {
   check(helper.includes(token), `moduleWorkspaces 缺少 ${token}`);
 }
@@ -43,6 +44,7 @@ for (const route of [
   "src/app/(workspace)/daily/page.tsx",
   "src/app/(workspace)/industry-chain/page.tsx",
   "src/app/(workspace)/schedule/page.tsx",
+  "src/app/(workspace)/knowledge-base/page.tsx",
 ]) {
   check(existsSync(path.join(root, route)), `缺少路由 ${route}`);
 }
@@ -97,7 +99,7 @@ for (const token of [
   check(shells.schedule.includes(token), `MeetingScheduleShell 缺少 ${token}`);
 }
 
-// 4. Sidebar promotes the three, demotes the rest to 备选模块, and lets
+// 4. Sidebar promotes the primary workspaces, demotes the rest to 备选模块, and lets
 // owner reorder the primary sidebar items locally.
 const sidebar = read("src/components/sidebar/Sidebar.tsx");
 for (const token of ["MODULE_WORKSPACE_LIST", "备选模块"]) {
@@ -113,6 +115,10 @@ for (const token of [
   "handlePrimaryPointerDown",
   "handlePrimaryPointerMove",
   "data-sidebar-primary-id",
+  "SIDEBAR_PRIMARY_CUSTOMIZATION_KEY",
+  "editingPrimaryItem",
+  "handlePrimaryEditSave",
+  "handlePrimaryEditReset",
   "组合管理",
 ]) {
   check(sidebar.includes(token), `Sidebar 缺少主导航拖拽排序能力 ${token}`);
@@ -135,8 +141,8 @@ console.log("Module workspaces verification passed");
 console.log(
   JSON.stringify(
     {
-      workspaces: 3,
-      routes: 3,
+      workspaces: 4,
+      routes: 4,
       local_only: true,
       sidebar_promoted: true,
       page_tree_hides_roots: true,
