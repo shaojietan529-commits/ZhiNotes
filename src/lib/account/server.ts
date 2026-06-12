@@ -27,7 +27,7 @@ export interface AccountRecord {
   createdAt: string;
 }
 
-interface KvEnv {
+export interface KvEnv {
   url: string;
   token: string;
 }
@@ -81,7 +81,7 @@ export function accountMissingEnv(): string[] {
   return missing;
 }
 
-async function kvGet(env: KvEnv, key: string): Promise<string | null> {
+export async function kvGet(env: KvEnv, key: string): Promise<string | null> {
   const res = await fetch(`${env.url}/get/${encodeURIComponent(key)}`, {
     headers: { authorization: `Bearer ${env.token}` },
     cache: "no-store",
@@ -108,7 +108,11 @@ async function kvSetEx(
   if (!res.ok) throw new Error("kv setex failed");
 }
 
-async function kvSet(env: KvEnv, key: string, value: string): Promise<void> {
+export async function kvSet(
+  env: KvEnv,
+  key: string,
+  value: string
+): Promise<void> {
   const res = await fetch(`${env.url}/set/${encodeURIComponent(key)}`, {
     method: "POST",
     headers: { authorization: `Bearer ${env.token}` },
@@ -117,7 +121,7 @@ async function kvSet(env: KvEnv, key: string, value: string): Promise<void> {
   if (!res.ok) throw new Error("kv set failed");
 }
 
-async function kvDel(env: KvEnv, key: string): Promise<void> {
+export async function kvDel(env: KvEnv, key: string): Promise<void> {
   const res = await fetch(`${env.url}/del/${encodeURIComponent(key)}`, {
     method: "POST",
     headers: { authorization: `Bearer ${env.token}` },

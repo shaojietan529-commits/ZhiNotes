@@ -41,9 +41,15 @@ import {
   pushCloudData,
   saveSyncPasscode,
 } from "@/lib/portfolio/cloudSync";
+import {
+  accountPullCloud,
+  accountPushCloud,
+  fetchShares,
+} from "@/lib/portfolio/accountSync";
 
 type BoardTab = "positions" | "analysis";
 type SyncStatus = "off" | "syncing" | "synced" | "error";
+type SyncMode = "account" | "passcode" | null;
 
 export default function PortfolioBoardShell() {
   const [snapshot, setSnapshot] = useState<PortfolioSnapshot | null>(null);
@@ -57,6 +63,12 @@ export default function PortfolioBoardShell() {
   const [emailChecking, setEmailChecking] = useState(false);
   const [syncPasscode, setSyncPasscode] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("off");
+  // Signed-in browsers sync against the account; others use the passcode.
+  const [syncMode, setSyncMode] = useState<SyncMode>(null);
+  // Owners (emails) who shared their portfolio with this account.
+  const [sharedWithMe, setSharedWithMe] = useState<string[]>([]);
+  // Non-null while viewing someone else's shared portfolio (read-only).
+  const [viewingOwner, setViewingOwner] = useState<string | null>(null);
   // Expanded exposure rows live here (not in ExposureTable) so they survive
   // switching between the 当前持仓 / 持仓分析 tabs.
   const [expandedTagRows, setExpandedTagRows] = useState<Set<string>>(
@@ -70,15 +82,46 @@ export default function PortfolioBoardShell() {
   const syncReadyRef = useRef(false);
   const lastPayloadRef = useRef<string | null>(null);
   const pushTimerRef = useRef<number | null>(null);
+  const syncModeRef = useRef<SyncMode>(null);
+  const viewingOwnerRef = useRef<string | null>(null);
+  // Own local data, stashed while viewing a shared portfolio.
+  const viewStashRef = useRef<{
+    snapshot: PortfolioSnapshot | null;
+    tagMap: TagMap;
+    allocation: number;
+    maxNetPct: number;
+  } | null>(null);
 
   useEffect(() => {
-    queueMicrotask(() => {
+    queueMicrotask(async () => {
       setSnapshot(loadSnapshot());
       setTagMap(loadTagMap());
       setAllocation(loadAllocation());
       setMaxNetPct(loadMaxNetPct());
+      // Signed in → account sync takes over; otherwise legacy passcode mode.
+      try {
+        const res = await fetch("/api/account/me", { cache: "no-store" });
+        if (res.ok) {
+          const me = await res.json();
+          if (me.authenticated) {
+            syncModeRef.current = "account";
+            setSyncMode("account");
+            void runInitialSync(null, false);
+            void fetchShares().then((shares) => {
+              if (shares.status === "ok") {
+                setSharedWithMe(shares.data.sharedWithMe);
+              }
+            });
+            return;
+          }
+        }
+      } catch {
+        // offline or account system unconfigured — fall through
+      }
       const code = loadSyncPasscode();
       if (code) {
+        syncModeRef.current = "passcode";
+        setSyncMode("passcode");
         setSyncPasscode(code);
         void runInitialSync(code, false);
       }
@@ -105,9 +148,12 @@ export default function PortfolioBoardShell() {
     });
 
   const runInitialSync = useCallback(
-    async (code: string, manual: boolean) => {
+    async (code: string | null, manual: boolean) => {
       setSyncStatus("syncing");
-      const result = await pullCloudData(code);
+      const accountMode = syncModeRef.current === "account";
+      const result = accountMode
+        ? await accountPullCloud()
+        : await pullCloudData(code ?? "");
       if (result.status === "unconfigured") {
         setSyncStatus("off");
         if (manual) {
@@ -115,6 +161,13 @@ export default function PortfolioBoardShell() {
             "云端存储还没有开通。请在 Vercel 项目里：Storage → Create Database → 选 Redis（Upstash）→ 连接到 zhi-notes 项目，然后 Redeploy 一次。"
           );
         }
+        return;
+      }
+      if (result.status === "unauthenticated" || result.status === "forbidden") {
+        // Session expired mid-flight; stop account sync quietly.
+        syncModeRef.current = null;
+        setSyncMode(null);
+        setSyncStatus("off");
         return;
       }
       if (result.status === "unauthorized") {
@@ -179,14 +232,17 @@ export default function PortfolioBoardShell() {
         allocToUse,
         maxNetToUse
       );
-      const pushed = await pushCloudData(code, {
+      const mergedData = {
         snapshot: snapshotToUse,
         tagMap: mergedTags,
         allocation: allocToUse,
         maxNetPct: maxNetToUse,
         lastEmailMessageId: loadLastEmailMessageId(),
         updatedAt: now,
-      });
+      };
+      const pushed = accountMode
+        ? await accountPushCloud(mergedData)
+        : await pushCloudData(code ?? "", mergedData);
       if (pushed.status === "ok" && pushed.data) {
         const serverTags = pushed.data;
         if (JSON.stringify(serverTags) !== JSON.stringify(mergedTags)) {
@@ -208,7 +264,11 @@ export default function PortfolioBoardShell() {
 
   // Push local changes to the cloud (debounced) once initial sync completed.
   useEffect(() => {
-    if (!syncPasscode || !syncReadyRef.current) return;
+    // Never push while viewing someone else's shared portfolio.
+    if (viewingOwner) return;
+    const active =
+      syncMode === "account" || (syncMode === "passcode" && syncPasscode);
+    if (!active || !syncReadyRef.current) return;
     const payload = corePayload(snapshot, tagMap, allocation, maxNetPct);
     if (payload === lastPayloadRef.current) return;
     lastPayloadRef.current = payload;
@@ -217,14 +277,19 @@ export default function PortfolioBoardShell() {
     pushTimerRef.current = window.setTimeout(() => {
       const now = new Date().toISOString();
       saveDataUpdatedAt(now);
-      void pushCloudData(syncPasscode, {
+      const data = {
         snapshot,
         tagMap,
         allocation,
         maxNetPct,
         lastEmailMessageId: loadLastEmailMessageId(),
         updatedAt: now,
-      }).then((result) => {
+      };
+      void (
+        syncModeRef.current === "account"
+          ? accountPushCloud(data)
+          : pushCloudData(syncPasscode ?? "", data)
+      ).then((result) => {
         if (result.status === "ok" && result.data) {
           const serverTags = result.data;
           if (JSON.stringify(serverTags) !== JSON.stringify(tagMap)) {
@@ -241,7 +306,7 @@ export default function PortfolioBoardShell() {
         setSyncStatus(result.status === "ok" ? "synced" : "error");
       });
     }, 1500);
-  }, [snapshot, tagMap, allocation, maxNetPct, syncPasscode]);
+  }, [snapshot, tagMap, allocation, maxNetPct, syncPasscode, syncMode, viewingOwner]);
 
   const handleEnableSync = useCallback(async () => {
     const code = window.prompt(
@@ -254,11 +319,23 @@ export default function PortfolioBoardShell() {
       return;
     }
     saveSyncPasscode(trimmed);
+    syncModeRef.current = "passcode";
+    setSyncMode("passcode");
     setSyncPasscode(trimmed);
     await runInitialSync(trimmed, true);
   }, [runInitialSync]);
 
   const handleSyncChipClick = useCallback(() => {
+    if (syncModeRef.current === "account") {
+      if (syncStatus === "error") {
+        void runInitialSync(null, true);
+        return;
+      }
+      window.alert(
+        "账号云同步已开启：持仓数据自动保存到你的登录账号，任何设备登录同一账号都能看到。"
+      );
+      return;
+    }
     if (!syncPasscode) return;
     if (syncStatus === "error") {
       void runInitialSync(syncPasscode, true);
@@ -270,18 +347,22 @@ export default function PortfolioBoardShell() {
     if (off) {
       clearSyncPasscode();
       setSyncPasscode(null);
+      setSyncMode(null);
+      syncModeRef.current = null;
       setSyncStatus("off");
       syncReadyRef.current = false;
     }
   }, [syncPasscode, syncStatus, runInitialSync]);
 
   const handleAllocationChange = useCallback((value: number) => {
+    if (viewingOwnerRef.current) return;
     if (!Number.isFinite(value) || value <= 0) return;
     setAllocation(value);
     saveAllocation(value);
   }, []);
 
   const handleMaxNetChange = useCallback((value: number) => {
+    if (viewingOwnerRef.current) return;
     if (!Number.isFinite(value) || value <= 0 || value > 100) return;
     setMaxNetPct(value);
     saveMaxNetPct(value);
@@ -292,10 +373,55 @@ export default function PortfolioBoardShell() {
     window.setTimeout(() => setNotice(null), 4000);
   }, []);
 
+  // Switch between my own portfolio and a friend's shared one (read-only).
+  // The friend's data only lives in component state — local storage keeps
+  // my own data untouched the whole time.
+  const handleViewOwnerChange = useCallback(
+    async (owner: string) => {
+      if (!owner) {
+        const stash = viewStashRef.current;
+        if (stash) {
+          setSnapshot(stash.snapshot);
+          setTagMap(stash.tagMap);
+          setAllocation(stash.allocation);
+          setMaxNetPct(stash.maxNetPct);
+          // Restoring my own data is not a change — skip the next push.
+          lastPayloadRef.current = corePayload(
+            stash.snapshot,
+            stash.tagMap,
+            stash.allocation,
+            stash.maxNetPct
+          );
+        }
+        viewStashRef.current = null;
+        viewingOwnerRef.current = null;
+        setViewingOwner(null);
+        return;
+      }
+      const result = await accountPullCloud(owner);
+      if (result.status !== "ok" || !result.data) {
+        showNotice("无法读取对方的云端持仓（对方可能还没有同步过数据）。");
+        return;
+      }
+      if (!viewingOwnerRef.current) {
+        viewStashRef.current = { snapshot, tagMap, allocation, maxNetPct };
+      }
+      viewingOwnerRef.current = owner;
+      setViewingOwner(owner);
+      const cloud = result.data;
+      setSnapshot(cloud.snapshot ?? null);
+      setTagMap(cloud.tagMap ?? {});
+      if (cloud.allocation > 0) setAllocation(cloud.allocation);
+      if (cloud.maxNetPct && cloud.maxNetPct > 0) setMaxNetPct(cloud.maxNetPct);
+    },
+    [snapshot, tagMap, allocation, maxNetPct, showNotice]
+  );
+
   // ----- file imports (browser-local parsing; nothing leaves the device) ----
 
   const handleImportPositions = useCallback(
     async (file: File) => {
+      if (viewingOwnerRef.current) return;
       setImportError(null);
       try {
         const XLSX = await import("xlsx");
@@ -323,6 +449,7 @@ export default function PortfolioBoardShell() {
 
   const handleImportBookTags = useCallback(
     async (file: File) => {
+      if (viewingOwnerRef.current) return;
       setImportError(null);
       try {
         const XLSX = await import("xlsx");
@@ -361,6 +488,7 @@ export default function PortfolioBoardShell() {
 
   const handleEmailCheck = useCallback(
     async (auto: boolean) => {
+      if (viewingOwnerRef.current) return;
       if (emailChecking) return;
       setEmailChecking(true);
       try {
@@ -448,6 +576,7 @@ export default function PortfolioBoardShell() {
   }, [tagMap]);
 
   const handleTagChange = useCallback((key: string, tag: string) => {
+    if (viewingOwnerRef.current) return;
     setTagMap((current) => {
       const next = { ...current };
       if (tag.trim()) next[key] = tag.trim();
@@ -466,6 +595,7 @@ export default function PortfolioBoardShell() {
   );
 
   const handleAiTag = useCallback(async () => {
+    if (viewingOwnerRef.current) return;
     if (!snapshot || untagged.length === 0 || aiTagging) return;
     const ok = window.confirm(
       `将把 ${untagged.length} 只未打标股票的代码和名称发送给 Claude AI 来按主营业务分配标签（不发送仓位金额或 PnL）。确认继续？`
@@ -599,69 +729,109 @@ export default function PortfolioBoardShell() {
                   if (file) void handleImportBookTags(file);
                 }}
               />
+              {syncMode === "account" && sharedWithMe.length > 0 && (
+                <select
+                  value={viewingOwner ?? ""}
+                  onChange={(e) => void handleViewOwnerChange(e.target.value)}
+                  title="切换查看朋友共享给你的持仓（只读）"
+                  className="rounded-lg border border-zinc-300 bg-white px-2.5 py-2 text-sm text-zinc-600 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                >
+                  <option value="">我的持仓</option>
+                  {sharedWithMe.map((owner) => (
+                    <option key={owner} value={owner}>
+                      {owner} 的持仓
+                    </option>
+                  ))}
+                </select>
+              )}
               <button
                 type="button"
                 onClick={() =>
-                  syncPasscode ? handleSyncChipClick() : void handleEnableSync()
+                  syncMode === "account" || syncPasscode
+                    ? handleSyncChipClick()
+                    : void handleEnableSync()
                 }
                 title={
-                  syncPasscode
-                    ? "云同步已开启，点击管理"
-                    : "开启后持仓数据保存到云端，可跨设备使用"
+                  syncMode === "account"
+                    ? "账号云同步已开启，数据跟随登录账号"
+                    : syncPasscode
+                      ? "云同步已开启，点击管理"
+                      : "开启后持仓数据保存到云端，可跨设备使用"
                 }
                 className={`rounded-lg border px-3.5 py-2 text-sm shadow-sm transition-colors ${
                   syncStatus === "error"
                     ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
-                    : syncPasscode
+                    : syncMode === "account" || syncPasscode
                       ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
                       : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
                 }`}
               >
-                {!syncPasscode
+                {syncMode !== "account" && !syncPasscode
                   ? "☁️ 开启云同步"
                   : syncStatus === "syncing"
                     ? "☁️ 同步中…"
                     : syncStatus === "error"
                       ? "☁️ 同步失败，点击重试"
-                      : "☁️ 已同步"}
+                      : syncMode === "account"
+                        ? "☁️ 账号已同步"
+                        : "☁️ 已同步"}
               </button>
-              <button
-                type="button"
-                onClick={() => posInputRef.current?.click()}
-                className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-zinc-700 active:scale-95 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-              >
-                导入持仓报告
-              </button>
-              <button
-                type="button"
-                onClick={() => bookInputRef.current?.click()}
-                className="rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm text-zinc-600 shadow-sm transition-colors hover:border-zinc-400 hover:text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
-              >
-                导入 Book 标签
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleEmailCheck(false)}
-                disabled={emailChecking}
-                title="从 zhinote1@outlook.com 邮箱获取最新的 Roger Pos 持仓文件"
-                className="rounded-lg border border-sky-200 bg-sky-50 px-3.5 py-2 text-sm text-sky-700 shadow-sm transition-colors hover:border-sky-300 disabled:opacity-50 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-300"
-              >
-                {emailChecking ? "检查邮箱中…" : "📧 检查邮箱持仓"}
-              </button>
-              {untagged.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => void handleAiTag()}
-                  disabled={aiTagging}
-                  className="rounded-lg border border-violet-200 bg-violet-50 px-3.5 py-2 text-sm text-violet-700 shadow-sm transition-colors hover:border-violet-300 disabled:opacity-50 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-300"
-                >
-                  {aiTagging
-                    ? "AI 打标中…"
-                    : `✨ AI 打标（${untagged.length} 只未分类）`}
-                </button>
+              {!viewingOwner && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => posInputRef.current?.click()}
+                    className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-zinc-700 active:scale-95 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                  >
+                    导入持仓报告
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => bookInputRef.current?.click()}
+                    className="rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm text-zinc-600 shadow-sm transition-colors hover:border-zinc-400 hover:text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+                  >
+                    导入 Book 标签
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleEmailCheck(false)}
+                    disabled={emailChecking}
+                    title="从 zhinote1@outlook.com 邮箱获取最新的 Roger Pos 持仓文件"
+                    className="rounded-lg border border-sky-200 bg-sky-50 px-3.5 py-2 text-sm text-sky-700 shadow-sm transition-colors hover:border-sky-300 disabled:opacity-50 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-300"
+                  >
+                    {emailChecking ? "检查邮箱中…" : "📧 检查邮箱持仓"}
+                  </button>
+                  {untagged.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => void handleAiTag()}
+                      disabled={aiTagging}
+                      className="rounded-lg border border-violet-200 bg-violet-50 px-3.5 py-2 text-sm text-violet-700 shadow-sm transition-colors hover:border-violet-300 disabled:opacity-50 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-300"
+                    >
+                      {aiTagging
+                        ? "AI 打标中…"
+                        : `✨ AI 打标（${untagged.length} 只未分类）`}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
+
+          {viewingOwner && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-300">
+              <span>
+                正在查看 {viewingOwner} 的持仓（只读），不会影响你自己的数据。
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleViewOwnerChange("")}
+                className="font-medium underline-offset-2 hover:underline"
+              >
+                返回我的持仓
+              </button>
+            </div>
+          )}
 
           {importError && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">

@@ -89,6 +89,32 @@ check(page.includes("AccountShell"), "/account 路由缺少 AccountShell");
 const doc = read("docs/multi-account-china-access.md");
 check(doc.includes("ZHINOTES_ACCOUNT_ALLOWED_EMAILS"), "文档缺少环境变量说明");
 
+// 5. Account-scoped portfolio sync: session-gated, share allowlist enforced
+const accountSync = read("src/app/api/portfolio/account-sync/route.ts");
+for (const token of [
+  "getAccountConfig",
+  "readSessionToken",
+  "getSessionAccount",
+  "501",
+  "401",
+  "allowedEmails.has",
+  "readOnly",
+]) {
+  check(accountSync.includes(token), `account-sync route 缺少 ${token}`);
+}
+check(!accountSync.includes("console."), "account-sync route 不应该写日志");
+
+// 6. Shell: viewing a shared portfolio is read-only and never pushes
+const board = read("src/components/modules/PortfolioBoardShell.tsx");
+check(
+  board.includes("if (viewingOwner) return;"),
+  "查看共享持仓时不应触发云端 push"
+);
+check(
+  (board.match(/if \(viewingOwnerRef\.current\) return;/g) ?? []).length >= 6,
+  "查看共享持仓时导入/打标/修改操作应全部禁用"
+);
+
 if (errors.length > 0) {
   console.error("verify:account 失败：");
   for (const err of errors) console.error(`  - ${err}`);

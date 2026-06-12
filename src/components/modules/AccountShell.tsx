@@ -6,6 +6,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
+import {
+  addShareEmail,
+  fetchShares,
+  removeShareEmail,
+} from "@/lib/portfolio/accountSync";
 
 interface AccountInfo {
   id: string;
@@ -28,6 +33,12 @@ export default function AccountShell() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Portfolio sharing: emails I shared with / owners who shared with me.
+  const [shareMembers, setShareMembers] = useState<string[]>([]);
+  const [sharedWithMe, setSharedWithMe] = useState<string[]>([]);
+  const [shareInput, setShareInput] = useState("");
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
 
   const refreshSession = useCallback(async () => {
     try {
@@ -55,6 +66,49 @@ export default function AccountShell() {
   useEffect(() => {
     void refreshSession();
   }, [refreshSession]);
+
+  // Load sharing lists once signed in.
+  useEffect(() => {
+    if (phase !== "signed-in") return;
+    void fetchShares().then((result) => {
+      if (result.status === "ok") {
+        setShareMembers(result.data.members);
+        setSharedWithMe(result.data.sharedWithMe);
+      }
+    });
+  }, [phase]);
+
+  async function handleShareAdd() {
+    const email = shareInput.trim().toLowerCase();
+    if (!email.includes("@")) return;
+    setShareBusy(true);
+    setShareNotice(null);
+    const result = await addShareEmail(email);
+    if (result.status === "ok") {
+      setShareMembers(result.data);
+      setShareInput("");
+      setShareNotice("已共享。对方登录后在组合管理页可以切换查看你的持仓。");
+    } else {
+      setShareNotice(
+        result.status === "error" && result.message
+          ? result.message
+          : "共享失败，请稍后重试。"
+      );
+    }
+    setShareBusy(false);
+  }
+
+  async function handleShareRemove(email: string) {
+    setShareBusy(true);
+    setShareNotice(null);
+    const result = await removeShareEmail(email);
+    if (result.status === "ok") {
+      setShareMembers(result.data);
+    } else {
+      setShareNotice("移除失败，请稍后重试。");
+    }
+    setShareBusy(false);
+  }
 
   async function handleSendCode() {
     setBusy(true);
@@ -272,13 +326,89 @@ export default function AccountShell() {
             )}
           </div>
 
+          {phase === "signed-in" && (
+            <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                持仓共享
+              </p>
+              <p className="mt-1 text-xs text-zinc-400">
+                把你的组合管理数据共享给指定邮箱（只读）。对方需要在登录白名单内。
+              </p>
+
+              <div className="mt-4 flex items-center gap-2">
+                <input
+                  type="email"
+                  value={shareInput}
+                  onChange={(e) => setShareInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !shareBusy) void handleShareAdd();
+                  }}
+                  placeholder="friend@example.com"
+                  className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                />
+                <button
+                  onClick={() => void handleShareAdd()}
+                  disabled={shareBusy || !shareInput.includes("@")}
+                  className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                >
+                  共享
+                </button>
+              </div>
+
+              {shareNotice && (
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  {shareNotice}
+                </p>
+              )}
+
+              {shareMembers.length > 0 && (
+                <ul className="mt-4 space-y-1.5">
+                  {shareMembers.map((email) => (
+                    <li
+                      key={email}
+                      className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-200"
+                    >
+                      <span className="truncate">{email}</span>
+                      <button
+                        onClick={() => void handleShareRemove(email)}
+                        disabled={shareBusy}
+                        className="ml-3 shrink-0 text-xs text-zinc-400 hover:text-rose-500"
+                      >
+                        移除
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {sharedWithMe.length > 0 && (
+                <div className="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                    共享给我的持仓
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {sharedWithMe.map((email) => (
+                      <li
+                        key={email}
+                        className="text-sm text-zinc-600 dark:text-zinc-300"
+                      >
+                        {email} —— 在组合管理页右上角可切换查看
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
             <p className="font-medium text-zinc-900 dark:text-zinc-100">
               账号能做什么
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>当前阶段：身份验证。笔记和持仓数据仍然只存在本机浏览器。</li>
-              <li>下一阶段：登录后可把持仓数据按账号同步到云端，并邀请朋友共享工作区。</li>
+              <li>登录后，组合管理的数据自动跟随账号云同步，任何设备登录都能看到同一份。</li>
+              <li>可以把持仓共享给指定邮箱（只读），对方登录后即可查看。</li>
+              <li>笔记、页面、文件仍然只存在本机浏览器，不会上传。</li>
               <li>登录只需要邮箱，不会读取或上传任何本地笔记、文件或数据库内容。</li>
             </ul>
           </div>
