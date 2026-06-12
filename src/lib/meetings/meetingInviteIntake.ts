@@ -15,7 +15,10 @@ export interface MeetingInviteIntakeMeeting {
   endTime: string;
   durationMinutes: number | null;
   hasJoinUrl: boolean;
+  joinUrl: string;
   joinUrlHost: string;
+  meetingId: string;
+  passcode: string;
   source: "pasted_text" | "linked_page" | "mixed";
   confidence: "high" | "medium" | "low";
   warnings: string[];
@@ -79,6 +82,8 @@ export function parseMeetingInviteInput(
   const timeRange = extractTimeRange(combinedText);
   const topic = extractTopic(combinedText, fetched?.title, platform);
   const organizer = extractOrganizer(combinedText);
+  const meetingId = extractMeetingId(combinedText);
+  const passcode = extractPasscode(combinedText);
   const warnings = buildWarnings({
     hasUrl: Boolean(url || fetched),
     date: timeRange.date,
@@ -96,7 +101,10 @@ export function parseMeetingInviteInput(
       endTime: timeRange.endTime,
       durationMinutes: timeRange.durationMinutes,
       hasJoinUrl: Boolean(url || fetched),
+      joinUrl: url || fetched?.url || "",
       joinUrlHost,
+      meetingId,
+      passcode,
       source,
       confidence: getConfidence({
         date: timeRange.date,
@@ -179,6 +187,35 @@ function extractOrganizer(text: string) {
   for (const pattern of patterns) {
     const match = text.match(pattern);
     const candidate = cleanLine(match?.[1] ?? "");
+    if (candidate) return candidate;
+  }
+
+  return "";
+}
+
+function extractMeetingId(text: string) {
+  const patterns = [
+    /#\s*腾讯会议\s*[:：]\s*([0-9][0-9\s-]{5,})/i,
+    /(?:会议号|会议\s*ID|Meeting\s*ID|Webinar\s*ID)\s*[:：]?\s*([0-9][0-9\s-]{5,})/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const candidate = cleanSecret(match?.[1] ?? "");
+    if (candidate) return candidate;
+  }
+
+  return "";
+}
+
+function extractPasscode(text: string) {
+  const patterns = [
+    /(?:会议密码|入会密码|密码|Passcode|Password)\s*[:：]?\s*([A-Za-z0-9._-]{3,})/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const candidate = cleanSecret(match?.[1] ?? "");
     if (candidate) return candidate;
   }
 
@@ -304,6 +341,13 @@ function cleanLine(value: string) {
     .trim();
 }
 
+function cleanSecret(value: string) {
+  return value
+    .replace(/[，。；;,]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function cleanPageTitle(value: string) {
   const cleaned = cleanLine(value)
     .replace(/\s*[-|]\s*(腾讯会议|Zoom|Webex|进门财经|Microsoft Teams|Google Meet).*$/i, "")
@@ -325,7 +369,7 @@ function buildWarnings({
 }) {
   const warnings: string[] = [];
   if (hasUrl) {
-    warnings.push("已读取入会链接，但不会保存原始链接、会议号或密码。");
+    warnings.push("已读取入会链接，导入后会保存到会议页面用于自动接入。");
   }
   if (!date || !time) {
     warnings.push("没有读到明确会议日期和开始时间，需要补充后才能加入日历。");

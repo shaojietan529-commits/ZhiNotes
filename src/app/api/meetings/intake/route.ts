@@ -51,8 +51,8 @@ export async function POST(req: Request) {
     fetched: Boolean(fetched),
     privacy: {
       storesRawInvite: false,
-      storesRawJoinUrl: false,
-      storesMeetingPasscode: false,
+      returnsJoinUrlForCalendarStorage: Boolean(parsed.meeting.joinUrl),
+      returnsMeetingPasscodeForCalendarStorage: Boolean(parsed.meeting.passcode),
     },
   });
 }
