@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  useEffect,
+  type DragEvent,
+  type PointerEvent,
+  type MouseEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createPage, createDatabase, getAllDatabases } from "@/lib/db/local/queries";
@@ -25,6 +33,81 @@ import {
   type ClientAccountInfo,
 } from "@/lib/account/clientProfile";
 
+const SIDEBAR_PRIMARY_ORDER_KEY = "zhinote.sidebar.primaryOrder.v1";
+
+interface SidebarPrimaryItem {
+  id: string;
+  href: string;
+  icon: string;
+  label: string;
+}
+
+interface SidebarPrimaryPointerDrag {
+  itemId: string;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  hasMoved: boolean;
+}
+
+const DEFAULT_PRIMARY_ITEMS: SidebarPrimaryItem[] = [
+  ...MODULE_WORKSPACE_LIST.map((workspace) => ({
+    id: workspace.key,
+    href: workspace.route,
+    icon: workspace.icon,
+    label: workspace.label,
+  })),
+  {
+    id: "portfolio",
+    href: "/portfolio",
+    icon: "💼",
+    label: "组合管理",
+  },
+];
+
+function applySidebarPrimaryOrder(order: unknown): SidebarPrimaryItem[] {
+  const byId = new Map(DEFAULT_PRIMARY_ITEMS.map((item) => [item.id, item]));
+  const ordered: SidebarPrimaryItem[] = [];
+  if (Array.isArray(order)) {
+    for (const id of order) {
+      if (typeof id !== "string") continue;
+      const item = byId.get(id);
+      if (!item || ordered.some((existing) => existing.id === item.id)) {
+        continue;
+      }
+      ordered.push(item);
+    }
+  }
+  for (const item of DEFAULT_PRIMARY_ITEMS) {
+    if (!ordered.some((existing) => existing.id === item.id)) {
+      ordered.push(item);
+    }
+  }
+  return ordered;
+}
+
+function moveSidebarPrimaryItem(
+  items: SidebarPrimaryItem[],
+  draggedId: string,
+  targetId: string
+): SidebarPrimaryItem[] {
+  if (draggedId === targetId) return items;
+  const draggedIndex = items.findIndex((item) => item.id === draggedId);
+  const targetIndex = items.findIndex((item) => item.id === targetId);
+  if (draggedIndex < 0 || targetIndex < 0) return items;
+  const next = [...items];
+  const [dragged] = next.splice(draggedIndex, 1);
+  next.splice(targetIndex, 0, dragged);
+  return next;
+}
+
+function persistSidebarPrimaryOrder(items: SidebarPrimaryItem[]) {
+  window.localStorage.setItem(
+    SIDEBAR_PRIMARY_ORDER_KEY,
+    JSON.stringify(items.map((item) => item.id))
+  );
+}
+
 export default function Sidebar() {
   const router = useRouter();
   const { refresh } = usePages();
@@ -37,6 +120,13 @@ export default function Sidebar() {
   const [zipExportRunning, setZipExportRunning] = useState(false);
   const [modulesOpen, setModulesOpen] = useState(false);
   const [accountLabel, setAccountLabel] = useState("账号");
+  const [primaryItems, setPrimaryItems] = useState(DEFAULT_PRIMARY_ITEMS);
+  const [draggedPrimaryId, setDraggedPrimaryId] = useState<string | null>(null);
+  const [dragOverPrimaryId, setDragOverPrimaryId] = useState<string | null>(
+    null
+  );
+  const primaryPointerDragRef = useRef<SidebarPrimaryPointerDrag | null>(null);
+  const suppressPrimaryClickRef = useRef(false);
   const pageSync = usePageCloudSync();
   const sidebarModules = PLATFORM_MODULES.filter(
     (module) => module.route && module.route !== "/"
@@ -66,6 +156,15 @@ export default function Sidebar() {
       getAllDatabases().then(setDatabases);
     }
   }, [dbReady]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SIDEBAR_PRIMARY_ORDER_KEY);
+      setPrimaryItems(applySidebarPrimaryOrder(raw ? JSON.parse(raw) : null));
+    } catch {
+      setPrimaryItems(DEFAULT_PRIMARY_ITEMS);
+    }
+  }, []);
 
   useEffect(() => {
     void refreshAccountLabel();
@@ -141,6 +240,106 @@ export default function Sidebar() {
     }
   };
 
+  const handlePrimaryDragStart = (
+    e: DragEvent,
+    itemId: string
+  ) => {
+    setDraggedPrimaryId(itemId);
+    setDragOverPrimaryId(itemId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/x-zhinote-sidebar-primary", itemId);
+    e.dataTransfer.setData("text/plain", itemId);
+  };
+
+  const handlePrimaryDragOver = (e: DragEvent, targetId: string) => {
+    if (!draggedPrimaryId || draggedPrimaryId === targetId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverPrimaryId(targetId);
+    setPrimaryItems((items) =>
+      moveSidebarPrimaryItem(items, draggedPrimaryId, targetId)
+    );
+  };
+
+  const handlePrimaryDrop = (e: DragEvent) => {
+    e.preventDefault();
+    setPrimaryItems((items) => {
+      persistSidebarPrimaryOrder(items);
+      return items;
+    });
+    setDraggedPrimaryId(null);
+    setDragOverPrimaryId(null);
+  };
+
+  const handlePrimaryDragEnd = () => {
+    setPrimaryItems((items) => {
+      persistSidebarPrimaryOrder(items);
+      return items;
+    });
+    setDraggedPrimaryId(null);
+    setDragOverPrimaryId(null);
+  };
+
+  const handlePrimaryPointerDown = (
+    e: PointerEvent<HTMLElement>,
+    itemId: string
+  ) => {
+    if (e.button !== 0) return;
+    primaryPointerDragRef.current = {
+      itemId,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      hasMoved: false,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePrimaryPointerMove = (e: PointerEvent<HTMLElement>) => {
+    const drag = primaryPointerDragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+
+    const distance = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+    if (distance < 6 && !drag.hasMoved) return;
+
+    drag.hasMoved = true;
+    suppressPrimaryClickRef.current = true;
+    setDraggedPrimaryId(drag.itemId);
+
+    const target = document
+      .elementFromPoint(e.clientX, e.clientY)
+      ?.closest<HTMLElement>("[data-sidebar-primary-id]");
+    const targetId = target?.dataset.sidebarPrimaryId;
+    if (!targetId || targetId === drag.itemId) return;
+
+    setDragOverPrimaryId(targetId);
+    setPrimaryItems((items) =>
+      moveSidebarPrimaryItem(items, drag.itemId, targetId)
+    );
+  };
+
+  const handlePrimaryPointerUp = (e: PointerEvent<HTMLElement>) => {
+    const drag = primaryPointerDragRef.current;
+    if (drag?.pointerId === e.pointerId) {
+      primaryPointerDragRef.current = null;
+      setPrimaryItems((items) => {
+        persistSidebarPrimaryOrder(items);
+        return items;
+      });
+      setDraggedPrimaryId(null);
+      setDragOverPrimaryId(null);
+    }
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  };
+
+  const handlePrimaryClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (!suppressPrimaryClickRef.current) return;
+    e.preventDefault();
+    suppressPrimaryClickRef.current = false;
+  };
+
   if (!sidebarOpen) {
     return (
       <button
@@ -203,25 +402,41 @@ export default function Sidebar() {
 
       {/* Primary workspaces (the three big categories + portfolio) */}
       <div className="px-2 pb-2">
-        {MODULE_WORKSPACE_LIST.map((workspace) => (
+        {primaryItems.map((item) => (
           <Link
-            key={workspace.key}
-            href={workspace.route}
+            key={item.id}
+            href={item.href}
             prefetch
-            className="mt-0.5 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            draggable
+            data-sidebar-primary-id={item.id}
+            onPointerDown={(e) => handlePrimaryPointerDown(e, item.id)}
+            onPointerMove={handlePrimaryPointerMove}
+            onPointerUp={handlePrimaryPointerUp}
+            onPointerCancel={handlePrimaryPointerUp}
+            onClick={handlePrimaryClick}
+            onDragStart={(e) => handlePrimaryDragStart(e, item.id)}
+            onDragOver={(e) => handlePrimaryDragOver(e, item.id)}
+            onDrop={handlePrimaryDrop}
+            onDragEnd={handlePrimaryDragEnd}
+            className={`group mt-0.5 flex w-full cursor-grab items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors active:cursor-grabbing dark:text-zinc-200 ${
+              draggedPrimaryId === item.id
+                ? "bg-zinc-200 opacity-60 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-700"
+                : dragOverPrimaryId === item.id
+                  ? "bg-zinc-100 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-700"
+                  : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            }`}
+            title="拖动调整左侧栏顺序"
           >
-            <span className="shrink-0 text-base">{workspace.icon}</span>
-            <span className="truncate">{workspace.label}</span>
+            <span
+              className="shrink-0 text-zinc-300 transition-colors group-hover:text-zinc-500 dark:text-zinc-600 dark:group-hover:text-zinc-400"
+              aria-hidden="true"
+            >
+              ⋮⋮
+            </span>
+            <span className="shrink-0 text-base">{item.icon}</span>
+            <span className="truncate">{item.label}</span>
           </Link>
         ))}
-        <Link
-          href="/portfolio"
-          prefetch
-          className="mt-0.5 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        >
-          <span className="shrink-0 text-base">💼</span>
-          <span className="truncate">组合管理</span>
-        </Link>
       </div>
 
       {/* Secondary modules, collapsed by default */}

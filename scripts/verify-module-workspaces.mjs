@@ -97,10 +97,25 @@ for (const token of [
   check(shells.schedule.includes(token), `MeetingScheduleShell 缺少 ${token}`);
 }
 
-// 4. Sidebar promotes the three, demotes the rest to 备选模块
+// 4. Sidebar promotes the three, demotes the rest to 备选模块, and lets
+// owner reorder the primary sidebar items locally.
 const sidebar = read("src/components/sidebar/Sidebar.tsx");
 for (const token of ["MODULE_WORKSPACE_LIST", "备选模块"]) {
   check(sidebar.includes(token), `Sidebar 缺少 ${token}`);
+}
+for (const token of [
+  "SIDEBAR_PRIMARY_ORDER_KEY",
+  "DEFAULT_PRIMARY_ITEMS",
+  "draggable",
+  "handlePrimaryDragStart",
+  "handlePrimaryDragOver",
+  "handlePrimaryDrop",
+  "handlePrimaryPointerDown",
+  "handlePrimaryPointerMove",
+  "data-sidebar-primary-id",
+  "组合管理",
+]) {
+  check(sidebar.includes(token), `Sidebar 缺少主导航拖拽排序能力 ${token}`);
 }
 
 // 5. Page tree hides module roots
