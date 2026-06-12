@@ -264,6 +264,16 @@ export default function Sidebar() {
         <PageTree />
         <TrashPages />
       </nav>
+      <div className="border-t border-zinc-200 px-2 py-1.5 dark:border-zinc-800">
+        <Link
+          href="/account"
+          prefetch
+          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+        >
+          <span className="shrink-0 text-base">👤</span>
+          <span className="truncate">账号</span>
+        </Link>
+      </div>
       <div className="grid grid-cols-3 gap-1 border-t border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <button
           type="button"
