@@ -8,6 +8,8 @@ export interface CloudPortfolioData {
   snapshot: PortfolioSnapshot | null;
   tagMap: TagMap;
   allocation: number;
+  // Optional: older cloud payloads may not carry this field.
+  maxNetPct?: number;
   lastEmailMessageId: string | null;
   updatedAt: string;
 }

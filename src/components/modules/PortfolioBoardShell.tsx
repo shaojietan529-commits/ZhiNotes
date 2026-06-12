@@ -22,14 +22,17 @@ import {
   loadAllocation,
   loadDataUpdatedAt,
   loadLastEmailMessageId,
+  loadMaxNetPct,
   loadSnapshot,
   loadTagMap,
   saveAllocation,
   saveDataUpdatedAt,
   saveLastEmailMessageId,
+  saveMaxNetPct,
   saveSnapshot,
   saveTagMap,
   DEFAULT_GMV_ALLOCATION,
+  DEFAULT_MAX_NET_PCT,
 } from "@/lib/portfolio/portfolioStore";
 import {
   clearSyncPasscode,
@@ -46,6 +49,7 @@ export default function PortfolioBoardShell() {
   const [snapshot, setSnapshot] = useState<PortfolioSnapshot | null>(null);
   const [tagMap, setTagMap] = useState<TagMap>({});
   const [allocation, setAllocation] = useState<number>(DEFAULT_GMV_ALLOCATION);
+  const [maxNetPct, setMaxNetPct] = useState<number>(DEFAULT_MAX_NET_PCT);
   const [tab, setTab] = useState<BoardTab>("positions");
   const [importError, setImportError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -72,6 +76,7 @@ export default function PortfolioBoardShell() {
       setSnapshot(loadSnapshot());
       setTagMap(loadTagMap());
       setAllocation(loadAllocation());
+      setMaxNetPct(loadMaxNetPct());
       const code = loadSyncPasscode();
       if (code) {
         setSyncPasscode(code);
@@ -89,8 +94,15 @@ export default function PortfolioBoardShell() {
   const corePayload = (
     snap: PortfolioSnapshot | null,
     tags: TagMap,
-    alloc: number
-  ) => JSON.stringify({ snapshot: snap, tagMap: tags, allocation: alloc });
+    alloc: number,
+    maxNet: number
+  ) =>
+    JSON.stringify({
+      snapshot: snap,
+      tagMap: tags,
+      allocation: alloc,
+      maxNetPct: maxNet,
+    });
 
   const runInitialSync = useCallback(
     async (code: string, manual: boolean) => {
@@ -122,6 +134,7 @@ export default function PortfolioBoardShell() {
       const localSnapshot = loadSnapshot();
       const localTags = loadTagMap();
       const localAlloc = loadAllocation();
+      const localMaxNet = loadMaxNetPct();
 
       const cloudNewer = Boolean(
         cloud && (!localUpdated || cloud.updatedAt > localUpdated)
@@ -138,6 +151,10 @@ export default function PortfolioBoardShell() {
         cloudNewer && cloud && cloud.allocation > 0
           ? cloud.allocation
           : localAlloc;
+      const maxNetToUse =
+        cloudNewer && cloud?.maxNetPct && cloud.maxNetPct > 0
+          ? cloud.maxNetPct
+          : localMaxNet;
 
       if (snapshotToUse) {
         saveSnapshot(snapshotToUse);
@@ -147,6 +164,8 @@ export default function PortfolioBoardShell() {
       saveTagMap(mergedTags);
       setAllocation(allocToUse);
       saveAllocation(allocToUse);
+      setMaxNetPct(maxNetToUse);
+      saveMaxNetPct(maxNetToUse);
       if (cloud?.lastEmailMessageId) {
         saveLastEmailMessageId(cloud.lastEmailMessageId);
       }
@@ -154,11 +173,17 @@ export default function PortfolioBoardShell() {
       // Push the merged result back so the cloud copy includes everything.
       const now = new Date().toISOString();
       saveDataUpdatedAt(now);
-      lastPayloadRef.current = corePayload(snapshotToUse, mergedTags, allocToUse);
+      lastPayloadRef.current = corePayload(
+        snapshotToUse,
+        mergedTags,
+        allocToUse,
+        maxNetToUse
+      );
       const pushed = await pushCloudData(code, {
         snapshot: snapshotToUse,
         tagMap: mergedTags,
         allocation: allocToUse,
+        maxNetPct: maxNetToUse,
         lastEmailMessageId: loadLastEmailMessageId(),
         updatedAt: now,
       });
@@ -168,7 +193,8 @@ export default function PortfolioBoardShell() {
           lastPayloadRef.current = corePayload(
             snapshotToUse,
             serverTags,
-            allocToUse
+            allocToUse,
+            maxNetToUse
           );
           setTagMap(serverTags);
           saveTagMap(serverTags);
@@ -183,7 +209,7 @@ export default function PortfolioBoardShell() {
   // Push local changes to the cloud (debounced) once initial sync completed.
   useEffect(() => {
     if (!syncPasscode || !syncReadyRef.current) return;
-    const payload = corePayload(snapshot, tagMap, allocation);
+    const payload = corePayload(snapshot, tagMap, allocation, maxNetPct);
     if (payload === lastPayloadRef.current) return;
     lastPayloadRef.current = payload;
     if (pushTimerRef.current) window.clearTimeout(pushTimerRef.current);
@@ -195,6 +221,7 @@ export default function PortfolioBoardShell() {
         snapshot,
         tagMap,
         allocation,
+        maxNetPct,
         lastEmailMessageId: loadLastEmailMessageId(),
         updatedAt: now,
       }).then((result) => {
@@ -204,7 +231,8 @@ export default function PortfolioBoardShell() {
             lastPayloadRef.current = corePayload(
               snapshot,
               serverTags,
-              allocation
+              allocation,
+              maxNetPct
             );
             setTagMap(serverTags);
             saveTagMap(serverTags);
@@ -213,7 +241,7 @@ export default function PortfolioBoardShell() {
         setSyncStatus(result.status === "ok" ? "synced" : "error");
       });
     }, 1500);
-  }, [snapshot, tagMap, allocation, syncPasscode]);
+  }, [snapshot, tagMap, allocation, maxNetPct, syncPasscode]);
 
   const handleEnableSync = useCallback(async () => {
     const code = window.prompt(
@@ -251,6 +279,12 @@ export default function PortfolioBoardShell() {
     if (!Number.isFinite(value) || value <= 0) return;
     setAllocation(value);
     saveAllocation(value);
+  }, []);
+
+  const handleMaxNetChange = useCallback((value: number) => {
+    if (!Number.isFinite(value) || value <= 0 || value > 100) return;
+    setMaxNetPct(value);
+    saveMaxNetPct(value);
   }, []);
 
   const showNotice = useCallback((message: string) => {
@@ -668,7 +702,7 @@ export default function PortfolioBoardShell() {
                   limit={{
                     usedPct:
                       allocation > 0 ? (totalLongGmv / allocation) * 100 : 0,
-                    limitPct: LONG_LIMIT_PCT,
+                    limitPct: (100 + maxNetPct) / 2,
                   }}
                 />
                 <StatCard
@@ -679,14 +713,14 @@ export default function PortfolioBoardShell() {
                   limit={{
                     usedPct:
                       allocation > 0 ? (totalShortGmv / allocation) * 100 : 0,
-                    limitPct: SHORT_LIMIT_PCT,
+                    limitPct: (100 - maxNetPct) / 2,
                   }}
                 />
-                <StatCard
-                  label="NMV（净敞口）"
-                  value={formatSignedAllocPct(totalNmv, allocation)}
-                  sub={formatSignedMoney(totalNmv)}
-                  tone={totalNmv >= 0 ? "long" : "short"}
+                <NetExposureCard
+                  netPct={allocation > 0 ? (totalNmv / allocation) * 100 : 0}
+                  netMoney={formatSignedMoney(totalNmv)}
+                  maxNetPct={maxNetPct}
+                  onMaxNetChange={handleMaxNetChange}
                 />
               </div>
 
@@ -763,11 +797,8 @@ export default function PortfolioBoardShell() {
 
 // ----- presentational pieces ---------------------------------------------------
 
-// Risk limits derived from the max net exposure of 12%:
-// long ≤ (100+12)/2 = 56% of allocation, short ≤ (100−12)/2 = 44%.
-const MAX_NET_PCT = 12;
-const LONG_LIMIT_PCT = (100 + MAX_NET_PCT) / 2;
-const SHORT_LIMIT_PCT = (100 - MAX_NET_PCT) / 2;
+// Long/short limits derive from the editable max net exposure:
+// long ≤ (100+maxNet)/2 of allocation, short ≤ (100−maxNet)/2.
 
 function StatCard({
   label,
@@ -931,6 +962,119 @@ function AllocationCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// NMV card with an editable max net exposure (click the ±x% to change).
+// The long/short GMV limits derive from this number.
+function NetExposureCard({
+  netPct,
+  netMoney,
+  maxNetPct,
+  onMaxNetChange,
+}: {
+  netPct: number;
+  netMoney: string;
+  maxNetPct: number;
+  onMaxNetChange: (value: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const startEdit = () => {
+    setDraft(maxNetPct.toFixed(0));
+    setEditing(true);
+  };
+
+  const commit = () => {
+    setEditing(false);
+    const parsed = Number(draft.replace(/[%\s,]/g, ""));
+    if (Number.isFinite(parsed) && parsed > 0 && parsed <= 100) {
+      onMaxNetChange(parsed);
+    }
+  };
+
+  const usedAbs = Math.abs(netPct);
+  const over = usedAbs > maxNetPct;
+  const sign = netPct > 0 ? "+" : netPct < 0 ? "-" : "";
+
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+        NMV（净敞口）
+      </div>
+      <div
+        className={`mt-1 text-2xl font-bold tabular-nums ${
+          netPct >= 0
+            ? "text-emerald-600 dark:text-emerald-400"
+            : "text-rose-600 dark:text-rose-400"
+        }`}
+      >
+        {sign}
+        {usedAbs.toFixed(1)}%
+      </div>
+      <div className="mt-0.5 text-xs font-medium tabular-nums text-zinc-400">
+        {netMoney}
+      </div>
+      <div className="mt-1.5 space-y-1">
+        <div className="flex items-baseline justify-between gap-2 text-xs tabular-nums">
+          <span className="text-zinc-400">
+            最大净敞口{" "}
+            {editing ? (
+              <span className="inline-flex items-baseline">
+                ±
+                <input
+                  autoFocus
+                  inputMode="decimal"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onBlur={commit}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commit();
+                    if (e.key === "Escape") setEditing(false);
+                  }}
+                  className="w-8 rounded border border-zinc-300 bg-white px-0.5 text-xs tabular-nums text-zinc-800 outline-none dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                />
+                %
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={startEdit}
+                title="点击修改最大净敞口"
+                className="rounded font-semibold text-zinc-600 underline decoration-dotted underline-offset-2 transition-colors hover:text-zinc-400 dark:text-zinc-300 dark:hover:text-zinc-400"
+              >
+                ±{maxNetPct.toFixed(0)}%
+              </button>
+            )}
+          </span>
+          <span
+            className={`font-semibold ${
+              over
+                ? "text-rose-600 dark:text-rose-400"
+                : "text-zinc-600 dark:text-zinc-300"
+            }`}
+          >
+            {over
+              ? `超限 ${(usedAbs - maxNetPct).toFixed(1)}%`
+              : `可用 ${(maxNetPct - usedAbs).toFixed(1)}%`}
+          </span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200/80 ring-1 ring-inset ring-zinc-300/60 dark:bg-zinc-700 dark:ring-zinc-600/60">
+          <div
+            className={`h-full rounded-full transition-all ${
+              over ? "bg-rose-500" : "bg-emerald-500"
+            }`}
+            style={{
+              width: `${Math.min(
+                maxNetPct > 0 ? (usedAbs / maxNetPct) * 100 : 0,
+                100
+              )}%`,
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

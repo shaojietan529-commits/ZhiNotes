@@ -6,10 +6,12 @@ import type { PortfolioSnapshot, TagMap } from "./positionReport";
 const SNAPSHOT_KEY = "zhinote.portfolio.snapshot.v1";
 const TAGS_KEY = "zhinote.portfolio.tags.v1";
 const ALLOCATION_KEY = "zhinote.portfolio.allocation.v1";
+const MAX_NET_KEY = "zhinote.portfolio.maxNetPct.v1";
 const EMAIL_MESSAGE_KEY = "zhinote.portfolio.lastEmailMessage.v1";
 const UPDATED_AT_KEY = "zhinote.portfolio.updatedAt.v1";
 
 export const DEFAULT_GMV_ALLOCATION = 108_700_000;
+export const DEFAULT_MAX_NET_PCT = 12;
 
 export function loadSnapshot(): PortfolioSnapshot | null {
   if (typeof window === "undefined") return null;
@@ -60,6 +62,23 @@ export function loadAllocation(): number {
 
 export function saveAllocation(value: number) {
   window.localStorage.setItem(ALLOCATION_KEY, String(value));
+}
+
+export function loadMaxNetPct(): number {
+  if (typeof window === "undefined") return DEFAULT_MAX_NET_PCT;
+  try {
+    const raw = window.localStorage.getItem(MAX_NET_KEY);
+    if (!raw) return DEFAULT_MAX_NET_PCT;
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed > 0 && parsed <= 100) return parsed;
+    return DEFAULT_MAX_NET_PCT;
+  } catch {
+    return DEFAULT_MAX_NET_PCT;
+  }
+}
+
+export function saveMaxNetPct(value: number) {
+  window.localStorage.setItem(MAX_NET_KEY, String(value));
 }
 
 export function loadLastEmailMessageId(): string | null {
