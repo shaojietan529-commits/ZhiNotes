@@ -1274,6 +1274,10 @@ function ExposureTable({
     onExpandedChange(next);
   };
 
+  // Divider class between the % group and $ group
+  const divCls =
+    "border-l border-zinc-200 dark:border-zinc-700";
+
   return (
     <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
@@ -1285,6 +1289,24 @@ function ExposureTable({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
+            {/* Group header row */}
+            <tr className="text-[10px] uppercase tracking-widest text-zinc-300 dark:text-zinc-600">
+              <th />
+              <th
+                colSpan={4}
+                className="border-b border-zinc-100 px-3 pb-0.5 pt-2 text-center font-medium dark:border-zinc-800"
+              >
+                % of Allocation
+              </th>
+              <th
+                colSpan={4}
+                className={`border-b border-zinc-100 px-3 pb-0.5 pt-2 text-center font-medium dark:border-zinc-800 ${divCls}`}
+              >
+                Dollar
+              </th>
+              <th />
+            </tr>
+            {/* Column header row */}
             <tr className="border-b border-zinc-100 text-left text-[11px] uppercase tracking-wide text-zinc-400 dark:border-zinc-800">
               <SortableTh
                 label={title.replace("按 ", "")}
@@ -1295,24 +1317,8 @@ function ExposureTable({
                 className="px-4 py-2"
               />
               <SortableTh
-                label="Long %"
-                sortKey="long"
-                activeKey={sortKey}
-                dir={sortDir}
-                onSort={handleSort}
-                align="right"
-              />
-              <SortableTh
                 label="Long"
                 sortKey="long"
-                activeKey={sortKey}
-                dir={sortDir}
-                onSort={handleSort}
-                align="right"
-              />
-              <SortableTh
-                label="Short %"
-                sortKey="short"
                 activeKey={sortKey}
                 dir={sortDir}
                 onSort={handleSort}
@@ -1327,8 +1333,33 @@ function ExposureTable({
                 align="right"
               />
               <SortableTh
-                label="Net %"
+                label="Net"
                 sortKey="net"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+              />
+              <SortableTh
+                label="Gross"
+                sortKey="gross"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+              />
+              <SortableTh
+                label="Long"
+                sortKey="long"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+                className={`px-3 py-2 ${divCls}`}
+              />
+              <SortableTh
+                label="Short"
+                sortKey="short"
                 activeKey={sortKey}
                 dir={sortDir}
                 onSort={handleSort}
@@ -1343,14 +1374,6 @@ function ExposureTable({
                 align="right"
               />
               <SortableTh
-                label="Gross %"
-                sortKey="gross"
-                activeKey={sortKey}
-                dir={sortDir}
-                onSort={handleSort}
-                align="right"
-              />
-              <SortableTh
                 label="Gross"
                 sortKey="gross"
                 activeKey={sortKey}
@@ -1358,7 +1381,7 @@ function ExposureTable({
                 onSort={handleSort}
                 align="right"
               />
-              <th className="w-1/5 px-3 py-2 font-medium">L / S</th>
+              <th className="w-[14%] px-3 py-2 font-medium">L / S</th>
             </tr>
           </thead>
           <tbody>
@@ -1366,8 +1389,6 @@ function ExposureTable({
               const barScale = maxGross > 0 ? row.gross / maxGross : 0;
               const longShare = row.gross > 0 ? row.long / row.gross : 0;
               const isOpen = expanded.has(row.label);
-              // Longs block on top, shorts block below; each block sorted by
-              // position size descending.
               const sorted = isOpen
                 ? [...row.positions].sort((a, b) => {
                     const aLong = a.nmv >= 0;
@@ -1391,30 +1412,32 @@ function ExposureTable({
                         ({row.positions.length})
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                    {/* — % group — */}
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
                       {formatAllocPct(row.long, allocation)}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-emerald-600/70 dark:text-emerald-400/70">
-                      {formatMoney(row.long)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-400">
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-400">
                       {formatAllocPct(row.short, allocation)}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-rose-600/70 dark:text-rose-400/70">
-                      {formatMoney(row.short)}
-                    </td>
                     <td
-                      className={`px-3 py-2 text-right font-medium tabular-nums ${pnlColor(row.net)}`}
+                      className={`whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums ${pnlColor(row.net)}`}
                     >
                       {formatSignedAllocPct(row.net, allocation)}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-                      {formatSignedMoney(row.net)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
                       {formatAllocPct(row.gross, allocation)}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                    {/* — $ group — */}
+                    <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums text-emerald-600/70 dark:text-emerald-400/70 ${divCls}`}>
+                      {formatMoney(row.long)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-rose-600/70 dark:text-rose-400/70">
+                      {formatMoney(row.short)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                      {formatSignedMoney(row.net)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
                       {formatMoney(row.gross)}
                     </td>
                     <td className="px-3 py-2">
@@ -1456,38 +1479,39 @@ function ExposureTable({
                             {p.name}
                           </span>
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-emerald-600 dark:text-emerald-400">
+                        {/* — % group — */}
+                        <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-xs text-emerald-600 dark:text-emerald-400">
                           {p.nmv >= 0
                             ? formatAllocPct(p.nmv, allocation)
                             : ""}
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-emerald-600/70 dark:text-emerald-400/70">
-                          {p.nmv >= 0 ? formatMoney(p.nmv) : ""}
-                        </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-rose-600 dark:text-rose-400">
+                        <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-xs text-rose-600 dark:text-rose-400">
                           {p.nmv < 0
                             ? formatAllocPct(-p.nmv, allocation)
                             : ""}
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-rose-600/70 dark:text-rose-400/70">
-                          {p.nmv < 0 ? formatMoney(-p.nmv) : ""}
-                        </td>
                         <td
-                          className={`px-3 py-1.5 text-right tabular-nums text-xs ${pnlColor(p.nmv)}`}
+                          className={`whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-xs ${pnlColor(p.nmv)}`}
                         >
                           {formatSignedAllocPct(p.nmv, allocation)}
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
-                          {formatSignedMoney(p.nmv)}
-                        </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-zinc-700 dark:text-zinc-200">
+                        <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-xs text-zinc-700 dark:text-zinc-200">
                           {formatAllocPct(Math.abs(p.nmv), allocation)}
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
+                        {/* — $ group — */}
+                        <td className={`whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-xs text-emerald-600/70 dark:text-emerald-400/70 ${divCls}`}>
+                          {p.nmv >= 0 ? formatMoney(p.nmv) : ""}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-xs text-rose-600/70 dark:text-rose-400/70">
+                          {p.nmv < 0 ? formatMoney(-p.nmv) : ""}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
+                          {formatSignedMoney(p.nmv)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
                           {formatMoney(Math.abs(p.nmv))}
                         </td>
                         <td className="px-3 py-1.5">
-                          {/* Same scale as the group rows so lengths compare */}
                           <div
                             className={`h-1.5 rounded-full ${
                               p.nmv >= 0 ? "bg-emerald-500" : "bg-rose-500"
@@ -1514,30 +1538,32 @@ function ExposureTable({
               <td className="px-4 py-2 text-zinc-700 dark:text-zinc-200">
                 Total
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+              {/* — % group — */}
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
                 {formatAllocPct(totalLong, allocation)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-emerald-600/70 dark:text-emerald-400/70">
-                {formatMoney(totalLong)}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-400">
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-400">
                 {formatAllocPct(totalShort, allocation)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-rose-600/70 dark:text-rose-400/70">
-                {formatMoney(totalShort)}
-              </td>
               <td
-                className={`px-3 py-2 text-right tabular-nums ${pnlColor(totalLong - totalShort)}`}
+                className={`whitespace-nowrap px-3 py-2 text-right tabular-nums ${pnlColor(totalLong - totalShort)}`}
               >
                 {formatSignedAllocPct(totalLong - totalShort, allocation)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-                {formatSignedMoney(totalLong - totalShort)}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
                 {formatAllocPct(totalLong + totalShort, allocation)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+              {/* — $ group — */}
+              <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums text-emerald-600/70 dark:text-emerald-400/70 ${divCls}`}>
+                {formatMoney(totalLong)}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-rose-600/70 dark:text-rose-400/70">
+                {formatMoney(totalShort)}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                {formatSignedMoney(totalLong - totalShort)}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
                 {formatMoney(totalLong + totalShort)}
               </td>
               <td />
