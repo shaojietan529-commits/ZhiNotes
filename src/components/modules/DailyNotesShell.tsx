@@ -38,6 +38,8 @@ export default function DailyNotesShell() {
     x: number;
     y: number;
   } | null>(null);
+  const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
+  const [dragOverDateKey, setDragOverDateKey] = useState<string | null>(null);
   const [viewMonth, setViewMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -94,6 +96,35 @@ export default function DailyNotesShell() {
       setPeekPageId(page.id);
     },
     [rootId, refresh, load]
+  );
+
+  // Drag a note chip onto another day: rewrite its 日期 property (and the
+  // title too when the note is still date-titled) so it moves on the calendar.
+  const moveNoteToDate = useCallback(
+    async (noteId: string, dateKey: string) => {
+      const note = notes.find((item) => item.id === noteId);
+      if (!note || dailyNoteDateKey(note) === dateKey) return;
+      const props = parsePageProperties(note.properties);
+      const dateProp = props.find((property) => property.name === "日期");
+      if (dateProp) {
+        dateProp.value = dateKey;
+      } else {
+        props.unshift({
+          ...createPageProperty("date", "日期"),
+          value: dateKey,
+        });
+      }
+      const updates: { properties: string; title?: string } = {
+        properties: stringifyPageProperties(props),
+      };
+      if (DATE_KEY_PATTERN.test((note.title || "").trim())) {
+        updates.title = dateKey;
+      }
+      await updatePage(noteId, updates);
+      await refresh();
+      await load();
+    },
+    [notes, refresh, load]
   );
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
@@ -175,12 +206,40 @@ export default function DailyNotesShell() {
               const key = toDateKey(cell.date);
               const dayNotes = notesByDate.get(key) ?? [];
               const isToday = key === todayKey;
+              const isDropTarget = draggedNoteId !== null && dragOverDateKey === key;
               return (
                 <div
                   key={key}
                   className={`group flex h-28 flex-col border-b border-r border-zinc-100 p-1 dark:border-zinc-800/70 ${
                     cell.inMonth ? "" : "bg-zinc-50/50 dark:bg-zinc-900/40"
+                  } ${
+                    isDropTarget
+                      ? "rounded-md ring-2 ring-inset ring-blue-400 bg-blue-50/60 dark:bg-blue-950/30"
+                      : ""
                   }`}
+                  onDragOver={(e) => {
+                    if (!draggedNoteId) return;
+                    e.preventDefault();
+                    setDragOverDateKey(key);
+                  }}
+                  onDragLeave={(e) => {
+                    if (
+                      e.currentTarget.contains(e.relatedTarget as Node)
+                    ) {
+                      return;
+                    }
+                    setDragOverDateKey((current) =>
+                      current === key ? null : current
+                    );
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedNoteId) {
+                      void moveNoteToDate(draggedNoteId, key);
+                    }
+                    setDraggedNoteId(null);
+                    setDragOverDateKey(null);
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <button
@@ -208,6 +267,16 @@ export default function DailyNotesShell() {
                       <button
                         key={note.id}
                         type="button"
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = "move";
+                          e.dataTransfer.setData("text/plain", note.id);
+                          setDraggedNoteId(note.id);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedNoteId(null);
+                          setDragOverDateKey(null);
+                        }}
                         onClick={() => setPeekPageId(note.id)}
                         onContextMenu={(e) => {
                           e.preventDefault();
@@ -217,7 +286,9 @@ export default function DailyNotesShell() {
                             y: e.clientY,
                           });
                         }}
-                        className="flex items-center gap-1 truncate rounded bg-zinc-100 px-1 py-0.5 text-left text-[10px] text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                        className={`flex cursor-grab items-center gap-1 truncate rounded bg-zinc-100 px-1 py-0.5 text-left text-[10px] text-zinc-700 transition-colors hover:bg-zinc-200 active:cursor-grabbing dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 ${
+                          draggedNoteId === note.id ? "opacity-40" : ""
+                        }`}
                         title={displayPageTitle(note.title)}
                       >
                         <span className="shrink-0">{note.icon || "📝"}</span>
@@ -243,6 +314,16 @@ export default function DailyNotesShell() {
                   <li key={note.id}>
                     <button
                       type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", note.id);
+                        setDraggedNoteId(note.id);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedNoteId(null);
+                        setDragOverDateKey(null);
+                      }}
                       onClick={() => setPeekPageId(note.id)}
                       onContextMenu={(e) => {
                         e.preventDefault();
@@ -252,7 +333,7 @@ export default function DailyNotesShell() {
                           y: e.clientY,
                         });
                       }}
-                      className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                      className="flex w-full cursor-grab items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-50 active:cursor-grabbing dark:hover:bg-zinc-800/50"
                     >
                       <span className="w-24 shrink-0 text-xs text-zinc-400">
                         {dailyNoteDateKey(note)}
