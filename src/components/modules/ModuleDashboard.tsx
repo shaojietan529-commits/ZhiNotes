@@ -236,7 +236,7 @@ export default function ModuleDashboard() {
         <header className="border-b border-zinc-200 pb-5 dark:border-zinc-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="mb-4 hidden rounded-md bg-[#111821] px-3 py-2 sm:inline-flex">
+              <div className="mb-4 hidden sm:inline-flex">
                 <ZhiNoteLogo className="h-11 w-[190px] max-w-full" />
               </div>
               <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">

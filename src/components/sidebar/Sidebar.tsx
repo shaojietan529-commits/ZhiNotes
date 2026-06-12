@@ -105,7 +105,7 @@ export default function Sidebar() {
     return (
       <button
         onClick={toggleSidebar}
-        className="fixed top-4 left-4 z-50 rounded-lg border border-white/10 bg-[#111821] p-1.5 shadow-md transition-colors hover:bg-[#182233]"
+        className="fixed top-4 left-4 z-50 rounded-lg border border-transparent p-1.5 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
         title="打开侧边栏"
       >
         <ZhiNoteMark className="h-8 w-8" />
@@ -116,7 +116,7 @@ export default function Sidebar() {
   return (
     <aside className="w-64 h-screen flex flex-col bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 shrink-0">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-black/20 bg-[#111821] px-3 py-2.5">
+      <div className="flex items-center justify-between border-b border-zinc-200 px-3 py-2.5 dark:border-zinc-800">
         <button
           type="button"
           onClick={() => router.push("/modules")}
