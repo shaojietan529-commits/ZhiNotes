@@ -7,7 +7,8 @@ import { createPage, getAllPages, getPage } from "@/lib/db/local/queries";
 export type ModuleWorkspaceKey =
   | "daily"
   | "industry-chain"
-  | "meeting-schedule";
+  | "meeting-schedule"
+  | "knowledge-base";
 
 interface ModuleWorkspaceDef {
   key: ModuleWorkspaceKey;
@@ -39,6 +40,13 @@ export const MODULE_WORKSPACES: Record<ModuleWorkspaceKey, ModuleWorkspaceDef> =
     route: "/schedule",
     label: "会议日程",
   },
+  "knowledge-base": {
+    key: "knowledge-base",
+    title: "知识库",
+    icon: "📚",
+    route: "/knowledge-base",
+    label: "知识库",
+  },
 };
 
 export const MODULE_WORKSPACE_LIST = Object.values(MODULE_WORKSPACES);
@@ -56,12 +64,25 @@ export function getModuleRootIdsSync(): string[] {
   ).filter((id): id is string => Boolean(id));
 }
 
+// Concurrent callers (e.g. React strict-mode double effects, or two
+// components mounting together) must share one lookup, otherwise both can
+// miss the stored id and each create a duplicate root page.
+const inFlightRootLookups = new Map<ModuleWorkspaceKey, Promise<string>>();
+
 // Find (or create) the singleton root page for a module workspace.
 // Resilient to a cleared localStorage: it will re-adopt an existing root page
 // that matches the known title before creating a brand new one.
-export async function getModuleRootId(
-  key: ModuleWorkspaceKey
-): Promise<string> {
+export function getModuleRootId(key: ModuleWorkspaceKey): Promise<string> {
+  let pending = inFlightRootLookups.get(key);
+  if (!pending) {
+    pending = resolveModuleRootId(key);
+    inFlightRootLookups.set(key, pending);
+    void pending.finally(() => inFlightRootLookups.delete(key));
+  }
+  return pending;
+}
+
+async function resolveModuleRootId(key: ModuleWorkspaceKey): Promise<string> {
   const def = MODULE_WORKSPACES[key];
   const stored =
     typeof window !== "undefined"
@@ -73,11 +94,13 @@ export async function getModuleRootId(
     if (existing) return existing.id;
   }
 
-  // Try to adopt an existing top-level page with the same title.
+  // Try to adopt an existing top-level page with the same title. Pick the
+  // smallest id deterministically so every device converges on the same
+  // root when duplicates exist (page cloud sync merges the rest).
   const allPages = await getAllPages();
-  const adopted = allPages.find(
-    (page) => page.parent_id === null && page.title === def.title
-  );
+  const adopted = allPages
+    .filter((page) => page.parent_id === null && page.title === def.title)
+    .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
   if (adopted) {
     rememberRoot(key, adopted.id);
     return adopted.id;
