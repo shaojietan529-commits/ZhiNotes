@@ -32,10 +32,30 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
     if (typeof data.device_code !== "string") {
+      // Surface Microsoft's own error code so the owner can tell apart a
+      // wrong Client ID, a missing "Allow public client flows" toggle, or
+      // an unsupported account type. Error codes are diagnostic only.
+      const detail =
+        typeof data.error_description === "string"
+          ? data.error_description.split("\n")[0].split(" Trace ID")[0]
+          : typeof data.error === "string"
+            ? data.error
+            : "";
+      let hint =
+        "请检查 Client ID 是否正确、应用是否开启了 Allow public client flows。";
+      if (detail.includes("AADSTS700016")) {
+        hint =
+          "找不到这个应用。多半是注册时账户类型没有选 “Personal Microsoft accounts only”，或者应用刚注册还在生效中（等 2-3 分钟再试）。";
+      } else if (detail.includes("AADSTS7000218")) {
+        hint =
+          "应用还没开启 Allow public client flows。去 portal.azure.com → 你的应用 → Authentication → 页面底部 Allow public client flows 切换为 Yes 并保存，然后重试。";
+      } else if (detail.includes("AADSTS900023") || detail.includes("AADSTS90002")) {
+        hint = "Client ID 格式不对或应用不存在，请重新复制 Application (client) ID。";
+      }
       return NextResponse.json(
         {
-          error:
-            "获取登录码失败，请检查 Client ID 是否正确、应用是否开启了 Allow public client flows。",
+          error: `获取登录码失败：${hint}`,
+          detail,
         },
         { status: 502 }
       );
