@@ -665,12 +665,22 @@ export default function PortfolioBoardShell() {
                   value={formatAllocPct(totalLongGmv, allocation)}
                   sub={formatMoney(totalLongGmv)}
                   tone="long"
+                  limit={{
+                    usedPct:
+                      allocation > 0 ? (totalLongGmv / allocation) * 100 : 0,
+                    limitPct: LONG_LIMIT_PCT,
+                  }}
                 />
                 <StatCard
                   label="Total Short GMV"
                   value={formatAllocPct(totalShortGmv, allocation)}
                   sub={formatMoney(totalShortGmv)}
                   tone="short"
+                  limit={{
+                    usedPct:
+                      allocation > 0 ? (totalShortGmv / allocation) * 100 : 0,
+                    limitPct: SHORT_LIMIT_PCT,
+                  }}
                 />
                 <StatCard
                   label="NMV（净敞口）"
@@ -753,17 +763,27 @@ export default function PortfolioBoardShell() {
 
 // ----- presentational pieces ---------------------------------------------------
 
+// Risk limits derived from the max net exposure of 12%:
+// long ≤ (100+12)/2 = 56% of allocation, short ≤ (100−12)/2 = 44%.
+const MAX_NET_PCT = 12;
+const LONG_LIMIT_PCT = (100 + MAX_NET_PCT) / 2;
+const SHORT_LIMIT_PCT = (100 - MAX_NET_PCT) / 2;
+
 function StatCard({
   label,
   value,
   sub,
   tone,
+  limit,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone: "long" | "short";
+  // usedPct/limitPct are both expressed as % of allocation
+  limit?: { usedPct: number; limitPct: number };
 }) {
+  const over = limit ? limit.usedPct > limit.limitPct : false;
   return (
     <div className="rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
@@ -781,6 +801,39 @@ function StatCard({
       {sub && (
         <div className="mt-0.5 text-xs font-medium tabular-nums text-zinc-400">
           {sub}
+        </div>
+      )}
+      {limit && (
+        <div className="mt-1.5 space-y-1">
+          <div className="flex items-baseline justify-between gap-2 text-xs tabular-nums">
+            <span className="text-zinc-400">上限 {limit.limitPct.toFixed(0)}%</span>
+            <span
+              className={`font-semibold ${
+                over
+                  ? "text-rose-600 dark:text-rose-400"
+                  : "text-zinc-600 dark:text-zinc-300"
+              }`}
+            >
+              {over
+                ? `超限 ${(limit.usedPct - limit.limitPct).toFixed(1)}%`
+                : `可用 ${(limit.limitPct - limit.usedPct).toFixed(1)}%`}
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200/80 ring-1 ring-inset ring-zinc-300/60 dark:bg-zinc-700 dark:ring-zinc-600/60">
+            <div
+              className={`h-full rounded-full transition-all ${
+                over ? "bg-rose-500" : "bg-emerald-500"
+              }`}
+              style={{
+                width: `${Math.min(
+                  limit.limitPct > 0
+                    ? (limit.usedPct / limit.limitPct) * 100
+                    : 0,
+                  100
+                )}%`,
+              }}
+            />
+          </div>
         </div>
       )}
     </div>
