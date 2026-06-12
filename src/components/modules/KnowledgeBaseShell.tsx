@@ -98,13 +98,11 @@ export default function KnowledgeBaseShell() {
     [pages, rootId]
   );
 
+  // New cards start untitled and icon-less (Notion-style); the title input
+  // in the peek modal shows a 新页面 placeholder to type straight into.
   const addCard = useCallback(async () => {
     if (!rootId) return;
-    const page = await createPage({
-      parentId: rootId,
-      title: "未命名公司",
-      icon: "🏢",
-    });
+    const page = await createPage({ parentId: rootId });
     await refresh();
     setPeekPageId(page.id);
   }, [rootId, refresh]);
@@ -451,7 +449,7 @@ function KnowledgeCard({
       >
         {/* Card header */}
         <div className="flex items-center gap-2">
-          <span className="shrink-0 text-xl">{card.icon || "🏢"}</span>
+          <span className="shrink-0 text-xl">{card.icon || "📄"}</span>
           {renaming ? (
             <input
               autoFocus

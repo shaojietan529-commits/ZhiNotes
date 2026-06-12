@@ -108,12 +108,9 @@ for (const token of ["MODULE_WORKSPACE_LIST", "备选模块"]) {
 for (const token of [
   "SIDEBAR_PRIMARY_ORDER_KEY",
   "DEFAULT_PRIMARY_ITEMS",
-  "draggable",
-  "handlePrimaryDragStart",
-  "handlePrimaryDragOver",
-  "handlePrimaryDrop",
   "handlePrimaryPointerDown",
   "handlePrimaryPointerMove",
+  "handlePrimaryPointerEnd",
   "data-sidebar-primary-id",
   "SIDEBAR_PRIMARY_CUSTOMIZATION_KEY",
   "editingPrimaryItem",
@@ -123,6 +120,12 @@ for (const token of [
 ]) {
   check(sidebar.includes(token), `Sidebar 缺少主导航拖拽排序能力 ${token}`);
 }
+// HTML5 drag-and-drop must stay off the primary Links: a native anchor drag
+// cancels pointer events mid-gesture and breaks the reorder interaction.
+check(
+  !sidebar.includes("handlePrimaryDragStart"),
+  "Sidebar 主导航应使用指针拖拽，不应再挂 HTML5 drag 处理器"
+);
 
 // 5. Page tree hides module roots
 const pageTree = read("src/components/sidebar/PageTree.tsx");

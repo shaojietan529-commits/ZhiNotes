@@ -204,7 +204,7 @@ function run() {
 
   for (const snippet of [
     "displayPageTitle",
-    'fallback = "未命名页面"',
+    'fallback = "新页面"',
     'normalized.toLowerCase() === "untitled"',
   ]) {
     assertIncludes(

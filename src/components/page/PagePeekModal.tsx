@@ -43,10 +43,15 @@ export default function PagePeekModal({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
+      // Cmd+Enter (mac) / Ctrl+Enter — jump to the full page view.
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        onOpenFull(pageId);
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, onOpenFull, pageId]);
 
   const handleTitleChange = useCallback(
     async (next: string) => {
@@ -88,12 +93,12 @@ export default function PagePeekModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/30 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/25 p-4"
       onMouseDown={onClose}
       role="presentation"
     >
       <div
-        className="flex max-h-[calc(100vh-3rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-950"
+        className="flex h-[85vh] w-[82vw] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-950"
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
         aria-label="页面弹窗"
@@ -103,9 +108,9 @@ export default function PagePeekModal({
             type="button"
             onClick={() => onOpenFull(pageId)}
             className="rounded px-2 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-            title="打开完整页面"
+            title="打开完整页面（⌘+回车）"
           >
-            打开完整页面 ↗
+            打开完整页面 ↗ <span className="ml-1 text-[10px] text-zinc-400">⌘⏎</span>
           </button>
           <button
             type="button"
@@ -117,20 +122,21 @@ export default function PagePeekModal({
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-10 py-6">
           {loading || !page ? (
             <div className="py-16 text-center text-sm text-zinc-400">
               正在加载页面…
             </div>
           ) : (
-            <>
+            <div className="mx-auto w-full max-w-4xl">
               <div className="mb-3 flex items-start gap-2">
                 <IconPicker currentIcon={page.icon} onSelect={handleIconChange} />
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => handleTitleChange(e.target.value)}
-                  placeholder="未命名页面"
+                  placeholder="新页面"
+                  autoFocus={!page.title}
                   className="mt-1 w-full border-none bg-transparent text-2xl font-bold text-zinc-900 outline-none placeholder-zinc-300 dark:text-zinc-100 dark:placeholder-zinc-600"
                 />
               </div>
@@ -149,7 +155,7 @@ export default function PagePeekModal({
                 editable
                 onUpdate={handleContentUpdate}
               />
-            </>
+            </div>
           )}
         </div>
       </div>

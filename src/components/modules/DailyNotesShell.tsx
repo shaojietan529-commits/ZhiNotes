@@ -75,11 +75,9 @@ export default function DailyNotesShell() {
   const addNote = useCallback(
     async (dateKey: string) => {
       if (!rootId) return;
-      const page = await createPage({
-        title: "未命名纪要",
-        parentId: rootId,
-        icon: "📝",
-      });
+      // Untitled by default (Notion-style) — the peek modal shows a 新页面
+      // placeholder; calendar chips fall back to the 📝 glyph for display.
+      const page = await createPage({ parentId: rootId });
       const props = [
         { ...createPageProperty("date", "日期"), value: dateKey },
         createPageProperty("text", "要点"),

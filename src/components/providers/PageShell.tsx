@@ -663,7 +663,7 @@ function PageContent({ pageId }: { pageId: string }) {
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
                 disabled={locked}
-                placeholder="未命名页面"
+                placeholder="新页面"
                 className="zhinote-title-input w-full text-3xl font-bold bg-transparent border-none outline-none text-zinc-900 disabled:cursor-default dark:text-zinc-100 placeholder-zinc-300 dark:placeholder-zinc-600 mt-1"
               />
             </div>

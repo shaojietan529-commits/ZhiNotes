@@ -179,7 +179,9 @@ export async function createPage(opts?: {
   const db = await getDb();
   const now = nowISO();
   const id = generateId();
-  const title = opts?.title ?? "未命名页面";
+  // Notion-style: new pages start untitled; UIs render a "新页面" ghost
+  // placeholder instead of storing a throwaway name the user must delete.
+  const title = opts?.title ?? "";
   const parentId = opts?.parentId ?? null;
   const icon = opts?.icon ?? null;
 
