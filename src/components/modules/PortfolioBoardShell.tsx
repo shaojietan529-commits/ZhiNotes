@@ -657,6 +657,7 @@ export default function PortfolioBoardShell() {
               <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <AllocationCard
                   allocation={allocation}
+                  usedGmv={totalLongGmv + totalShortGmv}
                   onChange={handleAllocationChange}
                 />
                 <StatCard
@@ -790,9 +791,11 @@ function StatCard({
 // edit; the value is stored locally in the browser only.
 function AllocationCard({
   allocation,
+  usedGmv,
   onChange,
 }: {
   allocation: number;
+  usedGmv: number;
   onChange: (value: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -808,6 +811,9 @@ function AllocationCard({
     const parsed = Number(draft.replace(/[,\s]/g, ""));
     if (Number.isFinite(parsed) && parsed > 0) onChange(parsed * 1_000_000);
   };
+
+  const usedPct = allocation > 0 ? (usedGmv / allocation) * 100 : 0;
+  const overBudget = usedPct > 100;
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -845,7 +851,33 @@ function AllocationCard({
           {formatMoney(allocation)}
         </button>
       )}
-      <div className="mt-0.5 text-xs text-zinc-400">所有 % 的分母</div>
+      {usedGmv > 0 && (
+        <div className="mt-1.5 space-y-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-xs text-zinc-400">Used</span>
+            <span
+              className={`text-xs font-semibold tabular-nums ${
+                overBudget
+                  ? "text-rose-600 dark:text-rose-400"
+                  : "text-zinc-600 dark:text-zinc-300"
+              }`}
+            >
+              {formatMoney(usedGmv)}
+              <span className="ml-1">({usedPct.toFixed(1)}%)</span>
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+            <div
+              className={`h-full rounded-full transition-all ${
+                overBudget
+                  ? "bg-rose-500"
+                  : "bg-emerald-500"
+              }`}
+              style={{ width: `${Math.min(usedPct, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
