@@ -27,6 +27,7 @@ const PLATFORMS = [
   "Zoom",
   "Webex",
   "进门财经",
+  "久谦论坛",
   "Teams",
   "Google Meet",
   "其他",

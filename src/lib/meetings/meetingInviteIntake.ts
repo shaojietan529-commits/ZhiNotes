@@ -149,6 +149,13 @@ function detectPlatform(text: string, host: string) {
   if (haystack.includes("comein.cn") || haystack.includes("进门财经")) {
     return "进门财经";
   }
+  if (
+    haystack.includes("meritco-group.com") ||
+    haystack.includes("久谦论坛") ||
+    haystack.includes("久谦")
+  ) {
+    return "久谦论坛";
+  }
   if (haystack.includes("teams.microsoft.com") || /\bteams\b/i.test(text)) {
     return "Teams";
   }
@@ -171,10 +178,42 @@ function extractTopic(text: string, fetchedTitle: string | undefined, platform: 
     if (candidate) return candidate;
   }
 
+  const datedLineCandidate = extractDatedLineTopic(text);
+  if (datedLineCandidate) return datedLineCandidate;
+
   const fetchedCandidate = cleanPageTitle(fetchedTitle ?? "");
   if (fetchedCandidate) return fetchedCandidate;
 
   return `${platform}会议`;
+}
+
+function extractDatedLineTopic(text: string) {
+  const lines = text.split("\n").map(cleanLine).filter(Boolean);
+  for (const line of lines) {
+    if (!hasDateTime(line)) continue;
+    const candidate = cleanTopicCandidate(line.replace(DATE_TIME_IN_LINE_PATTERN, ""));
+    if (candidate) return candidate;
+  }
+  return "";
+}
+
+const DATE_TIME_IN_LINE_PATTERN =
+  /[（(]?\s*(?:(?:20\d{2})\s*[\/.\-年]\s*)?\d{1,2}\s*[\/.\-月]\s*\d{1,2}\s*日?\s*(?:\([^)]+\)|（[^）]+）)?\s*(?:周[一二三四五六日天]\s*)?(?:[01]?\d|2[0-3])[:：][0-5]\d(?:\s*(?:-|–|—|至|到|~|to)\s*(?:[01]?\d|2[0-3])[:：][0-5]\d)?\s*[）)]?/gi;
+
+function hasDateTime(line: string) {
+  return (
+    /(?:20\d{2}\s*[\/.\-年]\s*)?\d{1,2}\s*[\/.\-月]\s*\d{1,2}\s*日?/.test(line) &&
+    /(?:[01]?\d|2[0-3])[:：][0-5]\d/.test(line)
+  );
+}
+
+function cleanTopicCandidate(value: string) {
+  return value
+    .replace(URL_GLOBAL_PATTERN, "")
+    .replace(/^[^\p{L}\p{N}]+/u, "")
+    .replace(/[，。；;,|｜:：\-–—\s]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function extractOrganizer(text: string) {
@@ -238,6 +277,23 @@ function extractTimeRange(text: string) {
     });
   }
 
+  const yearless = text.match(
+    /(?:^|[\s(（])(\d{1,2})\s*[\/.\-月]\s*(\d{1,2})\s*日?\s*(?:\([^)]+\)|（[^）]+）)?\s*(?:周[一二三四五六日天]\s*)?([01]?\d|2[0-3])[:：]([0-5]\d)(?:\s*(?:-|–|—|至|到|~)\s*([01]?\d|2[0-3])[:：]([0-5]\d))?/m
+  );
+  if (yearless) {
+    const month = Number(yearless[1]);
+    const day = Number(yearless[2]);
+    return buildTimeResult({
+      year: inferYearForMonthDay(month, day),
+      month,
+      day,
+      hour: Number(yearless[3]),
+      minute: Number(yearless[4]),
+      endHour: yearless[5] ? Number(yearless[5]) : null,
+      endMinute: yearless[6] ? Number(yearless[6]) : null,
+    });
+  }
+
   const english = text.match(
     /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(20\d{2})\s+(\d{1,2}):([0-5]\d)\s*(AM|PM)?(?:\s*(?:-|–|—|to)\s*(\d{1,2}):([0-5]\d)\s*(AM|PM)?)?/i
   );
@@ -276,6 +332,18 @@ function extractTimeRange(text: string) {
   }
 
   return { date: "", time: "", endTime: "", durationMinutes: null };
+}
+
+function inferYearForMonthDay(month: number, day: number) {
+  const now = new Date();
+  let year = now.getFullYear();
+  const candidate = new Date(year, month - 1, day);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const deltaDays = Math.floor(
+    (candidate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000)
+  );
+  if (deltaDays < -180) year += 1;
+  return year;
 }
 
 function buildTimeResult({
