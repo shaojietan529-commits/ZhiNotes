@@ -25,6 +25,7 @@ export interface AccountRecord {
   id: string;
   email: string;
   createdAt: string;
+  displayName?: string;
 }
 
 export interface KvEnv {
@@ -136,6 +137,30 @@ export function normalizeEmail(value: unknown): string | null {
     return null;
   }
   return email;
+}
+
+export function normalizeDisplayName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const displayName = value.trim().replace(/\s+/g, " ");
+  if (displayName.length < 1 || displayName.length > 32) return null;
+  return displayName;
+}
+
+export function defaultDisplayNameForEmail(email: string): string {
+  const localPart = email.split("@")[0]?.trim();
+  const cleaned = localPart
+    ?.replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "ZhiNote 用户";
+  return cleaned.slice(0, 32);
+}
+
+export function accountDisplayName(account: AccountRecord): string {
+  return (
+    normalizeDisplayName(account.displayName) ??
+    defaultDisplayNameForEmail(account.email)
+  );
 }
 
 function hashCode(email: string, code: string): string {
@@ -305,9 +330,27 @@ async function ensureAccount(
     id: randomUUID(),
     email,
     createdAt: new Date().toISOString(),
+    displayName: defaultDisplayNameForEmail(email),
   };
   await kvSet(config.kv, userKey, JSON.stringify(account));
   return account;
+}
+
+export async function updateAccountDisplayName(
+  config: AccountConfig,
+  account: AccountRecord,
+  displayName: string
+): Promise<AccountRecord> {
+  const nextAccount: AccountRecord = {
+    ...account,
+    displayName,
+  };
+  await kvSet(
+    config.kv,
+    `${USER_KEY_PREFIX}${account.email}`,
+    JSON.stringify(nextAccount)
+  );
+  return nextAccount;
 }
 
 export function readSessionToken(request: Request): string | null {

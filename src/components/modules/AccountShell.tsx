@@ -17,12 +17,10 @@ import {
   reconcilePageSync,
   setPageSyncEnabled,
 } from "@/lib/pages/accountPageSync";
-
-interface AccountInfo {
-  id: string;
-  email_hint: string;
-  createdAt: string;
-}
+import {
+  notifyAccountProfileUpdated,
+  type ClientAccountInfo,
+} from "@/lib/account/clientProfile";
 
 type Phase =
   | "loading"
@@ -34,11 +32,14 @@ type Phase =
 
 export default function AccountShell() {
   const [phase, setPhase] = useState<Phase>("loading");
-  const [account, setAccount] = useState<AccountInfo | null>(null);
+  const [account, setAccount] = useState<ClientAccountInfo | null>(null);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [displayNameInput, setDisplayNameInput] = useState("");
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profileNotice, setProfileNotice] = useState<string | null>(null);
   // Portfolio sharing: emails I shared with / owners who shared with me.
   const [shareMembers, setShareMembers] = useState<string[]>([]);
   const [sharedWithMe, setSharedWithMe] = useState<string[]>([]);
@@ -56,6 +57,12 @@ export default function AccountShell() {
     setPageSyncLastAt(getLastPageSyncAt());
   }, []);
 
+  const setSignedInAccount = useCallback((nextAccount: ClientAccountInfo) => {
+    setAccount(nextAccount);
+    setDisplayNameInput(nextAccount.display_name);
+    notifyAccountProfileUpdated();
+  }, []);
+
   const refreshSession = useCallback(async () => {
     try {
       const res = await fetch("/api/account/me", { cache: "no-store" });
@@ -69,7 +76,7 @@ export default function AccountShell() {
       }
       const data = await res.json();
       if (data.authenticated && data.account) {
-        setAccount(data.account as AccountInfo);
+        setSignedInAccount(data.account as ClientAccountInfo);
         setPhase("signed-in");
       } else {
         setPhase("email");
@@ -77,7 +84,7 @@ export default function AccountShell() {
     } catch {
       setPhase("error");
     }
-  }, []);
+  }, [setSignedInAccount]);
 
   useEffect(() => {
     void refreshSession();
@@ -200,13 +207,41 @@ export default function AccountShell() {
         setNotice(data.error ?? "验证失败，请稍后重试。");
         return;
       }
-      setAccount(data.account as AccountInfo);
+      setSignedInAccount(data.account as ClientAccountInfo);
       setCode("");
       setPhase("signed-in");
     } catch {
       setNotice("网络错误，请稍后重试。");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleDisplayNameSave() {
+    const displayName = displayNameInput.trim().replace(/\s+/g, " ");
+    if (!displayName) {
+      setProfileNotice("用户名不能为空。");
+      return;
+    }
+    setProfileBusy(true);
+    setProfileNotice(null);
+    try {
+      const res = await fetch("/api/account/me", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ display_name: displayName }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setProfileNotice(data.error ?? "用户名保存失败，请稍后重试。");
+        return;
+      }
+      setSignedInAccount(data.account as ClientAccountInfo);
+      setProfileNotice("用户名已保存。");
+    } catch {
+      setProfileNotice("网络错误，请稍后重试。");
+    } finally {
+      setProfileBusy(false);
     }
   }
 
@@ -218,6 +253,8 @@ export default function AccountShell() {
       // Cookie may already be gone; fall through to the signed-out view.
     } finally {
       setAccount(null);
+      setDisplayNameInput("");
+      notifyAccountProfileUpdated();
       setNotice(null);
       setPhase("email");
       setBusy(false);
@@ -347,21 +384,61 @@ export default function AccountShell() {
             )}
 
             {phase === "signed-in" && account && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-lg dark:bg-emerald-900/40">
                     ✓
                   </div>
                   <div>
                     <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                      已登录：{account.email_hint}
+                      已登录：{account.display_name}
                     </p>
                     <p className="text-xs text-zinc-400">
-                      注册于{" "}
+                      {account.email_hint} · 注册于{" "}
                       {new Date(account.createdAt).toLocaleDateString("zh-CN")}
                     </p>
                   </div>
                 </div>
+
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-800 dark:bg-zinc-950/40">
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                    用户名
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={displayNameInput}
+                        onChange={(e) => setDisplayNameInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !profileBusy) {
+                            void handleDisplayNameSave();
+                          }
+                        }}
+                        maxLength={32}
+                        placeholder="输入你想显示的名字"
+                        className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                      />
+                      <button
+                        onClick={() => void handleDisplayNameSave()}
+                        disabled={
+                          profileBusy ||
+                          displayNameInput.trim() === account.display_name
+                        }
+                        className="shrink-0 rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                      >
+                        {profileBusy ? "保存中…" : "保存"}
+                      </button>
+                    </div>
+                  </label>
+                  <p className="mt-2 text-[11px] leading-5 text-zinc-400">
+                    保存后，左侧栏会显示这个用户名；每个邮箱账号可以有自己的用户名。
+                  </p>
+                  {profileNotice && (
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                      {profileNotice}
+                    </p>
+                  )}
+                </div>
+
                 <button
                   onClick={() => void handleLogout()}
                   disabled={busy}

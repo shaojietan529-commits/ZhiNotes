@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createPage, createDatabase, getAllDatabases } from "@/lib/db/local/queries";
@@ -20,6 +20,10 @@ import { PLATFORM_MODULES } from "@/lib/modules/registry";
 import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
 import { ZhiNoteLogo, ZhiNoteMark } from "@/components/brand/ZhiNoteLogo";
 import { usePageCloudSync } from "@/hooks/usePageCloudSync";
+import {
+  ACCOUNT_PROFILE_UPDATED_EVENT,
+  type ClientAccountInfo,
+} from "@/lib/account/clientProfile";
 
 export default function Sidebar() {
   const router = useRouter();
@@ -32,16 +36,50 @@ export default function Sidebar() {
   const [markdownExportRunning, setMarkdownExportRunning] = useState(false);
   const [zipExportRunning, setZipExportRunning] = useState(false);
   const [modulesOpen, setModulesOpen] = useState(false);
+  const [accountLabel, setAccountLabel] = useState("账号");
   const pageSync = usePageCloudSync();
   const sidebarModules = PLATFORM_MODULES.filter(
     (module) => module.route && module.route !== "/"
   );
+
+  const refreshAccountLabel = useCallback(async () => {
+    try {
+      const res = await fetch("/api/account/me", { cache: "no-store" });
+      if (!res.ok) {
+        setAccountLabel("账号");
+        return;
+      }
+      const data = await res.json();
+      if (data.authenticated && data.account) {
+        const account = data.account as ClientAccountInfo;
+        setAccountLabel(account.display_name || "账号");
+        return;
+      }
+      setAccountLabel("账号");
+    } catch {
+      setAccountLabel("账号");
+    }
+  }, []);
 
   useEffect(() => {
     if (dbReady) {
       getAllDatabases().then(setDatabases);
     }
   }, [dbReady]);
+
+  useEffect(() => {
+    void refreshAccountLabel();
+    window.addEventListener(
+      ACCOUNT_PROFILE_UPDATED_EVENT,
+      refreshAccountLabel
+    );
+    return () => {
+      window.removeEventListener(
+        ACCOUNT_PROFILE_UPDATED_EVENT,
+        refreshAccountLabel
+      );
+    };
+  }, [refreshAccountLabel]);
 
   const refreshDatabases = async () => {
     setDatabases(await getAllDatabases());
@@ -273,7 +311,7 @@ export default function Sidebar() {
           className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
         >
           <span className="shrink-0 text-base">👤</span>
-          <span className="truncate">账号</span>
+          <span className="truncate">{accountLabel}</span>
           {pageSync.state !== "disabled" && (
             <span
               className="ml-auto shrink-0 text-[10px]"

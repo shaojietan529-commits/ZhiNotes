@@ -3,6 +3,7 @@ import { maskEmail } from "@/lib/cloud/api";
 import {
   SESSION_COOKIE_NAME,
   SESSION_TTL_SECONDS,
+  accountDisplayName,
   accountMissingEnv,
   getAccountConfig,
   normalizeEmail,
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
       account: {
         id: result.account.id,
         email_hint: maskEmail(result.account.email),
+        display_name: accountDisplayName(result.account),
         createdAt: result.account.createdAt,
       },
     });

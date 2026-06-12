@@ -66,6 +66,12 @@ check(verify.includes("httpOnly: true"), "verify 的会话 cookie 必须 httpOnl
 check(verify.includes("maskEmail"), "verify 响应应使用掩码邮箱");
 const me = read(routes[2]);
 check(me.includes("maskEmail"), "me 响应应使用掩码邮箱");
+check(me.includes("display_name"), "me 响应应包含账号用户名 display_name");
+check(me.includes("export async function PATCH"), "me route 应支持修改用户名");
+check(
+  me.includes("normalizeDisplayName"),
+  "me route 修改用户名前必须做长度和空值校验"
+);
 
 // 3. Login page: unconfigured state, no auto-send
 const shell = read("src/components/modules/AccountShell.tsx");
@@ -154,6 +160,21 @@ check(
 check(
   accountShell.includes("setPageSyncEnabled"),
   "AccountShell 缺少页面同步开关"
+);
+check(accountShell.includes("用户名"), "AccountShell 缺少用户名编辑入口");
+check(
+  accountShell.includes("display_name"),
+  "AccountShell 应读取和保存 display_name"
+);
+
+const sidebar = read("src/components/sidebar/Sidebar.tsx");
+check(
+  sidebar.includes("/api/account/me"),
+  "Sidebar 应读取当前账号资料"
+);
+check(
+  sidebar.includes("accountLabel"),
+  "Sidebar 应显示登录用户名，而不是固定显示账号"
 );
 
 if (errors.length > 0) {
