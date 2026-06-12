@@ -11,6 +11,12 @@ import {
   fetchShares,
   removeShareEmail,
 } from "@/lib/portfolio/accountSync";
+import {
+  getLastPageSyncAt,
+  isPageSyncEnabled,
+  reconcilePageSync,
+  setPageSyncEnabled,
+} from "@/lib/pages/accountPageSync";
 
 interface AccountInfo {
   id: string;
@@ -39,6 +45,16 @@ export default function AccountShell() {
   const [shareInput, setShareInput] = useState("");
   const [shareBusy, setShareBusy] = useState(false);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
+  // Page cloud sync: off by default, owner flips it on per browser.
+  const [pageSyncOn, setPageSyncOn] = useState(false);
+  const [pageSyncBusy, setPageSyncBusy] = useState(false);
+  const [pageSyncNotice, setPageSyncNotice] = useState<string | null>(null);
+  const [pageSyncLastAt, setPageSyncLastAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPageSyncOn(isPageSyncEnabled());
+    setPageSyncLastAt(getLastPageSyncAt());
+  }, []);
 
   const refreshSession = useCallback(async () => {
     try {
@@ -108,6 +124,43 @@ export default function AccountShell() {
       setShareNotice("移除失败，请稍后重试。");
     }
     setShareBusy(false);
+  }
+
+  async function handlePageSyncRun() {
+    setPageSyncBusy(true);
+    setPageSyncNotice(null);
+    const result = await reconcilePageSync();
+    if (result.status === "ok") {
+      setPageSyncLastAt(getLastPageSyncAt());
+      setPageSyncNotice(
+        `同步完成：拉取 ${result.pulled} 页，推送 ${result.pushed} 页。`
+      );
+    } else if (result.status === "unauthenticated") {
+      setPageSyncNotice("登录已过期，请重新登录后再同步。");
+    } else if (result.status === "disabled") {
+      setPageSyncNotice("请先打开页面云同步开关。");
+    } else {
+      setPageSyncNotice(result.message ?? "同步失败，请稍后重试。");
+    }
+    setPageSyncBusy(false);
+  }
+
+  function handlePageSyncToggle() {
+    const next = !pageSyncOn;
+    if (next) {
+      const ok = window.confirm(
+        "开启后，本浏览器的页面（标题、正文、层级、属性、封面）会上传到你账号的云端存储，并和其他登录了同一账号的浏览器双向同步。数据库表格、本地文件不会上传。确定开启吗？"
+      );
+      if (!ok) return;
+    }
+    setPageSyncEnabled(next);
+    setPageSyncOn(next);
+    setPageSyncNotice(
+      next ? "已开启。首次同步会在后台自动进行。" : "已关闭。云端已有数据保留，不再继续同步。"
+    );
+    if (next) {
+      void handlePageSyncRun();
+    }
   }
 
   async function handleSendCode() {
@@ -401,6 +454,68 @@ export default function AccountShell() {
             </div>
           )}
 
+          {phase === "signed-in" && (
+            <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    页面云同步
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    开启后，页面（标题、正文、层级、属性、封面）跟随账号云端同步，
+                    两个域名 / 多台设备登录同一账号即可看到同一份页面。
+                  </p>
+                </div>
+                <button
+                  onClick={handlePageSyncToggle}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                    pageSyncOn
+                      ? "bg-emerald-500"
+                      : "bg-zinc-300 dark:bg-zinc-700"
+                  }`}
+                  role="switch"
+                  aria-checked={pageSyncOn}
+                  title={pageSyncOn ? "关闭页面云同步" : "开启页面云同步"}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                      pageSyncOn ? "left-[22px]" : "left-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {pageSyncOn && (
+                <div className="mt-4 flex items-center gap-3">
+                  <button
+                    onClick={() => void handlePageSyncRun()}
+                    disabled={pageSyncBusy}
+                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    {pageSyncBusy ? "同步中…" : "立即同步"}
+                  </button>
+                  {pageSyncLastAt && (
+                    <span className="text-xs text-zinc-400">
+                      上次同步：
+                      {new Date(pageSyncLastAt).toLocaleString("zh-CN")}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {pageSyncNotice && (
+                <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
+                  {pageSyncNotice}
+                </p>
+              )}
+
+              <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+                不上传：数据库表格、本地文件、评论、版本历史。同步走你自己的
+                Upstash 云存储，只有登录此账号的浏览器能读取。冲突时保留较新的修改。
+              </p>
+            </div>
+          )}
+
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
             <p className="font-medium text-zinc-900 dark:text-zinc-100">
               账号能做什么
@@ -408,8 +523,8 @@ export default function AccountShell() {
             <ul className="mt-2 list-disc space-y-1 pl-5">
               <li>登录后，组合管理的数据自动跟随账号云同步，任何设备登录都能看到同一份。</li>
               <li>可以把持仓共享给指定邮箱（只读），对方登录后即可查看。</li>
-              <li>笔记、页面、文件仍然只存在本机浏览器，不会上传。</li>
-              <li>登录只需要邮箱，不会读取或上传任何本地笔记、文件或数据库内容。</li>
+              <li>页面云同步默认关闭；开启后页面才会跟随账号同步，可随时关闭。</li>
+              <li>数据库表格和本地文件始终只存在本机浏览器，不会上传。</li>
             </ul>
           </div>
         </div>

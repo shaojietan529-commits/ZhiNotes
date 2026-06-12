@@ -19,6 +19,7 @@ import {
 import { PLATFORM_MODULES } from "@/lib/modules/registry";
 import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
 import { ZhiNoteLogo, ZhiNoteMark } from "@/components/brand/ZhiNoteLogo";
+import { usePageCloudSync } from "@/hooks/usePageCloudSync";
 
 export default function Sidebar() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function Sidebar() {
   const [markdownExportRunning, setMarkdownExportRunning] = useState(false);
   const [zipExportRunning, setZipExportRunning] = useState(false);
   const [modulesOpen, setModulesOpen] = useState(false);
+  const pageSync = usePageCloudSync();
   const sidebarModules = PLATFORM_MODULES.filter(
     (module) => module.route && module.route !== "/"
   );
@@ -272,6 +274,26 @@ export default function Sidebar() {
         >
           <span className="shrink-0 text-base">👤</span>
           <span className="truncate">账号</span>
+          {pageSync.state !== "disabled" && (
+            <span
+              className="ml-auto shrink-0 text-[10px]"
+              title={
+                pageSync.state === "synced"
+                  ? `页面已同步${pageSync.lastSyncAt ? ` · ${new Date(pageSync.lastSyncAt).toLocaleTimeString("zh-CN")}` : ""}`
+                  : pageSync.state === "syncing"
+                    ? "页面同步中…"
+                    : pageSync.state === "signed-out"
+                      ? "页面同步：未登录"
+                      : "页面同步出错"
+              }
+            >
+              {pageSync.state === "synced"
+                ? "☁️"
+                : pageSync.state === "syncing"
+                  ? "⏳"
+                  : "⚠️"}
+            </span>
+          )}
         </Link>
       </div>
       <div className="grid grid-cols-3 gap-1 border-t border-zinc-200 px-3 py-2 dark:border-zinc-800">

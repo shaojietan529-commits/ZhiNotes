@@ -490,6 +490,89 @@ export async function duplicatePageDeep(
   return copy;
 }
 
+// ─── Account page cloud sync helpers ─────────────────────────
+
+// All pages including soft-deleted ones, so sync can propagate tombstones.
+// content_yjs is excluded: the editor loads/saves HTML via content_text.
+export async function getAllPagesForSync(): Promise<Page[]> {
+  const db = await getDb();
+  return db.query(
+    `SELECT id, owner_id, parent_id, database_id, title, icon, cover_url,
+            content_text, properties, position, depth,
+            created_at, updated_at, deleted_at, sync_version
+     FROM pages`
+  ) as unknown as Page[];
+}
+
+export interface RemotePageRecord {
+  id: string;
+  parent_id: string | null;
+  title: string;
+  icon: string | null;
+  cover_url: string | null;
+  content_text: string | null;
+  properties: string | null;
+  position: number;
+  depth: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+// Upsert pages pulled from the account cloud copy, preserving the remote
+// timestamps exactly (so a re-compare sees local == remote and does not
+// echo the same page back up). Intentionally does NOT write sync_log.
+export async function applyRemotePages(
+  records: RemotePageRecord[]
+): Promise<void> {
+  const db = await getDb();
+  for (const record of records) {
+    if (!record.id) continue;
+    const existing = db.query("SELECT id FROM pages WHERE id = ?", [
+      record.id,
+    ]) as unknown as { id: string }[];
+
+    if (existing.length === 0) {
+      // Minimal insert first; nullable columns are set in the UPDATE below
+      // (null binds are known-good in UPDATE statements).
+      db.run(
+        `INSERT INTO pages (id, owner_id, title, position, depth, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          record.id,
+          DEFAULT_OWNER_ID,
+          record.title,
+          record.position,
+          record.depth,
+          record.created_at,
+          record.updated_at,
+        ]
+      );
+    }
+
+    db.run(
+      `UPDATE pages SET parent_id = ?, title = ?, icon = ?, cover_url = ?,
+              content_text = ?, properties = ?, position = ?, depth = ?,
+              created_at = ?, updated_at = ?, deleted_at = ?
+       WHERE id = ?`,
+      [
+        record.parent_id,
+        record.title,
+        record.icon,
+        record.cover_url,
+        record.content_text,
+        record.properties,
+        record.position,
+        record.depth,
+        record.created_at,
+        record.updated_at,
+        record.deleted_at,
+        record.id,
+      ]
+    );
+  }
+}
+
 export async function searchPages(query: string): Promise<Page[]> {
   const db = await getDb();
   const normalizedQuery = normalizeSearchText(query);

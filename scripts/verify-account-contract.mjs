@@ -115,9 +115,52 @@ check(
   "查看共享持仓时导入/打标/修改操作应全部禁用"
 );
 
+// 7. Page cloud sync: session-gated route, opt-in client toggle, no logging
+const pageSyncRoute = read("src/app/api/pages/account-sync/route.ts");
+for (const token of [
+  "getAccountConfig",
+  "readSessionToken",
+  "getSessionAccount",
+  "501",
+  "401",
+  "MAX_PAYLOAD_BYTES",
+]) {
+  check(pageSyncRoute.includes(token), `pages account-sync route 缺少 ${token}`);
+}
+check(
+  !pageSyncRoute.includes("console."),
+  "pages account-sync route 不应该写日志"
+);
+check(
+  pageSyncRoute.includes("existing.u >= record.updated_at"),
+  "pages account-sync push 必须拒绝旧数据覆盖新数据"
+);
+
+const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
+check(
+  pageSyncClient.includes("if (!isPageSyncEnabled())"),
+  "reconcile 必须在开关关闭时直接返回（默认不上传）"
+);
+check(
+  !pageSyncClient.includes("console.log"),
+  "页面同步客户端不应该 console.log（避免泄露页面内容）"
+);
+
+const accountShell = read("src/components/modules/AccountShell.tsx");
+check(
+  accountShell.includes("window.confirm"),
+  "开启页面云同步前必须有确认弹窗"
+);
+check(
+  accountShell.includes("setPageSyncEnabled"),
+  "AccountShell 缺少页面同步开关"
+);
+
 if (errors.length > 0) {
   console.error("verify:account 失败：");
   for (const err of errors) console.error(`  - ${err}`);
   process.exit(1);
 }
-console.log("verify:account 通过 ✓ （门控、哈希、限流、httpOnly、掩码邮箱）");
+console.log(
+  "verify:account 通过 ✓ （门控、哈希、限流、httpOnly、掩码邮箱、页面同步默认关闭）"
+);
