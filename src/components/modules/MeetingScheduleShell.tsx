@@ -41,6 +41,43 @@ interface MeetingEntry {
   dateKey: string;
 }
 
+interface MeetingFormState {
+  topic: string;
+  organizer: string;
+  date: string;
+  time: string;
+  platform: string;
+}
+
+interface IntakeMeeting {
+  topic: string;
+  organizer: string;
+  platform: string;
+  date: string;
+  time: string;
+  endTime: string;
+  durationMinutes: number | null;
+  hasJoinUrl: boolean;
+  joinUrlHost: string;
+  source: "pasted_text" | "linked_page" | "mixed";
+  confidence: "high" | "medium" | "low";
+  warnings: string[];
+}
+
+interface IntakeResponse {
+  meeting?: IntakeMeeting;
+  fetched?: boolean;
+  error?: string;
+}
+
+interface CreateMeetingOptions {
+  importSource?: string;
+  hasJoinUrl?: boolean;
+  joinUrlHost?: string;
+  timeLabel?: string;
+  confidence?: IntakeMeeting["confidence"];
+}
+
 export default function MeetingScheduleShell() {
   const router = useRouter();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
@@ -53,6 +90,11 @@ export default function MeetingScheduleShell() {
   });
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(() => emptyForm(toDateKey(new Date())));
+  const [intakeText, setIntakeText] = useState("");
+  const [intakeLoading, setIntakeLoading] = useState(false);
+  const [intakeMessage, setIntakeMessage] = useState("");
+  const [intakeError, setIntakeError] = useState("");
+  const [intakePreview, setIntakePreview] = useState<IntakeMeeting | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
     x: number;
@@ -101,33 +143,124 @@ export default function MeetingScheduleShell() {
     setFormOpen(true);
   };
 
+  const createMeetingPage = useCallback(
+    async (draft: MeetingFormState, options: CreateMeetingOptions = {}) => {
+      if (!rootId) return null;
+      const topic = draft.topic.trim() || "未命名会议";
+      const organizer = draft.organizer.trim();
+      const title = [topic, organizer, draft.date].filter(Boolean).join("-");
+      const page = await createPage({ parentId: rootId, title, icon: "🗓️" });
+      const timeLabel = options.timeLabel ?? draft.time.trim();
+
+      const props: PageProperty[] = [
+        { ...createPageProperty("date", "日期"), value: draft.date },
+        { ...createPageProperty("text", "时间"), value: timeLabel },
+        {
+          ...createPageProperty("select", "平台"),
+          value: normalizePlatform(draft.platform),
+          options: PLATFORMS,
+        },
+        { ...createPageProperty("text", "组织者"), value: organizer },
+        createPageProperty("tags", "相关公司"),
+        createPageProperty("tags", "相关行业"),
+      ];
+
+      if (options.importSource) {
+        props.push({
+          ...createPageProperty("select", "导入来源"),
+          value: options.importSource,
+          options: ["手动创建", "会议信息输入", "邮件导入"],
+        });
+      }
+      if (typeof options.hasJoinUrl === "boolean") {
+        props.push({
+          ...createPageProperty("select", "入会链接状态"),
+          value: options.hasJoinUrl ? "已读取" : "未提供",
+          options: ["已读取", "未提供"],
+        });
+      }
+      if (options.joinUrlHost) {
+        props.push({
+          ...createPageProperty("text", "链接域名"),
+          value: options.joinUrlHost,
+        });
+      }
+      if (options.confidence) {
+        props.push({
+          ...createPageProperty("select", "解析置信度"),
+          value: confidenceLabel(options.confidence),
+          options: ["高", "中", "低"],
+        });
+      }
+
+      await updatePage(page.id, {
+        properties: stringifyPageProperties(props),
+      });
+
+      await refresh();
+      await load();
+      return page;
+    },
+    [rootId, refresh, load]
+  );
+
   const handleCreate = useCallback(async () => {
-    if (!rootId) return;
-    const topic = form.topic.trim() || "未命名会议";
-    const organizer = form.organizer.trim();
-    const title = [topic, organizer, form.date].filter(Boolean).join("-");
-    const page = await createPage({ parentId: rootId, title, icon: "🗓️" });
-
-    const props: PageProperty[] = [
-      { ...createPageProperty("date", "日期"), value: form.date },
-      { ...createPageProperty("text", "时间"), value: form.time.trim() },
-      {
-        ...createPageProperty("select", "平台"),
-        value: form.platform,
-        options: PLATFORMS,
-      },
-      { ...createPageProperty("text", "组织者"), value: organizer },
-      createPageProperty("tags", "相关公司"),
-      createPageProperty("tags", "相关行业"),
-    ];
-    await updatePage(page.id, {
-      properties: stringifyPageProperties(props),
-    });
-
+    await createMeetingPage(form);
     setFormOpen(false);
-    await refresh();
-    await load();
-  }, [rootId, form, refresh, load]);
+  }, [createMeetingPage, form]);
+
+  const handleImportInvite = useCallback(async () => {
+    const input = intakeText.trim();
+    if (!input || intakeLoading) return;
+
+    setIntakeLoading(true);
+    setIntakeError("");
+    setIntakeMessage("");
+    setIntakePreview(null);
+
+    try {
+      const res = await fetch("/api/meetings/intake", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ input }),
+      });
+      const data = (await res.json()) as IntakeResponse;
+      if (!res.ok || !data.meeting) {
+        throw new Error(data.error || "读取会议信息失败。");
+      }
+
+      const meeting = data.meeting;
+      setIntakePreview(meeting);
+      const draft: MeetingFormState = {
+        topic: meeting.topic,
+        organizer: meeting.organizer,
+        date: meeting.date || form.date || toDateKey(new Date()),
+        time: meeting.time,
+        platform: normalizePlatform(meeting.platform),
+      };
+
+      if (!meeting.date || !meeting.time) {
+        setForm(draft);
+        setFormOpen(true);
+        setIntakeError("没有读到明确会议日期和开始时间，已把可识别内容填入手动表单。");
+        return;
+      }
+
+      await createMeetingPage(draft, {
+        importSource: "会议信息输入",
+        hasJoinUrl: meeting.hasJoinUrl,
+        joinUrlHost: meeting.joinUrlHost,
+        confidence: meeting.confidence,
+        timeLabel: formatMeetingTime(meeting.time, meeting.endTime),
+      });
+      setIntakeText("");
+      setIntakeMessage("已导入会议日历。原始链接、会议号和密码没有写入页面。");
+    } catch (error) {
+      setIntakeError(error instanceof Error ? error.message : "读取会议信息失败。");
+    } finally {
+      setIntakeLoading(false);
+    }
+  }, [createMeetingPage, form.date, intakeLoading, intakeText]);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
   const todayKey = toDateKey(new Date());
@@ -168,6 +301,92 @@ export default function MeetingScheduleShell() {
           <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
             安全边界：会议链接/会议号/密码不会写入页面或日志；不会自动开麦克风/摄像头；
             录制需先确认同意。这些将在会议助手 Agent 接入时按权限逐步开启。
+          </div>
+
+          <div className="mb-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  会议信息输入
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  粘贴完整会议邀请或单个入会链接。ZhiHui 会读取平台、主题、组织者、时间和链接域名，再加入会议日历。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleImportInvite()}
+                disabled={intakeLoading || !intakeText.trim()}
+                className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
+              >
+                {intakeLoading ? "读取中..." : "导入会议日历"}
+              </button>
+            </div>
+            <textarea
+              value={intakeText}
+              onChange={(e) => {
+                setIntakeText(e.target.value);
+                setIntakeError("");
+                setIntakeMessage("");
+              }}
+              rows={5}
+              placeholder="例如：粘贴腾讯会议、Zoom、Webex、进门财经邀请；也可以只粘贴 https://meeting.tencent.com/... 这样的链接"
+              className={`${inputClass} min-h-32 resize-y leading-6`}
+            />
+            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-zinc-100 px-2 py-1 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                原始链接不入库
+              </span>
+              <span className="rounded-full bg-zinc-100 px-2 py-1 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                密码不入库
+              </span>
+              <span className="rounded-full bg-zinc-100 px-2 py-1 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                支持只贴链接
+              </span>
+            </div>
+            {intakeMessage && (
+              <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+                {intakeMessage}
+              </p>
+            )}
+            {intakeError && (
+              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                {intakeError}
+              </p>
+            )}
+            {intakePreview && (
+              <div className="mt-3 grid gap-2 rounded-md border border-zinc-100 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 sm:grid-cols-2">
+                <PreviewItem label="平台" value={intakePreview.platform} />
+                <PreviewItem label="会议主题" value={intakePreview.topic} />
+                <PreviewItem label="组织者" value={intakePreview.organizer || "未读取"} />
+                <PreviewItem
+                  label="时间"
+                  value={
+                    intakePreview.date && intakePreview.time
+                      ? `${intakePreview.date} ${formatMeetingTime(
+                          intakePreview.time,
+                          intakePreview.endTime
+                        )}`
+                      : "需要补充"
+                  }
+                />
+                <PreviewItem
+                  label="链接域名"
+                  value={intakePreview.joinUrlHost || "未提供"}
+                />
+                <PreviewItem
+                  label="解析置信度"
+                  value={confidenceLabel(intakePreview.confidence)}
+                />
+              </div>
+            )}
+            {intakePreview?.warnings.length ? (
+              <ul className="mt-2 space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {intakePreview.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            ) : null}
           </div>
 
           {/* New meeting form */}
@@ -394,7 +613,7 @@ export default function MeetingScheduleShell() {
   );
 }
 
-function emptyForm(dateKey: string) {
+function emptyForm(dateKey: string): MeetingFormState {
   return {
     topic: "",
     organizer: "",
@@ -420,6 +639,32 @@ function toMeetingEntry(page: Page): MeetingEntry {
 
 const inputClass =
   "w-full rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-sm text-zinc-800 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100";
+
+function normalizePlatform(platform: string) {
+  return PLATFORMS.includes(platform) ? platform : "其他";
+}
+
+function formatMeetingTime(startTime: string, endTime: string) {
+  if (!startTime) return "";
+  return endTime ? `${startTime}-${endTime}` : startTime;
+}
+
+function confidenceLabel(confidence: IntakeMeeting["confidence"]) {
+  if (confidence === "high") return "高";
+  if (confidence === "medium") return "中";
+  return "低";
+}
+
+function PreviewItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] text-zinc-400">{label}</div>
+      <div className="mt-0.5 truncate text-zinc-700 dark:text-zinc-200">
+        {value}
+      </div>
+    </div>
+  );
+}
 
 function Field({
   label,

@@ -2,7 +2,7 @@
 
 // Verifies the three primary workspace surfaces contract:
 // - Each is backed by a singleton local root page (no new tables, no cloud).
-// - Routes and shells exist and stay local (no fetch/upload/AI/recording).
+// - Routes and shells exist and stay local (no external fetch/upload/AI/recording).
 // - Sidebar promotes the three categories and demotes others to 备选模块.
 // - Page tree hides the module roots from the generic page list.
 
@@ -53,10 +53,21 @@ const shells = {
   chain: read("src/components/modules/IndustryChainShell.tsx"),
   schedule: read("src/components/modules/MeetingScheduleShell.tsx"),
 };
-const forbidden = ["fetch(", "XMLHttpRequest", "enables_ai", "getUserMedia"];
+const forbidden = ["XMLHttpRequest", "enables_ai", "getUserMedia"];
 for (const [name, source] of Object.entries(shells)) {
   for (const token of forbidden) {
     check(!source.includes(token), `${name} shell 不得包含高风险调用 ${token}`);
+  }
+}
+for (const [name, source] of Object.entries(shells)) {
+  if (name === "schedule") {
+    const fetchMatches = source.match(/fetch\(/g) ?? [];
+    check(
+      fetchMatches.length <= 1 && source.includes('fetch("/api/meetings/intake"'),
+      "schedule shell 只能调用同源会议解析接口 /api/meetings/intake"
+    );
+  } else {
+    check(!source.includes("fetch("), `${name} shell 不得包含 fetch(`);
   }
 }
 
@@ -74,6 +85,8 @@ for (const token of ["ChainNode", "onAddChild", "onRename", "onDoubleClick"]) {
 for (const token of [
   "buildMonthGrid",
   "新建会议",
+  "会议信息输入",
+  "导入会议日历",
   "组织者",
   "平台",
   "不会自动开麦克风",
