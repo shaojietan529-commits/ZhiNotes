@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
-  createPage,
   deletePage,
-  getPage,
-  updatePage,
+  movePage,
+  getNextPosition,
+  duplicatePageDeep,
+  getAllPages,
 } from "@/lib/db/local/queries";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { displayPageTitle } from "@/lib/pages/displayTitle";
+import type { Page } from "@/lib/utils/types";
 
 interface PageContextMenuProps {
   pageId: string;
@@ -18,7 +22,6 @@ interface PageContextMenuProps {
   onChanged?: () => void;
 }
 
-// A right-click / two-finger-tap context menu for a page entry (Notion-style).
 export default function PageContextMenu({
   pageId,
   x,
@@ -28,19 +31,38 @@ export default function PageContextMenu({
   onOpenFull,
   onChanged,
 }: PageContextMenuProps) {
+  const pageClipboard = useWorkspaceStore((s) => s.pageClipboard);
+  const setPageClipboard = useWorkspaceStore((s) => s.setPageClipboard);
+  const [moveMode, setMoveMode] = useState(false);
+  const [moveQuery, setMoveQuery] = useState("");
+  const [moveTargets, setMoveTargets] = useState<Page[]>([]);
+
   useEffect(() => {
-    const handlePointerDown = () => onClose();
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+    const handlePointerDown = (event: PointerEvent) => {
+      const el = document.getElementById("page-context-menu");
+      if (el?.contains(event.target as Node)) return;
+      onClose();
     };
-    // Close on the next pointer interaction or Escape.
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (moveMode) setMoveMode(false);
+        else onClose();
+      }
+    };
     window.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose]);
+  }, [onClose, moveMode]);
+
+  useEffect(() => {
+    if (!moveMode) return;
+    getAllPages().then((pages) => {
+      setMoveTargets(pages.filter((p) => p.id !== pageId));
+    });
+  }, [moveMode, pageId]);
 
   const copyLink = async () => {
     const url = `${window.location.origin}/page/${pageId}`;
@@ -52,17 +74,27 @@ export default function PageContextMenu({
   };
 
   const duplicate = async () => {
-    const page = await getPage(pageId);
-    if (!page) return;
-    const copy = await createPage({
-      title: `${page.title || "未命名页面"} 副本`,
-      parentId: page.parent_id,
-      icon: page.icon ?? undefined,
-    });
-    await updatePage(copy.id, {
-      content_text: page.content_text ?? "",
-      properties: page.properties ?? undefined,
-    });
+    await duplicatePageDeep(pageId, null);
+    onChanged?.();
+  };
+
+  const cutPage = () => {
+    setPageClipboard({ pageId, mode: "cut" });
+  };
+
+  const copyPage = () => {
+    setPageClipboard({ pageId, mode: "copy" });
+  };
+
+  const pastePage = async () => {
+    if (!pageClipboard) return;
+    if (pageClipboard.mode === "cut") {
+      const pos = await getNextPosition(pageId);
+      await movePage(pageClipboard.pageId, pageId, pos);
+      setPageClipboard(null);
+    } else {
+      await duplicatePageDeep(pageClipboard.pageId, pageId);
+    }
     onChanged?.();
   };
 
@@ -73,12 +105,81 @@ export default function PageContextMenu({
     onChanged?.();
   };
 
-  // Keep the menu inside the viewport.
-  const left = Math.min(x, (typeof window !== "undefined" ? window.innerWidth : x) - 200);
-  const top = Math.min(y, (typeof window !== "undefined" ? window.innerHeight : y) - 260);
+  const handleMoveTo = async (targetId: string | null) => {
+    const pos = await getNextPosition(targetId);
+    await movePage(pageId, targetId, pos);
+    setMoveMode(false);
+    onChanged?.();
+    onClose();
+  };
+
+  const filteredTargets = moveQuery.trim()
+    ? moveTargets.filter((p) =>
+        displayPageTitle(p.title)
+          .toLowerCase()
+          .includes(moveQuery.trim().toLowerCase())
+      )
+    : moveTargets;
+
+  const left = Math.min(
+    x,
+    (typeof window !== "undefined" ? window.innerWidth : x) - 220
+  );
+  const top = Math.min(
+    y,
+    (typeof window !== "undefined" ? window.innerHeight : y) - 360
+  );
+
+  if (moveMode) {
+    return (
+      <div
+        id="page-context-menu"
+        className="fixed z-[60] w-64 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+        style={{ left, top }}
+        onPointerDown={(e) => e.stopPropagation()}
+        role="dialog"
+      >
+        <div className="border-b border-zinc-100 px-2 py-2 dark:border-zinc-800">
+          <input
+            type="text"
+            autoFocus
+            placeholder="搜索目标页面..."
+            value={moveQuery}
+            onChange={(e) => setMoveQuery(e.target.value)}
+            className="w-full rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+          />
+        </div>
+        <div className="max-h-64 overflow-y-auto py-1">
+          <button
+            type="button"
+            onClick={() => handleMoveTo(null)}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            <span className="text-xs">📂</span>
+            <span>根目录</span>
+          </button>
+          {filteredTargets.slice(0, 20).map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => handleMoveTo(p.id)}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              <span className="text-xs">{p.icon || "\u{1F4C4}"}</span>
+              <span className="truncate">{displayPageTitle(p.title)}</span>
+            </button>
+          ))}
+          {filteredTargets.length === 0 && (
+            <p className="px-3 py-2 text-xs text-zinc-400">没有匹配页面</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
+      id="page-context-menu"
       className="fixed z-[60] w-48 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 text-sm shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
       style={{ left, top }}
       onPointerDown={(event) => event.stopPropagation()}
@@ -90,8 +191,28 @@ export default function PageContextMenu({
         onClick={() => run(onClose, () => onOpenFull(pageId))}
       />
       <Divider />
-      <Item label="复制链接" onClick={() => run(onClose, () => void copyLink())} />
-      <Item label="创建副本" onClick={() => run(onClose, () => void duplicate())} />
+      <Item label="剪切" shortcut="⌘X" onClick={() => run(onClose, cutPage)} />
+      <Item label="复制" shortcut="⌘C" onClick={() => run(onClose, copyPage)} />
+      {pageClipboard && (
+        <Item
+          label={`粘贴${pageClipboard.mode === "cut" ? " (移入)" : " (副本)"}`}
+          shortcut="⌘V"
+          onClick={() => run(onClose, () => void pastePage())}
+        />
+      )}
+      <Divider />
+      <Item
+        label="移动到..."
+        onClick={() => setMoveMode(true)}
+      />
+      <Item
+        label="复制链接"
+        onClick={() => run(onClose, () => void copyLink())}
+      />
+      <Item
+        label="创建副本"
+        onClick={() => run(onClose, () => void duplicate())}
+      />
       <Divider />
       <Item
         label="移到回收站"
@@ -111,23 +232,28 @@ function Item({
   label,
   onClick,
   danger = false,
+  shortcut,
 }: {
   label: string;
   onClick: () => void;
   danger?: boolean;
+  shortcut?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`block w-full px-3 py-1.5 text-left transition-colors ${
+      className={`flex w-full items-center justify-between px-3 py-1.5 text-left transition-colors ${
         danger
           ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40"
           : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
       }`}
       role="menuitem"
     >
-      {label}
+      <span>{label}</span>
+      {shortcut && (
+        <span className="ml-2 text-[10px] text-zinc-400">{shortcut}</span>
+      )}
     </button>
   );
 }

@@ -15,6 +15,10 @@ export interface PageActionsMenuProps {
   onToggleInfo: () => void;
   onDuplicate: () => void;
   onCopyLink: () => void;
+  onMoveTo: () => void;
+  onCut: () => void;
+  onCopy: () => void;
+  onPaste?: () => void;
   onExportHtml: () => void;
   onExportMarkdown: () => void;
   onCopyMarkdown: () => void;
@@ -23,8 +27,6 @@ export interface PageActionsMenuProps {
   onDelete: () => void;
 }
 
-// A single "•••" dropdown that holds every page-level action, so the page
-// surface itself stays clean (Notion-style).
 export default function PageActionsMenu(props: PageActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -93,8 +95,16 @@ export default function PageActionsMenu(props: PageActionsMenuProps) {
           <MenuItem label="页面信息" onClick={run(props.onToggleInfo)} />
 
           <Divider />
-          <MenuItem label="复制页面" onClick={run(props.onDuplicate)} />
+          <MenuItem label="剪切页面" onClick={run(props.onCut)} />
+          <MenuItem label="复制页面" onClick={run(props.onCopy)} />
+          {props.onPaste && (
+            <MenuItem label="粘贴页面" onClick={run(props.onPaste)} />
+          )}
+          <MenuItem label="移动到..." onClick={run(props.onMoveTo)} />
+          <MenuItem label="创建副本" onClick={run(props.onDuplicate)} />
           <MenuItem label="复制链接" onClick={run(props.onCopyLink)} />
+
+          <Divider />
           <MenuItem label="导出 HTML" onClick={run(props.onExportHtml)} />
           <MenuItem label="导出 Markdown" onClick={run(props.onExportMarkdown)} />
           <MenuItem label="复制 Markdown" onClick={run(props.onCopyMarkdown)} />

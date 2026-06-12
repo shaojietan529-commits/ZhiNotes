@@ -32,7 +32,11 @@ import {
   createPage,
   updatePage as updatePageRecord,
   updateWikiLinks,
+  movePage,
+  getNextPosition,
+  duplicatePageDeep,
 } from "@/lib/db/local/queries";
+import MoveToDialog from "@/components/page/MoveToDialog";
 import { maybeSnapshot, manualSnapshot } from "@/lib/comparison/versioning";
 import VersionHistoryPanel from "@/components/comparison/VersionHistoryPanel";
 import type { PageVersion } from "@/lib/utils/types";
@@ -77,6 +81,9 @@ function PageContent({ pageId }: { pageId: string }) {
   const { isFavorite, toggleFavorite } = usePageFavorites();
   const favorite = isFavorite(pageId);
   const [showInfo, setShowInfo] = useState(false);
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const pageClipboard = useWorkspaceStore((s) => s.pageClipboard);
+  const setPageClipboard = useWorkspaceStore((s) => s.setPageClipboard);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [exportingPageStructure, setExportingPageStructure] = useState(false);
   const [applyingResearchActionId, setApplyingResearchActionId] =
@@ -352,6 +359,36 @@ function PageContent({ pageId }: { pageId: string }) {
     toggleFavorite(pageId);
   }, [pageId, toggleFavorite]);
 
+  const handleCutPage = useCallback(() => {
+    setPageClipboard({ pageId, mode: "cut" });
+  }, [pageId, setPageClipboard]);
+
+  const handleCopyPage = useCallback(() => {
+    setPageClipboard({ pageId, mode: "copy" });
+  }, [pageId, setPageClipboard]);
+
+  const handlePastePage = useCallback(async () => {
+    if (!pageClipboard) return;
+    if (pageClipboard.mode === "cut") {
+      const pos = await getNextPosition(pageId);
+      await movePage(pageClipboard.pageId, pageId, pos);
+      setPageClipboard(null);
+    } else {
+      await duplicatePageDeep(pageClipboard.pageId, pageId);
+    }
+    await refresh();
+  }, [pageClipboard, pageId, setPageClipboard, refresh]);
+
+  const handleMoveTo = useCallback(
+    async (targetId: string | null) => {
+      const pos = await getNextPosition(targetId);
+      await movePage(pageId, targetId, pos);
+      setShowMoveDialog(false);
+      await refresh();
+    },
+    [pageId, refresh]
+  );
+
   const handleDelete = useCallback(async () => {
     if (locked) return;
     const ok = window.confirm(
@@ -596,6 +633,10 @@ function PageContent({ pageId }: { pageId: string }) {
                 onToggleInfo={() => setShowInfo((current) => !current)}
                 onDuplicate={handleDuplicatePage}
                 onCopyLink={() => void handleCopyPageLink()}
+                onMoveTo={() => setShowMoveDialog(true)}
+                onCut={handleCutPage}
+                onCopy={handleCopyPage}
+                onPaste={pageClipboard ? () => void handlePastePage() : undefined}
                 onExportHtml={handleExportHtml}
                 onExportMarkdown={handleExportMarkdown}
                 onCopyMarkdown={() => void handleCopyPageMarkdown()}
@@ -694,6 +735,14 @@ function PageContent({ pageId }: { pageId: string }) {
           {/* Backlinks - pages that link to this page */}
           <Backlinks pageId={pageId} pageTitle={title || page.title || ""} />
         </div>
+
+        {showMoveDialog && (
+          <MoveToDialog
+            pageId={pageId}
+            onMove={handleMoveTo}
+            onClose={() => setShowMoveDialog(false)}
+          />
+        )}
       </main>
     </div>
   );

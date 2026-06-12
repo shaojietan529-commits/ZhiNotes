@@ -373,6 +373,123 @@ export async function restorePage(id: string): Promise<Page | null> {
   return getPage(id);
 }
 
+export async function movePage(
+  id: string,
+  newParentId: string | null,
+  newPosition: number
+): Promise<Page | null> {
+  const db = await getDb();
+  const now = nowISO();
+
+  let depth = 0;
+  if (newParentId) {
+    const parentRows = db.query("SELECT depth FROM pages WHERE id = ?", [
+      newParentId,
+    ]) as unknown as { depth: number }[];
+    depth = (parentRows[0]?.depth ?? 0) + 1;
+  }
+
+  const setClauses = [
+    "parent_id = ?",
+    "position = ?",
+    "depth = ?",
+    "updated_at = ?",
+  ];
+  const values: unknown[] = [newParentId, newPosition, depth, now, id];
+
+  db.run(
+    `UPDATE pages SET ${setClauses.join(", ")} WHERE id = ? AND deleted_at IS NULL`,
+    values
+  );
+
+  // Recursively update depth of descendants
+  const updateChildDepths = (parentId: string, parentDepth: number) => {
+    const children = db.query(
+      "SELECT id FROM pages WHERE parent_id = ? AND deleted_at IS NULL",
+      [parentId]
+    ) as unknown as { id: string }[];
+    for (const child of children) {
+      db.run("UPDATE pages SET depth = ? WHERE id = ?", [
+        parentDepth + 1,
+        child.id,
+      ]);
+      updateChildDepths(child.id, parentDepth + 1);
+    }
+  };
+  updateChildDepths(id, depth);
+
+  recordSyncChange(
+    db,
+    "pages",
+    id,
+    "update",
+    ["parent_id", "position", "depth", "updated_at"],
+    now
+  );
+  return getPage(id);
+}
+
+export async function getNextPosition(
+  parentId: string | null
+): Promise<number> {
+  const db = await getDb();
+  if (parentId) {
+    const rows = db.query(
+      "SELECT MAX(position) as max_pos FROM pages WHERE parent_id = ? AND deleted_at IS NULL",
+      [parentId]
+    ) as unknown as { max_pos: number | null }[];
+    return ((rows[0]?.max_pos as number) || 0) + 1;
+  }
+  const rows = db.query(
+    "SELECT MAX(position) as max_pos FROM pages WHERE parent_id IS NULL AND deleted_at IS NULL"
+  ) as unknown as { max_pos: number | null }[];
+  return ((rows[0]?.max_pos as number) || 0) + 1;
+}
+
+export async function duplicatePageDeep(
+  sourceId: string,
+  targetParentId: string | null
+): Promise<Page | null> {
+  const source = await getPage(sourceId);
+  if (!source) return null;
+
+  const position = await getNextPosition(targetParentId);
+  const copy = await createPage({
+    title: `${source.title || "未命名页面"} 副本`,
+    parentId: targetParentId,
+    icon: source.icon ?? undefined,
+  });
+  await updatePage(copy.id, {
+    content_text: source.content_text ?? "",
+    properties: source.properties ?? undefined,
+  });
+
+  // Copy content_yjs if present
+  const db = await getDb();
+  const yjsRows = db.query("SELECT content_yjs FROM pages WHERE id = ?", [
+    sourceId,
+  ]) as unknown as { content_yjs: Uint8Array | null }[];
+  if (yjsRows[0]?.content_yjs) {
+    await updatePage(copy.id, {
+      content_yjs: yjsRows[0].content_yjs,
+    });
+  }
+
+  // Update position
+  await updatePage(copy.id, { position });
+
+  // Recursively duplicate children
+  const children = db.query(
+    "SELECT id FROM pages WHERE parent_id = ? AND deleted_at IS NULL ORDER BY position ASC",
+    [sourceId]
+  ) as unknown as { id: string }[];
+  for (const child of children) {
+    await duplicatePageDeep(child.id, copy.id);
+  }
+
+  return copy;
+}
+
 export async function searchPages(query: string): Promise<Page[]> {
   const db = await getDb();
   const normalizedQuery = normalizeSearchText(query);
