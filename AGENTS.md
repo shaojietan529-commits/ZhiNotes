@@ -23,6 +23,41 @@ This version has breaking changes. APIs, conventions, and file structure may dif
 - Do not read, upload, or summarize private user data outside project files unless the user explicitly asks for that specific data.
 - Do not enable cloud writes, AI sending, file upload, destructive recovery, database migrations, or external sync without an explicit owner gate.
 
+## Multi-Agent Ownership (Claude Code ⇄ Codex)
+
+Both agents work the same branch (`claude/plan-knowledge-management-app-OSoEs`).
+To avoid git conflicts, edits are divided by file. Stay inside your area;
+coordinate before touching a shared contract.
+
+**Codex owns (meeting capture + parsing + local meeting agent):**
+- `chrome-extension/**` (popup, content scripts, capture logic, handshake test)
+- `src/lib/meetings/**` (e.g. `meetingInviteIntake.ts` — recognition rules)
+- `src/app/api/meetings/**` (intake route, server-side link fetch)
+- the local meeting Agent (auto record/transcribe/publish), wherever it lives
+
+**Claude Code owns (the Next.js app):**
+- `src/components/**` (all shells incl. `MeetingScheduleShell.tsx`, editor, sidebar, page)
+- `src/lib/pages/**`, `src/lib/db/**`, `src/stores/**`, `src/hooks/**`
+- page cloud sync (`accountPageSync.ts`, `usePageCloudSync.ts`), account, portfolio,
+  daily, industry-chain, knowledge-base modules
+
+**Frozen contracts — change BOTH sides together in one coordinated commit:**
+- Extension ⇄ app: DOM events `zhihui:intake` / `zhihui:ready` / `zhihui:hello`
+  and storage key `zhihui_pending_intake`.
+- Parser ⇄ app: the `/api/meetings/intake` response `meeting` object shape
+  (topic, organizer, platform, date, time, endTime, durationMinutes, hasJoinUrl,
+  joinUrl, joinUrlHost, meetingId, passcode, source, confidence, warnings).
+  Codex may improve extracted *values*; do not rename/remove fields without
+  updating `MeetingScheduleShell.tsx` (Claude Code's file).
+
+**Shared files — edit alone in a dedicated commit (keeps rebases trivial):**
+- `AGENTS.md`, `package.json`, `pnpm-lock.yaml`, `eslint.config.mjs`,
+  `scripts/verify-*.mjs`.
+
+**Both agents, every push:** `git pull --rebase` before pushing; never
+force-push the shared branch; keep `npm run build` green and run the relevant
+`npm run verify:*`.
+
 ## Project Context
 
 - Project name: ZhiNotes.
