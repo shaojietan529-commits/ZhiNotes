@@ -1391,26 +1391,12 @@ function MeetingDetailWindow({
         <DetailRow label="时间" value={entry.time || "未设置"} />
         <DetailRow label="平台" value={entry.platform || "未设置"} />
         <DetailRow label="组织者" value={entry.organizer || "未读取"} />
-        <DetailRow label="会议号" value={entry.meetingId || "未读取"} />
-        <DetailRow label="会议密码" value={entry.passcode || "未读取"} />
-        <DetailRow label="入会链接" value={entry.joinUrl || "未提供"} multiline />
-        <DetailRow label="链接域名" value={entry.joinUrlHost || "未提供"} />
-        <DetailRow label="会议痕迹" value={entry.traceStatus || "未记录"} />
-        <DetailRow label="时间状态" value={entry.timeStatus || "未记录"} />
-        <DetailRow label="录制状态" value={entry.recordingStatus || "未记录"} />
-        <DetailRow label="录制链路" value={entry.recordingGateStatus || "未验证"} />
-        <DetailRow label="导入时间" value={entry.importedAt || "未记录"} />
-        <DetailRow
-          label="录制设备"
-          value={entry.recordingDevice || DEFAULT_RECORDING_DEVICE}
-        />
-        <DetailRow
-          label="失败回退"
-          value={entry.fallbackDevice || DEFAULT_RECORDING_DEVICE}
-        />
-        <DetailRow label="导入来源" value={entry.importSource || "手动创建"} />
-        <DetailRow label="解析置信度" value={entry.confidence || "未记录"} />
-        <DetailRow label="留痕说明" value={entry.traceNote || "无"} multiline />
+        {entry.joinUrl && (
+          <DetailRow label="入会链接" value={entry.joinUrl} multiline />
+        )}
+        <p className="pt-1 text-xs text-zinc-400 dark:text-zinc-500">
+          会议号、密码、录制状态等更多信息，点“打开完整页面”查看。
+        </p>
       </div>
 
       <div className="flex justify-end gap-2 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
