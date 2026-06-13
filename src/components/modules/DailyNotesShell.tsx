@@ -149,7 +149,7 @@ export default function DailyNotesShell() {
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl px-8 py-10">
+        <div className="mx-auto max-w-6xl px-8 py-10">
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h1 className="flex items-center gap-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
@@ -191,9 +191,9 @@ export default function DailyNotesShell() {
             {WEEKDAYS.map((day) => (
               <div
                 key={day}
-                className="px-2 py-1.5 text-center text-xs font-medium text-zinc-400"
+                className="px-2 py-2 text-center text-sm font-medium text-zinc-400"
               >
-                {day}
+                周{day}
               </div>
             ))}
           </div>
@@ -208,7 +208,7 @@ export default function DailyNotesShell() {
               return (
                 <div
                   key={key}
-                  className={`group flex h-28 flex-col border-b border-r border-zinc-100 p-1 dark:border-zinc-800/70 ${
+                  className={`group flex h-40 flex-col border-b border-r border-zinc-100 p-1.5 dark:border-zinc-800/70 ${
                     cell.inMonth ? "" : "bg-zinc-50/50 dark:bg-zinc-900/40"
                   } ${
                     isDropTarget
@@ -243,24 +243,24 @@ export default function DailyNotesShell() {
                     <button
                       type="button"
                       onClick={() => void addNote(key)}
-                      className="flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                      className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                       title="在这天新增纪要"
                     >
                       +
                     </button>
                     <span
-                      className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
+                      className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-sm ${
                         isToday
                           ? "bg-zinc-900 font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
                           : cell.inMonth
-                            ? "text-zinc-600 dark:text-zinc-300"
+                            ? "font-medium text-zinc-600 dark:text-zinc-300"
                             : "text-zinc-300 dark:text-zinc-600"
                       }`}
                     >
                       {cell.date.getDate()}
                     </span>
                   </div>
-                  <div className="mt-0.5 flex flex-col gap-0.5 overflow-y-auto">
+                  <div className="mt-1 flex flex-col gap-1 overflow-y-auto">
                     {dayNotes.map((note) => (
                       <button
                         key={note.id}
@@ -284,12 +284,14 @@ export default function DailyNotesShell() {
                             y: e.clientY,
                           });
                         }}
-                        className={`flex cursor-grab items-center gap-1 truncate rounded bg-zinc-100 px-1 py-0.5 text-left text-[10px] text-zinc-700 transition-colors hover:bg-zinc-200 active:cursor-grabbing dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 ${
+                        className={`flex cursor-grab items-center gap-1.5 truncate rounded-md bg-zinc-100 px-2 py-1 text-left text-xs text-zinc-700 transition-colors hover:bg-zinc-200 active:cursor-grabbing dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 ${
                           draggedNoteId === note.id ? "opacity-40" : ""
                         }`}
                         title={displayPageTitle(note.title)}
                       >
-                        <span className="shrink-0">{note.icon || "📝"}</span>
+                        {note.icon && (
+                          <span className="shrink-0">{note.icon}</span>
+                        )}
                         <span className="truncate">
                           {displayPageTitle(note.title)}
                         </span>
@@ -337,7 +339,7 @@ export default function DailyNotesShell() {
                         {dailyNoteDateKey(note)}
                       </span>
                       <span className="flex items-center gap-1.5 truncate text-zinc-700 dark:text-zinc-200">
-                        <span>{note.icon || "📝"}</span>
+                        {note.icon && <span>{note.icon}</span>}
                         <span className="truncate">
                           {displayPageTitle(note.title)}
                         </span>

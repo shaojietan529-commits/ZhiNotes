@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
@@ -138,6 +138,14 @@ function PageTreeItem({
     dropTarget?.pageId === page.id && dropTarget.position === "inside";
   const isDropAfter =
     dropTarget?.pageId === page.id && dropTarget.position === "after";
+
+  // Notion behaviour: hovering "inside" a collapsed page during a drag
+  // auto-expands it after a short pause, so you can drop into nested levels.
+  useEffect(() => {
+    if (!isDropInside || !hasChildren || expanded) return;
+    const timer = window.setTimeout(() => setExpanded(true), 600);
+    return () => window.clearTimeout(timer);
+  }, [isDropInside, hasChildren, expanded]);
 
   return (
     <li className="relative">

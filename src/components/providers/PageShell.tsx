@@ -307,6 +307,12 @@ function PageContent({ pageId }: { pageId: string }) {
     [locked, update, refresh]
   );
 
+  const handleIconRemove = useCallback(async () => {
+    if (locked) return;
+    await update({ icon: null });
+    refresh();
+  }, [locked, update, refresh]);
+
   const handleCoverUpload = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
       if (locked) return;
@@ -671,6 +677,7 @@ function PageContent({ pageId }: { pageId: string }) {
               <IconPicker
                 currentIcon={page.icon}
                 onSelect={handleIconChange}
+                onRemove={handleIconRemove}
                 disabled={locked}
               />
               <h1 className="zhinote-print-title">

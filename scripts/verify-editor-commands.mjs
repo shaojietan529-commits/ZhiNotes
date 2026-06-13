@@ -688,7 +688,7 @@ function run() {
   for (const snippet of [
     "评论",
     "添加本地评论...",
-    "还没有评论。",
+    "添加评论",
     "重新打开",
     "解决",
     "删除",
@@ -738,7 +738,7 @@ function run() {
     "已折叠的页面层级",
     "hiddenPages",
     "...",
-    "未命名页面",
+    "displayPageTitle",
   ]) {
     assertIncludes(
       files.breadcrumb,
@@ -753,7 +753,7 @@ function run() {
     "PagePositionTree",
     "Page shell should use the compact top-left breadcrumb instead of the large page structure block."
   );
-  for (const snippet of ["更换图标", "选择图标"]) {
+  for (const snippet of ["更换图标", "添加图标", "搜索图标"]) {
     assertIncludes(
       files.iconPicker,
       iconPicker,

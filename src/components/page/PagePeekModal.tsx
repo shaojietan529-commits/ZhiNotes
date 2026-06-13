@@ -83,6 +83,12 @@ export default function PagePeekModal({
     [update, refresh, onChanged]
   );
 
+  const handleIconRemove = useCallback(async () => {
+    await update({ icon: null });
+    refresh();
+    onChanged?.();
+  }, [update, refresh, onChanged]);
+
   const handleContentUpdate = useCallback(
     async (html: string) => {
       await update({ content_text: html });
@@ -131,7 +137,11 @@ export default function PagePeekModal({
           ) : (
             <div className="mx-auto w-full max-w-4xl">
               <div className="mb-3 flex items-start gap-2">
-                <IconPicker currentIcon={page.icon} onSelect={handleIconChange} />
+                <IconPicker
+                  currentIcon={page.icon}
+                  onSelect={handleIconChange}
+                  onRemove={handleIconRemove}
+                />
                 <input
                   type="text"
                   value={title}
