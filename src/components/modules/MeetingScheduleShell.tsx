@@ -642,9 +642,9 @@ export default function MeetingScheduleShell() {
                   setIntakeError("");
                   setIntakeMessage("");
                 }}
-                rows={4}
+                rows={3}
                 placeholder="粘贴腾讯会议、Zoom、Webex 等邀请，或直接贴入会链接"
-                className={`${inputClass} min-h-28 resize-y leading-6`}
+                className={`${inputClass} min-h-20 resize-y leading-6`}
               />
               <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr]">
                 <Field label="录制设备">
@@ -675,38 +675,23 @@ export default function MeetingScheduleShell() {
                 </p>
               )}
               {intakePreview && (
-                <div className="mt-3 grid gap-2 rounded-md border border-zinc-100 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 sm:grid-cols-2">
-                  <PreviewItem label="平台" value={intakePreview.platform} />
-                  <PreviewItem label="会议主题" value={intakePreview.topic} />
-                  <PreviewItem label="组织者" value={intakePreview.organizer || "未读取"} />
-                  <PreviewItem
-                    label="时间"
-                    value={
-                      intakePreview.date && intakePreview.time
+                <div className="mt-3 rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="truncate font-medium text-zinc-800 dark:text-zinc-200">
+                    {intakePreview.topic}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-zinc-500 dark:text-zinc-400">
+                    <span>{intakePreview.platform}</span>
+                    <span>
+                      {intakePreview.date && intakePreview.time
                         ? `${intakePreview.date} ${formatMeetingTime(
                             intakePreview.time,
                             intakePreview.endTime
                           )}`
-                        : "需要补充"
-                    }
-                  />
-                  <PreviewItem
-                    label="链接域名"
-                    value={intakePreview.joinUrlHost || "未提供"}
-                  />
-                  <PreviewItem
-                    label="会议号"
-                    value={intakePreview.meetingId || "未读取"}
-                  />
-                  <PreviewItem
-                    label="会议密码"
-                    value={intakePreview.passcode || "未读取"}
-                  />
-                  <PreviewItem label="录制设备" value={intakeRecordingDevice} />
-                  <PreviewItem
-                    label="解析置信度"
-                    value={confidenceLabel(intakePreview.confidence)}
-                  />
+                        : "时间待补充"}
+                    </span>
+                    {intakePreview.organizer && <span>{intakePreview.organizer}</span>}
+                    <span>置信度{confidenceLabel(intakePreview.confidence)}</span>
+                  </div>
                 </div>
               )}
               {intakePreview?.warnings.length ? (
@@ -1270,17 +1255,6 @@ function confidenceLabel(confidence: IntakeMeeting["confidence"]) {
   if (confidence === "high") return "高";
   if (confidence === "medium") return "中";
   return "低";
-}
-
-function PreviewItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <div className="text-[10px] text-zinc-400">{label}</div>
-      <div className="mt-0.5 truncate text-zinc-700 dark:text-zinc-200">
-        {value}
-      </div>
-    </div>
-  );
 }
 
 function MeetingStatusBar({
