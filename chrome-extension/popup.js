@@ -47,8 +47,18 @@ async function grabPageText() {
     "[id*='meeting' i]",
     "[id*='roadshow' i]",
   ];
+  const TITLE_SELECTORS = [
+    "h1",
+    "h2",
+    "[class*='title' i]",
+    "[class*='subject' i]",
+    "[class*='topic' i]",
+    "[class*='name' i]",
+  ];
   const NOISE_LINE_PATTERN =
     /^(home|note|en|sign in|sign out|login|log in|register|download|tips|ok|i know|首页|登录|注册|下载|下载app|我的|返回|分享|收藏|提示|知道了)$/i;
+  const GENERIC_HEADING_PATTERN =
+    /^(专场|会议介绍|会议详情|详情|简介|议程|嘉宾介绍|相关会议|热门推荐|新财富|加载中|暂无数据)$/i;
 
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -100,13 +110,73 @@ async function grabPageText() {
     return keywordHits(normalized) * 80 + lengthScore;
   };
 
+  const titleScore = (line) => {
+    const text = normalizeText(line);
+    if (!text || text.length < 8 || text.length > 140) return 0;
+    if (GENERIC_HEADING_PATTERN.test(text)) return 0;
+    if (/^\d{4}[-/.年]\d{1,2}[-/.月]\d{1,2}/.test(text)) return 0;
+    if (/(次浏览|浏览|报名|已结束|进行中)/.test(text)) return 0;
+    if (/^(电子|通信|传媒|计算机|医药|消费|金融|汽车|机械|化工|有色|煤炭|地产)(\s+\+?\d+)?$/.test(text)) {
+      return 0;
+    }
+    let score = Math.min(text.length, 80);
+    if (/[｜|:：\-–—]/.test(text)) score += 35;
+    if (/(证券|基金|资本|投研|策略|科技|行业|公司|交流|调研|路演|论坛)/.test(text)) {
+      score += 30;
+    }
+    if (/(如何|怎么看|看待|未来|机会|风险|当前|展望|复盘)/.test(text)) {
+      score += 20;
+    }
+    return score;
+  };
+
   const readCandidateText = (node) => {
     if (!isVisible(node)) return "";
     return normalizeText(node.innerText || node.textContent || "");
   };
 
+  const collectTitleCandidates = (doc) => {
+    const candidates = [];
+    const addLines = (value) => {
+      for (const line of normalizeText(value).split("\n")) {
+        const cleaned = normalizeText(line);
+        const score = titleScore(cleaned);
+        if (score > 0) candidates.push({ text: cleaned, score });
+      }
+    };
+
+    for (const selector of TITLE_SELECTORS) {
+      try {
+        for (const node of doc.querySelectorAll(selector)) {
+          if (isVisible(node)) addLines(node.innerText || node.textContent || "");
+        }
+      } catch {
+        // Keep title extraction best-effort and generic.
+      }
+    }
+
+    if (doc.title) addLines(doc.title);
+
+    const seen = new Set();
+    return candidates
+      .sort((a, b) => b.score - a.score)
+      .filter((candidate) => {
+        const key = candidate.text.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 3)
+      .map((candidate) => candidate.text);
+  };
+
   const collectDocumentText = (doc, depth) => {
     const candidates = [];
+    const priorityParts = collectTitleCandidates(doc).map((title) => ({
+      label: "page-title",
+      score: 1000 + titleScore(title),
+      text: `页面标题：${title}`,
+    }));
     const addCandidate = (label, text) => {
       const normalized = normalizeText(text);
       if (!normalized) return;
@@ -139,7 +209,10 @@ async function grabPageText() {
       .sort((a, b) => b.score - a.score)
       .slice(0, 4);
 
-    const parts = topCandidates.length > 0 ? topCandidates : candidates.slice(0, 4);
+    const parts = [
+      ...priorityParts,
+      ...(topCandidates.length > 0 ? topCandidates : candidates.slice(0, 4)),
+    ];
 
     if (depth < 2) {
       for (const frame of doc.querySelectorAll("iframe")) {

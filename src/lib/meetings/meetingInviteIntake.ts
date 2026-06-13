@@ -167,6 +167,7 @@ function detectPlatform(text: string, host: string) {
 
 function extractTopic(text: string, fetchedTitle: string | undefined, platform: string) {
   const patterns = [
+    /(?:页面标题|候选标题|主标题|大标题)\s*[:：]\s*([^\n]+)/i,
     /(?:路演主题|活动主题|活动名称|会议标题|会议议题|会议主题|会议名称|主题|标题|名称)\s*[:：]\s*([^\n]+)/i,
     /(?:会议主题|会议名称|主题|Topic)\s*[:：]\s*([^\n]+)/i,
     /(?:Meeting topic|Meeting title)\s*[:：]\s*([^\n]+)/i,
@@ -175,17 +176,44 @@ function extractTopic(text: string, fetchedTitle: string | undefined, platform: 
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
-    const candidate = cleanLine(match?.[1] ?? "");
+    const candidate = cleanTopicCandidate(match?.[1] ?? "");
     if (candidate) return candidate;
   }
 
-  const datedLineCandidate = extractDatedLineTopic(text);
-  if (datedLineCandidate) return datedLineCandidate;
+  const headingCandidate = extractStandaloneHeadingTopic(text);
+  if (headingCandidate) return headingCandidate;
+
+  const introCandidate = extractIntroTopic(text);
+  if (introCandidate) return introCandidate;
 
   const fetchedCandidate = cleanPageTitle(fetchedTitle ?? "");
   if (fetchedCandidate) return fetchedCandidate;
 
+  const datedLineCandidate = extractDatedLineTopic(text);
+  if (datedLineCandidate) return datedLineCandidate;
+
   return `${platform}会议`;
+}
+
+function extractStandaloneHeadingTopic(text: string) {
+  const lines = text.split("\n").map(cleanLine).filter(Boolean);
+  for (const line of lines) {
+    const candidate = cleanTopicCandidate(line);
+    if (isLikelyTopicCandidate(candidate)) return candidate;
+  }
+  return "";
+}
+
+function extractIntroTopic(text: string) {
+  const lines = text.split("\n").map(cleanLine).filter(Boolean);
+  for (const line of lines) {
+    const match = line.match(
+      /(?:为您带来|为您分享|带来|主题为|主题是)\s*[:：]?\s*([^。！？!；;\n]+)/
+    );
+    const candidate = cleanTopicCandidate(match?.[1] ?? "");
+    if (isLikelyTopicCandidate(candidate)) return candidate;
+  }
+  return "";
 }
 
 function extractDatedLineTopic(text: string) {
@@ -193,7 +221,7 @@ function extractDatedLineTopic(text: string) {
   for (const line of lines) {
     if (!hasDateTime(line)) continue;
     const candidate = cleanTopicCandidate(line.replace(DATE_TIME_IN_LINE_PATTERN, ""));
-    if (candidate) return candidate;
+    if (isLikelyTopicCandidate(candidate)) return candidate;
   }
   return "";
 }
@@ -211,26 +239,59 @@ function hasDateTime(line: string) {
 function cleanTopicCandidate(value: string) {
   return value
     .replace(URL_GLOBAL_PATTERN, "")
+    .replace(/^(?:页面标题|候选标题|主标题|大标题|路演主题|活动主题|会议主题|主题|标题|名称)\s*[:：]\s*/i, "")
+    .replace(/^(?:专场|新财富)\s+/, "")
+    .replace(/(?:。?敬请关注[！!]?)$/g, "")
     .replace(/^[^\p{L}\p{N}]+/u, "")
     .replace(/[，。；;,|｜:：\-–—\s]+$/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
+function isLikelyTopicCandidate(value: string) {
+  const candidate = cleanLine(value);
+  if (candidate.length < 8 || candidate.length > 140) return false;
+  if (/^(专场|会议介绍|会议详情|详情|简介|议程|嘉宾介绍|相关会议|热门推荐|新财富)$/.test(candidate)) {
+    return false;
+  }
+  if (/^(路演时间|会议时间|活动时间|直播时间|开始时间|日期时间|时间)$/.test(candidate)) {
+    return false;
+  }
+  if (/(为您带来|为您分享|敬请关注)/.test(candidate)) return false;
+  if (/(次浏览|浏览|报名|已结束|进行中|加载中|暂无数据)/.test(candidate)) return false;
+  if (/^\d{4}[-/.年]\d{1,2}[-/.月]\d{1,2}/.test(candidate)) return false;
+  if (/^(电子|通信|传媒|计算机|医药|消费|金融|汽车|机械|化工|有色|煤炭|地产)(\s+\+?\d+)?$/.test(candidate)) {
+    return false;
+  }
+  if (hasDateTime(candidate) && !/[｜|:：\-–—]/.test(candidate)) return false;
+  return (
+    /[｜|:：\-–—]/.test(candidate) ||
+    /(证券|基金|资本|投研|策略|科技|行业|公司|交流|调研|路演|论坛|如何|怎么看|看待|未来|机会|风险|当前|展望|复盘)/.test(candidate)
+  );
+}
+
 function extractOrganizer(text: string) {
   const patterns = [
     /([^\n]{1,80}?)\s*邀请您参加/,
+    /[，,]\s*([^\n，,。；;]{2,40}?)(?:为您带来|为您分享|带来)/,
+    /^(?:(?:页面标题|候选标题|主标题|大标题)\s*[:：]\s*)?([^\n｜|]{2,40}?)\s*[｜|]\s*[^\n]{6,}/m,
     /^([^\n]{1,80}?)\s+is inviting you to\b/im,
     /(?:组织者|主持人|主持|主讲人|主讲嘉宾|演讲人|嘉宾|发起人|主办方|组织机构|机构|Host|Organizer)\s*[:：]\s*([^\n]+)/i,
   ];
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
-    const candidate = cleanLine(match?.[1] ?? "");
+    const candidate = cleanOrganizerCandidate(match?.[1] ?? "");
     if (candidate) return candidate;
   }
 
   return "";
+}
+
+function cleanOrganizerCandidate(value: string) {
+  return cleanLine(value)
+    .replace(/^(?:页面标题|候选标题|主标题|大标题)\s*[:：]\s*/i, "")
+    .trim();
 }
 
 function extractMeetingId(text: string) {
