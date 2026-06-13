@@ -169,6 +169,13 @@ export default function MeetingScheduleShell() {
     return map;
   }, [entries]);
 
+  const todayMeetings = useMemo(() => {
+    const todayKey = toDateKey(new Date());
+    return entries
+      .filter((entry) => entry.dateKey === todayKey)
+      .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+  }, [entries]);
+
   const upcoming = useMemo(() => {
     const todayKey = toDateKey(new Date());
     return entries
@@ -444,15 +451,14 @@ export default function MeetingScheduleShell() {
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl px-8 py-10">
-          <div className="mb-2 flex items-start justify-between gap-4">
+        <div className="mx-auto max-w-6xl px-8 py-10">
+          <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               <h1 className="flex items-center gap-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                <span>🗓️</span> 会议日程
+                <span>🗓️</span> ZhiHui
               </h1>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                一目了然地看到已安排的会议。手动添加会议；自动录制/转写将由会议助手
-                Agent 接入（暂为占位）。
+                会议管理中心。导入会议信息，查看当天日程，日历总览。
               </p>
             </div>
             <button
@@ -464,166 +470,193 @@ export default function MeetingScheduleShell() {
             </button>
           </div>
 
-          <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-            安全边界：导入会议时会保存入会链接、会议号和会议密码，但不会保存整段原始邀请正文；
-            不会自动开麦克风/摄像头；
-            每次入会前必须先通过 5 秒 Audio Hijack 录音证明；证明失败会显示“录制链路未就绪”，并停止自动入会。
-          </div>
-
-          <div className="mb-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  会议信息输入
-                </h2>
-                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  粘贴完整会议邀请或单个入会链接。ZhiHui 会读取平台、主题、组织者、时间和链接域名，再加入会议日历。
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void handleImportInvite()}
-                disabled={intakeLoading || !intakeText.trim()}
-                className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
-              >
-                {intakeLoading ? "读取中..." : "导入会议日历"}
-              </button>
-            </div>
-            <textarea
-              value={intakeText}
-              onChange={(e) => {
-                setIntakeText(e.target.value);
-                setIntakeError("");
-                setIntakeMessage("");
-              }}
-              rows={5}
-              placeholder="例如：粘贴腾讯会议、Zoom、Webex、进门财经邀请；也可以只粘贴 https://meeting.tencent.com/... 这样的链接"
-              className={`${inputClass} min-h-32 resize-y leading-6`}
-            />
-            <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,220px)_1fr]">
-              <Field label="录制设备">
-                <select
-                  value={intakeRecordingDevice}
-                  onChange={(e) => setIntakeRecordingDevice(e.target.value)}
-                  className={inputClass}
-                >
-                  {RECORDING_DEVICES.map((device) => (
-                    <option key={device} value={device}>
-                      {device}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <div className="flex items-end text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                到点后优先尝试所选设备；如果不可用，就回退到 {DEFAULT_RECORDING_DEVICE}。
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full bg-zinc-100 px-2 py-1 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
-                入会链接入库
-              </span>
-              <span className="rounded-full bg-zinc-100 px-2 py-1 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
-                会议密码入库
-              </span>
-              <span className="rounded-full bg-zinc-100 px-2 py-1 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
-                支持只贴链接
-              </span>
-              <span className="rounded-full bg-zinc-100 px-2 py-1 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
-                默认 Mac Mini
-              </span>
-            </div>
-            {intakeMessage && (
-              <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
-                {intakeMessage}
-              </p>
-            )}
-            {intakeError && (
-              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
-                {intakeError}
-              </p>
-            )}
-            {intakePreview && (
-              <div className="mt-3 grid gap-2 rounded-md border border-zinc-100 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 sm:grid-cols-2">
-                <PreviewItem label="平台" value={intakePreview.platform} />
-                <PreviewItem label="会议主题" value={intakePreview.topic} />
-                <PreviewItem label="组织者" value={intakePreview.organizer || "未读取"} />
-                <PreviewItem
-                  label="时间"
-                  value={
-                    intakePreview.date && intakePreview.time
-                      ? `${intakePreview.date} ${formatMeetingTime(
-                          intakePreview.time,
-                          intakePreview.endTime
-                        )}`
-                      : "需要补充"
-                  }
-                />
-                <PreviewItem
-                  label="链接域名"
-                  value={intakePreview.joinUrlHost || "未提供"}
-                />
-                <PreviewItem
-                  label="会议号"
-                  value={intakePreview.meetingId || "未读取"}
-                />
-                <PreviewItem
-                  label="会议密码"
-                  value={intakePreview.passcode || "未读取"}
-                />
-                <PreviewItem label="录制设备" value={intakeRecordingDevice} />
-                <PreviewItem
-                  label="解析置信度"
-                  value={confidenceLabel(intakePreview.confidence)}
-                />
-              </div>
-            )}
-            {intakePreview?.warnings.length ? (
-              <ul className="mt-2 space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
-                {intakePreview.warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-
-          {traceReviewEntries.length > 0 && (
-            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
-              <div className="mb-2 flex items-center justify-between gap-3">
+          {/* Top: two panels side by side — meeting input + today's meetings */}
+          <div className="mb-8 grid gap-6 lg:grid-cols-2">
+            {/* Left: Meeting info input */}
+            <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                    待补时间 / 失败留痕
+                  <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    会议信息输入
                   </h2>
-                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                    这些会议已经入库留痕，但还不能保证自动接入或录制。
+                  <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                    粘贴会议邀请或入会链接，自动识别并加入日历。
                   </p>
                 </div>
-                <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-700 dark:bg-amber-900/50 dark:text-amber-200">
-                  {traceReviewEntries.length} 条
+                <button
+                  type="button"
+                  onClick={() => void handleImportInvite()}
+                  disabled={intakeLoading || !intakeText.trim()}
+                  className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
+                >
+                  {intakeLoading ? "读取中..." : "导入"}
+                </button>
+              </div>
+              <textarea
+                value={intakeText}
+                onChange={(e) => {
+                  setIntakeText(e.target.value);
+                  setIntakeError("");
+                  setIntakeMessage("");
+                }}
+                rows={4}
+                placeholder="粘贴腾讯会议、Zoom、Webex 等邀请，或直接贴入会链接"
+                className={`${inputClass} min-h-28 resize-y leading-6`}
+              />
+              <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr]">
+                <Field label="录制设备">
+                  <select
+                    value={intakeRecordingDevice}
+                    onChange={(e) => setIntakeRecordingDevice(e.target.value)}
+                    className={inputClass}
+                  >
+                    {RECORDING_DEVICES.map((device) => (
+                      <option key={device} value={device}>
+                        {device}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="flex items-end text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  不可用时回退到 {DEFAULT_RECORDING_DEVICE}
+                </div>
+              </div>
+              {intakeMessage && (
+                <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+                  {intakeMessage}
+                </p>
+              )}
+              {intakeError && (
+                <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                  {intakeError}
+                </p>
+              )}
+              {intakePreview && (
+                <div className="mt-3 grid gap-2 rounded-md border border-zinc-100 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 sm:grid-cols-2">
+                  <PreviewItem label="平台" value={intakePreview.platform} />
+                  <PreviewItem label="会议主题" value={intakePreview.topic} />
+                  <PreviewItem label="组织者" value={intakePreview.organizer || "未读取"} />
+                  <PreviewItem
+                    label="时间"
+                    value={
+                      intakePreview.date && intakePreview.time
+                        ? `${intakePreview.date} ${formatMeetingTime(
+                            intakePreview.time,
+                            intakePreview.endTime
+                          )}`
+                        : "需要补充"
+                    }
+                  />
+                  <PreviewItem
+                    label="链接域名"
+                    value={intakePreview.joinUrlHost || "未提供"}
+                  />
+                  <PreviewItem
+                    label="会议号"
+                    value={intakePreview.meetingId || "未读取"}
+                  />
+                  <PreviewItem
+                    label="会议密码"
+                    value={intakePreview.passcode || "未读取"}
+                  />
+                  <PreviewItem label="录制设备" value={intakeRecordingDevice} />
+                  <PreviewItem
+                    label="解析置信度"
+                    value={confidenceLabel(intakePreview.confidence)}
+                  />
+                </div>
+              )}
+              {intakePreview?.warnings.length ? (
+                <ul className="mt-2 space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  {intakePreview.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              ) : null}
+              <p className="mt-3 text-[10px] leading-4 text-zinc-400 dark:text-zinc-500">
+                安全边界：保存链接/会议号/密码，不保存原始正文；不会自动开麦克风/摄像头；入会前须通过录音证明。
+              </p>
+            </div>
+
+            {/* Right: Today's meetings */}
+            <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  今日会议
+                </h2>
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                  {todayMeetings.length} 场
                 </span>
               </div>
-              <div className="divide-y divide-amber-200/70 dark:divide-amber-900/50">
-                {traceReviewEntries.map((entry) => (
-                  <button
-                    key={entry.page.id}
-                    type="button"
-                    onClick={() => setSelectedMeeting(entry)}
-                    className="flex w-full items-center gap-3 py-2 text-left text-sm"
-                  >
-                    <MeetingStatusBar entry={entry} size="list" />
-                    <span className="w-28 shrink-0 text-xs text-amber-700 dark:text-amber-300">
-                      {entry.dateKey || "未设日期"} {entry.time || "待补时间"}
+              {todayMeetings.length === 0 ? (
+                <div className="flex h-40 items-center justify-center text-sm text-zinc-400 dark:text-zinc-500">
+                  今天暂无会议
+                </div>
+              ) : (
+                <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {todayMeetings.map((entry) => (
+                    <li key={entry.page.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMeeting(entry)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setContextMenu({
+                            pageId: entry.page.id,
+                            x: e.clientX,
+                            y: e.clientY,
+                          });
+                        }}
+                        className="flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                      >
+                        <MeetingStatusBar entry={entry} size="list" />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-medium text-zinc-800 dark:text-zinc-100">
+                            {entry.topic}
+                          </div>
+                          <div className="mt-0.5 flex items-center gap-2 text-xs text-zinc-400">
+                            {entry.time && <span>{entry.time}</span>}
+                            {entry.platform && <span>{entry.platform}</span>}
+                            {entry.organizer && <span>{entry.organizer}</span>}
+                          </div>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {traceReviewEntries.length > 0 && (
+                <div className="mt-4 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                      待补时间 / 失败留痕
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-amber-950 dark:text-amber-100">
-                      {entry.topic}
+                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-900/50 dark:text-amber-200">
+                      {traceReviewEntries.length}
                     </span>
-                    <span className="shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-[10px] text-amber-700 dark:bg-zinc-900/50 dark:text-amber-200">
-                      {entry.traceStatus || entry.timeStatus}
-                    </span>
-                  </button>
-                ))}
-              </div>
+                  </div>
+                  <div className="space-y-1">
+                    {traceReviewEntries.slice(0, 5).map((entry) => (
+                      <button
+                        key={entry.page.id}
+                        type="button"
+                        onClick={() => setSelectedMeeting(entry)}
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                      >
+                        <MeetingStatusBar entry={entry} size="compact" />
+                        <span className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">
+                          {entry.topic}
+                        </span>
+                        <span className="shrink-0 text-[10px] text-amber-600 dark:text-amber-400">
+                          {entry.traceStatus || entry.timeStatus}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* New meeting form */}
           {formOpen && (
@@ -698,7 +731,7 @@ export default function MeetingScheduleShell() {
             </div>
           )}
 
-          {/* Calendar controls */}
+          {/* Bottom: Calendar */}
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
               {viewMonth.getFullYear()} 年 {MONTH_LABELS[viewMonth.getMonth()]}
@@ -720,9 +753,9 @@ export default function MeetingScheduleShell() {
             {WEEKDAYS.map((day) => (
               <div
                 key={day}
-                className="px-2 py-1.5 text-center text-xs font-medium text-zinc-400"
+                className="px-2 py-1.5 text-center text-sm font-medium text-zinc-400"
               >
-                {day}
+                周{day}
               </div>
             ))}
           </div>
@@ -735,13 +768,13 @@ export default function MeetingScheduleShell() {
               return (
                 <div
                   key={key}
-                  className={`group flex h-24 flex-col border-b border-r border-zinc-100 p-1 dark:border-zinc-800/70 ${
+                  className={`group flex h-28 flex-col border-b border-r border-zinc-100 p-1.5 dark:border-zinc-800/70 ${
                     cell.inMonth ? "" : "bg-zinc-50/50 dark:bg-zinc-900/40"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span
-                      className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
+                      className={`flex h-6 min-w-6 items-center justify-center rounded-full text-sm ${
                         isToday
                           ? "bg-zinc-900 font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
                           : cell.inMonth
@@ -774,7 +807,7 @@ export default function MeetingScheduleShell() {
                             y: e.clientY,
                           });
                         }}
-                        className="group/meeting relative rounded bg-blue-50 px-1 py-0.5 text-left text-[10px] text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300"
+                        className="group/meeting relative rounded bg-blue-50 px-1.5 py-0.5 text-left text-xs text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300"
                         title={buildMeetingSummary(entry)}
                       >
                         <span className="flex min-w-0 items-center gap-1">
@@ -799,7 +832,7 @@ export default function MeetingScheduleShell() {
           </div>
 
           {upcoming.length > 0 && (
-            <div className="mt-8">
+            <div className="mt-6">
               <h3 className="mb-2 text-sm font-medium text-zinc-500 dark:text-zinc-400">
                 即将到来的会议
               </h3>

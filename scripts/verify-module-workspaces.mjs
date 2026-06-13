@@ -33,7 +33,7 @@ for (const token of [
   "toDateKey",
   "每日纪要",
   "产业链研究",
-  "会议日程",
+  "ZhiHui",
   "知识库",
 ]) {
   check(helper.includes(token), `moduleWorkspaces 缺少 ${token}`);
@@ -88,7 +88,7 @@ for (const token of [
   "buildMonthGrid",
   "新建会议",
   "会议信息输入",
-  "导入会议日历",
+  "导入",
   "会议详情",
   "会议密码",
   "录制设备",

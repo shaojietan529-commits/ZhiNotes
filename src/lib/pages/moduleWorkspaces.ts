@@ -35,10 +35,10 @@ export const MODULE_WORKSPACES: Record<ModuleWorkspaceKey, ModuleWorkspaceDef> =
   },
   "meeting-schedule": {
     key: "meeting-schedule",
-    title: "会议日程",
+    title: "ZhiHui",
     icon: "🗓️",
     route: "/schedule",
-    label: "会议日程",
+    label: "ZhiHui",
   },
   "knowledge-base": {
     key: "knowledge-base",
