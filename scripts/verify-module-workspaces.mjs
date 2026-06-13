@@ -65,7 +65,7 @@ for (const [name, source] of Object.entries(shells)) {
   if (name === "schedule") {
     const fetchMatches = source.match(/fetch\(/g) ?? [];
     check(
-      fetchMatches.length <= 1 && source.includes('fetch("/api/meetings/intake"'),
+      fetchMatches.length <= 2 && source.includes('fetch("/api/meetings/intake"'),
       "schedule shell 只能调用同源会议解析接口 /api/meetings/intake"
     );
   } else {

@@ -455,6 +455,61 @@ export default function MeetingScheduleShell() {
     }
   }, [createMeetingPage, form.date, intakeLoading, intakeRecordingDevice, intakeText]);
 
+  const [retryLoading, setRetryLoading] = useState(false);
+  const [retryResult, setRetryResult] = useState("");
+
+  const handleRetryParse = useCallback(async () => {
+    const pending = entries.filter(
+      (e) => e.timeStatus === "待补充" || e.traceStatus === "导入失败-已留痕"
+    );
+    if (pending.length === 0) return;
+    setRetryLoading(true);
+    setRetryResult("");
+    let fixed = 0;
+    for (const entry of pending) {
+      try {
+        const res = await fetch("/api/meetings/intake", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ input: entry.topic }),
+        });
+        const data = await res.json();
+        const m = data?.meeting;
+        if (!m) continue;
+        const hasTime = Boolean(m.date && m.time);
+        if (!hasTime && !m.date) continue;
+        const props = parsePageProperties(entry.page.properties);
+        const update = (name: string, value: string) => {
+          const prop = props.find((p) => p.name === name);
+          if (prop) prop.value = value;
+        };
+        if (m.date && !entry.dateKey) update("日期", m.date);
+        if (m.time && !entry.time) {
+          update("时间", formatMeetingTime(m.time, m.endTime));
+          update("时间状态", "已识别");
+          update("会议痕迹", "已留痕-待执行");
+        }
+        if (m.platform && m.platform !== "其他" && entry.platform === "其他") {
+          update("平台", m.platform);
+        }
+        await updatePage(entry.page.id, {
+          properties: stringifyPageProperties(props),
+        });
+        fixed++;
+      } catch {
+        // skip individual failures
+      }
+    }
+    await refresh();
+    await load();
+    setRetryLoading(false);
+    setRetryResult(
+      fixed > 0
+        ? `已重新识别 ${fixed} 条会议`
+        : "没有新的信息可以补充"
+    );
+  }, [entries, refresh, load]);
+
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
   const todayKey = toDateKey(new Date());
   const traceReviewEntries = useMemo(
@@ -660,14 +715,29 @@ export default function MeetingScheduleShell() {
               )}
               {traceReviewEntries.length > 0 && (
                 <div className="mt-4 border-t border-zinc-100 pt-3 dark:border-zinc-800">
-                  <div className="mb-2 flex items-center justify-between">
+                  <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
                       待补时间 / 失败留痕
                     </span>
-                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-900/50 dark:text-amber-200">
-                      {traceReviewEntries.length}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => void handleRetryParse()}
+                        disabled={retryLoading}
+                        className="rounded px-1.5 py-0.5 text-[10px] text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-50 dark:text-amber-300 dark:hover:bg-amber-900/40"
+                      >
+                        {retryLoading ? "识别中..." : "重新识别"}
+                      </button>
+                      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-900/50 dark:text-amber-200">
+                        {traceReviewEntries.length}
+                      </span>
+                    </div>
                   </div>
+                  {retryResult && (
+                    <p className="mb-2 text-[10px] text-amber-600 dark:text-amber-400">
+                      {retryResult}
+                    </p>
+                  )}
                   <div className="space-y-1">
                     {traceReviewEntries.slice(0, 5).map((entry) => (
                       <button

@@ -318,14 +318,16 @@ function validMonthDay(month: number, day: number) {
   return month >= 1 && month <= 12 && day >= 1 && day <= 31;
 }
 
-// Find a date anywhere in the text: with an explicit year, or year-less in
-// Chinese (6月14日) or numeric (06.14日 / 6/14) form. Year-less dates infer
-// the nearest sensible year later.
+const WEEKDAY_MAP: Record<string, number> = {
+  "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 0, "天": 0,
+};
+
 function findDate(
   text: string
 ): { year: number | null; month: number; day: number } | null {
+  // Explicit year: 2026年6月14日, 2026/06/14, 2026-6-14, 2026.6.14
   const withYear = text.match(
-    /(20\d{2})\s*[\/.\-年]\s*(\d{1,2})\s*[\/.\-月]\s*(\d{1,2})\s*日?/
+    /(20\d{2})\s*[\/.\-年]\s*(\d{1,2})\s*[\/.\-月]\s*(\d{1,2})\s*[日号]?/
   );
   if (withYear && validMonthDay(Number(withYear[2]), Number(withYear[3]))) {
     return {
@@ -335,7 +337,48 @@ function findDate(
     };
   }
 
-  const chineseMonthDay = text.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日?/);
+  // Relative dates: 今天/明天/后天/大后天
+  const relativeDay = text.match(/(?:大后天|后天|明天|今天)/);
+  if (relativeDay) {
+    const now = new Date();
+    const offsets: Record<string, number> = {
+      "今天": 0, "明天": 1, "后天": 2, "大后天": 3,
+    };
+    const offset = offsets[relativeDay[0]] ?? 0;
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    return {
+      year: target.getFullYear(),
+      month: target.getMonth() + 1,
+      day: target.getDate(),
+    };
+  }
+
+  // Relative weekday: 本周一/下周三/这周五/周六/下周日
+  const relWeekday = text.match(
+    /(?:本|这|下)?\s*周\s*([一二三四五六日天])/
+  );
+  if (relWeekday) {
+    const targetDow = WEEKDAY_MAP[relWeekday[1]];
+    const isNext = relWeekday[0].startsWith("下");
+    const now = new Date();
+    const currentDow = now.getDay();
+    let diff = targetDow - currentDow;
+    if (isNext) {
+      diff = diff <= 0 ? diff + 7 : diff;
+      diff += 7;
+    } else {
+      if (diff < 0) diff += 7;
+    }
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+    return {
+      year: target.getFullYear(),
+      month: target.getMonth() + 1,
+      day: target.getDate(),
+    };
+  }
+
+  // Chinese month/day: 6月14日, 6月14号
+  const chineseMonthDay = text.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?/);
   if (
     chineseMonthDay &&
     validMonthDay(Number(chineseMonthDay[1]), Number(chineseMonthDay[2]))
@@ -347,34 +390,33 @@ function findDate(
     };
   }
 
-  // Numeric with a 日 suffix is unambiguous even after punctuation: 06.14日.
-  const numericWithRi = text.match(
-    /(?:^|[^\d])(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*日/
+  // Numeric with 日/号 suffix: 06.14日, 06-14号
+  const numericWithSuffix = text.match(
+    /(?:^|[^\d])(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[日号]/
   );
   if (
-    numericWithRi &&
-    validMonthDay(Number(numericWithRi[1]), Number(numericWithRi[2]))
+    numericWithSuffix &&
+    validMonthDay(Number(numericWithSuffix[1]), Number(numericWithSuffix[2]))
   ) {
     return {
       year: null,
-      month: Number(numericWithRi[1]),
-      day: Number(numericWithRi[2]),
+      month: Number(numericWithSuffix[1]),
+      day: Number(numericWithSuffix[2]),
     };
   }
 
-  // Bare numeric slash/dash date (6/14, 6-14), guarded so it is not part of
-  // a longer number run (phone, meeting id, version).
-  const numericSlash = text.match(
-    /(?:^|[^\d.\-/])(\d{1,2})\s*[\/\-]\s*(\d{1,2})(?![\/\-]\d)/
+  // Bare numeric date: 6/14, 6-14, 6.14 — guarded against longer number runs
+  const numericBare = text.match(
+    /(?:^|[^\d.\-/])(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})(?![\/\-\.]\d)/
   );
   if (
-    numericSlash &&
-    validMonthDay(Number(numericSlash[1]), Number(numericSlash[2]))
+    numericBare &&
+    validMonthDay(Number(numericBare[1]), Number(numericBare[2]))
   ) {
     return {
       year: null,
-      month: Number(numericSlash[1]),
-      day: Number(numericSlash[2]),
+      month: Number(numericBare[1]),
+      day: Number(numericBare[2]),
     };
   }
 
@@ -401,10 +443,10 @@ interface ClockHit {
 }
 
 // Parse the first clock in the text: optional Chinese period marker, then
-// HH:MM or H点(MM分)? or H点半.
+// HH:MM or H点(MM分)? or H点半 or H时MM分.
 function parseClockAt(text: string): ClockHit | null {
   const re =
-    /(上午|下午|中午|晚上|凌晨)?\s*([01]?\d|2[0-3])\s*(?:[:：]\s*([0-5]\d)|点\s*(?:(半)|([0-5]?\d)\s*分?)?)/;
+    /(上午|下午|中午|晚上|凌晨)?\s*([01]?\d|2[0-3])\s*(?:[:：]\s*([0-5]\d)\s*点?|[点时]\s*(?:(半)|([0-5]?\d)\s*分?)?)/;
   const m = re.exec(text);
   if (!m) return null;
   let minute = 0;
@@ -422,7 +464,24 @@ function parseClockAt(text: string): ClockHit | null {
 
 // Find a start time (and optional end time) anywhere in the text, honouring
 // Chinese period markers and an optional range connector.
+// Prioritises time that appears after a label like 时间：, 开始时间：, Time:
 function findTime(
+  text: string
+): { hour: number; minute: number; endHour: number | null; endMinute: number | null } | null {
+  // Try labeled time first — these are the highest-confidence hits.
+  const labelPattern = /(?:时间|开始时间|Time|Start)\s*[:：]\s*/gi;
+  let labelMatch: RegExpExecArray | null;
+  while ((labelMatch = labelPattern.exec(text)) !== null) {
+    const afterLabel = text.slice(labelMatch.index + labelMatch[0].length);
+    const hit = parseTimeRange(afterLabel);
+    if (hit) return hit;
+  }
+
+  // Fall back to the first clock anywhere in the text.
+  return parseTimeRange(text);
+}
+
+function parseTimeRange(
   text: string
 ): { hour: number; minute: number; endHour: number | null; endMinute: number | null } | null {
   const first = parseClockAt(text);
@@ -432,11 +491,10 @@ function findTime(
   let endHour: number | null = null;
   let endMinute: number | null = null;
   const rest = text.slice(first.end);
-  const connector = rest.match(/^\s*点?\s*(?:-|–|—|~|至|到|to)\s*/i);
+  const connector = rest.match(/^\s*点?\s*(?:-|--|---|~|至|到|to)\s*/i);
   if (connector) {
     const second = parseClockAt(rest.slice(connector[0].length));
     if (second && second.start === 0) {
-      // The end inherits the start's period when it has none of its own.
       const endPeriod = second.period || first.period;
       endHour = applyChinesePeriod(second.rawHour, endPeriod);
       endMinute = second.minute;
