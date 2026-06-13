@@ -666,12 +666,7 @@ async function createChildPageFromEditorCommand(
   editor: TiptapEditor,
   parentPageId: string
 ) {
-  const title = window.prompt("新页面标题：", "未命名页面");
-  if (title === null) return false;
-
-  const pageTitle = title.trim() || "未命名页面";
   const page = await createPage({
-    title: pageTitle,
     parentId: parentPageId,
   });
   const allPages = await getAllPages();
@@ -692,7 +687,7 @@ async function createChildPageFromEditorCommand(
         type: "mention",
         attrs: {
           id: page.id,
-          label: page.title || pageTitle,
+          label: page.title || "新页面",
         },
       },
       { type: "text", text: " " },

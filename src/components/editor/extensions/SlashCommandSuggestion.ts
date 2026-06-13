@@ -103,14 +103,9 @@ function getSlashCommands(): SlashCommandItem[] {
         "子页面",
       ],
       command: async ({ editor, range }) => {
-        const title = window.prompt("新页面标题：", "未命名页面");
-        if (title === null) return;
-
-        const pageTitle = title.trim() || "未命名页面";
         const currentPageId = useWorkspaceStore.getState().currentPageId;
         const parentPageId = currentPageId ?? null;
         const page = await createPage({
-          title: pageTitle,
           parentId: parentPageId,
         });
         const allPages = await getAllPages();
@@ -134,7 +129,7 @@ function getSlashCommands(): SlashCommandItem[] {
               type: "mention",
               attrs: {
                 id: page.id,
-                label: page.title || "未命名页面",
+                label: page.title || "新页面",
               },
             },
             { type: "text", text: " " },
