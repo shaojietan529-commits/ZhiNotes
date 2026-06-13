@@ -54,6 +54,7 @@ interface MeetingEntry {
   traceStatus: string;
   timeStatus: string;
   recordingStatus: string;
+  recordingGateStatus: string;
   importedAt: string;
   traceNote: string;
 }
@@ -104,6 +105,7 @@ interface CreateMeetingOptions {
   traceStatus?: string;
   timeStatus?: string;
   recordingStatus?: string;
+  recordingGateStatus?: string;
   importedAt?: string;
   traceNote?: string;
   warnings?: string[];
@@ -195,6 +197,7 @@ export default function MeetingScheduleShell() {
         options.traceStatus ??
         (timeStatus === "已识别" ? "已留痕-待执行" : "已留痕-待补时间");
       const recordingStatus = options.recordingStatus ?? "待执行";
+      const recordingGateStatus = options.recordingGateStatus ?? "未验证";
       const traceNote =
         options.traceNote ||
         (options.warnings?.length ? options.warnings.join("；") : "");
@@ -222,6 +225,11 @@ export default function MeetingScheduleShell() {
           ...createPageProperty("select", "录制状态"),
           value: recordingStatus,
           options: ["待执行", "录制中", "录制成功", "录制失败", "未执行"],
+        },
+        {
+          ...createPageProperty("select", "录制链路"),
+          value: recordingGateStatus,
+          options: ["未验证", "验证通过", "录制链路未就绪"],
         },
         { ...createPageProperty("text", "导入时间"), value: importedAt },
         createPageProperty("tags", "相关公司"),
@@ -311,6 +319,7 @@ export default function MeetingScheduleShell() {
           traceStatus,
           timeStatus,
           recordingStatus,
+          recordingGateStatus,
           importedAt,
           traceNote,
         }),
@@ -415,7 +424,8 @@ export default function MeetingScheduleShell() {
           (entry) =>
             entry.timeStatus === "待补充" ||
             entry.traceStatus === "导入失败-已留痕" ||
-            entry.recordingStatus === "录制失败"
+            entry.recordingStatus === "录制失败" ||
+            entry.recordingGateStatus === "录制链路未就绪"
         )
         .slice(0, 12),
     [entries]
@@ -457,7 +467,7 @@ export default function MeetingScheduleShell() {
           <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
             安全边界：导入会议时会保存入会链接、会议号和会议密码，但不会保存整段原始邀请正文；
             不会自动开麦克风/摄像头；
-            录制需先确认同意。这些将在会议助手 Agent 接入时按权限逐步开启。
+            每次入会前必须先通过 5 秒 Audio Hijack 录音证明；证明失败会显示“录制链路未就绪”，并停止自动入会。
           </div>
 
           <div className="mb-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
@@ -886,6 +896,7 @@ function toMeetingEntry(page: Page): MeetingEntry {
     traceStatus: read("会议痕迹"),
     timeStatus: read("时间状态"),
     recordingStatus: read("录制状态"),
+    recordingGateStatus: read("录制链路"),
     importedAt: read("导入时间"),
     traceNote: read("留痕说明"),
   };
@@ -965,6 +976,7 @@ function buildMeetingTraceContent({
   traceStatus,
   timeStatus,
   recordingStatus,
+  recordingGateStatus,
   importedAt,
   traceNote,
 }: {
@@ -982,6 +994,7 @@ function buildMeetingTraceContent({
   traceStatus: string;
   timeStatus: string;
   recordingStatus: string;
+  recordingGateStatus: string;
   importedAt: string;
   traceNote: string;
 }) {
@@ -999,6 +1012,7 @@ function buildMeetingTraceContent({
     ["会议痕迹", traceStatus],
     ["时间状态", timeStatus],
     ["录制状态", recordingStatus],
+    ["录制链路", recordingGateStatus],
     ["导入时间", importedAt],
     ["留痕说明", traceNote || "无"],
   ];
@@ -1072,7 +1086,8 @@ function getMeetingStatusIndicator(entry: MeetingEntry) {
     !hasAccessCredential ||
     entry.timeStatus === "待补充" ||
     entry.traceStatus === "导入失败-已留痕" ||
-    entry.recordingStatus === "录制失败";
+    entry.recordingStatus === "录制失败" ||
+    entry.recordingGateStatus === "录制链路未就绪";
 
   if (missingRequiredInfo) {
     return {
@@ -1102,6 +1117,9 @@ function MeetingHoverCard({ entry }: { entry: MeetingEntry }) {
       </span>
       <span className="block">
         录制设备：{entry.recordingDevice || DEFAULT_RECORDING_DEVICE}
+      </span>
+      <span className="block">
+        录制链路：{entry.recordingGateStatus || "未验证"}
       </span>
       <span className="mt-1 block text-zinc-400">单击查看详情</span>
     </span>
@@ -1137,6 +1155,11 @@ function MeetingDetailWindow({
       </div>
 
       <div className="space-y-3 px-4 py-4 text-sm">
+        {entry.recordingGateStatus === "录制链路未就绪" && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+            录制链路未就绪：会前 5 秒 Audio Hijack proof 没有通过。本次不会静默入会，需先修复录制权限或录音输出。
+          </div>
+        )}
         <DetailRow label="日期" value={entry.dateKey || "未设置"} />
         <DetailRow label="时间" value={entry.time || "未设置"} />
         <DetailRow label="平台" value={entry.platform || "未设置"} />
@@ -1148,6 +1171,7 @@ function MeetingDetailWindow({
         <DetailRow label="会议痕迹" value={entry.traceStatus || "未记录"} />
         <DetailRow label="时间状态" value={entry.timeStatus || "未记录"} />
         <DetailRow label="录制状态" value={entry.recordingStatus || "未记录"} />
+        <DetailRow label="录制链路" value={entry.recordingGateStatus || "未验证"} />
         <DetailRow label="导入时间" value={entry.importedAt || "未记录"} />
         <DetailRow
           label="录制设备"
@@ -1216,6 +1240,7 @@ function buildMeetingSummary(entry: MeetingEntry) {
     `录制设备：${entry.recordingDevice || DEFAULT_RECORDING_DEVICE}`,
     entry.traceStatus ? `痕迹：${entry.traceStatus}` : "",
     entry.recordingStatus ? `录制：${entry.recordingStatus}` : "",
+    `录制链路：${entry.recordingGateStatus || "未验证"}`,
   ]
     .filter(Boolean)
     .join("\n");
