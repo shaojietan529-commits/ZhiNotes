@@ -225,9 +225,15 @@ body {
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: #a1a1aa;
+  color: #d4d4d8;
   pointer-events: none;
   height: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tiptap p.is-editor-empty:first-child::before {
+    color: #52525b;
+  }
 }
 
 /* Notion-style top-level block drag handle */
