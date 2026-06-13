@@ -1,4 +1,4 @@
-import { createPage, getAllPages, getPage } from "@/lib/db/local/queries";
+import { createPage, getAllPages, getPage, updatePage } from "@/lib/db/local/queries";
 
 // The three top-level "big category" surfaces are each backed by a singleton
 // root page. Their descendant pages provide all the content, so every node is a
@@ -13,6 +13,7 @@ export type ModuleWorkspaceKey =
 interface ModuleWorkspaceDef {
   key: ModuleWorkspaceKey;
   title: string;
+  legacyTitles?: string[];
   icon: string;
   route: string;
   label: string;
@@ -36,6 +37,7 @@ export const MODULE_WORKSPACES: Record<ModuleWorkspaceKey, ModuleWorkspaceDef> =
   "meeting-schedule": {
     key: "meeting-schedule",
     title: "ZhiHui",
+    legacyTitles: ["会议日程"],
     icon: "🗓️",
     route: "/schedule",
     label: "ZhiHui",
@@ -91,17 +93,26 @@ async function resolveModuleRootId(key: ModuleWorkspaceKey): Promise<string> {
 
   if (stored) {
     const existing = await getPage(stored);
-    if (existing) return existing.id;
+    if (existing) {
+      if (existing.title !== def.title) {
+        await updatePage(existing.id, { title: def.title });
+      }
+      return existing.id;
+    }
   }
 
-  // Try to adopt an existing top-level page with the same title. Pick the
-  // smallest id deterministically so every device converges on the same
-  // root when duplicates exist (page cloud sync merges the rest).
+  // Try to adopt an existing top-level page with the current or legacy title.
+  // Pick the smallest id deterministically so every device converges on the
+  // same root when duplicates exist (page cloud sync merges the rest).
+  const titleSet = new Set([def.title, ...(def.legacyTitles ?? [])]);
   const allPages = await getAllPages();
   const adopted = allPages
-    .filter((page) => page.parent_id === null && page.title === def.title)
+    .filter((page) => page.parent_id === null && titleSet.has(page.title ?? ""))
     .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
   if (adopted) {
+    if (adopted.title !== def.title) {
+      await updatePage(adopted.id, { title: def.title });
+    }
     rememberRoot(key, adopted.id);
     return adopted.id;
   }

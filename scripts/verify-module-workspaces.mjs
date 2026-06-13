@@ -35,6 +35,7 @@ for (const token of [
   "产业链研究",
   "ZhiHui",
   "知识库",
+  "legacyTitles",
 ]) {
   check(helper.includes(token), `moduleWorkspaces 缺少 ${token}`);
 }

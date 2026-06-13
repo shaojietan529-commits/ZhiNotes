@@ -19,6 +19,7 @@ import {
   getNextPosition,
   movePage,
   deletePage,
+  updatePage,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
 import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
@@ -131,19 +132,22 @@ async function mergeModuleRoots(): Promise<boolean> {
   let changed = false;
 
   for (const def of MODULE_WORKSPACE_LIST) {
+    const titleSet = new Set([def.title, ...((def as { legacyTitles?: string[] }).legacyTitles ?? [])]);
     const roots = active
-      .filter((p) => p.parent_id === null && p.title === def.title)
+      .filter((p) => p.parent_id === null && titleSet.has(p.title ?? ""))
       .sort((a, b) => (a.id < b.id ? -1 : 1));
     if (roots.length === 0) continue;
 
     const canonical = roots[0];
-    // Always remember the canonical root id so a freshly synced device
-    // hides it from the generic page list immediately.
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
         `zhinote.moduleRoot.${def.key}`,
         canonical.id
       );
+    }
+    if (canonical.title !== def.title) {
+      await updatePage(canonical.id, { title: def.title });
+      changed = true;
     }
     if (roots.length === 1) continue;
     for (const duplicate of roots.slice(1)) {
