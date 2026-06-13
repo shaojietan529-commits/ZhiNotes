@@ -599,6 +599,7 @@ export default function MeetingScheduleShell() {
                     onClick={() => setSelectedMeeting(entry)}
                     className="flex w-full items-center gap-3 py-2 text-left text-sm"
                   >
+                    <MeetingStatusBar entry={entry} size="list" />
                     <span className="w-28 shrink-0 text-xs text-amber-700 dark:text-amber-300">
                       {entry.dateKey || "未设日期"} {entry.time || "待补时间"}
                     </span>
@@ -766,9 +767,12 @@ export default function MeetingScheduleShell() {
                         className="group/meeting relative rounded bg-blue-50 px-1 py-0.5 text-left text-[10px] text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300"
                         title={buildMeetingSummary(entry)}
                       >
-                        <span className="block truncate">
-                          {entry.time ? `${entry.time} ` : ""}
-                          {entry.topic}
+                        <span className="flex min-w-0 items-center gap-1">
+                          <MeetingStatusBar entry={entry} size="compact" />
+                          <span className="block min-w-0 truncate">
+                            {entry.time ? `${entry.time} ` : ""}
+                            {entry.topic}
+                          </span>
                         </span>
                         <MeetingHoverCard entry={entry} />
                       </button>
@@ -806,6 +810,7 @@ export default function MeetingScheduleShell() {
                       title={buildMeetingSummary(entry)}
                       className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                     >
+                      <MeetingStatusBar entry={entry} size="list" />
                       <span className="w-24 shrink-0 text-xs text-zinc-400">
                         {entry.dateKey}
                         {entry.time ? ` ${entry.time}` : ""}
@@ -1030,6 +1035,56 @@ function PreviewItem({ label, value }: { label: string; value: string }) {
       </div>
     </div>
   );
+}
+
+function MeetingStatusBar({
+  entry,
+  size,
+}: {
+  entry: MeetingEntry;
+  size: "compact" | "list";
+}) {
+  const status = getMeetingStatusIndicator(entry);
+  return (
+    <span
+      aria-label={status.label}
+      className={`shrink-0 rounded-full ${size === "compact" ? "h-4 w-1" : "h-7 w-1.5"} ${
+        status.className
+      }`}
+      title={status.label}
+    />
+  );
+}
+
+function getMeetingStatusIndicator(entry: MeetingEntry) {
+  if (entry.recordingStatus === "录制成功" || entry.traceStatus === "已完成") {
+    return {
+      label: "已完成录制",
+      className: "bg-sky-500 dark:bg-sky-400",
+    };
+  }
+
+  const hasAccessCredential = Boolean(entry.joinUrl || entry.meetingId);
+  const missingRequiredInfo =
+    !entry.dateKey ||
+    !entry.time ||
+    !entry.platform ||
+    !hasAccessCredential ||
+    entry.timeStatus === "待补充" ||
+    entry.traceStatus === "导入失败-已留痕" ||
+    entry.recordingStatus === "录制失败";
+
+  if (missingRequiredInfo) {
+    return {
+      label: "信息不全或执行失败",
+      className: "bg-red-500 dark:bg-red-400",
+    };
+  }
+
+  return {
+    label: "信息完整，待执行",
+    className: "bg-emerald-500 dark:bg-emerald-400",
+  };
 }
 
 function MeetingHoverCard({ entry }: { entry: MeetingEntry }) {
