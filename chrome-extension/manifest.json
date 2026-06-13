@@ -12,6 +12,9 @@
     "default_popup": "popup.html",
     "default_title": "抓取本页会议信息到 ZhiNote"
   },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": [
