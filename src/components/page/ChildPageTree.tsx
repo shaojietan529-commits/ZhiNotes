@@ -28,8 +28,6 @@ const LEVEL_HOVERS = [
   "hover:text-cyan-600 dark:hover:text-cyan-400",
 ] as const;
 
-// Shown inside an industry-chain page: a Notion-style tree of all sub-pages,
-// so a sector's whole downstream structure is visible from its main page.
 export default function ChildPageTree({ pageId }: { pageId: string }) {
   const router = useRouter();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
@@ -43,7 +41,6 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
     });
   }, [dbReady]);
 
-  // Only render on pages that live inside the industry-chain workspace.
   const inChain = useMemo(() => {
     if (!chainRootId) return false;
     const byId = new Map(pages.map((p) => [p.id, p]));
@@ -62,22 +59,25 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
 
   const addChild = useCallback(
     async (parentId: string) => {
-      const child = await createPage({ parentId, title: "未命名分类" });
+      const child = await createPage({ parentId });
       await refresh();
       router.push(`/page/${child.id}`);
     },
     [refresh, router]
   );
 
-  if (!inChain || pageId === chainRootId) return null;
+  if (children.length === 0) return null;
+
+  const sectionLabel = inChain ? "产业链层级" : "子页面";
+  const sectionIcon = inChain ? "🧭" : "📑";
 
   return (
     <section className="my-6 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50/60 dark:border-zinc-800 dark:bg-zinc-900/40">
       <div className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center gap-2">
-          <span className="text-sm">🧭</span>
+          <span className="text-sm">{sectionIcon}</span>
           <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-            产业链层级
+            {sectionLabel}
           </h2>
           {children.length > 0 && (
             <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
@@ -89,21 +89,13 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
           type="button"
           onClick={() => void addChild(pageId)}
           className="rounded-md px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-          title="添加下级分类"
+          title="添加子页面"
         >
-          + 下级
+          + 子页面
         </button>
       </div>
 
-      {children.length === 0 ? (
-        <button
-          type="button"
-          onClick={() => void addChild(pageId)}
-          className="w-full px-4 py-4 text-left text-xs text-zinc-400 transition-colors hover:bg-zinc-100/60 hover:text-zinc-600 dark:hover:bg-zinc-800/40 dark:hover:text-zinc-300"
-        >
-          还没有下级分类，点这里创建第一个（如：上游材料、中游制造、下游应用…）
-        </button>
-      ) : (
+      {children.length === 0 ? null : (
         <ul className="space-y-0.5 px-3 py-2">
           {children.map((child) => (
             <TreeNode

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getPage } from "@/lib/db/local/queries";
+import { displayPageTitle } from "@/lib/pages/displayTitle";
 import type { Page } from "@/lib/utils/types";
 
 interface BreadcrumbProps {
@@ -69,7 +70,7 @@ export default function Breadcrumb({ pageId }: BreadcrumbProps) {
   return (
     <nav
       aria-label="页面层级"
-      className="mb-5 flex min-w-0 flex-wrap items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400"
+      className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400"
     >
       {trail.map((item, index) => (
         <span
@@ -108,11 +109,11 @@ export default function Breadcrumb({ pageId }: BreadcrumbProps) {
                         router.push(`/page/${page.id}`);
                       }}
                       className="flex w-full min-w-0 items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-                      title={page.title || "未命名页面"}
+                      title={displayPageTitle(page.title)}
                     >
                       <span className="shrink-0">{page.icon || "📄"}</span>
                       <span className="truncate">
-                        {page.title || "未命名页面"}
+                        {displayPageTitle(page.title)}
                       </span>
                     </button>
                   ))}
@@ -134,11 +135,11 @@ export default function Breadcrumb({ pageId }: BreadcrumbProps) {
                   ? "font-medium text-zinc-800 dark:text-zinc-100"
                   : "hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               }`}
-              title={item.page.title || "未命名页面"}
+              title={displayPageTitle(item.page.title)}
             >
               <span className="shrink-0">{item.page.icon || "📄"}</span>
               <span className="truncate">
-                {item.page.title || "未命名页面"}
+                {displayPageTitle(item.page.title)}
               </span>
             </button>
           )}

@@ -593,9 +593,27 @@ function PageContent({ pageId }: { pageId: string }) {
             </div>
           ) : null}
 
-          {/* Top bar: breadcrumb on the left, favorite + actions menu on the right */}
+          {/* Top bar: nav + breadcrumb on the left, favorite + actions on the right */}
           <div className="mb-4 flex items-center justify-between gap-2">
-            <Breadcrumb pageId={pageId} />
+            <div className="flex min-w-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                title="后退"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.forward()}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                title="前进"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+              </button>
+              <Breadcrumb pageId={pageId} />
+            </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={handleToggleFavorite}

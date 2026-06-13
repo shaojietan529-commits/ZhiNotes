@@ -77,6 +77,9 @@ export default function KnowledgeBaseShell() {
   const [dropSpot, setDropSpot] = useState<DropSpot | null>(null);
   const [importing, setImporting] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [undoNotice, setUndoNotice] = useState<string | null>(null);
+  const pushPageMove = useWorkspaceStore((s) => s.pushPageMove);
+  const popPageMove = useWorkspaceStore((s) => s.popPageMove);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Which page imported files should land under (null = board root).
   const importTargetRef = useRef<string | null>(null);
@@ -160,8 +163,6 @@ export default function KnowledgeBaseShell() {
     fileInputRef.current?.click();
   }, []);
 
-  // Drag handling: before/after reorders within the board, inside nests the
-  // dragged card as a sub-page of the target.
   const handleDragEnd = useCallback(async () => {
     const dragged = draggedId;
     const spot = dropSpot;
@@ -172,11 +173,19 @@ export default function KnowledgeBaseShell() {
     const target = cards.find((c) => c.id === spot.pageId);
     if (!target) return;
 
+    const draggedPage = pages.find((p) => p.id === dragged);
+    const prevParentId = draggedPage?.parent_id ?? null;
+    const prevPosition = draggedPage?.position ?? 0;
+
     try {
+      let newParentId: string;
+      let newPosition: number;
       if (spot.position === "inside") {
-        const pos = await getNextPosition(target.id);
-        await movePage(dragged, target.id, pos);
+        newPosition = await getNextPosition(target.id);
+        newParentId = target.id;
+        await movePage(dragged, newParentId, newPosition);
       } else {
+        newParentId = rootId;
         const siblings = cards.filter((c) => c.id !== dragged);
         const targetIndex = siblings.findIndex((c) => c.id === target.id);
         const insertIndex =
@@ -187,15 +196,53 @@ export default function KnowledgeBaseShell() {
           insertIndex < siblings.length
             ? (siblings[insertIndex]?.position ?? prevPos + 2)
             : prevPos + 2;
-        const newPosition =
+        newPosition =
           insertIndex === 0 ? prevPos - 1 : (prevPos + nextPos) / 2;
-        await movePage(dragged, rootId, newPosition);
+        await movePage(dragged, newParentId, newPosition);
       }
+      pushPageMove({
+        pageId: dragged,
+        fromParentId: prevParentId,
+        fromPosition: prevPosition,
+        toParentId: newParentId,
+        toPosition: newPosition,
+        timestamp: Date.now(),
+      });
       await refresh();
     } catch (err) {
       console.error("[Zhinote] Knowledge base drag move failed:", err);
     }
-  }, [draggedId, dropSpot, cards, rootId, refresh]);
+  }, [draggedId, dropSpot, cards, pages, rootId, refresh, pushPageMove]);
+
+  const handleUndo = useCallback(async () => {
+    const record = popPageMove();
+    if (!record) return;
+    try {
+      await movePage(record.pageId, record.fromParentId!, record.fromPosition);
+      await refresh();
+      setUndoNotice("已撤回移动");
+      setTimeout(() => setUndoNotice(null), 2000);
+    } catch (err) {
+      console.error("[Zhinote] Undo move failed:", err);
+    }
+  }, [popPageMove, refresh]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
+        const active = document.activeElement;
+        const isEditing =
+          active instanceof HTMLInputElement ||
+          active instanceof HTMLTextAreaElement ||
+          (active instanceof HTMLElement && active.isContentEditable);
+        if (isEditing) return;
+        e.preventDefault();
+        void handleUndo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleUndo]);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -245,6 +292,12 @@ export default function KnowledgeBaseShell() {
               </div>
             )}
           </div>
+
+          {undoNotice && (
+            <p className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300">
+              {undoNotice}
+            </p>
+          )}
 
           {importNotice && (
             <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">

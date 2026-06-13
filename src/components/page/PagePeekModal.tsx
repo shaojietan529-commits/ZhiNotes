@@ -6,6 +6,7 @@ import IconPicker from "@/components/shared/IconPicker";
 import PageProperties from "@/components/page/PageProperties";
 import { usePage } from "@/hooks/usePage";
 import { usePages } from "@/hooks/usePages";
+import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
   parsePageProperties,
   stringifyPageProperties,
@@ -155,10 +156,47 @@ export default function PagePeekModal({
                 editable
                 onUpdate={handleContentUpdate}
               />
+
+              <PeekChildPages pageId={pageId} onOpen={onOpenFull} />
             </div>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function PeekChildPages({
+  pageId,
+  onOpen,
+}: {
+  pageId: string;
+  onOpen: (id: string) => void;
+}) {
+  const { pages } = usePages();
+  const children = pages.filter((p) => p.parent_id === pageId);
+  if (children.length === 0) return null;
+  return (
+    <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50/60 dark:border-zinc-800 dark:bg-zinc-900/40">
+      <div className="border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+        <h3 className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          子页面 · {children.length}
+        </h3>
+      </div>
+      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+        {children.map((child) => (
+          <li key={child.id}>
+            <button
+              type="button"
+              onClick={() => onOpen(child.id)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800/60"
+            >
+              <span className="shrink-0">{child.icon || "📄"}</span>
+              <span className="truncate">{displayPageTitle(child.title)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
