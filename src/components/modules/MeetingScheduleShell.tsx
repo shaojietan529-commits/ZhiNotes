@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
@@ -183,6 +184,38 @@ export default function MeetingScheduleShell() {
       .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
       .slice(0, 8);
   }, [entries]);
+
+  const SEEN_KEY = "zhinote.zhihui.seen";
+  const [seenIds, setSeenIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(SEEN_KEY);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const seenIdsRef = useRef(seenIds);
+  seenIdsRef.current = seenIds;
+
+  const markSeen = useCallback((id: string) => {
+    setSeenIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      window.localStorage.setItem(SEEN_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
+  const meetingNotes = useMemo(
+    () =>
+      [...meetings]
+        .filter((p) => !p.deleted_at)
+        .sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""))
+        .slice(0, 20),
+    [meetings]
+  );
 
   const openForm = (dateKey: string) => {
     setForm(emptyForm(dateKey));
@@ -657,6 +690,52 @@ export default function MeetingScheduleShell() {
               )}
             </div>
           </div>
+
+          {/* Middle: Meeting notes — all meetings sorted by last updated */}
+          {meetingNotes.length > 0 && (
+            <div className="mb-8 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+              <h2 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                会议纪要
+              </h2>
+              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {meetingNotes.map((page) => {
+                  const props = parsePageProperties(page.properties);
+                  const readProp = (name: string) =>
+                    props.find((p) => p.name === name)?.value ?? "";
+                  const dateVal = readProp("日期");
+                  const timeVal = readProp("时间");
+                  const platform = readProp("平台");
+                  const unseen = !seenIds.has(page.id);
+                  return (
+                    <li key={page.id}>
+                      <Link
+                        href={`/page/${page.id}`}
+                        onClick={() => markSeen(page.id)}
+                        className="flex w-full items-center gap-3 px-2 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                      >
+                        {unseen ? (
+                          <span className="h-2 w-2 shrink-0 rounded-full bg-orange-400" />
+                        ) : (
+                          <span className="h-2 w-2 shrink-0" />
+                        )}
+                        <span className="min-w-0 flex-1 truncate text-zinc-800 dark:text-zinc-100">
+                          {page.title || "未命名会议"}
+                        </span>
+                        <span className="shrink-0 text-xs text-zinc-400">
+                          {dateVal}{timeVal ? ` ${timeVal}` : ""}
+                        </span>
+                        {platform && (
+                          <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                            {platform}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
 
           {/* New meeting form */}
           {formOpen && (
