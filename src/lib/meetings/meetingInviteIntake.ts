@@ -262,35 +262,21 @@ function extractPasscode(text: string) {
 }
 
 function extractTimeRange(text: string) {
-  const chinese = text.match(
-    /(20\d{2})\s*[\/.\-年]\s*(\d{1,2})\s*[\/.\-月]\s*(\d{1,2})\s*日?\s*(?:\([^)]+\)|（[^）]+）)?\s*(?:周[一二三四五六日天]\s*)?([01]?\d|2[0-3]):([0-5]\d)(?:\s*(?:-|–|—|至|到|~)\s*([01]?\d|2[0-3]):([0-5]\d))?/
-  );
-  if (chinese) {
-    return buildTimeResult({
-      year: Number(chinese[1]),
-      month: Number(chinese[2]),
-      day: Number(chinese[3]),
-      hour: Number(chinese[4]),
-      minute: Number(chinese[5]),
-      endHour: chinese[6] ? Number(chinese[6]) : null,
-      endMinute: chinese[7] ? Number(chinese[7]) : null,
-    });
-  }
+  // Find the date and the time independently. Invites often separate them
+  // with periods, weekday tags or AM/PM markers ("06.14日（本周日）下午16:00点"),
+  // so a single contiguous pattern misses them — search each on its own.
+  const date = findDate(text);
+  const time = findTime(text);
 
-  const yearless = text.match(
-    /(?:^|[\s(（])(\d{1,2})\s*[\/.\-月]\s*(\d{1,2})\s*日?\s*(?:\([^)]+\)|（[^）]+）)?\s*(?:周[一二三四五六日天]\s*)?([01]?\d|2[0-3])[:：]([0-5]\d)(?:\s*(?:-|–|—|至|到|~)\s*([01]?\d|2[0-3])[:：]([0-5]\d))?/m
-  );
-  if (yearless) {
-    const month = Number(yearless[1]);
-    const day = Number(yearless[2]);
+  if (date && time) {
     return buildTimeResult({
-      year: inferYearForMonthDay(month, day),
-      month,
-      day,
-      hour: Number(yearless[3]),
-      minute: Number(yearless[4]),
-      endHour: yearless[5] ? Number(yearless[5]) : null,
-      endMinute: yearless[6] ? Number(yearless[6]) : null,
+      year: date.year ?? inferYearForMonthDay(date.month, date.day),
+      month: date.month,
+      day: date.day,
+      hour: time.hour,
+      minute: time.minute,
+      endHour: time.endHour,
+      endMinute: time.endMinute,
     });
   }
 
@@ -313,25 +299,151 @@ function extractTimeRange(text: string) {
     });
   }
 
-  const dateOnly = text.match(
-    /(20\d{2})\s*[\/.\-年]\s*(\d{1,2})\s*[\/.\-月]\s*(\d{1,2})\s*日?/
-  );
-  const timeOnly = text.match(
-    /(?:会议时间|时间|Time|Start time|Start)\s*[:：]?\s*([01]?\d|2[0-3]):([0-5]\d)(?:\s*(?:-|–|—|至|到|~|to)\s*([01]?\d|2[0-3]):([0-5]\d))?/i
-  );
-  if (dateOnly && timeOnly) {
-    return buildTimeResult({
-      year: Number(dateOnly[1]),
-      month: Number(dateOnly[2]),
-      day: Number(dateOnly[3]),
-      hour: Number(timeOnly[1]),
-      minute: Number(timeOnly[2]),
-      endHour: timeOnly[3] ? Number(timeOnly[3]) : null,
-      endMinute: timeOnly[4] ? Number(timeOnly[4]) : null,
-    });
+  // Date but no readable time: still place it on the right calendar day so
+  // the owner only has to fill in the start time.
+  if (date) {
+    const year = date.year ?? inferYearForMonthDay(date.month, date.day);
+    return {
+      date: `${year}-${pad(date.month)}-${pad(date.day)}`,
+      time: "",
+      endTime: "",
+      durationMinutes: null,
+    };
   }
 
   return { date: "", time: "", endTime: "", durationMinutes: null };
+}
+
+function validMonthDay(month: number, day: number) {
+  return month >= 1 && month <= 12 && day >= 1 && day <= 31;
+}
+
+// Find a date anywhere in the text: with an explicit year, or year-less in
+// Chinese (6月14日) or numeric (06.14日 / 6/14) form. Year-less dates infer
+// the nearest sensible year later.
+function findDate(
+  text: string
+): { year: number | null; month: number; day: number } | null {
+  const withYear = text.match(
+    /(20\d{2})\s*[\/.\-年]\s*(\d{1,2})\s*[\/.\-月]\s*(\d{1,2})\s*日?/
+  );
+  if (withYear && validMonthDay(Number(withYear[2]), Number(withYear[3]))) {
+    return {
+      year: Number(withYear[1]),
+      month: Number(withYear[2]),
+      day: Number(withYear[3]),
+    };
+  }
+
+  const chineseMonthDay = text.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日?/);
+  if (
+    chineseMonthDay &&
+    validMonthDay(Number(chineseMonthDay[1]), Number(chineseMonthDay[2]))
+  ) {
+    return {
+      year: null,
+      month: Number(chineseMonthDay[1]),
+      day: Number(chineseMonthDay[2]),
+    };
+  }
+
+  // Numeric with a 日 suffix is unambiguous even after punctuation: 06.14日.
+  const numericWithRi = text.match(
+    /(?:^|[^\d])(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*日/
+  );
+  if (
+    numericWithRi &&
+    validMonthDay(Number(numericWithRi[1]), Number(numericWithRi[2]))
+  ) {
+    return {
+      year: null,
+      month: Number(numericWithRi[1]),
+      day: Number(numericWithRi[2]),
+    };
+  }
+
+  // Bare numeric slash/dash date (6/14, 6-14), guarded so it is not part of
+  // a longer number run (phone, meeting id, version).
+  const numericSlash = text.match(
+    /(?:^|[^\d.\-/])(\d{1,2})\s*[\/\-]\s*(\d{1,2})(?![\/\-]\d)/
+  );
+  if (
+    numericSlash &&
+    validMonthDay(Number(numericSlash[1]), Number(numericSlash[2]))
+  ) {
+    return {
+      year: null,
+      month: Number(numericSlash[1]),
+      day: Number(numericSlash[2]),
+    };
+  }
+
+  return null;
+}
+
+// Convert a 12-hour clock reading to 24-hour using a Chinese period marker.
+function applyChinesePeriod(hour: number, period: string) {
+  if (period === "下午" || period === "晚上" || period === "中午") {
+    return hour < 12 ? hour + 12 : hour;
+  }
+  if (period === "上午" || period === "凌晨") {
+    return hour === 12 ? 0 : hour;
+  }
+  return hour;
+}
+
+interface ClockHit {
+  rawHour: number;
+  minute: number;
+  period: string;
+  start: number;
+  end: number;
+}
+
+// Parse the first clock in the text: optional Chinese period marker, then
+// HH:MM or H点(MM分)? or H点半.
+function parseClockAt(text: string): ClockHit | null {
+  const re =
+    /(上午|下午|中午|晚上|凌晨)?\s*([01]?\d|2[0-3])\s*(?:[:：]\s*([0-5]\d)|点\s*(?:(半)|([0-5]?\d)\s*分?)?)/;
+  const m = re.exec(text);
+  if (!m) return null;
+  let minute = 0;
+  if (m[3] !== undefined) minute = Number(m[3]);
+  else if (m[4] === "半") minute = 30;
+  else if (m[5] !== undefined && m[5] !== "") minute = Number(m[5]);
+  return {
+    rawHour: Number(m[2]),
+    minute,
+    period: m[1] ?? "",
+    start: m.index,
+    end: m.index + m[0].length,
+  };
+}
+
+// Find a start time (and optional end time) anywhere in the text, honouring
+// Chinese period markers and an optional range connector.
+function findTime(
+  text: string
+): { hour: number; minute: number; endHour: number | null; endMinute: number | null } | null {
+  const first = parseClockAt(text);
+  if (!first) return null;
+  const startHour = applyChinesePeriod(first.rawHour, first.period);
+
+  let endHour: number | null = null;
+  let endMinute: number | null = null;
+  const rest = text.slice(first.end);
+  const connector = rest.match(/^\s*点?\s*(?:-|–|—|~|至|到|to)\s*/i);
+  if (connector) {
+    const second = parseClockAt(rest.slice(connector[0].length));
+    if (second && second.start === 0) {
+      // The end inherits the start's period when it has none of its own.
+      const endPeriod = second.period || first.period;
+      endHour = applyChinesePeriod(second.rawHour, endPeriod);
+      endMinute = second.minute;
+    }
+  }
+
+  return { hour: startHour, minute: first.minute, endHour, endMinute };
 }
 
 function inferYearForMonthDay(month: number, day: number) {
