@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "ZhiNote 会议抓取",
+  "version": "0.1.0",
+  "description": "在你已登录的会议页面上，一键抓取会议信息，发送到 ZhiNote 的 ZhiHui 日历。只在你点击时读取当前页面，只发送到你自己的 ZhiNote。",
+  "permissions": ["activeTab", "scripting", "storage", "tabs"],
+  "host_permissions": [
+    "https://zhi-note.com/*",
+    "https://zhi-notes.vercel.app/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "抓取本页会议信息到 ZhiNote"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://zhi-note.com/*",
+        "https://zhi-notes.vercel.app/*"
+      ],
+      "js": ["content-zhinote.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

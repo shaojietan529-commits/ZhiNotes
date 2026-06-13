@@ -154,6 +154,33 @@ export default function MeetingScheduleShell() {
     });
   }, [dbReady, load]);
 
+  // Receive meeting text captured by the ZhiNote Chrome extension. The
+  // extension's content script grabs the text on a logged-in meeting page
+  // (bypassing the server's no-login wall) and hands it over via a DOM event.
+  // We just pre-fill the 会议信息输入 box; the owner still reviews and clicks
+  // 导入, so the existing parser and confirmation stay in charge.
+  useEffect(() => {
+    const handleIntake = (event: Event) => {
+      const detail = (event as CustomEvent<{ text?: string }>).detail;
+      const text = detail?.text;
+      if (typeof text !== "string" || !text.trim()) return;
+      setIntakeText(text.slice(0, 20000));
+      setIntakeError("");
+      setIntakeMessage("已从 Chrome 插件接收会议信息，请核对后点击导入。");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    const announceReady = () =>
+      window.dispatchEvent(new CustomEvent("zhihui:ready"));
+    window.addEventListener("zhihui:intake", handleIntake);
+    window.addEventListener("zhihui:hello", announceReady);
+    // Tell any already-loaded extension content script we are ready now.
+    announceReady();
+    return () => {
+      window.removeEventListener("zhihui:intake", handleIntake);
+      window.removeEventListener("zhihui:hello", announceReady);
+    };
+  }, []);
+
   const entries = useMemo<MeetingEntry[]>(
     () => meetings.map(toMeetingEntry),
     [meetings]

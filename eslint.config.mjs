@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The Chrome extension is a standalone browser-extension bundle with its
+    // own runtime (chrome.* APIs); it is not part of the Next.js app.
+    "chrome-extension/**",
   ]),
 ]);
 
