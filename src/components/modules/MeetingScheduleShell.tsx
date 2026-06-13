@@ -34,8 +34,8 @@ const PLATFORMS = [
   "其他",
 ];
 
-const RECORDING_DEVICES = ["Mac Mini", "Macbook Pro"];
-const DEFAULT_RECORDING_DEVICE = "Mac Mini";
+const RECORDING_DEVICES = ["MacBook Pro", "Mac Mini"];
+const DEFAULT_RECORDING_DEVICE = "MacBook Pro";
 
 interface MeetingEntry {
   page: Page;
