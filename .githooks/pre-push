@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+protected_branch_regex='^(main|master|production|prod)$'
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  branch="${remote_ref#refs/heads/}"
+
+  if [[ "$branch" =~ $protected_branch_regex ]]; then
+    cat >&2 <<MSG
+Blocked push to protected branch '$branch'.
+
+Use an agent branch such as codex/... or claude/..., then merge intentionally
+after review. This prevents Codex and Claude from accidentally overwriting
+each other or deploying unreviewed work.
+MSG
+    exit 1
+  fi
+done
+
+current_branch="$(git branch --show-current 2>/dev/null || true)"
+if [[ -n "$current_branch" && ! "$current_branch" =~ ^(codex|claude|feature|fix|chore)/ ]]; then
+  cat >&2 <<MSG
+Warning: current branch '$current_branch' does not follow the preferred agent
+branch naming pattern: codex/..., claude/..., feature/..., fix/..., or chore/...
+
+Continuing because only protected branch pushes are blocked.
+MSG
+fi
+
+exit 0

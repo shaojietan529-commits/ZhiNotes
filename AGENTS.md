@@ -25,9 +25,21 @@ This version has breaking changes. APIs, conventions, and file structure may dif
 
 ## Multi-Agent Ownership (Claude Code ⇄ Codex)
 
-Both agents work the same branch (`claude/plan-knowledge-management-app-OSoEs`).
-To avoid git conflicts, edits are divided by file. Stay inside your area;
-coordinate before touching a shared contract.
+Prefer separate worktrees and agent branches when practical. The current shared
+branch is `claude/plan-knowledge-management-app-OSoEs`; when both agents are on
+this branch, strict file ownership applies.
+The user should not need to remember which agent owns each area. Every agent
+must read this section, inspect the requested change, and keep itself inside the
+correct lane. To avoid git conflicts, edits are divided by file; coordinate
+before touching a shared contract.
+
+Before work:
+
+- Read `AGENTS.md` and `CLAUDE.md` from the repository root.
+- Run `git status` before editing.
+- If the worktree is clean, run `git pull --rebase` before editing.
+- If the worktree is dirty, do not pull blindly; first identify whether the
+  changes are yours, the user's, or another agent's.
 
 **Codex owns (meeting capture + parsing + local meeting agent):**
 - `chrome-extension/**` (popup, content scripts, capture logic, handshake test)
@@ -49,14 +61,29 @@ coordinate before touching a shared contract.
   joinUrl, joinUrlHost, meetingId, passcode, source, confidence, warnings).
   Codex may improve extracted *values*; do not rename/remove fields without
   updating `MeetingScheduleShell.tsx` (Claude Code's file).
+- Meeting job schema/API payloads between ZhiNote and the ZhiHui runner require
+  an explicit handoff before either agent changes them.
 
 **Shared files — edit alone in a dedicated commit (keeps rebases trivial):**
 - `AGENTS.md`, `package.json`, `pnpm-lock.yaml`, `eslint.config.mjs`,
   `scripts/verify-*.mjs`.
 
-**Both agents, every push:** `git pull --rebase` before pushing; never
-force-push the shared branch; keep `npm run build` green and run the relevant
-`npm run verify:*`.
+During work:
+
+- Edit only files in the owned area for the current task.
+- Do not touch secrets, `.env` files, API keys, meeting passwords, iCloud runtime queues, recording files, or private user data unless explicitly instructed.
+- If a needed change crosses ownership lanes, stop and leave a handoff note instead of guessing.
+
+Before push:
+
+- Run focused verification for the changed area.
+- Run `git diff` and `git status`.
+- Run `git pull --rebase` again before pushing.
+- If rebase conflicts touch another agent's files, stop and ask instead of resolving silently.
+- Push only after summarizing changed files, commands run, and remaining risks.
+- Never push directly to `main`, `master`, `production`, or `prod`; push a feature branch such as `codex/...` or `claude/...` and merge intentionally.
+- Never force-push the shared branch; keep `npm run build` green and run the
+  relevant `npm run verify:*`.
 
 ## Project Context
 
