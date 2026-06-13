@@ -167,6 +167,7 @@ function detectPlatform(text: string, host: string) {
 
 function extractTopic(text: string, fetchedTitle: string | undefined, platform: string) {
   const patterns = [
+    /(?:路演主题|活动主题|活动名称|会议标题|会议议题|会议主题|会议名称|主题|标题|名称)\s*[:：]\s*([^\n]+)/i,
     /(?:会议主题|会议名称|主题|Topic)\s*[:：]\s*([^\n]+)/i,
     /(?:Meeting topic|Meeting title)\s*[:：]\s*([^\n]+)/i,
     /(?:Title)\s*[:：]\s*([^\n]+)/i,
@@ -220,7 +221,7 @@ function extractOrganizer(text: string) {
   const patterns = [
     /([^\n]{1,80}?)\s*邀请您参加/,
     /^([^\n]{1,80}?)\s+is inviting you to\b/im,
-    /(?:组织者|主持人|发起人|Host|Organizer)\s*[:：]\s*([^\n]+)/i,
+    /(?:组织者|主持人|主持|主讲人|主讲嘉宾|演讲人|嘉宾|发起人|主办方|组织机构|机构|Host|Organizer)\s*[:：]\s*([^\n]+)/i,
   ];
 
   for (const pattern of patterns) {
@@ -337,47 +338,8 @@ function findDate(
     };
   }
 
-  // Relative dates: 今天/明天/后天/大后天
-  const relativeDay = text.match(/(?:大后天|后天|明天|今天)/);
-  if (relativeDay) {
-    const now = new Date();
-    const offsets: Record<string, number> = {
-      "今天": 0, "明天": 1, "后天": 2, "大后天": 3,
-    };
-    const offset = offsets[relativeDay[0]] ?? 0;
-    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
-    return {
-      year: target.getFullYear(),
-      month: target.getMonth() + 1,
-      day: target.getDate(),
-    };
-  }
-
-  // Relative weekday: 本周一/下周三/这周五/周六/下周日
-  const relWeekday = text.match(
-    /(?:本|这|下)?\s*周\s*([一二三四五六日天])/
-  );
-  if (relWeekday) {
-    const targetDow = WEEKDAY_MAP[relWeekday[1]];
-    const isNext = relWeekday[0].startsWith("下");
-    const now = new Date();
-    const currentDow = now.getDay();
-    let diff = targetDow - currentDow;
-    if (isNext) {
-      diff = diff <= 0 ? diff + 7 : diff;
-      diff += 7;
-    } else {
-      if (diff < 0) diff += 7;
-    }
-    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
-    return {
-      year: target.getFullYear(),
-      month: target.getMonth() + 1,
-      day: target.getDate(),
-    };
-  }
-
-  // Chinese month/day: 6月14日, 6月14号
+  // Explicit month/day should outrank relative weekday labels that often sit
+  // beside it, e.g. "06.14日（本周日）下午16:00点".
   const chineseMonthDay = text.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?/);
   if (
     chineseMonthDay &&
@@ -417,6 +379,46 @@ function findDate(
       year: null,
       month: Number(numericBare[1]),
       day: Number(numericBare[2]),
+    };
+  }
+
+  // Relative dates: 今天/明天/后天/大后天
+  const relativeDay = text.match(/(?:大后天|后天|明天|今天)/);
+  if (relativeDay) {
+    const now = new Date();
+    const offsets: Record<string, number> = {
+      "今天": 0, "明天": 1, "后天": 2, "大后天": 3,
+    };
+    const offset = offsets[relativeDay[0]] ?? 0;
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    return {
+      year: target.getFullYear(),
+      month: target.getMonth() + 1,
+      day: target.getDate(),
+    };
+  }
+
+  // Relative weekday: 本周一/下周三/这周五/周六/下周日
+  const relWeekday = text.match(
+    /(?:本|这|下)?\s*周\s*([一二三四五六日天])/
+  );
+  if (relWeekday) {
+    const targetDow = WEEKDAY_MAP[relWeekday[1]];
+    const isNext = relWeekday[0].startsWith("下");
+    const now = new Date();
+    const currentDow = now.getDay();
+    let diff = targetDow - currentDow;
+    if (isNext) {
+      diff = diff <= 0 ? diff + 7 : diff;
+      diff += 7;
+    } else {
+      if (diff < 0) diff += 7;
+    }
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+    return {
+      year: target.getFullYear(),
+      month: target.getMonth() + 1,
+      day: target.getDate(),
     };
   }
 
@@ -469,7 +471,8 @@ function findTime(
   text: string
 ): { hour: number; minute: number; endHour: number | null; endMinute: number | null } | null {
   // Try labeled time first — these are the highest-confidence hits.
-  const labelPattern = /(?:时间|开始时间|Time|Start)\s*[:：]\s*/gi;
+  const labelPattern =
+    /(?:会议时间|活动时间|路演时间|直播时间|开始时间|日期时间|时间|Time|Start)\s*[:：]\s*/gi;
   let labelMatch: RegExpExecArray | null;
   while ((labelMatch = labelPattern.exec(text)) !== null) {
     const afterLabel = text.slice(labelMatch.index + labelMatch[0].length);

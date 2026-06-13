@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useCallback, useState, useRef, useEffect, useMemo } from "react";
 import {
   ICON_CATEGORIES,
   searchIcons,
@@ -25,26 +25,24 @@ export default function IconPicker({
   const [activeCategory, setActiveCategory] = useState(ICON_CATEGORIES[0]!.id);
   const ref = useRef<HTMLDivElement>(null);
 
+  const closePicker = useCallback(() => {
+    setOpen(false);
+    setQuery("");
+    setActiveCategory(ICON_CATEGORIES[0]!.id);
+  }, []);
+
   // Close on click outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
+        closePicker();
       }
     }
     if (open) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [open]);
-
-  // Reset transient state whenever the picker closes.
-  useEffect(() => {
-    if (!open) {
-      setQuery("");
-      setActiveCategory(ICON_CATEGORIES[0]!.id);
-    }
-  }, [open]);
+  }, [closePicker, open]);
 
   const searching = query.trim().length > 0;
   const results = useMemo(() => (searching ? searchIcons(query) : []), [
@@ -58,7 +56,7 @@ export default function IconPicker({
 
   const choose = (icon: string) => {
     onSelect(icon);
-    setOpen(false);
+    closePicker();
   };
 
   return (
@@ -66,7 +64,9 @@ export default function IconPicker({
       {currentIcon ? (
         <button
           onClick={() => {
-            if (!disabled) setOpen(!open);
+            if (disabled) return;
+            if (open) closePicker();
+            else setOpen(true);
           }}
           disabled={disabled}
           className="text-3xl hover:bg-zinc-100 disabled:cursor-default disabled:hover:bg-transparent dark:hover:bg-zinc-800 dark:disabled:hover:bg-transparent rounded-md p-1 transition-colors"
@@ -79,7 +79,10 @@ export default function IconPicker({
         // "添加图标" affordance instead of a placeholder document icon.
         !disabled && (
           <button
-            onClick={() => setOpen(!open)}
+            onClick={() => {
+              if (open) closePicker();
+              else setOpen(true);
+            }}
             className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-zinc-300 transition-all hover:bg-zinc-100 hover:text-zinc-500 dark:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
             title="添加图标"
           >

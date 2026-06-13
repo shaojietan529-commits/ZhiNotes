@@ -541,7 +541,7 @@ export default function AccountShell() {
                   <p className="mt-1 text-xs text-zinc-400">
                     默认开启：页面与会议安排（标题、正文、层级、属性、封面）跟随账号
                     实时云端同步，登录同一账号的两个域名 / 多台设备会自动保持一致。
-                    切换标签页或几秒内即会自动对齐，也可点"立即同步"。
+                    切换标签页或几秒内即会自动对齐，也可点“立即同步”。
                   </p>
                 </div>
                 <button
