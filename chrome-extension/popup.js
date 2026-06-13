@@ -172,11 +172,18 @@ async function grabPageText() {
 
   const collectDocumentText = (doc, depth) => {
     const candidates = [];
-    const priorityParts = collectTitleCandidates(doc).map((title) => ({
-      label: "page-title",
-      score: 1000 + titleScore(title),
-      text: `页面标题：${title}`,
-    }));
+    const priorityParts = [
+      {
+        label: "page-url",
+        score: 1200,
+        text: `页面网址：${doc.location?.href || ""}`,
+      },
+      ...collectTitleCandidates(doc).map((title) => ({
+        label: "page-title",
+        score: 1000 + titleScore(title),
+        text: `页面标题：${title}`,
+      })),
+    ].filter((part) => part.text.trim());
     const addCandidate = (label, text) => {
       const normalized = normalizeText(text);
       if (!normalized) return;

@@ -76,7 +76,8 @@ export function parseMeetingInviteInput(
     : "";
   const combinedText = normalizeText([inputText, fetchedText].filter(Boolean).join("\n"));
   const url = extractFirstMeetingUrl(inputText) || extractFirstMeetingUrl(combinedText);
-  const joinUrlHost = safeUrlHost(url) || fetched?.host || "";
+  const sourceHost = extractSourceHost(inputText) || extractSourceHost(combinedText);
+  const joinUrlHost = safeUrlHost(url) || sourceHost || fetched?.host || "";
   const source = getSource(inputText, Boolean(fetched));
   const platform = detectPlatform(combinedText, joinUrlHost);
   const timeRange = extractTimeRange(combinedText);
@@ -136,7 +137,8 @@ function getSource(
 }
 
 function detectPlatform(text: string, host: string) {
-  const haystack = `${text}\n${host}`.toLowerCase();
+  const hostSignal = safeUrlHost(host) || host;
+  const haystack = `${text}\n${hostSignal}`.toLowerCase();
   if (haystack.includes("meeting.tencent.com") || haystack.includes("腾讯会议")) {
     return "腾讯会议";
   }
@@ -163,6 +165,21 @@ function detectPlatform(text: string, host: string) {
     return "Google Meet";
   }
   return "其他";
+}
+
+function extractSourceHost(text: string) {
+  const patterns = [
+    /(?:页面网址|来源网址|当前网址|网页地址|URL)\s*[:：]\s*(https?:\/\/[^\s<>"'，。；、)）]+)/i,
+    /(https?:\/\/[^\s<>"'，。；、)）]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const host = safeUrlHost(match?.[1] ?? "");
+    if (host) return host;
+  }
+
+  return "";
 }
 
 function extractTopic(text: string, fetchedTitle: string | undefined, platform: string) {
