@@ -51,6 +51,11 @@ interface MeetingEntry {
   confidence: string;
   recordingDevice: string;
   fallbackDevice: string;
+  traceStatus: string;
+  timeStatus: string;
+  recordingStatus: string;
+  importedAt: string;
+  traceNote: string;
 }
 
 interface MeetingFormState {
@@ -96,6 +101,12 @@ interface CreateMeetingOptions {
   confidence?: IntakeMeeting["confidence"];
   recordingDevice?: string;
   fallbackDevice?: string;
+  traceStatus?: string;
+  timeStatus?: string;
+  recordingStatus?: string;
+  importedAt?: string;
+  traceNote?: string;
+  warnings?: string[];
 }
 
 export default function MeetingScheduleShell() {
@@ -177,6 +188,16 @@ export default function MeetingScheduleShell() {
       const title = [topic, organizer, draft.date].filter(Boolean).join("-");
       const page = await createPage({ parentId: rootId, title, icon: "🗓️" });
       const timeLabel = options.timeLabel ?? draft.time.trim();
+      const importedAt = options.importedAt ?? new Date().toISOString();
+      const timeStatus =
+        options.timeStatus ?? (draft.date && timeLabel ? "已识别" : "待补充");
+      const traceStatus =
+        options.traceStatus ??
+        (timeStatus === "已识别" ? "已留痕-待执行" : "已留痕-待补时间");
+      const recordingStatus = options.recordingStatus ?? "待执行";
+      const traceNote =
+        options.traceNote ||
+        (options.warnings?.length ? options.warnings.join("；") : "");
 
       const props: PageProperty[] = [
         { ...createPageProperty("date", "日期"), value: draft.date },
@@ -187,6 +208,22 @@ export default function MeetingScheduleShell() {
           options: PLATFORMS,
         },
         { ...createPageProperty("text", "组织者"), value: organizer },
+        {
+          ...createPageProperty("select", "会议痕迹"),
+          value: traceStatus,
+          options: ["已留痕-待执行", "已留痕-待补时间", "导入失败-已留痕", "已完成", "已取消"],
+        },
+        {
+          ...createPageProperty("select", "时间状态"),
+          value: timeStatus,
+          options: ["已识别", "待补充"],
+        },
+        {
+          ...createPageProperty("select", "录制状态"),
+          value: recordingStatus,
+          options: ["待执行", "录制中", "录制成功", "录制失败", "未执行"],
+        },
+        { ...createPageProperty("text", "导入时间"), value: importedAt },
         createPageProperty("tags", "相关公司"),
         createPageProperty("tags", "相关行业"),
       ];
@@ -250,9 +287,33 @@ export default function MeetingScheduleShell() {
           options: ["高", "中", "低"],
         });
       }
+      if (traceNote) {
+        props.push({
+          ...createPageProperty("text", "留痕说明"),
+          value: traceNote,
+        });
+      }
 
       await updatePage(page.id, {
         properties: stringifyPageProperties(props),
+        content_text: buildMeetingTraceContent({
+          title,
+          topic,
+          organizer,
+          date: draft.date,
+          time: timeLabel,
+          platform: normalizePlatform(draft.platform),
+          joinUrl: options.joinUrl ?? "",
+          meetingId: options.meetingId ?? "",
+          hasPasscode: Boolean(options.passcode),
+          recordingDevice: options.recordingDevice ?? DEFAULT_RECORDING_DEVICE,
+          fallbackDevice: options.fallbackDevice ?? DEFAULT_RECORDING_DEVICE,
+          traceStatus,
+          timeStatus,
+          recordingStatus,
+          importedAt,
+          traceNote,
+        }),
       });
 
       await refresh();
@@ -289,6 +350,7 @@ export default function MeetingScheduleShell() {
 
       const meeting = data.meeting;
       setIntakePreview(meeting);
+      const hasExecutableTime = Boolean(meeting.date && meeting.time);
       const draft: MeetingFormState = {
         topic: meeting.topic,
         organizer: meeting.organizer,
@@ -296,13 +358,6 @@ export default function MeetingScheduleShell() {
         time: meeting.time,
         platform: normalizePlatform(meeting.platform),
       };
-
-      if (!meeting.date || !meeting.time) {
-        setForm(draft);
-        setFormOpen(true);
-        setIntakeError("没有读到明确会议日期和开始时间，已把可识别内容填入手动表单。");
-        return;
-      }
 
       await createMeetingPage(draft, {
         importSource: "会议信息输入",
@@ -314,12 +369,38 @@ export default function MeetingScheduleShell() {
         recordingDevice: intakeRecordingDevice,
         fallbackDevice: DEFAULT_RECORDING_DEVICE,
         confidence: meeting.confidence,
+        traceStatus: hasExecutableTime ? "已留痕-待执行" : "已留痕-待补时间",
+        timeStatus: hasExecutableTime ? "已识别" : "待补充",
+        recordingStatus: "待执行",
+        traceNote: hasExecutableTime
+          ? "会议已导入，等待自动接入与录制。"
+          : "导入时没有读到明确日期和开始时间，已先保留会议痕迹；补齐时间后再执行自动接入。",
+        warnings: meeting.warnings,
         timeLabel: formatMeetingTime(meeting.time, meeting.endTime),
       });
       setIntakeText("");
-      setIntakeMessage("已导入会议日历。入会链接、会议号和会议密码已保存到会议页面。");
+      setIntakeMessage(
+        hasExecutableTime
+          ? "已导入会议日历。入会链接、会议号和会议密码已保存到会议页面。"
+          : "已保留会议痕迹，但还缺明确开始时间；请稍后打开会议页补齐。"
+      );
     } catch (error) {
-      setIntakeError(error instanceof Error ? error.message : "读取会议信息失败。");
+      const message = error instanceof Error ? error.message : "读取会议信息失败。";
+      const fallback = buildFallbackTraceFromInput(input, form.date || toDateKey(new Date()));
+      await createMeetingPage(fallback.draft, {
+        importSource: "会议信息输入",
+        hasJoinUrl: Boolean(fallback.joinUrl),
+        joinUrlHost: fallback.joinUrlHost,
+        joinUrl: fallback.joinUrl,
+        recordingDevice: intakeRecordingDevice,
+        fallbackDevice: DEFAULT_RECORDING_DEVICE,
+        confidence: "low",
+        traceStatus: "导入失败-已留痕",
+        timeStatus: "待补充",
+        recordingStatus: "未执行",
+        traceNote: `解析接口失败，但已保留会议痕迹。失败原因：${message}`,
+      });
+      setIntakeError(`解析失败但已保留痕迹：${message}`);
     } finally {
       setIntakeLoading(false);
     }
@@ -327,6 +408,18 @@ export default function MeetingScheduleShell() {
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
   const todayKey = toDateKey(new Date());
+  const traceReviewEntries = useMemo(
+    () =>
+      entries
+        .filter(
+          (entry) =>
+            entry.timeStatus === "待补充" ||
+            entry.traceStatus === "导入失败-已留痕" ||
+            entry.recordingStatus === "录制失败"
+        )
+        .slice(0, 12),
+    [entries]
+  );
 
   const goPrev = () =>
     setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
@@ -482,6 +575,44 @@ export default function MeetingScheduleShell() {
               </ul>
             ) : null}
           </div>
+
+          {traceReviewEntries.length > 0 && (
+            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                    待补时间 / 失败留痕
+                  </h2>
+                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                    这些会议已经入库留痕，但还不能保证自动接入或录制。
+                  </p>
+                </div>
+                <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-700 dark:bg-amber-900/50 dark:text-amber-200">
+                  {traceReviewEntries.length} 条
+                </span>
+              </div>
+              <div className="divide-y divide-amber-200/70 dark:divide-amber-900/50">
+                {traceReviewEntries.map((entry) => (
+                  <button
+                    key={entry.page.id}
+                    type="button"
+                    onClick={() => setSelectedMeeting(entry)}
+                    className="flex w-full items-center gap-3 py-2 text-left text-sm"
+                  >
+                    <span className="w-28 shrink-0 text-xs text-amber-700 dark:text-amber-300">
+                      {entry.dateKey || "未设日期"} {entry.time || "待补时间"}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-amber-950 dark:text-amber-100">
+                      {entry.topic}
+                    </span>
+                    <span className="shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-[10px] text-amber-700 dark:bg-zinc-900/50 dark:text-amber-200">
+                      {entry.traceStatus || entry.timeStatus}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* New meeting form */}
           {formOpen && (
@@ -747,6 +878,11 @@ function toMeetingEntry(page: Page): MeetingEntry {
     confidence: read("解析置信度"),
     recordingDevice: read("录制设备"),
     fallbackDevice: read("默认回退设备"),
+    traceStatus: read("会议痕迹"),
+    timeStatus: read("时间状态"),
+    recordingStatus: read("录制状态"),
+    importedAt: read("导入时间"),
+    traceNote: read("留痕说明"),
   };
 }
 
@@ -760,6 +896,123 @@ function normalizePlatform(platform: string) {
 function formatMeetingTime(startTime: string, endTime: string) {
   if (!startTime) return "";
   return endTime ? `${startTime}-${endTime}` : startTime;
+}
+
+function extractFirstUrl(value: string) {
+  return value.match(/https?:\/\/[^\s<>"'，。；、)）]+/i)?.[0] ?? "";
+}
+
+function safeUrlHost(value: string) {
+  if (!value) return "";
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return "";
+  }
+}
+
+function buildFallbackTraceFromInput(input: string, fallbackDate: string) {
+  const joinUrl = extractFirstUrl(input);
+  const joinUrlHost = safeUrlHost(joinUrl);
+  const firstLine =
+    input
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line && !/^https?:\/\//i.test(line)) || "待补会议";
+
+  return {
+    draft: {
+      topic: firstLine.slice(0, 80),
+      organizer: "",
+      date: fallbackDate,
+      time: "",
+      platform: detectPlatformFromText(`${input}\n${joinUrlHost}`),
+    },
+    joinUrl,
+    joinUrlHost,
+  };
+}
+
+function detectPlatformFromText(value: string) {
+  const text = value.toLowerCase();
+  if (text.includes("meeting.tencent.com") || text.includes("腾讯会议")) return "腾讯会议";
+  if (text.includes("zoom.us") || /\bzoom\b/i.test(value)) return "Zoom";
+  if (text.includes("webex.com") || /\bwebex\b/i.test(value)) return "Webex";
+  if (text.includes("comein.cn") || text.includes("进门财经")) return "进门财经";
+  if (text.includes("meritco-group.com") || text.includes("久谦")) return "久谦论坛";
+  if (text.includes("teams.microsoft.com") || /\bteams\b/i.test(value)) return "Teams";
+  if (text.includes("meet.google.com") || text.includes("google meet")) return "Google Meet";
+  return "其他";
+}
+
+function buildMeetingTraceContent({
+  title,
+  topic,
+  organizer,
+  date,
+  time,
+  platform,
+  joinUrl,
+  meetingId,
+  hasPasscode,
+  recordingDevice,
+  fallbackDevice,
+  traceStatus,
+  timeStatus,
+  recordingStatus,
+  importedAt,
+  traceNote,
+}: {
+  title: string;
+  topic: string;
+  organizer: string;
+  date: string;
+  time: string;
+  platform: string;
+  joinUrl: string;
+  meetingId: string;
+  hasPasscode: boolean;
+  recordingDevice: string;
+  fallbackDevice: string;
+  traceStatus: string;
+  timeStatus: string;
+  recordingStatus: string;
+  importedAt: string;
+  traceNote: string;
+}) {
+  const rows = [
+    ["主题", topic],
+    ["组织者", organizer || "未读取"],
+    ["日期", date || "未设置"],
+    ["时间", time || "待补充"],
+    ["平台", platform],
+    ["入会链接", joinUrl || "未提供"],
+    ["会议号", meetingId || "未读取"],
+    ["会议密码", hasPasscode ? "已保存" : "未读取"],
+    ["录制设备", recordingDevice],
+    ["默认回退设备", fallbackDevice],
+    ["会议痕迹", traceStatus],
+    ["时间状态", timeStatus],
+    ["录制状态", recordingStatus],
+    ["导入时间", importedAt],
+    ["留痕说明", traceNote || "无"],
+  ];
+
+  return `<h1>${escapeHtml(title)}</h1><p>ZhiHui 已保留这条会议痕迹。无论后续录制、转写或发布是否成功，这个页面都作为审计记录保留。</p><table><tbody>${rows
+    .map(
+      ([label, value]) =>
+        `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`
+    )
+    .join("")}</tbody></table>`;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function confidenceLabel(confidence: IntakeMeeting["confidence"]) {
@@ -837,6 +1090,10 @@ function MeetingDetailWindow({
         <DetailRow label="会议密码" value={entry.passcode || "未读取"} />
         <DetailRow label="入会链接" value={entry.joinUrl || "未提供"} multiline />
         <DetailRow label="链接域名" value={entry.joinUrlHost || "未提供"} />
+        <DetailRow label="会议痕迹" value={entry.traceStatus || "未记录"} />
+        <DetailRow label="时间状态" value={entry.timeStatus || "未记录"} />
+        <DetailRow label="录制状态" value={entry.recordingStatus || "未记录"} />
+        <DetailRow label="导入时间" value={entry.importedAt || "未记录"} />
         <DetailRow
           label="录制设备"
           value={entry.recordingDevice || DEFAULT_RECORDING_DEVICE}
@@ -847,6 +1104,7 @@ function MeetingDetailWindow({
         />
         <DetailRow label="导入来源" value={entry.importSource || "手动创建"} />
         <DetailRow label="解析置信度" value={entry.confidence || "未记录"} />
+        <DetailRow label="留痕说明" value={entry.traceNote || "无"} multiline />
       </div>
 
       <div className="flex justify-end gap-2 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
@@ -901,6 +1159,8 @@ function buildMeetingSummary(entry: MeetingEntry) {
     entry.meetingId ? `会议号：${entry.meetingId}` : "",
     entry.passcode ? `密码：${entry.passcode}` : "",
     `录制设备：${entry.recordingDevice || DEFAULT_RECORDING_DEVICE}`,
+    entry.traceStatus ? `痕迹：${entry.traceStatus}` : "",
+    entry.recordingStatus ? `录制：${entry.recordingStatus}` : "",
   ]
     .filter(Boolean)
     .join("\n");
