@@ -468,10 +468,20 @@ export default function MeetingScheduleShell() {
     let fixed = 0;
     for (const entry of pending) {
       try {
+        const inputText = [
+          entry.page.title,
+          entry.topic,
+          entry.dateKey,
+          entry.time,
+          entry.platform,
+          entry.organizer,
+        ]
+          .filter(Boolean)
+          .join(" ");
         const res = await fetch("/api/meetings/intake", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ input: entry.topic }),
+          body: JSON.stringify({ input: inputText }),
         });
         const data = await res.json();
         const m = data?.meeting;
@@ -483,19 +493,27 @@ export default function MeetingScheduleShell() {
           const prop = props.find((p) => p.name === name);
           if (prop) prop.value = value;
         };
-        if (m.date && !entry.dateKey) update("日期", m.date);
+        let changed = false;
+        if (m.date && m.date !== entry.dateKey) {
+          update("日期", m.date);
+          changed = true;
+        }
         if (m.time && !entry.time) {
           update("时间", formatMeetingTime(m.time, m.endTime));
           update("时间状态", "已识别");
           update("会议痕迹", "已留痕-待执行");
+          changed = true;
         }
         if (m.platform && m.platform !== "其他" && entry.platform === "其他") {
           update("平台", m.platform);
+          changed = true;
         }
-        await updatePage(entry.page.id, {
-          properties: stringifyPageProperties(props),
-        });
-        fixed++;
+        if (changed) {
+          await updatePage(entry.page.id, {
+            properties: stringifyPageProperties(props),
+          });
+          fixed++;
+        }
       } catch {
         // skip individual failures
       }
