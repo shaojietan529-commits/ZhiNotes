@@ -346,7 +346,6 @@ export default function Sidebar() {
       startY: e.clientY,
       hasMoved: false,
     };
-    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePrimaryPointerMove = (e: PointerEvent<HTMLElement>) => {
@@ -363,6 +362,7 @@ export default function Sidebar() {
       drag.hasMoved = true;
       suppressPrimaryClickRef.current = true;
       setDraggedPrimaryId(drag.itemId);
+      e.currentTarget.setPointerCapture(e.pointerId);
     }
 
     // Pointer capture routes all events to the pressed element, so hit-test
