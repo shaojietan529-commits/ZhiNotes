@@ -235,13 +235,23 @@ export default function MeetingScheduleShell() {
     });
   }, []);
 
+  // 会议纪要 only lists meetings that are actually done: the recording
+  // succeeded or the meeting is marked 已完成 (which is when the note/纪要 has
+  // been produced). Pending/upcoming meetings stay out of this list — they
+  // live on the calendar and in 今日会议 until they finish.
   const meetingNotes = useMemo(
     () =>
-      [...meetings]
-        .filter((p) => !p.deleted_at)
-        .sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""))
+      entries
+        .filter(
+          (e) =>
+            !e.page.deleted_at &&
+            (e.recordingStatus === "录制成功" || e.traceStatus === "已完成")
+        )
+        .sort((a, b) =>
+          (b.page.updated_at || "").localeCompare(a.page.updated_at || "")
+        )
         .slice(0, 20),
-    [meetings]
+    [entries]
   );
 
   const openForm = (dateKey: string) => {
@@ -806,26 +816,20 @@ export default function MeetingScheduleShell() {
             </div>
           </div>
 
-          {/* Middle: Meeting notes — all meetings sorted by last updated */}
+          {/* Middle: Meeting notes — only finished meetings whose note is ready */}
           {meetingNotes.length > 0 && (
             <div className="mb-8 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
               <h2 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 会议纪要
               </h2>
               <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {meetingNotes.map((page) => {
-                  const props = parsePageProperties(page.properties);
-                  const readProp = (name: string) =>
-                    props.find((p) => p.name === name)?.value ?? "";
-                  const dateVal = readProp("日期");
-                  const timeVal = readProp("时间");
-                  const platform = readProp("平台");
-                  const unseen = !seenIds.has(page.id);
+                {meetingNotes.map((entry) => {
+                  const unseen = !seenIds.has(entry.page.id);
                   return (
-                    <li key={page.id}>
+                    <li key={entry.page.id}>
                       <Link
-                        href={`/page/${page.id}`}
-                        onClick={() => markSeen(page.id)}
+                        href={`/page/${entry.page.id}`}
+                        onClick={() => markSeen(entry.page.id)}
                         className="flex w-full items-center gap-3 px-2 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                       >
                         {unseen ? (
@@ -834,14 +838,15 @@ export default function MeetingScheduleShell() {
                           <span className="h-2 w-2 shrink-0" />
                         )}
                         <span className="min-w-0 flex-1 truncate text-zinc-800 dark:text-zinc-100">
-                          {page.title || "未命名会议"}
+                          {entry.topic || "未命名会议"}
                         </span>
                         <span className="shrink-0 text-xs text-zinc-400">
-                          {dateVal}{timeVal ? ` ${timeVal}` : ""}
+                          {entry.dateKey}
+                          {entry.time ? ` ${entry.time}` : ""}
                         </span>
-                        {platform && (
+                        {entry.platform && (
                           <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
-                            {platform}
+                            {entry.platform}
                           </span>
                         )}
                       </Link>
