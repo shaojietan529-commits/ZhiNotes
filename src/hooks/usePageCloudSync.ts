@@ -1,8 +1,9 @@
 "use client";
 
-// Runs account page cloud sync in the background while the app is open:
-// once on load, then on a fixed interval, plus manual triggers. Stays
-// completely inert until the owner enables the toggle on /account.
+// Runs account page cloud sync in the background while the app is open so
+// both domains stay in step in near-real-time: on load, on a short interval,
+// whenever the tab regains focus/visibility, after local edits settle, and
+// on manual triggers. Still does nothing unless signed in to the account.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -14,7 +15,12 @@ import {
   PAGE_SYNC_CONFIG_EVENT,
 } from "@/lib/pages/accountPageSync";
 
-const SYNC_INTERVAL_MS = 60 * 1000;
+// Background heartbeat. Short enough to feel live, long enough to stay well
+// within KV rate limits. Focus/visibility/edit triggers cover the rest.
+const SYNC_INTERVAL_MS = 12 * 1000;
+// Debounce after a local page change before pushing, so a burst of edits
+// (typing, drag) collapses into one sync.
+const EDIT_DEBOUNCE_MS = 4 * 1000;
 
 export type PageCloudSyncState =
   | "disabled"
@@ -25,6 +31,7 @@ export type PageCloudSyncState =
 
 export function usePageCloudSync() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
+  const pages = useWorkspaceStore((s) => s.pages);
   const { refresh } = usePages();
   // Start as "disabled" on both server and client so SSR hydration matches;
   // the first effect run flips it based on the real localStorage flag.
@@ -66,14 +73,43 @@ export function usePageCloudSync() {
   useEffect(() => {
     if (!dbReady) return;
     void runSync();
-    const interval = window.setInterval(() => void runSync(), SYNC_INTERVAL_MS);
+    // Only poll while the tab is visible; returning to a hidden tab re-syncs
+    // via the visibility/focus handlers below, so background tabs stay quiet.
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void runSync();
+    }, SYNC_INTERVAL_MS);
     const handleConfig = () => void runSync();
+    // Switching back to a tab (the user's two-domain workflow) pulls the
+    // latest immediately, so edits made on the other domain show up at once.
+    const handleVisible = () => {
+      if (document.visibilityState === "visible") void runSync();
+    };
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
+    window.addEventListener("focus", handleConfig);
+    window.addEventListener("online", handleConfig);
+    document.addEventListener("visibilitychange", handleVisible);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
+      window.removeEventListener("focus", handleConfig);
+      window.removeEventListener("online", handleConfig);
+      document.removeEventListener("visibilitychange", handleVisible);
     };
   }, [dbReady, runSync]);
+
+  // Push local edits up shortly after they settle. Reconcile is idempotent
+  // (no diff → no network write), and the pull→refresh path converges, so
+  // this debounced trigger cannot loop.
+  const firstEditRun = useRef(true);
+  useEffect(() => {
+    if (!dbReady) return;
+    if (firstEditRun.current) {
+      firstEditRun.current = false;
+      return;
+    }
+    const timer = window.setTimeout(() => void runSync(), EDIT_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [pages, dbReady, runSync]);
 
   return { state, lastSyncAt, syncNow: runSync };
 }

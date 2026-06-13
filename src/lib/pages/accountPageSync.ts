@@ -37,7 +37,10 @@ const MAX_COVER_CHARS = 300 * 1024;
 
 export function isPageSyncEnabled(): boolean {
   if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(ENABLED_KEY) === "true";
+  // On by default (opt-out): the owner asked for both domains to stay in
+  // sync automatically, so only an explicit "false" disables it. Sync still
+  // does nothing unless the browser is signed in to the account.
+  return window.localStorage.getItem(ENABLED_KEY) !== "false";
 }
 
 export function setPageSyncEnabled(enabled: boolean): void {

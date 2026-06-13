@@ -145,7 +145,11 @@ check(
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
 check(
   pageSyncClient.includes("if (!isPageSyncEnabled())"),
-  "reconcile 必须在开关关闭时直接返回（默认不上传）"
+  "reconcile 必须在开关关闭时直接返回（关闭后不上传）"
+);
+check(
+  pageSyncClient.includes('!== "false"'),
+  "页面同步默认开启（opt-out）：仅显式 false 才关闭"
 );
 check(
   !pageSyncClient.includes("console.log"),
@@ -183,5 +187,5 @@ if (errors.length > 0) {
   process.exit(1);
 }
 console.log(
-  "verify:account 通过 ✓ （门控、哈希、限流、httpOnly、掩码邮箱、页面同步默认关闭）"
+  "verify:account 通过 ✓ （门控、哈希、限流、httpOnly、掩码邮箱、页面同步默认开启但需登录）"
 );
