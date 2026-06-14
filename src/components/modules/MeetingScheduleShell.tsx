@@ -1366,6 +1366,13 @@ function MeetingDetailWindow({
             录制链路未就绪：会前 5 秒 Audio Hijack proof 没有通过。本次不会静默入会，需先修复录制权限或录音输出。
           </div>
         )}
+        {entry.recordingStatus !== "录制成功" &&
+          entry.recordingStatus !== "录制中" &&
+          entry.recordingGateStatus !== "录制链路未就绪" && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+              自动录制尚未启用：本地录制 Agent 还没接入，系统不会自动录这场会议。需要录音请手动操作（Audio Hijack / 会议自带录制）。
+            </div>
+          )}
         <DetailRow label="日期" value={entry.dateKey || "未设置"} />
         <DetailRow label="时间" value={entry.time || "未设置"} />
         <DetailRow label="平台" value={entry.platform || "未设置"} />
