@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -129,6 +136,9 @@ export default function MeetingScheduleShell() {
   const [intakeMessage, setIntakeMessage] = useState("");
   const [intakeError, setIntakeError] = useState("");
   const [intakePreview, setIntakePreview] = useState<IntakeMeeting | null>(null);
+  const [startRecordingMessage, setStartRecordingMessage] = useState("");
+  const [startRecordingError, setStartRecordingError] = useState("");
+  const [startingRecordingId, setStartingRecordingId] = useState("");
   const [intakeRecordingDevice, setIntakeRecordingDevice] = useState(
     DEFAULT_RECORDING_DEVICE
   );
@@ -565,6 +575,60 @@ export default function MeetingScheduleShell() {
     );
   }, [entries, refresh, load]);
 
+  const handleStartRecording = useCallback(
+    async (entry: MeetingEntry, runNow = true) => {
+      if (startingRecordingId) return;
+      setStartingRecordingId(entry.page.id);
+      setStartRecordingError("");
+      setStartRecordingMessage("");
+      try {
+        const res = await fetch("/api/meetings/agent/jobs", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            runNow,
+            meeting: buildAgentMeetingPayload(entry),
+          }),
+        });
+        const data = (await res.json()) as { error?: string; job_id?: string };
+        if (!res.ok) {
+          throw new Error(data.error || "创建录制任务失败。");
+        }
+        const props = parsePageProperties(entry.page.properties);
+        const update = (name: string, value: string) => {
+          const prop = props.find((p) => p.name === name);
+          if (prop) prop.value = value;
+        };
+        update("录制状态", runNow ? "录制中" : "待执行");
+        update("录制链路", "未验证");
+        update("会议痕迹", "已留痕-待执行");
+        update(
+          "留痕说明",
+          runNow
+            ? "已手动下发立即录制任务，等待本地 runner 拉取并执行。"
+            : "已下发定时录制任务，等待本地 runner 到点执行。"
+        );
+        await updatePage(entry.page.id, {
+          properties: stringifyPageProperties(props),
+        });
+        setStartRecordingMessage(
+          runNow
+            ? "已下发立即录制任务。本地 runner 会拉取任务并开始入会录制。"
+            : "已下发定时录制任务。"
+        );
+        await refresh();
+        await load();
+      } catch (error) {
+        setStartRecordingError(
+          error instanceof Error ? error.message : "创建录制任务失败。"
+        );
+      } finally {
+        setStartingRecordingId("");
+      }
+    },
+    [load, refresh, startingRecordingId]
+  );
+
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
   const todayKey = toDateKey(new Date());
   const traceReviewEntries = useMemo(
@@ -672,6 +736,16 @@ export default function MeetingScheduleShell() {
               {intakeError && (
                 <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
                   {intakeError}
+                </p>
+              )}
+              {startRecordingMessage && (
+                <p className="mt-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+                  {startRecordingMessage}
+                </p>
+              )}
+              {startRecordingError && (
+                <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                  {startRecordingError}
                 </p>
               )}
               {intakePreview && (
@@ -994,10 +1068,17 @@ export default function MeetingScheduleShell() {
                   </div>
                   <div className="mt-0.5 flex flex-col gap-0.5 overflow-visible">
                     {dayMeetings.slice(0, 3).map((entry) => (
-                      <button
+                      <div
                         key={entry.page.id}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setSelectedMeeting(entry)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelectedMeeting(entry);
+                          }
+                        }}
                         onContextMenu={(e) => {
                           e.preventDefault();
                           setContextMenu({
@@ -1016,8 +1097,15 @@ export default function MeetingScheduleShell() {
                             {entry.topic}
                           </span>
                         </span>
-                        <MeetingHoverCard entry={entry} />
-                      </button>
+                        <MeetingHoverCard
+                          entry={entry}
+                          onStartRecording={(event) => {
+                            event.stopPropagation();
+                            void handleStartRecording(entry, true);
+                          }}
+                          starting={startingRecordingId === entry.page.id}
+                        />
+                      </div>
                     ))}
                     {dayMeetings.length > 3 && (
                       <span className="px-1 text-[10px] text-zinc-400">
@@ -1090,6 +1178,8 @@ export default function MeetingScheduleShell() {
           entry={selectedMeeting}
           onClose={() => setSelectedMeeting(null)}
           onOpenFull={(id) => router.push(`/page/${id}`)}
+          onStartRecording={() => void handleStartRecording(selectedMeeting, true)}
+          starting={startingRecordingId === selectedMeeting.page.id}
         />
       )}
     </div>
@@ -1131,6 +1221,23 @@ function toMeetingEntry(page: Page): MeetingEntry {
     recordingGateStatus: read("录制链路"),
     importedAt: read("导入时间"),
     traceNote: read("留痕说明"),
+  };
+}
+
+function buildAgentMeetingPayload(entry: MeetingEntry) {
+  return {
+    pageId: entry.page.id,
+    title: entry.page.title,
+    topic: entry.topic,
+    organizer: entry.organizer,
+    platform: entry.platform,
+    date: entry.dateKey,
+    time: entry.time,
+    joinUrl: entry.joinUrl,
+    meetingId: entry.meetingId,
+    passcode: entry.passcode,
+    recordingDevice: entry.recordingDevice || DEFAULT_RECORDING_DEVICE,
+    fallbackDevice: entry.fallbackDevice || DEFAULT_RECORDING_DEVICE,
   };
 }
 
@@ -1334,9 +1441,18 @@ function getMeetingStatusIndicator(entry: MeetingEntry) {
   };
 }
 
-function MeetingHoverCard({ entry }: { entry: MeetingEntry }) {
+function MeetingHoverCard({
+  entry,
+  onStartRecording,
+  starting,
+}: {
+  entry: MeetingEntry;
+  onStartRecording: (event: MouseEvent<HTMLButtonElement>) => void;
+  starting: boolean;
+}) {
+  const canStart = Boolean(entry.joinUrl || entry.meetingId);
   return (
-    <span className="pointer-events-none absolute left-0 top-full z-30 mt-1 hidden w-72 rounded-md border border-zinc-200 bg-white p-3 text-left text-xs leading-5 text-zinc-600 shadow-xl group-hover/meeting:block dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+    <span className="absolute left-0 top-full z-30 mt-1 hidden w-72 rounded-md border border-zinc-200 bg-white p-3 text-left text-xs leading-5 text-zinc-600 shadow-xl group-hover/meeting:block dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
       <span className="block truncate font-medium text-zinc-900 dark:text-zinc-100">
         {entry.topic}
       </span>
@@ -1353,7 +1469,22 @@ function MeetingHoverCard({ entry }: { entry: MeetingEntry }) {
       <span className="block">
         录制链路：{entry.recordingGateStatus || "未验证"}
       </span>
-      <span className="mt-1 block text-zinc-400">单击查看详情</span>
+      <span className="mt-2 flex items-center justify-between gap-2">
+        <span className="text-zinc-400">单击查看详情</span>
+        <button
+          type="button"
+          onClick={onStartRecording}
+          disabled={!canStart || starting}
+          className="rounded-md bg-zinc-900 px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
+        >
+          {starting ? "下发中..." : "开始录制"}
+        </button>
+      </span>
+      {!canStart && (
+        <span className="mt-1 block text-[10px] text-red-500">
+          缺入会链接或会议号
+        </span>
+      )}
     </span>
   );
 }
@@ -1362,11 +1493,16 @@ function MeetingDetailWindow({
   entry,
   onClose,
   onOpenFull,
+  onStartRecording,
+  starting,
 }: {
   entry: MeetingEntry;
   onClose: () => void;
   onOpenFull: (pageId: string) => void;
+  onStartRecording: () => void;
+  starting: boolean;
 }) {
+  const canStart = Boolean(entry.joinUrl || entry.meetingId);
   return (
     <aside className="fixed right-6 top-20 z-50 max-h-[calc(100vh-7rem)] w-[min(440px,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
       <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-zinc-100 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
@@ -1411,6 +1547,15 @@ function MeetingDetailWindow({
           className="rounded-md px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
         >
           关闭
+        </button>
+        <button
+          type="button"
+          onClick={onStartRecording}
+          disabled={!canStart || starting}
+          className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          title={canStart ? "立即下发本地 runner 录制任务" : "缺入会链接或会议号"}
+        >
+          {starting ? "下发中..." : "开始录制"}
         </button>
         <button
           type="button"
