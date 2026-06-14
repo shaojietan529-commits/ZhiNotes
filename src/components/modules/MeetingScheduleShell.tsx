@@ -43,6 +43,12 @@ const PLATFORMS = [
 
 const RECORDING_DEVICES = ["MacBook Pro", "Mac Mini"];
 const DEFAULT_RECORDING_DEVICE = "MacBook Pro";
+type TranscriptionModel = "qwen" | "gpt";
+const TRANSCRIPTION_MODEL_OPTIONS = [
+  { value: "qwen", label: "Qwen" },
+  { value: "gpt", label: "GPT" },
+] satisfies ReadonlyArray<{ value: TranscriptionModel; label: string }>;
+const DEFAULT_TRANSCRIPTION_MODEL: TranscriptionModel = "qwen";
 
 interface MeetingEntry {
   page: Page;
@@ -59,6 +65,7 @@ interface MeetingEntry {
   confidence: string;
   recordingDevice: string;
   fallbackDevice: string;
+  transcriptionModel: string;
   traceStatus: string;
   timeStatus: string;
   recordingStatus: string;
@@ -110,6 +117,7 @@ interface CreateMeetingOptions {
   confidence?: IntakeMeeting["confidence"];
   recordingDevice?: string;
   fallbackDevice?: string;
+  transcriptionModel?: string;
   traceStatus?: string;
   timeStatus?: string;
   recordingStatus?: string;
@@ -142,6 +150,12 @@ export default function MeetingScheduleShell() {
   const [intakeRecordingDevice, setIntakeRecordingDevice] = useState(
     DEFAULT_RECORDING_DEVICE
   );
+  const [intakeTranscriptionModel, setIntakeTranscriptionModel] =
+    useState<TranscriptionModel>(DEFAULT_TRANSCRIPTION_MODEL);
+  const [
+    intakeTranscriptionModelTouched,
+    setIntakeTranscriptionModelTouched,
+  ] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingEntry | null>(
     null
   );
@@ -177,6 +191,7 @@ export default function MeetingScheduleShell() {
       setIntakeText(text.slice(0, 20000));
       setIntakeError("");
       setIntakeMessage("已从 Chrome 插件接收会议信息，请核对后点击导入。");
+      setIntakeTranscriptionModelTouched(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
     const announceReady = () =>
@@ -190,6 +205,11 @@ export default function MeetingScheduleShell() {
       window.removeEventListener("zhihui:hello", announceReady);
     };
   }, []);
+
+  useEffect(() => {
+    if (intakeTranscriptionModelTouched) return;
+    setIntakeTranscriptionModel(defaultTranscriptionModelForText(intakeText));
+  }, [intakeText, intakeTranscriptionModelTouched]);
 
   const entries = useMemo<MeetingEntry[]>(
     () => meetings.map(toMeetingEntry),
@@ -285,6 +305,9 @@ export default function MeetingScheduleShell() {
         (timeStatus === "已识别" ? "已留痕-待执行" : "已留痕-待补时间");
       const recordingStatus = options.recordingStatus ?? "待执行";
       const recordingGateStatus = options.recordingGateStatus ?? "未验证";
+      const transcriptionModel = normalizeTranscriptionModel(
+        options.transcriptionModel
+      );
       const traceNote =
         options.traceNote ||
         (options.warnings?.length ? options.warnings.join("；") : "");
@@ -368,6 +391,11 @@ export default function MeetingScheduleShell() {
           options: RECORDING_DEVICES,
         });
       }
+      props.push({
+        ...createPageProperty("select", "转写模型"),
+        value: transcriptionModelLabel(transcriptionModel),
+        options: TRANSCRIPTION_MODEL_OPTIONS.map((option) => option.label),
+      });
       if (options.fallbackDevice) {
         props.push({
           ...createPageProperty("select", "默认回退设备"),
@@ -403,6 +431,7 @@ export default function MeetingScheduleShell() {
           hasPasscode: Boolean(options.passcode),
           recordingDevice: options.recordingDevice ?? DEFAULT_RECORDING_DEVICE,
           fallbackDevice: options.fallbackDevice ?? DEFAULT_RECORDING_DEVICE,
+          transcriptionModel,
           traceStatus,
           timeStatus,
           recordingStatus,
@@ -447,6 +476,12 @@ export default function MeetingScheduleShell() {
       const meeting = data.meeting;
       setIntakePreview(meeting);
       const hasExecutableTime = Boolean(meeting.date && meeting.time);
+      const selectedTranscriptionModel = intakeTranscriptionModelTouched
+        ? intakeTranscriptionModel
+        : defaultTranscriptionModelForText(
+            [input, meeting.topic, meeting.organizer, meeting.platform].join("\n")
+          );
+      setIntakeTranscriptionModel(selectedTranscriptionModel);
       const draft: MeetingFormState = {
         topic: meeting.topic,
         organizer: meeting.organizer,
@@ -464,6 +499,7 @@ export default function MeetingScheduleShell() {
         passcode: meeting.passcode,
         recordingDevice: intakeRecordingDevice,
         fallbackDevice: DEFAULT_RECORDING_DEVICE,
+        transcriptionModel: selectedTranscriptionModel,
         confidence: meeting.confidence,
         traceStatus: hasExecutableTime ? "已留痕-待执行" : "已留痕-待补时间",
         timeStatus: hasExecutableTime ? "已识别" : "待补充",
@@ -475,6 +511,7 @@ export default function MeetingScheduleShell() {
         timeLabel: formatMeetingTime(meeting.time, meeting.endTime),
       });
       setIntakeText("");
+      setIntakeTranscriptionModelTouched(false);
       setIntakeMessage(
         hasExecutableTime
           ? "已导入会议日历。入会链接、会议号和会议密码已保存到会议页面。"
@@ -483,6 +520,12 @@ export default function MeetingScheduleShell() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "读取会议信息失败。";
       const fallback = buildFallbackTraceFromInput(input, form.date || toDateKey(new Date()));
+      const selectedTranscriptionModel = intakeTranscriptionModelTouched
+        ? intakeTranscriptionModel
+        : defaultTranscriptionModelForText(
+            [input, fallback.draft.topic, fallback.draft.platform].join("\n")
+          );
+      setIntakeTranscriptionModel(selectedTranscriptionModel);
       await createMeetingPage(fallback.draft, {
         importSource: "会议信息输入",
         hasJoinUrl: Boolean(fallback.joinUrl),
@@ -490,6 +533,7 @@ export default function MeetingScheduleShell() {
         joinUrl: fallback.joinUrl,
         recordingDevice: intakeRecordingDevice,
         fallbackDevice: DEFAULT_RECORDING_DEVICE,
+        transcriptionModel: selectedTranscriptionModel,
         confidence: "low",
         traceStatus: "导入失败-已留痕",
         timeStatus: "待补充",
@@ -500,7 +544,15 @@ export default function MeetingScheduleShell() {
     } finally {
       setIntakeLoading(false);
     }
-  }, [createMeetingPage, form.date, intakeLoading, intakeRecordingDevice, intakeText]);
+  }, [
+    createMeetingPage,
+    form.date,
+    intakeLoading,
+    intakeRecordingDevice,
+    intakeText,
+    intakeTranscriptionModel,
+    intakeTranscriptionModelTouched,
+  ]);
 
   const [retryLoading, setRetryLoading] = useState(false);
   const [retryResult, setRetryResult] = useState("");
@@ -705,12 +757,13 @@ export default function MeetingScheduleShell() {
                   setIntakeText(e.target.value);
                   setIntakeError("");
                   setIntakeMessage("");
+                  setIntakeTranscriptionModelTouched(false);
                 }}
                 rows={4}
                 placeholder="粘贴腾讯会议、Zoom、Webex 等邀请，或直接贴入会链接"
                 className={`${inputClass} min-h-28 resize-y leading-6`}
               />
-              <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr]">
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <Field label="录制设备">
                   <select
                     value={intakeRecordingDevice}
@@ -724,10 +777,28 @@ export default function MeetingScheduleShell() {
                     ))}
                   </select>
                 </Field>
-                <div className="flex items-end text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  不可用时回退到 {DEFAULT_RECORDING_DEVICE}
-                </div>
+                <Field label="转写模型">
+                  <select
+                    value={intakeTranscriptionModel}
+                    onChange={(e) => {
+                      setIntakeTranscriptionModel(
+                        normalizeTranscriptionModel(e.target.value)
+                      );
+                      setIntakeTranscriptionModelTouched(true);
+                    }}
+                    className={inputClass}
+                  >
+                    {TRANSCRIPTION_MODEL_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
               </div>
+              <p className="mt-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                录制设备不可用时回退到 {DEFAULT_RECORDING_DEVICE}；中文默认 Qwen，英文默认 GPT，可手动改。
+              </p>
               {intakeMessage && (
                 <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
                   {intakeMessage}
@@ -777,6 +848,10 @@ export default function MeetingScheduleShell() {
                     value={intakePreview.passcode || "未读取"}
                   />
                   <PreviewItem label="录制设备" value={intakeRecordingDevice} />
+                  <PreviewItem
+                    label="转写模型"
+                    value={transcriptionModelLabel(intakeTranscriptionModel)}
+                  />
                   <PreviewItem
                     label="解析置信度"
                     value={confidenceLabel(intakePreview.confidence)}
@@ -1215,6 +1290,7 @@ function toMeetingEntry(page: Page): MeetingEntry {
     confidence: read("解析置信度"),
     recordingDevice: read("录制设备"),
     fallbackDevice: read("默认回退设备"),
+    transcriptionModel: read("转写模型"),
     traceStatus: read("会议痕迹"),
     timeStatus: read("时间状态"),
     recordingStatus: read("录制状态"),
@@ -1238,6 +1314,7 @@ function buildAgentMeetingPayload(entry: MeetingEntry) {
     passcode: entry.passcode,
     recordingDevice: entry.recordingDevice || DEFAULT_RECORDING_DEVICE,
     fallbackDevice: entry.fallbackDevice || DEFAULT_RECORDING_DEVICE,
+    transcriptionModel: normalizeTranscriptionModel(entry.transcriptionModel),
   };
 }
 
@@ -1246,6 +1323,31 @@ const inputClass =
 
 function normalizePlatform(platform: string) {
   return PLATFORMS.includes(platform) ? platform : "其他";
+}
+
+function normalizeTranscriptionModel(value: string | undefined): TranscriptionModel {
+  const normalized = (value || "").trim().toLowerCase();
+  if (normalized.includes("gpt") || normalized.includes("openai")) return "gpt";
+  if (
+    normalized.includes("qwen") ||
+    normalized.includes("通义") ||
+    normalized.includes("千问")
+  ) {
+    return "qwen";
+  }
+  return DEFAULT_TRANSCRIPTION_MODEL;
+}
+
+function transcriptionModelLabel(value: string | undefined) {
+  return normalizeTranscriptionModel(value) === "gpt" ? "GPT" : "Qwen";
+}
+
+function defaultTranscriptionModelForText(value: string): TranscriptionModel {
+  const cjk = value.match(/[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF]/g)?.length ?? 0;
+  const latin = value.match(/[A-Za-z]/g)?.length ?? 0;
+  if (cjk >= 4) return "qwen";
+  if (latin >= 20) return "gpt";
+  return DEFAULT_TRANSCRIPTION_MODEL;
 }
 
 function formatMeetingTime(startTime: string, endTime: string) {
@@ -1312,6 +1414,7 @@ function buildMeetingTraceContent({
   hasPasscode,
   recordingDevice,
   fallbackDevice,
+  transcriptionModel,
   traceStatus,
   timeStatus,
   recordingStatus,
@@ -1330,6 +1433,7 @@ function buildMeetingTraceContent({
   hasPasscode: boolean;
   recordingDevice: string;
   fallbackDevice: string;
+  transcriptionModel: string;
   traceStatus: string;
   timeStatus: string;
   recordingStatus: string;
@@ -1348,6 +1452,7 @@ function buildMeetingTraceContent({
     ["会议密码", hasPasscode ? "已保存" : "未读取"],
     ["录制设备", recordingDevice],
     ["默认回退设备", fallbackDevice],
+    ["转写模型", transcriptionModelLabel(transcriptionModel)],
     ["会议痕迹", traceStatus],
     ["时间状态", timeStatus],
     ["录制状态", recordingStatus],
@@ -1467,6 +1572,9 @@ function MeetingHoverCard({
         录制设备：{entry.recordingDevice || DEFAULT_RECORDING_DEVICE}
       </span>
       <span className="block">
+        转写模型：{transcriptionModelLabel(entry.transcriptionModel)}
+      </span>
+      <span className="block">
         录制链路：{entry.recordingGateStatus || "未验证"}
       </span>
       <span className="mt-2 flex items-center justify-between gap-2">
@@ -1532,6 +1640,14 @@ function MeetingDetailWindow({
         <DetailRow label="时间" value={entry.time || "未设置"} />
         <DetailRow label="平台" value={entry.platform || "未设置"} />
         <DetailRow label="组织者" value={entry.organizer || "未读取"} />
+        <DetailRow
+          label="录制设备"
+          value={entry.recordingDevice || DEFAULT_RECORDING_DEVICE}
+        />
+        <DetailRow
+          label="转写模型"
+          value={transcriptionModelLabel(entry.transcriptionModel)}
+        />
         {entry.joinUrl && (
           <DetailRow label="入会链接" value={entry.joinUrl} multiline />
         )}
@@ -1601,6 +1717,7 @@ function buildMeetingSummary(entry: MeetingEntry) {
     entry.meetingId ? `会议号：${entry.meetingId}` : "",
     entry.passcode ? `密码：${entry.passcode}` : "",
     `录制设备：${entry.recordingDevice || DEFAULT_RECORDING_DEVICE}`,
+    `转写模型：${transcriptionModelLabel(entry.transcriptionModel)}`,
     entry.traceStatus ? `痕迹：${entry.traceStatus}` : "",
     entry.recordingStatus ? `录制：${entry.recordingStatus}` : "",
     `录制链路：${entry.recordingGateStatus || "未验证"}`,

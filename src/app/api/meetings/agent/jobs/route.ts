@@ -25,6 +25,7 @@ const PLATFORMS = new Set([
   "其他",
 ]);
 const RECORDING_DEVICES = new Set(["MacBook Pro", "Mac Mini"]);
+const TRANSCRIPTION_MODELS = new Set(["qwen", "gpt"]);
 
 export async function GET(request: Request) {
   const config = getMeetingAgentQueueConfig();
@@ -131,6 +132,7 @@ function parseMeeting(value: unknown):
         passcode: string;
         recording_device: string;
         fallback_device: string;
+        transcription_model: string;
       };
     }
   | { error: string } {
@@ -150,6 +152,9 @@ function parseMeeting(value: unknown):
   const passcode = text(raw.passcode, 120);
   const recordingDevice = text(raw.recordingDevice, 40) || "MacBook Pro";
   const fallbackDevice = text(raw.fallbackDevice, 40) || "MacBook Pro";
+  const transcriptionModel = normalizeTranscriptionModel(
+    text(raw.transcriptionModel, 20) || "qwen"
+  );
 
   if (!pageId) return { error: "缺少会议页面 ID。" };
   if (!topic) return { error: "缺少会议主题。" };
@@ -169,6 +174,9 @@ function parseMeeting(value: unknown):
   if (!RECORDING_DEVICES.has(recordingDevice)) {
     return { error: "录制设备无效。" };
   }
+  if (!TRANSCRIPTION_MODELS.has(transcriptionModel)) {
+    return { error: "转写模型无效。" };
+  }
 
   return {
     meeting: {
@@ -184,6 +192,7 @@ function parseMeeting(value: unknown):
       passcode,
       recording_device: recordingDevice,
       fallback_device: fallbackDevice,
+      transcription_model: transcriptionModel,
     },
   };
 }
@@ -201,6 +210,19 @@ function isHttpUrl(value: string) {
   } catch {
     return false;
   }
+}
+
+function normalizeTranscriptionModel(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.includes("gpt") || normalized.includes("openai")) return "gpt";
+  if (
+    normalized.includes("qwen") ||
+    normalized.includes("通义") ||
+    normalized.includes("千问")
+  ) {
+    return "qwen";
+  }
+  return normalized;
 }
 
 function runnerIdForRecordingDevice(device: string) {
