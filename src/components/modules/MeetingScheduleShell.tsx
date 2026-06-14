@@ -952,7 +952,7 @@ export default function MeetingScheduleShell() {
               return (
                 <div
                   key={key}
-                  className={`group flex h-28 flex-col border-b border-r border-zinc-100 p-1.5 dark:border-zinc-800/70 ${
+                  className={`group flex min-h-28 flex-col border-b border-r border-zinc-100 p-1.5 dark:border-zinc-800/70 ${
                     cell.inMonth ? "" : "bg-zinc-50/50 dark:bg-zinc-900/40"
                   }`}
                 >
@@ -978,7 +978,7 @@ export default function MeetingScheduleShell() {
                     </button>
                   </div>
                   <div className="mt-0.5 flex flex-col gap-0.5 overflow-visible">
-                    {dayMeetings.slice(0, 3).map((entry) => (
+                    {dayMeetings.map((entry) => (
                       <button
                         key={entry.page.id}
                         type="button"
@@ -1004,11 +1004,6 @@ export default function MeetingScheduleShell() {
                         <MeetingHoverCard entry={entry} />
                       </button>
                     ))}
-                    {dayMeetings.length > 3 && (
-                      <span className="px-1 text-[10px] text-zinc-400">
-                        +{dayMeetings.length - 3} 更多
-                      </span>
-                    )}
                   </div>
                 </div>
               );
