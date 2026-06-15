@@ -6,7 +6,12 @@ import Link from "next/link";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
-import { createPage, listPages, updatePage } from "@/lib/db/local/queries";
+import {
+  createPage,
+  deletePage,
+  listPages,
+  updatePage,
+} from "@/lib/db/local/queries";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import {
   createPageProperty,
@@ -144,7 +149,28 @@ export default function MeetingScheduleShell() {
   const load = useCallback(async () => {
     const id = await getModuleRootId("meeting-schedule");
     setRootId(id);
-    setMeetings(await listPages(id));
+    const pages = await listPages(id);
+    // Auto-clean expired meetings: a meeting whose date is already in the past
+    // and that never finished (no successful recording / not 已完成) is stale
+    // clutter, so we soft-delete it. Completed meetings with notes (会议纪要)
+    // and meetings missing a date entirely are always preserved.
+    const todayKey = toDateKey(new Date());
+    const expiredIds = new Set(
+      pages
+        .filter((page) => isExpiredDisposable(toMeetingEntry(page), todayKey))
+        .map((page) => page.id)
+    );
+    if (expiredIds.size > 0) {
+      await Promise.all(Array.from(expiredIds, (pageId) => deletePage(pageId)));
+      setMeetings(pages.filter((page) => !expiredIds.has(page.id)));
+    } else {
+      setMeetings(pages);
+    }
+  }, []);
+
+  const handleDeleteMeeting = useCallback(async (pageId: string) => {
+    await deletePage(pageId);
+    setMeetings((prev) => prev.filter((page) => page.id !== pageId));
   }, []);
 
   useEffect(() => {
@@ -780,20 +806,44 @@ export default function MeetingScheduleShell() {
                   )}
                   <div className="space-y-1">
                     {traceReviewEntries.slice(0, 5).map((entry) => (
-                      <button
+                      <div
                         key={entry.page.id}
-                        type="button"
-                        onClick={() => setSelectedMeeting(entry)}
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                        className="flex items-center gap-1 rounded-md px-1 text-xs transition-colors hover:bg-amber-50 dark:hover:bg-amber-950/20"
                       >
-                        <MeetingStatusBar entry={entry} size="compact" />
-                        <span className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">
-                          {entry.topic}
-                        </span>
-                        <span className="shrink-0 text-[10px] text-amber-600 dark:text-amber-400">
-                          {entry.traceStatus || entry.timeStatus}
-                        </span>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMeeting(entry)}
+                          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-1 text-left"
+                        >
+                          <MeetingStatusBar entry={entry} size="compact" />
+                          <span className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">
+                            {entry.topic}
+                          </span>
+                          <span className="shrink-0 text-[10px] text-amber-600 dark:text-amber-400">
+                            {entry.traceStatus || entry.timeStatus}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteMeeting(entry.page.id)}
+                          className="shrink-0 rounded-full p-1 text-zinc-300 transition-colors hover:bg-red-100 hover:text-red-500 dark:text-zinc-600 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                          title="删除这条会议"
+                          aria-label="删除这条会议"
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="m15 9-6 6" />
+                            <path d="m9 9 6 6" />
+                          </svg>
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1084,6 +1134,20 @@ function emptyForm(dateKey: string): MeetingFormState {
     time: "",
     platform: PLATFORMS[0],
   };
+}
+
+// A meeting is "expired and disposable" — safe to auto-remove — when its date
+// is strictly before today AND it never reached a finished state. Completed
+// meetings (录制成功 / 已完成) hold notes and are kept; meetings with no date
+// stay too, since the user may still fill it in via 重新识别.
+function isExpiredDisposable(entry: MeetingEntry, todayKey: string): boolean {
+  if (entry.page.deleted_at) return false;
+  if (!entry.dateKey) return false;
+  if (entry.dateKey >= todayKey) return false;
+  if (entry.recordingStatus === "录制成功" || entry.traceStatus === "已完成") {
+    return false;
+  }
+  return true;
 }
 
 function toMeetingEntry(page: Page): MeetingEntry {
