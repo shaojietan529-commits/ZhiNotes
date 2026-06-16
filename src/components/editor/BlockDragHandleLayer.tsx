@@ -210,37 +210,18 @@ export function BlockDragHandleLayer({
     []
   );
 
-  // Anchor the gutter handles to the start-of-line position of the block's
-  // base column, ignoring list/indentation depth — so the ⠿ drag dots and +
-  // button always sit flush at the line start instead of stepping right with
-  // each nested level. Blocks inside a side-by-side column still anchor to
-  // that column's left edge so layouts are not broken.
-  const getAnchorLeft = useCallback(
-    (meta: BlockMeta): number => {
-      const columnEl = meta.element.closest<HTMLElement>(
-        '[data-type="column-block"]'
-      );
-      const ref = columnEl ?? (editor.view.dom as HTMLElement);
-      const refRect = ref.getBoundingClientRect();
-      const paddingLeft = parseFloat(getComputedStyle(ref).paddingLeft) || 0;
-      return refRect.left + paddingLeft;
-    },
-    [editor]
-  );
-
   const getVisualBlock = useCallback(
     (meta: BlockMeta): VisualBlock | null => {
       const surface = getSurface();
       if (!surface) return null;
       const surfaceRect = surface.getBoundingClientRect();
-      const anchorLeft = getAnchorLeft(meta);
-      const baseLeft = Math.max(0, anchorLeft - surfaceRect.left - 26);
+      const baseLeft = Math.max(0, meta.rect.left - surfaceRect.left - 26);
       return {
         dragLeft: baseLeft + BLOCK_HANDLE_GAP,
         insertLeft: baseLeft,
         menuLeft: Math.min(
           Math.max(8, window.innerWidth - 256),
-          Math.max(8, anchorLeft + 8)
+          Math.max(8, meta.rect.left + 8)
         ),
         menuTop: Math.max(
           8,
@@ -250,7 +231,7 @@ export function BlockDragHandleLayer({
         top: meta.rect.top - surfaceRect.top + 2,
       };
     },
-    [getAnchorLeft, getSurface]
+    [getSurface]
   );
 
   useEffect(() => {
