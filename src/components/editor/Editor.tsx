@@ -64,6 +64,7 @@ import { BlockIdExtension } from "./extensions/BlockIdExtension";
 import { InlineCommentMark } from "./extensions/InlineCommentMark";
 import { CodeSyntaxHighlight } from "./extensions/CodeSyntaxHighlight";
 import { PasteLinkOnSelection } from "./extensions/PasteLinkOnSelection";
+import { PastePageLink } from "./extensions/PastePageLink";
 import { buildChildPageInitialHtml } from "@/lib/pages/childPageSeed";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { BlockDragHandleLayer } from "./BlockDragHandleLayer";
@@ -187,6 +188,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
             class: "text-blue-500 underline cursor-pointer",
           },
         }),
+        PastePageLink,
         PasteLinkOnSelection,
         Image.configure({
           inline: true,

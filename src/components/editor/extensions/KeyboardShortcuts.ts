@@ -6,6 +6,7 @@ import {
   dispatchEditorBlockMenu,
   dispatchEditorLocalCommand,
 } from "@/lib/editorLocalCommands";
+import { dispatchPageLocalCommand } from "@/lib/pageLocalCommands";
 
 /**
  * Notion-compatible keyboard shortcuts for Zhinote.
@@ -82,6 +83,11 @@ export const KeyboardShortcuts = Extension.create({
       },
 
       "Mod-k": () => promptForLink(this.editor),
+
+      "Mod-l": () => {
+        dispatchPageLocalCommand("copy-link");
+        return true;
+      },
 
       "Mod-Shift-m": () => {
         dispatchEditorLocalCommand("block-comment");

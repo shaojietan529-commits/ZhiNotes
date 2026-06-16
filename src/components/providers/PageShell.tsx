@@ -208,10 +208,11 @@ function PageContent({ pageId }: { pageId: string }) {
     const url = `${window.location.origin}/page/${pageId}`;
     try {
       await window.navigator.clipboard.writeText(url);
+      showCopyNotice("已复制页面链接");
     } catch {
       window.prompt("复制页面链接：", url);
     }
-  }, [pageId]);
+  }, [pageId, showCopyNotice]);
 
   const handlePrintPdf = useCallback(() => {
     window.print();
