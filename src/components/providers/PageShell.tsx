@@ -14,7 +14,11 @@ import Breadcrumb from "@/components/shared/Breadcrumb";
 import IconPicker from "@/components/shared/IconPicker";
 import Backlinks from "@/components/shared/Backlinks";
 import PageComments from "@/components/shared/PageComments";
-import BlockComments from "@/components/shared/BlockComments";
+import BlockComments, {
+  BLOCK_COMMENTS_CHANGED_EVENT,
+  INLINE_COMMENT_SELECTED_EVENT,
+} from "@/components/shared/BlockComments";
+import CommentSidePanel from "@/components/shared/CommentSidePanel";
 import PageProperties from "@/components/page/PageProperties";
 import PageActionsMenu from "@/components/page/PageActionsMenu";
 import ChildPageTree from "@/components/page/ChildPageTree";
@@ -35,6 +39,7 @@ import {
   movePage,
   getNextPosition,
   duplicatePageDeep,
+  getBlockComments,
 } from "@/lib/db/local/queries";
 import MoveToDialog from "@/components/page/MoveToDialog";
 import { maybeSnapshot, manualSnapshot } from "@/lib/comparison/versioning";
@@ -81,6 +86,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const { isFavorite, toggleFavorite } = usePageFavorites();
   const favorite = isFavorite(pageId);
   const [showInfo, setShowInfo] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [commentCount, setCommentCount] = useState(0);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
   const pageClipboard = useWorkspaceStore((s) => s.pageClipboard);
   const setPageClipboard = useWorkspaceStore((s) => s.setPageClipboard);
@@ -114,6 +121,52 @@ function PageContent({ pageId }: { pageId: string }) {
       const value = window.localStorage.getItem("zhinote.page.wide");
       setWidePage(value === "true");
     });
+  }, []);
+
+  // Remember whether the right-hand comment panel is open across pages/sessions.
+  useEffect(() => {
+    queueMicrotask(() => {
+      const value = window.localStorage.getItem("zhinote.page.comments-panel");
+      setShowComments(value === "true");
+    });
+  }, []);
+
+  const handleToggleComments = useCallback(() => {
+    setShowComments((current) => {
+      const next = !current;
+      window.localStorage.setItem(
+        "zhinote.page.comments-panel",
+        next ? "true" : "false"
+      );
+      return next;
+    });
+  }, []);
+
+  // Keep a live count of text comments so the toolbar button can show a badge.
+  useEffect(() => {
+    let cancelled = false;
+    const refreshCount = async () => {
+      const rows = await getBlockComments(pageId);
+      if (!cancelled) setCommentCount(rows.length);
+    };
+    queueMicrotask(() => void refreshCount());
+    const handleChanged = () => void refreshCount();
+    window.addEventListener(BLOCK_COMMENTS_CHANGED_EVENT, handleChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(BLOCK_COMMENTS_CHANGED_EVENT, handleChanged);
+    };
+  }, [pageId]);
+
+  // Clicking commented text should reveal the panel so the comment is visible.
+  useEffect(() => {
+    const handleSelected = () => {
+      setShowComments(true);
+      window.localStorage.setItem("zhinote.page.comments-panel", "true");
+    };
+    window.addEventListener(INLINE_COMMENT_SELECTED_EVENT, handleSelected);
+    return () =>
+      window.removeEventListener(INLINE_COMMENT_SELECTED_EVENT, handleSelected);
   }, []);
 
   const handleTitleChange = useCallback(
@@ -645,6 +698,34 @@ function PageContent({ pageId }: { pageId: string }) {
                   <path d="m12 2 3.1 6.4 7 .9-5.1 4.9 1.3 6.9L12 17.8 5.7 21.1l1.3-6.9L1.9 9.3l7-.9L12 2Z" />
                 </svg>
               </button>
+              <button
+                onClick={handleToggleComments}
+                className={`relative flex h-7 w-7 items-center justify-center rounded transition-colors ${
+                  showComments
+                    ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                    : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+                }`}
+                title={showComments ? "隐藏评论区" : "显示评论区"}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                {commentCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-medium text-white">
+                    {commentCount}
+                  </span>
+                )}
+              </button>
               <PageActionsMenu
                 locked={locked}
                 widePage={widePage}
@@ -756,7 +837,9 @@ function PageContent({ pageId }: { pageId: string }) {
             onUpdate={handleContentUpdate}
           />
 
-          <BlockComments pageId={pageId} disabled={locked} />
+          {/* When the comment panel is open, text comments live there instead
+              of stacking at the bottom — avoids showing them twice. */}
+          {!showComments && <BlockComments pageId={pageId} disabled={locked} />}
 
           {/* Backlinks - pages that link to this page */}
           <Backlinks pageId={pageId} pageTitle={title || page.title || ""} />
@@ -770,6 +853,14 @@ function PageContent({ pageId }: { pageId: string }) {
           />
         )}
       </main>
+
+      {showComments && (
+        <CommentSidePanel
+          pageId={pageId}
+          disabled={locked}
+          onClose={handleToggleComments}
+        />
+      )}
     </div>
   );
 }
