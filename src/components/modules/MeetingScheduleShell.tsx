@@ -9,9 +9,13 @@ import { usePages } from "@/hooks/usePages";
 import {
   createPage,
   deletePage,
+  getDeletedPages,
+  getPage,
   listPages,
+  restorePage,
   updatePage,
 } from "@/lib/db/local/queries";
+import { reconcilePageSync } from "@/lib/pages/accountPageSync";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import {
   createPageProperty,
@@ -145,27 +149,17 @@ export default function MeetingScheduleShell() {
     x: number;
     y: number;
   } | null>(null);
+  const initialCloudPullAttemptedRef = useRef(false);
 
   const load = useCallback(async () => {
+    if (!initialCloudPullAttemptedRef.current) {
+      initialCloudPullAttemptedRef.current = true;
+      await reconcilePageSync().catch(() => undefined);
+    }
     const id = await getModuleRootId("meeting-schedule");
     setRootId(id);
-    const pages = await listPages(id);
-    // Auto-clean expired meetings: a meeting whose date is already in the past
-    // and that never finished (no successful recording / not 已完成) is stale
-    // clutter, so we soft-delete it. Completed meetings with notes (会议纪要)
-    // and meetings missing a date entirely are always preserved.
-    const todayKey = toDateKey(new Date());
-    const expiredIds = new Set(
-      pages
-        .filter((page) => isExpiredDisposable(toMeetingEntry(page), todayKey))
-        .map((page) => page.id)
-    );
-    if (expiredIds.size > 0) {
-      await Promise.all(Array.from(expiredIds, (pageId) => deletePage(pageId)));
-      setMeetings(pages.filter((page) => !expiredIds.has(page.id)));
-    } else {
-      setMeetings(pages);
-    }
+    await restoreDeletedMeetingPages(id);
+    setMeetings(await listPages(id));
   }, []);
 
   const handleDeleteMeeting = useCallback(async (pageId: string) => {
@@ -405,7 +399,7 @@ export default function MeetingScheduleShell() {
         });
       }
 
-      await updatePage(page.id, {
+      const updatedPage = await updatePage(page.id, {
         properties: stringifyPageProperties(props),
         content_text: buildMeetingTraceContent({
           title,
@@ -427,6 +421,7 @@ export default function MeetingScheduleShell() {
           traceNote,
         }),
       });
+      await pushMeetingPageCloudSnapshot(rootId, updatedPage ?? page);
 
       await refresh();
       await load();
@@ -572,9 +567,12 @@ export default function MeetingScheduleShell() {
           changed = true;
         }
         if (changed) {
-          await updatePage(entry.page.id, {
+          const updatedPage = await updatePage(entry.page.id, {
             properties: stringifyPageProperties(props),
           });
+          if (rootId && updatedPage) {
+            await pushMeetingPageCloudSnapshot(rootId, updatedPage);
+          }
           fixed++;
         }
       } catch {
@@ -589,7 +587,7 @@ export default function MeetingScheduleShell() {
         ? `已重新识别 ${fixed} 条会议`
         : "没有新的信息可以补充"
     );
-  }, [entries, refresh, load]);
+  }, [entries, refresh, load, rootId]);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
   const todayKey = toDateKey(new Date());
@@ -1136,18 +1134,65 @@ function emptyForm(dateKey: string): MeetingFormState {
   };
 }
 
-// A meeting is "expired and disposable" — safe to auto-remove — when its date
-// is strictly before today AND it never reached a finished state. Completed
-// meetings (录制成功 / 已完成) hold notes and are kept; meetings with no date
-// stay too, since the user may still fill it in via 重新识别.
-function isExpiredDisposable(entry: MeetingEntry, todayKey: string): boolean {
-  if (entry.page.deleted_at) return false;
-  if (!entry.dateKey) return false;
-  if (entry.dateKey >= todayKey) return false;
-  if (entry.recordingStatus === "录制成功" || entry.traceStatus === "已完成") {
-    return false;
+async function restoreDeletedMeetingPages(rootId: string) {
+  const deletedPages = await getDeletedPages();
+  const candidates = deletedPages.filter(
+    (page) => page.parent_id === rootId && isMeetingTracePage(page)
+  );
+  for (const page of candidates) {
+    const restored = await restorePage(page.id);
+    if (restored) {
+      await pushMeetingPageCloudSnapshot(rootId, restored);
+    }
   }
-  return true;
+}
+
+function isMeetingTracePage(page: Page) {
+  const props = parsePageProperties(page.properties);
+  return props.some((prop) =>
+    [
+      "会议痕迹",
+      "时间状态",
+      "录制状态",
+      "录制链路",
+      "入会链接",
+      "会议号",
+    ].includes(prop.name)
+  );
+}
+
+async function pushMeetingPageCloudSnapshot(rootId: string, meetingPage: Page) {
+  try {
+    const rootPage = await getPage(rootId);
+    if (!rootPage) return;
+    await fetch("/api/pages/account-sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "push",
+        pages: [toPageSyncRecord(rootPage), toPageSyncRecord(meetingPage)],
+      }),
+    });
+  } catch {
+    // The local page remains visible; account page sync can retry later.
+  }
+}
+
+function toPageSyncRecord(page: Page) {
+  return {
+    id: page.id,
+    parent_id: page.parent_id ?? null,
+    title: page.title ?? "",
+    icon: page.icon ?? null,
+    cover_url: page.cover_url ?? null,
+    content_text: page.content_text ?? null,
+    properties: page.properties ?? null,
+    position: page.position ?? 0,
+    depth: page.depth ?? 0,
+    created_at: page.created_at,
+    updated_at: page.updated_at,
+    deleted_at: page.deleted_at ?? null,
+  };
 }
 
 function toMeetingEntry(page: Page): MeetingEntry {
