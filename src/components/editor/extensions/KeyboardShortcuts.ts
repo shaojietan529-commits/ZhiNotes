@@ -144,7 +144,11 @@ export const KeyboardShortcuts = Extension.create({
             }
           }
         }
-        return false;
+        // Otherwise consume Cmd/Ctrl+Enter so the editor never inserts a new
+        // line for it. Cmd+Enter is reserved for "open the full page" when a
+        // page is shown in the peek modal — that handler lives on window and
+        // still fires because ProseMirror does not stop event propagation.
+        return true;
       },
 
       "Mod-Alt-t": () => toggleAllToggleBlocks(this.editor),
