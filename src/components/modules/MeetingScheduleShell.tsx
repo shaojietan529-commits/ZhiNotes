@@ -513,12 +513,13 @@ export default function MeetingScheduleShell() {
     }
   }, [createMeetingPage, form.date, intakeLoading, intakeRecordingDevice, intakeText]);
 
+  const todayKey = toDateKey(new Date());
   const [retryLoading, setRetryLoading] = useState(false);
   const [retryResult, setRetryResult] = useState("");
 
   const handleRetryParse = useCallback(async () => {
     const pending = entries.filter(
-      (e) => e.timeStatus === "待补充" || e.traceStatus === "导入失败-已留痕"
+      (e) => needsTraceReview(e) && !isExpiredMeetingTrace(e, todayKey)
     );
     if (pending.length === 0) return;
     setRetryLoading(true);
@@ -587,22 +588,18 @@ export default function MeetingScheduleShell() {
         ? `已重新识别 ${fixed} 条会议`
         : "没有新的信息可以补充"
     );
-  }, [entries, refresh, load, rootId]);
+  }, [entries, refresh, load, rootId, todayKey]);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
-  const todayKey = toDateKey(new Date());
   const traceReviewEntries = useMemo(
     () =>
       entries
         .filter(
           (entry) =>
-            entry.timeStatus === "待补充" ||
-            entry.traceStatus === "导入失败-已留痕" ||
-            entry.recordingStatus === "录制失败" ||
-            entry.recordingGateStatus === "录制链路未就绪"
+            needsTraceReview(entry) && !isExpiredMeetingTrace(entry, todayKey)
         )
         .slice(0, 12),
-    [entries]
+    [entries, todayKey]
   );
 
   const goPrev = () =>
@@ -1378,6 +1375,19 @@ function MeetingStatusBar({
       title={status.label}
     />
   );
+}
+
+function needsTraceReview(entry: MeetingEntry) {
+  return (
+    entry.timeStatus === "待补充" ||
+    entry.traceStatus === "导入失败-已留痕" ||
+    entry.recordingStatus === "录制失败" ||
+    entry.recordingGateStatus === "录制链路未就绪"
+  );
+}
+
+function isExpiredMeetingTrace(entry: MeetingEntry, todayKey: string) {
+  return Boolean(entry.dateKey && entry.dateKey < todayKey);
 }
 
 function getMeetingStatusIndicator(entry: MeetingEntry) {
