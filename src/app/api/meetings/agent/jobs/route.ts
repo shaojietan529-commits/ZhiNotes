@@ -26,6 +26,7 @@ const PLATFORMS = new Set([
 ]);
 const RECORDING_DEVICES = new Set(["MacBook Pro", "Mac Mini"]);
 const TRANSCRIPTION_MODELS = new Set(["qwen", "gpt"]);
+const MEETING_PRIORITIES = new Set(["default", "high"]);
 
 export async function GET(request: Request) {
   const config = getMeetingAgentQueueConfig();
@@ -102,8 +103,12 @@ export async function POST(request: Request) {
       },
       meeting: parsed.meeting,
       target_runner_id: runnerIdForRecordingDevice(parsed.meeting.recording_device),
+      fallback_runner_id: runnerIdForRecordingDevice(parsed.meeting.fallback_device),
+      priority: parsed.meeting.priority,
       routing: {
         target_runner_id: runnerIdForRecordingDevice(parsed.meeting.recording_device),
+        fallback_runner_id: runnerIdForRecordingDevice(parsed.meeting.fallback_device),
+        meeting_account_key: meetingAccountKey(parsed.meeting.platform),
       },
       run_now: body.runNow === true,
     },
@@ -132,6 +137,7 @@ function parseMeeting(value: unknown):
         passcode: string;
         recording_device: string;
         fallback_device: string;
+        priority: string;
         transcription_model: string;
       };
     }
@@ -152,6 +158,9 @@ function parseMeeting(value: unknown):
   const passcode = text(raw.passcode, 120);
   const recordingDevice = text(raw.recordingDevice, 40) || "MacBook Pro";
   const fallbackDevice = text(raw.fallbackDevice, 40) || "MacBook Pro";
+  const priority = normalizeMeetingPriority(
+    text(raw.meetingPriority, 20) || text(raw.priority, 20)
+  );
   const transcriptionModel = normalizeTranscriptionModel(
     text(raw.transcriptionModel, 20) || "qwen"
   );
@@ -174,6 +183,12 @@ function parseMeeting(value: unknown):
   if (!RECORDING_DEVICES.has(recordingDevice)) {
     return { error: "录制设备无效。" };
   }
+  if (!RECORDING_DEVICES.has(fallbackDevice)) {
+    return { error: "备用录制设备无效。" };
+  }
+  if (!MEETING_PRIORITIES.has(priority)) {
+    return { error: "会议优先级无效。" };
+  }
   if (!TRANSCRIPTION_MODELS.has(transcriptionModel)) {
     return { error: "转写模型无效。" };
   }
@@ -192,6 +207,7 @@ function parseMeeting(value: unknown):
       passcode,
       recording_device: recordingDevice,
       fallback_device: fallbackDevice,
+      priority,
       transcription_model: transcriptionModel,
     },
   };
@@ -227,4 +243,20 @@ function normalizeTranscriptionModel(value: string) {
 
 function runnerIdForRecordingDevice(device: string) {
   return device === "Mac Mini" ? "macmini" : "macbook";
+}
+
+function normalizeMeetingPriority(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "high" || normalized === "priority" || normalized === "优先") {
+    return "high";
+  }
+  return "default";
+}
+
+function meetingAccountKey(platform: string) {
+  return `platform-${platform
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "unknown"}`;
 }

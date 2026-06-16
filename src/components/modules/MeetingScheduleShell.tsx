@@ -13,7 +13,8 @@ import Link from "next/link";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
-import { createPage, listPages, updatePage } from "@/lib/db/local/queries";
+import { createPage, getPage, listPages, updatePage } from "@/lib/db/local/queries";
+import { reconcilePageSync } from "@/lib/pages/accountPageSync";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import {
   createPageProperty,
@@ -43,6 +44,9 @@ const PLATFORMS = [
 
 const RECORDING_DEVICES = ["MacBook Pro", "Mac Mini"];
 const DEFAULT_RECORDING_DEVICE = "MacBook Pro";
+const MEETING_PRIORITIES = ["默认", "优先"];
+const DEFAULT_MEETING_PRIORITY = "默认";
+type MeetingPriority = "default" | "high";
 type TranscriptionModel = "qwen" | "gpt";
 const TRANSCRIPTION_MODEL_OPTIONS = [
   { value: "qwen", label: "Qwen" },
@@ -65,6 +69,7 @@ interface MeetingEntry {
   confidence: string;
   recordingDevice: string;
   fallbackDevice: string;
+  meetingPriority: string;
   transcriptionModel: string;
   traceStatus: string;
   timeStatus: string;
@@ -117,6 +122,7 @@ interface CreateMeetingOptions {
   confidence?: IntakeMeeting["confidence"];
   recordingDevice?: string;
   fallbackDevice?: string;
+  meetingPriority?: string;
   transcriptionModel?: string;
   traceStatus?: string;
   timeStatus?: string;
@@ -150,6 +156,9 @@ export default function MeetingScheduleShell() {
   const [intakeRecordingDevice, setIntakeRecordingDevice] = useState(
     DEFAULT_RECORDING_DEVICE
   );
+  const [intakeMeetingPriority, setIntakeMeetingPriority] = useState(
+    DEFAULT_MEETING_PRIORITY
+  );
   const [intakeTranscriptionModel, setIntakeTranscriptionModel] =
     useState<TranscriptionModel>(DEFAULT_TRANSCRIPTION_MODEL);
   const [
@@ -164,8 +173,13 @@ export default function MeetingScheduleShell() {
     x: number;
     y: number;
   } | null>(null);
+  const initialCloudPullAttemptedRef = useRef(false);
 
   const load = useCallback(async () => {
+    if (!initialCloudPullAttemptedRef.current) {
+      initialCloudPullAttemptedRef.current = true;
+      await reconcilePageSync().catch(() => undefined);
+    }
     const id = await getModuleRootId("meeting-schedule");
     setRootId(id);
     setMeetings(await listPages(id));
@@ -305,6 +319,7 @@ export default function MeetingScheduleShell() {
         (timeStatus === "已识别" ? "已留痕-待执行" : "已留痕-待补时间");
       const recordingStatus = options.recordingStatus ?? "待执行";
       const recordingGateStatus = options.recordingGateStatus ?? "未验证";
+      const meetingPriority = meetingPriorityLabel(options.meetingPriority);
       const transcriptionModel = normalizeTranscriptionModel(
         options.transcriptionModel
       );
@@ -392,6 +407,11 @@ export default function MeetingScheduleShell() {
         });
       }
       props.push({
+        ...createPageProperty("select", "会议优先级"),
+        value: meetingPriority,
+        options: MEETING_PRIORITIES,
+      });
+      props.push({
         ...createPageProperty("select", "转写模型"),
         value: transcriptionModelLabel(transcriptionModel),
         options: TRANSCRIPTION_MODEL_OPTIONS.map((option) => option.label),
@@ -417,7 +437,7 @@ export default function MeetingScheduleShell() {
         });
       }
 
-      await updatePage(page.id, {
+      const updatedPage = await updatePage(page.id, {
         properties: stringifyPageProperties(props),
         content_text: buildMeetingTraceContent({
           title,
@@ -431,6 +451,7 @@ export default function MeetingScheduleShell() {
           hasPasscode: Boolean(options.passcode),
           recordingDevice: options.recordingDevice ?? DEFAULT_RECORDING_DEVICE,
           fallbackDevice: options.fallbackDevice ?? DEFAULT_RECORDING_DEVICE,
+          meetingPriority,
           transcriptionModel,
           traceStatus,
           timeStatus,
@@ -440,6 +461,7 @@ export default function MeetingScheduleShell() {
           traceNote,
         }),
       });
+      await pushMeetingPageCloudSnapshot(rootId, updatedPage ?? page);
 
       await refresh();
       await load();
@@ -489,6 +511,15 @@ export default function MeetingScheduleShell() {
         time: meeting.time,
         platform: normalizePlatform(meeting.platform),
       };
+      const routedRecordingDevice = resolveRecordingDeviceForNewMeeting(
+        entries,
+        draft,
+        intakeRecordingDevice
+      );
+      const autoRoutingNote =
+        routedRecordingDevice !== intakeRecordingDevice
+          ? `检测到 ${intakeRecordingDevice} 同时段已有会议，已自动改用 ${routedRecordingDevice}。`
+          : "";
 
       await createMeetingPage(draft, {
         importSource: "会议信息输入",
@@ -497,16 +528,24 @@ export default function MeetingScheduleShell() {
         joinUrl: meeting.joinUrl,
         meetingId: meeting.meetingId,
         passcode: meeting.passcode,
-        recordingDevice: intakeRecordingDevice,
-        fallbackDevice: DEFAULT_RECORDING_DEVICE,
+        recordingDevice: routedRecordingDevice,
+        fallbackDevice: alternateRecordingDevice(routedRecordingDevice),
+        meetingPriority: intakeMeetingPriority,
         transcriptionModel: selectedTranscriptionModel,
         confidence: meeting.confidence,
         traceStatus: hasExecutableTime ? "已留痕-待执行" : "已留痕-待补时间",
         timeStatus: hasExecutableTime ? "已识别" : "待补充",
         recordingStatus: "待执行",
         traceNote: hasExecutableTime
-          ? "会议已导入，等待自动接入与录制。"
-          : "导入时没有读到明确日期和开始时间，已先保留会议痕迹；补齐时间后再执行自动接入。",
+          ? ["会议已导入，等待自动接入与录制。", autoRoutingNote]
+              .filter(Boolean)
+              .join(" ")
+          : [
+              "导入时没有读到明确日期和开始时间，已先保留会议痕迹；补齐时间后再执行自动接入。",
+              autoRoutingNote,
+            ]
+              .filter(Boolean)
+              .join(" "),
         warnings: meeting.warnings,
         timeLabel: formatMeetingTime(meeting.time, meeting.endTime),
       });
@@ -514,7 +553,12 @@ export default function MeetingScheduleShell() {
       setIntakeTranscriptionModelTouched(false);
       setIntakeMessage(
         hasExecutableTime
-          ? "已导入会议日历。入会链接、会议号和会议密码已保存到会议页面。"
+          ? [
+              "已导入会议日历。入会链接、会议号和会议密码已保存到会议页面。",
+              autoRoutingNote,
+            ]
+              .filter(Boolean)
+              .join(" ")
           : "已保留会议痕迹，但还缺明确开始时间；请稍后打开会议页补齐。"
       );
     } catch (error) {
@@ -532,7 +576,8 @@ export default function MeetingScheduleShell() {
         joinUrlHost: fallback.joinUrlHost,
         joinUrl: fallback.joinUrl,
         recordingDevice: intakeRecordingDevice,
-        fallbackDevice: DEFAULT_RECORDING_DEVICE,
+        fallbackDevice: alternateRecordingDevice(intakeRecordingDevice),
+        meetingPriority: intakeMeetingPriority,
         transcriptionModel: selectedTranscriptionModel,
         confidence: "low",
         traceStatus: "导入失败-已留痕",
@@ -546,9 +591,11 @@ export default function MeetingScheduleShell() {
     }
   }, [
     createMeetingPage,
+    entries,
     form.date,
     intakeLoading,
     intakeRecordingDevice,
+    intakeMeetingPriority,
     intakeText,
     intakeTranscriptionModel,
     intakeTranscriptionModelTouched,
@@ -608,9 +655,12 @@ export default function MeetingScheduleShell() {
           changed = true;
         }
         if (changed) {
-          await updatePage(entry.page.id, {
+          const updatedPage = await updatePage(entry.page.id, {
             properties: stringifyPageProperties(props),
           });
+          if (rootId && updatedPage) {
+            await pushMeetingPageCloudSnapshot(rootId, updatedPage);
+          }
           fixed++;
         }
       } catch {
@@ -625,7 +675,7 @@ export default function MeetingScheduleShell() {
         ? `已重新识别 ${fixed} 条会议`
         : "没有新的信息可以补充"
     );
-  }, [entries, refresh, load]);
+  }, [entries, refresh, load, rootId]);
 
   const handleStartRecording = useCallback(
     async (entry: MeetingEntry, runNow = true) => {
@@ -660,9 +710,12 @@ export default function MeetingScheduleShell() {
             ? "已手动下发立即录制任务，等待本地 runner 拉取并执行。"
             : "已下发定时录制任务，等待本地 runner 到点执行。"
         );
-        await updatePage(entry.page.id, {
+        const updatedPage = await updatePage(entry.page.id, {
           properties: stringifyPageProperties(props),
         });
+        if (rootId && updatedPage) {
+          await pushMeetingPageCloudSnapshot(rootId, updatedPage);
+        }
         setStartRecordingMessage(
           runNow
             ? "已下发立即录制任务。本地 runner 会拉取任务并开始入会录制。"
@@ -678,7 +731,7 @@ export default function MeetingScheduleShell() {
         setStartingRecordingId("");
       }
     },
-    [load, refresh, startingRecordingId]
+    [load, refresh, rootId, startingRecordingId]
   );
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
@@ -763,7 +816,7 @@ export default function MeetingScheduleShell() {
                 placeholder="粘贴腾讯会议、Zoom、Webex 等邀请，或直接贴入会链接"
                 className={`${inputClass} min-h-28 resize-y leading-6`}
               />
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <Field label="录制设备">
                   <select
                     value={intakeRecordingDevice}
@@ -773,6 +826,19 @@ export default function MeetingScheduleShell() {
                     {RECORDING_DEVICES.map((device) => (
                       <option key={device} value={device}>
                         {device}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="会议优先级">
+                  <select
+                    value={intakeMeetingPriority}
+                    onChange={(e) => setIntakeMeetingPriority(e.target.value)}
+                    className={inputClass}
+                  >
+                    {MEETING_PRIORITIES.map((priority) => (
+                      <option key={priority} value={priority}>
+                        {priority}
                       </option>
                     ))}
                   </select>
@@ -797,7 +863,7 @@ export default function MeetingScheduleShell() {
                 </Field>
               </div>
               <p className="mt-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                录制设备不可用时回退到 {DEFAULT_RECORDING_DEVICE}；中文默认 Qwen，英文默认 GPT，可手动改。
+                冲突时优先尝试另一台设备；“优先”会议可压过普通会议；中文默认 Qwen，英文默认 GPT，可手动改。
               </p>
               {intakeMessage && (
                 <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -848,6 +914,7 @@ export default function MeetingScheduleShell() {
                     value={intakePreview.passcode || "未读取"}
                   />
                   <PreviewItem label="录制设备" value={intakeRecordingDevice} />
+                  <PreviewItem label="会议优先级" value={intakeMeetingPriority} />
                   <PreviewItem
                     label="转写模型"
                     value={transcriptionModelLabel(intakeTranscriptionModel)}
@@ -1271,6 +1338,40 @@ function emptyForm(dateKey: string): MeetingFormState {
   };
 }
 
+async function pushMeetingPageCloudSnapshot(rootId: string, meetingPage: Page) {
+  try {
+    const rootPage = await getPage(rootId);
+    if (!rootPage) return;
+    await fetch("/api/pages/account-sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "push",
+        pages: [toPageSyncRecord(rootPage), toPageSyncRecord(meetingPage)],
+      }),
+    });
+  } catch {
+    // Local creation remains the source of immediate truth; cloud sync will retry later.
+  }
+}
+
+function toPageSyncRecord(page: Page) {
+  return {
+    id: page.id,
+    parent_id: page.parent_id ?? null,
+    title: page.title ?? "",
+    icon: page.icon ?? null,
+    cover_url: page.cover_url ?? null,
+    content_text: page.content_text ?? null,
+    properties: page.properties ?? null,
+    position: page.position ?? 0,
+    depth: page.depth ?? 0,
+    created_at: page.created_at,
+    updated_at: page.updated_at,
+    deleted_at: page.deleted_at ?? null,
+  };
+}
+
 function toMeetingEntry(page: Page): MeetingEntry {
   const props = parsePageProperties(page.properties);
   const read = (name: string) =>
@@ -1290,6 +1391,7 @@ function toMeetingEntry(page: Page): MeetingEntry {
     confidence: read("解析置信度"),
     recordingDevice: read("录制设备"),
     fallbackDevice: read("默认回退设备"),
+    meetingPriority: read("会议优先级"),
     transcriptionModel: read("转写模型"),
     traceStatus: read("会议痕迹"),
     timeStatus: read("时间状态"),
@@ -1314,6 +1416,7 @@ function buildAgentMeetingPayload(entry: MeetingEntry) {
     passcode: entry.passcode,
     recordingDevice: entry.recordingDevice || DEFAULT_RECORDING_DEVICE,
     fallbackDevice: entry.fallbackDevice || DEFAULT_RECORDING_DEVICE,
+    meetingPriority: normalizeMeetingPriority(entry.meetingPriority),
     transcriptionModel: normalizeTranscriptionModel(entry.transcriptionModel),
   };
 }
@@ -1340,6 +1443,16 @@ function normalizeTranscriptionModel(value: string | undefined): TranscriptionMo
 
 function transcriptionModelLabel(value: string | undefined) {
   return normalizeTranscriptionModel(value) === "gpt" ? "GPT" : "Qwen";
+}
+
+function normalizeMeetingPriority(value: string | undefined): MeetingPriority {
+  const normalized = (value || "").trim().toLowerCase();
+  if (normalized.includes("优先") || normalized.includes("high")) return "high";
+  return "default";
+}
+
+function meetingPriorityLabel(value: string | undefined) {
+  return normalizeMeetingPriority(value) === "high" ? "优先" : DEFAULT_MEETING_PRIORITY;
 }
 
 function defaultTranscriptionModelForText(value: string): TranscriptionModel {
@@ -1402,6 +1515,86 @@ function detectPlatformFromText(value: string) {
   return "其他";
 }
 
+function alternateRecordingDevice(device: string) {
+  return device === "Mac Mini" ? "MacBook Pro" : "Mac Mini";
+}
+
+function resolveRecordingDeviceForNewMeeting(
+  entries: MeetingEntry[],
+  draft: MeetingFormState,
+  requestedDevice: string
+) {
+  const requested = RECORDING_DEVICES.includes(requestedDevice)
+    ? requestedDevice
+    : DEFAULT_RECORDING_DEVICE;
+  const alternate = alternateRecordingDevice(requested);
+  const candidateWindow = parseMeetingWindow(draft.date, draft.time);
+  if (!candidateWindow) return requested;
+
+  const sameAccountConflict = entries.some((entry) => {
+    if (meetingAccountKey(entry.platform) !== meetingAccountKey(draft.platform)) {
+      return false;
+    }
+    const existingWindow = parseMeetingWindow(entry.dateKey, entry.time);
+    return existingWindow ? windowsOverlap(candidateWindow, existingWindow) : false;
+  });
+  if (sameAccountConflict) return requested;
+
+  const requestedHasConflict = entries.some((entry) => {
+    if ((entry.recordingDevice || DEFAULT_RECORDING_DEVICE) !== requested) {
+      return false;
+    }
+    const existingWindow = parseMeetingWindow(entry.dateKey, entry.time);
+    return existingWindow ? windowsOverlap(candidateWindow, existingWindow) : false;
+  });
+  if (!requestedHasConflict) return requested;
+
+  const alternateHasConflict = entries.some((entry) => {
+    if ((entry.recordingDevice || DEFAULT_RECORDING_DEVICE) !== alternate) {
+      return false;
+    }
+    const existingWindow = parseMeetingWindow(entry.dateKey, entry.time);
+    return existingWindow ? windowsOverlap(candidateWindow, existingWindow) : false;
+  });
+  return alternateHasConflict ? requested : alternate;
+}
+
+function parseMeetingWindow(dateKey: string, timeLabel: string) {
+  if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+  const times = timeLabel.match(/\d{1,2}:\d{2}/g);
+  if (!times?.length) return null;
+  const startMinutes = timeToMinutes(times[0]);
+  if (startMinutes === null) return null;
+  const endMinutes = times[1] ? timeToMinutes(times[1]) : startMinutes + 60;
+  if (endMinutes === null) return null;
+  return {
+    dateKey,
+    startMinutes,
+    endMinutes: endMinutes > startMinutes ? endMinutes : startMinutes + 60,
+  };
+}
+
+function timeToMinutes(value: string) {
+  const [hourText, minuteText] = value.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+}
+
+function windowsOverlap(
+  first: { dateKey: string; startMinutes: number; endMinutes: number },
+  second: { dateKey: string; startMinutes: number; endMinutes: number }
+) {
+  if (first.dateKey !== second.dateKey) return false;
+  return first.startMinutes < second.endMinutes && second.startMinutes < first.endMinutes;
+}
+
+function meetingAccountKey(platform: string) {
+  return normalizePlatform(platform).toLowerCase();
+}
+
 function buildMeetingTraceContent({
   title,
   topic,
@@ -1414,6 +1607,7 @@ function buildMeetingTraceContent({
   hasPasscode,
   recordingDevice,
   fallbackDevice,
+  meetingPriority,
   transcriptionModel,
   traceStatus,
   timeStatus,
@@ -1433,6 +1627,7 @@ function buildMeetingTraceContent({
   hasPasscode: boolean;
   recordingDevice: string;
   fallbackDevice: string;
+  meetingPriority: string;
   transcriptionModel: string;
   traceStatus: string;
   timeStatus: string;
@@ -1452,6 +1647,7 @@ function buildMeetingTraceContent({
     ["会议密码", hasPasscode ? "已保存" : "未读取"],
     ["录制设备", recordingDevice],
     ["默认回退设备", fallbackDevice],
+    ["会议优先级", meetingPriority],
     ["转写模型", transcriptionModelLabel(transcriptionModel)],
     ["会议痕迹", traceStatus],
     ["时间状态", timeStatus],
@@ -1572,6 +1768,9 @@ function MeetingHoverCard({
         录制设备：{entry.recordingDevice || DEFAULT_RECORDING_DEVICE}
       </span>
       <span className="block">
+        优先级：{meetingPriorityLabel(entry.meetingPriority)}
+      </span>
+      <span className="block">
         转写模型：{transcriptionModelLabel(entry.transcriptionModel)}
       </span>
       <span className="block">
@@ -1643,6 +1842,10 @@ function MeetingDetailWindow({
         <DetailRow
           label="录制设备"
           value={entry.recordingDevice || DEFAULT_RECORDING_DEVICE}
+        />
+        <DetailRow
+          label="优先级"
+          value={meetingPriorityLabel(entry.meetingPriority)}
         />
         <DetailRow
           label="转写模型"
@@ -1717,6 +1920,7 @@ function buildMeetingSummary(entry: MeetingEntry) {
     entry.meetingId ? `会议号：${entry.meetingId}` : "",
     entry.passcode ? `密码：${entry.passcode}` : "",
     `录制设备：${entry.recordingDevice || DEFAULT_RECORDING_DEVICE}`,
+    `优先级：${meetingPriorityLabel(entry.meetingPriority)}`,
     `转写模型：${transcriptionModelLabel(entry.transcriptionModel)}`,
     entry.traceStatus ? `痕迹：${entry.traceStatus}` : "",
     entry.recordingStatus ? `录制：${entry.recordingStatus}` : "",
