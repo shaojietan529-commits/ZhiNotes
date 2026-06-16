@@ -274,6 +274,12 @@ export default function MeetingScheduleShell() {
     [entries]
   );
 
+  // Auto-link completed meeting notes into the corresponding 每日纪要 page.
+  useEffect(() => {
+    if (!meetingNotes.length) return;
+    void linkCompletedMeetingsToDaily(meetingNotes);
+  }, [meetingNotes]);
+
   const openForm = (dateKey: string) => {
     setForm(emptyForm(dateKey));
     setFormOpen(true);
@@ -1617,3 +1623,76 @@ function buildMonthGrid(monthStart: Date): MonthCell[] {
   }
   return cells;
 }
+
+// ── Auto-link completed meetings into 每日纪要 ─────────────────────
+// When a meeting reaches "完成" state we append a page-mention link into the
+// daily note for that date so the user sees the reference on their calendar.
+// Title format: "xxx纪要-组织人-日期" per owner request.
+
+async function linkCompletedMeetingsToDaily(completed: MeetingEntry[]) {
+  const dailyRootId = await getModuleRootId("daily");
+  const dailyPages = await listPages(dailyRootId);
+
+  // Index daily pages by date key for fast lookup.
+  const dailyByDate = new Map<string, Page>();
+  for (const page of dailyPages) {
+    const props = parsePageProperties(page.properties);
+    const dateVal = props.find((p) => p.name === "日期")?.value?.trim();
+    if (dateVal) dailyByDate.set(dateVal, page);
+  }
+
+  for (const entry of completed) {
+    const dateKey = entry.dateKey;
+    if (!dateKey) continue;
+
+    // Build the mention label: "主题纪要-组织者-日期"
+    const topicBase = (entry.topic || "会议").replace(/纪要$/, "");
+    const label = [
+      `${topicBase}纪要`,
+      entry.organizer || undefined,
+      dateKey,
+    ]
+      .filter(Boolean)
+      .join("-");
+
+    let dailyPage = dailyByDate.get(dateKey);
+
+    // Check if this meeting is already linked in the daily page content.
+    if (dailyPage) {
+      const existing = await getPage(dailyPage.id);
+      const body = existing?.content_text ?? "";
+      if (body.includes(`data-id="${entry.page.id}"`)) continue;
+    }
+
+    // Create the daily page for this date if it doesn't exist yet.
+    if (!dailyPage) {
+      const newPage = await createPage({ parentId: dailyRootId });
+      const props = [
+        { ...createPageProperty("date", "日期"), value: dateKey },
+        createPageProperty("text", "要点"),
+        createPageProperty("text", "Summary"),
+        createPageProperty("tags", "相关公司"),
+        createPageProperty("tags", "相关行业"),
+      ];
+      await updatePage(newPage.id, {
+        properties: stringifyPageProperties(props),
+      });
+      dailyPage = { ...newPage, properties: stringifyPageProperties(props) };
+      dailyByDate.set(dateKey, dailyPage);
+    }
+
+    // Append a mention node to the daily page body.
+    const mentionHtml =
+      `<p><a data-type="mention" data-id="${entry.page.id}" ` +
+      `data-label="${escapeHtml(label)}" ` +
+      `href="/page/${entry.page.id}" ` +
+      `class="wiki-link inline-flex items-center gap-0.5 px-1 py-0.5 rounded ` +
+      `bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 text-sm ` +
+      `font-medium cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900 ` +
+      `transition-colors no-underline">📄 ${escapeHtml(label)}</a></p>`;
+
+    const current = (await getPage(dailyPage.id))?.content_text ?? "";
+    await updatePage(dailyPage.id, { content_text: current + mentionHtml });
+  }
+}
+
