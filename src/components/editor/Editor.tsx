@@ -50,6 +50,7 @@ import { FilePreviewNode } from "./extensions/FilePreviewNode";
 import { FileEmbedNode } from "./extensions/FileEmbedNode";
 import { ToggleBlockNode } from "./extensions/ToggleBlockNode";
 import { CalloutNode } from "./extensions/CalloutNode";
+import { ModuleCardNode } from "./extensions/ModuleCardNode";
 import { TableOfContentsNode } from "./extensions/TableOfContentsNode";
 import { BlockOperations } from "./extensions/BlockOperations";
 import { ColumnBlockNode, ColumnLayoutNode } from "./extensions/ColumnsNode";
@@ -239,6 +240,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         FileEmbedNode,
         ToggleBlockNode,
         CalloutNode,
+        ModuleCardNode,
         TableOfContentsNode,
         ColumnLayoutNode,
         ColumnBlockNode,

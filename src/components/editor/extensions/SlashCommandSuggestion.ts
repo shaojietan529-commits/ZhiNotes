@@ -332,6 +332,117 @@ function getSlashCommands(): SlashCommandItem[] {
         editor.chain().focus().deleteRange(range).insertCallout().run();
       },
     },
+    // ── Modules (composable cards) ──
+    {
+      title: "模块卡片",
+      description: "可自由组合的模块：图标 + 标题 + 任意内容（文字/清单/图片…）",
+      icon: "📦",
+      category: "模块",
+      aliases: [
+        "module",
+        "card",
+        "block module",
+        "widget",
+        "模块",
+        "卡片",
+        "组件",
+      ],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertModuleCard().run();
+      },
+    },
+    {
+      title: "并排模块",
+      description: "左右两个模块卡片并排，用于组合版面",
+      icon: "▥",
+      category: "模块",
+      aliases: [
+        "module columns",
+        "side by side",
+        "two modules",
+        "并排",
+        "并排模块",
+        "组合模块",
+      ],
+      command: ({ editor, range }) => {
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .insertContent({
+            type: "columnLayout",
+            attrs: { columns: 2 },
+            content: [
+              {
+                type: "columnBlock",
+                content: [
+                  {
+                    type: "moduleCard",
+                    attrs: { icon: "📦", title: "", tone: "neutral" },
+                    content: [{ type: "paragraph" }],
+                  },
+                ],
+              },
+              {
+                type: "columnBlock",
+                content: [
+                  {
+                    type: "moduleCard",
+                    attrs: { icon: "📦", title: "", tone: "blue" },
+                    content: [{ type: "paragraph" }],
+                  },
+                ],
+              },
+            ],
+          })
+          .run();
+      },
+    },
+    {
+      title: "要点模块",
+      description: "蓝色要点卡片，适合放结论 / 投资要点",
+      icon: "📊",
+      category: "模块",
+      aliases: ["key points", "highlights", "要点", "结论", "投资要点"],
+      command: ({ editor, range }) => {
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .insertModuleCard({ icon: "📊", title: "要点", tone: "blue" })
+          .run();
+      },
+    },
+    {
+      title: "待办模块",
+      description: "黄色待办卡片，适合放跟踪事项",
+      icon: "📌",
+      category: "模块",
+      aliases: ["todo", "checklist", "tasks", "待办", "跟踪", "清单"],
+      command: ({ editor, range }) => {
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .insertModuleCard({ icon: "📌", title: "待办", tone: "amber" })
+          .run();
+      },
+    },
+    {
+      title: "风险模块",
+      description: "红色风险卡片，适合放风险 / 注意事项",
+      icon: "⚠️",
+      category: "模块",
+      aliases: ["risk", "warning", "风险", "注意"],
+      command: ({ editor, range }) => {
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .insertModuleCard({ icon: "⚠️", title: "风险", tone: "red" })
+          .run();
+      },
+    },
     // ── Media ──
     {
       title: "图片",
