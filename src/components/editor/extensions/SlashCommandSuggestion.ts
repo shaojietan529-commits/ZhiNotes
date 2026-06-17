@@ -19,6 +19,7 @@ import {
   promptAndInsertMarkdownFilePreview,
   promptAndImportMarkdown,
   promptAndInsertFilePreview,
+  promptAndInsertFileEmbed,
 } from "../filePreviewUpload";
 import { NOTE_TEMPLATES } from "@/lib/templates/noteTemplates";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -344,6 +345,25 @@ function getSlashCommands(): SlashCommandItem[] {
         if (url) {
           editor.chain().focus().setImage({ src: url }).run();
         }
+      },
+    },
+    {
+      title: "嵌入文件",
+      description: "嵌入文件链接，点击展开预览（同步到云端）",
+      icon: "📎",
+      category: "媒体",
+      aliases: [
+        "embed file",
+        "attach",
+        "attachment",
+        "嵌入",
+        "嵌入文件",
+        "附件",
+        "文件链接",
+      ],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        promptAndInsertFileEmbed(editor);
       },
     },
     {

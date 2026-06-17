@@ -315,3 +315,68 @@ export function promptAndImportMarkdown(editor: Editor) {
 
   input.click();
 }
+
+export function promptAndInsertFileEmbed(editor: Editor) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.multiple = true;
+  input.accept = FILE_PREVIEW_ACCEPT;
+
+  input.onchange = () => {
+    const files = Array.from(input.files ?? []);
+    if (files.length > 0) {
+      void insertFilesAsEmbeds(editor, files);
+    }
+  };
+
+  input.click();
+}
+
+export async function insertFilesAsEmbeds(editor: Editor, files: File[]) {
+  for (const file of files) {
+    try {
+      const stored = await savePageFile(file);
+      editor
+        .chain()
+        .focus()
+        .insertFileEmbed({
+          fileId: stored.id,
+          fileName: stored.name,
+          mimeType: stored.mimeType,
+          kind: stored.kind,
+          size: stored.size,
+        })
+        .run();
+      syncFileToCloud(stored).catch(() => {
+        // Cloud sync is best-effort; the file remains in local IndexedDB.
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to embed file:", err);
+    }
+  }
+}
+
+async function syncFileToCloud(stored: StoredPageFile) {
+  const res = await fetch("/api/files/embed-sync", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      action: "push",
+      fileId: stored.id,
+      fileName: stored.name,
+      mimeType: stored.mimeType,
+      kind: stored.kind,
+      size: stored.size,
+      dataUrl: stored.dataUrl,
+      textContent: stored.textContent ?? null,
+    }),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as {
+      message?: string;
+    };
+    if (data.message) {
+      console.warn("[Zhinote] File cloud sync:", data.message);
+    }
+  }
+}

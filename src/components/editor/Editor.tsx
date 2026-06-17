@@ -47,6 +47,7 @@ import { SlashCommandExtension } from "./extensions/SlashCommandExtension";
 import { KeyboardShortcuts } from "./extensions/KeyboardShortcuts";
 import { InlineDatabaseNode } from "./extensions/InlineDatabaseNode";
 import { FilePreviewNode } from "./extensions/FilePreviewNode";
+import { FileEmbedNode } from "./extensions/FileEmbedNode";
 import { ToggleBlockNode } from "./extensions/ToggleBlockNode";
 import { CalloutNode } from "./extensions/CalloutNode";
 import { TableOfContentsNode } from "./extensions/TableOfContentsNode";
@@ -235,6 +236,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         KeyboardShortcuts,
         InlineDatabaseNode,
         FilePreviewNode,
+        FileEmbedNode,
         ToggleBlockNode,
         CalloutNode,
         TableOfContentsNode,
