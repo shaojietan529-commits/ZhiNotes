@@ -46,6 +46,43 @@ const PLATFORMS = [
 const RECORDING_DEVICES = ["MacBook Pro", "Mac Mini"];
 const DEFAULT_RECORDING_DEVICE = "MacBook Pro";
 
+// Meetings the owner explicitly deleted. We persist their ids here so the
+// audit-protection auto-restore (restoreDeletedMeetingPages) leaves them
+// deleted instead of resurrecting them on the next load.
+const DELETED_KEY = "zhinote.zhihui.deleted";
+
+function readDeletedTombstone(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(DELETED_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function writeDeletedTombstone(ids: Set<string>) {
+  try {
+    window.localStorage.setItem(DELETED_KEY, JSON.stringify([...ids]));
+  } catch {
+    // Tombstone persistence is best-effort; deletion still applies this session.
+  }
+}
+
+// Meetings whose "待补时间 / 失败留痕" reminder the owner dismissed. The meeting
+// itself stays on the calendar; only the warning chip is hidden.
+const TRACE_DISMISSED_KEY = "zhinote.zhihui.trace-dismissed";
+
+function readDismissedTraces(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(TRACE_DISMISSED_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
 interface MeetingEntry {
   page: Page;
   topic: string;
@@ -150,6 +187,35 @@ export default function MeetingScheduleShell() {
     y: number;
   } | null>(null);
   const initialCloudPullAttemptedRef = useRef(false);
+  const deletedTombstoneRef = useRef<Set<string>>(readDeletedTombstone());
+
+  const addTombstone = useCallback((pageId: string) => {
+    const next = new Set(deletedTombstoneRef.current);
+    next.add(pageId);
+    deletedTombstoneRef.current = next;
+    writeDeletedTombstone(next);
+  }, []);
+
+  const [dismissedTraces, setDismissedTraces] = useState<Set<string>>(
+    readDismissedTraces
+  );
+
+  const handleDismissTrace = useCallback((pageId: string) => {
+    setDismissedTraces((prev) => {
+      if (prev.has(pageId)) return prev;
+      const next = new Set(prev);
+      next.add(pageId);
+      try {
+        window.localStorage.setItem(
+          TRACE_DISMISSED_KEY,
+          JSON.stringify([...next])
+        );
+      } catch {
+        // Best-effort; the reminder still hides for this session.
+      }
+      return next;
+    });
+  }, []);
 
   const load = useCallback(async () => {
     if (!initialCloudPullAttemptedRef.current) {
@@ -158,14 +224,42 @@ export default function MeetingScheduleShell() {
     }
     const id = await getModuleRootId("meeting-schedule");
     setRootId(id);
-    await restoreDeletedMeetingPages(id);
+    await restoreDeletedMeetingPages(id, deletedTombstoneRef.current);
     setMeetings(await listPages(id));
   }, []);
 
-  const handleDeleteMeeting = useCallback(async (pageId: string) => {
-    await deletePage(pageId);
-    setMeetings((prev) => prev.filter((page) => page.id !== pageId));
-  }, []);
+  const handleDeleteMeeting = useCallback(
+    async (pageId: string) => {
+      addTombstone(pageId);
+      await deletePage(pageId);
+      setMeetings((prev) => prev.filter((page) => page.id !== pageId));
+      setSelectedMeeting((current) =>
+        current?.page.id === pageId ? null : current
+      );
+      // Propagate the deletion (deleted_at tombstone) to the cloud copy so it
+      // does not get pulled back in on the next reconcile.
+      if (rootId) {
+        const deleted = (await getDeletedPages()).find((p) => p.id === pageId);
+        if (deleted) {
+          await pushMeetingPageCloudSnapshot(rootId, deleted);
+        }
+      }
+    },
+    [addTombstone, rootId]
+  );
+
+  // The shared page context menu deletes via "移到回收站". When that happens we
+  // record the id in our tombstone so the audit auto-restore leaves it deleted.
+  const handleContextMenuChanged = useCallback(
+    async (pageId: string) => {
+      const deleted = await getDeletedPages();
+      if (deleted.some((p) => p.id === pageId)) {
+        addTombstone(pageId);
+      }
+      await load();
+    },
+    [addTombstone, load]
+  );
 
   useEffect(() => {
     if (!dbReady) return;
@@ -602,10 +696,12 @@ export default function MeetingScheduleShell() {
       entries
         .filter(
           (entry) =>
-            needsTraceReview(entry) && !isExpiredMeetingTrace(entry, todayKey)
+            needsTraceReview(entry) &&
+            !isExpiredMeetingTrace(entry, todayKey) &&
+            !dismissedTraces.has(entry.page.id)
         )
         .slice(0, 12),
-    [entries, todayKey]
+    [entries, todayKey, dismissedTraces]
   );
 
   const goPrev = () =>
@@ -826,10 +922,10 @@ export default function MeetingScheduleShell() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => void handleDeleteMeeting(entry.page.id)}
-                          className="shrink-0 rounded-full p-1 text-zinc-300 transition-colors hover:bg-red-100 hover:text-red-500 dark:text-zinc-600 dark:hover:bg-red-950/40 dark:hover:text-red-400"
-                          title="删除这条会议"
-                          aria-label="删除这条会议"
+                          onClick={() => handleDismissTrace(entry.page.id)}
+                          className="shrink-0 rounded-full p-1 text-zinc-300 transition-colors hover:bg-amber-100 hover:text-amber-600 dark:text-zinc-600 dark:hover:bg-amber-950/40 dark:hover:text-amber-400"
+                          title="忽略这条提醒（会议仍保留在日历上）"
+                          aria-label="忽略这条提醒"
                         >
                           <svg
                             width="14"
@@ -1113,7 +1209,7 @@ export default function MeetingScheduleShell() {
           onClose={() => setContextMenu(null)}
           onOpen={(id) => router.push(`/page/${id}`)}
           onOpenFull={(id) => router.push(`/page/${id}`)}
-          onChanged={() => void load()}
+          onChanged={() => void handleContextMenuChanged(contextMenu.pageId)}
         />
       )}
       {selectedMeeting && (
@@ -1121,6 +1217,7 @@ export default function MeetingScheduleShell() {
           entry={selectedMeeting}
           onClose={() => setSelectedMeeting(null)}
           onOpenFull={(id) => router.push(`/page/${id}`)}
+          onDelete={(id) => void handleDeleteMeeting(id)}
         />
       )}
     </div>
@@ -1137,10 +1234,16 @@ function emptyForm(dateKey: string): MeetingFormState {
   };
 }
 
-async function restoreDeletedMeetingPages(rootId: string) {
+async function restoreDeletedMeetingPages(
+  rootId: string,
+  tombstone: Set<string>
+) {
   const deletedPages = await getDeletedPages();
   const candidates = deletedPages.filter(
-    (page) => page.parent_id === rootId && isMeetingTracePage(page)
+    (page) =>
+      page.parent_id === rootId &&
+      isMeetingTracePage(page) &&
+      !tombstone.has(page.id)
   );
   for (const page of candidates) {
     const restored = await restorePage(page.id);
@@ -1456,10 +1559,12 @@ function MeetingDetailWindow({
   entry,
   onClose,
   onOpenFull,
+  onDelete,
 }: {
   entry: MeetingEntry;
   onClose: () => void;
   onOpenFull: (pageId: string) => void;
+  onDelete: (pageId: string) => void;
 }) {
   return (
     <aside className="fixed right-6 top-20 z-50 max-h-[calc(100vh-7rem)] w-[min(440px,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
@@ -1505,21 +1610,38 @@ function MeetingDetailWindow({
         </p>
       </div>
 
-      <div className="flex justify-end gap-2 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
         <button
           type="button"
-          onClick={onClose}
-          className="rounded-md px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          onClick={() => {
+            if (
+              window.confirm(
+                `删除会议「${entry.topic}」？删除后不会再自动恢复。`
+              )
+            ) {
+              onDelete(entry.page.id);
+            }
+          }}
+          className="rounded-md px-3 py-1.5 text-sm text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-950/40"
         >
-          关闭
+          删除会议
         </button>
-        <button
-          type="button"
-          onClick={() => onOpenFull(entry.page.id)}
-          className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
-          打开完整页面
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            关闭
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenFull(entry.page.id)}
+            className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          >
+            打开完整页面
+          </button>
+        </div>
       </div>
     </aside>
   );
