@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "ZhiNotes Web Clipper",
+  "version": "1.0.0",
+  "description": "一键保存网页到 ZhiNotes",
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": [
+    "https://zhi-note.com/*",
+    "https://zhi-notes.vercel.app/*",
+    "http://localhost:3000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icons/icon.svg"
+  },
+  "icons": {
+    "128": "icons/icon.svg"
+  }
+}

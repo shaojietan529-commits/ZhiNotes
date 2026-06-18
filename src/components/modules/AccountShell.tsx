@@ -51,6 +51,10 @@ export default function AccountShell() {
   const [pageSyncBusy, setPageSyncBusy] = useState(false);
   const [pageSyncNotice, setPageSyncNotice] = useState<string | null>(null);
   const [pageSyncLastAt, setPageSyncLastAt] = useState<string | null>(null);
+  // API Key for external tools (Claude, web clipper extension)
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKeyBusy, setApiKeyBusy] = useState(false);
+  const [apiKeyNotice, setApiKeyNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setPageSyncOn(isPageSyncEnabled());
@@ -99,6 +103,11 @@ export default function AccountShell() {
         setSharedWithMe(result.data.sharedWithMe);
       }
     });
+    // Load existing API key
+    void fetch("/api/pages/ingest?action=current")
+      .then((r) => r.json())
+      .then((d) => { if (d.ok) setApiKey(d.apiKey); })
+      .catch(() => {});
   }, [phase]);
 
   async function handleShareAdd() {
@@ -242,6 +251,25 @@ export default function AccountShell() {
       setProfileNotice("网络错误，请稍后重试。");
     } finally {
       setProfileBusy(false);
+    }
+  }
+
+  async function handleGenerateApiKey() {
+    setApiKeyBusy(true);
+    setApiKeyNotice(null);
+    try {
+      const res = await fetch("/api/pages/ingest?action=generate");
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setApiKey(data.apiKey);
+        setApiKeyNotice("已生成新密钥（旧密钥已失效）。");
+      } else {
+        setApiKeyNotice(data.error ?? "生成失败。");
+      }
+    } catch {
+      setApiKeyNotice("网络错误。");
+    } finally {
+      setApiKeyBusy(false);
     }
   }
 
@@ -594,6 +622,60 @@ export default function AccountShell() {
             </div>
           )}
 
+          {phase === "signed-in" && (
+            <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                API 密钥
+              </p>
+              <p className="mt-1 text-xs text-zinc-400">
+                用于外部工具（如 Claude、浏览器扩展）通过 API 保存内容到 ZhiNotes。
+              </p>
+
+              {apiKey ? (
+                <div className="mt-3 flex items-center gap-2">
+                  <code className="flex-1 truncate rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 font-mono text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">
+                    {apiKey}
+                  </code>
+                  <button
+                    onClick={() => {
+                      void navigator.clipboard.writeText(apiKey);
+                      setApiKeyNotice("已复制到剪贴板。");
+                      setTimeout(() => setApiKeyNotice(null), 2000);
+                    }}
+                    className="shrink-0 rounded-lg border border-zinc-300 px-3 py-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    复制
+                  </button>
+                </div>
+              ) : (
+                <p className="mt-3 text-xs text-zinc-500">尚未生成密���。</p>
+              )}
+
+              <button
+                onClick={() => void handleGenerateApiKey()}
+                disabled={apiKeyBusy}
+                className="mt-3 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                {apiKeyBusy
+                  ? "生成中…"
+                  : apiKey
+                    ? "重新生成（旧密钥失效）"
+                    : "生成 API 密钥"}
+              </button>
+
+              {apiKeyNotice && (
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  {apiKeyNotice}
+                </p>
+              )}
+
+              <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+                使用方法：POST /api/pages/ingest，Header 加上 Authorization: Bearer
+                你的密钥，Body 传 {`{title, content}`}。浏览器扩展可在设置里填入此密钥。
+              </p>
+            </div>
+          )}
+
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
             <p className="font-medium text-zinc-900 dark:text-zinc-100">
               账号能做什么
@@ -602,6 +684,7 @@ export default function AccountShell() {
               <li>登录后，组合管理的数据自动跟随账号云同步，任何设备登录都能看到同一份。</li>
               <li>可以把持仓共享给指定邮箱（只读），对方登录后即可查看。</li>
               <li>页面与会议安排默认实时云同步，登录同一账号的设备自动保持一致，可随时关闭。</li>
+              <li>生成 API 密钥后，可用外部工具（Claude 等）或浏览器扩展一键保存内容到 ZhiNotes。</li>
               <li>数据库表格和本地文件始终只存在本机浏览器，不会上传。</li>
             </ul>
           </div>
