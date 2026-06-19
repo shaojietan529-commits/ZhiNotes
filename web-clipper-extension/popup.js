@@ -102,6 +102,16 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+// Local YYYY-MM-DD so the page lands in the right day's column regardless
+// of the server timezone.
+function localDateKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 // --- UI Logic ---
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -154,6 +164,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         content: pageData.content,
         source: "web-clipper",
         url: pageData.url,
+        clientDate: localDateKey(),
       };
 
       const headers = { "Content-Type": "application/json" };
@@ -174,7 +185,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       const result = await response.json();
 
       if (response.ok && result.ok) {
-        showStatus(statusEl, "success", `✓ 已保存「${result.title}」`);
+        const where =
+          result.placement === "daily"
+            ? `已存入每日纪要 ${result.date}`
+            : "已保存";
+        showStatus(statusEl, "success", `✓ ${where}：「${result.title}」`);
       } else {
         const msg = result.message || result.error || "保存失败";
         showStatus(statusEl, "error", `✗ ${msg}`);

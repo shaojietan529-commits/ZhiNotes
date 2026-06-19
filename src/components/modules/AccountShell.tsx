@@ -671,7 +671,8 @@ export default function AccountShell() {
 
               <p className="mt-3 text-[11px] leading-5 text-zinc-400">
                 使用方法：POST /api/pages/ingest，Header 加上 Authorization: Bearer
-                你的密钥，Body 传 {`{title, content}`}。浏览器扩展可在设置里填入此密钥。
+                你的密钥，Body 传 {`{title, content}`}。保存的内容默认进入「每日纪要」
+                当天那一栏；浏览器扩展可在设置里填入此密钥。
               </p>
             </div>
           )}

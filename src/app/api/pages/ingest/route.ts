@@ -32,9 +32,20 @@ export function OPTIONS() {
 
 const INDEX_KEY_PREFIX = "zhinotes:pagesync:index:";
 const PAGE_KEY_PREFIX = "zhinotes:pagesync:page:";
+const DAILY_ROOT_CACHE_PREFIX = "zhinotes:dailyroot:";
+
+// The 每日纪要 (daily notes) workspace root is a singleton top-level page
+// identified by title. Saved clips default to landing under it, tagged with
+// today's date so they group into the day's column — same shape the daily
+// view uses (a 日期 property on a child of the daily root).
+const DAILY_ROOT_TITLES = new Set(["每日纪要"]);
 
 // Max content size: ~800 KB of HTML (leaves room in the 1 MB KV limit)
 const MAX_CONTENT_BYTES = 800 * 1024;
+
+// Bound how much we scan when locating the daily root on a cold cache.
+const SCAN_MAX_IDS = 1200;
+const SCAN_CHUNK = 24;
 
 interface IngestBody {
   title: string;
@@ -43,11 +54,28 @@ interface IngestBody {
   parentId?: string;
   source?: string; // "claude" | "web-clipper" | "api"
   url?: string; // original URL (for web clips)
+  clientDate?: string; // caller's local YYYY-MM-DD (for correct "today")
+  placement?: "daily" | "top"; // default: daily
 }
 
 interface IndexEntry {
   u: string; // updated_at
   d: 0 | 1; // deleted
+}
+
+interface StoredPage {
+  id: string;
+  parent_id: string | null;
+  title: string;
+  deleted_at: string | null;
+}
+
+function pageKey(email: string, id: string) {
+  return `${PAGE_KEY_PREFIX}${email}:${id}`;
+}
+
+function isValidDateKey(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 function getBearerToken(request: Request): string | null {
@@ -89,6 +117,95 @@ async function validateApiKey(
   return email;
 }
 
+function parseStoredPage(raw: string | null): StoredPage | null {
+  if (!raw) return null;
+  try {
+    const obj = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof obj.id !== "string") return null;
+    return {
+      id: obj.id,
+      parent_id: typeof obj.parent_id === "string" ? obj.parent_id : null,
+      title: typeof obj.title === "string" ? obj.title : "",
+      deleted_at: typeof obj.deleted_at === "string" ? obj.deleted_at : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isDailyRoot(page: StoredPage | null): boolean {
+  return Boolean(
+    page &&
+      !page.deleted_at &&
+      page.parent_id === null &&
+      DAILY_ROOT_TITLES.has(page.title)
+  );
+}
+
+// Find the 每日纪要 root page id for this account in the synced page store.
+// Self-caching: a cold cache triggers a one-time scan of synced page records,
+// then we remember the id so later clips only cost two KV reads. Returns null
+// if the account has not synced a daily root yet (caller falls back to a
+// top-level page).
+async function resolveDailyRootId(
+  config: AccountConfig,
+  email: string
+): Promise<string | null> {
+  const cacheKey = `${DAILY_ROOT_CACHE_PREFIX}${email}`;
+
+  // Fast path: trust the cache if the cached page still looks like the root.
+  const cached = await kvGet(config.kv, cacheKey);
+  if (cached) {
+    const rec = parseStoredPage(await kvGet(config.kv, pageKey(email, cached)));
+    if (rec && rec.id === cached && isDailyRoot(rec)) return cached;
+  }
+
+  // Cold/stale cache: scan the synced records for the daily root.
+  const indexRaw = await kvGet(config.kv, `${INDEX_KEY_PREFIX}${email}`);
+  if (!indexRaw) return null;
+  let index: Record<string, IndexEntry>;
+  try {
+    index = JSON.parse(indexRaw) as Record<string, IndexEntry>;
+  } catch {
+    return null;
+  }
+
+  const ids = Object.entries(index)
+    .filter(([, entry]) => entry.d === 0)
+    .map(([id]) => id)
+    .slice(0, SCAN_MAX_IDS);
+
+  const matches: StoredPage[] = [];
+  for (let i = 0; i < ids.length; i += SCAN_CHUNK) {
+    const chunk = ids.slice(i, i + SCAN_CHUNK);
+    const recs = await Promise.all(
+      chunk.map((id) => kvGet(config.kv, pageKey(email, id)))
+    );
+    for (const raw of recs) {
+      const page = parseStoredPage(raw);
+      if (isDailyRoot(page)) matches.push(page!);
+    }
+  }
+  if (matches.length === 0) return null;
+
+  // Deterministic: smallest id, matching the client's convergence rule.
+  matches.sort((a, b) => (a.id < b.id ? -1 : 1));
+  const rootId = matches[0].id;
+  await kvSet(config.kv, cacheKey, rootId);
+  return rootId;
+}
+
+interface PageProperty {
+  id: string;
+  name: string;
+  type: string;
+  value: string;
+}
+
+function prop(type: string, name: string, value: string): PageProperty {
+  return { id: generateId(), name, type, value };
+}
+
 export async function POST(request: Request) {
   const config = getAccountConfig();
   if (!config) {
@@ -108,7 +225,8 @@ export async function POST(request: Request) {
     return corsJson({ error: "invalid-json" }, { status: 400 });
   }
 
-  const { title, content, icon, parentId, source, url } = body;
+  const { title, content, icon, parentId, source, url, clientDate, placement } =
+    body;
 
   if (!title || typeof title !== "string") {
     return corsJson(
@@ -134,31 +252,48 @@ export async function POST(request: Request) {
     );
   }
 
-  // Build the page record
+  // Decide where the clip lands.
+  // - Explicit parentId wins.
+  // - Otherwise default to the 每日纪要 root, tagged with today's date so it
+  //   groups into the day's column. Falls back to a top-level page if no
+  //   daily root has synced yet (or placement === "top").
+  const today = isValidDateKey(clientDate)
+    ? clientDate
+    : new Date().toISOString().slice(0, 10);
+
+  let resolvedParent: string | null = null;
+  let landedInDaily = false;
+  if (parentId && typeof parentId === "string") {
+    resolvedParent = parentId;
+  } else if (placement !== "top") {
+    const dailyRoot = await resolveDailyRootId(config, email);
+    if (dailyRoot) {
+      resolvedParent = dailyRoot;
+      landedInDaily = true;
+    }
+  }
+
+  // Build properties array (must match the app's PageProperty[] JSON shape).
+  const properties: PageProperty[] = [];
+  if (landedInDaily) {
+    properties.push(prop("date", "日期", today));
+  }
+  if (source) properties.push(prop("select", "来源", source));
+  if (url) properties.push(prop("url", "链接", url));
+
   const pageId = generateId();
   const now = new Date().toISOString();
 
-  // Build properties: source tag + optional URL
-  const properties: Record<string, { type: string; value: string }> = {};
-  if (source) {
-    properties["来源"] = { type: "select", value: source };
-  }
-  if (url) {
-    properties["链接"] = { type: "url", value: url };
-  }
-
   const pageRecord = {
     id: pageId,
-    parent_id: parentId && typeof parentId === "string" ? parentId : null,
+    parent_id: resolvedParent,
     title: title.slice(0, 500),
     icon: icon && typeof icon === "string" ? icon.slice(0, 4) : null,
     cover_url: null,
     content_text: content,
-    properties: Object.keys(properties).length > 0
-      ? JSON.stringify(properties)
-      : null,
+    properties: properties.length > 0 ? JSON.stringify(properties) : null,
     position: Date.now(),
-    depth: parentId ? 1 : 0,
+    depth: resolvedParent ? 1 : 0,
     created_at: now,
     updated_at: now,
     deleted_at: null,
@@ -167,7 +302,7 @@ export async function POST(request: Request) {
   // Write the page to KV
   await kvSet(
     config.kv,
-    `${PAGE_KEY_PREFIX}${email}:${pageId}`,
+    pageKey(email, pageId),
     JSON.stringify(pageRecord)
   );
 
@@ -190,6 +325,8 @@ export async function POST(request: Request) {
     pageId,
     title: pageRecord.title,
     createdAt: now,
+    placement: landedInDaily ? "daily" : "top",
+    date: landedInDaily ? today : null,
   });
 }
 
