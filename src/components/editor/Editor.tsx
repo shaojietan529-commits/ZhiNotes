@@ -74,7 +74,7 @@ import EditorBubbleMenu from "./EditorBubbleMenu";
 import {
   FILE_PREVIEW_IMPORT_PROGRESS_EVENT,
   type FilePreviewImportProgress,
-  insertFilesAsPreviews,
+  insertFilesAsEmbeds,
 } from "./filePreviewUpload";
 import {
   useEffect,
@@ -286,7 +286,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
           const editorInstance = tiptapEditorRef.current;
           if (!files.length || !editorInstance) return false;
           event.preventDefault();
-          void insertFilesAsPreviews(editorInstance, files);
+          void insertFilesAsEmbeds(editorInstance, files);
           return true;
         },
         handlePaste: (_view, event) => {
@@ -295,7 +295,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
           const editorInstance = tiptapEditorRef.current;
           if (!files.length || !editorInstance) return false;
           event.preventDefault();
-          void insertFilesAsPreviews(editorInstance, files);
+          void insertFilesAsEmbeds(editorInstance, files);
           return true;
         },
       },
