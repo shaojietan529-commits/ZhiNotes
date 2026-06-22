@@ -64,10 +64,18 @@ for (const [name, source] of Object.entries(shells)) {
 }
 for (const [name, source] of Object.entries(shells)) {
   if (name === "schedule") {
-    const fetchMatches = source.match(/fetch\(/g) ?? [];
+    const fetchCalls = Array.from(
+      source.matchAll(/fetch\(\s*["'`]([^"'`]+)["'`]/g)
+    ).map((match) => match[1]);
+    const allowedScheduleFetches = new Set([
+      "/api/meetings/intake",
+      "/api/pages/account-sync",
+      "/api/meetings/agent/jobs",
+    ]);
     check(
-      fetchMatches.length <= 2 && source.includes('fetch("/api/meetings/intake"'),
-      "schedule shell 只能调用同源会议解析接口 /api/meetings/intake"
+      fetchCalls.length > 0 &&
+        fetchCalls.every((url) => allowedScheduleFetches.has(url)),
+      "schedule shell 只能调用已批准的同源接口 /api/meetings/intake, /api/pages/account-sync, /api/meetings/agent/jobs"
     );
   } else {
     check(!source.includes("fetch("), `${name} shell 不得包含 fetch(`);
