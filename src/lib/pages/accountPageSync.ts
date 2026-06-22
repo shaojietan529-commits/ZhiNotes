@@ -27,6 +27,7 @@ import type { Page } from "@/lib/utils/types";
 
 const ENABLED_KEY = "zhinote.pagesync.enabled";
 const LAST_SYNC_KEY = "zhinote.pagesync.lastSyncAt";
+const REMOTE_WATERMARK_KEY = "zhinote.pagesync.remoteWatermark";
 export const PAGE_SYNC_CONFIG_EVENT = "zhinote:pagesync-config";
 
 const PULL_BATCH = 40;
@@ -67,11 +68,23 @@ export interface ReconcileResult {
   pulled: number;
   pushed: number;
   message?: string;
+  skipped?: boolean;
 }
 
 interface IndexEntry {
   u: string;
   d: 0 | 1;
+}
+
+interface IndexSummary {
+  count: number;
+  deleted: number;
+  maxUpdatedAt: string;
+  watermark: string;
+}
+
+interface ReconcileOptions {
+  quick?: boolean;
 }
 
 async function call(body: Record<string, unknown>): Promise<
@@ -121,6 +134,46 @@ function toRecord(page: Page): RemotePageRecord {
   };
 }
 
+function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
+  let count = 0;
+  let deleted = 0;
+  let maxUpdatedAt = "";
+  for (const entry of Object.values(index)) {
+    count += 1;
+    if (entry.d === 1) deleted += 1;
+    if (entry.u > maxUpdatedAt) maxUpdatedAt = entry.u;
+  }
+  return {
+    count,
+    deleted,
+    maxUpdatedAt,
+    watermark: `${count}:${deleted}:${maxUpdatedAt}`,
+  };
+}
+
+function normalizeSummary(value: unknown): IndexSummary | null {
+  if (!value || typeof value !== "object") return null;
+  const summary = value as Partial<IndexSummary>;
+  if (typeof summary.watermark !== "string") return null;
+  return {
+    count: typeof summary.count === "number" ? summary.count : 0,
+    deleted: typeof summary.deleted === "number" ? summary.deleted : 0,
+    maxUpdatedAt:
+      typeof summary.maxUpdatedAt === "string" ? summary.maxUpdatedAt : "",
+    watermark: summary.watermark,
+  };
+}
+
+function getRemoteWatermark(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(REMOTE_WATERMARK_KEY);
+}
+
+function setRemoteWatermark(watermark: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(REMOTE_WATERMARK_KEY, watermark);
+}
+
 // The three workspace roots are singletons identified by title. After the
 // first two-device sync each side has its own root page for e.g. 每日纪要,
 // so duplicates appear. Converge deterministically: keep the root with the
@@ -165,7 +218,9 @@ async function mergeModuleRoots(): Promise<boolean> {
 
 let reconcileRunning = false;
 
-export async function reconcilePageSync(): Promise<ReconcileResult> {
+export async function reconcilePageSync(
+  options: ReconcileOptions = {}
+): Promise<ReconcileResult> {
   if (!isPageSyncEnabled()) {
     return { status: "disabled", pulled: 0, pushed: 0 };
   }
@@ -174,6 +229,25 @@ export async function reconcilePageSync(): Promise<ReconcileResult> {
   }
   reconcileRunning = true;
   try {
+    if (options.quick) {
+      const summaryRes = await call({ action: "summary" });
+      if (!summaryRes.ok) {
+        return {
+          status: summaryRes.status,
+          pulled: 0,
+          pushed: 0,
+          message: summaryRes.message,
+        };
+      }
+      const summary = normalizeSummary(summaryRes.json.summary);
+      if (summary && summary.watermark === getRemoteWatermark()) {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+        }
+        return { status: "ok", pulled: 0, pushed: 0, skipped: true };
+      }
+    }
+
     const manifestRes = await call({ action: "manifest" });
     if (!manifestRes.ok) {
       return {
@@ -184,6 +258,7 @@ export async function reconcilePageSync(): Promise<ReconcileResult> {
       };
     }
     const index = (manifestRes.json.index ?? {}) as Record<string, IndexEntry>;
+    setRemoteWatermark(summarizeIndex(index).watermark);
 
     const local = await getAllPagesForSync();
     const localById = new Map(local.map((p) => [p.id, p]));

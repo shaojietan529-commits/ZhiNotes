@@ -6,6 +6,7 @@ import Link from "next/link";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
+import { usePageRevision } from "@/hooks/usePageRevision";
 import {
   createPage,
   deletePage,
@@ -193,6 +194,7 @@ export default function MeetingScheduleShell() {
   const router = useRouter();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const { refresh } = usePages();
+  const pageRevision = usePageRevision();
   const [rootId, setRootId] = useState<string | null>(null);
   const [meetings, setMeetings] = useState<Page[]>([]);
   const [viewMonth, setViewMonth] = useState(() => {
@@ -302,7 +304,7 @@ export default function MeetingScheduleShell() {
     queueMicrotask(() => {
       void load();
     });
-  }, [dbReady, load]);
+  }, [dbReady, load, pageRevision]);
 
   // Receive meeting text captured by the ZhiNote Chrome extension. The
   // extension's content script grabs the text on a logged-in meeting page

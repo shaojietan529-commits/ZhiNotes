@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
+import { usePageRevision } from "@/hooks/usePageRevision";
 import { createPage, listPages, updatePage } from "@/lib/db/local/queries";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import {
@@ -29,13 +30,7 @@ const MONTH_LABELS = [
 export default function DailyNotesShell() {
   const router = useRouter();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
-  const pageRevision = useWorkspaceStore((s) => {
-    const latestUpdatedAt = s.pages.reduce(
-      (latest, page) => (page.updated_at > latest ? page.updated_at : latest),
-      ""
-    );
-    return `${s.pages.length}:${latestUpdatedAt}`;
-  });
+  const pageRevision = usePageRevision();
   const { refresh } = usePages();
   const [rootId, setRootId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Page[]>([]);

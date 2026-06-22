@@ -35,6 +35,13 @@ interface IndexEntry {
   d: 0 | 1; // deleted tombstone
 }
 
+interface IndexSummary {
+  count: number;
+  deleted: number;
+  maxUpdatedAt: string;
+  watermark: string;
+}
+
 interface PageRecord {
   id: string;
   parent_id: string | null;
@@ -98,6 +105,23 @@ async function readIndex(
   return {};
 }
 
+function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
+  let count = 0;
+  let deleted = 0;
+  let maxUpdatedAt = "";
+  for (const entry of Object.values(index)) {
+    count += 1;
+    if (entry.d === 1) deleted += 1;
+    if (entry.u > maxUpdatedAt) maxUpdatedAt = entry.u;
+  }
+  return {
+    count,
+    deleted,
+    maxUpdatedAt,
+    watermark: `${count}:${deleted}:${maxUpdatedAt}`,
+  };
+}
+
 export async function POST(request: Request) {
   const config = getAccountConfig();
   if (!config) {
@@ -145,6 +169,11 @@ export async function POST(request: Request) {
     if (body.action === "manifest") {
       const index = await readIndex(config, me);
       return NextResponse.json({ index });
+    }
+
+    if (body.action === "summary") {
+      const index = await readIndex(config, me);
+      return NextResponse.json({ summary: summarizeIndex(index) });
     }
 
     if (body.action === "pull") {

@@ -40,6 +40,7 @@ import {
   pullCloudData,
   pushCloudData,
   saveSyncPasscode,
+  type CloudPortfolioData,
 } from "@/lib/portfolio/cloudSync";
 import {
   accountPullCloud,
@@ -50,6 +51,9 @@ import {
 type BoardTab = "positions" | "analysis" | "rebalance";
 type SyncStatus = "off" | "syncing" | "synced" | "error";
 type SyncMode = "account" | "passcode" | null;
+
+const PORTFOLIO_AUTO_PULL_MS = 15 * 1000;
+const PORTFOLIO_STORAGE_PREFIX = "zhinote.portfolio.";
 
 export default function PortfolioBoardShell() {
   const [snapshot, setSnapshot] = useState<PortfolioSnapshot | null>(null);
@@ -261,6 +265,126 @@ export default function PortfolioBoardShell() {
     },
     []
   );
+
+  const applyRemotePortfolio = useCallback(
+    (cloud: CloudPortfolioData | null) => {
+      const localUpdated = loadDataUpdatedAt();
+      if (!cloud || (localUpdated && cloud.updatedAt <= localUpdated)) {
+        setSyncStatus("synced");
+        return;
+      }
+
+      const localTags = loadTagMap();
+      const mergedTags: TagMap = { ...localTags, ...(cloud.tagMap ?? {}) };
+      const nextSnapshot = cloud.snapshot ?? loadSnapshot();
+      const nextAllocation =
+        cloud.allocation && cloud.allocation > 0
+          ? cloud.allocation
+          : loadAllocation();
+      const nextMaxNet =
+        cloud.maxNetPct && cloud.maxNetPct > 0
+          ? cloud.maxNetPct
+          : loadMaxNetPct();
+
+      if (nextSnapshot) {
+        saveSnapshot(nextSnapshot);
+        setSnapshot(nextSnapshot);
+      }
+      saveTagMap(mergedTags);
+      setTagMap(mergedTags);
+      saveAllocation(nextAllocation);
+      setAllocation(nextAllocation);
+      saveMaxNetPct(nextMaxNet);
+      setMaxNetPct(nextMaxNet);
+      if (cloud.lastEmailMessageId) {
+        saveLastEmailMessageId(cloud.lastEmailMessageId);
+      }
+      saveDataUpdatedAt(cloud.updatedAt);
+
+      const mergedPayload = corePayload(
+        nextSnapshot,
+        mergedTags,
+        nextAllocation,
+        nextMaxNet
+      );
+      const cloudPayload = corePayload(
+        cloud.snapshot,
+        cloud.tagMap ?? {},
+        cloud.allocation,
+        cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT
+      );
+      lastPayloadRef.current =
+        mergedPayload === cloudPayload ? mergedPayload : null;
+      setSyncStatus("synced");
+    },
+    []
+  );
+
+  const pullLatestPortfolio = useCallback(async () => {
+    if (viewingOwnerRef.current || !syncReadyRef.current) return;
+    const mode = syncModeRef.current;
+    if (mode === "account") {
+      const result = await accountPullCloud();
+      if (result.status === "ok") {
+        applyRemotePortfolio(result.data);
+      } else if (result.status === "unauthenticated" || result.status === "forbidden") {
+        syncModeRef.current = null;
+        setSyncMode(null);
+        setSyncStatus("off");
+      } else if (result.status === "error") {
+        setSyncStatus("error");
+      }
+      return;
+    }
+
+    const code = syncPasscode ?? loadSyncPasscode();
+    if (mode !== "passcode" || !code) return;
+    const result = await pullCloudData(code);
+    if (result.status === "ok") {
+      applyRemotePortfolio(result.data);
+    } else if (result.status === "unauthorized") {
+      clearSyncPasscode();
+      setSyncPasscode(null);
+      setSyncMode(null);
+      syncModeRef.current = null;
+      setSyncStatus("off");
+    } else if (result.status === "error") {
+      setSyncStatus("error");
+    }
+  }, [applyRemotePortfolio, syncPasscode]);
+
+  useEffect(() => {
+    const pullIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void pullLatestPortfolio();
+      }
+    };
+    const interval = window.setInterval(pullIfVisible, PORTFOLIO_AUTO_PULL_MS);
+    window.addEventListener("focus", pullIfVisible);
+    document.addEventListener("visibilitychange", pullIfVisible);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", pullIfVisible);
+      document.removeEventListener("visibilitychange", pullIfVisible);
+    };
+  }, [pullLatestPortfolio]);
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key?.startsWith(PORTFOLIO_STORAGE_PREFIX)) return;
+      const nextSnapshot = loadSnapshot();
+      const nextTags = loadTagMap();
+      const nextAllocation = loadAllocation();
+      const nextMaxNet = loadMaxNetPct();
+      setSnapshot(nextSnapshot);
+      setTagMap(nextTags);
+      setAllocation(nextAllocation);
+      setMaxNetPct(nextMaxNet);
+      lastPayloadRef.current = null;
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   // Push local changes to the cloud (debounced) once initial sync completed.
   useEffect(() => {

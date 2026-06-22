@@ -8,12 +8,14 @@ import {
   deletePage,
 } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { usePageRecordRevision } from "@/hooks/usePageRevision";
 import type { Page } from "@/lib/utils/types";
 
 export function usePage(pageId: string | null) {
   const [page, setPage] = useState<Page | null>(null);
   const [loading, setLoading] = useState(true);
   const dbReady = useWorkspaceStore((s) => s.dbReady);
+  const pageRevision = usePageRecordRevision(pageId);
 
   const load = useCallback(async () => {
     if (!pageId || !dbReady) {
@@ -31,7 +33,7 @@ export function usePage(pageId: string | null) {
     queueMicrotask(() => {
       load();
     });
-  }, [load]);
+  }, [load, pageRevision]);
 
   const update = useCallback(
     async (

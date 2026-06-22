@@ -14,13 +14,16 @@ import {
   getLastPageSyncAt,
   PAGE_SYNC_CONFIG_EVENT,
 } from "@/lib/pages/accountPageSync";
+import { getPageUpdateClientId } from "@/lib/pages/pageUpdateBus";
 
 // Background heartbeat. Short enough to feel live, long enough to stay well
-// within KV rate limits. Focus/visibility/edit triggers cover the rest.
-const SYNC_INTERVAL_MS = 12 * 1000;
+// within KV rate limits because only one visible tab holds the sync lease.
+const SYNC_INTERVAL_MS = 8 * 1000;
 // Debounce after a local page change before pushing, so a burst of edits
 // (typing, drag) collapses into one sync.
 const EDIT_DEBOUNCE_MS = 4 * 1000;
+const LEASE_KEY = "zhinote.pagesync.leaderLease.v1";
+const LEASE_TTL_MS = 18 * 1000;
 
 export type PageCloudSyncState =
   | "disabled"
@@ -28,6 +31,38 @@ export type PageCloudSyncState =
   | "synced"
   | "signed-out"
   | "error";
+
+function claimSyncLease(force = false): boolean {
+  if (typeof window === "undefined") return false;
+  const now = Date.now();
+  const owner = getPageUpdateClientId();
+  if (!force) {
+    try {
+      const raw = window.localStorage.getItem(LEASE_KEY);
+      const lease = raw ? (JSON.parse(raw) as { owner?: string; until?: number }) : null;
+      if (
+        lease?.owner &&
+        lease.owner !== owner &&
+        typeof lease.until === "number" &&
+        lease.until > now
+      ) {
+        return false;
+      }
+    } catch {
+      // Bad lease data should not block sync.
+    }
+  }
+  const nextLease = JSON.stringify({ owner, until: now + LEASE_TTL_MS });
+  window.localStorage.setItem(LEASE_KEY, nextLease);
+  try {
+    const confirmed = JSON.parse(
+      window.localStorage.getItem(LEASE_KEY) ?? "{}"
+    ) as { owner?: string };
+    return confirmed.owner === owner;
+  } catch {
+    return true;
+  }
+}
 
 export function usePageCloudSync() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
@@ -38,22 +73,32 @@ export function usePageCloudSync() {
   const [state, setState] = useState<PageCloudSyncState>("disabled");
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const runningRef = useRef(false);
+  const initialSyncDoneRef = useRef(false);
 
-  const runSync = useCallback(async () => {
+  const runSync = useCallback(async (options: { quick?: boolean; forceLease?: boolean } = {}) => {
     if (!isPageSyncEnabled()) {
       setState("disabled");
+      return;
+    }
+    if (!claimSyncLease(options.forceLease)) {
+      const last = getLastPageSyncAt();
+      if (last) {
+        setState("synced");
+        setLastSyncAt(last);
+      }
       return;
     }
     if (runningRef.current) return;
     runningRef.current = true;
     setState("syncing");
     try {
-      const result = await reconcilePageSync();
+      const result = await reconcilePageSync({ quick: options.quick });
       if (result.status === "ok") {
+        initialSyncDoneRef.current = true;
         setState("synced");
         setLastSyncAt(getLastPageSyncAt());
         if (result.pulled > 0) {
-          await refresh();
+          await refresh({ reason: "cloud-pull" });
         }
       } else if (
         result.status === "unauthenticated" ||
@@ -72,17 +117,21 @@ export function usePageCloudSync() {
 
   useEffect(() => {
     if (!dbReady) return;
-    void runSync();
+    void runSync({ quick: false });
     // Only poll while the tab is visible; returning to a hidden tab re-syncs
     // via the visibility/focus handlers below, so background tabs stay quiet.
     const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void runSync();
+      if (document.visibilityState === "visible") {
+        void runSync({ quick: initialSyncDoneRef.current });
+      }
     }, SYNC_INTERVAL_MS);
-    const handleConfig = () => void runSync();
+    const handleConfig = () => void runSync({ quick: false, forceLease: true });
     // Switching back to a tab (the user's two-domain workflow) pulls the
     // latest immediately, so edits made on the other domain show up at once.
     const handleVisible = () => {
-      if (document.visibilityState === "visible") void runSync();
+      if (document.visibilityState === "visible") {
+        void runSync({ quick: initialSyncDoneRef.current });
+      }
     };
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
     window.addEventListener("focus", handleConfig);
