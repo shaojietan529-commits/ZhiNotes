@@ -47,7 +47,7 @@ import {
   fetchShares,
 } from "@/lib/portfolio/accountSync";
 
-type BoardTab = "positions" | "analysis";
+type BoardTab = "positions" | "analysis" | "rebalance";
 type SyncStatus = "off" | "syncing" | "synced" | "error";
 type SyncMode = "account" | "passcode" | null;
 
@@ -908,6 +908,12 @@ export default function PortfolioBoardShell() {
                 >
                   持仓分析
                 </TabButton>
+                <TabButton
+                  active={tab === "rebalance"}
+                  onClick={() => setTab("rebalance")}
+                >
+                  调仓模拟
+                </TabButton>
               </div>
 
               {tab === "positions" ? (
@@ -933,7 +939,7 @@ export default function PortfolioBoardShell() {
                     onTagChange={handleTagChange}
                   />
                 </div>
-              ) : (
+              ) : tab === "analysis" ? (
                 <div className="space-y-8">
                   {tagExposures && (
                     <ExposureTable
@@ -956,6 +962,12 @@ export default function PortfolioBoardShell() {
                     />
                   )}
                 </div>
+              ) : (
+                <RebalanceSimulator
+                  positions={snapshot?.positions ?? []}
+                  allocation={allocation}
+                  tagOf={tagOf}
+                />
               )}
             </>
           )}
@@ -1245,6 +1257,612 @@ function NetExposureCard({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Rebalance Simulator
+// ---------------------------------------------------------------------------
+
+type TradeAction = "buy" | "sell" | "sellshort" | "buytocover";
+
+interface TradeEntry {
+  id: string;
+  positionKey: string; // existing position key, or "" for new
+  ticker: string; // display only for new positions
+  name: string; // display only for new positions
+  action: TradeAction;
+  amountK: number; // in $k
+}
+
+const TRADE_ACTIONS: { value: TradeAction; label: string }[] = [
+  { value: "buy", label: "Buy" },
+  { value: "sell", label: "Sell" },
+  { value: "sellshort", label: "Sell Short" },
+  { value: "buytocover", label: "Buy to Cover" },
+];
+
+function tradeNmvDelta(action: TradeAction, amountK: number): number {
+  const dollars = amountK * 1000;
+  switch (action) {
+    case "buy":
+      return dollars;
+    case "sell":
+      return -dollars;
+    case "sellshort":
+      return -dollars;
+    case "buytocover":
+      return dollars;
+  }
+}
+
+let tradeIdCounter = 0;
+function nextTradeId() {
+  return `t_${++tradeIdCounter}_${Date.now()}`;
+}
+
+function RebalanceSimulator({
+  positions,
+  allocation,
+  tagOf,
+}: {
+  positions: PortfolioPosition[];
+  allocation: number;
+  tagOf: (p: PortfolioPosition) => string;
+}) {
+  const [trades, setTrades] = useState<TradeEntry[]>([]);
+  const [newTicker, setNewTicker] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newAction, setNewAction] = useState<TradeAction>("buy");
+  const [newAmountK, setNewAmountK] = useState("");
+
+  const positionsByKey = useMemo(() => {
+    const map = new Map<string, PortfolioPosition>();
+    for (const p of positions) map.set(p.key, p);
+    return map;
+  }, [positions]);
+
+  // Compute post-trade snapshot
+  const projected = useMemo(() => {
+    // Start with copies of current positions
+    const nmvMap = new Map<string, number>();
+    const metaMap = new Map<
+      string,
+      { name: string; country: string; sector: string }
+    >();
+    for (const p of positions) {
+      nmvMap.set(p.key, p.nmv);
+      metaMap.set(p.key, {
+        name: p.name,
+        country: p.country,
+        sector: p.sector,
+      });
+    }
+
+    // Apply trades
+    for (const trade of trades) {
+      const key = trade.positionKey || trade.ticker.toUpperCase();
+      if (!key) continue;
+      const delta = tradeNmvDelta(trade.action, trade.amountK);
+      nmvMap.set(key, (nmvMap.get(key) ?? 0) + delta);
+      if (!metaMap.has(key)) {
+        metaMap.set(key, {
+          name: trade.name || key,
+          country: "",
+          sector: "",
+        });
+      }
+    }
+
+    // Remove positions that zeroed out
+    for (const [key, nmv] of nmvMap) {
+      if (Math.abs(nmv) < 0.5) nmvMap.delete(key);
+    }
+
+    // Build projected position list
+    const projPositions: {
+      key: string;
+      name: string;
+      nmv: number;
+      prevNmv: number;
+      delta: number;
+      isNew: boolean;
+    }[] = [];
+
+    const allKeys = new Set([
+      ...positions.map((p) => p.key),
+      ...nmvMap.keys(),
+    ]);
+    for (const key of allKeys) {
+      const prevNmv = positionsByKey.get(key)?.nmv ?? 0;
+      const newNmv = nmvMap.get(key) ?? 0;
+      if (Math.abs(newNmv) < 0.5 && Math.abs(prevNmv) < 0.5) continue;
+      projPositions.push({
+        key,
+        name: metaMap.get(key)?.name ?? key,
+        nmv: newNmv,
+        prevNmv,
+        delta: newNmv - prevNmv,
+        isNew: !positionsByKey.has(key),
+      });
+    }
+
+    projPositions.sort(
+      (a, b) => Math.abs(b.nmv) - Math.abs(a.nmv)
+    );
+
+    const projLong = projPositions
+      .filter((p) => p.nmv > 0)
+      .reduce((sum, p) => sum + p.nmv, 0);
+    const projShort = projPositions
+      .filter((p) => p.nmv < 0)
+      .reduce((sum, p) => sum + -p.nmv, 0);
+    const projNet = projLong - projShort;
+
+    const curLong = positions
+      .filter((p) => p.nmv >= 0)
+      .reduce((sum, p) => sum + p.nmv, 0);
+    const curShort = positions
+      .filter((p) => p.nmv < 0)
+      .reduce((sum, p) => sum + -p.nmv, 0);
+    const curNet = curLong - curShort;
+
+    return {
+      positions: projPositions,
+      projLong,
+      projShort,
+      projNet,
+      curLong,
+      curShort,
+      curNet,
+    };
+  }, [positions, trades, positionsByKey]);
+
+  const handleAddTradeForPosition = (posKey: string) => {
+    const p = positionsByKey.get(posKey);
+    if (!p) return;
+    const defaultAction: TradeAction =
+      p.nmv >= 0 ? "sell" : "buytocover";
+    setTrades((prev) => [
+      ...prev,
+      {
+        id: nextTradeId(),
+        positionKey: posKey,
+        ticker: p.ticker,
+        name: p.name,
+        action: defaultAction,
+        amountK: 0,
+      },
+    ]);
+  };
+
+  const handleAddNewPosition = () => {
+    const ticker = newTicker.trim().toUpperCase();
+    if (!ticker) return;
+    setTrades((prev) => [
+      ...prev,
+      {
+        id: nextTradeId(),
+        positionKey: "",
+        ticker,
+        name: newName.trim() || ticker,
+        action: newAction,
+        amountK: parseFloat(newAmountK) || 0,
+      },
+    ]);
+    setNewTicker("");
+    setNewName("");
+    setNewAction("buy");
+    setNewAmountK("");
+  };
+
+  const updateTrade = (id: string, patch: Partial<TradeEntry>) => {
+    setTrades((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...patch } : t))
+    );
+  };
+
+  const removeTrade = (id: string) => {
+    setTrades((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const activeTrades = trades.filter((t) => t.amountK > 0);
+
+  return (
+    <div className="space-y-6">
+      {/* ---- Current positions with trade inputs ---- */}
+      <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+          <div className="flex items-center gap-2">
+            <span className="text-base">📊</span>
+            <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+              调仓输入
+            </h2>
+            {activeTrades.length > 0 && (
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                {activeTrades.length} 笔交易
+              </span>
+            )}
+          </div>
+          {trades.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setTrades([])}
+              className="text-xs text-zinc-400 hover:text-rose-500"
+            >
+              清空全部
+            </button>
+          )}
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-zinc-100 text-left text-[11px] uppercase tracking-wide text-zinc-400 dark:border-zinc-800">
+                <th className="px-4 py-2">Ticker</th>
+                <th className="px-3 py-2">名称</th>
+                <th className="px-3 py-2">Tag</th>
+                <th className="px-3 py-2 text-right">当前仓位</th>
+                <th className="px-3 py-2 text-right">% Alloc</th>
+                <th className="px-3 py-2 text-center">操作</th>
+                <th className="px-3 py-2 text-right">金额 ($k)</th>
+                <th className="w-8 px-2 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {positions.map((p) => {
+                const positionTrades = trades.filter(
+                  (t) => t.positionKey === p.key
+                );
+                return (
+                  <Fragment key={p.key}>
+                    <tr className="border-b border-zinc-50 hover:bg-zinc-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/40">
+                      <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                        {p.key}
+                      </td>
+                      <td className="max-w-40 truncate px-3 py-2 text-zinc-800 dark:text-zinc-100">
+                        {p.name}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-zinc-500">
+                        {tagOf(p)}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300">
+                        {formatSignedMoney(p.nmv)}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300">
+                        {formatAllocPct(Math.abs(p.nmv), allocation)}
+                      </td>
+                      <td colSpan={2} />
+                      <td className="px-2 py-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleAddTradeForPosition(p.key)}
+                          className="rounded px-1.5 py-0.5 text-xs text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                          title="添加调仓"
+                        >
+                          + 调仓
+                        </button>
+                      </td>
+                    </tr>
+                    {positionTrades.map((trade) => (
+                      <tr
+                        key={trade.id}
+                        className="border-b border-zinc-50 bg-blue-50/30 dark:border-zinc-800/50 dark:bg-blue-950/20"
+                      >
+                        <td className="px-4 py-1.5 pl-8 text-xs text-blue-500">
+                          ↳ 调仓
+                        </td>
+                        <td />
+                        <td />
+                        <td />
+                        <td />
+                        <td className="px-3 py-1.5 text-center">
+                          <select
+                            value={trade.action}
+                            onChange={(e) =>
+                              updateTrade(trade.id, {
+                                action: e.target.value as TradeAction,
+                              })
+                            }
+                            className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-800"
+                          >
+                            {TRADE_ACTIONS.map((a) => (
+                              <option key={a.value} value={a.value}>
+                                {a.label}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-3 py-1.5 text-right">
+                          <input
+                            type="number"
+                            value={trade.amountK || ""}
+                            onChange={(e) =>
+                              updateTrade(trade.id, {
+                                amountK: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            placeholder="0"
+                            className="w-20 rounded border border-zinc-200 bg-white px-2 py-1 text-right text-xs tabular-nums dark:border-zinc-700 dark:bg-zinc-800"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeTrade(trade.id)}
+                            className="text-zinc-400 hover:text-rose-500"
+                            title="删除"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* New position input */}
+        <div className="border-t border-zinc-200 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/40">
+          <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            新仓位
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={newTicker}
+              onChange={(e) => setNewTicker(e.target.value)}
+              placeholder="Ticker (如 AAPL US)"
+              className="w-36 rounded border border-zinc-200 bg-white px-2.5 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-800"
+            />
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="公司名（选填）"
+              className="w-32 rounded border border-zinc-200 bg-white px-2.5 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-800"
+            />
+            <select
+              value={newAction}
+              onChange={(e) =>
+                setNewAction(e.target.value as TradeAction)
+              }
+              className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-800"
+            >
+              {TRADE_ACTIONS.map((a) => (
+                <option key={a.value} value={a.value}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                value={newAmountK}
+                onChange={(e) => setNewAmountK(e.target.value)}
+                placeholder="$k"
+                className="w-20 rounded border border-zinc-200 bg-white px-2.5 py-1.5 text-right text-xs tabular-nums dark:border-zinc-700 dark:bg-zinc-800"
+              />
+              <span className="text-[10px] text-zinc-400">$k</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleAddNewPosition}
+              disabled={!newTicker.trim()}
+              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            >
+              添加
+            </button>
+          </div>
+          {/* Show new-position trades */}
+          {trades.filter((t) => !t.positionKey).length > 0 && (
+            <div className="mt-3 space-y-1.5">
+              {trades
+                .filter((t) => !t.positionKey)
+                .map((trade) => (
+                  <div
+                    key={trade.id}
+                    className="flex items-center gap-3 rounded-lg bg-white px-3 py-2 text-xs dark:bg-zinc-800"
+                  >
+                    <span className="font-mono font-medium text-zinc-700 dark:text-zinc-200">
+                      {trade.ticker}
+                    </span>
+                    <span className="text-zinc-500">{trade.name}</span>
+                    <select
+                      value={trade.action}
+                      onChange={(e) =>
+                        updateTrade(trade.id, {
+                          action: e.target.value as TradeAction,
+                        })
+                      }
+                      className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                    >
+                      {TRADE_ACTIONS.map((a) => (
+                        <option key={a.value} value={a.value}>
+                          {a.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={trade.amountK || ""}
+                        onChange={(e) =>
+                          updateTrade(trade.id, {
+                            amountK: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="w-20 rounded border border-zinc-200 bg-white px-2 py-1 text-right tabular-nums dark:border-zinc-700 dark:bg-zinc-900"
+                      />
+                      <span className="text-zinc-400">$k</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeTrade(trade.id)}
+                      className="ml-auto text-zinc-400 hover:text-rose-500"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ---- Post-trade summary comparison ---- */}
+      <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+            <span>📈</span> 仓位对比
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 gap-px bg-zinc-100 sm:grid-cols-4 dark:bg-zinc-800">
+          <CompareCell
+            label="Long GMV"
+            before={projected.curLong}
+            after={projected.projLong}
+            allocation={allocation}
+          />
+          <CompareCell
+            label="Short GMV"
+            before={projected.curShort}
+            after={projected.projShort}
+            allocation={allocation}
+          />
+          <CompareCell
+            label="Net Exposure"
+            before={projected.curNet}
+            after={projected.projNet}
+            allocation={allocation}
+            signed
+          />
+          <CompareCell
+            label="Gross Exposure"
+            before={projected.curLong + projected.curShort}
+            after={projected.projLong + projected.projShort}
+            allocation={allocation}
+          />
+        </div>
+      </section>
+
+      {/* ---- Projected position list ---- */}
+      {activeTrades.length > 0 && (
+        <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+              <span>📋</span> 调仓后持仓明细
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-zinc-100 text-left text-[11px] uppercase tracking-wide text-zinc-400 dark:border-zinc-800">
+                  <th className="px-4 py-2">Ticker</th>
+                  <th className="px-3 py-2">名称</th>
+                  <th className="px-3 py-2 text-right">调仓前</th>
+                  <th className="px-3 py-2 text-right">变动</th>
+                  <th className="px-3 py-2 text-right">调仓后</th>
+                  <th className="px-3 py-2 text-right">% Alloc</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projected.positions
+                  .filter((p) => Math.abs(p.delta) > 0.5 || p.isNew)
+                  .map((p) => (
+                    <tr
+                      key={p.key}
+                      className={`border-b border-zinc-50 last:border-0 dark:border-zinc-800/50 ${
+                        p.isNew
+                          ? "bg-emerald-50/40 dark:bg-emerald-950/20"
+                          : Math.abs(p.nmv) < 0.5
+                            ? "bg-rose-50/40 dark:bg-rose-950/20"
+                            : ""
+                      }`}
+                    >
+                      <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                        {p.key}
+                        {p.isNew && (
+                          <span className="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                            新
+                          </span>
+                        )}
+                      </td>
+                      <td className="max-w-40 truncate px-3 py-2 text-zinc-800 dark:text-zinc-100">
+                        {p.name}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                        {Math.abs(p.prevNmv) > 0.5
+                          ? formatSignedMoney(p.prevNmv)
+                          : "—"}
+                      </td>
+                      <td
+                        className={`px-3 py-2 text-right font-medium tabular-nums ${pnlColor(p.delta)}`}
+                      >
+                        {formatSignedMoney(p.delta)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium tabular-nums text-zinc-800 dark:text-zinc-100">
+                        {Math.abs(p.nmv) > 0.5
+                          ? formatSignedMoney(p.nmv)
+                          : "已清仓"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300">
+                        {Math.abs(p.nmv) > 0.5
+                          ? formatAllocPct(Math.abs(p.nmv), allocation)
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function CompareCell({
+  label,
+  before,
+  after,
+  allocation,
+  signed,
+}: {
+  label: string;
+  before: number;
+  after: number;
+  allocation: number;
+  signed?: boolean;
+}) {
+  const delta = after - before;
+  const hasDelta = Math.abs(delta) > 0.5;
+  const fmt = signed ? formatSignedAllocPct : formatAllocPct;
+  const fmtMoney = signed ? formatSignedMoney : formatMoney;
+  return (
+    <div className="bg-white p-4 dark:bg-zinc-900">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+        {label}
+      </p>
+      <p className="mt-1 text-lg font-bold tabular-nums text-zinc-800 dark:text-zinc-100">
+        {signed
+          ? formatSignedAllocPct(after, allocation)
+          : formatAllocPct(after, allocation)}
+      </p>
+      <p className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+        {fmtMoney(signed ? after : Math.abs(after))}
+      </p>
+      {hasDelta && (
+        <p
+          className={`mt-1 text-xs font-medium tabular-nums ${pnlColor(delta)}`}
+        >
+          {formatSignedMoney(delta)} ({fmt(Math.abs(delta), allocation)})
+        </p>
+      )}
     </div>
   );
 }
