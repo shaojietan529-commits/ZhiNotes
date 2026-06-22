@@ -7,6 +7,7 @@ import {
   updatePage,
   deletePage,
 } from "@/lib/db/local/queries";
+import { pullCloudPageById } from "@/lib/pages/accountPageSync";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRecordRevision } from "@/hooks/usePageRevision";
 import type { Page } from "@/lib/utils/types";
@@ -24,7 +25,13 @@ export function usePage(pageId: string | null) {
       return;
     }
     setLoading(true);
-    const p = await getPage(pageId);
+    let p = await getPage(pageId);
+    if (!p) {
+      const pulled = await pullCloudPageById(pageId);
+      if (pulled.status === "ok" && pulled.pulled > 0) {
+        p = await getPage(pageId);
+      }
+    }
     setPage(p);
     setLoading(false);
   }, [pageId, dbReady]);

@@ -97,7 +97,7 @@ export function usePageCloudSync() {
         initialSyncDoneRef.current = true;
         setState("synced");
         setLastSyncAt(getLastPageSyncAt());
-        if (result.pulled > 0) {
+        if (result.pulled > 0 || (result.repaired ?? 0) > 0) {
           await refresh({ reason: "cloud-pull" });
         }
       } else if (

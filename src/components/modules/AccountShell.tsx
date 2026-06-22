@@ -149,7 +149,7 @@ export default function AccountShell() {
     if (result.status === "ok") {
       setPageSyncLastAt(getLastPageSyncAt());
       setPageSyncNotice(
-        `同步完成：拉取 ${result.pulled} 页，推送 ${result.pushed} 页。`
+        `同步完成：拉取 ${result.pulled} 页，修复归档 ${result.repaired ?? 0} 页，推送 ${result.pushed} 页。`
       );
     } else if (result.status === "unauthenticated") {
       setPageSyncNotice("登录已过期，请重新登录后再同步。");

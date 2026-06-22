@@ -23,6 +23,12 @@ import {
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
 import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
+import {
+  createPageProperty,
+  parsePageProperties,
+  stringifyPageProperties,
+} from "@/lib/pages/pageProperties";
+import { emitPagesUpdated } from "@/lib/pages/pageUpdateBus";
 import type { Page } from "@/lib/utils/types";
 
 const ENABLED_KEY = "zhinote.pagesync.enabled";
@@ -67,8 +73,15 @@ export interface ReconcileResult {
   status: PageSyncStatus;
   pulled: number;
   pushed: number;
+  repaired?: number;
   message?: string;
   skipped?: boolean;
+}
+
+export interface PullCloudPageResult {
+  status: PageSyncStatus;
+  pulled: number;
+  message?: string;
 }
 
 interface IndexEntry {
@@ -111,6 +124,43 @@ async function call(body: Record<string, unknown>): Promise<
   } catch {
     return { ok: false, status: "error", message: "网络错误" };
   }
+}
+
+function isValidRemotePageId(value: string): boolean {
+  return value.length > 0 && value.length <= 64 && /^[A-Za-z0-9_-]+$/.test(value);
+}
+
+export async function pullCloudPagesByIds(
+  ids: string[]
+): Promise<PullCloudPageResult> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", pulled: 0 };
+  }
+  const uniqueIds = Array.from(new Set(ids.filter(isValidRemotePageId)));
+  if (uniqueIds.length === 0) {
+    return { status: "ok", pulled: 0 };
+  }
+  const res = await call({ action: "pull", ids: uniqueIds });
+  if (!res.ok) {
+    return { status: res.status, pulled: 0, message: res.message };
+  }
+  const pages = Array.isArray(res.json.pages)
+    ? (res.json.pages as RemotePageRecord[])
+    : [];
+  if (pages.length > 0) {
+    await applyRemotePages(pages);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+    }
+    emitPagesUpdated("cloud-pull", pages.length);
+  }
+  return { status: "ok", pulled: pages.length };
+}
+
+export async function pullCloudPageById(
+  id: string
+): Promise<PullCloudPageResult> {
+  return pullCloudPagesByIds([id]);
 }
 
 function toRecord(page: Page): RemotePageRecord {
@@ -174,6 +224,100 @@ function setRemoteWatermark(watermark: string) {
   window.localStorage.setItem(REMOTE_WATERMARK_KEY, watermark);
 }
 
+function getPropertyValue(page: Page, name: string): string {
+  return (
+    parsePageProperties(page.properties).find((property) => property.name === name)
+      ?.value ?? ""
+  );
+}
+
+function isDateKey(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function formatInferredDate(
+  yearText: string,
+  monthText: string,
+  dayText: string
+): string | null {
+  let year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return null;
+  }
+  if (yearText.length === 2) year += year >= 70 ? 1900 : 2000;
+  if (
+    year < 2000 ||
+    year > 2099 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function inferDateFromTitle(title: string): string | null {
+  const compact = title.match(
+    /(?:^|[^0-9])([0-9]{2})([01][0-9])([0-3][0-9])(?:[^0-9]|$)/
+  );
+  if (compact) return formatInferredDate(compact[1], compact[2], compact[3]);
+  const separated = title.match(
+    /(?:^|[^0-9])([0-9]{4})[-/.年]([0-9]{1,2})[-/.月]([0-9]{1,2})(?:日)?(?:[^0-9]|$)/
+  );
+  if (separated) {
+    return formatInferredDate(separated[1], separated[2], separated[3]);
+  }
+  return null;
+}
+
+function getDailyDateKey(page: Page): string | null {
+  const existing = getPropertyValue(page, "日期");
+  if (isDateKey(existing)) return existing;
+  return inferDateFromTitle(page.title ?? "");
+}
+
+function isModuleWorkspaceRoot(page: Page): boolean {
+  if (page.parent_id !== null) return false;
+  return MODULE_WORKSPACE_LIST.some((def) => {
+    const titles = new Set([
+      def.title,
+      ...((def as { legacyTitles?: string[] }).legacyTitles ?? []),
+    ]);
+    return titles.has(page.title ?? "");
+  });
+}
+
+function shouldRepairDailyImportPage(page: Page): boolean {
+  if (page.deleted_at || page.parent_id !== null || isModuleWorkspaceRoot(page)) {
+    return false;
+  }
+  const source = getPropertyValue(page, "来源");
+  return source === "notion-daily-import" || isDateKey(getPropertyValue(page, "日期"));
+}
+
+function withDailyDateProperty(page: Page, dateKey: string): string {
+  const properties = parsePageProperties(page.properties);
+  const existing = properties.find((property) => property.name === "日期");
+  if (existing) {
+    existing.type = "date";
+    existing.value = dateKey;
+  } else {
+    properties.unshift({
+      ...createPageProperty("date", "日期"),
+      value: dateKey,
+    });
+  }
+  return stringifyPageProperties(properties);
+}
+
 // The three workspace roots are singletons identified by title. After the
 // first two-device sync each side has its own root page for e.g. 每日纪要,
 // so duplicates appear. Converge deterministically: keep the root with the
@@ -214,6 +358,31 @@ async function mergeModuleRoots(): Promise<boolean> {
     }
   }
   return changed;
+}
+
+async function repairDailyImportPlacement(): Promise<number> {
+  const all = await getAllPagesForSync();
+  const active = all.filter((p) => !p.deleted_at);
+  const dailyRoots = active
+    .filter((p) => p.parent_id === null && p.title === "每日纪要")
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
+  const dailyRoot = dailyRoots[0];
+  if (!dailyRoot) return 0;
+
+  let repaired = 0;
+  for (const page of active.filter(shouldRepairDailyImportPage)) {
+    if (page.id === dailyRoot.id) continue;
+    const dateKey = getDailyDateKey(page);
+    if (!dateKey) continue;
+    const nextProperties = withDailyDateProperty(page, dateKey);
+    if (nextProperties !== (page.properties ?? "")) {
+      await updatePage(page.id, { properties: nextProperties });
+    }
+    const position = await getNextPosition(dailyRoot.id);
+    await movePage(page.id, dailyRoot.id, position);
+    repaired += 1;
+  }
+  return repaired;
 }
 
 let reconcileRunning = false;
@@ -275,7 +444,13 @@ export async function reconcilePageSync(
       const ids = toPull.slice(i, i + PULL_BATCH);
       const res = await call({ action: "pull", ids });
       if (!res.ok) {
-        return { status: res.status, pulled, pushed: 0, message: res.message };
+        return {
+          status: res.status,
+          pulled,
+          pushed: 0,
+          repaired: 0,
+          message: res.message,
+        };
       }
       const pages = Array.isArray(res.json.pages)
         ? (res.json.pages as RemotePageRecord[])
@@ -289,10 +464,12 @@ export async function reconcilePageSync(
     if (pulled > 0) {
       await mergeModuleRoots();
     }
+    const repaired = await repairDailyImportPlacement();
 
     // Recompute against fresh local state: the pull and the root merge may
     // both have changed pages since the first snapshot.
-    const localAfter = pulled > 0 ? await getAllPagesForSync() : local;
+    const localAfter =
+      pulled > 0 || repaired > 0 ? await getAllPagesForSync() : local;
     const toPush: Page[] = [];
     for (const page of localAfter) {
       const remote = index[page.id];
@@ -323,19 +500,19 @@ export async function reconcilePageSync(
         (batchBytes + size > PUSH_BATCH_BYTES && batch.length > 0)
       ) {
         const failed = await flush();
-        if (failed) return { status: failed, pulled, pushed };
+        if (failed) return { status: failed, pulled, pushed, repaired };
       }
       if (size > PUSH_BATCH_BYTES) continue; // single page too large — skip
       batch.push(record);
       batchBytes += size;
     }
     const failed = await flush();
-    if (failed) return { status: failed, pulled, pushed };
+    if (failed) return { status: failed, pulled, pushed, repaired };
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
     }
-    return { status: "ok", pulled, pushed };
+    return { status: "ok", pulled, pushed, repaired };
   } finally {
     reconcileRunning = false;
   }
