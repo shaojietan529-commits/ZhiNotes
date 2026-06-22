@@ -29,6 +29,13 @@ const MONTH_LABELS = [
 export default function DailyNotesShell() {
   const router = useRouter();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
+  const pageRevision = useWorkspaceStore((s) => {
+    const latestUpdatedAt = s.pages.reduce(
+      (latest, page) => (page.updated_at > latest ? page.updated_at : latest),
+      ""
+    );
+    return `${s.pages.length}:${latestUpdatedAt}`;
+  });
   const { refresh } = usePages();
   const [rootId, setRootId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Page[]>([]);
@@ -56,7 +63,7 @@ export default function DailyNotesShell() {
     queueMicrotask(() => {
       void load();
     });
-  }, [dbReady, load]);
+  }, [dbReady, load, pageRevision]);
 
   // Each day can hold multiple note pages (Notion-style), grouped by 日期.
   const notesByDate = useMemo(() => {
