@@ -35,8 +35,11 @@ export async function POST(request: Request) {
       ok: true,
       id: result.importId,
       url: result.url,
+      minutesPageId: result.minutesPageId,
       meetingPageId: result.meetingPageId,
       dailyPageId: result.dailyPageId,
+      minutesPageUrl: result.minutesPageUrl,
+      meetingPageUrl: result.meetingPageUrl,
       placement: "daily-and-zhihui",
       accountEmail: result.accountEmail,
     });

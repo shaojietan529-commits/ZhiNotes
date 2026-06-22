@@ -66,10 +66,13 @@ interface NormalizedMeetingImport {
 export interface MeetingImportResult {
   importId: string;
   url: string;
+  minutesPageId: string;
   meetingPageId: string;
   dailyPageId: string;
   dailyRootId: string;
   zhihuiRootId: string;
+  meetingPageUrl: string;
+  minutesPageUrl: string;
   accountEmail: string;
 }
 
@@ -128,19 +131,55 @@ export async function importMeetingArtifactToPages(
     pages,
     rootId: dailyRoot.id,
     meeting,
-    meetingPageId: meetingPage.id,
     now,
+  });
+
+  const minutesPage = await upsertMinutesPage({
+    kv,
+    email: accountEmail,
+    index,
+    pages,
+    dailyPageId: dailyPage.id,
+    meetingPageId: meetingPage.id,
+    meeting,
+    now,
+  });
+
+  await upsertDailyPage({
+    kv,
+    email: accountEmail,
+    index,
+    pages,
+    rootId: dailyRoot.id,
+    meeting,
+    now,
+    minutesPage,
+    legacyMeetingPageId: meetingPage.id,
+  });
+
+  await upsertMeetingPage({
+    kv,
+    email: accountEmail,
+    index,
+    pages,
+    rootId: zhihuiRoot.id,
+    meeting,
+    now,
+    minutesPage,
   });
 
   await writeIndex(kv, accountEmail, index);
 
   return {
     importId: meeting.importId,
-    url: `/page/${meetingPage.id}`,
+    url: `/page/${minutesPage.id}`,
+    minutesPageId: minutesPage.id,
     meetingPageId: meetingPage.id,
     dailyPageId: dailyPage.id,
     dailyRootId: dailyRoot.id,
     zhihuiRootId: zhihuiRoot.id,
+    meetingPageUrl: `/page/${meetingPage.id}`,
+    minutesPageUrl: `/page/${minutesPage.id}`,
     accountEmail,
   };
 }
@@ -240,6 +279,7 @@ async function upsertMeetingPage({
   rootId,
   meeting,
   now,
+  minutesPage,
 }: {
   kv: KvEnv;
   email: string;
@@ -248,6 +288,7 @@ async function upsertMeetingPage({
   rootId: string;
   meeting: NormalizedMeetingImport;
   now: string;
+  minutesPage?: PageRecord;
 }) {
   const existing = pages.find((page) => {
     if (page.parent_id !== rootId || page.deleted_at) return false;
@@ -272,7 +313,7 @@ async function upsertMeetingPage({
 
   page.title = meeting.title;
   page.icon = "🗓️";
-  page.content_text = buildMeetingPageHtml(meeting);
+  page.content_text = buildMeetingDetailPageHtml(meeting, minutesPage);
   page.properties = stringifyPageProperties([
     prop("date", "日期", meeting.date),
     prop("text", "时间", meeting.time),
@@ -345,8 +386,9 @@ async function upsertDailyPage({
   pages,
   rootId,
   meeting,
-  meetingPageId,
   now,
+  minutesPage,
+  legacyMeetingPageId,
 }: {
   kv: KvEnv;
   email: string;
@@ -354,8 +396,9 @@ async function upsertDailyPage({
   pages: PageRecord[];
   rootId: string;
   meeting: NormalizedMeetingImport;
-  meetingPageId: string;
   now: string;
+  minutesPage?: PageRecord;
+  legacyMeetingPageId?: string;
 }) {
   const existing = pages.find((page) => {
     if (page.parent_id !== rootId || page.deleted_at) return false;
@@ -385,14 +428,90 @@ async function upsertDailyPage({
   page.title = meeting.date;
   page.icon = "📅";
   page.properties = stringifyPageProperties(properties);
-  if (!existingBody.includes(`data-id="${meetingPageId}"`)) {
-    page.content_text =
-      existingBody +
-      buildDailyMentionHtml({
-        meeting,
-        meetingPageId,
-      });
+  let nextBody = existingBody;
+  if (legacyMeetingPageId) {
+    nextBody = removeMentionParagraph(nextBody, legacyMeetingPageId);
   }
+  if (minutesPage && !nextBody.includes(`data-id="${minutesPage.id}"`)) {
+    nextBody += buildDailyMentionHtml({
+      title: minutesPage.title,
+      pageId: minutesPage.id,
+    });
+  }
+  page.content_text = nextBody;
+  page.updated_at = now;
+  await writePage(kv, email, index, page);
+  replacePage(pages, page);
+  return page;
+}
+
+async function upsertMinutesPage({
+  kv,
+  email,
+  index,
+  pages,
+  dailyPageId,
+  meetingPageId,
+  meeting,
+  now,
+}: {
+  kv: KvEnv;
+  email: string;
+  index: Record<string, IndexEntry>;
+  pages: PageRecord[];
+  dailyPageId: string;
+  meetingPageId: string;
+  meeting: NormalizedMeetingImport;
+  now: string;
+}) {
+  const title = buildMinutesPageTitle(meeting);
+  const existing = pages.find((page) => {
+    if (page.parent_id !== dailyPageId || page.deleted_at) return false;
+    const props = parsePageProperties(page.properties);
+    return (
+      propValue(props, "Meeting Key") === meeting.meetingKey ||
+      (meeting.contentFingerprint &&
+        propValue(props, "内容指纹") === meeting.contentFingerprint) ||
+      page.title === title
+    );
+  });
+  const page = existing
+    ? { ...existing }
+    : createPageRecord({
+        parentId: dailyPageId,
+        title,
+        icon: "📝",
+        depth: 2,
+        now,
+      });
+
+  page.title = title;
+  page.icon = "📝";
+  page.content_text = buildMinutesPageHtml(meeting, meetingPageId);
+  page.properties = stringifyPageProperties([
+    prop("date", "日期", meeting.date),
+    prop("select", "平台", meeting.platform, [
+      "腾讯会议",
+      "Zoom",
+      "Webex",
+      "进门财经",
+      "久谦论坛",
+      "Teams",
+      "Google Meet",
+      "其他",
+    ]),
+    prop("text", "组织者", meeting.organizer),
+    prop("text", "会议详情页", `/page/${meetingPageId}`),
+    prop("text", "Meeting Key", meeting.meetingKey),
+    prop("text", "内容指纹", meeting.contentFingerprint),
+    prop("text", "导入时间", now),
+    prop("select", "导入来源", "meeting-agent", [
+      "手动输入",
+      "邮件",
+      "meeting-agent",
+      "页面导入",
+    ]),
+  ]);
   page.updated_at = now;
   await writePage(kv, email, index, page);
   replacePage(pages, page);
@@ -568,12 +687,49 @@ function replacePage(pages: PageRecord[], page: PageRecord) {
   else pages.push(page);
 }
 
-function buildMeetingPageHtml(meeting: NormalizedMeetingImport) {
+function buildMeetingDetailPageHtml(
+  meeting: NormalizedMeetingImport,
+  minutesPage?: PageRecord
+) {
+  const minutesLink = minutesPage
+    ? buildPageMentionHtml({
+        pageId: minutesPage.id,
+        label: minutesPage.title,
+      })
+    : "纪要页面创建中";
+  return [
+    `<h1>${escapeHtml(meeting.title)}</h1>`,
+    "<p>ZhiHui 已完成这场会议的录音、转写和纪要入库。这个页面保留会议执行痕迹；完整纪要单独存放在每日纪要下的纪要页面。</p>",
+    "<h2>纪要页面</h2>",
+    `<p>${minutesLink}</p>`,
+    "<h2>会议信息</h2>",
+    "<table><tbody>",
+    row("主题", meeting.topic),
+    row("组织方", meeting.organizer),
+    row("日期", meeting.date),
+    row("时间", meeting.time),
+    row("平台", meeting.platform),
+    row("转写模型", inferTranscriptionModel(meeting)),
+    row("录音文件", meeting.recordingFilename),
+    row("录音大小", formatBytes(meeting.recordingSize)),
+    "</tbody></table>",
+  ].join("");
+}
+
+function buildMinutesPageHtml(
+  meeting: NormalizedMeetingImport,
+  meetingPageId: string
+) {
   const transcriptNote = meeting.transcriptTruncated
     ? "<p><strong>提示：</strong>转写全文超过页面同步上限，已保留前半部分；完整文件仍在 ZhiHui 本地产物目录。</p>"
     : "";
   return [
-    `<h1>${escapeHtml(meeting.title)}</h1>`,
+    `<h1>${escapeHtml(buildMinutesPageTitle(meeting))}</h1>`,
+    "<h2>会议详情</h2>",
+    `<p>${buildPageMentionHtml({
+      pageId: meetingPageId,
+      label: meeting.title,
+    })}</p>`,
     "<h2>会议纪要</h2>",
     markdownToHtml(meeting.minutesMarkdown || "纪要为空。"),
     "<h2>录音</h2>",
@@ -591,23 +747,29 @@ function buildMeetingPageHtml(meeting: NormalizedMeetingImport) {
 }
 
 function buildDailyMentionHtml({
-  meeting,
-  meetingPageId,
+  title,
+  pageId,
 }: {
-  meeting: NormalizedMeetingImport;
-  meetingPageId: string;
+  title: string;
+  pageId: string;
 }) {
-  const topicBase = meeting.topic.replace(/纪要$/, "") || "会议";
-  const label = [`${topicBase}纪要`, meeting.organizer, meeting.date]
-    .filter(Boolean)
-    .join("-");
+  return `<p>${buildPageMentionHtml({ pageId, label: title })}</p>`;
+}
+
+function buildPageMentionHtml({
+  pageId,
+  label,
+}: {
+  pageId: string;
+  label: string;
+}) {
   return (
-    `<p><a data-type="mention" data-id="${meetingPageId}" ` +
-    `data-label="${escapeHtml(label)}" href="/page/${meetingPageId}" ` +
+    `<a data-type="mention" data-id="${pageId}" ` +
+    `data-label="${escapeHtml(label)}" href="/page/${pageId}" ` +
     `class="wiki-link inline-flex items-center gap-0.5 px-1 py-0.5 rounded ` +
     `bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 text-sm ` +
     `font-medium cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900 ` +
-    `transition-colors no-underline">📄 ${escapeHtml(label)}</a></p>`
+    `transition-colors no-underline">📄 ${escapeHtml(label)}</a>`
   );
 }
 
@@ -727,6 +889,35 @@ function inferTranscriptionModel(meeting: NormalizedMeetingImport) {
   const chineseChars = value.match(/[\u3400-\u9fff]/g)?.length ?? 0;
   const latinWords = value.match(/[a-zA-Z]{2,}/g)?.length ?? 0;
   return chineseChars >= latinWords * 2 ? "qwen" : "gpt";
+}
+
+function buildMinutesPageTitle(meeting: NormalizedMeetingImport) {
+  return [
+    cleanTitlePart(meeting.topic || "会议"),
+    cleanTitlePart(meeting.organizer || "未知组织方"),
+    toCompactDate(meeting.date),
+  ]
+    .filter(Boolean)
+    .join("-");
+}
+
+function cleanTitlePart(value: string) {
+  return value.replace(/\s+/g, " ").replace(/[\\/:*?"<>|]/g, "").trim();
+}
+
+function toCompactDate(date: string) {
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return date;
+  return `${match[1].slice(2)}${match[2]}${match[3]}`;
+}
+
+function removeMentionParagraph(html: string, pageId: string) {
+  if (!pageId || !html.includes(`data-id="${pageId}"`)) return html;
+  const escaped = pageId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return html.replace(
+    new RegExp(`<p>\\s*<a[^>]+data-id="${escaped}"[\\s\\S]*?<\\/a>\\s*<\\/p>`, "g"),
+    ""
+  );
 }
 
 function row(label: string, value: string) {
