@@ -5,9 +5,21 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
-import { createPage, updatePage } from "@/lib/db/local/queries";
+import {
+  createPage,
+  updatePage,
+  updateWikiLinks,
+} from "@/lib/db/local/queries";
 import { getModuleRootId } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import {
+  buildIndustryCompanyLinkContent,
+  buildIndustryCompanyLinkProperties,
+  getIndustryNodeDisplayPage,
+  getLinkedKnowledgeCompanyPageId,
+  isKnowledgeCompanyLinkPage,
+  resolveIndustryNodeTargetPageId,
+} from "@/lib/pages/industryChainCompanyLinks";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
 
@@ -66,23 +78,52 @@ export default function IndustryChainShell() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const { pages, refresh } = usePages();
   const [rootId, setRootId] = useState<string | null>(null);
+  const [knowledgeRootId, setKnowledgeRootId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
     x: number;
     y: number;
   } | null>(null);
+  const [companyLinkParentId, setCompanyLinkParentId] = useState<string | null>(
+    null
+  );
+  const [linkNotice, setLinkNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!dbReady) return;
     queueMicrotask(() => {
       void getModuleRootId("industry-chain").then(setRootId);
+      void getModuleRootId("knowledge-base").then(setKnowledgeRootId);
     });
   }, [dbReady]);
 
   // Top-level sectors are the direct children of the root page.
   const sectors = useMemo(
-    () => (rootId ? pages.filter((p) => p.parent_id === rootId) : []),
+    () =>
+      rootId
+        ? pages
+            .filter((p) => p.parent_id === rootId)
+            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        : [],
     [pages, rootId]
+  );
+
+  const companyCandidates = useMemo(
+    () =>
+      knowledgeRootId
+        ? pages
+            .filter((p) => p.parent_id === knowledgeRootId)
+            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        : [],
+    [pages, knowledgeRootId]
+  );
+
+  const companyLinkParent = useMemo(
+    () =>
+      companyLinkParentId
+        ? pages.find((page) => page.id === companyLinkParentId) ?? null
+        : null,
+    [pages, companyLinkParentId]
   );
 
   const addChild = useCallback(
@@ -102,6 +143,54 @@ export default function IndustryChainShell() {
     [refresh]
   );
 
+  const linkCompanyToParent = useCallback(
+    async (companyPageId: string) => {
+      if (!companyLinkParentId) return;
+      const companyPage = pages.find((page) => page.id === companyPageId);
+      if (!companyPage) return;
+
+      const existing = pages.find(
+        (page) =>
+          page.parent_id === companyLinkParentId &&
+          getLinkedKnowledgeCompanyPageId(page) === companyPageId
+      );
+
+      if (existing) {
+        setCompanyLinkParentId(null);
+        setLinkNotice("这个层级已经链接过这家公司。");
+        window.setTimeout(() => setLinkNotice(null), 2600);
+        return;
+      }
+
+      const linkPage = await createPage({
+        parentId: companyLinkParentId,
+        title: displayPageTitle(companyPage.title),
+        icon: companyPage.icon ?? "🏢",
+      });
+      await updatePage(linkPage.id, {
+        properties: buildIndustryCompanyLinkProperties(companyPage),
+        content_text: buildIndustryCompanyLinkContent(companyPage),
+      });
+      await updateWikiLinks(linkPage.id, [companyPage.id]);
+      await refresh();
+      setCompanyLinkParentId(null);
+      setLinkNotice(`已把「${displayPageTitle(companyPage.title)}」链接到产业链层级。`);
+      window.setTimeout(() => setLinkNotice(null), 2600);
+    },
+    [companyLinkParentId, pages, refresh]
+  );
+
+  const openIndustryNode = useCallback(
+    (id: string) => {
+      const page = pages.find((candidate) => candidate.id === id);
+      const targetId = page
+        ? resolveIndustryNodeTargetPageId(page, pages)
+        : id;
+      router.push(`/page/${targetId}`);
+    },
+    [pages, router]
+  );
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
@@ -113,7 +202,7 @@ export default function IndustryChainShell() {
                 <span className="text-3xl">🧭</span> 产业链研究
               </h1>
               <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
-                分级化的产业链看板。每个节点都是一个页面，可展开、增删、点进去看内容。
+                分级化的产业链看板。分类节点是页面；公司节点可直接引用知识库里的公司页。
               </p>
             </div>
             {rootId && (
@@ -126,6 +215,12 @@ export default function IndustryChainShell() {
               </button>
             )}
           </div>
+
+          {linkNotice && (
+            <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+              {linkNotice}
+            </p>
+          )}
 
           {!rootId ? (
             <div className="py-16 text-center text-sm text-zinc-400">
@@ -154,8 +249,9 @@ export default function IndustryChainShell() {
                   allPages={pages}
                   theme={SECTOR_THEMES[index % SECTOR_THEMES.length]}
                   descendantCount={countDescendants(pages, sector.id)}
-                  onOpen={(id) => router.push(`/page/${id}`)}
+                  onOpen={openIndustryNode}
                   onAddChild={(id) => void addChild(id, false)}
+                  onLinkCompany={(id) => setCompanyLinkParentId(id)}
                   onRename={(id, title) => void renameNode(id, title)}
                   onContextMenu={(id, x, y) =>
                     setContextMenu({ pageId: id, x, y })
@@ -166,8 +262,8 @@ export default function IndustryChainShell() {
           )}
 
           <p className="mt-8 text-xs leading-5 text-zinc-400">
-            提示：单击节点进入页面，双击节点就地重命名；删除和添加内容在节点页面里完成
-            （右上角 ••• 菜单）。这里的看板负责浏览、重命名和快速展开整条产业链。
+            提示：单击分类节点进入分类页，单击公司引用节点进入知识库公司页；双击分类可就地重命名。
+            公司引用只保存指针，不复制研究内容。
           </p>
         </div>
       </main>
@@ -183,6 +279,16 @@ export default function IndustryChainShell() {
           onChanged={() => void refresh()}
         />
       )}
+
+      {companyLinkParent && (
+        <CompanyLinkDialog
+          parentPage={companyLinkParent}
+          candidates={companyCandidates}
+          allPages={pages}
+          onChoose={(companyPageId) => void linkCompanyToParent(companyPageId)}
+          onClose={() => setCompanyLinkParentId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -196,6 +302,131 @@ function countDescendants(pages: Page[], id: string): number {
   );
 }
 
+function CompanyLinkDialog({
+  parentPage,
+  candidates,
+  allPages,
+  onChoose,
+  onClose,
+}: {
+  parentPage: Page;
+  candidates: Page[];
+  allPages: Page[];
+  onChoose: (companyPageId: string) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const existingTargetIds = useMemo(() => {
+    return new Set(
+      allPages
+        .filter((page) => page.parent_id === parentPage.id)
+        .map(getLinkedKnowledgeCompanyPageId)
+        .filter((id): id is string => Boolean(id))
+    );
+  }, [allPages, parentPage.id]);
+
+  const visibleCandidates = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return candidates.filter((page) => {
+      const title = displayPageTitle(page.title).toLowerCase();
+      return !normalizedQuery || title.includes(normalizedQuery);
+    });
+  }, [candidates, query]);
+
+  const parentTitle = displayPageTitle(parentPage.title);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/35 px-4 pt-[12vh] backdrop-blur-sm"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-xl overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                链接知识库公司页
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                链接到「{parentTitle}」下面。这里只创建引用节点，不复制公司页内容。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md px-2 py-1 text-sm text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              title="关闭"
+            >
+              ×
+            </button>
+          </div>
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索公司页…"
+            className="mt-3 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 outline-none transition-colors placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-blue-500 dark:focus:bg-zinc-950"
+          />
+        </div>
+
+        <div className="max-h-[46vh] overflow-y-auto p-2">
+          {candidates.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              知识库里还没有公司页。先到「知识库」创建公司卡片，再回到这里链接。
+            </div>
+          ) : visibleCandidates.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              没有匹配的公司页。
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {visibleCandidates.map((company) => {
+                const alreadyLinked = existingTargetIds.has(company.id);
+                const childCount = allPages.filter(
+                  (page) => page.parent_id === company.id
+                ).length;
+                return (
+                  <button
+                    key={company.id}
+                    type="button"
+                    disabled={alreadyLinked || Boolean(busyId)}
+                    onClick={() => {
+                      setBusyId(company.id);
+                      onChoose(company.id);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-55 dark:hover:bg-zinc-900"
+                  >
+                    <span className="text-lg">{company.icon || "🏢"}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                        {displayPageTitle(company.title)}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-zinc-400">
+                        知识库公司页
+                        {childCount > 0 ? ` · ${childCount} 个子页面` : ""}
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                      {alreadyLinked
+                        ? "已在此层级"
+                        : busyId === company.id
+                          ? "链接中…"
+                          : "链接"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Each top-level sector is rendered as a colored card containing its tree.
 function SectorCard({
   sector,
@@ -204,6 +435,7 @@ function SectorCard({
   descendantCount,
   onOpen,
   onAddChild,
+  onLinkCompany,
   onRename,
   onContextMenu,
 }: {
@@ -213,13 +445,16 @@ function SectorCard({
   descendantCount: number;
   onOpen: (id: string) => void;
   onAddChild: (id: string) => void;
+  onLinkCompany: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onContextMenu: (id: string, x: number, y: number) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(sector.title);
-  const children = allPages.filter((p) => p.parent_id === sector.id);
+  const children = allPages
+    .filter((p) => p.parent_id === sector.id)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   const hasChildren = children.length > 0;
 
   const commitRename = () => {
@@ -311,6 +546,17 @@ function SectorCard({
         >
           + 下级
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            onLinkCompany(sector.id);
+            setExpanded(true);
+          }}
+          className="shrink-0 rounded-md px-2 py-1 text-xs text-zinc-400 opacity-0 transition-all hover:bg-white/60 hover:text-zinc-700 group-hover/card:opacity-100 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          title="把知识库公司页链接到这个层级"
+        >
+          + 公司
+        </button>
       </div>
 
       {/* Sector body */}
@@ -327,19 +573,29 @@ function SectorCard({
                   level={1}
                   onOpen={onOpen}
                   onAddChild={onAddChild}
+                  onLinkCompany={onLinkCompany}
                   onRename={onRename}
                   onContextMenu={onContextMenu}
                 />
               ))}
             </ul>
           ) : (
-            <button
-              type="button"
-              onClick={() => onAddChild(sector.id)}
-              className="w-full rounded-md px-2 py-2 text-left text-xs text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-300"
-            >
-              + 添加下级分类（如：半导体、消费电子…）
-            </button>
+            <div className="flex flex-wrap gap-2 px-2 py-2">
+              <button
+                type="button"
+                onClick={() => onLinkCompany(sector.id)}
+                className="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+              >
+                + 链接公司页
+              </button>
+              <button
+                type="button"
+                onClick={() => onAddChild(sector.id)}
+                className="rounded-md px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-700 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-200"
+              >
+                + 添加下级分类
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -356,6 +612,7 @@ function ChainNode({
   level,
   onOpen,
   onAddChild,
+  onLinkCompany,
   onRename,
   onContextMenu,
 }: {
@@ -365,14 +622,20 @@ function ChainNode({
   level: number;
   onOpen: (id: string) => void;
   onAddChild: (id: string) => void;
+  onLinkCompany: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onContextMenu: (id: string, x: number, y: number) => void;
 }) {
   const [expanded, setExpanded] = useState(level < 2);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(node.title);
-  const children = allPages.filter((p) => p.parent_id === node.id);
+  const children = allPages
+    .filter((p) => p.parent_id === node.id)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   const hasChildren = children.length > 0;
+  const isCompanyLink = isKnowledgeCompanyLinkPage(node);
+  const displayPage = getIndustryNodeDisplayPage(node, allPages);
+  const displayTitle = displayPageTitle(displayPage.title);
 
   const commitRename = () => {
     setRenaming(false);
@@ -410,9 +673,13 @@ function ChainNode({
             level === 1 ? theme.accent : "bg-zinc-300 dark:bg-zinc-600"
           }`}
         />
-        {node.icon && <span className="shrink-0 text-sm">{node.icon}</span>}
+        {(displayPage.icon || isCompanyLink) && (
+          <span className="shrink-0 text-sm">
+            {displayPage.icon || "🏢"}
+          </span>
+        )}
 
-        {renaming ? (
+        {renaming && !isCompanyLink ? (
           <input
             autoFocus
             value={draft}
@@ -433,6 +700,7 @@ function ChainNode({
             onClick={() => onOpen(node.id)}
             onDoubleClick={(e) => {
               e.preventDefault();
+              if (isCompanyLink) return;
               setDraft(node.title);
               setRenaming(true);
             }}
@@ -443,10 +711,20 @@ function ChainNode({
             className={`min-w-0 flex-1 truncate text-left text-sm text-zinc-700 transition-colors dark:text-zinc-200 ${
               level === 1 ? "font-medium" : ""
             } ${theme.hover}`}
-            title={`${displayPageTitle(node.title)}（点击进入，双击重命名）`}
+            title={
+              isCompanyLink
+                ? `${displayTitle}（知识库公司页引用，点击打开原页）`
+                : `${displayTitle}（点击进入，双击重命名）`
+            }
           >
-            {displayPageTitle(node.title)}
+            {displayTitle}
           </button>
+        )}
+
+        {isCompanyLink && (
+          <span className="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+            公司页
+          </span>
         )}
 
         {hasChildren && (
@@ -455,17 +733,32 @@ function ChainNode({
           </span>
         )}
 
-        <button
-          type="button"
-          onClick={() => {
-            onAddChild(node.id);
-            setExpanded(true);
-          }}
-          className="shrink-0 rounded px-1.5 text-xs text-zinc-400 opacity-0 transition-opacity hover:text-zinc-700 group-hover/node:opacity-100 dark:hover:text-zinc-200"
-          title="添加下级分类"
-        >
-          + 下级
-        </button>
+        {!isCompanyLink && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                onAddChild(node.id);
+                setExpanded(true);
+              }}
+              className="shrink-0 rounded px-1.5 text-xs text-zinc-400 opacity-0 transition-opacity hover:text-zinc-700 group-hover/node:opacity-100 dark:hover:text-zinc-200"
+              title="添加下级分类"
+            >
+              + 下级
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onLinkCompany(node.id);
+                setExpanded(true);
+              }}
+              className="shrink-0 rounded px-1.5 text-xs text-zinc-400 opacity-0 transition-opacity hover:text-zinc-700 group-hover/node:opacity-100 dark:hover:text-zinc-200"
+              title="把知识库公司页链接到这个层级"
+            >
+              + 公司
+            </button>
+          </>
+        )}
       </div>
 
       {expanded && hasChildren && (
@@ -479,6 +772,7 @@ function ChainNode({
               level={level + 1}
               onOpen={onOpen}
               onAddChild={onAddChild}
+              onLinkCompany={onLinkCompany}
               onRename={onRename}
               onContextMenu={onContextMenu}
             />

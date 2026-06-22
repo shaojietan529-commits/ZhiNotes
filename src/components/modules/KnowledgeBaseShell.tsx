@@ -17,9 +17,16 @@ import {
   updatePage,
   movePage,
   getNextPosition,
+  updateWikiLinks,
 } from "@/lib/db/local/queries";
 import { getModuleRootId } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import {
+  buildIndustryCompanyLinkContent,
+  buildIndustryCompanyLinkProperties,
+  getLinkedKnowledgeCompanyPageId,
+  isKnowledgeCompanyLinkPage,
+} from "@/lib/pages/industryChainCompanyLinks";
 import { savePageFile, type PageFileKind } from "@/lib/files/localStore";
 import {
   buildFileLibraryPageContent,
@@ -50,6 +57,12 @@ type DropSpot = {
   position: "before" | "inside" | "after";
 };
 
+type IndustryParentOption = {
+  page: Page;
+  path: string;
+  childCount: number;
+};
+
 function fileKindIcon(kind: PageFileKind): string {
   if (kind === "pdf") return "📕";
   if (kind === "spreadsheet") return "📊";
@@ -67,6 +80,7 @@ export default function KnowledgeBaseShell() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const { pages, refresh } = usePages();
   const [rootId, setRootId] = useState<string | null>(null);
+  const [industryRootId, setIndustryRootId] = useState<string | null>(null);
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
@@ -77,6 +91,12 @@ export default function KnowledgeBaseShell() {
   const [dropSpot, setDropSpot] = useState<DropSpot | null>(null);
   const [importing, setImporting] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [industryLinkNotice, setIndustryLinkNotice] = useState<string | null>(
+    null
+  );
+  const [industryLinkCardId, setIndustryLinkCardId] = useState<string | null>(
+    null
+  );
   const [undoNotice, setUndoNotice] = useState<string | null>(null);
   const pushPageMove = useWorkspaceStore((s) => s.pushPageMove);
   const popPageMove = useWorkspaceStore((s) => s.popPageMove);
@@ -88,6 +108,7 @@ export default function KnowledgeBaseShell() {
     if (!dbReady) return;
     queueMicrotask(() => {
       void getModuleRootId("knowledge-base").then(setRootId);
+      void getModuleRootId("industry-chain").then(setIndustryRootId);
     });
   }, [dbReady]);
 
@@ -99,6 +120,20 @@ export default function KnowledgeBaseShell() {
             .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
         : [],
     [pages, rootId]
+  );
+
+  const industryParentOptions = useMemo(
+    () =>
+      industryRootId ? buildIndustryParentOptions(pages, industryRootId) : [],
+    [pages, industryRootId]
+  );
+
+  const industryLinkCard = useMemo(
+    () =>
+      industryLinkCardId
+        ? pages.find((page) => page.id === industryLinkCardId) ?? null
+        : null,
+    [pages, industryLinkCardId]
   );
 
   // New cards start untitled and icon-less (Notion-style); the title input
@@ -116,6 +151,43 @@ export default function KnowledgeBaseShell() {
       await refresh();
     },
     [refresh]
+  );
+
+  const linkCardToIndustryParent = useCallback(
+    async (parentId: string) => {
+      if (!industryLinkCard) return;
+
+      const existing = pages.find(
+        (page) =>
+          page.parent_id === parentId &&
+          getLinkedKnowledgeCompanyPageId(page) === industryLinkCard.id
+      );
+
+      if (existing) {
+        setIndustryLinkCardId(null);
+        setIndustryLinkNotice("这个产业链层级已经链接过这家公司。");
+        window.setTimeout(() => setIndustryLinkNotice(null), 2600);
+        return;
+      }
+
+      const linkPage = await createPage({
+        parentId,
+        title: displayPageTitle(industryLinkCard.title),
+        icon: industryLinkCard.icon ?? "🏢",
+      });
+      await updatePage(linkPage.id, {
+        properties: buildIndustryCompanyLinkProperties(industryLinkCard),
+        content_text: buildIndustryCompanyLinkContent(industryLinkCard),
+      });
+      await updateWikiLinks(linkPage.id, [industryLinkCard.id]);
+      await refresh();
+      setIndustryLinkCardId(null);
+      setIndustryLinkNotice(
+        `已把「${displayPageTitle(industryLinkCard.title)}」链入产业链。`
+      );
+      window.setTimeout(() => setIndustryLinkNotice(null), 2600);
+    },
+    [industryLinkCard, pages, refresh]
   );
 
   // Owner-confirmed import: triggered only by an explicit file pick. Files
@@ -305,6 +377,12 @@ export default function KnowledgeBaseShell() {
             </p>
           )}
 
+          {industryLinkNotice && (
+            <p className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300">
+              {industryLinkNotice}
+            </p>
+          )}
+
           {!rootId ? (
             <div className="py-16 text-center text-sm text-zinc-400">
               正在加载知识库…
@@ -337,6 +415,7 @@ export default function KnowledgeBaseShell() {
                   onOpenFull={(id) => router.push(`/page/${id}`)}
                   onRename={(id, title) => void renameCard(id, title)}
                   onImport={(id) => pickFilesFor(id)}
+                  onLinkIndustry={(id) => setIndustryLinkCardId(id)}
                   onContextMenu={(id, x, y) =>
                     setContextMenu({ pageId: id, x, y })
                   }
@@ -376,6 +455,15 @@ export default function KnowledgeBaseShell() {
           onChanged={() => void refresh()}
         />
       )}
+
+      {industryLinkCard && (
+        <IndustryParentPickerDialog
+          companyPage={industryLinkCard}
+          options={industryParentOptions}
+          onChoose={(parentId) => void linkCardToIndustryParent(parentId)}
+          onClose={() => setIndustryLinkCardId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -385,6 +473,144 @@ function countDescendants(pages: Page[], id: string): number {
   return children.reduce(
     (sum, child) => sum + 1 + countDescendants(pages, child.id),
     0
+  );
+}
+
+function buildIndustryParentOptions(
+  pages: Page[],
+  rootId: string
+): IndustryParentOption[] {
+  const childrenByParent = new Map<string, Page[]>();
+  for (const page of pages) {
+    if (!page.parent_id || isKnowledgeCompanyLinkPage(page)) continue;
+    const bucket = childrenByParent.get(page.parent_id) ?? [];
+    bucket.push(page);
+    childrenByParent.set(page.parent_id, bucket);
+  }
+  for (const bucket of childrenByParent.values()) {
+    bucket.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  }
+
+  const options: IndustryParentOption[] = [];
+  const walk = (parentId: string, pathParts: string[]) => {
+    for (const child of childrenByParent.get(parentId) ?? []) {
+      const title = displayPageTitle(child.title);
+      const nextPath = [...pathParts, title];
+      const childCount = (childrenByParent.get(child.id) ?? []).length;
+      options.push({
+        page: child,
+        path: nextPath.join(" / "),
+        childCount,
+      });
+      walk(child.id, nextPath);
+    }
+  };
+
+  walk(rootId, []);
+  return options;
+}
+
+function IndustryParentPickerDialog({
+  companyPage,
+  options,
+  onChoose,
+  onClose,
+}: {
+  companyPage: Page;
+  options: IndustryParentOption[];
+  onChoose: (parentId: string) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleOptions = options.filter(
+    (option) =>
+      !normalizedQuery ||
+      option.path.toLowerCase().includes(normalizedQuery) ||
+      displayPageTitle(option.page.title).toLowerCase().includes(normalizedQuery)
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/35 px-4 pt-[12vh] backdrop-blur-sm"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-xl overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                链入产业链
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                为「{displayPageTitle(companyPage.title)}」选择一个产业链层级。只创建引用，不搬动公司页。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md px-2 py-1 text-sm text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              title="关闭"
+            >
+              ×
+            </button>
+          </div>
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索产业链层级…"
+            className="mt-3 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 outline-none transition-colors placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-blue-500 dark:focus:bg-zinc-950"
+          />
+        </div>
+
+        <div className="max-h-[46vh] overflow-y-auto p-2">
+          {options.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              产业链研究里还没有分类。先到「产业链研究」创建一级分类，再回来链接公司页。
+            </div>
+          ) : visibleOptions.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              没有匹配的产业链层级。
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {visibleOptions.map((option) => (
+                <button
+                  key={option.page.id}
+                  type="button"
+                  disabled={Boolean(busyId)}
+                  onClick={() => {
+                    setBusyId(option.page.id);
+                    onChoose(option.page.id);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-55 dark:hover:bg-zinc-900"
+                >
+                  <span className="text-lg">{option.page.icon || "📂"}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                      {displayPageTitle(option.page.title)}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs text-zinc-400">
+                      {option.path}
+                      {option.childCount > 0
+                        ? ` · ${option.childCount} 个下级`
+                        : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                    {busyId === option.page.id ? "链接中…" : "选择"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -398,6 +624,7 @@ function KnowledgeCard({
   onOpenFull,
   onRename,
   onImport,
+  onLinkIndustry,
   onContextMenu,
   onDragStart,
   onDragEnd,
@@ -412,6 +639,7 @@ function KnowledgeCard({
   onOpenFull: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onImport: (id: string) => void;
+  onLinkIndustry: (id: string) => void;
   onContextMenu: (id: string, x: number, y: number) => void;
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
@@ -603,6 +831,14 @@ function KnowledgeCard({
             title="把 HTML/PDF/Excel/Word/PPT 等文件导入为这张卡的子页面"
           >
             ⬆ 导入文件
+          </button>
+          <button
+            type="button"
+            onClick={() => onLinkIndustry(card.id)}
+            className="rounded px-2 py-1 text-[11px] text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="把这张公司页链接到产业链研究的某个层级"
+          >
+            🔗 链入产业链
           </button>
         </div>
       </div>
