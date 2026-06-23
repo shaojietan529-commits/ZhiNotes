@@ -44,6 +44,7 @@ export default function DailyNotesShell() {
   const [rootId, setRootId] = useState<string | null>(null);
   const [notes, setNotes] = useState<DailyNote[]>([]);
   const [cloudNotice, setCloudNotice] = useState<string | null>(null);
+  const [cloudLoading, setCloudLoading] = useState(false);
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
@@ -58,41 +59,50 @@ export default function DailyNotesShell() {
   });
 
   const load = useCallback(async () => {
+    setCloudLoading(true);
+    setCloudNotice("正在从云端加载每日纪要…");
     const id = await getModuleRootId("daily");
     setRootId(id);
     const allPages = await getAllPages();
     const dailyNotes = collectDailyNotes(allPages, id);
     const byId = new Map(dailyNotes.map((note) => [note.id, note]));
+    setNotes(Array.from(byId.values()));
     const visibleRange = buildMonthGrid(viewMonth);
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
 
-    const cloud = await fetchDailyCloudMetadata({
-      startDate,
-      endDate,
-      recentLimit: 12,
-    });
-    if (cloud.status === "ok" && cloud.rootId) {
-      for (const note of collectDailyNotes(
-        cloud.pages.map(remoteRecordToPage),
-        cloud.rootId,
-        true
-      )) {
-        if (!byId.has(note.id)) byId.set(note.id, note);
+    try {
+      const cloud = await fetchDailyCloudMetadata({
+        startDate,
+        endDate,
+        recentLimit: 12,
+      });
+      if (cloud.status === "ok" && cloud.rootId) {
+        for (const note of collectDailyNotes(
+          cloud.pages.map(remoteRecordToPage),
+          cloud.rootId,
+          true
+        )) {
+          if (!byId.has(note.id)) byId.set(note.id, note);
+        }
+        setCloudNotice(
+          cloud.pages.length > 0
+            ? `云端每日纪要已加载 ${cloud.pages.length} 条，其中当前日历范围 ${cloud.rangeCount ?? 0} 条。`
+            : `云端每日纪要索引已连接，但当前月份没有返回纪要。云端匹配 ${cloud.matched ?? 0} 条。`
+        );
+      } else if (cloud.status === "disabled") {
+        setCloudNotice("页面同步已关闭，只显示本机每日纪要。");
+      } else if (cloud.status === "unauthenticated") {
+        setCloudNotice("当前浏览器未登录账号，只显示本机每日纪要。");
+      } else if (cloud.status === "unconfigured") {
+        setCloudNotice("云端账号系统未配置，只显示本机每日纪要。");
+      } else {
+        setCloudNotice(cloud.message ?? "云端每日纪要索引读取失败。");
       }
-      setCloudNotice(
-        cloud.pages.length > 0
-          ? `云端每日纪要已加载 ${cloud.pages.length} 条，其中当前日历范围 ${cloud.rangeCount ?? 0} 条。`
-          : `云端每日纪要索引已连接，但当前月份没有返回纪要。云端匹配 ${cloud.matched ?? 0} 条。`
-      );
-    } else if (cloud.status === "disabled") {
-      setCloudNotice("页面同步已关闭，只显示本机每日纪要。");
-    } else if (cloud.status === "unauthenticated") {
-      setCloudNotice("当前浏览器未登录账号，只显示本机每日纪要。");
-    } else if (cloud.status === "unconfigured") {
-      setCloudNotice("云端账号系统未配置，只显示本机每日纪要。");
-    } else {
-      setCloudNotice(cloud.message ?? "云端每日纪要索引读取失败。");
+    } catch {
+      setCloudNotice("云端每日纪要索引读取失败。");
+    } finally {
+      setCloudLoading(false);
     }
 
     setNotes(Array.from(byId.values()));
@@ -251,7 +261,14 @@ export default function DailyNotesShell() {
           </div>
 
           {/* Calendar grid */}
-          <div className="grid grid-cols-7 items-stretch">
+          <div className="relative grid grid-cols-7 items-stretch">
+            {notes.length === 0 && cloudNotice && (
+              <div className="absolute inset-x-0 top-16 z-10 flex justify-center px-4">
+                <div className="rounded-md border border-zinc-200 bg-white/95 px-3 py-2 text-xs text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/95 dark:text-zinc-400">
+                  {cloudLoading ? "正在从云端加载每日纪要…" : cloudNotice}
+                </div>
+              </div>
+            )}
             {grid.map((cell) => {
               const key = toDateKey(cell.date);
               const dayNotes = notesByDate.get(key) ?? [];
