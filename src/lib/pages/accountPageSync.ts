@@ -404,6 +404,18 @@ function inferDateFromTitle(title: string): string | null {
     /(?:^|[^0-9])([0-9]{2})([01][0-9])([0-3][0-9])(?:[^0-9]|$)/
   );
   if (compact) return formatInferredDate(compact[1], compact[2], compact[3]);
+
+  const shortSeparated = title.match(
+    /(?:^|[^0-9])([0-9]{2})[-/.年]([0-9]{1,2})[-/.月]([0-9]{1,2})(?:日)?(?:[^0-9]|$)/
+  );
+  if (shortSeparated) {
+    return formatInferredDate(
+      shortSeparated[1],
+      shortSeparated[2],
+      shortSeparated[3]
+    );
+  }
+
   const separated = title.match(
     /(?:^|[^0-9])([0-9]{4})[-/.年]([0-9]{1,2})[-/.月]([0-9]{1,2})(?:日)?(?:[^0-9]|$)/
   );

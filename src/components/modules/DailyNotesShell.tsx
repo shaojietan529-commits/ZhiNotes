@@ -550,7 +550,63 @@ function readDailyNoteDateKey(page: Page): string {
   );
   if (dateProp?.value) return dateProp.value.trim();
   const title = (page.title || "").trim();
-  return DATE_KEY_PATTERN.test(title) ? title : "";
+  return inferDateFromTitle(title) ?? "";
+}
+
+function inferDateFromTitle(title: string): string | null {
+  if (DATE_KEY_PATTERN.test(title)) return title;
+  const compact = title.match(
+    /(?:^|[^0-9])([0-9]{2})([01][0-9])([0-3][0-9])(?:[^0-9]|$)/
+  );
+  if (compact) return formatInferredDate(compact[1], compact[2], compact[3]);
+
+  const shortSeparated = title.match(
+    /(?:^|[^0-9])([0-9]{2})[-/.年]([0-9]{1,2})[-/.月]([0-9]{1,2})(?:日)?(?:[^0-9]|$)/
+  );
+  if (shortSeparated) {
+    return formatInferredDate(
+      shortSeparated[1],
+      shortSeparated[2],
+      shortSeparated[3]
+    );
+  }
+
+  const separated = title.match(
+    /(?:^|[^0-9])([0-9]{4})[-/.年]([0-9]{1,2})[-/.月]([0-9]{1,2})(?:日)?(?:[^0-9]|$)/
+  );
+  if (separated) {
+    return formatInferredDate(separated[1], separated[2], separated[3]);
+  }
+  return null;
+}
+
+function formatInferredDate(
+  yearText: string,
+  monthText: string,
+  dayText: string
+): string | null {
+  let year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return null;
+  }
+  if (yearText.length === 2) year += year >= 70 ? 1900 : 2000;
+  if (
+    year < 2000 ||
+    year > 2099 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 function remoteRecordToPage(record: RemotePageRecord): Page {
