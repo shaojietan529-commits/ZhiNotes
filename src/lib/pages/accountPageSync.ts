@@ -88,6 +88,7 @@ export interface PullDailyCloudResult {
   status: PageSyncStatus;
   pulled: number;
   total: number;
+  failed?: number;
   scanned?: number;
   message?: string;
 }
@@ -194,6 +195,7 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
   }
 
   let pulled = 0;
+  let failed = 0;
   for (let i = 0; i < uniqueIds.length; i += PULL_BATCH) {
     const batch = uniqueIds.slice(i, i + PULL_BATCH);
     const res = await call({ action: "pull", ids: batch });
@@ -212,9 +214,13 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
     const pages = Array.isArray(res.json.pages)
       ? (res.json.pages as RemotePageRecord[])
       : [];
-    if (pages.length > 0) {
-      await applyRemotePages(pages);
-      pulled += pages.length;
+    for (const page of pages) {
+      try {
+        await applyRemotePages([page]);
+        pulled += 1;
+      } catch {
+        failed += 1;
+      }
     }
   }
 
@@ -229,6 +235,7 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
     status: "ok",
     pulled,
     total: uniqueIds.length,
+    failed,
     scanned:
       typeof manifestRes.json.scanned === "number"
         ? manifestRes.json.scanned

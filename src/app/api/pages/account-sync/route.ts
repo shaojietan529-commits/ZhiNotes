@@ -414,11 +414,11 @@ async function getDailyManifest(
   };
   visit(dailyRoot.id);
 
-  // Also include imported/date-tagged pages that are not yet under the daily
-  // root. This lets the client force-pull stale local copies into view even
-  // when normal last-write-wins sync would ignore the older cloud timestamp.
+  // Also include top-level imported/date-tagged pages that are not yet under
+  // the daily root. Nested non-daily pages may reference parents that are not
+  // part of this targeted pull, so keep the force-pull set self-contained.
   for (const page of active) {
-    if (isRepairCandidate(page) || getDailyDateKey(page)) {
+    if (isRepairCandidate(page)) {
       ids.add(page.id);
     }
   }
