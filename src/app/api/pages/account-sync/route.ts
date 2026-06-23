@@ -30,6 +30,8 @@ const PAGE_KEY_PREFIX = "zhinotes:pagesync:page:";
 const MAX_PAYLOAD_BYTES = 950 * 1024;
 const MAX_PUSH_RECORDS = 100;
 const MAX_PULL_IDS = 50;
+const DAILY_REPAIR_READ_BATCH = 100;
+const DAILY_REPAIR_WRITE_BATCH = 50;
 const DAILY_ROOT_TITLE = "每日纪要";
 const MODULE_ROOT_TITLES = new Set([
   "每日纪要",
@@ -263,14 +265,20 @@ async function readIndexedPages(
   index: Record<string, IndexEntry>
 ): Promise<PageRecord[]> {
   const pages: PageRecord[] = [];
-  for (const id of Object.keys(index)) {
-    const raw = await kvGet(config.kv, `${PAGE_KEY_PREFIX}${email}:${id}`);
-    if (!raw) continue;
-    try {
-      const record = sanitizeRecord(JSON.parse(raw));
-      if (record) pages.push(record);
-    } catch {
-      // skip corrupt record
+  const ids = Object.keys(index);
+  for (let i = 0; i < ids.length; i += DAILY_REPAIR_READ_BATCH) {
+    const batch = ids.slice(i, i + DAILY_REPAIR_READ_BATCH);
+    const raws = await Promise.all(
+      batch.map((id) => kvGet(config.kv, `${PAGE_KEY_PREFIX}${email}:${id}`))
+    );
+    for (const raw of raws) {
+      if (!raw) continue;
+      try {
+        const record = sanitizeRecord(JSON.parse(raw));
+        if (record) pages.push(record);
+      } catch {
+        // skip corrupt record
+      }
     }
   }
   return pages;
@@ -303,7 +311,7 @@ async function repairDailyImportPlacement(
         .filter((page) => page.parent_id === dailyRoot.id)
         .map((page) => page.position || 0)
     ) + 1;
-  let repaired = 0;
+  const updates: PageRecord[] = [];
   let skippedNoDate = 0;
 
   for (const page of active.filter(isRepairCandidate)) {
@@ -323,16 +331,24 @@ async function repairDailyImportPlacement(
       updated_at: now,
     };
     nextPosition += 1;
-    await kvSet(
-      config.kv,
-      `${PAGE_KEY_PREFIX}${email}:${nextRecord.id}`,
-      JSON.stringify(nextRecord)
-    );
     index[nextRecord.id] = { u: now, d: 0 };
-    repaired += 1;
+    updates.push(nextRecord);
   }
 
-  if (repaired > 0) {
+  for (let i = 0; i < updates.length; i += DAILY_REPAIR_WRITE_BATCH) {
+    const batch = updates.slice(i, i + DAILY_REPAIR_WRITE_BATCH);
+    await Promise.all(
+      batch.map((record) =>
+        kvSet(
+          config.kv,
+          `${PAGE_KEY_PREFIX}${email}:${record.id}`,
+          JSON.stringify(record)
+        )
+      )
+    );
+  }
+
+  if (updates.length > 0) {
     await kvSet(
       config.kv,
       `${INDEX_KEY_PREFIX}${email}`,
@@ -342,7 +358,7 @@ async function repairDailyImportPlacement(
 
   return {
     scanned: active.length,
-    repaired,
+    repaired: updates.length,
     skippedNoDate,
     skippedNoRoot: false,
   };
