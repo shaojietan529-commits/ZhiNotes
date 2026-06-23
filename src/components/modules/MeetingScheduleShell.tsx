@@ -201,6 +201,7 @@ export default function MeetingScheduleShell() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [highlightedDateKey, setHighlightedDateKey] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(() => emptyForm(toDateKey(new Date())));
   const [intakeText, setIntakeText] = useState("");
@@ -226,6 +227,50 @@ export default function MeetingScheduleShell() {
   } | null>(null);
   const initialCloudPullAttemptedRef = useRef(false);
   const deletedTombstoneRef = useRef<Set<string>>(readDeletedTombstone());
+  const calendarCellRefs = useRef(new Map<string, HTMLDivElement>());
+  const highlightTimerRef = useRef<number | null>(null);
+
+  const upsertMeetingInView = useCallback((page: Page) => {
+    setMeetings((prev) => {
+      const existingIndex = prev.findIndex((item) => item.id === page.id);
+      if (existingIndex === -1) return [...prev, page];
+      const next = [...prev];
+      next[existingIndex] = page;
+      return next;
+    });
+  }, []);
+
+  const focusCalendarDate = useCallback((dateKey: string) => {
+    const date = parseDateKeyToLocalDate(dateKey);
+    if (!date) return;
+
+    setViewMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+    setHighlightedDateKey(dateKey);
+
+    window.setTimeout(() => {
+      calendarCellRefs.current.get(dateKey)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 80);
+
+    if (highlightTimerRef.current) {
+      window.clearTimeout(highlightTimerRef.current);
+    }
+    highlightTimerRef.current = window.setTimeout(() => {
+      setHighlightedDateKey((current) => (current === dateKey ? "" : current));
+      highlightTimerRef.current = null;
+    }, 7000);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (highlightTimerRef.current) {
+        window.clearTimeout(highlightTimerRef.current);
+      }
+    },
+    []
+  );
 
   const addTombstone = useCallback((pageId: string) => {
     const next = new Set(deletedTombstoneRef.current);
@@ -421,8 +466,10 @@ export default function MeetingScheduleShell() {
     async (
       draft: MeetingFormState,
       options: CreateMeetingOptions = {}
-    ): Promise<CreateMeetingResult | null> => {
-      if (!rootId) return null;
+    ): Promise<CreateMeetingResult> => {
+      if (!rootId) {
+        throw new Error("会议模块还在加载，请等页面完成加载后再导入。");
+      }
       const topic = draft.topic.trim() || "未命名会议";
       const organizer = draft.organizer.trim();
       const title = [topic, organizer, draft.date].filter(Boolean).join("-");
@@ -587,6 +634,7 @@ export default function MeetingScheduleShell() {
       });
       let finalPage = updatedPage ?? page;
       let queueResult: QueueResult | undefined;
+      upsertMeetingInView(finalPage);
 
       if (options.enqueueRecording) {
         queueResult = await enqueueMeetingRecordingRequest(
@@ -608,15 +656,16 @@ export default function MeetingScheduleShell() {
           properties: stringifyPageProperties(queueProps),
         });
         finalPage = queuedPage ?? finalPage;
+        upsertMeetingInView(finalPage);
       }
 
-      await pushMeetingPageCloudSnapshot(rootId, finalPage);
+      void pushMeetingPageCloudSnapshot(rootId, finalPage);
+      void refresh().catch(() => undefined);
+      void load().catch(() => undefined);
 
-      await refresh();
-      await load();
       return { page: finalPage, queueResult };
     },
-    [rootId, refresh, load]
+    [rootId, upsertMeetingInView, refresh, load]
   );
 
   const handleCreate = useCallback(async () => {
@@ -681,10 +730,11 @@ export default function MeetingScheduleShell() {
         warnings: meeting.warnings,
         timeLabel: formatMeetingTime(meeting.time, meeting.endTime),
       });
+      focusCalendarDate(draft.date);
       setIntakeText("");
       setIntakeMessage(
         hasExecutableTime
-          ? `已导入会议日历。入会链接、会议号和会议密码已保存到会议页面。${formatQueueResultForMessage(
+          ? `${formatImportDateMessage(draft.date)} 入会链接、会议号和会议密码已保存到会议页面。${formatQueueResultForMessage(
               result?.queueResult
             )}`
           : "已保留会议痕迹，但还缺明确开始时间；请稍后打开会议页补齐。"
@@ -692,30 +742,38 @@ export default function MeetingScheduleShell() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "读取会议信息失败。";
       const fallback = buildFallbackTraceFromInput(input, form.date || toDateKey(new Date()));
-      await createMeetingPage(fallback.draft, {
-        importSource: "会议信息输入",
-        hasJoinUrl: Boolean(fallback.joinUrl),
-        joinUrlHost: fallback.joinUrlHost,
-        joinUrl: fallback.joinUrl,
-        recordingDevice: intakeRecordingDevice,
-        fallbackDevice: DEFAULT_RECORDING_DEVICE,
-        transcriptionModel:
-          intakeTranscriptionModel === "auto"
-            ? inferTranscriptionModel(input)
-            : intakeTranscriptionModel,
-        meetingPriority: intakePriority,
-        confidence: "low",
-        traceStatus: "导入失败-已留痕",
-        timeStatus: "待补充",
-        recordingStatus: "未执行",
-        traceNote: `解析接口失败，但已保留会议痕迹。失败原因：${message}`,
-      });
-      setIntakeError(`解析失败但已保留痕迹：${message}`);
+      try {
+        await createMeetingPage(fallback.draft, {
+          importSource: "会议信息输入",
+          hasJoinUrl: Boolean(fallback.joinUrl),
+          joinUrlHost: fallback.joinUrlHost,
+          joinUrl: fallback.joinUrl,
+          recordingDevice: intakeRecordingDevice,
+          fallbackDevice: DEFAULT_RECORDING_DEVICE,
+          transcriptionModel:
+            intakeTranscriptionModel === "auto"
+              ? inferTranscriptionModel(input)
+              : intakeTranscriptionModel,
+          meetingPriority: intakePriority,
+          confidence: "low",
+          traceStatus: "导入失败-已留痕",
+          timeStatus: "待补充",
+          recordingStatus: "未执行",
+          traceNote: `解析接口失败，但已保留会议痕迹。失败原因：${message}`,
+        });
+        focusCalendarDate(fallback.draft.date);
+        setIntakeError(`解析失败但已保留痕迹：${message}`);
+      } catch (fallbackError) {
+        const fallbackMessage =
+          fallbackError instanceof Error ? fallbackError.message : "保留会议痕迹失败。";
+        setIntakeError(`导入失败：${message}；保留痕迹也失败：${fallbackMessage}`);
+      }
     } finally {
       setIntakeLoading(false);
     }
   }, [
     createMeetingPage,
+    focusCalendarDate,
     form.date,
     intakeLoading,
     intakePriority,
@@ -1262,11 +1320,23 @@ export default function MeetingScheduleShell() {
               const key = toDateKey(cell.date);
               const dayMeetings = entriesByDate.get(key) ?? [];
               const isToday = key === todayKey;
+              const isHighlighted = key === highlightedDateKey;
               return (
                 <div
                   key={key}
-                  className={`group flex min-h-28 flex-col border-b border-r border-zinc-100 p-1.5 dark:border-zinc-800/70 ${
-                    cell.inMonth ? "" : "bg-zinc-50/50 dark:bg-zinc-900/40"
+                  ref={(node) => {
+                    if (node) {
+                      calendarCellRefs.current.set(key, node);
+                    } else {
+                      calendarCellRefs.current.delete(key);
+                    }
+                  }}
+                  className={`group flex min-h-28 scroll-mt-24 flex-col border-b border-r border-zinc-100 p-1.5 transition-colors dark:border-zinc-800/70 ${
+                    isHighlighted
+                      ? "bg-emerald-50/80 ring-2 ring-inset ring-emerald-400 dark:bg-emerald-950/20 dark:ring-emerald-500"
+                      : cell.inMonth
+                        ? ""
+                        : "bg-zinc-50/50 dark:bg-zinc-900/40"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -1403,6 +1473,25 @@ function emptyForm(dateKey: string): MeetingFormState {
     time: "",
     platform: PLATFORMS[0],
   };
+}
+
+function parseDateKeyToLocalDate(dateKey: string) {
+  const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return new Date(year, month - 1, day);
+}
+
+function formatImportDateMessage(dateKey: string) {
+  if (!dateKey) return "已导入会议日历。";
+  const todayKey = toDateKey(new Date());
+  if (dateKey === todayKey) {
+    return `已导入今天 ${dateKey} 的会议日历。`;
+  }
+  return `已导入 ${dateKey} 的会议日历，已自动定位到这一天；这场不是今天，所以“今日会议”不会增加。`;
 }
 
 async function restoreDeletedMeetingPages(

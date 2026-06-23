@@ -184,6 +184,7 @@ function extractSourceHost(text: string) {
 
 function extractTopic(text: string, fetchedTitle: string | undefined, platform: string) {
   const patterns = [
+    /[【\[]?\s*(?:会议邀请|邀请函|会议通知)\s*[】\]]?\s*[:：]?\s*([^\n]+)/i,
     /(?:页面标题|候选标题|主标题|大标题)\s*[:：]\s*([^\n]+)/i,
     /(?:路演主题|活动主题|活动名称|会议标题|会议议题|会议主题|会议名称|主题|标题|名称)\s*[:：]\s*([^\n]+)/i,
     /(?:会议主题|会议名称|主题|Topic)\s*[:：]\s*([^\n]+)/i,
@@ -256,6 +257,7 @@ function hasDateTime(line: string) {
 function cleanTopicCandidate(value: string) {
   return value
     .replace(URL_GLOBAL_PATTERN, "")
+    .replace(/^[【\[]?\s*(?:会议邀请|邀请函|会议通知)\s*[】\]]?\s*[:：]?\s*/i, "")
     .replace(/^(?:页面标题|候选标题|主标题|大标题|路演主题|活动主题|会议主题|主题|标题|名称)\s*[:：]\s*/i, "")
     .replace(/^(?:专场|新财富)\s+/, "")
     .replace(/(?:。?敬请关注[！!]?)$/g, "")
@@ -274,6 +276,9 @@ function isLikelyTopicCandidate(value: string) {
   if (/^(路演时间|会议时间|活动时间|直播时间|开始时间|日期时间|时间)$/.test(candidate)) {
     return false;
   }
+  if (/^(路演时间|会议时间|活动时间|直播时间|开始时间|日期时间|时间)\s*[:：]/.test(candidate)) {
+    return false;
+  }
   if (/(为您带来|为您分享|敬请关注)/.test(candidate)) return false;
   if (/(次浏览|浏览|报名|已结束|进行中|加载中|暂无数据)/.test(candidate)) return false;
   if (/^\d{4}[-/.年]\d{1,2}[-/.月]\d{1,2}/.test(candidate)) return false;
@@ -283,7 +288,7 @@ function isLikelyTopicCandidate(value: string) {
   if (hasDateTime(candidate) && !/[｜|:：\-–—]/.test(candidate)) return false;
   return (
     /[｜|:：\-–—]/.test(candidate) ||
-    /(证券|基金|资本|投研|策略|科技|行业|公司|交流|调研|路演|论坛|如何|怎么看|看待|未来|机会|风险|当前|展望|复盘)/.test(candidate)
+    /(证券|基金|资本|投研|策略|科技|行业|公司|交流|调研|路演|论坛|讨论|电话会|业绩会|如何|怎么看|看待|未来|机会|风险|当前|展望|复盘)/.test(candidate)
   );
 }
 
