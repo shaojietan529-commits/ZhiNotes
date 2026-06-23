@@ -1593,6 +1593,17 @@ function RebalanceSimulator({
 
   const activeTrades = trades.filter((t) => t.amountK > 0);
 
+  // Per-position post-trade NMV, for the inline 调整后 columns.
+  const projectedByKey = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of projected.positions) map.set(p.key, p.nmv);
+    return map;
+  }, [projected]);
+
+  // Totals for the footer (gross + net, current vs post-trade).
+  const curGross = projected.curLong + projected.curShort;
+  const projGross = projected.projLong + projected.projShort;
+
   return (
     <div className="space-y-6">
       {/* ---- Current positions with trade inputs ---- */}
@@ -1631,6 +1642,8 @@ function RebalanceSimulator({
                 <th className="px-3 py-2 text-right">% Alloc</th>
                 <th className="px-3 py-2 text-center">操作</th>
                 <th className="px-3 py-2 text-right">金额 ($k)</th>
+                <th className="px-3 py-2 text-right">调整后</th>
+                <th className="px-3 py-2 text-right">调整后 %</th>
                 <th className="w-8 px-2 py-2" />
               </tr>
             </thead>
@@ -1658,6 +1671,39 @@ function RebalanceSimulator({
                         {formatAllocPct(Math.abs(p.nmv), allocation)}
                       </td>
                       <td colSpan={2} />
+                      {(() => {
+                        const postNmv = projectedByKey.get(p.key) ?? p.nmv;
+                        const changed =
+                          Math.abs(postNmv - p.nmv) > 0.5;
+                        const closed = Math.abs(postNmv) < 0.5;
+                        return (
+                          <>
+                            <td
+                              className={`px-3 py-2 text-right font-medium tabular-nums ${
+                                changed
+                                  ? "text-zinc-900 dark:text-zinc-50"
+                                  : "text-zinc-400 dark:text-zinc-500"
+                              }`}
+                            >
+                              {closed ? "已清仓" : formatSignedMoney(postNmv)}
+                            </td>
+                            <td
+                              className={`px-3 py-2 text-right tabular-nums ${
+                                changed
+                                  ? "text-zinc-700 dark:text-zinc-200"
+                                  : "text-zinc-400 dark:text-zinc-500"
+                              }`}
+                            >
+                              {closed
+                                ? "—"
+                                : formatAllocPct(
+                                    Math.abs(postNmv),
+                                    allocation
+                                  )}
+                            </td>
+                          </>
+                        );
+                      })()}
                       <td className="px-2 py-2 text-center">
                         <button
                           type="button"
@@ -1711,6 +1757,7 @@ function RebalanceSimulator({
                             className="w-20 rounded border border-zinc-200 bg-white px-2 py-1 text-right text-xs tabular-nums dark:border-zinc-700 dark:bg-zinc-800"
                           />
                         </td>
+                        <td colSpan={2} />
                         <td className="px-2 py-1.5 text-center">
                           <button
                             type="button"
@@ -1727,6 +1774,72 @@ function RebalanceSimulator({
                 );
               })}
             </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-zinc-200 bg-zinc-50/80 font-semibold dark:border-zinc-700 dark:bg-zinc-800/40">
+                <td className="px-4 py-2.5 text-zinc-700 dark:text-zinc-200">
+                  总仓位 (Gross)
+                </td>
+                <td colSpan={2} />
+                <td className="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
+                  {formatMoney(curGross)}
+                </td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
+                  {formatAllocPct(curGross, allocation)}
+                </td>
+                <td colSpan={2} />
+                <td
+                  className={`px-3 py-2.5 text-right tabular-nums ${
+                    Math.abs(projGross - curGross) > 0.5
+                      ? "text-zinc-900 dark:text-zinc-50"
+                      : "text-zinc-400 dark:text-zinc-500"
+                  }`}
+                >
+                  {formatMoney(projGross)}
+                </td>
+                <td
+                  className={`px-3 py-2.5 text-right tabular-nums ${
+                    Math.abs(projGross - curGross) > 0.5
+                      ? "text-zinc-700 dark:text-zinc-200"
+                      : "text-zinc-400 dark:text-zinc-500"
+                  }`}
+                >
+                  {formatAllocPct(projGross, allocation)}
+                </td>
+                <td />
+              </tr>
+              <tr className="bg-zinc-50/80 text-xs dark:bg-zinc-800/40">
+                <td className="px-4 py-2 text-zinc-500 dark:text-zinc-400">
+                  净仓位 (Net)
+                </td>
+                <td colSpan={2} />
+                <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                  {formatSignedMoney(projected.curNet)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                  {formatSignedAllocPct(projected.curNet, allocation)}
+                </td>
+                <td colSpan={2} />
+                <td
+                  className={`px-3 py-2 text-right tabular-nums ${
+                    Math.abs(projected.projNet - projected.curNet) > 0.5
+                      ? "text-zinc-700 dark:text-zinc-200"
+                      : "text-zinc-400 dark:text-zinc-500"
+                  }`}
+                >
+                  {formatSignedMoney(projected.projNet)}
+                </td>
+                <td
+                  className={`px-3 py-2 text-right tabular-nums ${
+                    Math.abs(projected.projNet - projected.curNet) > 0.5
+                      ? "text-zinc-700 dark:text-zinc-200"
+                      : "text-zinc-400 dark:text-zinc-500"
+                  }`}
+                >
+                  {formatSignedAllocPct(projected.projNet, allocation)}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
           </table>
         </div>
 
