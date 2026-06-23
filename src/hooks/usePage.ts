@@ -26,7 +26,7 @@ export function usePage(pageId: string | null) {
     }
     setLoading(true);
     let p = await getPage(pageId);
-    if (!p) {
+    if (!p || p.content_text === null) {
       const pulled = await pullCloudPageById(pageId);
       if (pulled.status === "ok" && pulled.pulled > 0) {
         p = await getPage(pageId);

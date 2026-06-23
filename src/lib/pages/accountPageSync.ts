@@ -14,6 +14,7 @@
 // properties, cover. Databases, files, comments and versions stay local.
 
 import {
+  applyRemotePageMetadata,
   applyRemotePages,
   getAllPagesForSync,
   getNextPosition,
@@ -176,7 +177,7 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
   if (!isPageSyncEnabled()) {
     return { status: "disabled", pulled: 0, total: 0 };
   }
-  const manifestRes = await call({ action: "daily-manifest" });
+  const manifestRes = await call({ action: "daily-metadata" });
   if (!manifestRes.ok) {
     return {
       status: manifestRes.status,
@@ -189,44 +190,25 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
   const ids = Array.isArray(manifestRes.json.ids)
     ? manifestRes.json.ids.filter((id): id is string => isValidRemotePageId(id))
     : [];
-  const uniqueIds = Array.from(new Set(ids));
+  const pages = Array.isArray(manifestRes.json.pages)
+    ? (manifestRes.json.pages as RemotePageRecord[])
+    : [];
   if (typeof window !== "undefined" && typeof manifestRes.json.rootId === "string") {
     window.localStorage.setItem("zhinote.moduleRoot.daily", manifestRes.json.rootId);
   }
 
   let pulled = 0;
   let failed = 0;
-  for (let i = 0; i < uniqueIds.length; i += PULL_BATCH) {
-    const batch = uniqueIds.slice(i, i + PULL_BATCH);
-    const res = await call({ action: "pull", ids: batch });
-    if (!res.ok) {
-      return {
-        status: res.status,
-        pulled,
-        total: uniqueIds.length,
-        scanned:
-          typeof manifestRes.json.scanned === "number"
-            ? manifestRes.json.scanned
-            : undefined,
-        message: res.message,
-      };
-    }
-    const pages = Array.isArray(res.json.pages)
-      ? (res.json.pages as RemotePageRecord[])
-      : [];
-    if (pages.length > 0) {
+  try {
+    await applyRemotePageMetadata(pages);
+    pulled = pages.length;
+  } catch {
+    for (const page of pages) {
       try {
-        await applyRemotePages(pages);
-        pulled += pages.length;
+        await applyRemotePageMetadata([page]);
+        pulled += 1;
       } catch {
-        for (const page of pages) {
-          try {
-            await applyRemotePages([page]);
-            pulled += 1;
-          } catch {
-            failed += 1;
-          }
-        }
+        failed += 1;
       }
     }
   }
@@ -241,7 +223,7 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
   return {
     status: "ok",
     pulled,
-    total: uniqueIds.length,
+    total: ids.length,
     failed,
     scanned:
       typeof manifestRes.json.scanned === "number"

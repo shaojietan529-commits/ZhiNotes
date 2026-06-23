@@ -589,6 +589,65 @@ export async function applyRemotePages(
   }
 }
 
+export async function applyRemotePageMetadata(
+  records: RemotePageRecord[]
+): Promise<void> {
+  const db = await getDb();
+  const validRecords = records.filter((record) => record.id);
+  const incomingIds = new Set(validRecords.map((record) => record.id));
+
+  for (const record of validRecords) {
+    const existing = db.query("SELECT id FROM pages WHERE id = ?", [
+      record.id,
+    ]) as unknown as { id: string }[];
+
+    if (existing.length === 0) {
+      db.run(
+        `INSERT INTO pages (id, owner_id, title, position, depth, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          record.id,
+          DEFAULT_OWNER_ID,
+          record.title,
+          record.position,
+          record.depth,
+          record.created_at,
+          record.updated_at,
+        ]
+      );
+    }
+  }
+
+  for (const record of validRecords) {
+    let parentId = record.parent_id;
+    if (parentId && !incomingIds.has(parentId)) {
+      const parent = db.query("SELECT id FROM pages WHERE id = ?", [
+        parentId,
+      ]) as unknown as { id: string }[];
+      if (parent.length === 0) parentId = null;
+    }
+
+    db.run(
+      `UPDATE pages SET parent_id = ?, title = ?, icon = ?,
+              properties = ?, position = ?, depth = ?,
+              created_at = ?, updated_at = ?, deleted_at = ?
+       WHERE id = ?`,
+      [
+        parentId,
+        record.title,
+        record.icon,
+        record.properties,
+        record.position,
+        record.depth,
+        record.created_at,
+        record.updated_at,
+        record.deleted_at,
+        record.id,
+      ]
+    );
+  }
+}
+
 export async function searchPages(query: string): Promise<Page[]> {
   const db = await getDb();
   const normalizedQuery = normalizeSearchText(query);

@@ -90,6 +90,10 @@ interface DailyManifestResult {
   scanned: number;
 }
 
+interface DailyMetadataResult extends DailyManifestResult {
+  pages: PageRecord[];
+}
+
 function isValidId(value: unknown): value is string {
   return (
     typeof value === "string" && value.length > 0 && value.length <= 64 &&
@@ -381,13 +385,7 @@ async function repairDailyImportPlacement(
   };
 }
 
-async function getDailyManifest(
-  config: AccountConfig,
-  email: string
-): Promise<DailyManifestResult> {
-  const index = await readIndex(config, email);
-  const pages = await readIndexedPages(config, email, index);
-  const active = pages.filter((page) => !page.deleted_at);
+function buildDailyManifest(active: PageRecord[]): DailyManifestResult {
   const dailyRoot = active
     .filter((page) => page.parent_id === null && page.title === DAILY_ROOT_TITLE)
     .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
@@ -428,6 +426,36 @@ async function getDailyManifest(
     ids: Array.from(ids),
     count: ids.size,
     scanned: active.length,
+  };
+}
+
+async function getDailyManifest(
+  config: AccountConfig,
+  email: string
+): Promise<DailyManifestResult> {
+  const index = await readIndex(config, email);
+  const pages = await readIndexedPages(config, email, index);
+  return buildDailyManifest(pages.filter((page) => !page.deleted_at));
+}
+
+async function getDailyMetadata(
+  config: AccountConfig,
+  email: string
+): Promise<DailyMetadataResult> {
+  const index = await readIndex(config, email);
+  const pages = await readIndexedPages(config, email, index);
+  const active = pages.filter((page) => !page.deleted_at);
+  const manifest = buildDailyManifest(active);
+  const idSet = new Set(manifest.ids);
+  return {
+    ...manifest,
+    pages: active
+      .filter((page) => idSet.has(page.id))
+      .map((page) => ({
+        ...page,
+        cover_url: null,
+        content_text: null,
+      })),
   };
 }
 
@@ -543,6 +571,11 @@ export async function POST(request: Request) {
 
     if (body.action === "daily-manifest") {
       const result = await getDailyManifest(config, me);
+      return NextResponse.json({ ok: true, ...result });
+    }
+
+    if (body.action === "daily-metadata") {
+      const result = await getDailyMetadata(config, me);
       return NextResponse.json({ ok: true, ...result });
     }
 

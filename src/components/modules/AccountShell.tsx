@@ -211,7 +211,7 @@ export default function AccountShell() {
         setPageSyncLastAt(getLastPageSyncAt());
         const failedText = result.failed ? `，失败 ${result.failed} 页` : "";
         setPageSyncNotice(
-          `每日纪要已从云端强制拉取：覆盖 ${result.pulled}/${result.total} 页${failedText}。请回到“每日纪要”查看。`
+          `每日纪要索引已从云端拉取：更新 ${result.pulled}/${result.total} 页${failedText}。请回到“每日纪要”查看；打开单篇纪要时会自动拉取正文。`
         );
       } else if (result.status === "unauthenticated") {
         setPageSyncNotice("登录已过期，请重新登录后再拉取每日纪要。");
