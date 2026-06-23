@@ -35,6 +35,7 @@ const MONTH_LABELS = [
   "1 月", "2 月", "3 月", "4 月", "5 月", "6 月",
   "7 月", "8 月", "9 月", "10 月", "11 月", "12 月",
 ];
+const DAILY_CALENDAR_VISIBLE_LIMIT = 8;
 
 export default function DailyNotesShell() {
   const router = useRouter();
@@ -272,12 +273,14 @@ export default function DailyNotesShell() {
             {grid.map((cell) => {
               const key = toDateKey(cell.date);
               const dayNotes = notesByDate.get(key) ?? [];
+              const visibleNotes = dayNotes.slice(0, DAILY_CALENDAR_VISIBLE_LIMIT);
+              const hiddenNotes = dayNotes.slice(DAILY_CALENDAR_VISIBLE_LIMIT);
               const isToday = key === todayKey;
               const isDropTarget = draggedNoteId !== null && dragOverDateKey === key;
               return (
                 <div
                   key={key}
-                  className={`group flex min-h-40 flex-col border-b border-r border-zinc-100 p-2 dark:border-zinc-800/70 ${
+                  className={`group relative z-0 flex min-h-40 flex-col border-b border-r border-zinc-100 p-1.5 hover:z-20 dark:border-zinc-800/70 ${
                     cell.inMonth ? "" : "bg-zinc-50/50 dark:bg-zinc-900/40"
                   } ${
                     isDropTarget
@@ -329,8 +332,8 @@ export default function DailyNotesShell() {
                       {cell.date.getDate()}
                     </span>
                   </div>
-                  <div className="mt-1.5 flex flex-col gap-1.5 overflow-visible">
-                    {dayNotes.map((note) => (
+                  <div className="mt-1 flex flex-col gap-1 overflow-visible">
+                    {visibleNotes.map((note) => (
                       <button
                         key={note.id}
                         type="button"
@@ -353,19 +356,64 @@ export default function DailyNotesShell() {
                             y: e.clientY,
                           });
                         }}
-                        className={`flex cursor-grab items-start gap-1.5 rounded-md bg-zinc-100 px-2 py-1.5 text-left text-xs leading-snug text-zinc-700 transition-colors hover:bg-zinc-200 active:cursor-grabbing dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 ${
+                        className={`flex cursor-grab items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-left text-xs leading-4 text-zinc-700 transition-colors hover:bg-zinc-200 active:cursor-grabbing dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 ${
                           draggedNoteId === note.id ? "opacity-40" : ""
                         }`}
                         title={displayPageTitle(note.title)}
                       >
                         {note.icon && (
-                          <span className="shrink-0 leading-snug">{note.icon}</span>
+                          <span className="shrink-0 leading-4">{note.icon}</span>
                         )}
-                        <span className="min-w-0 flex-1 whitespace-normal break-words">
+                        <span className="min-w-0 flex-1 truncate">
                           {displayPageTitle(note.title)}
                         </span>
                       </button>
                     ))}
+                    {hiddenNotes.length > 0 && (
+                      <>
+                        <div className="rounded-md px-2 py-1 text-xs leading-4 text-zinc-400 transition-colors group-hover:hidden dark:text-zinc-500">
+                          +{hiddenNotes.length} 条，悬停查看
+                        </div>
+                        <div className="hidden flex-col gap-1 group-hover:flex">
+                          {hiddenNotes.map((note) => (
+                            <button
+                              key={note.id}
+                              type="button"
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.effectAllowed = "move";
+                                e.dataTransfer.setData("text/plain", note.id);
+                                setDraggedNoteId(note.id);
+                              }}
+                              onDragEnd={() => {
+                                setDraggedNoteId(null);
+                                setDragOverDateKey(null);
+                              }}
+                              onClick={() => setPeekPageId(note.id)}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                setContextMenu({
+                                  pageId: note.id,
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                });
+                              }}
+                              className={`flex cursor-grab items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-left text-xs leading-4 text-zinc-700 shadow-sm transition-colors hover:bg-zinc-200 active:cursor-grabbing dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 ${
+                                draggedNoteId === note.id ? "opacity-40" : ""
+                              }`}
+                              title={displayPageTitle(note.title)}
+                            >
+                              {note.icon && (
+                                <span className="shrink-0 leading-4">{note.icon}</span>
+                              )}
+                              <span className="min-w-0 flex-1 truncate">
+                                {displayPageTitle(note.title)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               );
