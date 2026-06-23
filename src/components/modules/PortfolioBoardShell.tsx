@@ -1440,6 +1440,9 @@ function RebalanceSimulator({
   const [newName, setNewName] = useState("");
   const [newAction, setNewAction] = useState<TradeAction>("buy");
   const [newAmountK, setNewAmountK] = useState("");
+  const [inlineInputs, setInlineInputs] = useState<
+    Record<string, { action: TradeAction; amountK: string }>
+  >({});
 
   const positionsByKey = useMemo(() => {
     const map = new Map<string, PortfolioPosition>();
@@ -1543,22 +1546,37 @@ function RebalanceSimulator({
     };
   }, [positions, trades, positionsByKey]);
 
-  const handleAddTradeForPosition = (posKey: string) => {
+  const handleConfirmTrade = (posKey: string) => {
     const p = positionsByKey.get(posKey);
     if (!p) return;
     const defaultAction: TradeAction =
       p.nmv >= 0 ? "sell" : "buytocover";
+    const inline = inlineInputs[posKey] ?? {
+      action: defaultAction,
+      amountK: "",
+    };
+    const amountK = parseFloat(inline.amountK) || 0;
+    if (amountK <= 0) return;
     setTrades((prev) => [
-      ...prev,
+      ...prev.filter((t) => t.positionKey !== posKey),
       {
         id: nextTradeId(),
         positionKey: posKey,
         ticker: p.ticker,
         name: p.name,
-        action: defaultAction,
-        amountK: 0,
+        action: inline.action,
+        amountK,
       },
     ]);
+    setInlineInputs((prev) => {
+      const next = { ...prev };
+      delete next[posKey];
+      return next;
+    });
+  };
+
+  const handleCancelTrade = (posKey: string) => {
+    setTrades((prev) => prev.filter((t) => t.positionKey !== posKey));
   };
 
   const handleAddNewPosition = () => {
@@ -1649,128 +1667,174 @@ function RebalanceSimulator({
             </thead>
             <tbody>
               {positions.map((p) => {
-                const positionTrades = trades.filter(
+                const confirmedTrade = trades.find(
                   (t) => t.positionKey === p.key
                 );
+                const defaultAction: TradeAction =
+                  p.nmv >= 0 ? "sell" : "buytocover";
+                const inline = inlineInputs[p.key] ?? {
+                  action: defaultAction,
+                  amountK: "",
+                };
+                const postNmv =
+                  projectedByKey.get(p.key) ?? p.nmv;
+                const changed =
+                  Math.abs(postNmv - p.nmv) > 0.5;
+                const closed =
+                  Math.abs(postNmv) < 0.5 && changed;
+
                 return (
-                  <Fragment key={p.key}>
-                    <tr className="border-b border-zinc-50 hover:bg-zinc-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/40">
-                      <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400">
-                        {p.key}
-                      </td>
-                      <td className="max-w-40 truncate px-3 py-2 text-zinc-800 dark:text-zinc-100">
-                        {p.name}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-zinc-500">
-                        {tagOf(p)}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300">
-                        {formatSignedMoney(p.nmv)}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300">
-                        {formatAllocPct(Math.abs(p.nmv), allocation)}
-                      </td>
-                      <td colSpan={2} />
-                      {(() => {
-                        const postNmv = projectedByKey.get(p.key) ?? p.nmv;
-                        const changed =
-                          Math.abs(postNmv - p.nmv) > 0.5;
-                        const closed = Math.abs(postNmv) < 0.5;
-                        return (
-                          <>
-                            <td
-                              className={`px-3 py-2 text-right font-medium tabular-nums ${
-                                changed
-                                  ? "text-zinc-900 dark:text-zinc-50"
-                                  : "text-zinc-400 dark:text-zinc-500"
-                              }`}
+                  <tr
+                    key={p.key}
+                    className={`border-b border-zinc-50 hover:bg-zinc-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/40 ${
+                      confirmedTrade
+                        ? "bg-blue-50/30 dark:bg-blue-950/20"
+                        : ""
+                    }`}
+                  >
+                    <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                      {p.key}
+                    </td>
+                    <td className="max-w-40 truncate px-3 py-2 text-zinc-800 dark:text-zinc-100">
+                      {p.name}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-zinc-500">
+                      {tagOf(p)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300">
+                      {formatSignedMoney(p.nmv)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300">
+                      {formatAllocPct(Math.abs(p.nmv), allocation)}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {confirmedTrade ? (
+                        <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                          {TRADE_ACTIONS.find(
+                            (a) =>
+                              a.value === confirmedTrade.action
+                          )?.label ?? confirmedTrade.action}
+                        </span>
+                      ) : (
+                        <select
+                          value={inline.action}
+                          onChange={(e) => {
+                            const cur =
+                              inlineInputs[p.key] ?? {
+                                action: defaultAction,
+                                amountK: "",
+                              };
+                            setInlineInputs((prev) => ({
+                              ...prev,
+                              [p.key]: {
+                                ...cur,
+                                action:
+                                  e.target
+                                    .value as TradeAction,
+                              },
+                            }));
+                          }}
+                          className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-800"
+                        >
+                          {TRADE_ACTIONS.map((a) => (
+                            <option
+                              key={a.value}
+                              value={a.value}
                             >
-                              {closed ? "已清仓" : formatSignedMoney(postNmv)}
-                            </td>
-                            <td
-                              className={`px-3 py-2 text-right tabular-nums ${
-                                changed
-                                  ? "text-zinc-700 dark:text-zinc-200"
-                                  : "text-zinc-400 dark:text-zinc-500"
-                              }`}
-                            >
-                              {closed
-                                ? "—"
-                                : formatAllocPct(
-                                    Math.abs(postNmv),
-                                    allocation
-                                  )}
-                            </td>
-                          </>
-                        );
-                      })()}
-                      <td className="px-2 py-2 text-center">
+                              {a.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      {confirmedTrade ? (
+                        <span className="text-xs font-medium tabular-nums text-zinc-700 dark:text-zinc-200">
+                          {confirmedTrade.amountK.toLocaleString()}
+                        </span>
+                      ) : (
+                        <input
+                          type="number"
+                          value={inline.amountK}
+                          onChange={(e) => {
+                            const cur =
+                              inlineInputs[p.key] ?? {
+                                action: defaultAction,
+                                amountK: "",
+                              };
+                            setInlineInputs((prev) => ({
+                              ...prev,
+                              [p.key]: {
+                                ...cur,
+                                amountK: e.target.value,
+                              },
+                            }));
+                          }}
+                          placeholder="0"
+                          className="w-20 rounded border border-zinc-200 bg-white px-2 py-1 text-right text-xs tabular-nums dark:border-zinc-700 dark:bg-zinc-800"
+                        />
+                      )}
+                    </td>
+                    <td
+                      className={`px-3 py-2 text-right font-medium tabular-nums ${
+                        changed
+                          ? "text-zinc-900 dark:text-zinc-50"
+                          : "text-zinc-400 dark:text-zinc-500"
+                      }`}
+                    >
+                      {closed
+                        ? "已清仓"
+                        : changed
+                          ? formatSignedMoney(postNmv)
+                          : "—"}
+                    </td>
+                    <td
+                      className={`px-3 py-2 text-right tabular-nums ${
+                        changed
+                          ? "text-zinc-700 dark:text-zinc-200"
+                          : "text-zinc-400 dark:text-zinc-500"
+                      }`}
+                    >
+                      {closed
+                        ? "—"
+                        : changed
+                          ? formatAllocPct(
+                              Math.abs(postNmv),
+                              allocation
+                            )
+                          : "—"}
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      {confirmedTrade ? (
                         <button
                           type="button"
-                          onClick={() => handleAddTradeForPosition(p.key)}
-                          className="rounded px-1.5 py-0.5 text-xs text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30"
-                          title="添加调仓"
+                          onClick={() =>
+                            handleCancelTrade(p.key)
+                          }
+                          className="rounded px-1.5 py-0.5 text-xs text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30"
+                          title="取消调仓"
                         >
-                          + 调仓
+                          取消
                         </button>
-                      </td>
-                    </tr>
-                    {positionTrades.map((trade) => (
-                      <tr
-                        key={trade.id}
-                        className="border-b border-zinc-50 bg-blue-50/30 dark:border-zinc-800/50 dark:bg-blue-950/20"
-                      >
-                        <td className="px-4 py-1.5 pl-8 text-xs text-blue-500">
-                          ↳ 调仓
-                        </td>
-                        <td />
-                        <td />
-                        <td />
-                        <td />
-                        <td className="px-3 py-1.5 text-center">
-                          <select
-                            value={trade.action}
-                            onChange={(e) =>
-                              updateTrade(trade.id, {
-                                action: e.target.value as TradeAction,
-                              })
-                            }
-                            className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-800"
-                          >
-                            {TRADE_ACTIONS.map((a) => (
-                              <option key={a.value} value={a.value}>
-                                {a.label}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-3 py-1.5 text-right">
-                          <input
-                            type="number"
-                            value={trade.amountK || ""}
-                            onChange={(e) =>
-                              updateTrade(trade.id, {
-                                amountK: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            placeholder="0"
-                            className="w-20 rounded border border-zinc-200 bg-white px-2 py-1 text-right text-xs tabular-nums dark:border-zinc-700 dark:bg-zinc-800"
-                          />
-                        </td>
-                        <td colSpan={2} />
-                        <td className="px-2 py-1.5 text-center">
-                          <button
-                            type="button"
-                            onClick={() => removeTrade(trade.id)}
-                            className="text-zinc-400 hover:text-rose-500"
-                            title="删除"
-                          >
-                            ✕
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </Fragment>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleConfirmTrade(p.key)
+                          }
+                          disabled={
+                            !inline.amountK ||
+                            parseFloat(inline.amountK) <=
+                              0
+                          }
+                          className="rounded px-1.5 py-0.5 text-xs text-blue-600 hover:bg-blue-50 disabled:opacity-30 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                          title="确认调仓"
+                        >
+                          确认
+                        </button>
+                      )}
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
