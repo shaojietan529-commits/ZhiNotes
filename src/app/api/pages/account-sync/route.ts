@@ -148,6 +148,16 @@ function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
   };
 }
 
+function hasSameOriginReferer(request: Request): boolean {
+  const referer = request.headers.get("referer");
+  if (!referer) return false;
+  try {
+    return new URL(referer).origin === new URL(request.url).origin;
+  } catch {
+    return false;
+  }
+}
+
 function parseProperties(raw: string | null): PageProperty[] {
   if (!raw) return [];
   try {
@@ -362,6 +372,57 @@ async function repairDailyImportPlacement(
     skippedNoDate,
     skippedNoRoot: false,
   };
+}
+
+export async function GET(request: Request) {
+  const config = getAccountConfig();
+  if (!config) {
+    return NextResponse.json(
+      {
+        error: "account system not configured",
+        missing_env: accountMissingEnv(),
+      },
+      { status: 501 }
+    );
+  }
+
+  const url = new URL(request.url);
+  const action = url.searchParams.get("action");
+  const confirm = url.searchParams.get("confirm");
+  if (
+    action !== "repair-daily-imports" ||
+    confirm !== "manual-daily-repair"
+  ) {
+    return NextResponse.json({ error: "unknown action" }, { status: 400 });
+  }
+  if (!hasSameOriginReferer(request)) {
+    return NextResponse.json(
+      { error: "请从 /account/repair-daily 页面触发修复。" },
+      { status: 403 }
+    );
+  }
+
+  const token = readSessionToken(request);
+  if (!token) {
+    return NextResponse.json({ error: "请先登录。" }, { status: 401 });
+  }
+
+  try {
+    const account = await getSessionAccount(config, token);
+    if (!account) {
+      return NextResponse.json(
+        { error: "登录已过期，请重新登录。" },
+        { status: 401 }
+      );
+    }
+    const result = await repairDailyImportPlacement(config, account.email);
+    return NextResponse.json({ ok: true, ...result });
+  } catch {
+    return NextResponse.json(
+      { error: "云端存储读写失败，请稍后重试。" },
+      { status: 502 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
