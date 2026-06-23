@@ -95,6 +95,14 @@ export interface PullDailyCloudResult {
   message?: string;
 }
 
+export interface DailyCloudMetadataResult {
+  status: PageSyncStatus;
+  pages: RemotePageRecord[];
+  total: number;
+  rootId?: string | null;
+  message?: string;
+}
+
 interface IndexEntry {
   u: string;
   d: 0 | 1;
@@ -236,6 +244,30 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
       typeof manifestRes.json.scanned === "number"
         ? manifestRes.json.scanned
         : undefined,
+  };
+}
+
+export async function fetchDailyCloudMetadata(): Promise<DailyCloudMetadataResult> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", pages: [], total: 0 };
+  }
+  const res = await call({ action: "daily-metadata" });
+  if (!res.ok) {
+    return {
+      status: res.status,
+      pages: [],
+      total: 0,
+      message: res.message,
+    };
+  }
+  const pages = Array.isArray(res.json.pages)
+    ? (res.json.pages as RemotePageRecord[])
+    : [];
+  return {
+    status: "ok",
+    pages,
+    total: typeof res.json.count === "number" ? res.json.count : pages.length,
+    rootId: typeof res.json.rootId === "string" ? res.json.rootId : null,
   };
 }
 

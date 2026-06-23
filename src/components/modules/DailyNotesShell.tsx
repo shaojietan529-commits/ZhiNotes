@@ -6,7 +6,12 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
 import { usePageRevision } from "@/hooks/usePageRevision";
-import { createPage, getAllPages, updatePage } from "@/lib/db/local/queries";
+import {
+  createPage,
+  getAllPages,
+  updatePage,
+  type RemotePageRecord,
+} from "@/lib/db/local/queries";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import {
   createPageProperty,
@@ -14,6 +19,8 @@ import {
   stringifyPageProperties,
 } from "@/lib/pages/pageProperties";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import { fetchDailyCloudMetadata } from "@/lib/pages/accountPageSync";
+import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import PagePeekModal from "@/components/page/PagePeekModal";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
@@ -21,7 +28,7 @@ import type { Page } from "@/lib/utils/types";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-type DailyNote = Page & { dailyDateKey?: string };
+type DailyNote = Page & { dailyDateKey?: string; cloudOnly?: boolean };
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 const MONTH_LABELS = [
@@ -53,30 +60,21 @@ export default function DailyNotesShell() {
     const id = await getModuleRootId("daily");
     setRootId(id);
     const allPages = await getAllPages();
-    const childrenByParent = new Map<string, Page[]>();
-    for (const page of allPages) {
-      if (!page.parent_id) continue;
-      const children = childrenByParent.get(page.parent_id) ?? [];
-      children.push(page);
-      childrenByParent.set(page.parent_id, children);
+    const dailyNotes = collectDailyNotes(allPages, id);
+    const byId = new Map(dailyNotes.map((note) => [note.id, note]));
+
+    const cloud = await fetchDailyCloudMetadata();
+    if (cloud.status === "ok" && cloud.rootId) {
+      for (const note of collectDailyNotes(
+        cloud.pages.map(remoteRecordToPage),
+        cloud.rootId,
+        true
+      )) {
+        if (!byId.has(note.id)) byId.set(note.id, note);
+      }
     }
 
-    const dailyNotes: DailyNote[] = [];
-    const visit = (parentId: string, inheritedDateKey = "") => {
-      const children = [...(childrenByParent.get(parentId) ?? [])].sort(
-        (a, b) =>
-          (a.position || 0) - (b.position || 0) ||
-          (b.updated_at || "").localeCompare(a.updated_at || "")
-      );
-      for (const child of children) {
-        const ownDateKey = readDailyNoteDateKey(child);
-        const dateKey = ownDateKey || inheritedDateKey;
-        if (dateKey) dailyNotes.push({ ...child, dailyDateKey: dateKey });
-        visit(child.id, dateKey);
-      }
-    };
-    visit(id);
-    setNotes(dailyNotes);
+    setNotes(Array.from(byId.values()));
   }, []);
 
   useEffect(() => {
@@ -88,7 +86,7 @@ export default function DailyNotesShell() {
 
   // Each day can hold multiple note pages (Notion-style), grouped by 日期.
   const notesByDate = useMemo(() => {
-    const map = new Map<string, Page[]>();
+    const map = new Map<string, DailyNote[]>();
     for (const note of notes) {
       const key = dailyNoteDateKey(note);
       if (!key) continue;
@@ -405,6 +403,50 @@ export default function DailyNotesShell() {
   );
 }
 
+function collectDailyNotes(
+  pages: Page[],
+  dailyRootId: string,
+  cloudOnly = false
+): DailyNote[] {
+  const childrenByParent = new Map<string, Page[]>();
+  for (const page of pages) {
+    if (!page.parent_id) continue;
+    const children = childrenByParent.get(page.parent_id) ?? [];
+    children.push(page);
+    childrenByParent.set(page.parent_id, children);
+  }
+
+  const dailyNotes: DailyNote[] = [];
+  const seenIds = new Set<string>();
+  const visit = (parentId: string, inheritedDateKey = "") => {
+    const children = [...(childrenByParent.get(parentId) ?? [])].sort(
+      (a, b) =>
+        (a.position || 0) - (b.position || 0) ||
+        (b.updated_at || "").localeCompare(a.updated_at || "")
+    );
+    for (const child of children) {
+      const ownDateKey = readDailyNoteDateKey(child);
+      const dateKey = ownDateKey || inheritedDateKey;
+      if (dateKey) {
+        dailyNotes.push({ ...child, dailyDateKey: dateKey, cloudOnly });
+        seenIds.add(child.id);
+      }
+      visit(child.id, dateKey);
+    }
+  };
+  visit(dailyRootId);
+
+  for (const page of pages) {
+    if (seenIds.has(page.id) || page.id === dailyRootId) continue;
+    const dateKey = readDailyNoteDateKey(page);
+    if (dateKey) {
+      dailyNotes.push({ ...page, dailyDateKey: dateKey, cloudOnly });
+    }
+  }
+
+  return dailyNotes;
+}
+
 // Resolve the day a note belongs to: prefer the 日期 property, fall back to a
 // date-formatted title (older daily pages were titled with the date directly).
 function dailyNoteDateKey(page: DailyNote): string {
@@ -418,6 +460,27 @@ function readDailyNoteDateKey(page: Page): string {
   if (dateProp?.value) return dateProp.value.trim();
   const title = (page.title || "").trim();
   return DATE_KEY_PATTERN.test(title) ? title : "";
+}
+
+function remoteRecordToPage(record: RemotePageRecord): Page {
+  return {
+    id: record.id,
+    owner_id: DEFAULT_OWNER_ID,
+    parent_id: record.parent_id,
+    database_id: null,
+    title: record.title,
+    icon: record.icon,
+    cover_url: record.cover_url,
+    content_yjs: null,
+    content_text: record.content_text,
+    properties: record.properties,
+    position: record.position,
+    depth: record.depth,
+    created_at: record.created_at,
+    updated_at: record.updated_at,
+    deleted_at: record.deleted_at,
+    sync_version: 0,
+  };
 }
 
 function CalNavButton({
