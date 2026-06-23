@@ -100,7 +100,17 @@ export interface DailyCloudMetadataResult {
   pages: RemotePageRecord[];
   total: number;
   rootId?: string | null;
+  matched?: number;
+  rangeCount?: number;
+  recentCount?: number;
+  scanned?: number;
   message?: string;
+}
+
+interface DailyCloudMetadataOptions {
+  startDate?: string;
+  endDate?: string;
+  recentLimit?: number;
 }
 
 interface IndexEntry {
@@ -247,11 +257,22 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
   };
 }
 
-export async function fetchDailyCloudMetadata(): Promise<DailyCloudMetadataResult> {
+export async function fetchDailyCloudMetadata(
+  options: DailyCloudMetadataOptions = {}
+): Promise<DailyCloudMetadataResult> {
   if (!isPageSyncEnabled()) {
     return { status: "disabled", pages: [], total: 0 };
   }
-  const res = await call({ action: "daily-metadata" });
+  const res = await call({
+    action: options.startDate || options.endDate
+      ? "daily-calendar-metadata"
+      : "daily-metadata",
+    ...(options.startDate ? { startDate: options.startDate } : {}),
+    ...(options.endDate ? { endDate: options.endDate } : {}),
+    ...(typeof options.recentLimit === "number"
+      ? { recentLimit: options.recentLimit }
+      : {}),
+  });
   if (!res.ok) {
     return {
       status: res.status,
@@ -268,6 +289,12 @@ export async function fetchDailyCloudMetadata(): Promise<DailyCloudMetadataResul
     pages,
     total: typeof res.json.count === "number" ? res.json.count : pages.length,
     rootId: typeof res.json.rootId === "string" ? res.json.rootId : null,
+    matched: typeof res.json.matched === "number" ? res.json.matched : undefined,
+    rangeCount:
+      typeof res.json.rangeCount === "number" ? res.json.rangeCount : undefined,
+    recentCount:
+      typeof res.json.recentCount === "number" ? res.json.recentCount : undefined,
+    scanned: typeof res.json.scanned === "number" ? res.json.scanned : undefined,
   };
 }
 

@@ -94,6 +94,21 @@ interface DailyMetadataResult extends DailyManifestResult {
   pages: PageRecord[];
 }
 
+interface DailyDatedRecord {
+  record: PageRecord;
+  dateKey: string;
+}
+
+interface DailyCalendarMetadataResult {
+  rootId: string | null;
+  pages: PageRecord[];
+  count: number;
+  matched: number;
+  rangeCount: number;
+  recentCount: number;
+  scanned: number;
+}
+
 function isValidId(value: unknown): value is string {
   return (
     typeof value === "string" && value.length > 0 && value.length <= 64 &&
@@ -459,6 +474,105 @@ async function getDailyMetadata(
   };
 }
 
+function collectDailyDatedRecords(active: PageRecord[]): {
+  rootId: string | null;
+  notes: DailyDatedRecord[];
+} {
+  const dailyRoot = active
+    .filter((page) => page.parent_id === null && page.title === DAILY_ROOT_TITLE)
+    .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+
+  if (!dailyRoot) {
+    return { rootId: null, notes: [] };
+  }
+
+  const childrenByParent = new Map<string, PageRecord[]>();
+  for (const page of active) {
+    if (!page.parent_id) continue;
+    const children = childrenByParent.get(page.parent_id) ?? [];
+    children.push(page);
+    childrenByParent.set(page.parent_id, children);
+  }
+
+  const notes: DailyDatedRecord[] = [];
+  const seenIds = new Set<string>([dailyRoot.id]);
+  const visit = (parentId: string, inheritedDateKey = "") => {
+    for (const child of childrenByParent.get(parentId) ?? []) {
+      if (seenIds.has(child.id)) continue;
+      seenIds.add(child.id);
+      const dateKey = getDailyDateKey(child) ?? inheritedDateKey;
+      if (dateKey) notes.push({ record: child, dateKey });
+      visit(child.id, dateKey);
+    }
+  };
+  visit(dailyRoot.id);
+
+  for (const page of active) {
+    if (seenIds.has(page.id) || !isRepairCandidate(page)) continue;
+    const dateKey = getDailyDateKey(page);
+    if (dateKey) notes.push({ record: page, dateKey });
+  }
+
+  return { rootId: dailyRoot.id, notes };
+}
+
+function toDailyMetadataRecord(item: DailyDatedRecord): PageRecord {
+  return {
+    ...item.record,
+    cover_url: null,
+    content_text: null,
+    properties: withDailyDateProperty(item.record, item.dateKey),
+  };
+}
+
+async function getDailyCalendarMetadata(
+  config: AccountConfig,
+  email: string,
+  startDate: string | null,
+  endDate: string | null,
+  recentLimit: number
+): Promise<DailyCalendarMetadataResult> {
+  const index = await readIndex(config, email);
+  const pages = await readIndexedPages(config, email, index);
+  const active = pages.filter((page) => !page.deleted_at);
+  const { rootId, notes } = collectDailyDatedRecords(active);
+  const byId = new Map<string, DailyDatedRecord>();
+  let rangeCount = 0;
+  let recentCount = 0;
+
+  for (const item of notes) {
+    if (
+      (!startDate || item.dateKey >= startDate) &&
+      (!endDate || item.dateKey <= endDate)
+    ) {
+      byId.set(item.record.id, item);
+      rangeCount += 1;
+    }
+  }
+
+  if (recentLimit > 0) {
+    const recent = [...notes]
+      .sort(
+        (a, b) =>
+          b.dateKey.localeCompare(a.dateKey) ||
+          (b.record.updated_at || "").localeCompare(a.record.updated_at || "")
+      )
+      .slice(0, recentLimit);
+    recentCount = recent.length;
+    for (const item of recent) byId.set(item.record.id, item);
+  }
+
+  return {
+    rootId,
+    pages: Array.from(byId.values()).map(toDailyMetadataRecord),
+    count: byId.size,
+    matched: notes.length,
+    rangeCount,
+    recentCount,
+    scanned: active.length,
+  };
+}
+
 export async function GET(request: Request) {
   const config = getAccountConfig();
   if (!config) {
@@ -537,7 +651,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "数据过大" }, { status: 413 });
   }
 
-  let body: { action?: string; ids?: unknown; pages?: unknown };
+  let body: {
+    action?: string;
+    ids?: unknown;
+    pages?: unknown;
+    startDate?: unknown;
+    endDate?: unknown;
+    recentLimit?: unknown;
+  };
   try {
     body = JSON.parse(bodyText);
   } catch {
@@ -576,6 +697,30 @@ export async function POST(request: Request) {
 
     if (body.action === "daily-metadata") {
       const result = await getDailyMetadata(config, me);
+      return NextResponse.json({ ok: true, ...result });
+    }
+
+    if (body.action === "daily-calendar-metadata") {
+      const startDate =
+        typeof body.startDate === "string" && isDateKey(body.startDate)
+          ? body.startDate
+          : null;
+      const endDate =
+        typeof body.endDate === "string" && isDateKey(body.endDate)
+          ? body.endDate
+          : null;
+      const recentLimit =
+        typeof body.recentLimit === "number" &&
+        Number.isInteger(body.recentLimit)
+          ? Math.min(30, Math.max(0, body.recentLimit))
+          : 12;
+      const result = await getDailyCalendarMetadata(
+        config,
+        me,
+        startDate,
+        endDate,
+        recentLimit
+      );
       return NextResponse.json({ ok: true, ...result });
     }
 

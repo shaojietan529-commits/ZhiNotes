@@ -43,6 +43,7 @@ export default function DailyNotesShell() {
   const { refresh } = usePages();
   const [rootId, setRootId] = useState<string | null>(null);
   const [notes, setNotes] = useState<DailyNote[]>([]);
+  const [cloudNotice, setCloudNotice] = useState<string | null>(null);
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
@@ -62,8 +63,15 @@ export default function DailyNotesShell() {
     const allPages = await getAllPages();
     const dailyNotes = collectDailyNotes(allPages, id);
     const byId = new Map(dailyNotes.map((note) => [note.id, note]));
+    const visibleRange = buildMonthGrid(viewMonth);
+    const startDate = toDateKey(visibleRange[0].date);
+    const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
 
-    const cloud = await fetchDailyCloudMetadata();
+    const cloud = await fetchDailyCloudMetadata({
+      startDate,
+      endDate,
+      recentLimit: 12,
+    });
     if (cloud.status === "ok" && cloud.rootId) {
       for (const note of collectDailyNotes(
         cloud.pages.map(remoteRecordToPage),
@@ -72,10 +80,23 @@ export default function DailyNotesShell() {
       )) {
         if (!byId.has(note.id)) byId.set(note.id, note);
       }
+      setCloudNotice(
+        cloud.pages.length > 0
+          ? `云端每日纪要已加载 ${cloud.pages.length} 条，其中当前日历范围 ${cloud.rangeCount ?? 0} 条。`
+          : `云端每日纪要索引已连接，但当前月份没有返回纪要。云端匹配 ${cloud.matched ?? 0} 条。`
+      );
+    } else if (cloud.status === "disabled") {
+      setCloudNotice("页面同步已关闭，只显示本机每日纪要。");
+    } else if (cloud.status === "unauthenticated") {
+      setCloudNotice("当前浏览器未登录账号，只显示本机每日纪要。");
+    } else if (cloud.status === "unconfigured") {
+      setCloudNotice("云端账号系统未配置，只显示本机每日纪要。");
+    } else {
+      setCloudNotice(cloud.message ?? "云端每日纪要索引读取失败。");
     }
 
     setNotes(Array.from(byId.values()));
-  }, []);
+  }, [viewMonth]);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -184,6 +205,11 @@ export default function DailyNotesShell() {
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                 按日历浏览每天的纪要。鼠标悬停某一天，点 + 即可新增一篇纪要。
               </p>
+              {cloudNotice && (
+                <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                  {cloudNotice}
+                </p>
+              )}
             </div>
             <button
               type="button"
