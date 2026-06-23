@@ -214,12 +214,19 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
     const pages = Array.isArray(res.json.pages)
       ? (res.json.pages as RemotePageRecord[])
       : [];
-    for (const page of pages) {
+    if (pages.length > 0) {
       try {
-        await applyRemotePages([page]);
-        pulled += 1;
+        await applyRemotePages(pages);
+        pulled += pages.length;
       } catch {
-        failed += 1;
+        for (const page of pages) {
+          try {
+            await applyRemotePages([page]);
+            pulled += 1;
+          } catch {
+            failed += 1;
+          }
+        }
       }
     }
   }

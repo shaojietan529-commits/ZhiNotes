@@ -528,15 +528,18 @@ export async function applyRemotePages(
   records: RemotePageRecord[]
 ): Promise<void> {
   const db = await getDb();
-  for (const record of records) {
-    if (!record.id) continue;
+  const validRecords = records.filter((record) => record.id);
+  const incomingIds = new Set(validRecords.map((record) => record.id));
+
+  for (const record of validRecords) {
     const existing = db.query("SELECT id FROM pages WHERE id = ?", [
       record.id,
     ]) as unknown as { id: string }[];
 
     if (existing.length === 0) {
-      // Minimal insert first; nullable columns are set in the UPDATE below
-      // (null binds are known-good in UPDATE statements).
+      // Insert all incoming records before assigning parent_id. This avoids a
+      // foreign-key failure when a child appears before its parent in the same
+      // cloud pull batch.
       db.run(
         `INSERT INTO pages (id, owner_id, title, position, depth, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -551,6 +554,17 @@ export async function applyRemotePages(
         ]
       );
     }
+  }
+
+  for (const record of records) {
+    if (!record.id) continue;
+    let parentId = record.parent_id;
+    if (parentId && !incomingIds.has(parentId)) {
+      const parent = db.query("SELECT id FROM pages WHERE id = ?", [
+        parentId,
+      ]) as unknown as { id: string }[];
+      if (parent.length === 0) parentId = null;
+    }
 
     db.run(
       `UPDATE pages SET parent_id = ?, title = ?, icon = ?, cover_url = ?,
@@ -558,7 +572,7 @@ export async function applyRemotePages(
               created_at = ?, updated_at = ?, deleted_at = ?
        WHERE id = ?`,
       [
-        record.parent_id,
+        parentId,
         record.title,
         record.icon,
         record.cover_url,
