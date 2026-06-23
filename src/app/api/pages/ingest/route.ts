@@ -275,7 +275,7 @@ export async function POST(request: Request) {
 
   // Build properties array (must match the app's PageProperty[] JSON shape).
   const properties: PageProperty[] = [];
-  if (landedInDaily) {
+  if (placement !== "top") {
     properties.push(prop("date", "日期", today));
   }
   if (source) properties.push(prop("select", "来源", source));
@@ -326,7 +326,7 @@ export async function POST(request: Request) {
     title: pageRecord.title,
     createdAt: now,
     placement: landedInDaily ? "daily" : "top",
-    date: landedInDaily ? today : null,
+    date: placement !== "top" ? today : null,
   });
 }
 

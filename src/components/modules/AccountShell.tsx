@@ -49,6 +49,7 @@ export default function AccountShell() {
   // Page cloud sync: off by default, owner flips it on per browser.
   const [pageSyncOn, setPageSyncOn] = useState(false);
   const [pageSyncBusy, setPageSyncBusy] = useState(false);
+  const [dailyRepairBusy, setDailyRepairBusy] = useState(false);
   const [pageSyncNotice, setPageSyncNotice] = useState<string | null>(null);
   const [pageSyncLastAt, setPageSyncLastAt] = useState<string | null>(null);
   // API Key for external tools (Claude, web clipper extension)
@@ -159,6 +160,44 @@ export default function AccountShell() {
       setPageSyncNotice(result.message ?? "同步失败，请稍后重试。");
     }
     setPageSyncBusy(false);
+  }
+
+  async function handleDailyRepairRun() {
+    setDailyRepairBusy(true);
+    setPageSyncNotice(null);
+    try {
+      const res = await fetch("/api/pages/account-sync", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "repair-daily-imports" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        setPageSyncNotice(
+          typeof data.error === "string"
+            ? data.error
+            : "每日纪要归档修复失败，请稍后重试。"
+        );
+        return;
+      }
+
+      const repaired =
+        typeof data.repaired === "number" ? data.repaired : 0;
+      const skippedNoDate =
+        typeof data.skippedNoDate === "number" ? data.skippedNoDate : 0;
+      if (data.skippedNoRoot) {
+        setPageSyncNotice("没有找到“每日纪要”根页面，请先打开一次每日纪要模块。");
+        return;
+      }
+      setPageSyncNotice(
+        `云端修复完成：归档 ${repaired} 页，缺少日期跳过 ${skippedNoDate} 页。正在同步到本机…`
+      );
+      await handlePageSyncRun();
+    } catch {
+      setPageSyncNotice("网络错误，未能修复每日纪要归档。");
+    } finally {
+      setDailyRepairBusy(false);
+    }
   }
 
   function handlePageSyncToggle() {
@@ -592,13 +631,20 @@ export default function AccountShell() {
               </div>
 
               {pageSyncOn && (
-                <div className="mt-4 flex items-center gap-3">
+                <div className="mt-4 flex flex-wrap items-center gap-3">
                   <button
                     onClick={() => void handlePageSyncRun()}
-                    disabled={pageSyncBusy}
+                    disabled={pageSyncBusy || dailyRepairBusy}
                     className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                   >
                     {pageSyncBusy ? "同步中…" : "立即同步"}
+                  </button>
+                  <button
+                    onClick={() => void handleDailyRepairRun()}
+                    disabled={pageSyncBusy || dailyRepairBusy}
+                    className="rounded-lg border border-amber-300 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-50 disabled:opacity-40 dark:border-amber-700/70 dark:text-amber-300 dark:hover:bg-amber-900/20"
+                  >
+                    {dailyRepairBusy ? "修复中…" : "修复每日纪要归档"}
                   </button>
                   {pageSyncLastAt && (
                     <span className="text-xs text-zinc-400">

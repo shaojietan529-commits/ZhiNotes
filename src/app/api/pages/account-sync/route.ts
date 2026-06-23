@@ -8,6 +8,7 @@ import {
   readSessionToken,
   type AccountConfig,
 } from "@/lib/account/server";
+import { generateId } from "@/lib/utils/id";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,14 @@ const PAGE_KEY_PREFIX = "zhinotes:pagesync:page:";
 const MAX_PAYLOAD_BYTES = 950 * 1024;
 const MAX_PUSH_RECORDS = 100;
 const MAX_PULL_IDS = 50;
+const DAILY_ROOT_TITLE = "每日纪要";
+const MODULE_ROOT_TITLES = new Set([
+  "每日纪要",
+  "产业链研究",
+  "ZhiHui",
+  "会议日程",
+  "知识库",
+]);
 
 interface IndexEntry {
   u: string; // updated_at
@@ -55,6 +64,21 @@ interface PageRecord {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+}
+
+interface PageProperty {
+  id: string;
+  name: string;
+  type: string;
+  value: string;
+  options?: string[];
+}
+
+interface DailyRepairResult {
+  scanned: number;
+  repaired: number;
+  skippedNoDate: number;
+  skippedNoRoot: boolean;
 }
 
 function isValidId(value: unknown): value is string {
@@ -122,6 +146,208 @@ function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
   };
 }
 
+function parseProperties(raw: string | null): PageProperty[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (entry): entry is Record<string, unknown> =>
+          Boolean(entry) && typeof entry === "object"
+      )
+      .map((entry) => ({
+        id: typeof entry.id === "string" && entry.id ? entry.id : generateId(),
+        name: typeof entry.name === "string" ? entry.name : "属性",
+        type: typeof entry.type === "string" ? entry.type : "text",
+        value: typeof entry.value === "string" ? entry.value : "",
+        ...(Array.isArray(entry.options)
+          ? { options: entry.options.filter((v): v is string => typeof v === "string") }
+          : {}),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function getPropertyValue(record: PageRecord, name: string): string {
+  return parseProperties(record.properties).find((property) => property.name === name)
+    ?.value ?? "";
+}
+
+function isDateKey(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function formatInferredDate(
+  yearText: string,
+  monthText: string,
+  dayText: string
+): string | null {
+  let year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return null;
+  }
+  if (yearText.length === 2) year += year >= 70 ? 1900 : 2000;
+  if (
+    year < 2000 ||
+    year > 2099 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function inferDateFromTitle(title: string): string | null {
+  const compact = title.match(
+    /(?:^|[^0-9])([0-9]{2})([01][0-9])([0-3][0-9])(?:[^0-9]|$)/
+  );
+  if (compact) return formatInferredDate(compact[1], compact[2], compact[3]);
+
+  const separated = title.match(
+    /(?:^|[^0-9])([0-9]{4})[-/.年]([0-9]{1,2})[-/.月]([0-9]{1,2})(?:日)?(?:[^0-9]|$)/
+  );
+  if (separated) {
+    return formatInferredDate(separated[1], separated[2], separated[3]);
+  }
+  return null;
+}
+
+function getDailyDateKey(record: PageRecord): string | null {
+  const existing = getPropertyValue(record, "日期");
+  if (isDateKey(existing)) return existing;
+  return inferDateFromTitle(record.title);
+}
+
+function isRepairCandidate(record: PageRecord): boolean {
+  if (record.deleted_at || record.parent_id !== null) return false;
+  if (MODULE_ROOT_TITLES.has(record.title)) return false;
+  const source = getPropertyValue(record, "来源");
+  return (
+    source === "notion-daily-import" ||
+    isDateKey(getPropertyValue(record, "日期")) ||
+    Boolean(inferDateFromTitle(record.title))
+  );
+}
+
+function withDailyDateProperty(record: PageRecord, dateKey: string): string {
+  const properties = parseProperties(record.properties);
+  const existing = properties.find((property) => property.name === "日期");
+  if (existing) {
+    existing.type = "date";
+    existing.value = dateKey;
+  } else {
+    properties.unshift({
+      id: generateId(),
+      name: "日期",
+      type: "date",
+      value: dateKey,
+    });
+  }
+  return JSON.stringify(properties);
+}
+
+async function readIndexedPages(
+  config: AccountConfig,
+  email: string,
+  index: Record<string, IndexEntry>
+): Promise<PageRecord[]> {
+  const pages: PageRecord[] = [];
+  for (const id of Object.keys(index)) {
+    const raw = await kvGet(config.kv, `${PAGE_KEY_PREFIX}${email}:${id}`);
+    if (!raw) continue;
+    try {
+      const record = sanitizeRecord(JSON.parse(raw));
+      if (record) pages.push(record);
+    } catch {
+      // skip corrupt record
+    }
+  }
+  return pages;
+}
+
+async function repairDailyImportPlacement(
+  config: AccountConfig,
+  email: string
+): Promise<DailyRepairResult> {
+  const index = await readIndex(config, email);
+  const pages = await readIndexedPages(config, email, index);
+  const active = pages.filter((page) => !page.deleted_at);
+  const dailyRoot = active
+    .filter((page) => page.parent_id === null && page.title === DAILY_ROOT_TITLE)
+    .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+
+  if (!dailyRoot) {
+    return {
+      scanned: active.length,
+      repaired: 0,
+      skippedNoDate: 0,
+      skippedNoRoot: true,
+    };
+  }
+
+  let nextPosition =
+    Math.max(
+      0,
+      ...active
+        .filter((page) => page.parent_id === dailyRoot.id)
+        .map((page) => page.position || 0)
+    ) + 1;
+  let repaired = 0;
+  let skippedNoDate = 0;
+
+  for (const page of active.filter(isRepairCandidate)) {
+    if (page.id === dailyRoot.id) continue;
+    const dateKey = getDailyDateKey(page);
+    if (!dateKey) {
+      skippedNoDate += 1;
+      continue;
+    }
+    const now = new Date().toISOString();
+    const nextRecord: PageRecord = {
+      ...page,
+      parent_id: dailyRoot.id,
+      depth: (dailyRoot.depth || 0) + 1,
+      position: nextPosition,
+      properties: withDailyDateProperty(page, dateKey),
+      updated_at: now,
+    };
+    nextPosition += 1;
+    await kvSet(
+      config.kv,
+      `${PAGE_KEY_PREFIX}${email}:${nextRecord.id}`,
+      JSON.stringify(nextRecord)
+    );
+    index[nextRecord.id] = { u: now, d: 0 };
+    repaired += 1;
+  }
+
+  if (repaired > 0) {
+    await kvSet(
+      config.kv,
+      `${INDEX_KEY_PREFIX}${email}`,
+      JSON.stringify(index)
+    );
+  }
+
+  return {
+    scanned: active.length,
+    repaired,
+    skippedNoDate,
+    skippedNoRoot: false,
+  };
+}
+
 export async function POST(request: Request) {
   const config = getAccountConfig();
   if (!config) {
@@ -174,6 +400,11 @@ export async function POST(request: Request) {
     if (body.action === "summary") {
       const index = await readIndex(config, me);
       return NextResponse.json({ summary: summarizeIndex(index) });
+    }
+
+    if (body.action === "repair-daily-imports") {
+      const result = await repairDailyImportPlacement(config, me);
+      return NextResponse.json({ ok: true, ...result });
     }
 
     if (body.action === "pull") {
