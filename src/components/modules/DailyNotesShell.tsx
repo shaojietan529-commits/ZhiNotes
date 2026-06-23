@@ -251,7 +251,7 @@ export default function DailyNotesShell() {
           </div>
 
           {/* Calendar grid */}
-          <div className="grid grid-cols-7">
+          <div className="grid grid-cols-7 items-stretch">
             {grid.map((cell) => {
               const key = toDateKey(cell.date);
               const dayNotes = notesByDate.get(key) ?? [];
@@ -260,7 +260,7 @@ export default function DailyNotesShell() {
               return (
                 <div
                   key={key}
-                  className={`group flex h-40 flex-col border-b border-r border-zinc-100 p-1.5 dark:border-zinc-800/70 ${
+                  className={`group flex min-h-40 flex-col border-b border-r border-zinc-100 p-2 dark:border-zinc-800/70 ${
                     cell.inMonth ? "" : "bg-zinc-50/50 dark:bg-zinc-900/40"
                   } ${
                     isDropTarget
@@ -312,7 +312,7 @@ export default function DailyNotesShell() {
                       {cell.date.getDate()}
                     </span>
                   </div>
-                  <div className="mt-1 flex flex-col gap-1 overflow-y-auto">
+                  <div className="mt-1.5 flex flex-col gap-1.5 overflow-visible">
                     {dayNotes.map((note) => (
                       <button
                         key={note.id}
@@ -336,15 +336,15 @@ export default function DailyNotesShell() {
                             y: e.clientY,
                           });
                         }}
-                        className={`flex cursor-grab items-center gap-1.5 truncate rounded-md bg-zinc-100 px-2 py-1 text-left text-xs text-zinc-700 transition-colors hover:bg-zinc-200 active:cursor-grabbing dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 ${
+                        className={`flex cursor-grab items-start gap-1.5 rounded-md bg-zinc-100 px-2 py-1.5 text-left text-xs leading-snug text-zinc-700 transition-colors hover:bg-zinc-200 active:cursor-grabbing dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 ${
                           draggedNoteId === note.id ? "opacity-40" : ""
                         }`}
                         title={displayPageTitle(note.title)}
                       >
                         {note.icon && (
-                          <span className="shrink-0">{note.icon}</span>
+                          <span className="shrink-0 leading-snug">{note.icon}</span>
                         )}
-                        <span className="truncate">
+                        <span className="min-w-0 flex-1 whitespace-normal break-words">
                           {displayPageTitle(note.title)}
                         </span>
                       </button>
