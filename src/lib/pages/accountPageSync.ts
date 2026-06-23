@@ -84,6 +84,14 @@ export interface PullCloudPageResult {
   message?: string;
 }
 
+export interface PullDailyCloudResult {
+  status: PageSyncStatus;
+  pulled: number;
+  total: number;
+  scanned?: number;
+  message?: string;
+}
+
 interface IndexEntry {
   u: string;
   d: 0 | 1;
@@ -161,6 +169,71 @@ export async function pullCloudPageById(
   id: string
 ): Promise<PullCloudPageResult> {
   return pullCloudPagesByIds([id]);
+}
+
+export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", pulled: 0, total: 0 };
+  }
+  const manifestRes = await call({ action: "daily-manifest" });
+  if (!manifestRes.ok) {
+    return {
+      status: manifestRes.status,
+      pulled: 0,
+      total: 0,
+      message: manifestRes.message,
+    };
+  }
+
+  const ids = Array.isArray(manifestRes.json.ids)
+    ? manifestRes.json.ids.filter((id): id is string => isValidRemotePageId(id))
+    : [];
+  const uniqueIds = Array.from(new Set(ids));
+  if (typeof window !== "undefined" && typeof manifestRes.json.rootId === "string") {
+    window.localStorage.setItem("zhinote.moduleRoot.daily", manifestRes.json.rootId);
+  }
+
+  let pulled = 0;
+  for (let i = 0; i < uniqueIds.length; i += PULL_BATCH) {
+    const batch = uniqueIds.slice(i, i + PULL_BATCH);
+    const res = await call({ action: "pull", ids: batch });
+    if (!res.ok) {
+      return {
+        status: res.status,
+        pulled,
+        total: uniqueIds.length,
+        scanned:
+          typeof manifestRes.json.scanned === "number"
+            ? manifestRes.json.scanned
+            : undefined,
+        message: res.message,
+      };
+    }
+    const pages = Array.isArray(res.json.pages)
+      ? (res.json.pages as RemotePageRecord[])
+      : [];
+    if (pages.length > 0) {
+      await applyRemotePages(pages);
+      pulled += pages.length;
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+  }
+  if (pulled > 0) {
+    emitPagesUpdated("cloud-pull", pulled);
+  }
+
+  return {
+    status: "ok",
+    pulled,
+    total: uniqueIds.length,
+    scanned:
+      typeof manifestRes.json.scanned === "number"
+        ? manifestRes.json.scanned
+        : undefined,
+  };
 }
 
 function toRecord(page: Page): RemotePageRecord {

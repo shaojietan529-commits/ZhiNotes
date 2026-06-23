@@ -12,6 +12,7 @@ import {
   removeShareEmail,
 } from "@/lib/portfolio/accountSync";
 import {
+  forcePullDailyCloudPages,
   getLastPageSyncAt,
   isPageSyncEnabled,
   reconcilePageSync,
@@ -50,6 +51,7 @@ export default function AccountShell() {
   const [pageSyncOn, setPageSyncOn] = useState(false);
   const [pageSyncBusy, setPageSyncBusy] = useState(false);
   const [dailyRepairBusy, setDailyRepairBusy] = useState(false);
+  const [dailyPullBusy, setDailyPullBusy] = useState(false);
   const [pageSyncNotice, setPageSyncNotice] = useState<string | null>(null);
   const [pageSyncLastAt, setPageSyncLastAt] = useState<string | null>(null);
   // API Key for external tools (Claude, web clipper extension)
@@ -197,6 +199,30 @@ export default function AccountShell() {
       setPageSyncNotice("网络错误，未能修复每日纪要归档。");
     } finally {
       setDailyRepairBusy(false);
+    }
+  }
+
+  async function handleDailyForcePullRun() {
+    setDailyPullBusy(true);
+    setPageSyncNotice(null);
+    try {
+      const result = await forcePullDailyCloudPages();
+      if (result.status === "ok") {
+        setPageSyncLastAt(getLastPageSyncAt());
+        setPageSyncNotice(
+          `每日纪要已从云端强制拉取：覆盖 ${result.pulled}/${result.total} 页。请回到“每日纪要”查看。`
+        );
+      } else if (result.status === "unauthenticated") {
+        setPageSyncNotice("登录已过期，请重新登录后再拉取每日纪要。");
+      } else if (result.status === "disabled") {
+        setPageSyncNotice("请先打开页面云同步开关。");
+      } else {
+        setPageSyncNotice(result.message ?? "每日纪要云端拉取失败，请稍后重试。");
+      }
+    } catch {
+      setPageSyncNotice("本机写入失败，未能完成每日纪要拉取。");
+    } finally {
+      setDailyPullBusy(false);
     }
   }
 
@@ -634,17 +660,24 @@ export default function AccountShell() {
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   <button
                     onClick={() => void handlePageSyncRun()}
-                    disabled={pageSyncBusy || dailyRepairBusy}
+                    disabled={pageSyncBusy || dailyRepairBusy || dailyPullBusy}
                     className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                   >
                     {pageSyncBusy ? "同步中…" : "立即同步"}
                   </button>
                   <button
                     onClick={() => void handleDailyRepairRun()}
-                    disabled={pageSyncBusy || dailyRepairBusy}
+                    disabled={pageSyncBusy || dailyRepairBusy || dailyPullBusy}
                     className="rounded-lg border border-amber-300 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-50 disabled:opacity-40 dark:border-amber-700/70 dark:text-amber-300 dark:hover:bg-amber-900/20"
                   >
                     {dailyRepairBusy ? "修复中…" : "修复每日纪要归档"}
+                  </button>
+                  <button
+                    onClick={() => void handleDailyForcePullRun()}
+                    disabled={pageSyncBusy || dailyRepairBusy || dailyPullBusy}
+                    className="rounded-lg border border-sky-300 px-3 py-1.5 text-sm text-sky-700 hover:bg-sky-50 disabled:opacity-40 dark:border-sky-700/70 dark:text-sky-300 dark:hover:bg-sky-900/20"
+                  >
+                    {dailyPullBusy ? "拉取中…" : "强制拉取每日纪要"}
                   </button>
                   {pageSyncLastAt && (
                     <span className="text-xs text-zinc-400">

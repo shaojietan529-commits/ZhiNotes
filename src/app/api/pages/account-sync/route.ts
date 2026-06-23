@@ -83,6 +83,13 @@ interface DailyRepairResult {
   skippedNoRoot: boolean;
 }
 
+interface DailyManifestResult {
+  rootId: string | null;
+  ids: string[];
+  count: number;
+  scanned: number;
+}
+
 function isValidId(value: unknown): value is string {
   return (
     typeof value === "string" && value.length > 0 && value.length <= 64 &&
@@ -374,6 +381,56 @@ async function repairDailyImportPlacement(
   };
 }
 
+async function getDailyManifest(
+  config: AccountConfig,
+  email: string
+): Promise<DailyManifestResult> {
+  const index = await readIndex(config, email);
+  const pages = await readIndexedPages(config, email, index);
+  const active = pages.filter((page) => !page.deleted_at);
+  const dailyRoot = active
+    .filter((page) => page.parent_id === null && page.title === DAILY_ROOT_TITLE)
+    .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+
+  if (!dailyRoot) {
+    return { rootId: null, ids: [], count: 0, scanned: active.length };
+  }
+
+  const ids = new Set<string>([dailyRoot.id]);
+  const childrenByParent = new Map<string, PageRecord[]>();
+  for (const page of active) {
+    if (!page.parent_id) continue;
+    const children = childrenByParent.get(page.parent_id) ?? [];
+    children.push(page);
+    childrenByParent.set(page.parent_id, children);
+  }
+
+  const visit = (parentId: string) => {
+    for (const child of childrenByParent.get(parentId) ?? []) {
+      if (ids.has(child.id)) continue;
+      ids.add(child.id);
+      visit(child.id);
+    }
+  };
+  visit(dailyRoot.id);
+
+  // Also include imported/date-tagged pages that are not yet under the daily
+  // root. This lets the client force-pull stale local copies into view even
+  // when normal last-write-wins sync would ignore the older cloud timestamp.
+  for (const page of active) {
+    if (isRepairCandidate(page) || getDailyDateKey(page)) {
+      ids.add(page.id);
+    }
+  }
+
+  return {
+    rootId: dailyRoot.id,
+    ids: Array.from(ids),
+    count: ids.size,
+    scanned: active.length,
+  };
+}
+
 export async function GET(request: Request) {
   const config = getAccountConfig();
   if (!config) {
@@ -481,6 +538,11 @@ export async function POST(request: Request) {
 
     if (body.action === "repair-daily-imports") {
       const result = await repairDailyImportPlacement(config, me);
+      return NextResponse.json({ ok: true, ...result });
+    }
+
+    if (body.action === "daily-manifest") {
+      const result = await getDailyManifest(config, me);
       return NextResponse.json({ ok: true, ...result });
     }
 

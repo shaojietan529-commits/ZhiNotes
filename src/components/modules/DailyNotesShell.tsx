@@ -6,7 +6,7 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
 import { usePageRevision } from "@/hooks/usePageRevision";
-import { createPage, listPages, updatePage } from "@/lib/db/local/queries";
+import { createPage, getAllPages, updatePage } from "@/lib/db/local/queries";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import {
   createPageProperty,
@@ -21,6 +21,8 @@ import type { Page } from "@/lib/utils/types";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+type DailyNote = Page & { dailyDateKey?: string };
+
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 const MONTH_LABELS = [
   "1 月", "2 月", "3 月", "4 月", "5 月", "6 月",
@@ -33,7 +35,7 @@ export default function DailyNotesShell() {
   const pageRevision = usePageRevision();
   const { refresh } = usePages();
   const [rootId, setRootId] = useState<string | null>(null);
-  const [notes, setNotes] = useState<Page[]>([]);
+  const [notes, setNotes] = useState<DailyNote[]>([]);
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
@@ -50,7 +52,31 @@ export default function DailyNotesShell() {
   const load = useCallback(async () => {
     const id = await getModuleRootId("daily");
     setRootId(id);
-    setNotes(await listPages(id));
+    const allPages = await getAllPages();
+    const childrenByParent = new Map<string, Page[]>();
+    for (const page of allPages) {
+      if (!page.parent_id) continue;
+      const children = childrenByParent.get(page.parent_id) ?? [];
+      children.push(page);
+      childrenByParent.set(page.parent_id, children);
+    }
+
+    const dailyNotes: DailyNote[] = [];
+    const visit = (parentId: string, inheritedDateKey = "") => {
+      const children = [...(childrenByParent.get(parentId) ?? [])].sort(
+        (a, b) =>
+          (a.position || 0) - (b.position || 0) ||
+          (b.updated_at || "").localeCompare(a.updated_at || "")
+      );
+      for (const child of children) {
+        const ownDateKey = readDailyNoteDateKey(child);
+        const dateKey = ownDateKey || inheritedDateKey;
+        if (dateKey) dailyNotes.push({ ...child, dailyDateKey: dateKey });
+        visit(child.id, dateKey);
+      }
+    };
+    visit(id);
+    setNotes(dailyNotes);
   }, []);
 
   useEffect(() => {
@@ -381,7 +407,11 @@ export default function DailyNotesShell() {
 
 // Resolve the day a note belongs to: prefer the 日期 property, fall back to a
 // date-formatted title (older daily pages were titled with the date directly).
-function dailyNoteDateKey(page: Page): string {
+function dailyNoteDateKey(page: DailyNote): string {
+  return readDailyNoteDateKey(page) || page.dailyDateKey || "";
+}
+
+function readDailyNoteDateKey(page: Page): string {
   const dateProp = parsePageProperties(page.properties).find(
     (property) => property.name === "日期" && property.value
   );
