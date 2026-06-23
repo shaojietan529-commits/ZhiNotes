@@ -50,6 +50,7 @@ export default function DailyNotesShell() {
   const [notes, setNotes] = useState<DailyNote[]>([]);
   const [cloudNotice, setCloudNotice] = useState<string | null>(null);
   const [cloudLoading, setCloudLoading] = useState(false);
+  const [creatingDateKey, setCreatingDateKey] = useState<string | null>(null);
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
@@ -141,26 +142,51 @@ export default function DailyNotesShell() {
   // Add a new note page on the given day, then open it for editing.
   const addNote = useCallback(
     async (dateKey: string) => {
-      if (!rootId) return;
-      // Untitled by default (Notion-style) — the peek modal shows a 新页面
-      // placeholder; calendar chips fall back to the 📝 glyph for display.
-      const page = await createPage({ parentId: rootId });
-      const props = [
-        { ...createPageProperty("date", "日期"), value: dateKey },
-        createPageProperty("text", "要点"),
-        createPageProperty("text", "Summary"),
-        createPageProperty("tags", "相关公司"),
-        createPageProperty("tags", "相关行业"),
-      ];
-      await updatePage(page.id, {
-        properties: stringifyPageProperties(props),
-      });
-      await refresh();
-      await load();
-      // Pop the freshly created note in a modal instead of leaving the calendar.
-      setPeekPageId(page.id);
+      if (creatingDateKey) return;
+      setCreatingDateKey(dateKey);
+      setCloudNotice(`正在创建 ${dateKey} 的每日纪要…`);
+      try {
+        const dailyRootId = rootId ?? (await getModuleRootId("daily"));
+        if (!rootId) setRootId(dailyRootId);
+        // Untitled by default (Notion-style) — the peek modal shows a 新页面
+        // placeholder; calendar chips fall back to the 📝 glyph for display.
+        const page = await createPage({ parentId: dailyRootId });
+        const props = [
+          { ...createPageProperty("date", "日期"), value: dateKey },
+          createPageProperty("text", "要点"),
+          createPageProperty("text", "Summary"),
+          createPageProperty("tags", "相关公司"),
+          createPageProperty("tags", "相关行业"),
+        ];
+        const updated =
+          (await updatePage(page.id, {
+            properties: stringifyPageProperties(props),
+          })) ?? page;
+        const nextNote: DailyNote = {
+          ...updated,
+          dailyDateKey: dateKey,
+          cloudOnly: false,
+        };
+        setNotes((current) => [
+          nextNote,
+          ...current.filter((item) => item.id !== nextNote.id),
+        ]);
+        // Open immediately; do not wait for the cloud calendar index refresh.
+        setPeekPageId(page.id);
+        void refresh()
+          .then(() => load())
+          .catch(() => {
+            setCloudNotice("新纪要已创建，但后台刷新失败。");
+          });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "未知本机写入错误";
+        setCloudNotice(`创建每日纪要失败：${message}`);
+      } finally {
+        setCreatingDateKey(null);
+      }
     },
-    [rootId, refresh, load]
+    [creatingDateKey, rootId, refresh, load]
   );
 
   // Drag a note chip onto another day: rewrite its 日期 property (and the
@@ -233,10 +259,11 @@ export default function DailyNotesShell() {
             </div>
             <button
               type="button"
+              disabled={creatingDateKey !== null}
               onClick={() => void addNote(todayKey)}
-              className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
-              + 今天新增
+              {creatingDateKey === todayKey ? "创建中…" : "+ 今天新增"}
             </button>
           </div>
 
@@ -323,11 +350,12 @@ export default function DailyNotesShell() {
                   <div className="flex items-center justify-between">
                     <button
                       type="button"
+                      disabled={creatingDateKey !== null}
                       onClick={() => void addNote(key)}
-                      className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                      className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                       title="在这天新增纪要"
                     >
-                      +
+                      {creatingDateKey === key ? "…" : "+"}
                     </button>
                     <span
                       className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-sm ${
