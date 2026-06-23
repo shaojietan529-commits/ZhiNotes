@@ -90,6 +90,7 @@ export interface PullDailyCloudResult {
   pulled: number;
   total: number;
   failed?: number;
+  failedReason?: string;
   scanned?: number;
   message?: string;
 }
@@ -199,6 +200,7 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
 
   let pulled = 0;
   let failed = 0;
+  let failedReason: string | undefined;
   try {
     await applyRemotePageMetadata(pages);
     pulled = pages.length;
@@ -207,8 +209,12 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
       try {
         await applyRemotePageMetadata([page]);
         pulled += 1;
-      } catch {
+      } catch (error) {
         failed += 1;
+        if (!failedReason) {
+          failedReason =
+            error instanceof Error ? error.message : "未知本机写入错误";
+        }
       }
     }
   }
@@ -225,6 +231,7 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
     pulled,
     total: ids.length,
     failed,
+    failedReason,
     scanned:
       typeof manifestRes.json.scanned === "number"
         ? manifestRes.json.scanned
