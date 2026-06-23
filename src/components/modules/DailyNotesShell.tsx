@@ -19,7 +19,10 @@ import {
   stringifyPageProperties,
 } from "@/lib/pages/pageProperties";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
-import { fetchDailyCloudMetadata } from "@/lib/pages/accountPageSync";
+import {
+  fetchDailyCloudMetadata,
+  type DailyCloudMetadataResult,
+} from "@/lib/pages/accountPageSync";
 import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import PagePeekModal from "@/components/page/PagePeekModal";
 import PageContextMenu from "@/components/page/PageContextMenu";
@@ -36,6 +39,7 @@ const MONTH_LABELS = [
   "7 月", "8 月", "9 月", "10 月", "11 月", "12 月",
 ];
 const DAILY_CALENDAR_VISIBLE_LIMIT = 8;
+const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
 
 export default function DailyNotesShell() {
   const router = useRouter();
@@ -71,6 +75,16 @@ export default function DailyNotesShell() {
     const visibleRange = buildMonthGrid(viewMonth);
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
+    const cachedCloud = readCachedDailyCloudMetadata(startDate, endDate);
+    if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
+      const merged = mergeCloudDailyNotes(byId, cachedCloud);
+      if (merged > 0) {
+        setNotes(Array.from(byId.values()));
+        setCloudNotice(
+          `已先显示本机缓存的云端每日纪要 ${cachedCloud.pages.length} 条，正在后台更新…`
+        );
+      }
+    }
 
     try {
       const cloud = await fetchDailyCloudMetadata({
@@ -79,13 +93,8 @@ export default function DailyNotesShell() {
         recentLimit: 12,
       });
       if (cloud.status === "ok" && cloud.rootId) {
-        for (const note of collectDailyNotes(
-          cloud.pages.map(remoteRecordToPage),
-          cloud.rootId,
-          true
-        )) {
-          if (!byId.has(note.id)) byId.set(note.id, note);
-        }
+        mergeCloudDailyNotes(byId, cloud);
+        writeCachedDailyCloudMetadata(startDate, endDate, cloud);
         setCloudNotice(
           cloud.pages.length > 0
             ? `云端每日纪要已加载 ${cloud.pages.length} 条，其中当前日历范围 ${cloud.rangeCount ?? 0} 条。`
@@ -536,6 +545,84 @@ function collectDailyNotes(
   }
 
   return dailyNotes;
+}
+
+function mergeCloudDailyNotes(
+  byId: Map<string, DailyNote>,
+  cloud: DailyCloudMetadataResult
+): number {
+  if (cloud.status !== "ok" || !cloud.rootId) return 0;
+  let merged = 0;
+  for (const note of collectDailyNotes(
+    cloud.pages.map(remoteRecordToPage),
+    cloud.rootId,
+    true
+  )) {
+    if (!byId.has(note.id)) {
+      byId.set(note.id, note);
+      merged += 1;
+    }
+  }
+  return merged;
+}
+
+function dailyCloudCacheKey(startDate: string, endDate: string): string {
+  return `${DAILY_CLOUD_CACHE_PREFIX}${startDate}:${endDate}:v1`;
+}
+
+function readCachedDailyCloudMetadata(
+  startDate: string,
+  endDate: string
+): DailyCloudMetadataResult | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(
+      dailyCloudCacheKey(startDate, endDate)
+    );
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<DailyCloudMetadataResult> & {
+      cachedAt?: string;
+    };
+    const cachedAt = parsed.cachedAt ? Date.parse(parsed.cachedAt) : 0;
+    if (!cachedAt || Date.now() - cachedAt > 24 * 60 * 60 * 1000) return null;
+    if (
+      parsed.status !== "ok" ||
+      !Array.isArray(parsed.pages) ||
+      typeof parsed.total !== "number"
+    ) {
+      return null;
+    }
+    return {
+      status: "ok",
+      pages: parsed.pages,
+      total: parsed.total,
+      rootId: typeof parsed.rootId === "string" ? parsed.rootId : null,
+      matched: typeof parsed.matched === "number" ? parsed.matched : undefined,
+      rangeCount:
+        typeof parsed.rangeCount === "number" ? parsed.rangeCount : undefined,
+      recentCount:
+        typeof parsed.recentCount === "number" ? parsed.recentCount : undefined,
+      scanned: typeof parsed.scanned === "number" ? parsed.scanned : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedDailyCloudMetadata(
+  startDate: string,
+  endDate: string,
+  cloud: DailyCloudMetadataResult
+): void {
+  if (typeof window === "undefined" || cloud.status !== "ok") return;
+  try {
+    window.localStorage.setItem(
+      dailyCloudCacheKey(startDate, endDate),
+      JSON.stringify({ ...cloud, cachedAt: new Date().toISOString() })
+    );
+  } catch {
+    // Local cache is best-effort; the cloud result is still displayed.
+  }
 }
 
 // Resolve the day a note belongs to: prefer the 日期 property, fall back to a

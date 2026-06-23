@@ -104,6 +104,8 @@ export interface DailyCloudMetadataResult {
   rangeCount?: number;
   recentCount?: number;
   scanned?: number;
+  cached?: boolean;
+  watermark?: string;
   message?: string;
 }
 
@@ -295,6 +297,9 @@ export async function fetchDailyCloudMetadata(
     recentCount:
       typeof res.json.recentCount === "number" ? res.json.recentCount : undefined,
     scanned: typeof res.json.scanned === "number" ? res.json.scanned : undefined,
+    cached: typeof res.json.cached === "boolean" ? res.json.cached : undefined,
+    watermark:
+      typeof res.json.watermark === "string" ? res.json.watermark : undefined,
   };
 }
 

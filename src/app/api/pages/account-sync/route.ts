@@ -27,6 +27,7 @@ export const dynamic = "force-dynamic";
 
 const INDEX_KEY_PREFIX = "zhinotes:pagesync:index:";
 const PAGE_KEY_PREFIX = "zhinotes:pagesync:page:";
+const DAILY_CALENDAR_CACHE_KEY_PREFIX = "zhinotes:pagesync:daily-calendar-cache:";
 const MAX_PAYLOAD_BYTES = 950 * 1024;
 const MAX_PUSH_RECORDS = 100;
 const MAX_PULL_IDS = 50;
@@ -107,6 +108,15 @@ interface DailyCalendarMetadataResult {
   rangeCount: number;
   recentCount: number;
   scanned: number;
+  cached: boolean;
+  watermark: string;
+}
+
+interface DailyCalendarCache {
+  watermark: string;
+  rootId: string | null;
+  scanned: number;
+  notes: DailyDatedRecord[];
 }
 
 function isValidId(value: unknown): value is string {
@@ -532,26 +542,86 @@ function toDailyMetadataRecord(item: DailyDatedRecord): PageRecord {
     ...item.record,
     cover_url: null,
     content_text: null,
-    properties: withDailyDateProperty(item.record, item.dateKey),
+    properties: JSON.stringify([
+      {
+        id: "daily-date",
+        name: "日期",
+        type: "date",
+        value: item.dateKey,
+      },
+    ]),
   };
 }
 
-async function getDailyCalendarMetadata(
+function sanitizeDailyCache(value: unknown): DailyCalendarCache | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.watermark !== "string") return null;
+  const notesRaw = Array.isArray(raw.notes) ? raw.notes : [];
+  const notes: DailyDatedRecord[] = [];
+  for (const item of notesRaw) {
+    if (!item || typeof item !== "object") continue;
+    const entry = item as Record<string, unknown>;
+    const dateKey = typeof entry.dateKey === "string" ? entry.dateKey : "";
+    if (!isDateKey(dateKey)) continue;
+    const record = sanitizeRecord(entry.record);
+    if (!record) continue;
+    notes.push({ dateKey, record });
+  }
+  return {
+    watermark: raw.watermark,
+    rootId: isValidId(raw.rootId) ? raw.rootId : null,
+    scanned: typeof raw.scanned === "number" ? raw.scanned : 0,
+    notes,
+  };
+}
+
+async function readDailyCalendarCache(
   config: AccountConfig,
   email: string,
+  watermark: string
+): Promise<DailyCalendarCache | null> {
+  try {
+    const raw = await kvGet(
+      config.kv,
+      `${DAILY_CALENDAR_CACHE_KEY_PREFIX}${email}`
+    );
+    if (!raw) return null;
+    const parsed = sanitizeDailyCache(JSON.parse(raw));
+    return parsed?.watermark === watermark ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeDailyCalendarCache(
+  config: AccountConfig,
+  email: string,
+  cache: DailyCalendarCache
+): Promise<void> {
+  try {
+    await kvSet(
+      config.kv,
+      `${DAILY_CALENDAR_CACHE_KEY_PREFIX}${email}`,
+      JSON.stringify(cache)
+    );
+  } catch {
+    // Cache misses are allowed; the source page records remain authoritative.
+  }
+}
+
+function selectDailyCalendarMetadata(
+  cache: DailyCalendarCache,
   startDate: string | null,
   endDate: string | null,
-  recentLimit: number
-): Promise<DailyCalendarMetadataResult> {
-  const index = await readIndex(config, email);
-  const pages = await readIndexedPages(config, email, index);
-  const active = pages.filter((page) => !page.deleted_at);
-  const { rootId, notes } = collectDailyDatedRecords(active);
+  recentLimit: number,
+  cached: boolean
+): DailyCalendarMetadataResult {
   const byId = new Map<string, DailyDatedRecord>();
   let rangeCount = 0;
   let recentCount = 0;
 
-  for (const item of notes) {
+  for (const item of cache.notes) {
     if (
       (!startDate || item.dateKey >= startDate) &&
       (!endDate || item.dateKey <= endDate)
@@ -562,7 +632,7 @@ async function getDailyCalendarMetadata(
   }
 
   if (recentLimit > 0) {
-    const recent = [...notes]
+    const recent = [...cache.notes]
       .sort(
         (a, b) =>
           b.dateKey.localeCompare(a.dateKey) ||
@@ -574,14 +644,58 @@ async function getDailyCalendarMetadata(
   }
 
   return {
-    rootId,
+    rootId: cache.rootId,
     pages: Array.from(byId.values()).map(toDailyMetadataRecord),
     count: byId.size,
-    matched: notes.length,
+    matched: cache.notes.length,
     rangeCount,
     recentCount,
-    scanned: active.length,
+    scanned: cache.scanned,
+    cached,
+    watermark: cache.watermark,
   };
+}
+
+async function getDailyCalendarMetadata(
+  config: AccountConfig,
+  email: string,
+  startDate: string | null,
+  endDate: string | null,
+  recentLimit: number
+): Promise<DailyCalendarMetadataResult> {
+  const index = await readIndex(config, email);
+  const summary = summarizeIndex(index);
+  const cached = await readDailyCalendarCache(config, email, summary.watermark);
+  if (cached) {
+    return selectDailyCalendarMetadata(
+      cached,
+      startDate,
+      endDate,
+      recentLimit,
+      true
+    );
+  }
+
+  const pages = await readIndexedPages(config, email, index);
+  const active = pages.filter((page) => !page.deleted_at);
+  const { rootId, notes } = collectDailyDatedRecords(active);
+  const nextCache: DailyCalendarCache = {
+    rootId,
+    scanned: active.length,
+    watermark: summary.watermark,
+    notes: notes.map((item) => ({
+      dateKey: item.dateKey,
+      record: toDailyMetadataRecord(item),
+    })),
+  };
+  await writeDailyCalendarCache(config, email, nextCache);
+  return selectDailyCalendarMetadata(
+    nextCache,
+    startDate,
+    endDate,
+    recentLimit,
+    false
+  );
 }
 
 export async function GET(request: Request) {
