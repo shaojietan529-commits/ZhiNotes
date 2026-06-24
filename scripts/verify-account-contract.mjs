@@ -305,11 +305,15 @@ check(
 const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
 check(
   dailyNotesShell.indexOf("readCachedDailyCloudMetadata(startDate, endDate)") <
-    dailyNotesShell.indexOf("getAllPageMetadata()") &&
+    dailyNotesShell.indexOf("await ensureDailyDateIndexBackfilled()") &&
+    dailyNotesShell.indexOf("await ensureDailyDateIndexBackfilled()") <
+      dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") &&
     dailyNotesShell.includes("const cloudById = new Map<string, DailyNote>()") &&
     dailyNotesShell.includes("fetchDailyCloudMetadata({") &&
-    dailyNotesShell.includes("recentLimit: 12"),
-  "DailyNotesShell 首屏应优先显示云端当前日历窗口，不应先扫描本机全量页面"
+    dailyNotesShell.includes("recentLimit: 12") &&
+    dailyNotesShell.includes("rebuildPageDateKeyIndex") &&
+    !dailyNotesShell.includes("getAllPageMetadata"),
+  "DailyNotesShell 首屏应优先显示云端当前日历窗口，回退本机时只能走日期索引，不能扫描本机全量页面"
 );
 check(
   dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id)") <

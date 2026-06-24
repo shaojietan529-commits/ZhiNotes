@@ -24,6 +24,7 @@ export const CREATE_TABLES_SQL = `
     content_yjs   BLOB,
     content_text  TEXT,
     properties    TEXT,
+    daily_date_key TEXT,
     position      REAL NOT NULL DEFAULT 0,
     depth         INTEGER NOT NULL DEFAULT 0,
     created_at    TEXT NOT NULL,

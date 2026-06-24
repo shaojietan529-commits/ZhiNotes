@@ -56,6 +56,9 @@ const shells = {
   chain: read("src/components/modules/IndustryChainShell.tsx"),
   schedule: read("src/components/modules/MeetingScheduleShell.tsx"),
 };
+const localQueries = read("src/lib/db/local/queries.ts");
+const localSchema = read("src/lib/db/local/schema.ts");
+const localClient = read("src/lib/db/local/client.ts");
 const forbidden = ["XMLHttpRequest", "enables_ai", "getUserMedia"];
 for (const [name, source] of Object.entries(shells)) {
   for (const token of forbidden) {
@@ -85,6 +88,32 @@ for (const [name, source] of Object.entries(shells)) {
 // Daily: calendar + per-day add + Notion-style template
 for (const token of ["buildMonthGrid", "addNote", "日期", "要点", "Summary"]) {
   check(shells.daily.includes(token), `DailyNotesShell 缺少 ${token}`);
+}
+for (const token of [
+  "listDailyPageMetadataForCalendar",
+  "rebuildPageDateKeyIndex",
+  "prewarmDailyPeekModal",
+  "DAILY_DATE_INDEX_BACKFILL_KEY",
+]) {
+  check(shells.daily.includes(token), `DailyNotesShell 缺少每日纪要性能护栏 ${token}`);
+}
+check(
+  !shells.daily.includes("getAllPageMetadata"),
+  "DailyNotesShell 不应在日历刷新时调用 getAllPageMetadata 全量扫描"
+);
+for (const token of [
+  "daily_date_key",
+  "idx_pages_daily_date",
+  "listDailyPageMetadataForCalendar",
+  "rebuildPageDateKeyIndex",
+  "inferDailyDateKey",
+]) {
+  check(
+    localQueries.includes(token) ||
+      localSchema.includes(token) ||
+      localClient.includes(token),
+    `每日纪要日期索引缺少 ${token}`
+  );
 }
 
 // Industry chain: every node is a page, expandable, inline rename

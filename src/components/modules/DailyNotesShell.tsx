@@ -7,8 +7,9 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import {
   applyRemotePageMetadata,
-  getAllPageMetadata,
   getPage,
+  listDailyPageMetadataForCalendar,
+  rebuildPageDateKeyIndex,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
 import {
@@ -43,6 +44,7 @@ const MONTH_LABELS = [
 ];
 const DAILY_CALENDAR_VISIBLE_LIMIT = 8;
 const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
+const DAILY_DATE_INDEX_BACKFILL_KEY = "zhinote.daily.dateIndex.backfilled.v1";
 
 export default function DailyNotesShell() {
   const router = useRouter();
@@ -70,6 +72,10 @@ export default function DailyNotesShell() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+
+  useEffect(() => {
+    prewarmDailyPeekModal();
+  }, []);
 
   const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
     const includeCloud = opts?.includeCloud !== false;
@@ -132,7 +138,14 @@ export default function DailyNotesShell() {
 
     const id = await getModuleRootId("daily");
     setRootId(id);
-    const dailyNotes = collectDailyNotes(await getAllPageMetadata(), id);
+    await ensureDailyDateIndexBackfilled();
+    const localMetadata = await listDailyPageMetadataForCalendar({
+      rootId: id,
+      startDate,
+      endDate,
+      recentLimit: 12,
+    });
+    const dailyNotes = collectDailyNotes(localMetadata, id);
     for (const note of dailyNotes) byId.set(note.id, note);
     setNotes(Array.from(byId.values()));
   }, [upsertPages, viewMonth]);
@@ -576,6 +589,38 @@ export default function DailyNotesShell() {
       )}
     </div>
   );
+}
+
+function prewarmDailyPeekModal(): void {
+  if (typeof window === "undefined") return;
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+  };
+  const loadModal = () => {
+    void import("@/components/page/PagePeekModal");
+  };
+  if (maybeWindow.requestIdleCallback) {
+    maybeWindow.requestIdleCallback(loadModal, { timeout: 1500 });
+    return;
+  }
+  window.setTimeout(loadModal, 600);
+}
+
+async function ensureDailyDateIndexBackfilled(): Promise<void> {
+  if (typeof window === "undefined") return;
+  if (window.localStorage.getItem(DAILY_DATE_INDEX_BACKFILL_KEY) === "done") {
+    return;
+  }
+  try {
+    await rebuildPageDateKeyIndex();
+    window.localStorage.setItem(DAILY_DATE_INDEX_BACKFILL_KEY, "done");
+  } catch {
+    // Keep the calendar usable from cloud metadata even if this browser cache
+    // cannot rebuild its optional date index yet.
+  }
 }
 
 function collectDailyNotes(

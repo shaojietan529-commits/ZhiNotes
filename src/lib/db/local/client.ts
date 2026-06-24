@@ -86,6 +86,12 @@ async function initializeDb(): Promise<SqliteDb> {
   // existed. Each step only ADDs a nullable column if it is missing, so no data
   // is ever dropped or rewritten.
   ensureColumn(db, "pages", "properties", "TEXT");
+  ensureColumn(db, "pages", "daily_date_key", "TEXT");
+  ensureIndex(
+    db,
+    "idx_pages_daily_date",
+    "pages(daily_date_key, updated_at DESC)"
+  );
 
   // Ensure the default solo user exists
   const users = db.query(
@@ -119,5 +125,13 @@ function ensureColumn(
     }
   } catch (e) {
     console.warn(`[Zhinote] ensureColumn ${table}.${column} failed:`, e);
+  }
+}
+
+function ensureIndex(db: SqliteDb, name: string, target: string) {
+  try {
+    db.run(`CREATE INDEX IF NOT EXISTS ${name} ON ${target}`);
+  } catch (e) {
+    console.warn(`[Zhinote] ensureIndex ${name} failed:`, e);
   }
 }

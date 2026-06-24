@@ -27,6 +27,96 @@ export interface SyncLogEntry {
 
 type SyncOperation = "insert" | "update" | "delete" | "restore";
 
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseStoredProperties(
+  raw: string | null
+): Array<{ name: string; value: string }> {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === "object"
+      )
+      .map((item) => ({
+        name: typeof item.name === "string" ? item.name : "",
+        value: typeof item.value === "string" ? item.value : "",
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function formatInferredDate(
+  yearText: string,
+  monthText: string,
+  dayText: string
+): string | null {
+  let year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return null;
+  }
+  if (yearText.length === 2) year += year >= 70 ? 1900 : 2000;
+  if (
+    year < 2000 ||
+    year > 2099 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function inferDateFromTitle(title: string): string | null {
+  if (DATE_KEY_PATTERN.test(title)) return title;
+  const compact = title.match(
+    /(?:^|[^0-9])([0-9]{2})([01][0-9])([0-3][0-9])(?:[^0-9]|$)/
+  );
+  if (compact) return formatInferredDate(compact[1], compact[2], compact[3]);
+
+  const shortSeparated = title.match(
+    /(?:^|[^0-9])([0-9]{2})[-/.年]([0-9]{1,2})[-/.月]([0-9]{1,2})(?:日)?(?:[^0-9]|$)/
+  );
+  if (shortSeparated) {
+    return formatInferredDate(
+      shortSeparated[1],
+      shortSeparated[2],
+      shortSeparated[3]
+    );
+  }
+
+  const separated = title.match(
+    /(?:^|[^0-9])([0-9]{4})[-/.年]([0-9]{1,2})[-/.月]([0-9]{1,2})(?:日)?(?:[^0-9]|$)/
+  );
+  if (separated) {
+    return formatInferredDate(separated[1], separated[2], separated[3]);
+  }
+  return null;
+}
+
+function inferDailyDateKey(title: string, properties: string | null): string | null {
+  const existing = parseStoredProperties(properties).find(
+    (property) => property.name === "日期" && DATE_KEY_PATTERN.test(property.value)
+  );
+  return existing?.value ?? inferDateFromTitle((title || "").trim());
+}
+
+const PAGE_METADATA_SELECT = `id, owner_id, parent_id, database_id, title, icon, cover_url,
+            NULL AS content_yjs, NULL AS content_text, properties,
+            position, depth, created_at, updated_at, deleted_at, sync_version`;
+
 export interface PageModuleCounts {
   pageId: string;
   versions: number;
@@ -72,18 +162,19 @@ export async function listPageMetadata(
   parentId: string | null = null
 ): Promise<Page[]> {
   const db = await getDb();
-  const select =
-    `SELECT id, owner_id, parent_id, database_id, title, icon, cover_url,
-            NULL AS content_yjs, NULL AS content_text, properties,
-            position, depth, created_at, updated_at, deleted_at, sync_version
-     FROM pages`;
   if (parentId === null) {
     return db.query(
-      `${select} WHERE parent_id IS NULL AND deleted_at IS NULL ORDER BY updated_at DESC`
+      `SELECT ${PAGE_METADATA_SELECT}
+       FROM pages
+       WHERE parent_id IS NULL AND deleted_at IS NULL
+       ORDER BY updated_at DESC`
     ) as unknown as Page[];
   }
   return db.query(
-    `${select} WHERE parent_id = ? AND deleted_at IS NULL ORDER BY position ASC, updated_at DESC`,
+    `SELECT ${PAGE_METADATA_SELECT}
+     FROM pages
+     WHERE parent_id = ? AND deleted_at IS NULL
+     ORDER BY position ASC, updated_at DESC`,
     [parentId]
   ) as unknown as Page[];
 }
@@ -98,13 +189,101 @@ export async function getAllPages(): Promise<Page[]> {
 export async function getAllPageMetadata(): Promise<Page[]> {
   const db = await getDb();
   return db.query(
-    `SELECT id, owner_id, parent_id, database_id, title, icon, cover_url,
-            NULL AS content_yjs, NULL AS content_text, properties,
-            position, depth, created_at, updated_at, deleted_at, sync_version
+    `SELECT ${PAGE_METADATA_SELECT}
      FROM pages
      WHERE deleted_at IS NULL
      ORDER BY updated_at DESC`
   ) as unknown as Page[];
+}
+
+export async function rebuildPageDateKeyIndex(): Promise<{
+  scanned: number;
+  updated: number;
+}> {
+  const db = await getDb();
+  const rows = db.query(
+    "SELECT id, title, properties, daily_date_key FROM pages"
+  ) as unknown as Array<{
+    id: string;
+    title: string;
+    properties: string | null;
+    daily_date_key: string | null;
+  }>;
+  let updated = 0;
+  for (const row of rows) {
+    const nextDateKey = inferDailyDateKey(row.title, row.properties);
+    if ((row.daily_date_key ?? null) === nextDateKey) continue;
+    db.run("UPDATE pages SET daily_date_key = ? WHERE id = ?", [
+      nextDateKey,
+      row.id,
+    ]);
+    updated += 1;
+  }
+  return { scanned: rows.length, updated };
+}
+
+export async function listDailyPageMetadataForCalendar({
+  rootId,
+  startDate,
+  endDate,
+  recentLimit = 8,
+}: {
+  rootId: string;
+  startDate: string;
+  endDate: string;
+  recentLimit?: number;
+}): Promise<Page[]> {
+  const db = await getDb();
+  const notionDailyImportPattern = "%notion-daily-import%";
+  const byId = new Map<string, Page>();
+  const readRows = (sql: string, bind: unknown[]) =>
+    db.query(sql, bind) as unknown as Page[];
+
+  const commonCte = `
+    WITH RECURSIVE daily_descendants(id) AS (
+      SELECT id FROM pages WHERE parent_id = ? AND deleted_at IS NULL
+      UNION ALL
+      SELECT p.id
+      FROM pages p
+      JOIN daily_descendants d ON p.parent_id = d.id
+      WHERE p.deleted_at IS NULL
+    )
+  `;
+  const dailyScope = `
+    (
+      p.id IN (SELECT id FROM daily_descendants)
+      OR p.properties LIKE ?
+    )
+  `;
+  const rangeRows = readRows(
+    `${commonCte}
+     SELECT ${PAGE_METADATA_SELECT}
+     FROM pages p
+     WHERE p.deleted_at IS NULL
+       AND p.daily_date_key >= ?
+       AND p.daily_date_key <= ?
+       AND ${dailyScope}
+     ORDER BY p.daily_date_key ASC, p.updated_at DESC`,
+    [rootId, startDate, endDate, notionDailyImportPattern]
+  );
+  for (const row of rangeRows) byId.set(row.id, row);
+
+  if (recentLimit > 0) {
+    const recentRows = readRows(
+      `${commonCte}
+       SELECT ${PAGE_METADATA_SELECT}
+       FROM pages p
+       WHERE p.deleted_at IS NULL
+         AND p.daily_date_key IS NOT NULL
+         AND ${dailyScope}
+       ORDER BY p.daily_date_key DESC, p.updated_at DESC
+       LIMIT ?`,
+      [rootId, notionDailyImportPattern, recentLimit]
+    );
+    for (const row of recentRows) byId.set(row.id, row);
+  }
+
+  return Array.from(byId.values());
 }
 
 export async function getDeletedPages(): Promise<Page[]> {
@@ -293,6 +472,22 @@ export async function updatePage(
   const setClauses: string[] = ["updated_at = ?"];
   const values: unknown[] = [now];
   const changedCols: string[] = [];
+  let nextDailyDateKey: string | null | undefined;
+
+  if (updates.title !== undefined || updates.properties !== undefined) {
+    const existing = db.query(
+      "SELECT title, properties FROM pages WHERE id = ? AND deleted_at IS NULL",
+      [id]
+    ) as unknown as Array<{ title: string; properties: string | null }>;
+    if (existing[0]) {
+      nextDailyDateKey = inferDailyDateKey(
+        updates.title ?? existing[0].title,
+        updates.properties === undefined
+          ? existing[0].properties
+          : updates.properties
+      );
+    }
+  }
 
   if (updates.title !== undefined) {
     setClauses.push("title = ?");
@@ -333,6 +528,10 @@ export async function updatePage(
     setClauses.push("position = ?");
     values.push(updates.position);
     changedCols.push("position");
+  }
+  if (nextDailyDateKey !== undefined) {
+    setClauses.push("daily_date_key = ?");
+    values.push(nextDailyDateKey);
   }
 
   if (changedCols.length === 0) {
@@ -717,7 +916,8 @@ export async function applyRemotePages(
 
     db.run(
       `UPDATE pages SET parent_id = ?, title = ?, icon = ?, cover_url = ?,
-              content_text = ?, properties = ?, position = ?, depth = ?,
+              content_text = ?, properties = ?, daily_date_key = ?,
+              position = ?, depth = ?,
               created_at = ?, updated_at = ?, deleted_at = ?, sync_version = 1
        WHERE id = ?`,
       [
@@ -727,6 +927,7 @@ export async function applyRemotePages(
         record.cover_url,
         record.content_text,
         record.properties,
+        inferDailyDateKey(record.title, record.properties),
         record.position,
         record.depth,
         record.created_at,
@@ -778,7 +979,7 @@ export async function applyRemotePageMetadata(
 
     db.run(
       `UPDATE pages SET parent_id = ?, title = ?, icon = ?,
-              properties = ?, position = ?, depth = ?,
+              properties = ?, daily_date_key = ?, position = ?, depth = ?,
               created_at = ?, updated_at = ?, deleted_at = ?, sync_version = 1
        WHERE id = ?`,
       [
@@ -786,6 +987,7 @@ export async function applyRemotePageMetadata(
         record.title,
         record.icon,
         record.properties,
+        inferDailyDateKey(record.title, record.properties),
         record.position,
         record.depth,
         record.created_at,
