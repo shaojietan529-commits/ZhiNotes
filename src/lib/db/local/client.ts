@@ -10,6 +10,13 @@ export interface SqliteDb {
 
 let dbInstance: SqliteDb | null = null;
 let initPromise: Promise<SqliteDb> | null = null;
+const LOCAL_STORAGE_DB_NAME = "local";
+const LOCAL_CACHE_BYPASS_KEY = "zhinote.localCache.skipPersistentUntil";
+const LOCAL_CACHE_BYPASS_MS = 10 * 60 * 1000;
+const CREATE_TABLES_WITHOUT_DAILY_DATE_INDEX = CREATE_TABLES_SQL.replace(
+  /\s*CREATE INDEX IF NOT EXISTS idx_pages_daily_date ON pages\(daily_date_key, updated_at DESC\);\s*/,
+  "\n"
+);
 
 export async function getDb(): Promise<SqliteDb> {
   if (dbInstance) return dbInstance;
@@ -35,10 +42,14 @@ async function initializeDb(): Promise<SqliteDb> {
   let rawDb: any;
   const createMemoryDb = () => new sqlite3.oo1.DB(":memory:");
   const createFallbackDb = () => {
+    if (shouldBypassPersistentLocalCache()) {
+      console.warn("[Zhinote] Persistent local cache bypassed, using in-memory DB");
+      return createMemoryDb();
+    }
     if (sqlite3.oo1.JsStorageDb) {
       try {
         console.warn("[Zhinote] OPFS not available, using localStorage DB");
-        return new sqlite3.oo1.JsStorageDb("local");
+        return new sqlite3.oo1.JsStorageDb(LOCAL_STORAGE_DB_NAME);
       } catch (e) {
         console.warn("[Zhinote] localStorage DB not available, using in-memory DB:", e);
       }
@@ -63,9 +74,25 @@ async function initializeDb(): Promise<SqliteDb> {
     installLocalSchema(db);
   } catch (e) {
     console.warn(
-      "[Zhinote] Local SQLite cache schema failed, using rebuildable in-memory cache:",
+      "[Zhinote] Local SQLite cache schema failed, resetting rebuildable cache:",
       e
     );
+    tryCloseLocalCache(rawDb, true);
+    if (resetPersistentLocalCache(sqlite3)) {
+      try {
+        rawDb = new sqlite3.oo1.JsStorageDb(LOCAL_STORAGE_DB_NAME);
+        db = wrapRawDb(rawDb);
+        installLocalSchema(db);
+        clearPersistentLocalCacheBypass();
+        return db;
+      } catch (retryError) {
+        console.warn(
+          "[Zhinote] Local SQLite cache reset failed, using rebuildable in-memory cache:",
+          retryError
+        );
+      }
+    }
+    markPersistentLocalCacheBypass();
     db = wrapRawDb(createMemoryDb());
     installLocalSchema(db);
   }
@@ -100,7 +127,7 @@ function wrapRawDb(rawDb: any): SqliteDb {
 
 function installLocalSchema(db: SqliteDb) {
   // Create all tables
-  db.run(CREATE_TABLES_SQL);
+  db.run(CREATE_TABLES_WITHOUT_DAILY_DATE_INDEX);
 
   // Additive, non-destructive migrations for databases created before a column
   // existed. Each step only ADDs a nullable column if it is missing, so no data
@@ -151,5 +178,60 @@ function ensureIndex(db: SqliteDb, name: string, target: string) {
     db.run(`CREATE INDEX IF NOT EXISTS ${name} ON ${target}`);
   } catch (e) {
     console.warn(`[Zhinote] ensureIndex ${name} failed:`, e);
+  }
+}
+
+// The browser database is a rebuildable cache. If a persisted cache is corrupt
+// or too old to migrate, do not keep blocking app startup on it.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function tryCloseLocalCache(rawDb: any, unlink: boolean) {
+  try {
+    rawDb?.close?.(unlink ? { unlink: true } : undefined);
+  } catch {
+    // Best-effort cache close only.
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function resetPersistentLocalCache(sqlite3: any): boolean {
+  try {
+    const clearStorage = sqlite3.oo1.JsStorageDb?.clearStorage;
+    if (typeof clearStorage !== "function") return false;
+    const cleared = clearStorage(LOCAL_STORAGE_DB_NAME);
+    return cleared >= 0;
+  } catch (error) {
+    console.warn("[Zhinote] Failed to clear persistent local cache:", error);
+    return false;
+  }
+}
+
+function shouldBypassPersistentLocalCache(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const until = Number(window.localStorage.getItem(LOCAL_CACHE_BYPASS_KEY));
+    return Number.isFinite(until) && until > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function markPersistentLocalCacheBypass() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      LOCAL_CACHE_BYPASS_KEY,
+      String(Date.now() + LOCAL_CACHE_BYPASS_MS)
+    );
+  } catch {
+    // If even this marker cannot be written, the in-memory cache still works.
+  }
+}
+
+function clearPersistentLocalCacheBypass() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LOCAL_CACHE_BYPASS_KEY);
+  } catch {
+    // Best-effort cache marker cleanup only.
   }
 }
