@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAllDatabases } from "@/lib/db/local/queries";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
+import { useDatabases } from "@/hooks/useDatabases";
 import { usePages } from "@/hooks/usePages";
 import {
   MODULE_EXTENSION_SLOTS,
@@ -51,14 +51,13 @@ import {
   DEFAULT_APP_LOCALE,
 } from "@/lib/i18n/platformLanguage";
 import { ZhiNoteLogo } from "@/components/brand/ZhiNoteLogo";
-import type { Database } from "@/lib/utils/types";
 
 const STATUS_ORDER: ModuleStatus[] = ["active", "beta", "planned"];
 
 export default function ModuleDashboard() {
   const router = useRouter();
   const { pages, refresh } = usePages();
-  const [databases, setDatabases] = useState<Database[]>([]);
+  const { databases, refresh: refreshDatabases } = useDatabases();
   const [exportingManifest, setExportingManifest] = useState(false);
   const [exportingOnboarding, setExportingOnboarding] = useState(false);
   const [exportingStarterPack, setExportingStarterPack] = useState(false);
@@ -94,14 +93,6 @@ export default function ModuleDashboard() {
     [databases.length, moduleHealth, moduleManifest, moduleRoadmap, pages.length]
   );
 
-  useEffect(() => {
-    void getAllDatabases()
-      .then(setDatabases)
-      .catch((err) => {
-        console.error("[Zhinote] Failed to load module dashboard databases:", err);
-      });
-  }, []);
-
   const handleNewPage = async () => {
     const page = await createPageWithCloud({ title: "未命名研究笔记" });
     await refresh();
@@ -110,7 +101,7 @@ export default function ModuleDashboard() {
 
   const handleNewDatabase = async () => {
     const database = await createDatabase({ title: "未命名投研数据库" });
-    setDatabases((current) => [database, ...current]);
+    await refreshDatabases();
     router.push(`/database/${database.id}`);
   };
 
@@ -119,7 +110,7 @@ export default function ModuleDashboard() {
     if (!starter) return;
     const result = await executeModuleStarter(starter);
     if (result.database) {
-      setDatabases((current) => [result.database as Database, ...current]);
+      await refreshDatabases();
     }
     await refresh();
     router.push(result.route);

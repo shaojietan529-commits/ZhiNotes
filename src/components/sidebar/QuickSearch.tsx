@@ -2,12 +2,10 @@
 
 import { Fragment, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import {
-  getAllDatabases,
-  searchPages,
-} from "@/lib/db/local/queries";
+import { searchPages } from "@/lib/db/local/queries";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
+import { useDatabases } from "@/hooks/useDatabases";
 import { usePages } from "@/hooks/usePages";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
 import {
@@ -80,7 +78,7 @@ export default function QuickSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Page[]>([]);
-  const [databases, setDatabases] = useState<Database[]>([]);
+  const { databases, refresh: refreshDatabases } = useDatabases();
   const [savedSearches, setSavedSearches] =
     useState<string[]>(readSavedSearches);
   const [resultFilter, setResultFilter] = useState<ResultFilter>("all");
@@ -131,13 +129,9 @@ export default function QuickSearch() {
         setPageActivityFilter("suggested");
         setSelectedIndex(0);
       }, 50);
-      void getAllDatabases()
-        .then(setDatabases)
-        .catch((err) => {
-          console.error("[Zhinote] Failed to load databases for search:", err);
-        });
+      void refreshDatabases({ broadcast: false });
     }
-  }, [open]);
+  }, [open, refreshDatabases]);
 
   const handleSearch = useCallback(async (value: string) => {
     const requestId = searchRequestRef.current + 1;
@@ -189,7 +183,7 @@ export default function QuickSearch() {
 
   const handleCreateDatabase = async () => {
     const database = await createDatabase({ title: "未命名数据库" });
-    setDatabases((currentDatabases) => [database, ...currentDatabases]);
+    await refreshDatabases();
     setOpen(false);
     setQuery("");
     setResults([]);
@@ -284,10 +278,7 @@ export default function QuickSearch() {
     try {
       const result = await executeModuleStarter(starter);
       if (result.database) {
-        setDatabases((currentDatabases) => [
-          result.database as Database,
-          ...currentDatabases,
-        ]);
+        await refreshDatabases();
       }
       await refresh();
       setOpen(false);

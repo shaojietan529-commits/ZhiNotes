@@ -96,6 +96,13 @@ interface DatabaseSyncChangesResult {
   source: "change-log" | "index";
 }
 
+interface DatabaseSyncMetadataResult {
+  records: DatabaseSyncRecord[];
+  count: number;
+  total: number;
+  summary: DatabaseSyncSummary;
+}
+
 function isValidId(value: unknown): value is string {
   return (
     typeof value === "string" &&
@@ -438,6 +445,32 @@ async function getChangesSince(
   };
 }
 
+async function getDatabaseMetadata(
+  config: AccountConfig,
+  email: string,
+  limit: number
+): Promise<DatabaseSyncMetadataResult> {
+  const index = await readIndex(config, email);
+  const databaseKeys = Object.entries(index)
+    .filter(([key, entry]) => isValidRecordKey(key) && entry.t === "database")
+    .sort(
+      ([leftKey, left], [rightKey, right]) =>
+        compareChangePosition(right.u, rightKey, left.u, leftKey)
+    )
+    .map(([key]) => key);
+  const records = await readRecordsByKeys(
+    config,
+    email,
+    databaseKeys.slice(0, limit)
+  );
+  return {
+    records,
+    count: records.length,
+    total: databaseKeys.length,
+    summary: summarizeIndex(index),
+  };
+}
+
 export async function POST(request: Request) {
   const config = getAccountConfig();
   if (!config) {
@@ -496,6 +529,15 @@ export async function POST(request: Request) {
     if (body.action === "summary") {
       const index = await readIndex(config, me);
       return NextResponse.json({ summary: summarizeIndex(index) });
+    }
+
+    if (body.action === "database-metadata") {
+      const limit =
+        typeof body.limit === "number" && Number.isInteger(body.limit)
+          ? Math.min(MAX_PULL_RECORDS, Math.max(1, body.limit))
+          : MAX_PULL_RECORDS;
+      const result = await getDatabaseMetadata(config, me, limit);
+      return NextResponse.json({ ok: true, ...result });
     }
 
     if (body.action === "changes-since") {

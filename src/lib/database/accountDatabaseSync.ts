@@ -62,6 +62,15 @@ export interface CloudDatabaseChangesResult {
   message?: string;
 }
 
+export interface CloudDatabaseMetadataResult {
+  status: DatabaseSyncStatus;
+  records: CloudDatabaseRecord[];
+  count: number;
+  total: number;
+  summary?: DatabaseSyncIndexSummary;
+  message?: string;
+}
+
 export interface CloudDatabaseLookupResult {
   status: DatabaseSyncStatus;
   records: CloudDatabaseRecord[];
@@ -279,6 +288,62 @@ export async function fetchCloudDatabaseChangesSince(
     cursor,
     hasMore: Boolean(res.json.hasMore),
     summary: summary ?? undefined,
+  };
+}
+
+export async function fetchCloudDatabaseMetadata(
+  limit = PULL_BATCH
+): Promise<CloudDatabaseMetadataResult> {
+  const res = await call({ action: "database-metadata", limit });
+  if (!res.ok) {
+    return {
+      status: res.status,
+      records: [],
+      count: 0,
+      total: 0,
+      message: res.message,
+    };
+  }
+  const summary = normalizeSummary(res.json.summary);
+  if (summary?.cursor) setRemoteCursor(summary.cursor);
+  setLastDatabaseSyncAtNow();
+  const records = Array.isArray(res.json.records)
+    ? (res.json.records as CloudDatabaseRecord[])
+    : [];
+  return {
+    status: "ok",
+    records,
+    count: typeof res.json.count === "number" ? res.json.count : records.length,
+    total: typeof res.json.total === "number" ? res.json.total : records.length,
+    summary: summary ?? undefined,
+  };
+}
+
+export async function syncCloudDatabaseMetadata(): Promise<{
+  status: DatabaseSyncStatus;
+  pulled: number;
+  total: number;
+  message?: string;
+}> {
+  if (!isDatabaseSyncEnabled()) {
+    return { status: "disabled", pulled: 0, total: 0 };
+  }
+  const metadata = await fetchCloudDatabaseMetadata();
+  if (metadata.status !== "ok") {
+    return {
+      status: metadata.status,
+      pulled: 0,
+      total: 0,
+      message: metadata.message,
+    };
+  }
+  if (metadata.records.length > 0) {
+    await applyRemoteDatabaseRecords(metadata.records);
+  }
+  return {
+    status: "ok",
+    pulled: metadata.records.length,
+    total: metadata.total,
   };
 }
 

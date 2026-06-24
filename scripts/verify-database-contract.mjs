@@ -22,6 +22,7 @@ const files = {
   databaseAccountSyncRoute: "src/app/api/databases/account-sync/route.ts",
   databaseAccountSyncClient: "src/lib/database/accountDatabaseSync.ts",
   databaseCloudMutations: "src/lib/database/cloudDatabaseMutations.ts",
+  useDatabases: "src/hooks/useDatabases.ts",
   databaseCloudSyncHook: "src/hooks/useDatabaseCloudSync.ts",
   databaseUpdateBus: "src/lib/database/databaseUpdateBus.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
@@ -164,6 +165,7 @@ function run() {
     files.databaseAccountSyncClient
   );
   const databaseCloudMutations = readProjectFile(files.databaseCloudMutations);
+  const useDatabases = readProjectFile(files.useDatabases);
   const databaseCloudSyncHook = readProjectFile(files.databaseCloudSyncHook);
   const databaseUpdateBus = readProjectFile(files.databaseUpdateBus);
   const accountShell = readProjectFile(files.accountShell);
@@ -214,6 +216,7 @@ function run() {
     "readSessionToken(request)",
     "getSessionAccount(config, token)",
     'body.action === "changes-since"',
+    'body.action === "database-metadata"',
     'body.action === "push"',
     'body.action === "pull"',
     "CHANGE_LOG_LIMIT",
@@ -252,6 +255,8 @@ function run() {
     "DATABASE_SYNC_CONFIG_EVENT",
     'fetch("/api/databases/account-sync"',
     "fetchCloudDatabaseChangesSince",
+    "fetchCloudDatabaseMetadata",
+    "syncCloudDatabaseMetadata",
     "pushCloudDatabaseRecords",
     "fetchCloudDatabaseRecordsByKeys",
     "pushLocalDatabasesToCloud",
@@ -301,6 +306,45 @@ function run() {
       databaseCloudMutations,
       snippet,
       "Database local mutations must immediately queue cloud writes and notify active UI."
+    );
+  }
+  for (const snippet of [
+    "getAllDatabases",
+    "syncCloudDatabaseMetadata",
+    "setDatabases(all)",
+    "Cloud metadata refresh is",
+    "subscribeDatabasesUpdated",
+    "emitDatabasesUpdated",
+  ]) {
+    assertIncludes(
+      files.useDatabases,
+      useDatabases,
+      snippet,
+      "Database list UI must show local cache first and then prewarm cloud metadata."
+    );
+  }
+  for (const [sourceLabel, source] of [
+    [files.sidebar, sidebar],
+    [files.quickSearch, quickSearch],
+    [files.moduleDashboard, moduleDashboard],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "useDatabases",
+      "Primary database list surfaces must use cloud metadata prewarm instead of only local reads."
+    );
+  }
+  for (const snippet of [
+    "syncCloudDatabaseMetadata",
+    "subscribeDatabasesUpdated",
+    "setSnapshots(await loadSnapshots())",
+  ]) {
+    assertIncludes(
+      files.databaseModuleShell,
+      databaseModuleShell,
+      snippet,
+      "Database module dashboard must prewarm cloud database metadata and reload on database update broadcasts."
     );
   }
   for (const [sourceLabel, source] of [
@@ -398,7 +442,7 @@ function run() {
   }
   for (const snippet of [
     "useDatabaseCloudSync",
-    "subscribeDatabasesUpdated",
+    "useDatabases",
     "databaseSync.state",
     "数据库已同步",
   ]) {

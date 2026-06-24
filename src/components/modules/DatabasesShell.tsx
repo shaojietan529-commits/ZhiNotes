@@ -11,6 +11,7 @@ import {
   getViews,
 } from "@/lib/db/local/queries";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
+import { syncCloudDatabaseMetadata } from "@/lib/database/accountDatabaseSync";
 import {
   buildDatabaseModuleDashboardReport,
   getDatabaseFieldTypeBreakdown,
@@ -55,6 +56,7 @@ import {
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { subscribeDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
 
 const DATABASE_STARTER_MODULE_IDS = [
   "company-research",
@@ -106,35 +108,56 @@ function DatabasesDashboard() {
     useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const loadSnapshots = useCallback(async () => {
+    const databases = await getAllDatabases();
+    return Promise.all(
+      databases.map(async (database) => {
+        const [fields, views, rowCount] = await Promise.all([
+          getFields(database.id),
+          getViews(database.id),
+          getDatabaseRowCount(database.id),
+        ]);
+
+        return {
+          database,
+          fields,
+          views,
+          rowCount,
+        };
+      })
+    );
+  }, []);
+
   const loadDashboard = useCallback(async () => {
     try {
       setLoadError(null);
-      const databases = await getAllDatabases();
-      const loadedSnapshots = await Promise.all(
-        databases.map(async (database) => {
-          const [fields, views, rowCount] = await Promise.all([
-            getFields(database.id),
-            getViews(database.id),
-            getDatabaseRowCount(database.id),
-          ]);
-
-          return {
-            database,
-            fields,
-            views,
-            rowCount,
-          };
-        })
-      );
-      setSnapshots(loadedSnapshots);
+      setSnapshots(await loadSnapshots());
+      const cloud = await syncCloudDatabaseMetadata();
+      if (cloud.status === "ok" && cloud.pulled > 0) {
+        setSnapshots(await loadSnapshots());
+      }
     } catch (err) {
       console.error("[Zhinote] Failed to load database module dashboard:", err);
       setLoadError("无法加载本地数据库总览。");
     }
-  }, []);
+  }, [loadSnapshots]);
 
   useEffect(() => {
     void loadDashboard();
+  }, [loadDashboard]);
+
+  useEffect(() => {
+    let timer: number | null = null;
+    const unsubscribe = subscribeDatabasesUpdated(() => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void loadDashboard();
+      }, 120);
+    });
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      unsubscribe();
+    };
   }, [loadDashboard]);
 
   useEffect(() => {

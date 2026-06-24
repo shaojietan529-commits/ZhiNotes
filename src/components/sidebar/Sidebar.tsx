@@ -10,12 +10,11 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getAllDatabases } from "@/lib/db/local/queries";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useDatabases } from "@/hooks/useDatabases";
 import { usePages } from "@/hooks/usePages";
-import type { Database } from "@/lib/utils/types";
 import QuickSearch from "./QuickSearch";
 import PageTree from "./PageTree";
 import TrashPages from "./TrashPages";
@@ -30,7 +29,6 @@ import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
 import { ZhiNoteLogo, ZhiNoteMark } from "@/components/brand/ZhiNoteLogo";
 import { usePageCloudSync } from "@/hooks/usePageCloudSync";
 import { useDatabaseCloudSync } from "@/hooks/useDatabaseCloudSync";
-import { subscribeDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
 import {
   ACCOUNT_PROFILE_UPDATED_EVENT,
   type ClientAccountInfo,
@@ -188,10 +186,9 @@ function persistSidebarPrimaryCustomizations(
 export default function Sidebar() {
   const router = useRouter();
   const { refresh } = usePages();
+  const { databases, refresh: refreshDatabases } = useDatabases();
   const sidebarOpen = useWorkspaceStore((s) => s.sidebarOpen);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
-  const dbReady = useWorkspaceStore((s) => s.dbReady);
-  const [databases, setDatabases] = useState<Database[]>([]);
   const [backupRunning, setBackupRunning] = useState(false);
   const [markdownExportRunning, setMarkdownExportRunning] = useState(false);
   const [zipExportRunning, setZipExportRunning] = useState(false);
@@ -233,31 +230,6 @@ export default function Sidebar() {
       setAccountLabel("账号");
     }
   }, []);
-
-  useEffect(() => {
-    if (dbReady) {
-      getAllDatabases().then(setDatabases);
-    }
-  }, [dbReady]);
-
-  const refreshDatabases = useCallback(async () => {
-    setDatabases(await getAllDatabases());
-  }, []);
-
-  useEffect(() => {
-    if (!dbReady) return;
-    let timer: number | null = null;
-    const unsubscribe = subscribeDatabasesUpdated(() => {
-      if (timer !== null) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        void refreshDatabases();
-      }, 120);
-    });
-    return () => {
-      if (timer !== null) window.clearTimeout(timer);
-      unsubscribe();
-    };
-  }, [dbReady, refreshDatabases]);
 
   useEffect(() => {
     try {
