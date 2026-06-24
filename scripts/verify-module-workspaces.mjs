@@ -293,6 +293,13 @@ for (const token of [
   "CREATE_TABLES_WITHOUT_DAILY_DATE_INDEX",
   "resetPersistentLocalCache",
   "LOCAL_CACHE_BYPASS_KEY",
+  "LOCAL_CACHE_RECOVERY_EVENT",
+  "LOCAL_CACHE_RECOVERY_SIGNAL_KEY",
+  "markLocalCacheNeedsCloudRecovery",
+  "getLocalCacheRecoverySignal",
+  "persistent-cache-reset",
+  "persistent-cache-bypass",
+  "persistent-cache-bypassed",
   "wrapRawDb(createMemoryDb())",
 ]) {
   check(

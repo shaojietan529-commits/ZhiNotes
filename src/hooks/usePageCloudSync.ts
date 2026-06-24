@@ -8,10 +8,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
+  getLocalCacheRecoverySignal,
+  LOCAL_CACHE_RECOVERY_EVENT,
+} from "@/lib/db/local/client";
+import {
   isPageSyncEnabled,
   reconcilePageSync,
   getLastPageSyncAt,
   PAGE_SYNC_CONFIG_EVENT,
+  syncCloudPageMetadataDelta,
 } from "@/lib/pages/accountPageSync";
 import { getPageUpdateClientId } from "@/lib/pages/pageUpdateBus";
 
@@ -76,6 +81,7 @@ export function usePageCloudSync() {
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const runningRef = useRef(false);
   const authRetryAfterRef = useRef(0);
+  const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
 
   const runSync = useCallback(async (options: { quick?: boolean; forceLease?: boolean } = {}) => {
     if (!isPageSyncEnabled()) {
@@ -121,11 +127,40 @@ export function usePageCloudSync() {
     }
   }, []);
 
+  const recoverLocalCacheFromCloud = useCallback(async () => {
+    const signal = getLocalCacheRecoverySignal();
+    if (!signal || seenLocalCacheRecoverySignalRef.current === signal.id) {
+      return;
+    }
+    seenLocalCacheRecoverySignalRef.current = signal.id;
+    if (!isPageSyncEnabled()) return;
+    const result = await syncCloudPageMetadataDelta({
+      force: true,
+      fullRefresh: true,
+    });
+    if (result.status === "ok") {
+      setState("synced");
+      setLastSyncAt(getLastPageSyncAt());
+      void runSync({ quick: true, forceLease: true });
+    } else if (
+      result.status === "unauthenticated" ||
+      result.status === "unconfigured"
+    ) {
+      authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+      setState("signed-out");
+    } else if (result.status === "disabled") {
+      setState("disabled");
+    } else {
+      setState("error");
+    }
+  }, [runSync]);
+
   useEffect(() => {
     if (!dbReady) return;
     const initialSyncTimer = window.setTimeout(() => {
       void runSync({ quick: true });
     }, INITIAL_SYNC_DELAY_MS);
+    void recoverLocalCacheFromCloud();
     // Only poll while the tab is visible; returning to a hidden tab re-syncs
     // via the visibility/focus handlers below, so background tabs stay quiet.
     const interval = window.setInterval(() => {
@@ -142,7 +177,9 @@ export function usePageCloudSync() {
       }
     };
     const handleForeground = () => void runSync({ quick: true });
+    const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
+    window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT, handleLocalCacheRecovery);
     window.addEventListener("focus", handleForeground);
     window.addEventListener("online", handleForeground);
     document.addEventListener("visibilitychange", handleVisible);
@@ -150,11 +187,15 @@ export function usePageCloudSync() {
       window.clearTimeout(initialSyncTimer);
       window.clearInterval(interval);
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
+      window.removeEventListener(
+        LOCAL_CACHE_RECOVERY_EVENT,
+        handleLocalCacheRecovery
+      );
       window.removeEventListener("focus", handleForeground);
       window.removeEventListener("online", handleForeground);
       document.removeEventListener("visibilitychange", handleVisible);
     };
-  }, [dbReady, runSync]);
+  }, [dbReady, recoverLocalCacheFromCloud, runSync]);
 
   // Push local edits up shortly after they settle. Reconcile is idempotent
   // (no diff → no network write), and the pull→refresh path converges, so

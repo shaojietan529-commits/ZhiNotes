@@ -12,11 +12,23 @@ let dbInstance: SqliteDb | null = null;
 let initPromise: Promise<SqliteDb> | null = null;
 const LOCAL_STORAGE_DB_NAME = "local";
 const LOCAL_CACHE_BYPASS_KEY = "zhinote.localCache.skipPersistentUntil";
+const LOCAL_CACHE_RECOVERY_SIGNAL_KEY =
+  "zhinote.localCache.recoverySignal.v1";
 const LOCAL_CACHE_BYPASS_MS = 10 * 60 * 1000;
+export const LOCAL_CACHE_RECOVERY_EVENT = "zhinote:local-cache-recovery";
 const CREATE_TABLES_WITHOUT_DAILY_DATE_INDEX = CREATE_TABLES_SQL.replace(
   /\s*CREATE INDEX IF NOT EXISTS idx_pages_daily_date ON pages\(daily_date_key, updated_at DESC\);\s*/,
   "\n"
 );
+
+export interface LocalCacheRecoverySignal {
+  id: string;
+  reason: string;
+  at: string;
+}
+
+let localCacheRecoveryCounter = 0;
+let memoryLocalCacheRecoverySignal: LocalCacheRecoverySignal | null = null;
 
 export async function getDb(): Promise<SqliteDb> {
   if (dbInstance) return dbInstance;
@@ -44,6 +56,7 @@ async function initializeDb(): Promise<SqliteDb> {
   const createFallbackDb = () => {
     if (shouldBypassPersistentLocalCache()) {
       console.warn("[Zhinote] Persistent local cache bypassed, using in-memory DB");
+      markLocalCacheNeedsCloudRecovery("persistent-cache-bypassed");
       return createMemoryDb();
     }
     if (sqlite3.oo1.JsStorageDb) {
@@ -84,6 +97,7 @@ async function initializeDb(): Promise<SqliteDb> {
         db = wrapRawDb(rawDb);
         installLocalSchema(db);
         clearPersistentLocalCacheBypass();
+        markLocalCacheNeedsCloudRecovery("persistent-cache-reset");
         return db;
       } catch (retryError) {
         console.warn(
@@ -93,6 +107,7 @@ async function initializeDb(): Promise<SqliteDb> {
       }
     }
     markPersistentLocalCacheBypass();
+    markLocalCacheNeedsCloudRecovery("persistent-cache-bypass");
     db = wrapRawDb(createMemoryDb());
     installLocalSchema(db);
   }
@@ -234,4 +249,52 @@ function clearPersistentLocalCacheBypass() {
   } catch {
     // Best-effort cache marker cleanup only.
   }
+}
+
+export function getLocalCacheRecoverySignal(): LocalCacheRecoverySignal | null {
+  if (typeof window !== "undefined") {
+    try {
+      const raw = window.localStorage.getItem(LOCAL_CACHE_RECOVERY_SIGNAL_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<LocalCacheRecoverySignal>;
+        if (
+          typeof parsed.id === "string" &&
+          typeof parsed.reason === "string" &&
+          typeof parsed.at === "string"
+        ) {
+          return {
+            id: parsed.id,
+            reason: parsed.reason,
+            at: parsed.at,
+          };
+        }
+      }
+    } catch {
+      // The memory copy below is enough for the current tab.
+    }
+  }
+  return memoryLocalCacheRecoverySignal;
+}
+
+function markLocalCacheNeedsCloudRecovery(reason: string): void {
+  const signal: LocalCacheRecoverySignal = {
+    id: `${Date.now().toString(36)}-${++localCacheRecoveryCounter}`,
+    reason,
+    at: new Date().toISOString(),
+  };
+  memoryLocalCacheRecoverySignal = signal;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      LOCAL_CACHE_RECOVERY_SIGNAL_KEY,
+      JSON.stringify(signal)
+    );
+  } catch {
+    // Browser storage is only a coordination cache; the memory signal remains.
+  }
+  window.dispatchEvent(
+    new CustomEvent<LocalCacheRecoverySignal>(LOCAL_CACHE_RECOVERY_EVENT, {
+      detail: signal,
+    })
+  );
 }

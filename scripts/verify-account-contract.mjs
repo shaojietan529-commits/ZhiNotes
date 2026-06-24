@@ -585,6 +585,18 @@ check(
   "页面同步在未登录/未配置时应短期退避，避免多端或本地开发环境持续空转轮询"
 );
 check(
+  pageCloudSyncHook.includes("LOCAL_CACHE_RECOVERY_EVENT") &&
+    pageCloudSyncHook.includes("getLocalCacheRecoverySignal") &&
+    pageCloudSyncHook.includes("recoverLocalCacheFromCloud") &&
+    pageCloudSyncHook.includes("seenLocalCacheRecoverySignalRef") &&
+    pageCloudSyncHook.includes("syncCloudPageMetadataDelta({") &&
+    pageCloudSyncHook.includes("force: true") &&
+    pageCloudSyncHook.includes("fullRefresh: true") &&
+    pageCloudSyncHook.includes("window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT") &&
+    pageCloudSyncHook.includes("void recoverLocalCacheFromCloud()"),
+  "页面同步应在本地 SQLite 缓存重置/降级后强制从云端 metadata 恢复本机页面缓存"
+);
+check(
   pageSyncClient.includes("AUTH_RETRY_BACKOFF_MS") &&
     pageSyncClient.includes('AUTH_RETRY_KEY = "zhinote.pagesync.authRetry.v1"') &&
     pageSyncClient.includes("shouldBackOffAuthRetry") &&

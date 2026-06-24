@@ -5,12 +5,17 @@
 // by cursor, and lets only one visible tab hold the polling lease.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  getLocalCacheRecoverySignal,
+  LOCAL_CACHE_RECOVERY_EVENT,
+} from "@/lib/db/local/client";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   DATABASE_SYNC_CONFIG_EVENT,
   getLastDatabaseSyncAt,
   isDatabaseSyncEnabled,
   reconcileDatabaseSync,
+  syncCloudDatabaseMetadataDelta,
 } from "@/lib/database/accountDatabaseSync";
 import {
   DATABASE_LOCAL_UPDATE_EVENT,
@@ -77,6 +82,7 @@ export function useDatabaseCloudSync() {
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const runningRef = useRef(false);
   const authRetryAfterRef = useRef(0);
+  const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
 
   const runSync = useCallback(
     async (options: { forceLease?: boolean; quick?: boolean } = {}) => {
@@ -134,12 +140,43 @@ export function useDatabaseCloudSync() {
     []
   );
 
+  const recoverLocalCacheFromCloud = useCallback(async () => {
+    const signal = getLocalCacheRecoverySignal();
+    if (!signal || seenLocalCacheRecoverySignalRef.current === signal.id) {
+      return;
+    }
+    seenLocalCacheRecoverySignalRef.current = signal.id;
+    if (!isDatabaseSyncEnabled()) return;
+    const result = await syncCloudDatabaseMetadataDelta({
+      fullRefresh: true,
+    });
+    if (result.status === "ok") {
+      setState("synced");
+      setLastSyncAt(getLastDatabaseSyncAt());
+      if (result.pulled > 0) {
+        emitDatabasesUpdated("cloud-pull", result.pulled, result.records);
+      }
+      void runSync({ forceLease: true, quick: true });
+    } else if (
+      result.status === "unauthenticated" ||
+      result.status === "unconfigured"
+    ) {
+      authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+      setState("signed-out");
+    } else if (result.status === "disabled") {
+      setState("disabled");
+    } else {
+      setState("error");
+    }
+  }, [runSync]);
+
   useEffect(() => {
     if (!dbReady) return;
     let editSyncTimer: number | undefined;
     const initialSyncTimer = window.setTimeout(() => {
       void runSync({ quick: true });
     }, INITIAL_SYNC_DELAY_MS);
+    void recoverLocalCacheFromCloud();
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") {
         void runSync({ quick: true });
@@ -150,6 +187,7 @@ export function useDatabaseCloudSync() {
       if (document.visibilityState === "visible") void runSync({ quick: true });
     };
     const handleForeground = () => void runSync({ quick: true });
+    const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
     const handleLocalDatabaseUpdate = (event: Event) => {
       const message = (event as CustomEvent<DatabaseUpdateMessage>).detail;
       if (message?.reason !== "local-refresh") return;
@@ -159,6 +197,7 @@ export function useDatabaseCloudSync() {
       }, EDIT_DEBOUNCE_MS);
     };
     window.addEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
+    window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT, handleLocalCacheRecovery);
     window.addEventListener(
       DATABASE_LOCAL_UPDATE_EVENT,
       handleLocalDatabaseUpdate
@@ -172,6 +211,10 @@ export function useDatabaseCloudSync() {
       window.clearInterval(interval);
       window.removeEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
       window.removeEventListener(
+        LOCAL_CACHE_RECOVERY_EVENT,
+        handleLocalCacheRecovery
+      );
+      window.removeEventListener(
         DATABASE_LOCAL_UPDATE_EVENT,
         handleLocalDatabaseUpdate
       );
@@ -179,7 +222,7 @@ export function useDatabaseCloudSync() {
       window.removeEventListener("online", handleForeground);
       document.removeEventListener("visibilitychange", handleVisible);
     };
-  }, [dbReady, runSync]);
+  }, [dbReady, recoverLocalCacheFromCloud, runSync]);
 
   return { state, lastSyncAt, syncNow: runSync };
 }
