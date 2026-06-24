@@ -155,6 +155,25 @@ check(
   !pageSyncClient.includes("console.log"),
   "页面同步客户端不应该 console.log（避免泄露页面内容）"
 );
+check(
+  pageSyncClient.includes("rebuildPageCacheFromCloud"),
+  "页面同步客户端应提供从云端重建本机页面缓存的入口"
+);
+check(
+  pageSyncClient.includes("clearLocalPageCacheForIds"),
+  "重建本机页面缓存前应先清理本机已同步页面缓存"
+);
+
+const localQueries = read("src/lib/db/local/queries.ts");
+check(
+  localQueries.includes("clearLocalPageCacheForIds"),
+  "local queries 应提供按云端页面 id 清理本机页面缓存的 helper"
+);
+check(
+  localQueries.includes("content_yjs = NULL") &&
+    localQueries.includes("content_text = NULL"),
+  "本机页面缓存清理应同时清理编辑器正文缓存"
+);
 
 const accountShell = read("src/components/modules/AccountShell.tsx");
 check(
@@ -169,6 +188,15 @@ check(accountShell.includes("用户名"), "AccountShell 缺少用户名编辑入
 check(
   accountShell.includes("display_name"),
   "AccountShell 应读取和保存 display_name"
+);
+check(
+  accountShell.includes("重建本机页面缓存"),
+  "AccountShell 应提供重建本机页面缓存按钮"
+);
+check(
+  accountShell.includes("云端数据不会删除") &&
+    accountShell.includes("数据库表格、本地文件、评论、版本历史不会上传或删除"),
+  "重建本机页面缓存前必须解释云端数据和本地私有数据边界"
 );
 
 const sidebar = read("src/components/sidebar/Sidebar.tsx");
