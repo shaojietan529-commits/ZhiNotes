@@ -268,7 +268,6 @@ export default function DailyNotesShell() {
       if (creatingDateKey) return;
       loadRequestRef.current += 1;
       setCreatingDateKey(dateKey);
-      setCloudNotice(`正在创建 ${dateKey} 的每日纪要…`);
       const props = [
         { ...createPageProperty("date", "日期"), value: dateKey },
         createPageProperty("text", "要点"),
@@ -277,54 +276,70 @@ export default function DailyNotesShell() {
         createPageProperty("tags", "相关行业"),
       ];
       const properties = stringifyPageProperties(props);
-      try {
-        const dailyRootId =
-          rootId ?? getModuleRootIdSync("daily") ?? (await getModuleRootId("daily"));
-        if (!rootId) setRootId(dailyRootId);
-        const now = new Date().toISOString();
-        const optimisticNote: DailyNote = {
-          ...makeRemoteBackedPage({
-            id: generateId(),
-            parentId: dailyRootId,
-            title: "",
-            icon: null,
-            properties,
-            contentText: "",
-            position: Date.now(),
-            depth: 1,
-            createdAt: now,
-            updatedAt: now,
-          }),
+      const initialRootId = rootId ?? getModuleRootIdSync("daily");
+      const now = new Date().toISOString();
+      const optimisticNote: DailyNote = {
+        ...makeRemoteBackedPage({
+          id: generateId(),
+          parentId: initialRootId,
+          title: "",
+          icon: null,
           properties,
-          dailyDateKey: dateKey,
-          cloudOnly: true,
-        };
-        setNotes((current) => [
-          optimisticNote,
-          ...current.filter((item) => item.id !== optimisticNote.id),
-        ]);
-        upsertPages([optimisticNote]);
-        setPeekInitialPage(optimisticNote);
-        setPeekPageId(optimisticNote.id);
-        setCloudNotice(`${dateKey} 的每日纪要已打开，正在后台保存到账号云端…`);
-        void persistOptimisticDailyNote(dailyRootId, optimisticNote, upsertPages)
-          .then(() => {
-            setCloudNotice(
-              `${dateKey} 的每日纪要已保存；本地缓存会在后台自动重建。`
-            );
-          })
-          .catch((error) => {
-            const message =
-              error instanceof Error ? error.message : "账号云端保存失败";
-            setCloudNotice(`每日纪要已在当前页面打开，但后台保存失败：${message}`);
-          });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "未知本机写入错误";
-        setCloudNotice(`创建每日纪要失败：${message}`);
-      } finally {
-        setCreatingDateKey(null);
-      }
+          contentText: "",
+          position: Date.now(),
+          depth: initialRootId ? 1 : 0,
+          createdAt: now,
+          updatedAt: now,
+        }),
+        properties,
+        dailyDateKey: dateKey,
+        cloudOnly: true,
+      };
+      setNotes((current) => [
+        optimisticNote,
+        ...current.filter((item) => item.id !== optimisticNote.id),
+      ]);
+      upsertPages([optimisticNote]);
+      setPeekInitialPage(optimisticNote);
+      setPeekPageId(optimisticNote.id);
+      setCloudNotice(`${dateKey} 的每日纪要已打开，正在后台保存到账号云端…`);
+
+      void (async () => {
+        try {
+          const dailyRootId = initialRootId ?? (await getModuleRootId("daily"));
+          if (!rootId) setRootId(dailyRootId);
+          const latestNote = await getLatestOpenedDailyNote(optimisticNote);
+          const noteForSave: DailyNote = {
+            ...latestNote,
+            parent_id: dailyRootId,
+            depth: 1,
+            dailyDateKey: dateKey,
+            updated_at:
+              latestNote.parent_id === dailyRootId
+                ? latestNote.updated_at
+                : new Date().toISOString(),
+          };
+          setNotes((current) =>
+            current.map((item) =>
+              item.id === noteForSave.id ? noteForSave : item
+            )
+          );
+          upsertPages([noteForSave]);
+          setPeekInitialPage((current) =>
+            current?.id === noteForSave.id ? noteForSave : current
+          );
+          await persistOptimisticDailyNote(dailyRootId, noteForSave, upsertPages);
+          setCloudNotice(
+            `${dateKey} 的每日纪要已保存；本地缓存会在后台自动重建。`
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "账号云端保存失败";
+          setCloudNotice(`每日纪要已在当前页面打开，但后台保存失败：${message}`);
+        } finally {
+          setCreatingDateKey(null);
+        }
+      })();
     },
     [creatingDateKey, rootId, upsertPages]
   );
@@ -890,6 +905,30 @@ function makeDailyRootMetadataRecord(
     updated_at: updatedAt,
     deleted_at: null,
   };
+}
+
+async function getLatestOpenedDailyNote(note: DailyNote): Promise<DailyNote> {
+  const memoryPage = useWorkspaceStore
+    .getState()
+    .pages.find((page) => page.id === note.id);
+  if (memoryPage) {
+    return {
+      ...note,
+      ...memoryPage,
+      dailyDateKey: note.dailyDateKey || readDailyNoteDateKey(memoryPage),
+      cloudOnly: true,
+    };
+  }
+  const localPage = await getPage(note.id).catch(() => null);
+  if (localPage) {
+    return {
+      ...note,
+      ...localPage,
+      dailyDateKey: note.dailyDateKey || readDailyNoteDateKey(localPage),
+      cloudOnly: true,
+    };
+  }
+  return note;
 }
 
 async function persistOptimisticDailyNote(
