@@ -34,7 +34,15 @@ type PageUpdates = Partial<
   >
 >;
 
-export function usePage(pageId: string | null) {
+interface UsePageOptions {
+  enabled?: boolean;
+}
+
+export function usePage(
+  pageId: string | null,
+  options: UsePageOptions = {}
+) {
+  const enabled = options.enabled ?? true;
   const [page, setPage] = useState<Page | null>(null);
   const [loading, setLoading] = useState(true);
   const dbReady = useWorkspaceStore((s) => s.dbReady);
@@ -42,7 +50,7 @@ export function usePage(pageId: string | null) {
   const pageRevision = usePageRecordRevision(pageId);
 
   const load = useCallback(async () => {
-    if (!pageId || !dbReady) {
+    if (!enabled || !pageId || !dbReady) {
       setPage(null);
       setLoading(false);
       return;
@@ -93,7 +101,7 @@ export function usePage(pageId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [pageId, dbReady, upsertPages]);
+  }, [enabled, pageId, dbReady, upsertPages]);
 
   useEffect(() => {
     queueMicrotask(() => {

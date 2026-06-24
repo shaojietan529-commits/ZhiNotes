@@ -7,7 +7,7 @@ import PageProperties from "@/components/page/PageProperties";
 import { usePage } from "@/hooks/usePage";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
-import { listPageMetadata } from "@/lib/db/local/queries";
+import { getPageMetadata, listPageMetadata } from "@/lib/db/local/queries";
 import {
   parsePageProperties,
   stringifyPageProperties,
@@ -39,11 +39,15 @@ export default function PagePeekModal({
   onOpenFull,
   onChanged,
 }: PagePeekModalProps) {
-  const { page, loading, update } = usePage(pageId);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const [fallbackPage, setFallbackPage] = useState<Page | null>(
     initialPage ?? null
   );
+  const [metadataLoading, setMetadataLoading] = useState(!initialPage);
+  const [editorLoadRequested, setEditorLoadRequested] = useState(false);
+  const { page, loading, update } = usePage(pageId, {
+    enabled: editorLoadRequested,
+  });
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<PageProperty[]>([]);
   const previousPageIdRef = useRef(pageId);
@@ -57,6 +61,7 @@ export default function PagePeekModal({
   const effectivePage =
     currentLoadedPage ?? currentFallbackPage ?? currentInitialPage ?? null;
   const bodyLoading =
+    editorLoadRequested &&
     loading &&
     Boolean(effectivePage) &&
     effectivePage?.content_text == null &&
@@ -76,6 +81,8 @@ export default function PagePeekModal({
     previousPageIdRef.current = pageId;
     queueMicrotask(() => {
       setFallbackPage(initialPage ?? null);
+      setMetadataLoading(!initialPage);
+      setEditorLoadRequested(false);
       setMountedEditorPageId(null);
       setChildPagesReadyPageId(null);
     });
@@ -85,8 +92,35 @@ export default function PagePeekModal({
     if (!initialPage) return;
     queueMicrotask(() => {
       setFallbackPage(initialPage);
+      setMetadataLoading(false);
     });
   }, [initialPage]);
+
+  useEffect(() => {
+    if (initialPage?.id === pageId) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setMetadataLoading(true);
+    });
+    void getPageMetadata(pageId)
+      .then((metadata) => {
+        if (cancelled) return;
+        if (metadata) {
+          setFallbackPage(metadata);
+        } else {
+          setEditorLoadRequested(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setEditorLoadRequested(true);
+      })
+      .finally(() => {
+        if (!cancelled) setMetadataLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialPage, pageId]);
 
   useEffect(() => {
     if (!page) return;
@@ -117,17 +151,35 @@ export default function PagePeekModal({
   }, [onClose, onOpenFull, pageId]);
 
   useEffect(() => {
-    if (bodyLoading || !hasEffectivePage || editorMounted) return;
+    if (!hasEffectivePage || editorMounted) return;
     if (isOptimisticDraft) {
       queueMicrotask(() => {
         setMountedEditorPageId(pageId);
       });
       return;
     }
-    return schedulePeekEditorMount(() => {
-      setMountedEditorPageId(pageId);
-    });
-  }, [bodyLoading, editorMounted, hasEffectivePage, isOptimisticDraft, pageId]);
+    if (
+      effectivePage?.content_text != null ||
+      (editorLoadRequested && !loading)
+    ) {
+      return schedulePeekEditorMount(() => {
+        setMountedEditorPageId(pageId);
+      });
+    }
+    if (!editorLoadRequested) {
+      return schedulePeekContentLoad(() => {
+        setEditorLoadRequested(true);
+      });
+    }
+  }, [
+    editorLoadRequested,
+    editorMounted,
+    effectivePage?.content_text,
+    hasEffectivePage,
+    isOptimisticDraft,
+    loading,
+    pageId,
+  ]);
 
   useEffect(() => {
     if (!editorMounted) return;
@@ -237,7 +289,7 @@ export default function PagePeekModal({
         </header>
 
         <div className="flex-1 overflow-y-auto px-10 py-6">
-          {loading && !effectivePage ? (
+          {(loading || metadataLoading) && !effectivePage ? (
             <div className="py-16 text-center text-sm text-zinc-400">
               正在加载页面…
             </div>
@@ -297,6 +349,10 @@ export default function PagePeekModal({
 
 function schedulePeekEditorMount(callback: () => void): () => void {
   return schedulePeekIdleTask(callback, 350);
+}
+
+function schedulePeekContentLoad(callback: () => void): () => void {
+  return schedulePeekIdleTask(callback, 180);
 }
 
 function schedulePeekIdleTask(

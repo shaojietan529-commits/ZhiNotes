@@ -60,6 +60,7 @@ const localQueries = read("src/lib/db/local/queries.ts");
 const localSchema = read("src/lib/db/local/schema.ts");
 const localClient = read("src/lib/db/local/client.ts");
 const usePageHook = read("src/hooks/usePage.ts");
+const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 const forbidden = ["XMLHttpRequest", "enables_ai", "getUserMedia"];
 for (const [name, source] of Object.entries(shells)) {
   for (const token of forbidden) {
@@ -126,6 +127,18 @@ check(
 check(
   usePageHook.includes("setLoading(localPage.content_text == null)"),
   "usePage 必须在目录卡片缺正文时保持正文按需加载状态"
+);
+check(
+  usePageHook.includes("options: UsePageOptions") &&
+    usePageHook.includes("enabled = options.enabled ?? true"),
+  "usePage 必须支持延后加载正文，避免 peek 弹窗打开时立即拉取大正文"
+);
+check(
+  pagePeekModal.includes("getPageMetadata") &&
+    pagePeekModal.includes("editorLoadRequested") &&
+    pagePeekModal.includes("schedulePeekContentLoad") &&
+    pagePeekModal.includes("enabled: editorLoadRequested"),
+  "PagePeekModal 必须先显示页面元数据，再按需加载正文和编辑器"
 );
 check(
   !shells.daily.includes("getAllPageMetadata"),

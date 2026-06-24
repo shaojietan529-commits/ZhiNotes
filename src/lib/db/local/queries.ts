@@ -190,6 +190,17 @@ export async function listPageMetadata(
   ) as unknown as Page[];
 }
 
+export async function getPageMetadata(id: string): Promise<Page | null> {
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT ${PAGE_METADATA_SELECT}
+     FROM pages
+     WHERE id = ? AND deleted_at IS NULL`,
+    [id]
+  ) as unknown as Page[];
+  return rows[0] || null;
+}
+
 export async function getAllPages(): Promise<Page[]> {
   const db = await getDb();
   return db.query(
