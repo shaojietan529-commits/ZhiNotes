@@ -259,6 +259,20 @@ check(
   "usePages 云端 metadata 本地写入失败时仍应能用无正文页面列表渲染侧栏"
 );
 
+const usePageHook = read("src/hooks/usePage.ts");
+check(
+  usePageHook.includes("const cloud = await fetchCloudPageById(pageId)") &&
+    usePageHook.includes("remoteIsAtLeastAsFresh(remoteRecord, localPage)") &&
+    usePageHook.includes("hydrateRemotePageIntoLocalCache(remoteRecord)"),
+  "usePage 打开页面时应拉取云端正文快照，并在云端不旧于本地时回填本地缓存"
+);
+check(
+  usePageHook.includes("setPage(localPage)") &&
+    usePageHook.includes("setLoading(false)") &&
+    usePageHook.includes("queueCloudPagePush(localPage)"),
+  "usePage 应先显示本地缓存保证可用，并在本地更新时补发云端上传"
+);
+
 const pageCloudSyncHook = read("src/hooks/usePageCloudSync.ts");
 check(
   (pageCloudSyncHook.match(/runSync\(\{ quick: true \}/g) ?? []).length >= 4,
@@ -279,10 +293,9 @@ check(
   "只有同步配置变化时才应保留强制全量校验"
 );
 
-const usePageHook = read("src/hooks/usePage.ts");
 check(
   usePageHook.includes("fetchCloudPageById"),
-  "usePage 应在本机页面缺失或正文为空时从账号云端拉取页面"
+  "usePage 应在打开页面时从账号云端拉取页面"
 );
 check(
   usePageHook.includes("applyRemotePages([record])"),
@@ -293,7 +306,7 @@ check(
   "usePage 应封装云端页面回填本机缓存逻辑"
 );
 check(
-  usePageHook.includes("upsertPages([remoteSnapshot])"),
+  usePageHook.includes("if (hydrated) upsertPages([hydrated])"),
   "usePage 云端拉取后应更新前端页面索引，避免依赖全量刷新"
 );
 check(
