@@ -44,6 +44,8 @@ const REMOTE_WATERMARK_KEY = "zhinote.pagesync.remoteWatermark";
 const REMOTE_CURSOR_KEY = "zhinote.pagesync.remoteCursor";
 const PENDING_PUSH_IDS_KEY = "zhinote.pagesync.pendingPushIds";
 const AUTH_RETRY_KEY = "zhinote.pagesync.authRetry.v1";
+const DAILY_IMPORT_REPAIR_SIGNATURE_KEY =
+  "zhinote.pagesync.dailyImportRepairSignature.v1";
 export const PAGE_SYNC_CONFIG_EVENT = "zhinote:pagesync-config";
 
 const PULL_BATCH = 40;
@@ -75,6 +77,7 @@ let authRetryStatus: PageSyncStatus | null = null;
 let memoryRemoteWatermark: string | null = null;
 let memoryRemoteCursor: string | null = null;
 let memoryLastPageSyncAt: string | null = null;
+let memoryDailyImportRepairSignature: string | null = null;
 
 export function isPageSyncEnabled(): boolean {
   if (typeof window === "undefined") return false;
@@ -1361,7 +1364,38 @@ async function mergeModuleRoots(): Promise<boolean> {
   return changed;
 }
 
-async function repairDailyImportPlacement(): Promise<number> {
+interface DailyImportRepairOptions {
+  force?: boolean;
+}
+
+async function getDailyImportRepairSignature(): Promise<string> {
+  const summary = await getLocalPageSyncSummary();
+  return `${summary.count}:${summary.deleted}:${summary.cursor}:${summary.watermark}`;
+}
+
+function isDailyImportRepairChecked(signature: string | null): boolean {
+  if (!signature) return false;
+  return (
+    memoryDailyImportRepairSignature === signature ||
+    readSyncStorage(DAILY_IMPORT_REPAIR_SIGNATURE_KEY) === signature
+  );
+}
+
+function rememberDailyImportRepairChecked(signature: string | null): void {
+  if (!signature) return;
+  memoryDailyImportRepairSignature = signature;
+  writeSyncStorage(DAILY_IMPORT_REPAIR_SIGNATURE_KEY, signature);
+}
+
+async function repairDailyImportPlacement(
+  options: DailyImportRepairOptions = {}
+): Promise<number> {
+  const beforeSignature = await getDailyImportRepairSignature().catch(
+    () => null
+  );
+  if (!options.force && isDailyImportRepairChecked(beforeSignature)) {
+    return 0;
+  }
   const all = await getAllPagesForSync();
   const active = all.filter((p) => !p.deleted_at);
   const dailyRoots = active
@@ -1383,6 +1417,11 @@ async function repairDailyImportPlacement(): Promise<number> {
     await movePage(page.id, dailyRoot.id, position);
     repaired += 1;
   }
+  const afterSignature =
+    repaired > 0
+      ? await getDailyImportRepairSignature().catch(() => beforeSignature)
+      : beforeSignature;
+  rememberDailyImportRepairChecked(afterSignature);
   return repaired;
 }
 
@@ -1446,7 +1485,7 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
   if (pulled > 0) {
     await mergeModuleRoots();
   }
-  const repaired = await repairDailyImportPlacement();
+  const repaired = await repairDailyImportPlacement({ force: true });
   const summary = summarizeIndex(index);
   setRemoteWatermark(summary.watermark);
   setRemoteCursor(summary.cursor);
@@ -1647,7 +1686,7 @@ export async function reconcilePageSync(
     if (pulled > 0) {
       await mergeModuleRoots();
     }
-    const repaired = await repairDailyImportPlacement();
+    const repaired = await repairDailyImportPlacement({ force: pulled > 0 });
 
     // Recompute against fresh local state: the pull and the root merge may
     // both have changed pages since the first snapshot.

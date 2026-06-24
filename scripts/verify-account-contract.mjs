@@ -566,6 +566,16 @@ check(
     pageSyncClient.includes("pullIncrementalCloudChanges"),
   "页面同步客户端应在增量/修复写入本机缓存后广播页面更新，而不是让同步 hook 再读一遍页面列表"
 );
+check(
+  pageSyncClient.includes("DAILY_IMPORT_REPAIR_SIGNATURE_KEY") &&
+    pageSyncClient.includes("getDailyImportRepairSignature") &&
+    pageSyncClient.includes("isDailyImportRepairChecked") &&
+    pageSyncClient.includes("rememberDailyImportRepairChecked") &&
+    pageSyncClient.includes("if (!options.force && isDailyImportRepairChecked(beforeSignature))") &&
+    pageSyncClient.includes("repairDailyImportPlacement({ force: true })") &&
+    pageSyncClient.includes("repairDailyImportPlacement({ force: pulled > 0 })"),
+  "每日纪要导入归档修复应按本机页面索引签名跳过重复全量扫描；重建缓存或云端拉到新页面时才强制复查"
+);
 
 check(
   usePageHook.includes("fetchCloudPageById"),
