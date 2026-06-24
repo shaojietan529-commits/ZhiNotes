@@ -481,7 +481,11 @@ async function fetchCloudPageMetadataChangesSince(
 }
 
 export async function syncCloudPageMetadataDelta(
-  options: { force?: boolean; fullRefresh?: boolean } = {}
+  options: {
+    force?: boolean;
+    fullRefresh?: boolean;
+    requireLocalCacheCoverage?: boolean;
+  } = {}
 ): Promise<CloudPageMetadataDeltaResult> {
   if (!isPageSyncEnabled()) {
     return { status: "disabled", pulled: 0, pages: [], fullRefresh: false };
@@ -572,9 +576,12 @@ function readStoredAuthRetryStatus(): PageSyncStatus | null {
 }
 
 async function runCloudPageMetadataDelta(
-  options: { fullRefresh?: boolean } = {}
+  options: { fullRefresh?: boolean; requireLocalCacheCoverage?: boolean } = {}
 ): Promise<CloudPageMetadataDeltaResult> {
-  let nextCursor = options.fullRefresh ? null : getRemoteCursor();
+  let nextCursor =
+    options.fullRefresh || options.requireLocalCacheCoverage
+      ? null
+      : getRemoteCursor();
   if (!nextCursor) {
     const summaryRes = await call({ action: "summary" });
     if (summaryRes.ok) {

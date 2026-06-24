@@ -114,7 +114,9 @@ for (const token of [
   "seedDailyNoteForImmediateOpen",
   'router.prefetch("/page/zhinote-route-prefetch")',
   "router.prefetch(`/page/${optimisticNote.id}`)",
-  "router.push(`/page/${optimisticNote.id}`)",
+  "setPeekPageId(optimisticNote.id)",
+  "setPeekInitialPage(optimisticNote)",
+  "<PagePeekModal",
   "rememberPendingPageDraft(optimisticNote)",
   "openNotePage",
   "DAILY_DATE_INDEX_BACKFILL_KEY",
@@ -205,10 +207,12 @@ check(
   "Sidebar/FavoritePages/TrashPages 不应各自挂 usePages 触发重复全量页面 metadata 刷新"
 );
 check(
-  usePagesHook.includes("const cloudPages = cloud.pages.map(remoteMetadataToPage)") &&
+    usePagesHook.includes("const cloudPages = cloud.pages.map(remoteMetadataToPage)") &&
     usePagesHook.includes("upsertPages(cloudPages)") &&
     usePagesHook.includes("setPages(cloudPages)") &&
-    usePagesHook.includes("force: all.length === 0 || !localSnapshotLoaded") &&
+    usePagesHook.includes("const needsCloudCoverageRecovery = all.length === 0 || !localSnapshotLoaded") &&
+    usePagesHook.includes("force: needsCloudCoverageRecovery") &&
+    usePagesHook.includes("requireLocalCacheCoverage: needsCloudCoverageRecovery") &&
     !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
     !usePagesHook.includes("applyRemotePageMetadata") &&
     usePagesHook.includes("autoLoad?: boolean"),
@@ -236,7 +240,8 @@ check(
 );
 for (const token of [
   "seedDailyNoteForImmediateOpen",
-  "router.push(`/page/${optimisticNote.id}`)",
+  "setPeekPageId(optimisticNote.id)",
+  "setPeekInitialPage(optimisticNote)",
   "rememberPendingPageDraft(optimisticNote)",
   "upsertPages([optimisticNote])",
   "applyRemotePages([pageToRemoteRecord(note)])",
@@ -244,23 +249,23 @@ for (const token of [
 ]) {
   check(
     shells.daily.includes(token),
-    `DailyNotesShell 新建/打开纪要应直接进入轻量页面，缺少 ${token}`
+    `DailyNotesShell 新建/打开纪要应先进入轻量弹窗，缺少 ${token}`
   );
 }
 check(
   shells.daily.indexOf("rememberPendingPageDraft(optimisticNote)") <
     shells.daily.indexOf("upsertPages([optimisticNote])") &&
     shells.daily.indexOf("upsertPages([optimisticNote])") <
-      shells.daily.indexOf("router.push(`/page/${optimisticNote.id}`)") &&
+      shells.daily.indexOf("setPeekPageId(optimisticNote.id)") &&
     shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
-      shells.daily.indexOf("router.push(`/page/${optimisticNote.id}`)"),
-  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再跳转到完整页面"
+      shells.daily.indexOf("persistOptimisticDailyNote"),
+  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再打开弹窗并后台持久化"
 );
 check(
-  !shells.daily.includes("@/components/page/LazyPagePeekModal") &&
+  shells.daily.includes("@/components/page/LazyPagePeekModal") &&
     !shells.daily.includes("fetchCloudPageById") &&
     !shells.daily.includes("scheduleDailyPeekPreload"),
-  "DailyNotesShell 不应再为日历打开路径预加载 peek 弹窗或正文"
+  "DailyNotesShell 应懒加载 peek 弹窗，且不应在日历打开路径预拉正文"
 );
 for (const token of [
   "daily_date_key",

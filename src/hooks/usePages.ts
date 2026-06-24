@@ -96,10 +96,12 @@ export function usePages(options: UsePagesOptions = {}) {
       // read, keep the workspace usable by falling back to cloud metadata.
     }
 
+    const needsCloudCoverageRecovery = all.length === 0 || !localSnapshotLoaded;
     if (!includeContent || !localSnapshotLoaded) {
       try {
         const cloud = await syncCloudPageMetadataDelta({
-          force: all.length === 0 || !localSnapshotLoaded,
+          force: needsCloudCoverageRecovery,
+          requireLocalCacheCoverage: needsCloudCoverageRecovery,
         });
         if (cloud.status === "ok" && cloud.pages.length > 0) {
           const cloudPages = cloud.pages.map(remoteMetadataToPage);

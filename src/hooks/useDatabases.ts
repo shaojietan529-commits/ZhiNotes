@@ -35,8 +35,10 @@ export function useDatabases() {
     async (options: RefreshDatabaseOptions = {}) => {
       if (!dbReady) return [];
       let all: Database[] = [];
+      let localSnapshotLoaded = false;
       try {
         all = await loadDatabaseSnapshot();
+        localSnapshotLoaded = true;
       } catch {
         // Treat local SQLite as a cache: if it is cold or temporarily broken,
         // still attempt cloud metadata below instead of blocking navigation.
@@ -44,8 +46,11 @@ export function useDatabases() {
       setDatabases(all);
 
       try {
+        const needsCloudCoverageRecovery =
+          all.length === 0 || !localSnapshotLoaded;
         const cloud = await syncCloudDatabaseMetadataDelta({
           restoreLocalCursor: true,
+          requireLocalCacheCoverage: needsCloudCoverageRecovery,
         });
         if (cloud.status === "ok") {
           all = mergeDatabaseMetadata(all, cloud.records);

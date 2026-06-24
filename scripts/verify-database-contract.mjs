@@ -314,7 +314,9 @@ function run() {
     "memoryDatabaseRemoteCursor",
     "memoryLastDatabaseSyncAt",
     "fullRefresh?: boolean",
-    'let cursor = options.fullRefresh ? "" : getRemoteCursor()',
+    "requireLocalCacheCoverage?: boolean",
+    "options.requireLocalCacheCoverage",
+    ": getRemoteCursor()",
     "AUTH_RETRY_BACKOFF_MS",
     'AUTH_RETRY_KEY = "zhinote.databasesync.authRetry.v1"',
     "shouldBackOffAuthRetry",
@@ -490,6 +492,8 @@ function run() {
     "subscribeDatabasesUpdated",
     "emitDatabasesUpdated",
     "restoreLocalCursor: true",
+    "const needsCloudCoverageRecovery =",
+    "requireLocalCacheCoverage: needsCloudCoverageRecovery",
   ]) {
     assertIncludes(
       files.useDatabases,

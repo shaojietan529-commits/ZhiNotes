@@ -367,7 +367,9 @@ check(
     pageSyncClient.includes("METADATA_DELTA_THROTTLE_MS") &&
     pageSyncClient.includes("metadataDeltaInFlight") &&
     pageSyncClient.includes("fullRefresh?: boolean") &&
-    pageSyncClient.includes("let nextCursor = options.fullRefresh ? null : getRemoteCursor()"),
+    pageSyncClient.includes("requireLocalCacheCoverage?: boolean") &&
+    pageSyncClient.includes("options.requireLocalCacheCoverage") &&
+    pageSyncClient.includes(": getRemoteCursor()"),
   "页面同步客户端应提供节流、去重的轻量 metadata 增量同步入口，并允许本地缓存恢复时绕过旧 cursor 做云端 metadata 全量兜底"
 );
 const metadataDeltaBody = pageSyncClient.slice(
@@ -404,7 +406,9 @@ const pageImportPlanPanel = read("src/components/modules/PageImportPlanPanel.tsx
 check(
   usePagesHook.includes("syncCloudPageMetadataDelta") &&
     usePagesHook.includes("setPages(all);") &&
-    usePagesHook.includes("force: all.length === 0 || !localSnapshotLoaded") &&
+    usePagesHook.includes("const needsCloudCoverageRecovery = all.length === 0 || !localSnapshotLoaded") &&
+    usePagesHook.includes("force: needsCloudCoverageRecovery") &&
+    usePagesHook.includes("requireLocalCacheCoverage: needsCloudCoverageRecovery") &&
     usePagesHook.includes("localSnapshotLoaded") &&
     !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
     usePagesHook.includes("The browser database is only a rebuildable cache") &&
@@ -456,14 +460,15 @@ check(
     dailyNotesShell.indexOf("rememberPendingPageDraft(optimisticNote)") <
       dailyNotesShell.indexOf("upsertPages([optimisticNote])") &&
     dailyNotesShell.indexOf("upsertPages([optimisticNote])") <
-      dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") &&
+      dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id)") &&
     dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
-      dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") &&
-    dailyNotesShell.indexOf("router.prefetch(`/page/${optimisticNote.id}`)") <
-      dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") &&
-    dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") <
       dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
-    dailyNotesShell.includes("router.push(`/page/${optimisticNote.id}`)") &&
+    dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id)") <
+      dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
+    dailyNotesShell.includes("setPeekInitialPage(optimisticNote)") &&
+    dailyNotesShell.includes("<PagePeekModal") &&
+    dailyNotesShell.includes("initialPage={peekInitialPage}") &&
+    dailyNotesShell.includes("router.push(`/page/${id}`)") &&
     dailyNotesShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
     dailyNotesShell.includes("applyRemotePages([pageToRemoteRecord(note)])") &&
     dailyNotesShell.includes("openNotePage") &&
@@ -471,7 +476,7 @@ check(
     dailyNotesShell.includes("applyRemotePages(records)") &&
     dailyNotesShell.includes("return pushDailyCloudRecords(records)") &&
     !dailyNotesShell.includes("createPageWithCloud"),
-  "DailyNotesShell 点击 + 应立即进入乐观草稿完整页面，后台保存到云端"
+  "DailyNotesShell 点击 + 应立即打开乐观草稿弹窗，完整页面只作为弹窗内进一步操作，后台保存到云端"
 );
 check(
   dailyNotesShell.includes("expandedDateKeys") &&
@@ -736,11 +741,12 @@ const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");
 check(
   lazyPagePeekModal.includes('dynamic(() => import("@/components/page/PagePeekModal")') &&
-    !dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
+    dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
+    dailyNotesShell.includes("setPeekPageId(note.id)") &&
     !dailyNotesShell.includes("fetchCloudPageById") &&
-    dailyNotesShell.includes("router.push(`/page/${note.id}`)") &&
+    dailyNotesShell.includes("router.push(`/page/${id}`)") &&
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal'),
-  "每日纪要应直接进入完整页面，知识库继续懒加载页面弹窗"
+  "每日纪要和知识库都应懒加载页面弹窗；每日纪要完整页面只在用户明确打开完整页面时进入"
 );
 
 const localQueries = read("src/lib/db/local/queries.ts");

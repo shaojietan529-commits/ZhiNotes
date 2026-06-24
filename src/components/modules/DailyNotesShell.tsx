@@ -36,6 +36,7 @@ import {
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import PageContextMenu from "@/components/page/PageContextMenu";
+import PagePeekModal from "@/components/page/LazyPagePeekModal";
 import type { Page } from "@/lib/utils/types";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -70,6 +71,8 @@ export default function DailyNotesShell() {
     x: number;
     y: number;
   } | null>(null);
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<DailyNote | null>(null);
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [dragOverDateKey, setDragOverDateKey] = useState<string | null>(null);
   const [expandedDateKeys, setExpandedDateKeys] = useState<Set<string>>(
@@ -308,6 +311,8 @@ export default function DailyNotesShell() {
         ...current.filter((item) => item.id !== optimisticNote.id),
       ]);
       upsertPages([optimisticNote]);
+      setPeekPageId(optimisticNote.id);
+      setPeekInitialPage(optimisticNote);
       void seedDailyNoteForImmediateOpen(optimisticNote);
       setCloudNotice(`${dateKey} 的每日纪要正在打开，后台会继续保存到账号云端…`);
 
@@ -316,7 +321,6 @@ export default function DailyNotesShell() {
       } catch {
         // Route prefetch is best-effort; navigation still happens immediately.
       }
-      router.push(`/page/${optimisticNote.id}`);
       void (async () => {
         try {
           const dailyRootId = initialRootId ?? (await getModuleRootId("daily"));
@@ -362,7 +366,13 @@ export default function DailyNotesShell() {
 
   const openNotePage = useCallback((note: DailyNote) => {
     upsertPages([note]);
-    router.push(`/page/${note.id}`);
+    setPeekPageId(note.id);
+    setPeekInitialPage(note);
+    try {
+      router.prefetch(`/page/${note.id}`);
+    } catch {
+      // Full-page prefetch is best-effort; the peek modal already has metadata.
+    }
   }, [router, upsertPages]);
 
   const toggleDateExpansion = useCallback((dateKey: string) => {
@@ -688,6 +698,22 @@ export default function DailyNotesShell() {
             router.push(`/page/${id}`);
           }}
           onOpenFull={(id) => router.push(`/page/${id}`)}
+          onChanged={() => void load({ includeCloud: false })}
+        />
+      )}
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            router.push(`/page/${id}`);
+          }}
           onChanged={() => void load({ includeCloud: false })}
         />
       )}

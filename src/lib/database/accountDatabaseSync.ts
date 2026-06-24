@@ -151,6 +151,7 @@ export interface DatabaseReconcileOptions {
 interface SyncCloudDatabaseMetadataOptions {
   restoreLocalCursor?: boolean;
   fullRefresh?: boolean;
+  requireLocalCacheCoverage?: boolean;
 }
 
 export interface RebuildDatabaseCacheResult {
@@ -747,9 +748,12 @@ export async function syncCloudDatabaseMetadataDelta(
 async function runCloudDatabaseMetadataDelta(
   options: SyncCloudDatabaseMetadataOptions
 ): Promise<CloudDatabaseMetadataDeltaResult> {
-  let cursor = options.fullRefresh ? "" : getRemoteCursor();
+  let cursor =
+    options.fullRefresh || options.requireLocalCacheCoverage
+      ? ""
+      : getRemoteCursor();
 
-  if (options.restoreLocalCursor && !cursor) {
+  if ((options.restoreLocalCursor || options.requireLocalCacheCoverage) && !cursor) {
     const summaryRes = await call({ action: "summary" });
     if (summaryRes.ok) {
       const summary = normalizeSummary(summaryRes.json.summary);
