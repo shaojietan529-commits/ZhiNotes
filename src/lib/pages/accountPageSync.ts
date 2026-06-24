@@ -117,6 +117,14 @@ export interface CloudPageLookupResult {
   message?: string;
 }
 
+export interface CloudPageMetadataResult {
+  status: PageSyncStatus;
+  pages: RemotePageRecord[];
+  total: number;
+  scanned?: number;
+  message?: string;
+}
+
 export interface CloudPageChangesResult {
   status: PageSyncStatus;
   pages: RemotePageRecord[];
@@ -259,6 +267,36 @@ export async function fetchCloudPageById(
   id: string
 ): Promise<CloudPageLookupResult> {
   return fetchCloudPagesByIds([id]);
+}
+
+export async function fetchCloudPageMetadata(): Promise<CloudPageMetadataResult> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", pages: [], total: 0 };
+  }
+  const res = await call({ action: "metadata" });
+  if (!res.ok) {
+    return {
+      status: res.status,
+      pages: [],
+      total: 0,
+      message: res.message,
+    };
+  }
+  const pages = Array.isArray(res.json.pages)
+    ? (res.json.pages as RemotePageRecord[])
+    : [];
+  const summary = normalizeSummary(res.json.summary);
+  if (summary) {
+    setRemoteWatermark(summary.watermark);
+    setRemoteCursor(summary.cursor);
+  }
+  setLastPageSyncAtNow();
+  return {
+    status: "ok",
+    pages,
+    total: typeof res.json.count === "number" ? res.json.count : pages.length,
+    scanned: typeof res.json.scanned === "number" ? res.json.scanned : undefined,
+  };
 }
 
 export async function fetchCloudPageChangesSince(

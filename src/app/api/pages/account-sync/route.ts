@@ -107,6 +107,13 @@ interface MeetingCalendarMetadataResult {
   scanned: number;
 }
 
+interface PageMetadataResult {
+  pages: PageRecord[];
+  count: number;
+  scanned: number;
+  summary: IndexSummary;
+}
+
 interface DailyDatedRecord {
   record: PageRecord;
   dateKey: string;
@@ -782,6 +789,25 @@ async function getMeetingCalendarMetadata(
   };
 }
 
+async function getPageMetadata(
+  config: AccountConfig,
+  email: string
+): Promise<PageMetadataResult> {
+  const index = await readIndex(config, email);
+  const pages = await readIndexedPages(config, email, index);
+  const active = pages.filter((page) => !page.deleted_at);
+  return {
+    pages: active.map((page) => ({
+      ...page,
+      cover_url: null,
+      content_text: null,
+    })),
+    count: active.length,
+    scanned: pages.length,
+    summary: summarizeIndex(index),
+  };
+}
+
 function isMeetingCalendarRecord(record: PageRecord) {
   if (record.deleted_at) return false;
   const props = parseProperties(record.properties);
@@ -1135,6 +1161,11 @@ export async function POST(request: Request) {
 
     if (body.action === "daily-metadata") {
       const result = await getDailyMetadata(config, me);
+      return NextResponse.json({ ok: true, ...result });
+    }
+
+    if (body.action === "metadata") {
+      const result = await getPageMetadata(config, me);
       return NextResponse.json({ ok: true, ...result });
     }
 
