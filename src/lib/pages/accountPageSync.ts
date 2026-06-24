@@ -464,6 +464,25 @@ export function queueCloudPagePush(
   }, delayMs);
 }
 
+export function queueCloudPageDelete(
+  page: Page | RemotePageRecord,
+  deletedAt = new Date().toISOString()
+): void {
+  const tombstone =
+    "owner_id" in page
+      ? pageToRemoteRecord({
+          ...page,
+          deleted_at: deletedAt,
+          updated_at: deletedAt,
+        })
+      : {
+          ...page,
+          deleted_at: deletedAt,
+          updated_at: deletedAt,
+        };
+  queueCloudPagePush(tombstone);
+}
+
 function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
   let count = 0;
   let deleted = 0;

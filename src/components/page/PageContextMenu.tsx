@@ -7,9 +7,11 @@ import {
   getNextPosition,
   duplicatePageDeep,
   getAllPages,
+  getPage,
 } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import { queueCloudPageDelete } from "@/lib/pages/accountPageSync";
 import type { Page } from "@/lib/utils/types";
 
 interface PageContextMenuProps {
@@ -101,7 +103,13 @@ export default function PageContextMenu({
   const moveToTrash = async () => {
     const ok = window.confirm("移到回收站？之后可以从侧边栏回收站恢复。");
     if (!ok) return;
-    await deletePage(pageId);
+    const snapshot = await getPage(pageId).catch(() => null);
+    const deletedAt = new Date().toISOString();
+    try {
+      await deletePage(pageId);
+    } finally {
+      if (snapshot) queueCloudPageDelete(snapshot, deletedAt);
+    }
     onChanged?.();
   };
 

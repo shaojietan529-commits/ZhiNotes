@@ -10,6 +10,7 @@ import {
 } from "@/lib/db/local/queries";
 import {
   fetchCloudPageById,
+  queueCloudPageDelete,
   queueCloudPagePush,
 } from "@/lib/pages/accountPageSync";
 import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
@@ -81,14 +82,42 @@ export function usePage(pageId: string | null) {
 
   const remove = useCallback(async () => {
     if (!pageId) return;
-    await deletePage(pageId);
-    setPage(null);
-  }, [pageId]);
+    let snapshot = page;
+    if (!snapshot) {
+      try {
+        snapshot = await getPage(pageId);
+      } catch {
+        snapshot = null;
+      }
+    }
+    const deletedAt = new Date().toISOString();
+    try {
+      await deletePage(pageId);
+    } finally {
+      if (snapshot) queueCloudPageDelete(snapshot, deletedAt);
+      setPage(null);
+    }
+  }, [pageId, page]);
 
   return { page, loading, reload: load, update, remove };
 }
 
-export { createPage, deletePage };
+async function deletePageWithCloud(id: string): Promise<void> {
+  let snapshot: Page | null = null;
+  try {
+    snapshot = await getPage(id);
+  } catch {
+    snapshot = null;
+  }
+  const deletedAt = new Date().toISOString();
+  try {
+    await deletePage(id);
+  } finally {
+    if (snapshot) queueCloudPageDelete(snapshot, deletedAt);
+  }
+}
+
+export { createPage, deletePageWithCloud as deletePage };
 
 function remoteRecordToPage(record: RemotePageRecord): Page {
   return {
