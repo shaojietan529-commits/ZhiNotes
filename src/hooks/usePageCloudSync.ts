@@ -118,7 +118,7 @@ export function usePageCloudSync() {
         void runSync({ quick: true });
       }
     }, SYNC_INTERVAL_MS);
-    const handleConfig = () => void runSync({ quick: false, forceLease: true });
+    const handleConfig = () => void runSync({ quick: true, forceLease: true });
     // Switching back to a tab (the user's two-domain workflow) pulls the
     // latest immediately, so edits made on the other domain show up at once.
     const handleVisible = () => {

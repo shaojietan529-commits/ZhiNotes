@@ -45,6 +45,7 @@ const PULL_BATCH = 40;
 const PUSH_BATCH_RECORDS = 50;
 const PUSH_BATCH_BYTES = 800 * 1024;
 const INCREMENTAL_PULL_LIMIT = 50;
+const QUICK_INCREMENTAL_BATCH_LIMIT = 3;
 const METADATA_DELTA_THROTTLE_MS = 2500;
 // Covers stored as data URLs can be multi-MB; skip oversized ones rather
 // than failing the whole page push.
@@ -1277,6 +1278,7 @@ export async function reconcilePageSync(
         const pushed = pendingPush.pushed;
         let nextCursor = cursor;
         let hasMore = false;
+        let batches = 0;
         do {
           const result = await pullIncrementalCloudChanges(nextCursor);
           if (!result.ok) {
@@ -1290,7 +1292,8 @@ export async function reconcilePageSync(
           pulled += result.pulled;
           nextCursor = result.cursor;
           hasMore = result.hasMore;
-        } while (hasMore);
+          batches += 1;
+        } while (hasMore && batches < QUICK_INCREMENTAL_BATCH_LIMIT);
         if (typeof window !== "undefined") {
           window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
         }

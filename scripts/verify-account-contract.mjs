@@ -286,6 +286,11 @@ check(
   "页面同步客户端应提供节流、去重的轻量 metadata 增量同步入口"
 );
 check(
+  pageSyncClient.includes("QUICK_INCREMENTAL_BATCH_LIMIT") &&
+    reconcilePageSyncBody.includes("batches < QUICK_INCREMENTAL_BATCH_LIMIT"),
+  "quick 页面同步每轮应限制增量批次数，避免大批量导入时单次心跳拉完所有正文"
+);
+check(
   reconcilePageSyncBody.includes("const metadata = await syncCloudPageMetadataDelta") &&
     reconcilePageSyncBody.includes("force: true") &&
     reconcilePageSyncBody.indexOf("const metadata = await syncCloudPageMetadataDelta") <
@@ -415,8 +420,8 @@ check(
   "页面云同步 hook 的聚焦和联网恢复应使用增量前台同步"
 );
 check(
-  pageCloudSyncHook.includes("handleConfig = () => void runSync({ quick: false, forceLease: true })"),
-  "只有同步配置变化时才应保留强制全量校验"
+  pageCloudSyncHook.includes("handleConfig = () => void runSync({ quick: true, forceLease: true })"),
+  "页面同步配置变化也应走 quick 增量；完整校验应只保留给账户页手动同步"
 );
 check(
   !pageCloudSyncHook.includes("usePages") &&
