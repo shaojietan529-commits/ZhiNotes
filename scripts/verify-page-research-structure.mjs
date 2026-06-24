@@ -15,6 +15,7 @@ const files = {
   notesShell: "src/components/modules/NotesShell.tsx",
   researchTemplateStarters: "src/lib/modules/researchTemplateStarters.ts",
   pageTree: "src/components/sidebar/PageTree.tsx",
+  pagePeekModal: "src/components/page/PagePeekModal.tsx",
   notesRoute: "src/app/(workspace)/modules/notes/page.tsx",
   registry: "src/lib/modules/registry.ts",
   queries: "src/lib/db/local/queries.ts",
@@ -38,6 +39,12 @@ function assertIncludes(sourceLabel, source, snippet, message) {
   }
 }
 
+function assertNotIncludes(sourceLabel, source, snippet, message) {
+  if (source.includes(snippet)) {
+    failures.push(`${sourceLabel} includes forbidden ${snippet}: ${message}`);
+  }
+}
+
 function run() {
   const packageJson = readProjectFile(files.packageJson);
   const editor = readProjectFile(files.editor);
@@ -50,6 +57,7 @@ function run() {
     files.researchTemplateStarters
   );
   const pageTree = readProjectFile(files.pageTree);
+  const pagePeekModal = readProjectFile(files.pagePeekModal);
   const notesRoute = readProjectFile(files.notesRoute);
   const registry = readProjectFile(files.registry);
   const queries = readProjectFile(files.queries);
@@ -242,6 +250,34 @@ function run() {
       queries,
       snippet,
       "Notes module counts must be available without reading database row values or file bytes."
+    );
+  }
+
+  for (const snippet of [
+    "listPageMetadata(pageId)",
+    "正在按需加载正文",
+    "pushCloudPages",
+    "pageToRemoteRecord",
+    "upsertPages([updated])",
+  ]) {
+    assertIncludes(
+      files.pagePeekModal,
+      pagePeekModal,
+      snippet,
+      "Page peek modal must open from lightweight metadata and avoid full workspace scans."
+    );
+  }
+  for (const snippet of [
+    'from "@/hooks/usePages"',
+    "usePages()",
+    "getAllPages(",
+    'fetch("/api/pages/account-sync"',
+  ]) {
+    assertNotIncludes(
+      files.pagePeekModal,
+      pagePeekModal,
+      snippet,
+      "Page peek modal must not read all pages or call sync APIs directly during preview."
     );
   }
 
