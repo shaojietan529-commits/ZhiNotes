@@ -73,7 +73,6 @@ export function usePageCloudSync() {
   const [state, setState] = useState<PageCloudSyncState>("disabled");
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const runningRef = useRef(false);
-  const initialSyncDoneRef = useRef(false);
 
   const runSync = useCallback(async (options: { quick?: boolean; forceLease?: boolean } = {}) => {
     if (!isPageSyncEnabled()) {
@@ -94,7 +93,6 @@ export function usePageCloudSync() {
     try {
       const result = await reconcilePageSync({ quick: options.quick });
       if (result.status === "ok") {
-        initialSyncDoneRef.current = true;
         setState("synced");
         setLastSyncAt(getLastPageSyncAt());
         if (result.pulled > 0 || (result.repaired ?? 0) > 0) {
@@ -117,12 +115,12 @@ export function usePageCloudSync() {
 
   useEffect(() => {
     if (!dbReady) return;
-    void runSync({ quick: false });
+    void runSync({ quick: true });
     // Only poll while the tab is visible; returning to a hidden tab re-syncs
     // via the visibility/focus handlers below, so background tabs stay quiet.
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") {
-        void runSync({ quick: initialSyncDoneRef.current });
+        void runSync({ quick: true });
       }
     }, SYNC_INTERVAL_MS);
     const handleConfig = () => void runSync({ quick: false, forceLease: true });
@@ -130,18 +128,19 @@ export function usePageCloudSync() {
     // latest immediately, so edits made on the other domain show up at once.
     const handleVisible = () => {
       if (document.visibilityState === "visible") {
-        void runSync({ quick: initialSyncDoneRef.current });
+        void runSync({ quick: true });
       }
     };
+    const handleForeground = () => void runSync({ quick: true });
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
-    window.addEventListener("focus", handleConfig);
-    window.addEventListener("online", handleConfig);
+    window.addEventListener("focus", handleForeground);
+    window.addEventListener("online", handleForeground);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
-      window.removeEventListener("focus", handleConfig);
-      window.removeEventListener("online", handleConfig);
+      window.removeEventListener("focus", handleForeground);
+      window.removeEventListener("online", handleForeground);
       document.removeEventListener("visibilitychange", handleVisible);
     };
   }, [dbReady, runSync]);
@@ -156,7 +155,10 @@ export function usePageCloudSync() {
       firstEditRun.current = false;
       return;
     }
-    const timer = window.setTimeout(() => void runSync(), EDIT_DEBOUNCE_MS);
+    const timer = window.setTimeout(
+      () => void runSync({ quick: true }),
+      EDIT_DEBOUNCE_MS
+    );
     return () => window.clearTimeout(timer);
   }, [pages, dbReady, runSync]);
 

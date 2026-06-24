@@ -123,6 +123,7 @@ export interface CloudPageChangesResult {
   totalChanged: number;
   cursor: string;
   hasMore: boolean;
+  summary?: IndexSummary;
   message?: string;
 }
 
@@ -163,6 +164,7 @@ interface IndexSummary {
   deleted: number;
   maxUpdatedAt: string;
   watermark: string;
+  cursor: string;
 }
 
 interface ReconcileOptions {
@@ -294,6 +296,7 @@ export async function fetchCloudPageChangesSince(
       typeof res.json.totalChanged === "number" ? res.json.totalChanged : 0,
     cursor: typeof res.json.cursor === "string" ? res.json.cursor : since,
     hasMore: Boolean(res.json.hasMore),
+    summary: normalizeSummary(res.json.summary) ?? undefined,
   };
 }
 
@@ -497,16 +500,24 @@ function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
   let count = 0;
   let deleted = 0;
   let maxUpdatedAt = "";
-  for (const entry of Object.values(index)) {
+  let maxUpdatedId = "";
+  for (const [id, entry] of Object.entries(index)) {
     count += 1;
     if (entry.d === 1) deleted += 1;
-    if (entry.u > maxUpdatedAt) maxUpdatedAt = entry.u;
+    if (
+      entry.u > maxUpdatedAt ||
+      (entry.u === maxUpdatedAt && id > maxUpdatedId)
+    ) {
+      maxUpdatedAt = entry.u;
+      maxUpdatedId = id;
+    }
   }
   return {
     count,
     deleted,
     maxUpdatedAt,
     watermark: `${count}:${deleted}:${maxUpdatedAt}`,
+    cursor: stringifyPageChangeCursor(maxUpdatedAt, maxUpdatedId),
   };
 }
 
@@ -520,7 +531,19 @@ function normalizeSummary(value: unknown): IndexSummary | null {
     maxUpdatedAt:
       typeof summary.maxUpdatedAt === "string" ? summary.maxUpdatedAt : "",
     watermark: summary.watermark,
+    cursor:
+      typeof summary.cursor === "string"
+        ? summary.cursor
+        : stringifyPageChangeCursor(
+            typeof summary.maxUpdatedAt === "string" ? summary.maxUpdatedAt : "",
+            "~"
+          ),
   };
+}
+
+function stringifyPageChangeCursor(updatedAt: string, id: string): string {
+  if (!updatedAt) return "";
+  return JSON.stringify({ updatedAt, id });
 }
 
 function getRemoteWatermark(): string | null {
@@ -771,7 +794,7 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
   const repaired = await repairDailyImportPlacement();
   const summary = summarizeIndex(index);
   setRemoteWatermark(summary.watermark);
-  setRemoteCursor(summary.maxUpdatedAt);
+  setRemoteCursor(summary.cursor);
   setLastPageSyncAtNow();
   if (pulled > 0 || cleared > 0 || repaired > 0) {
     emitPagesUpdated("cloud-pull", pulled || cleared || repaired);
@@ -806,6 +829,9 @@ async function pullIncrementalCloudChanges(
   if (changes.pages.length > 0) {
     await applyRemotePages(changes.pages);
     emitPagesUpdated("cloud-pull", changes.pages.length);
+  }
+  if (changes.summary) {
+    setRemoteWatermark(changes.summary.watermark);
   }
   setRemoteCursor(changes.cursor);
   return {
@@ -865,7 +891,7 @@ export async function reconcilePageSync(
         }
         const summary = normalizeSummary(summaryRes.json.summary);
         if (summary && summary.watermark === getRemoteWatermark()) {
-          setRemoteCursor(summary.maxUpdatedAt);
+          setRemoteCursor(summary.cursor);
           if (typeof window !== "undefined") {
             window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
           }
@@ -886,7 +912,7 @@ export async function reconcilePageSync(
     const index = (manifestRes.json.index ?? {}) as Record<string, IndexEntry>;
     const summary = summarizeIndex(index);
     setRemoteWatermark(summary.watermark);
-    setRemoteCursor(summary.maxUpdatedAt);
+    setRemoteCursor(summary.cursor);
 
     const local = await getAllPagesForSync();
     const localById = new Map(local.map((p) => [p.id, p]));

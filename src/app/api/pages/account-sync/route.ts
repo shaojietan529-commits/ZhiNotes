@@ -53,6 +53,7 @@ interface IndexSummary {
   deleted: number;
   maxUpdatedAt: string;
   watermark: string;
+  cursor: string;
 }
 
 interface PageRecord {
@@ -126,6 +127,7 @@ interface PageChangesResult {
   totalChanged: number;
   cursor: string;
   hasMore: boolean;
+  summary: IndexSummary;
 }
 
 interface PageChangeCursor {
@@ -192,16 +194,24 @@ function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
   let count = 0;
   let deleted = 0;
   let maxUpdatedAt = "";
-  for (const entry of Object.values(index)) {
+  let maxUpdatedId = "";
+  for (const [id, entry] of Object.entries(index)) {
     count += 1;
     if (entry.d === 1) deleted += 1;
-    if (entry.u > maxUpdatedAt) maxUpdatedAt = entry.u;
+    if (
+      entry.u > maxUpdatedAt ||
+      (entry.u === maxUpdatedAt && id > maxUpdatedId)
+    ) {
+      maxUpdatedAt = entry.u;
+      maxUpdatedId = id;
+    }
   }
   return {
     count,
     deleted,
     maxUpdatedAt,
     watermark: `${count}:${deleted}:${maxUpdatedAt}`,
+    cursor: stringifyPageChangeCursor(maxUpdatedAt, maxUpdatedId),
   };
 }
 
@@ -438,15 +448,17 @@ async function getPageChangesSince(
     .map(([id]) => byId.get(id))
     .filter((record): record is PageRecord => Boolean(record));
   const last = selected[selected.length - 1];
+  const summary = summarizeIndex(index);
   const nextCursor = last
     ? stringifyPageChangeCursor(last[1].u, last[0])
-    : stringifyPageChangeCursor(summarizeIndex(index).maxUpdatedAt, "");
+    : since;
   return {
     pages,
     count: pages.length,
     totalChanged: changed.length,
     cursor: nextCursor || since,
     hasMore: changed.length > selected.length,
+    summary,
   };
 }
 
