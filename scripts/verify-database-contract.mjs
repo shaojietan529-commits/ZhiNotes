@@ -601,8 +601,11 @@ function run() {
     "useDatabaseCloudSync",
     "SYNC_INTERVAL_MS",
     "INITIAL_SYNC_DELAY_MS",
+    "EDIT_DEBOUNCE_MS",
     "initialSyncTimer",
+    "editSyncTimer",
     "window.clearTimeout(initialSyncTimer)",
+    "window.clearTimeout(editSyncTimer)",
     "LEASE_KEY",
     "claimSyncLease",
     "reconcileDatabaseSync",
@@ -614,6 +617,9 @@ function run() {
     "authRetryAfterRef",
     "emitDatabasesUpdated",
     "result.records",
+    "DATABASE_LOCAL_UPDATE_EVENT",
+    "window.addEventListener(\n      DATABASE_LOCAL_UPDATE_EVENT",
+    'message?.reason !== "local-refresh"',
     'document.visibilityState === "visible"',
     "Lease storage is only a cost-control optimization",
   ]) {
@@ -626,6 +632,9 @@ function run() {
   }
   for (const snippet of [
     "BroadcastChannel",
+    "DATABASE_LOCAL_UPDATE_EVENT",
+    "window.dispatchEvent",
+    "new CustomEvent<DatabaseUpdateMessage>(DATABASE_LOCAL_UPDATE_EVENT",
     "emitDatabasesUpdated",
     "subscribeDatabasesUpdated",
     "DatabaseUpdatePayload",

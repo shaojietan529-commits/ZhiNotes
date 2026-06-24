@@ -13,12 +13,15 @@ import {
   reconcileDatabaseSync,
 } from "@/lib/database/accountDatabaseSync";
 import {
+  DATABASE_LOCAL_UPDATE_EVENT,
   emitDatabasesUpdated,
   getDatabaseUpdateClientId,
+  type DatabaseUpdateMessage,
 } from "@/lib/database/databaseUpdateBus";
 
 const SYNC_INTERVAL_MS = 10 * 1000;
 const INITIAL_SYNC_DELAY_MS = 800;
+const EDIT_DEBOUNCE_MS = 4 * 1000;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.databasesync.leaderLease.v1";
 const LEASE_TTL_MS = 22 * 1000;
@@ -133,6 +136,7 @@ export function useDatabaseCloudSync() {
 
   useEffect(() => {
     if (!dbReady) return;
+    let editSyncTimer: number | undefined;
     const initialSyncTimer = window.setTimeout(() => {
       void runSync({ quick: true });
     }, INITIAL_SYNC_DELAY_MS);
@@ -146,14 +150,31 @@ export function useDatabaseCloudSync() {
       if (document.visibilityState === "visible") void runSync({ quick: true });
     };
     const handleForeground = () => void runSync({ quick: true });
+    const handleLocalDatabaseUpdate = (event: Event) => {
+      const message = (event as CustomEvent<DatabaseUpdateMessage>).detail;
+      if (message?.reason !== "local-refresh") return;
+      if (editSyncTimer !== undefined) window.clearTimeout(editSyncTimer);
+      editSyncTimer = window.setTimeout(() => {
+        void runSync({ quick: true });
+      }, EDIT_DEBOUNCE_MS);
+    };
     window.addEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
+    window.addEventListener(
+      DATABASE_LOCAL_UPDATE_EVENT,
+      handleLocalDatabaseUpdate
+    );
     window.addEventListener("focus", handleForeground);
     window.addEventListener("online", handleForeground);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
+      if (editSyncTimer !== undefined) window.clearTimeout(editSyncTimer);
       window.clearTimeout(initialSyncTimer);
       window.clearInterval(interval);
       window.removeEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
+      window.removeEventListener(
+        DATABASE_LOCAL_UPDATE_EVENT,
+        handleLocalDatabaseUpdate
+      );
       window.removeEventListener("focus", handleForeground);
       window.removeEventListener("online", handleForeground);
       document.removeEventListener("visibilitychange", handleVisible);

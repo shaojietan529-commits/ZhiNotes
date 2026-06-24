@@ -21,6 +21,7 @@ export interface DatabaseUpdateMessage {
 
 const CHANNEL_NAME = "zhinote:databases-updated:v1";
 const STORAGE_KEY = "zhinote.databases.updated.broadcast.v1";
+export const DATABASE_LOCAL_UPDATE_EVENT = "zhinote:databases-local-updated";
 
 let clientId: string | null = null;
 let channel: BroadcastChannel | null | undefined;
@@ -57,6 +58,11 @@ export function emitDatabasesUpdated(
     count,
     records,
   };
+  window.dispatchEvent(
+    new CustomEvent<DatabaseUpdateMessage>(DATABASE_LOCAL_UPDATE_EVENT, {
+      detail: message,
+    })
+  );
   getChannel()?.postMessage(message);
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(message));
