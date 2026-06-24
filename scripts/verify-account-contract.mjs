@@ -223,6 +223,14 @@ check(
   "pages account-sync route 应提供全局页面 metadata，用于空本地缓存时恢复侧栏列表"
 );
 check(
+  pageSyncRoute.includes("MODULE_ROOT_TITLES") &&
+    pageSyncRoute.includes("async function getModuleRootMetadata") &&
+    pageSyncRoute.includes('body.action === "module-roots"') &&
+    pageSyncRoute.includes("page.parent_id === null") &&
+    pageSyncRoute.includes("MODULE_ROOT_TITLES.has(page.title"),
+  "pages account-sync route 应提供模块根页面轻量 metadata，模块入口恢复不能向浏览器返回全量页面列表"
+);
+check(
   pageSyncRoute.includes("cover_url: null") &&
     pageSyncRoute.includes("content_text: null"),
   "全局页面 metadata 不应返回正文或大封面，正文应按需拉取"

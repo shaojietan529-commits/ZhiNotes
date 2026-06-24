@@ -1024,6 +1024,27 @@ async function getPageMetadata(
   };
 }
 
+async function getModuleRootMetadata(
+  config: AccountConfig,
+  email: string
+): Promise<PageMetadataResult> {
+  const index = await readIndex(config, email);
+  const pages = await readIndexedPages(config, email, index);
+  const active = pages.filter((page) => !page.deleted_at);
+  const roots = active
+    .filter(
+      (page) =>
+        page.parent_id === null && MODULE_ROOT_TITLES.has(page.title ?? "")
+    )
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
+  return {
+    pages: roots.map(toMetadataRecord),
+    count: roots.length,
+    scanned: pages.length,
+    summary: summarizeIndex(index),
+  };
+}
+
 function isMeetingCalendarRecord(record: PageRecord) {
   if (record.deleted_at) return false;
   const props = parseProperties(record.properties);
@@ -1538,6 +1559,11 @@ export async function POST(request: Request) {
 
     if (body.action === "metadata") {
       const result = await getPageMetadata(config, me);
+      return NextResponse.json({ ok: true, ...result });
+    }
+
+    if (body.action === "module-roots") {
+      const result = await getModuleRootMetadata(config, me);
       return NextResponse.json({ ok: true, ...result });
     }
 

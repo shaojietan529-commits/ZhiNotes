@@ -36,7 +36,7 @@ for (const token of [
   "applyRemotePageMetadata",
   "CLOUD_MODULE_ROOT_CACHE_MS",
   'fetch("/api/pages/account-sync"',
-  'body: JSON.stringify({ action: "metadata" })',
+  'body: JSON.stringify({ action: "module-roots" })',
   "toDateKey",
   "每日纪要",
   "产业链研究",
@@ -151,8 +151,10 @@ check(
     helper.includes("await applyRemotePageMetadata([cloudRoot])") &&
     helper.includes("rememberRoot(key, cloudRoot.id)") &&
     helper.indexOf("const cloudRoot = await findCloudModuleRoot(key)") <
+      helper.indexOf("const titleSet = new Set") &&
+    helper.indexOf("const cloudRoot = await findCloudModuleRoot(key)") <
       helper.indexOf("const created = await createPage"),
-  "moduleWorkspaces 本地 root 缓存缺失时必须先从账号云端 metadata 认领 root，不能直接创建重复 root"
+  "moduleWorkspaces 本地 root 缓存缺失时必须先从账号云端轻量 module-roots 认领 root，再用本地缓存兜底，不能直接创建重复 root"
 );
 check(
   helper.includes("cloudModuleRootLookupInFlight") &&

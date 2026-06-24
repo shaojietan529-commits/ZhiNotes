@@ -10,7 +10,7 @@ import {
 // The top-level module surfaces are each backed by a singleton page. Their
 // descendant pages provide all the content, so every node stays a real page.
 // The browser keeps a local root-id cache, but a missing cache can be rebuilt
-// from account cloud metadata before creating a new local root.
+// from account cloud metadata before falling back to the rebuildable local cache.
 
 export type ModuleWorkspaceKey =
   | "daily"
@@ -96,8 +96,8 @@ export function getModuleRootIdSync(key: ModuleWorkspaceKey): string | null {
 const inFlightRootLookups = new Map<ModuleWorkspaceKey, Promise<string>>();
 
 // Find (or create) the singleton root page for a module workspace.
-// Resilient to a cleared localStorage: it will re-adopt an existing root page
-// that matches the known title before creating a brand new one.
+// Resilient to a cleared localStorage: it first asks the account cloud for the
+// canonical root, then falls back to local cache adoption before creating one.
 export function getModuleRootId(key: ModuleWorkspaceKey): Promise<string> {
   let pending = inFlightRootLookups.get(key);
   if (!pending) {
@@ -125,9 +125,21 @@ async function resolveModuleRootId(key: ModuleWorkspaceKey): Promise<string> {
     }
   }
 
-  // Try to adopt an existing top-level page with the current or legacy title.
-  // Pick the smallest id deterministically so every device converges on the
-  // same root when duplicates exist (page cloud sync merges the rest).
+  const cloudRoot = await findCloudModuleRoot(key);
+  if (cloudRoot) {
+    try {
+      await applyRemotePageMetadata([cloudRoot]);
+    } catch {
+      // Local SQLite is only a rebuildable cache. Even if this write fails,
+      // remembering the cloud root avoids creating a duplicate local root.
+    }
+    rememberRoot(key, cloudRoot.id);
+    return cloudRoot.id;
+  }
+
+  // Offline/local-only fallback: adopt an existing top-level page with the
+  // current or legacy title. Pick the smallest id deterministically so the
+  // local cache converges when duplicates exist.
   const titleSet = new Set([def.title, ...(def.legacyTitles ?? [])]);
   const allPages = await getAllPageMetadata();
   const adopted = allPages
@@ -139,18 +151,6 @@ async function resolveModuleRootId(key: ModuleWorkspaceKey): Promise<string> {
     }
     rememberRoot(key, adopted.id);
     return adopted.id;
-  }
-
-  const cloudRoot = await findCloudModuleRoot(key);
-  if (cloudRoot) {
-    try {
-      await applyRemotePageMetadata([cloudRoot]);
-    } catch {
-      // Local SQLite is only a rebuildable cache. Even if this write fails,
-      // remembering the cloud root avoids creating a duplicate local root.
-    }
-    rememberRoot(key, cloudRoot.id);
-    return cloudRoot.id;
   }
 
   const created = await createPage({ title: def.title, icon: def.icon });
@@ -205,7 +205,7 @@ async function runCloudModuleRootLookup(): Promise<
     const res = await fetch("/api/pages/account-sync", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "metadata" }),
+      body: JSON.stringify({ action: "module-roots" }),
     });
     if (!res.ok) return new Map();
     const json = (await res.json().catch(() => ({}))) as { pages?: unknown };
