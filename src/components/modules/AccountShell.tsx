@@ -16,12 +16,14 @@ import {
   getLastPageSyncAt,
   isPageSyncEnabled,
   reconcilePageSync,
+  rebuildPageCacheFromCloud,
   setPageSyncEnabled,
 } from "@/lib/pages/accountPageSync";
 import {
   notifyAccountProfileUpdated,
   type ClientAccountInfo,
 } from "@/lib/account/clientProfile";
+import { usePages } from "@/hooks/usePages";
 
 type Phase =
   | "loading"
@@ -32,6 +34,7 @@ type Phase =
   | "error";
 
 export default function AccountShell() {
+  const { refresh: refreshPages } = usePages();
   const [phase, setPhase] = useState<Phase>("loading");
   const [account, setAccount] = useState<ClientAccountInfo | null>(null);
   const [email, setEmail] = useState("");
@@ -47,11 +50,12 @@ export default function AccountShell() {
   const [shareInput, setShareInput] = useState("");
   const [shareBusy, setShareBusy] = useState(false);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
-  // Page cloud sync: off by default, owner flips it on per browser.
+  // Page cloud sync: on by default for signed-in browsers, with local opt-out.
   const [pageSyncOn, setPageSyncOn] = useState(false);
   const [pageSyncBusy, setPageSyncBusy] = useState(false);
   const [dailyRepairBusy, setDailyRepairBusy] = useState(false);
   const [dailyPullBusy, setDailyPullBusy] = useState(false);
+  const [pageCacheRebuildBusy, setPageCacheRebuildBusy] = useState(false);
   const [pageSyncNotice, setPageSyncNotice] = useState<string | null>(null);
   const [pageSyncLastAt, setPageSyncLastAt] = useState<string | null>(null);
   // API Key for external tools (Claude, web clipper extension)
@@ -228,6 +232,36 @@ export default function AccountShell() {
       setPageSyncNotice("本机写入失败，未能完成每日纪要拉取。");
     } finally {
       setDailyPullBusy(false);
+    }
+  }
+
+  async function handlePageCacheRebuildRun() {
+    const ok = window.confirm(
+      "这会清理本机已同步页面的缓存，然后从账号云端重新拉一份。云端数据不会删除；数据库表格、本地文件、评论、版本历史不会上传或删除。未同步到云端的本机页面不会作为恢复来源。继续吗？"
+    );
+    if (!ok) return;
+
+    setPageCacheRebuildBusy(true);
+    setPageSyncNotice(null);
+    try {
+      const result = await rebuildPageCacheFromCloud();
+      if (result.status === "ok") {
+        setPageSyncLastAt(getLastPageSyncAt());
+        await refreshPages({ broadcast: false, reason: "cloud-pull" });
+        setPageSyncNotice(
+          `本机页面缓存已从云端重建：清理 ${result.cleared} 条，拉取 ${result.pulled}/${result.total} 页，修复归档 ${result.repaired ?? 0} 页。`
+        );
+      } else if (result.status === "unauthenticated") {
+        setPageSyncNotice("登录已过期，请重新登录后再重建本机缓存。");
+      } else if (result.status === "disabled") {
+        setPageSyncNotice("请先打开页面云同步开关。");
+      } else {
+        setPageSyncNotice(result.message ?? "本机缓存重建失败，请稍后重试。");
+      }
+    } catch {
+      setPageSyncNotice("本机写入失败，未能完成页面缓存重建。");
+    } finally {
+      setPageCacheRebuildBusy(false);
     }
   }
 
@@ -637,9 +671,9 @@ export default function AccountShell() {
                     页面云同步
                   </p>
                   <p className="mt-1 text-xs text-zinc-400">
-                    默认开启：页面与会议安排（标题、正文、层级、属性、封面）跟随账号
-                    实时云端同步，登录同一账号的两个域名 / 多台设备会自动保持一致。
-                    切换标签页或几秒内即会自动对齐，也可点“立即同步”。
+                    默认开启：云端是页面主库，本机浏览器只是可重建缓存。页面与会议安排
+                    （标题、正文、层级、属性、封面）跟随账号同步，登录同一账号的两个域名
+                    / 多台设备会自动保持一致。切换标签页或几秒内即会自动对齐，也可手动同步。
                   </p>
                 </div>
                 <button
@@ -665,24 +699,51 @@ export default function AccountShell() {
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   <button
                     onClick={() => void handlePageSyncRun()}
-                    disabled={pageSyncBusy || dailyRepairBusy || dailyPullBusy}
+                    disabled={
+                      pageSyncBusy ||
+                      dailyRepairBusy ||
+                      dailyPullBusy ||
+                      pageCacheRebuildBusy
+                    }
                     className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                   >
                     {pageSyncBusy ? "同步中…" : "立即同步"}
                   </button>
                   <button
                     onClick={() => void handleDailyRepairRun()}
-                    disabled={pageSyncBusy || dailyRepairBusy || dailyPullBusy}
+                    disabled={
+                      pageSyncBusy ||
+                      dailyRepairBusy ||
+                      dailyPullBusy ||
+                      pageCacheRebuildBusy
+                    }
                     className="rounded-lg border border-amber-300 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-50 disabled:opacity-40 dark:border-amber-700/70 dark:text-amber-300 dark:hover:bg-amber-900/20"
                   >
                     {dailyRepairBusy ? "修复中…" : "修复每日纪要归档"}
                   </button>
                   <button
                     onClick={() => void handleDailyForcePullRun()}
-                    disabled={pageSyncBusy || dailyRepairBusy || dailyPullBusy}
+                    disabled={
+                      pageSyncBusy ||
+                      dailyRepairBusy ||
+                      dailyPullBusy ||
+                      pageCacheRebuildBusy
+                    }
                     className="rounded-lg border border-sky-300 px-3 py-1.5 text-sm text-sky-700 hover:bg-sky-50 disabled:opacity-40 dark:border-sky-700/70 dark:text-sky-300 dark:hover:bg-sky-900/20"
                   >
                     {dailyPullBusy ? "拉取中…" : "强制拉取每日纪要"}
+                  </button>
+                  <button
+                    onClick={() => void handlePageCacheRebuildRun()}
+                    disabled={
+                      pageSyncBusy ||
+                      dailyRepairBusy ||
+                      dailyPullBusy ||
+                      pageCacheRebuildBusy
+                    }
+                    className="rounded-lg border border-violet-300 px-3 py-1.5 text-sm text-violet-700 hover:bg-violet-50 disabled:opacity-40 dark:border-violet-700/70 dark:text-violet-300 dark:hover:bg-violet-900/20"
+                  >
+                    {pageCacheRebuildBusy ? "重建中…" : "重建本机页面缓存"}
                   </button>
                   {pageSyncLastAt && (
                     <span className="text-xs text-zinc-400">
@@ -702,6 +763,7 @@ export default function AccountShell() {
               <p className="mt-3 text-[11px] leading-5 text-zinc-400">
                 不上传：数据库表格、本地文件、评论、版本历史。同步走你自己的
                 Upstash 云存储，只有登录此账号的浏览器能读取。冲突时保留较新的修改。
+                本机页面缓存可随时重建，不会删除云端真数据。
               </p>
             </div>
           )}

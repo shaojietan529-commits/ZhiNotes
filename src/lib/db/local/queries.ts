@@ -526,6 +526,42 @@ export async function getAllPagesForSync(): Promise<Page[]> {
   ) as unknown as Page[];
 }
 
+export async function clearLocalPageCacheForIds(ids: string[]): Promise<number> {
+  const db = await getDb();
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  if (uniqueIds.length === 0) return 0;
+
+  let cleared = 0;
+  const now = nowISO();
+  const chunkSize = 80;
+  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+    const chunk = uniqueIds.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const existing = db.query(
+      `SELECT COUNT(*) as count FROM pages WHERE id IN (${placeholders})`,
+      chunk
+    ) as unknown as { count: number }[];
+    cleared += Number(existing[0]?.count ?? 0);
+    db.run(
+      `UPDATE pages
+       SET parent_id = NULL,
+           title = '',
+           icon = NULL,
+           cover_url = NULL,
+           content_yjs = NULL,
+           content_text = NULL,
+           properties = NULL,
+           position = 0,
+           depth = 0,
+           updated_at = ?,
+           deleted_at = ?
+       WHERE id IN (${placeholders})`,
+      [now, now, ...chunk]
+    );
+  }
+  return cleared;
+}
+
 export interface RemotePageRecord {
   id: string;
   parent_id: string | null;

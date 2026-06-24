@@ -2,7 +2,7 @@
 
 // Account-scoped page cloud sync engine (client side).
 //
-// Off by default: nothing is uploaded until the owner flips the toggle on
+// On by default for signed-in browsers, with a local opt-out switch on
 // /account (stored in localStorage). When enabled and signed in, reconcile
 // compares the local page tree with the account's cloud copy and:
 //   - pulls remote pages that are newer or missing locally
@@ -16,6 +16,7 @@
 import {
   applyRemotePageMetadata,
   applyRemotePages,
+  clearLocalPageCacheForIds,
   getAllPagesForSync,
   getNextPosition,
   movePage,
@@ -97,6 +98,15 @@ export interface PullDailyCloudResult {
   failed?: number;
   failedReason?: string;
   scanned?: number;
+  message?: string;
+}
+
+export interface RebuildPageCacheResult {
+  status: PageSyncStatus;
+  cleared: number;
+  pulled: number;
+  total: number;
+  repaired?: number;
   message?: string;
 }
 
@@ -533,6 +543,11 @@ function setRemoteCursor(cursor: string) {
   window.localStorage.setItem(REMOTE_CURSOR_KEY, cursor);
 }
 
+function setLastPageSyncAtNow() {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+}
+
 function getPropertyValue(page: Page, name: string): string {
   return (
     parsePageProperties(page.properties).find((property) => property.name === name)
@@ -704,6 +719,71 @@ async function repairDailyImportPlacement(): Promise<number> {
     repaired += 1;
   }
   return repaired;
+}
+
+export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResult> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", cleared: 0, pulled: 0, total: 0 };
+  }
+
+  const manifestRes = await call({ action: "manifest" });
+  if (!manifestRes.ok) {
+    return {
+      status: manifestRes.status,
+      cleared: 0,
+      pulled: 0,
+      total: 0,
+      message: manifestRes.message,
+    };
+  }
+
+  const index = (manifestRes.json.index ?? {}) as Record<string, IndexEntry>;
+  const ids = Object.keys(index).filter(isValidRemotePageId);
+  let cleared = 0;
+  let pulled = 0;
+
+  for (let i = 0; i < ids.length; i += PULL_BATCH) {
+    const batchIds = ids.slice(i, i + PULL_BATCH);
+    const res = await call({ action: "pull", ids: batchIds });
+    if (!res.ok) {
+      return {
+        status: res.status,
+        cleared,
+        pulled,
+        total: ids.length,
+        message: res.message,
+      };
+    }
+    const pages = Array.isArray(res.json.pages)
+      ? (res.json.pages as RemotePageRecord[])
+      : [];
+    const pulledIds = pages.map((page) => page.id).filter(isValidRemotePageId);
+    cleared += await clearLocalPageCacheForIds(pulledIds);
+    if (pages.length > 0) {
+      await applyRemotePages(pages);
+      pulled += pages.length;
+    }
+  }
+
+  if (pulled > 0) {
+    await mergeModuleRoots();
+  }
+  const repaired = await repairDailyImportPlacement();
+  const summary = summarizeIndex(index);
+  setRemoteWatermark(summary.watermark);
+  setRemoteCursor(summary.maxUpdatedAt);
+  setLastPageSyncAtNow();
+  if (pulled > 0 || cleared > 0 || repaired > 0) {
+    emitPagesUpdated("cloud-pull", pulled || cleared || repaired);
+  }
+
+  return {
+    status: "ok",
+    cleared,
+    pulled,
+    total: ids.length,
+    repaired,
+  };
 }
 
 async function pullIncrementalCloudChanges(
