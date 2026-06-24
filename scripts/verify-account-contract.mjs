@@ -164,6 +164,28 @@ check(
   "重建本机页面缓存前应先清理本机已同步页面缓存"
 );
 
+const usePageHook = read("src/hooks/usePage.ts");
+check(
+  usePageHook.includes("fetchCloudPageById"),
+  "usePage 应在本机页面缺失或正文为空时从账号云端拉取页面"
+);
+check(
+  usePageHook.includes("applyRemotePages([record])"),
+  "usePage 从云端拉到页面后应写回本机页面缓存"
+);
+check(
+  usePageHook.includes("hydrateRemotePageIntoLocalCache"),
+  "usePage 应封装云端页面回填本机缓存逻辑"
+);
+check(
+  usePageHook.includes("upsertPages([remoteSnapshot])"),
+  "usePage 云端拉取后应更新前端页面索引，避免依赖全量刷新"
+);
+check(
+  usePageHook.includes("reading is not blocked by a broken browser cache"),
+  "usePage 本机缓存写入失败时仍应允许读取云端页面"
+);
+
 const localQueries = read("src/lib/db/local/queries.ts");
 check(
   localQueries.includes("clearLocalPageCacheForIds"),
