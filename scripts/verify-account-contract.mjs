@@ -174,6 +174,21 @@ check(
   "页面 push 和服务端修复路径都应写入 change log"
 );
 check(
+  pageSyncRoute.includes("MEETING_CALENDAR_CACHE_KEY_PREFIX") &&
+    pageSyncRoute.includes("readMeetingCalendarCache") &&
+    pageSyncRoute.includes("selectMeetingCalendarMetadata") &&
+    pageSyncRoute.includes("getMeetingCalendarMetadata("),
+  "会议日历 metadata 应维护按 watermark 失效的云端索引缓存"
+);
+check(
+  pageSyncRoute.includes('body.action === "meeting-calendar-metadata"') &&
+    pageSyncRoute.includes("startDate") &&
+    pageSyncRoute.includes("endDate") &&
+    pageSyncRoute.includes("recentLimit") &&
+    pageSyncRoute.includes("toMeetingMetadataRecord"),
+  "会议日历 metadata 应支持按当前日历窗口和 recentLimit 返回轻量页面"
+);
+check(
   pageSyncRoute.includes("interface PageMetadataResult") &&
     pageSyncRoute.includes("async function getPageMetadata") &&
     pageSyncRoute.includes('body.action === "metadata"'),
@@ -274,6 +289,22 @@ check(
     dailyNotesShell.includes("后台保存到账号云端") &&
     !dailyNotesShell.includes("createPageWithCloud"),
   "DailyNotesShell 点击 + 应立即打开乐观草稿，再后台保存到云端"
+);
+
+const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");
+check(
+  meetingScheduleShell.includes("readCachedMeetingCloudMetadata(startDate, endDate)") &&
+    meetingScheduleShell.includes("loadMeetingCloudMetadata({") &&
+    meetingScheduleShell.includes("recentLimit: 12") &&
+    meetingScheduleShell.indexOf("mergeMeetingPages([], cloud.pages") <
+      meetingScheduleShell.indexOf("getModuleRootId(\"meeting-schedule\")"),
+  "MeetingScheduleShell 首屏应先读云端当前日历窗口，再回退本机缓存"
+);
+check(
+  meetingScheduleShell.includes("MEETING_CLOUD_CACHE_PREFIX") &&
+    meetingScheduleShell.includes("writeCachedMeetingCloudMetadata") &&
+    meetingScheduleShell.includes("Meeting schedule local cache load failed"),
+  "MeetingScheduleShell 云端会议 metadata 应只把轻量窗口结果作为本机可重建缓存"
 );
 
 const usePageHook = read("src/hooks/usePage.ts");
