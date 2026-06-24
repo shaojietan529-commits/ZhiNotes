@@ -207,6 +207,9 @@ check(
 );
 
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
+const reconcilePageSyncBody = pageSyncClient.slice(
+  pageSyncClient.indexOf("export async function reconcilePageSync")
+);
 check(
   pageSyncClient.includes("if (!isPageSyncEnabled())"),
   "reconcile 必须在开关关闭时直接返回（关闭后不上传）"
@@ -283,6 +286,13 @@ check(
   "页面同步客户端应提供节流、去重的轻量 metadata 增量同步入口"
 );
 check(
+  reconcilePageSyncBody.includes("const metadata = await syncCloudPageMetadataDelta") &&
+    reconcilePageSyncBody.includes("force: true") &&
+    reconcilePageSyncBody.indexOf("const metadata = await syncCloudPageMetadataDelta") <
+      reconcilePageSyncBody.indexOf('const manifestRes = await call({ action: "manifest" })'),
+  "quick 页面同步冷启动必须先走 metadata 增量预热，不能直接退回拉完整页面正文"
+);
+check(
   pageSyncClient.includes("cache failures should not block cloud-backed page lists"),
   "页面 metadata 增量同步应允许本机缓存写入失败时继续用云端列表渲染"
 );
@@ -339,6 +349,8 @@ check(
 const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");
 check(
   meetingScheduleShell.includes("readCachedMeetingCloudMetadata(startDate, endDate)") &&
+    meetingScheduleShell.includes("syncCloudPageMetadataDelta({ force: true })") &&
+    !meetingScheduleShell.includes("reconcilePageSync") &&
     meetingScheduleShell.includes("loadMeetingCloudMetadata({") &&
     meetingScheduleShell.includes("recentLimit: 12") &&
     meetingScheduleShell.indexOf("mergeMeetingPages([], cloud.pages") <

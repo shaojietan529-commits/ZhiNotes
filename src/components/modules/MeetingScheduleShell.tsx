@@ -18,7 +18,7 @@ import {
   createPageWithCloud,
   updatePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
-import { reconcilePageSync } from "@/lib/pages/accountPageSync";
+import { syncCloudPageMetadataDelta } from "@/lib/pages/accountPageSync";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import {
   createPageProperty,
@@ -365,7 +365,9 @@ export default function MeetingScheduleShell() {
     let initialSync: Promise<unknown> | null = null;
     if (!initialCloudPullAttemptedRef.current) {
       initialCloudPullAttemptedRef.current = true;
-      initialSync = reconcilePageSync().catch(() => undefined);
+      initialSync = syncCloudPageMetadataDelta({ force: true }).catch(
+        () => undefined
+      );
     }
 
     const cachedCloud = readCachedMeetingCloudMetadata(startDate, endDate);

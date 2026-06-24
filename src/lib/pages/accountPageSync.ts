@@ -1323,6 +1323,14 @@ export async function reconcilePageSync(
             skipped: pendingPush.pushed === 0,
           };
         }
+        const metadata = await syncCloudPageMetadataDelta({ force: true });
+        return {
+          status: metadata.status,
+          pulled: metadata.pulled,
+          pushed: pendingPush.pushed,
+          skipped: metadata.pulled === 0 && pendingPush.pushed === 0,
+          message: metadata.message,
+        };
       }
     }
 
