@@ -52,6 +52,8 @@ const PUSH_BATCH_BYTES = 800 * 1024;
 const INCREMENTAL_PULL_LIMIT = 50;
 const QUICK_INCREMENTAL_BATCH_LIMIT = 3;
 const METADATA_DELTA_THROTTLE_MS = 2500;
+const PAGE_LOOKUP_CACHE_MS = 4000;
+const PAGE_LOOKUP_CACHE_LIMIT = 60;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 // Covers stored as data URLs can be multi-MB; skip oversized ones rather
 // than failing the whole page push.
@@ -62,6 +64,11 @@ let queuedCloudPushTimer: ReturnType<typeof setTimeout> | null = null;
 let metadataDeltaInFlight: Promise<CloudPageMetadataDeltaResult> | null = null;
 let lastMetadataDeltaAt = 0;
 let lastMetadataDeltaResult: CloudPageMetadataDeltaResult | null = null;
+const pageLookupInFlight = new Map<string, Promise<CloudPageLookupResult>>();
+const pageLookupCache = new Map<
+  string,
+  { cachedAt: number; result: CloudPageLookupResult }
+>();
 let authRetryAfter = 0;
 let authRetryStatus: PageSyncStatus | null = null;
 let memoryRemoteWatermark: string | null = null;
@@ -295,6 +302,24 @@ export async function fetchCloudPagesByIds(
   if (uniqueIds.length === 0) {
     return { status: "ok", pages: [] };
   }
+  const cacheKey = cloudPageLookupCacheKey(uniqueIds);
+  const cached = readCloudPageLookupCache(cacheKey);
+  if (cached) return cached;
+  const inFlight = pageLookupInFlight.get(cacheKey);
+  if (inFlight) return inFlight;
+
+  const request = runFetchCloudPagesByIds(uniqueIds).finally(() => {
+    pageLookupInFlight.delete(cacheKey);
+  });
+  pageLookupInFlight.set(cacheKey, request);
+  const result = await request;
+  rememberCloudPageLookupResult(cacheKey, result);
+  return result;
+}
+
+async function runFetchCloudPagesByIds(
+  uniqueIds: string[]
+): Promise<CloudPageLookupResult> {
   const res = await call({ action: "pull", ids: uniqueIds });
   if (!res.ok) {
     return { status: res.status, pages: [], message: res.message };
@@ -303,6 +328,35 @@ export async function fetchCloudPagesByIds(
     ? (res.json.pages as RemotePageRecord[])
     : [];
   return { status: "ok", pages };
+}
+
+function cloudPageLookupCacheKey(ids: string[]): string {
+  return ids.slice().sort().join("\n");
+}
+
+function readCloudPageLookupCache(
+  key: string
+): CloudPageLookupResult | null {
+  const cached = pageLookupCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.cachedAt > PAGE_LOOKUP_CACHE_MS) {
+    pageLookupCache.delete(key);
+    return null;
+  }
+  return cached.result;
+}
+
+function rememberCloudPageLookupResult(
+  key: string,
+  result: CloudPageLookupResult
+): void {
+  if (result.status !== "ok") return;
+  pageLookupCache.set(key, { cachedAt: Date.now(), result });
+  while (pageLookupCache.size > PAGE_LOOKUP_CACHE_LIMIT) {
+    const oldestKey = pageLookupCache.keys().next().value;
+    if (!oldestKey) break;
+    pageLookupCache.delete(oldestKey);
+  }
 }
 
 export async function fetchCloudPageById(

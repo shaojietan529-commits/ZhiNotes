@@ -480,6 +480,16 @@ check(
   "页面 metadata 增量同步在未登录/未配置时应跨刷新退避，避免页面列表刷新反复请求云端"
 );
 check(
+  pageSyncClient.includes("PAGE_LOOKUP_CACHE_MS") &&
+    pageSyncClient.includes("PAGE_LOOKUP_CACHE_LIMIT") &&
+    pageSyncClient.includes("pageLookupInFlight") &&
+    pageSyncClient.includes("pageLookupCache") &&
+    pageSyncClient.includes("cloudPageLookupCacheKey") &&
+    pageSyncClient.includes("readCloudPageLookupCache") &&
+    pageSyncClient.includes("rememberCloudPageLookupResult"),
+  "页面正文云端读取应有短缓存和 in-flight 去重，避免同一页面打开时重复拉取"
+);
+check(
   !pageCloudSyncHook.includes("usePages") &&
     !pageCloudSyncHook.includes("refresh({ reason: \"cloud-pull\" })"),
   "页面云同步 hook 不应在每次云端拉取后再触发 usePages 全量/元数据刷新；应依赖页面更新广播收敛"
