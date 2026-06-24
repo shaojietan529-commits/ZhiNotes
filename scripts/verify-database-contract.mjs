@@ -283,7 +283,9 @@ function run() {
     "rebuildDatabaseCacheFromCloud",
     "reconcileDatabaseSync",
     "DatabaseReconcileOptions",
-    "options.quick && !cursor",
+    "let cursor = getRemoteCursor()",
+    "if (!cursor)",
+    "cursor = getRemoteCursor()",
     "getLocalDatabaseSyncSummary",
     "restoreCursorFromLocalDatabaseMetadata",
     "localSummary.watermark !== remoteSummary.watermark",
@@ -360,16 +362,35 @@ function run() {
       "Database cache rebuild must clear short-lived metadata snapshots before pruning local cache."
     );
   }
-  if (
+  const reconcileDatabaseBody = databaseAccountSyncClient.slice(
     databaseAccountSyncClient.indexOf(
-      "restoreCursorFromLocalDatabaseMetadata(summary)"
-    ) >
+      "export async function reconcileDatabaseSync"
+    ),
     databaseAccountSyncClient.indexOf(
-      "const metadata = await syncCloudDatabaseMetadata()"
+      "export async function rebuildDatabaseCacheFromCloud"
     )
+  );
+  if (
+    !reconcileDatabaseBody.includes("let cursor = getRemoteCursor()") ||
+    !reconcileDatabaseBody.includes("if (!cursor)") ||
+    !reconcileDatabaseBody.includes('call({ action: "summary" })') ||
+    !reconcileDatabaseBody.includes(
+      "restoreCursorFromLocalDatabaseMetadata(summary)"
+    ) ||
+    !reconcileDatabaseBody.includes("cursor = getRemoteCursor()") ||
+    !reconcileDatabaseBody.includes(
+      "const metadata = await syncCloudDatabaseMetadata()"
+    ) ||
+    reconcileDatabaseBody.indexOf(
+      "restoreCursorFromLocalDatabaseMetadata(summary)"
+    ) > reconcileDatabaseBody.indexOf(
+      "const metadata = await syncCloudDatabaseMetadata()"
+    ) ||
+    reconcileDatabaseBody.indexOf("if (!cursor)") >
+      reconcileDatabaseBody.indexOf("const pull = await syncCloudDatabaseDelta")
   ) {
     failures.push(
-      "Database quick sync must try restoring the cursor from local metadata before forcing a cloud metadata pull."
+      "Database reconcile must restore a missing cursor from local metadata before falling back to metadata pull or incremental delta."
     );
   }
   const syncDatabaseMetadataBody = databaseAccountSyncClient.slice(

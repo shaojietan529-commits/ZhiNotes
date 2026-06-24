@@ -1116,8 +1116,8 @@ export async function reconcileDatabaseSync(
     };
   }
 
-  const cursor = getRemoteCursor();
-  if (options.quick && !cursor) {
+  let cursor = getRemoteCursor();
+  if (!cursor) {
     const summaryRes = await call({ action: "summary" });
     if (!summaryRes.ok) {
       return {
@@ -1130,11 +1130,41 @@ export async function reconcileDatabaseSync(
     }
     const summary = normalizeSummary(summaryRes.json.summary);
     if (summary && (await restoreCursorFromLocalDatabaseMetadata(summary))) {
+      cursor = getRemoteCursor();
+      if (!cursor) {
+        const push = await pushPendingLocalDatabaseChangesToCloud();
+        if (push.status !== "ok") {
+          return {
+            status: push.status,
+            pulled: 0,
+            pushed: push.pushed,
+            skipped: push.skipped,
+            message: push.message,
+          };
+        }
+        return {
+          status: "ok",
+          pulled: 0,
+          pushed: queuedPush.pushed + push.pushed,
+          skipped: queuedPush.skipped + push.skipped,
+        };
+      }
+    } else {
+      const metadata = await syncCloudDatabaseMetadata();
+      if (metadata.status !== "ok") {
+        return {
+          status: metadata.status,
+          pulled: 0,
+          pushed: queuedPush.pushed,
+          skipped: queuedPush.skipped,
+          message: metadata.message,
+        };
+      }
       const push = await pushPendingLocalDatabaseChangesToCloud();
       if (push.status !== "ok") {
         return {
           status: push.status,
-          pulled: 0,
+          pulled: metadata.pulled,
           pushed: push.pushed,
           skipped: push.skipped,
           message: push.message,
@@ -1142,38 +1172,12 @@ export async function reconcileDatabaseSync(
       }
       return {
         status: "ok",
-        pulled: 0,
+        pulled: metadata.pulled,
         pushed: queuedPush.pushed + push.pushed,
         skipped: queuedPush.skipped + push.skipped,
+        records: metadata.records,
       };
     }
-    const metadata = await syncCloudDatabaseMetadata();
-    if (metadata.status !== "ok") {
-      return {
-        status: metadata.status,
-        pulled: 0,
-        pushed: queuedPush.pushed,
-        skipped: queuedPush.skipped,
-        message: metadata.message,
-      };
-    }
-    const push = await pushPendingLocalDatabaseChangesToCloud();
-    if (push.status !== "ok") {
-      return {
-        status: push.status,
-        pulled: metadata.pulled,
-        pushed: push.pushed,
-        skipped: push.skipped,
-        message: push.message,
-      };
-    }
-    return {
-      status: "ok",
-      pulled: metadata.pulled,
-      pushed: queuedPush.pushed + push.pushed,
-      skipped: queuedPush.skipped + push.skipped,
-      records: metadata.records,
-    };
   }
 
   const pull = await syncCloudDatabaseDelta(
@@ -1200,12 +1204,12 @@ export async function reconcileDatabaseSync(
     };
   }
   return {
-      status: "ok",
-      pulled: pull.pulled,
-      pushed: queuedPush.pushed + push.pushed,
-      skipped: queuedPush.skipped + push.skipped,
-      records: pull.records,
-    };
+    status: "ok",
+    pulled: pull.pulled,
+    pushed: queuedPush.pushed + push.pushed,
+    skipped: queuedPush.skipped + push.skipped,
+    records: pull.records,
+  };
 }
 
 export async function rebuildDatabaseCacheFromCloud(): Promise<RebuildDatabaseCacheResult> {
