@@ -950,10 +950,10 @@ export default function MeetingScheduleShell() {
                 <button
                   type="button"
                   onClick={() => void handleImportInvite()}
-                  disabled={intakeLoading || !intakeText.trim()}
+                  disabled={intakeLoading || !rootId || !intakeText.trim()}
                   className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
                 >
-                  {intakeLoading ? "读取中..." : "导入"}
+                  {intakeLoading ? "读取中..." : rootId ? "导入" : "加载中..."}
                 </button>
               </div>
               <textarea
@@ -1485,6 +1485,39 @@ function parseDateKeyToLocalDate(dateKey: string) {
   return new Date(year, month - 1, day);
 }
 
+function normalizeMeetingDateKey(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+
+  const isoLike = normalized.match(/(20\d{2})-(\d{1,2})-(\d{1,2})/);
+  if (isoLike) {
+    return `${isoLike[1]}-${padNumber(isoLike[2])}-${padNumber(isoLike[3])}`;
+  }
+
+  const slashLike = normalized.match(/(20\d{2})[/.](\d{1,2})[/.](\d{1,2})/);
+  if (slashLike) {
+    return `${slashLike[1]}-${padNumber(slashLike[2])}-${padNumber(slashLike[3])}`;
+  }
+
+  const chineseLike = normalized.match(/(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?/);
+  if (chineseLike) {
+    return `${chineseLike[1]}-${padNumber(chineseLike[2])}-${padNumber(chineseLike[3])}`;
+  }
+
+  return "";
+}
+
+function normalizeMeetingTime(value: string) {
+  const match = value.match(/([01]?\d|2[0-3])[:：]([0-5]\d)(?:\s*(?:-|--|---|–|—|至|到|~|to)\s*([01]?\d|2[0-3])[:：]([0-5]\d))?/i);
+  if (!match) return value;
+  const start = `${padNumber(match[1])}:${match[2]}`;
+  return match[3] && match[4] ? `${start}-${padNumber(match[3])}:${match[4]}` : start;
+}
+
+function padNumber(value: string) {
+  return value.padStart(2, "0");
+}
+
 function formatImportDateMessage(dateKey: string) {
   if (!dateKey) return "已导入会议日历。";
   const todayKey = toDateKey(new Date());
@@ -1565,13 +1598,18 @@ function toMeetingEntry(page: Page): MeetingEntry {
   const props = parsePageProperties(page.properties);
   const read = (name: string) =>
     props.find((p) => p.name === name)?.value ?? "";
+  const rawDate = read("日期");
+  const rawTime = read("时间");
+  const dateKey = normalizeMeetingDateKey(
+    [rawDate, rawTime, page.title, page.content_text ?? ""].join("\n")
+  );
   return {
     page,
     topic: page.title || "未命名会议",
     organizer: read("组织者"),
     platform: read("平台"),
-    time: read("时间"),
-    dateKey: read("日期"),
+    time: normalizeMeetingTime(rawTime),
+    dateKey,
     joinUrl: read("入会链接"),
     joinUrlHost: read("链接域名"),
     meetingId: read("会议号"),
@@ -1883,6 +1921,8 @@ function MeetingStatusBar({
 
 function needsTraceReview(entry: MeetingEntry) {
   return (
+    !entry.dateKey ||
+    !entry.time ||
     entry.timeStatus === "待补充" ||
     entry.traceStatus === "导入失败-已留痕" ||
     entry.recordingStatus === "录制失败" ||
