@@ -26,6 +26,9 @@ interface RefreshOptions {
   reason?: PageUpdateReason;
 }
 
+let metadataSnapshotInFlight: Promise<Page[]> | null = null;
+let contentSnapshotInFlight: Promise<Page[]> | null = null;
+
 function remoteMetadataToPage(record: RemotePageRecord): Page {
   return {
     id: record.id,
@@ -47,6 +50,30 @@ function remoteMetadataToPage(record: RemotePageRecord): Page {
   };
 }
 
+function loadPagesSnapshot(includeContent: boolean): Promise<Page[]> {
+  const current = includeContent
+    ? contentSnapshotInFlight
+    : metadataSnapshotInFlight;
+  if (current) return current;
+
+  const promise = (includeContent ? getAllPages() : getAllPageMetadata()).finally(
+    () => {
+      if (includeContent) {
+        if (contentSnapshotInFlight === promise) contentSnapshotInFlight = null;
+      } else if (metadataSnapshotInFlight === promise) {
+        metadataSnapshotInFlight = null;
+      }
+    }
+  );
+
+  if (includeContent) {
+    contentSnapshotInFlight = promise;
+  } else {
+    metadataSnapshotInFlight = promise;
+  }
+  return promise;
+}
+
 export function usePages(options: UsePagesOptions = {}) {
   const includeContent = options.includeContent ?? false;
   const dbReady = useWorkspaceStore((s) => s.dbReady);
@@ -56,9 +83,7 @@ export function usePages(options: UsePagesOptions = {}) {
 
   const refresh = useCallback(async (options: RefreshOptions = {}) => {
     if (!dbReady) return;
-    const all = includeContent
-      ? await getAllPages()
-      : await getAllPageMetadata();
+    const all = await loadPagesSnapshot(includeContent);
     setPages(all);
 
     if (!includeContent) {

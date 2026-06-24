@@ -43,6 +43,7 @@ const LAST_SYNC_KEY = "zhinote.pagesync.lastSyncAt";
 const REMOTE_WATERMARK_KEY = "zhinote.pagesync.remoteWatermark";
 const REMOTE_CURSOR_KEY = "zhinote.pagesync.remoteCursor";
 const PENDING_PUSH_IDS_KEY = "zhinote.pagesync.pendingPushIds";
+const AUTH_RETRY_KEY = "zhinote.pagesync.authRetry.v1";
 export const PAGE_SYNC_CONFIG_EVENT = "zhinote:pagesync-config";
 
 const PULL_BATCH = 40;
@@ -212,14 +213,26 @@ async function call(body: Record<string, unknown>): Promise<
   | { ok: true; json: Record<string, unknown> }
   | { ok: false; status: PageSyncStatus; message?: string }
 > {
+  if (shouldBackOffAuthRetry()) {
+    return {
+      ok: false,
+      status: authRetryStatus ?? "unauthenticated",
+    };
+  }
   try {
     const res = await fetch("/api/pages/account-sync", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (res.status === 501) return { ok: false, status: "unconfigured" };
-    if (res.status === 401) return { ok: false, status: "unauthenticated" };
+    if (res.status === 501) {
+      rememberAuthRetryStatus("unconfigured");
+      return { ok: false, status: "unconfigured" };
+    }
+    if (res.status === 401) {
+      rememberAuthRetryStatus("unauthenticated");
+      return { ok: false, status: "unauthenticated" };
+    }
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
       return {
@@ -228,6 +241,7 @@ async function call(body: Record<string, unknown>): Promise<
         message: typeof json.error === "string" ? json.error : undefined,
       };
     }
+    rememberAuthRetryStatus("ok");
     return { ok: true, json };
   } catch {
     return { ok: false, status: "error", message: "网络错误" };
@@ -445,6 +459,8 @@ export async function syncCloudPageMetadataDelta(
 }
 
 function shouldBackOffAuthRetry(): boolean {
+  const stored = readStoredAuthRetryStatus();
+  if (stored) return true;
   return authRetryStatus !== null && Date.now() < authRetryAfter;
 }
 
@@ -452,11 +468,42 @@ function rememberAuthRetryStatus(status: PageSyncStatus): void {
   if (status === "unauthenticated" || status === "unconfigured") {
     authRetryStatus = status;
     authRetryAfter = Date.now() + AUTH_RETRY_BACKOFF_MS;
+    writeSyncStorage(
+      AUTH_RETRY_KEY,
+      JSON.stringify({ status, until: authRetryAfter })
+    );
     return;
   }
   if (status === "ok" || status === "disabled") {
     authRetryStatus = null;
     authRetryAfter = 0;
+    removeSyncStorage(AUTH_RETRY_KEY);
+  }
+}
+
+function readStoredAuthRetryStatus(): PageSyncStatus | null {
+  try {
+    const parsed = JSON.parse(readSyncStorage(AUTH_RETRY_KEY) ?? "null") as {
+      status?: unknown;
+      until?: unknown;
+    } | null;
+    if (!parsed || typeof parsed.until !== "number" || parsed.until <= Date.now()) {
+      removeSyncStorage(AUTH_RETRY_KEY);
+      return null;
+    }
+    if (
+      parsed.status !== "unauthenticated" &&
+      parsed.status !== "unconfigured"
+    ) {
+      removeSyncStorage(AUTH_RETRY_KEY);
+      return null;
+    }
+    authRetryStatus = parsed.status;
+    authRetryAfter = parsed.until;
+    return parsed.status;
+  } catch {
+    removeSyncStorage(AUTH_RETRY_KEY);
+    return null;
   }
 }
 

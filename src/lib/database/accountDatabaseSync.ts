@@ -27,6 +27,7 @@ const ENABLED_KEY = "zhinote.databasesync.enabled";
 const LAST_SYNC_KEY = "zhinote.databasesync.lastSyncAt";
 const REMOTE_CURSOR_KEY = "zhinote.databasesync.remoteCursor";
 const PENDING_PUSH_KEYS_KEY = "zhinote.databasesync.pendingPushKeys";
+const AUTH_RETRY_KEY = "zhinote.databasesync.authRetry.v1";
 const INCREMENTAL_PULL_LIMIT = 100;
 const PULL_BATCH = 80;
 const PUSH_BATCH_RECORDS = 80;
@@ -174,6 +175,15 @@ function writeSyncStorage(key: string, value: string): void {
   }
 }
 
+function removeSyncStorage(key: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Best-effort cache cleanup only.
+  }
+}
+
 export function getLastDatabaseSyncAt(): string | null {
   return readSyncStorage(LAST_SYNC_KEY) ?? memoryLastDatabaseSyncAt;
 }
@@ -290,14 +300,26 @@ async function call(body: Record<string, unknown>): Promise<
   if (!isDatabaseSyncEnabled()) {
     return { ok: false, status: "disabled" };
   }
+  if (shouldBackOffAuthRetry()) {
+    return {
+      ok: false,
+      status: authRetryStatus ?? "unauthenticated",
+    };
+  }
   try {
     const res = await fetch("/api/databases/account-sync", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (res.status === 501) return { ok: false, status: "unconfigured" };
-    if (res.status === 401) return { ok: false, status: "unauthenticated" };
+    if (res.status === 501) {
+      rememberAuthRetryStatus("unconfigured");
+      return { ok: false, status: "unconfigured" };
+    }
+    if (res.status === 401) {
+      rememberAuthRetryStatus("unauthenticated");
+      return { ok: false, status: "unauthenticated" };
+    }
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
       return {
@@ -306,6 +328,7 @@ async function call(body: Record<string, unknown>): Promise<
         message: typeof json.error === "string" ? json.error : undefined,
       };
     }
+    rememberAuthRetryStatus("ok");
     return { ok: true, json };
   } catch {
     return { ok: false, status: "error", message: "网络错误" };
@@ -522,6 +545,8 @@ export async function syncCloudDatabaseMetadata(
 }
 
 function shouldBackOffAuthRetry(): boolean {
+  const stored = readStoredAuthRetryStatus();
+  if (stored) return true;
   return authRetryStatus !== null && Date.now() < authRetryAfter;
 }
 
@@ -529,11 +554,42 @@ function rememberAuthRetryStatus(status: DatabaseSyncStatus): void {
   if (status === "unauthenticated" || status === "unconfigured") {
     authRetryStatus = status;
     authRetryAfter = Date.now() + AUTH_RETRY_BACKOFF_MS;
+    writeSyncStorage(
+      AUTH_RETRY_KEY,
+      JSON.stringify({ status, until: authRetryAfter })
+    );
     return;
   }
   if (status === "ok" || status === "disabled") {
     authRetryStatus = null;
     authRetryAfter = 0;
+    removeSyncStorage(AUTH_RETRY_KEY);
+  }
+}
+
+function readStoredAuthRetryStatus(): DatabaseSyncStatus | null {
+  try {
+    const parsed = JSON.parse(readSyncStorage(AUTH_RETRY_KEY) ?? "null") as {
+      status?: unknown;
+      until?: unknown;
+    } | null;
+    if (!parsed || typeof parsed.until !== "number" || parsed.until <= Date.now()) {
+      removeSyncStorage(AUTH_RETRY_KEY);
+      return null;
+    }
+    if (
+      parsed.status !== "unauthenticated" &&
+      parsed.status !== "unconfigured"
+    ) {
+      removeSyncStorage(AUTH_RETRY_KEY);
+      return null;
+    }
+    authRetryStatus = parsed.status;
+    authRetryAfter = parsed.until;
+    return parsed.status;
+  } catch {
+    removeSyncStorage(AUTH_RETRY_KEY);
+    return null;
   }
 }
 

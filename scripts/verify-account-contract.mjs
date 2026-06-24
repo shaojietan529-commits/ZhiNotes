@@ -364,16 +364,16 @@ check(
   "DailyNotesShell 首屏应本地/缓存优先，云端后台补齐；回退本机时只能走日期索引，不能扫描本机全量页面"
 );
 check(
-  dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id)") <
+  dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
     dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
-    dailyNotesShell.includes("scheduleDailyPeekPreload") &&
-    dailyNotesShell.includes("preload?.()") &&
-    dailyNotesShell.includes("preloadPeekModal();") &&
-    dailyNotesShell.includes("后台保存到账号云端") &&
+    dailyNotesShell.includes("router.push(`/page/${optimisticNote.id}`)") &&
+    dailyNotesShell.includes("applyRemotePages([pageToRemoteRecord(note)])") &&
+    dailyNotesShell.includes("openNotePage") &&
+    dailyNotesShell.includes("后台会继续保存到账号云端") &&
     dailyNotesShell.includes("applyRemotePages(records)") &&
     dailyNotesShell.includes("return pushDailyCloudRecords(records)") &&
     !dailyNotesShell.includes("createPageWithCloud"),
-  "DailyNotesShell 点击 + 应立即打开乐观草稿，后台预热弹窗代码，再后台保存到云端"
+  "DailyNotesShell 点击 + 应立即进入乐观草稿完整页面，后台保存到云端"
 );
 check(
   dailyNotesShell.includes("expandedDateKeys") &&
@@ -551,11 +551,11 @@ const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");
 check(
   lazyPagePeekModal.includes('dynamic(() => import("@/components/page/PagePeekModal")') &&
-    dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
-    dailyNotesShell.includes("fetchCloudPageById") &&
-    dailyNotesShell.includes("prefetchNoteBody") &&
+    !dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
+    !dailyNotesShell.includes("fetchCloudPageById") &&
+    dailyNotesShell.includes("router.push(`/page/${note.id}`)") &&
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal'),
-  "每日纪要和知识库都应懒加载页面弹窗；每日纪要继续支持悬停预取正文"
+  "每日纪要应直接进入完整页面，知识库继续懒加载页面弹窗"
 );
 
 const localQueries = read("src/lib/db/local/queries.ts");

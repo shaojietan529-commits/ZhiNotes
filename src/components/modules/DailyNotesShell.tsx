@@ -30,20 +30,14 @@ import {
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
   fetchDailyCloudMetadata,
-  fetchCloudPageById,
   pushCloudPages,
   type DailyCloudMetadataResult,
 } from "@/lib/pages/accountPageSync";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
-import PagePeekModal from "@/components/page/LazyPagePeekModal";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-type PreloadablePeekModal = typeof PagePeekModal & {
-  preload?: () => void;
-};
 
 type DailyNote = Page & { dailyDateKey?: string; cloudOnly?: boolean };
 
@@ -70,8 +64,6 @@ export default function DailyNotesShell() {
   const [cloudNotice, setCloudNotice] = useState<string | null>(null);
   const [cloudLoading, setCloudLoading] = useState(false);
   const [creatingDateKey, setCreatingDateKey] = useState<string | null>(null);
-  const [peekPageId, setPeekPageId] = useState<string | null>(null);
-  const [peekInitialPage, setPeekInitialPage] = useState<DailyNote | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
     x: number;
@@ -84,18 +76,10 @@ export default function DailyNotesShell() {
   );
   const loadRequestRef = useRef(0);
   const observedPageRevisionRef = useRef<string | null>(null);
-  const prefetchingBodiesRef = useRef(new Set<string>());
   const [viewMonth, setViewMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
-  const preloadPeekModal = useCallback(() => {
-    (PagePeekModal as PreloadablePeekModal).preload?.();
-  }, []);
-
-  useEffect(() => {
-    return scheduleDailyPeekPreload(preloadPeekModal);
-  }, [preloadPeekModal]);
 
   const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
     const includeCloud = opts?.includeCloud !== false;
@@ -280,7 +264,6 @@ export default function DailyNotesShell() {
   const addNote = useCallback(
     async (dateKey: string) => {
       if (creatingDateKey) return;
-      preloadPeekModal();
       loadRequestRef.current += 1;
       setCreatingDateKey(dateKey);
       const props = [
@@ -315,9 +298,11 @@ export default function DailyNotesShell() {
         ...current.filter((item) => item.id !== optimisticNote.id),
       ]);
       upsertPages([optimisticNote]);
-      setPeekInitialPage(optimisticNote);
-      setPeekPageId(optimisticNote.id);
-      setCloudNotice(`${dateKey} 的每日纪要已打开，正在后台保存到账号云端…`);
+      setCloudNotice(`${dateKey} 的每日纪要正在打开，后台会继续保存到账号云端…`);
+
+      void seedDailyNoteForImmediateOpen(optimisticNote).finally(() => {
+        router.push(`/page/${optimisticNote.id}`);
+      });
 
       void (async () => {
         try {
@@ -340,9 +325,6 @@ export default function DailyNotesShell() {
             )
           );
           upsertPages([noteForSave]);
-          setPeekInitialPage((current) =>
-            current?.id === noteForSave.id ? noteForSave : current
-          );
           const persistStatus = await persistOptimisticDailyNote(
             dailyRootId,
             noteForSave,
@@ -362,49 +344,13 @@ export default function DailyNotesShell() {
         }
       })();
     },
-    [creatingDateKey, preloadPeekModal, rootId, upsertPages]
+    [creatingDateKey, rootId, router, upsertPages]
   );
 
-  const prefetchNoteBody = useCallback(
-    (note: DailyNote) => {
-      if (note.content_text != null || prefetchingBodiesRef.current.has(note.id)) {
-        return;
-      }
-      prefetchingBodiesRef.current.add(note.id);
-      void fetchCloudPageById(note.id)
-        .then(async (cloud) => {
-          if (cloud.status !== "ok" || cloud.pages.length === 0) return;
-          const record = cloud.pages[0];
-          await applyRemotePages([record]);
-          const hydrated = remoteRecordToPage(record);
-          upsertPages([hydrated]);
-          setNotes((current) =>
-            current.map((item) =>
-              item.id === hydrated.id
-                ? {
-                    ...item,
-                    ...hydrated,
-                    dailyDateKey: item.dailyDateKey || readDailyNoteDateKey(hydrated),
-                    cloudOnly: false,
-                  }
-                : item
-            )
-          );
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          window.setTimeout(() => {
-            prefetchingBodiesRef.current.delete(note.id);
-          }, 30_000);
-        });
-    },
-    [upsertPages]
-  );
-
-  const openNotePeek = useCallback((note: DailyNote) => {
-    setPeekInitialPage(note);
-    setPeekPageId(note.id);
-  }, []);
+  const openNotePage = useCallback((note: DailyNote) => {
+    upsertPages([note]);
+    router.push(`/page/${note.id}`);
+  }, [router, upsertPages]);
 
   const toggleDateExpansion = useCallback((dateKey: string) => {
     setExpandedDateKeys((current) => {
@@ -596,8 +542,6 @@ export default function DailyNotesShell() {
                       type="button"
                       disabled={creatingDateKey !== null}
                       onClick={() => void addNote(key)}
-                      onPointerEnter={preloadPeekModal}
-                      onFocus={preloadPeekModal}
                       className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                       title="在这天新增纪要"
                     >
@@ -630,9 +574,7 @@ export default function DailyNotesShell() {
                           setDraggedNoteId(null);
                           setDragOverDateKey(null);
                         }}
-                        onClick={() => openNotePeek(note)}
-                        onPointerEnter={() => prefetchNoteBody(note)}
-                        onFocus={() => prefetchNoteBody(note)}
+                        onClick={() => openNotePage(note)}
                         onContextMenu={(e) => {
                           e.preventDefault();
                           setContextMenu({
@@ -693,9 +635,7 @@ export default function DailyNotesShell() {
                         setDraggedNoteId(null);
                         setDragOverDateKey(null);
                       }}
-                      onClick={() => openNotePeek(note)}
-                      onPointerEnter={() => prefetchNoteBody(note)}
-                      onFocus={() => prefetchNoteBody(note)}
+                      onClick={() => openNotePage(note)}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setContextMenu({
@@ -724,19 +664,6 @@ export default function DailyNotesShell() {
         </div>
       </main>
 
-      {peekPageId && (
-        <PagePeekModal
-          pageId={peekPageId}
-          initialPage={peekInitialPage?.id === peekPageId ? peekInitialPage : null}
-          onClose={() => {
-            setPeekPageId(null);
-            setPeekInitialPage(null);
-          }}
-          onOpenFull={(id) => router.push(`/page/${id}`)}
-          onChanged={() => void load({ includeCloud: false })}
-        />
-      )}
-
       {contextMenu && (
         <PageContextMenu
           pageId={contextMenu.pageId}
@@ -744,8 +671,8 @@ export default function DailyNotesShell() {
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
           onOpen={(id) => {
-            setPeekInitialPage(notes.find((note) => note.id === id) ?? null);
-            setPeekPageId(id);
+            setContextMenu(null);
+            router.push(`/page/${id}`);
           }}
           onOpenFull={(id) => router.push(`/page/${id}`)}
           onChanged={() => void load({ includeCloud: false })}
@@ -753,22 +680,6 @@ export default function DailyNotesShell() {
       )}
     </div>
   );
-}
-
-function scheduleDailyPeekPreload(callback: () => void): () => void {
-  const maybeWindow = window as Window & {
-    requestIdleCallback?: (
-      cb: () => void,
-      options?: { timeout?: number }
-    ) => number;
-    cancelIdleCallback?: (id: number) => void;
-  };
-  if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
-    const idleId = maybeWindow.requestIdleCallback(callback, { timeout: 1200 });
-    return () => maybeWindow.cancelIdleCallback?.(idleId);
-  }
-  const timer = window.setTimeout(callback, 350);
-  return () => window.clearTimeout(timer);
 }
 
 async function ensureDailyDateIndexBackfilled(): Promise<void> {
@@ -1035,6 +946,15 @@ async function persistOptimisticDailyNote(
     .catch(() => undefined);
   upsertPages(records.map(remoteRecordToPage));
   return pushDailyCloudRecords(records);
+}
+
+async function seedDailyNoteForImmediateOpen(note: DailyNote): Promise<void> {
+  try {
+    await applyRemotePages([pageToRemoteRecord(note)]);
+  } catch {
+    // The in-memory store already has this page. If the rebuildable browser
+    // cache is temporarily busy, page opening should still proceed.
+  }
 }
 
 function makeRemoteBackedPage({

@@ -97,14 +97,13 @@ for (const token of ["buildMonthGrid", "addNote", "日期", "要点", "Summary"]
 for (const token of [
   "listDailyPageMetadataForCalendar",
   "rebuildPageDateKeyIndex",
-  "@/components/page/LazyPagePeekModal",
-  "prefetchNoteBody",
-  "fetchCloudPageById",
+  "seedDailyNoteForImmediateOpen",
+  "router.push(`/page/${optimisticNote.id}`)",
+  "openNotePage",
   "DAILY_DATE_INDEX_BACKFILL_KEY",
   "getModuleRootIdSync",
   "loadRequestRef",
   "observedPageRevisionRef",
-  "scheduleDailyPeekPreload",
   "applyRemotePages",
   "DAILY_DATE_INDEX_BACKFILL_BATCH",
   "DAILY_DATE_INDEX_BACKFILL_MAX_PASSES",
@@ -158,6 +157,23 @@ check(
 check(
   !shells.daily.includes("getAllPageMetadata"),
   "DailyNotesShell 不应在日历刷新时调用 getAllPageMetadata 全量扫描"
+);
+for (const token of [
+  "seedDailyNoteForImmediateOpen",
+  "router.push(`/page/${optimisticNote.id}`)",
+  "applyRemotePages([pageToRemoteRecord(note)])",
+  "openNotePage",
+]) {
+  check(
+    shells.daily.includes(token),
+    `DailyNotesShell 新建/打开纪要应直接进入轻量页面，缺少 ${token}`
+  );
+}
+check(
+  !shells.daily.includes("@/components/page/LazyPagePeekModal") &&
+    !shells.daily.includes("fetchCloudPageById") &&
+    !shells.daily.includes("scheduleDailyPeekPreload"),
+  "DailyNotesShell 不应再为日历打开路径预加载 peek 弹窗或正文"
 );
 for (const token of [
   "daily_date_key",
