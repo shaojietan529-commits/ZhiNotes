@@ -141,7 +141,9 @@ function DatabasesDashboard() {
       setLoadError(null);
       const localSnapshots = await loadSnapshots();
       setSnapshots(localSnapshots);
-      const cloud = await syncCloudDatabaseMetadata();
+      const cloud = await syncCloudDatabaseMetadata({
+        restoreLocalCursor: localSnapshots.length > 0,
+      });
       if (cloud.status === "ok") {
         const refreshed = await loadSnapshots();
         if (

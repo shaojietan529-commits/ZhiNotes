@@ -122,6 +122,10 @@ export interface DatabaseReconcileOptions {
   quick?: boolean;
 }
 
+interface SyncCloudDatabaseMetadataOptions {
+  restoreLocalCursor?: boolean;
+}
+
 export interface RebuildDatabaseCacheResult {
   status: DatabaseSyncStatus;
   cleared: number;
@@ -415,7 +419,9 @@ export async function fetchCloudDatabaseMetadata(
   };
 }
 
-export async function syncCloudDatabaseMetadata(): Promise<{
+export async function syncCloudDatabaseMetadata(
+  options: SyncCloudDatabaseMetadataOptions = {}
+): Promise<{
   status: DatabaseSyncStatus;
   pulled: number;
   total: number;
@@ -425,6 +431,31 @@ export async function syncCloudDatabaseMetadata(): Promise<{
 }> {
   if (!isDatabaseSyncEnabled()) {
     return { status: "disabled", pulled: 0, total: 0, records: [] };
+  }
+  if (options.restoreLocalCursor && !getRemoteCursor()) {
+    const summaryRes = await call({ action: "summary" });
+    if (summaryRes.ok) {
+      const summary = normalizeSummary(summaryRes.json.summary);
+      if (summary && (await restoreCursorFromLocalDatabaseMetadata(summary))) {
+        return {
+          status: "ok",
+          pulled: 0,
+          total: summary.count,
+          records: [],
+        };
+      }
+    } else if (
+      summaryRes.status === "unauthenticated" ||
+      summaryRes.status === "unconfigured"
+    ) {
+      return {
+        status: summaryRes.status,
+        pulled: 0,
+        total: 0,
+        records: [],
+        message: summaryRes.message,
+      };
+    }
   }
   const metadata = await fetchCloudDatabaseMetadata();
   if (metadata.status !== "ok") {

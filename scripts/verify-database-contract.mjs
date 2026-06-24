@@ -313,6 +313,29 @@ function run() {
       "Database quick sync must try restoring the cursor from local metadata before forcing a cloud metadata pull."
     );
   }
+  const syncDatabaseMetadataBody = databaseAccountSyncClient.slice(
+    databaseAccountSyncClient.indexOf(
+      "export async function syncCloudDatabaseMetadata"
+    ),
+    databaseAccountSyncClient.indexOf(
+      "export function cloudDatabaseMetadataToDatabases"
+    )
+  );
+  if (
+    !syncDatabaseMetadataBody.includes("SyncCloudDatabaseMetadataOptions") ||
+    !syncDatabaseMetadataBody.includes("options.restoreLocalCursor") ||
+    !syncDatabaseMetadataBody.includes('call({ action: "summary" })') ||
+    !syncDatabaseMetadataBody.includes(
+      "restoreCursorFromLocalDatabaseMetadata(summary)"
+    ) ||
+    syncDatabaseMetadataBody.indexOf(
+      "restoreCursorFromLocalDatabaseMetadata(summary)"
+    ) > syncDatabaseMetadataBody.indexOf("fetchCloudDatabaseMetadata()")
+  ) {
+    failures.push(
+      "Database metadata prewarm should restore a missing localStorage cursor from local metadata before falling back to full cloud metadata."
+    );
+  }
   for (const snippet of [
     "syncCloudDatabaseById",
     "initialCloudHydrateRef",
@@ -362,6 +385,7 @@ function run() {
     "Cloud metadata refresh is",
     "subscribeDatabasesUpdated",
     "emitDatabasesUpdated",
+    "restoreLocalCursor: all.length > 0",
   ]) {
     assertIncludes(
       files.useDatabases,
@@ -410,6 +434,7 @@ function run() {
     "cloud.records.length",
     "!cloud.cacheWriteFailed",
     "本机缓存暂时不可写",
+    "restoreLocalCursor: localSnapshots.length > 0",
   ]) {
     assertIncludes(
       files.databaseModuleShell,

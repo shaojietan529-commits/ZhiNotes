@@ -34,7 +34,9 @@ export function useDatabases() {
       setDatabases(all);
 
       try {
-        const cloud = await syncCloudDatabaseMetadata();
+        const cloud = await syncCloudDatabaseMetadata({
+          restoreLocalCursor: all.length > 0,
+        });
         if (cloud.status === "ok") {
           try {
             all = await getAllDatabases();
