@@ -6,12 +6,14 @@ import type { NodeViewProps } from "@tiptap/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
+  getFields,
+} from "@/lib/db/local/queries";
+import {
   addField,
   addRow,
   createDatabase,
-  getFields,
   updateField,
-} from "@/lib/db/local/queries";
+} from "@/lib/database/cloudDatabaseMutations";
 import {
   formatFileSize,
   getStoredPageFile,

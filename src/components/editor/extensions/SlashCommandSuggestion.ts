@@ -8,10 +8,10 @@ import SlashCommandList, {
   type SlashCommandListRef,
 } from "./SlashCommandList";
 import {
-  createDatabase,
   getAllPages,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
+import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import {
   createPageWithCloud,
   updatePageWithCloud,

@@ -14,11 +14,11 @@ import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPa
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { usePages } from "@/hooks/usePages";
 import {
-  addRow,
   getAllDatabases,
   getFields,
   getRows,
 } from "@/lib/db/local/queries";
+import { addRow } from "@/lib/database/cloudDatabaseMutations";
 import {
   createPageWithCloud,
   updatePageWithCloud,

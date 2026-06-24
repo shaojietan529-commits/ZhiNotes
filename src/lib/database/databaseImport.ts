@@ -1,6 +1,6 @@
 "use client";
 
-import { addField, addRow } from "@/lib/db/local/queries";
+import { addField, addRow } from "@/lib/database/cloudDatabaseMutations";
 import { isDatabaseSystemFieldType } from "@/lib/database/systemFields";
 import { formatFileSize } from "@/lib/files/localStore";
 import type { DatabaseField } from "@/lib/utils/types";

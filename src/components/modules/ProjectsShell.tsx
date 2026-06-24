@@ -6,11 +6,11 @@ import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { usePages } from "@/hooks/usePages";
 import {
-  addRow,
   getAllDatabases,
   getFields,
   getRows,
 } from "@/lib/db/local/queries";
+import { addRow } from "@/lib/database/cloudDatabaseMutations";
 import {
   createPageWithCloud,
   updatePageWithCloud,

@@ -3,7 +3,7 @@ import {
   addView,
   createDatabase,
   updateDatabase,
-} from "@/lib/db/local/queries";
+} from "@/lib/database/cloudDatabaseMutations";
 import {
   createPageWithCloud,
   updatePageWithCloud,

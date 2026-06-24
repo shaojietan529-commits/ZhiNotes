@@ -10,7 +10,9 @@ import {
   applyRemoteDatabaseRecords,
   clearLocalDatabaseCacheExceptKeys,
   getAllDatabaseRecordsForSync,
+  getDatabaseRecordsForSyncByKeys,
   getPendingDatabaseSyncRecords,
+  getRemoteDatabaseRecordKey,
   markDatabaseSyncLogEntriesSynced,
   type RemoteDatabaseRecord,
 } from "@/lib/db/local/queries";
@@ -18,10 +20,15 @@ import {
 const ENABLED_KEY = "zhinote.databasesync.enabled";
 const LAST_SYNC_KEY = "zhinote.databasesync.lastSyncAt";
 const REMOTE_CURSOR_KEY = "zhinote.databasesync.remoteCursor";
+const PENDING_PUSH_KEYS_KEY = "zhinote.databasesync.pendingPushKeys";
 const INCREMENTAL_PULL_LIMIT = 100;
 const PULL_BATCH = 80;
 const PUSH_BATCH_RECORDS = 80;
 const PUSH_BATCH_BYTES = 800 * 1024;
+const CLOUD_DATABASE_PUSH_DEBOUNCE_MS = 1000;
+
+let queuedCloudDatabasePush = new Map<string, CloudDatabaseRecord>();
+let queuedCloudDatabasePushTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const DATABASE_SYNC_CONFIG_EVENT = "zhinote:databasesync-config";
 
@@ -124,6 +131,41 @@ function getRemoteCursor(): string {
 function setRemoteCursor(cursor: string): void {
   if (typeof window === "undefined" || !cursor) return;
   window.localStorage.setItem(REMOTE_CURSOR_KEY, cursor);
+}
+
+function getPendingCloudDatabasePushKeys(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(PENDING_PUSH_KEYS_KEY) ?? "[]"
+    ) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return Array.from(
+      new Set(parsed.filter((key): key is string => isValidRecordKey(key)))
+    );
+  } catch {
+    return [];
+  }
+}
+
+function setPendingCloudDatabasePushKeys(keys: string[]): void {
+  if (typeof window === "undefined") return;
+  const uniqueKeys = Array.from(new Set(keys.filter(isValidRecordKey)));
+  window.localStorage.setItem(PENDING_PUSH_KEYS_KEY, JSON.stringify(uniqueKeys));
+}
+
+function markPendingCloudDatabasePushKey(key: string): void {
+  if (!isValidRecordKey(key)) return;
+  setPendingCloudDatabasePushKeys([...getPendingCloudDatabasePushKeys(), key]);
+}
+
+function clearPendingCloudDatabasePushKeys(keys: string[]): void {
+  if (keys.length === 0) return;
+  const acknowledged = new Set(keys.filter(isValidRecordKey));
+  if (acknowledged.size === 0) return;
+  setPendingCloudDatabasePushKeys(
+    getPendingCloudDatabasePushKeys().filter((key) => !acknowledged.has(key))
+  );
 }
 
 function isValidRecordKey(value: string): boolean {
@@ -243,6 +285,9 @@ export async function fetchCloudDatabaseChangesSince(
 export async function pushCloudDatabaseRecords(
   records: CloudDatabaseRecord[]
 ): Promise<PushCloudDatabasesResult> {
+  if (records.length === 0) {
+    return { status: "ok", accepted: [], skipped: [] };
+  }
   const res = await call({ action: "push", records });
   if (!res.ok) {
     return {
@@ -258,8 +303,81 @@ export async function pushCloudDatabaseRecords(
   const skipped = Array.isArray(res.json.skipped)
     ? (res.json.skipped as string[])
     : [];
+  const acknowledgedKeys = [...accepted, ...skipped];
+  clearPendingCloudDatabasePushKeys(acknowledgedKeys);
   setLastDatabaseSyncAtNow();
   return { status: "ok", accepted, skipped };
+}
+
+async function markAcknowledgedDatabaseSyncKeys(keys: string[]): Promise<void> {
+  const acknowledged = new Set(keys.filter(isValidRecordKey));
+  if (acknowledged.size === 0) return;
+  const pending = await getPendingDatabaseSyncRecords(1000);
+  await markDatabaseSyncLogEntriesSynced(
+    pending.entries
+      .filter((entry) => acknowledged.has(entry.key))
+      .map((entry) => entry.logId)
+  );
+}
+
+export function queueCloudDatabaseRecords(
+  records: CloudDatabaseRecord[],
+  delayMs = CLOUD_DATABASE_PUSH_DEBOUNCE_MS
+): void {
+  if (!isDatabaseSyncEnabled()) return;
+  for (const record of records) {
+    const key = getRemoteDatabaseRecordKey(record);
+    if (!isValidRecordKey(key)) continue;
+    markPendingCloudDatabasePushKey(key);
+    queuedCloudDatabasePush.set(key, record);
+  }
+  if (queuedCloudDatabasePush.size === 0) return;
+  if (queuedCloudDatabasePushTimer) clearTimeout(queuedCloudDatabasePushTimer);
+  queuedCloudDatabasePushTimer = setTimeout(() => {
+    const batch = [...queuedCloudDatabasePush.values()];
+    queuedCloudDatabasePush = new Map();
+    queuedCloudDatabasePushTimer = null;
+    void pushCloudDatabaseRecordsInBatches(batch);
+  }, delayMs);
+}
+
+export async function queueCloudDatabaseRecordsForKeys(
+  keys: string[],
+  delayMs = CLOUD_DATABASE_PUSH_DEBOUNCE_MS
+): Promise<void> {
+  if (!isDatabaseSyncEnabled()) return;
+  const records = await getDatabaseRecordsForSyncByKeys(keys);
+  queueCloudDatabaseRecords(records, delayMs);
+}
+
+export async function flushPendingCloudDatabasePushes(): Promise<PushLocalDatabasesResult> {
+  if (!isDatabaseSyncEnabled()) {
+    return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
+  }
+  const keys = getPendingCloudDatabasePushKeys();
+  if (keys.length === 0) {
+    return { status: "ok", pushed: 0, skipped: 0, total: 0 };
+  }
+  const records = await getDatabaseRecordsForSyncByKeys(keys);
+  const foundKeys = new Set(records.map(getRemoteDatabaseRecordKey));
+  const missingKeys = keys.filter((key) => !foundKeys.has(key));
+  clearPendingCloudDatabasePushKeys(missingKeys);
+  if (records.length === 0) {
+    return {
+      status: "ok",
+      pushed: 0,
+      skipped: 0,
+      total: keys.length,
+      acceptedKeys: [],
+      skippedKeys: missingKeys,
+    };
+  }
+  const result = await pushCloudDatabaseRecordsInBatches(records);
+  return {
+    ...result,
+    total: keys.length,
+    skippedKeys: [...(result.skippedKeys ?? []), ...missingKeys],
+  };
 }
 
 async function pushCloudDatabaseRecordsInBatches(
@@ -324,6 +442,7 @@ async function pushCloudDatabaseRecordsInBatches(
     acceptedKeys.push(...result.accepted);
     skippedKeys.push(...result.skipped);
   }
+  await markAcknowledgedDatabaseSyncKeys([...acceptedKeys, ...skippedKeys]);
   return {
     status: "ok",
     pushed,
@@ -419,13 +538,23 @@ export async function reconcileDatabaseSync(): Promise<DatabaseReconcileResult> 
   if (!isDatabaseSyncEnabled()) {
     return { status: "disabled", pulled: 0, pushed: 0, skipped: 0 };
   }
+  const queuedPush = await flushPendingCloudDatabasePushes();
+  if (queuedPush.status !== "ok") {
+    return {
+      status: queuedPush.status,
+      pulled: 0,
+      pushed: queuedPush.pushed,
+      skipped: queuedPush.skipped,
+      message: queuedPush.message,
+    };
+  }
   const pull = await syncCloudDatabaseDelta();
   if (pull.status !== "ok") {
     return {
       status: pull.status,
       pulled: pull.pulled,
-      pushed: 0,
-      skipped: 0,
+      pushed: queuedPush.pushed,
+      skipped: queuedPush.skipped,
       message: pull.message,
     };
   }
@@ -442,8 +571,8 @@ export async function reconcileDatabaseSync(): Promise<DatabaseReconcileResult> 
   return {
     status: "ok",
     pulled: pull.pulled,
-    pushed: push.pushed,
-    skipped: push.skipped,
+    pushed: queuedPush.pushed + push.pushed,
+    skipped: queuedPush.skipped + push.skipped,
   };
 }
 

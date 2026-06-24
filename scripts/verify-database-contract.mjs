@@ -21,10 +21,12 @@ const files = {
   databaseWorkbench: "src/lib/database/databaseWorkbench.ts",
   databaseAccountSyncRoute: "src/app/api/databases/account-sync/route.ts",
   databaseAccountSyncClient: "src/lib/database/accountDatabaseSync.ts",
+  databaseCloudMutations: "src/lib/database/cloudDatabaseMutations.ts",
   databaseCloudSyncHook: "src/hooks/useDatabaseCloudSync.ts",
   databaseUpdateBus: "src/lib/database/databaseUpdateBus.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
+  quickSearch: "src/components/sidebar/QuickSearch.tsx",
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
@@ -35,6 +37,8 @@ const files = {
   databaseNumberValues: "src/lib/database/numberValues.ts",
   databaseSystemFields: "src/lib/database/systemFields.ts",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
+  slashCommandSuggestion:
+    "src/components/editor/extensions/SlashCommandSuggestion.ts",
   tableView: "src/components/database/views/TableView.tsx",
   listView: "src/components/database/views/ListView.tsx",
   kanbanView: "src/components/database/views/KanbanView.tsx",
@@ -47,6 +51,13 @@ const files = {
   moduleActions: "src/lib/modules/actions.ts",
   registry: "src/lib/modules/registry.ts",
   filePreviewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
+  companyResearchShell: "src/components/modules/CompanyResearchShell.tsx",
+  meetingsShell: "src/components/modules/MeetingsShell.tsx",
+  portfolioShell: "src/components/modules/PortfolioShell.tsx",
+  projectsShell: "src/components/modules/ProjectsShell.tsx",
+  reportsShell: "src/components/modules/ReportsShell.tsx",
+  researchGraphShell: "src/components/modules/ResearchGraphShell.tsx",
+  moduleDashboard: "src/components/modules/ModuleDashboard.tsx",
   relationEditor: "src/components/database/RelationFieldEditor.tsx",
   display: "src/lib/database/display.ts",
   types: "src/lib/utils/types.ts",
@@ -88,6 +99,40 @@ function assertIncludes(sourceLabel, source, snippet, message) {
   }
 }
 
+function assertNoLocalDatabaseMutationImport(sourceLabel, source) {
+  const mutationNames = [
+    "addField",
+    "addRow",
+    "addView",
+    "createDatabase",
+    "deleteDatabase",
+    "deleteField",
+    "deleteRow",
+    "deleteView",
+    "updateDatabase",
+    "updateField",
+    "updateRow",
+    "updateView",
+  ];
+  const localQueryImports = source.matchAll(
+    /import\s*{([\s\S]*?)}\s*from\s*"@\/lib\/db\/local\/queries";/g
+  );
+  for (const match of localQueryImports) {
+    const importedNames = match[1]
+      .split(",")
+      .map((name) => name.trim().split(/\s+as\s+/)[0]?.trim())
+      .filter(Boolean);
+    const localMutations = importedNames.filter((name) =>
+      mutationNames.includes(name)
+    );
+    if (localMutations.length > 0) {
+      failures.push(
+        `${sourceLabel} imports database mutations from local queries: ${localMutations.join(", ")}`
+      );
+    }
+  }
+}
+
 function assertViewFile(viewType) {
   const fileName = `${viewType[0].toUpperCase()}${viewType.slice(1)}View.tsx`;
   const relativePath = `src/components/database/views/${fileName}`;
@@ -118,10 +163,12 @@ function run() {
   const databaseAccountSyncClient = readProjectFile(
     files.databaseAccountSyncClient
   );
+  const databaseCloudMutations = readProjectFile(files.databaseCloudMutations);
   const databaseCloudSyncHook = readProjectFile(files.databaseCloudSyncHook);
   const databaseUpdateBus = readProjectFile(files.databaseUpdateBus);
   const accountShell = readProjectFile(files.accountShell);
   const sidebar = readProjectFile(files.sidebar);
+  const quickSearch = readProjectFile(files.quickSearch);
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
@@ -132,6 +179,7 @@ function run() {
   const databaseNumberValues = readProjectFile(files.databaseNumberValues);
   const databaseSystemFields = readProjectFile(files.databaseSystemFields);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
+  const slashCommandSuggestion = readProjectFile(files.slashCommandSuggestion);
   const tableView = readProjectFile(files.tableView);
   const listView = readProjectFile(files.listView);
   const kanbanView = readProjectFile(files.kanbanView);
@@ -144,6 +192,13 @@ function run() {
   const moduleActions = readProjectFile(files.moduleActions);
   const registry = readProjectFile(files.registry);
   const filePreviewNode = readProjectFile(files.filePreviewNode);
+  const companyResearchShell = readProjectFile(files.companyResearchShell);
+  const meetingsShell = readProjectFile(files.meetingsShell);
+  const portfolioShell = readProjectFile(files.portfolioShell);
+  const projectsShell = readProjectFile(files.projectsShell);
+  const reportsShell = readProjectFile(files.reportsShell);
+  const researchGraphShell = readProjectFile(files.researchGraphShell);
+  const moduleDashboard = readProjectFile(files.moduleDashboard);
   const relationEditor = readProjectFile(files.relationEditor);
   const display = readProjectFile(files.display);
   const types = readProjectFile(files.types);
@@ -205,8 +260,15 @@ function run() {
     "applyRemoteDatabaseRecords",
     "clearLocalDatabaseCacheExceptKeys",
     "getAllDatabaseRecordsForSync",
+    "getDatabaseRecordsForSyncByKeys",
     "getPendingDatabaseSyncRecords",
+    "getRemoteDatabaseRecordKey",
     "markDatabaseSyncLogEntriesSynced",
+    "PENDING_PUSH_KEYS_KEY",
+    "clearPendingCloudDatabasePushKeys",
+    "queueCloudDatabaseRecords",
+    "queueCloudDatabaseRecordsForKeys",
+    "flushPendingCloudDatabasePushes",
     "pushPendingLocalDatabaseChangesToCloud",
   ]) {
     assertIncludes(
@@ -215,6 +277,57 @@ function run() {
       snippet,
       "Database cloud sync client must stay owner-gated and incremental."
     );
+  }
+  for (const snippet of [
+    "createDatabaseWithCloud",
+    "updateDatabaseWithCloud",
+    "deleteDatabaseWithCloud",
+    "addFieldWithCloud",
+    "updateFieldWithCloud",
+    "deleteFieldWithCloud",
+    "addRowWithCloud",
+    "updateRowWithCloud",
+    "deleteRowWithCloud",
+    "addViewWithCloud",
+    "updateViewWithCloud",
+    "deleteViewWithCloud",
+    "queueCloudDatabaseRecords",
+    "queueCloudDatabaseRecordsForKeys",
+    "queueCloudPagePush",
+    "emitDatabasesUpdated",
+  ]) {
+    assertIncludes(
+      files.databaseCloudMutations,
+      databaseCloudMutations,
+      snippet,
+      "Database local mutations must immediately queue cloud writes and notify active UI."
+    );
+  }
+  for (const [sourceLabel, source] of [
+    [files.databaseShell, databaseShell],
+    [files.inlineDatabaseNode, inlineDatabaseNode],
+    [files.filePreviewNode, filePreviewNode],
+    [files.databaseImport, databaseImport],
+    [files.moduleActions, moduleActions],
+    [files.sidebar, sidebar],
+    [files.quickSearch, quickSearch],
+    [files.slashCommandSuggestion, slashCommandSuggestion],
+    [files.databaseModuleShell, databaseModuleShell],
+    [files.moduleDashboard, moduleDashboard],
+    [files.companyResearchShell, companyResearchShell],
+    [files.meetingsShell, meetingsShell],
+    [files.portfolioShell, portfolioShell],
+    [files.projectsShell, projectsShell],
+    [files.reportsShell, reportsShell],
+    [files.researchGraphShell, researchGraphShell],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "@/lib/database/cloudDatabaseMutations",
+      "Database writes must go through cloud-aware mutation wrappers."
+    );
+    assertNoLocalDatabaseMutationImport(sourceLabel, source);
   }
   for (const snippet of [
     "getAllDatabaseRecordsForSync",

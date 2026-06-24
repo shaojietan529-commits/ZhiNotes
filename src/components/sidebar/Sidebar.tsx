@@ -10,7 +10,8 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createDatabase, getAllDatabases } from "@/lib/db/local/queries";
+import { getAllDatabases } from "@/lib/db/local/queries";
+import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";

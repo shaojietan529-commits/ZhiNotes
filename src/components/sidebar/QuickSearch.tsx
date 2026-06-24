@@ -3,10 +3,10 @@
 import { Fragment, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  createDatabase,
   getAllDatabases,
   searchPages,
 } from "@/lib/db/local/queries";
+import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { usePages } from "@/hooks/usePages";
 import { usePageFavorites } from "@/hooks/usePageFavorites";

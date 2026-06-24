@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createDatabase, getAllDatabases } from "@/lib/db/local/queries";
+import { getAllDatabases } from "@/lib/db/local/queries";
+import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { usePages } from "@/hooks/usePages";
 import {

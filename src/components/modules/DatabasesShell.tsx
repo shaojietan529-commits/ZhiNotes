@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import {
-  createDatabase,
   getAllDatabases,
   getDatabaseRowCount,
   getFields,
   getViews,
 } from "@/lib/db/local/queries";
+import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import {
   buildDatabaseModuleDashboardReport,
   getDatabaseFieldTypeBreakdown,

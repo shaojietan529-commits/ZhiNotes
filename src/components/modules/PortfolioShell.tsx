@@ -8,11 +8,11 @@ import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPa
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { usePages } from "@/hooks/usePages";
 import {
-  addRow,
   getAllDatabases,
   getFields,
   getRows,
 } from "@/lib/db/local/queries";
+import { addRow } from "@/lib/database/cloudDatabaseMutations";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";

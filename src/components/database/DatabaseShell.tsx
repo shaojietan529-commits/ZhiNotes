@@ -17,17 +17,19 @@ import {
   getFields,
   getRows,
   getViews,
+} from "@/lib/db/local/queries";
+import {
   addField,
   addRow,
-  updateRow,
-  deleteRow,
+  addView,
   deleteField,
+  deleteRow,
   deleteView,
   updateField,
-  addView,
-  updateView,
   updateDatabase,
-} from "@/lib/db/local/queries";
+  updateRow,
+  updateView,
+} from "@/lib/database/cloudDatabaseMutations";
 import type { Database, DatabaseField, DatabaseRow, DatabaseView } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
 import {

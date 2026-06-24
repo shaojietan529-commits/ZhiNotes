@@ -11,15 +11,17 @@ import {
   getFields,
   getRows,
   getViews,
+} from "@/lib/db/local/queries";
+import {
   addField,
   addRow,
-  updateRow,
-  deleteRow,
-  deleteField,
-  updateField,
   addView,
+  deleteField,
+  deleteRow,
+  updateField,
   updateDatabase,
-} from "@/lib/db/local/queries";
+  updateRow,
+} from "@/lib/database/cloudDatabaseMutations";
 import type {
   Database,
   DatabaseField,
