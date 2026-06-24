@@ -100,7 +100,7 @@ for (const [name, source] of Object.entries(shells)) {
       "schedule shell 只能调用已批准的同源接口 /api/meetings/intake, /api/pages/account-sync, /api/meetings/agent/jobs"
     );
   } else {
-    check(!source.includes("fetch("), `${name} shell 不得包含 fetch(`);
+    check(!/\bfetch\s*\(/.test(source), `${name} shell 不得包含 fetch(`);
   }
 }
 
@@ -112,6 +112,8 @@ for (const token of [
   "listDailyPageMetadataForCalendar",
   "rebuildPageDateKeyIndex",
   "seedDailyNoteForImmediateOpen",
+  'router.prefetch("/page/zhinote-route-prefetch")',
+  "router.prefetch(`/page/${optimisticNote.id}`)",
   "router.push(`/page/${optimisticNote.id}`)",
   "rememberPendingPageDraft(optimisticNote)",
   "openNotePage",

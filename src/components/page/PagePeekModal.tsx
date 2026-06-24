@@ -348,11 +348,11 @@ export default function PagePeekModal({
 }
 
 function schedulePeekEditorMount(callback: () => void): () => void {
-  return schedulePeekIdleTask(callback, 350);
+  return schedulePeekIdleTask(callback, 40);
 }
 
 function schedulePeekContentLoad(callback: () => void): () => void {
-  return schedulePeekIdleTask(callback, 180);
+  return schedulePeekIdleTask(callback, 60);
 }
 
 function schedulePeekIdleTask(

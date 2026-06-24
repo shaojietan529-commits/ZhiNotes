@@ -118,7 +118,7 @@ function PageContent({ pageId }: { pageId: string }) {
   useEffect(() => {
     setEditorMounted(false);
     if (!hasPage) return;
-    return scheduleDeferredMount(() => {
+    return scheduleEditorMount(() => {
       setEditorMounted(true);
     });
   }, [pageId, hasPage]);
@@ -908,6 +908,18 @@ function PageContent({ pageId }: { pageId: string }) {
       )}
     </div>
   );
+}
+
+function scheduleEditorMount(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  let timer: number | null = null;
+  const frame = window.requestAnimationFrame(() => {
+    timer = window.setTimeout(callback, 0);
+  });
+  return () => {
+    window.cancelAnimationFrame(frame);
+    if (timer !== null) window.clearTimeout(timer);
+  };
 }
 
 function scheduleDeferredMount(callback: () => void, timeout = 450): () => void {

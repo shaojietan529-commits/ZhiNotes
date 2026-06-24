@@ -82,6 +82,14 @@ export default function DailyNotesShell() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
+  useEffect(() => {
+    try {
+      router.prefetch("/page/zhinote-route-prefetch");
+    } catch {
+      // Prefetch only improves perceived speed; it should never block the page.
+    }
+  }, [router]);
+
   const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
     const includeCloud = opts?.includeCloud !== false;
     const requestId = loadRequestRef.current + 1;
@@ -303,6 +311,11 @@ export default function DailyNotesShell() {
       void seedDailyNoteForImmediateOpen(optimisticNote);
       setCloudNotice(`${dateKey} 的每日纪要正在打开，后台会继续保存到账号云端…`);
 
+      try {
+        router.prefetch(`/page/${optimisticNote.id}`);
+      } catch {
+        // Route prefetch is best-effort; navigation still happens immediately.
+      }
       router.push(`/page/${optimisticNote.id}`);
       void (async () => {
         try {

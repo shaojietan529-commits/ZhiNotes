@@ -459,9 +459,12 @@ check(
       dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") &&
     dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
       dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") &&
+    dailyNotesShell.indexOf("router.prefetch(`/page/${optimisticNote.id}`)") <
+      dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") &&
     dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") <
       dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
     dailyNotesShell.includes("router.push(`/page/${optimisticNote.id}`)") &&
+    dailyNotesShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
     dailyNotesShell.includes("applyRemotePages([pageToRemoteRecord(note)])") &&
     dailyNotesShell.includes("openNotePage") &&
     dailyNotesShell.includes("后台会继续保存到账号云端") &&
@@ -699,11 +702,12 @@ check(
   "PageShell 不应在打开页面首屏默认解析完整正文生成投研结构"
 );
 check(
-  pageShell.includes("scheduleDeferredMount") &&
+  pageShell.includes("scheduleEditorMount") &&
+    pageShell.includes("scheduleDeferredMount") &&
     pageShell.includes("if (loading && !page)") &&
     pageShell.includes("editorMounted ?") &&
     pageShell.includes("PageBodySkeleton"),
-  "PageShell 应延迟挂载正文编辑器，先显示可交互页面壳"
+  "PageShell 应快速挂载正文编辑器，同时延后评论、反链、子页面等周边重组件"
 );
 
 const useVersionsHook = read("src/hooks/useVersions.ts");
@@ -719,6 +723,8 @@ const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 check(
   pagePeekModal.includes('dynamic(() => import("@/components/editor/Editor")') &&
     pagePeekModal.includes("schedulePeekEditorMount") &&
+    pagePeekModal.includes("schedulePeekIdleTask(callback, 40)") &&
+    pagePeekModal.includes("schedulePeekIdleTask(callback, 60)") &&
     pagePeekModal.includes("schedulePeekIdleTask") &&
     pagePeekModal.includes("isOptimisticDraft") &&
     pagePeekModal.includes("setMountedEditorPageId(pageId)") &&
