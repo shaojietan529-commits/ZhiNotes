@@ -5,12 +5,13 @@ import {
   applyRemotePages,
   getPage,
   createPage,
-  updatePage,
   deletePage,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
 import {
   fetchCloudPageById,
+  pageToRemoteRecord,
+  pushCloudPages,
   queueCloudPageDelete,
   queueCloudPagePush,
 } from "@/lib/pages/accountPageSync";
@@ -18,6 +19,20 @@ import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRecordRevision } from "@/hooks/usePageRevision";
 import type { Page } from "@/lib/utils/types";
+
+type PageUpdates = Partial<
+  Pick<
+    Page,
+    | "title"
+    | "icon"
+    | "cover_url"
+    | "content_text"
+    | "properties"
+    | "parent_id"
+    | "position"
+    | "depth"
+  >
+>;
 
 export function usePage(pageId: string | null) {
   const [page, setPage] = useState<Page | null>(null);
@@ -70,30 +85,52 @@ export function usePage(pageId: string | null) {
   }, [load, pageRevision]);
 
   const update = useCallback(
-    async (
-      updates: Parameters<typeof updatePage>[1]
-    ) => {
+    async (updates: PageUpdates) => {
       if (!pageId) return null;
-      try {
-        const updated = await updatePage(pageId, updates);
-        if (updated) {
-          setPage(updated);
-          queueCloudPagePush(updated);
+      let basePage = page;
+      if (!basePage) {
+        try {
+          basePage = await getPage(pageId);
+        } catch {
+          basePage = null;
         }
-        return updated;
-      } catch {
-        if (!page) return null;
-        const fallback: Page = {
-          ...page,
-          ...updates,
-          updated_at: new Date().toISOString(),
-        };
-        setPage(fallback);
-        queueCloudPagePush(fallback);
-        return fallback;
       }
+      if (!basePage) return null;
+
+      const optimistic: Page = {
+        ...basePage,
+        ...updates,
+        updated_at: new Date().toISOString(),
+      };
+      const record = pageToRemoteRecord(optimistic);
+
+      setPage(optimistic);
+      upsertPages([optimistic]);
+
+      let shouldHydrateOptimisticRecord = true;
+      try {
+        const pushed = await pushCloudPages([record]);
+        if (pushed.status !== "ok") {
+          queueCloudPagePush(record);
+        } else if (pushed.skipped.includes(record.id)) {
+          shouldHydrateOptimisticRecord = false;
+          void load();
+        }
+      } catch {
+        queueCloudPagePush(record);
+      }
+
+      if (shouldHydrateOptimisticRecord) {
+        const hydrated = await hydrateRemotePageIntoLocalCache(record);
+        if (hydrated) {
+          setPage(hydrated);
+          upsertPages([hydrated]);
+        }
+        return hydrated ?? optimistic;
+      }
+      return optimistic;
     },
-    [pageId, page]
+    [pageId, page, upsertPages, load]
   );
 
   const remove = useCallback(async () => {

@@ -354,14 +354,17 @@ export async function pushCloudPages(
       message: res.message,
     };
   }
+  const accepted = Array.isArray(res.json.accepted)
+    ? (res.json.accepted as string[])
+    : [];
+  const skipped = Array.isArray(res.json.skipped)
+    ? (res.json.skipped as string[])
+    : [];
+  clearPendingCloudPushIds([...accepted, ...skipped]);
   return {
     status: "ok",
-    accepted: Array.isArray(res.json.accepted)
-      ? (res.json.accepted as string[])
-      : [],
-    skipped: Array.isArray(res.json.skipped)
-      ? (res.json.skipped as string[])
-      : [],
+    accepted,
+    skipped,
   };
 }
 

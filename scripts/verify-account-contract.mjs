@@ -318,7 +318,19 @@ check(
   usePageHook.includes("setPage(localPage)") &&
     usePageHook.includes("setLoading(false)") &&
     usePageHook.includes("queueCloudPagePush(localPage)"),
-  "usePage 应先显示本地缓存保证可用，并在本地更新时补发云端上传"
+  "usePage 应先显示本地缓存保证可用，并在发现本地较新时补发云端上传"
+);
+check(
+  usePageHook.includes("pageToRemoteRecord(optimistic)") &&
+    usePageHook.includes("await pushCloudPages([record])") &&
+    usePageHook.includes("queueCloudPagePush(record)") &&
+    usePageHook.includes("hydrateRemotePageIntoLocalCache(record)"),
+  "usePage 编辑保存应先写账号云端，再把同一份云端记录回填为本机可重建缓存"
+);
+check(
+  !usePageHook.includes("updatePage(pageId, updates)") &&
+    !usePageHook.includes("Parameters<typeof updatePage>"),
+  "usePage 编辑保存不能回退到本地数据库优先"
 );
 
 const pageCloudSyncHook = read("src/hooks/usePageCloudSync.ts");
