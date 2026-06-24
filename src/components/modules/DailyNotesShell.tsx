@@ -300,9 +300,8 @@ export default function DailyNotesShell() {
       upsertPages([optimisticNote]);
       setCloudNotice(`${dateKey} 的每日纪要正在打开，后台会继续保存到账号云端…`);
 
-      void seedDailyNoteForImmediateOpen(optimisticNote).finally(() => {
-        router.push(`/page/${optimisticNote.id}`);
-      });
+      router.push(`/page/${optimisticNote.id}`);
+      void seedDailyNoteForImmediateOpen(optimisticNote);
 
       void (async () => {
         try {

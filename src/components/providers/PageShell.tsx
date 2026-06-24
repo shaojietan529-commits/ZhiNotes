@@ -102,6 +102,7 @@ function PageContent({ pageId }: { pageId: string }) {
     enabled: shouldLoadVersions,
   });
   const [editorMounted, setEditorMounted] = useState(false);
+  const [pagePeripheralsMounted, setPagePeripheralsMounted] = useState(false);
   const hasPage = Boolean(page);
 
   useEffect(() => {
@@ -116,6 +117,14 @@ function PageContent({ pageId }: { pageId: string }) {
       setEditorMounted(true);
     });
   }, [pageId, hasPage]);
+
+  useEffect(() => {
+    setPagePeripheralsMounted(false);
+    if (!hasPage || !editorMounted) return;
+    return scheduleDeferredMount(() => {
+      setPagePeripheralsMounted(true);
+    }, 900);
+  }, [pageId, hasPage, editorMounted]);
 
   useEffect(() => {
     if (!page) return;
@@ -160,6 +169,7 @@ function PageContent({ pageId }: { pageId: string }) {
 
   // Keep a live count of text comments so the toolbar button can show a badge.
   useEffect(() => {
+    if (!pagePeripheralsMounted) return;
     let cancelled = false;
     const refreshCount = async () => {
       const rows = await getBlockComments(pageId);
@@ -172,7 +182,7 @@ function PageContent({ pageId }: { pageId: string }) {
       cancelled = true;
       window.removeEventListener(BLOCK_COMMENTS_CHANGED_EVENT, handleChanged);
     };
-  }, [pageId]);
+  }, [pageId, pagePeripheralsMounted]);
 
   // Clicking commented text should reveal the panel so the comment is visible.
   useEffect(() => {
@@ -853,10 +863,12 @@ function PageContent({ pageId }: { pageId: string }) {
           )}
 
           {/* Page-level comments sit between properties and the body */}
-          <PageComments pageId={pageId} disabled={locked} />
+          {pagePeripheralsMounted && (
+            <PageComments pageId={pageId} disabled={locked} />
+          )}
 
           {/* Industry-chain pages show their sub-page hierarchy up front */}
-          <ChildPageTree pageId={pageId} />
+          {pagePeripheralsMounted && <ChildPageTree pageId={pageId} />}
 
           <div className="my-4 border-t border-zinc-100 dark:border-zinc-800" />
 
@@ -875,10 +887,12 @@ function PageContent({ pageId }: { pageId: string }) {
 
           {/* When the comment panel is open, text comments live there instead
               of stacking at the bottom — avoids showing them twice. */}
-          {!showComments && <BlockComments pageId={pageId} disabled={locked} />}
+          {!showComments && pagePeripheralsMounted && (
+            <BlockComments pageId={pageId} disabled={locked} />
+          )}
 
           {/* Backlinks - pages that link to this page */}
-          <Backlinks pageId={pageId} />
+          {pagePeripheralsMounted && <Backlinks pageId={pageId} />}
         </div>
 
         {showMoveDialog && (
@@ -890,7 +904,7 @@ function PageContent({ pageId }: { pageId: string }) {
         )}
       </main>
 
-      {showComments && (
+      {showComments && pagePeripheralsMounted && (
         <CommentSidePanel
           pageId={pageId}
           disabled={locked}
@@ -901,7 +915,7 @@ function PageContent({ pageId }: { pageId: string }) {
   );
 }
 
-function scheduleDeferredMount(callback: () => void): () => void {
+function scheduleDeferredMount(callback: () => void, timeout = 450): () => void {
   if (typeof window === "undefined") return () => undefined;
   const maybeWindow = window as Window & {
     requestIdleCallback?: (
@@ -911,7 +925,7 @@ function scheduleDeferredMount(callback: () => void): () => void {
     cancelIdleCallback?: (id: number) => void;
   };
   if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
-    const idleId = maybeWindow.requestIdleCallback(callback, { timeout: 450 });
+    const idleId = maybeWindow.requestIdleCallback(callback, { timeout });
     return () => maybeWindow.cancelIdleCallback?.(idleId);
   }
   const timer = window.setTimeout(callback, 80);
