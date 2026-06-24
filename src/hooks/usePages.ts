@@ -19,6 +19,7 @@ import type { Page } from "@/lib/utils/types";
 
 interface UsePagesOptions {
   includeContent?: boolean;
+  autoLoad?: boolean;
 }
 
 interface RefreshOptions {
@@ -76,6 +77,7 @@ function loadPagesSnapshot(includeContent: boolean): Promise<Page[]> {
 
 export function usePages(options: UsePagesOptions = {}) {
   const includeContent = options.includeContent ?? false;
+  const autoLoad = options.autoLoad ?? true;
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const pages = useWorkspaceStore((s) => s.pages);
   const setPages = useWorkspaceStore((s) => s.setPages);
@@ -106,10 +108,12 @@ export function usePages(options: UsePagesOptions = {}) {
   }, [dbReady, includeContent, setPages, upsertPages]);
 
   useEffect(() => {
+    if (!autoLoad) return;
     refresh({ broadcast: false });
-  }, [refresh]);
+  }, [autoLoad, refresh]);
 
   useEffect(() => {
+    if (!autoLoad) return;
     if (!dbReady) return;
     let timer: number | null = null;
     const unsubscribe = subscribePagesUpdated((message: PageUpdateMessage) => {
@@ -130,7 +134,7 @@ export function usePages(options: UsePagesOptions = {}) {
       if (timer !== null) window.clearTimeout(timer);
       unsubscribe();
     };
-  }, [dbReady, includeContent, refresh, upsertPages]);
+  }, [autoLoad, dbReady, includeContent, refresh, upsertPages]);
 
   return { pages, refresh };
 }

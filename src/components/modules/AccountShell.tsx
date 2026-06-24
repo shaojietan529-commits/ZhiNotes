@@ -46,7 +46,7 @@ type Phase =
   | "error";
 
 export default function AccountShell() {
-  const { refresh: refreshPages } = usePages();
+  const { refresh: refreshPages } = usePages({ autoLoad: false });
   const [phase, setPhase] = useState<Phase>("loading");
   const [account, setAccount] = useState<ClientAccountInfo | null>(null);
   const [email, setEmail] = useState("");

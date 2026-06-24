@@ -83,7 +83,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const copyNoticeTimeoutRef = useRef<number | null>(null);
   const { page, loading, update, remove } = usePage(pageId);
-  const { refresh } = usePages();
+  const { refresh } = usePages({ autoLoad: false });
   const setCurrentPageId = useWorkspaceStore((s) => s.setCurrentPageId);
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<PageProperty[]>([]);
@@ -205,9 +205,8 @@ function PageContent({ pageId }: { pageId: string }) {
       if (locked) return;
       setTitle(newTitle);
       await update({ title: newTitle });
-      refresh();
     },
-    [locked, update, refresh]
+    [locked, update]
   );
 
   const handlePropertiesChange = useCallback(
@@ -215,9 +214,8 @@ function PageContent({ pageId }: { pageId: string }) {
       if (locked) return;
       setProperties(next);
       await update({ properties: stringifyPageProperties(next) });
-      refresh();
     },
-    [locked, update, refresh]
+    [locked, update]
   );
 
   const handleContentUpdate = useCallback(
@@ -228,9 +226,8 @@ function PageContent({ pageId }: { pageId: string }) {
       // Capture an automatic version snapshot when changes are significant
       const created = await maybeSnapshot(pageId, title || "未命名页面", html);
       if (created) refreshVersions();
-      refresh();
     },
-    [update, refresh, refreshVersions, pageId, title]
+    [update, refreshVersions, pageId, title]
   );
 
   const handleSaveVersion = useCallback(async () => {
@@ -378,25 +375,22 @@ function PageContent({ pageId }: { pageId: string }) {
         `从 v${version.version_num} 恢复`
       );
       await refreshVersions({ force: true });
-      refresh();
     },
-    [pageId, title, page, update, refreshVersions, refresh]
+    [pageId, title, page, update, refreshVersions]
   );
 
   const handleIconChange = useCallback(
     async (icon: string) => {
       if (locked) return;
       await update({ icon });
-      refresh();
     },
-    [locked, update, refresh]
+    [locked, update]
   );
 
   const handleIconRemove = useCallback(async () => {
     if (locked) return;
     await update({ icon: null });
-    refresh();
-  }, [locked, update, refresh]);
+  }, [locked, update]);
 
   const handleCoverUpload = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -411,9 +405,8 @@ function PageContent({ pageId }: { pageId: string }) {
 
       const dataUrl = await readFileAsDataUrl(file);
       await update({ cover_url: dataUrl });
-      refresh();
     },
-    [locked, update, refresh]
+    [locked, update]
   );
 
   const handleCoverUrl = useCallback(async () => {
@@ -421,14 +414,12 @@ function PageContent({ pageId }: { pageId: string }) {
     const url = window.prompt("封面图片 URL：", page?.cover_url ?? "");
     if (url === null) return;
     await update({ cover_url: url.trim() });
-    refresh();
-  }, [locked, page, update, refresh]);
+  }, [locked, page, update]);
 
   const handleRemoveCover = useCallback(async () => {
     if (locked) return;
     await update({ cover_url: "" });
-    refresh();
-  }, [locked, update, refresh]);
+  }, [locked, update]);
 
   const handleToggleLock = useCallback(() => {
     setLocked((current) => {
@@ -637,7 +628,6 @@ function PageContent({ pageId }: { pageId: string }) {
         html
       );
       if (created) await refreshVersions();
-      refresh();
     } catch (err) {
       console.error("[Zhinote] Failed to insert research action block:", err);
       window.alert("插入建议结构块失败，请查看控制台。");

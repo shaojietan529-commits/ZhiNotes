@@ -374,6 +374,8 @@ check(
 );
 
 const usePagesHook = read("src/hooks/usePages.ts");
+const filesShell = read("src/components/modules/FilesShell.tsx");
+const pageImportPlanPanel = read("src/components/modules/PageImportPlanPanel.tsx");
 check(
   usePagesHook.includes("syncCloudPageMetadataDelta") &&
     usePagesHook.includes("setPages(all);") &&
@@ -383,9 +385,23 @@ check(
   "usePages 应先显示本地页面列表，再用云端 metadata 增量后台补齐"
 );
 check(
+  usePagesHook.includes("autoLoad?: boolean") &&
+    usePagesHook.includes("const autoLoad = options.autoLoad ?? true") &&
+    usePagesHook.includes("if (!autoLoad) return;") &&
+    usePagesHook.includes("}, [autoLoad, refresh]") &&
+    usePagesHook.includes("}, [autoLoad, dbReady, includeContent, refresh, upsertPages]"),
+  "usePages 应支持手动刷新模式，避免只需要 refresh 的入口挂载时读取全量页面 metadata"
+);
+check(
   usePagesHook.includes("remoteMetadataToPage") &&
     usePagesHook.includes("content_text: null"),
   "usePages 云端 metadata 本地写入失败时仍应能用无正文页面列表渲染侧栏"
+);
+check(
+  shell.includes("usePages({ autoLoad: false })") &&
+    filesShell.includes("usePages({ autoLoad: false })") &&
+    pageImportPlanPanel.includes("usePages({ autoLoad: false })"),
+  "AccountShell/FilesShell/PageImportPlanPanel 只需要手动 refresh 时不应自动读取全量页面 metadata"
 );
 
 const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
@@ -435,6 +451,10 @@ check(
 );
 
 const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");
+check(
+  meetingScheduleShell.includes("usePages({ autoLoad: false })"),
+  "MeetingScheduleShell 应使用手动页面 refresh，不能在会议日历首屏自动读取全量页面 metadata"
+);
 check(
   meetingScheduleShell.includes("readCachedMeetingCloudMetadata(startDate, endDate)") &&
     meetingScheduleShell.includes("scheduleMetadataCacheWarmup") &&
@@ -599,6 +619,28 @@ check(
 );
 
 const pageShell = read("src/components/providers/PageShell.tsx");
+check(
+  pageShell.includes("usePages({ autoLoad: false })"),
+  "PageShell 打开完整页面时不能为了 refresh 方法自动读取全量页面 metadata"
+);
+const pageSimpleUpdateBody = pageShell.slice(
+  pageShell.indexOf("const handleTitleChange"),
+  pageShell.indexOf("const handleSaveVersion")
+);
+const pageVisualUpdateBody = pageShell.slice(
+  pageShell.indexOf("const handleIconChange"),
+  pageShell.indexOf("const handleToggleLock")
+);
+check(
+  pageSimpleUpdateBody.includes("await update({ title: newTitle })") &&
+    pageSimpleUpdateBody.includes("await update({ properties: stringifyPageProperties(next) })") &&
+    pageSimpleUpdateBody.includes("await update({ content_text: html })") &&
+    !pageSimpleUpdateBody.includes("refresh()") &&
+    pageVisualUpdateBody.includes("await update({ icon })") &&
+    pageVisualUpdateBody.includes("await update({ cover_url: dataUrl })") &&
+    !pageVisualUpdateBody.includes("refresh()"),
+  "PageShell 标题/属性/正文/图标/封面更新应依赖 usePage 的单页 upsert，不能触发全量页面 metadata 刷新"
+);
 check(
   pageShell.includes("useVersions(pageId, {") &&
     pageShell.includes("enabled: shouldLoadVersions") &&

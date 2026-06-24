@@ -249,7 +249,7 @@ const MEETING_CLOUD_CACHE_PREFIX = "zhinote.zhihui.cloudMetadata.";
 export default function MeetingScheduleShell() {
   const router = useRouter();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
-  const { refresh } = usePages();
+  const { refresh } = usePages({ autoLoad: false });
   const pageRevision = usePageRevision();
   const [rootId, setRootId] = useState<string | null>(null);
   const [meetings, setMeetings] = useState<Page[]>([]);

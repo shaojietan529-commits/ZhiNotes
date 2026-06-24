@@ -92,7 +92,7 @@ function FilesContent() {
 
 function FilesDashboard() {
   const router = useRouter();
-  const { refresh: refreshPages } = usePages();
+  const { refresh: refreshPages } = usePages({ autoLoad: false });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const zipPreviewInputRef = useRef<HTMLInputElement | null>(null);
   const [storedFiles, setStoredFiles] = useState<StoredPageFile[]>([]);

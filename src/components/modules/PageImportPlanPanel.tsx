@@ -76,7 +76,7 @@ function downloadJson(fileName: string, value: unknown) {
  */
 export default function PageImportPlanPanel() {
   const router = useRouter();
-  const { refresh: refreshPages } = usePages();
+  const { refresh: refreshPages } = usePages({ autoLoad: false });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [plan, setPlan] = useState<PageImportPlan | null>(null);
   const [files, setFiles] = useState<File[]>([]);

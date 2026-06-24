@@ -152,7 +152,8 @@ check(
 check(
   pageShell.includes("dynamic(() => import(\"@/components/editor/Editor\")") &&
     pageShell.includes("loading: () => <PageBodySkeleton />") &&
-    !pageShell.includes("import Editor from \"@/components/editor/Editor\""),
+    !pageShell.includes("import Editor from \"@/components/editor/Editor\"") &&
+    pageShell.includes("usePages({ autoLoad: false })"),
   "PageShell 必须动态加载编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
 );
 check(
@@ -175,7 +176,8 @@ check(
 );
 check(
   usePagesHook.includes("upsertPages(cloud.pages.map(remoteMetadataToPage))") &&
-    !usePagesHook.includes("applyRemotePageMetadata"),
+    !usePagesHook.includes("applyRemotePageMetadata") &&
+    usePagesHook.includes("autoLoad?: boolean"),
   "usePages 云端 metadata delta 必须直接合并到 store，不能每次 delta 后重扫全量 pages"
 );
 check(
