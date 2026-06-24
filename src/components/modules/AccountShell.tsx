@@ -237,7 +237,7 @@ export default function AccountShell() {
 
   async function handlePageCacheRebuildRun() {
     const ok = window.confirm(
-      "这会清理本机已同步页面的缓存，然后从账号云端重新拉一份。云端数据不会删除；数据库表格、本地文件、评论、版本历史不会上传或删除。未同步到云端的本机页面不会作为恢复来源。继续吗？"
+      "这会按账号云端 manifest 重建本机页面缓存：本机多出来、未同步到云端的普通页面缓存会被清空并隐藏；云端数据不会删除；数据库表格、本地文件、评论、版本历史不会上传或删除。继续吗？"
     );
     if (!ok) return;
 
@@ -248,8 +248,12 @@ export default function AccountShell() {
       if (result.status === "ok") {
         setPageSyncLastAt(getLastPageSyncAt());
         await refreshPages({ broadcast: false, reason: "cloud-pull" });
+        const preservedText =
+          result.preservedLocalPrivate && result.preservedLocalPrivate > 0
+            ? `，保留本地数据库私有页面 ${result.preservedLocalPrivate} 页`
+            : "";
         setPageSyncNotice(
-          `本机页面缓存已从云端重建：清理 ${result.cleared} 条，拉取 ${result.pulled}/${result.total} 页，修复归档 ${result.repaired ?? 0} 页。`
+          `本机页面缓存已按云端主库重建：清理 ${result.cleared} 条（其中本机多余缓存 ${result.pruned} 条），拉取 ${result.pulled}/${result.total} 页，修复归档 ${result.repaired ?? 0} 页${preservedText}。`
         );
       } else if (result.status === "unauthenticated") {
         setPageSyncNotice("登录已过期，请重新登录后再重建本机缓存。");

@@ -16,6 +16,7 @@
 import {
   applyRemotePageMetadata,
   applyRemotePages,
+  clearLocalPageCacheExceptIds,
   clearLocalPageCacheForIds,
   getAllPagesForSync,
   getNextPosition,
@@ -109,9 +110,11 @@ export interface PullDailyCloudResult {
 export interface RebuildPageCacheResult {
   status: PageSyncStatus;
   cleared: number;
+  pruned: number;
   pulled: number;
   total: number;
   repaired?: number;
+  preservedLocalPrivate?: number;
   message?: string;
 }
 
@@ -788,15 +791,20 @@ async function flushPendingCloudPushes(): Promise<{
   const localById = new Map(pages.map((page) => [page.id, page]));
   const records: RemotePageRecord[] = [];
   const missing: string[] = [];
+  const evicted: string[] = [];
   for (const id of ids) {
     const page = localById.get(id);
     if (page) {
+      if (isLocalCacheEvictionTombstone(page)) {
+        evicted.push(id);
+        continue;
+      }
       records.push(toRecord(page));
     } else {
       missing.push(id);
     }
   }
-  clearPendingCloudPushIds(missing);
+  clearPendingCloudPushIds([...missing, ...evicted]);
   if (records.length === 0) {
     return { status: "ok", pushed: 0, pending: getPendingCloudPushIds().length };
   }
@@ -1041,6 +1049,22 @@ function withDailyDateProperty(page: Page, dateKey: string): string {
   return stringifyPageProperties(properties);
 }
 
+function isLocalCacheEvictionTombstone(page: Page): boolean {
+  return (
+    page.sync_version === -1 &&
+    page.deleted_at === "1970-01-01T00:00:00.000Z" &&
+    page.updated_at === "1970-01-01T00:00:00.000Z" &&
+    page.parent_id === null &&
+    (page.title ?? "") === "" &&
+    page.icon === null &&
+    page.cover_url === null &&
+    page.content_text === null &&
+    page.properties === null &&
+    (page.position ?? 0) === 0 &&
+    (page.depth ?? 0) === 0
+  );
+}
+
 // The three workspace roots are singletons identified by title. After the
 // first two-device sync each side has its own root page for e.g. 每日纪要,
 // so duplicates appear. Converge deterministically: keep the root with the
@@ -1110,7 +1134,13 @@ async function repairDailyImportPlacement(): Promise<number> {
 
 export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResult> {
   if (!isPageSyncEnabled()) {
-    return { status: "disabled", cleared: 0, pulled: 0, total: 0 };
+    return {
+      status: "disabled",
+      cleared: 0,
+      pruned: 0,
+      pulled: 0,
+      total: 0,
+    };
   }
 
   const manifestRes = await call({ action: "manifest" });
@@ -1118,6 +1148,7 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
     return {
       status: manifestRes.status,
       cleared: 0,
+      pruned: 0,
       pulled: 0,
       total: 0,
       message: manifestRes.message,
@@ -1128,6 +1159,8 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
   const ids = Object.keys(index).filter(isValidRemotePageId);
   let cleared = 0;
   let pulled = 0;
+  const prune = await clearLocalPageCacheExceptIds(ids);
+  cleared += prune.cleared;
 
   for (let i = 0; i < ids.length; i += PULL_BATCH) {
     const batchIds = ids.slice(i, i + PULL_BATCH);
@@ -1136,8 +1169,10 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
       return {
         status: res.status,
         cleared,
+        pruned: prune.cleared,
         pulled,
         total: ids.length,
+        preservedLocalPrivate: prune.preservedLocalPrivate,
         message: res.message,
       };
     }
@@ -1167,9 +1202,11 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
   return {
     status: "ok",
     cleared,
+    pruned: prune.cleared,
     pulled,
     total: ids.length,
     repaired,
+    preservedLocalPrivate: prune.preservedLocalPrivate,
   };
 }
 
@@ -1347,6 +1384,7 @@ export async function reconcilePageSync(
     const toPush: Page[] = [];
     for (const page of localAfter) {
       const remote = index[page.id];
+      if (!remote && isLocalCacheEvictionTombstone(page)) continue;
       if (!remote || page.updated_at > remote.u) toPush.push(page);
     }
 

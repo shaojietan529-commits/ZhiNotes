@@ -574,6 +574,87 @@ export async function clearLocalPageCacheForIds(ids: string[]): Promise<number> 
   return cleared;
 }
 
+export interface LocalPageCachePruneResult {
+  cleared: number;
+  preservedLocalPrivate: number;
+}
+
+export async function clearLocalPageCacheExceptIds(
+  keepIds: string[]
+): Promise<LocalPageCachePruneResult> {
+  const db = await getDb();
+  const keep = new Set(keepIds.filter(Boolean));
+  const protectedLocalIds = getLocalPrivatePageIds(db);
+  const rows = db.query(
+    "SELECT id FROM pages"
+  ) as unknown as { id: string }[];
+  const toClear = rows
+    .map((row) => row.id)
+    .filter((id) => !keep.has(id) && !protectedLocalIds.has(id));
+  const preservedLocalPrivate = rows
+    .map((row) => row.id)
+    .filter((id) => !keep.has(id) && protectedLocalIds.has(id)).length;
+
+  if (toClear.length === 0) {
+    return { cleared: 0, preservedLocalPrivate };
+  }
+
+  const chunkSize = 80;
+  const evictedAt = "1970-01-01T00:00:00.000Z";
+  for (let i = 0; i < toClear.length; i += chunkSize) {
+    const chunk = toClear.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    db.run(
+      `UPDATE pages
+       SET parent_id = NULL,
+           title = '',
+           icon = NULL,
+           cover_url = NULL,
+           content_yjs = NULL,
+           content_text = NULL,
+           properties = NULL,
+           position = 0,
+           depth = 0,
+           updated_at = ?,
+           deleted_at = ?,
+           sync_version = -1
+       WHERE id IN (${placeholders})`,
+      [evictedAt, evictedAt, ...chunk]
+    );
+  }
+
+  return { cleared: toClear.length, preservedLocalPrivate };
+}
+
+function getLocalPrivatePageIds(db: SqliteDb): Set<string> {
+  const ids = new Set<string>();
+  try {
+    const databaseParents = db.query(
+      `SELECT parent_page_id as id
+       FROM databases
+       WHERE parent_page_id IS NOT NULL AND deleted_at IS NULL`
+    ) as unknown as { id: string | null }[];
+    for (const row of databaseParents) {
+      if (row.id) ids.add(row.id);
+    }
+  } catch {
+    // Older local caches may not have every table yet.
+  }
+  try {
+    const databaseRowPages = db.query(
+      `SELECT page_id as id
+       FROM database_rows
+       WHERE deleted_at IS NULL`
+    ) as unknown as { id: string | null }[];
+    for (const row of databaseRowPages) {
+      if (row.id) ids.add(row.id);
+    }
+  } catch {
+    // Local database rows are private cache state and should not be broken.
+  }
+  return ids;
+}
+
 export interface RemotePageRecord {
   id: string;
   parent_id: string | null;
@@ -637,7 +718,7 @@ export async function applyRemotePages(
     db.run(
       `UPDATE pages SET parent_id = ?, title = ?, icon = ?, cover_url = ?,
               content_text = ?, properties = ?, position = ?, depth = ?,
-              created_at = ?, updated_at = ?, deleted_at = ?
+              created_at = ?, updated_at = ?, deleted_at = ?, sync_version = 1
        WHERE id = ?`,
       [
         parentId,
@@ -698,7 +779,7 @@ export async function applyRemotePageMetadata(
     db.run(
       `UPDATE pages SET parent_id = ?, title = ?, icon = ?,
               properties = ?, position = ?, depth = ?,
-              created_at = ?, updated_at = ?, deleted_at = ?
+              created_at = ?, updated_at = ?, deleted_at = ?, sync_version = 1
        WHERE id = ?`,
       [
         parentId,

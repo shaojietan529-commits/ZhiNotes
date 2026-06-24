@@ -224,8 +224,17 @@ check(
   "页面同步客户端应提供从云端重建本机页面缓存的入口"
 );
 check(
-  pageSyncClient.includes("clearLocalPageCacheForIds"),
-  "重建本机页面缓存前应先清理本机已同步页面缓存"
+  pageSyncClient.includes("clearLocalPageCacheExceptIds") &&
+    pageSyncClient.includes("const prune = await clearLocalPageCacheExceptIds(ids)") &&
+    pageSyncClient.includes("pruned: prune.cleared") &&
+    pageSyncClient.includes("preservedLocalPrivate: prune.preservedLocalPrivate"),
+  "重建本机页面缓存应按云端 manifest 修剪本机多余页面缓存，并报告被保护的本地私有页面"
+);
+check(
+  pageSyncClient.includes("isLocalCacheEvictionTombstone") &&
+    pageSyncClient.includes("clearPendingCloudPushIds([...missing, ...evicted])") &&
+    pageSyncClient.includes("if (!remote && isLocalCacheEvictionTombstone(page)) continue;"),
+  "被云端 manifest 驱逐的本机缓存页不能再通过 pending push 或 reconcile 反向污染云端"
 );
 check(
   pageSyncClient.includes("REMOTE_CURSOR_KEY") &&
@@ -460,6 +469,15 @@ check(
   "local queries 应提供按云端页面 id 清理本机页面缓存的 helper"
 );
 check(
+  localQueries.includes("clearLocalPageCacheExceptIds") &&
+    localQueries.includes("sync_version = -1") &&
+    localQueries.includes("sync_version = 1") &&
+    localQueries.includes("getLocalPrivatePageIds") &&
+    localQueries.includes("database_rows") &&
+    localQueries.includes("parent_page_id"),
+  "local queries 应能按云端 manifest 修剪普通页面缓存、回填时恢复缓存标记，同时保护本地数据库私有页面"
+);
+check(
   localQueries.includes("content_yjs = NULL") &&
     localQueries.includes("content_text = NULL"),
   "本机页面缓存清理应同时清理编辑器正文缓存"
@@ -469,6 +487,12 @@ const accountShell = read("src/components/modules/AccountShell.tsx");
 check(
   accountShell.includes("window.confirm"),
   "开启页面云同步前必须有确认弹窗"
+);
+check(
+  accountShell.includes("按账号云端 manifest 重建本机页面缓存") &&
+    accountShell.includes("本机多余缓存") &&
+    accountShell.includes("保留本地数据库私有页面"),
+  "AccountShell 重建缓存文案应明确云端主库、普通本地缓存清理和本地私有数据库保护"
 );
 check(
   accountShell.includes("setPageSyncEnabled"),
