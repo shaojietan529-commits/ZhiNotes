@@ -8,7 +8,7 @@ import SlashCommandList, {
   type SlashCommandListRef,
 } from "./SlashCommandList";
 import {
-  getAllPageMetadata,
+  getPageMetadata,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
@@ -111,17 +111,16 @@ function getSlashCommands(): SlashCommandItem[] {
         const page = await createPageWithCloud({
           parentId: parentPageId,
         });
-        const allPages = await getAllPageMetadata();
         const parentPage = parentPageId
-          ? allPages.find((candidate) => candidate.id === parentPageId)
+          ? await getPageMetadata(parentPageId)
           : null;
-        await updatePageWithCloud(page.id, {
+        const updatedPage = await updatePageWithCloud(page.id, {
           content_text: buildChildPageInitialHtml({
             parentPageId,
             parentTitle: parentPage?.title ?? null,
           }),
         });
-        useWorkspaceStore.getState().setPages(allPages);
+        useWorkspaceStore.getState().upsertPages([updatedPage ?? page]);
 
         editor
           .chain()

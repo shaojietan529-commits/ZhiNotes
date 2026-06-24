@@ -224,6 +224,8 @@ function run() {
     "window.location.href = `/page/${page.id}`",
     "buildChildPageInitialHtml",
     "updatePageWithCloud(page.id",
+    "getPageMetadata(parentPageId)",
+    "upsertPages([updatedPage ?? page])",
     "updateWikiLinks",
   ]) {
     assertIncludes(
@@ -278,9 +280,6 @@ function run() {
   }
 
   for (const [sourceLabel, source] of [
-    [files.editor, editor],
-    [files.slashSuggestion, slashSuggestion],
-    [files.wikiSuggestion, wikiSuggestion],
     [files.moveToDialog, moveToDialog],
     [files.pageContextMenu, pageContextMenu],
     [files.subPageTree, subPageTree],
@@ -299,6 +298,47 @@ function run() {
       "Lightweight page pickers and hierarchy lookups must not scan full page bodies after large imports."
     );
   }
+  for (const [sourceLabel, source] of [
+    [files.editor, editor],
+    [files.slashSuggestion, slashSuggestion],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "getPageMetadata(parentPageId)",
+      "/page child creation must read only the parent metadata, not scan all pages."
+    );
+    assertIncludes(
+      sourceLabel,
+      source,
+      "upsertPages([updatedPage ?? page])",
+      "/page child creation must merge the new page into the store without replacing the whole page list."
+    );
+    assertNotIncludes(
+      sourceLabel,
+      source,
+      "getAllPageMetadata",
+      "/page child creation must not scan every page after large imports."
+    );
+    assertNotIncludes(
+      sourceLabel,
+      source,
+      "getAllPages(",
+      "/page child creation must not scan full page bodies after large imports."
+    );
+  }
+  assertIncludes(
+    files.wikiSuggestion,
+    wikiSuggestion,
+    "getAllPageMetadata",
+    "Wiki link suggestions may still use metadata for empty-query recent pages."
+  );
+  assertNotIncludes(
+    files.wikiSuggestion,
+    wikiSuggestion,
+    "getAllPages(",
+    "Wiki link suggestions must not scan full page bodies."
+  );
 
   for (const snippet of [
     "RESEARCH_TEMPLATE_QUICK_ACTIONS",
