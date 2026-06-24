@@ -4,12 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
+import { useDatabases } from "@/hooks/useDatabases";
 import { usePages } from "@/hooks/usePages";
-import {
-  getAllDatabases,
-  getFields,
-  getRows,
-} from "@/lib/db/local/queries";
+import { getFields, getRows } from "@/lib/db/local/queries";
 import { addRow } from "@/lib/database/cloudDatabaseMutations";
 import {
   createPageWithCloud,
@@ -69,7 +66,7 @@ function ProjectsContent() {
 function ProjectsDashboard() {
   const router = useRouter();
   const { pages, refresh: refreshPages } = usePages();
-  const [databases, setDatabases] = useState<Database[]>([]);
+  const { databases, refresh: refreshDatabases } = useDatabases();
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [topic, setTopic] = useState("");
   const [projectMode, setProjectMode] =
@@ -79,14 +76,6 @@ function ProjectsDashboard() {
   const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
     null
   );
-
-  useEffect(() => {
-    void getAllDatabases()
-      .then(setDatabases)
-      .catch((err) => {
-        console.error("[Zhinote] Failed to load project databases:", err);
-      });
-  }, []);
 
   const researchDatabases = useMemo(
     () => databases.filter((database) => classifyResearchDatabase(database)),
@@ -245,12 +234,7 @@ function ProjectsDashboard() {
     setTrackerIntakeMessage(null);
     try {
       const result = await executeModuleStarter(starter);
-      if (result.database) {
-        setDatabases((current) => [result.database as Database, ...current]);
-      } else {
-        const latest = await getAllDatabases();
-        setDatabases(latest);
-      }
+      await refreshDatabases();
       await refreshPages();
       router.push(result.route);
     } catch (err) {

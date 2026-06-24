@@ -12,9 +12,9 @@ import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
+import { useDatabases } from "@/hooks/useDatabases";
 import { usePages } from "@/hooks/usePages";
 import {
-  getAllDatabases,
   getFields,
   getRows,
   updateWikiLinks,
@@ -178,7 +178,7 @@ function ReportsContent() {
 function ReportsDashboard() {
   const router = useRouter();
   const { pages, refresh } = usePages({ includeContent: true });
-  const [databases, setDatabases] = useState<Database[]>([]);
+  const { databases, refresh: refreshDatabases } = useDatabases();
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingIntake, setExportingIntake] = useState(false);
   const [exportingConnectionPlan, setExportingConnectionPlan] = useState(false);
@@ -210,14 +210,6 @@ function ReportsDashboard() {
     useState<ReportFileBatchMessage | null>(null);
   const reportFileInputRef = useRef<HTMLInputElement | null>(null);
   const markdownImportInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    void getAllDatabases()
-      .then(setDatabases)
-      .catch((err) => {
-        console.error("[Zhinote] Failed to load report databases:", err);
-      });
-  }, []);
 
   useEffect(() => {
     const refreshReceipts = () => {
@@ -342,7 +334,7 @@ function ReportsDashboard() {
       const result = await executeModuleStarter(starter);
       await refresh();
       if (result.database) {
-        setDatabases(await getAllDatabases());
+        await refreshDatabases();
       }
       router.push(result.route);
     } catch (err) {

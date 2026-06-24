@@ -350,17 +350,37 @@ function run() {
       "Database list UI must show local cache first and then prewarm cloud metadata."
     );
   }
-  for (const [sourceLabel, source] of [
+  const primaryDatabaseListSurfaces = [
     [files.sidebar, sidebar],
     [files.quickSearch, quickSearch],
     [files.moduleDashboard, moduleDashboard],
-  ]) {
+    [files.companyResearchShell, companyResearchShell],
+    [files.meetingsShell, meetingsShell],
+    [files.portfolioShell, portfolioShell],
+    [files.projectsShell, projectsShell],
+    [files.reportsShell, reportsShell],
+    [files.researchGraphShell, researchGraphShell],
+  ];
+
+  for (const [sourceLabel, source] of primaryDatabaseListSurfaces) {
     assertIncludes(
       sourceLabel,
       source,
       "useDatabases",
       "Primary database list surfaces must use cloud metadata prewarm instead of only local reads."
     );
+  }
+  for (const [sourceLabel, source] of primaryDatabaseListSurfaces.filter(
+    ([sourceLabel]) =>
+      ![files.sidebar, files.quickSearch, files.moduleDashboard].includes(
+        sourceLabel
+      )
+  )) {
+    if (source.includes("getAllDatabases")) {
+      failures.push(
+        `${sourceLabel} should use useDatabases instead of direct getAllDatabases local-only reads.`
+      );
+    }
   }
   for (const snippet of [
     "syncCloudDatabaseMetadata",

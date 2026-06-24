@@ -4,12 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
+import { useDatabases } from "@/hooks/useDatabases";
 import { usePages } from "@/hooks/usePages";
-import {
-  getAllDatabases,
-  getFields,
-  getRows,
-} from "@/lib/db/local/queries";
+import { getFields, getRows } from "@/lib/db/local/queries";
 import { addField } from "@/lib/database/cloudDatabaseMutations";
 import {
   createPageWithCloud,
@@ -88,7 +85,7 @@ function ResearchGraphContent() {
 function ResearchGraphDashboard() {
   const router = useRouter();
   const { pages, refresh: refreshPages } = usePages({ includeContent: true });
-  const [databases, setDatabases] = useState<Database[]>([]);
+  const { databases, refresh: refreshDatabases } = useDatabases();
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [exportingGraphReport, setExportingGraphReport] = useState(false);
   const [exportingWorkbenchPacket, setExportingWorkbenchPacket] =
@@ -102,14 +99,6 @@ function ResearchGraphDashboard() {
   const [schemaGapBusyId, setSchemaGapBusyId] = useState<string | null>(null);
   const [schemaFieldCreationResult, setSchemaFieldCreationResult] =
     useState<SchemaFieldCreationResult | null>(null);
-
-  useEffect(() => {
-    void getAllDatabases()
-      .then(setDatabases)
-      .catch((err) => {
-        console.error("[Zhinote] Failed to load research graph databases:", err);
-      });
-  }, []);
 
   const researchDatabases = useMemo(
     () => databases.filter((database) => classifyResearchDatabase(database)),
@@ -312,6 +301,7 @@ function ResearchGraphDashboard() {
         createdAt: new Date().toISOString(),
         nextRoute: gap.database_route,
       });
+      await refreshDatabases();
       await reloadSnapshots();
     } catch (err) {
       console.error("[Zhinote] Failed to create relation field:", err);

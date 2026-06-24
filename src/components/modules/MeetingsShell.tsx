@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -12,12 +11,9 @@ import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
+import { useDatabases } from "@/hooks/useDatabases";
 import { usePages } from "@/hooks/usePages";
-import {
-  getAllDatabases,
-  getFields,
-  getRows,
-} from "@/lib/db/local/queries";
+import { getFields, getRows } from "@/lib/db/local/queries";
 import { addRow } from "@/lib/database/cloudDatabaseMutations";
 import {
   createPageWithCloud,
@@ -146,7 +142,7 @@ function MeetingsDashboard() {
   const router = useRouter();
   const { pages, refresh } = usePages({ includeContent: true });
   const transcriptFileInputRef = useRef<HTMLInputElement | null>(null);
-  const [databases, setDatabases] = useState<Database[]>([]);
+  const { databases, refresh: refreshDatabases } = useDatabases();
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingFollowUp, setExportingFollowUp] = useState(false);
   const [exportingDecisionLedger, setExportingDecisionLedger] = useState(false);
@@ -166,14 +162,6 @@ function MeetingsDashboard() {
     failed: number;
     total: number;
   } | null>(null);
-
-  useEffect(() => {
-    void getAllDatabases()
-      .then(setDatabases)
-      .catch((err) => {
-        console.error("[Zhinote] Failed to load meeting databases:", err);
-      });
-  }, []);
 
   const meetingPages = useMemo(() => getMeetingPages(pages), [pages]);
   const transcriptPages = useMemo(() => getTranscriptPages(pages), [pages]);
@@ -253,7 +241,7 @@ function MeetingsDashboard() {
       const result = await executeModuleStarter(starter);
       await refresh();
       if (result.database) {
-        setDatabases(await getAllDatabases());
+        await refreshDatabases();
       }
       router.push(result.route);
     } catch (err) {

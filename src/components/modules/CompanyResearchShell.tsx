@@ -1,17 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
+import { useDatabases } from "@/hooks/useDatabases";
 import { usePages } from "@/hooks/usePages";
-import {
-  getAllDatabases,
-  getFields,
-  getRows,
-} from "@/lib/db/local/queries";
+import { getFields, getRows } from "@/lib/db/local/queries";
 import { addRow } from "@/lib/database/cloudDatabaseMutations";
 import {
   buildCompanyCoverageReport,
@@ -120,7 +117,7 @@ function CompanyResearchContent() {
 function CompanyResearchDashboard() {
   const router = useRouter();
   const { pages, refresh } = usePages({ includeContent: true });
-  const [databases, setDatabases] = useState<Database[]>([]);
+  const { databases, refresh: refreshDatabases } = useDatabases();
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingCoverage, setExportingCoverage] = useState(false);
   const [exportingDossier, setExportingDossier] = useState(false);
@@ -132,14 +129,6 @@ function CompanyResearchDashboard() {
   const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
     null
   );
-
-  useEffect(() => {
-    void getAllDatabases()
-      .then(setDatabases)
-      .catch((err) => {
-        console.error("[Zhinote] Failed to load company databases:", err);
-      });
-  }, []);
 
   const companyTrackers = useMemo(
     () => databases.filter(isCompanyResearchDatabase),
@@ -232,7 +221,7 @@ function CompanyResearchDashboard() {
       const result = await executeModuleStarter(starter);
       await refresh();
       if (result.database) {
-        setDatabases(await getAllDatabases());
+        await refreshDatabases();
       }
       router.push(result.route);
     } catch (err) {
