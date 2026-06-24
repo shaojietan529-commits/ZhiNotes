@@ -145,11 +145,14 @@ check(
   executorSource.includes('"rolled-back"'),
   "执行器必须能返回 rolled-back 状态"
 );
-// Executor must not upload or call AI.
+// Executor must not upload raw files or call AI; created page records follow
+// the account page-sync setting when the user is signed in and sync is enabled.
 check(
   executorSource.includes("uploads_data: false") &&
+    executorSource.includes("uploads_file_bytes: false") &&
+    executorSource.includes("syncs_page_records_to_account_cloud: true") &&
     executorSource.includes("enables_ai: false"),
-  "执行器必须声明不上传、不调用 AI"
+  "执行器必须声明不上传原始文件、不调用 AI，并明确页面记录跟随账号同步"
 );
 // Spreadsheets and unknown formats must be skipped (not created) in this stage.
 check(
@@ -174,7 +177,8 @@ console.log(
       required_gates: requiredGates.length,
       boundary_flags: requiredBoundaryFlags.length,
       redacts_file_names_in_export: true,
-      local_only: true,
+      raw_file_bytes_local_only: true,
+      page_records_follow_account_sync: true,
     },
     null,
     2
