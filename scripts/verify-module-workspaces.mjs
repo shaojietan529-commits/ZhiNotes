@@ -187,7 +187,7 @@ for (const token of [
   "seedDailyNoteForImmediateOpen",
   "router.push(`/page/${optimisticNote.id}`)",
   "rememberPendingPageDraft(optimisticNote)",
-  "window.setTimeout(() =>",
+  "upsertPages([optimisticNote])",
   "applyRemotePages([pageToRemoteRecord(note)])",
   "openNotePage",
 ]) {
@@ -196,6 +196,15 @@ for (const token of [
     `DailyNotesShell 新建/打开纪要应直接进入轻量页面，缺少 ${token}`
   );
 }
+check(
+  shells.daily.indexOf("rememberPendingPageDraft(optimisticNote)") <
+    shells.daily.indexOf("upsertPages([optimisticNote])") &&
+    shells.daily.indexOf("upsertPages([optimisticNote])") <
+      shells.daily.indexOf("router.push(`/page/${optimisticNote.id}`)") &&
+    shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
+      shells.daily.indexOf("router.push(`/page/${optimisticNote.id}`)"),
+  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再跳转到完整页面"
+);
 check(
   !shells.daily.includes("@/components/page/LazyPagePeekModal") &&
     !shells.daily.includes("fetchCloudPageById") &&

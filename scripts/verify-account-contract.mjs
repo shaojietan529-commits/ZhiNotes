@@ -194,6 +194,14 @@ check(
   "页面 push 和服务端修复路径都应写入 change log"
 );
 check(
+  pageSyncRoute.includes("updateCalendarCachesForPageWrites") &&
+    pageSyncRoute.includes("readDailyCalendarCacheSnapshot") &&
+    pageSyncRoute.includes("readMeetingCalendarCacheSnapshot") &&
+    pageSyncRoute.includes("previousSummary") &&
+    pageSyncRoute.includes("cursor: summary.cursor"),
+  "页面写入后应增量维护每日/会议日历缓存，避免下次打开重新扫描完整页面索引"
+);
+check(
   pageSyncRoute.includes("MEETING_CALENDAR_CACHE_KEY_PREFIX") &&
     pageSyncRoute.includes("readMeetingCalendarCache") &&
     pageSyncRoute.includes("selectMeetingCalendarMetadata") &&
@@ -401,11 +409,14 @@ check(
   dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
     dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
     dailyNotesShell.indexOf("rememberPendingPageDraft(optimisticNote)") <
+      dailyNotesShell.indexOf("upsertPages([optimisticNote])") &&
+    dailyNotesShell.indexOf("upsertPages([optimisticNote])") <
+      dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") &&
+    dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
       dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") &&
     dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") <
-      dailyNotesShell.indexOf("upsertPages([optimisticNote])") &&
+      dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
     dailyNotesShell.includes("router.push(`/page/${optimisticNote.id}`)") &&
-    dailyNotesShell.includes("window.setTimeout(() =>") &&
     dailyNotesShell.includes("applyRemotePages([pageToRemoteRecord(note)])") &&
     dailyNotesShell.includes("openNotePage") &&
     dailyNotesShell.includes("后台会继续保存到账号云端") &&
@@ -439,6 +450,14 @@ check(
     meetingScheduleShell.includes("writeCachedMeetingCloudMetadata") &&
     meetingScheduleShell.includes("Meeting schedule local cache load failed"),
   "MeetingScheduleShell 云端会议 metadata 应只把轻量窗口结果作为本机可重建缓存"
+);
+check(
+  meetingScheduleShell.includes("upsertMeetingInView(finalPage)") &&
+    meetingScheduleShell.includes("pushMeetingPageCloudSnapshot(rootId, finalPage)") &&
+    meetingScheduleShell.indexOf("pushMeetingPageCloudSnapshot(rootId, finalPage)") <
+      meetingScheduleShell.indexOf(".then(() => load())") &&
+    !meetingScheduleShell.includes("void load().catch(() => undefined);"),
+  "MeetingScheduleShell 新导入会议应先保留乐观结果，云端快照写完后再刷新日历"
 );
 check(
   meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&

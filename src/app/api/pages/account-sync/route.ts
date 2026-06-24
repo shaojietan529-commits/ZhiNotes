@@ -165,6 +165,7 @@ interface PageChangeLogEntry {
 
 interface DailyCalendarCache {
   watermark: string;
+  cursor?: string;
   rootId: string | null;
   scanned: number;
   notes: DailyDatedRecord[];
@@ -172,6 +173,7 @@ interface DailyCalendarCache {
 
 interface MeetingCalendarCache {
   watermark: string;
+  cursor?: string;
   rootId: string | null;
   scanned: number;
   meetings: MeetingDatedRecord[];
@@ -614,6 +616,7 @@ async function repairDailyImportPlacement(
   email: string
 ): Promise<DailyRepairResult> {
   const index = await readIndex(config, email);
+  const previousSummary = summarizeIndex(index);
   const pages = await readIndexedPages(config, email, index);
   const active = pages.filter((page) => !page.deleted_at);
   const dailyRoot = active
@@ -682,6 +685,13 @@ async function repairDailyImportPlacement(
       JSON.stringify(index)
     );
     await appendChangeLog(config, email, changeLogEntries);
+    await updateCalendarCachesForPageWrites(
+      config,
+      email,
+      updates,
+      previousSummary,
+      summarizeIndex(index)
+    );
   }
 
   return {
@@ -861,16 +871,16 @@ function sanitizeMeetingCache(value: unknown): MeetingCalendarCache | null {
   }
   return {
     watermark: raw.watermark,
+    cursor: typeof raw.cursor === "string" ? raw.cursor : undefined,
     rootId: isValidId(raw.rootId) ? raw.rootId : null,
     scanned: typeof raw.scanned === "number" ? raw.scanned : 0,
     meetings,
   };
 }
 
-async function readMeetingCalendarCache(
+async function readMeetingCalendarCacheSnapshot(
   config: AccountConfig,
-  email: string,
-  watermark: string
+  email: string
 ): Promise<MeetingCalendarCache | null> {
   try {
     const raw = await kvGet(
@@ -878,11 +888,19 @@ async function readMeetingCalendarCache(
       `${MEETING_CALENDAR_CACHE_KEY_PREFIX}${email}`
     );
     if (!raw) return null;
-    const parsed = sanitizeMeetingCache(JSON.parse(raw));
-    return parsed?.watermark === watermark ? parsed : null;
+    return sanitizeMeetingCache(JSON.parse(raw));
   } catch {
     return null;
   }
+}
+
+async function readMeetingCalendarCache(
+  config: AccountConfig,
+  email: string,
+  watermark: string
+): Promise<MeetingCalendarCache | null> {
+  const parsed = await readMeetingCalendarCacheSnapshot(config, email);
+  return parsed?.watermark === watermark ? parsed : null;
 }
 
 async function writeMeetingCalendarCache(
@@ -975,6 +993,7 @@ async function getMeetingCalendarMetadata(
     rootId,
     scanned: active.length,
     watermark: summary.watermark,
+    cursor: summary.cursor,
     meetings: meetings.map((item) => ({
       dateKey: item.dateKey,
       record: toMeetingMetadataRecord(item),
@@ -1094,16 +1113,16 @@ function sanitizeDailyCache(value: unknown): DailyCalendarCache | null {
   }
   return {
     watermark: raw.watermark,
+    cursor: typeof raw.cursor === "string" ? raw.cursor : undefined,
     rootId: isValidId(raw.rootId) ? raw.rootId : null,
     scanned: typeof raw.scanned === "number" ? raw.scanned : 0,
     notes,
   };
 }
 
-async function readDailyCalendarCache(
+async function readDailyCalendarCacheSnapshot(
   config: AccountConfig,
-  email: string,
-  watermark: string
+  email: string
 ): Promise<DailyCalendarCache | null> {
   try {
     const raw = await kvGet(
@@ -1111,11 +1130,19 @@ async function readDailyCalendarCache(
       `${DAILY_CALENDAR_CACHE_KEY_PREFIX}${email}`
     );
     if (!raw) return null;
-    const parsed = sanitizeDailyCache(JSON.parse(raw));
-    return parsed?.watermark === watermark ? parsed : null;
+    return sanitizeDailyCache(JSON.parse(raw));
   } catch {
     return null;
   }
+}
+
+async function readDailyCalendarCache(
+  config: AccountConfig,
+  email: string,
+  watermark: string
+): Promise<DailyCalendarCache | null> {
+  const parsed = await readDailyCalendarCacheSnapshot(config, email);
+  return parsed?.watermark === watermark ? parsed : null;
 }
 
 async function writeDailyCalendarCache(
@@ -1131,6 +1158,139 @@ async function writeDailyCalendarCache(
     );
   } catch {
     // Cache misses are allowed; the source page records remain authoritative.
+  }
+}
+
+function updateDailyCalendarCacheWithRecords(
+  cache: DailyCalendarCache,
+  records: PageRecord[],
+  summary: IndexSummary
+): DailyCalendarCache {
+  const changedIds = new Set(records.map((record) => record.id));
+  const notes = cache.notes.filter((item) => !changedIds.has(item.record.id));
+  const noteById = new Map(notes.map((item) => [item.record.id, item]));
+  let rootId = cache.rootId;
+
+  for (const record of records) {
+    if (
+      !record.deleted_at &&
+      record.parent_id === null &&
+      record.title === DAILY_ROOT_TITLE
+    ) {
+      rootId = record.id;
+      continue;
+    }
+    if (record.deleted_at) continue;
+
+    const parentNote =
+      record.parent_id ? noteById.get(record.parent_id) : undefined;
+    const directDailyChild = Boolean(rootId && record.parent_id === rootId);
+    const dateKey = getDailyDateKey(record) ?? parentNote?.dateKey ?? "";
+    if (!dateKey) continue;
+    if (!directDailyChild && !parentNote && !isRepairCandidate(record)) continue;
+
+    const nextItem = {
+      dateKey,
+      record: toDailyMetadataRecord({ record, dateKey }),
+    };
+    notes.push(nextItem);
+    noteById.set(record.id, nextItem);
+  }
+
+  return {
+    ...cache,
+    rootId,
+    scanned: Math.max(cache.scanned, summary.count - summary.deleted),
+    watermark: summary.watermark,
+    cursor: summary.cursor,
+    notes,
+  };
+}
+
+function updateMeetingCalendarCacheWithRecords(
+  cache: MeetingCalendarCache,
+  records: PageRecord[],
+  summary: IndexSummary
+): MeetingCalendarCache {
+  const changedIds = new Set(records.map((record) => record.id));
+  const meetings = cache.meetings.filter(
+    (item) => !changedIds.has(item.record.id)
+  );
+  const meetingById = new Map(meetings.map((item) => [item.record.id, item]));
+  let rootId = cache.rootId;
+
+  for (const record of records) {
+    if (
+      !record.deleted_at &&
+      record.parent_id === null &&
+      MEETING_ROOT_TITLES.has(record.title)
+    ) {
+      rootId = record.id;
+      continue;
+    }
+    if (record.deleted_at) continue;
+
+    const parentMeeting =
+      record.parent_id ? meetingById.get(record.parent_id) : undefined;
+    const directMeetingChild = Boolean(rootId && record.parent_id === rootId);
+    if (!directMeetingChild && !parentMeeting && !isMeetingCalendarRecord(record)) {
+      continue;
+    }
+    const dateKey = getMeetingDateKey(record) ?? parentMeeting?.dateKey ?? "";
+    const nextItem = {
+      dateKey,
+      record: toMeetingMetadataRecord({ record, dateKey }),
+    };
+    meetings.push(nextItem);
+    meetingById.set(record.id, nextItem);
+  }
+
+  return {
+    ...cache,
+    rootId,
+    scanned: Math.max(cache.scanned, summary.count - summary.deleted),
+    watermark: summary.watermark,
+    cursor: summary.cursor,
+    meetings,
+  };
+}
+
+async function updateCalendarCachesForPageWrites(
+  config: AccountConfig,
+  email: string,
+  records: PageRecord[],
+  previousSummary: IndexSummary,
+  nextSummary: IndexSummary
+): Promise<void> {
+  if (records.length === 0) return;
+  try {
+    const [dailyCache, meetingCache] = await Promise.all([
+      readDailyCalendarCacheSnapshot(config, email),
+      readMeetingCalendarCacheSnapshot(config, email),
+    ]);
+    await Promise.all([
+      dailyCache?.watermark === previousSummary.watermark
+        ? writeDailyCalendarCache(
+            config,
+            email,
+            updateDailyCalendarCacheWithRecords(dailyCache, records, nextSummary)
+          )
+        : Promise.resolve(),
+      meetingCache?.watermark === previousSummary.watermark
+        ? writeMeetingCalendarCache(
+            config,
+            email,
+            updateMeetingCalendarCacheWithRecords(
+              meetingCache,
+              records,
+              nextSummary
+            )
+          )
+        : Promise.resolve(),
+    ]);
+  } catch {
+    // Calendar caches are acceleration only; the source page records remain
+    // authoritative and the next calendar request can rebuild them.
   }
 }
 
@@ -1207,6 +1367,7 @@ async function getDailyCalendarMetadata(
     rootId,
     scanned: active.length,
     watermark: summary.watermark,
+    cursor: summary.cursor,
     notes: notes.map((item) => ({
       dateKey: item.dateKey,
       record: toDailyMetadataRecord(item),
@@ -1455,9 +1616,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "单次推送过多" }, { status: 400 });
       }
       const index = await readIndex(config, me);
+      const previousSummary = summarizeIndex(index);
       const accepted: string[] = [];
       const skipped: string[] = [];
       const changeLogEntries: PageChangeLogEntry[] = [];
+      const acceptedRecords: PageRecord[] = [];
 
       for (const item of body.pages) {
         const record = sanitizeRecord(item);
@@ -1482,6 +1645,7 @@ export async function POST(request: Request) {
           u: record.updated_at,
           d: record.deleted_at ? 1 : 0,
         });
+        acceptedRecords.push(record);
         accepted.push(record.id);
       }
 
@@ -1492,6 +1656,13 @@ export async function POST(request: Request) {
           JSON.stringify(index)
         );
         await appendChangeLog(config, me, changeLogEntries);
+        await updateCalendarCachesForPageWrites(
+          config,
+          me,
+          acceptedRecords,
+          previousSummary,
+          summarizeIndex(index)
+        );
       }
       return NextResponse.json({ ok: true, accepted, skipped });
     }

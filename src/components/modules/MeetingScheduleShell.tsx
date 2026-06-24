@@ -841,9 +841,10 @@ export default function MeetingScheduleShell() {
         upsertMeetingInView(finalPage);
       }
 
-      void pushMeetingPageCloudSnapshot(rootId, finalPage);
+      void pushMeetingPageCloudSnapshot(rootId, finalPage)
+        .then(() => load())
+        .catch(() => undefined);
       void refresh().catch(() => undefined);
-      void load().catch(() => undefined);
 
       return { page: finalPage, queueResult };
     },
