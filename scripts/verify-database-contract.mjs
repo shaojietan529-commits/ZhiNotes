@@ -298,6 +298,9 @@ function run() {
     "nextOffset <= offset",
     "changes.cursor === cursor",
     "cacheWriteFailed",
+    "records?: CloudDatabaseRecord[]",
+    "toDatabaseUpdatePayloads",
+    "pulledDatabaseRecords",
   ]) {
     assertIncludes(
       files.databaseAccountSyncClient,
@@ -385,7 +388,9 @@ function run() {
     "syncCloudDatabaseMetadata",
     "setDatabases(all)",
     "Treat local SQLite as a cache",
-    "cloudDatabaseMetadataToDatabases(cloud.records)",
+    "mergeDatabaseMetadata(all, cloud.records)",
+    "mergeDatabaseMetadata(current, message.records ?? [])",
+    "message.records?.length",
     "cloud.cacheWriteFailed",
     "Cloud metadata refresh is",
     "subscribeDatabasesUpdated",
@@ -547,6 +552,7 @@ function run() {
     "runSync({ quick: true })",
     "DATABASE_SYNC_CONFIG_EVENT",
     "emitDatabasesUpdated",
+    "result.records",
     'document.visibilityState === "visible"',
     "Lease storage is only a cost-control optimization",
   ]) {
@@ -561,6 +567,8 @@ function run() {
     "BroadcastChannel",
     "emitDatabasesUpdated",
     "subscribeDatabasesUpdated",
+    "DatabaseUpdatePayload",
+    "records?: DatabaseUpdatePayload[]",
     "zhinote.databases.updated.broadcast.v1",
   ]) {
     assertIncludes(

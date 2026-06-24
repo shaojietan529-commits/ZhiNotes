@@ -2,16 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getAllDatabases } from "@/lib/db/local/queries";
-import {
-  cloudDatabaseMetadataToDatabases,
-  syncCloudDatabaseMetadata,
-} from "@/lib/database/accountDatabaseSync";
+import { syncCloudDatabaseMetadata } from "@/lib/database/accountDatabaseSync";
 import {
   emitDatabasesUpdated,
   subscribeDatabasesUpdated,
+  type DatabaseUpdateMessage,
 } from "@/lib/database/databaseUpdateBus";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database } from "@/lib/utils/types";
+import type { CloudDatabaseRecord } from "@/lib/database/accountDatabaseSync";
 
 interface RefreshDatabaseOptions {
   broadcast?: boolean;
@@ -38,20 +37,13 @@ export function useDatabases() {
           restoreLocalCursor: all.length > 0,
         });
         if (cloud.status === "ok") {
-          try {
-            all = await getAllDatabases();
-          } catch {
-            all = cloudDatabaseMetadataToDatabases(cloud.records);
-          }
-          if (
-            (all.length === 0 || cloud.cacheWriteFailed) &&
-            cloud.records.length > 0
-          ) {
-            all = cloudDatabaseMetadataToDatabases(cloud.records);
+          all = mergeDatabaseMetadata(all, cloud.records);
+          if (cloud.cacheWriteFailed && all.length === 0) {
+            all = mergeDatabaseMetadata([], cloud.records);
           }
           setDatabases(all);
           if (cloud.pulled > 0 && options.broadcast !== false) {
-            emitDatabasesUpdated("cloud-pull", cloud.pulled);
+            emitDatabasesUpdated("cloud-pull", cloud.pulled, cloud.records);
           }
         }
       } catch {
@@ -74,12 +66,20 @@ export function useDatabases() {
   useEffect(() => {
     if (!dbReady) return;
     let timer: number | null = null;
-    const unsubscribe = subscribeDatabasesUpdated(() => {
-      if (timer !== null) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        void refresh({ broadcast: false });
-      }, 120);
-    });
+    const unsubscribe = subscribeDatabasesUpdated(
+      (message: DatabaseUpdateMessage) => {
+        if (message.reason === "cloud-pull" && message.records?.length) {
+          setDatabases((current) =>
+            mergeDatabaseMetadata(current, message.records ?? [])
+          );
+          return;
+        }
+        if (timer !== null) window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          void refresh({ broadcast: false });
+        }, 120);
+      }
+    );
     return () => {
       if (timer !== null) window.clearTimeout(timer);
       unsubscribe();
@@ -87,4 +87,34 @@ export function useDatabases() {
   }, [dbReady, refresh]);
 
   return { databases, refresh };
+}
+
+function mergeDatabaseMetadata(
+  current: Database[],
+  records: CloudDatabaseRecord[]
+): Database[] {
+  if (records.length === 0) return current;
+  const byId = new Map(current.map((database) => [database.id, database]));
+  for (const record of records) {
+    if (record.type !== "database") continue;
+    if (record.deleted_at) {
+      byId.delete(record.id);
+      continue;
+    }
+    byId.set(record.id, {
+      id: record.id,
+      owner_id: record.owner_id,
+      parent_page_id: record.parent_page_id,
+      title: record.title || "未命名数据库",
+      icon: record.icon,
+      description: record.description,
+      created_at: record.created_at,
+      updated_at: record.updated_at,
+      deleted_at: record.deleted_at,
+      sync_version: 1,
+    });
+  }
+  return [...byId.values()].sort((a, b) =>
+    b.updated_at.localeCompare(a.updated_at)
+  );
 }

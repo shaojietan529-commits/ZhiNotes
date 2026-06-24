@@ -17,7 +17,10 @@ import {
   markDatabaseSyncLogEntriesSynced,
   type RemoteDatabaseRecord,
 } from "@/lib/db/local/queries";
-import { emitDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
+import {
+  emitDatabasesUpdated,
+  type DatabaseUpdatePayload,
+} from "@/lib/database/databaseUpdateBus";
 import type { Database } from "@/lib/utils/types";
 
 const ENABLED_KEY = "zhinote.databasesync.enabled";
@@ -117,6 +120,7 @@ export interface DatabaseReconcileResult {
   pulled: number;
   pushed: number;
   skipped: number;
+  records?: CloudDatabaseRecord[];
   message?: string;
 }
 
@@ -522,6 +526,14 @@ export function cloudDatabaseMetadataToDatabases(
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }
 
+function toDatabaseUpdatePayloads(
+  records: CloudDatabaseRecord[]
+): DatabaseUpdatePayload[] {
+  return records.filter(
+    (record): record is DatabaseUpdatePayload => record.type === "database"
+  );
+}
+
 export async function syncCloudDatabaseById(
   databaseId: string
 ): Promise<{
@@ -797,6 +809,7 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
 export async function syncCloudDatabaseDelta(): Promise<{
   status: DatabaseSyncStatus;
   pulled: number;
+  records?: CloudDatabaseRecord[];
   message?: string;
 }> {
   if (!isDatabaseSyncEnabled()) {
@@ -805,6 +818,7 @@ export async function syncCloudDatabaseDelta(): Promise<{
 
   let cursor = getRemoteCursor();
   let pulled = 0;
+  const pulledDatabaseRecords: CloudDatabaseRecord[] = [];
   let hasMore = false;
   do {
     const changes = await fetchCloudDatabaseChangesSince(
@@ -812,16 +826,23 @@ export async function syncCloudDatabaseDelta(): Promise<{
       INCREMENTAL_PULL_LIMIT
     );
     if (changes.status !== "ok") {
-      return { status: changes.status, pulled, message: changes.message };
+      return {
+        status: changes.status,
+        pulled,
+        records: pulledDatabaseRecords,
+        message: changes.message,
+      };
     }
     if (changes.records.length > 0) {
       await applyRemoteDatabaseRecords(changes.records);
       pulled += changes.records.length;
+      pulledDatabaseRecords.push(...toDatabaseUpdatePayloads(changes.records));
     }
     if (changes.hasMore && changes.cursor === cursor) {
       return {
         status: "error",
         pulled,
+        records: pulledDatabaseRecords,
         message: "云端数据库增量游标没有前进，已停止本次拉取。",
       };
     }
@@ -829,7 +850,7 @@ export async function syncCloudDatabaseDelta(): Promise<{
     hasMore = changes.hasMore;
   } while (hasMore);
 
-  return { status: "ok", pulled };
+  return { status: "ok", pulled, records: pulledDatabaseRecords };
 }
 
 export async function reconcileDatabaseSync(
@@ -905,6 +926,7 @@ export async function reconcileDatabaseSync(
       pulled: metadata.pulled,
       pushed: queuedPush.pushed + push.pushed,
       skipped: queuedPush.skipped + push.skipped,
+      records: metadata.records,
     };
   }
 
@@ -915,6 +937,7 @@ export async function reconcileDatabaseSync(
       pulled: pull.pulled,
       pushed: queuedPush.pushed,
       skipped: queuedPush.skipped,
+      records: pull.records,
       message: pull.message,
     };
   }
@@ -929,11 +952,12 @@ export async function reconcileDatabaseSync(
     };
   }
   return {
-    status: "ok",
-    pulled: pull.pulled,
-    pushed: queuedPush.pushed + push.pushed,
-    skipped: queuedPush.skipped + push.skipped,
-  };
+      status: "ok",
+      pulled: pull.pulled,
+      pushed: queuedPush.pushed + push.pushed,
+      skipped: queuedPush.skipped + push.skipped,
+      records: pull.records,
+    };
 }
 
 export async function rebuildDatabaseCacheFromCloud(): Promise<RebuildDatabaseCacheResult> {

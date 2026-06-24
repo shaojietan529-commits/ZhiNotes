@@ -95,7 +95,11 @@ export function useDatabaseCloudSync() {
           setState("synced");
           setLastSyncAt(getLastDatabaseSyncAt());
           if (result.pulled > 0) {
-            emitDatabasesUpdated("cloud-pull", result.pulled);
+            emitDatabasesUpdated(
+              "cloud-pull",
+              result.pulled,
+              result.records
+            );
           } else if (result.pushed > 0) {
             emitDatabasesUpdated("cloud-push", result.pushed);
           }

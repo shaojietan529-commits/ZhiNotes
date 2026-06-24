@@ -1,17 +1,22 @@
 "use client";
 
+import type { RemoteDatabaseRecord } from "@/lib/db/local/queries";
+
 export type DatabaseUpdateReason =
   | "local-refresh"
   | "cloud-pull"
   | "cloud-push"
   | "cross-tab";
 
-interface DatabaseUpdateMessage {
+export type DatabaseUpdatePayload = RemoteDatabaseRecord;
+
+export interface DatabaseUpdateMessage {
   type: "databases-updated";
   sourceId: string;
   reason: DatabaseUpdateReason;
   at: string;
   count?: number;
+  records?: DatabaseUpdatePayload[];
 }
 
 const CHANNEL_NAME = "zhinote:databases-updated:v1";
@@ -40,7 +45,8 @@ function getChannel(): BroadcastChannel | null {
 
 export function emitDatabasesUpdated(
   reason: DatabaseUpdateReason = "local-refresh",
-  count?: number
+  count?: number,
+  records?: DatabaseUpdatePayload[]
 ) {
   if (typeof window === "undefined") return;
   const message: DatabaseUpdateMessage = {
@@ -49,6 +55,7 @@ export function emitDatabasesUpdated(
     reason,
     at: new Date().toISOString(),
     count,
+    records,
   };
   getChannel()?.postMessage(message);
   try {
