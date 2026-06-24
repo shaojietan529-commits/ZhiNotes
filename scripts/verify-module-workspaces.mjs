@@ -177,7 +177,9 @@ check(
   "Sidebar/FavoritePages/TrashPages 不应各自挂 usePages 触发重复全量页面 metadata 刷新"
 );
 check(
-  usePagesHook.includes("upsertPages(cloud.pages.map(remoteMetadataToPage))") &&
+  usePagesHook.includes("const cloudPages = cloud.pages.map(remoteMetadataToPage)") &&
+    usePagesHook.includes("upsertPages(cloudPages)") &&
+    usePagesHook.includes("setPages(cloudPages)") &&
     !usePagesHook.includes("applyRemotePageMetadata") &&
     usePagesHook.includes("autoLoad?: boolean"),
   "usePages 云端 metadata delta 必须直接合并到 store，不能每次 delta 后重扫全量 pages"

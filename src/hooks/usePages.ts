@@ -85,20 +85,35 @@ export function usePages(options: UsePagesOptions = {}) {
 
   const refresh = useCallback(async (options: RefreshOptions = {}) => {
     if (!dbReady) return;
-    const all = await loadPagesSnapshot(includeContent);
-    setPages(all);
+    let all: Page[] = [];
+    let localSnapshotLoaded = false;
+    try {
+      all = await loadPagesSnapshot(includeContent);
+      localSnapshotLoaded = true;
+      setPages(all);
+    } catch {
+      // The browser database is only a rebuildable cache. If it cannot be
+      // read, keep the workspace usable by falling back to cloud metadata.
+    }
 
-    if (!includeContent) {
+    if (!includeContent || !localSnapshotLoaded) {
       try {
         const cloud = await syncCloudPageMetadataDelta({
-          force: all.length === 0,
+          force: all.length === 0 || !localSnapshotLoaded,
+          fullRefresh: all.length === 0 || !localSnapshotLoaded,
         });
         if (cloud.status === "ok" && cloud.pages.length > 0) {
-          upsertPages(cloud.pages.map(remoteMetadataToPage));
+          const cloudPages = cloud.pages.map(remoteMetadataToPage);
+          if (localSnapshotLoaded) {
+            upsertPages(cloudPages);
+          } else {
+            all = cloudPages;
+            setPages(cloudPages);
+          }
         }
       } catch {
-        // Local pages are already visible. Cloud metadata refresh is best
-        // effort and should never block the current view.
+        // Local pages are already visible when available. Cloud metadata
+        // refresh is best effort and should never block the current view.
       }
     }
 

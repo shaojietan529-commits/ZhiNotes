@@ -481,7 +481,7 @@ async function fetchCloudPageMetadataChangesSince(
 }
 
 export async function syncCloudPageMetadataDelta(
-  options: { force?: boolean } = {}
+  options: { force?: boolean; fullRefresh?: boolean } = {}
 ): Promise<CloudPageMetadataDeltaResult> {
   if (!isPageSyncEnabled()) {
     return { status: "disabled", pulled: 0, pages: [], fullRefresh: false };
@@ -506,7 +506,7 @@ export async function syncCloudPageMetadataDelta(
   }
 
   const generation = metadataDeltaGeneration;
-  metadataDeltaInFlight = runCloudPageMetadataDelta();
+  metadataDeltaInFlight = runCloudPageMetadataDelta(options);
   try {
     const result = await metadataDeltaInFlight;
     rememberAuthRetryStatus(result.status);
@@ -571,8 +571,10 @@ function readStoredAuthRetryStatus(): PageSyncStatus | null {
   }
 }
 
-async function runCloudPageMetadataDelta(): Promise<CloudPageMetadataDeltaResult> {
-  let nextCursor = getRemoteCursor();
+async function runCloudPageMetadataDelta(
+  options: { fullRefresh?: boolean } = {}
+): Promise<CloudPageMetadataDeltaResult> {
+  let nextCursor = options.fullRefresh ? null : getRemoteCursor();
   if (!nextCursor) {
     const summaryRes = await call({ action: "summary" });
     if (summaryRes.ok) {

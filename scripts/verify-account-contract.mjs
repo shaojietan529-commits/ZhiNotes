@@ -365,8 +365,10 @@ check(
   pageSyncClient.includes("syncCloudPageMetadataDelta") &&
     pageSyncClient.includes('action: "metadata-changes-since"') &&
     pageSyncClient.includes("METADATA_DELTA_THROTTLE_MS") &&
-    pageSyncClient.includes("metadataDeltaInFlight"),
-  "页面同步客户端应提供节流、去重的轻量 metadata 增量同步入口"
+    pageSyncClient.includes("metadataDeltaInFlight") &&
+    pageSyncClient.includes("fullRefresh?: boolean") &&
+    pageSyncClient.includes("let nextCursor = options.fullRefresh ? null : getRemoteCursor()"),
+  "页面同步客户端应提供节流、去重的轻量 metadata 增量同步入口，并允许本地缓存恢复时绕过旧 cursor 做云端 metadata 全量兜底"
 );
 const metadataDeltaBody = pageSyncClient.slice(
   pageSyncClient.indexOf("async function runCloudPageMetadataDelta"),
@@ -403,9 +405,13 @@ check(
   usePagesHook.includes("syncCloudPageMetadataDelta") &&
     usePagesHook.includes("setPages(all);") &&
     usePagesHook.includes("force: all.length === 0") &&
-    usePagesHook.includes("Cloud metadata refresh is best") &&
+    usePagesHook.includes("localSnapshotLoaded") &&
+    usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
+    usePagesHook.includes("The browser database is only a rebuildable cache") &&
+    usePagesHook.includes("setPages(cloudPages)") &&
+    usePagesHook.includes("refresh is best effort") &&
     !usePagesHook.includes("fetchCloudPageMetadata"),
-  "usePages 应先显示本地页面列表，再用云端 metadata 增量后台补齐"
+  "usePages 应先显示本地页面列表；本地缓存空/坏时必须强制用云端 metadata 兜底恢复"
 );
 check(
   usePagesHook.includes("autoLoad?: boolean") &&
