@@ -540,15 +540,19 @@ export async function syncCloudDatabaseById(
   status: DatabaseSyncStatus;
   pulled: number;
   total: number;
+  records: CloudDatabaseRecord[];
+  cacheWriteFailed?: boolean;
   message?: string;
 }> {
   if (!isDatabaseSyncEnabled()) {
-    return { status: "disabled", pulled: 0, total: 0 };
+    return { status: "disabled", pulled: 0, total: 0, records: [] };
   }
   let offset = 0;
   let pulled = 0;
   let total = 0;
   let hasMore = false;
+  let cacheWriteFailed = false;
+  const records: CloudDatabaseRecord[] = [];
 
   do {
     const result = await fetchCloudDatabaseRecordsByDatabaseId(
@@ -561,12 +565,19 @@ export async function syncCloudDatabaseById(
         status: result.status,
         pulled,
         total,
+        records,
+        cacheWriteFailed,
         message: result.message,
       };
     }
     total = result.total;
     if (result.records.length > 0) {
-      await applyRemoteDatabaseRecords(result.records);
+      records.push(...result.records);
+      try {
+        await applyRemoteDatabaseRecords(result.records);
+      } catch {
+        cacheWriteFailed = true;
+      }
       pulled += result.records.length;
     }
     hasMore = result.hasMore && result.nextOffset !== null;
@@ -577,6 +588,8 @@ export async function syncCloudDatabaseById(
           status: "error",
           pulled,
           total,
+          records,
+          cacheWriteFailed,
           message: "云端数据库分页游标没有前进，已停止本次拉取。",
         };
       }
@@ -584,7 +597,7 @@ export async function syncCloudDatabaseById(
     }
   } while (hasMore);
 
-  return { status: "ok", pulled, total };
+  return { status: "ok", pulled, total, records, cacheWriteFailed };
 }
 
 export async function pushCloudDatabaseRecords(

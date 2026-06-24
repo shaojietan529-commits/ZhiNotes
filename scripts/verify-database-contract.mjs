@@ -264,6 +264,7 @@ function run() {
     "syncCloudDatabaseMetadata",
     "cloudDatabaseMetadataToDatabases",
     "syncCloudDatabaseById",
+    "cacheWriteFailed?: boolean",
     "pushCloudDatabaseRecords",
     "fetchCloudDatabaseRecordsByKeys",
     "pushLocalDatabasesToCloud",
@@ -349,6 +350,9 @@ function run() {
     "initialCloudHydrateRef",
     "readLocalDatabaseSafe",
     "cloud.status === \"ok\" && cloud.pulled > 0",
+    "cloud.cacheWriteFailed",
+    "buildDatabaseSnapshotFromCloudRecords(databaseId, cloud.records)",
+    "setCacheNotice",
     "applyLocalDatabase(await readLocalDatabaseSafe())",
   ]) {
     assertIncludes(

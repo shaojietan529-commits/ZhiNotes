@@ -30,7 +30,10 @@ import {
   updateRow,
   updateView,
 } from "@/lib/database/cloudDatabaseMutations";
-import { syncCloudDatabaseById } from "@/lib/database/accountDatabaseSync";
+import {
+  syncCloudDatabaseById,
+  type CloudDatabaseRecord,
+} from "@/lib/database/accountDatabaseSync";
 import type { Database, DatabaseField, DatabaseRow, DatabaseView } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
 import {
@@ -241,6 +244,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     useState<DatabaseRowPeekMode>("side-peek");
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
+  const [cacheNotice, setCacheNotice] = useState<string | null>(null);
   const [rowSearch, setRowSearch] = useState(initialRowSearch);
   const [filterRules, setFilterRules] = useState<DatabaseFilterRule[]>([]);
   const [filterMatchMode, setFilterMatchMode] =
@@ -319,12 +323,29 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
     const localSnapshot = await readLocalDatabaseSafe();
     applyLocalDatabase(localSnapshot);
+    setCacheNotice(null);
 
     if (initialCloudHydrateRef.current === databaseId) return;
     initialCloudHydrateRef.current = databaseId;
     const cloud = await syncCloudDatabaseById(databaseId);
     if (cloud.status === "ok" && cloud.pulled > 0) {
-      applyLocalDatabase(await readLocalDatabaseSafe());
+      if (cloud.cacheWriteFailed) {
+        applyLocalDatabase(
+          buildDatabaseSnapshotFromCloudRecords(databaseId, cloud.records)
+        );
+        setCacheNotice(
+          "已直接从账号云端显示当前数据库；本机缓存暂时不可写，可稍后在账号页重建本机数据库缓存。"
+        );
+      } else {
+        applyLocalDatabase(await readLocalDatabaseSafe());
+      }
+    } else if (
+      cloud.status === "unauthenticated" ||
+      cloud.status === "unconfigured"
+    ) {
+      setCacheNotice(null);
+    } else if (cloud.status === "error") {
+      setCacheNotice(cloud.message ?? "云端数据库暂时不可用，当前显示本机缓存。");
     }
   }, [databaseId, activeViewId, applyViewConfig, initialViewId]);
 
@@ -976,6 +997,11 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           onChange={(event) => void handleDatabaseImportFileSelected(event)}
         />
       </div>
+      {cacheNotice && (
+        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200">
+          {cacheNotice}
+        </div>
+      )}
 
       {/* View tabs + add view */}
       <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-zinc-700 mb-4">
@@ -4147,6 +4173,139 @@ function isDefaultSortRules(sortRules: DatabaseSortRule[]) {
       sortRules[0].key === "position" &&
       sortRules[0].direction === "asc")
   );
+}
+
+function buildDatabaseSnapshotFromCloudRecords(
+  databaseId: string,
+  records: CloudDatabaseRecord[]
+): [Database | null, DatabaseField[], RowWithPage[], DatabaseView[]] {
+  const databaseRecord = records.find(
+    (record) =>
+      record.type === "database" &&
+      record.id === databaseId &&
+      !record.deleted_at
+  );
+  const database: Database | null = databaseRecord
+    ? {
+        id: databaseRecord.id,
+        owner_id: databaseRecord.owner_id,
+        parent_page_id: databaseRecord.parent_page_id,
+        title: databaseRecord.title || "未命名数据库",
+        icon: databaseRecord.icon,
+        description: databaseRecord.description,
+        created_at: databaseRecord.created_at,
+        updated_at: databaseRecord.updated_at,
+        deleted_at: databaseRecord.deleted_at,
+        sync_version: 1,
+      }
+    : null;
+
+  const fields: DatabaseField[] = records
+    .filter(
+      (record) =>
+        record.type === "field" &&
+        record.database_id === databaseId &&
+        !record.deleted_at
+    )
+    .map((record) => ({
+      id: record.id,
+      database_id: databaseId,
+      owner_id: record.owner_id,
+      name: record.name || "未命名字段",
+      field_type: record.field_type || "text",
+      config: record.config,
+      position: record.position,
+      created_at: record.created_at,
+      updated_at: record.updated_at,
+      deleted_at: record.deleted_at,
+      sync_version: 1,
+    }))
+    .sort((a, b) => a.position - b.position);
+
+  const views: DatabaseView[] = records
+    .filter(
+      (record) =>
+        record.type === "view" &&
+        record.database_id === databaseId &&
+        !record.deleted_at
+    )
+    .map((record) => ({
+      id: record.id,
+      database_id: databaseId,
+      owner_id: record.owner_id,
+      name: record.name || "默认视图",
+      view_type: normalizeRemoteDatabaseViewType(record.view_type),
+      config: record.config || "{}",
+      position: record.position,
+      created_at: record.created_at,
+      updated_at: record.updated_at,
+      deleted_at: record.deleted_at,
+      sync_version: 1,
+    }))
+    .sort((a, b) => a.position - b.position);
+
+  const rows: RowWithPage[] = records
+    .filter(
+      (record) =>
+        record.type === "row" &&
+        record.database_id === databaseId &&
+        !record.deleted_at
+    )
+    .map((record) => {
+      const pageId = record.page_id || record.id;
+      return {
+        id: record.id,
+        database_id: databaseId,
+        page_id: pageId,
+        owner_id: record.owner_id,
+        field_values: record.field_values || "{}",
+        position: record.position,
+        created_at: record.created_at,
+        updated_at: record.updated_at,
+        deleted_at: record.deleted_at,
+        sync_version: 1,
+        page: {
+          id: pageId,
+          owner_id: record.owner_id,
+          parent_id: null,
+          database_id: null,
+          title: "未命名页面",
+          icon: null,
+          cover_url: null,
+          content_yjs: null,
+          content_text: null,
+          properties: null,
+          position: record.position,
+          depth: 0,
+          created_at: record.created_at,
+          updated_at: record.updated_at,
+          deleted_at: null,
+          sync_version: 1,
+        },
+      };
+    })
+    .sort((a, b) => a.position - b.position);
+
+  return [database, fields, rows, views];
+}
+
+function normalizeRemoteDatabaseViewType(
+  value: string | null
+): DatabaseView["view_type"] {
+  if (
+    value === "table" ||
+    value === "list" ||
+    value === "kanban" ||
+    value === "calendar" ||
+    value === "gallery" ||
+    value === "timeline" ||
+    value === "chart" ||
+    value === "form" ||
+    value === "feed"
+  ) {
+    return value;
+  }
+  return "table";
 }
 
 function parseStringArray(value: unknown) {
