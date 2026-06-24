@@ -70,60 +70,63 @@ export function useDatabaseCloudSync() {
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const runningRef = useRef(false);
 
-  const runSync = useCallback(async (options: { forceLease?: boolean } = {}) => {
-    if (!isDatabaseSyncEnabled()) {
-      setState("disabled");
-      return;
-    }
-    if (!claimSyncLease(options.forceLease)) {
-      const last = getLastDatabaseSyncAt();
-      if (last) {
-        setState("synced");
-        setLastSyncAt(last);
-      }
-      return;
-    }
-    if (runningRef.current) return;
-    runningRef.current = true;
-    setState("syncing");
-    try {
-      const result = await reconcileDatabaseSync();
-      if (result.status === "ok") {
-        setState("synced");
-        setLastSyncAt(getLastDatabaseSyncAt());
-        if (result.pulled > 0) {
-          emitDatabasesUpdated("cloud-pull", result.pulled);
-        } else if (result.pushed > 0) {
-          emitDatabasesUpdated("cloud-push", result.pushed);
-        }
-      } else if (
-        result.status === "unauthenticated" ||
-        result.status === "unconfigured"
-      ) {
-        setState("signed-out");
-      } else if (result.status === "disabled") {
+  const runSync = useCallback(
+    async (options: { forceLease?: boolean; quick?: boolean } = {}) => {
+      if (!isDatabaseSyncEnabled()) {
         setState("disabled");
-      } else {
-        setState("error");
+        return;
       }
-    } finally {
-      runningRef.current = false;
-    }
-  }, []);
+      if (!claimSyncLease(options.forceLease)) {
+        const last = getLastDatabaseSyncAt();
+        if (last) {
+          setState("synced");
+          setLastSyncAt(last);
+        }
+        return;
+      }
+      if (runningRef.current) return;
+      runningRef.current = true;
+      setState("syncing");
+      try {
+        const result = await reconcileDatabaseSync({ quick: options.quick });
+        if (result.status === "ok") {
+          setState("synced");
+          setLastSyncAt(getLastDatabaseSyncAt());
+          if (result.pulled > 0) {
+            emitDatabasesUpdated("cloud-pull", result.pulled);
+          } else if (result.pushed > 0) {
+            emitDatabasesUpdated("cloud-push", result.pushed);
+          }
+        } else if (
+          result.status === "unauthenticated" ||
+          result.status === "unconfigured"
+        ) {
+          setState("signed-out");
+        } else if (result.status === "disabled") {
+          setState("disabled");
+        } else {
+          setState("error");
+        }
+      } finally {
+        runningRef.current = false;
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (!dbReady) return;
-    void runSync();
+    void runSync({ quick: true });
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") {
-        void runSync();
+        void runSync({ quick: true });
       }
     }, SYNC_INTERVAL_MS);
-    const handleConfig = () => void runSync({ forceLease: true });
+    const handleConfig = () => void runSync({ forceLease: true, quick: true });
     const handleVisible = () => {
-      if (document.visibilityState === "visible") void runSync();
+      if (document.visibilityState === "visible") void runSync({ quick: true });
     };
-    const handleForeground = () => void runSync();
+    const handleForeground = () => void runSync({ quick: true });
     window.addEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
     window.addEventListener("focus", handleForeground);
     window.addEventListener("online", handleForeground);

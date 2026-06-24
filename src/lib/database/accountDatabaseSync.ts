@@ -117,6 +117,10 @@ export interface DatabaseReconcileResult {
   message?: string;
 }
 
+export interface DatabaseReconcileOptions {
+  quick?: boolean;
+}
+
 export interface RebuildDatabaseCacheResult {
   status: DatabaseSyncStatus;
   cleared: number;
@@ -759,7 +763,9 @@ export async function syncCloudDatabaseDelta(): Promise<{
   return { status: "ok", pulled };
 }
 
-export async function reconcileDatabaseSync(): Promise<DatabaseReconcileResult> {
+export async function reconcileDatabaseSync(
+  options: DatabaseReconcileOptions = {}
+): Promise<DatabaseReconcileResult> {
   if (!isDatabaseSyncEnabled()) {
     return { status: "disabled", pulled: 0, pushed: 0, skipped: 0 };
   }
@@ -773,6 +779,37 @@ export async function reconcileDatabaseSync(): Promise<DatabaseReconcileResult> 
       message: queuedPush.message,
     };
   }
+
+  const cursor = getRemoteCursor();
+  if (options.quick && !cursor) {
+    const metadata = await syncCloudDatabaseMetadata();
+    if (metadata.status !== "ok") {
+      return {
+        status: metadata.status,
+        pulled: 0,
+        pushed: queuedPush.pushed,
+        skipped: queuedPush.skipped,
+        message: metadata.message,
+      };
+    }
+    const push = await pushPendingLocalDatabaseChangesToCloud();
+    if (push.status !== "ok") {
+      return {
+        status: push.status,
+        pulled: metadata.pulled,
+        pushed: push.pushed,
+        skipped: push.skipped,
+        message: push.message,
+      };
+    }
+    return {
+      status: "ok",
+      pulled: metadata.pulled,
+      pushed: queuedPush.pushed + push.pushed,
+      skipped: queuedPush.skipped + push.skipped,
+    };
+  }
+
   const pull = await syncCloudDatabaseDelta();
   if (pull.status !== "ok") {
     return {
