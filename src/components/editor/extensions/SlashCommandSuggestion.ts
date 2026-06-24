@@ -8,7 +8,7 @@ import SlashCommandList, {
   type SlashCommandListRef,
 } from "./SlashCommandList";
 import {
-  getAllPages,
+  getAllPageMetadata,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
@@ -111,7 +111,7 @@ function getSlashCommands(): SlashCommandItem[] {
         const page = await createPageWithCloud({
           parentId: parentPageId,
         });
-        const allPages = await getAllPages();
+        const allPages = await getAllPageMetadata();
         const parentPage = parentPageId
           ? allPages.find((candidate) => candidate.id === parentPageId)
           : null;

@@ -1,11 +1,11 @@
-import { getAllPages } from "@/lib/db/local/queries";
+import { getAllPageMetadata } from "@/lib/db/local/queries";
 import { getModuleRootId } from "./moduleWorkspaces";
 
 export async function findIndustryChainPageId(
   name: string
 ): Promise<string | null> {
   const rootId = await getModuleRootId("industry-chain");
-  const allPages = await getAllPages();
+  const allPages = await getAllPageMetadata();
 
   const descendants = new Set<string>();
   const collect = (parentId: string) => {

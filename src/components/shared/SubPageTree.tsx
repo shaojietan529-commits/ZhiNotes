@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getAllPages } from "@/lib/db/local/queries";
+import { getAllPageMetadata } from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 
 interface PagePositionTreeProps {
@@ -26,7 +26,7 @@ export default function PagePositionTree({ pageId }: PagePositionTreeProps) {
 
   useEffect(() => {
     async function load() {
-      const allPages = await getAllPages();
+      const allPages = await getAllPageMetadata();
       const currentPage = allPages.find((p) => p.id === pageId);
       if (!currentPage) return;
 

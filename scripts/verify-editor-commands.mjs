@@ -27,7 +27,10 @@ const files = {
   editor: "src/components/editor/Editor.tsx",
   hoverSummary: "src/components/comparison/HoverSummary.tsx",
   iconPicker: "src/components/shared/IconPicker.tsx",
+  industryChainSearch: "src/lib/pages/industryChainSearch.ts",
+  moveToDialog: "src/components/page/MoveToDialog.tsx",
   pageComments: "src/components/shared/PageComments.tsx",
+  pageContextMenu: "src/components/page/PageContextMenu.tsx",
   pageLocalCommands: "src/lib/pageLocalCommands.ts",
   pageShell: "src/components/providers/PageShell.tsx",
   pageActionsMenu: "src/components/page/PageActionsMenu.tsx",
@@ -44,6 +47,7 @@ const files = {
   templateButtonNode: "src/components/editor/extensions/TemplateButtonNode.tsx",
   versionHistoryPanel: "src/components/comparison/VersionHistoryPanel.tsx",
   wikiLinkList: "src/components/editor/extensions/WikiLinkList.tsx",
+  wikiSuggestion: "src/components/editor/extensions/WikiLinkSuggestion.ts",
   wikiReferenceNode: "src/components/editor/extensions/WikiReferenceNode.tsx",
   workspaceBackup: "src/lib/export/workspaceBackup.ts",
 };
@@ -93,7 +97,10 @@ function run() {
   const editor = readProjectFile(files.editor);
   const hoverSummary = readProjectFile(files.hoverSummary);
   const iconPicker = readProjectFile(files.iconPicker);
+  const industryChainSearch = readProjectFile(files.industryChainSearch);
+  const moveToDialog = readProjectFile(files.moveToDialog);
   const pageComments = readProjectFile(files.pageComments);
+  const pageContextMenu = readProjectFile(files.pageContextMenu);
   const pageLocalCommands = readProjectFile(files.pageLocalCommands);
   const pageShell = readProjectFile(files.pageShell);
   const pageActionsMenu = readProjectFile(files.pageActionsMenu);
@@ -111,6 +118,7 @@ function run() {
   const templateButtonNode = readProjectFile(files.templateButtonNode);
   const versionHistoryPanel = readProjectFile(files.versionHistoryPanel);
   const wikiLinkList = readProjectFile(files.wikiLinkList);
+  const wikiSuggestion = readProjectFile(files.wikiSuggestion);
   const wikiReferenceNode = readProjectFile(files.wikiReferenceNode);
   const workspaceBackup = readProjectFile(files.workspaceBackup);
 
@@ -215,7 +223,7 @@ function run() {
     "\"新页面\"",
     "window.location.href = `/page/${page.id}`",
     "buildChildPageInitialHtml",
-    "updatePage(page.id",
+    "updatePageWithCloud(page.id",
     "updateWikiLinks",
   ]) {
     assertIncludes(
@@ -266,6 +274,29 @@ function run() {
       source,
       snippet,
       "Cmd/Ctrl+K must expose the same child-page workflow as /page."
+    );
+  }
+
+  for (const [sourceLabel, source] of [
+    [files.editor, editor],
+    [files.slashSuggestion, slashSuggestion],
+    [files.wikiSuggestion, wikiSuggestion],
+    [files.moveToDialog, moveToDialog],
+    [files.pageContextMenu, pageContextMenu],
+    [files.subPageTree, subPageTree],
+    [files.industryChainSearch, industryChainSearch],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "getAllPageMetadata",
+      "Lightweight page pickers and hierarchy lookups must read page metadata instead of full page bodies."
+    );
+    assertNotIncludes(
+      sourceLabel,
+      source,
+      "getAllPages(",
+      "Lightweight page pickers and hierarchy lookups must not scan full page bodies after large imports."
     );
   }
 

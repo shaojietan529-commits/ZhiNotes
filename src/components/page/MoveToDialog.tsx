@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getAllPages } from "@/lib/db/local/queries";
+import { getAllPageMetadata } from "@/lib/db/local/queries";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import type { Page } from "@/lib/utils/types";
 
@@ -21,7 +21,7 @@ export default function MoveToDialog({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    getAllPages().then((all) => {
+    getAllPageMetadata().then((all) => {
       const excluded = new Set<string>();
       excluded.add(pageId);
       const addDescendants = (id: string) => {

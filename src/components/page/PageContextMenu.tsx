@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   deletePage,
   getNextPosition,
-  getAllPages,
+  getAllPageMetadata,
   getPage,
 } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -63,7 +63,7 @@ export default function PageContextMenu({
 
   useEffect(() => {
     if (!moveMode) return;
-    getAllPages().then((pages) => {
+    getAllPageMetadata().then((pages) => {
       setMoveTargets(pages.filter((p) => p.id !== pageId));
     });
   }, [moveMode, pageId]);

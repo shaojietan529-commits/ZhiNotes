@@ -9,7 +9,7 @@ import {
 } from "@tiptap/pm/model";
 import {
   addBlockComment,
-  getAllPages,
+  getAllPageMetadata,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
 import {
@@ -691,7 +691,7 @@ async function createChildPageFromEditorCommand(
   const page = await createPageWithCloud({
     parentId: parentPageId,
   });
-  const allPages = await getAllPages();
+  const allPages = await getAllPageMetadata();
   const parentPage = allPages.find((candidate) => candidate.id === parentPageId);
   await updatePageWithCloud(page.id, {
     content_text: buildChildPageInitialHtml({
