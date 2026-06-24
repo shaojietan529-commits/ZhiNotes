@@ -263,6 +263,17 @@ check(
   "重建页面缓存前必须取消本机待上传队列，避免被清理的旧缓存重新污染云端主库"
 );
 check(
+  pageSyncClient.includes("clearPageSyncRuntimeCachesForCacheRebuild") &&
+    pageSyncClient.includes("metadataDeltaGeneration += 1") &&
+    pageSyncClient.includes("lastMetadataDeltaResult = null") &&
+    pageSyncClient.includes("pageLookupInFlight.clear()") &&
+    pageSyncClient.includes("pageLookupCache.clear()") &&
+    pageSyncClient.includes("generation === metadataDeltaGeneration") &&
+    pageSyncClient.indexOf("clearPageSyncRuntimeCachesForCacheRebuild()") <
+      pageSyncClient.indexOf("const prune = await clearLocalPageCacheExceptIds(ids)"),
+  "重建页面缓存前必须清理短期云端查找/metadata 快照，旧 in-flight 请求不能复用为重建后的缓存"
+);
+check(
   pageSyncClient.includes("REMOTE_CURSOR_KEY") &&
     pageSyncClient.includes("fetchCloudPageChangesSince") &&
     pageSyncClient.includes("pullIncrementalCloudChanges"),

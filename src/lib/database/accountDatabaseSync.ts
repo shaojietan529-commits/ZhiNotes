@@ -42,6 +42,7 @@ let queuedCloudDatabasePushTimer: ReturnType<typeof setTimeout> | null = null;
 let databaseMetadataDeltaInFlight: Promise<CloudDatabaseMetadataDeltaResult> | null = null;
 let lastDatabaseMetadataDeltaAt = 0;
 let lastDatabaseMetadataDeltaResult: CloudDatabaseMetadataDeltaResult | null = null;
+let databaseMetadataDeltaGeneration = 0;
 let authRetryAfter = 0;
 let authRetryStatus: DatabaseSyncStatus | null = null;
 let memoryDatabaseRemoteCursor = "";
@@ -282,6 +283,13 @@ function clearAllPendingCloudDatabasePushesForCacheRebuild(): void {
   }
   queuedCloudDatabasePush = new Map();
   setPendingCloudDatabasePushKeys([]);
+}
+
+function clearDatabaseSyncRuntimeCachesForCacheRebuild(): void {
+  databaseMetadataDeltaGeneration += 1;
+  databaseMetadataDeltaInFlight = null;
+  lastDatabaseMetadataDeltaResult = null;
+  lastDatabaseMetadataDeltaAt = 0;
 }
 
 function isValidRecordKey(value: string): boolean {
@@ -602,14 +610,19 @@ export async function syncCloudDatabaseMetadataDelta(
     return lastDatabaseMetadataDeltaResult;
   }
 
+  const generation = databaseMetadataDeltaGeneration;
   databaseMetadataDeltaInFlight = runCloudDatabaseMetadataDelta(options);
   try {
     const result = await databaseMetadataDeltaInFlight;
-    lastDatabaseMetadataDeltaResult = result;
-    lastDatabaseMetadataDeltaAt = Date.now();
+    if (generation === databaseMetadataDeltaGeneration) {
+      lastDatabaseMetadataDeltaResult = result;
+      lastDatabaseMetadataDeltaAt = Date.now();
+    }
     return result;
   } finally {
-    databaseMetadataDeltaInFlight = null;
+    if (generation === databaseMetadataDeltaGeneration) {
+      databaseMetadataDeltaInFlight = null;
+    }
   }
 }
 
@@ -1215,6 +1228,7 @@ export async function rebuildDatabaseCacheFromCloud(): Promise<RebuildDatabaseCa
       : {};
   const keys = Object.keys(index).filter(isValidRecordKey);
   clearAllPendingCloudDatabasePushesForCacheRebuild();
+  clearDatabaseSyncRuntimeCachesForCacheRebuild();
   const prune = await clearLocalDatabaseCacheExceptKeys(keys);
   let pulled = 0;
   for (let i = 0; i < keys.length; i += PULL_BATCH) {

@@ -64,6 +64,7 @@ let queuedCloudPushTimer: ReturnType<typeof setTimeout> | null = null;
 let metadataDeltaInFlight: Promise<CloudPageMetadataDeltaResult> | null = null;
 let lastMetadataDeltaAt = 0;
 let lastMetadataDeltaResult: CloudPageMetadataDeltaResult | null = null;
+let metadataDeltaGeneration = 0;
 const pageLookupInFlight = new Map<string, Promise<CloudPageLookupResult>>();
 const pageLookupCache = new Map<
   string,
@@ -500,15 +501,20 @@ export async function syncCloudPageMetadataDelta(
     }
   }
 
+  const generation = metadataDeltaGeneration;
   metadataDeltaInFlight = runCloudPageMetadataDelta();
   try {
     const result = await metadataDeltaInFlight;
     rememberAuthRetryStatus(result.status);
-    lastMetadataDeltaResult = result;
-    lastMetadataDeltaAt = Date.now();
+    if (generation === metadataDeltaGeneration) {
+      lastMetadataDeltaResult = result;
+      lastMetadataDeltaAt = Date.now();
+    }
     return result;
   } finally {
-    metadataDeltaInFlight = null;
+    if (generation === metadataDeltaGeneration) {
+      metadataDeltaInFlight = null;
+    }
   }
 }
 
@@ -1182,6 +1188,15 @@ function clearAllPendingCloudPushesForCacheRebuild(): void {
   setPendingCloudPushIds([]);
 }
 
+function clearPageSyncRuntimeCachesForCacheRebuild(): void {
+  metadataDeltaGeneration += 1;
+  metadataDeltaInFlight = null;
+  lastMetadataDeltaResult = null;
+  lastMetadataDeltaAt = 0;
+  pageLookupInFlight.clear();
+  pageLookupCache.clear();
+}
+
 function getPropertyValue(page: Page, name: string): string {
   return (
     parsePageProperties(page.properties).find((property) => property.name === name)
@@ -1399,6 +1414,7 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
   let cleared = 0;
   let pulled = 0;
   clearAllPendingCloudPushesForCacheRebuild();
+  clearPageSyncRuntimeCachesForCacheRebuild();
   const prune = await clearLocalPageCacheExceptIds(ids);
   cleared += prune.cleared;
 

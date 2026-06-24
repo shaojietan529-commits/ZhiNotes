@@ -293,8 +293,12 @@ function run() {
     'emitDatabasesUpdated("cloud-pull", pulled || prune.cleared)',
     "clearLocalDatabaseCacheExceptKeys",
     "clearAllPendingCloudDatabasePushesForCacheRebuild",
+    "clearDatabaseSyncRuntimeCachesForCacheRebuild",
     "queuedCloudDatabasePush = new Map()",
     "setPendingCloudDatabasePushKeys([])",
+    "databaseMetadataDeltaGeneration += 1",
+    "lastDatabaseMetadataDeltaResult = null",
+    "generation === databaseMetadataDeltaGeneration",
     "getAllDatabaseRecordsForSync",
     "getDatabaseRecordsForSyncByKeys",
     "getPendingDatabaseSyncRecords",
@@ -342,6 +346,18 @@ function run() {
   ) {
     failures.push(
       "Database cache rebuild must cancel local pending upload queues before pruning local cache."
+    );
+  }
+  if (
+    databaseAccountSyncClient.indexOf(
+      "clearDatabaseSyncRuntimeCachesForCacheRebuild()"
+    ) >
+    databaseAccountSyncClient.indexOf(
+      "const prune = await clearLocalDatabaseCacheExceptKeys(keys)"
+    )
+  ) {
+    failures.push(
+      "Database cache rebuild must clear short-lived metadata snapshots before pruning local cache."
     );
   }
   if (
