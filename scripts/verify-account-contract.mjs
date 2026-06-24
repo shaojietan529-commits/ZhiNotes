@@ -482,18 +482,20 @@ const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 check(
   pagePeekModal.includes('dynamic(() => import("@/components/editor/Editor")') &&
     pagePeekModal.includes("schedulePeekEditorMount") &&
+    pagePeekModal.includes("schedulePeekIdleTask") &&
+    pagePeekModal.includes("childPagesEnabled") &&
     pagePeekModal.includes("PeekEditorSkeleton"),
-  "PagePeekModal 应动态加载并延迟挂载编辑器，避免点击 + 时被编辑器初始化阻塞"
+  "PagePeekModal 应动态加载、延迟挂载编辑器并推迟子页面查询，避免点击 + 时被编辑器初始化或本地索引查询阻塞"
 );
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");
 check(
   lazyPagePeekModal.includes('dynamic(() => import("@/components/page/PagePeekModal")') &&
-    dailyNotesShell.includes('@/components/page/PagePeekModal') &&
+    dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
     dailyNotesShell.includes("fetchCloudPageById") &&
     dailyNotesShell.includes("prefetchNoteBody") &&
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal'),
-  "每日纪要应直接打开轻量页面弹窗并预取正文；知识库可继续懒加载页面弹窗"
+  "每日纪要和知识库都应懒加载页面弹窗；每日纪要继续支持悬停预取正文"
 );
 
 const localQueries = read("src/lib/db/local/queries.ts");

@@ -35,7 +35,7 @@ import {
   type DailyCloudMetadataResult,
 } from "@/lib/pages/accountPageSync";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
-import PagePeekModal from "@/components/page/PagePeekModal";
+import PagePeekModal from "@/components/page/LazyPagePeekModal";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
 
@@ -366,10 +366,9 @@ export default function DailyNotesShell() {
   );
 
   const openNotePeek = useCallback((note: DailyNote) => {
-    prefetchNoteBody(note);
     setPeekInitialPage(note);
     setPeekPageId(note.id);
-  }, [prefetchNoteBody]);
+  }, []);
 
   const toggleDateExpansion = useCallback((dateKey: string) => {
     setExpandedDateKeys((current) => {

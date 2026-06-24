@@ -93,7 +93,7 @@ for (const token of ["buildMonthGrid", "addNote", "日期", "要点", "Summary"]
 for (const token of [
   "listDailyPageMetadataForCalendar",
   "rebuildPageDateKeyIndex",
-  "@/components/page/PagePeekModal",
+  "@/components/page/LazyPagePeekModal",
   "prefetchNoteBody",
   "fetchCloudPageById",
   "DAILY_DATE_INDEX_BACKFILL_KEY",

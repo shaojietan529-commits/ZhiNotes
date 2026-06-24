@@ -53,7 +53,11 @@ export default function PagePeekModal({
   const [mountedEditorPageId, setMountedEditorPageId] = useState<string | null>(
     null
   );
+  const [childPagesReadyPageId, setChildPagesReadyPageId] = useState<
+    string | null
+  >(null);
   const editorMounted = mountedEditorPageId === pageId;
+  const childPagesEnabled = editorMounted && childPagesReadyPageId === pageId;
 
   useEffect(() => {
     if (!initialPage) return;
@@ -96,6 +100,13 @@ export default function PagePeekModal({
       setMountedEditorPageId(pageId);
     });
   }, [bodyLoading, hasEffectivePage, pageId]);
+
+  useEffect(() => {
+    if (!editorMounted) return;
+    return schedulePeekIdleTask(() => {
+      setChildPagesReadyPageId(pageId);
+    }, 900);
+  }, [editorMounted, pageId]);
 
   const handleTitleChange = useCallback(
     async (next: string) => {
@@ -243,7 +254,11 @@ export default function PagePeekModal({
                 <PeekEditorSkeleton label="正在准备编辑器…" />
               )}
 
-              <PeekChildPages pageId={pageId} onOpen={onOpenFull} />
+              <PeekChildPages
+                pageId={pageId}
+                enabled={childPagesEnabled}
+                onOpen={onOpenFull}
+              />
             </div>
           )}
         </div>
@@ -253,6 +268,13 @@ export default function PagePeekModal({
 }
 
 function schedulePeekEditorMount(callback: () => void): () => void {
+  return schedulePeekIdleTask(callback, 350);
+}
+
+function schedulePeekIdleTask(
+  callback: () => void,
+  timeout = 350
+): () => void {
   const maybeWindow = window as Window & {
     requestIdleCallback?: (
       cb: () => void,
@@ -261,10 +283,10 @@ function schedulePeekEditorMount(callback: () => void): () => void {
     cancelIdleCallback?: (id: number) => void;
   };
   if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
-    const idleId = maybeWindow.requestIdleCallback(callback, { timeout: 350 });
+    const idleId = maybeWindow.requestIdleCallback(callback, { timeout });
     return () => maybeWindow.cancelIdleCallback?.(idleId);
   }
-  const timer = window.setTimeout(callback, 60);
+  const timer = window.setTimeout(callback, Math.min(timeout, 120));
   return () => window.clearTimeout(timer);
 }
 
@@ -333,9 +355,11 @@ async function pushPeekCloudPage(page: Page) {
 
 function PeekChildPages({
   pageId,
+  enabled,
   onOpen,
 }: {
   pageId: string;
+  enabled: boolean;
   onOpen: (id: string) => void;
 }) {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
@@ -343,7 +367,7 @@ function PeekChildPages({
   const [children, setChildren] = useState<Page[]>([]);
 
   useEffect(() => {
-    if (!dbReady) {
+    if (!enabled || !dbReady) {
       queueMicrotask(() => setChildren([]));
       return;
     }
@@ -358,7 +382,7 @@ function PeekChildPages({
     return () => {
       cancelled = true;
     };
-  }, [dbReady, pageId, pageRevision]);
+  }, [dbReady, enabled, pageId, pageRevision]);
 
   if (children.length === 0) return null;
   return (
