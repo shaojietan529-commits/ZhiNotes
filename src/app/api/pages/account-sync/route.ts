@@ -120,6 +120,19 @@ interface DailyCalendarMetadataResult {
   watermark: string;
 }
 
+interface PageChangesResult {
+  pages: PageRecord[];
+  count: number;
+  totalChanged: number;
+  cursor: string;
+  hasMore: boolean;
+}
+
+interface PageChangeCursor {
+  updatedAt: string;
+  id: string;
+}
+
 interface DailyCalendarCache {
   watermark: string;
   rootId: string | null;
@@ -190,6 +203,28 @@ function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
     maxUpdatedAt,
     watermark: `${count}:${deleted}:${maxUpdatedAt}`,
   };
+}
+
+function parsePageChangeCursor(value: string): PageChangeCursor {
+  if (!value) return { updatedAt: "", id: "" };
+  try {
+    const parsed = JSON.parse(value) as Partial<PageChangeCursor>;
+    if (
+      parsed &&
+      typeof parsed.updatedAt === "string" &&
+      typeof parsed.id === "string"
+    ) {
+      return { updatedAt: parsed.updatedAt, id: parsed.id };
+    }
+  } catch {
+    // Backward-compatible cursor: older clients stored only updated_at.
+  }
+  return { updatedAt: value, id: "" };
+}
+
+function stringifyPageChangeCursor(updatedAt: string, id: string): string {
+  if (!updatedAt) return "";
+  return JSON.stringify({ updatedAt, id });
 }
 
 function hasSameOriginReferer(request: Request): boolean {
@@ -347,6 +382,72 @@ async function readIndexedPages(
     }
   }
   return pages;
+}
+
+async function readPageRecordsByIds(
+  config: AccountConfig,
+  email: string,
+  ids: string[]
+): Promise<PageRecord[]> {
+  const pages: PageRecord[] = [];
+  for (let i = 0; i < ids.length; i += DAILY_REPAIR_READ_BATCH) {
+    const batch = ids.slice(i, i + DAILY_REPAIR_READ_BATCH);
+    const raws = await Promise.all(
+      batch.map((id) => kvGet(config.kv, `${PAGE_KEY_PREFIX}${email}:${id}`))
+    );
+    for (const raw of raws) {
+      if (!raw) continue;
+      try {
+        const record = sanitizeRecord(JSON.parse(raw));
+        if (record) pages.push(record);
+      } catch {
+        // skip corrupt record
+      }
+    }
+  }
+  return pages;
+}
+
+async function getPageChangesSince(
+  config: AccountConfig,
+  email: string,
+  since: string,
+  limit: number
+): Promise<PageChangesResult> {
+  const index = await readIndex(config, email);
+  const cursor = parsePageChangeCursor(since);
+  const changed = Object.entries(index)
+    .filter(
+      ([id, entry]) =>
+        isValidId(id) &&
+        (entry.u > cursor.updatedAt ||
+          (entry.u === cursor.updatedAt && id > cursor.id))
+    )
+    .sort(
+      ([leftId, left], [rightId, right]) =>
+        left.u.localeCompare(right.u) || leftId.localeCompare(rightId)
+    );
+  const selected = changed.slice(0, limit);
+  const records = await readPageRecordsByIds(
+    config,
+    email,
+    selected.map(([id]) => id)
+  );
+  const byId = new Map(records.map((record) => [record.id, record]));
+  const pages = selected
+    .map(([id]) => byId.get(id))
+    .filter((record): record is PageRecord => Boolean(record));
+  const last = selected[selected.length - 1];
+  const nextCursor = last
+    ? stringifyPageChangeCursor(last[1].u, last[0])
+    : stringifyPageChangeCursor(summarizeIndex(index).maxUpdatedAt, "");
+  return {
+    pages,
+    count: pages.length,
+    totalChanged: changed.length,
+    cursor: nextCursor || since,
+    hasMore: changed.length > selected.length,
+  };
 }
 
 async function repairDailyImportPlacement(
@@ -854,6 +955,8 @@ export async function POST(request: Request) {
     startDate?: unknown;
     endDate?: unknown;
     recentLimit?: unknown;
+    since?: unknown;
+    limit?: unknown;
   };
   try {
     body = JSON.parse(bodyText);
@@ -879,6 +982,16 @@ export async function POST(request: Request) {
     if (body.action === "summary") {
       const index = await readIndex(config, me);
       return NextResponse.json({ summary: summarizeIndex(index) });
+    }
+
+    if (body.action === "changes-since") {
+      const since = typeof body.since === "string" ? body.since : "";
+      const limit =
+        typeof body.limit === "number" && Number.isInteger(body.limit)
+          ? Math.min(MAX_PULL_IDS, Math.max(1, body.limit))
+          : MAX_PULL_IDS;
+      const result = await getPageChangesSince(config, me, since, limit);
+      return NextResponse.json({ ok: true, ...result });
     }
 
     if (body.action === "repair-daily-imports") {

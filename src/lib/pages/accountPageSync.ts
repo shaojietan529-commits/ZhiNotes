@@ -35,11 +35,13 @@ import type { Page } from "@/lib/utils/types";
 const ENABLED_KEY = "zhinote.pagesync.enabled";
 const LAST_SYNC_KEY = "zhinote.pagesync.lastSyncAt";
 const REMOTE_WATERMARK_KEY = "zhinote.pagesync.remoteWatermark";
+const REMOTE_CURSOR_KEY = "zhinote.pagesync.remoteCursor";
 export const PAGE_SYNC_CONFIG_EVENT = "zhinote:pagesync-config";
 
 const PULL_BATCH = 40;
 const PUSH_BATCH_RECORDS = 50;
 const PUSH_BATCH_BYTES = 800 * 1024;
+const INCREMENTAL_PULL_LIMIT = 50;
 // Covers stored as data URLs can be multi-MB; skip oversized ones rather
 // than failing the whole page push.
 const MAX_COVER_CHARS = 300 * 1024;
@@ -101,6 +103,16 @@ export interface PullDailyCloudResult {
 export interface CloudPageLookupResult {
   status: PageSyncStatus;
   pages: RemotePageRecord[];
+  message?: string;
+}
+
+export interface CloudPageChangesResult {
+  status: PageSyncStatus;
+  pages: RemotePageRecord[];
+  count: number;
+  totalChanged: number;
+  cursor: string;
+  hasMore: boolean;
   message?: string;
 }
 
@@ -234,6 +246,45 @@ export async function fetchCloudPageById(
   id: string
 ): Promise<CloudPageLookupResult> {
   return fetchCloudPagesByIds([id]);
+}
+
+export async function fetchCloudPageChangesSince(
+  since: string,
+  limit = INCREMENTAL_PULL_LIMIT
+): Promise<CloudPageChangesResult> {
+  if (!isPageSyncEnabled()) {
+    return {
+      status: "disabled",
+      pages: [],
+      count: 0,
+      totalChanged: 0,
+      cursor: since,
+      hasMore: false,
+    };
+  }
+  const res = await call({ action: "changes-since", since, limit });
+  if (!res.ok) {
+    return {
+      status: res.status,
+      pages: [],
+      count: 0,
+      totalChanged: 0,
+      cursor: since,
+      hasMore: false,
+      message: res.message,
+    };
+  }
+  return {
+    status: "ok",
+    pages: Array.isArray(res.json.pages)
+      ? (res.json.pages as RemotePageRecord[])
+      : [],
+    count: typeof res.json.count === "number" ? res.json.count : 0,
+    totalChanged:
+      typeof res.json.totalChanged === "number" ? res.json.totalChanged : 0,
+    cursor: typeof res.json.cursor === "string" ? res.json.cursor : since,
+    hasMore: Boolean(res.json.hasMore),
+  };
 }
 
 export async function pushCloudPages(
@@ -453,6 +504,16 @@ function setRemoteWatermark(watermark: string) {
   window.localStorage.setItem(REMOTE_WATERMARK_KEY, watermark);
 }
 
+function getRemoteCursor(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(REMOTE_CURSOR_KEY);
+}
+
+function setRemoteCursor(cursor: string) {
+  if (typeof window === "undefined" || !cursor) return;
+  window.localStorage.setItem(REMOTE_CURSOR_KEY, cursor);
+}
+
 function getPropertyValue(page: Page, name: string): string {
   return (
     parsePageProperties(page.properties).find((property) => property.name === name)
@@ -626,6 +687,36 @@ async function repairDailyImportPlacement(): Promise<number> {
   return repaired;
 }
 
+async function pullIncrementalCloudChanges(
+  since: string
+): Promise<
+  | { ok: true; pulled: number; cursor: string; hasMore: boolean }
+  | { ok: false; status: PageSyncStatus; message?: string }
+> {
+  const changes = await fetchCloudPageChangesSince(
+    since,
+    INCREMENTAL_PULL_LIMIT
+  );
+  if (changes.status !== "ok") {
+    return {
+      ok: false,
+      status: changes.status,
+      message: changes.message,
+    };
+  }
+  if (changes.pages.length > 0) {
+    await applyRemotePages(changes.pages);
+    emitPagesUpdated("cloud-pull", changes.pages.length);
+  }
+  setRemoteCursor(changes.cursor);
+  return {
+    ok: true,
+    pulled: changes.pages.length,
+    cursor: changes.cursor,
+    hasMore: changes.hasMore,
+  };
+}
+
 let reconcileRunning = false;
 
 export async function reconcilePageSync(
@@ -640,21 +731,47 @@ export async function reconcilePageSync(
   reconcileRunning = true;
   try {
     if (options.quick) {
-      const summaryRes = await call({ action: "summary" });
-      if (!summaryRes.ok) {
-        return {
-          status: summaryRes.status,
-          pulled: 0,
-          pushed: 0,
-          message: summaryRes.message,
-        };
-      }
-      const summary = normalizeSummary(summaryRes.json.summary);
-      if (summary && summary.watermark === getRemoteWatermark()) {
+      const cursor = getRemoteCursor();
+      if (cursor) {
+        let pulled = 0;
+        let nextCursor = cursor;
+        let hasMore = false;
+        do {
+          const result = await pullIncrementalCloudChanges(nextCursor);
+          if (!result.ok) {
+            return {
+              status: result.status,
+              pulled,
+              pushed: 0,
+              message: result.message,
+            };
+          }
+          pulled += result.pulled;
+          nextCursor = result.cursor;
+          hasMore = result.hasMore;
+        } while (hasMore);
         if (typeof window !== "undefined") {
           window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
         }
-        return { status: "ok", pulled: 0, pushed: 0, skipped: true };
+        return { status: "ok", pulled, pushed: 0, skipped: pulled === 0 };
+      } else {
+        const summaryRes = await call({ action: "summary" });
+        if (!summaryRes.ok) {
+          return {
+            status: summaryRes.status,
+            pulled: 0,
+            pushed: 0,
+            message: summaryRes.message,
+          };
+        }
+        const summary = normalizeSummary(summaryRes.json.summary);
+        if (summary && summary.watermark === getRemoteWatermark()) {
+          setRemoteCursor(summary.maxUpdatedAt);
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+          }
+          return { status: "ok", pulled: 0, pushed: 0, skipped: true };
+        }
       }
     }
 
@@ -668,7 +785,9 @@ export async function reconcilePageSync(
       };
     }
     const index = (manifestRes.json.index ?? {}) as Record<string, IndexEntry>;
-    setRemoteWatermark(summarizeIndex(index).watermark);
+    const summary = summarizeIndex(index);
+    setRemoteWatermark(summary.watermark);
+    setRemoteCursor(summary.maxUpdatedAt);
 
     const local = await getAllPagesForSync();
     const localById = new Map(local.map((p) => [p.id, p]));
