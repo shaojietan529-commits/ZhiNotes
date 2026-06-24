@@ -125,7 +125,7 @@ export interface RebuildDatabaseCacheResult {
 
 export function isDatabaseSyncEnabled(): boolean {
   if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(ENABLED_KEY) === "true";
+  return window.localStorage.getItem(ENABLED_KEY) !== "false";
 }
 
 export function setDatabaseSyncEnabled(enabled: boolean): void {

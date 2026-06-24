@@ -61,21 +61,31 @@ export function usePage(pageId: string | null) {
       setLoading(localPage.content_text == null);
     }
 
-    const cloud = await fetchCloudPageById(pageId);
-    if (cloud.status === "ok" && cloud.pages.length > 0) {
-      const remoteRecord = cloud.pages[0];
-      if (remoteIsAtLeastAsFresh(remoteRecord, localPage)) {
-        const hydrated = await hydrateRemotePageIntoLocalCache(remoteRecord);
-        if (hydrated) upsertPages([hydrated]);
-        setPage(hydrated);
-      } else if (localPage) {
-        queueCloudPagePush(localPage);
-      }
-    } else if (!localPage) {
-      setPage(null);
+    if (localPage?.content_text != null) {
+      void refreshPageFromCloud(pageId, localPage, setPage, upsertPages);
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    try {
+      const cloud = await fetchCloudPageById(pageId);
+      if (cloud.status === "ok" && cloud.pages.length > 0) {
+        const remoteRecord = cloud.pages[0];
+        if (remoteIsAtLeastAsFresh(remoteRecord, localPage)) {
+          const hydrated = await hydrateRemotePageIntoLocalCache(remoteRecord);
+          if (hydrated) upsertPages([hydrated]);
+          setPage(hydrated);
+        } else if (localPage) {
+          queueCloudPagePush(localPage);
+        }
+      } else if (!localPage) {
+        setPage(null);
+      }
+    } catch {
+      if (!localPage) setPage(null);
+    } finally {
+      setLoading(false);
+    }
   }, [pageId, dbReady, upsertPages]);
 
   useEffect(() => {
@@ -204,6 +214,33 @@ async function hydrateRemotePageIntoLocalCache(
     // renders so reading is not blocked by a broken browser cache.
     if (record.deleted_at) return null;
     return remoteRecordToPage(record);
+  }
+}
+
+async function refreshPageFromCloud(
+  pageId: string,
+  localPage: Page,
+  setPage: (page: Page | null) => void,
+  upsertPages: (pages: Page[]) => void
+): Promise<void> {
+  try {
+    const cloud = await fetchCloudPageById(pageId);
+    if (cloud.status !== "ok" || cloud.pages.length === 0) return;
+    const remoteRecord = cloud.pages[0];
+    if (remoteIsAtLeastAsFresh(remoteRecord, localPage)) {
+      const hydrated = await hydrateRemotePageIntoLocalCache(remoteRecord);
+      if (!hydrated) {
+        setPage(null);
+        return;
+      }
+      upsertPages([hydrated]);
+      setPage(hydrated);
+      return;
+    }
+    queueCloudPagePush(localPage);
+  } catch {
+    // Local content is already visible; a cloud refresh failure should not
+    // block reading or editing.
   }
 }
 

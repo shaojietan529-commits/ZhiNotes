@@ -466,9 +466,11 @@ const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");
 check(
   lazyPagePeekModal.includes('dynamic(() => import("@/components/page/PagePeekModal")') &&
-    dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
+    dailyNotesShell.includes('@/components/page/PagePeekModal') &&
+    dailyNotesShell.includes("fetchCloudPageById") &&
+    dailyNotesShell.includes("prefetchNoteBody") &&
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal'),
-  "每日纪要和知识库应通过 LazyPagePeekModal 按需加载页面弹窗"
+  "每日纪要应直接打开轻量页面弹窗并预取正文；知识库可继续懒加载页面弹窗"
 );
 
 const localQueries = read("src/lib/db/local/queries.ts");

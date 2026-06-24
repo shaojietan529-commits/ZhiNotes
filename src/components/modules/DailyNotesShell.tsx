@@ -29,11 +29,12 @@ import {
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
   fetchDailyCloudMetadata,
+  fetchCloudPageById,
   pushCloudPages,
   type DailyCloudMetadataResult,
 } from "@/lib/pages/accountPageSync";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
-import PagePeekModal from "@/components/page/LazyPagePeekModal";
+import PagePeekModal from "@/components/page/PagePeekModal";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
 
@@ -75,14 +76,11 @@ export default function DailyNotesShell() {
   );
   const loadRequestRef = useRef(0);
   const observedPageRevisionRef = useRef<string | null>(null);
+  const prefetchingBodiesRef = useRef(new Set<string>());
   const [viewMonth, setViewMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
-
-  useEffect(() => {
-    prewarmDailyPeekModal();
-  }, []);
 
   const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
     const includeCloud = opts?.includeCloud !== false;
@@ -318,10 +316,47 @@ export default function DailyNotesShell() {
     [creatingDateKey, rootId, upsertPages]
   );
 
+  const prefetchNoteBody = useCallback(
+    (note: DailyNote) => {
+      if (note.content_text != null || prefetchingBodiesRef.current.has(note.id)) {
+        return;
+      }
+      prefetchingBodiesRef.current.add(note.id);
+      void fetchCloudPageById(note.id)
+        .then(async (cloud) => {
+          if (cloud.status !== "ok" || cloud.pages.length === 0) return;
+          const record = cloud.pages[0];
+          await applyRemotePages([record]);
+          const hydrated = remoteRecordToPage(record);
+          upsertPages([hydrated]);
+          setNotes((current) =>
+            current.map((item) =>
+              item.id === hydrated.id
+                ? {
+                    ...item,
+                    ...hydrated,
+                    dailyDateKey: item.dailyDateKey || readDailyNoteDateKey(hydrated),
+                    cloudOnly: false,
+                  }
+                : item
+            )
+          );
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          window.setTimeout(() => {
+            prefetchingBodiesRef.current.delete(note.id);
+          }, 30_000);
+        });
+    },
+    [upsertPages]
+  );
+
   const openNotePeek = useCallback((note: DailyNote) => {
+    prefetchNoteBody(note);
     setPeekInitialPage(note);
     setPeekPageId(note.id);
-  }, []);
+  }, [prefetchNoteBody]);
 
   const toggleDateExpansion = useCallback((dateKey: string) => {
     setExpandedDateKeys((current) => {
@@ -546,6 +581,8 @@ export default function DailyNotesShell() {
                           setDragOverDateKey(null);
                         }}
                         onClick={() => openNotePeek(note)}
+                        onPointerEnter={() => prefetchNoteBody(note)}
+                        onFocus={() => prefetchNoteBody(note)}
                         onContextMenu={(e) => {
                           e.preventDefault();
                           setContextMenu({
@@ -607,6 +644,8 @@ export default function DailyNotesShell() {
                         setDragOverDateKey(null);
                       }}
                       onClick={() => openNotePeek(note)}
+                      onPointerEnter={() => prefetchNoteBody(note)}
+                      onFocus={() => prefetchNoteBody(note)}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setContextMenu({
@@ -664,24 +703,6 @@ export default function DailyNotesShell() {
       )}
     </div>
   );
-}
-
-function prewarmDailyPeekModal(): void {
-  if (typeof window === "undefined") return;
-  const maybeWindow = window as Window & {
-    requestIdleCallback?: (
-      cb: () => void,
-      options?: { timeout?: number }
-    ) => number;
-  };
-  const loadModal = () => {
-    void import("@/components/page/PagePeekModal");
-  };
-  if (maybeWindow.requestIdleCallback) {
-    maybeWindow.requestIdleCallback(loadModal, { timeout: 1500 });
-    return;
-  }
-  window.setTimeout(loadModal, 600);
 }
 
 async function ensureDailyDateIndexBackfilled(): Promise<void> {

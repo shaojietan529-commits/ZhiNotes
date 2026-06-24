@@ -254,7 +254,7 @@ function run() {
   }
   for (const snippet of [
     'const ENABLED_KEY = "zhinote.databasesync.enabled"',
-    'window.localStorage.getItem(ENABLED_KEY) === "true"',
+    'window.localStorage.getItem(ENABLED_KEY) !== "false"',
     "setDatabaseSyncEnabled",
     "DATABASE_SYNC_CONFIG_EVENT",
     'fetch("/api/databases/account-sync"',
@@ -415,6 +415,7 @@ function run() {
   }
   for (const snippet of [
     "数据库云同步",
+    "默认开启",
     "handleDatabaseSyncToggle",
     "setDatabaseSyncEnabled",
     "window.confirm",
@@ -426,7 +427,7 @@ function run() {
       files.accountShell,
       accountShell,
       snippet,
-      "Account settings must expose database sync through an explicit owner gate."
+      "Account settings must expose database sync as default-on with a visible owner opt-out."
     );
   }
   for (const snippet of [
