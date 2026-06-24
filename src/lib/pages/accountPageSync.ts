@@ -1404,6 +1404,9 @@ export async function reconcilePageSync(
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
     }
+    if (pulled > 0 || repaired > 0) {
+      emitPagesUpdated("cloud-pull", pulled || repaired);
+    }
     return { status: "ok", pulled, pushed, repaired };
   } finally {
     reconcileRunning = false;

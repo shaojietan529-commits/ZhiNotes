@@ -405,6 +405,16 @@ check(
   pageCloudSyncHook.includes("handleConfig = () => void runSync({ quick: false, forceLease: true })"),
   "只有同步配置变化时才应保留强制全量校验"
 );
+check(
+  !pageCloudSyncHook.includes("usePages") &&
+    !pageCloudSyncHook.includes("refresh({ reason: \"cloud-pull\" })"),
+  "页面云同步 hook 不应在每次云端拉取后再触发 usePages 全量/元数据刷新；应依赖页面更新广播收敛"
+);
+check(
+  pageSyncClient.includes("emitPagesUpdated(\"cloud-pull\", pulled || repaired)") &&
+    pageSyncClient.includes("pullIncrementalCloudChanges"),
+  "页面同步客户端应在增量/修复写入本机缓存后广播页面更新，而不是让同步 hook 再读一遍页面列表"
+);
 
 check(
   usePageHook.includes("fetchCloudPageById"),

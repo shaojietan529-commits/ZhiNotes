@@ -7,7 +7,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import { usePages } from "@/hooks/usePages";
 import {
   isPageSyncEnabled,
   reconcilePageSync,
@@ -67,7 +66,6 @@ function claimSyncLease(force = false): boolean {
 export function usePageCloudSync() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const pages = useWorkspaceStore((s) => s.pages);
-  const { refresh } = usePages();
   // Start as "disabled" on both server and client so SSR hydration matches;
   // the first effect run flips it based on the real localStorage flag.
   const [state, setState] = useState<PageCloudSyncState>("disabled");
@@ -95,9 +93,6 @@ export function usePageCloudSync() {
       if (result.status === "ok") {
         setState("synced");
         setLastSyncAt(getLastPageSyncAt());
-        if (result.pulled > 0 || (result.repaired ?? 0) > 0) {
-          await refresh({ reason: "cloud-pull" });
-        }
       } else if (
         result.status === "unauthenticated" ||
         result.status === "unconfigured"
@@ -111,7 +106,7 @@ export function usePageCloudSync() {
     } finally {
       runningRef.current = false;
     }
-  }, [refresh]);
+  }, []);
 
   useEffect(() => {
     if (!dbReady) return;
