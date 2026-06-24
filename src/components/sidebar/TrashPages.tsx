@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { getDeletedPages, restorePage } from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
-import { usePages } from "@/hooks/usePages";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 export default function TrashPages() {
   const router = useRouter();
-  const { pages: activePages, refresh } = usePages();
+  const activePageCount = useWorkspaceStore((s) => s.pages.length);
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const [pages, setPages] = useState<Page[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -25,16 +26,16 @@ export default function TrashPages() {
     queueMicrotask(() => {
       void load();
     });
-  }, [activePages.length, load]);
+  }, [activePageCount, load]);
 
   const handleRestore = useCallback(
     async (pageId: string) => {
       const restored = await restorePage(pageId);
-      await refresh();
+      if (restored) upsertPages([restored]);
       await load();
       if (restored) router.push(`/page/${restored.id}`);
     },
-    [load, refresh, router]
+    [load, router, upsertPages]
   );
 
   if (loading || pages.length === 0) return null;

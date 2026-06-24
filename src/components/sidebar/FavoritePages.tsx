@@ -2,13 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
-import { usePages } from "@/hooks/usePages";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
 export default function FavoritePages() {
   const router = useRouter();
-  const { pages } = usePages();
+  const pages = useWorkspaceStore((s) => s.pages);
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
   const { favoriteIds, setFavorite } = usePageFavorites();
 

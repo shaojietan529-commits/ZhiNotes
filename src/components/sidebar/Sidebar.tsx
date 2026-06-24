@@ -14,7 +14,6 @@ import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useDatabases } from "@/hooks/useDatabases";
-import { usePages } from "@/hooks/usePages";
 import QuickSearch from "./QuickSearch";
 import PageTree from "./PageTree";
 import TrashPages from "./TrashPages";
@@ -185,10 +184,10 @@ function persistSidebarPrimaryCustomizations(
 
 export default function Sidebar() {
   const router = useRouter();
-  const { refresh } = usePages();
   const { databases, refresh: refreshDatabases } = useDatabases();
   const sidebarOpen = useWorkspaceStore((s) => s.sidebarOpen);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const [backupRunning, setBackupRunning] = useState(false);
   const [markdownExportRunning, setMarkdownExportRunning] = useState(false);
   const [zipExportRunning, setZipExportRunning] = useState(false);
@@ -264,7 +263,7 @@ export default function Sidebar() {
   const handleNewPage = async () => {
     try {
       const page = await createPageWithCloud();
-      await refresh();
+      upsertPages([page]);
       router.push(`/page/${page.id}`);
     } catch (err) {
       console.error("[Zhinote] Failed to create page:", err);

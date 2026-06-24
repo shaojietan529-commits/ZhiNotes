@@ -64,6 +64,9 @@ const usePagesHook = read("src/hooks/usePages.ts");
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
 const pendingPageDrafts = read("src/lib/pages/pendingPageDrafts.ts");
+const sidebarSource = read("src/components/sidebar/Sidebar.tsx");
+const favoritePagesSource = read("src/components/sidebar/FavoritePages.tsx");
+const trashPagesSource = read("src/components/sidebar/TrashPages.tsx");
 const pageTreeSource = read("src/components/sidebar/PageTree.tsx");
 const pageUpdateBus = read("src/lib/pages/pageUpdateBus.ts");
 const accountPageSync = read("src/lib/pages/accountPageSync.ts");
@@ -159,6 +162,16 @@ check(
     pageTreeSource.includes("hiddenRootCount") &&
     pageTreeSource.includes("getTopLevelPageId"),
   "Sidebar PageTree 必须用 parent 索引和根页面渲染上限，避免 Notion 批量导入后拖慢全站"
+);
+check(
+  !sidebarSource.includes("usePages") &&
+    sidebarSource.includes("upsertPages([page])") &&
+    !favoritePagesSource.includes("usePages") &&
+    favoritePagesSource.includes("useWorkspaceStore((s) => s.pages)") &&
+    !trashPagesSource.includes("usePages") &&
+    trashPagesSource.includes("activePageCount") &&
+    trashPagesSource.includes("upsertPages([restored])"),
+  "Sidebar/FavoritePages/TrashPages 不应各自挂 usePages 触发重复全量页面 metadata 刷新"
 );
 check(
   usePagesHook.includes("upsertPages(cloud.pages.map(remoteMetadataToPage))") &&
