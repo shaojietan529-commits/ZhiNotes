@@ -47,7 +47,8 @@ type ViewMode = "list" | "calendar";
 export default function ChildPageTree({ pageId }: { pageId: string }) {
   const router = useRouter();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
-  const { pages, refresh } = usePages();
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
+  const { pages } = usePages();
   const [chainRootId, setChainRootId] = useState<string | null>(null);
   const [dailyRootId, setDailyRootId] = useState<string | null>(null);
   const [meetingRootId, setMeetingRootId] = useState<string | null>(null);
@@ -103,10 +104,10 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
   const addChild = useCallback(
     async (parentId: string) => {
       const child = await createPageWithCloud({ parentId });
-      await refresh();
+      upsertPages([child]);
       router.push(`/page/${child.id}`);
     },
-    [refresh, router]
+    [router, upsertPages]
   );
 
   const addNoteOnDate = useCallback(
@@ -119,13 +120,13 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
         createPageProperty("tags", "相关公司"),
         createPageProperty("tags", "相关行业"),
       ];
-      await updatePageWithCloud(child.id, {
+      const updatedChild = await updatePageWithCloud(child.id, {
         properties: stringifyPageProperties(props),
       });
-      await refresh();
+      upsertPages([updatedChild ?? child]);
       router.push(`/page/${child.id}`);
     },
-    [pageId, refresh, router]
+    [pageId, router, upsertPages]
   );
 
   const moveNoteToDate = useCallback(
@@ -150,10 +151,10 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       if (DATE_KEY_PATTERN.test((note.title || "").trim())) {
         updates.title = dateKey;
       }
-      await updatePageWithCloud(noteId, updates);
-      await refresh();
+      const updatedNote = await updatePageWithCloud(noteId, updates);
+      if (updatedNote) upsertPages([updatedNote]);
     },
-    [children, refresh]
+    [children, upsertPages]
   );
 
   if (children.length === 0) return null;

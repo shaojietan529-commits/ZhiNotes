@@ -22,6 +22,7 @@ const files = {
   breadcrumb: "src/components/shared/Breadcrumb.tsx",
   breadcrumbBlock: "src/components/editor/extensions/BreadcrumbBlockNode.tsx",
   calloutNode: "src/components/editor/extensions/CalloutNode.tsx",
+  childPageTree: "src/components/page/ChildPageTree.tsx",
   dateDisplay: "src/components/shared/DateDisplay.tsx",
   dates: "src/lib/utils/dates.ts",
   editor: "src/components/editor/Editor.tsx",
@@ -92,6 +93,7 @@ function run() {
   const breadcrumb = readProjectFile(files.breadcrumb);
   const breadcrumbBlock = readProjectFile(files.breadcrumbBlock);
   const calloutNode = readProjectFile(files.calloutNode);
+  const childPageTree = readProjectFile(files.childPageTree);
   const dateDisplay = readProjectFile(files.dateDisplay);
   const dates = readProjectFile(files.dates);
   const editor = readProjectFile(files.editor);
@@ -339,6 +341,30 @@ function run() {
     "getAllPages(",
     "Wiki link suggestions must not scan full page bodies."
   );
+  for (const snippet of [
+    "const upsertPages = useWorkspaceStore((s) => s.upsertPages)",
+    "upsertPages([child])",
+    "upsertPages([updatedChild ?? child])",
+    "if (updatedNote) upsertPages([updatedNote])",
+  ]) {
+    assertIncludes(
+      files.childPageTree,
+      childPageTree,
+      snippet,
+      "ChildPageTree create/move actions must update the in-memory page list locally instead of refreshing all metadata."
+    );
+  }
+  for (const snippet of [
+    "await refresh()",
+    "const { pages, refresh } = usePages()",
+  ]) {
+    assertNotIncludes(
+      files.childPageTree,
+      childPageTree,
+      snippet,
+      "ChildPageTree create/move actions must not trigger a full page-list refresh after large imports."
+    );
+  }
 
   for (const snippet of [
     "RESEARCH_TEMPLATE_QUICK_ACTIONS",
