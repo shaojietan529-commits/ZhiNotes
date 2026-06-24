@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
+  applyRemotePages,
   getPage,
   createPage,
   updatePage,
@@ -22,6 +23,7 @@ export function usePage(pageId: string | null) {
   const [page, setPage] = useState<Page | null>(null);
   const [loading, setLoading] = useState(true);
   const dbReady = useWorkspaceStore((s) => s.dbReady);
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const pageRevision = usePageRecordRevision(pageId);
 
   const load = useCallback(async () => {
@@ -40,12 +42,15 @@ export function usePage(pageId: string | null) {
     if (!p || p.content_text === null) {
       const cloud = await fetchCloudPageById(pageId);
       if (cloud.status === "ok" && cloud.pages.length > 0) {
-        p = remoteRecordToPage(cloud.pages[0]);
+        const remoteSnapshot = remoteRecordToPage(cloud.pages[0]);
+        p = await hydrateRemotePageIntoLocalCache(cloud.pages[0]);
+        upsertPages([remoteSnapshot]);
       }
     }
+    if (p) upsertPages([p]);
     setPage(p);
     setLoading(false);
-  }, [pageId, dbReady]);
+  }, [pageId, dbReady, upsertPages]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -138,4 +143,18 @@ function remoteRecordToPage(record: RemotePageRecord): Page {
     deleted_at: record.deleted_at,
     sync_version: 1,
   };
+}
+
+async function hydrateRemotePageIntoLocalCache(
+  record: RemotePageRecord
+): Promise<Page | null> {
+  try {
+    await applyRemotePages([record]);
+    return await getPage(record.id);
+  } catch {
+    // Local cache can fail after quota / SQLite issues. The cloud record still
+    // renders so reading is not blocked by a broken browser cache.
+    if (record.deleted_at) return null;
+    return remoteRecordToPage(record);
+  }
 }
