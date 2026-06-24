@@ -337,10 +337,12 @@ check(
 check(
   dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id)") <
     dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
+    dailyNotesShell.includes("scheduleDailyPeekPreload") &&
+    dailyNotesShell.includes("preload?.()") &&
     dailyNotesShell.includes("后台保存到账号云端") &&
     dailyNotesShell.includes("applyRemotePages(records)") &&
     !dailyNotesShell.includes("createPageWithCloud"),
-  "DailyNotesShell 点击 + 应立即打开乐观草稿，再后台保存到云端"
+  "DailyNotesShell 点击 + 应立即打开乐观草稿，后台预热弹窗代码，再后台保存到云端"
 );
 check(
   dailyNotesShell.includes("expandedDateKeys") &&
@@ -488,9 +490,11 @@ check(
   pagePeekModal.includes('dynamic(() => import("@/components/editor/Editor")') &&
     pagePeekModal.includes("schedulePeekEditorMount") &&
     pagePeekModal.includes("schedulePeekIdleTask") &&
+    pagePeekModal.includes("isOptimisticDraft") &&
+    pagePeekModal.includes("setMountedEditorPageId(pageId)") &&
     pagePeekModal.includes("childPagesEnabled") &&
     pagePeekModal.includes("PeekEditorSkeleton"),
-  "PagePeekModal 应动态加载、延迟挂载编辑器并推迟子页面查询，避免点击 + 时被编辑器初始化或本地索引查询阻塞"
+  "PagePeekModal 应动态加载、让新建空白草稿即时进入编辑器，并推迟子页面查询，避免点击 + 时被编辑器初始化或本地索引查询阻塞"
 );
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");

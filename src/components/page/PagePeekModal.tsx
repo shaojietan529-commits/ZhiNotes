@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import IconPicker from "@/components/shared/IconPicker";
 import PageProperties from "@/components/page/PageProperties";
@@ -46,9 +46,21 @@ export default function PagePeekModal({
   );
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<PageProperty[]>([]);
-  const effectivePage = page ?? fallbackPage ?? initialPage ?? null;
+  const previousPageIdRef = useRef(pageId);
+  const hasInitialEditableBody =
+    initialPage?.id === pageId && initialPage.content_text != null;
+  const isOptimisticDraft =
+    initialPage?.id === pageId && initialPage.content_text === "";
+  const currentLoadedPage = page?.id === pageId ? page : null;
+  const currentFallbackPage = fallbackPage?.id === pageId ? fallbackPage : null;
+  const currentInitialPage = initialPage?.id === pageId ? initialPage : null;
+  const effectivePage =
+    currentLoadedPage ?? currentFallbackPage ?? currentInitialPage ?? null;
   const bodyLoading =
-    loading && Boolean(effectivePage) && effectivePage?.content_text == null;
+    loading &&
+    Boolean(effectivePage) &&
+    effectivePage?.content_text == null &&
+    !hasInitialEditableBody;
   const hasEffectivePage = Boolean(effectivePage);
   const [mountedEditorPageId, setMountedEditorPageId] = useState<string | null>(
     null
@@ -58,6 +70,16 @@ export default function PagePeekModal({
   >(null);
   const editorMounted = mountedEditorPageId === pageId;
   const childPagesEnabled = editorMounted && childPagesReadyPageId === pageId;
+
+  useEffect(() => {
+    if (previousPageIdRef.current === pageId) return;
+    previousPageIdRef.current = pageId;
+    queueMicrotask(() => {
+      setFallbackPage(initialPage ?? null);
+      setMountedEditorPageId(null);
+      setChildPagesReadyPageId(null);
+    });
+  }, [initialPage, pageId]);
 
   useEffect(() => {
     if (!initialPage) return;
@@ -95,11 +117,17 @@ export default function PagePeekModal({
   }, [onClose, onOpenFull, pageId]);
 
   useEffect(() => {
-    if (bodyLoading || !hasEffectivePage) return;
+    if (bodyLoading || !hasEffectivePage || editorMounted) return;
+    if (isOptimisticDraft) {
+      queueMicrotask(() => {
+        setMountedEditorPageId(pageId);
+      });
+      return;
+    }
     return schedulePeekEditorMount(() => {
       setMountedEditorPageId(pageId);
     });
-  }, [bodyLoading, hasEffectivePage, pageId]);
+  }, [bodyLoading, editorMounted, hasEffectivePage, isOptimisticDraft, pageId]);
 
   useEffect(() => {
     if (!editorMounted) return;

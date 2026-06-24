@@ -100,6 +100,7 @@ for (const token of [
   "getModuleRootIdSync",
   "loadRequestRef",
   "observedPageRevisionRef",
+  "scheduleDailyPeekPreload",
   "applyRemotePages",
 ]) {
   check(shells.daily.includes(token), `DailyNotesShell 缺少每日纪要性能护栏 ${token}`);

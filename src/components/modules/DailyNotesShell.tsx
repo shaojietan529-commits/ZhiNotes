@@ -39,6 +39,9 @@ import PagePeekModal from "@/components/page/LazyPagePeekModal";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
 
+type PreloadablePeekModal = typeof PagePeekModal & {
+  preload?: () => void;
+};
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -82,6 +85,12 @@ export default function DailyNotesShell() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+
+  useEffect(() => {
+    return scheduleDailyPeekPreload(() => {
+      (PagePeekModal as PreloadablePeekModal).preload?.();
+    });
+  }, []);
 
   const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
     const includeCloud = opts?.includeCloud !== false;
@@ -730,6 +739,22 @@ export default function DailyNotesShell() {
       )}
     </div>
   );
+}
+
+function scheduleDailyPeekPreload(callback: () => void): () => void {
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
+    const idleId = maybeWindow.requestIdleCallback(callback, { timeout: 1200 });
+    return () => maybeWindow.cancelIdleCallback?.(idleId);
+  }
+  const timer = window.setTimeout(callback, 350);
+  return () => window.clearTimeout(timer);
 }
 
 async function ensureDailyDateIndexBackfilled(): Promise<void> {
