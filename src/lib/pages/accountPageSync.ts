@@ -43,6 +43,9 @@ const PUSH_BATCH_BYTES = 800 * 1024;
 // Covers stored as data URLs can be multi-MB; skip oversized ones rather
 // than failing the whole page push.
 const MAX_COVER_CHARS = 300 * 1024;
+const CLOUD_PUSH_DEBOUNCE_MS = 1000;
+let queuedCloudPush = new Map<string, RemotePageRecord>();
+let queuedCloudPushTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function isPageSyncEnabled(): boolean {
   if (typeof window === "undefined") return false;
@@ -92,6 +95,19 @@ export interface PullDailyCloudResult {
   failed?: number;
   failedReason?: string;
   scanned?: number;
+  message?: string;
+}
+
+export interface CloudPageLookupResult {
+  status: PageSyncStatus;
+  pages: RemotePageRecord[];
+  message?: string;
+}
+
+export interface PushCloudPagesResult {
+  status: PageSyncStatus;
+  accepted: string[];
+  skipped: string[];
   message?: string;
 }
 
@@ -192,6 +208,58 @@ export async function pullCloudPageById(
   id: string
 ): Promise<PullCloudPageResult> {
   return pullCloudPagesByIds([id]);
+}
+
+export async function fetchCloudPagesByIds(
+  ids: string[]
+): Promise<CloudPageLookupResult> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", pages: [] };
+  }
+  const uniqueIds = Array.from(new Set(ids.filter(isValidRemotePageId)));
+  if (uniqueIds.length === 0) {
+    return { status: "ok", pages: [] };
+  }
+  const res = await call({ action: "pull", ids: uniqueIds });
+  if (!res.ok) {
+    return { status: res.status, pages: [], message: res.message };
+  }
+  const pages = Array.isArray(res.json.pages)
+    ? (res.json.pages as RemotePageRecord[])
+    : [];
+  return { status: "ok", pages };
+}
+
+export async function fetchCloudPageById(
+  id: string
+): Promise<CloudPageLookupResult> {
+  return fetchCloudPagesByIds([id]);
+}
+
+export async function pushCloudPages(
+  records: RemotePageRecord[]
+): Promise<PushCloudPagesResult> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", accepted: [], skipped: [] };
+  }
+  const res = await call({ action: "push", pages: records });
+  if (!res.ok) {
+    return {
+      status: res.status,
+      accepted: [],
+      skipped: [],
+      message: res.message,
+    };
+  }
+  return {
+    status: "ok",
+    accepted: Array.isArray(res.json.accepted)
+      ? (res.json.accepted as string[])
+      : [],
+    skipped: Array.isArray(res.json.skipped)
+      ? (res.json.skipped as string[])
+      : [],
+  };
 }
 
 export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> {
@@ -322,6 +390,27 @@ function toRecord(page: Page): RemotePageRecord {
     updated_at: page.updated_at,
     deleted_at: page.deleted_at ?? null,
   };
+}
+
+export function pageToRemoteRecord(page: Page): RemotePageRecord {
+  return toRecord(page);
+}
+
+export function queueCloudPagePush(
+  page: Page | RemotePageRecord,
+  delayMs = CLOUD_PUSH_DEBOUNCE_MS
+): void {
+  const record = "owner_id" in page ? pageToRemoteRecord(page) : page;
+  queuedCloudPush.set(record.id, record);
+  if (queuedCloudPushTimer) clearTimeout(queuedCloudPushTimer);
+  queuedCloudPushTimer = setTimeout(() => {
+    const batch = [...queuedCloudPush.values()];
+    queuedCloudPush = new Map();
+    queuedCloudPushTimer = null;
+    if (batch.length > 0) {
+      void pushCloudPages(batch);
+    }
+  }, delayMs);
 }
 
 function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
