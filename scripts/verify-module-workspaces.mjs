@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Verifies the primary workspace surfaces contract:
-// - Each is backed by a singleton local root page (no new tables, no cloud).
+// - Each is backed by a singleton page root with a rebuildable local id cache.
 // - Routes and shells exist and stay local (no external fetch/upload/AI/recording).
 // - Sidebar promotes the three categories and demotes others to 备选模块.
 // - Page tree hides the module roots from the generic page list.
@@ -29,7 +29,14 @@ const helper = read("src/lib/pages/moduleWorkspaces.ts");
 for (const token of [
   "getModuleRootId",
   "getModuleRootIdsSync",
+  "MODULE_ROOT_IDS_EVENT",
   "MODULE_WORKSPACE_LIST",
+  "fetchCloudModuleRoots",
+  "runCloudModuleRootLookup",
+  "applyRemotePageMetadata",
+  "CLOUD_MODULE_ROOT_CACHE_MS",
+  'fetch("/api/pages/account-sync"',
+  'body: JSON.stringify({ action: "metadata" })',
   "toDateKey",
   "每日纪要",
   "产业链研究",
@@ -134,6 +141,25 @@ check(
 check(
   helper.includes("getModuleRootIdSync"),
   "moduleWorkspaces 必须提供同步 root id 读取，避免新增时扫全量页面"
+);
+check(
+  helper.includes("const cloudRoot = await findCloudModuleRoot(key)") &&
+    helper.includes("await applyRemotePageMetadata([cloudRoot])") &&
+    helper.includes("rememberRoot(key, cloudRoot.id)") &&
+    helper.indexOf("const cloudRoot = await findCloudModuleRoot(key)") <
+      helper.indexOf("const created = await createPage"),
+  "moduleWorkspaces 本地 root 缓存缺失时必须先从账号云端 metadata 认领 root，不能直接创建重复 root"
+);
+check(
+  helper.includes("cloudModuleRootLookupInFlight") &&
+    helper.includes("cloudModuleRootLookupCache") &&
+    helper.includes("Date.now() - cloudModuleRootLookupCache.cachedAt") &&
+    helper.includes('window.localStorage.getItem(PAGE_SYNC_ENABLED_KEY) === "false"'),
+  "moduleWorkspaces 云端 root 认领必须共享 in-flight 请求并尊重页面同步本地关闭开关"
+);
+check(
+  helper.includes("window.dispatchEvent(new CustomEvent(MODULE_ROOT_IDS_EVENT))"),
+  "moduleWorkspaces 写入 root id 缓存后必须广播本地事件，避免侧边栏等 UI 等到刷新才更新"
 );
 check(
   usePageHook.includes("setLoading(localPage.content_text == null)"),
@@ -332,8 +358,12 @@ check(
 // 5. Page tree hides module roots
 const pageTree = read("src/components/sidebar/PageTree.tsx");
 check(
-  pageTree.includes("getModuleRootIdsSync"),
-  "PageTree 必须隐藏三个模块根页面"
+  pageTree.includes("getModuleRootIdsSync") &&
+    pageTree.includes("MODULE_ROOT_IDS_EVENT") &&
+    pageTree.includes("setModuleRootIds(new Set(getModuleRootIdsSync()))") &&
+    pageTree.includes('event.key?.startsWith("zhinote.moduleRoot.")') &&
+    !pageTree.includes("useMemo(() => new Set(getModuleRootIdsSync()), [])"),
+  "PageTree 必须隐藏模块根页面，并在云端认领 root id 后无需刷新即可更新"
 );
 
 if (errors.length > 0) {
@@ -348,7 +378,7 @@ console.log(
     {
       workspaces: 4,
       routes: 4,
-      local_only: true,
+      cloud_root_recovery: true,
       sidebar_promoted: true,
       page_tree_hides_roots: true,
     },

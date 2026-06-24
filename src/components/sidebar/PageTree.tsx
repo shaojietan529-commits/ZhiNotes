@@ -11,7 +11,10 @@ import {
   movePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
-import { getModuleRootIdsSync } from "@/lib/pages/moduleWorkspaces";
+import {
+  getModuleRootIdsSync,
+  MODULE_ROOT_IDS_EVENT,
+} from "@/lib/pages/moduleWorkspaces";
 import { usePages } from "@/hooks/usePages";
 import type { Page } from "@/lib/utils/types";
 import PageContextMenu from "@/components/page/PageContextMenu";
@@ -277,7 +280,27 @@ export default function PageTree() {
     y: number;
   } | null>(null);
 
-  const moduleRootIds = useMemo(() => new Set(getModuleRootIdsSync()), []);
+  const [moduleRootIds, setModuleRootIds] = useState<Set<string>>(
+    () => new Set(getModuleRootIdsSync())
+  );
+
+  useEffect(() => {
+    const refreshModuleRootIds = () => {
+      setModuleRootIds(new Set(getModuleRootIdsSync()));
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key?.startsWith("zhinote.moduleRoot.")) {
+        refreshModuleRootIds();
+      }
+    };
+    window.addEventListener(MODULE_ROOT_IDS_EVENT, refreshModuleRootIds);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(MODULE_ROOT_IDS_EVENT, refreshModuleRootIds);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
+
   const pagesById = useMemo(
     () => new Map(pages.map((page) => [page.id, page])),
     [pages]
