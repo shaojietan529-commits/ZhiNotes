@@ -306,15 +306,38 @@ check(
   "页面同步客户端在 localStorage 游标丢失但本地 metadata 与云端摘要一致时，应恢复增量游标而不是强制重拉全部 metadata"
 );
 check(
+  pageSyncClient.includes("fastForwardMetadataDeltaFromLocalCursor") &&
+    pageSyncClient.includes("comparePageChangeCursorStrings") &&
+    pageSyncClient.includes("fetchCloudPageMetadataChangesSince(nextCursor)") &&
+    pageSyncClient.includes("parsePageChangeCursorString") &&
+    pageSyncClient.indexOf("fastForwardMetadataDeltaFromLocalCursor(") <
+      pageSyncClient.indexOf("const cloud = await fetchCloudPageMetadata()"),
+  "localStorage 游标丢失但本地缓存有较旧 cursor 时，应先用 metadata-changes-since 快进，不能直接退回全量 metadata"
+);
+check(
   pageSyncClient.includes("setRemoteCursor(summary.cursor)") &&
     pageSyncClient.includes("setRemoteWatermark(changes.summary.watermark)"),
   "页面同步客户端应在增量/摘要同步后更新云端游标和水位"
+);
+check(
+  pageSyncClient.includes("emitPagesUpdated(") &&
+    pageSyncClient.includes("toPageUpdatePayloads(changes.pages)") &&
+    pageSyncClient.indexOf("toPageUpdatePayloads(changes.pages)") >
+      pageSyncClient.indexOf("const changes = await fetchCloudPageChangesSince"),
+  "增量拉取后的跨 tab 通知必须携带轻量页面 metadata，其他 tab 不能因只收到数量而全量刷新"
 );
 check(
   pageSyncClient.includes("PENDING_PUSH_IDS_KEY") &&
     pageSyncClient.includes("markPendingCloudPush(record.id)") &&
     pageSyncClient.includes("flushPendingCloudPushes"),
   "页面同步客户端应维护只含 page id 的待上传队列，用于失败后重试云端写回"
+);
+check(
+  pageSyncClient.includes("getPagesForSyncByIds") &&
+    pageSyncClient.includes("pages = await getPagesForSyncByIds(ids)") &&
+    pageSyncClient.indexOf("pages = await getPagesForSyncByIds(ids)") <
+      pageSyncClient.indexOf("const localById = new Map(pages.map"),
+  "待上传队列补发必须按 page id 精确读取，短轮询不能为了 pending push 扫描全部本地页面"
 );
 check(
   pageSyncClient.includes("void pushCloudRecordsInBatches(batch)") &&

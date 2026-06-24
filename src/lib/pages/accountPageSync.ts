@@ -19,6 +19,7 @@ import {
   clearLocalPageCacheExceptIds,
   clearLocalPageCacheForIds,
   getAllPagesForSync,
+  getPagesForSyncByIds,
   getLocalPageSyncSummary,
   getNextPosition,
   movePage,
@@ -578,6 +579,11 @@ async function runCloudPageMetadataDelta(): Promise<CloudPageMetadataDeltaResult
       const summary = normalizeSummary(summaryRes.json.summary);
       if (summary && (await restoreCursorFromLocalMetadata(summary))) {
         nextCursor = summary.cursor;
+      } else if (summary) {
+        const fastForward = await fastForwardMetadataDeltaFromLocalCursor(
+          summary
+        );
+        if (fastForward) return fastForward;
       }
     } else if (
       summaryRes.status === "unauthenticated" ||
@@ -950,7 +956,7 @@ async function flushPendingCloudPushes(): Promise<{
 
   let pages: Page[];
   try {
-    pages = await getAllPagesForSync();
+    pages = await getPagesForSyncByIds(ids);
   } catch (error) {
     return {
       status: "ok",
@@ -1141,6 +1147,109 @@ async function restoreCursorFromLocalMetadata(
   } catch {
     return false;
   }
+}
+
+async function fastForwardMetadataDeltaFromLocalCursor(
+  remoteSummary: IndexSummary
+): Promise<CloudPageMetadataDeltaResult | null> {
+  let localSummary: Awaited<ReturnType<typeof getLocalPageSyncSummary>>;
+  try {
+    localSummary = await getLocalPageSyncSummary();
+  } catch {
+    return null;
+  }
+  if (!localSummary.cursor) return null;
+
+  if (
+    localSummary.watermark === remoteSummary.watermark &&
+    localSummary.cursor === remoteSummary.cursor
+  ) {
+    setRemoteWatermark(remoteSummary.watermark);
+    setRemoteCursor(remoteSummary.cursor);
+    setLastPageSyncAtNow();
+    return { status: "ok", pulled: 0, pages: [], fullRefresh: false };
+  }
+
+  if (
+    comparePageChangeCursorStrings(localSummary.cursor, remoteSummary.cursor) >=
+    0
+  ) {
+    return null;
+  }
+
+  let nextCursor = localSummary.cursor;
+  let hasMore = false;
+  let pulled = 0;
+  const pulledPages: RemotePageRecord[] = [];
+  let batches = 0;
+  do {
+    const changes = await fetchCloudPageMetadataChangesSince(nextCursor);
+    if (changes.status !== "ok") {
+      return {
+        status: changes.status,
+        pulled,
+        pages: pulledPages,
+        fullRefresh: false,
+        message: changes.message,
+      };
+    }
+    if (changes.pages.length > 0) {
+      try {
+        await applyRemotePageMetadata(changes.pages);
+      } catch {
+        // The caller can still merge returned metadata into in-memory state.
+      }
+      pulled += changes.pages.length;
+      pulledPages.push(...changes.pages);
+    }
+    if (changes.summary) setRemoteWatermark(changes.summary.watermark);
+    setRemoteCursor(changes.cursor);
+    nextCursor = changes.cursor;
+    hasMore = changes.hasMore;
+    batches += 1;
+  } while (hasMore && batches < 3);
+
+  if (pulled > 0) {
+    emitPagesUpdated("cloud-pull", pulled, toPageUpdatePayloads(pulledPages));
+  }
+  setLastPageSyncAtNow();
+  return {
+    status: "ok",
+    pulled,
+    pages: pulledPages,
+    fullRefresh: false,
+  };
+}
+
+function parsePageChangeCursorString(cursor: string): {
+  updatedAt: string;
+  id: string;
+} {
+  if (!cursor) return { updatedAt: "", id: "" };
+  try {
+    const parsed = JSON.parse(cursor) as {
+      updatedAt?: unknown;
+      id?: unknown;
+    };
+    if (
+      typeof parsed.updatedAt === "string" &&
+      typeof parsed.id === "string"
+    ) {
+      return { updatedAt: parsed.updatedAt, id: parsed.id };
+    }
+  } catch {
+    // Older cursors stored only updated_at.
+  }
+  return { updatedAt: cursor, id: "" };
+}
+
+function comparePageChangeCursorStrings(left: string, right: string): number {
+  const leftCursor = parsePageChangeCursorString(left);
+  const rightCursor = parsePageChangeCursorString(right);
+  return (
+    leftCursor.updatedAt.localeCompare(rightCursor.updatedAt) ||
+    leftCursor.id.localeCompare(rightCursor.id)
+  );
 }
 
 function getPendingCloudPushIds(): string[] {
@@ -1524,7 +1633,11 @@ async function pullIncrementalCloudChanges(
   }
   if (changes.pages.length > 0) {
     await applyRemotePages(changes.pages);
-    emitPagesUpdated("cloud-pull", changes.pages.length);
+    emitPagesUpdated(
+      "cloud-pull",
+      changes.pages.length,
+      toPageUpdatePayloads(changes.pages)
+    );
   }
   if (changes.summary) {
     setRemoteWatermark(changes.summary.watermark);

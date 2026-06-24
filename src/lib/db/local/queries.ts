@@ -828,6 +828,21 @@ export async function getAllPagesForSync(): Promise<Page[]> {
   ) as unknown as Page[];
 }
 
+export async function getPagesForSyncByIds(ids: string[]): Promise<Page[]> {
+  const db = await getDb();
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  if (uniqueIds.length === 0) return [];
+  const placeholders = uniqueIds.map(() => "?").join(",");
+  return db.query(
+    `SELECT id, owner_id, parent_id, database_id, title, icon, cover_url,
+            content_text, properties, position, depth,
+            created_at, updated_at, deleted_at, sync_version
+     FROM pages
+     WHERE id IN (${placeholders})`,
+    uniqueIds
+  ) as unknown as Page[];
+}
+
 export async function getLocalPageSyncSummary(): Promise<LocalPageSyncSummary> {
   const db = await getDb();
   const rows = db.query(
