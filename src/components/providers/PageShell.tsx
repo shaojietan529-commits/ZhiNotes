@@ -8,8 +8,8 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
+import dynamic from "next/dynamic";
 import Sidebar from "@/components/sidebar/Sidebar";
-import Editor from "@/components/editor/Editor";
 import type { EditorRef } from "@/components/editor/Editor";
 import Breadcrumb from "@/components/shared/Breadcrumb";
 import IconPicker from "@/components/shared/IconPicker";
@@ -67,6 +67,11 @@ import {
   type PageResearchStructureSignal,
   type PageResearchStructureStatus,
 } from "@/lib/pages/pageResearchStructure";
+
+const Editor = dynamic(() => import("@/components/editor/Editor"), {
+  ssr: false,
+  loading: () => <PageBodySkeleton />,
+});
 
 export default function PageShell({ pageId }: { pageId: string }) {
   return <PageContent pageId={pageId} />;

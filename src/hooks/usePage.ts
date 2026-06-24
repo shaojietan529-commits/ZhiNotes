@@ -15,6 +15,10 @@ import {
   queueCloudPageDelete,
   queueCloudPagePush,
 } from "@/lib/pages/accountPageSync";
+import {
+  clearPendingPageDraft,
+  readPendingPageDraft,
+} from "@/lib/pages/pendingPageDrafts";
 import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRecordRevision } from "@/hooks/usePageRevision";
@@ -57,6 +61,7 @@ export function usePage(
     }
     setLoading(true);
     let localPage =
+      readPendingPageDraft(pageId) ??
       useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
       null;
     if (localPage) {
@@ -65,7 +70,10 @@ export function usePage(
     }
     try {
       const storedPage = await getPage(pageId);
-      if (storedPage) localPage = storedPage;
+      if (storedPage) {
+        localPage = storedPage;
+        clearPendingPageDraft(pageId);
+      }
     } catch {
       // Keep the in-memory page if IndexedDB is slow or temporarily failing.
     }
@@ -88,6 +96,7 @@ export function usePage(
         const remoteRecord = cloud.pages[0];
         if (remoteIsAtLeastAsFresh(remoteRecord, localPage)) {
           const hydrated = await hydrateRemotePageIntoLocalCache(remoteRecord);
+          clearPendingPageDraft(pageId);
           if (hydrated) upsertPages([hydrated]);
           setPage(hydrated);
         } else if (localPage) {

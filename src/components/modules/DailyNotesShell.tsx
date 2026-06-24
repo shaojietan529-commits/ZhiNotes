@@ -33,6 +33,7 @@ import {
   pushCloudPages,
   type DailyCloudMetadataResult,
 } from "@/lib/pages/accountPageSync";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
@@ -293,55 +294,57 @@ export default function DailyNotesShell() {
         dailyDateKey: dateKey,
         cloudOnly: true,
       };
-      setNotes((current) => [
-        optimisticNote,
-        ...current.filter((item) => item.id !== optimisticNote.id),
-      ]);
-      upsertPages([optimisticNote]);
+      rememberPendingPageDraft(optimisticNote);
       setCloudNotice(`${dateKey} 的每日纪要正在打开，后台会继续保存到账号云端…`);
 
       router.push(`/page/${optimisticNote.id}`);
-      void seedDailyNoteForImmediateOpen(optimisticNote);
-
-      void (async () => {
-        try {
-          const dailyRootId = initialRootId ?? (await getModuleRootId("daily"));
-          if (!rootId) setRootId(dailyRootId);
-          const latestNote = await getLatestOpenedDailyNote(optimisticNote);
-          const noteForSave: DailyNote = {
-            ...latestNote,
-            parent_id: dailyRootId,
-            depth: 1,
-            dailyDateKey: dateKey,
-            updated_at:
-              latestNote.parent_id === dailyRootId
-                ? latestNote.updated_at
-                : new Date().toISOString(),
-          };
-          setNotes((current) =>
-            current.map((item) =>
-              item.id === noteForSave.id ? noteForSave : item
-            )
-          );
-          upsertPages([noteForSave]);
-          const persistStatus = await persistOptimisticDailyNote(
-            dailyRootId,
-            noteForSave,
-            upsertPages
-          );
-          setCloudNotice(
-            persistStatus === "cloud"
-              ? `${dateKey} 的每日纪要已保存；本地缓存会在后台自动重建。`
-              : `${dateKey} 的每日纪要已在本机保存；登录或配置账号云端后会自动同步。`
-          );
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : "账号云端保存失败";
-          setCloudNotice(`每日纪要已在当前页面打开，但后台保存失败：${message}`);
-        } finally {
-          setCreatingDateKey(null);
-        }
-      })();
+      window.setTimeout(() => {
+        setNotes((current) => [
+          optimisticNote,
+          ...current.filter((item) => item.id !== optimisticNote.id),
+        ]);
+        upsertPages([optimisticNote]);
+        void seedDailyNoteForImmediateOpen(optimisticNote);
+        void (async () => {
+          try {
+            const dailyRootId = initialRootId ?? (await getModuleRootId("daily"));
+            if (!rootId) setRootId(dailyRootId);
+            const latestNote = await getLatestOpenedDailyNote(optimisticNote);
+            const noteForSave: DailyNote = {
+              ...latestNote,
+              parent_id: dailyRootId,
+              depth: 1,
+              dailyDateKey: dateKey,
+              updated_at:
+                latestNote.parent_id === dailyRootId
+                  ? latestNote.updated_at
+                  : new Date().toISOString(),
+            };
+            setNotes((current) =>
+              current.map((item) =>
+                item.id === noteForSave.id ? noteForSave : item
+              )
+            );
+            upsertPages([noteForSave]);
+            const persistStatus = await persistOptimisticDailyNote(
+              dailyRootId,
+              noteForSave,
+              upsertPages
+            );
+            setCloudNotice(
+              persistStatus === "cloud"
+                ? `${dateKey} 的每日纪要已保存；本地缓存会在后台自动重建。`
+                : `${dateKey} 的每日纪要已在本机保存；登录或配置账号云端后会自动同步。`
+            );
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : "账号云端保存失败";
+            setCloudNotice(`每日纪要已在当前页面打开，但后台保存失败：${message}`);
+          } finally {
+            setCreatingDateKey(null);
+          }
+        })();
+      }, 0);
     },
     [creatingDateKey, rootId, router, upsertPages]
   );

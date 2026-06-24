@@ -62,6 +62,8 @@ const localClient = read("src/lib/db/local/client.ts");
 const usePageHook = read("src/hooks/usePage.ts");
 const usePagesHook = read("src/hooks/usePages.ts");
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
+const pageShell = read("src/components/providers/PageShell.tsx");
+const pendingPageDrafts = read("src/lib/pages/pendingPageDrafts.ts");
 const pageUpdateBus = read("src/lib/pages/pageUpdateBus.ts");
 const accountPageSync = read("src/lib/pages/accountPageSync.ts");
 const forbidden = ["XMLHttpRequest", "enables_ai", "getUserMedia"];
@@ -99,6 +101,7 @@ for (const token of [
   "rebuildPageDateKeyIndex",
   "seedDailyNoteForImmediateOpen",
   "router.push(`/page/${optimisticNote.id}`)",
+  "rememberPendingPageDraft(optimisticNote)",
   "openNotePage",
   "DAILY_DATE_INDEX_BACKFILL_KEY",
   "getModuleRootIdSync",
@@ -136,6 +139,19 @@ check(
   "usePage 必须支持延后加载正文，避免 peek 弹窗打开时立即拉取大正文"
 );
 check(
+  usePageHook.includes("readPendingPageDraft(pageId)") &&
+    usePageHook.indexOf("readPendingPageDraft(pageId)") <
+      usePageHook.indexOf("useWorkspaceStore.getState().pages.find") &&
+    pendingPageDrafts.includes("PENDING_PAGE_DRAFT_TTL_MS"),
+  "usePage 必须优先读取新建页面的内存草稿，让每日纪要 + 点击后无需等待本地缓存写入"
+);
+check(
+  pageShell.includes("dynamic(() => import(\"@/components/editor/Editor\")") &&
+    pageShell.includes("loading: () => <PageBodySkeleton />") &&
+    !pageShell.includes("import Editor from \"@/components/editor/Editor\""),
+  "PageShell 必须动态加载编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
+);
+check(
   usePagesHook.includes("upsertPages(cloud.pages.map(remoteMetadataToPage))") &&
     !usePagesHook.includes("applyRemotePageMetadata"),
   "usePages 云端 metadata delta 必须直接合并到 store，不能每次 delta 后重扫全量 pages"
@@ -161,6 +177,8 @@ check(
 for (const token of [
   "seedDailyNoteForImmediateOpen",
   "router.push(`/page/${optimisticNote.id}`)",
+  "rememberPendingPageDraft(optimisticNote)",
+  "window.setTimeout(() =>",
   "applyRemotePages([pageToRemoteRecord(note)])",
   "openNotePage",
 ]) {

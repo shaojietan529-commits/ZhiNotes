@@ -380,7 +380,12 @@ check(
 check(
   dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
     dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
+    dailyNotesShell.indexOf("rememberPendingPageDraft(optimisticNote)") <
+      dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") &&
+    dailyNotesShell.indexOf("router.push(`/page/${optimisticNote.id}`)") <
+      dailyNotesShell.indexOf("upsertPages([optimisticNote])") &&
     dailyNotesShell.includes("router.push(`/page/${optimisticNote.id}`)") &&
+    dailyNotesShell.includes("window.setTimeout(() =>") &&
     dailyNotesShell.includes("applyRemotePages([pageToRemoteRecord(note)])") &&
     dailyNotesShell.includes("openNotePage") &&
     dailyNotesShell.includes("后台会继续保存到账号云端") &&
