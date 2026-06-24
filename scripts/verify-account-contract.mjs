@@ -141,6 +141,20 @@ check(
   pageSyncRoute.includes("existing.u >= record.updated_at"),
   "pages account-sync push 必须拒绝旧数据覆盖新数据"
 );
+check(
+  pageSyncRoute.includes('body.action === "changes-since"') &&
+    pageSyncRoute.includes("getPageChangesSince"),
+  "pages account-sync route 应提供按游标增量拉取 changes-since"
+);
+check(
+  pageSyncRoute.includes("summary: IndexSummary") &&
+    pageSyncRoute.includes("stringifyPageChangeCursor(maxUpdatedAt, maxUpdatedId)"),
+  "pages account-sync route 的增量游标应包含 updated_at 和 page id，避免同时间戳重复拉取"
+);
+check(
+  pageSyncRoute.includes("entry.u === cursor.updatedAt && id > cursor.id"),
+  "pages account-sync route 增量过滤应使用 updated_at + page id 做稳定排序"
+);
 
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
 check(
@@ -162,6 +176,37 @@ check(
 check(
   pageSyncClient.includes("clearLocalPageCacheForIds"),
   "重建本机页面缓存前应先清理本机已同步页面缓存"
+);
+check(
+  pageSyncClient.includes("REMOTE_CURSOR_KEY") &&
+    pageSyncClient.includes("fetchCloudPageChangesSince") &&
+    pageSyncClient.includes("pullIncrementalCloudChanges"),
+  "页面同步客户端应保存远端游标并优先使用 changes-since 增量拉取"
+);
+check(
+  pageSyncClient.includes("setRemoteCursor(summary.cursor)") &&
+    pageSyncClient.includes("setRemoteWatermark(changes.summary.watermark)"),
+  "页面同步客户端应在增量/摘要同步后更新云端游标和水位"
+);
+
+const pageCloudSyncHook = read("src/hooks/usePageCloudSync.ts");
+check(
+  (pageCloudSyncHook.match(/runSync\(\{ quick: true \}/g) ?? []).length >= 4,
+  "页面云同步 hook 的加载、轮询、前台恢复和编辑后同步应默认走 quick 增量"
+);
+check(
+  !pageCloudSyncHook.includes("initialSyncDoneRef") &&
+    !pageCloudSyncHook.includes("quick: initialSyncDoneRef.current"),
+  "页面云同步 hook 不应等首次全量同步后才启用 quick 增量"
+);
+check(
+  pageCloudSyncHook.includes("window.addEventListener(\"focus\", handleForeground)") &&
+    pageCloudSyncHook.includes("window.addEventListener(\"online\", handleForeground)"),
+  "页面云同步 hook 的聚焦和联网恢复应使用增量前台同步"
+);
+check(
+  pageCloudSyncHook.includes("handleConfig = () => void runSync({ quick: false, forceLease: true })"),
+  "只有同步配置变化时才应保留强制全量校验"
 );
 
 const usePageHook = read("src/hooks/usePage.ts");
