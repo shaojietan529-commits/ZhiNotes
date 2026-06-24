@@ -12,9 +12,11 @@ import {
   stringifyPageProperties,
   type PageProperty,
 } from "@/lib/pages/pageProperties";
+import type { Page } from "@/lib/utils/types";
 
 interface PagePeekModalProps {
   pageId: string;
+  initialPage?: Page | null;
   onClose: () => void;
   onOpenFull: (pageId: string) => void;
   onChanged?: () => void;
@@ -24,22 +26,41 @@ interface PagePeekModalProps {
 // without leaving the current view — Notion's "peek" behaviour.
 export default function PagePeekModal({
   pageId,
+  initialPage,
   onClose,
   onOpenFull,
   onChanged,
 }: PagePeekModalProps) {
   const { page, loading, update } = usePage(pageId);
   const { refresh } = usePages();
+  const [fallbackPage, setFallbackPage] = useState<Page | null>(
+    initialPage ?? null
+  );
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<PageProperty[]>([]);
+  const effectivePage = page ?? fallbackPage;
+
+  useEffect(() => {
+    if (!initialPage) return;
+    queueMicrotask(() => {
+      setFallbackPage(initialPage);
+    });
+  }, [initialPage]);
 
   useEffect(() => {
     if (!page) return;
     queueMicrotask(() => {
-      setTitle(page.title);
-      setProperties(parsePageProperties(page.properties));
+      setFallbackPage(page);
     });
   }, [page]);
+
+  useEffect(() => {
+    if (!effectivePage) return;
+    queueMicrotask(() => {
+      setTitle(effectivePage.title);
+      setProperties(parsePageProperties(effectivePage.properties));
+    });
+  }, [effectivePage]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -57,45 +78,70 @@ export default function PagePeekModal({
   const handleTitleChange = useCallback(
     async (next: string) => {
       setTitle(next);
-      await update({ title: next });
+      await persistPeekUpdate({
+        basePage: effectivePage,
+        updates: { title: next },
+        update,
+        setFallbackPage,
+      });
       refresh();
       onChanged?.();
     },
-    [update, refresh, onChanged]
+    [effectivePage, update, refresh, onChanged]
   );
 
   const handlePropertiesChange = useCallback(
     async (next: PageProperty[]) => {
       setProperties(next);
-      await update({ properties: stringifyPageProperties(next) });
+      await persistPeekUpdate({
+        basePage: effectivePage,
+        updates: { properties: stringifyPageProperties(next) },
+        update,
+        setFallbackPage,
+      });
       refresh();
       onChanged?.();
     },
-    [update, refresh, onChanged]
+    [effectivePage, update, refresh, onChanged]
   );
 
   const handleIconChange = useCallback(
     async (icon: string) => {
-      await update({ icon });
+      await persistPeekUpdate({
+        basePage: effectivePage,
+        updates: { icon },
+        update,
+        setFallbackPage,
+      });
       refresh();
       onChanged?.();
     },
-    [update, refresh, onChanged]
+    [effectivePage, update, refresh, onChanged]
   );
 
   const handleIconRemove = useCallback(async () => {
-    await update({ icon: null });
+    await persistPeekUpdate({
+      basePage: effectivePage,
+      updates: { icon: null },
+      update,
+      setFallbackPage,
+    });
     refresh();
     onChanged?.();
-  }, [update, refresh, onChanged]);
+  }, [effectivePage, update, refresh, onChanged]);
 
   const handleContentUpdate = useCallback(
     async (html: string) => {
-      await update({ content_text: html });
+      await persistPeekUpdate({
+        basePage: effectivePage,
+        updates: { content_text: html },
+        update,
+        setFallbackPage,
+      });
       refresh();
       onChanged?.();
     },
-    [update, refresh, onChanged]
+    [effectivePage, update, refresh, onChanged]
   );
 
   return (
@@ -130,7 +176,7 @@ export default function PagePeekModal({
         </header>
 
         <div className="flex-1 overflow-y-auto px-10 py-6">
-          {loading || !page ? (
+          {loading && !effectivePage ? (
             <div className="py-16 text-center text-sm text-zinc-400">
               正在加载页面…
             </div>
@@ -138,7 +184,7 @@ export default function PagePeekModal({
             <div className="mx-auto w-full max-w-4xl">
               <div className="mb-3 flex items-start gap-2">
                 <IconPicker
-                  currentIcon={page.icon}
+                  currentIcon={effectivePage?.icon ?? null}
                   onSelect={handleIconChange}
                   onRemove={handleIconRemove}
                 />
@@ -147,7 +193,7 @@ export default function PagePeekModal({
                   value={title}
                   onChange={(e) => handleTitleChange(e.target.value)}
                   placeholder="新页面"
-                  autoFocus={!page.title}
+                  autoFocus={!effectivePage?.title}
                   className="mt-1 w-full border-none bg-transparent text-2xl font-bold text-zinc-900 outline-none placeholder-zinc-300 dark:text-zinc-100 dark:placeholder-zinc-600"
                 />
               </div>
@@ -162,7 +208,7 @@ export default function PagePeekModal({
 
               <Editor
                 pageId={pageId}
-                initialContent={page.content_text}
+                initialContent={effectivePage?.content_text ?? null}
                 editable
                 onUpdate={handleContentUpdate}
               />
@@ -174,6 +220,70 @@ export default function PagePeekModal({
       </div>
     </div>
   );
+}
+
+type PeekPageUpdates = Partial<
+  Pick<Page, "title" | "icon" | "content_text" | "properties">
+>;
+
+async function persistPeekUpdate({
+  basePage,
+  updates,
+  update,
+  setFallbackPage,
+}: {
+  basePage: Page | null;
+  updates: PeekPageUpdates;
+  update: (updates: PeekPageUpdates) => Promise<Page | null>;
+  setFallbackPage: (page: Page) => void;
+}) {
+  if (!basePage) return null;
+  try {
+    const updated = await update(updates);
+    if (updated) {
+      setFallbackPage(updated);
+      return updated;
+    }
+  } catch {
+    // Fall through to account-cloud persistence. This keeps the peek editor
+    // usable when the browser's local SQLite/localStorage database is slow or
+    // temporarily failing after a large import.
+  }
+
+  const nextPage: Page = {
+    ...basePage,
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
+  setFallbackPage(nextPage);
+  await pushPeekCloudPage(nextPage).catch(() => undefined);
+  return nextPage;
+}
+
+async function pushPeekCloudPage(page: Page) {
+  await fetch("/api/pages/account-sync", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      action: "push",
+      pages: [
+        {
+          id: page.id,
+          parent_id: page.parent_id ?? null,
+          title: page.title ?? "",
+          icon: page.icon ?? null,
+          cover_url: page.cover_url ?? null,
+          content_text: page.content_text ?? null,
+          properties: page.properties ?? null,
+          position: page.position ?? 0,
+          depth: page.depth ?? 0,
+          created_at: page.created_at,
+          updated_at: page.updated_at,
+          deleted_at: page.deleted_at ?? null,
+        },
+      ],
+    }),
+  });
 }
 
 function PeekChildPages({

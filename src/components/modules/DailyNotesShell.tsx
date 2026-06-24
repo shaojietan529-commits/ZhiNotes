@@ -8,8 +8,8 @@ import { usePages } from "@/hooks/usePages";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import {
   createPage,
-  getAllPages,
   getPage,
+  listPages,
   updatePage,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
@@ -53,6 +53,7 @@ export default function DailyNotesShell() {
   const [cloudLoading, setCloudLoading] = useState(false);
   const [creatingDateKey, setCreatingDateKey] = useState<string | null>(null);
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<DailyNote | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
     x: number;
@@ -70,8 +71,7 @@ export default function DailyNotesShell() {
     setCloudNotice("正在从云端加载每日纪要…");
     const id = await getModuleRootId("daily");
     setRootId(id);
-    const allPages = await getAllPages();
-    const dailyNotes = collectDailyNotes(allPages, id);
+    const dailyNotes = collectDailyNotes(await listPages(id), id);
     const byId = new Map(dailyNotes.map((note) => [note.id, note]));
     setNotes(Array.from(byId.values()));
     const visibleRange = buildMonthGrid(viewMonth);
@@ -95,6 +95,7 @@ export default function DailyNotesShell() {
         recentLimit: 12,
       });
       if (cloud.status === "ok" && cloud.rootId) {
+        setRootId(cloud.rootId);
         mergeCloudDailyNotes(byId, cloud);
         writeCachedDailyCloudMetadata(startDate, endDate, cloud);
         setCloudNotice(
@@ -172,8 +173,10 @@ export default function DailyNotesShell() {
             cloudNote,
             ...current.filter((item) => item.id !== cloudNote.id),
           ]);
+          setPeekInitialPage(cloudNote);
+          setPeekPageId(cloudNote.id);
           setCloudNotice(
-            `${dateKey} 的每日纪要已存到账号云端；Edge 本地数据库写入失败，稍后修复本地缓存后即可继续编辑。`
+            `${dateKey} 的每日纪要已存到账号云端；Edge 本地数据库写入失败，正在用云端草稿打开。`
           );
           return;
         }
@@ -192,6 +195,8 @@ export default function DailyNotesShell() {
               cloudNote,
               ...current.filter((item) => item.id !== cloudNote.id),
             ]);
+            setPeekInitialPage(cloudNote);
+            setPeekPageId(cloudNote.id);
             setCloudNotice(
               `${dateKey} 的每日纪要已存到账号云端；Edge 本地数据库属性写入失败。`
             );
@@ -208,7 +213,8 @@ export default function DailyNotesShell() {
         ]);
         void pushDailyNoteCloudSnapshot(dailyRootId, nextNote);
         // Open immediately; do not wait for the cloud calendar index refresh.
-        if (!nextNote.cloudOnly) setPeekPageId(page.id);
+        setPeekInitialPage(nextNote);
+        setPeekPageId(nextNote.id);
         void refresh()
           .then(() => load())
           .catch(() => {
@@ -224,6 +230,11 @@ export default function DailyNotesShell() {
     },
     [creatingDateKey, rootId, refresh, load]
   );
+
+  const openNotePeek = useCallback((note: DailyNote) => {
+    setPeekInitialPage(note);
+    setPeekPageId(note.id);
+  }, []);
 
   // Drag a note chip onto another day: rewrite its 日期 property (and the
   // title too when the note is still date-titled) so it moves on the calendar.
@@ -420,7 +431,7 @@ export default function DailyNotesShell() {
                           setDraggedNoteId(null);
                           setDragOverDateKey(null);
                         }}
-                        onClick={() => setPeekPageId(note.id)}
+                        onClick={() => openNotePeek(note)}
                         onContextMenu={(e) => {
                           e.preventDefault();
                           setContextMenu({
@@ -462,7 +473,7 @@ export default function DailyNotesShell() {
                                 setDraggedNoteId(null);
                                 setDragOverDateKey(null);
                               }}
-                              onClick={() => setPeekPageId(note.id)}
+                              onClick={() => openNotePeek(note)}
                               onContextMenu={(e) => {
                                 e.preventDefault();
                                 setContextMenu({
@@ -514,7 +525,7 @@ export default function DailyNotesShell() {
                         setDraggedNoteId(null);
                         setDragOverDateKey(null);
                       }}
-                      onClick={() => setPeekPageId(note.id)}
+                      onClick={() => openNotePeek(note)}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setContextMenu({
@@ -546,7 +557,11 @@ export default function DailyNotesShell() {
       {peekPageId && (
         <PagePeekModal
           pageId={peekPageId}
-          onClose={() => setPeekPageId(null)}
+          initialPage={peekInitialPage?.id === peekPageId ? peekInitialPage : null}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
           onOpenFull={(id) => router.push(`/page/${id}`)}
           onChanged={() => void load()}
         />
