@@ -63,6 +63,9 @@ export default function DailyNotesShell() {
   } | null>(null);
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [dragOverDateKey, setDragOverDateKey] = useState<string | null>(null);
+  const [expandedDateKeys, setExpandedDateKeys] = useState<Set<string>>(
+    () => new Set()
+  );
   const [viewMonth, setViewMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -232,6 +235,18 @@ export default function DailyNotesShell() {
     setPeekPageId(note.id);
   }, []);
 
+  const toggleDateExpansion = useCallback((dateKey: string) => {
+    setExpandedDateKeys((current) => {
+      const next = new Set(current);
+      if (next.has(dateKey)) {
+        next.delete(dateKey);
+      } else {
+        next.add(dateKey);
+      }
+      return next;
+    });
+  }, []);
+
   // Drag a note chip onto another day: rewrite its 日期 property (and the
   // title too when the note is still date-titled) so it moves on the calendar.
   const moveNoteToDate = useCallback(
@@ -361,8 +376,14 @@ export default function DailyNotesShell() {
             {grid.map((cell) => {
               const key = toDateKey(cell.date);
               const dayNotes = notesByDate.get(key) ?? [];
-              const visibleNotes = dayNotes.slice(0, DAILY_CALENDAR_VISIBLE_LIMIT);
-              const hiddenNotes = dayNotes.slice(DAILY_CALENDAR_VISIBLE_LIMIT);
+              const isExpanded = expandedDateKeys.has(key);
+              const visibleNotes = isExpanded
+                ? dayNotes
+                : dayNotes.slice(0, DAILY_CALENDAR_VISIBLE_LIMIT);
+              const hiddenCount = Math.max(
+                0,
+                dayNotes.length - visibleNotes.length
+              );
               const isToday = key === todayKey;
               const isDropTarget = draggedNoteId !== null && dragOverDateKey === key;
               return (
@@ -458,50 +479,17 @@ export default function DailyNotesShell() {
                         </span>
                       </button>
                     ))}
-                    {hiddenNotes.length > 0 && (
-                      <>
-                        <div className="rounded-md px-2 py-1 text-xs leading-4 text-zinc-400 transition-colors group-hover:hidden dark:text-zinc-500">
-                          +{hiddenNotes.length} 条，悬停查看
-                        </div>
-                        <div className="hidden flex-col gap-1 group-hover:flex">
-                          {hiddenNotes.map((note) => (
-                            <button
-                              key={note.id}
-                              type="button"
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.effectAllowed = "move";
-                                e.dataTransfer.setData("text/plain", note.id);
-                                setDraggedNoteId(note.id);
-                              }}
-                              onDragEnd={() => {
-                                setDraggedNoteId(null);
-                                setDragOverDateKey(null);
-                              }}
-                              onClick={() => openNotePeek(note)}
-                              onContextMenu={(e) => {
-                                e.preventDefault();
-                                setContextMenu({
-                                  pageId: note.id,
-                                  x: e.clientX,
-                                  y: e.clientY,
-                                });
-                              }}
-                              className={`flex cursor-grab items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-left text-xs leading-4 text-zinc-700 shadow-sm transition-colors hover:bg-zinc-200 active:cursor-grabbing dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 ${
-                                draggedNoteId === note.id ? "opacity-40" : ""
-                              }`}
-                              title={displayPageTitle(note.title)}
-                            >
-                              {note.icon && (
-                                <span className="shrink-0 leading-4">{note.icon}</span>
-                              )}
-                              <span className="min-w-0 flex-1 truncate">
-                                {displayPageTitle(note.title)}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </>
+                    {dayNotes.length > DAILY_CALENDAR_VISIBLE_LIMIT && (
+                      <button
+                        type="button"
+                        onClick={() => toggleDateExpansion(key)}
+                        aria-expanded={isExpanded}
+                        className="rounded-md px-2 py-1 text-left text-xs leading-4 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                      >
+                        {isExpanded
+                          ? `收起到 ${DAILY_CALENDAR_VISIBLE_LIMIT} 条`
+                          : `+${hiddenCount} 条，点击展开`}
+                      </button>
                     )}
                   </div>
                 </div>

@@ -60,6 +60,7 @@ const MEETING_PRIORITY_OPTIONS = [
   { value: "high", label: "优先" },
 ];
 const DEFAULT_MEETING_PRIORITY = "default";
+const MEETING_CALENDAR_VISIBLE_LIMIT = 6;
 
 // Meetings the owner explicitly deleted. We persist their ids here so the
 // audit-protection auto-restore (restoreDeletedMeetingPages) leaves them
@@ -279,6 +280,9 @@ export default function MeetingScheduleShell() {
     x: number;
     y: number;
   } | null>(null);
+  const [expandedMeetingDateKeys, setExpandedMeetingDateKeys] = useState<
+    Set<string>
+  >(() => new Set());
   const initialCloudPullAttemptedRef = useRef(false);
   const deletedTombstoneRef = useRef<Set<string>>(readDeletedTombstone());
   const calendarCellRefs = useRef(new Map<string, HTMLDivElement>());
@@ -590,6 +594,18 @@ export default function MeetingScheduleShell() {
     setForm(emptyForm(dateKey));
     setFormOpen(true);
   };
+
+  const toggleMeetingDateExpansion = useCallback((dateKey: string) => {
+    setExpandedMeetingDateKeys((current) => {
+      const next = new Set(current);
+      if (next.has(dateKey)) {
+        next.delete(dateKey);
+      } else {
+        next.add(dateKey);
+      }
+      return next;
+    });
+  }, []);
 
   const createMeetingPage = useCallback(
     async (
@@ -1482,6 +1498,14 @@ export default function MeetingScheduleShell() {
             {grid.map((cell) => {
               const key = toDateKey(cell.date);
               const dayMeetings = entriesByDate.get(key) ?? [];
+              const isExpanded = expandedMeetingDateKeys.has(key);
+              const visibleMeetings = isExpanded
+                ? dayMeetings
+                : dayMeetings.slice(0, MEETING_CALENDAR_VISIBLE_LIMIT);
+              const hiddenCount = Math.max(
+                0,
+                dayMeetings.length - visibleMeetings.length
+              );
               const isToday = key === todayKey;
               const isHighlighted = key === highlightedDateKey;
               return (
@@ -1524,7 +1548,7 @@ export default function MeetingScheduleShell() {
                     </button>
                   </div>
                   <div className="mt-0.5 flex flex-col gap-0.5 overflow-visible">
-                    {dayMeetings.map((entry) => (
+                    {visibleMeetings.map((entry) => (
                       <button
                         key={entry.page.id}
                         type="button"
@@ -1550,6 +1574,18 @@ export default function MeetingScheduleShell() {
                         <MeetingHoverCard entry={entry} />
                       </button>
                     ))}
+                    {dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT && (
+                      <button
+                        type="button"
+                        onClick={() => toggleMeetingDateExpansion(key)}
+                        aria-expanded={isExpanded}
+                        className="rounded bg-zinc-50 px-1.5 py-0.5 text-left text-xs text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                      >
+                        {isExpanded
+                          ? `收起到 ${MEETING_CALENDAR_VISIBLE_LIMIT} 场`
+                          : `+${hiddenCount} 场，点击展开`}
+                      </button>
+                    )}
                   </div>
                 </div>
               );

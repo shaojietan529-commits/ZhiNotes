@@ -290,6 +290,14 @@ check(
     !dailyNotesShell.includes("createPageWithCloud"),
   "DailyNotesShell 点击 + 应立即打开乐观草稿，再后台保存到云端"
 );
+check(
+  dailyNotesShell.includes("expandedDateKeys") &&
+    dailyNotesShell.includes("toggleDateExpansion") &&
+    dailyNotesShell.includes("const visibleNotes = isExpanded") &&
+    dailyNotesShell.includes("dayNotes.length > DAILY_CALENDAR_VISIBLE_LIMIT") &&
+    !dailyNotesShell.includes("hiddenNotes.map"),
+  "DailyNotesShell 月历单元格应只渲染折叠可见条目，更多纪要必须点击后按需展开"
+);
 
 const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");
 check(
@@ -305,6 +313,15 @@ check(
     meetingScheduleShell.includes("writeCachedMeetingCloudMetadata") &&
     meetingScheduleShell.includes("Meeting schedule local cache load failed"),
   "MeetingScheduleShell 云端会议 metadata 应只把轻量窗口结果作为本机可重建缓存"
+);
+check(
+  meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&
+    meetingScheduleShell.includes("expandedMeetingDateKeys") &&
+    meetingScheduleShell.includes("toggleMeetingDateExpansion") &&
+    meetingScheduleShell.includes("const visibleMeetings = isExpanded") &&
+    meetingScheduleShell.includes("dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT") &&
+    !meetingScheduleShell.includes("{dayMeetings.map"),
+  "MeetingScheduleShell 月历单元格应只渲染折叠可见会议，更多会议必须点击后按需展开"
 );
 
 const usePageHook = read("src/hooks/usePage.ts");
