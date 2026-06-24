@@ -425,8 +425,29 @@ export async function syncCloudPageMetadataDelta(
 }
 
 async function runCloudPageMetadataDelta(): Promise<CloudPageMetadataDeltaResult> {
-  const cursor = getRemoteCursor();
-  if (!cursor) {
+  let nextCursor = getRemoteCursor();
+  if (!nextCursor) {
+    const summaryRes = await call({ action: "summary" });
+    if (summaryRes.ok) {
+      const summary = normalizeSummary(summaryRes.json.summary);
+      if (summary && (await restoreCursorFromLocalMetadata(summary))) {
+        nextCursor = summary.cursor;
+      }
+    } else if (
+      summaryRes.status === "unauthenticated" ||
+      summaryRes.status === "unconfigured"
+    ) {
+      return {
+        status: summaryRes.status,
+        pulled: 0,
+        pages: [],
+        fullRefresh: false,
+        message: summaryRes.message,
+      };
+    }
+  }
+
+  if (!nextCursor) {
     const cloud = await fetchCloudPageMetadata();
     if (cloud.status !== "ok") {
       return {
@@ -454,7 +475,6 @@ async function runCloudPageMetadataDelta(): Promise<CloudPageMetadataDeltaResult
     };
   }
 
-  let nextCursor = cursor;
   let hasMore = false;
   let pulled = 0;
   const pulledPages: RemotePageRecord[] = [];

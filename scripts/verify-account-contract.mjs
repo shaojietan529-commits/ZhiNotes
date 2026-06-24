@@ -294,6 +294,17 @@ check(
     pageSyncClient.includes("metadataDeltaInFlight"),
   "页面同步客户端应提供节流、去重的轻量 metadata 增量同步入口"
 );
+const metadataDeltaBody = pageSyncClient.slice(
+  pageSyncClient.indexOf("async function runCloudPageMetadataDelta"),
+  pageSyncClient.indexOf("export async function pushCloudPages")
+);
+check(
+  metadataDeltaBody.includes('call({ action: "summary" })') &&
+    metadataDeltaBody.includes("restoreCursorFromLocalMetadata(summary)") &&
+    metadataDeltaBody.indexOf("restoreCursorFromLocalMetadata(summary)") <
+      metadataDeltaBody.indexOf("fetchCloudPageMetadata()"),
+  "metadata 增量同步在 localStorage 游标丢失时，应先用本地 metadata 摘要恢复游标，再允许全量 metadata 兜底"
+);
 check(
   pageSyncClient.includes("QUICK_INCREMENTAL_BATCH_LIMIT") &&
     reconcilePageSyncBody.includes("batches < QUICK_INCREMENTAL_BATCH_LIMIT"),
