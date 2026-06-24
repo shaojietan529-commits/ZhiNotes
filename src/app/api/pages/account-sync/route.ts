@@ -22,15 +22,18 @@ export const dynamic = "force-dynamic";
 // Storage layout (same KV store as portfolio sync):
 //   zhinotes:pagesync:index:{email}        → { [pageId]: { u, d } }
 //   zhinotes:pagesync:page:{email}:{id}    → full page record JSON
+//   zhinotes:pagesync:changes:{email}      → bounded [{ id, u, d }] change log
 // Last-write-wins by updated_at; the server never overwrites a newer copy
 // with an older one, so a stale device cannot roll back edits.
 
 const INDEX_KEY_PREFIX = "zhinotes:pagesync:index:";
 const PAGE_KEY_PREFIX = "zhinotes:pagesync:page:";
+const CHANGE_LOG_KEY_PREFIX = "zhinotes:pagesync:changes:";
 const DAILY_CALENDAR_CACHE_KEY_PREFIX = "zhinotes:pagesync:daily-calendar-cache:";
 const MAX_PAYLOAD_BYTES = 950 * 1024;
 const MAX_PUSH_RECORDS = 100;
 const MAX_PULL_IDS = 50;
+const CHANGE_LOG_LIMIT = 5000;
 const DAILY_REPAIR_READ_BATCH = 100;
 const DAILY_REPAIR_WRITE_BATCH = 50;
 const DAILY_ROOT_TITLE = "每日纪要";
@@ -127,12 +130,19 @@ interface PageChangesResult {
   totalChanged: number;
   cursor: string;
   hasMore: boolean;
-  summary: IndexSummary;
+  summary?: IndexSummary;
+  source: "change-log" | "index";
 }
 
 interface PageChangeCursor {
   updatedAt: string;
   id: string;
+}
+
+interface PageChangeLogEntry {
+  id: string;
+  u: string;
+  d: 0 | 1;
 }
 
 interface DailyCalendarCache {
@@ -188,6 +198,82 @@ async function readIndex(
     // next push rebuilds the touched entries
   }
   return {};
+}
+
+function compareChangePosition(
+  leftUpdatedAt: string,
+  leftId: string,
+  rightUpdatedAt: string,
+  rightId: string
+): number {
+  return leftUpdatedAt.localeCompare(rightUpdatedAt) || leftId.localeCompare(rightId);
+}
+
+function isAfterCursor(
+  entry: { id: string; u: string },
+  cursor: PageChangeCursor
+): boolean {
+  return (
+    entry.u > cursor.updatedAt ||
+    (entry.u === cursor.updatedAt && entry.id > cursor.id)
+  );
+}
+
+function sanitizeChangeLogEntry(value: unknown): PageChangeLogEntry | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  if (!isValidId(raw.id)) return null;
+  if (typeof raw.u !== "string" || !raw.u) return null;
+  return {
+    id: raw.id,
+    u: raw.u,
+    d: raw.d === 1 ? 1 : 0,
+  };
+}
+
+function normalizeChangeLog(entries: PageChangeLogEntry[]): PageChangeLogEntry[] {
+  const byPosition = new Map<string, PageChangeLogEntry>();
+  for (const entry of entries) {
+    byPosition.set(`${entry.u}\u0000${entry.id}`, entry);
+  }
+  return [...byPosition.values()].sort((a, b) =>
+    compareChangePosition(a.u, a.id, b.u, b.id)
+  );
+}
+
+async function readChangeLog(
+  config: AccountConfig,
+  email: string
+): Promise<PageChangeLogEntry[]> {
+  const raw = await kvGet(config.kv, `${CHANGE_LOG_KEY_PREFIX}${email}`);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return normalizeChangeLog(
+      parsed
+        .map(sanitizeChangeLogEntry)
+        .filter((entry): entry is PageChangeLogEntry => Boolean(entry))
+    );
+  } catch {
+    return [];
+  }
+}
+
+async function appendChangeLog(
+  config: AccountConfig,
+  email: string,
+  entries: PageChangeLogEntry[]
+): Promise<void> {
+  const valid = entries.filter((entry) => isValidId(entry.id) && entry.u);
+  if (valid.length === 0) return;
+  const existing = await readChangeLog(config, email);
+  const next = normalizeChangeLog([...existing, ...valid]).slice(-CHANGE_LOG_LIMIT);
+  await kvSet(
+    config.kv,
+    `${CHANGE_LOG_KEY_PREFIX}${email}`,
+    JSON.stringify(next)
+  );
 }
 
 function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
@@ -424,18 +510,45 @@ async function getPageChangesSince(
   since: string,
   limit: number
 ): Promise<PageChangesResult> {
-  const index = await readIndex(config, email);
   const cursor = parsePageChangeCursor(since);
+
+  const log = await readChangeLog(config, email);
+  const firstLogEntry = log[0];
+  const canUseChangeLog =
+    Boolean(cursor.updatedAt) &&
+    Boolean(firstLogEntry) &&
+    compareChangePosition(
+      cursor.updatedAt,
+      cursor.id,
+      firstLogEntry?.u ?? "",
+      firstLogEntry?.id ?? ""
+    ) >= 0;
+
+  if (canUseChangeLog) {
+    const changed = log.filter((entry) => isAfterCursor(entry, cursor));
+    const selected = changed.slice(0, limit);
+    const selectedIds = Array.from(new Set(selected.map((entry) => entry.id)));
+    const pages = await readPageRecordsByIds(config, email, selectedIds);
+    const last = selected[selected.length - 1];
+    return {
+      pages,
+      count: pages.length,
+      totalChanged: changed.length,
+      cursor: last ? stringifyPageChangeCursor(last.u, last.id) : since,
+      hasMore: changed.length > selected.length,
+      source: "change-log",
+    };
+  }
+
+  const index = await readIndex(config, email);
   const changed = Object.entries(index)
     .filter(
       ([id, entry]) =>
-        isValidId(id) &&
-        (entry.u > cursor.updatedAt ||
-          (entry.u === cursor.updatedAt && id > cursor.id))
+        isValidId(id) && isAfterCursor({ id, u: entry.u }, cursor)
     )
     .sort(
       ([leftId, left], [rightId, right]) =>
-        left.u.localeCompare(right.u) || leftId.localeCompare(rightId)
+        compareChangePosition(left.u, leftId, right.u, rightId)
     );
   const selected = changed.slice(0, limit);
   const records = await readPageRecordsByIds(
@@ -459,6 +572,7 @@ async function getPageChangesSince(
     cursor: nextCursor || since,
     hasMore: changed.length > selected.length,
     summary,
+    source: "index",
   };
 }
 
@@ -491,6 +605,7 @@ async function repairDailyImportPlacement(
     ) + 1;
   const updates: PageRecord[] = [];
   let skippedNoDate = 0;
+  const changeLogEntries: PageChangeLogEntry[] = [];
 
   for (const page of active.filter(isRepairCandidate)) {
     if (page.id === dailyRoot.id) continue;
@@ -510,6 +625,7 @@ async function repairDailyImportPlacement(
     };
     nextPosition += 1;
     index[nextRecord.id] = { u: now, d: 0 };
+    changeLogEntries.push({ id: nextRecord.id, u: now, d: 0 });
     updates.push(nextRecord);
   }
 
@@ -532,6 +648,7 @@ async function repairDailyImportPlacement(
       `${INDEX_KEY_PREFIX}${email}`,
       JSON.stringify(index)
     );
+    await appendChangeLog(config, email, changeLogEntries);
   }
 
   return {
@@ -1079,6 +1196,7 @@ export async function POST(request: Request) {
       const index = await readIndex(config, me);
       const accepted: string[] = [];
       const skipped: string[] = [];
+      const changeLogEntries: PageChangeLogEntry[] = [];
 
       for (const item of body.pages) {
         const record = sanitizeRecord(item);
@@ -1098,6 +1216,11 @@ export async function POST(request: Request) {
           u: record.updated_at,
           d: record.deleted_at ? 1 : 0,
         };
+        changeLogEntries.push({
+          id: record.id,
+          u: record.updated_at,
+          d: record.deleted_at ? 1 : 0,
+        });
         accepted.push(record.id);
       }
 
@@ -1107,6 +1230,7 @@ export async function POST(request: Request) {
           `${INDEX_KEY_PREFIX}${me}`,
           JSON.stringify(index)
         );
+        await appendChangeLog(config, me, changeLogEntries);
       }
       return NextResponse.json({ ok: true, accepted, skipped });
     }
