@@ -25,6 +25,7 @@ import {
   type PageProperty,
 } from "@/lib/pages/pageProperties";
 import PageContextMenu from "@/components/page/PageContextMenu";
+import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import type { Page } from "@/lib/utils/types";
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
@@ -188,6 +189,29 @@ interface QueueResult {
 interface CreateMeetingResult {
   page: Page;
   queueResult?: QueueResult;
+  cloudOnly?: boolean;
+}
+
+interface CloudPageRecord {
+  id: string;
+  parent_id: string | null;
+  title: string;
+  icon: string | null;
+  cover_url: string | null;
+  content_text: string | null;
+  properties: string | null;
+  position: number;
+  depth: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+interface MeetingCloudMetadataResponse {
+  ok?: boolean;
+  rootId?: string | null;
+  pages?: CloudPageRecord[];
+  error?: string;
 }
 
 export default function MeetingScheduleShell() {
@@ -305,10 +329,36 @@ export default function MeetingScheduleShell() {
       initialCloudPullAttemptedRef.current = true;
       await reconcilePageSync().catch(() => undefined);
     }
-    const id = await getModuleRootId("meeting-schedule");
-    setRootId(id);
-    await restoreDeletedMeetingPages(id, deletedTombstoneRef.current);
-    setMeetings(await listPages(id));
+    let id: string | null = null;
+    let localPages: Page[] = [];
+    let localLoadFailed = false;
+
+    try {
+      id = await getModuleRootId("meeting-schedule");
+      setRootId(id);
+      await restoreDeletedMeetingPages(id, deletedTombstoneRef.current).catch(
+        () => undefined
+      );
+      localPages = await listPages(id);
+    } catch (error) {
+      localLoadFailed = true;
+      console.warn("Meeting schedule local load failed", error);
+    }
+
+    const cloud = await loadMeetingCloudMetadata().catch(() => ({
+      rootId: null,
+      pages: [],
+    }));
+    const nextRootId =
+      id ?? cloud.rootId ?? (localLoadFailed ? generateId() : null);
+    if (nextRootId) setRootId(nextRootId);
+    setMeetings(
+      mergeMeetingPages(
+        localPages,
+        cloud.pages,
+        deletedTombstoneRef.current
+      )
+    );
   }, []);
 
   const handleDeleteMeeting = useCallback(
@@ -473,7 +523,6 @@ export default function MeetingScheduleShell() {
       const topic = draft.topic.trim() || "未命名会议";
       const organizer = draft.organizer.trim();
       const title = [topic, organizer, draft.date].filter(Boolean).join("-");
-      const page = await createPage({ parentId: rootId, title, icon: "🗓️" });
       const timeLabel = options.timeLabel ?? draft.time.trim();
       const importedAt = options.importedAt ?? new Date().toISOString();
       const timeStatus =
@@ -605,33 +654,64 @@ export default function MeetingScheduleShell() {
         });
       }
 
-      const updatedPage = await updatePage(page.id, {
-        properties: stringifyPageProperties(props),
-        content_text: buildMeetingTraceContent({
-          title,
-          topic,
-          organizer,
-          date: draft.date,
-          time: timeLabel,
-          platform: normalizePlatform(draft.platform),
-          joinUrl: options.joinUrl ?? "",
-          meetingId: options.meetingId ?? "",
-          hasPasscode: Boolean(options.passcode),
-          recordingDevice: options.recordingDevice ?? DEFAULT_RECORDING_DEVICE,
-          fallbackDevice: options.fallbackDevice ?? DEFAULT_RECORDING_DEVICE,
-          transcriptionModel,
-          meetingPriority,
-          queueStatus: "未入队",
-          queueJobId: "",
-          queueError: "",
-          traceStatus,
-          timeStatus,
-          recordingStatus,
-          recordingGateStatus,
-          importedAt,
-          traceNote,
-        }),
+      const contentText = buildMeetingTraceContent({
+        title,
+        topic,
+        organizer,
+        date: draft.date,
+        time: timeLabel,
+        platform: normalizePlatform(draft.platform),
+        joinUrl: options.joinUrl ?? "",
+        meetingId: options.meetingId ?? "",
+        hasPasscode: Boolean(options.passcode),
+        recordingDevice: options.recordingDevice ?? DEFAULT_RECORDING_DEVICE,
+        fallbackDevice: options.fallbackDevice ?? DEFAULT_RECORDING_DEVICE,
+        transcriptionModel,
+        meetingPriority,
+        queueStatus: "未入队",
+        queueJobId: "",
+        queueError: "",
+        traceStatus,
+        timeStatus,
+        recordingStatus,
+        recordingGateStatus,
+        importedAt,
+        traceNote,
       });
+
+      let page: Page;
+      try {
+        page = await createPage({ parentId: rootId, title, icon: "🗓️" });
+      } catch (error) {
+        if (!isLocalDbIoError(error)) throw error;
+        const cloudResult = await createCloudOnlyMeetingPage({
+          rootId,
+          title,
+          properties: stringifyPageProperties(props),
+          contentText,
+        });
+        upsertMeetingInView(cloudResult.page);
+        return cloudResult;
+      }
+
+      let updatedPage: Page | null;
+      try {
+        updatedPage = await updatePage(page.id, {
+          properties: stringifyPageProperties(props),
+          content_text: contentText,
+        });
+      } catch (error) {
+        if (!isLocalDbIoError(error)) throw error;
+        const cloudResult = await createCloudOnlyMeetingPage({
+          rootId,
+          pageId: page.id,
+          title,
+          properties: stringifyPageProperties(props),
+          contentText,
+        });
+        upsertMeetingInView(cloudResult.page);
+        return cloudResult;
+      }
       let finalPage = updatedPage ?? page;
       let queueResult: QueueResult | undefined;
       upsertMeetingInView(finalPage);
@@ -734,7 +814,7 @@ export default function MeetingScheduleShell() {
       setIntakeText("");
       setIntakeMessage(
         hasExecutableTime
-          ? `${formatImportDateMessage(draft.date)} 入会链接、会议号和会议密码已保存到会议页面。${formatQueueResultForMessage(
+          ? `${formatImportDateMessage(draft.date)}${result?.cloudOnly ? " Edge 本地数据库写入失败，已改存到账号云端。" : ""} 入会链接、会议号和会议密码已保存到会议页面。${formatQueueResultForMessage(
               result?.queueResult
             )}`
           : "已保留会议痕迹，但还缺明确开始时间；请稍后打开会议页补齐。"
@@ -1592,6 +1672,161 @@ function toPageSyncRecord(page: Page) {
     updated_at: page.updated_at,
     deleted_at: page.deleted_at ?? null,
   };
+}
+
+async function loadMeetingCloudMetadata(): Promise<{
+  rootId: string | null;
+  pages: Page[];
+}> {
+  const res = await fetch("/api/pages/account-sync", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "meeting-calendar-metadata" }),
+  });
+  if (!res.ok) return { rootId: null, pages: [] };
+  const data = (await res.json()) as MeetingCloudMetadataResponse;
+  return {
+    rootId: typeof data.rootId === "string" ? data.rootId : null,
+    pages: (data.pages ?? []).map(cloudRecordToPage),
+  };
+}
+
+function cloudRecordToPage(record: CloudPageRecord): Page {
+  return {
+    id: record.id,
+    owner_id: DEFAULT_OWNER_ID,
+    parent_id: record.parent_id,
+    database_id: null,
+    title: record.title ?? "",
+    icon: record.icon ?? null,
+    cover_url: record.cover_url ?? null,
+    content_yjs: null,
+    content_text: record.content_text ?? null,
+    properties: record.properties ?? null,
+    position: record.position ?? 0,
+    depth: record.depth ?? 0,
+    created_at: record.created_at,
+    updated_at: record.updated_at,
+    deleted_at: record.deleted_at ?? null,
+    sync_version: 1,
+  };
+}
+
+function mergeMeetingPages(
+  localPages: Page[],
+  cloudPages: Page[],
+  tombstone: Set<string>
+) {
+  const byId = new Map<string, Page>();
+  for (const page of [...localPages, ...cloudPages]) {
+    if (page.deleted_at || tombstone.has(page.id)) continue;
+    const existing = byId.get(page.id);
+    if (!existing || page.updated_at >= existing.updated_at) {
+      byId.set(page.id, page);
+    }
+  }
+  return [...byId.values()];
+}
+
+async function createCloudOnlyMeetingPage({
+  rootId,
+  pageId,
+  title,
+  properties,
+  contentText,
+}: {
+  rootId: string;
+  pageId?: string;
+  title: string;
+  properties: string;
+  contentText: string;
+}): Promise<CreateMeetingResult> {
+  const now = new Date().toISOString();
+  const rootPage = makeCloudOnlyPage({
+    id: rootId,
+    parentId: null,
+    title: "ZhiHui",
+    icon: "🗓️",
+    contentText: "",
+    properties: null,
+    position: 0,
+    depth: 0,
+    now,
+  });
+  const page = makeCloudOnlyPage({
+    id: pageId ?? generateId(),
+    parentId: rootId,
+    title,
+    icon: "🗓️",
+    contentText,
+    properties,
+    position: Date.now(),
+    depth: 1,
+    now,
+  });
+
+  const res = await fetch("/api/pages/account-sync", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      action: "push",
+      pages: [toPageSyncRecord(rootPage), toPageSyncRecord(page)],
+    }),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(
+      `本地数据库写入失败，云端保存也失败：${data.error || res.status}`
+    );
+  }
+
+  return { page, cloudOnly: true };
+}
+
+function makeCloudOnlyPage({
+  id,
+  parentId,
+  title,
+  icon,
+  contentText,
+  properties,
+  position,
+  depth,
+  now,
+}: {
+  id: string;
+  parentId: string | null;
+  title: string;
+  icon: string | null;
+  contentText: string | null;
+  properties: string | null;
+  position: number;
+  depth: number;
+  now: string;
+}): Page {
+  return {
+    id,
+    owner_id: DEFAULT_OWNER_ID,
+    parent_id: parentId,
+    database_id: null,
+    title,
+    icon,
+    cover_url: null,
+    content_yjs: null,
+    content_text: contentText,
+    properties,
+    position,
+    depth,
+    created_at: now,
+    updated_at: now,
+    deleted_at: null,
+    sync_version: 1,
+  };
+}
+
+function isLocalDbIoError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /SQLITE_IOERR|disk I\/O error|quota/i.test(message);
 }
 
 function toMeetingEntry(page: Page): MeetingEntry {

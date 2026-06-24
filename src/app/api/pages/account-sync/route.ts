@@ -34,6 +34,7 @@ const MAX_PULL_IDS = 50;
 const DAILY_REPAIR_READ_BATCH = 100;
 const DAILY_REPAIR_WRITE_BATCH = 50;
 const DAILY_ROOT_TITLE = "每日纪要";
+const MEETING_ROOT_TITLES = new Set(["ZhiHui", "会议日程"]);
 const MODULE_ROOT_TITLES = new Set([
   "每日纪要",
   "产业链研究",
@@ -93,6 +94,13 @@ interface DailyManifestResult {
 
 interface DailyMetadataResult extends DailyManifestResult {
   pages: PageRecord[];
+}
+
+interface MeetingCalendarMetadataResult {
+  rootId: string | null;
+  pages: PageRecord[];
+  count: number;
+  scanned: number;
 }
 
 interface DailyDatedRecord {
@@ -495,6 +503,69 @@ async function getDailyMetadata(
   };
 }
 
+async function getMeetingCalendarMetadata(
+  config: AccountConfig,
+  email: string
+): Promise<MeetingCalendarMetadataResult> {
+  const index = await readIndex(config, email);
+  const pages = await readIndexedPages(config, email, index);
+  const active = pages.filter((page) => !page.deleted_at);
+  const root = active
+    .filter((page) => page.parent_id === null && MEETING_ROOT_TITLES.has(page.title))
+    .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+
+  const childrenByParent = new Map<string, PageRecord[]>();
+  for (const page of active) {
+    if (!page.parent_id) continue;
+    const children = childrenByParent.get(page.parent_id) ?? [];
+    children.push(page);
+    childrenByParent.set(page.parent_id, children);
+  }
+
+  const ids = new Set<string>();
+  if (root) {
+    const visit = (parentId: string) => {
+      for (const child of childrenByParent.get(parentId) ?? []) {
+        if (ids.has(child.id)) continue;
+        ids.add(child.id);
+        visit(child.id);
+      }
+    };
+    visit(root.id);
+  }
+
+  for (const page of active) {
+    if (isMeetingCalendarRecord(page)) ids.add(page.id);
+  }
+
+  return {
+    rootId: root?.id ?? null,
+    pages: active
+      .filter((page) => ids.has(page.id))
+      .map((page) => ({
+        ...page,
+        cover_url: null,
+        content_text: null,
+      })),
+    count: ids.size,
+    scanned: active.length,
+  };
+}
+
+function isMeetingCalendarRecord(record: PageRecord) {
+  if (record.deleted_at) return false;
+  const props = parseProperties(record.properties);
+  const propNames = new Set(props.map((prop) => prop.name));
+  return (
+    propNames.has("会议痕迹") ||
+    propNames.has("时间状态") ||
+    propNames.has("录制状态") ||
+    propNames.has("入会链接") ||
+    propNames.has("会议号") ||
+    (record.icon === "🗓️" && isDateKey(getPropertyValue(record, "日期")))
+  );
+}
+
 function collectDailyDatedRecords(active: PageRecord[]): {
   rootId: string | null;
   notes: DailyDatedRecord[];
@@ -846,6 +917,11 @@ export async function POST(request: Request) {
         endDate,
         recentLimit
       );
+      return NextResponse.json({ ok: true, ...result });
+    }
+
+    if (body.action === "meeting-calendar-metadata") {
+      const result = await getMeetingCalendarMetadata(config, me);
       return NextResponse.json({ ok: true, ...result });
     }
 
