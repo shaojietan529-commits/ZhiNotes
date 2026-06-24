@@ -28,6 +28,8 @@ import { PLATFORM_MODULES } from "@/lib/modules/registry";
 import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
 import { ZhiNoteLogo, ZhiNoteMark } from "@/components/brand/ZhiNoteLogo";
 import { usePageCloudSync } from "@/hooks/usePageCloudSync";
+import { useDatabaseCloudSync } from "@/hooks/useDatabaseCloudSync";
+import { subscribeDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
 import {
   ACCOUNT_PROFILE_UPDATED_EVENT,
   type ClientAccountInfo,
@@ -207,6 +209,7 @@ export default function Sidebar() {
   const primaryPointerDragRef = useRef<SidebarPrimaryPointerDrag | null>(null);
   const suppressPrimaryClickRef = useRef(false);
   const pageSync = usePageCloudSync();
+  const databaseSync = useDatabaseCloudSync();
   const sidebarModules = PLATFORM_MODULES.filter(
     (module) => module.route && module.route !== "/"
   );
@@ -235,6 +238,25 @@ export default function Sidebar() {
       getAllDatabases().then(setDatabases);
     }
   }, [dbReady]);
+
+  const refreshDatabases = useCallback(async () => {
+    setDatabases(await getAllDatabases());
+  }, []);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    let timer: number | null = null;
+    const unsubscribe = subscribeDatabasesUpdated(() => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void refreshDatabases();
+      }, 120);
+    });
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [dbReady, refreshDatabases]);
 
   useEffect(() => {
     try {
@@ -271,10 +293,6 @@ export default function Sidebar() {
       );
     };
   }, [refreshAccountLabel]);
-
-  const refreshDatabases = async () => {
-    setDatabases(await getAllDatabases());
-  };
 
   const handleNewPage = async () => {
     try {
@@ -738,6 +756,26 @@ export default function Sidebar() {
               {pageSync.state === "synced"
                 ? "☁️"
                 : pageSync.state === "syncing"
+                  ? "⏳"
+                : "⚠️"}
+            </span>
+          )}
+          {databaseSync.state !== "disabled" && (
+            <span
+              className="ml-1 shrink-0 text-[10px]"
+              title={
+                databaseSync.state === "synced"
+                  ? `数据库已同步${databaseSync.lastSyncAt ? ` · ${new Date(databaseSync.lastSyncAt).toLocaleTimeString("zh-CN")}` : ""}`
+                  : databaseSync.state === "syncing"
+                    ? "数据库同步中…"
+                    : databaseSync.state === "signed-out"
+                      ? "数据库同步：未登录"
+                      : "数据库同步出错"
+              }
+            >
+              {databaseSync.state === "synced"
+                ? "🗄️"
+                : databaseSync.state === "syncing"
                   ? "⏳"
                   : "⚠️"}
             </span>

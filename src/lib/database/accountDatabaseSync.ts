@@ -10,6 +10,8 @@ import {
   applyRemoteDatabaseRecords,
   clearLocalDatabaseCacheExceptKeys,
   getAllDatabaseRecordsForSync,
+  getPendingDatabaseSyncRecords,
+  markDatabaseSyncLogEntriesSynced,
   type RemoteDatabaseRecord,
 } from "@/lib/db/local/queries";
 
@@ -71,6 +73,9 @@ export interface PushLocalDatabasesResult {
   pushed: number;
   skipped: number;
   total: number;
+  marked?: number;
+  acceptedKeys?: string[];
+  skippedKeys?: string[];
   message?: string;
 }
 
@@ -262,6 +267,8 @@ async function pushCloudDatabaseRecordsInBatches(
 ): Promise<PushLocalDatabasesResult> {
   let pushed = 0;
   let skipped = 0;
+  const acceptedKeys: string[] = [];
+  const skippedKeys: string[] = [];
   let batch: CloudDatabaseRecord[] = [];
   let batchBytes = 0;
 
@@ -292,6 +299,8 @@ async function pushCloudDatabaseRecordsInBatches(
       if (result) {
         pushed += result.accepted.length;
         skipped += result.skipped.length;
+        acceptedKeys.push(...result.accepted);
+        skippedKeys.push(...result.skipped);
       }
     }
     if (size > PUSH_BATCH_BYTES) continue;
@@ -312,16 +321,65 @@ async function pushCloudDatabaseRecordsInBatches(
   if (result) {
     pushed += result.accepted.length;
     skipped += result.skipped.length;
+    acceptedKeys.push(...result.accepted);
+    skippedKeys.push(...result.skipped);
   }
-  return { status: "ok", pushed, skipped, total: records.length };
+  return {
+    status: "ok",
+    pushed,
+    skipped,
+    total: records.length,
+    acceptedKeys,
+    skippedKeys,
+  };
 }
 
 export async function pushLocalDatabasesToCloud(): Promise<PushLocalDatabasesResult> {
   if (!isDatabaseSyncEnabled()) {
     return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
   }
+  const pending = await getPendingDatabaseSyncRecords(1000);
   const records = await getAllDatabaseRecordsForSync();
-  return pushCloudDatabaseRecordsInBatches(records);
+  const result = await pushCloudDatabaseRecordsInBatches(records);
+  if (result.status !== "ok") return result;
+  const acknowledged = new Set([
+    ...(result.acceptedKeys ?? []),
+    ...(result.skippedKeys ?? []),
+  ]);
+  const marked = await markDatabaseSyncLogEntriesSynced(
+    pending.entries
+      .filter((entry) => acknowledged.has(entry.key))
+      .map((entry) => entry.logId)
+  );
+  return { ...result, marked };
+}
+
+export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLocalDatabasesResult> {
+  if (!isDatabaseSyncEnabled()) {
+    return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
+  }
+  const pending = await getPendingDatabaseSyncRecords(200);
+  if (pending.entries.length === 0 || pending.records.length === 0) {
+    return { status: "ok", pushed: 0, skipped: 0, total: pending.entries.length };
+  }
+  const result = await pushCloudDatabaseRecordsInBatches(pending.records);
+  if (result.status !== "ok") return result;
+  const acknowledged = new Set([
+    ...(result.acceptedKeys ?? []),
+    ...(result.skippedKeys ?? []),
+  ]);
+  const marked = await markDatabaseSyncLogEntriesSynced(
+    pending.entries
+      .filter((entry) => acknowledged.has(entry.key))
+      .map((entry) => entry.logId)
+  );
+  return {
+    status: "ok",
+    pushed: result.pushed,
+    skipped: result.skipped,
+    total: pending.entries.length,
+    marked,
+  };
 }
 
 export async function syncCloudDatabaseDelta(): Promise<{
@@ -371,7 +429,7 @@ export async function reconcileDatabaseSync(): Promise<DatabaseReconcileResult> 
       message: pull.message,
     };
   }
-  const push = await pushLocalDatabasesToCloud();
+  const push = await pushPendingLocalDatabaseChangesToCloud();
   if (push.status !== "ok") {
     return {
       status: push.status,

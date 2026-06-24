@@ -157,6 +157,7 @@ import {
   buildDatabaseTemplateRowReceipt,
   type DatabaseTemplateRowReceipt,
 } from "@/lib/database/databaseTemplateRows";
+import { subscribeDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 
 interface DatabaseShellProps {
@@ -303,6 +304,20 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     queueMicrotask(() => {
       reload();
     });
+  }, [reload]);
+
+  useEffect(() => {
+    let timer: number | null = null;
+    const unsubscribe = subscribeDatabasesUpdated(() => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void reload();
+      }, 120);
+    });
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      unsubscribe();
+    };
   }, [reload]);
 
   const handleTitleChange = useCallback(

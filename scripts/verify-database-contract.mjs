@@ -21,7 +21,10 @@ const files = {
   databaseWorkbench: "src/lib/database/databaseWorkbench.ts",
   databaseAccountSyncRoute: "src/app/api/databases/account-sync/route.ts",
   databaseAccountSyncClient: "src/lib/database/accountDatabaseSync.ts",
+  databaseCloudSyncHook: "src/hooks/useDatabaseCloudSync.ts",
+  databaseUpdateBus: "src/lib/database/databaseUpdateBus.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
+  sidebar: "src/components/sidebar/Sidebar.tsx",
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
@@ -115,7 +118,10 @@ function run() {
   const databaseAccountSyncClient = readProjectFile(
     files.databaseAccountSyncClient
   );
+  const databaseCloudSyncHook = readProjectFile(files.databaseCloudSyncHook);
+  const databaseUpdateBus = readProjectFile(files.databaseUpdateBus);
   const accountShell = readProjectFile(files.accountShell);
+  const sidebar = readProjectFile(files.sidebar);
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
@@ -199,6 +205,9 @@ function run() {
     "applyRemoteDatabaseRecords",
     "clearLocalDatabaseCacheExceptKeys",
     "getAllDatabaseRecordsForSync",
+    "getPendingDatabaseSyncRecords",
+    "markDatabaseSyncLogEntriesSynced",
+    "pushPendingLocalDatabaseChangesToCloud",
   ]) {
     assertIncludes(
       files.databaseAccountSyncClient,
@@ -217,6 +226,9 @@ function run() {
     "database_fields",
     "database_views",
     "ensureDatabaseRowPage",
+    "getPendingDatabaseSyncRecords",
+    "markDatabaseSyncLogEntriesSynced",
+    "table_name IN ('databases', 'database_fields', 'database_rows', 'database_views')",
   ]) {
     assertIncludes(
       files.queries,
@@ -239,6 +251,60 @@ function run() {
       accountShell,
       snippet,
       "Account settings must expose database sync through an explicit owner gate."
+    );
+  }
+  for (const snippet of [
+    "useDatabaseCloudSync",
+    "SYNC_INTERVAL_MS",
+    "LEASE_KEY",
+    "claimSyncLease",
+    "reconcileDatabaseSync",
+    "DATABASE_SYNC_CONFIG_EVENT",
+    "emitDatabasesUpdated",
+    'document.visibilityState === "visible"',
+  ]) {
+    assertIncludes(
+      files.databaseCloudSyncHook,
+      databaseCloudSyncHook,
+      snippet,
+      "Database cloud sync hook must poll cheaply, avoid duplicate tab leaders, and broadcast cloud pulls."
+    );
+  }
+  for (const snippet of [
+    "BroadcastChannel",
+    "emitDatabasesUpdated",
+    "subscribeDatabasesUpdated",
+    "zhinote.databases.updated.broadcast.v1",
+  ]) {
+    assertIncludes(
+      files.databaseUpdateBus,
+      databaseUpdateBus,
+      snippet,
+      "Database update bus must notify active UI after cloud pulls."
+    );
+  }
+  for (const snippet of [
+    "useDatabaseCloudSync",
+    "subscribeDatabasesUpdated",
+    "databaseSync.state",
+    "数据库已同步",
+  ]) {
+    assertIncludes(
+      files.sidebar,
+      sidebar,
+      snippet,
+      "Sidebar must mount database background sync and refresh local database lists after cloud pulls."
+    );
+  }
+  for (const snippet of [
+    "subscribeDatabasesUpdated",
+    "void reload()",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Open database pages must reload when cloud database changes arrive."
     );
   }
   for (const snippet of [

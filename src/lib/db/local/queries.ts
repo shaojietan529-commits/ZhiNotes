@@ -1716,6 +1716,21 @@ export interface LocalDatabaseCachePruneResult {
   cleared: number;
 }
 
+export interface PendingDatabaseSyncRecords {
+  entries: Array<{
+    logId: number;
+    key: string;
+  }>;
+  records: RemoteDatabaseRecord[];
+}
+
+const DATABASE_SYNC_TABLE_TYPES: Record<string, RemoteDatabaseRecordType> = {
+  databases: "database",
+  database_fields: "field",
+  database_rows: "row",
+  database_views: "view",
+};
+
 export function getRemoteDatabaseRecordKey(
   record: Pick<RemoteDatabaseRecord, "type" | "id">
 ): string {
@@ -1839,6 +1854,79 @@ export async function getAllDatabaseRecordsForSync(): Promise<
       })
     ),
   ];
+}
+
+export async function getDatabaseRecordsForSyncByKeys(
+  keys: string[]
+): Promise<RemoteDatabaseRecord[]> {
+  const wanted = new Set(keys.filter(isRemoteDatabaseRecordKey));
+  if (wanted.size === 0) return [];
+  const records = await getAllDatabaseRecordsForSync();
+  return records.filter((record) =>
+    wanted.has(getRemoteDatabaseRecordKey(record))
+  );
+}
+
+export async function getPendingDatabaseSyncRecords(
+  limit: number = 200
+): Promise<PendingDatabaseSyncRecords> {
+  const db = await getDb();
+  const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 1000);
+  const rows = db.query(
+    `SELECT id, table_name as tableName, row_id as rowId
+     FROM sync_log
+     WHERE synced = 0
+       AND table_name IN ('databases', 'database_fields', 'database_rows', 'database_views')
+     ORDER BY timestamp ASC, id ASC
+     LIMIT ?`,
+    [safeLimit]
+  ) as unknown as Array<{
+    id: number;
+    tableName: string;
+    rowId: string;
+  }>;
+  const entries = rows
+    .map((row) => {
+      const type = DATABASE_SYNC_TABLE_TYPES[row.tableName];
+      if (!type || !row.rowId) return null;
+      return {
+        logId: Number(row.id),
+        key: `${type}:${row.rowId}`,
+      };
+    })
+    .filter((entry): entry is { logId: number; key: string } => Boolean(entry));
+  const records = await getDatabaseRecordsForSyncByKeys(
+    entries.map((entry) => entry.key)
+  );
+  return { entries, records };
+}
+
+export async function markDatabaseSyncLogEntriesSynced(
+  ids: number[]
+): Promise<number> {
+  const db = await getDb();
+  const uniqueIds = Array.from(
+    new Set(
+      ids
+        .map((id) => Math.floor(id))
+        .filter((id) => Number.isInteger(id) && id > 0)
+    )
+  );
+  if (uniqueIds.length === 0) return 0;
+  let marked = 0;
+  const chunkSize = 200;
+  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+    const chunk = uniqueIds.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    db.run(
+      `UPDATE sync_log
+       SET synced = 1
+       WHERE id IN (${placeholders})`,
+      chunk
+    );
+    marked += chunk.length;
+  }
+  return marked;
 }
 
 export async function clearLocalDatabaseCacheExceptKeys(
