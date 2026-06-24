@@ -6,10 +6,20 @@
 // until an owner-facing migration/toggle explicitly enables it, while still
 // letting the app use the stage-three incremental cloud ledger when approved.
 
+import {
+  applyRemoteDatabaseRecords,
+  clearLocalDatabaseCacheExceptKeys,
+  getAllDatabaseRecordsForSync,
+  type RemoteDatabaseRecord,
+} from "@/lib/db/local/queries";
+
 const ENABLED_KEY = "zhinote.databasesync.enabled";
 const LAST_SYNC_KEY = "zhinote.databasesync.lastSyncAt";
 const REMOTE_CURSOR_KEY = "zhinote.databasesync.remoteCursor";
 const INCREMENTAL_PULL_LIMIT = 100;
+const PULL_BATCH = 80;
+const PUSH_BATCH_RECORDS = 80;
+const PUSH_BATCH_BYTES = 800 * 1024;
 
 export const DATABASE_SYNC_CONFIG_EVENT = "zhinote:databasesync-config";
 
@@ -22,26 +32,7 @@ export type DatabaseSyncStatus =
 
 export type DatabaseSyncRecordType = "database" | "field" | "row" | "view";
 
-export interface CloudDatabaseRecord {
-  type: DatabaseSyncRecordType;
-  id: string;
-  database_id: string | null;
-  parent_page_id: string | null;
-  page_id: string | null;
-  owner_id: string;
-  title: string | null;
-  icon: string | null;
-  description: string | null;
-  name: string | null;
-  field_type: string | null;
-  view_type: string | null;
-  config: string | null;
-  field_values: string | null;
-  position: number;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-}
+export type CloudDatabaseRecord = RemoteDatabaseRecord;
 
 export interface DatabaseSyncIndexSummary {
   count: number;
@@ -72,6 +63,30 @@ export interface PushCloudDatabasesResult {
   status: DatabaseSyncStatus;
   accepted: string[];
   skipped: string[];
+  message?: string;
+}
+
+export interface PushLocalDatabasesResult {
+  status: DatabaseSyncStatus;
+  pushed: number;
+  skipped: number;
+  total: number;
+  message?: string;
+}
+
+export interface DatabaseReconcileResult {
+  status: DatabaseSyncStatus;
+  pulled: number;
+  pushed: number;
+  skipped: number;
+  message?: string;
+}
+
+export interface RebuildDatabaseCacheResult {
+  status: DatabaseSyncStatus;
+  cleared: number;
+  pulled: number;
+  total: number;
   message?: string;
 }
 
@@ -240,4 +255,184 @@ export async function pushCloudDatabaseRecords(
     : [];
   setLastDatabaseSyncAtNow();
   return { status: "ok", accepted, skipped };
+}
+
+async function pushCloudDatabaseRecordsInBatches(
+  records: CloudDatabaseRecord[]
+): Promise<PushLocalDatabasesResult> {
+  let pushed = 0;
+  let skipped = 0;
+  let batch: CloudDatabaseRecord[] = [];
+  let batchBytes = 0;
+
+  const flush = async (): Promise<PushCloudDatabasesResult | null> => {
+    if (batch.length === 0) return null;
+    const current = batch;
+    batch = [];
+    batchBytes = 0;
+    return pushCloudDatabaseRecords(current);
+  };
+
+  for (const record of records) {
+    const size = JSON.stringify(record).length;
+    if (
+      batch.length >= PUSH_BATCH_RECORDS ||
+      (batchBytes + size > PUSH_BATCH_BYTES && batch.length > 0)
+    ) {
+      const result = await flush();
+      if (result && result.status !== "ok") {
+        return {
+          status: result.status,
+          pushed,
+          skipped,
+          total: records.length,
+          message: result.message,
+        };
+      }
+      if (result) {
+        pushed += result.accepted.length;
+        skipped += result.skipped.length;
+      }
+    }
+    if (size > PUSH_BATCH_BYTES) continue;
+    batch.push(record);
+    batchBytes += size;
+  }
+
+  const result = await flush();
+  if (result && result.status !== "ok") {
+    return {
+      status: result.status,
+      pushed,
+      skipped,
+      total: records.length,
+      message: result.message,
+    };
+  }
+  if (result) {
+    pushed += result.accepted.length;
+    skipped += result.skipped.length;
+  }
+  return { status: "ok", pushed, skipped, total: records.length };
+}
+
+export async function pushLocalDatabasesToCloud(): Promise<PushLocalDatabasesResult> {
+  if (!isDatabaseSyncEnabled()) {
+    return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
+  }
+  const records = await getAllDatabaseRecordsForSync();
+  return pushCloudDatabaseRecordsInBatches(records);
+}
+
+export async function syncCloudDatabaseDelta(): Promise<{
+  status: DatabaseSyncStatus;
+  pulled: number;
+  message?: string;
+}> {
+  if (!isDatabaseSyncEnabled()) {
+    return { status: "disabled", pulled: 0 };
+  }
+
+  let cursor = getRemoteCursor();
+  let pulled = 0;
+  let batches = 0;
+  let hasMore = false;
+  do {
+    const changes = await fetchCloudDatabaseChangesSince(
+      cursor,
+      INCREMENTAL_PULL_LIMIT
+    );
+    if (changes.status !== "ok") {
+      return { status: changes.status, pulled, message: changes.message };
+    }
+    if (changes.records.length > 0) {
+      await applyRemoteDatabaseRecords(changes.records);
+      pulled += changes.records.length;
+    }
+    cursor = changes.cursor;
+    hasMore = changes.hasMore;
+    batches += 1;
+  } while (hasMore && batches < 3);
+
+  return { status: "ok", pulled };
+}
+
+export async function reconcileDatabaseSync(): Promise<DatabaseReconcileResult> {
+  if (!isDatabaseSyncEnabled()) {
+    return { status: "disabled", pulled: 0, pushed: 0, skipped: 0 };
+  }
+  const pull = await syncCloudDatabaseDelta();
+  if (pull.status !== "ok") {
+    return {
+      status: pull.status,
+      pulled: pull.pulled,
+      pushed: 0,
+      skipped: 0,
+      message: pull.message,
+    };
+  }
+  const push = await pushLocalDatabasesToCloud();
+  if (push.status !== "ok") {
+    return {
+      status: push.status,
+      pulled: pull.pulled,
+      pushed: push.pushed,
+      skipped: push.skipped,
+      message: push.message,
+    };
+  }
+  return {
+    status: "ok",
+    pulled: pull.pulled,
+    pushed: push.pushed,
+    skipped: push.skipped,
+  };
+}
+
+export async function rebuildDatabaseCacheFromCloud(): Promise<RebuildDatabaseCacheResult> {
+  if (!isDatabaseSyncEnabled()) {
+    return { status: "disabled", cleared: 0, pulled: 0, total: 0 };
+  }
+  const manifestRes = await call({ action: "manifest" });
+  if (!manifestRes.ok) {
+    return {
+      status: manifestRes.status,
+      cleared: 0,
+      pulled: 0,
+      total: 0,
+      message: manifestRes.message,
+    };
+  }
+  const index =
+    manifestRes.json.index && typeof manifestRes.json.index === "object"
+      ? (manifestRes.json.index as Record<string, unknown>)
+      : {};
+  const keys = Object.keys(index).filter(isValidRecordKey);
+  const prune = await clearLocalDatabaseCacheExceptKeys(keys);
+  let pulled = 0;
+  for (let i = 0; i < keys.length; i += PULL_BATCH) {
+    const result = await fetchCloudDatabaseRecordsByKeys(
+      keys.slice(i, i + PULL_BATCH)
+    );
+    if (result.status !== "ok") {
+      return {
+        status: result.status,
+        cleared: prune.cleared,
+        pulled,
+        total: keys.length,
+        message: result.message,
+      };
+    }
+    if (result.records.length > 0) {
+      await applyRemoteDatabaseRecords(result.records);
+      pulled += result.records.length;
+    }
+  }
+  setLastDatabaseSyncAtNow();
+  return {
+    status: "ok",
+    cleared: prune.cleared,
+    pulled,
+    total: keys.length,
+  };
 }

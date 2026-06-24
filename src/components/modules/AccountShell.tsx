@@ -23,6 +23,14 @@ import {
   notifyAccountProfileUpdated,
   type ClientAccountInfo,
 } from "@/lib/account/clientProfile";
+import {
+  getLastDatabaseSyncAt,
+  isDatabaseSyncEnabled,
+  pushLocalDatabasesToCloud,
+  rebuildDatabaseCacheFromCloud,
+  reconcileDatabaseSync,
+  setDatabaseSyncEnabled,
+} from "@/lib/database/accountDatabaseSync";
 import { usePages } from "@/hooks/usePages";
 
 type Phase =
@@ -58,6 +66,13 @@ export default function AccountShell() {
   const [pageCacheRebuildBusy, setPageCacheRebuildBusy] = useState(false);
   const [pageSyncNotice, setPageSyncNotice] = useState<string | null>(null);
   const [pageSyncLastAt, setPageSyncLastAt] = useState<string | null>(null);
+  // Database cloud sync: separate owner gate because row values are private.
+  const [databaseSyncOn, setDatabaseSyncOn] = useState(false);
+  const [databaseSyncBusy, setDatabaseSyncBusy] = useState(false);
+  const [databasePushBusy, setDatabasePushBusy] = useState(false);
+  const [databaseCacheRebuildBusy, setDatabaseCacheRebuildBusy] = useState(false);
+  const [databaseSyncNotice, setDatabaseSyncNotice] = useState<string | null>(null);
+  const [databaseSyncLastAt, setDatabaseSyncLastAt] = useState<string | null>(null);
   // API Key for external tools (Claude, web clipper extension)
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiKeyBusy, setApiKeyBusy] = useState(false);
@@ -66,6 +81,8 @@ export default function AccountShell() {
   useEffect(() => {
     setPageSyncOn(isPageSyncEnabled());
     setPageSyncLastAt(getLastPageSyncAt());
+    setDatabaseSyncOn(isDatabaseSyncEnabled());
+    setDatabaseSyncLastAt(getLastDatabaseSyncAt());
   }, []);
 
   const setSignedInAccount = useCallback((nextAccount: ClientAccountInfo) => {
@@ -284,6 +301,103 @@ export default function AccountShell() {
     );
     if (next) {
       void handlePageSyncRun();
+    }
+  }
+
+  async function handleDatabaseSyncRun() {
+    setDatabaseSyncBusy(true);
+    setDatabaseSyncNotice(null);
+    try {
+      const result = await reconcileDatabaseSync();
+      if (result.status === "ok") {
+        setDatabaseSyncLastAt(getLastDatabaseSyncAt());
+        setDatabaseSyncNotice(
+          `数据库同步完成：拉取 ${result.pulled} 条，推送 ${result.pushed} 条，远端跳过 ${result.skipped} 条。`
+        );
+      } else if (result.status === "unauthenticated") {
+        setDatabaseSyncNotice("登录已过期，请重新登录后再同步数据库。");
+      } else if (result.status === "disabled") {
+        setDatabaseSyncNotice("请先打开数据库云同步开关。");
+      } else {
+        setDatabaseSyncNotice(result.message ?? "数据库同步失败，请稍后重试。");
+      }
+    } catch {
+      setDatabaseSyncNotice("本机数据库读写失败，未能完成同步。");
+    } finally {
+      setDatabaseSyncBusy(false);
+    }
+  }
+
+  async function handleDatabasePushRun() {
+    setDatabasePushBusy(true);
+    setDatabaseSyncNotice(null);
+    try {
+      const result = await pushLocalDatabasesToCloud();
+      if (result.status === "ok") {
+        setDatabaseSyncLastAt(getLastDatabaseSyncAt());
+        setDatabaseSyncNotice(
+          `本机数据库已上传到账号云端：推送 ${result.pushed}/${result.total} 条，远端跳过 ${result.skipped} 条较旧记录。`
+        );
+      } else if (result.status === "unauthenticated") {
+        setDatabaseSyncNotice("登录已过期，请重新登录后再上传数据库。");
+      } else if (result.status === "disabled") {
+        setDatabaseSyncNotice("请先打开数据库云同步开关。");
+      } else {
+        setDatabaseSyncNotice(result.message ?? "数据库上传失败，请稍后重试。");
+      }
+    } catch {
+      setDatabaseSyncNotice("本机数据库读取失败，未能上传。");
+    } finally {
+      setDatabasePushBusy(false);
+    }
+  }
+
+  async function handleDatabaseCacheRebuildRun() {
+    const ok = window.confirm(
+      "这会按账号云端 manifest 重建本机数据库缓存：本机多出来、未同步到云端的数据库、字段、视图和行会被隐藏；云端数据不会删除；页面、本地文件、评论、版本历史不会上传或删除。继续吗？"
+    );
+    if (!ok) return;
+
+    setDatabaseCacheRebuildBusy(true);
+    setDatabaseSyncNotice(null);
+    try {
+      const result = await rebuildDatabaseCacheFromCloud();
+      if (result.status === "ok") {
+        setDatabaseSyncLastAt(getLastDatabaseSyncAt());
+        setDatabaseSyncNotice(
+          `本机数据库缓存已按云端主库重建：清理 ${result.cleared} 条，拉取 ${result.pulled}/${result.total} 条。`
+        );
+      } else if (result.status === "unauthenticated") {
+        setDatabaseSyncNotice("登录已过期，请重新登录后再重建数据库缓存。");
+      } else if (result.status === "disabled") {
+        setDatabaseSyncNotice("请先打开数据库云同步开关。");
+      } else {
+        setDatabaseSyncNotice(result.message ?? "数据库缓存重建失败，请稍后重试。");
+      }
+    } catch {
+      setDatabaseSyncNotice("本机数据库写入失败，未能完成缓存重建。");
+    } finally {
+      setDatabaseCacheRebuildBusy(false);
+    }
+  }
+
+  function handleDatabaseSyncToggle() {
+    const next = !databaseSyncOn;
+    if (next) {
+      const ok = window.confirm(
+        "开启后，本浏览器的数据库结构、字段、视图和行值会上传到你账号的云端存储，并和其他登录同一账号的浏览器同步。本地文件、评论、版本历史不会上传。确定开启吗？"
+      );
+      if (!ok) return;
+    }
+    setDatabaseSyncEnabled(next);
+    setDatabaseSyncOn(next);
+    setDatabaseSyncNotice(
+      next
+        ? "已开启。正在上传本机数据库，把当前本机数据库设为账号云端主库。"
+        : "已关闭。云端已有数据库数据保留，不再继续同步。"
+    );
+    if (next) {
+      void handleDatabasePushRun();
     }
   }
 
@@ -765,9 +879,98 @@ export default function AccountShell() {
               )}
 
               <p className="mt-3 text-[11px] leading-5 text-zinc-400">
-                不上传：数据库表格、本地文件、评论、版本历史。同步走你自己的
+                页面同步本身不上传：数据库表格、本地文件、评论、版本历史。同步走你自己的
                 Upstash 云存储，只有登录此账号的浏览器能读取。冲突时保留较新的修改。
-                本机页面缓存可随时重建，不会删除云端真数据。
+                本机页面缓存可随时重建，不会删除云端真数据。数据库表格需要在下方单独开启。
+              </p>
+            </div>
+          )}
+
+          {phase === "signed-in" && (
+            <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    数据库云同步
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    单独开启：云端作为数据库主库，本机浏览器只做可重建缓存。同步范围包括
+                    数据库结构、字段、视图和行值；页面正文、本地文件、评论、版本历史仍不上传。
+                    开启后可先上传本机数据库，之后可按云端主库重建本机数据库缓存。
+                  </p>
+                </div>
+                <button
+                  onClick={handleDatabaseSyncToggle}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                    databaseSyncOn
+                      ? "bg-emerald-500"
+                      : "bg-zinc-300 dark:bg-zinc-700"
+                  }`}
+                  role="switch"
+                  aria-checked={databaseSyncOn}
+                  title={databaseSyncOn ? "关闭数据库云同步" : "开启数据库云同步"}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                      databaseSyncOn ? "left-[22px]" : "left-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {databaseSyncOn && (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => void handleDatabaseSyncRun()}
+                    disabled={
+                      databaseSyncBusy ||
+                      databasePushBusy ||
+                      databaseCacheRebuildBusy
+                    }
+                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    {databaseSyncBusy ? "同步中…" : "立即同步数据库"}
+                  </button>
+                  <button
+                    onClick={() => void handleDatabasePushRun()}
+                    disabled={
+                      databaseSyncBusy ||
+                      databasePushBusy ||
+                      databaseCacheRebuildBusy
+                    }
+                    className="rounded-lg border border-sky-300 px-3 py-1.5 text-sm text-sky-700 hover:bg-sky-50 disabled:opacity-40 dark:border-sky-700/70 dark:text-sky-300 dark:hover:bg-sky-900/20"
+                  >
+                    {databasePushBusy ? "上传中…" : "上传本机数据库"}
+                  </button>
+                  <button
+                    onClick={() => void handleDatabaseCacheRebuildRun()}
+                    disabled={
+                      databaseSyncBusy ||
+                      databasePushBusy ||
+                      databaseCacheRebuildBusy
+                    }
+                    className="rounded-lg border border-violet-300 px-3 py-1.5 text-sm text-violet-700 hover:bg-violet-50 disabled:opacity-40 dark:border-violet-700/70 dark:text-violet-300 dark:hover:bg-violet-900/20"
+                  >
+                    {databaseCacheRebuildBusy ? "重建中…" : "重建本机数据库缓存"}
+                  </button>
+                  {databaseSyncLastAt && (
+                    <span className="text-xs text-zinc-400">
+                      上次数据库同步：
+                      {new Date(databaseSyncLastAt).toLocaleString("zh-CN")}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {databaseSyncNotice && (
+                <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
+                  {databaseSyncNotice}
+                </p>
+              )}
+
+              <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+                这相当于把数据库主账本放到云端保险柜，本机只保留复印件。复印件坏了可以清掉重拉；
+                但首次开启前请确认当前本机数据库就是你想保留的版本。
               </p>
             </div>
           )}
@@ -835,8 +1038,9 @@ export default function AccountShell() {
               <li>登录后，组合管理的数据自动跟随账号云同步，任何设备登录都能看到同一份。</li>
               <li>可以把持仓共享给指定邮箱（只读），对方登录后即可查看。</li>
               <li>页面与会议安排默认实时云同步，登录同一账号的设备自动保持一致，可随时关闭。</li>
+              <li>数据库云同步是独立开关，开启后数据库结构和行值可以跟随账号同步。</li>
               <li>生成 API 密钥后，可用外部工具（Claude 等）或浏览器扩展一键保存内容到 ZhiNotes。</li>
-              <li>数据库表格和本地文件始终只存在本机浏览器，不会上传。</li>
+              <li>本地文件、评论、版本历史仍只存在本机浏览器，不会上传。</li>
             </ul>
           </div>
         </div>

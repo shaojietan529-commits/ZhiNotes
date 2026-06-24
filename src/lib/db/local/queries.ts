@@ -1687,6 +1687,471 @@ export async function deleteView(id: string): Promise<void> {
   );
 }
 
+// ─── Account database cloud sync helpers ─────────────────────
+
+export type RemoteDatabaseRecordType = "database" | "field" | "row" | "view";
+
+export interface RemoteDatabaseRecord {
+  type: RemoteDatabaseRecordType;
+  id: string;
+  database_id: string | null;
+  parent_page_id: string | null;
+  page_id: string | null;
+  owner_id: string;
+  title: string | null;
+  icon: string | null;
+  description: string | null;
+  name: string | null;
+  field_type: string | null;
+  view_type: string | null;
+  config: string | null;
+  field_values: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface LocalDatabaseCachePruneResult {
+  cleared: number;
+}
+
+export function getRemoteDatabaseRecordKey(
+  record: Pick<RemoteDatabaseRecord, "type" | "id">
+): string {
+  return `${record.type}:${record.id}`;
+}
+
+function isRemoteDatabaseRecordType(
+  value: string
+): value is RemoteDatabaseRecordType {
+  return ["database", "field", "row", "view"].includes(value);
+}
+
+function isRemoteDatabaseRecordKey(value: string): boolean {
+  const [type, id, extra] = value.split(":");
+  return (
+    !extra &&
+    Boolean(type) &&
+    Boolean(id) &&
+    isRemoteDatabaseRecordType(type) &&
+    /^[A-Za-z0-9_-]+$/.test(id) &&
+    id.length <= 64
+  );
+}
+
+export async function getAllDatabaseRecordsForSync(): Promise<
+  RemoteDatabaseRecord[]
+> {
+  const db = await getDb();
+  const databases = db.query("SELECT * FROM databases") as unknown as Database[];
+  const fields = db.query("SELECT * FROM database_fields") as unknown as DatabaseField[];
+  const rows = db.query("SELECT * FROM database_rows") as unknown as DatabaseRow[];
+  const views = db.query("SELECT * FROM database_views") as unknown as DatabaseView[];
+
+  return [
+    ...databases.map(
+      (database): RemoteDatabaseRecord => ({
+        type: "database",
+        id: database.id,
+        database_id: database.id,
+        parent_page_id: database.parent_page_id,
+        page_id: null,
+        owner_id: database.owner_id,
+        title: database.title,
+        icon: database.icon,
+        description: database.description,
+        name: null,
+        field_type: null,
+        view_type: null,
+        config: null,
+        field_values: null,
+        position: 0,
+        created_at: database.created_at,
+        updated_at: database.updated_at,
+        deleted_at: database.deleted_at,
+      })
+    ),
+    ...fields.map(
+      (field): RemoteDatabaseRecord => ({
+        type: "field",
+        id: field.id,
+        database_id: field.database_id,
+        parent_page_id: null,
+        page_id: null,
+        owner_id: field.owner_id,
+        title: null,
+        icon: null,
+        description: null,
+        name: field.name,
+        field_type: field.field_type,
+        view_type: null,
+        config: field.config,
+        field_values: null,
+        position: field.position,
+        created_at: field.created_at,
+        updated_at: field.updated_at,
+        deleted_at: field.deleted_at,
+      })
+    ),
+    ...views.map(
+      (view): RemoteDatabaseRecord => ({
+        type: "view",
+        id: view.id,
+        database_id: view.database_id,
+        parent_page_id: null,
+        page_id: null,
+        owner_id: view.owner_id,
+        title: null,
+        icon: null,
+        description: null,
+        name: view.name,
+        field_type: null,
+        view_type: view.view_type,
+        config: view.config,
+        field_values: null,
+        position: view.position,
+        created_at: view.created_at,
+        updated_at: view.updated_at,
+        deleted_at: view.deleted_at,
+      })
+    ),
+    ...rows.map(
+      (row): RemoteDatabaseRecord => ({
+        type: "row",
+        id: row.id,
+        database_id: row.database_id,
+        parent_page_id: null,
+        page_id: row.page_id,
+        owner_id: row.owner_id,
+        title: null,
+        icon: null,
+        description: null,
+        name: null,
+        field_type: null,
+        view_type: null,
+        config: null,
+        field_values: row.field_values,
+        position: row.position,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        deleted_at: row.deleted_at,
+      })
+    ),
+  ];
+}
+
+export async function clearLocalDatabaseCacheExceptKeys(
+  keepKeys: string[]
+): Promise<LocalDatabaseCachePruneResult> {
+  const db = await getDb();
+  const keep = new Set(keepKeys.filter(isRemoteDatabaseRecordKey));
+  const tableSpecs: Array<{
+    tableName: string;
+    type: RemoteDatabaseRecordType;
+  }> = [
+    { tableName: "database_rows", type: "row" },
+    { tableName: "database_fields", type: "field" },
+    { tableName: "database_views", type: "view" },
+    { tableName: "databases", type: "database" },
+  ];
+
+  let cleared = 0;
+  const evictedAt = "1970-01-01T00:00:00.000Z";
+  const chunkSize = 80;
+
+  for (const spec of tableSpecs) {
+    const rows = db.query(
+      `SELECT id FROM ${spec.tableName}`
+    ) as unknown as { id: string }[];
+    const toClear = rows
+      .map((row) => row.id)
+      .filter((id) => !keep.has(`${spec.type}:${id}`));
+    cleared += toClear.length;
+    for (let i = 0; i < toClear.length; i += chunkSize) {
+      const chunk = toClear.slice(i, i + chunkSize);
+      const placeholders = chunk.map(() => "?").join(", ");
+      db.run(
+        `UPDATE ${spec.tableName}
+         SET updated_at = ?, deleted_at = ?, sync_version = -1
+         WHERE id IN (${placeholders})`,
+        [evictedAt, evictedAt, ...chunk]
+      );
+    }
+  }
+
+  return { cleared };
+}
+
+export async function applyRemoteDatabaseRecords(
+  records: RemoteDatabaseRecord[]
+): Promise<void> {
+  const db = await getDb();
+  const validRecords = records.filter(
+    (record) => record.id && isRemoteDatabaseRecordType(record.type)
+  );
+  const order: Record<RemoteDatabaseRecordType, number> = {
+    database: 0,
+    field: 1,
+    view: 2,
+    row: 3,
+  };
+  const sorted = [...validRecords].sort(
+    (a, b) => order[a.type] - order[b.type]
+  );
+
+  for (const record of sorted) {
+    if (record.type === "database") {
+      upsertRemoteDatabase(db, record);
+    } else if (record.type === "field") {
+      upsertRemoteDatabaseField(db, record);
+    } else if (record.type === "view") {
+      upsertRemoteDatabaseView(db, record);
+    } else if (record.type === "row") {
+      upsertRemoteDatabaseRow(db, record);
+    }
+  }
+}
+
+function hasPage(db: SqliteDb, id: string | null): boolean {
+  if (!id) return false;
+  const rows = db.query("SELECT id FROM pages WHERE id = ?", [
+    id,
+  ]) as unknown as { id: string }[];
+  return rows.length > 0;
+}
+
+function ensureDatabasePlaceholder(
+  db: SqliteDb,
+  databaseId: string | null,
+  timestamp: string
+) {
+  if (!databaseId) return;
+  const existing = db.query("SELECT id FROM databases WHERE id = ?", [
+    databaseId,
+  ]) as unknown as { id: string }[];
+  if (existing.length > 0) return;
+  db.run(
+    `INSERT INTO databases (id, owner_id, title, icon, created_at, updated_at, sync_version)
+     VALUES (?, ?, ?, ?, ?, ?, 1)`,
+    [databaseId, DEFAULT_OWNER_ID, "未命名数据库", "🗄️", timestamp, timestamp]
+  );
+}
+
+function ensureDatabaseRowPage(
+  db: SqliteDb,
+  pageId: string | null,
+  databaseId: string | null,
+  createdAt: string,
+  updatedAt: string
+) {
+  if (!pageId) return;
+  const existing = db.query("SELECT id FROM pages WHERE id = ?", [
+    pageId,
+  ]) as unknown as { id: string }[];
+  if (existing.length > 0) return;
+  db.run(
+    `INSERT INTO pages (id, owner_id, database_id, title, icon, position, depth, created_at, updated_at, sync_version)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+    [
+      pageId,
+      DEFAULT_OWNER_ID,
+      databaseId,
+      "未命名页面",
+      "📄",
+      0,
+      0,
+      createdAt,
+      updatedAt,
+    ]
+  );
+}
+
+function upsertRemoteDatabase(db: SqliteDb, record: RemoteDatabaseRecord) {
+  const parentPageId = hasPage(db, record.parent_page_id)
+    ? record.parent_page_id
+    : null;
+  const existing = db.query("SELECT id FROM databases WHERE id = ?", [
+    record.id,
+  ]) as unknown as { id: string }[];
+  if (existing.length === 0) {
+    db.run(
+      `INSERT INTO databases
+         (id, owner_id, parent_page_id, title, icon, description, created_at, updated_at, deleted_at, sync_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        record.id,
+        DEFAULT_OWNER_ID,
+        parentPageId,
+        record.title ?? "",
+        record.icon,
+        record.description,
+        record.created_at,
+        record.updated_at,
+        record.deleted_at,
+      ]
+    );
+    return;
+  }
+  db.run(
+    `UPDATE databases
+     SET parent_page_id = ?, title = ?, icon = ?, description = ?,
+         created_at = ?, updated_at = ?, deleted_at = ?, sync_version = 1
+     WHERE id = ?`,
+    [
+      parentPageId,
+      record.title ?? "",
+      record.icon,
+      record.description,
+      record.created_at,
+      record.updated_at,
+      record.deleted_at,
+      record.id,
+    ]
+  );
+}
+
+function upsertRemoteDatabaseField(db: SqliteDb, record: RemoteDatabaseRecord) {
+  ensureDatabasePlaceholder(db, record.database_id, record.updated_at);
+  if (!record.database_id) return;
+  const existing = db.query("SELECT id FROM database_fields WHERE id = ?", [
+    record.id,
+  ]) as unknown as { id: string }[];
+  if (existing.length === 0) {
+    db.run(
+      `INSERT INTO database_fields
+         (id, database_id, owner_id, name, field_type, config, position, created_at, updated_at, deleted_at, sync_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        record.id,
+        record.database_id,
+        DEFAULT_OWNER_ID,
+        record.name ?? "属性",
+        record.field_type ?? "text",
+        record.config,
+        record.position,
+        record.created_at,
+        record.updated_at,
+        record.deleted_at,
+      ]
+    );
+    return;
+  }
+  db.run(
+    `UPDATE database_fields
+     SET database_id = ?, name = ?, field_type = ?, config = ?, position = ?,
+         created_at = ?, updated_at = ?, deleted_at = ?, sync_version = 1
+     WHERE id = ?`,
+    [
+      record.database_id,
+      record.name ?? "属性",
+      record.field_type ?? "text",
+      record.config,
+      record.position,
+      record.created_at,
+      record.updated_at,
+      record.deleted_at,
+      record.id,
+    ]
+  );
+}
+
+function upsertRemoteDatabaseView(db: SqliteDb, record: RemoteDatabaseRecord) {
+  ensureDatabasePlaceholder(db, record.database_id, record.updated_at);
+  if (!record.database_id) return;
+  const existing = db.query("SELECT id FROM database_views WHERE id = ?", [
+    record.id,
+  ]) as unknown as { id: string }[];
+  const viewType = record.view_type ?? "table";
+  if (existing.length === 0) {
+    db.run(
+      `INSERT INTO database_views
+         (id, database_id, owner_id, name, view_type, config, position, created_at, updated_at, deleted_at, sync_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        record.id,
+        record.database_id,
+        DEFAULT_OWNER_ID,
+        record.name ?? "表格",
+        viewType,
+        record.config ?? "{}",
+        record.position,
+        record.created_at,
+        record.updated_at,
+        record.deleted_at,
+      ]
+    );
+    return;
+  }
+  db.run(
+    `UPDATE database_views
+     SET database_id = ?, name = ?, view_type = ?, config = ?, position = ?,
+         created_at = ?, updated_at = ?, deleted_at = ?, sync_version = 1
+     WHERE id = ?`,
+    [
+      record.database_id,
+      record.name ?? "表格",
+      viewType,
+      record.config ?? "{}",
+      record.position,
+      record.created_at,
+      record.updated_at,
+      record.deleted_at,
+      record.id,
+    ]
+  );
+}
+
+function upsertRemoteDatabaseRow(db: SqliteDb, record: RemoteDatabaseRecord) {
+  ensureDatabasePlaceholder(db, record.database_id, record.updated_at);
+  ensureDatabaseRowPage(
+    db,
+    record.page_id,
+    record.database_id,
+    record.created_at,
+    record.updated_at
+  );
+  if (!record.database_id || !record.page_id) return;
+  const existing = db.query("SELECT id FROM database_rows WHERE id = ?", [
+    record.id,
+  ]) as unknown as { id: string }[];
+  if (existing.length === 0) {
+    db.run(
+      `INSERT INTO database_rows
+         (id, database_id, page_id, owner_id, field_values, position, created_at, updated_at, deleted_at, sync_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        record.id,
+        record.database_id,
+        record.page_id,
+        DEFAULT_OWNER_ID,
+        record.field_values ?? "{}",
+        record.position,
+        record.created_at,
+        record.updated_at,
+        record.deleted_at,
+      ]
+    );
+    return;
+  }
+  db.run(
+    `UPDATE database_rows
+     SET database_id = ?, page_id = ?, field_values = ?, position = ?,
+         created_at = ?, updated_at = ?, deleted_at = ?, sync_version = 1
+     WHERE id = ?`,
+    [
+      record.database_id,
+      record.page_id,
+      record.field_values ?? "{}",
+      record.position,
+      record.created_at,
+      record.updated_at,
+      record.deleted_at,
+      record.id,
+    ]
+  );
+}
+
 // ─── Sync Readiness ───────────────────────────────────────────
 
 export async function getSyncLogSummary(): Promise<SyncLogSummary> {

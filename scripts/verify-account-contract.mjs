@@ -508,6 +508,14 @@ check(
   "AccountShell 应提供重建本机页面缓存按钮"
 );
 check(
+  accountShell.includes("数据库云同步") &&
+    accountShell.includes("setDatabaseSyncEnabled") &&
+    accountShell.includes("上传本机数据库") &&
+    accountShell.includes("重建本机数据库缓存") &&
+    accountShell.includes("数据库结构、字段、视图和行值会上传"),
+  "AccountShell 应提供独立的数据库云同步开关、确认边界和本机缓存重建入口"
+);
+check(
   accountShell.includes("云端数据不会删除") &&
     accountShell.includes("数据库表格、本地文件、评论、版本历史不会上传或删除"),
   "重建本机页面缓存前必须解释云端数据和本地私有数据边界"

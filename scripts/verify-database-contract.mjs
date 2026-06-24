@@ -21,6 +21,7 @@ const files = {
   databaseWorkbench: "src/lib/database/databaseWorkbench.ts",
   databaseAccountSyncRoute: "src/app/api/databases/account-sync/route.ts",
   databaseAccountSyncClient: "src/lib/database/accountDatabaseSync.ts",
+  accountShell: "src/components/modules/AccountShell.tsx",
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
@@ -114,6 +115,7 @@ function run() {
   const databaseAccountSyncClient = readProjectFile(
     files.databaseAccountSyncClient
   );
+  const accountShell = readProjectFile(files.accountShell);
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
@@ -191,12 +193,52 @@ function run() {
     "fetchCloudDatabaseChangesSince",
     "pushCloudDatabaseRecords",
     "fetchCloudDatabaseRecordsByKeys",
+    "pushLocalDatabasesToCloud",
+    "rebuildDatabaseCacheFromCloud",
+    "reconcileDatabaseSync",
+    "applyRemoteDatabaseRecords",
+    "clearLocalDatabaseCacheExceptKeys",
+    "getAllDatabaseRecordsForSync",
   ]) {
     assertIncludes(
       files.databaseAccountSyncClient,
       databaseAccountSyncClient,
       snippet,
       "Database cloud sync client must stay owner-gated and incremental."
+    );
+  }
+  for (const snippet of [
+    "getAllDatabaseRecordsForSync",
+    "applyRemoteDatabaseRecords",
+    "clearLocalDatabaseCacheExceptKeys",
+    "sync_version = -1",
+    "sync_version = 1",
+    "database_rows",
+    "database_fields",
+    "database_views",
+    "ensureDatabaseRowPage",
+  ]) {
+    assertIncludes(
+      files.queries,
+      queries,
+      snippet,
+      "Local database cache must be exportable, rebuildable from cloud records, and safe for row page placeholders."
+    );
+  }
+  for (const snippet of [
+    "数据库云同步",
+    "handleDatabaseSyncToggle",
+    "setDatabaseSyncEnabled",
+    "window.confirm",
+    "上传本机数据库",
+    "重建本机数据库缓存",
+    "数据库结构、字段、视图和行值会上传",
+  ]) {
+    assertIncludes(
+      files.accountShell,
+      accountShell,
+      snippet,
+      "Account settings must expose database sync through an explicit owner gate."
     );
   }
   for (const snippet of [
