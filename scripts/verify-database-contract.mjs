@@ -288,6 +288,10 @@ function run() {
     "cursor = getRemoteCursor()",
     "getLocalDatabaseSyncSummary",
     "restoreCursorFromLocalDatabaseMetadata",
+    "fastForwardDatabaseMetadataDeltaFromLocalCursor",
+    "compareDatabaseChangeCursorStrings",
+    "parseDatabaseChangeCursorString",
+    "fetchCloudDatabaseChangesSince(nextCursor)",
     "localSummary.watermark !== remoteSummary.watermark",
     "localSummary.cursor !== remoteSummary.cursor",
     "const metadata = await syncCloudDatabaseMetadata()",
@@ -309,6 +313,8 @@ function run() {
     "PENDING_PUSH_KEYS_KEY",
     "memoryDatabaseRemoteCursor",
     "memoryLastDatabaseSyncAt",
+    "fullRefresh?: boolean",
+    'let cursor = options.fullRefresh ? "" : getRemoteCursor()',
     "AUTH_RETRY_BACKOFF_MS",
     'AUTH_RETRY_KEY = "zhinote.databasesync.authRetry.v1"',
     "shouldBackOffAuthRetry",
@@ -377,6 +383,9 @@ function run() {
     !reconcileDatabaseBody.includes(
       "restoreCursorFromLocalDatabaseMetadata(summary)"
     ) ||
+    !reconcileDatabaseBody.includes(
+      "fastForwardDatabaseMetadataDeltaFromLocalCursor(summary)"
+    ) ||
     !reconcileDatabaseBody.includes("cursor = getRemoteCursor()") ||
     !reconcileDatabaseBody.includes(
       "const metadata = await syncCloudDatabaseMetadata()"
@@ -386,11 +395,16 @@ function run() {
     ) > reconcileDatabaseBody.indexOf(
       "const metadata = await syncCloudDatabaseMetadata()"
     ) ||
+    reconcileDatabaseBody.indexOf(
+      "fastForwardDatabaseMetadataDeltaFromLocalCursor(summary)"
+    ) > reconcileDatabaseBody.indexOf(
+      "const metadata = await syncCloudDatabaseMetadata()"
+    ) ||
     reconcileDatabaseBody.indexOf("if (!cursor)") >
       reconcileDatabaseBody.indexOf("const pull = await syncCloudDatabaseDelta")
   ) {
     failures.push(
-      "Database reconcile must restore a missing cursor from local metadata before falling back to metadata pull or incremental delta."
+      "Database reconcile must restore or fast-forward a missing cursor from local metadata before falling back to metadata pull or incremental delta."
     );
   }
   const syncDatabaseMetadataBody = databaseAccountSyncClient.slice(
@@ -408,12 +422,15 @@ function run() {
     !syncDatabaseMetadataBody.includes(
       "restoreCursorFromLocalDatabaseMetadata(summary)"
     ) ||
+    !syncDatabaseMetadataBody.includes(
+      "fastForwardDatabaseMetadataDeltaFromLocalCursor(summary)"
+    ) ||
     syncDatabaseMetadataBody.indexOf(
       "restoreCursorFromLocalDatabaseMetadata(summary)"
     ) > syncDatabaseMetadataBody.indexOf("fetchCloudDatabaseMetadata()")
   ) {
     failures.push(
-      "Database metadata prewarm should restore a missing localStorage cursor from local metadata before falling back to full cloud metadata."
+      "Database metadata prewarm should restore or fast-forward a missing localStorage cursor from local metadata before falling back to full cloud metadata."
     );
   }
   for (const snippet of [
@@ -464,6 +481,7 @@ function run() {
     "loadDatabaseSnapshot",
     "databaseSnapshotInFlight",
     "setDatabases(all)",
+    "localSnapshotLoaded",
     "Treat local SQLite as a cache",
     "mergeDatabaseMetadata(all, cloud.records)",
     "mergeDatabaseMetadata(current, message.records ?? [])",
@@ -473,6 +491,7 @@ function run() {
     "subscribeDatabasesUpdated",
     "emitDatabasesUpdated",
     "restoreLocalCursor: all.length > 0",
+    "fullRefresh: all.length === 0 || !localSnapshotLoaded",
   ]) {
     assertIncludes(
       files.useDatabases,

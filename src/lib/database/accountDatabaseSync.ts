@@ -150,6 +150,7 @@ export interface DatabaseReconcileOptions {
 
 interface SyncCloudDatabaseMetadataOptions {
   restoreLocalCursor?: boolean;
+  fullRefresh?: boolean;
 }
 
 export interface RebuildDatabaseCacheResult {
@@ -237,6 +238,123 @@ async function restoreCursorFromLocalDatabaseMetadata(
   } catch {
     return false;
   }
+}
+
+async function fastForwardDatabaseMetadataDeltaFromLocalCursor(
+  remoteSummary: DatabaseSyncIndexSummary
+): Promise<CloudDatabaseMetadataDeltaResult | null> {
+  let localSummary: Awaited<ReturnType<typeof getLocalDatabaseSyncSummary>>;
+  try {
+    localSummary = await getLocalDatabaseSyncSummary();
+  } catch {
+    return null;
+  }
+  if (!localSummary.cursor) return null;
+
+  if (
+    localSummary.watermark === remoteSummary.watermark &&
+    localSummary.cursor === remoteSummary.cursor
+  ) {
+    setRemoteCursor(remoteSummary.cursor);
+    setLastDatabaseSyncAtNow();
+    return {
+      status: "ok",
+      pulled: 0,
+      total: remoteSummary.count,
+      records: [],
+      fullRefresh: false,
+    };
+  }
+
+  if (
+    compareDatabaseChangeCursorStrings(localSummary.cursor, remoteSummary.cursor) >=
+    0
+  ) {
+    return null;
+  }
+
+  let nextCursor = localSummary.cursor;
+  let hasMore = false;
+  let pulled = 0;
+  const pulledDatabaseRecords: CloudDatabaseRecord[] = [];
+  let cacheWriteFailed = false;
+  let batches = 0;
+
+  do {
+    const changes = await fetchCloudDatabaseChangesSince(nextCursor);
+    if (changes.status !== "ok") {
+      return {
+        status: changes.status,
+        pulled,
+        total: pulled,
+        records: pulledDatabaseRecords,
+        fullRefresh: false,
+        cacheWriteFailed,
+        message: changes.message,
+      };
+    }
+    if (changes.records.length > 0) {
+      try {
+        await applyRemoteDatabaseRecords(changes.records);
+      } catch {
+        cacheWriteFailed = true;
+      }
+      pulled += changes.records.length;
+      pulledDatabaseRecords.push(...toDatabaseUpdatePayloads(changes.records));
+    }
+    setRemoteCursor(changes.cursor);
+    nextCursor = changes.cursor;
+    hasMore = changes.hasMore;
+    batches += 1;
+  } while (hasMore && batches < QUICK_INCREMENTAL_BATCH_LIMIT);
+
+  if (pulledDatabaseRecords.length > 0) {
+    emitDatabasesUpdated(
+      "cloud-pull",
+      pulledDatabaseRecords.length,
+      pulledDatabaseRecords
+    );
+  }
+  setLastDatabaseSyncAtNow();
+  return {
+    status: "ok",
+    pulled,
+    total: pulled,
+    records: pulledDatabaseRecords,
+    fullRefresh: false,
+    cacheWriteFailed,
+  };
+}
+
+function parseDatabaseChangeCursorString(cursor: string): {
+  updatedAt: string;
+  key: string;
+} {
+  if (!cursor) return { updatedAt: "", key: "" };
+  try {
+    const parsed = JSON.parse(cursor) as {
+      updatedAt?: unknown;
+      key?: unknown;
+    };
+    if (
+      typeof parsed.updatedAt === "string" &&
+      typeof parsed.key === "string"
+    ) {
+      return { updatedAt: parsed.updatedAt, key: parsed.key };
+    }
+  } catch {
+    // Older cursors stored only updated_at.
+  }
+  return { updatedAt: cursor, key: "" };
+}
+
+function compareDatabaseChangeCursorStrings(left: string, right: string): number {
+  const leftCursor = parseDatabaseChangeCursorString(left);
+  const rightCursor = parseDatabaseChangeCursorString(right);
+  return (
+    leftCursor.updatedAt.localeCompare(rightCursor.updatedAt) ||
+    leftCursor.key.localeCompare(rightCursor.key)
+  );
 }
 
 function getPendingCloudDatabasePushKeys(): string[] {
@@ -629,18 +747,18 @@ export async function syncCloudDatabaseMetadataDelta(
 async function runCloudDatabaseMetadataDelta(
   options: SyncCloudDatabaseMetadataOptions
 ): Promise<CloudDatabaseMetadataDeltaResult> {
-  if (options.restoreLocalCursor && !getRemoteCursor()) {
+  let cursor = options.fullRefresh ? "" : getRemoteCursor();
+
+  if (options.restoreLocalCursor && !cursor) {
     const summaryRes = await call({ action: "summary" });
     if (summaryRes.ok) {
       const summary = normalizeSummary(summaryRes.json.summary);
       if (summary && (await restoreCursorFromLocalDatabaseMetadata(summary))) {
-        return {
-          status: "ok",
-          pulled: 0,
-          total: summary.count,
-          records: [],
-          fullRefresh: false,
-        };
+        cursor = getRemoteCursor();
+      } else if (summary) {
+        const fastForward =
+          await fastForwardDatabaseMetadataDeltaFromLocalCursor(summary);
+        if (fastForward) return fastForward;
       }
     } else if (
       summaryRes.status === "unauthenticated" ||
@@ -658,7 +776,7 @@ async function runCloudDatabaseMetadataDelta(
     }
   }
 
-  if (getRemoteCursor()) {
+  if (cursor) {
     const delta = await syncCloudDatabaseDelta({
       maxBatches: QUICK_INCREMENTAL_BATCH_LIMIT,
     });
@@ -1117,6 +1235,8 @@ export async function reconcileDatabaseSync(
   }
 
   let cursor = getRemoteCursor();
+  let prePullPulled = 0;
+  const prePullRecords: CloudDatabaseRecord[] = [];
   if (!cursor) {
     const summaryRes = await call({ action: "summary" });
     if (!summaryRes.ok) {
@@ -1150,33 +1270,53 @@ export async function reconcileDatabaseSync(
         };
       }
     } else {
-      const metadata = await syncCloudDatabaseMetadata();
-      if (metadata.status !== "ok") {
-        return {
-          status: metadata.status,
-          pulled: 0,
-          pushed: queuedPush.pushed,
-          skipped: queuedPush.skipped,
-          message: metadata.message,
-        };
+      const fastForward = summary
+        ? await fastForwardDatabaseMetadataDeltaFromLocalCursor(summary)
+        : null;
+      if (fastForward) {
+        if (fastForward.status !== "ok") {
+          return {
+            status: fastForward.status,
+            pulled: fastForward.pulled,
+            pushed: queuedPush.pushed,
+            skipped: queuedPush.skipped,
+            records: fastForward.records,
+            message: fastForward.message,
+          };
+        }
+        cursor = getRemoteCursor();
+        prePullPulled = fastForward.pulled;
+        prePullRecords.push(...fastForward.records);
       }
-      const push = await pushPendingLocalDatabaseChangesToCloud();
-      if (push.status !== "ok") {
+      if (!cursor) {
+        const metadata = await syncCloudDatabaseMetadata();
+        if (metadata.status !== "ok") {
+          return {
+            status: metadata.status,
+            pulled: 0,
+            pushed: queuedPush.pushed,
+            skipped: queuedPush.skipped,
+            message: metadata.message,
+          };
+        }
+        const push = await pushPendingLocalDatabaseChangesToCloud();
+        if (push.status !== "ok") {
+          return {
+            status: push.status,
+            pulled: metadata.pulled,
+            pushed: push.pushed,
+            skipped: push.skipped,
+            message: push.message,
+          };
+        }
         return {
-          status: push.status,
+          status: "ok",
           pulled: metadata.pulled,
-          pushed: push.pushed,
-          skipped: push.skipped,
-          message: push.message,
+          pushed: queuedPush.pushed + push.pushed,
+          skipped: queuedPush.skipped + push.skipped,
+          records: metadata.records,
         };
       }
-      return {
-        status: "ok",
-        pulled: metadata.pulled,
-        pushed: queuedPush.pushed + push.pushed,
-        skipped: queuedPush.skipped + push.skipped,
-        records: metadata.records,
-      };
     }
   }
 
@@ -1186,10 +1326,10 @@ export async function reconcileDatabaseSync(
   if (pull.status !== "ok") {
     return {
       status: pull.status,
-      pulled: pull.pulled,
+      pulled: prePullPulled + pull.pulled,
       pushed: queuedPush.pushed,
       skipped: queuedPush.skipped,
-      records: pull.records,
+      records: [...prePullRecords, ...(pull.records ?? [])],
       message: pull.message,
     };
   }
@@ -1197,7 +1337,7 @@ export async function reconcileDatabaseSync(
   if (push.status !== "ok") {
     return {
       status: push.status,
-      pulled: pull.pulled,
+      pulled: prePullPulled + pull.pulled,
       pushed: push.pushed,
       skipped: push.skipped,
       message: push.message,
@@ -1205,10 +1345,10 @@ export async function reconcileDatabaseSync(
   }
   return {
     status: "ok",
-    pulled: pull.pulled,
+    pulled: prePullPulled + pull.pulled,
     pushed: queuedPush.pushed + push.pushed,
     skipped: queuedPush.skipped + push.skipped,
-    records: pull.records,
+    records: [...prePullRecords, ...(pull.records ?? [])],
   };
 }
 
