@@ -39,6 +39,8 @@ type SyncOperation = "insert" | "update" | "delete" | "restore";
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DAILY_DATE_INDEX_BACKFILL_DEFAULT_LIMIT = 240;
 const DAILY_CALENDAR_FALLBACK_SCAN_LIMIT = 240;
+const DAILY_RECENT_CANDIDATE_MULTIPLIER = 6;
+const DAILY_PARENT_LOOKUP_GUARD = 32;
 
 function parseStoredProperties(
   raw: string | null
@@ -229,7 +231,7 @@ function dailyDateCandidateWhere(alias = "pages"): string {
 }
 
 export async function rebuildPageDateKeyIndex(
-  options: { limit?: number } = {}
+  options: { limit?: number; includeRemaining?: boolean } = {}
 ): Promise<{
   scanned: number;
   updated: number;
@@ -263,17 +265,21 @@ export async function rebuildPageDateKeyIndex(
     ]);
     updated += 1;
   }
-  const remainingRows = db.query(
-    `SELECT COUNT(*) as count
-     FROM pages
-     WHERE deleted_at IS NULL
-       AND daily_date_key IS NULL
-       AND ${dailyDateCandidateWhere("pages")}`
-  ) as unknown as Array<{ count: number }>;
+  let remaining = rows.length < limit ? 0 : -1;
+  if (options.includeRemaining !== false) {
+    const remainingRows = db.query(
+      `SELECT COUNT(*) as count
+       FROM pages
+       WHERE deleted_at IS NULL
+         AND daily_date_key IS NULL
+         AND ${dailyDateCandidateWhere("pages")}`
+    ) as unknown as Array<{ count: number }>;
+    remaining = Number(remainingRows[0]?.count ?? 0);
+  }
   return {
     scanned: rows.length,
     updated,
-    remaining: Number(remainingRows[0]?.count ?? 0),
+    remaining,
   };
 }
 
@@ -289,68 +295,80 @@ export async function listDailyPageMetadataForCalendar({
   recentLimit?: number;
 }): Promise<Page[]> {
   const db = await getDb();
-  const notionDailyImportPattern = "%notion-daily-import%";
   const byId = new Map<string, Page>();
   const readRows = (sql: string, bind: unknown[]) =>
     db.query(sql, bind) as unknown as Page[];
+  const parentIdCache = new Map<string, string | null>();
+  const isDailyScopePage = (page: Page): boolean => {
+    if (page.id === rootId) return false;
+    if ((page.properties ?? "").includes("notion-daily-import")) return true;
 
-  const commonCte = `
-    WITH RECURSIVE daily_descendants(id) AS (
-      SELECT id FROM pages WHERE parent_id = ? AND deleted_at IS NULL
-      UNION ALL
-      SELECT p.id
-      FROM pages p
-      JOIN daily_descendants d ON p.parent_id = d.id
-      WHERE p.deleted_at IS NULL
-    )
-  `;
-  const dailyScope = `
-    (
-      p.id IN (SELECT id FROM daily_descendants)
-      OR p.properties LIKE ?
-    )
-  `;
+    let parentId = page.parent_id;
+    for (let i = 0; parentId && i < DAILY_PARENT_LOOKUP_GUARD; i += 1) {
+      if (parentId === rootId) return true;
+      let cachedParentId = parentIdCache.get(parentId);
+      if (cachedParentId === undefined) {
+        const rows = db.query(
+          "SELECT parent_id FROM pages WHERE id = ? AND deleted_at IS NULL",
+          [parentId]
+        ) as unknown as Array<{ parent_id: string | null }>;
+        cachedParentId = rows[0]?.parent_id ?? null;
+        parentIdCache.set(parentId, cachedParentId);
+      }
+      parentId = cachedParentId;
+    }
+    return false;
+  };
+  const addIfDailyScope = (row: Page) => {
+    if (isDailyScopePage(row)) byId.set(row.id, row);
+  };
+
   const rangeRows = readRows(
-    `${commonCte}
-     SELECT ${PAGE_METADATA_SELECT}
+    `SELECT ${PAGE_METADATA_SELECT}
      FROM pages p
      WHERE p.deleted_at IS NULL
        AND p.daily_date_key >= ?
        AND p.daily_date_key <= ?
-       AND ${dailyScope}
      ORDER BY p.daily_date_key ASC, p.updated_at DESC`,
-    [rootId, startDate, endDate, notionDailyImportPattern]
+    [startDate, endDate]
   );
-  for (const row of rangeRows) byId.set(row.id, row);
+  for (const row of rangeRows) addIfDailyScope(row);
 
   if (recentLimit > 0) {
+    const recentCandidateLimit = Math.max(
+      recentLimit,
+      recentLimit * DAILY_RECENT_CANDIDATE_MULTIPLIER
+    );
     const recentRows = readRows(
-      `${commonCte}
-       SELECT ${PAGE_METADATA_SELECT}
+      `SELECT ${PAGE_METADATA_SELECT}
        FROM pages p
        WHERE p.deleted_at IS NULL
          AND p.daily_date_key IS NOT NULL
-         AND ${dailyScope}
        ORDER BY p.daily_date_key DESC, p.updated_at DESC
        LIMIT ?`,
-      [rootId, notionDailyImportPattern, recentLimit]
+      [recentCandidateLimit]
     );
-    for (const row of recentRows) byId.set(row.id, row);
+    let recentDailyAdded = 0;
+    for (const row of recentRows) {
+      const beforeSize = byId.size;
+      addIfDailyScope(row);
+      if (byId.size > beforeSize) recentDailyAdded += 1;
+      if (recentDailyAdded >= recentLimit) break;
+    }
   }
 
   const fallbackRows = readRows(
-    `${commonCte}
-     SELECT ${PAGE_METADATA_SELECT}
+    `SELECT ${PAGE_METADATA_SELECT}
      FROM pages p
      WHERE p.deleted_at IS NULL
        AND p.daily_date_key IS NULL
-       AND ${dailyScope}
        AND ${dailyDateCandidateWhere("p")}
      ORDER BY p.updated_at DESC
      LIMIT ?`,
-    [rootId, notionDailyImportPattern, DAILY_CALENDAR_FALLBACK_SCAN_LIMIT]
+    [DAILY_CALENDAR_FALLBACK_SCAN_LIMIT]
   );
   for (const row of fallbackRows) {
+    if (!isDailyScopePage(row)) continue;
     const dateKey = inferDailyDateKey(row.title, row.properties);
     if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
     byId.set(row.id, row);

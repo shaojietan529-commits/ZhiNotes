@@ -691,6 +691,7 @@ async function ensureDailyDateIndexBackfilled(): Promise<void> {
     for (let pass = 0; pass < DAILY_DATE_INDEX_BACKFILL_MAX_PASSES; pass += 1) {
       const result = await rebuildPageDateKeyIndex({
         limit: DAILY_DATE_INDEX_BACKFILL_BATCH,
+        includeRemaining: false,
       });
       if (
         result.remaining === 0 ||

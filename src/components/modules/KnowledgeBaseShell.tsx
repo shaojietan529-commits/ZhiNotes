@@ -137,6 +137,11 @@ export default function KnowledgeBaseShell() {
         : null,
     [pages, industryLinkCardId]
   );
+  const peekPage = useMemo(
+    () =>
+      peekPageId ? pages.find((page) => page.id === peekPageId) ?? null : null,
+    [pages, peekPageId]
+  );
 
   // New cards start untitled and icon-less (Notion-style); the title input
   // in the peek modal shows a 新页面 placeholder to type straight into.
@@ -444,6 +449,7 @@ export default function KnowledgeBaseShell() {
       {peekPageId && (
         <PagePeekModal
           pageId={peekPageId}
+          initialPage={peekPage}
           onClose={() => setPeekPageId(null)}
           onOpenFull={(id) => router.push(`/page/${id}`)}
           onChanged={() => void refresh()}

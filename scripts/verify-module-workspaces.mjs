@@ -55,6 +55,7 @@ const shells = {
   daily: read("src/components/modules/DailyNotesShell.tsx"),
   chain: read("src/components/modules/IndustryChainShell.tsx"),
   schedule: read("src/components/modules/MeetingScheduleShell.tsx"),
+  knowledge: read("src/components/modules/KnowledgeBaseShell.tsx"),
 };
 const localQueries = read("src/lib/db/local/queries.ts");
 const localSchema = read("src/lib/db/local/schema.ts");
@@ -125,6 +126,7 @@ check(
 check(
   shells.daily.includes("rebuildPageDateKeyIndex({") &&
     shells.daily.includes("limit: DAILY_DATE_INDEX_BACKFILL_BATCH") &&
+    shells.daily.includes("includeRemaining: false") &&
     shells.daily.includes("isDailyDateIndexBackfillDone") &&
     shells.daily.includes("markDailyDateIndexBackfillDone"),
   "DailyNotesShell 日期索引重建必须分批、可记忆完成状态，不能刷新时反复全量扫描"
@@ -191,8 +193,10 @@ check(
   pagePeekModal.includes("getPageMetadata") &&
     pagePeekModal.includes("editorLoadRequested") &&
     pagePeekModal.includes("schedulePeekContentLoad") &&
-    pagePeekModal.includes("enabled: editorLoadRequested"),
-  "PagePeekModal 必须先显示页面元数据，再按需加载正文和编辑器"
+    pagePeekModal.includes("enabled: editorLoadRequested") &&
+    shells.knowledge.includes("const peekPage = useMemo") &&
+    shells.knowledge.includes("initialPage={peekPage}"),
+  "PagePeekModal 必须优先显示已有页面元数据，再按需加载正文和编辑器"
 );
 check(
   !shells.daily.includes("getAllPageMetadata"),
@@ -233,6 +237,9 @@ for (const token of [
   "rebuildPageDateKeyIndex",
   "inferDailyDateKey",
   "DAILY_CALENDAR_FALLBACK_SCAN_LIMIT",
+  "DAILY_RECENT_CANDIDATE_MULTIPLIER",
+  "isDailyScopePage",
+  "includeRemaining?: boolean",
   "dailyDateCandidateWhere",
   "daily_date_key IS NULL",
 ]) {
@@ -243,6 +250,14 @@ for (const token of [
     `每日纪要日期索引缺少 ${token}`
   );
 }
+check(
+  !localQueries.includes("WITH RECURSIVE daily_descendants") &&
+    localQueries.includes("p.daily_date_key >= ?") &&
+    localQueries.includes("p.daily_date_key <= ?") &&
+    localQueries.includes("addIfDailyScope(row)") &&
+    localQueries.includes("SELECT parent_id FROM pages WHERE id = ?"),
+  "每日纪要月历首屏应先按日期索引取候选，再按父级归属过滤，不能递归展开整棵每日纪要树"
+);
 for (const token of [
   "installLocalSchema(db)",
   "Local SQLite cache schema failed",
