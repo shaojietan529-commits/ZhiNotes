@@ -292,6 +292,9 @@ function run() {
     "applyRemoteDatabaseRecords",
     'emitDatabasesUpdated("cloud-pull", pulled || prune.cleared)',
     "clearLocalDatabaseCacheExceptKeys",
+    "clearAllPendingCloudDatabasePushesForCacheRebuild",
+    "queuedCloudDatabasePush = new Map()",
+    "setPendingCloudDatabasePushKeys([])",
     "getAllDatabaseRecordsForSync",
     "getDatabaseRecordsForSyncByKeys",
     "getPendingDatabaseSyncRecords",
@@ -327,6 +330,18 @@ function run() {
       databaseAccountSyncClient,
       snippet,
       "Database cloud sync client must stay default-on, incremental, and fully drain paged cloud results."
+    );
+  }
+  if (
+    databaseAccountSyncClient.indexOf(
+      "clearAllPendingCloudDatabasePushesForCacheRebuild()"
+    ) >
+    databaseAccountSyncClient.indexOf(
+      "const prune = await clearLocalDatabaseCacheExceptKeys(keys)"
+    )
+  ) {
+    failures.push(
+      "Database cache rebuild must cancel local pending upload queues before pruning local cache."
     );
   }
   if (

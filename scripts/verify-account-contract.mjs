@@ -254,6 +254,15 @@ check(
   "被云端 manifest 驱逐的本机缓存页不能再通过 pending push 或 reconcile 反向污染云端"
 );
 check(
+  pageSyncClient.includes("clearAllPendingCloudPushesForCacheRebuild") &&
+    pageSyncClient.includes("if (queuedCloudPushTimer)") &&
+    pageSyncClient.includes("queuedCloudPush = new Map()") &&
+    pageSyncClient.includes("setPendingCloudPushIds([])") &&
+    pageSyncClient.indexOf("clearAllPendingCloudPushesForCacheRebuild()") <
+      pageSyncClient.indexOf("const prune = await clearLocalPageCacheExceptIds(ids)"),
+  "重建页面缓存前必须取消本机待上传队列，避免被清理的旧缓存重新污染云端主库"
+);
+check(
   pageSyncClient.includes("REMOTE_CURSOR_KEY") &&
     pageSyncClient.includes("fetchCloudPageChangesSince") &&
     pageSyncClient.includes("pullIncrementalCloudChanges"),

@@ -254,6 +254,10 @@ function getPendingCloudDatabasePushKeys(): string[] {
 
 function setPendingCloudDatabasePushKeys(keys: string[]): void {
   const uniqueKeys = Array.from(new Set(keys.filter(isValidRecordKey)));
+  if (uniqueKeys.length === 0) {
+    removeSyncStorage(PENDING_PUSH_KEYS_KEY);
+    return;
+  }
   writeSyncStorage(PENDING_PUSH_KEYS_KEY, JSON.stringify(uniqueKeys));
 }
 
@@ -269,6 +273,15 @@ function clearPendingCloudDatabasePushKeys(keys: string[]): void {
   setPendingCloudDatabasePushKeys(
     getPendingCloudDatabasePushKeys().filter((key) => !acknowledged.has(key))
   );
+}
+
+function clearAllPendingCloudDatabasePushesForCacheRebuild(): void {
+  if (queuedCloudDatabasePushTimer) {
+    clearTimeout(queuedCloudDatabasePushTimer);
+    queuedCloudDatabasePushTimer = null;
+  }
+  queuedCloudDatabasePush = new Map();
+  setPendingCloudDatabasePushKeys([]);
 }
 
 function isValidRecordKey(value: string): boolean {
@@ -1201,6 +1214,7 @@ export async function rebuildDatabaseCacheFromCloud(): Promise<RebuildDatabaseCa
       ? (manifestRes.json.index as Record<string, unknown>)
       : {};
   const keys = Object.keys(index).filter(isValidRecordKey);
+  clearAllPendingCloudDatabasePushesForCacheRebuild();
   const prune = await clearLocalDatabaseCacheExceptKeys(keys);
   let pulled = 0;
   for (let i = 0; i < keys.length; i += PULL_BATCH) {

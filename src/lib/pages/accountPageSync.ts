@@ -1173,6 +1173,15 @@ function clearPendingCloudPushIds(ids: string[]): void {
   );
 }
 
+function clearAllPendingCloudPushesForCacheRebuild(): void {
+  if (queuedCloudPushTimer) {
+    clearTimeout(queuedCloudPushTimer);
+    queuedCloudPushTimer = null;
+  }
+  queuedCloudPush = new Map();
+  setPendingCloudPushIds([]);
+}
+
 function getPropertyValue(page: Page, name: string): string {
   return (
     parsePageProperties(page.properties).find((property) => property.name === name)
@@ -1389,6 +1398,7 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
   const ids = Object.keys(index).filter(isValidRemotePageId);
   let cleared = 0;
   let pulled = 0;
+  clearAllPendingCloudPushesForCacheRebuild();
   const prune = await clearLocalPageCacheExceptIds(ids);
   cleared += prune.cleared;
 
