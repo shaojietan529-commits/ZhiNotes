@@ -11,7 +11,10 @@ import {
   getViews,
 } from "@/lib/db/local/queries";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
-import { syncCloudDatabaseMetadata } from "@/lib/database/accountDatabaseSync";
+import {
+  cloudDatabaseMetadataToDatabases,
+  syncCloudDatabaseMetadata,
+} from "@/lib/database/accountDatabaseSync";
 import {
   buildDatabaseModuleDashboardReport,
   getDatabaseFieldTypeBreakdown,
@@ -109,13 +112,18 @@ function DatabasesDashboard() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadSnapshots = useCallback(async () => {
-    const databases = await getAllDatabases();
+    let databases: Awaited<ReturnType<typeof getAllDatabases>> = [];
+    try {
+      databases = await getAllDatabases();
+    } catch {
+      return [];
+    }
     return Promise.all(
       databases.map(async (database) => {
         const [fields, views, rowCount] = await Promise.all([
-          getFields(database.id),
-          getViews(database.id),
-          getDatabaseRowCount(database.id),
+          getFields(database.id).catch(() => []),
+          getViews(database.id).catch(() => []),
+          getDatabaseRowCount(database.id).catch(() => 0),
         ]);
 
         return {
@@ -131,14 +139,34 @@ function DatabasesDashboard() {
   const loadDashboard = useCallback(async () => {
     try {
       setLoadError(null);
-      setSnapshots(await loadSnapshots());
+      const localSnapshots = await loadSnapshots();
+      setSnapshots(localSnapshots);
       const cloud = await syncCloudDatabaseMetadata();
-      if (cloud.status === "ok" && cloud.pulled > 0) {
-        setSnapshots(await loadSnapshots());
+      if (cloud.status === "ok") {
+        const refreshed = await loadSnapshots();
+        if (
+          (refreshed.length > 0 && !cloud.cacheWriteFailed) ||
+          cloud.records.length === 0
+        ) {
+          setSnapshots(refreshed);
+        } else {
+          setSnapshots(
+            cloudDatabaseMetadataToDatabases(cloud.records).map((database) => ({
+              database,
+              fields: [],
+              views: [],
+              rowCount: 0,
+            }))
+          );
+          if (cloud.cacheWriteFailed) {
+            setLoadError("已从云端显示数据库列表；本机缓存暂时不可写，字段、视图和行数会在缓存恢复后补齐。");
+          }
+        }
+      } else if (localSnapshots.length === 0) {
+        setLoadError("云端数据库索引暂时不可用，只能显示本机缓存。");
       }
-    } catch (err) {
-      console.error("[Zhinote] Failed to load database module dashboard:", err);
-      setLoadError("无法加载本地数据库总览。");
+    } catch {
+      setLoadError("无法加载数据库总览。");
     }
   }, [loadSnapshots]);
 

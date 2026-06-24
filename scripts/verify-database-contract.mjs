@@ -262,6 +262,7 @@ function run() {
     "fetchCloudDatabaseMetadata",
     "fetchCloudDatabaseRecordsByDatabaseId",
     "syncCloudDatabaseMetadata",
+    "cloudDatabaseMetadataToDatabases",
     "syncCloudDatabaseById",
     "pushCloudDatabaseRecords",
     "fetchCloudDatabaseRecordsByKeys",
@@ -283,6 +284,7 @@ function run() {
     "pushPendingLocalDatabaseChangesToCloud",
     "nextOffset <= offset",
     "changes.cursor === cursor",
+    "cacheWriteFailed",
   ]) {
     assertIncludes(
       files.databaseAccountSyncClient,
@@ -335,6 +337,8 @@ function run() {
     "syncCloudDatabaseMetadata",
     "setDatabases(all)",
     "Treat local SQLite as a cache",
+    "cloudDatabaseMetadataToDatabases(cloud.records)",
+    "cloud.cacheWriteFailed",
     "Cloud metadata refresh is",
     "subscribeDatabasesUpdated",
     "emitDatabasesUpdated",
@@ -360,8 +364,12 @@ function run() {
   }
   for (const snippet of [
     "syncCloudDatabaseMetadata",
+    "cloudDatabaseMetadataToDatabases",
     "subscribeDatabasesUpdated",
-    "setSnapshots(await loadSnapshots())",
+    "const localSnapshots = await loadSnapshots()",
+    "cloud.records.length",
+    "!cloud.cacheWriteFailed",
+    "本机缓存暂时不可写",
   ]) {
     assertIncludes(
       files.databaseModuleShell,

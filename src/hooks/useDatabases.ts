@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getAllDatabases } from "@/lib/db/local/queries";
-import { syncCloudDatabaseMetadata } from "@/lib/database/accountDatabaseSync";
+import {
+  cloudDatabaseMetadataToDatabases,
+  syncCloudDatabaseMetadata,
+} from "@/lib/database/accountDatabaseSync";
 import {
   emitDatabasesUpdated,
   subscribeDatabasesUpdated,
@@ -36,7 +39,13 @@ export function useDatabases() {
           try {
             all = await getAllDatabases();
           } catch {
-            all = [];
+            all = cloudDatabaseMetadataToDatabases(cloud.records);
+          }
+          if (
+            (all.length === 0 || cloud.cacheWriteFailed) &&
+            cloud.records.length > 0
+          ) {
+            all = cloudDatabaseMetadataToDatabases(cloud.records);
           }
           setDatabases(all);
           if (cloud.pulled > 0 && options.broadcast !== false) {

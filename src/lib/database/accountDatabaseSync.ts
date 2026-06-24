@@ -16,6 +16,7 @@ import {
   markDatabaseSyncLogEntriesSynced,
   type RemoteDatabaseRecord,
 } from "@/lib/db/local/queries";
+import type { Database } from "@/lib/utils/types";
 
 const ENABLED_KEY = "zhinote.databasesync.enabled";
 const LAST_SYNC_KEY = "zhinote.databasesync.lastSyncAt";
@@ -393,10 +394,12 @@ export async function syncCloudDatabaseMetadata(): Promise<{
   status: DatabaseSyncStatus;
   pulled: number;
   total: number;
+  records: CloudDatabaseRecord[];
+  cacheWriteFailed?: boolean;
   message?: string;
 }> {
   if (!isDatabaseSyncEnabled()) {
-    return { status: "disabled", pulled: 0, total: 0 };
+    return { status: "disabled", pulled: 0, total: 0, records: [] };
   }
   const metadata = await fetchCloudDatabaseMetadata();
   if (metadata.status !== "ok") {
@@ -404,17 +407,45 @@ export async function syncCloudDatabaseMetadata(): Promise<{
       status: metadata.status,
       pulled: 0,
       total: 0,
+      records: [],
       message: metadata.message,
     };
   }
+  let cacheWriteFailed = false;
   if (metadata.records.length > 0) {
-    await applyRemoteDatabaseRecords(metadata.records);
+    try {
+      await applyRemoteDatabaseRecords(metadata.records);
+    } catch {
+      cacheWriteFailed = true;
+    }
   }
   return {
     status: "ok",
     pulled: metadata.records.length,
     total: metadata.total,
+    records: metadata.records,
+    cacheWriteFailed,
   };
+}
+
+export function cloudDatabaseMetadataToDatabases(
+  records: CloudDatabaseRecord[]
+): Database[] {
+  return records
+    .filter((record) => record.type === "database" && !record.deleted_at)
+    .map((record) => ({
+      id: record.id,
+      owner_id: record.owner_id,
+      parent_page_id: record.parent_page_id,
+      title: record.title || "未命名数据库",
+      icon: record.icon,
+      description: record.description,
+      created_at: record.created_at,
+      updated_at: record.updated_at,
+      deleted_at: record.deleted_at,
+      sync_version: 1,
+    }))
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }
 
 export async function syncCloudDatabaseById(
