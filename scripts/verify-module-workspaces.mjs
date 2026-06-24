@@ -59,6 +59,7 @@ const shells = {
 const localQueries = read("src/lib/db/local/queries.ts");
 const localSchema = read("src/lib/db/local/schema.ts");
 const localClient = read("src/lib/db/local/client.ts");
+const usePageHook = read("src/hooks/usePage.ts");
 const forbidden = ["XMLHttpRequest", "enables_ai", "getUserMedia"];
 for (const [name, source] of Object.entries(shells)) {
   for (const token of forbidden) {
@@ -94,9 +95,25 @@ for (const token of [
   "rebuildPageDateKeyIndex",
   "prewarmDailyPeekModal",
   "DAILY_DATE_INDEX_BACKFILL_KEY",
+  "getModuleRootIdSync",
+  "loadRequestRef",
+  "observedPageRevisionRef",
+  "applyRemotePages",
 ]) {
   check(shells.daily.includes(token), `DailyNotesShell 缺少每日纪要性能护栏 ${token}`);
 }
+check(
+  shells.daily.includes("void ensureDailyDateIndexBackfilled()"),
+  "DailyNotesShell 日期索引重建必须后台运行，不能阻塞首屏"
+);
+check(
+  helper.includes("getModuleRootIdSync"),
+  "moduleWorkspaces 必须提供同步 root id 读取，避免新增时扫全量页面"
+);
+check(
+  usePageHook.includes("setLoading(localPage.content_text == null)"),
+  "usePage 必须在目录卡片缺正文时保持正文按需加载状态"
+);
 check(
   !shells.daily.includes("getAllPageMetadata"),
   "DailyNotesShell 不应在日历刷新时调用 getAllPageMetadata 全量扫描"

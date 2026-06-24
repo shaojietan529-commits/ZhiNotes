@@ -304,21 +304,25 @@ check(
 
 const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
 check(
-  dailyNotesShell.indexOf("readCachedDailyCloudMetadata(startDate, endDate)") <
-    dailyNotesShell.indexOf("await ensureDailyDateIndexBackfilled()") &&
-    dailyNotesShell.indexOf("await ensureDailyDateIndexBackfilled()") <
-      dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") &&
-    dailyNotesShell.includes("const cloudById = new Map<string, DailyNote>()") &&
+  dailyNotesShell.includes("const storedDailyRootId = getModuleRootIdSync(\"daily\")") &&
+    dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") <
+      dailyNotesShell.indexOf("readCachedDailyCloudMetadata(startDate, endDate)") &&
+    dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") <
+      dailyNotesShell.indexOf("fetchDailyCloudMetadata({") &&
+    dailyNotesShell.includes("publishNotes(Array.from(byId.values()))") &&
+    dailyNotesShell.includes("void ensureDailyDateIndexBackfilled()") &&
+    !dailyNotesShell.includes("await ensureDailyDateIndexBackfilled()") &&
     dailyNotesShell.includes("fetchDailyCloudMetadata({") &&
     dailyNotesShell.includes("recentLimit: 12") &&
     dailyNotesShell.includes("rebuildPageDateKeyIndex") &&
     !dailyNotesShell.includes("getAllPageMetadata"),
-  "DailyNotesShell 首屏应优先显示云端当前日历窗口，回退本机时只能走日期索引，不能扫描本机全量页面"
+  "DailyNotesShell 首屏应本地/缓存优先，云端后台补齐；回退本机时只能走日期索引，不能扫描本机全量页面"
 );
 check(
   dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id)") <
     dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
     dailyNotesShell.includes("后台保存到账号云端") &&
+    dailyNotesShell.includes("applyRemotePages(records)") &&
     !dailyNotesShell.includes("createPageWithCloud"),
   "DailyNotesShell 点击 + 应立即打开乐观草稿，再后台保存到云端"
 );

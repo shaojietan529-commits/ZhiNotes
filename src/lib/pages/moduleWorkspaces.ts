@@ -66,6 +66,11 @@ export function getModuleRootIdsSync(): string[] {
   ).filter((id): id is string => Boolean(id));
 }
 
+export function getModuleRootIdSync(key: ModuleWorkspaceKey): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(storageKey(key));
+}
+
 // Concurrent callers (e.g. React strict-mode double effects, or two
 // components mounting together) must share one lookup, otherwise both can
 // miss the stored id and each create a duplicate root page.

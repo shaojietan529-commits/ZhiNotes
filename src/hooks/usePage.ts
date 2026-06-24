@@ -58,7 +58,7 @@ export function usePage(pageId: string | null) {
     if (localPage) {
       upsertPages([localPage]);
       setPage(localPage);
-      setLoading(false);
+      setLoading(localPage.content_text == null);
     }
 
     const cloud = await fetchCloudPageById(pageId);

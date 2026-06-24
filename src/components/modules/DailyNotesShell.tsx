@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import {
+  applyRemotePages,
   applyRemotePageMetadata,
   getPage,
   listDailyPageMetadataForCalendar,
@@ -15,7 +16,11 @@ import {
 import {
   updatePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
-import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
+import {
+  getModuleRootId,
+  getModuleRootIdSync,
+  toDateKey,
+} from "@/lib/pages/moduleWorkspaces";
 import {
   createPageProperty,
   parsePageProperties,
@@ -68,6 +73,8 @@ export default function DailyNotesShell() {
   const [expandedDateKeys, setExpandedDateKeys] = useState<Set<string>>(
     () => new Set()
   );
+  const loadRequestRef = useRef(0);
+  const observedPageRevisionRef = useRef<string | null>(null);
   const [viewMonth, setViewMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -79,25 +86,97 @@ export default function DailyNotesShell() {
 
   const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
     const includeCloud = opts?.includeCloud !== false;
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
+    if (!includeCloud) setCloudLoading(false);
     const visibleRange = buildMonthGrid(viewMonth);
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
     const byId = new Map<string, DailyNote>();
 
+    const publishNotes = (nextNotes: DailyNote[]) => {
+      if (loadRequestRef.current !== requestId) return;
+      setNotes(nextNotes);
+    };
+
+    const publishNotice = (message: string | null) => {
+      if (loadRequestRef.current !== requestId) return;
+      setCloudNotice(message);
+    };
+
+    const publishRootId = (id: string | null) => {
+      if (loadRequestRef.current !== requestId) return;
+      setRootId(id);
+    };
+
+    const storedDailyRootId = getModuleRootIdSync("daily");
+    const dailyRootId = storedDailyRootId ?? (await getModuleRootId("daily"));
+    publishRootId(dailyRootId);
+    if (storedDailyRootId) {
+      void getModuleRootId("daily")
+        .then(async (confirmedRootId) => {
+          if (
+            loadRequestRef.current !== requestId ||
+            confirmedRootId === dailyRootId
+          ) {
+            return;
+          }
+          publishRootId(confirmedRootId);
+          const confirmedMetadata = await listDailyPageMetadataForCalendar({
+            rootId: confirmedRootId,
+            startDate,
+            endDate,
+            recentLimit: 12,
+          });
+          const nextById = new Map(byId);
+          for (const note of collectDailyNotes(confirmedMetadata, confirmedRootId)) {
+            nextById.set(note.id, note);
+          }
+          publishNotes(Array.from(nextById.values()));
+        })
+        .catch(() => undefined);
+    }
+    const localMetadata = await listDailyPageMetadataForCalendar({
+      rootId: dailyRootId,
+      startDate,
+      endDate,
+      recentLimit: 12,
+    });
+    const dailyNotes = collectDailyNotes(localMetadata, dailyRootId);
+    for (const note of dailyNotes) byId.set(note.id, note);
+    publishNotes(Array.from(byId.values()));
+    void ensureDailyDateIndexBackfilled()
+      .then(async () => {
+        if (loadRequestRef.current !== requestId) return;
+        const refreshed = await listDailyPageMetadataForCalendar({
+          rootId: dailyRootId,
+          startDate,
+          endDate,
+          recentLimit: 12,
+        });
+        const nextById = new Map(byId);
+        for (const note of collectDailyNotes(refreshed, dailyRootId)) {
+          nextById.set(note.id, note);
+        }
+        publishNotes(Array.from(nextById.values()));
+      })
+      .catch(() => undefined);
+
     if (includeCloud) {
       setCloudLoading(true);
-      setCloudNotice("正在从云端加载每日纪要…");
       const cachedCloud = readCachedDailyCloudMetadata(startDate, endDate);
       if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
-        setRootId(cachedCloud.rootId);
+        publishRootId(cachedCloud.rootId);
         const merged = mergeCloudDailyNotes(byId, cachedCloud);
         if (merged > 0) {
-          setNotes(Array.from(byId.values()));
+          publishNotes(Array.from(byId.values()));
           void persistDailyCloudMetadata(cachedCloud, upsertPages);
-          setCloudNotice(
-            `已先显示缓存的云端每日纪要 ${cachedCloud.pages.length} 条，正在后台更新…`
-          );
+          publishNotice(`已先显示缓存的云端每日纪要 ${cachedCloud.pages.length} 条，正在后台更新…`);
+        } else {
+          publishNotice("本地每日纪要已显示，正在后台检查云端更新…");
         }
+      } else {
+        publishNotice("本地每日纪要已显示，正在后台检查云端更新…");
       }
 
       try {
@@ -107,47 +186,35 @@ export default function DailyNotesShell() {
           recentLimit: 12,
         });
         if (cloud.status === "ok" && cloud.rootId) {
-          const cloudById = new Map<string, DailyNote>();
-          setRootId(cloud.rootId);
-          mergeCloudDailyNotes(cloudById, cloud);
-          setNotes(Array.from(cloudById.values()));
+          publishRootId(cloud.rootId);
+          const merged = mergeCloudDailyNotes(byId, cloud);
+          publishNotes(Array.from(byId.values()));
           writeCachedDailyCloudMetadata(startDate, endDate, cloud);
           void persistDailyCloudMetadata(cloud, upsertPages);
-          setCloudNotice(
+          publishNotice(
             cloud.pages.length > 0
-              ? `云端每日纪要已加载 ${cloud.pages.length} 条，其中当前日历范围 ${cloud.rangeCount ?? 0} 条。`
+              ? `云端每日纪要已补齐 ${cloud.pages.length} 条，其中当前日历范围 ${cloud.rangeCount ?? 0} 条。`
+              : merged > 0
+                ? "云端每日纪要已补齐。"
               : `云端每日纪要索引已连接，但当前月份没有返回纪要。云端匹配 ${cloud.matched ?? 0} 条。`
           );
           return;
         }
         if (cloud.status === "disabled") {
-          setCloudNotice("页面同步已关闭，只显示本机每日纪要。");
+          publishNotice("页面同步已关闭，只显示本机每日纪要。");
         } else if (cloud.status === "unauthenticated") {
-          setCloudNotice("当前浏览器未登录账号，只显示本机每日纪要。");
+          publishNotice("当前浏览器未登录账号，只显示本机每日纪要。");
         } else if (cloud.status === "unconfigured") {
-          setCloudNotice("云端账号系统未配置，只显示本机每日纪要。");
+          publishNotice("云端账号系统未配置，只显示本机每日纪要。");
         } else {
-          setCloudNotice(cloud.message ?? "云端每日纪要索引读取失败。");
+          publishNotice(cloud.message ?? "云端每日纪要索引读取失败。");
         }
       } catch {
-        setCloudNotice("云端每日纪要索引读取失败。");
+        publishNotice("云端每日纪要索引读取失败。");
       } finally {
-        setCloudLoading(false);
+        if (loadRequestRef.current === requestId) setCloudLoading(false);
       }
     }
-
-    const id = await getModuleRootId("daily");
-    setRootId(id);
-    await ensureDailyDateIndexBackfilled();
-    const localMetadata = await listDailyPageMetadataForCalendar({
-      rootId: id,
-      startDate,
-      endDate,
-      recentLimit: 12,
-    });
-    const dailyNotes = collectDailyNotes(localMetadata, id);
-    for (const note of dailyNotes) byId.set(note.id, note);
-    setNotes(Array.from(byId.values()));
   }, [upsertPages, viewMonth]);
 
   useEffect(() => {
@@ -159,6 +226,12 @@ export default function DailyNotesShell() {
 
   useEffect(() => {
     if (!dbReady) return;
+    if (observedPageRevisionRef.current === null) {
+      observedPageRevisionRef.current = pageRevision;
+      return;
+    }
+    if (observedPageRevisionRef.current === pageRevision) return;
+    observedPageRevisionRef.current = pageRevision;
     const timer = window.setTimeout(() => {
       void load({ includeCloud: false });
     }, 120);
@@ -182,6 +255,7 @@ export default function DailyNotesShell() {
   const addNote = useCallback(
     async (dateKey: string) => {
       if (creatingDateKey) return;
+      loadRequestRef.current += 1;
       setCreatingDateKey(dateKey);
       setCloudNotice(`正在创建 ${dateKey} 的每日纪要…`);
       const props = [
@@ -193,7 +267,8 @@ export default function DailyNotesShell() {
       ];
       const properties = stringifyPageProperties(props);
       try {
-        const dailyRootId = rootId ?? (await getModuleRootId("daily"));
+        const dailyRootId =
+          rootId ?? getModuleRootIdSync("daily") ?? (await getModuleRootId("daily"));
         if (!rootId) setRootId(dailyRootId);
         const now = new Date().toISOString();
         const optimisticNote: DailyNote = {
@@ -794,6 +869,7 @@ async function persistOptimisticDailyNote(
     ? pageToRemoteRecord(rootPage)
     : makeDailyRootMetadataRecord(rootId, note.updated_at);
   const records = [rootRecord, pageToRemoteRecord(note)];
+  await applyRemotePages(records);
   upsertPages(records.map(remoteRecordToPage));
   await pushDailyCloudRecords(records);
 }
