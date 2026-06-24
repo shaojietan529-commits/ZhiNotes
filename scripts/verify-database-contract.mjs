@@ -19,6 +19,8 @@ const files = {
   databaseImportExportReadiness:
     "src/lib/database/databaseImportExportReadiness.ts",
   databaseWorkbench: "src/lib/database/databaseWorkbench.ts",
+  databaseAccountSyncRoute: "src/app/api/databases/account-sync/route.ts",
+  databaseAccountSyncClient: "src/lib/database/accountDatabaseSync.ts",
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
@@ -106,6 +108,12 @@ function run() {
     files.databaseImportExportReadiness
   );
   const databaseWorkbench = readProjectFile(files.databaseWorkbench);
+  const databaseAccountSyncRoute = readProjectFile(
+    files.databaseAccountSyncRoute
+  );
+  const databaseAccountSyncClient = readProjectFile(
+    files.databaseAccountSyncClient
+  );
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
@@ -138,6 +146,59 @@ function run() {
     '"xlsx"',
     "Excel import/export requires the xlsx dependency."
   );
+  for (const snippet of [
+    "getAccountConfig()",
+    "readSessionToken(request)",
+    "getSessionAccount(config, token)",
+    'body.action === "changes-since"',
+    'body.action === "push"',
+    'body.action === "pull"',
+    "CHANGE_LOG_LIMIT",
+    "MAX_PAYLOAD_BYTES",
+    "MAX_PUSH_RECORDS",
+    "MAX_RECORD_BYTES",
+    "existing && existing.u >= record.updated_at",
+    "zhinotes:dbsync:index:",
+    "zhinotes:dbsync:record:",
+    "zhinotes:dbsync:changes:",
+    "field_values",
+  ]) {
+    assertIncludes(
+      files.databaseAccountSyncRoute,
+      databaseAccountSyncRoute,
+      snippet,
+      "Database cloud sync must be session-gated, incremental, bounded, and stale-write safe."
+    );
+  }
+  if (databaseAccountSyncRoute.includes("console.")) {
+    failures.push("database account-sync route must not write logs");
+  }
+  if (
+    databaseAccountSyncRoute.includes("content_text") ||
+    databaseAccountSyncRoute.includes("content_yjs") ||
+    databaseAccountSyncRoute.includes("file_bytes")
+  ) {
+    failures.push(
+      "database account-sync route must not sync page bodies or file bytes"
+    );
+  }
+  for (const snippet of [
+    'const ENABLED_KEY = "zhinote.databasesync.enabled"',
+    'window.localStorage.getItem(ENABLED_KEY) === "true"',
+    "setDatabaseSyncEnabled",
+    "DATABASE_SYNC_CONFIG_EVENT",
+    'fetch("/api/databases/account-sync"',
+    "fetchCloudDatabaseChangesSince",
+    "pushCloudDatabaseRecords",
+    "fetchCloudDatabaseRecordsByKeys",
+  ]) {
+    assertIncludes(
+      files.databaseAccountSyncClient,
+      databaseAccountSyncClient,
+      snippet,
+      "Database cloud sync client must stay owner-gated and incremental."
+    );
+  }
   for (const snippet of [
     '{ value: "email", label: "邮箱" }',
     '{ value: "phone", label: "电话" }',
