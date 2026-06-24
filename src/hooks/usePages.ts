@@ -7,7 +7,7 @@ import {
   getAllPages,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
-import { fetchCloudPageMetadata } from "@/lib/pages/accountPageSync";
+import { syncCloudPageMetadataDelta } from "@/lib/pages/accountPageSync";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   emitPagesUpdated,
@@ -56,20 +56,30 @@ export function usePages(options: UsePagesOptions = {}) {
   const refresh = useCallback(async (options: RefreshOptions = {}) => {
     if (!dbReady) return;
     let all = includeContent ? await getAllPages() : await getAllPageMetadata();
-    if (!includeContent && all.length === 0) {
-      const cloud = await fetchCloudPageMetadata();
-      if (cloud.status === "ok" && cloud.pages.length > 0) {
-        try {
-          await applyRemotePageMetadata(cloud.pages);
-          all = await getAllPageMetadata();
-        } catch {
-          all = cloud.pages
-            .filter((page) => !page.deleted_at)
-            .map(remoteMetadataToPage);
+    setPages(all);
+
+    if (!includeContent) {
+      try {
+        const cloud = await syncCloudPageMetadataDelta({
+          force: all.length === 0,
+        });
+        if (cloud.status === "ok" && cloud.pages.length > 0) {
+          try {
+            await applyRemotePageMetadata(cloud.pages);
+            all = await getAllPageMetadata();
+          } catch {
+            all = cloud.pages
+              .filter((page) => !page.deleted_at)
+              .map(remoteMetadataToPage);
+          }
+          setPages(all);
         }
+      } catch {
+        // Local pages are already visible. Cloud metadata refresh is best
+        // effort and should never block the current view.
       }
     }
-    setPages(all);
+
     if (options.broadcast !== false) {
       emitPagesUpdated(options.reason ?? "local-refresh", all.length);
     }

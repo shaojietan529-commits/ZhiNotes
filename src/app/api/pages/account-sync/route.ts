@@ -207,6 +207,14 @@ function sanitizeRecord(value: unknown): PageRecord | null {
   };
 }
 
+function toMetadataRecord(record: PageRecord): PageRecord {
+  return {
+    ...record,
+    cover_url: null,
+    content_text: null,
+  };
+}
+
 async function readIndex(
   config: AccountConfig,
   email: string
@@ -990,11 +998,7 @@ async function getPageMetadata(
   const pages = await readIndexedPages(config, email, index);
   const active = pages.filter((page) => !page.deleted_at);
   return {
-    pages: active.map((page) => ({
-      ...page,
-      cover_url: null,
-      content_text: null,
-    })),
+    pages: active.map(toMetadataRecord),
     count: active.length,
     scanned: pages.length,
     summary: summarizeIndex(index),
@@ -1340,6 +1344,20 @@ export async function POST(request: Request) {
           : MAX_PULL_IDS;
       const result = await getPageChangesSince(config, me, since, limit);
       return NextResponse.json({ ok: true, ...result });
+    }
+
+    if (body.action === "metadata-changes-since") {
+      const since = typeof body.since === "string" ? body.since : "";
+      const limit =
+        typeof body.limit === "number" && Number.isInteger(body.limit)
+          ? Math.min(MAX_PULL_IDS, Math.max(1, body.limit))
+          : MAX_PULL_IDS;
+      const result = await getPageChangesSince(config, me, since, limit);
+      return NextResponse.json({
+        ok: true,
+        ...result,
+        pages: result.pages.map(toMetadataRecord),
+      });
     }
 
     if (body.action === "repair-daily-imports") {

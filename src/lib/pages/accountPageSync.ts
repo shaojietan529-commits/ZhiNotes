@@ -44,12 +44,16 @@ const PULL_BATCH = 40;
 const PUSH_BATCH_RECORDS = 50;
 const PUSH_BATCH_BYTES = 800 * 1024;
 const INCREMENTAL_PULL_LIMIT = 50;
+const METADATA_DELTA_THROTTLE_MS = 2500;
 // Covers stored as data URLs can be multi-MB; skip oversized ones rather
 // than failing the whole page push.
 const MAX_COVER_CHARS = 300 * 1024;
 const CLOUD_PUSH_DEBOUNCE_MS = 1000;
 let queuedCloudPush = new Map<string, RemotePageRecord>();
 let queuedCloudPushTimer: ReturnType<typeof setTimeout> | null = null;
+let metadataDeltaInFlight: Promise<CloudPageMetadataDeltaResult> | null = null;
+let lastMetadataDeltaAt = 0;
+let lastMetadataDeltaResult: CloudPageMetadataDeltaResult | null = null;
 
 export function isPageSyncEnabled(): boolean {
   if (typeof window === "undefined") return false;
@@ -122,6 +126,15 @@ export interface CloudPageMetadataResult {
   pages: RemotePageRecord[];
   total: number;
   scanned?: number;
+  message?: string;
+}
+
+export interface CloudPageMetadataDeltaResult {
+  status: PageSyncStatus;
+  pulled: number;
+  pages: RemotePageRecord[];
+  fullRefresh: boolean;
+  throttled?: boolean;
   message?: string;
 }
 
@@ -336,6 +349,152 @@ export async function fetchCloudPageChangesSince(
     cursor: typeof res.json.cursor === "string" ? res.json.cursor : since,
     hasMore: Boolean(res.json.hasMore),
     summary: normalizeSummary(res.json.summary) ?? undefined,
+  };
+}
+
+async function fetchCloudPageMetadataChangesSince(
+  since: string,
+  limit = INCREMENTAL_PULL_LIMIT
+): Promise<CloudPageChangesResult> {
+  if (!isPageSyncEnabled()) {
+    return {
+      status: "disabled",
+      pages: [],
+      count: 0,
+      totalChanged: 0,
+      cursor: since,
+      hasMore: false,
+    };
+  }
+  const res = await call({ action: "metadata-changes-since", since, limit });
+  if (!res.ok) {
+    return {
+      status: res.status,
+      pages: [],
+      count: 0,
+      totalChanged: 0,
+      cursor: since,
+      hasMore: false,
+      message: res.message,
+    };
+  }
+  return {
+    status: "ok",
+    pages: Array.isArray(res.json.pages)
+      ? (res.json.pages as RemotePageRecord[])
+      : [],
+    count: typeof res.json.count === "number" ? res.json.count : 0,
+    totalChanged:
+      typeof res.json.totalChanged === "number" ? res.json.totalChanged : 0,
+    cursor: typeof res.json.cursor === "string" ? res.json.cursor : since,
+    hasMore: Boolean(res.json.hasMore),
+    summary: normalizeSummary(res.json.summary) ?? undefined,
+  };
+}
+
+export async function syncCloudPageMetadataDelta(
+  options: { force?: boolean } = {}
+): Promise<CloudPageMetadataDeltaResult> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", pulled: 0, pages: [], fullRefresh: false };
+  }
+  if (!options.force) {
+    if (metadataDeltaInFlight) return metadataDeltaInFlight;
+    if (
+      lastMetadataDeltaResult &&
+      Date.now() - lastMetadataDeltaAt < METADATA_DELTA_THROTTLE_MS
+    ) {
+      return { ...lastMetadataDeltaResult, throttled: true };
+    }
+  }
+
+  metadataDeltaInFlight = runCloudPageMetadataDelta();
+  try {
+    const result = await metadataDeltaInFlight;
+    lastMetadataDeltaResult = result;
+    lastMetadataDeltaAt = Date.now();
+    return result;
+  } finally {
+    metadataDeltaInFlight = null;
+  }
+}
+
+async function runCloudPageMetadataDelta(): Promise<CloudPageMetadataDeltaResult> {
+  const cursor = getRemoteCursor();
+  if (!cursor) {
+    const cloud = await fetchCloudPageMetadata();
+    if (cloud.status !== "ok") {
+      return {
+        status: cloud.status,
+        pulled: 0,
+        pages: [],
+        fullRefresh: true,
+        message: cloud.message,
+      };
+    }
+    if (cloud.pages.length > 0) {
+      try {
+        await applyRemotePageMetadata(cloud.pages);
+        emitPagesUpdated("cloud-pull", cloud.pages.length);
+      } catch {
+        // The caller can still render the returned metadata snapshot. Browser
+        // cache failures should not block cloud-backed page lists.
+      }
+    }
+    return {
+      status: "ok",
+      pulled: cloud.pages.length,
+      pages: cloud.pages,
+      fullRefresh: true,
+    };
+  }
+
+  let nextCursor = cursor;
+  let hasMore = false;
+  let pulled = 0;
+  const pulledPages: RemotePageRecord[] = [];
+  // Keep UI-triggered refresh bounded. The background sync hook continues
+  // converging if a very large import has more changes after this pass.
+  let batches = 0;
+  do {
+    const changes = await fetchCloudPageMetadataChangesSince(nextCursor);
+    if (changes.status !== "ok") {
+      return {
+        status: changes.status,
+        pulled,
+        pages: pulledPages,
+        fullRefresh: false,
+        message: changes.message,
+      };
+    }
+    if (changes.pages.length > 0) {
+      try {
+        await applyRemotePageMetadata(changes.pages);
+      } catch {
+        // Keep going: usePages can render the returned metadata directly if
+        // the local cache cannot be rebuilt on this device.
+      }
+      pulled += changes.pages.length;
+      pulledPages.push(...changes.pages);
+    }
+    if (changes.summary) {
+      setRemoteWatermark(changes.summary.watermark);
+    }
+    setRemoteCursor(changes.cursor);
+    nextCursor = changes.cursor;
+    hasMore = changes.hasMore;
+    batches += 1;
+  } while (hasMore && batches < 3);
+
+  if (pulled > 0) {
+    emitPagesUpdated("cloud-pull", pulled);
+  }
+  setLastPageSyncAtNow();
+  return {
+    status: "ok",
+    pulled,
+    pages: pulledPages,
+    fullRefresh: false,
   };
 }
 

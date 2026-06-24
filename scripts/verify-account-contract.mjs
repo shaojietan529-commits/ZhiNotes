@@ -147,6 +147,12 @@ check(
   "pages account-sync route 应提供按游标增量拉取 changes-since"
 );
 check(
+  pageSyncRoute.includes('body.action === "metadata-changes-since"') &&
+    pageSyncRoute.includes("pages: result.pages.map(toMetadataRecord)") &&
+    pageSyncRoute.includes("function toMetadataRecord"),
+  "pages account-sync route 应提供轻量 metadata 增量拉取，页面列表不能拉正文和大封面"
+);
+check(
   pageSyncRoute.includes("summary?: IndexSummary") &&
     pageSyncRoute.includes("stringifyPageChangeCursor(maxUpdatedAt, maxUpdatedId)"),
   "pages account-sync route 的增量游标应包含 updated_at 和 page id，避免同时间戳重复拉取"
@@ -260,13 +266,26 @@ check(
     pageSyncClient.includes("setRemoteCursor(summary.cursor)"),
   "页面同步客户端应能拉取云端 metadata，并同步远端游标"
 );
+check(
+  pageSyncClient.includes("syncCloudPageMetadataDelta") &&
+    pageSyncClient.includes('action: "metadata-changes-since"') &&
+    pageSyncClient.includes("METADATA_DELTA_THROTTLE_MS") &&
+    pageSyncClient.includes("metadataDeltaInFlight"),
+  "页面同步客户端应提供节流、去重的轻量 metadata 增量同步入口"
+);
+check(
+  pageSyncClient.includes("cache failures should not block cloud-backed page lists"),
+  "页面 metadata 增量同步应允许本机缓存写入失败时继续用云端列表渲染"
+);
 
 const usePagesHook = read("src/hooks/usePages.ts");
 check(
-  usePagesHook.includes("fetchCloudPageMetadata") &&
-    usePagesHook.includes("applyRemotePageMetadata(cloud.pages)") &&
-    usePagesHook.includes("all.length === 0"),
-  "usePages 本地列表为空时应从云端 metadata 恢复页面列表"
+  usePagesHook.includes("syncCloudPageMetadataDelta") &&
+    usePagesHook.includes("setPages(all);") &&
+    usePagesHook.includes("force: all.length === 0") &&
+    usePagesHook.includes("Cloud metadata refresh is best") &&
+    !usePagesHook.includes("fetchCloudPageMetadata"),
+  "usePages 应先显示本地页面列表，再用云端 metadata 增量后台补齐"
 );
 check(
   usePagesHook.includes("remoteMetadataToPage") &&
