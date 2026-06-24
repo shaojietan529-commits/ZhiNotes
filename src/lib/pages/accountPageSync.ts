@@ -37,6 +37,7 @@ const ENABLED_KEY = "zhinote.pagesync.enabled";
 const LAST_SYNC_KEY = "zhinote.pagesync.lastSyncAt";
 const REMOTE_WATERMARK_KEY = "zhinote.pagesync.remoteWatermark";
 const REMOTE_CURSOR_KEY = "zhinote.pagesync.remoteCursor";
+const PENDING_PUSH_IDS_KEY = "zhinote.pagesync.pendingPushIds";
 export const PAGE_SYNC_CONFIG_EVENT = "zhinote:pagesync-config";
 
 const PULL_BATCH = 40;
@@ -326,6 +327,70 @@ export async function pushCloudPages(
   };
 }
 
+async function pushCloudRecordsInBatches(
+  records: RemotePageRecord[]
+): Promise<{
+  status: PageSyncStatus;
+  accepted: number;
+  skipped: number;
+  message?: string;
+}> {
+  let accepted = 0;
+  let skipped = 0;
+  let batch: RemotePageRecord[] = [];
+  let batchBytes = 0;
+
+  const flush = async (): Promise<PushCloudPagesResult | null> => {
+    if (batch.length === 0) return null;
+    const current = batch;
+    batch = [];
+    batchBytes = 0;
+    return pushCloudPages(current);
+  };
+
+  for (const record of records) {
+    const size = JSON.stringify(record).length;
+    if (
+      batch.length >= PUSH_BATCH_RECORDS ||
+      (batchBytes + size > PUSH_BATCH_BYTES && batch.length > 0)
+    ) {
+      const result = await flush();
+      if (result && result.status !== "ok") {
+        return {
+          status: result.status,
+          accepted,
+          skipped,
+          message: result.message,
+        };
+      }
+      if (result) {
+        clearPendingCloudPushIds([...result.accepted, ...result.skipped]);
+        accepted += result.accepted.length;
+        skipped += result.skipped.length;
+      }
+    }
+    if (size > PUSH_BATCH_BYTES) continue;
+    batch.push(record);
+    batchBytes += size;
+  }
+
+  const result = await flush();
+  if (result && result.status !== "ok") {
+    return {
+      status: result.status,
+      accepted,
+      skipped,
+      message: result.message,
+    };
+  }
+  if (result) {
+    clearPendingCloudPushIds([...result.accepted, ...result.skipped]);
+    accepted += result.accepted.length;
+    skipped += result.skipped.length;
+  }
+  return { status: "ok", accepted, skipped };
+}
+
 export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> {
   if (!isPageSyncEnabled()) {
     return { status: "disabled", pulled: 0, total: 0 };
@@ -465,6 +530,7 @@ export function queueCloudPagePush(
   delayMs = CLOUD_PUSH_DEBOUNCE_MS
 ): void {
   const record = "owner_id" in page ? pageToRemoteRecord(page) : page;
+  markPendingCloudPush(record.id);
   queuedCloudPush.set(record.id, record);
   if (queuedCloudPushTimer) clearTimeout(queuedCloudPushTimer);
   queuedCloudPushTimer = setTimeout(() => {
@@ -472,7 +538,7 @@ export function queueCloudPagePush(
     queuedCloudPush = new Map();
     queuedCloudPushTimer = null;
     if (batch.length > 0) {
-      void pushCloudPages(batch);
+      void pushCloudRecordsInBatches(batch);
     }
   }, delayMs);
 }
@@ -494,6 +560,61 @@ export function queueCloudPageDelete(
           updated_at: deletedAt,
         };
   queueCloudPagePush(tombstone);
+}
+
+async function flushPendingCloudPushes(): Promise<{
+  status: PageSyncStatus;
+  pushed: number;
+  pending: number;
+  message?: string;
+}> {
+  const ids = getPendingCloudPushIds();
+  if (ids.length === 0) {
+    return { status: "ok", pushed: 0, pending: 0 };
+  }
+
+  let pages: Page[];
+  try {
+    pages = await getAllPagesForSync();
+  } catch (error) {
+    return {
+      status: "ok",
+      pushed: 0,
+      pending: ids.length,
+      message: error instanceof Error ? error.message : "本地缓存读取失败",
+    };
+  }
+
+  const localById = new Map(pages.map((page) => [page.id, page]));
+  const records: RemotePageRecord[] = [];
+  const missing: string[] = [];
+  for (const id of ids) {
+    const page = localById.get(id);
+    if (page) {
+      records.push(toRecord(page));
+    } else {
+      missing.push(id);
+    }
+  }
+  clearPendingCloudPushIds(missing);
+  if (records.length === 0) {
+    return { status: "ok", pushed: 0, pending: getPendingCloudPushIds().length };
+  }
+
+  const result = await pushCloudRecordsInBatches(records);
+  if (result.status !== "ok") {
+    return {
+      status: result.status,
+      pushed: result.accepted,
+      pending: getPendingCloudPushIds().length,
+      message: result.message,
+    };
+  }
+  return {
+    status: "ok",
+    pushed: result.accepted,
+    pending: getPendingCloudPushIds().length,
+  };
 }
 
 function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
@@ -569,6 +690,49 @@ function setRemoteCursor(cursor: string) {
 function setLastPageSyncAtNow() {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+}
+
+function getPendingCloudPushIds(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(PENDING_PUSH_IDS_KEY) ?? "[]"
+    );
+    if (!Array.isArray(parsed)) return [];
+    return Array.from(
+      new Set(
+        parsed.filter(
+          (id): id is string => typeof id === "string" && isValidRemotePageId(id)
+        )
+      )
+    );
+  } catch {
+    return [];
+  }
+}
+
+function setPendingCloudPushIds(ids: string[]): void {
+  if (typeof window === "undefined") return;
+  const next = Array.from(new Set(ids.filter(isValidRemotePageId)));
+  if (next.length === 0) {
+    window.localStorage.removeItem(PENDING_PUSH_IDS_KEY);
+    return;
+  }
+  window.localStorage.setItem(PENDING_PUSH_IDS_KEY, JSON.stringify(next));
+}
+
+function markPendingCloudPush(id: string): void {
+  if (!isValidRemotePageId(id)) return;
+  setPendingCloudPushIds([...getPendingCloudPushIds(), id]);
+}
+
+function clearPendingCloudPushIds(ids: string[]): void {
+  if (ids.length === 0) return;
+  const cleared = new Set(ids.filter(isValidRemotePageId));
+  if (cleared.size === 0) return;
+  setPendingCloudPushIds(
+    getPendingCloudPushIds().filter((id) => !cleared.has(id))
+  );
 }
 
 function getPropertyValue(page: Page, name: string): string {
@@ -855,10 +1019,25 @@ export async function reconcilePageSync(
   }
   reconcileRunning = true;
   try {
+    const pendingPush = await flushPendingCloudPushes();
+    if (
+      pendingPush.status === "unauthenticated" ||
+      pendingPush.status === "unconfigured" ||
+      pendingPush.status === "disabled"
+    ) {
+      return {
+        status: pendingPush.status,
+        pulled: 0,
+        pushed: pendingPush.pushed,
+        message: pendingPush.message,
+      };
+    }
+
     if (options.quick) {
       const cursor = getRemoteCursor();
       if (cursor) {
         let pulled = 0;
+        const pushed = pendingPush.pushed;
         let nextCursor = cursor;
         let hasMore = false;
         do {
@@ -867,7 +1046,7 @@ export async function reconcilePageSync(
             return {
               status: result.status,
               pulled,
-              pushed: 0,
+              pushed,
               message: result.message,
             };
           }
@@ -878,14 +1057,19 @@ export async function reconcilePageSync(
         if (typeof window !== "undefined") {
           window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
         }
-        return { status: "ok", pulled, pushed: 0, skipped: pulled === 0 };
+        return {
+          status: "ok",
+          pulled,
+          pushed,
+          skipped: pulled === 0 && pushed === 0,
+        };
       } else {
         const summaryRes = await call({ action: "summary" });
         if (!summaryRes.ok) {
           return {
             status: summaryRes.status,
             pulled: 0,
-            pushed: 0,
+            pushed: pendingPush.pushed,
             message: summaryRes.message,
           };
         }
@@ -895,7 +1079,12 @@ export async function reconcilePageSync(
           if (typeof window !== "undefined") {
             window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
           }
-          return { status: "ok", pulled: 0, pushed: 0, skipped: true };
+          return {
+            status: "ok",
+            pulled: 0,
+            pushed: pendingPush.pushed,
+            skipped: pendingPush.pushed === 0,
+          };
         }
       }
     }
@@ -962,37 +1151,17 @@ export async function reconcilePageSync(
     }
 
     // Push in size-capped batches.
-    let pushed = 0;
-    let batch: RemotePageRecord[] = [];
-    let batchBytes = 0;
-    const flush = async (): Promise<PageSyncStatus | null> => {
-      if (batch.length === 0) return null;
-      const res = await call({ action: "push", pages: batch });
-      batch = [];
-      batchBytes = 0;
-      if (!res.ok) return res.status;
-      pushed += Array.isArray(res.json.accepted)
-        ? res.json.accepted.length
-        : 0;
-      return null;
-    };
-
-    for (const page of toPush) {
-      const record = toRecord(page);
-      const size = JSON.stringify(record).length;
-      if (
-        batch.length >= PUSH_BATCH_RECORDS ||
-        (batchBytes + size > PUSH_BATCH_BYTES && batch.length > 0)
-      ) {
-        const failed = await flush();
-        if (failed) return { status: failed, pulled, pushed, repaired };
-      }
-      if (size > PUSH_BATCH_BYTES) continue; // single page too large — skip
-      batch.push(record);
-      batchBytes += size;
+    const pushResult = await pushCloudRecordsInBatches(toPush.map(toRecord));
+    const pushed = pendingPush.pushed + pushResult.accepted;
+    if (pushResult.status !== "ok") {
+      return {
+        status: pushResult.status,
+        pulled,
+        pushed,
+        repaired,
+        message: pushResult.message,
+      };
     }
-    const failed = await flush();
-    if (failed) return { status: failed, pulled, pushed, repaired };
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
