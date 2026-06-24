@@ -25,6 +25,15 @@ export interface SyncLogEntry {
   synced: number;
 }
 
+export interface LocalPageSyncSummary {
+  count: number;
+  deleted: number;
+  maxUpdatedAt: string;
+  maxUpdatedId: string;
+  watermark: string;
+  cursor: string;
+}
+
 type SyncOperation = "insert" | "update" | "delete" | "restore";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -735,6 +744,44 @@ export async function getAllPagesForSync(): Promise<Page[]> {
             created_at, updated_at, deleted_at, sync_version
      FROM pages`
   ) as unknown as Page[];
+}
+
+export async function getLocalPageSyncSummary(): Promise<LocalPageSyncSummary> {
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT id, updated_at, deleted_at
+     FROM pages
+     WHERE sync_version != -1`
+  ) as unknown as Array<{
+    id: string;
+    updated_at: string;
+    deleted_at: string | null;
+  }>;
+
+  let deleted = 0;
+  let maxUpdatedAt = "";
+  let maxUpdatedId = "";
+  for (const row of rows) {
+    if (row.deleted_at) deleted += 1;
+    if (
+      row.updated_at > maxUpdatedAt ||
+      (row.updated_at === maxUpdatedAt && row.id > maxUpdatedId)
+    ) {
+      maxUpdatedAt = row.updated_at;
+      maxUpdatedId = row.id;
+    }
+  }
+
+  return {
+    count: rows.length,
+    deleted,
+    maxUpdatedAt,
+    maxUpdatedId,
+    watermark: `${rows.length}:${deleted}:${maxUpdatedAt}`,
+    cursor: maxUpdatedAt
+      ? JSON.stringify({ updatedAt: maxUpdatedAt, id: maxUpdatedId })
+      : "",
+  };
 }
 
 export async function clearLocalPageCacheForIds(ids: string[]): Promise<number> {

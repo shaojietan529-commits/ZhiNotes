@@ -246,6 +246,15 @@ check(
   "页面同步客户端应保存远端游标并优先使用 changes-since 增量拉取"
 );
 check(
+  pageSyncClient.includes("getLocalPageSyncSummary") &&
+    pageSyncClient.includes("restoreCursorFromLocalMetadata") &&
+    pageSyncClient.includes("localSummary.watermark !== remoteSummary.watermark") &&
+    pageSyncClient.includes("localSummary.cursor !== remoteSummary.cursor") &&
+    pageSyncClient.indexOf("restoreCursorFromLocalMetadata(summary)") <
+      pageSyncClient.indexOf("const metadata = await syncCloudPageMetadataDelta"),
+  "页面同步客户端在 localStorage 游标丢失但本地 metadata 与云端摘要一致时，应恢复增量游标而不是强制重拉全部 metadata"
+);
+check(
   pageSyncClient.includes("setRemoteCursor(summary.cursor)") &&
     pageSyncClient.includes("setRemoteWatermark(changes.summary.watermark)"),
   "页面同步客户端应在增量/摘要同步后更新云端游标和水位"
@@ -508,9 +517,20 @@ check(
 );
 
 const localQueries = read("src/lib/db/local/queries.ts");
+const localPageSyncSummaryBody = localQueries.slice(
+  localQueries.indexOf("export async function getLocalPageSyncSummary"),
+  localQueries.indexOf("export async function clearLocalPageCacheForIds")
+);
 check(
   localQueries.includes("clearLocalPageCacheForIds"),
   "local queries 应提供按云端页面 id 清理本机页面缓存的 helper"
+);
+check(
+  localPageSyncSummaryBody.includes("SELECT id, updated_at, deleted_at") &&
+    localPageSyncSummaryBody.includes("WHERE sync_version != -1") &&
+    !localPageSyncSummaryBody.includes("content_text") &&
+    !localPageSyncSummaryBody.includes("content_yjs"),
+  "local queries 应提供只读 metadata 的本机页面同步摘要，用于恢复游标，不能为摘要读取正文"
 );
 check(
   localQueries.includes("clearLocalPageCacheExceptIds") &&

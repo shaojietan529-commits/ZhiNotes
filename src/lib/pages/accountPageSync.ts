@@ -19,6 +19,7 @@ import {
   clearLocalPageCacheExceptIds,
   clearLocalPageCacheForIds,
   getAllPagesForSync,
+  getLocalPageSyncSummary,
   getNextPosition,
   movePage,
   deletePage,
@@ -901,6 +902,26 @@ function setLastPageSyncAtNow() {
   window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
 }
 
+async function restoreCursorFromLocalMetadata(
+  remoteSummary: IndexSummary
+): Promise<boolean> {
+  try {
+    const localSummary = await getLocalPageSyncSummary();
+    if (
+      localSummary.watermark !== remoteSummary.watermark ||
+      localSummary.cursor !== remoteSummary.cursor
+    ) {
+      return false;
+    }
+    setRemoteWatermark(remoteSummary.watermark);
+    setRemoteCursor(remoteSummary.cursor);
+    setLastPageSyncAtNow();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function getPendingCloudPushIds(): string[] {
   if (typeof window === "undefined") return [];
   try {
@@ -1316,9 +1337,15 @@ export async function reconcilePageSync(
         const summary = normalizeSummary(summaryRes.json.summary);
         if (summary && summary.watermark === getRemoteWatermark()) {
           setRemoteCursor(summary.cursor);
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
-          }
+          setLastPageSyncAtNow();
+          return {
+            status: "ok",
+            pulled: 0,
+            pushed: pendingPush.pushed,
+            skipped: pendingPush.pushed === 0,
+          };
+        }
+        if (summary && (await restoreCursorFromLocalMetadata(summary))) {
           return {
             status: "ok",
             pulled: 0,
