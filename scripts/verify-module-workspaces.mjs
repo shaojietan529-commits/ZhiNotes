@@ -156,6 +156,11 @@ for (const token of [
 ]) {
   check(shells.schedule.includes(token), `MeetingScheduleShell 缺少 ${token}`);
 }
+check(
+  shells.schedule.includes("listPageMetadata") &&
+    !shells.schedule.includes("const dailyPages = await listPages(dailyRootId)"),
+  "MeetingScheduleShell 关联每日纪要时应先读 metadata，不能为建立日期索引读取所有每日正文"
+);
 
 // 4. Sidebar promotes the primary workspaces, demotes the rest to 备选模块, and lets
 // owner reorder the primary sidebar items locally.

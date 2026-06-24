@@ -11,6 +11,7 @@ import {
   deletePage,
   getDeletedPages,
   getPage,
+  listPageMetadata,
   listPages,
   restorePage,
 } from "@/lib/db/local/queries";
@@ -2663,7 +2664,7 @@ function buildMonthGrid(monthStart: Date): MonthCell[] {
 
 async function linkCompletedMeetingsToDaily(completed: MeetingEntry[]) {
   const dailyRootId = await getModuleRootId("daily");
-  const dailyPages = await listPages(dailyRootId);
+  const dailyPages = await listPageMetadata(dailyRootId);
 
   // Index daily pages by date key for fast lookup.
   const dailyByDate = new Map<string, Page>();
@@ -2688,12 +2689,13 @@ async function linkCompletedMeetingsToDaily(completed: MeetingEntry[]) {
       .join("-");
 
     let dailyPage = dailyByDate.get(dateKey);
+    let currentDailyBody: string | null = null;
 
     // Check if this meeting is already linked in the daily page content.
     if (dailyPage) {
       const existing = await getPage(dailyPage.id);
-      const body = existing?.content_text ?? "";
-      if (body.includes(`data-id="${entry.page.id}"`)) continue;
+      currentDailyBody = existing?.content_text ?? "";
+      if (currentDailyBody.includes(`data-id="${entry.page.id}"`)) continue;
     }
 
     // Create the daily page for this date if it doesn't exist yet.
@@ -2723,7 +2725,8 @@ async function linkCompletedMeetingsToDaily(completed: MeetingEntry[]) {
       `font-medium cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900 ` +
       `transition-colors no-underline">📄 ${escapeHtml(label)}</a></p>`;
 
-    const current = (await getPage(dailyPage.id))?.content_text ?? "";
+    const current =
+      currentDailyBody ?? (await getPage(dailyPage.id))?.content_text ?? "";
     await updatePageWithCloud(dailyPage.id, {
       content_text: current + mentionHtml,
     });
