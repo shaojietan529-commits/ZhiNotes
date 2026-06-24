@@ -60,6 +60,7 @@ const localQueries = read("src/lib/db/local/queries.ts");
 const localSchema = read("src/lib/db/local/schema.ts");
 const localClient = read("src/lib/db/local/client.ts");
 const usePageHook = read("src/hooks/usePage.ts");
+const usePagesHook = read("src/hooks/usePages.ts");
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 const forbidden = ["XMLHttpRequest", "enables_ai", "getUserMedia"];
 for (const [name, source] of Object.entries(shells)) {
@@ -132,6 +133,11 @@ check(
   usePageHook.includes("options: UsePageOptions") &&
     usePageHook.includes("enabled = options.enabled ?? true"),
   "usePage 必须支持延后加载正文，避免 peek 弹窗打开时立即拉取大正文"
+);
+check(
+  usePagesHook.includes("upsertPages(cloud.pages.map(remoteMetadataToPage))") &&
+    !usePagesHook.includes("applyRemotePageMetadata"),
+  "usePages 云端 metadata delta 必须直接合并到 store，不能每次 delta 后重扫全量 pages"
 );
 check(
   pagePeekModal.includes("getPageMetadata") &&

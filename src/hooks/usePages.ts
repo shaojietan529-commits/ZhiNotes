@@ -2,7 +2,6 @@
 
 import { useEffect, useCallback } from "react";
 import {
-  applyRemotePageMetadata,
   getAllPageMetadata,
   getAllPages,
   type RemotePageRecord,
@@ -52,10 +51,13 @@ export function usePages(options: UsePagesOptions = {}) {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const pages = useWorkspaceStore((s) => s.pages);
   const setPages = useWorkspaceStore((s) => s.setPages);
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
 
   const refresh = useCallback(async (options: RefreshOptions = {}) => {
     if (!dbReady) return;
-    let all = includeContent ? await getAllPages() : await getAllPageMetadata();
+    const all = includeContent
+      ? await getAllPages()
+      : await getAllPageMetadata();
     setPages(all);
 
     if (!includeContent) {
@@ -64,15 +66,7 @@ export function usePages(options: UsePagesOptions = {}) {
           force: all.length === 0,
         });
         if (cloud.status === "ok" && cloud.pages.length > 0) {
-          try {
-            await applyRemotePageMetadata(cloud.pages);
-            all = await getAllPageMetadata();
-          } catch {
-            all = cloud.pages
-              .filter((page) => !page.deleted_at)
-              .map(remoteMetadataToPage);
-          }
-          setPages(all);
+          upsertPages(cloud.pages.map(remoteMetadataToPage));
         }
       } catch {
         // Local pages are already visible. Cloud metadata refresh is best
@@ -83,7 +77,7 @@ export function usePages(options: UsePagesOptions = {}) {
     if (options.broadcast !== false) {
       emitPagesUpdated(options.reason ?? "local-refresh", all.length);
     }
-  }, [dbReady, includeContent, setPages]);
+  }, [dbReady, includeContent, setPages, upsertPages]);
 
   useEffect(() => {
     refresh({ broadcast: false });
