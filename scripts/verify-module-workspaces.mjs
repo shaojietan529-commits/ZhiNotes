@@ -64,6 +64,7 @@ const usePagesHook = read("src/hooks/usePages.ts");
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
 const pendingPageDrafts = read("src/lib/pages/pendingPageDrafts.ts");
+const pageTreeSource = read("src/components/sidebar/PageTree.tsx");
 const pageUpdateBus = read("src/lib/pages/pageUpdateBus.ts");
 const accountPageSync = read("src/lib/pages/accountPageSync.ts");
 const forbidden = ["XMLHttpRequest", "enables_ai", "getUserMedia"];
@@ -150,6 +151,14 @@ check(
     pageShell.includes("loading: () => <PageBodySkeleton />") &&
     !pageShell.includes("import Editor from \"@/components/editor/Editor\""),
   "PageShell 必须动态加载编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
+);
+check(
+  pageTreeSource.includes("SIDEBAR_PAGE_TREE_ROOT_LIMIT") &&
+    pageTreeSource.includes("childrenByParent") &&
+    pageTreeSource.includes("visibleRootPages") &&
+    pageTreeSource.includes("hiddenRootCount") &&
+    pageTreeSource.includes("getTopLevelPageId"),
+  "Sidebar PageTree 必须用 parent 索引和根页面渲染上限，避免 Notion 批量导入后拖慢全站"
 );
 check(
   usePagesHook.includes("upsertPages(cloud.pages.map(remoteMetadataToPage))") &&

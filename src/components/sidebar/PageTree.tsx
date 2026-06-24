@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
@@ -20,6 +20,8 @@ type DropTarget = {
   pageId: string;
   position: "before" | "inside" | "after";
 };
+
+const SIDEBAR_PAGE_TREE_ROOT_LIMIT = 80;
 
 function isDescendant(
   pageId: string,
@@ -44,6 +46,7 @@ function getSiblings(parentId: string | null, allPages: Page[]): Page[] {
 interface PageTreeItemProps {
   page: Page;
   allPages: Page[];
+  childrenByParent: Map<string | null, Page[]>;
   level: number;
   currentPageId: string | null;
   onNavigate: (id: string) => void;
@@ -59,6 +62,7 @@ interface PageTreeItemProps {
 function PageTreeItem({
   page,
   allPages,
+  childrenByParent,
   level,
   currentPageId,
   onNavigate,
@@ -74,9 +78,7 @@ function PageTreeItem({
   const [showActions, setShowActions] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
-  const children = allPages
-    .filter((p) => p.parent_id === page.id)
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const children = childrenByParent.get(page.id) ?? [];
   const hasChildren = children.length > 0;
   const title = displayPageTitle(page.title);
 
@@ -244,6 +246,7 @@ function PageTreeItem({
               key={child.id}
               page={child}
               allPages={allPages}
+              childrenByParent={childrenByParent}
               level={level + 1}
               currentPageId={currentPageId}
               onNavigate={onNavigate}
@@ -274,10 +277,49 @@ export default function PageTree() {
     y: number;
   } | null>(null);
 
-  const moduleRootIds = new Set(getModuleRootIdsSync());
-  const rootPages = pages
-    .filter((p) => p.parent_id === null && !moduleRootIds.has(p.id))
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const moduleRootIds = useMemo(() => new Set(getModuleRootIdsSync()), []);
+  const pagesById = useMemo(
+    () => new Map(pages.map((page) => [page.id, page])),
+    [pages]
+  );
+  const childrenByParent = useMemo(() => {
+    const grouped = new Map<string | null, Page[]>();
+    for (const page of pages) {
+      const list = grouped.get(page.parent_id) ?? [];
+      list.push(page);
+      grouped.set(page.parent_id, list);
+    }
+    for (const list of grouped.values()) {
+      list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    }
+    return grouped;
+  }, [pages]);
+  const rootPages = useMemo(
+    () =>
+      (childrenByParent.get(null) ?? []).filter(
+        (page) => !moduleRootIds.has(page.id)
+      ),
+    [childrenByParent, moduleRootIds]
+  );
+  const visibleRootPages = useMemo(() => {
+    const visible = rootPages.slice(0, SIDEBAR_PAGE_TREE_ROOT_LIMIT);
+    const currentRootId = currentPageId
+      ? getTopLevelPageId(currentPageId, pagesById)
+      : null;
+    if (
+      currentRootId &&
+      rootPages.some((page) => page.id === currentRootId) &&
+      !visible.some((page) => page.id === currentRootId)
+    ) {
+      const currentRoot = pagesById.get(currentRootId);
+      if (currentRoot) {
+        visible.unshift(currentRoot);
+        visible.splice(SIDEBAR_PAGE_TREE_ROOT_LIMIT);
+      }
+    }
+    return visible;
+  }, [currentPageId, pagesById, rootPages]);
+  const hiddenRootCount = Math.max(0, rootPages.length - visibleRootPages.length);
 
   const handleNavigate = useCallback(
     (id: string) => {
@@ -390,11 +432,12 @@ export default function PageTree() {
         onDragOver={handleRootDragOver}
         onDrop={handleRootDrop}
       >
-        {rootPages.map((page) => (
+        {visibleRootPages.map((page) => (
           <PageTreeItem
             key={page.id}
             page={page}
             allPages={pages}
+            childrenByParent={childrenByParent}
             level={0}
             currentPageId={currentPageId}
             onNavigate={handleNavigate}
@@ -408,6 +451,12 @@ export default function PageTree() {
           />
         ))}
       </ul>
+
+      {hiddenRootCount > 0 && (
+        <p className="px-3 py-2 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+          已折叠 {hiddenRootCount} 个旧页面；用搜索或对应模块打开。
+        </p>
+      )}
 
       {contextMenu && (
         <PageContextMenu
@@ -428,4 +477,17 @@ export default function PageTree() {
       )}
     </>
   );
+}
+
+function getTopLevelPageId(
+  pageId: string,
+  pagesById: Map<string, Page>
+): string | null {
+  let current = pagesById.get(pageId) ?? null;
+  let topLevel = current;
+  while (current?.parent_id) {
+    current = pagesById.get(current.parent_id) ?? null;
+    if (current) topLevel = current;
+  }
+  return topLevel?.parent_id === null ? topLevel.id : null;
 }
