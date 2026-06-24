@@ -188,6 +188,28 @@ check(
     pageSyncClient.includes("setRemoteWatermark(changes.summary.watermark)"),
   "页面同步客户端应在增量/摘要同步后更新云端游标和水位"
 );
+check(
+  pageSyncClient.includes("PENDING_PUSH_IDS_KEY") &&
+    pageSyncClient.includes("markPendingCloudPush(record.id)") &&
+    pageSyncClient.includes("flushPendingCloudPushes"),
+  "页面同步客户端应维护只含 page id 的待上传队列，用于失败后重试云端写回"
+);
+check(
+  pageSyncClient.includes("void pushCloudRecordsInBatches(batch)") &&
+    pageSyncClient.includes("clearPendingCloudPushIds([...result.accepted, ...result.skipped])"),
+  "页面同步客户端的防抖上传成功或被远端跳过后应清理待上传 id"
+);
+check(
+  pageSyncClient.includes("const pendingPush = await flushPendingCloudPushes()") &&
+    pageSyncClient.includes("const pushed = pendingPush.pushed") &&
+    pageSyncClient.includes("pendingPush.pushed + pushResult.accepted"),
+  "reconcile 每轮同步应先补发待上传页面，并把补发数量计入同步结果"
+);
+check(
+  pageSyncClient.includes("window.localStorage.getItem(PENDING_PUSH_IDS_KEY)") &&
+    !pageSyncClient.includes("zhinote.pagesync.pendingPushRecords"),
+  "待上传重试队列只能保存 page id，不能把页面正文复制进 localStorage"
+);
 
 const pageCloudSyncHook = read("src/hooks/usePageCloudSync.ts");
 check(
