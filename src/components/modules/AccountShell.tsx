@@ -24,6 +24,10 @@ import {
   type ClientAccountInfo,
 } from "@/lib/account/clientProfile";
 import {
+  clearAccountSessionCache,
+  fetchAccountSession,
+} from "@/lib/account/clientSession";
+import {
   getLastDatabaseSyncAt,
   isDatabaseSyncEnabled,
   pushLocalDatabasesToCloud,
@@ -93,18 +97,17 @@ export default function AccountShell() {
 
   const refreshSession = useCallback(async () => {
     try {
-      const res = await fetch("/api/account/me", { cache: "no-store" });
-      if (res.status === 501) {
+      const session = await fetchAccountSession({ force: true });
+      if (session.status === "unconfigured") {
         setPhase("unconfigured");
         return;
       }
-      if (!res.ok) {
+      if (session.status === "error") {
         setPhase("error");
         return;
       }
-      const data = await res.json();
-      if (data.authenticated && data.account) {
-        setSignedInAccount(data.account as ClientAccountInfo);
+      if (session.authenticated && session.account) {
+        setSignedInAccount(session.account);
         setPhase("signed-in");
       } else {
         setPhase("email");
@@ -438,6 +441,7 @@ export default function AccountShell() {
         setNotice(data.error ?? "验证失败，请稍后重试。");
         return;
       }
+      clearAccountSessionCache();
       setSignedInAccount(data.account as ClientAccountInfo);
       setCode("");
       setPhase("signed-in");
@@ -467,6 +471,7 @@ export default function AccountShell() {
         setProfileNotice(data.error ?? "用户名保存失败，请稍后重试。");
         return;
       }
+      clearAccountSessionCache();
       setSignedInAccount(data.account as ClientAccountInfo);
       setProfileNotice("用户名已保存。");
     } catch {
@@ -504,6 +509,7 @@ export default function AccountShell() {
     } finally {
       setAccount(null);
       setDisplayNameInput("");
+      clearAccountSessionCache();
       notifyAccountProfileUpdated();
       setNotice(null);
       setPhase("email");

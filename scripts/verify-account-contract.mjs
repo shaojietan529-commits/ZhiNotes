@@ -75,6 +75,7 @@ check(
 
 // 3. Login page: unconfigured state, no auto-send
 const shell = read("src/components/modules/AccountShell.tsx");
+const accountClientSession = read("src/lib/account/clientSession.ts");
 check(shell.includes("unconfigured"), "AccountShell 缺少未配置状态");
 const effectBodies = shell.match(/useEffect\(\(\) => \{[\s\S]*?\}, \[/g) ?? [];
 check(effectBodies.length > 0, "AccountShell 缺少会话检查 useEffect");
@@ -85,8 +86,17 @@ for (const body of effectBodies) {
   );
 }
 check(
-  shell.includes("/api/account/me"),
-  "AccountShell 应该只在加载时检查会话状态"
+  shell.includes("fetchAccountSession({ force: true })") &&
+    shell.includes("clearAccountSessionCache"),
+  "AccountShell 应通过共享账号状态 helper 检查会话，并在登录/改名/退出后清缓存"
+);
+check(
+  accountClientSession.includes("/api/account/me") &&
+    accountClientSession.includes("accountSessionInFlight") &&
+    accountClientSession.includes("cachedAccountSession") &&
+    accountClientSession.includes("ACCOUNT_SESSION_RETRY_BACKOFF_MS") &&
+    accountClientSession.includes("clearAccountSessionCache"),
+  "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重和未配置退避"
 );
 const page = read("src/app/(workspace)/account/page.tsx");
 check(page.includes("AccountShell"), "/account 路由缺少 AccountShell");
@@ -112,6 +122,10 @@ check(!accountSync.includes("console."), "account-sync route 不应该写日志"
 
 // 6. Shell: viewing a shared portfolio is read-only and never pushes
 const board = read("src/components/modules/PortfolioBoardShell.tsx");
+check(
+  board.includes("fetchAccountSession"),
+  "PortfolioBoardShell 应复用共享账号状态 helper，避免重复检查会话"
+);
 check(
   board.includes("if (viewingOwner) return;"),
   "查看共享持仓时不应触发云端 push"
@@ -649,8 +663,8 @@ check(
 
 const sidebar = read("src/components/sidebar/Sidebar.tsx");
 check(
-  sidebar.includes("/api/account/me"),
-  "Sidebar 应读取当前账号资料"
+  sidebar.includes("fetchAccountSession"),
+  "Sidebar 应通过共享账号状态 helper 读取当前账号资料"
 );
 check(
   sidebar.includes("accountLabel"),

@@ -31,8 +31,8 @@ import { usePageCloudSync } from "@/hooks/usePageCloudSync";
 import { useDatabaseCloudSync } from "@/hooks/useDatabaseCloudSync";
 import {
   ACCOUNT_PROFILE_UPDATED_EVENT,
-  type ClientAccountInfo,
 } from "@/lib/account/clientProfile";
+import { fetchAccountSession } from "@/lib/account/clientSession";
 
 const SIDEBAR_PRIMARY_ORDER_KEY = "zhinote.sidebar.primaryOrder.v1";
 const SIDEBAR_PRIMARY_CUSTOMIZATION_KEY =
@@ -214,15 +214,9 @@ export default function Sidebar() {
 
   const refreshAccountLabel = useCallback(async () => {
     try {
-      const res = await fetch("/api/account/me", { cache: "no-store" });
-      if (!res.ok) {
-        setAccountLabel("账号");
-        return;
-      }
-      const data = await res.json();
-      if (data.authenticated && data.account) {
-        const account = data.account as ClientAccountInfo;
-        setAccountLabel(account.display_name || "账号");
+      const session = await fetchAccountSession();
+      if (session.authenticated && session.account) {
+        setAccountLabel(session.account.display_name || "账号");
         return;
       }
       setAccountLabel("账号");

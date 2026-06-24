@@ -47,6 +47,7 @@ import {
   accountPushCloud,
   fetchShares,
 } from "@/lib/portfolio/accountSync";
+import { fetchAccountSession } from "@/lib/account/clientSession";
 
 type BoardTab = "positions" | "analysis" | "rebalance";
 type SyncStatus = "off" | "syncing" | "synced" | "error";
@@ -104,20 +105,17 @@ export default function PortfolioBoardShell() {
       setMaxNetPct(loadMaxNetPct());
       // Signed in → account sync takes over; otherwise legacy passcode mode.
       try {
-        const res = await fetch("/api/account/me", { cache: "no-store" });
-        if (res.ok) {
-          const me = await res.json();
-          if (me.authenticated) {
-            syncModeRef.current = "account";
-            setSyncMode("account");
-            void runInitialSync(null, false);
-            void fetchShares().then((shares) => {
-              if (shares.status === "ok") {
-                setSharedWithMe(shares.data.sharedWithMe);
-              }
-            });
-            return;
-          }
+        const session = await fetchAccountSession();
+        if (session.authenticated) {
+          syncModeRef.current = "account";
+          setSyncMode("account");
+          void runInitialSync(null, false);
+          void fetchShares().then((shares) => {
+            if (shares.status === "ok") {
+              setSharedWithMe(shares.data.sharedWithMe);
+            }
+          });
+          return;
         }
       } catch {
         // offline or account system unconfigured — fall through
