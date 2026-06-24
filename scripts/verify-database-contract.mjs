@@ -481,7 +481,6 @@ function run() {
     "loadDatabaseSnapshot",
     "databaseSnapshotInFlight",
     "setDatabases(all)",
-    "localSnapshotLoaded",
     "Treat local SQLite as a cache",
     "mergeDatabaseMetadata(all, cloud.records)",
     "mergeDatabaseMetadata(current, message.records ?? [])",
@@ -490,14 +489,22 @@ function run() {
     "Cloud delta refresh is",
     "subscribeDatabasesUpdated",
     "emitDatabasesUpdated",
-    "restoreLocalCursor: all.length > 0",
-    "fullRefresh: all.length === 0 || !localSnapshotLoaded",
+    "restoreLocalCursor: true",
   ]) {
     assertIncludes(
       files.useDatabases,
       useDatabases,
       snippet,
       "Database list UI must show local cache first and then prewarm cloud metadata via incremental delta."
+    );
+  }
+  if (
+    useDatabases.includes(
+      "fullRefresh: all.length === 0 || !localSnapshotLoaded"
+    )
+  ) {
+    failures.push(
+      "Database list UI must not force full cloud metadata merely because the rebuildable local cache is empty or temporarily unavailable."
     );
   }
   const primaryDatabaseListSurfaces = [

@@ -404,14 +404,14 @@ const pageImportPlanPanel = read("src/components/modules/PageImportPlanPanel.tsx
 check(
   usePagesHook.includes("syncCloudPageMetadataDelta") &&
     usePagesHook.includes("setPages(all);") &&
-    usePagesHook.includes("force: all.length === 0") &&
+    usePagesHook.includes("force: all.length === 0 || !localSnapshotLoaded") &&
     usePagesHook.includes("localSnapshotLoaded") &&
-    usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
+    !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
     usePagesHook.includes("The browser database is only a rebuildable cache") &&
     usePagesHook.includes("setPages(cloudPages)") &&
     usePagesHook.includes("refresh is best effort") &&
     !usePagesHook.includes("fetchCloudPageMetadata"),
-  "usePages 应先显示本地页面列表；本地缓存空/坏时必须强制用云端 metadata 兜底恢复"
+  "usePages 应先显示本地页面列表；本地缓存空/坏时可强制检查云端 metadata，但必须先让同步引擎从本地 cursor/summary 尝试增量恢复"
 );
 check(
   usePagesHook.includes("autoLoad?: boolean") &&

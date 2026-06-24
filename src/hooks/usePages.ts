@@ -100,7 +100,6 @@ export function usePages(options: UsePagesOptions = {}) {
       try {
         const cloud = await syncCloudPageMetadataDelta({
           force: all.length === 0 || !localSnapshotLoaded,
-          fullRefresh: all.length === 0 || !localSnapshotLoaded,
         });
         if (cloud.status === "ok" && cloud.pages.length > 0) {
           const cloudPages = cloud.pages.map(remoteMetadataToPage);

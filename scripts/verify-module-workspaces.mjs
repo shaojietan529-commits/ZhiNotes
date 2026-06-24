@@ -208,9 +208,11 @@ check(
   usePagesHook.includes("const cloudPages = cloud.pages.map(remoteMetadataToPage)") &&
     usePagesHook.includes("upsertPages(cloudPages)") &&
     usePagesHook.includes("setPages(cloudPages)") &&
+    usePagesHook.includes("force: all.length === 0 || !localSnapshotLoaded") &&
+    !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
     !usePagesHook.includes("applyRemotePageMetadata") &&
     usePagesHook.includes("autoLoad?: boolean"),
-  "usePages 云端 metadata delta 必须直接合并到 store，不能每次 delta 后重扫全量 pages"
+  "usePages 云端 metadata delta 必须直接合并到 store，并让同步引擎先尝试从本地 cursor 接续增量，不能本地列表为空就强制全量 pages"
 );
 check(
   pageUpdateBus.includes("PageUpdatePayload") &&
