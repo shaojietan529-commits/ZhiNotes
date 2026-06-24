@@ -147,13 +147,31 @@ check(
   "pages account-sync route 应提供按游标增量拉取 changes-since"
 );
 check(
-  pageSyncRoute.includes("summary: IndexSummary") &&
+  pageSyncRoute.includes("summary?: IndexSummary") &&
     pageSyncRoute.includes("stringifyPageChangeCursor(maxUpdatedAt, maxUpdatedId)"),
   "pages account-sync route 的增量游标应包含 updated_at 和 page id，避免同时间戳重复拉取"
 );
 check(
-  pageSyncRoute.includes("entry.u === cursor.updatedAt && id > cursor.id"),
+  pageSyncRoute.includes("entry.u === cursor.updatedAt && entry.id > cursor.id"),
   "pages account-sync route 增量过滤应使用 updated_at + page id 做稳定排序"
+);
+check(
+  pageSyncRoute.includes("CHANGE_LOG_KEY_PREFIX") &&
+    pageSyncRoute.includes("CHANGE_LOG_LIMIT") &&
+    pageSyncRoute.includes("readChangeLog") &&
+    pageSyncRoute.includes("appendChangeLog"),
+  "pages account-sync route 应维护有界 change log，避免常规增量拉取扫描完整 index"
+);
+check(
+  pageSyncRoute.includes('source: "change-log"') &&
+    pageSyncRoute.includes('source: "index"') &&
+    pageSyncRoute.includes("const canUseChangeLog"),
+  "changes-since 应优先使用 change log，并保留旧账号/过期游标的 index fallback"
+);
+check(
+  pageSyncRoute.includes("await appendChangeLog(config, me, changeLogEntries)") &&
+    pageSyncRoute.includes("await appendChangeLog(config, email, changeLogEntries)"),
+  "页面 push 和服务端修复路径都应写入 change log"
 );
 
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
