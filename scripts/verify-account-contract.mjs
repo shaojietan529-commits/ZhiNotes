@@ -259,6 +259,23 @@ check(
   "usePages 云端 metadata 本地写入失败时仍应能用无正文页面列表渲染侧栏"
 );
 
+const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
+check(
+  dailyNotesShell.indexOf("readCachedDailyCloudMetadata(startDate, endDate)") <
+    dailyNotesShell.indexOf("getAllPageMetadata()") &&
+    dailyNotesShell.includes("const cloudById = new Map<string, DailyNote>()") &&
+    dailyNotesShell.includes("fetchDailyCloudMetadata({") &&
+    dailyNotesShell.includes("recentLimit: 12"),
+  "DailyNotesShell 首屏应优先显示云端当前日历窗口，不应先扫描本机全量页面"
+);
+check(
+  dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id)") <
+    dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
+    dailyNotesShell.includes("后台保存到账号云端") &&
+    !dailyNotesShell.includes("createPageWithCloud"),
+  "DailyNotesShell 点击 + 应立即打开乐观草稿，再后台保存到云端"
+);
+
 const usePageHook = read("src/hooks/usePage.ts");
 check(
   usePageHook.includes("const cloud = await fetchCloudPageById(pageId)") &&
