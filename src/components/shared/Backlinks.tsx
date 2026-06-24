@@ -2,21 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getAllPages, getBacklinks } from "@/lib/db/local/queries";
+import { getBacklinks } from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 
 interface BacklinksProps {
   pageId: string;
-  pageTitle: string;
 }
 
 type ReferencePage = Page & { mentionExcerpt?: string };
 
-export default function Backlinks({ pageId, pageTitle }: BacklinksProps) {
+const REFERENCE_LABELS = {
+  backlinks: "反向链接",
+  unlinkedMentions: "未链接提及",
+} as const;
+
+export default function Backlinks({ pageId }: BacklinksProps) {
   const router = useRouter();
   const [links, setLinks] = useState<Page[]>([]);
-  const [unlinkedMentions, setUnlinkedMentions] = useState<ReferencePage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,21 +27,10 @@ export default function Backlinks({ pageId, pageTitle }: BacklinksProps) {
 
     async function load() {
       setLoading(true);
-      const [backlinks, pages] = await Promise.all([
-        getBacklinks(pageId),
-        getAllPages(),
-      ]);
+      const backlinks = await getBacklinks(pageId);
       if (cancelled) return;
 
-      const backlinkIds = new Set(backlinks.map((page) => page.id));
-      const mentions = findUnlinkedMentions(
-        pages,
-        pageId,
-        pageTitle,
-        backlinkIds
-      );
       setLinks(backlinks);
-      setUnlinkedMentions(mentions);
       setLoading(false);
     }
     load();
@@ -46,10 +38,10 @@ export default function Backlinks({ pageId, pageTitle }: BacklinksProps) {
     return () => {
       cancelled = true;
     };
-  }, [pageId, pageTitle]);
+  }, [pageId]);
 
   if (loading) return null;
-  if (links.length === 0 && unlinkedMentions.length === 0) return null;
+  if (links.length === 0) return null;
 
   return (
     <div className="mt-10 pt-6 border-t border-zinc-200 dark:border-zinc-700">
@@ -69,20 +61,13 @@ export default function Backlinks({ pageId, pageTitle }: BacklinksProps) {
           引用
         </h3>
         <span className="text-xs text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-full px-1.5">
-          {links.length + unlinkedMentions.length}
+          {links.length}
         </span>
       </div>
       {links.length > 0 && (
         <ReferenceSection
-          title="反向链接"
+          title={REFERENCE_LABELS.backlinks}
           pages={links}
-          onNavigate={(id) => router.push(`/page/${id}`)}
-        />
-      )}
-      {unlinkedMentions.length > 0 && (
-        <ReferenceSection
-          title="未链接提及"
-          pages={unlinkedMentions}
           onNavigate={(id) => router.push(`/page/${id}`)}
         />
       )}
@@ -129,62 +114,4 @@ function ReferenceSection({
       </ul>
     </div>
   );
-}
-
-function findUnlinkedMentions(
-  pages: Page[],
-  currentPageId: string,
-  currentPageTitle: string,
-  backlinkIds: Set<string>
-): ReferencePage[] {
-  const title = currentPageTitle.trim();
-  if (
-    title.length < 3 ||
-    title.toLowerCase() === "untitled" ||
-    title === "未命名页面"
-  ) {
-    return [];
-  }
-
-  const titlePattern = new RegExp(escapeRegExp(title), "i");
-  const mentions: ReferencePage[] = [];
-
-  for (const page of pages) {
-    if (page.id === currentPageId || backlinkIds.has(page.id)) continue;
-
-    const text = stripHtml(page.content_text ?? "");
-    if (!titlePattern.test(text)) continue;
-
-    mentions.push({
-      ...page,
-      mentionExcerpt: buildMentionExcerpt(text, title),
-    });
-
-    if (mentions.length >= 8) break;
-  }
-
-  return mentions;
-}
-
-function buildMentionExcerpt(text: string, title: string) {
-  const index = text.toLowerCase().indexOf(title.toLowerCase());
-  if (index < 0) return "";
-  const start = Math.max(0, index - 52);
-  const end = Math.min(text.length, index + title.length + 72);
-  const prefix = start > 0 ? "... " : "";
-  const suffix = end < text.length ? " ..." : "";
-  return `${prefix}${text.slice(start, end)}${suffix}`;
-}
-
-function stripHtml(html: string) {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

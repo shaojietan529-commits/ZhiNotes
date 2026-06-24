@@ -1158,7 +1158,10 @@ export async function getBacklinks(
 ): Promise<Page[]> {
   const db = await getDb();
   return db.query(
-    `SELECT p.* FROM pages p
+    `SELECT p.id, p.owner_id, p.parent_id, p.database_id, p.title, p.icon, p.cover_url,
+            NULL AS content_yjs, NULL AS content_text, p.properties,
+            p.position, p.depth, p.created_at, p.updated_at, p.deleted_at, p.sync_version
+     FROM pages p
      INNER JOIN wiki_links wl ON wl.source_page_id = p.id
      WHERE wl.target_page_id = ?
        AND wl.deleted_at IS NULL

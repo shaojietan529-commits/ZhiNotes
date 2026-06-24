@@ -522,6 +522,12 @@ check(
     localQueries.includes("content_text = NULL"),
   "本机页面缓存清理应同时清理编辑器正文缓存"
 );
+check(
+  localQueries.includes("export async function getBacklinks") &&
+    localQueries.includes("NULL AS content_yjs, NULL AS content_text") &&
+    !localQueries.includes("SELECT p.* FROM pages p"),
+  "反链查询应只返回页面 metadata，打开页面时不能为了引用列表读取来源页面正文"
+);
 
 const accountShell = read("src/components/modules/AccountShell.tsx");
 check(

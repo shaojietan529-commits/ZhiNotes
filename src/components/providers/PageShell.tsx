@@ -878,7 +878,7 @@ function PageContent({ pageId }: { pageId: string }) {
           {!showComments && <BlockComments pageId={pageId} disabled={locked} />}
 
           {/* Backlinks - pages that link to this page */}
-          <Backlinks pageId={pageId} pageTitle={title || page.title || ""} />
+          <Backlinks pageId={pageId} />
         </div>
 
         {showMoveDialog && (

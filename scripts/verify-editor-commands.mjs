@@ -716,6 +716,18 @@ function run() {
       "Backlinks panel must keep the default notes UI in Chinese."
     );
   }
+  assertIncludes(
+    files.backlinks,
+    backlinks,
+    "getBacklinks(pageId)",
+    "Backlinks panel must read backlink index entries directly."
+  );
+  assertNotIncludes(
+    files.backlinks,
+    backlinks,
+    "getAllPages(",
+    "Backlinks panel must not scan every page body when opening a page."
+  );
   for (const snippet of [
     "评论",
     "添加本地评论...",
