@@ -46,7 +46,7 @@ export default function PagePeekModal({
   );
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<PageProperty[]>([]);
-  const effectivePage = page ?? fallbackPage;
+  const effectivePage = page ?? fallbackPage ?? initialPage ?? null;
   const bodyLoading =
     loading && Boolean(effectivePage) && effectivePage?.content_text == null;
   const hasEffectivePage = Boolean(effectivePage);

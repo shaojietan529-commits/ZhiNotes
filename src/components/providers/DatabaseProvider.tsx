@@ -35,7 +35,7 @@ export default function DatabaseProvider({
           <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-zinc-50 px-5 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <div className="h-5 w-28 rounded bg-zinc-200 dark:bg-zinc-800" />
             <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-              正在启动本地缓存...
+              正在打开 Zhinote...
             </p>
           </div>
         </main>

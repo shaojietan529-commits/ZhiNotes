@@ -92,6 +92,9 @@ export default function DailyNotesShell() {
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
     const byId = new Map<string, DailyNote>();
+    const cachedCloud = includeCloud
+      ? readCachedDailyCloudMetadata(startDate, endDate)
+      : null;
 
     const publishNotes = (nextNotes: DailyNote[]) => {
       if (loadRequestRef.current !== requestId) return;
@@ -108,8 +111,25 @@ export default function DailyNotesShell() {
       setRootId(id);
     };
 
+    if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
+      rememberModuleRootId("daily", cachedCloud.rootId);
+      publishRootId(cachedCloud.rootId);
+      const merged = mergeCloudDailyNotes(byId, cachedCloud);
+      if (merged > 0) {
+        publishNotes(Array.from(byId.values()));
+      }
+      publishNotice(
+        `已先显示缓存的云端每日纪要 ${cachedCloud.pages.length} 条，正在后台更新…`
+      );
+    }
+
     const storedDailyRootId = getModuleRootIdSync("daily");
-    const dailyRootId = storedDailyRootId ?? (await getModuleRootId("daily"));
+    const cachedDailyRootId =
+      cachedCloud?.status === "ok" && cachedCloud.rootId
+        ? cachedCloud.rootId
+        : null;
+    const dailyRootId =
+      storedDailyRootId ?? cachedDailyRootId ?? (await getModuleRootId("daily"));
     publishRootId(dailyRootId);
     if (storedDailyRootId) {
       void getModuleRootId("daily")
@@ -163,18 +183,8 @@ export default function DailyNotesShell() {
 
     if (includeCloud) {
       setCloudLoading(true);
-      const cachedCloud = readCachedDailyCloudMetadata(startDate, endDate);
       if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
-        rememberModuleRootId("daily", cachedCloud.rootId);
-        publishRootId(cachedCloud.rootId);
-        const merged = mergeCloudDailyNotes(byId, cachedCloud);
-        if (merged > 0) {
-          publishNotes(Array.from(byId.values()));
-          void persistDailyCloudMetadata(cachedCloud, upsertPages);
-          publishNotice(`已先显示缓存的云端每日纪要 ${cachedCloud.pages.length} 条，正在后台更新…`);
-        } else {
-          publishNotice("本地每日纪要已显示，正在后台检查云端更新…");
-        }
+        void persistDailyCloudMetadata(cachedCloud, upsertPages);
       } else {
         publishNotice("本地每日纪要已显示，正在后台检查云端更新…");
       }
