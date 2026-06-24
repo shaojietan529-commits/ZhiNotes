@@ -33,22 +33,33 @@ export function usePage(pageId: string | null) {
       return;
     }
     setLoading(true);
-    let p: Page | null = null;
+    let localPage: Page | null = null;
     try {
-      p = await getPage(pageId);
+      localPage = await getPage(pageId);
     } catch {
-      p = null;
+      localPage = null;
     }
-    if (!p || p.content_text === null) {
-      const cloud = await fetchCloudPageById(pageId);
-      if (cloud.status === "ok" && cloud.pages.length > 0) {
-        const remoteSnapshot = remoteRecordToPage(cloud.pages[0]);
-        p = await hydrateRemotePageIntoLocalCache(cloud.pages[0]);
-        upsertPages([remoteSnapshot]);
+
+    if (localPage) {
+      upsertPages([localPage]);
+      setPage(localPage);
+      setLoading(false);
+    }
+
+    const cloud = await fetchCloudPageById(pageId);
+    if (cloud.status === "ok" && cloud.pages.length > 0) {
+      const remoteRecord = cloud.pages[0];
+      if (remoteIsAtLeastAsFresh(remoteRecord, localPage)) {
+        const hydrated = await hydrateRemotePageIntoLocalCache(remoteRecord);
+        if (hydrated) upsertPages([hydrated]);
+        setPage(hydrated);
+      } else if (localPage) {
+        queueCloudPagePush(localPage);
       }
+    } else if (!localPage) {
+      setPage(null);
     }
-    if (p) upsertPages([p]);
-    setPage(p);
+
     setLoading(false);
   }, [pageId, dbReady, upsertPages]);
 
@@ -157,4 +168,12 @@ async function hydrateRemotePageIntoLocalCache(
     if (record.deleted_at) return null;
     return remoteRecordToPage(record);
   }
+}
+
+function remoteIsAtLeastAsFresh(
+  remote: RemotePageRecord,
+  local: Page | null
+): boolean {
+  if (!local) return true;
+  return remote.updated_at >= local.updated_at;
 }
