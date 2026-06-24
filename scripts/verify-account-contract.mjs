@@ -374,6 +374,50 @@ check(
   "usePage 本机缓存写入失败时仍应允许读取云端页面"
 );
 
+const pageShell = read("src/components/providers/PageShell.tsx");
+check(
+  pageShell.includes("useVersions(pageId, {") &&
+    pageShell.includes("enabled: shouldLoadVersions") &&
+    pageShell.includes("showHistory || showInfo"),
+  "PageShell 不应在打开页面时默认加载全部版本正文，历史/信息面板应按需加载"
+);
+check(
+  pageShell.includes("if (!showInfo || !page) return null") &&
+    pageShell.includes("showInfo && pageStructure && pageInfo"),
+  "PageShell 不应在打开页面首屏默认解析完整正文生成投研结构"
+);
+check(
+  pageShell.includes("scheduleDeferredMount") &&
+    pageShell.includes("editorMounted ?") &&
+    pageShell.includes("PageBodySkeleton"),
+  "PageShell 应延迟挂载正文编辑器，先显示可交互页面壳"
+);
+
+const useVersionsHook = read("src/hooks/useVersions.ts");
+check(
+  useVersionsHook.includes("interface UseVersionsOptions") &&
+    useVersionsHook.includes("enabled?: boolean") &&
+    useVersionsHook.includes("force?: boolean") &&
+    useVersionsHook.includes("const shouldLoad = enabled || loadOptions.force === true"),
+  "useVersions 应支持按需加载和强制刷新，避免页面首屏读取所有版本正文"
+);
+
+const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
+check(
+  pagePeekModal.includes('dynamic(() => import("@/components/editor/Editor")') &&
+    pagePeekModal.includes("schedulePeekEditorMount") &&
+    pagePeekModal.includes("PeekEditorSkeleton"),
+  "PagePeekModal 应动态加载并延迟挂载编辑器，避免点击 + 时被编辑器初始化阻塞"
+);
+const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
+const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");
+check(
+  lazyPagePeekModal.includes('dynamic(() => import("@/components/page/PagePeekModal")') &&
+    dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
+    knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal'),
+  "每日纪要和知识库应通过 LazyPagePeekModal 按需加载页面弹窗"
+);
+
 const localQueries = read("src/lib/db/local/queries.ts");
 check(
   localQueries.includes("clearLocalPageCacheForIds"),

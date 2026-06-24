@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Editor from "@/components/editor/Editor";
+import dynamic from "next/dynamic";
 import IconPicker from "@/components/shared/IconPicker";
 import PageProperties from "@/components/page/PageProperties";
 import { usePage } from "@/hooks/usePage";
@@ -16,6 +16,11 @@ import {
 import { pageToRemoteRecord, pushCloudPages } from "@/lib/pages/accountPageSync";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
+
+const Editor = dynamic(() => import("@/components/editor/Editor"), {
+  ssr: false,
+  loading: () => <PeekEditorSkeleton label="正在载入编辑器…" />,
+});
 
 interface PagePeekModalProps {
   pageId: string;
@@ -44,6 +49,11 @@ export default function PagePeekModal({
   const effectivePage = page ?? fallbackPage;
   const bodyLoading =
     loading && Boolean(effectivePage) && effectivePage?.content_text == null;
+  const hasEffectivePage = Boolean(effectivePage);
+  const [mountedEditorPageId, setMountedEditorPageId] = useState<string | null>(
+    null
+  );
+  const editorMounted = mountedEditorPageId === pageId;
 
   useEffect(() => {
     if (!initialPage) return;
@@ -79,6 +89,13 @@ export default function PagePeekModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, onOpenFull, pageId]);
+
+  useEffect(() => {
+    if (bodyLoading || !hasEffectivePage) return;
+    return schedulePeekEditorMount(() => {
+      setMountedEditorPageId(pageId);
+    });
+  }, [bodyLoading, hasEffectivePage, pageId]);
 
   const handleTitleChange = useCallback(
     async (next: string) => {
@@ -215,13 +232,15 @@ export default function PagePeekModal({
                 <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 px-4 py-6 text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/40">
                   正在按需加载正文…
                 </div>
-              ) : (
+              ) : editorMounted ? (
                 <Editor
                   pageId={pageId}
                   initialContent={effectivePage?.content_text ?? null}
                   editable
                   onUpdate={handleContentUpdate}
                 />
+              ) : (
+                <PeekEditorSkeleton label="正在准备编辑器…" />
               )}
 
               <PeekChildPages pageId={pageId} onOpen={onOpenFull} />
@@ -229,6 +248,36 @@ export default function PagePeekModal({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function schedulePeekEditorMount(callback: () => void): () => void {
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
+    const idleId = maybeWindow.requestIdleCallback(callback, { timeout: 350 });
+    return () => maybeWindow.cancelIdleCallback?.(idleId);
+  }
+  const timer = window.setTimeout(callback, 60);
+  return () => window.clearTimeout(timer);
+}
+
+function PeekEditorSkeleton({ label }: { label: string }) {
+  return (
+    <div className="min-h-[180px] rounded-lg border border-zinc-200 bg-zinc-50/70 px-4 py-5 dark:border-zinc-800 dark:bg-zinc-900/40">
+      <div className="mb-4 h-3 w-36 rounded bg-zinc-200/80 dark:bg-zinc-800" />
+      <div className="space-y-3">
+        <div className="h-3 w-full max-w-2xl rounded bg-zinc-200/70 dark:bg-zinc-800/80" />
+        <div className="h-3 w-10/12 max-w-2xl rounded bg-zinc-200/60 dark:bg-zinc-800/70" />
+        <div className="h-3 w-7/12 max-w-2xl rounded bg-zinc-200/50 dark:bg-zinc-800/60" />
+      </div>
+      <p className="mt-5 text-xs text-zinc-400">{label}</p>
     </div>
   );
 }

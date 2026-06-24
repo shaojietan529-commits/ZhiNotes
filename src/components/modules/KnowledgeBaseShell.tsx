@@ -35,7 +35,7 @@ import {
   buildFileLibraryPageTitle,
 } from "@/lib/files/filePage";
 import PageContextMenu from "@/components/page/PageContextMenu";
-import PagePeekModal from "@/components/page/PagePeekModal";
+import PagePeekModal from "@/components/page/LazyPagePeekModal";
 import type { Page } from "@/lib/utils/types";
 
 const IMPORT_ACCEPT = [

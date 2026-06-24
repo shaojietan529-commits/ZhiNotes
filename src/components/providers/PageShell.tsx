@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -78,7 +79,6 @@ function PageContent({ pageId }: { pageId: string }) {
   const copyNoticeTimeoutRef = useRef<number | null>(null);
   const { page, loading, update, remove } = usePage(pageId);
   const { refresh } = usePages();
-  const { versions, refresh: refreshVersions } = useVersions(pageId);
   const setCurrentPageId = useWorkspaceStore((s) => s.setCurrentPageId);
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<PageProperty[]>([]);
@@ -97,11 +97,25 @@ function PageContent({ pageId }: { pageId: string }) {
   const [exportingPageStructure, setExportingPageStructure] = useState(false);
   const [applyingResearchActionId, setApplyingResearchActionId] =
     useState<string | null>(null);
+  const shouldLoadVersions = showHistory || showInfo;
+  const { versions, refresh: refreshVersions } = useVersions(pageId, {
+    enabled: shouldLoadVersions,
+  });
+  const [editorMounted, setEditorMounted] = useState(false);
+  const hasPage = Boolean(page);
 
   useEffect(() => {
     setCurrentPageId(pageId);
     return () => setCurrentPageId(null);
   }, [pageId, setCurrentPageId]);
+
+  useEffect(() => {
+    setEditorMounted(false);
+    if (!hasPage) return;
+    return scheduleDeferredMount(() => {
+      setEditorMounted(true);
+    });
+  }, [pageId, hasPage]);
 
   useEffect(() => {
     if (!page) return;
@@ -212,7 +226,7 @@ function PageContent({ pageId }: { pageId: string }) {
     // A null return means the user cancelled the prompt
     if (label === null) return;
     await manualSnapshot(pageId, title || "未命名页面", html, label);
-    await refreshVersions();
+    await refreshVersions({ force: true });
     setShowHistory(true);
   }, [pageId, title, page, refreshVersions]);
 
@@ -348,7 +362,7 @@ function PageContent({ pageId }: { pageId: string }) {
         restored,
         `从 v${version.version_num} 恢复`
       );
-      await refreshVersions();
+      await refreshVersions({ force: true });
       refresh();
     },
     [pageId, title, page, update, refreshVersions, refresh]
@@ -496,6 +510,33 @@ function PageContent({ pageId }: { pageId: string }) {
     router.push(`/page/${duplicate.id}`);
   }, [page, refresh, router, title]);
 
+  const pageStructure = useMemo(() => {
+    if (!showInfo || !page) return null;
+    return buildPageResearchStructureReport({
+      html: page.content_text ?? "",
+      title: title || page.title || "未命名页面",
+      metadata: {
+        favorite,
+        hasCover: Boolean(page.cover_url),
+        locked,
+        versionsCount: versions.length,
+        widePage,
+      },
+    });
+  }, [
+    favorite,
+    locked,
+    page,
+    showInfo,
+    title,
+    versions.length,
+    widePage,
+  ]);
+  const pageInfo = useMemo(
+    () => (pageStructure ? getPageInfoStats(pageStructure) : null),
+    [pageStructure]
+  );
+
   if (loading) {
     return (
       <div className="flex h-screen">
@@ -526,19 +567,8 @@ function PageContent({ pageId }: { pageId: string }) {
     );
   }
 
-  const pageStructure = buildPageResearchStructureReport({
-    html: page.content_text ?? "",
-    title: title || page.title || "未命名页面",
-    metadata: {
-      favorite,
-      hasCover: Boolean(page.cover_url),
-      locked,
-      versionsCount: versions.length,
-      widePage,
-    },
-  });
-  const pageInfo = getPageInfoStats(pageStructure);
   const handleExportPageStructure = () => {
+    if (!pageStructure) return;
     setExportingPageStructure(true);
     try {
       downloadJsonFile(
@@ -791,7 +821,7 @@ function PageContent({ pageId }: { pageId: string }) {
             onChange={handlePropertiesChange}
           />
 
-          {showInfo && (
+          {showInfo && pageStructure && pageInfo && (
             <PageInfoPanel
               createdAt={page.created_at}
               favorite={favorite}
@@ -831,13 +861,17 @@ function PageContent({ pageId }: { pageId: string }) {
           <div className="my-4 border-t border-zinc-100 dark:border-zinc-800" />
 
           {/* Editor - now loads/saves HTML */}
-          <Editor
-            ref={editorRef}
-            pageId={pageId}
-            initialContent={page.content_text}
-            editable={!locked}
-            onUpdate={handleContentUpdate}
-          />
+          {editorMounted ? (
+            <Editor
+              ref={editorRef}
+              pageId={pageId}
+              initialContent={page.content_text}
+              editable={!locked}
+              onUpdate={handleContentUpdate}
+            />
+          ) : (
+            <PageBodySkeleton />
+          )}
 
           {/* When the comment panel is open, text comments live there instead
               of stacking at the bottom — avoids showing them twice. */}
@@ -863,6 +897,37 @@ function PageContent({ pageId }: { pageId: string }) {
           onClose={handleToggleComments}
         />
       )}
+    </div>
+  );
+}
+
+function scheduleDeferredMount(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
+    const idleId = maybeWindow.requestIdleCallback(callback, { timeout: 450 });
+    return () => maybeWindow.cancelIdleCallback?.(idleId);
+  }
+  const timer = window.setTimeout(callback, 80);
+  return () => window.clearTimeout(timer);
+}
+
+function PageBodySkeleton() {
+  return (
+    <div className="min-h-[220px] rounded-md border border-zinc-100 bg-zinc-50/60 px-4 py-5 dark:border-zinc-800 dark:bg-zinc-900/30">
+      <div className="mb-4 h-3 w-40 rounded bg-zinc-200/80 dark:bg-zinc-800" />
+      <div className="space-y-3">
+        <div className="h-3 w-full max-w-2xl rounded bg-zinc-200/70 dark:bg-zinc-800/80" />
+        <div className="h-3 w-11/12 max-w-2xl rounded bg-zinc-200/60 dark:bg-zinc-800/70" />
+        <div className="h-3 w-4/5 max-w-2xl rounded bg-zinc-200/50 dark:bg-zinc-800/60" />
+      </div>
+      <p className="mt-5 text-xs text-zinc-400">正在准备编辑器…</p>
     </div>
   );
 }
