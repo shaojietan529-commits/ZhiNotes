@@ -23,6 +23,7 @@ import {
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
   fetchDailyCloudMetadata,
+  pushCloudPages,
   type DailyCloudMetadataResult,
 } from "@/lib/pages/accountPageSync";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
@@ -831,14 +832,9 @@ function makeRemoteBackedPage({
 }
 
 async function pushDailyCloudRecords(records: RemotePageRecord[]) {
-  const res = await fetch("/api/pages/account-sync", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ action: "push", pages: records }),
-  });
-  if (!res.ok) {
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(data.error || `云端保存失败：${res.status}`);
+  const result = await pushCloudPages(records);
+  if (result.status !== "ok") {
+    throw new Error(result.message || "云端保存失败。");
   }
 }
 

@@ -5,13 +5,16 @@ import Editor from "@/components/editor/Editor";
 import IconPicker from "@/components/shared/IconPicker";
 import PageProperties from "@/components/page/PageProperties";
 import { usePage } from "@/hooks/usePage";
-import { usePages } from "@/hooks/usePages";
+import { usePageRevision } from "@/hooks/usePageRevision";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import { listPageMetadata } from "@/lib/db/local/queries";
 import {
   parsePageProperties,
   stringifyPageProperties,
   type PageProperty,
 } from "@/lib/pages/pageProperties";
+import { pageToRemoteRecord, pushCloudPages } from "@/lib/pages/accountPageSync";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
 interface PagePeekModalProps {
@@ -32,13 +35,15 @@ export default function PagePeekModal({
   onChanged,
 }: PagePeekModalProps) {
   const { page, loading, update } = usePage(pageId);
-  const { refresh } = usePages();
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const [fallbackPage, setFallbackPage] = useState<Page | null>(
     initialPage ?? null
   );
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<PageProperty[]>([]);
   const effectivePage = page ?? fallbackPage;
+  const bodyLoading =
+    loading && Boolean(effectivePage) && effectivePage?.content_text == null;
 
   useEffect(() => {
     if (!initialPage) return;
@@ -83,11 +88,11 @@ export default function PagePeekModal({
         updates: { title: next },
         update,
         setFallbackPage,
+        upsertPages,
       });
-      refresh();
       onChanged?.();
     },
-    [effectivePage, update, refresh, onChanged]
+    [effectivePage, update, upsertPages, onChanged]
   );
 
   const handlePropertiesChange = useCallback(
@@ -98,11 +103,11 @@ export default function PagePeekModal({
         updates: { properties: stringifyPageProperties(next) },
         update,
         setFallbackPage,
+        upsertPages,
       });
-      refresh();
       onChanged?.();
     },
-    [effectivePage, update, refresh, onChanged]
+    [effectivePage, update, upsertPages, onChanged]
   );
 
   const handleIconChange = useCallback(
@@ -112,11 +117,11 @@ export default function PagePeekModal({
         updates: { icon },
         update,
         setFallbackPage,
+        upsertPages,
       });
-      refresh();
       onChanged?.();
     },
-    [effectivePage, update, refresh, onChanged]
+    [effectivePage, update, upsertPages, onChanged]
   );
 
   const handleIconRemove = useCallback(async () => {
@@ -125,10 +130,10 @@ export default function PagePeekModal({
       updates: { icon: null },
       update,
       setFallbackPage,
+      upsertPages,
     });
-    refresh();
     onChanged?.();
-  }, [effectivePage, update, refresh, onChanged]);
+  }, [effectivePage, update, upsertPages, onChanged]);
 
   const handleContentUpdate = useCallback(
     async (html: string) => {
@@ -137,11 +142,11 @@ export default function PagePeekModal({
         updates: { content_text: html },
         update,
         setFallbackPage,
+        upsertPages,
       });
-      refresh();
       onChanged?.();
     },
-    [effectivePage, update, refresh, onChanged]
+    [effectivePage, update, upsertPages, onChanged]
   );
 
   return (
@@ -206,12 +211,18 @@ export default function PagePeekModal({
 
               <div className="my-3 border-t border-zinc-100 dark:border-zinc-800" />
 
-              <Editor
-                pageId={pageId}
-                initialContent={effectivePage?.content_text ?? null}
-                editable
-                onUpdate={handleContentUpdate}
-              />
+              {bodyLoading ? (
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 px-4 py-6 text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/40">
+                  正在按需加载正文…
+                </div>
+              ) : (
+                <Editor
+                  pageId={pageId}
+                  initialContent={effectivePage?.content_text ?? null}
+                  editable
+                  onUpdate={handleContentUpdate}
+                />
+              )}
 
               <PeekChildPages pageId={pageId} onOpen={onOpenFull} />
             </div>
@@ -231,17 +242,20 @@ async function persistPeekUpdate({
   updates,
   update,
   setFallbackPage,
+  upsertPages,
 }: {
   basePage: Page | null;
   updates: PeekPageUpdates;
   update: (updates: PeekPageUpdates) => Promise<Page | null>;
   setFallbackPage: (page: Page) => void;
+  upsertPages: (pages: Page[]) => void;
 }) {
   if (!basePage) return null;
   try {
     const updated = await update(updates);
     if (updated) {
       setFallbackPage(updated);
+      upsertPages([updated]);
       return updated;
     }
   } catch {
@@ -256,34 +270,16 @@ async function persistPeekUpdate({
     updated_at: new Date().toISOString(),
   };
   setFallbackPage(nextPage);
+  upsertPages([nextPage]);
   await pushPeekCloudPage(nextPage).catch(() => undefined);
   return nextPage;
 }
 
 async function pushPeekCloudPage(page: Page) {
-  await fetch("/api/pages/account-sync", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      action: "push",
-      pages: [
-        {
-          id: page.id,
-          parent_id: page.parent_id ?? null,
-          title: page.title ?? "",
-          icon: page.icon ?? null,
-          cover_url: page.cover_url ?? null,
-          content_text: page.content_text ?? null,
-          properties: page.properties ?? null,
-          position: page.position ?? 0,
-          depth: page.depth ?? 0,
-          created_at: page.created_at,
-          updated_at: page.updated_at,
-          deleted_at: page.deleted_at ?? null,
-        },
-      ],
-    }),
-  });
+  const result = await pushCloudPages([pageToRemoteRecord(page)]);
+  if (result.status !== "ok") {
+    throw new Error(result.message || "云端保存失败。");
+  }
 }
 
 function PeekChildPages({
@@ -293,8 +289,28 @@ function PeekChildPages({
   pageId: string;
   onOpen: (id: string) => void;
 }) {
-  const { pages } = usePages();
-  const children = pages.filter((p) => p.parent_id === pageId);
+  const dbReady = useWorkspaceStore((s) => s.dbReady);
+  const pageRevision = usePageRevision();
+  const [children, setChildren] = useState<Page[]>([]);
+
+  useEffect(() => {
+    if (!dbReady) {
+      queueMicrotask(() => setChildren([]));
+      return;
+    }
+    let cancelled = false;
+    void listPageMetadata(pageId)
+      .then((rows) => {
+        if (!cancelled) setChildren(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setChildren([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dbReady, pageId, pageRevision]);
+
   if (children.length === 0) return null;
   return (
     <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50/60 dark:border-zinc-800 dark:bg-zinc-900/40">
