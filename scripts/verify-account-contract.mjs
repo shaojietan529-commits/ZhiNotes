@@ -470,10 +470,14 @@ check(
 );
 check(
   pageSyncClient.includes("AUTH_RETRY_BACKOFF_MS") &&
+    pageSyncClient.includes('AUTH_RETRY_KEY = "zhinote.pagesync.authRetry.v1"') &&
     pageSyncClient.includes("shouldBackOffAuthRetry") &&
+    pageSyncClient.includes("readStoredAuthRetryStatus") &&
+    pageSyncClient.includes("JSON.stringify({ status, until: authRetryAfter })") &&
+    pageSyncClient.includes("removeSyncStorage(AUTH_RETRY_KEY)") &&
     pageSyncClient.includes("rememberAuthRetryStatus(result.status)") &&
     pageSyncClient.includes("throttled: true"),
-  "页面 metadata 增量同步在未登录/未配置时应退避，避免页面列表刷新反复请求云端"
+  "页面 metadata 增量同步在未登录/未配置时应跨刷新退避，避免页面列表刷新反复请求云端"
 );
 check(
   !pageCloudSyncHook.includes("usePages") &&

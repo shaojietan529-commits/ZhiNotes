@@ -262,6 +262,15 @@ function run() {
     "fetchCloudDatabaseMetadata",
     "fetchCloudDatabaseRecordsByDatabaseId",
     "syncCloudDatabaseMetadata",
+    "syncCloudDatabaseMetadataDelta",
+    "CloudDatabaseMetadataDeltaResult",
+    "METADATA_DELTA_THROTTLE_MS",
+    "databaseMetadataDeltaInFlight",
+    "lastDatabaseMetadataDeltaResult",
+    "runCloudDatabaseMetadataDelta",
+    "const delta = await syncCloudDatabaseDelta()",
+    "fullRefresh: false",
+    "fullRefresh: true",
     "cloudDatabaseMetadataToDatabases",
     "syncCloudDatabaseById",
     "cacheWriteFailed?: boolean",
@@ -289,8 +298,12 @@ function run() {
     "memoryDatabaseRemoteCursor",
     "memoryLastDatabaseSyncAt",
     "AUTH_RETRY_BACKOFF_MS",
+    'AUTH_RETRY_KEY = "zhinote.databasesync.authRetry.v1"',
     "shouldBackOffAuthRetry",
     "rememberAuthRetryStatus",
+    "readStoredAuthRetryStatus",
+    "JSON.stringify({ status, until: authRetryAfter })",
+    "removeSyncStorage(AUTH_RETRY_KEY)",
     "readSyncStorage",
     "writeSyncStorage",
     "readSyncStorage(REMOTE_CURSOR_KEY) ?? memoryDatabaseRemoteCursor",
@@ -392,14 +405,16 @@ function run() {
   }
   for (const snippet of [
     "getAllDatabases",
-    "syncCloudDatabaseMetadata",
+    "syncCloudDatabaseMetadataDelta",
+    "loadDatabaseSnapshot",
+    "databaseSnapshotInFlight",
     "setDatabases(all)",
     "Treat local SQLite as a cache",
     "mergeDatabaseMetadata(all, cloud.records)",
     "mergeDatabaseMetadata(current, message.records ?? [])",
     "message.records?.length",
     "cloud.cacheWriteFailed",
-    "Cloud metadata refresh is",
+    "Cloud delta refresh is",
     "subscribeDatabasesUpdated",
     "emitDatabasesUpdated",
     "restoreLocalCursor: all.length > 0",
@@ -408,7 +423,7 @@ function run() {
       files.useDatabases,
       useDatabases,
       snippet,
-      "Database list UI must show local cache first and then prewarm cloud metadata."
+      "Database list UI must show local cache first and then prewarm cloud metadata via incremental delta."
     );
   }
   const primaryDatabaseListSurfaces = [
@@ -444,7 +459,7 @@ function run() {
     }
   }
   for (const snippet of [
-    "syncCloudDatabaseMetadata",
+    "syncCloudDatabaseMetadataDelta",
     "cloudDatabaseMetadataToDatabases",
     "subscribeDatabasesUpdated",
     "const localSnapshots = await loadSnapshots()",

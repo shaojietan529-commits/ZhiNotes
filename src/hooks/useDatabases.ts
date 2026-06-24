@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getAllDatabases } from "@/lib/db/local/queries";
-import { syncCloudDatabaseMetadata } from "@/lib/database/accountDatabaseSync";
+import { syncCloudDatabaseMetadataDelta } from "@/lib/database/accountDatabaseSync";
 import {
   emitDatabasesUpdated,
   subscribeDatabasesUpdated,
@@ -16,6 +16,17 @@ interface RefreshDatabaseOptions {
   broadcast?: boolean;
 }
 
+let databaseSnapshotInFlight: Promise<Database[]> | null = null;
+
+function loadDatabaseSnapshot(): Promise<Database[]> {
+  if (databaseSnapshotInFlight) return databaseSnapshotInFlight;
+  const promise = getAllDatabases().finally(() => {
+    if (databaseSnapshotInFlight === promise) databaseSnapshotInFlight = null;
+  });
+  databaseSnapshotInFlight = promise;
+  return promise;
+}
+
 export function useDatabases() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const [databases, setDatabases] = useState<Database[]>([]);
@@ -25,7 +36,7 @@ export function useDatabases() {
       if (!dbReady) return [];
       let all: Database[] = [];
       try {
-        all = await getAllDatabases();
+        all = await loadDatabaseSnapshot();
       } catch {
         // Treat local SQLite as a cache: if it is cold or temporarily broken,
         // still attempt cloud metadata below instead of blocking navigation.
@@ -33,7 +44,7 @@ export function useDatabases() {
       setDatabases(all);
 
       try {
-        const cloud = await syncCloudDatabaseMetadata({
+        const cloud = await syncCloudDatabaseMetadataDelta({
           restoreLocalCursor: all.length > 0,
         });
         if (cloud.status === "ok") {
@@ -47,7 +58,7 @@ export function useDatabases() {
           }
         }
       } catch {
-        // The local database list is already visible. Cloud metadata refresh is
+        // The local database list is already visible. Cloud delta refresh is
         // best effort so a broken browser cache or missing cloud config cannot
         // block navigation.
       }

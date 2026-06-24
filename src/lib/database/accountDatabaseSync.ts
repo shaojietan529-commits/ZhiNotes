@@ -34,9 +34,13 @@ const PUSH_BATCH_RECORDS = 80;
 const PUSH_BATCH_BYTES = 800 * 1024;
 const CLOUD_DATABASE_PUSH_DEBOUNCE_MS = 1000;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
+const METADATA_DELTA_THROTTLE_MS = 2500;
 
 let queuedCloudDatabasePush = new Map<string, CloudDatabaseRecord>();
 let queuedCloudDatabasePushTimer: ReturnType<typeof setTimeout> | null = null;
+let databaseMetadataDeltaInFlight: Promise<CloudDatabaseMetadataDeltaResult> | null = null;
+let lastDatabaseMetadataDeltaAt = 0;
+let lastDatabaseMetadataDeltaResult: CloudDatabaseMetadataDeltaResult | null = null;
 let authRetryAfter = 0;
 let authRetryStatus: DatabaseSyncStatus | null = null;
 let memoryDatabaseRemoteCursor = "";
@@ -80,6 +84,16 @@ export interface CloudDatabaseMetadataResult {
   count: number;
   total: number;
   summary?: DatabaseSyncIndexSummary;
+  message?: string;
+}
+
+export interface CloudDatabaseMetadataDeltaResult {
+  status: DatabaseSyncStatus;
+  pulled: number;
+  total: number;
+  records: CloudDatabaseRecord[];
+  fullRefresh: boolean;
+  cacheWriteFailed?: boolean;
   message?: string;
 }
 
@@ -541,6 +555,104 @@ export async function syncCloudDatabaseMetadata(
     total: metadata.total,
     records: metadata.records,
     cacheWriteFailed,
+  };
+}
+
+export async function syncCloudDatabaseMetadataDelta(
+  options: SyncCloudDatabaseMetadataOptions = {}
+): Promise<CloudDatabaseMetadataDeltaResult> {
+  if (!isDatabaseSyncEnabled()) {
+    return {
+      status: "disabled",
+      pulled: 0,
+      total: 0,
+      records: [],
+      fullRefresh: false,
+    };
+  }
+  if (shouldBackOffAuthRetry()) {
+    return {
+      status: authRetryStatus ?? "unauthenticated",
+      pulled: 0,
+      total: 0,
+      records: [],
+      fullRefresh: false,
+    };
+  }
+
+  if (databaseMetadataDeltaInFlight) return databaseMetadataDeltaInFlight;
+  if (
+    lastDatabaseMetadataDeltaResult &&
+    Date.now() - lastDatabaseMetadataDeltaAt < METADATA_DELTA_THROTTLE_MS
+  ) {
+    return lastDatabaseMetadataDeltaResult;
+  }
+
+  databaseMetadataDeltaInFlight = runCloudDatabaseMetadataDelta(options);
+  try {
+    const result = await databaseMetadataDeltaInFlight;
+    lastDatabaseMetadataDeltaResult = result;
+    lastDatabaseMetadataDeltaAt = Date.now();
+    return result;
+  } finally {
+    databaseMetadataDeltaInFlight = null;
+  }
+}
+
+async function runCloudDatabaseMetadataDelta(
+  options: SyncCloudDatabaseMetadataOptions
+): Promise<CloudDatabaseMetadataDeltaResult> {
+  if (options.restoreLocalCursor && !getRemoteCursor()) {
+    const summaryRes = await call({ action: "summary" });
+    if (summaryRes.ok) {
+      const summary = normalizeSummary(summaryRes.json.summary);
+      if (summary && (await restoreCursorFromLocalDatabaseMetadata(summary))) {
+        return {
+          status: "ok",
+          pulled: 0,
+          total: summary.count,
+          records: [],
+          fullRefresh: false,
+        };
+      }
+    } else if (
+      summaryRes.status === "unauthenticated" ||
+      summaryRes.status === "unconfigured"
+    ) {
+      rememberAuthRetryStatus(summaryRes.status);
+      return {
+        status: summaryRes.status,
+        pulled: 0,
+        total: 0,
+        records: [],
+        fullRefresh: false,
+        message: summaryRes.message,
+      };
+    }
+  }
+
+  if (getRemoteCursor()) {
+    const delta = await syncCloudDatabaseDelta();
+    rememberAuthRetryStatus(delta.status);
+    return {
+      status: delta.status,
+      pulled: delta.pulled,
+      total: delta.pulled,
+      records: delta.records ?? [],
+      fullRefresh: false,
+      message: delta.message,
+    };
+  }
+
+  const metadata = await syncCloudDatabaseMetadata(options);
+  return {
+    status: metadata.status,
+    pulled: metadata.pulled,
+    total: metadata.total,
+    records: metadata.records,
+    fullRefresh: true,
+    cacheWriteFailed: metadata.cacheWriteFailed,
+    message: metadata.message,
   };
 }
 

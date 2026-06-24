@@ -13,7 +13,7 @@ import {
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import {
   cloudDatabaseMetadataToDatabases,
-  syncCloudDatabaseMetadata,
+  syncCloudDatabaseMetadataDelta,
 } from "@/lib/database/accountDatabaseSync";
 import {
   buildDatabaseModuleDashboardReport,
@@ -141,7 +141,7 @@ function DatabasesDashboard() {
       setLoadError(null);
       const localSnapshots = await loadSnapshots();
       setSnapshots(localSnapshots);
-      const cloud = await syncCloudDatabaseMetadata({
+      const cloud = await syncCloudDatabaseMetadataDelta({
         restoreLocalCursor: localSnapshots.length > 0,
       });
       if (cloud.status === "ok") {
