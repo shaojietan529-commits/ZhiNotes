@@ -11,6 +11,7 @@ import {
   clearLocalDatabaseCacheExceptKeys,
   getAllDatabaseRecordsForSync,
   getDatabaseRecordsForSyncByKeys,
+  getLocalDatabaseSyncSummary,
   getPendingDatabaseSyncRecords,
   getRemoteDatabaseRecordKey,
   markDatabaseSyncLogEntriesSynced,
@@ -158,6 +159,25 @@ function getRemoteCursor(): string {
 function setRemoteCursor(cursor: string): void {
   if (typeof window === "undefined" || !cursor) return;
   window.localStorage.setItem(REMOTE_CURSOR_KEY, cursor);
+}
+
+async function restoreCursorFromLocalDatabaseMetadata(
+  remoteSummary: DatabaseSyncIndexSummary
+): Promise<boolean> {
+  try {
+    const localSummary = await getLocalDatabaseSyncSummary();
+    if (
+      localSummary.watermark !== remoteSummary.watermark ||
+      localSummary.cursor !== remoteSummary.cursor
+    ) {
+      return false;
+    }
+    setRemoteCursor(remoteSummary.cursor);
+    setLastDatabaseSyncAtNow();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function getPendingCloudDatabasePushKeys(): string[] {
@@ -782,6 +802,35 @@ export async function reconcileDatabaseSync(
 
   const cursor = getRemoteCursor();
   if (options.quick && !cursor) {
+    const summaryRes = await call({ action: "summary" });
+    if (!summaryRes.ok) {
+      return {
+        status: summaryRes.status,
+        pulled: 0,
+        pushed: queuedPush.pushed,
+        skipped: queuedPush.skipped,
+        message: summaryRes.message,
+      };
+    }
+    const summary = normalizeSummary(summaryRes.json.summary);
+    if (summary && (await restoreCursorFromLocalDatabaseMetadata(summary))) {
+      const push = await pushPendingLocalDatabaseChangesToCloud();
+      if (push.status !== "ok") {
+        return {
+          status: push.status,
+          pulled: 0,
+          pushed: push.pushed,
+          skipped: push.skipped,
+          message: push.message,
+        };
+      }
+      return {
+        status: "ok",
+        pulled: 0,
+        pushed: queuedPush.pushed + push.pushed,
+        skipped: queuedPush.skipped + push.skipped,
+      };
+    }
     const metadata = await syncCloudDatabaseMetadata();
     if (metadata.status !== "ok") {
       return {

@@ -1976,6 +1976,15 @@ export interface PendingDatabaseSyncRecords {
   records: RemoteDatabaseRecord[];
 }
 
+export interface LocalDatabaseSyncSummary {
+  count: number;
+  deleted: number;
+  maxUpdatedAt: string;
+  maxUpdatedKey: string;
+  watermark: string;
+  cursor: string;
+}
+
 const DATABASE_SYNC_TABLE_TYPES: Record<string, RemoteDatabaseRecordType> = {
   databases: "database",
   database_fields: "field",
@@ -1987,6 +1996,58 @@ export function getRemoteDatabaseRecordKey(
   record: Pick<RemoteDatabaseRecord, "type" | "id">
 ): string {
   return `${record.type}:${record.id}`;
+}
+
+export async function getLocalDatabaseSyncSummary(): Promise<LocalDatabaseSyncSummary> {
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT 'database' as type, id, updated_at, deleted_at
+       FROM databases
+      WHERE sync_version != -1
+     UNION ALL
+     SELECT 'field' as type, id, updated_at, deleted_at
+       FROM database_fields
+      WHERE sync_version != -1
+     UNION ALL
+     SELECT 'view' as type, id, updated_at, deleted_at
+       FROM database_views
+      WHERE sync_version != -1
+     UNION ALL
+     SELECT 'row' as type, id, updated_at, deleted_at
+       FROM database_rows
+      WHERE sync_version != -1`
+  ) as unknown as Array<{
+    type: RemoteDatabaseRecordType;
+    id: string;
+    updated_at: string;
+    deleted_at: string | null;
+  }>;
+
+  let deleted = 0;
+  let maxUpdatedAt = "";
+  let maxUpdatedKey = "";
+  for (const row of rows) {
+    const key = `${row.type}:${row.id}`;
+    if (row.deleted_at) deleted += 1;
+    if (
+      row.updated_at > maxUpdatedAt ||
+      (row.updated_at === maxUpdatedAt && key > maxUpdatedKey)
+    ) {
+      maxUpdatedAt = row.updated_at;
+      maxUpdatedKey = key;
+    }
+  }
+
+  return {
+    count: rows.length,
+    deleted,
+    maxUpdatedAt,
+    maxUpdatedKey,
+    watermark: `${rows.length}:${deleted}:${maxUpdatedAt}`,
+    cursor: maxUpdatedAt
+      ? JSON.stringify({ updatedAt: maxUpdatedAt, key: maxUpdatedKey })
+      : "",
+  };
 }
 
 function isRemoteDatabaseRecordType(

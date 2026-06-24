@@ -271,6 +271,10 @@ function run() {
     "reconcileDatabaseSync",
     "DatabaseReconcileOptions",
     "options.quick && !cursor",
+    "getLocalDatabaseSyncSummary",
+    "restoreCursorFromLocalDatabaseMetadata",
+    "localSummary.watermark !== remoteSummary.watermark",
+    "localSummary.cursor !== remoteSummary.cursor",
     "const metadata = await syncCloudDatabaseMetadata()",
     "applyRemoteDatabaseRecords",
     'emitDatabasesUpdated("cloud-pull", pulled || prune.cleared)',
@@ -295,6 +299,18 @@ function run() {
       databaseAccountSyncClient,
       snippet,
       "Database cloud sync client must stay default-on, incremental, and fully drain paged cloud results."
+    );
+  }
+  if (
+    databaseAccountSyncClient.indexOf(
+      "restoreCursorFromLocalDatabaseMetadata(summary)"
+    ) >
+    databaseAccountSyncClient.indexOf(
+      "const metadata = await syncCloudDatabaseMetadata()"
+    )
+  ) {
+    failures.push(
+      "Database quick sync must try restoring the cursor from local metadata before forcing a cloud metadata pull."
     );
   }
   for (const snippet of [
@@ -439,6 +455,7 @@ function run() {
     "database_views",
     "ensureDatabaseRowPage",
     "getPendingDatabaseSyncRecords",
+    "getLocalDatabaseSyncSummary",
     "markDatabaseSyncLogEntriesSynced",
     "table_name IN ('databases', 'database_fields', 'database_rows', 'database_views')",
   ]) {
@@ -448,6 +465,29 @@ function run() {
       snippet,
       "Local database cache must be exportable, rebuildable from cloud records, and safe for row page placeholders."
     );
+  }
+  const localDatabaseSyncSummaryBody = queries.slice(
+    queries.indexOf("export async function getLocalDatabaseSyncSummary"),
+    queries.indexOf("function isRemoteDatabaseRecordType")
+  );
+  for (const snippet of [
+    "UNION ALL",
+    "WHERE sync_version != -1",
+    "JSON.stringify({ updatedAt: maxUpdatedAt, key: maxUpdatedKey })",
+  ]) {
+    assertIncludes(
+      files.queries,
+      localDatabaseSyncSummaryBody,
+      snippet,
+      "Local database sync summary must be metadata-only and cursor-compatible."
+    );
+  }
+  for (const forbiddenPayload of ["field_values", "config", "description"]) {
+    if (localDatabaseSyncSummaryBody.includes(forbiddenPayload)) {
+      failures.push(
+        "Local database sync summary must not read payload fields such as field_values/config/description."
+      );
+    }
   }
   for (const snippet of [
     "数据库云同步",
