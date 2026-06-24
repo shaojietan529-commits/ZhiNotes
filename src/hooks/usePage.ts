@@ -48,11 +48,18 @@ export function usePage(pageId: string | null) {
       return;
     }
     setLoading(true);
-    let localPage: Page | null = null;
+    let localPage =
+      useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
+      null;
+    if (localPage) {
+      setPage(localPage);
+      setLoading(localPage.content_text == null);
+    }
     try {
-      localPage = await getPage(pageId);
+      const storedPage = await getPage(pageId);
+      if (storedPage) localPage = storedPage;
     } catch {
-      localPage = null;
+      // Keep the in-memory page if IndexedDB is slow or temporarily failing.
     }
 
     if (localPage) {

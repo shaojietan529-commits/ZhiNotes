@@ -39,11 +39,11 @@ import PagePeekModal from "@/components/page/LazyPagePeekModal";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import type { Page } from "@/lib/utils/types";
 
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 type PreloadablePeekModal = typeof PagePeekModal & {
   preload?: () => void;
 };
-
-const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 type DailyNote = Page & { dailyDateKey?: string; cloudOnly?: boolean };
 
@@ -85,12 +85,13 @@ export default function DailyNotesShell() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const preloadPeekModal = useCallback(() => {
+    (PagePeekModal as PreloadablePeekModal).preload?.();
+  }, []);
 
   useEffect(() => {
-    return scheduleDailyPeekPreload(() => {
-      (PagePeekModal as PreloadablePeekModal).preload?.();
-    });
-  }, []);
+    return scheduleDailyPeekPreload(preloadPeekModal);
+  }, [preloadPeekModal]);
 
   const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
     const includeCloud = opts?.includeCloud !== false;
@@ -337,9 +338,15 @@ export default function DailyNotesShell() {
           setPeekInitialPage((current) =>
             current?.id === noteForSave.id ? noteForSave : current
           );
-          await persistOptimisticDailyNote(dailyRootId, noteForSave, upsertPages);
+          const persistStatus = await persistOptimisticDailyNote(
+            dailyRootId,
+            noteForSave,
+            upsertPages
+          );
           setCloudNotice(
-            `${dateKey} 的每日纪要已保存；本地缓存会在后台自动重建。`
+            persistStatus === "cloud"
+              ? `${dateKey} 的每日纪要已保存；本地缓存会在后台自动重建。`
+              : `${dateKey} 的每日纪要已在本机保存；登录或配置账号云端后会自动同步。`
           );
         } catch (error) {
           const message =
@@ -584,6 +591,8 @@ export default function DailyNotesShell() {
                       type="button"
                       disabled={creatingDateKey !== null}
                       onClick={() => void addNote(key)}
+                      onPointerEnter={preloadPeekModal}
+                      onFocus={preloadPeekModal}
                       className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                       title="在这天新增纪要"
                     >
@@ -960,7 +969,7 @@ async function persistOptimisticDailyNote(
   rootId: string,
   note: DailyNote,
   upsertPages: (pages: Page[]) => void
-) {
+): Promise<"cloud" | "local-only"> {
   const rootPage = await getPage(rootId).catch(() => null);
   const rootRecord = rootPage
     ? pageToRemoteRecord(rootPage)
@@ -968,7 +977,7 @@ async function persistOptimisticDailyNote(
   const records = [rootRecord, pageToRemoteRecord(note)];
   await applyRemotePages(records);
   upsertPages(records.map(remoteRecordToPage));
-  await pushDailyCloudRecords(records);
+  return pushDailyCloudRecords(records);
 }
 
 function makeRemoteBackedPage({
@@ -1014,11 +1023,21 @@ function makeRemoteBackedPage({
   };
 }
 
-async function pushDailyCloudRecords(records: RemotePageRecord[]) {
+async function pushDailyCloudRecords(
+  records: RemotePageRecord[]
+): Promise<"cloud" | "local-only"> {
   const result = await pushCloudPages(records);
-  if (result.status !== "ok") {
-    throw new Error(result.message || "云端保存失败。");
+  if (result.status === "ok") {
+    return "cloud";
   }
+  if (
+    result.status === "disabled" ||
+    result.status === "unauthenticated" ||
+    result.status === "unconfigured"
+  ) {
+    return "local-only";
+  }
+  throw new Error(result.message || "云端保存失败。");
 }
 
 function pageToRemoteRecord(page: Page): RemotePageRecord {
