@@ -213,8 +213,36 @@ interface MeetingCloudMetadataResponse {
   ok?: boolean;
   rootId?: string | null;
   pages?: CloudPageRecord[];
+  count?: number;
+  matched?: number;
+  rangeCount?: number;
+  recentCount?: number;
+  scanned?: number;
+  cached?: boolean;
+  watermark?: string;
   error?: string;
 }
+
+interface MeetingCloudMetadataSnapshot {
+  ok: boolean;
+  rootId: string | null;
+  pages: Page[];
+  count?: number;
+  matched?: number;
+  rangeCount?: number;
+  recentCount?: number;
+  scanned?: number;
+  cached?: boolean;
+  watermark?: string;
+}
+
+interface MeetingCloudMetadataOptions {
+  startDate?: string;
+  endDate?: string;
+  recentLimit?: number;
+}
+
+const MEETING_CLOUD_CACHE_PREFIX = "zhinote.zhihui.cloudMetadata.";
 
 export default function MeetingScheduleShell() {
   const router = useRouter();
@@ -327,15 +355,54 @@ export default function MeetingScheduleShell() {
   }, []);
 
   const load = useCallback(async () => {
+    const visibleRange = buildMonthGrid(viewMonth);
+    const startDate = toDateKey(visibleRange[0].date);
+    const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
     let initialSync: Promise<unknown> | null = null;
     if (!initialCloudPullAttemptedRef.current) {
       initialCloudPullAttemptedRef.current = true;
       initialSync = reconcilePageSync().catch(() => undefined);
     }
+
+    const cachedCloud = readCachedMeetingCloudMetadata(startDate, endDate);
+    if (cachedCloud?.ok && cachedCloud.rootId) {
+      setRootId(cachedCloud.rootId);
+      setMeetings(
+        mergeMeetingPages([], cachedCloud.pages, deletedTombstoneRef.current)
+      );
+    }
+
+    const cloud = await loadMeetingCloudMetadata({
+      startDate,
+      endDate,
+      recentLimit: 12,
+    }).catch(() => emptyMeetingCloudMetadata(false));
+
+    if (cloud.ok && cloud.rootId) {
+      setRootId(cloud.rootId);
+      setMeetings(mergeMeetingPages([], cloud.pages, deletedTombstoneRef.current));
+      writeCachedMeetingCloudMetadata(startDate, endDate, cloud);
+      if (initialSync) {
+        void initialSync.then(async () => {
+          const refreshed = await loadMeetingCloudMetadata({
+            startDate,
+            endDate,
+            recentLimit: 12,
+          }).catch(() => emptyMeetingCloudMetadata(false));
+          if (!refreshed.ok || !refreshed.rootId) return;
+          setRootId(refreshed.rootId);
+          setMeetings(
+            mergeMeetingPages([], refreshed.pages, deletedTombstoneRef.current)
+          );
+          writeCachedMeetingCloudMetadata(startDate, endDate, refreshed);
+        });
+      }
+      return;
+    }
+
     let id: string | null = null;
     let localPages: Page[] = [];
     let localLoadFailed = false;
-
     try {
       id = await getModuleRootId("meeting-schedule");
       setRootId(id);
@@ -345,33 +412,22 @@ export default function MeetingScheduleShell() {
       localPages = await listPages(id);
     } catch (error) {
       localLoadFailed = true;
-      console.warn("Meeting schedule local load failed", error);
+      console.warn("Meeting schedule local cache load failed", error);
     }
 
-    if (id) {
-      setMeetings(mergeMeetingPages(localPages, [], deletedTombstoneRef.current));
-    }
-
-    const cloud = await loadMeetingCloudMetadata().catch(() => ({
-      rootId: null,
-      pages: [],
-    }));
-    const nextRootId =
-      id ?? cloud.rootId ?? (localLoadFailed ? generateId() : null);
+    const nextRootId = id ?? (localLoadFailed ? generateId() : null);
     if (nextRootId) setRootId(nextRootId);
-    setMeetings(
-      mergeMeetingPages(
-        localPages,
-        cloud.pages,
-        deletedTombstoneRef.current
-      )
-    );
+    setMeetings(mergeMeetingPages(localPages, [], deletedTombstoneRef.current));
 
     if (initialSync && nextRootId) {
       void initialSync.then(async () => {
         const [syncedLocalPages, syncedCloud] = await Promise.all([
           listPages(nextRootId).catch(() => localPages),
-          loadMeetingCloudMetadata().catch(() => ({ rootId: null, pages: [] })),
+          loadMeetingCloudMetadata({
+            startDate,
+            endDate,
+            recentLimit: 12,
+          }).catch(() => emptyMeetingCloudMetadata(false)),
         ]);
         setMeetings(
           mergeMeetingPages(
@@ -382,7 +438,7 @@ export default function MeetingScheduleShell() {
         );
       });
     }
-  }, []);
+  }, [viewMonth]);
 
   const handleDeleteMeeting = useCallback(
     async (pageId: string) => {
@@ -1701,21 +1757,101 @@ function toPageSyncRecord(page: Page) {
   };
 }
 
-async function loadMeetingCloudMetadata(): Promise<{
-  rootId: string | null;
-  pages: Page[];
-}> {
+async function loadMeetingCloudMetadata(
+  options: MeetingCloudMetadataOptions = {}
+): Promise<MeetingCloudMetadataSnapshot> {
   const res = await fetch("/api/pages/account-sync", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ action: "meeting-calendar-metadata" }),
+    body: JSON.stringify({
+      action: "meeting-calendar-metadata",
+      ...(options.startDate ? { startDate: options.startDate } : {}),
+      ...(options.endDate ? { endDate: options.endDate } : {}),
+      ...(typeof options.recentLimit === "number"
+        ? { recentLimit: options.recentLimit }
+        : {}),
+    }),
   });
-  if (!res.ok) return { rootId: null, pages: [] };
+  if (!res.ok) return emptyMeetingCloudMetadata(false);
   const data = (await res.json()) as MeetingCloudMetadataResponse;
   return {
+    ok: data.ok !== false,
     rootId: typeof data.rootId === "string" ? data.rootId : null,
     pages: (data.pages ?? []).map(cloudRecordToPage),
+    count: typeof data.count === "number" ? data.count : undefined,
+    matched: typeof data.matched === "number" ? data.matched : undefined,
+    rangeCount:
+      typeof data.rangeCount === "number" ? data.rangeCount : undefined,
+    recentCount:
+      typeof data.recentCount === "number" ? data.recentCount : undefined,
+    scanned: typeof data.scanned === "number" ? data.scanned : undefined,
+    cached: typeof data.cached === "boolean" ? data.cached : undefined,
+    watermark: typeof data.watermark === "string" ? data.watermark : undefined,
   };
+}
+
+function emptyMeetingCloudMetadata(ok: boolean): MeetingCloudMetadataSnapshot {
+  return {
+    ok,
+    rootId: null,
+    pages: [],
+  };
+}
+
+function meetingCloudCacheKey(startDate: string, endDate: string): string {
+  return `${MEETING_CLOUD_CACHE_PREFIX}${startDate}:${endDate}:v1`;
+}
+
+function readCachedMeetingCloudMetadata(
+  startDate: string,
+  endDate: string
+): MeetingCloudMetadataSnapshot | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(
+      meetingCloudCacheKey(startDate, endDate)
+    );
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<MeetingCloudMetadataSnapshot> & {
+      cachedAt?: string;
+    };
+    const cachedAt = parsed.cachedAt ? Date.parse(parsed.cachedAt) : 0;
+    if (!cachedAt || Date.now() - cachedAt > 24 * 60 * 60 * 1000) return null;
+    if (!parsed.ok || !Array.isArray(parsed.pages)) return null;
+    return {
+      ok: true,
+      rootId: typeof parsed.rootId === "string" ? parsed.rootId : null,
+      pages: parsed.pages,
+      count: typeof parsed.count === "number" ? parsed.count : undefined,
+      matched: typeof parsed.matched === "number" ? parsed.matched : undefined,
+      rangeCount:
+        typeof parsed.rangeCount === "number" ? parsed.rangeCount : undefined,
+      recentCount:
+        typeof parsed.recentCount === "number" ? parsed.recentCount : undefined,
+      scanned: typeof parsed.scanned === "number" ? parsed.scanned : undefined,
+      cached: typeof parsed.cached === "boolean" ? parsed.cached : undefined,
+      watermark:
+        typeof parsed.watermark === "string" ? parsed.watermark : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedMeetingCloudMetadata(
+  startDate: string,
+  endDate: string,
+  cloud: MeetingCloudMetadataSnapshot
+): void {
+  if (typeof window === "undefined" || !cloud.ok) return;
+  try {
+    window.localStorage.setItem(
+      meetingCloudCacheKey(startDate, endDate),
+      JSON.stringify({ ...cloud, cachedAt: new Date().toISOString() })
+    );
+  } catch {
+    // Local cache is best-effort; the cloud result is already displayed.
+  }
 }
 
 function cloudRecordToPage(record: CloudPageRecord): Page {

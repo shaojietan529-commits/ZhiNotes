@@ -30,6 +30,7 @@ const INDEX_KEY_PREFIX = "zhinotes:pagesync:index:";
 const PAGE_KEY_PREFIX = "zhinotes:pagesync:page:";
 const CHANGE_LOG_KEY_PREFIX = "zhinotes:pagesync:changes:";
 const DAILY_CALENDAR_CACHE_KEY_PREFIX = "zhinotes:pagesync:daily-calendar-cache:";
+const MEETING_CALENDAR_CACHE_KEY_PREFIX = "zhinotes:pagesync:meeting-calendar-cache:";
 const MAX_PAYLOAD_BYTES = 950 * 1024;
 const MAX_PUSH_RECORDS = 100;
 const MAX_PULL_IDS = 50;
@@ -104,7 +105,12 @@ interface MeetingCalendarMetadataResult {
   rootId: string | null;
   pages: PageRecord[];
   count: number;
+  matched: number;
+  rangeCount: number;
+  recentCount: number;
   scanned: number;
+  cached: boolean;
+  watermark: string;
 }
 
 interface PageMetadataResult {
@@ -115,6 +121,11 @@ interface PageMetadataResult {
 }
 
 interface DailyDatedRecord {
+  record: PageRecord;
+  dateKey: string;
+}
+
+interface MeetingDatedRecord {
   record: PageRecord;
   dateKey: string;
 }
@@ -157,6 +168,13 @@ interface DailyCalendarCache {
   rootId: string | null;
   scanned: number;
   notes: DailyDatedRecord[];
+}
+
+interface MeetingCalendarCache {
+  watermark: string;
+  rootId: string | null;
+  scanned: number;
+  meetings: MeetingDatedRecord[];
 }
 
 function isValidId(value: unknown): value is string {
@@ -740,13 +758,10 @@ async function getDailyMetadata(
   };
 }
 
-async function getMeetingCalendarMetadata(
-  config: AccountConfig,
-  email: string
-): Promise<MeetingCalendarMetadataResult> {
-  const index = await readIndex(config, email);
-  const pages = await readIndexedPages(config, email, index);
-  const active = pages.filter((page) => !page.deleted_at);
+function collectMeetingCalendarRecords(active: PageRecord[]): {
+  rootId: string | null;
+  meetings: MeetingDatedRecord[];
+} {
   const root = active
     .filter((page) => page.parent_id === null && MEETING_ROOT_TITLES.has(page.title))
     .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
@@ -775,18 +790,196 @@ async function getMeetingCalendarMetadata(
     if (isMeetingCalendarRecord(page)) ids.add(page.id);
   }
 
+  const meetings = active
+    .filter((page) => ids.has(page.id))
+    .map((page) => ({
+      record: page,
+      dateKey: getMeetingDateKey(page) ?? "",
+    }));
+
   return {
     rootId: root?.id ?? null,
-    pages: active
-      .filter((page) => ids.has(page.id))
-      .map((page) => ({
-        ...page,
-        cover_url: null,
-        content_text: null,
-      })),
-    count: ids.size,
-    scanned: active.length,
+    meetings,
   };
+}
+
+function getMeetingDateKey(record: PageRecord): string | null {
+  const existing = getPropertyValue(record, "日期");
+  if (isDateKey(existing)) return existing;
+  return inferDateFromTitle(`${record.title}\n${record.content_text ?? ""}`);
+}
+
+function withMeetingDateProperty(record: PageRecord, dateKey: string): string | null {
+  if (!dateKey) return record.properties;
+  const properties = parseProperties(record.properties);
+  const existing = properties.find((property) => property.name === "日期");
+  if (existing) {
+    existing.type = "date";
+    existing.value = dateKey;
+  } else {
+    properties.unshift({
+      id: "meeting-date",
+      name: "日期",
+      type: "date",
+      value: dateKey,
+    });
+  }
+  return JSON.stringify(properties);
+}
+
+function toMeetingMetadataRecord(item: MeetingDatedRecord): PageRecord {
+  return {
+    ...item.record,
+    cover_url: null,
+    content_text: null,
+    properties: withMeetingDateProperty(item.record, item.dateKey),
+  };
+}
+
+function sanitizeMeetingCache(value: unknown): MeetingCalendarCache | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.watermark !== "string") return null;
+  const meetingsRaw = Array.isArray(raw.meetings) ? raw.meetings : [];
+  const meetings: MeetingDatedRecord[] = [];
+  for (const item of meetingsRaw) {
+    if (!item || typeof item !== "object") continue;
+    const entry = item as Record<string, unknown>;
+    const dateKey = typeof entry.dateKey === "string" ? entry.dateKey : "";
+    if (dateKey && !isDateKey(dateKey)) continue;
+    const record = sanitizeRecord(entry.record);
+    if (!record) continue;
+    meetings.push({ dateKey, record });
+  }
+  return {
+    watermark: raw.watermark,
+    rootId: isValidId(raw.rootId) ? raw.rootId : null,
+    scanned: typeof raw.scanned === "number" ? raw.scanned : 0,
+    meetings,
+  };
+}
+
+async function readMeetingCalendarCache(
+  config: AccountConfig,
+  email: string,
+  watermark: string
+): Promise<MeetingCalendarCache | null> {
+  try {
+    const raw = await kvGet(
+      config.kv,
+      `${MEETING_CALENDAR_CACHE_KEY_PREFIX}${email}`
+    );
+    if (!raw) return null;
+    const parsed = sanitizeMeetingCache(JSON.parse(raw));
+    return parsed?.watermark === watermark ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeMeetingCalendarCache(
+  config: AccountConfig,
+  email: string,
+  cache: MeetingCalendarCache
+): Promise<void> {
+  try {
+    await kvSet(
+      config.kv,
+      `${MEETING_CALENDAR_CACHE_KEY_PREFIX}${email}`,
+      JSON.stringify(cache)
+    );
+  } catch {
+    // Cache misses are allowed; the source page records remain authoritative.
+  }
+}
+
+function selectMeetingCalendarMetadata(
+  cache: MeetingCalendarCache,
+  startDate: string | null,
+  endDate: string | null,
+  recentLimit: number,
+  cached: boolean
+): MeetingCalendarMetadataResult {
+  const byId = new Map<string, MeetingDatedRecord>();
+  let rangeCount = 0;
+  let recentCount = 0;
+
+  for (const item of cache.meetings) {
+    if (
+      item.dateKey &&
+      (!startDate || item.dateKey >= startDate) &&
+      (!endDate || item.dateKey <= endDate)
+    ) {
+      byId.set(item.record.id, item);
+      rangeCount += 1;
+    }
+  }
+
+  if (recentLimit > 0) {
+    const recent = [...cache.meetings]
+      .sort(
+        (a, b) =>
+          b.dateKey.localeCompare(a.dateKey) ||
+          (b.record.updated_at || "").localeCompare(a.record.updated_at || "")
+      )
+      .slice(0, recentLimit);
+    recentCount = recent.length;
+    for (const item of recent) byId.set(item.record.id, item);
+  }
+
+  return {
+    rootId: cache.rootId,
+    pages: Array.from(byId.values()).map(toMeetingMetadataRecord),
+    count: byId.size,
+    matched: cache.meetings.length,
+    rangeCount,
+    recentCount,
+    scanned: cache.scanned,
+    cached,
+    watermark: cache.watermark,
+  };
+}
+
+async function getMeetingCalendarMetadata(
+  config: AccountConfig,
+  email: string,
+  startDate: string | null,
+  endDate: string | null,
+  recentLimit: number
+): Promise<MeetingCalendarMetadataResult> {
+  const index = await readIndex(config, email);
+  const summary = summarizeIndex(index);
+  const cached = await readMeetingCalendarCache(config, email, summary.watermark);
+  if (cached) {
+    return selectMeetingCalendarMetadata(
+      cached,
+      startDate,
+      endDate,
+      recentLimit,
+      true
+    );
+  }
+
+  const pages = await readIndexedPages(config, email, index);
+  const active = pages.filter((page) => !page.deleted_at);
+  const { rootId, meetings } = collectMeetingCalendarRecords(active);
+  const nextCache: MeetingCalendarCache = {
+    rootId,
+    scanned: active.length,
+    watermark: summary.watermark,
+    meetings: meetings.map((item) => ({
+      dateKey: item.dateKey,
+      record: toMeetingMetadataRecord(item),
+    })),
+  };
+  await writeMeetingCalendarCache(config, email, nextCache);
+  return selectMeetingCalendarMetadata(
+    nextCache,
+    startDate,
+    endDate,
+    recentLimit,
+    false
+  );
 }
 
 async function getPageMetadata(
@@ -1194,7 +1387,26 @@ export async function POST(request: Request) {
     }
 
     if (body.action === "meeting-calendar-metadata") {
-      const result = await getMeetingCalendarMetadata(config, me);
+      const startDate =
+        typeof body.startDate === "string" && isDateKey(body.startDate)
+          ? body.startDate
+          : null;
+      const endDate =
+        typeof body.endDate === "string" && isDateKey(body.endDate)
+          ? body.endDate
+          : null;
+      const recentLimit =
+        typeof body.recentLimit === "number" &&
+        Number.isInteger(body.recentLimit)
+          ? Math.min(30, Math.max(0, body.recentLimit))
+          : 12;
+      const result = await getMeetingCalendarMetadata(
+        config,
+        me,
+        startDate,
+        endDate,
+        recentLimit
+      );
       return NextResponse.json({ ok: true, ...result });
     }
 
