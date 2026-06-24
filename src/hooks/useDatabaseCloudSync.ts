@@ -18,6 +18,7 @@ import {
 } from "@/lib/database/databaseUpdateBus";
 
 const SYNC_INTERVAL_MS = 10 * 1000;
+const INITIAL_SYNC_DELAY_MS = 800;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.databasesync.leaderLease.v1";
 const LEASE_TTL_MS = 22 * 1000;
@@ -132,7 +133,9 @@ export function useDatabaseCloudSync() {
 
   useEffect(() => {
     if (!dbReady) return;
-    void runSync({ quick: true });
+    const initialSyncTimer = window.setTimeout(() => {
+      void runSync({ quick: true });
+    }, INITIAL_SYNC_DELAY_MS);
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") {
         void runSync({ quick: true });
@@ -148,6 +151,7 @@ export function useDatabaseCloudSync() {
     window.addEventListener("online", handleForeground);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
+      window.clearTimeout(initialSyncTimer);
       window.clearInterval(interval);
       window.removeEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
       window.removeEventListener("focus", handleForeground);

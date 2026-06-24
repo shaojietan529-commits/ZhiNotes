@@ -569,6 +569,9 @@ function run() {
   for (const snippet of [
     "useDatabaseCloudSync",
     "SYNC_INTERVAL_MS",
+    "INITIAL_SYNC_DELAY_MS",
+    "initialSyncTimer",
+    "window.clearTimeout(initialSyncTimer)",
     "LEASE_KEY",
     "claimSyncLease",
     "reconcileDatabaseSync",

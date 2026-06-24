@@ -457,6 +457,12 @@ check(
   "页面云同步 hook 的加载、轮询、前台恢复和编辑后同步应默认走 quick 增量"
 );
 check(
+  pageCloudSyncHook.includes("INITIAL_SYNC_DELAY_MS") &&
+    pageCloudSyncHook.includes("initialSyncTimer") &&
+    pageCloudSyncHook.includes("window.clearTimeout(initialSyncTimer)"),
+  "页面云同步首轮应短暂延后，避免和页面 metadata 预热并发重复请求"
+);
+check(
   !pageCloudSyncHook.includes("initialSyncDoneRef") &&
     !pageCloudSyncHook.includes("quick: initialSyncDoneRef.current"),
   "页面云同步 hook 不应等首次全量同步后才启用 quick 增量"

@@ -18,6 +18,7 @@ import { getPageUpdateClientId } from "@/lib/pages/pageUpdateBus";
 // Background heartbeat. Short enough to feel live, long enough to stay well
 // within KV rate limits because only one visible tab holds the sync lease.
 const SYNC_INTERVAL_MS = 8 * 1000;
+const INITIAL_SYNC_DELAY_MS = 800;
 // Debounce after a local page change before pushing, so a burst of edits
 // (typing, drag) collapses into one sync.
 const EDIT_DEBOUNCE_MS = 4 * 1000;
@@ -122,7 +123,9 @@ export function usePageCloudSync() {
 
   useEffect(() => {
     if (!dbReady) return;
-    void runSync({ quick: true });
+    const initialSyncTimer = window.setTimeout(() => {
+      void runSync({ quick: true });
+    }, INITIAL_SYNC_DELAY_MS);
     // Only poll while the tab is visible; returning to a hidden tab re-syncs
     // via the visibility/focus handlers below, so background tabs stay quiet.
     const interval = window.setInterval(() => {
@@ -144,6 +147,7 @@ export function usePageCloudSync() {
     window.addEventListener("online", handleForeground);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
+      window.clearTimeout(initialSyncTimer);
       window.clearInterval(interval);
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
       window.removeEventListener("focus", handleForeground);
