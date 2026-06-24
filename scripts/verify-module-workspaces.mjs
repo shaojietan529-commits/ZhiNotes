@@ -62,6 +62,8 @@ const localClient = read("src/lib/db/local/client.ts");
 const usePageHook = read("src/hooks/usePage.ts");
 const usePagesHook = read("src/hooks/usePages.ts");
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
+const pageUpdateBus = read("src/lib/pages/pageUpdateBus.ts");
+const accountPageSync = read("src/lib/pages/accountPageSync.ts");
 const forbidden = ["XMLHttpRequest", "enables_ai", "getUserMedia"];
 for (const [name, source] of Object.entries(shells)) {
   for (const token of forbidden) {
@@ -138,6 +140,13 @@ check(
   usePagesHook.includes("upsertPages(cloud.pages.map(remoteMetadataToPage))") &&
     !usePagesHook.includes("applyRemotePageMetadata"),
   "usePages 云端 metadata delta 必须直接合并到 store，不能每次 delta 后重扫全量 pages"
+);
+check(
+  pageUpdateBus.includes("PageUpdatePayload") &&
+    accountPageSync.includes("toPageUpdatePayloads") &&
+    usePagesHook.includes("message.pages?.length") &&
+    usePagesHook.includes("upsertPages(message.pages.map(remoteMetadataToPage))"),
+  "页面多端同步事件必须携带轻量 metadata payload，其他 tab 不能只靠全量重读本地 pages"
 );
 check(
   pagePeekModal.includes("getPageMetadata") &&

@@ -32,7 +32,10 @@ import {
   parsePageProperties,
   stringifyPageProperties,
 } from "@/lib/pages/pageProperties";
-import { emitPagesUpdated } from "@/lib/pages/pageUpdateBus";
+import {
+  emitPagesUpdated,
+  type PageUpdatePayload,
+} from "@/lib/pages/pageUpdateBus";
 import type { Page } from "@/lib/utils/types";
 
 const ENABLED_KEY = "zhinote.pagesync.enabled";
@@ -463,7 +466,11 @@ async function runCloudPageMetadataDelta(): Promise<CloudPageMetadataDeltaResult
     if (cloud.pages.length > 0) {
       try {
         await applyRemotePageMetadata(cloud.pages);
-        emitPagesUpdated("cloud-pull", cloud.pages.length);
+        emitPagesUpdated(
+          "cloud-pull",
+          cloud.pages.length,
+          toPageUpdatePayloads(cloud.pages)
+        );
       } catch {
         // The caller can still render the returned metadata snapshot. Browser
         // cache failures should not block cloud-backed page lists.
@@ -514,7 +521,7 @@ async function runCloudPageMetadataDelta(): Promise<CloudPageMetadataDeltaResult
   } while (hasMore && batches < 3);
 
   if (pulled > 0) {
-    emitPagesUpdated("cloud-pull", pulled);
+    emitPagesUpdated("cloud-pull", pulled, toPageUpdatePayloads(pulledPages));
   }
   setLastPageSyncAtNow();
   return {
@@ -892,6 +899,29 @@ function normalizeSummary(value: unknown): IndexSummary | null {
             "~"
           ),
   };
+}
+
+function toPageUpdatePayload(record: RemotePageRecord): PageUpdatePayload {
+  return {
+    id: record.id,
+    parent_id: record.parent_id,
+    title: record.title,
+    icon: record.icon,
+    cover_url: record.cover_url,
+    content_text: null,
+    properties: record.properties,
+    position: record.position,
+    depth: record.depth,
+    created_at: record.created_at,
+    updated_at: record.updated_at,
+    deleted_at: record.deleted_at,
+  };
+}
+
+function toPageUpdatePayloads(
+  records: RemotePageRecord[]
+): PageUpdatePayload[] {
+  return records.map(toPageUpdatePayload);
 }
 
 function stringifyPageChangeCursor(updatedAt: string, id: string): string {

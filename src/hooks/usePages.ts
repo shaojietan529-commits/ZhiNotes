@@ -11,6 +11,7 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   emitPagesUpdated,
   subscribePagesUpdated,
+  type PageUpdateMessage,
   type PageUpdateReason,
 } from "@/lib/pages/pageUpdateBus";
 import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
@@ -86,17 +87,25 @@ export function usePages(options: UsePagesOptions = {}) {
   useEffect(() => {
     if (!dbReady) return;
     let timer: number | null = null;
-    const unsubscribe = subscribePagesUpdated(() => {
+    const unsubscribe = subscribePagesUpdated((message: PageUpdateMessage) => {
+      if (
+        !includeContent &&
+        message.reason === "cloud-pull" &&
+        message.pages?.length
+      ) {
+        upsertPages(message.pages.map(remoteMetadataToPage));
+        return;
+      }
       if (timer !== null) window.clearTimeout(timer);
       timer = window.setTimeout(() => {
-        void refresh({ broadcast: false, reason: "cross-tab" });
+        void refresh({ broadcast: false, reason: message.reason });
       }, 120);
     });
     return () => {
       if (timer !== null) window.clearTimeout(timer);
       unsubscribe();
     };
-  }, [dbReady, refresh]);
+  }, [dbReady, includeContent, refresh, upsertPages]);
 
   return { pages, refresh };
 }

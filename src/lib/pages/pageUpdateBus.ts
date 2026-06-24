@@ -6,12 +6,28 @@ export type PageUpdateReason =
   | "cloud-push"
   | "cross-tab";
 
-interface PageUpdateMessage {
+export interface PageUpdatePayload {
+  id: string;
+  parent_id: string | null;
+  title: string;
+  icon: string | null;
+  cover_url: string | null;
+  content_text: null;
+  properties: string | null;
+  position: number;
+  depth: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface PageUpdateMessage {
   type: "pages-updated";
   sourceId: string;
   reason: PageUpdateReason;
   at: string;
   count?: number;
+  pages?: PageUpdatePayload[];
 }
 
 const CHANNEL_NAME = "zhinote:pages-updated:v1";
@@ -40,7 +56,8 @@ function getChannel(): BroadcastChannel | null {
 
 export function emitPagesUpdated(
   reason: PageUpdateReason = "local-refresh",
-  count?: number
+  count?: number,
+  pages?: PageUpdatePayload[]
 ) {
   if (typeof window === "undefined") return;
   const message: PageUpdateMessage = {
@@ -49,6 +66,7 @@ export function emitPagesUpdated(
     reason,
     at: new Date().toISOString(),
     count,
+    pages,
   };
   getChannel()?.postMessage(message);
   try {
