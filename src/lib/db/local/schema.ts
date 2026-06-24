@@ -35,6 +35,7 @@ export const CREATE_TABLES_SQL = `
 
   CREATE INDEX IF NOT EXISTS idx_pages_parent ON pages(parent_id);
   CREATE INDEX IF NOT EXISTS idx_pages_updated ON pages(updated_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_pages_daily_date ON pages(daily_date_key, updated_at DESC);
 
   CREATE TABLE IF NOT EXISTS page_versions (
     id            TEXT PRIMARY KEY,

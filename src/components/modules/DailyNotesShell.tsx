@@ -53,8 +53,12 @@ const MONTH_LABELS = [
   "7 月", "8 月", "9 月", "10 月", "11 月", "12 月",
 ];
 const DAILY_CALENDAR_VISIBLE_LIMIT = 8;
+const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
+const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
 const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
-const DAILY_DATE_INDEX_BACKFILL_KEY = "zhinote.daily.dateIndex.backfilled.v1";
+const DAILY_DATE_INDEX_BACKFILL_KEY = "zhinote.daily.dateIndex.backfilled.v2";
+let dailyDateIndexBackfillRunning = false;
+let dailyDateIndexBackfillDoneInMemory = false;
 
 export default function DailyNotesShell() {
   const router = useRouter();
@@ -768,16 +772,67 @@ function scheduleDailyPeekPreload(callback: () => void): () => void {
 
 async function ensureDailyDateIndexBackfilled(): Promise<void> {
   if (typeof window === "undefined") return;
-  if (window.localStorage.getItem(DAILY_DATE_INDEX_BACKFILL_KEY) === "done") {
-    return;
-  }
+  if (isDailyDateIndexBackfillDone()) return;
+  if (dailyDateIndexBackfillRunning) return;
+  dailyDateIndexBackfillRunning = true;
   try {
-    await rebuildPageDateKeyIndex();
-    window.localStorage.setItem(DAILY_DATE_INDEX_BACKFILL_KEY, "done");
+    for (let pass = 0; pass < DAILY_DATE_INDEX_BACKFILL_MAX_PASSES; pass += 1) {
+      const result = await rebuildPageDateKeyIndex({
+        limit: DAILY_DATE_INDEX_BACKFILL_BATCH,
+      });
+      if (
+        result.remaining === 0 ||
+        result.scanned < DAILY_DATE_INDEX_BACKFILL_BATCH
+      ) {
+        markDailyDateIndexBackfillDone();
+        return;
+      }
+      await waitForDailyBackfillIdle();
+    }
+    window.setTimeout(() => {
+      void ensureDailyDateIndexBackfilled();
+    }, 1500);
   } catch {
     // Keep the calendar usable from cloud metadata even if this browser cache
     // cannot rebuild its optional date index yet.
+  } finally {
+    dailyDateIndexBackfillRunning = false;
   }
+}
+
+function isDailyDateIndexBackfillDone(): boolean {
+  if (dailyDateIndexBackfillDoneInMemory) return true;
+  try {
+    return window.localStorage.getItem(DAILY_DATE_INDEX_BACKFILL_KEY) === "done";
+  } catch {
+    return false;
+  }
+}
+
+function markDailyDateIndexBackfillDone(): void {
+  dailyDateIndexBackfillDoneInMemory = true;
+  try {
+    window.localStorage.setItem(DAILY_DATE_INDEX_BACKFILL_KEY, "done");
+  } catch {
+    // Memory flag is enough for this tab; the cloud account remains the source
+    // of truth and the browser cache can be rebuilt later.
+  }
+}
+
+function waitForDailyBackfillIdle(): Promise<void> {
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+  };
+  return new Promise((resolve) => {
+    if (maybeWindow.requestIdleCallback) {
+      maybeWindow.requestIdleCallback(resolve, { timeout: 500 });
+      return;
+    }
+    window.setTimeout(resolve, 80);
+  });
 }
 
 function collectDailyNotes(

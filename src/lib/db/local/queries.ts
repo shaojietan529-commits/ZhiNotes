@@ -37,6 +37,8 @@ export interface LocalPageSyncSummary {
 type SyncOperation = "insert" | "update" | "delete" | "restore";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const DAILY_DATE_INDEX_BACKFILL_DEFAULT_LIMIT = 240;
+const DAILY_CALENDAR_FALLBACK_SCAN_LIMIT = 240;
 
 function parseStoredProperties(
   raw: string | null
@@ -205,13 +207,35 @@ export async function getAllPageMetadata(): Promise<Page[]> {
   ) as unknown as Page[];
 }
 
-export async function rebuildPageDateKeyIndex(): Promise<{
+function dailyDateCandidateWhere(alias = "pages"): string {
+  const prefix = alias ? `${alias}.` : "";
+  return `(
+    ${prefix}properties LIKE '%日期%' OR
+    ${prefix}properties LIKE '%notion-daily-import%' OR
+    ${prefix}title GLOB '*[0-9][0-9][0-9][0-9]*' OR
+    ${prefix}title GLOB '*[0-9][0-9][0-9][0-9][0-9][0-9]*'
+  )`;
+}
+
+export async function rebuildPageDateKeyIndex(
+  options: { limit?: number } = {}
+): Promise<{
   scanned: number;
   updated: number;
+  remaining: number;
 }> {
   const db = await getDb();
+  const limit = Number.isFinite(options.limit)
+    ? Math.max(0, Math.floor(options.limit ?? 0))
+    : DAILY_DATE_INDEX_BACKFILL_DEFAULT_LIMIT;
+  const limitClause = limit > 0 ? ` LIMIT ${limit}` : "";
   const rows = db.query(
-    "SELECT id, title, properties, daily_date_key FROM pages"
+    `SELECT id, title, properties, daily_date_key
+     FROM pages
+     WHERE deleted_at IS NULL
+       AND daily_date_key IS NULL
+       AND ${dailyDateCandidateWhere("pages")}
+     ORDER BY updated_at DESC${limitClause}`
   ) as unknown as Array<{
     id: string;
     title: string;
@@ -220,15 +244,26 @@ export async function rebuildPageDateKeyIndex(): Promise<{
   }>;
   let updated = 0;
   for (const row of rows) {
-    const nextDateKey = inferDailyDateKey(row.title, row.properties);
-    if ((row.daily_date_key ?? null) === nextDateKey) continue;
+    const nextDateKey = inferDailyDateKey(row.title, row.properties) ?? "";
+    if (row.daily_date_key === nextDateKey) continue;
     db.run("UPDATE pages SET daily_date_key = ? WHERE id = ?", [
       nextDateKey,
       row.id,
     ]);
     updated += 1;
   }
-  return { scanned: rows.length, updated };
+  const remainingRows = db.query(
+    `SELECT COUNT(*) as count
+     FROM pages
+     WHERE deleted_at IS NULL
+       AND daily_date_key IS NULL
+       AND ${dailyDateCandidateWhere("pages")}`
+  ) as unknown as Array<{ count: number }>;
+  return {
+    scanned: rows.length,
+    updated,
+    remaining: Number(remainingRows[0]?.count ?? 0),
+  };
 }
 
 export async function listDailyPageMetadataForCalendar({
@@ -290,6 +325,24 @@ export async function listDailyPageMetadataForCalendar({
       [rootId, notionDailyImportPattern, recentLimit]
     );
     for (const row of recentRows) byId.set(row.id, row);
+  }
+
+  const fallbackRows = readRows(
+    `${commonCte}
+     SELECT ${PAGE_METADATA_SELECT}
+     FROM pages p
+     WHERE p.deleted_at IS NULL
+       AND p.daily_date_key IS NULL
+       AND ${dailyScope}
+       AND ${dailyDateCandidateWhere("p")}
+     ORDER BY p.updated_at DESC
+     LIMIT ?`,
+    [rootId, notionDailyImportPattern, DAILY_CALENDAR_FALLBACK_SCAN_LIMIT]
+  );
+  for (const row of fallbackRows) {
+    const dateKey = inferDailyDateKey(row.title, row.properties);
+    if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
+    byId.set(row.id, row);
   }
 
   return Array.from(byId.values());

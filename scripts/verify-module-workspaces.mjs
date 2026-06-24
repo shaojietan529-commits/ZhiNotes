@@ -102,12 +102,22 @@ for (const token of [
   "observedPageRevisionRef",
   "scheduleDailyPeekPreload",
   "applyRemotePages",
+  "DAILY_DATE_INDEX_BACKFILL_BATCH",
+  "DAILY_DATE_INDEX_BACKFILL_MAX_PASSES",
+  "waitForDailyBackfillIdle",
 ]) {
   check(shells.daily.includes(token), `DailyNotesShell 缺少每日纪要性能护栏 ${token}`);
 }
 check(
   shells.daily.includes("void ensureDailyDateIndexBackfilled()"),
   "DailyNotesShell 日期索引重建必须后台运行，不能阻塞首屏"
+);
+check(
+  shells.daily.includes("rebuildPageDateKeyIndex({") &&
+    shells.daily.includes("limit: DAILY_DATE_INDEX_BACKFILL_BATCH") &&
+    shells.daily.includes("isDailyDateIndexBackfillDone") &&
+    shells.daily.includes("markDailyDateIndexBackfillDone"),
+  "DailyNotesShell 日期索引重建必须分批、可记忆完成状态，不能刷新时反复全量扫描"
 );
 check(
   helper.includes("getModuleRootIdSync"),
@@ -127,6 +137,9 @@ for (const token of [
   "listDailyPageMetadataForCalendar",
   "rebuildPageDateKeyIndex",
   "inferDailyDateKey",
+  "DAILY_CALENDAR_FALLBACK_SCAN_LIMIT",
+  "dailyDateCandidateWhere",
+  "daily_date_key IS NULL",
 ]) {
   check(
     localQueries.includes(token) ||
