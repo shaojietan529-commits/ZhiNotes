@@ -29,6 +29,7 @@ const REMOTE_CURSOR_KEY = "zhinote.databasesync.remoteCursor";
 const PENDING_PUSH_KEYS_KEY = "zhinote.databasesync.pendingPushKeys";
 const AUTH_RETRY_KEY = "zhinote.databasesync.authRetry.v1";
 const INCREMENTAL_PULL_LIMIT = 100;
+const QUICK_INCREMENTAL_BATCH_LIMIT = 3;
 const PULL_BATCH = 80;
 const PUSH_BATCH_RECORDS = 80;
 const PUSH_BATCH_BYTES = 800 * 1024;
@@ -632,7 +633,9 @@ async function runCloudDatabaseMetadataDelta(
   }
 
   if (getRemoteCursor()) {
-    const delta = await syncCloudDatabaseDelta();
+    const delta = await syncCloudDatabaseDelta({
+      maxBatches: QUICK_INCREMENTAL_BATCH_LIMIT,
+    });
     rememberAuthRetryStatus(delta.status);
     return {
       status: delta.status,
@@ -1018,7 +1021,9 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
   };
 }
 
-export async function syncCloudDatabaseDelta(): Promise<{
+export async function syncCloudDatabaseDelta(
+  options: { maxBatches?: number } = {}
+): Promise<{
   status: DatabaseSyncStatus;
   pulled: number;
   records?: CloudDatabaseRecord[];
@@ -1030,6 +1035,8 @@ export async function syncCloudDatabaseDelta(): Promise<{
 
   let cursor = getRemoteCursor();
   let pulled = 0;
+  let batches = 0;
+  const maxBatches = Math.max(1, options.maxBatches ?? Number.POSITIVE_INFINITY);
   const pulledDatabaseRecords: CloudDatabaseRecord[] = [];
   let hasMore = false;
   do {
@@ -1060,7 +1067,8 @@ export async function syncCloudDatabaseDelta(): Promise<{
     }
     cursor = changes.cursor;
     hasMore = changes.hasMore;
-  } while (hasMore);
+    batches += 1;
+  } while (hasMore && batches < maxBatches);
 
   return { status: "ok", pulled, records: pulledDatabaseRecords };
 }
@@ -1142,7 +1150,9 @@ export async function reconcileDatabaseSync(
     };
   }
 
-  const pull = await syncCloudDatabaseDelta();
+  const pull = await syncCloudDatabaseDelta(
+    options.quick ? { maxBatches: QUICK_INCREMENTAL_BATCH_LIMIT } : {}
+  );
   if (pull.status !== "ok") {
     return {
       status: pull.status,
