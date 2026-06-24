@@ -51,14 +51,16 @@ function claimSyncLease(force = false): boolean {
       // Bad lease data should not block sync.
     }
   }
-  const nextLease = JSON.stringify({ owner, until: now + LEASE_TTL_MS });
-  window.localStorage.setItem(LEASE_KEY, nextLease);
   try {
+    const nextLease = JSON.stringify({ owner, until: now + LEASE_TTL_MS });
+    window.localStorage.setItem(LEASE_KEY, nextLease);
     const confirmed = JSON.parse(
       window.localStorage.getItem(LEASE_KEY) ?? "{}"
     ) as { owner?: string };
     return confirmed.owner === owner;
   } catch {
+    // localStorage is only a cross-tab coordination cache. If it is blocked,
+    // keep syncing in this tab instead of making cloud refresh depend on it.
     return true;
   }
 }

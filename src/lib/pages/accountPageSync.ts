@@ -57,24 +57,26 @@ let queuedCloudPushTimer: ReturnType<typeof setTimeout> | null = null;
 let metadataDeltaInFlight: Promise<CloudPageMetadataDeltaResult> | null = null;
 let lastMetadataDeltaAt = 0;
 let lastMetadataDeltaResult: CloudPageMetadataDeltaResult | null = null;
+let memoryRemoteWatermark: string | null = null;
+let memoryRemoteCursor: string | null = null;
+let memoryLastPageSyncAt: string | null = null;
 
 export function isPageSyncEnabled(): boolean {
   if (typeof window === "undefined") return false;
   // On by default (opt-out): the owner asked for both domains to stay in
   // sync automatically, so only an explicit "false" disables it. Sync still
   // does nothing unless the browser is signed in to the account.
-  return window.localStorage.getItem(ENABLED_KEY) !== "false";
+  return readSyncStorage(ENABLED_KEY) !== "false";
 }
 
 export function setPageSyncEnabled(enabled: boolean): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(ENABLED_KEY, String(enabled));
+  writeSyncStorage(ENABLED_KEY, String(enabled));
   window.dispatchEvent(new CustomEvent(PAGE_SYNC_CONFIG_EVENT));
 }
 
 export function getLastPageSyncAt(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(LAST_SYNC_KEY);
+  return readSyncStorage(LAST_SYNC_KEY) ?? memoryLastPageSyncAt;
 }
 
 export type PageSyncStatus =
@@ -897,29 +899,57 @@ function stringifyPageChangeCursor(updatedAt: string, id: string): string {
   return JSON.stringify({ updatedAt, id });
 }
 
-function getRemoteWatermark(): string | null {
+function readSyncStorage(key: string): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(REMOTE_WATERMARK_KEY);
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeSyncStorage(key: string, value: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // The cloud account is the source of truth; blocked localStorage should not
+    // stop this tab from continuing with in-memory cursors.
+  }
+}
+
+function removeSyncStorage(key: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Best-effort cache cleanup only.
+  }
+}
+
+function getRemoteWatermark(): string | null {
+  return readSyncStorage(REMOTE_WATERMARK_KEY) ?? memoryRemoteWatermark;
 }
 
 function setRemoteWatermark(watermark: string) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(REMOTE_WATERMARK_KEY, watermark);
+  memoryRemoteWatermark = watermark;
+  writeSyncStorage(REMOTE_WATERMARK_KEY, watermark);
 }
 
 function getRemoteCursor(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(REMOTE_CURSOR_KEY);
+  return readSyncStorage(REMOTE_CURSOR_KEY) ?? memoryRemoteCursor;
 }
 
 function setRemoteCursor(cursor: string) {
-  if (typeof window === "undefined" || !cursor) return;
-  window.localStorage.setItem(REMOTE_CURSOR_KEY, cursor);
+  if (!cursor) return;
+  memoryRemoteCursor = cursor;
+  writeSyncStorage(REMOTE_CURSOR_KEY, cursor);
 }
 
 function setLastPageSyncAtNow() {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+  const iso = new Date().toISOString();
+  memoryLastPageSyncAt = iso;
+  writeSyncStorage(LAST_SYNC_KEY, iso);
 }
 
 async function restoreCursorFromLocalMetadata(
@@ -943,11 +973,8 @@ async function restoreCursorFromLocalMetadata(
 }
 
 function getPendingCloudPushIds(): string[] {
-  if (typeof window === "undefined") return [];
   try {
-    const parsed = JSON.parse(
-      window.localStorage.getItem(PENDING_PUSH_IDS_KEY) ?? "[]"
-    );
+    const parsed = JSON.parse(readSyncStorage(PENDING_PUSH_IDS_KEY) ?? "[]");
     if (!Array.isArray(parsed)) return [];
     return Array.from(
       new Set(
@@ -962,13 +989,12 @@ function getPendingCloudPushIds(): string[] {
 }
 
 function setPendingCloudPushIds(ids: string[]): void {
-  if (typeof window === "undefined") return;
   const next = Array.from(new Set(ids.filter(isValidRemotePageId)));
   if (next.length === 0) {
-    window.localStorage.removeItem(PENDING_PUSH_IDS_KEY);
+    removeSyncStorage(PENDING_PUSH_IDS_KEY);
     return;
   }
-  window.localStorage.setItem(PENDING_PUSH_IDS_KEY, JSON.stringify(next));
+  writeSyncStorage(PENDING_PUSH_IDS_KEY, JSON.stringify(next));
 }
 
 function markPendingCloudPush(id: string): void {

@@ -246,6 +246,15 @@ check(
   "页面同步客户端应保存远端游标并优先使用 changes-since 增量拉取"
 );
 check(
+  pageSyncClient.includes("memoryRemoteCursor") &&
+    pageSyncClient.includes("memoryRemoteWatermark") &&
+    pageSyncClient.includes("readSyncStorage") &&
+    pageSyncClient.includes("writeSyncStorage") &&
+    pageSyncClient.includes("readSyncStorage(REMOTE_CURSOR_KEY) ?? memoryRemoteCursor") &&
+    pageSyncClient.includes("readSyncStorage(REMOTE_WATERMARK_KEY) ?? memoryRemoteWatermark"),
+  "页面同步游标/水位必须有内存兜底，localStorage 不可用时当前 tab 仍应继续增量同步"
+);
+check(
   pageSyncClient.includes("getLocalPageSyncSummary") &&
     pageSyncClient.includes("restoreCursorFromLocalMetadata") &&
     pageSyncClient.includes("localSummary.watermark !== remoteSummary.watermark") &&
@@ -277,7 +286,7 @@ check(
   "reconcile 每轮同步应先补发待上传页面，并把补发数量计入同步结果"
 );
 check(
-  pageSyncClient.includes("window.localStorage.getItem(PENDING_PUSH_IDS_KEY)") &&
+  pageSyncClient.includes("readSyncStorage(PENDING_PUSH_IDS_KEY)") &&
     !pageSyncClient.includes("zhinote.pagesync.pendingPushRecords"),
   "待上传重试队列只能保存 page id，不能把页面正文复制进 localStorage"
 );
@@ -444,6 +453,11 @@ check(
 check(
   pageCloudSyncHook.includes("handleConfig = () => void runSync({ quick: true, forceLease: true })"),
   "页面同步配置变化也应走 quick 增量；完整校验应只保留给账户页手动同步"
+);
+check(
+  pageCloudSyncHook.includes("localStorage is only a cross-tab coordination cache") &&
+    pageCloudSyncHook.includes("return true;"),
+  "页面同步短轮询 lease 失败时不能阻止当前 tab 云端同步"
 );
 check(
   !pageCloudSyncHook.includes("usePages") &&

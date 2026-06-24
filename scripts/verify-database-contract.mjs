@@ -254,7 +254,7 @@ function run() {
   }
   for (const snippet of [
     'const ENABLED_KEY = "zhinote.databasesync.enabled"',
-    'window.localStorage.getItem(ENABLED_KEY) !== "false"',
+    'readSyncStorage(ENABLED_KEY) !== "false"',
     "setDatabaseSyncEnabled",
     "DATABASE_SYNC_CONFIG_EVENT",
     'fetch("/api/databases/account-sync"',
@@ -285,6 +285,11 @@ function run() {
     "getRemoteDatabaseRecordKey",
     "markDatabaseSyncLogEntriesSynced",
     "PENDING_PUSH_KEYS_KEY",
+    "memoryDatabaseRemoteCursor",
+    "memoryLastDatabaseSyncAt",
+    "readSyncStorage",
+    "writeSyncStorage",
+    "readSyncStorage(REMOTE_CURSOR_KEY) ?? memoryDatabaseRemoteCursor",
     "clearPendingCloudDatabasePushKeys",
     "queueCloudDatabaseRecords",
     "queueCloudDatabaseRecordsForKeys",
@@ -543,6 +548,7 @@ function run() {
     "DATABASE_SYNC_CONFIG_EVENT",
     "emitDatabasesUpdated",
     'document.visibilityState === "visible"',
+    "Lease storage is only a cost-control optimization",
   ]) {
     assertIncludes(
       files.databaseCloudSyncHook,

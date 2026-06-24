@@ -32,6 +32,8 @@ const CLOUD_DATABASE_PUSH_DEBOUNCE_MS = 1000;
 
 let queuedCloudDatabasePush = new Map<string, CloudDatabaseRecord>();
 let queuedCloudDatabasePushTimer: ReturnType<typeof setTimeout> | null = null;
+let memoryDatabaseRemoteCursor = "";
+let memoryLastDatabaseSyncAt: string | null = null;
 
 export const DATABASE_SYNC_CONFIG_EVENT = "zhinote:databasesync-config";
 
@@ -136,33 +138,51 @@ export interface RebuildDatabaseCacheResult {
 
 export function isDatabaseSyncEnabled(): boolean {
   if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(ENABLED_KEY) !== "false";
+  return readSyncStorage(ENABLED_KEY) !== "false";
 }
 
 export function setDatabaseSyncEnabled(enabled: boolean): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(ENABLED_KEY, String(enabled));
+  writeSyncStorage(ENABLED_KEY, String(enabled));
   window.dispatchEvent(new CustomEvent(DATABASE_SYNC_CONFIG_EVENT));
 }
 
-export function getLastDatabaseSyncAt(): string | null {
+function readSyncStorage(key: string): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(LAST_SYNC_KEY);
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeSyncStorage(key: string, value: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Cloud records are authoritative; browser storage is only a cache.
+  }
+}
+
+export function getLastDatabaseSyncAt(): string | null {
+  return readSyncStorage(LAST_SYNC_KEY) ?? memoryLastDatabaseSyncAt;
 }
 
 function setLastDatabaseSyncAtNow(): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+  const iso = new Date().toISOString();
+  memoryLastDatabaseSyncAt = iso;
+  writeSyncStorage(LAST_SYNC_KEY, iso);
 }
 
 function getRemoteCursor(): string {
-  if (typeof window === "undefined") return "";
-  return window.localStorage.getItem(REMOTE_CURSOR_KEY) ?? "";
+  return readSyncStorage(REMOTE_CURSOR_KEY) ?? memoryDatabaseRemoteCursor;
 }
 
 function setRemoteCursor(cursor: string): void {
-  if (typeof window === "undefined" || !cursor) return;
-  window.localStorage.setItem(REMOTE_CURSOR_KEY, cursor);
+  if (!cursor) return;
+  memoryDatabaseRemoteCursor = cursor;
+  writeSyncStorage(REMOTE_CURSOR_KEY, cursor);
 }
 
 async function restoreCursorFromLocalDatabaseMetadata(
@@ -185,10 +205,9 @@ async function restoreCursorFromLocalDatabaseMetadata(
 }
 
 function getPendingCloudDatabasePushKeys(): string[] {
-  if (typeof window === "undefined") return [];
   try {
     const parsed = JSON.parse(
-      window.localStorage.getItem(PENDING_PUSH_KEYS_KEY) ?? "[]"
+      readSyncStorage(PENDING_PUSH_KEYS_KEY) ?? "[]"
     ) as unknown;
     if (!Array.isArray(parsed)) return [];
     return Array.from(
@@ -200,9 +219,8 @@ function getPendingCloudDatabasePushKeys(): string[] {
 }
 
 function setPendingCloudDatabasePushKeys(keys: string[]): void {
-  if (typeof window === "undefined") return;
   const uniqueKeys = Array.from(new Set(keys.filter(isValidRecordKey)));
-  window.localStorage.setItem(PENDING_PUSH_KEYS_KEY, JSON.stringify(uniqueKeys));
+  writeSyncStorage(PENDING_PUSH_KEYS_KEY, JSON.stringify(uniqueKeys));
 }
 
 function markPendingCloudDatabasePushKey(key: string): void {
