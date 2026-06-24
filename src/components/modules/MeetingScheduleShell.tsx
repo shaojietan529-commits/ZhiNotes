@@ -288,6 +288,26 @@ export default function MeetingScheduleShell() {
   const deletedTombstoneRef = useRef<Set<string>>(readDeletedTombstone());
   const calendarCellRefs = useRef(new Map<string, HTMLDivElement>());
   const highlightTimerRef = useRef<number | null>(null);
+  const metadataWarmupScheduledRef = useRef(false);
+
+  const scheduleMetadataCacheWarmup = useCallback(() => {
+    if (metadataWarmupScheduledRef.current) return;
+    metadataWarmupScheduledRef.current = true;
+    const run = () => {
+      void syncCloudPageMetadataDelta().catch(() => undefined);
+    };
+    const maybeWindow = window as Window & {
+      requestIdleCallback?: (
+        cb: () => void,
+        options?: { timeout?: number }
+      ) => number;
+    };
+    if (maybeWindow.requestIdleCallback) {
+      maybeWindow.requestIdleCallback(run, { timeout: 3000 });
+      return;
+    }
+    window.setTimeout(run, 1500);
+  }, []);
 
   const upsertMeetingInView = useCallback((page: Page) => {
     setMeetings((prev) => {
@@ -363,12 +383,9 @@ export default function MeetingScheduleShell() {
     const visibleRange = buildMonthGrid(viewMonth);
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
-    let initialSync: Promise<unknown> | null = null;
     if (!initialCloudPullAttemptedRef.current) {
       initialCloudPullAttemptedRef.current = true;
-      initialSync = syncCloudPageMetadataDelta({ force: true }).catch(
-        () => undefined
-      );
+      scheduleMetadataCacheWarmup();
     }
 
     const cachedCloud = readCachedMeetingCloudMetadata(startDate, endDate);
@@ -389,21 +406,6 @@ export default function MeetingScheduleShell() {
       setRootId(cloud.rootId);
       setMeetings(mergeMeetingPages([], cloud.pages, deletedTombstoneRef.current));
       writeCachedMeetingCloudMetadata(startDate, endDate, cloud);
-      if (initialSync) {
-        void initialSync.then(async () => {
-          const refreshed = await loadMeetingCloudMetadata({
-            startDate,
-            endDate,
-            recentLimit: 12,
-          }).catch(() => emptyMeetingCloudMetadata(false));
-          if (!refreshed.ok || !refreshed.rootId) return;
-          setRootId(refreshed.rootId);
-          setMeetings(
-            mergeMeetingPages([], refreshed.pages, deletedTombstoneRef.current)
-          );
-          writeCachedMeetingCloudMetadata(startDate, endDate, refreshed);
-        });
-      }
       return;
     }
 
@@ -426,26 +428,7 @@ export default function MeetingScheduleShell() {
     if (nextRootId) setRootId(nextRootId);
     setMeetings(mergeMeetingPages(localPages, [], deletedTombstoneRef.current));
 
-    if (initialSync && nextRootId) {
-      void initialSync.then(async () => {
-        const [syncedLocalPages, syncedCloud] = await Promise.all([
-          listPages(nextRootId).catch(() => localPages),
-          loadMeetingCloudMetadata({
-            startDate,
-            endDate,
-            recentLimit: 12,
-          }).catch(() => emptyMeetingCloudMetadata(false)),
-        ]);
-        setMeetings(
-          mergeMeetingPages(
-            syncedLocalPages,
-            syncedCloud.pages,
-            deletedTombstoneRef.current
-          )
-        );
-      });
-    }
-  }, [viewMonth]);
+  }, [scheduleMetadataCacheWarmup, viewMonth]);
 
   const handleDeleteMeeting = useCallback(
     async (pageId: string) => {

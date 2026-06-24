@@ -437,13 +437,16 @@ check(
 const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");
 check(
   meetingScheduleShell.includes("readCachedMeetingCloudMetadata(startDate, endDate)") &&
-    meetingScheduleShell.includes("syncCloudPageMetadataDelta({ force: true })") &&
+    meetingScheduleShell.includes("scheduleMetadataCacheWarmup") &&
+    meetingScheduleShell.includes("requestIdleCallback") &&
+    meetingScheduleShell.includes("syncCloudPageMetadataDelta().catch") &&
+    !meetingScheduleShell.includes("syncCloudPageMetadataDelta({ force: true })") &&
     !meetingScheduleShell.includes("reconcilePageSync") &&
     meetingScheduleShell.includes("loadMeetingCloudMetadata({") &&
     meetingScheduleShell.includes("recentLimit: 12") &&
     meetingScheduleShell.indexOf("mergeMeetingPages([], cloud.pages") <
       meetingScheduleShell.indexOf("getModuleRootId(\"meeting-schedule\")"),
-  "MeetingScheduleShell 首屏应先读云端当前日历窗口，再回退本机缓存"
+  "MeetingScheduleShell 首屏应先读云端当前日历窗口，再回退本机缓存；全局 metadata 同步只能空闲后台预热"
 );
 check(
   meetingScheduleShell.includes("MEETING_CLOUD_CACHE_PREFIX") &&
