@@ -13,7 +13,10 @@ import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import PageImportPlanPanel from "@/components/modules/PageImportPlanPanel";
 import { usePages } from "@/hooks/usePages";
-import { createPage, updatePage } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import {
   appendFilePreviewActionReceipt,
   buildFilePreviewActionReceipt,
@@ -328,11 +331,11 @@ function FilesDashboard() {
   };
 
   const createFileLibraryPageFromStoredFile = async (storedFile: StoredPageFile) => {
-    const page = await createPage({
+    const page = await createPageWithCloud({
       title: buildFileLibraryPageTitle(storedFile),
       icon: "FILE",
     });
-    await updatePage(page.id, {
+    await updatePageWithCloud(page.id, {
       content_text: buildFileLibraryPageContent(storedFile),
     });
     const actionKind = getFileLibraryReceiptActionKind(storedFile);

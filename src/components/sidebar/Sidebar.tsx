@@ -10,7 +10,8 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createPage, createDatabase, getAllDatabases } from "@/lib/db/local/queries";
+import { createDatabase, getAllDatabases } from "@/lib/db/local/queries";
+import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
 import type { Database } from "@/lib/utils/types";
@@ -277,7 +278,7 @@ export default function Sidebar() {
 
   const handleNewPage = async () => {
     try {
-      const page = await createPage();
+      const page = await createPageWithCloud();
       await refresh();
       router.push(`/page/${page.id}`);
     } catch (err) {

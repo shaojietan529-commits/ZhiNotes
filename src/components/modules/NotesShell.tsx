@@ -7,10 +7,10 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
 import { usePages } from "@/hooks/usePages";
 import {
-  createPage,
   getPageModuleCounts,
   type PageModuleCounts,
 } from "@/lib/db/local/queries";
+import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import {
   buildNotesModuleWorkbenchReport,
@@ -223,7 +223,10 @@ function NotesDashboard() {
   const handleCreateBlankPage = async () => {
     setBusyAction("blank-page");
     try {
-      const page = await createPage({ title: "未命名研究笔记", icon: "NOTE" });
+      const page = await createPageWithCloud({
+        title: "未命名研究笔记",
+        icon: "NOTE",
+      });
       await refresh();
       await loadCounts();
       router.push(`/page/${page.id}`);

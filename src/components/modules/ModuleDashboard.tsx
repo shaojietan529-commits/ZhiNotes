@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createDatabase, createPage, getAllDatabases } from "@/lib/db/local/queries";
+import { createDatabase, getAllDatabases } from "@/lib/db/local/queries";
+import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { usePages } from "@/hooks/usePages";
 import {
   MODULE_EXTENSION_SLOTS,
@@ -101,7 +102,7 @@ export default function ModuleDashboard() {
   }, []);
 
   const handleNewPage = async () => {
-    const page = await createPage({ title: "未命名研究笔记" });
+    const page = await createPageWithCloud({ title: "未命名研究笔记" });
     await refresh();
     router.push(`/page/${page.id}`);
   };

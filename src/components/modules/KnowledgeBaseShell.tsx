@@ -13,12 +13,14 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
 import {
-  createPage,
-  updatePage,
-  movePage,
   getNextPosition,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  movePageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import { getModuleRootId } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
@@ -140,14 +142,14 @@ export default function KnowledgeBaseShell() {
   // in the peek modal shows a 新页面 placeholder to type straight into.
   const addCard = useCallback(async () => {
     if (!rootId) return;
-    const page = await createPage({ parentId: rootId });
+    const page = await createPageWithCloud({ parentId: rootId });
     await refresh();
     setPeekPageId(page.id);
   }, [rootId, refresh]);
 
   const renameCard = useCallback(
     async (id: string, title: string) => {
-      await updatePage(id, { title });
+      await updatePageWithCloud(id, { title });
       await refresh();
     },
     [refresh]
@@ -170,12 +172,12 @@ export default function KnowledgeBaseShell() {
         return;
       }
 
-      const linkPage = await createPage({
+      const linkPage = await createPageWithCloud({
         parentId,
         title: displayPageTitle(industryLinkCard.title),
         icon: industryLinkCard.icon ?? "🏢",
       });
-      await updatePage(linkPage.id, {
+      await updatePageWithCloud(linkPage.id, {
         properties: buildIndustryCompanyLinkProperties(industryLinkCard),
         content_text: buildIndustryCompanyLinkContent(industryLinkCard),
       });
@@ -203,12 +205,12 @@ export default function KnowledgeBaseShell() {
       try {
         for (const file of Array.from(fileList)) {
           const stored = await savePageFile(file);
-          const page = await createPage({
+          const page = await createPageWithCloud({
             parentId,
             title: buildFileLibraryPageTitle(stored),
             icon: fileKindIcon(stored.kind),
           });
-          await updatePage(page.id, {
+          await updatePageWithCloud(page.id, {
             content_text: buildFileLibraryPageContent(stored),
           });
           imported += 1;
@@ -255,7 +257,7 @@ export default function KnowledgeBaseShell() {
       if (spot.position === "inside") {
         newPosition = await getNextPosition(target.id);
         newParentId = target.id;
-        await movePage(dragged, newParentId, newPosition);
+        await movePageWithCloud(dragged, newParentId, newPosition);
       } else {
         newParentId = rootId;
         const siblings = cards.filter((c) => c.id !== dragged);
@@ -270,7 +272,7 @@ export default function KnowledgeBaseShell() {
             : prevPos + 2;
         newPosition =
           insertIndex === 0 ? prevPos - 1 : (prevPos + nextPos) / 2;
-        await movePage(dragged, newParentId, newPosition);
+        await movePageWithCloud(dragged, newParentId, newPosition);
       }
       pushPageMove({
         pageId: dragged,
@@ -290,7 +292,11 @@ export default function KnowledgeBaseShell() {
     const record = popPageMove();
     if (!record) return;
     try {
-      await movePage(record.pageId, record.fromParentId!, record.fromPosition);
+      await movePageWithCloud(
+        record.pageId,
+        record.fromParentId!,
+        record.fromPosition
+      );
       await refresh();
       setUndoNotice("已撤回移动");
       setTimeout(() => setUndoNotice(null), 2000);

@@ -8,14 +8,16 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import {
-  createPage,
   deletePage,
   getDeletedPages,
   getPage,
   listPages,
   restorePage,
-  updatePage,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import { reconcilePageSync } from "@/lib/pages/accountPageSync";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import {
@@ -681,7 +683,11 @@ export default function MeetingScheduleShell() {
 
       let page: Page;
       try {
-        page = await createPage({ parentId: rootId, title, icon: "🗓️" });
+        page = await createPageWithCloud({
+          parentId: rootId,
+          title,
+          icon: "🗓️",
+        });
       } catch (error) {
         if (!isLocalDbIoError(error)) throw error;
         const cloudResult = await createCloudOnlyMeetingPage({
@@ -696,7 +702,7 @@ export default function MeetingScheduleShell() {
 
       let updatedPage: Page | null;
       try {
-        updatedPage = await updatePage(page.id, {
+        updatedPage = await updatePageWithCloud(page.id, {
           properties: stringifyPageProperties(props),
           content_text: contentText,
         });
@@ -732,7 +738,7 @@ export default function MeetingScheduleShell() {
         upsertPageProperty(queueProps, "录制任务错误", queueResult.ok ? "" : queueResult.message, {
           type: "text",
         });
-        const queuedPage = await updatePage(page.id, {
+        const queuedPage = await updatePageWithCloud(page.id, {
           properties: stringifyPageProperties(queueProps),
         });
         finalPage = queuedPage ?? finalPage;
@@ -917,7 +923,7 @@ export default function MeetingScheduleShell() {
           changed = true;
         }
         if (changed) {
-          const updatedPage = await updatePage(entry.page.id, {
+          const updatedPage = await updatePageWithCloud(entry.page.id, {
             properties: stringifyPageProperties(props),
           });
           if (rootId && updatedPage) {
@@ -977,7 +983,7 @@ export default function MeetingScheduleShell() {
       upsertPageProperty(props, "录制任务错误", queueResult.ok ? "" : queueResult.message, {
         type: "text",
       });
-      const updatedPage = await updatePage(entry.page.id, {
+      const updatedPage = await updatePageWithCloud(entry.page.id, {
         properties: stringifyPageProperties(props),
       });
       if (rootId && updatedPage) {
@@ -2497,7 +2503,7 @@ async function linkCompletedMeetingsToDaily(completed: MeetingEntry[]) {
 
     // Create the daily page for this date if it doesn't exist yet.
     if (!dailyPage) {
-      const newPage = await createPage({ parentId: dailyRootId });
+      const newPage = await createPageWithCloud({ parentId: dailyRootId });
       const props = [
         { ...createPageProperty("date", "日期"), value: dateKey },
         createPageProperty("text", "要点"),
@@ -2505,7 +2511,7 @@ async function linkCompletedMeetingsToDaily(completed: MeetingEntry[]) {
         createPageProperty("tags", "相关公司"),
         createPageProperty("tags", "相关行业"),
       ];
-      await updatePage(newPage.id, {
+      await updatePageWithCloud(newPage.id, {
         properties: stringifyPageProperties(props),
       });
       dailyPage = { ...newPage, properties: stringifyPageProperties(props) };
@@ -2523,6 +2529,8 @@ async function linkCompletedMeetingsToDaily(completed: MeetingEntry[]) {
       `transition-colors no-underline">📄 ${escapeHtml(label)}</a></p>`;
 
     const current = (await getPage(dailyPage.id))?.content_text ?? "";
-    await updatePage(dailyPage.id, { content_text: current + mentionHtml });
+    await updatePageWithCloud(dailyPage.id, {
+      content_text: current + mentionHtml,
+    });
   }
 }

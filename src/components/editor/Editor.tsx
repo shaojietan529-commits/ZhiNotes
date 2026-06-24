@@ -9,11 +9,13 @@ import {
 } from "@tiptap/pm/model";
 import {
   addBlockComment,
-  createPage,
   getAllPages,
-  updatePage,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import {
   BLOCK_COMMENTS_CHANGED_EVENT,
   INLINE_COMMENT_DELETED_EVENT,
@@ -532,13 +534,27 @@ const Editor = forwardRef<EditorRef, EditorProps>(
       },
     }));
 
-    // Reset editor content when switching pages
-    const prevPageIdRef = useRef(pageId);
+    // Reset editor content when switching pages. If a lightweight page record
+    // is opened first and the full body arrives later, fill it only while the
+    // editor is still empty so user typing is never overwritten.
+    const appliedInitialContentRef = useRef({
+      pageId,
+      content: initialContent || "",
+    });
     useEffect(() => {
-      if (prevPageIdRef.current !== pageId && editor) {
+      if (!editor) return;
+      const nextContent = initialContent || "";
+      const applied = appliedInitialContentRef.current;
+      if (applied.pageId !== pageId) {
         flushPendingSave();
-        editor.commands.setContent(initialContent || "");
-        prevPageIdRef.current = pageId;
+        editor.commands.setContent(nextContent);
+        appliedInitialContentRef.current = { pageId, content: nextContent };
+        return;
+      }
+      if (applied.content === nextContent) return;
+      if (!applied.content && nextContent && editor.isEmpty) {
+        editor.commands.setContent(nextContent);
+        appliedInitialContentRef.current = { pageId, content: nextContent };
       }
     }, [pageId, initialContent, editor, flushPendingSave]);
 
@@ -672,12 +688,12 @@ async function createChildPageFromEditorCommand(
   editor: TiptapEditor,
   parentPageId: string
 ) {
-  const page = await createPage({
+  const page = await createPageWithCloud({
     parentId: parentPageId,
   });
   const allPages = await getAllPages();
   const parentPage = allPages.find((candidate) => candidate.id === parentPageId);
-  await updatePage(page.id, {
+  await updatePageWithCloud(page.id, {
     content_text: buildChildPageInitialHtml({
       parentPageId,
       parentTitle: parentPage?.title ?? null,
@@ -700,7 +716,7 @@ async function createChildPageFromEditorCommand(
     ])
     .run();
 
-  await updatePage(parentPageId, { content_text: editor.getHTML() });
+  await updatePageWithCloud(parentPageId, { content_text: editor.getHTML() });
   await updateWikiLinks(parentPageId, getLinkedPageIds(editor));
 
   window.location.href = `/page/${page.id}`;

@@ -7,7 +7,7 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import SideBySideDiff from "./SideBySideDiff";
 import { usePage } from "@/hooks/usePage";
 import { useVersions } from "@/hooks/useVersions";
-import { updatePage } from "@/lib/db/local/queries";
+import { updatePageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { manualSnapshot } from "@/lib/comparison/versioning";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import type { PageVersion } from "@/lib/utils/types";
@@ -80,7 +80,9 @@ function CompareContent({ pageId }: { pageId: string }) {
         page.content_text || "",
         "恢复前"
       );
-      await updatePage(pageId, { content_text: version.content_text || "" });
+      await updatePageWithCloud(pageId, {
+        content_text: version.content_text || "",
+      });
       await manualSnapshot(
         pageId,
         page.title,

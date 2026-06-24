@@ -4,10 +4,12 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
-  createPage,
-  movePage,
   getNextPosition,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  movePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import { getModuleRootIdsSync } from "@/lib/pages/moduleWorkspaces";
 import { usePages } from "@/hooks/usePages";
@@ -85,7 +87,7 @@ function PageTreeItem({
 
   const handleAddChild = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const child = await createPage({ parentId: page.id });
+    const child = await createPageWithCloud({ parentId: page.id });
     onRefresh();
     setExpanded(true);
     onNavigate(child.id);
@@ -307,7 +309,7 @@ export default function PageTree() {
     try {
       if (dropTarget.position === "inside") {
         const pos = await getNextPosition(targetPage.id);
-        await movePage(draggedId, targetPage.id, pos);
+        await movePageWithCloud(draggedId, targetPage.id, pos);
       } else {
         const parentId = targetPage.parent_id;
         const siblings = getSiblings(parentId, pages);
@@ -326,7 +328,7 @@ export default function PageTree() {
         const newPosition =
           insertIndex === 0 ? prevPos - 1 : (prevPos + nextPos) / 2;
 
-        await movePage(draggedId, parentId, newPosition);
+        await movePageWithCloud(draggedId, parentId, newPosition);
       }
       await refresh();
     } catch (err) {
@@ -354,7 +356,7 @@ export default function PageTree() {
 
       try {
         const pos = await getNextPosition(null);
-        await movePage(draggedId, null, pos);
+        await movePageWithCloud(draggedId, null, pos);
         await refresh();
       } catch (err) {
         console.error("[ZhiNote] Failed to move page to root:", err);

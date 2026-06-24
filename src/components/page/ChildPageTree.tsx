@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePages } from "@/hooks/usePages";
-import { createPage, updatePage } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
@@ -99,7 +102,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
 
   const addChild = useCallback(
     async (parentId: string) => {
-      const child = await createPage({ parentId });
+      const child = await createPageWithCloud({ parentId });
       await refresh();
       router.push(`/page/${child.id}`);
     },
@@ -108,7 +111,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
 
   const addNoteOnDate = useCallback(
     async (dateKey: string) => {
-      const child = await createPage({ parentId: pageId });
+      const child = await createPageWithCloud({ parentId: pageId });
       const props = [
         { ...createPageProperty("date", "日期"), value: dateKey },
         createPageProperty("text", "要点"),
@@ -116,7 +119,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
         createPageProperty("tags", "相关公司"),
         createPageProperty("tags", "相关行业"),
       ];
-      await updatePage(child.id, {
+      await updatePageWithCloud(child.id, {
         properties: stringifyPageProperties(props),
       });
       await refresh();
@@ -147,7 +150,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       if (DATE_KEY_PATTERN.test((note.title || "").trim())) {
         updates.title = dateKey;
       }
-      await updatePage(noteId, updates);
+      await updatePageWithCloud(noteId, updates);
       await refresh();
     },
     [children, refresh]

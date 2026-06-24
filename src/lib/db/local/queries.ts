@@ -68,6 +68,26 @@ export async function listPages(parentId: string | null = null): Promise<Page[]>
   ) as unknown as Page[];
 }
 
+export async function listPageMetadata(
+  parentId: string | null = null
+): Promise<Page[]> {
+  const db = await getDb();
+  const select =
+    `SELECT id, owner_id, parent_id, database_id, title, icon, cover_url,
+            NULL AS content_yjs, NULL AS content_text, properties,
+            position, depth, created_at, updated_at, deleted_at, sync_version
+     FROM pages`;
+  if (parentId === null) {
+    return db.query(
+      `${select} WHERE parent_id IS NULL AND deleted_at IS NULL ORDER BY updated_at DESC`
+    ) as unknown as Page[];
+  }
+  return db.query(
+    `${select} WHERE parent_id = ? AND deleted_at IS NULL ORDER BY position ASC, updated_at DESC`,
+    [parentId]
+  ) as unknown as Page[];
+}
+
 export async function getAllPages(): Promise<Page[]> {
   const db = await getDb();
   return db.query(

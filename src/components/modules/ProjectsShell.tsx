@@ -7,12 +7,14 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import { usePages } from "@/hooks/usePages";
 import {
   addRow,
-  createPage,
   getAllDatabases,
   getFields,
   getRows,
-  updatePage,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import {
   buildResearchGraph,
@@ -144,11 +146,11 @@ function ProjectsDashboard() {
     setBusyAction("project-page");
     setTrackerIntakeMessage(null);
     try {
-      const page = await createPage({
+      const page = await createPageWithCloud({
         title: buildResearchProjectPageTitle(projectBrief),
         icon: "PRJ",
       });
-      await updatePage(page.id, {
+      await updatePageWithCloud(page.id, {
         content_text: buildResearchProjectBriefPageHtml(projectBrief),
       });
       await refreshPages();
@@ -182,11 +184,11 @@ function ProjectsDashboard() {
         return;
       }
 
-      const page = await createPage({
+      const page = await createPageWithCloud({
         title: buildResearchProjectPageTitle(projectBrief),
         icon: "PRJ",
       });
-      await updatePage(page.id, {
+      await updatePageWithCloud(page.id, {
         content_text: buildResearchProjectBriefPageHtml(projectBrief),
       });
       const trackerRows = await getRows(tracker.id);

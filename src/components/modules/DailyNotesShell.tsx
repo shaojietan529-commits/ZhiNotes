@@ -4,15 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import { usePages } from "@/hooks/usePages";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import {
-  createPage,
   getPage,
-  listPages,
-  updatePage,
+  listPageMetadata,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import {
   createPageProperty,
@@ -45,8 +46,8 @@ const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
 export default function DailyNotesShell() {
   const router = useRouter();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const pageRevision = usePageRevision();
-  const { refresh } = usePages();
   const [rootId, setRootId] = useState<string | null>(null);
   const [notes, setNotes] = useState<DailyNote[]>([]);
   const [cloudNotice, setCloudNotice] = useState<string | null>(null);
@@ -66,14 +67,19 @@ export default function DailyNotesShell() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
-  const load = useCallback(async () => {
-    setCloudLoading(true);
-    setCloudNotice("正在从云端加载每日纪要…");
+  const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
+    const includeCloud = opts?.includeCloud !== false;
+    if (includeCloud) {
+      setCloudLoading(true);
+      setCloudNotice("正在从云端加载每日纪要…");
+    }
     const id = await getModuleRootId("daily");
     setRootId(id);
-    const dailyNotes = collectDailyNotes(await listPages(id), id);
+    const dailyNotes = collectDailyNotes(await listPageMetadata(id), id);
     const byId = new Map(dailyNotes.map((note) => [note.id, note]));
     setNotes(Array.from(byId.values()));
+    if (!includeCloud) return;
+
     const visibleRange = buildMonthGrid(viewMonth);
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
@@ -124,9 +130,17 @@ export default function DailyNotesShell() {
   useEffect(() => {
     if (!dbReady) return;
     queueMicrotask(() => {
-      void load();
+      void load({ includeCloud: true });
     });
-  }, [dbReady, load, pageRevision]);
+  }, [dbReady, load]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    const timer = window.setTimeout(() => {
+      void load({ includeCloud: false });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [dbReady, pageRevision, load]);
 
   // Each day can hold multiple note pages (Notion-style), grouped by 日期.
   const notesByDate = useMemo(() => {
@@ -161,7 +175,7 @@ export default function DailyNotesShell() {
         // placeholder; calendar chips fall back to the 📝 glyph for display.
         let page: Page;
         try {
-          page = await createPage({ parentId: dailyRootId });
+          page = await createPageWithCloud({ parentId: dailyRootId });
         } catch (error) {
           if (!isLocalDbWriteError(error)) throw error;
           const cloudNote = await createCloudOnlyDailyNote({
@@ -181,7 +195,7 @@ export default function DailyNotesShell() {
           return;
         }
         const updated =
-          (await updatePage(page.id, {
+          (await updatePageWithCloud(page.id, {
             properties: stringifyPageProperties(props),
           }).catch(async (error) => {
             if (!isLocalDbWriteError(error)) throw error;
@@ -211,15 +225,11 @@ export default function DailyNotesShell() {
           nextNote,
           ...current.filter((item) => item.id !== nextNote.id),
         ]);
+        upsertPages([nextNote]);
         void pushDailyNoteCloudSnapshot(dailyRootId, nextNote);
         // Open immediately; do not wait for the cloud calendar index refresh.
         setPeekInitialPage(nextNote);
         setPeekPageId(nextNote.id);
-        void refresh()
-          .then(() => load())
-          .catch(() => {
-            setCloudNotice("新纪要已创建，但后台刷新失败。");
-          });
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "未知本机写入错误";
@@ -228,7 +238,7 @@ export default function DailyNotesShell() {
         setCreatingDateKey(null);
       }
     },
-    [creatingDateKey, rootId, refresh, load]
+    [creatingDateKey, rootId, upsertPages]
   );
 
   const openNotePeek = useCallback((note: DailyNote) => {
@@ -258,11 +268,20 @@ export default function DailyNotesShell() {
       if (DATE_KEY_PATTERN.test((note.title || "").trim())) {
         updates.title = dateKey;
       }
-      await updatePage(noteId, updates);
-      await refresh();
-      await load();
+      const updated = await updatePageWithCloud(noteId, updates);
+      if (updated) {
+        const nextNote: DailyNote = {
+          ...updated,
+          dailyDateKey: dateKey,
+          cloudOnly: Boolean((updated as DailyNote).cloudOnly),
+        };
+        upsertPages([nextNote]);
+        setNotes((current) =>
+          current.map((item) => (item.id === noteId ? nextNote : item))
+        );
+      }
     },
-    [notes, refresh, load]
+    [notes, upsertPages]
   );
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
@@ -563,7 +582,7 @@ export default function DailyNotesShell() {
             setPeekInitialPage(null);
           }}
           onOpenFull={(id) => router.push(`/page/${id}`)}
-          onChanged={() => void load()}
+          onChanged={() => void load({ includeCloud: false })}
         />
       )}
 
@@ -573,9 +592,12 @@ export default function DailyNotesShell() {
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
-          onOpen={(id) => setPeekPageId(id)}
+          onOpen={(id) => {
+            setPeekInitialPage(notes.find((note) => note.id === id) ?? null);
+            setPeekPageId(id);
+          }}
           onOpenFull={(id) => router.push(`/page/${id}`)}
-          onChanged={() => void load()}
+          onChanged={() => void load({ includeCloud: false })}
         />
       )}
     </div>

@@ -33,14 +33,16 @@ import { useVersions } from "@/hooks/useVersions";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useRouter } from "next/navigation";
 import {
-  createPage,
-  updatePage as updatePageRecord,
   updateWikiLinks,
-  movePage,
   getNextPosition,
-  duplicatePageDeep,
   getBlockComments,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  duplicatePageDeepWithCloud,
+  movePageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import MoveToDialog from "@/components/page/MoveToDialog";
 import { maybeSnapshot, manualSnapshot } from "@/lib/comparison/versioning";
 import VersionHistoryPanel from "@/components/comparison/VersionHistoryPanel";
@@ -431,10 +433,10 @@ function PageContent({ pageId }: { pageId: string }) {
     if (!pageClipboard) return;
     if (pageClipboard.mode === "cut") {
       const pos = await getNextPosition(pageId);
-      await movePage(pageClipboard.pageId, pageId, pos);
+      await movePageWithCloud(pageClipboard.pageId, pageId, pos);
       setPageClipboard(null);
     } else {
-      await duplicatePageDeep(pageClipboard.pageId, pageId);
+      await duplicatePageDeepWithCloud(pageClipboard.pageId, pageId);
     }
     await refresh();
   }, [pageClipboard, pageId, setPageClipboard, refresh]);
@@ -442,7 +444,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const handleMoveTo = useCallback(
     async (targetId: string | null) => {
       const pos = await getNextPosition(targetId);
-      await movePage(pageId, targetId, pos);
+      await movePageWithCloud(pageId, targetId, pos);
       setShowMoveDialog(false);
       await refresh();
     },
@@ -463,7 +465,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const handleAddSubPage = useCallback(async () => {
     if (locked) return;
     try {
-      const child = await createPage({ parentId: pageId });
+      const child = await createPageWithCloud({ parentId: pageId });
       await refresh();
       // Insert a link to the sub-page in the parent editor
       const html = editorRef.current?.insertSubPageLink(child.id, child.title);
@@ -480,12 +482,12 @@ function PageContent({ pageId }: { pageId: string }) {
   const handleDuplicatePage = useCallback(async () => {
     if (!page) return;
     const html = editorRef.current?.getHTML() ?? page.content_text ?? "";
-    const duplicate = await createPage({
+    const duplicate = await createPageWithCloud({
       title: `${title || page.title || "未命名页面"} 副本`,
       parentId: page.parent_id,
       icon: page.icon ?? undefined,
     });
-    await updatePageRecord(duplicate.id, {
+    await updatePageWithCloud(duplicate.id, {
       cover_url: page.cover_url ?? "",
       content_text: html,
     });

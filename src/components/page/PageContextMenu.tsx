@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import {
   deletePage,
-  movePage,
   getNextPosition,
-  duplicatePageDeep,
   getAllPages,
   getPage,
 } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import {
+  duplicatePageDeepWithCloud,
+  movePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import { queueCloudPageDelete } from "@/lib/pages/accountPageSync";
 import type { Page } from "@/lib/utils/types";
 
@@ -76,7 +78,7 @@ export default function PageContextMenu({
   };
 
   const duplicate = async () => {
-    await duplicatePageDeep(pageId, null);
+    await duplicatePageDeepWithCloud(pageId, null);
     onChanged?.();
   };
 
@@ -92,10 +94,10 @@ export default function PageContextMenu({
     if (!pageClipboard) return;
     if (pageClipboard.mode === "cut") {
       const pos = await getNextPosition(pageId);
-      await movePage(pageClipboard.pageId, pageId, pos);
+      await movePageWithCloud(pageClipboard.pageId, pageId, pos);
       setPageClipboard(null);
     } else {
-      await duplicatePageDeep(pageClipboard.pageId, pageId);
+      await duplicatePageDeepWithCloud(pageClipboard.pageId, pageId);
     }
     onChanged?.();
   };
@@ -115,7 +117,7 @@ export default function PageContextMenu({
 
   const handleMoveTo = async (targetId: string | null) => {
     const pos = await getNextPosition(targetId);
-    await movePage(pageId, targetId, pos);
+    await movePageWithCloud(pageId, targetId, pos);
     setMoveMode(false);
     onChanged?.();
     onClose();

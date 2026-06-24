@@ -4,10 +4,10 @@ import { Fragment, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   createDatabase,
-  createPage,
   getAllDatabases,
   searchPages,
 } from "@/lib/db/local/queries";
+import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { usePages } from "@/hooks/usePages";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
 import {
@@ -174,7 +174,7 @@ export default function QuickSearch() {
   };
 
   const handleCreatePage = async () => {
-    const page = await createPage({
+    const page = await createPageWithCloud({
       title: trimmedQuery || "未命名",
     });
     await refresh();
@@ -182,7 +182,7 @@ export default function QuickSearch() {
   };
 
   const handleCreateBlankPage = async () => {
-    const page = await createPage();
+    const page = await createPageWithCloud();
     await refresh();
     handleSelect(page.id);
   };

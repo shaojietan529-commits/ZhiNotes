@@ -15,12 +15,14 @@ import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSc
 import { usePages } from "@/hooks/usePages";
 import {
   addRow,
-  createPage,
   getAllDatabases,
   getFields,
   getRows,
-  updatePage,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import {
   appendFilePreviewActionReceipt,
   buildFilePreviewActionReceipt,
@@ -323,11 +325,11 @@ function MeetingsDashboard() {
   const createMeetingTranscriptPageFromStoredFile = async (
     storedFile: StoredPageFile
   ) => {
-    const page = await createPage({
+    const page = await createPageWithCloud({
       title: buildMeetingTranscriptPageTitle(storedFile),
       icon: "TRN",
     });
-    await updatePage(page.id, {
+    await updatePageWithCloud(page.id, {
       content_text: buildMeetingTranscriptPageContent(storedFile),
     });
     appendFilePreviewActionReceipt(

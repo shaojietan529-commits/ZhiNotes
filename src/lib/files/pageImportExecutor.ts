@@ -2,17 +2,18 @@
 // local pages, with rollback if any step fails.
 //
 // This runs ONLY after the user has reviewed the plan and explicitly confirmed
-// in the UI (batch page creation is a high-risk action). It still never
-// uploads, syncs, or calls AI. Markdown/plain-text become real page bodies;
-// other page-import / local-retain files become local file pages with a
-// metadata preview block; spreadsheets and unknown formats are skipped here and
-// routed to their own confirmed flows (database column mapping / owner review).
+// in the UI (batch page creation is a high-risk action). It never uploads raw
+// file bytes or calls AI. Markdown/plain-text become real page bodies; created
+// page records then follow the user's account page-sync setting. Other
+// page-import / local-retain files become local file pages with a metadata
+// preview block; spreadsheets and unknown formats are skipped here and routed
+// to their own confirmed flows (database column mapping / owner review).
 
 import {
-  createPage,
-  updatePage,
-  deletePage,
-} from "@/lib/db/local/queries";
+  createPageWithCloud,
+  deletePageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import { savePageFile } from "@/lib/files/localStore";
 import {
   buildFileLibraryPageTitle,
@@ -34,6 +35,8 @@ export interface PageImportExecutionResult {
   boundaries: {
     reads_file_bytes_now: true;
     creates_pages_now: true;
+    uploads_file_bytes: false;
+    syncs_page_records_to_account_cloud: true;
     uploads_data: false;
     enables_ai: false;
   };
@@ -101,6 +104,8 @@ export async function executePageImportPlan(
     boundaries: {
       reads_file_bytes_now: true,
       creates_pages_now: true,
+      uploads_file_bytes: false,
+      syncs_page_records_to_account_cloud: true,
       uploads_data: false,
       enables_ai: false,
     },
@@ -110,7 +115,7 @@ export async function executePageImportPlan(
     let undone = 0;
     for (const id of [...createdPageIds].reverse()) {
       try {
-        await deletePage(id);
+        await deletePageWithCloud(id);
         undone += 1;
       } catch (err) {
         console.error("[Zhinote] rollback failed for page", id, err);
@@ -143,11 +148,11 @@ export async function executePageImportPlan(
       if (item.lane === "page-import" && stored.kind === "markdown") {
         const text = stored.textContent ?? "";
         const html = markdownToHtml(text);
-        const page = await createPage({
+        const page = await createPageWithCloud({
           title: deriveTitle(stored.name, text),
           icon: "MD",
         });
-        await updatePage(page.id, { content_text: html });
+        await updatePageWithCloud(page.id, { content_text: html });
         createdPageIds.push(page.id);
         createdPages += 1;
         continue;
@@ -156,11 +161,11 @@ export async function executePageImportPlan(
       if (item.lane === "page-import" && stored.kind === "text") {
         const text = stored.textContent ?? "";
         const html = textToParagraphs(text);
-        const page = await createPage({
+        const page = await createPageWithCloud({
           title: deriveTitle(stored.name, text),
           icon: "TXT",
         });
-        await updatePage(page.id, { content_text: html });
+        await updatePageWithCloud(page.id, { content_text: html });
         createdPageIds.push(page.id);
         createdPages += 1;
         continue;
@@ -169,11 +174,11 @@ export async function executePageImportPlan(
       // Remaining page-import (e.g. HTML, which needs external-resource review
       // before inlining) and all local-retain files become local file pages
       // with a safe metadata preview block.
-      const page = await createPage({
+      const page = await createPageWithCloud({
         title: buildFileLibraryPageTitle(stored),
         icon: "FILE",
       });
-      await updatePage(page.id, {
+      await updatePageWithCloud(page.id, {
         content_text: buildFileLibraryPageContent(stored),
       });
       createdPageIds.push(page.id);

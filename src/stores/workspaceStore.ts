@@ -23,6 +23,7 @@ interface WorkspaceState {
   pageClipboard: PageClipboard | null;
   pageMoveHistory: PageMoveRecord[];
   setPages: (pages: Page[]) => void;
+  upsertPages: (pages: Page[]) => void;
   setCurrentPageId: (id: string | null) => void;
   toggleSidebar: () => void;
   setDbReady: (ready: boolean) => void;
@@ -33,6 +34,14 @@ interface WorkspaceState {
 
 const MAX_MOVE_HISTORY = 20;
 
+function sortPagesForWorkspace(pages: Page[]): Page[] {
+  return [...pages].sort((a, b) => {
+    const updated = (b.updated_at || "").localeCompare(a.updated_at || "");
+    if (updated !== 0) return updated;
+    return a.id.localeCompare(b.id);
+  });
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   pages: [],
   currentPageId: null,
@@ -40,7 +49,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   dbReady: false,
   pageClipboard: null,
   pageMoveHistory: [],
-  setPages: (pages) => set({ pages }),
+  setPages: (pages) => set({ pages: sortPagesForWorkspace(pages) }),
+  upsertPages: (pages) =>
+    set((s) => {
+      const byId = new Map(s.pages.map((page) => [page.id, page]));
+      for (const page of pages) {
+        if (page.deleted_at) {
+          byId.delete(page.id);
+        } else {
+          byId.set(page.id, page);
+        }
+      }
+      return { pages: sortPagesForWorkspace([...byId.values()]) };
+    }),
   setCurrentPageId: (id) => set({ currentPageId: id }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setDbReady: (ready) => set({ dbReady: ready }),

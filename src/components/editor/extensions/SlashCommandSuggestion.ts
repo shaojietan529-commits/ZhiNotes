@@ -9,11 +9,13 @@ import SlashCommandList, {
 } from "./SlashCommandList";
 import {
   createDatabase,
-  createPage,
   getAllPages,
-  updatePage,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import {
   promptAndInsertHtmlReportPreview,
   promptAndInsertMarkdownFilePreview,
@@ -106,14 +108,14 @@ function getSlashCommands(): SlashCommandItem[] {
       command: async ({ editor, range }) => {
         const currentPageId = useWorkspaceStore.getState().currentPageId;
         const parentPageId = currentPageId ?? null;
-        const page = await createPage({
+        const page = await createPageWithCloud({
           parentId: parentPageId,
         });
         const allPages = await getAllPages();
         const parentPage = parentPageId
           ? allPages.find((candidate) => candidate.id === parentPageId)
           : null;
-        await updatePage(page.id, {
+        await updatePageWithCloud(page.id, {
           content_text: buildChildPageInitialHtml({
             parentPageId,
             parentTitle: parentPage?.title ?? null,
@@ -138,7 +140,9 @@ function getSlashCommands(): SlashCommandItem[] {
           .run();
 
         if (currentPageId) {
-          await updatePage(currentPageId, { content_text: editor.getHTML() });
+          await updatePageWithCloud(currentPageId, {
+            content_text: editor.getHTML(),
+          });
           await updateWikiLinks(currentPageId, getLinkedPageIds(editor));
         }
 

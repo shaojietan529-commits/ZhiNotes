@@ -6,10 +6,12 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
 import {
-  createPage,
-  updatePage,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import { getModuleRootId } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
@@ -128,7 +130,10 @@ export default function IndustryChainShell() {
 
   const addChild = useCallback(
     async (parentId: string, navigate: boolean) => {
-      const child = await createPage({ parentId, title: "未命名分类" });
+      const child = await createPageWithCloud({
+        parentId,
+        title: "未命名分类",
+      });
       await refresh();
       if (navigate) router.push(`/page/${child.id}`);
     },
@@ -137,7 +142,7 @@ export default function IndustryChainShell() {
 
   const renameNode = useCallback(
     async (id: string, title: string) => {
-      await updatePage(id, { title });
+      await updatePageWithCloud(id, { title });
       await refresh();
     },
     [refresh]
@@ -162,12 +167,12 @@ export default function IndustryChainShell() {
         return;
       }
 
-      const linkPage = await createPage({
+      const linkPage = await createPageWithCloud({
         parentId: companyLinkParentId,
         title: displayPageTitle(companyPage.title),
         icon: companyPage.icon ?? "🏢",
       });
-      await updatePage(linkPage.id, {
+      await updatePageWithCloud(linkPage.id, {
         properties: buildIndustryCompanyLinkProperties(companyPage),
         content_text: buildIndustryCompanyLinkContent(companyPage),
       });

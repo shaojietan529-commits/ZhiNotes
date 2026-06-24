@@ -2,10 +2,12 @@ import {
   addField,
   addView,
   createDatabase,
-  createPage,
   updateDatabase,
-  updatePage,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import { NOTE_TEMPLATES } from "@/lib/templates/noteTemplates";
 import type { Database, Page } from "@/lib/utils/types";
 import type { ModuleStarter } from "./registry";
@@ -73,7 +75,7 @@ export async function executeModuleStarter(
     };
   }
 
-  const page = await createPage({
+  const page = await createPageWithCloud({
     title: starter.title,
     icon: starter.icon,
   });
@@ -86,7 +88,7 @@ export async function executeModuleStarter(
         item.aliases.includes(templateTitle)
     );
     if (template) {
-      await updatePage(page.id, { content_text: template.html });
+      await updatePageWithCloud(page.id, { content_text: template.html });
     }
   }
 

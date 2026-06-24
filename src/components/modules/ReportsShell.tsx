@@ -15,13 +15,15 @@ import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSc
 import { usePages } from "@/hooks/usePages";
 import {
   addRow,
-  createPage,
   getAllDatabases,
   getFields,
   getRows,
-  updatePage,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
+import {
+  createPageWithCloud,
+  updatePageWithCloud,
+} from "@/lib/pages/cloudPageMutations";
 import {
   FILE_PREVIEW_CAPABILITIES,
   getFilePreviewCapabilityByKind,
@@ -411,11 +413,11 @@ function ReportsDashboard() {
   };
 
   const createReportPageFromStoredFile = async (storedFile: StoredPageFile) => {
-    const page = await createPage({
+    const page = await createPageWithCloud({
       title: reportPageTitleFromStoredFile(storedFile),
       icon: "RPT",
     });
-    await updatePage(page.id, {
+    await updatePageWithCloud(page.id, {
       content_text: createReportPageContent(storedFile),
     });
     appendFilePreviewActionReceipt(
@@ -452,7 +454,7 @@ function ReportsDashboard() {
         return;
       }
 
-      const page = await createPage({
+      const page = await createPageWithCloud({
         title: markdownPageTitleFromFile(
           storedFile.name,
           storedFile.textContent ?? ""
@@ -460,7 +462,7 @@ function ReportsDashboard() {
         icon: "MD",
       });
       const contentHtml = createMarkdownImportedPageContent(storedFile, pages);
-      await updatePage(page.id, {
+      await updatePageWithCloud(page.id, {
         content_text: contentHtml,
       });
       await updateWikiLinks(page.id, extractLinkedPageIdsFromHtml(contentHtml));
