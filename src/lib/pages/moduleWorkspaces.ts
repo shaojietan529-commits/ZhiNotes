@@ -1,4 +1,9 @@
-import { createPage, getAllPages, getPage, updatePage } from "@/lib/db/local/queries";
+import {
+  createPage,
+  getAllPageMetadata,
+  getPage,
+  updatePage,
+} from "@/lib/db/local/queries";
 
 // The three top-level "big category" surfaces are each backed by a singleton
 // root page. Their descendant pages provide all the content, so every node is a
@@ -110,7 +115,7 @@ async function resolveModuleRootId(key: ModuleWorkspaceKey): Promise<string> {
   // Pick the smallest id deterministically so every device converges on the
   // same root when duplicates exist (page cloud sync merges the rest).
   const titleSet = new Set([def.title, ...(def.legacyTitles ?? [])]);
-  const allPages = await getAllPages();
+  const allPages = await getAllPageMetadata();
   const adopted = allPages
     .filter((page) => page.parent_id === null && titleSet.has(page.title ?? ""))
     .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
@@ -130,6 +135,10 @@ async function resolveModuleRootId(key: ModuleWorkspaceKey): Promise<string> {
 function rememberRoot(key: ModuleWorkspaceKey, id: string) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(storageKey(key), id);
+}
+
+export function rememberModuleRootId(key: ModuleWorkspaceKey, id: string) {
+  rememberRoot(key, id);
 }
 
 // Build a YYYY-MM-DD key from a Date in local time (not UTC), so calendar

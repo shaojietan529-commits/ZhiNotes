@@ -19,6 +19,7 @@ import {
 import {
   getModuleRootId,
   getModuleRootIdSync,
+  rememberModuleRootId,
   toDateKey,
 } from "@/lib/pages/moduleWorkspaces";
 import {
@@ -164,6 +165,7 @@ export default function DailyNotesShell() {
       setCloudLoading(true);
       const cachedCloud = readCachedDailyCloudMetadata(startDate, endDate);
       if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
+        rememberModuleRootId("daily", cachedCloud.rootId);
         publishRootId(cachedCloud.rootId);
         const merged = mergeCloudDailyNotes(byId, cachedCloud);
         if (merged > 0) {
@@ -184,6 +186,7 @@ export default function DailyNotesShell() {
           recentLimit: 12,
         });
         if (cloud.status === "ok" && cloud.rootId) {
+          rememberModuleRootId("daily", cloud.rootId);
           publishRootId(cloud.rootId);
           const merged = mergeCloudDailyNotes(byId, cloud);
           publishNotes(Array.from(byId.values()));
