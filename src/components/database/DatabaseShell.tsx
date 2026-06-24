@@ -30,6 +30,7 @@ import {
   updateRow,
   updateView,
 } from "@/lib/database/cloudDatabaseMutations";
+import { syncCloudDatabaseById } from "@/lib/database/accountDatabaseSync";
 import type { Database, DatabaseField, DatabaseRow, DatabaseView } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
 import {
@@ -267,6 +268,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [exportingTemplateRowReceipt, setExportingTemplateRowReceipt] =
     useState(false);
   const databaseImportInputRef = useRef<HTMLInputElement | null>(null);
+  const initialCloudHydrateRef = useRef<string | null>(null);
 
   const applyViewConfig = useCallback((configValue: string) => {
     const config = parseDatabaseViewConfig(configValue);
@@ -282,24 +284,39 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   }, [initialRowSearch]);
 
   const reload = useCallback(async () => {
-    const [db, f, r, v] = await Promise.all([
+    const readLocalDatabase = () => Promise.all([
       getDatabase(databaseId),
       getFields(databaseId),
       getRows(databaseId),
       getViews(databaseId),
     ]);
-    setDatabase(db);
-    setFields(f);
-    setRows(r);
-    setViews(v);
-    if (db) setTitle(db.title);
-    if (v.length > 0 && !activeViewId) {
-      const initialView =
-        v.find((view) => view.id === initialViewId) ?? v[0];
-      setActiveViewId(initialView.id);
-      applyViewConfig(initialView.config);
+
+    const applyLocalDatabase = (
+      [db, f, r, v]: Awaited<ReturnType<typeof readLocalDatabase>>
+    ) => {
+      setDatabase(db);
+      setFields(f);
+      setRows(r);
+      setViews(v);
+      if (db) setTitle(db.title);
+      if (v.length > 0 && !activeViewId) {
+        const initialView =
+          v.find((view) => view.id === initialViewId) ?? v[0];
+        setActiveViewId(initialView.id);
+        applyViewConfig(initialView.config);
+      }
+      setLoading(false);
+    };
+
+    const localSnapshot = await readLocalDatabase();
+    applyLocalDatabase(localSnapshot);
+
+    if (initialCloudHydrateRef.current === databaseId) return;
+    initialCloudHydrateRef.current = databaseId;
+    const cloud = await syncCloudDatabaseById(databaseId);
+    if (cloud.status === "ok" && cloud.pulled > 0) {
+      applyLocalDatabase(await readLocalDatabase());
     }
-    setLoading(false);
   }, [databaseId, activeViewId, applyViewConfig, initialViewId]);
 
   useEffect(() => {

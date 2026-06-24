@@ -103,6 +103,16 @@ interface DatabaseSyncMetadataResult {
   summary: DatabaseSyncSummary;
 }
 
+interface DatabaseRecordsResult {
+  records: DatabaseSyncRecord[];
+  count: number;
+  total: number;
+  offset: number;
+  nextOffset: number | null;
+  hasMore: boolean;
+  summary: DatabaseSyncSummary;
+}
+
 function isValidId(value: unknown): value is string {
   return (
     typeof value === "string" &&
@@ -471,6 +481,48 @@ async function getDatabaseMetadata(
   };
 }
 
+async function getDatabaseRecords(
+  config: AccountConfig,
+  email: string,
+  databaseId: string,
+  offset: number,
+  limit: number
+): Promise<DatabaseRecordsResult> {
+  const index = await readIndex(config, email);
+  const typeOrder: Record<DatabaseSyncRecordType, number> = {
+    database: 0,
+    field: 1,
+    view: 2,
+    row: 3,
+  };
+  const databaseKey = `database:${databaseId}`;
+  const keys = Object.entries(index)
+    .filter(
+      ([key, entry]) =>
+        isValidRecordKey(key) &&
+        (key === databaseKey || entry.db === databaseId)
+    )
+    .sort(
+      ([leftKey, left], [rightKey, right]) =>
+        typeOrder[left.t] - typeOrder[right.t] ||
+        compareChangePosition(left.u, leftKey, right.u, rightKey)
+    )
+    .map(([key]) => key);
+  const safeOffset = Math.min(Math.max(0, offset), keys.length);
+  const selected = keys.slice(safeOffset, safeOffset + limit);
+  const records = await readRecordsByKeys(config, email, selected);
+  const nextOffset = safeOffset + selected.length;
+  return {
+    records,
+    count: records.length,
+    total: keys.length,
+    offset: safeOffset,
+    nextOffset: nextOffset < keys.length ? nextOffset : null,
+    hasMore: nextOffset < keys.length,
+    summary: summarizeIndex(index),
+  };
+}
+
 export async function POST(request: Request) {
   const config = getAccountConfig();
   if (!config) {
@@ -502,8 +554,10 @@ export async function POST(request: Request) {
     action?: string;
     keys?: unknown;
     records?: unknown;
+    databaseId?: unknown;
     since?: unknown;
     limit?: unknown;
+    offset?: unknown;
   };
   try {
     body = JSON.parse(bodyText);
@@ -537,6 +591,28 @@ export async function POST(request: Request) {
           ? Math.min(MAX_PULL_RECORDS, Math.max(1, body.limit))
           : MAX_PULL_RECORDS;
       const result = await getDatabaseMetadata(config, me, limit);
+      return NextResponse.json({ ok: true, ...result });
+    }
+
+    if (body.action === "database-records") {
+      if (!isValidId(body.databaseId)) {
+        return NextResponse.json({ error: "缺少 databaseId" }, { status: 400 });
+      }
+      const limit =
+        typeof body.limit === "number" && Number.isInteger(body.limit)
+          ? Math.min(MAX_PULL_RECORDS, Math.max(1, body.limit))
+          : MAX_PULL_RECORDS;
+      const offset =
+        typeof body.offset === "number" && Number.isInteger(body.offset)
+          ? Math.max(0, body.offset)
+          : 0;
+      const result = await getDatabaseRecords(
+        config,
+        me,
+        body.databaseId,
+        offset,
+        limit
+      );
       return NextResponse.json({ ok: true, ...result });
     }
 

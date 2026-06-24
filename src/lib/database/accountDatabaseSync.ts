@@ -71,6 +71,18 @@ export interface CloudDatabaseMetadataResult {
   message?: string;
 }
 
+export interface CloudDatabaseRecordsResult {
+  status: DatabaseSyncStatus;
+  records: CloudDatabaseRecord[];
+  count: number;
+  total: number;
+  offset: number;
+  nextOffset: number | null;
+  hasMore: boolean;
+  summary?: DatabaseSyncIndexSummary;
+  message?: string;
+}
+
 export interface CloudDatabaseLookupResult {
   status: DatabaseSyncStatus;
   records: CloudDatabaseRecord[];
@@ -189,6 +201,10 @@ function isValidRecordKey(value: string): boolean {
   );
 }
 
+function isValidDatabaseId(value: string): boolean {
+  return value.length > 0 && value.length <= 64 && /^[A-Za-z0-9_-]+$/.test(value);
+}
+
 function normalizeSummary(value: unknown): DatabaseSyncIndexSummary | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
@@ -255,6 +271,60 @@ export async function fetchCloudDatabaseRecordsByKeys(
     : [];
   setLastDatabaseSyncAtNow();
   return { status: "ok", records };
+}
+
+export async function fetchCloudDatabaseRecordsByDatabaseId(
+  databaseId: string,
+  offset = 0,
+  limit = PULL_BATCH
+): Promise<CloudDatabaseRecordsResult> {
+  if (!isValidDatabaseId(databaseId)) {
+    return {
+      status: "error",
+      records: [],
+      count: 0,
+      total: 0,
+      offset,
+      nextOffset: null,
+      hasMore: false,
+      message: "databaseId 无效",
+    };
+  }
+  const res = await call({
+    action: "database-records",
+    databaseId,
+    offset,
+    limit,
+  });
+  if (!res.ok) {
+    return {
+      status: res.status,
+      records: [],
+      count: 0,
+      total: 0,
+      offset,
+      nextOffset: null,
+      hasMore: false,
+      message: res.message,
+    };
+  }
+  const summary = normalizeSummary(res.json.summary);
+  if (summary?.cursor) setRemoteCursor(summary.cursor);
+  setLastDatabaseSyncAtNow();
+  const records = Array.isArray(res.json.records)
+    ? (res.json.records as CloudDatabaseRecord[])
+    : [];
+  return {
+    status: "ok",
+    records,
+    count: typeof res.json.count === "number" ? res.json.count : records.length,
+    total: typeof res.json.total === "number" ? res.json.total : records.length,
+    offset: typeof res.json.offset === "number" ? res.json.offset : offset,
+    nextOffset:
+      typeof res.json.nextOffset === "number" ? res.json.nextOffset : null,
+    hasMore: Boolean(res.json.hasMore),
+    summary: summary ?? undefined,
+  };
 }
 
 export async function fetchCloudDatabaseChangesSince(
@@ -345,6 +415,50 @@ export async function syncCloudDatabaseMetadata(): Promise<{
     pulled: metadata.records.length,
     total: metadata.total,
   };
+}
+
+export async function syncCloudDatabaseById(
+  databaseId: string
+): Promise<{
+  status: DatabaseSyncStatus;
+  pulled: number;
+  total: number;
+  message?: string;
+}> {
+  if (!isDatabaseSyncEnabled()) {
+    return { status: "disabled", pulled: 0, total: 0 };
+  }
+  let offset = 0;
+  let pulled = 0;
+  let total = 0;
+  let batches = 0;
+  let hasMore = false;
+
+  do {
+    const result = await fetchCloudDatabaseRecordsByDatabaseId(
+      databaseId,
+      offset,
+      PULL_BATCH
+    );
+    if (result.status !== "ok") {
+      return {
+        status: result.status,
+        pulled,
+        total,
+        message: result.message,
+      };
+    }
+    total = result.total;
+    if (result.records.length > 0) {
+      await applyRemoteDatabaseRecords(result.records);
+      pulled += result.records.length;
+    }
+    hasMore = result.hasMore && result.nextOffset !== null;
+    offset = result.nextOffset ?? offset + result.records.length;
+    batches += 1;
+  } while (hasMore && batches < 10);
+
+  return { status: "ok", pulled, total };
 }
 
 export async function pushCloudDatabaseRecords(

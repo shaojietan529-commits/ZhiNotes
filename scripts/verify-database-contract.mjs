@@ -217,8 +217,12 @@ function run() {
     "getSessionAccount(config, token)",
     'body.action === "changes-since"',
     'body.action === "database-metadata"',
+    'body.action === "database-records"',
     'body.action === "push"',
     'body.action === "pull"',
+    "databaseId",
+    "nextOffset",
+    "hasMore",
     "CHANGE_LOG_LIMIT",
     "MAX_PAYLOAD_BYTES",
     "MAX_PUSH_RECORDS",
@@ -256,7 +260,9 @@ function run() {
     'fetch("/api/databases/account-sync"',
     "fetchCloudDatabaseChangesSince",
     "fetchCloudDatabaseMetadata",
+    "fetchCloudDatabaseRecordsByDatabaseId",
     "syncCloudDatabaseMetadata",
+    "syncCloudDatabaseById",
     "pushCloudDatabaseRecords",
     "fetchCloudDatabaseRecordsByKeys",
     "pushLocalDatabasesToCloud",
@@ -281,6 +287,19 @@ function run() {
       databaseAccountSyncClient,
       snippet,
       "Database cloud sync client must stay owner-gated and incremental."
+    );
+  }
+  for (const snippet of [
+    "syncCloudDatabaseById",
+    "initialCloudHydrateRef",
+    "cloud.status === \"ok\" && cloud.pulled > 0",
+    "applyLocalDatabase(await readLocalDatabase())",
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "DatabaseShell must load local cache first, then hydrate the opened database by id from cloud."
     );
   }
   for (const snippet of [
