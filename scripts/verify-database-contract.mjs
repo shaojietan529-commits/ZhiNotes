@@ -270,6 +270,7 @@ function run() {
     "rebuildDatabaseCacheFromCloud",
     "reconcileDatabaseSync",
     "applyRemoteDatabaseRecords",
+    'emitDatabasesUpdated("cloud-pull", pulled || prune.cleared)',
     "clearLocalDatabaseCacheExceptKeys",
     "getAllDatabaseRecordsForSync",
     "getDatabaseRecordsForSyncByKeys",

@@ -16,6 +16,7 @@ import {
   markDatabaseSyncLogEntriesSynced,
   type RemoteDatabaseRecord,
 } from "@/lib/db/local/queries";
+import { emitDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
 import type { Database } from "@/lib/utils/types";
 
 const ENABLED_KEY = "zhinote.databasesync.enabled";
@@ -840,6 +841,9 @@ export async function rebuildDatabaseCacheFromCloud(): Promise<RebuildDatabaseCa
     }
   }
   setLastDatabaseSyncAtNow();
+  if (pulled > 0 || prune.cleared > 0) {
+    emitDatabasesUpdated("cloud-pull", pulled || prune.cleared);
+  }
   return {
     status: "ok",
     cleared: prune.cleared,
