@@ -173,6 +173,17 @@ check(
     pageSyncRoute.includes("await appendChangeLog(config, email, changeLogEntries)"),
   "页面 push 和服务端修复路径都应写入 change log"
 );
+check(
+  pageSyncRoute.includes("interface PageMetadataResult") &&
+    pageSyncRoute.includes("async function getPageMetadata") &&
+    pageSyncRoute.includes('body.action === "metadata"'),
+  "pages account-sync route 应提供全局页面 metadata，用于空本地缓存时恢复侧栏列表"
+);
+check(
+  pageSyncRoute.includes("cover_url: null") &&
+    pageSyncRoute.includes("content_text: null"),
+  "全局页面 metadata 不应返回正文或大封面，正文应按需拉取"
+);
 
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
 check(
@@ -227,6 +238,25 @@ check(
   pageSyncClient.includes("window.localStorage.getItem(PENDING_PUSH_IDS_KEY)") &&
     !pageSyncClient.includes("zhinote.pagesync.pendingPushRecords"),
   "待上传重试队列只能保存 page id，不能把页面正文复制进 localStorage"
+);
+check(
+  pageSyncClient.includes("fetchCloudPageMetadata") &&
+    pageSyncClient.includes('call({ action: "metadata" })') &&
+    pageSyncClient.includes("setRemoteCursor(summary.cursor)"),
+  "页面同步客户端应能拉取云端 metadata，并同步远端游标"
+);
+
+const usePagesHook = read("src/hooks/usePages.ts");
+check(
+  usePagesHook.includes("fetchCloudPageMetadata") &&
+    usePagesHook.includes("applyRemotePageMetadata(cloud.pages)") &&
+    usePagesHook.includes("all.length === 0"),
+  "usePages 本地列表为空时应从云端 metadata 恢复页面列表"
+);
+check(
+  usePagesHook.includes("remoteMetadataToPage") &&
+    usePagesHook.includes("content_text: null"),
+  "usePages 云端 metadata 本地写入失败时仍应能用无正文页面列表渲染侧栏"
 );
 
 const pageCloudSyncHook = read("src/hooks/usePageCloudSync.ts");
