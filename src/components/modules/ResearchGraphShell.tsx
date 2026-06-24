@@ -87,7 +87,7 @@ function ResearchGraphContent() {
 
 function ResearchGraphDashboard() {
   const router = useRouter();
-  const { pages, refresh: refreshPages } = usePages();
+  const { pages, refresh: refreshPages } = usePages({ includeContent: true });
   const [databases, setDatabases] = useState<Database[]>([]);
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [exportingGraphReport, setExportingGraphReport] = useState(false);

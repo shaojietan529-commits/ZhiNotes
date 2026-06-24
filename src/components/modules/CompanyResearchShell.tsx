@@ -119,7 +119,7 @@ function CompanyResearchContent() {
 
 function CompanyResearchDashboard() {
   const router = useRouter();
-  const { pages, refresh } = usePages();
+  const { pages, refresh } = usePages({ includeContent: true });
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingCoverage, setExportingCoverage] = useState(false);

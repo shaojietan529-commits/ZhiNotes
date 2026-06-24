@@ -144,7 +144,7 @@ function MeetingsContent() {
 
 function MeetingsDashboard() {
   const router = useRouter();
-  const { pages, refresh } = usePages();
+  const { pages, refresh } = usePages({ includeContent: true });
   const transcriptFileInputRef = useRef<HTMLInputElement | null>(null);
   const [databases, setDatabases] = useState<Database[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);

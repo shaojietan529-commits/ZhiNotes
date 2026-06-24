@@ -6,8 +6,9 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import {
+  applyRemotePageMetadata,
+  getAllPageMetadata,
   getPage,
-  listPageMetadata,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
 import {
@@ -76,7 +77,7 @@ export default function DailyNotesShell() {
     }
     const id = await getModuleRootId("daily");
     setRootId(id);
-    const dailyNotes = collectDailyNotes(await listPageMetadata(id), id);
+    const dailyNotes = collectDailyNotes(await getAllPageMetadata(), id);
     const byId = new Map(dailyNotes.map((note) => [note.id, note]));
     setNotes(Array.from(byId.values()));
     if (!includeCloud) return;
@@ -89,6 +90,7 @@ export default function DailyNotesShell() {
       const merged = mergeCloudDailyNotes(byId, cachedCloud);
       if (merged > 0) {
         setNotes(Array.from(byId.values()));
+        void persistDailyCloudMetadata(cachedCloud, upsertPages);
         setCloudNotice(
           `已先显示本机缓存的云端每日纪要 ${cachedCloud.pages.length} 条，正在后台更新…`
         );
@@ -105,6 +107,7 @@ export default function DailyNotesShell() {
         setRootId(cloud.rootId);
         mergeCloudDailyNotes(byId, cloud);
         writeCachedDailyCloudMetadata(startDate, endDate, cloud);
+        void persistDailyCloudMetadata(cloud, upsertPages);
         setCloudNotice(
           cloud.pages.length > 0
             ? `云端每日纪要已加载 ${cloud.pages.length} 条，其中当前日历范围 ${cloud.rangeCount ?? 0} 条。`
@@ -126,7 +129,7 @@ export default function DailyNotesShell() {
     }
 
     setNotes(Array.from(byId.values()));
-  }, [viewMonth]);
+  }, [upsertPages, viewMonth]);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -169,6 +172,7 @@ export default function DailyNotesShell() {
         createPageProperty("tags", "相关公司"),
         createPageProperty("tags", "相关行业"),
       ];
+      const properties = stringifyPageProperties(props);
       try {
         const dailyRootId = rootId ?? (await getModuleRootId("daily"));
         if (!rootId) setRootId(dailyRootId);
@@ -182,7 +186,7 @@ export default function DailyNotesShell() {
           const cloudNote = await createCloudOnlyDailyNote({
             rootId: dailyRootId,
             dateKey,
-            properties: stringifyPageProperties(props),
+            properties,
           });
           setNotes((current) => [
             cloudNote,
@@ -195,42 +199,59 @@ export default function DailyNotesShell() {
           );
           return;
         }
-        const updated =
-          (await updatePageWithCloud(page.id, {
-            properties: stringifyPageProperties(props),
-          }).catch(async (error) => {
-            if (!isLocalDbWriteError(error)) throw error;
+        const optimisticNote: DailyNote = {
+          ...page,
+          properties,
+          dailyDateKey: dateKey,
+          cloudOnly: false,
+        };
+        setNotes((current) => [
+          optimisticNote,
+          ...current.filter((item) => item.id !== optimisticNote.id),
+        ]);
+        upsertPages([optimisticNote]);
+        // Open immediately; do not wait for properties/cloud sync to finish.
+        setPeekInitialPage(optimisticNote);
+        setPeekPageId(optimisticNote.id);
+        setCloudNotice(`${dateKey} 的每日纪要已创建，正在后台同步…`);
+        void updatePageWithCloud(page.id, { properties })
+          .then((updated) => {
+            const nextNote: DailyNote = {
+              ...(updated ?? optimisticNote),
+              dailyDateKey: dateKey,
+              cloudOnly: Boolean((updated as DailyNote | null)?.cloudOnly),
+            };
+            setNotes((current) => [
+              nextNote,
+              ...current.filter((item) => item.id !== nextNote.id),
+            ]);
+            upsertPages([nextNote]);
+            void pushDailyNoteCloudSnapshot(dailyRootId, nextNote);
+            setCloudNotice(`${dateKey} 的每日纪要已保存，云端同步在后台继续。`);
+          })
+          .catch(async (error) => {
+            if (!isLocalDbWriteError(error)) {
+              const message =
+                error instanceof Error ? error.message : "未知本机写入错误";
+              setCloudNotice(`每日纪要属性保存失败：${message}`);
+              return;
+            }
             const cloudNote = await createCloudOnlyDailyNote({
               rootId: dailyRootId,
               pageId: page.id,
               dateKey,
-              properties: stringifyPageProperties(props),
+              properties,
             });
             setNotes((current) => [
               cloudNote,
               ...current.filter((item) => item.id !== cloudNote.id),
             ]);
             setPeekInitialPage(cloudNote);
-            setPeekPageId(cloudNote.id);
+            upsertPages([cloudNote]);
             setCloudNotice(
-              `${dateKey} 的每日纪要已存到账号云端；Edge 本地数据库属性写入失败。`
+              `${dateKey} 的每日纪要已存到账号云端；本地数据库属性写入失败。`
             );
-            return cloudNote;
-          })) ?? page;
-        const nextNote: DailyNote = {
-          ...updated,
-          dailyDateKey: dateKey,
-          cloudOnly: Boolean((updated as DailyNote).cloudOnly),
-        };
-        setNotes((current) => [
-          nextNote,
-          ...current.filter((item) => item.id !== nextNote.id),
-        ]);
-        upsertPages([nextNote]);
-        void pushDailyNoteCloudSnapshot(dailyRootId, nextNote);
-        // Open immediately; do not wait for the cloud calendar index refresh.
-        setPeekInitialPage(nextNote);
-        setPeekPageId(nextNote.id);
+          });
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "未知本机写入错误";
@@ -725,6 +746,45 @@ function writeCachedDailyCloudMetadata(
   } catch {
     // Local cache is best-effort; the cloud result is still displayed.
   }
+}
+
+async function persistDailyCloudMetadata(
+  cloud: DailyCloudMetadataResult,
+  upsertPages: (pages: Page[]) => void
+): Promise<void> {
+  if (cloud.status !== "ok" || !cloud.rootId) return;
+  const rootRecord = makeDailyRootMetadataRecord(
+    cloud.rootId,
+    cloud.watermark ?? new Date().toISOString()
+  );
+  const records = [rootRecord, ...cloud.pages];
+  try {
+    await applyRemotePageMetadata(records);
+    upsertPages(records.map(remoteRecordToPage));
+  } catch {
+    // Directory cache writes are best-effort; the in-memory calendar still uses
+    // the cloud response so the user is not blocked by a local cache problem.
+  }
+}
+
+function makeDailyRootMetadataRecord(
+  rootId: string,
+  updatedAt: string
+): RemotePageRecord {
+  return {
+    id: rootId,
+    parent_id: null,
+    title: "每日纪要",
+    icon: "📅",
+    cover_url: null,
+    content_text: null,
+    properties: null,
+    position: 0,
+    depth: 0,
+    created_at: updatedAt,
+    updated_at: updatedAt,
+    deleted_at: null,
+  };
 }
 
 async function pushDailyNoteCloudSnapshot(rootId: string, note: Page) {

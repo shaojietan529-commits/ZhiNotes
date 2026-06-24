@@ -165,7 +165,7 @@ function NotesContent() {
 
 function NotesDashboard() {
   const router = useRouter();
-  const { pages, refresh } = usePages();
+  const { pages, refresh } = usePages({ includeContent: true });
   const { favoriteIds } = usePageFavorites();
   const [counts, setCounts] = useState<Record<string, PageModuleCounts>>({});
   const [lockedPageIds, setLockedPageIds] = useState<Set<string>>(

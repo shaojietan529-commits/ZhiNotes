@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback } from "react";
-import { getAllPages } from "@/lib/db/local/queries";
+import { getAllPageMetadata, getAllPages } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   emitPagesUpdated,
@@ -9,24 +9,29 @@ import {
   type PageUpdateReason,
 } from "@/lib/pages/pageUpdateBus";
 
+interface UsePagesOptions {
+  includeContent?: boolean;
+}
+
 interface RefreshOptions {
   broadcast?: boolean;
   reason?: PageUpdateReason;
 }
 
-export function usePages() {
+export function usePages(options: UsePagesOptions = {}) {
+  const includeContent = options.includeContent ?? false;
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const pages = useWorkspaceStore((s) => s.pages);
   const setPages = useWorkspaceStore((s) => s.setPages);
 
   const refresh = useCallback(async (options: RefreshOptions = {}) => {
     if (!dbReady) return;
-    const all = await getAllPages();
+    const all = includeContent ? await getAllPages() : await getAllPageMetadata();
     setPages(all);
     if (options.broadcast !== false) {
       emitPagesUpdated(options.reason ?? "local-refresh", all.length);
     }
-  }, [dbReady, setPages]);
+  }, [dbReady, includeContent, setPages]);
 
   useEffect(() => {
     refresh({ broadcast: false });

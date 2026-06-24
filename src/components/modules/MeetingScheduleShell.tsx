@@ -327,9 +327,10 @@ export default function MeetingScheduleShell() {
   }, []);
 
   const load = useCallback(async () => {
+    let initialSync: Promise<unknown> | null = null;
     if (!initialCloudPullAttemptedRef.current) {
       initialCloudPullAttemptedRef.current = true;
-      await reconcilePageSync().catch(() => undefined);
+      initialSync = reconcilePageSync().catch(() => undefined);
     }
     let id: string | null = null;
     let localPages: Page[] = [];
@@ -347,6 +348,10 @@ export default function MeetingScheduleShell() {
       console.warn("Meeting schedule local load failed", error);
     }
 
+    if (id) {
+      setMeetings(mergeMeetingPages(localPages, [], deletedTombstoneRef.current));
+    }
+
     const cloud = await loadMeetingCloudMetadata().catch(() => ({
       rootId: null,
       pages: [],
@@ -361,6 +366,22 @@ export default function MeetingScheduleShell() {
         deletedTombstoneRef.current
       )
     );
+
+    if (initialSync && nextRootId) {
+      void initialSync.then(async () => {
+        const [syncedLocalPages, syncedCloud] = await Promise.all([
+          listPages(nextRootId).catch(() => localPages),
+          loadMeetingCloudMetadata().catch(() => ({ rootId: null, pages: [] })),
+        ]);
+        setMeetings(
+          mergeMeetingPages(
+            syncedLocalPages,
+            syncedCloud.pages,
+            deletedTombstoneRef.current
+          )
+        );
+      });
+    }
   }, []);
 
   const handleDeleteMeeting = useCallback(

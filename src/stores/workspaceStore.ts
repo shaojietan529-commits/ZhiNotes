@@ -42,6 +42,21 @@ function sortPagesForWorkspace(pages: Page[]): Page[] {
   });
 }
 
+function mergePageSnapshot(incoming: Page, existing?: Page): Page {
+  if (!existing) return incoming;
+  return {
+    ...incoming,
+    content_text:
+      incoming.content_text === null && existing.content_text !== null
+        ? existing.content_text
+        : incoming.content_text,
+    content_yjs:
+      incoming.content_yjs === null && existing.content_yjs !== null
+        ? existing.content_yjs
+        : incoming.content_yjs,
+  };
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   pages: [],
   currentPageId: null,
@@ -49,7 +64,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   dbReady: false,
   pageClipboard: null,
   pageMoveHistory: [],
-  setPages: (pages) => set({ pages: sortPagesForWorkspace(pages) }),
+  setPages: (pages) =>
+    set((s) => {
+      const previous = new Map(s.pages.map((page) => [page.id, page]));
+      return {
+        pages: sortPagesForWorkspace(
+          pages.map((page) => mergePageSnapshot(page, previous.get(page.id)))
+        ),
+      };
+    }),
   upsertPages: (pages) =>
     set((s) => {
       const byId = new Map(s.pages.map((page) => [page.id, page]));
@@ -57,7 +80,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         if (page.deleted_at) {
           byId.delete(page.id);
         } else {
-          byId.set(page.id, page);
+          byId.set(page.id, mergePageSnapshot(page, byId.get(page.id)));
         }
       }
       return { pages: sortPagesForWorkspace([...byId.values()]) };

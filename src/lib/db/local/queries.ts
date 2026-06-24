@@ -95,6 +95,18 @@ export async function getAllPages(): Promise<Page[]> {
   ) as unknown as Page[];
 }
 
+export async function getAllPageMetadata(): Promise<Page[]> {
+  const db = await getDb();
+  return db.query(
+    `SELECT id, owner_id, parent_id, database_id, title, icon, cover_url,
+            NULL AS content_yjs, NULL AS content_text, properties,
+            position, depth, created_at, updated_at, deleted_at, sync_version
+     FROM pages
+     WHERE deleted_at IS NULL
+     ORDER BY updated_at DESC`
+  ) as unknown as Page[];
+}
+
 export async function getDeletedPages(): Promise<Page[]> {
   const db = await getDb();
   return db.query(
