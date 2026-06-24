@@ -586,6 +586,7 @@ check(
 );
 check(
   pageCloudSyncHook.includes("LOCAL_CACHE_RECOVERY_EVENT") &&
+    pageCloudSyncHook.includes("LOCAL_CACHE_RECOVERY_SIGNAL_KEY") &&
     pageCloudSyncHook.includes("getLocalCacheRecoverySignal") &&
     pageCloudSyncHook.includes("recoverLocalCacheFromCloud") &&
     pageCloudSyncHook.includes("seenLocalCacheRecoverySignalRef") &&
@@ -593,6 +594,10 @@ check(
     pageCloudSyncHook.includes("force: true") &&
     pageCloudSyncHook.includes("fullRefresh: true") &&
     pageCloudSyncHook.includes("window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT") &&
+    pageCloudSyncHook.includes("handleLocalCacheRecoveryStorage") &&
+    pageCloudSyncHook.includes("event.key === LOCAL_CACHE_RECOVERY_SIGNAL_KEY") &&
+    pageCloudSyncHook.includes('window.addEventListener("storage", handleLocalCacheRecoveryStorage)') &&
+    pageCloudSyncHook.includes('window.removeEventListener("storage", handleLocalCacheRecoveryStorage)') &&
     pageCloudSyncHook.includes("void recoverLocalCacheFromCloud()"),
   "页面同步应在本地 SQLite 缓存重置/降级后强制从云端 metadata 恢复本机页面缓存"
 );

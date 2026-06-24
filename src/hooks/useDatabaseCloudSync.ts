@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getLocalCacheRecoverySignal,
   LOCAL_CACHE_RECOVERY_EVENT,
+  LOCAL_CACHE_RECOVERY_SIGNAL_KEY,
 } from "@/lib/db/local/client";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
@@ -188,6 +189,11 @@ export function useDatabaseCloudSync() {
     };
     const handleForeground = () => void runSync({ quick: true });
     const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
+    const handleLocalCacheRecoveryStorage = (event: StorageEvent) => {
+      if (event.key === LOCAL_CACHE_RECOVERY_SIGNAL_KEY && event.newValue) {
+        void recoverLocalCacheFromCloud();
+      }
+    };
     const handleLocalDatabaseUpdate = (event: Event) => {
       const message = (event as CustomEvent<DatabaseUpdateMessage>).detail;
       if (message?.reason !== "local-refresh") return;
@@ -198,6 +204,7 @@ export function useDatabaseCloudSync() {
     };
     window.addEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
     window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT, handleLocalCacheRecovery);
+    window.addEventListener("storage", handleLocalCacheRecoveryStorage);
     window.addEventListener(
       DATABASE_LOCAL_UPDATE_EVENT,
       handleLocalDatabaseUpdate
@@ -214,6 +221,7 @@ export function useDatabaseCloudSync() {
         LOCAL_CACHE_RECOVERY_EVENT,
         handleLocalCacheRecovery
       );
+      window.removeEventListener("storage", handleLocalCacheRecoveryStorage);
       window.removeEventListener(
         DATABASE_LOCAL_UPDATE_EVENT,
         handleLocalDatabaseUpdate

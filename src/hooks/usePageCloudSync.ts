@@ -10,6 +10,7 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   getLocalCacheRecoverySignal,
   LOCAL_CACHE_RECOVERY_EVENT,
+  LOCAL_CACHE_RECOVERY_SIGNAL_KEY,
 } from "@/lib/db/local/client";
 import {
   isPageSyncEnabled,
@@ -178,8 +179,14 @@ export function usePageCloudSync() {
     };
     const handleForeground = () => void runSync({ quick: true });
     const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
+    const handleLocalCacheRecoveryStorage = (event: StorageEvent) => {
+      if (event.key === LOCAL_CACHE_RECOVERY_SIGNAL_KEY && event.newValue) {
+        void recoverLocalCacheFromCloud();
+      }
+    };
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
     window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT, handleLocalCacheRecovery);
+    window.addEventListener("storage", handleLocalCacheRecoveryStorage);
     window.addEventListener("focus", handleForeground);
     window.addEventListener("online", handleForeground);
     document.addEventListener("visibilitychange", handleVisible);
@@ -191,6 +198,7 @@ export function usePageCloudSync() {
         LOCAL_CACHE_RECOVERY_EVENT,
         handleLocalCacheRecovery
       );
+      window.removeEventListener("storage", handleLocalCacheRecoveryStorage);
       window.removeEventListener("focus", handleForeground);
       window.removeEventListener("online", handleForeground);
       document.removeEventListener("visibilitychange", handleVisible);

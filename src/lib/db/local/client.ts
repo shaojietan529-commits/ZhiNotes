@@ -12,9 +12,10 @@ let dbInstance: SqliteDb | null = null;
 let initPromise: Promise<SqliteDb> | null = null;
 const LOCAL_STORAGE_DB_NAME = "local";
 const LOCAL_CACHE_BYPASS_KEY = "zhinote.localCache.skipPersistentUntil";
-const LOCAL_CACHE_RECOVERY_SIGNAL_KEY =
+export const LOCAL_CACHE_RECOVERY_SIGNAL_KEY =
   "zhinote.localCache.recoverySignal.v1";
 const LOCAL_CACHE_BYPASS_MS = 10 * 60 * 1000;
+const LOCAL_CACHE_RECOVERY_SIGNAL_TTL_MS = 5 * 60 * 1000;
 export const LOCAL_CACHE_RECOVERY_EVENT = "zhinote:local-cache-recovery";
 const CREATE_TABLES_WITHOUT_DAILY_DATE_INDEX = CREATE_TABLES_SQL.replace(
   /\s*CREATE INDEX IF NOT EXISTS idx_pages_daily_date ON pages\(daily_date_key, updated_at DESC\);\s*/,
@@ -256,24 +257,25 @@ export function getLocalCacheRecoverySignal(): LocalCacheRecoverySignal | null {
     try {
       const raw = window.localStorage.getItem(LOCAL_CACHE_RECOVERY_SIGNAL_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as Partial<LocalCacheRecoverySignal>;
-        if (
-          typeof parsed.id === "string" &&
-          typeof parsed.reason === "string" &&
-          typeof parsed.at === "string"
-        ) {
-          return {
-            id: parsed.id,
-            reason: parsed.reason,
-            at: parsed.at,
-          };
+        const signal = parseLocalCacheRecoverySignal(raw);
+        if (signal && !isLocalCacheRecoverySignalExpired(signal)) {
+          memoryLocalCacheRecoverySignal = signal;
+          return signal;
         }
+        clearLocalCacheRecoverySignal();
       }
     } catch {
       // The memory copy below is enough for the current tab.
     }
   }
-  return memoryLocalCacheRecoverySignal;
+  if (
+    memoryLocalCacheRecoverySignal &&
+    !isLocalCacheRecoverySignalExpired(memoryLocalCacheRecoverySignal)
+  ) {
+    return memoryLocalCacheRecoverySignal;
+  }
+  memoryLocalCacheRecoverySignal = null;
+  return null;
 }
 
 function markLocalCacheNeedsCloudRecovery(reason: string): void {
@@ -297,4 +299,46 @@ function markLocalCacheNeedsCloudRecovery(reason: string): void {
       detail: signal,
     })
   );
+}
+
+function parseLocalCacheRecoverySignal(
+  raw: string
+): LocalCacheRecoverySignal | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<LocalCacheRecoverySignal>;
+    if (
+      typeof parsed.id === "string" &&
+      typeof parsed.reason === "string" &&
+      typeof parsed.at === "string"
+    ) {
+      return {
+        id: parsed.id,
+        reason: parsed.reason,
+        at: parsed.at,
+      };
+    }
+  } catch {
+    // Invalid localStorage payloads are treated as expired cache metadata.
+  }
+  return null;
+}
+
+function isLocalCacheRecoverySignalExpired(
+  signal: LocalCacheRecoverySignal
+): boolean {
+  const createdAt = Date.parse(signal.at);
+  return (
+    !Number.isFinite(createdAt) ||
+    Date.now() - createdAt > LOCAL_CACHE_RECOVERY_SIGNAL_TTL_MS
+  );
+}
+
+function clearLocalCacheRecoverySignal(): void {
+  memoryLocalCacheRecoverySignal = null;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LOCAL_CACHE_RECOVERY_SIGNAL_KEY);
+  } catch {
+    // Best-effort cleanup only.
+  }
 }
