@@ -135,6 +135,17 @@ for (const token of [
     `每日纪要日期索引缺少 ${token}`
   );
 }
+for (const token of [
+  "installLocalSchema(db)",
+  "Local SQLite cache schema failed",
+  "using rebuildable in-memory cache",
+  "wrapRawDb(createMemoryDb())",
+]) {
+  check(
+    localClient.includes(token),
+    `本地 SQLite 缓存初始化应在 schema 失败时退回可重建临时缓存，缺少 ${token}`
+  );
+}
 
 // Industry chain: every node is a page, expandable, inline rename
 for (const token of ["ChainNode", "onAddChild", "onRename", "onDoubleClick"]) {

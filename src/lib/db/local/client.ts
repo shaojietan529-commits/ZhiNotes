@@ -33,6 +33,7 @@ async function initializeDb(): Promise<SqliteDb> {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let rawDb: any;
+  const createMemoryDb = () => new sqlite3.oo1.DB(":memory:");
   const createFallbackDb = () => {
     if (sqlite3.oo1.JsStorageDb) {
       try {
@@ -42,7 +43,7 @@ async function initializeDb(): Promise<SqliteDb> {
         console.warn("[Zhinote] localStorage DB not available, using in-memory DB:", e);
       }
     }
-    return new sqlite3.oo1.DB(":memory:");
+    return createMemoryDb();
   };
 
   if (sqlite3.oo1.OpfsDb) {
@@ -57,8 +58,25 @@ async function initializeDb(): Promise<SqliteDb> {
     rawDb = createFallbackDb();
   }
 
-  // Wrap the raw db with a consistent API
-  const db: SqliteDb = {
+  let db = wrapRawDb(rawDb);
+  try {
+    installLocalSchema(db);
+  } catch (e) {
+    console.warn(
+      "[Zhinote] Local SQLite cache schema failed, using rebuildable in-memory cache:",
+      e
+    );
+    db = wrapRawDb(createMemoryDb());
+    installLocalSchema(db);
+  }
+
+  return db;
+}
+
+// Wrap the raw db with a consistent API.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function wrapRawDb(rawDb: any): SqliteDb {
+  return {
     run(sql: string, bind?: unknown[]) {
       if (bind && bind.length > 0) {
         rawDb.exec({ sql, bind });
@@ -78,7 +96,9 @@ async function initializeDb(): Promise<SqliteDb> {
       return rawDb.exec(opts) as Record<string, unknown>[];
     },
   };
+}
 
+function installLocalSchema(db: SqliteDb) {
   // Create all tables
   db.run(CREATE_TABLES_SQL);
 
@@ -105,8 +125,6 @@ async function initializeDb(): Promise<SqliteDb> {
       [DEFAULT_OWNER_ID, "Me", now, now]
     );
   }
-
-  return db;
 }
 
 // Adds a column to an existing table only when it is not already present.
