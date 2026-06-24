@@ -290,6 +290,15 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       getRows(databaseId),
       getViews(databaseId),
     ]);
+    const readLocalDatabaseSafe = async (): Promise<
+      Awaited<ReturnType<typeof readLocalDatabase>>
+    > => {
+      try {
+        return await readLocalDatabase();
+      } catch {
+        return [null, [], [], []];
+      }
+    };
 
     const applyLocalDatabase = (
       [db, f, r, v]: Awaited<ReturnType<typeof readLocalDatabase>>
@@ -308,14 +317,14 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       setLoading(false);
     };
 
-    const localSnapshot = await readLocalDatabase();
+    const localSnapshot = await readLocalDatabaseSafe();
     applyLocalDatabase(localSnapshot);
 
     if (initialCloudHydrateRef.current === databaseId) return;
     initialCloudHydrateRef.current = databaseId;
     const cloud = await syncCloudDatabaseById(databaseId);
     if (cloud.status === "ok" && cloud.pulled > 0) {
-      applyLocalDatabase(await readLocalDatabase());
+      applyLocalDatabase(await readLocalDatabaseSafe());
     }
   }, [databaseId, activeViewId, applyViewConfig, initialViewId]);
 

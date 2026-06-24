@@ -21,15 +21,25 @@ export function useDatabases() {
   const refresh = useCallback(
     async (options: RefreshDatabaseOptions = {}) => {
       if (!dbReady) return [];
-      let all = await getAllDatabases();
+      let all: Database[] = [];
+      try {
+        all = await getAllDatabases();
+      } catch {
+        // Treat local SQLite as a cache: if it is cold or temporarily broken,
+        // still attempt cloud metadata below instead of blocking navigation.
+      }
       setDatabases(all);
 
       try {
         const cloud = await syncCloudDatabaseMetadata();
-        if (cloud.status === "ok" && cloud.pulled > 0) {
-          all = await getAllDatabases();
+        if (cloud.status === "ok") {
+          try {
+            all = await getAllDatabases();
+          } catch {
+            all = [];
+          }
           setDatabases(all);
-          if (options.broadcast !== false) {
+          if (cloud.pulled > 0 && options.broadcast !== false) {
             emitDatabasesUpdated("cloud-pull", cloud.pulled);
           }
         }

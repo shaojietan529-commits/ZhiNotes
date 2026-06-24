@@ -281,25 +281,28 @@ function run() {
     "queueCloudDatabaseRecordsForKeys",
     "flushPendingCloudDatabasePushes",
     "pushPendingLocalDatabaseChangesToCloud",
+    "nextOffset <= offset",
+    "changes.cursor === cursor",
   ]) {
     assertIncludes(
       files.databaseAccountSyncClient,
       databaseAccountSyncClient,
       snippet,
-      "Database cloud sync client must stay owner-gated and incremental."
+      "Database cloud sync client must stay default-on, incremental, and fully drain paged cloud results."
     );
   }
   for (const snippet of [
     "syncCloudDatabaseById",
     "initialCloudHydrateRef",
+    "readLocalDatabaseSafe",
     "cloud.status === \"ok\" && cloud.pulled > 0",
-    "applyLocalDatabase(await readLocalDatabase())",
+    "applyLocalDatabase(await readLocalDatabaseSafe())",
   ]) {
     assertIncludes(
       files.databaseShell,
       databaseShell,
       snippet,
-      "DatabaseShell must load local cache first, then hydrate the opened database by id from cloud."
+      "DatabaseShell must load local cache first, tolerate cache read failures, then hydrate the opened database fully by id from cloud."
     );
   }
   for (const snippet of [
@@ -331,6 +334,7 @@ function run() {
     "getAllDatabases",
     "syncCloudDatabaseMetadata",
     "setDatabases(all)",
+    "Treat local SQLite as a cache",
     "Cloud metadata refresh is",
     "subscribeDatabasesUpdated",
     "emitDatabasesUpdated",

@@ -2,9 +2,9 @@
 
 // Client helper for account-scoped database cloud sync.
 //
-// Database sync is default-off. This keeps existing local databases private
-// until an owner-facing migration/toggle explicitly enables it, while still
-// letting the app use the stage-three incremental cloud ledger when approved.
+// Database sync is default-on for signed-in browsers. The cloud copy is the
+// account database ledger; local SQLite is only a rebuildable cache and can be
+// opted out from /account when needed.
 
 import {
   applyRemoteDatabaseRecords,
@@ -431,7 +431,6 @@ export async function syncCloudDatabaseById(
   let offset = 0;
   let pulled = 0;
   let total = 0;
-  let batches = 0;
   let hasMore = false;
 
   do {
@@ -454,9 +453,19 @@ export async function syncCloudDatabaseById(
       pulled += result.records.length;
     }
     hasMore = result.hasMore && result.nextOffset !== null;
-    offset = result.nextOffset ?? offset + result.records.length;
-    batches += 1;
-  } while (hasMore && batches < 10);
+    if (hasMore) {
+      const nextOffset = result.nextOffset ?? offset + result.records.length;
+      if (nextOffset <= offset) {
+        return {
+          status: "error",
+          pulled,
+          total,
+          message: "云端数据库分页游标没有前进，已停止本次拉取。",
+        };
+      }
+      offset = nextOffset;
+    }
+  } while (hasMore);
 
   return { status: "ok", pulled, total };
 }
@@ -691,7 +700,6 @@ export async function syncCloudDatabaseDelta(): Promise<{
 
   let cursor = getRemoteCursor();
   let pulled = 0;
-  let batches = 0;
   let hasMore = false;
   do {
     const changes = await fetchCloudDatabaseChangesSince(
@@ -705,10 +713,16 @@ export async function syncCloudDatabaseDelta(): Promise<{
       await applyRemoteDatabaseRecords(changes.records);
       pulled += changes.records.length;
     }
+    if (changes.hasMore && changes.cursor === cursor) {
+      return {
+        status: "error",
+        pulled,
+        message: "云端数据库增量游标没有前进，已停止本次拉取。",
+      };
+    }
     cursor = changes.cursor;
     hasMore = changes.hasMore;
-    batches += 1;
-  } while (hasMore && batches < 3);
+  } while (hasMore);
 
   return { status: "ok", pulled };
 }
