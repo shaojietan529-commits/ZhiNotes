@@ -21,6 +21,7 @@ const SYNC_INTERVAL_MS = 8 * 1000;
 // Debounce after a local page change before pushing, so a burst of edits
 // (typing, drag) collapses into one sync.
 const EDIT_DEBOUNCE_MS = 4 * 1000;
+const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.pagesync.leaderLease.v1";
 const LEASE_TTL_MS = 18 * 1000;
 
@@ -73,10 +74,15 @@ export function usePageCloudSync() {
   const [state, setState] = useState<PageCloudSyncState>("disabled");
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const runningRef = useRef(false);
+  const authRetryAfterRef = useRef(0);
 
   const runSync = useCallback(async (options: { quick?: boolean; forceLease?: boolean } = {}) => {
     if (!isPageSyncEnabled()) {
       setState("disabled");
+      return;
+    }
+    if (!options.forceLease && Date.now() < authRetryAfterRef.current) {
+      setState("signed-out");
       return;
     }
     if (!claimSyncLease(options.forceLease)) {
@@ -93,16 +99,20 @@ export function usePageCloudSync() {
     try {
       const result = await reconcilePageSync({ quick: options.quick });
       if (result.status === "ok") {
+        authRetryAfterRef.current = 0;
         setState("synced");
         setLastSyncAt(getLastPageSyncAt());
       } else if (
         result.status === "unauthenticated" ||
         result.status === "unconfigured"
       ) {
+        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         setState("signed-out");
       } else if (result.status === "disabled") {
+        authRetryAfterRef.current = 0;
         setState("disabled");
       } else {
+        authRetryAfterRef.current = 0;
         setState("error");
       }
     } finally {

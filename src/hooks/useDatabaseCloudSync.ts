@@ -18,6 +18,7 @@ import {
 } from "@/lib/database/databaseUpdateBus";
 
 const SYNC_INTERVAL_MS = 10 * 1000;
+const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.databasesync.leaderLease.v1";
 const LEASE_TTL_MS = 22 * 1000;
 
@@ -71,11 +72,16 @@ export function useDatabaseCloudSync() {
   const [state, setState] = useState<DatabaseCloudSyncState>("disabled");
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const runningRef = useRef(false);
+  const authRetryAfterRef = useRef(0);
 
   const runSync = useCallback(
     async (options: { forceLease?: boolean; quick?: boolean } = {}) => {
       if (!isDatabaseSyncEnabled()) {
         setState("disabled");
+        return;
+      }
+      if (!options.forceLease && Date.now() < authRetryAfterRef.current) {
+        setState("signed-out");
         return;
       }
       if (!claimSyncLease(options.forceLease)) {
@@ -92,6 +98,7 @@ export function useDatabaseCloudSync() {
       try {
         const result = await reconcileDatabaseSync({ quick: options.quick });
         if (result.status === "ok") {
+          authRetryAfterRef.current = 0;
           setState("synced");
           setLastSyncAt(getLastDatabaseSyncAt());
           if (result.pulled > 0) {
@@ -107,10 +114,13 @@ export function useDatabaseCloudSync() {
           result.status === "unauthenticated" ||
           result.status === "unconfigured"
         ) {
+          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
           setState("signed-out");
         } else if (result.status === "disabled") {
+          authRetryAfterRef.current = 0;
           setState("disabled");
         } else {
+          authRetryAfterRef.current = 0;
           setState("error");
         }
       } finally {

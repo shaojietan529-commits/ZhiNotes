@@ -537,7 +537,7 @@ function PageContent({ pageId }: { pageId: string }) {
     [pageStructure]
   );
 
-  if (loading) {
+  if (loading && !page) {
     return (
       <div className="flex h-screen">
         <Sidebar />

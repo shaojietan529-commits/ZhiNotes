@@ -368,8 +368,10 @@ check(
     dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
     dailyNotesShell.includes("scheduleDailyPeekPreload") &&
     dailyNotesShell.includes("preload?.()") &&
+    dailyNotesShell.includes("preloadPeekModal();") &&
     dailyNotesShell.includes("后台保存到账号云端") &&
     dailyNotesShell.includes("applyRemotePages(records)") &&
+    dailyNotesShell.includes("return pushDailyCloudRecords(records)") &&
     !dailyNotesShell.includes("createPageWithCloud"),
   "DailyNotesShell 点击 + 应立即打开乐观草稿，后台预热弹窗代码，再后台保存到云端"
 );
@@ -460,6 +462,20 @@ check(
   "页面同步短轮询 lease 失败时不能阻止当前 tab 云端同步"
 );
 check(
+  pageCloudSyncHook.includes("AUTH_RETRY_BACKOFF_MS") &&
+    pageCloudSyncHook.includes("authRetryAfterRef") &&
+    pageCloudSyncHook.includes('result.status === "unauthenticated"') &&
+    pageCloudSyncHook.includes('result.status === "unconfigured"'),
+  "页面同步在未登录/未配置时应短期退避，避免多端或本地开发环境持续空转轮询"
+);
+check(
+  pageSyncClient.includes("AUTH_RETRY_BACKOFF_MS") &&
+    pageSyncClient.includes("shouldBackOffAuthRetry") &&
+    pageSyncClient.includes("rememberAuthRetryStatus(result.status)") &&
+    pageSyncClient.includes("throttled: true"),
+  "页面 metadata 增量同步在未登录/未配置时应退避，避免页面列表刷新反复请求云端"
+);
+check(
   !pageCloudSyncHook.includes("usePages") &&
     !pageCloudSyncHook.includes("refresh({ reason: \"cloud-pull\" })"),
   "页面云同步 hook 不应在每次云端拉取后再触发 usePages 全量/元数据刷新；应依赖页面更新广播收敛"
@@ -505,6 +521,7 @@ check(
 );
 check(
   pageShell.includes("scheduleDeferredMount") &&
+    pageShell.includes("if (loading && !page)") &&
     pageShell.includes("editorMounted ?") &&
     pageShell.includes("PageBodySkeleton"),
   "PageShell 应延迟挂载正文编辑器，先显示可交互页面壳"

@@ -51,6 +51,7 @@ const PUSH_BATCH_BYTES = 800 * 1024;
 const INCREMENTAL_PULL_LIMIT = 50;
 const QUICK_INCREMENTAL_BATCH_LIMIT = 3;
 const METADATA_DELTA_THROTTLE_MS = 2500;
+const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 // Covers stored as data URLs can be multi-MB; skip oversized ones rather
 // than failing the whole page push.
 const MAX_COVER_CHARS = 300 * 1024;
@@ -60,6 +61,8 @@ let queuedCloudPushTimer: ReturnType<typeof setTimeout> | null = null;
 let metadataDeltaInFlight: Promise<CloudPageMetadataDeltaResult> | null = null;
 let lastMetadataDeltaAt = 0;
 let lastMetadataDeltaResult: CloudPageMetadataDeltaResult | null = null;
+let authRetryAfter = 0;
+let authRetryStatus: PageSyncStatus | null = null;
 let memoryRemoteWatermark: string | null = null;
 let memoryRemoteCursor: string | null = null;
 let memoryLastPageSyncAt: string | null = null;
@@ -74,6 +77,8 @@ export function isPageSyncEnabled(): boolean {
 
 export function setPageSyncEnabled(enabled: boolean): void {
   if (typeof window === "undefined") return;
+  authRetryStatus = null;
+  authRetryAfter = 0;
   writeSyncStorage(ENABLED_KEY, String(enabled));
   window.dispatchEvent(new CustomEvent(PAGE_SYNC_CONFIG_EVENT));
 }
@@ -408,6 +413,15 @@ export async function syncCloudPageMetadataDelta(
   if (!isPageSyncEnabled()) {
     return { status: "disabled", pulled: 0, pages: [], fullRefresh: false };
   }
+  if (shouldBackOffAuthRetry()) {
+    return {
+      status: authRetryStatus ?? "unauthenticated",
+      pulled: 0,
+      pages: [],
+      fullRefresh: false,
+      throttled: true,
+    };
+  }
   if (!options.force) {
     if (metadataDeltaInFlight) return metadataDeltaInFlight;
     if (
@@ -421,11 +435,28 @@ export async function syncCloudPageMetadataDelta(
   metadataDeltaInFlight = runCloudPageMetadataDelta();
   try {
     const result = await metadataDeltaInFlight;
+    rememberAuthRetryStatus(result.status);
     lastMetadataDeltaResult = result;
     lastMetadataDeltaAt = Date.now();
     return result;
   } finally {
     metadataDeltaInFlight = null;
+  }
+}
+
+function shouldBackOffAuthRetry(): boolean {
+  return authRetryStatus !== null && Date.now() < authRetryAfter;
+}
+
+function rememberAuthRetryStatus(status: PageSyncStatus): void {
+  if (status === "unauthenticated" || status === "unconfigured") {
+    authRetryStatus = status;
+    authRetryAfter = Date.now() + AUTH_RETRY_BACKOFF_MS;
+    return;
+  }
+  if (status === "ok" || status === "disabled") {
+    authRetryStatus = null;
+    authRetryAfter = 0;
   }
 }
 

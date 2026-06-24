@@ -32,9 +32,12 @@ const PULL_BATCH = 80;
 const PUSH_BATCH_RECORDS = 80;
 const PUSH_BATCH_BYTES = 800 * 1024;
 const CLOUD_DATABASE_PUSH_DEBOUNCE_MS = 1000;
+const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 
 let queuedCloudDatabasePush = new Map<string, CloudDatabaseRecord>();
 let queuedCloudDatabasePushTimer: ReturnType<typeof setTimeout> | null = null;
+let authRetryAfter = 0;
+let authRetryStatus: DatabaseSyncStatus | null = null;
 let memoryDatabaseRemoteCursor = "";
 let memoryLastDatabaseSyncAt: string | null = null;
 
@@ -147,6 +150,8 @@ export function isDatabaseSyncEnabled(): boolean {
 
 export function setDatabaseSyncEnabled(enabled: boolean): void {
   if (typeof window === "undefined") return;
+  authRetryStatus = null;
+  authRetryAfter = 0;
   writeSyncStorage(ENABLED_KEY, String(enabled));
   window.dispatchEvent(new CustomEvent(DATABASE_SYNC_CONFIG_EVENT));
 }
@@ -454,6 +459,14 @@ export async function syncCloudDatabaseMetadata(
   if (!isDatabaseSyncEnabled()) {
     return { status: "disabled", pulled: 0, total: 0, records: [] };
   }
+  if (shouldBackOffAuthRetry()) {
+    return {
+      status: authRetryStatus ?? "unauthenticated",
+      pulled: 0,
+      total: 0,
+      records: [],
+    };
+  }
   if (options.restoreLocalCursor && !getRemoteCursor()) {
     const summaryRes = await call({ action: "summary" });
     if (summaryRes.ok) {
@@ -470,6 +483,7 @@ export async function syncCloudDatabaseMetadata(
       summaryRes.status === "unauthenticated" ||
       summaryRes.status === "unconfigured"
     ) {
+      rememberAuthRetryStatus(summaryRes.status);
       return {
         status: summaryRes.status,
         pulled: 0,
@@ -480,6 +494,7 @@ export async function syncCloudDatabaseMetadata(
     }
   }
   const metadata = await fetchCloudDatabaseMetadata();
+  rememberAuthRetryStatus(metadata.status);
   if (metadata.status !== "ok") {
     return {
       status: metadata.status,
@@ -504,6 +519,22 @@ export async function syncCloudDatabaseMetadata(
     records: metadata.records,
     cacheWriteFailed,
   };
+}
+
+function shouldBackOffAuthRetry(): boolean {
+  return authRetryStatus !== null && Date.now() < authRetryAfter;
+}
+
+function rememberAuthRetryStatus(status: DatabaseSyncStatus): void {
+  if (status === "unauthenticated" || status === "unconfigured") {
+    authRetryStatus = status;
+    authRetryAfter = Date.now() + AUTH_RETRY_BACKOFF_MS;
+    return;
+  }
+  if (status === "ok" || status === "disabled") {
+    authRetryStatus = null;
+    authRetryAfter = 0;
+  }
 }
 
 export function cloudDatabaseMetadataToDatabases(

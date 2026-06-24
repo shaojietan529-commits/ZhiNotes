@@ -280,6 +280,7 @@ export default function DailyNotesShell() {
   const addNote = useCallback(
     async (dateKey: string) => {
       if (creatingDateKey) return;
+      preloadPeekModal();
       loadRequestRef.current += 1;
       setCreatingDateKey(dateKey);
       const props = [
@@ -361,7 +362,7 @@ export default function DailyNotesShell() {
         }
       })();
     },
-    [creatingDateKey, rootId, upsertPages]
+    [creatingDateKey, preloadPeekModal, rootId, upsertPages]
   );
 
   const prefetchNoteBody = useCallback(
@@ -1025,12 +1026,13 @@ async function persistOptimisticDailyNote(
   note: DailyNote,
   upsertPages: (pages: Page[]) => void
 ): Promise<"cloud" | "local-only"> {
-  const rootPage = await getPage(rootId).catch(() => null);
-  const rootRecord = rootPage
-    ? pageToRemoteRecord(rootPage)
-    : makeDailyRootMetadataRecord(rootId, note.updated_at);
+  const rootRecord = makeDailyRootMetadataRecord(rootId, note.updated_at);
   const records = [rootRecord, pageToRemoteRecord(note)];
-  await applyRemotePages(records);
+  void applyRemotePages(records)
+    .then(() => {
+      upsertPages(records.map(remoteRecordToPage));
+    })
+    .catch(() => undefined);
   upsertPages(records.map(remoteRecordToPage));
   return pushDailyCloudRecords(records);
 }
