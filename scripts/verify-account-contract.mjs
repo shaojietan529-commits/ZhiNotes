@@ -637,6 +637,18 @@ check(
   "MeetingScheduleShell 新导入会议应先保留乐观结果，云端快照写完后再刷新日历"
 );
 check(
+  meetingScheduleShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
+    meetingScheduleShell.includes("creatingMeetingDateKey") &&
+    meetingScheduleShell.includes('importSource: "手动创建"') &&
+    meetingScheduleShell.includes("const pageRoute = `/page/${result.page.id}`") &&
+    meetingScheduleShell.includes("router.prefetch(pageRoute)") &&
+    meetingScheduleShell.includes("router.push(pageRoute)") &&
+    meetingScheduleShell.indexOf("const pageRoute = `/page/${result.page.id}`") <
+      meetingScheduleShell.indexOf("router.push(pageRoute)") &&
+    meetingScheduleShell.includes("后台会继续保存到账号云端"),
+  "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后直接进入完整会议页面并后台同步"
+);
+check(
   meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
     meetingScheduleShell.includes("expandedMeetingDateKeys") &&

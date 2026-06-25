@@ -87,7 +87,7 @@ for (const [name, source] of Object.entries(shells)) {
 for (const [name, source] of Object.entries(shells)) {
   if (name === "schedule") {
     const fetchCalls = Array.from(
-      source.matchAll(/fetch\(\s*["'`]([^"'`]+)["'`]/g)
+      source.matchAll(/(?<![A-Za-z0-9_$])fetch\(\s*["'`]([^"'`]+)["'`]/g)
     ).map((match) => match[1]);
     const allowedScheduleFetches = new Set([
       "/api/meetings/intake",
@@ -397,6 +397,16 @@ for (const token of [
 ]) {
   check(shells.schedule.includes(token), `MeetingScheduleShell 缺少 ${token}`);
 }
+check(
+  shells.schedule.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
+    shells.schedule.includes("creatingMeetingDateKey") &&
+    shells.schedule.includes('importSource: "手动创建"') &&
+    shells.schedule.includes("const pageRoute = `/page/${result.page.id}`") &&
+    shells.schedule.includes("router.prefetch(pageRoute)") &&
+    shells.schedule.includes("router.push(pageRoute)") &&
+    shells.schedule.includes("后台会继续保存到账号云端"),
+  "MeetingScheduleShell 手动创建会议应直接进入完整页面，不能让用户点完后留在日历里等刷新"
+);
 check(
   shells.schedule.includes("listPageMetadata") &&
     !shells.schedule.includes("const dailyPages = await listPages(dailyRootId)"),

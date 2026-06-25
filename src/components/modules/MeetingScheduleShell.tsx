@@ -239,6 +239,9 @@ export default function MeetingScheduleShell() {
   const pageRevision = usePageRevision();
   const [rootId, setRootId] = useState<string | null>(null);
   const [meetings, setMeetings] = useState<Page[]>([]);
+  const [creatingMeetingDateKey, setCreatingMeetingDateKey] = useState<
+    string | null
+  >(null);
   const [viewMonth, setViewMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -279,6 +282,14 @@ export default function MeetingScheduleShell() {
   const highlightTimerRef = useRef<number | null>(null);
   const metadataWarmupScheduledRef = useRef(false);
   const loadRequestRef = useRef(0);
+
+  useEffect(() => {
+    try {
+      router.prefetch("/page/zhinote-route-prefetch");
+    } catch {
+      // Best-effort route warmup; meeting creation still works without it.
+    }
+  }, [router]);
 
   const scheduleMetadataCacheWarmup = useCallback(() => {
     if (metadataWarmupScheduledRef.current) return;
@@ -882,9 +893,43 @@ export default function MeetingScheduleShell() {
   );
 
   const handleCreate = useCallback(async () => {
-    await createMeetingPage(form);
-    setFormOpen(false);
-  }, [createMeetingPage, form]);
+    if (creatingMeetingDateKey !== null) return;
+    const targetDateKey = form.date || toDateKey(new Date());
+    setCreatingMeetingDateKey(targetDateKey);
+    setIntakeError("");
+    setIntakeMessage("正在创建会议页面，后台会继续保存到账号云端…");
+    try {
+      const result = await createMeetingPage(form, {
+        importSource: "手动创建",
+      });
+      const pageRoute = `/page/${result.page.id}`;
+      try {
+        router.prefetch(pageRoute);
+      } catch {
+        // Navigation is still immediate enough if prefetch is unavailable.
+      }
+      setFormOpen(false);
+      focusCalendarDate(targetDateKey);
+      setIntakeMessage(
+        `${formatImportDateMessage(targetDateKey)}会议页面正在打开，后台会继续保存到账号云端。${
+          result.cloudOnly ? "本地缓存暂不可写，已先保存在账号云端。" : ""
+        }`
+      );
+      router.push(pageRoute);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "创建会议失败。";
+      setIntakeError(message);
+      setIntakeMessage("");
+    } finally {
+      setCreatingMeetingDateKey(null);
+    }
+  }, [
+    createMeetingPage,
+    creatingMeetingDateKey,
+    focusCalendarDate,
+    form,
+    router,
+  ]);
 
   const handleImportInvite = useCallback(async () => {
     const input = intakeText.trim();
@@ -1140,10 +1185,11 @@ export default function MeetingScheduleShell() {
             </div>
             <button
               type="button"
+              disabled={creatingMeetingDateKey !== null}
               onClick={() => openForm(toDateKey(new Date()))}
-              className="shrink-0 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              className="shrink-0 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
-              + 新建会议
+              {creatingMeetingDateKey ? "创建中…" : "+ 新建会议"}
             </button>
           </div>
 
@@ -1483,17 +1529,19 @@ export default function MeetingScheduleShell() {
               <div className="mt-3 flex justify-end gap-2">
                 <button
                   type="button"
+                  disabled={creatingMeetingDateKey !== null}
                   onClick={() => setFormOpen(false)}
-                  className="rounded-md px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="rounded-md px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-zinc-800"
                 >
                   取消
                 </button>
                 <button
                   type="button"
+                  disabled={creatingMeetingDateKey !== null}
                   onClick={() => void handleCreate()}
-                  className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                  className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
                 >
-                  创建会议
+                  {creatingMeetingDateKey ? "创建中…" : "创建会议"}
                 </button>
               </div>
             </div>
@@ -1580,11 +1628,12 @@ export default function MeetingScheduleShell() {
                     </span>
                     <button
                       type="button"
+                      disabled={creatingMeetingDateKey !== null}
                       onClick={() => openForm(key)}
-                      className="text-zinc-300 opacity-0 transition-opacity hover:text-zinc-600 group-hover:opacity-100 dark:hover:text-zinc-200"
+                      className="text-zinc-300 opacity-0 transition-opacity hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:text-zinc-200"
                       title="在这天加会议"
                     >
-                      +
+                      {creatingMeetingDateKey === key ? "…" : "+"}
                     </button>
                   </div>
                   <div className="mt-0.5 flex flex-col gap-0.5 overflow-visible">
