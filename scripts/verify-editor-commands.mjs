@@ -285,7 +285,6 @@ function run() {
     [files.moveToDialog, moveToDialog],
     [files.pageContextMenu, pageContextMenu],
     [files.subPageTree, subPageTree],
-    [files.industryChainSearch, industryChainSearch],
   ]) {
     assertIncludes(
       sourceLabel,
@@ -300,6 +299,24 @@ function run() {
       "Lightweight page pickers and hierarchy lookups must not scan full page bodies after large imports."
     );
   }
+  assertIncludes(
+    files.industryChainSearch,
+    industryChainSearch,
+    "findDescendantPageMetadataByTitle(rootId, name)",
+    "Industry-chain tag navigation must search inside the industry-chain subtree instead of scanning every page."
+  );
+  assertNotIncludes(
+    files.industryChainSearch,
+    industryChainSearch,
+    "getAllPageMetadata",
+    "Industry-chain tag navigation must not scan every page after large imports."
+  );
+  assertNotIncludes(
+    files.industryChainSearch,
+    industryChainSearch,
+    "getAllPages(",
+    "Industry-chain tag navigation must not scan full page bodies."
+  );
   for (const [sourceLabel, source] of [
     [files.editor, editor],
     [files.slashSuggestion, slashSuggestion],

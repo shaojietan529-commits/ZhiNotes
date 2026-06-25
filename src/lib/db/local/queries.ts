@@ -126,9 +126,14 @@ function inferDailyDateKey(title: string, properties: string | null): string | n
   return existing?.value ?? inferDateFromTitle((title || "").trim());
 }
 
-const PAGE_METADATA_SELECT = `id, owner_id, parent_id, database_id, title, icon, cover_url,
-            NULL AS content_yjs, NULL AS content_text, properties,
-            position, depth, created_at, updated_at, deleted_at, sync_version`;
+function pageMetadataSelect(alias = "") {
+  const prefix = alias ? `${alias}.` : "";
+  return `${prefix}id, ${prefix}owner_id, ${prefix}parent_id, ${prefix}database_id, ${prefix}title, ${prefix}icon, ${prefix}cover_url,
+            NULL AS content_yjs, NULL AS content_text, ${prefix}properties,
+            ${prefix}position, ${prefix}depth, ${prefix}created_at, ${prefix}updated_at, ${prefix}deleted_at, ${prefix}sync_version`;
+}
+
+const PAGE_METADATA_SELECT = pageMetadataSelect();
 
 export interface PageModuleCounts {
   pageId: string;
@@ -231,6 +236,47 @@ export async function listRecentPageMetadata(limit = 8): Promise<Page[]> {
      LIMIT ?`,
     [safeLimit]
   ) as unknown as Page[];
+}
+
+export async function findDescendantPageMetadataByTitle(
+  rootId: string,
+  title: string
+): Promise<Page | null> {
+  const db = await getDb();
+  const normalizedTitle = title.trim();
+  if (!normalizedTitle) return null;
+  const cte = `WITH RECURSIVE descendants AS (
+      SELECT ${PAGE_METADATA_SELECT}
+      FROM pages
+      WHERE parent_id = ? AND deleted_at IS NULL
+      UNION ALL
+      SELECT ${pageMetadataSelect("p")}
+      FROM pages p
+      JOIN descendants d ON p.parent_id = d.id
+      WHERE p.deleted_at IS NULL
+    )`;
+
+  const exactRows = db.query(
+    `${cte}
+     SELECT *
+     FROM descendants
+     WHERE title = ?
+     ORDER BY id ASC
+     LIMIT 1`,
+    [rootId, normalizedTitle]
+  ) as unknown as Page[];
+  if (exactRows[0]) return exactRows[0];
+
+  const partialRows = db.query(
+    `${cte}
+     SELECT *
+     FROM descendants
+     WHERE title != '' AND (instr(title, ?) > 0 OR instr(?, title) > 0)
+     ORDER BY length(title) ASC, updated_at DESC
+     LIMIT 1`,
+    [rootId, normalizedTitle, normalizedTitle]
+  ) as unknown as Page[];
+  return partialRows[0] ?? null;
 }
 
 function dailyDateCandidateWhere(alias = "pages"): string {
