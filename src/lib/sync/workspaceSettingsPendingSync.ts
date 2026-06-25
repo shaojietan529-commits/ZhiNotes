@@ -30,6 +30,10 @@ import {
   MEETING_REVIEW_STATE_SETTING_KEY,
   parseMeetingReviewStateWorkspaceSettingValue,
 } from "@/lib/sync/meetingReviewStateWorkspaceSettings";
+import {
+  MEETING_DELETION_TOMBSTONES_SETTING_KEY,
+  parseMeetingDeletionTombstonesWorkspaceSettingValue,
+} from "@/lib/sync/meetingDeletionTombstonesWorkspaceSettings";
 
 export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   HOT_CACHE_PREFERENCES_SETTING_KEY,
@@ -40,6 +44,7 @@ export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
   CALENDAR_VIEW_STATE_SETTING_KEY,
   MEETING_REVIEW_STATE_SETTING_KEY,
+  MEETING_DELETION_TOMBSTONES_SETTING_KEY,
 ] as const;
 
 export type SupportedWorkspaceSettingSyncKey =
@@ -111,6 +116,11 @@ export type WorkspaceSettingCloudPayload =
       client_pending_row_id: typeof MEETING_REVIEW_STATE_SETTING_KEY;
       seen_meeting_page_ids: string[];
       dismissed_trace_page_ids: string[];
+    }
+  | {
+      setting_key: typeof MEETING_DELETION_TOMBSTONES_SETTING_KEY;
+      client_pending_row_id: typeof MEETING_DELETION_TOMBSTONES_SETTING_KEY;
+      deleted_meeting_page_ids: string[];
     };
 
 export function buildWorkspaceSettingsPendingSyncPlan(input: {
@@ -248,6 +258,17 @@ export function buildWorkspaceSettingCloudPayload(
       client_pending_row_id: MEETING_REVIEW_STATE_SETTING_KEY,
       seen_meeting_page_ids: meetingReviewState.seen_meeting_page_ids,
       dismissed_trace_page_ids: meetingReviewState.dismissed_trace_page_ids,
+    };
+  }
+
+  if (setting.key === MEETING_DELETION_TOMBSTONES_SETTING_KEY) {
+    const meetingDeletionTombstones =
+      parseMeetingDeletionTombstonesWorkspaceSettingValue(value);
+    return {
+      setting_key: MEETING_DELETION_TOMBSTONES_SETTING_KEY,
+      client_pending_row_id: MEETING_DELETION_TOMBSTONES_SETTING_KEY,
+      deleted_meeting_page_ids:
+        meetingDeletionTombstones.deleted_meeting_page_ids,
     };
   }
 

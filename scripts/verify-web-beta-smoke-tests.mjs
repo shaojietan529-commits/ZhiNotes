@@ -29,6 +29,8 @@ const files = {
     "src/lib/sync/calendarViewStateWorkspaceSettings.ts",
   meetingReviewStateWorkspaceSettings:
     "src/lib/sync/meetingReviewStateWorkspaceSettings.ts",
+  meetingDeletionTombstonesWorkspaceSettings:
+    "src/lib/sync/meetingDeletionTombstonesWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
@@ -42,6 +44,8 @@ const files = {
     "src/hooks/useCalendarViewMonthPreference.ts",
   useMeetingReviewStatePreference:
     "src/hooks/useMeetingReviewStatePreference.ts",
+  useMeetingDeletionTombstonesPreference:
+    "src/hooks/useMeetingDeletionTombstonesPreference.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -247,6 +251,9 @@ function run() {
   const meetingReviewStateWorkspaceSettings = readProjectFile(
     files.meetingReviewStateWorkspaceSettings
   );
+  const meetingDeletionTombstonesWorkspaceSettings = readProjectFile(
+    files.meetingDeletionTombstonesWorkspaceSettings
+  );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
@@ -263,6 +270,9 @@ function run() {
   );
   const useMeetingReviewStatePreference = readProjectFile(
     files.useMeetingReviewStatePreference
+  );
+  const useMeetingDeletionTombstonesPreference = readProjectFile(
+    files.useMeetingDeletionTombstonesPreference
   );
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
@@ -1179,6 +1189,18 @@ function run() {
     "Smoke verifier must keep dismissed trace uploads limited to page ids."
   );
   assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "MEETING_DELETION_TOMBSTONES_SETTING_KEY",
+    "Smoke verifier must keep meeting deletion tombstones in the pending-only upload allowlist."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "deleted_meeting_page_ids",
+    "Smoke verifier must keep meeting deletion tombstone uploads limited to page ids."
+  );
+  assertIncludes(
     files.pageFavoritesWorkspaceSettings,
     pageFavoritesWorkspaceSettings,
     'format: "zhinote-page-favorites-settings-cloud-receipt"',
@@ -1413,6 +1435,54 @@ function run() {
     "Smoke verifier must keep ZhiHui review chips on workspace settings."
   );
   assertIncludes(
+    files.meetingDeletionTombstonesWorkspaceSettings,
+    meetingDeletionTombstonesWorkspaceSettings,
+    'format: "zhinote-meeting-deletion-tombstones-settings-cloud-receipt"',
+    "Smoke verifier must keep meeting deletion tombstone cloud receipts."
+  );
+  assertIncludes(
+    files.meetingDeletionTombstonesWorkspaceSettings,
+    meetingDeletionTombstonesWorkspaceSettings,
+    "workspaces.settings.meeting_deletion_tombstones",
+    "Smoke verifier must keep meeting deletion tombstones targeting cloud workspace settings."
+  );
+  assertIncludes(
+    files.meetingDeletionTombstonesWorkspaceSettings,
+    meetingDeletionTombstonesWorkspaceSettings,
+    "reads_meeting_titles: false",
+    "Smoke verifier must keep meeting deletion tombstones meeting-title-free."
+  );
+  assertIncludes(
+    files.meetingDeletionTombstonesWorkspaceSettings,
+    meetingDeletionTombstonesWorkspaceSettings,
+    "reads_meeting_urls: false",
+    "Smoke verifier must keep meeting deletion tombstones meeting-url-free."
+  );
+  assertIncludes(
+    files.useMeetingDeletionTombstonesPreference,
+    useMeetingDeletionTombstonesPreference,
+    "getWorkspaceSetting(MEETING_DELETION_TOMBSTONES_SETTING_KEY)",
+    "Smoke verifier must keep meeting deletion tombstones hydrating from workspace_settings."
+  );
+  assertIncludes(
+    files.useMeetingDeletionTombstonesPreference,
+    useMeetingDeletionTombstonesPreference,
+    "upsertWorkspaceSetting(",
+    "Smoke verifier must keep meeting deletion tombstones writing workspace_settings and sync_log."
+  );
+  assertIncludes(
+    files.useMeetingDeletionTombstonesPreference,
+    useMeetingDeletionTombstonesPreference,
+    "legacy-meeting-deletion-tombstones-localStorage",
+    "Smoke verifier must keep legacy meeting deletion tombstone migration."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "useMeetingDeletionTombstonesPreference()",
+    "Smoke verifier must keep ZhiHui deletion tombstones on workspace settings."
+  );
+  assertIncludes(
     files.workspaceSettingsRoute,
     workspaceSettingsRoute,
     'requireCloudWritesResponse("workspace-settings-update")',
@@ -1489,6 +1559,18 @@ function run() {
     workspaceSettingsRoute,
     "meeting_review_state",
     "Smoke verifier must keep workspace settings API returning meeting review metadata."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "validateMeetingDeletionTombstonesWorkspaceSettingsCloudPayload",
+    "Smoke verifier must keep workspace settings API accepting meeting deletion tombstones."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "meeting_deletion_tombstones",
+    "Smoke verifier must keep workspace settings API returning meeting deletion tombstone metadata."
   );
   assertIncludes(
     files.workspaceSettingsRoute,

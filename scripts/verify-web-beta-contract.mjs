@@ -87,6 +87,8 @@ const files = {
     "src/lib/sync/calendarViewStateWorkspaceSettings.ts",
   meetingReviewStateWorkspaceSettings:
     "src/lib/sync/meetingReviewStateWorkspaceSettings.ts",
+  meetingDeletionTombstonesWorkspaceSettings:
+    "src/lib/sync/meetingDeletionTombstonesWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
@@ -100,6 +102,8 @@ const files = {
     "src/hooks/useCalendarViewMonthPreference.ts",
   useMeetingReviewStatePreference:
     "src/hooks/useMeetingReviewStatePreference.ts",
+  useMeetingDeletionTombstonesPreference:
+    "src/hooks/useMeetingDeletionTombstonesPreference.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -383,6 +387,9 @@ function run() {
   const meetingReviewStateWorkspaceSettings = readProjectFile(
     files.meetingReviewStateWorkspaceSettings
   );
+  const meetingDeletionTombstonesWorkspaceSettings = readProjectFile(
+    files.meetingDeletionTombstonesWorkspaceSettings
+  );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
@@ -399,6 +406,9 @@ function run() {
   );
   const useMeetingReviewStatePreference = readProjectFile(
     files.useMeetingReviewStatePreference
+  );
+  const useMeetingDeletionTombstonesPreference = readProjectFile(
+    files.useMeetingDeletionTombstonesPreference
   );
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
@@ -501,6 +511,10 @@ function run() {
       files.meetingReviewStateWorkspaceSettings,
       meetingReviewStateWorkspaceSettings,
     ],
+    [
+      files.meetingDeletionTombstonesWorkspaceSettings,
+      meetingDeletionTombstonesWorkspaceSettings,
+    ],
     [files.workspaceSettingsPendingSync, workspaceSettingsPendingSync],
     [files.workspaceSettingsRoute, workspaceSettingsRoute],
     [files.localSchema, localSchema],
@@ -508,6 +522,10 @@ function run() {
     [files.usePageViewPreferences, usePageViewPreferences],
     [files.useCalendarViewMonthPreference, useCalendarViewMonthPreference],
     [files.useMeetingReviewStatePreference, useMeetingReviewStatePreference],
+    [
+      files.useMeetingDeletionTombstonesPreference,
+      useMeetingDeletionTombstonesPreference,
+    ],
     [files.localQueries, localQueries],
     [files.databaseRouteSkeleton, databaseRouteSkeleton],
     [files.childPageTree, childPageTree],
@@ -1869,6 +1887,14 @@ function run() {
       "Workspace settings pending sync must upload only dismissed trace page ids for meeting review state.",
     ],
     [
+      "MEETING_DELETION_TOMBSTONES_SETTING_KEY",
+      "Workspace settings pending sync must include meeting deletion tombstone settings.",
+    ],
+    [
+      "deleted_meeting_page_ids",
+      "Workspace settings pending sync must upload only deleted meeting page ids for meeting deletion tombstones.",
+    ],
+    [
       "Page bodies, database row values, comments, files, tokens, and raw local cache dumps are never included",
       "Workspace settings pending sync must state the privacy boundary.",
     ],
@@ -2350,6 +2376,98 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      'format: "zhinote-meeting-deletion-tombstones-settings-cloud-receipt"',
+      "Meeting deletion tombstone settings must expose a stable cloud receipt.",
+    ],
+    [
+      "MEETING_DELETION_TOMBSTONES_SETTING_KEY",
+      "Meeting deletion tombstone settings must use a stable workspace setting key.",
+    ],
+    [
+      "workspaces.settings.meeting_deletion_tombstones",
+      "Meeting deletion tombstones must target workspace cloud settings.",
+    ],
+    [
+      "validateMeetingDeletionTombstonesWorkspaceSettingsCloudPayload",
+      "Meeting deletion tombstones must validate cloud payloads.",
+    ],
+    [
+      "deleted_meeting_page_ids",
+      "Meeting deletion tombstones must persist only deleted meeting page id metadata.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Meeting deletion tombstone receipt must state it does not read page bodies.",
+    ],
+    [
+      "reads_page_titles: false",
+      "Meeting deletion tombstone receipt must state it does not read page titles.",
+    ],
+    [
+      "reads_meeting_titles: false",
+      "Meeting deletion tombstone receipt must state it does not read meeting titles.",
+    ],
+    [
+      "reads_meeting_urls: false",
+      "Meeting deletion tombstone receipt must state it does not read meeting URLs.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Meeting deletion tombstones must use pending-only ordinary sync.",
+    ],
+    [
+      "meeting_title",
+      "Meeting deletion tombstone validator must reject meeting title fields.",
+    ],
+    [
+      "join_url",
+      "Meeting deletion tombstone validator must reject meeting URL fields.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.meetingDeletionTombstonesWorkspaceSettings,
+      meetingDeletionTombstonesWorkspaceSettings,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "MEETING_DELETION_TOMBSTONES_SETTING_KEY",
+      "Meeting deletion tombstone hook must use the cloud-ready workspace setting key.",
+    ],
+    [
+      "getWorkspaceSetting(MEETING_DELETION_TOMBSTONES_SETTING_KEY)",
+      "Meeting deletion tombstone hook must hydrate state from workspace_settings.",
+    ],
+    [
+      "upsertWorkspaceSetting(",
+      "Meeting deletion tombstone hook must persist state through workspace_settings and sync_log.",
+    ],
+    [
+      "localStorage is a fast boot cache and legacy migration source only",
+      "Meeting deletion tombstone hook must keep localStorage as cache/migration only.",
+    ],
+    [
+      "legacy-meeting-deletion-tombstones-localStorage",
+      "Meeting deletion tombstone hook must migrate legacy localStorage state into workspace_settings.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.useMeetingDeletionTombstonesPreference,
+      useMeetingDeletionTombstonesPreference,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "useMeetingDeletionTombstonesPreference()",
+    "Meeting schedule must use the workspace-settings backed deletion tombstones."
+  );
+  for (const [snippet, message] of [
+    [
       'cloudNotConfiguredResponse("workspace-settings-update")',
       "Workspace settings route must stay behind the cloud configured gate.",
     ],
@@ -2452,6 +2570,22 @@ function run() {
     [
       "MEETING_REVIEW_STATE_SETTING_KEY",
       "Workspace settings route must advertise meeting review state as a supported setting.",
+    ],
+    [
+      "validateMeetingDeletionTombstonesWorkspaceSettingsCloudPayload",
+      "Workspace settings route must validate meeting deletion tombstone payloads before writing.",
+    ],
+    [
+      "buildMeetingDeletionTombstonesWorkspaceSettingsCloudValue",
+      "Workspace settings route must write meeting deletion tombstone metadata to cloud settings.",
+    ],
+    [
+      "meeting_deletion_tombstones",
+      "Workspace settings route must return meeting deletion tombstone metadata on reads.",
+    ],
+    [
+      "MEETING_DELETION_TOMBSTONES_SETTING_KEY",
+      "Workspace settings route must advertise meeting deletion tombstones as a supported setting.",
     ],
     [
       "workspace-settings-readonly-role",

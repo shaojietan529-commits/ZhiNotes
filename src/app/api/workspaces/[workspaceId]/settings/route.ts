@@ -72,6 +72,15 @@ import {
   parseMeetingReviewStateWorkspaceSettingsCloudValue,
   validateMeetingReviewStateWorkspaceSettingsCloudPayload,
 } from "@/lib/sync/meetingReviewStateWorkspaceSettings";
+import {
+  MEETING_DELETION_TOMBSTONES_CLOUD_FIELD,
+  MEETING_DELETION_TOMBSTONES_SETTING_KEY,
+  buildMeetingDeletionTombstonesWorkspaceSettingsCloudReceipt,
+  buildMeetingDeletionTombstonesWorkspaceSettingsCloudValue,
+  isMeetingDeletionTombstonesWorkspaceSettingKey,
+  parseMeetingDeletionTombstonesWorkspaceSettingsCloudValue,
+  validateMeetingDeletionTombstonesWorkspaceSettingsCloudPayload,
+} from "@/lib/sync/meetingDeletionTombstonesWorkspaceSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -162,6 +171,10 @@ export async function GET(
       parseMeetingReviewStateWorkspaceSettingsCloudValue(
         isPlainObject(workspace.settings) ? workspace.settings : null
       );
+    const meetingDeletionTombstones =
+      parseMeetingDeletionTombstonesWorkspaceSettingsCloudValue(
+        isPlainObject(workspace.settings) ? workspace.settings : null
+      );
 
     return NextResponse.json(
       {
@@ -180,6 +193,7 @@ export async function GET(
           QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
           CALENDAR_VIEW_STATE_SETTING_KEY,
           MEETING_REVIEW_STATE_SETTING_KEY,
+          MEETING_DELETION_TOMBSTONES_SETTING_KEY,
         ],
         sidebar_settings: sidebarSettings,
         page_favorites: pageFavorites,
@@ -187,6 +201,7 @@ export async function GET(
         quick_search_saved_searches: quickSearchSavedSearches,
         calendar_view_state: calendarViewState,
         meeting_review_state: meetingReviewState,
+        meeting_deletion_tombstones: meetingDeletionTombstones,
       }
     );
   } catch (error) {
@@ -238,11 +253,15 @@ export async function PATCH(
                   ? validateMeetingReviewStateWorkspaceSettingsCloudPayload(
                       body.value
                     )
-                  : {
-                      ok: false as const,
-                      message:
-                        "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1、page.viewPreferences.v1、quick_search.savedSearches.v1、calendar.viewState.v1 或 meeting.reviewState.v1。",
-                    };
+                  : isMeetingDeletionTombstonesWorkspaceSettingKey(settingKey)
+                    ? validateMeetingDeletionTombstonesWorkspaceSettingsCloudPayload(
+                        body.value
+                      )
+                    : {
+                        ok: false as const,
+                        message:
+                          "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1、page.viewPreferences.v1、quick_search.savedSearches.v1、calendar.viewState.v1、meeting.reviewState.v1 或 meeting.deletionTombstones.v1。",
+                      };
   if (!validatedPayload.ok) {
     return badRequestResponse(validatedPayload.message);
   }
@@ -346,9 +365,17 @@ export async function PATCH(
           validatedPayload.payload,
           savedAt
         );
-    } else {
+    } else if (
+      validatedPayload.payload.setting_key === MEETING_REVIEW_STATE_SETTING_KEY
+    ) {
       nextSettings[MEETING_REVIEW_STATE_CLOUD_FIELD] =
         buildMeetingReviewStateWorkspaceSettingsCloudValue(
+          validatedPayload.payload,
+          savedAt
+        );
+    } else {
+      nextSettings[MEETING_DELETION_TOMBSTONES_CLOUD_FIELD] =
+        buildMeetingDeletionTombstonesWorkspaceSettingsCloudValue(
           validatedPayload.payload,
           savedAt
         );
@@ -446,8 +473,21 @@ export async function PATCH(
       );
     }
 
+    if (
+      validatedPayload.payload.setting_key === MEETING_REVIEW_STATE_SETTING_KEY
+    ) {
+      return NextResponse.json(
+        buildMeetingReviewStateWorkspaceSettingsCloudReceipt({
+          workspaceId,
+          role: membership.role,
+          savedAt,
+          payload: validatedPayload.payload,
+        })
+      );
+    }
+
     return NextResponse.json(
-      buildMeetingReviewStateWorkspaceSettingsCloudReceipt({
+      buildMeetingDeletionTombstonesWorkspaceSettingsCloudReceipt({
         workspaceId,
         role: membership.role,
         savedAt,

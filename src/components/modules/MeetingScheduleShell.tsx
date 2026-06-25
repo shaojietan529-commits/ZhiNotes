@@ -32,6 +32,7 @@ import {
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { useCalendarViewMonthPreference } from "@/hooks/useCalendarViewMonthPreference";
+import { useMeetingDeletionTombstonesPreference } from "@/hooks/useMeetingDeletionTombstonesPreference";
 import { useMeetingReviewStatePreference } from "@/hooks/useMeetingReviewStatePreference";
 import {
   getModuleRootId,
@@ -80,29 +81,6 @@ const MEETING_PRIORITY_OPTIONS = [
 const DEFAULT_MEETING_PRIORITY = "default";
 const MEETING_CALENDAR_VISIBLE_LIMIT = 6;
 const MEETING_CALENDAR_EXPAND_BATCH = 24;
-
-// Meetings the owner explicitly deleted. We persist their ids here so the
-// audit-protection auto-restore (restoreDeletedMeetingPages) leaves them
-// deleted instead of resurrecting them on the next load.
-const DELETED_KEY = "zhinote.zhihui.deleted";
-
-function readDeletedTombstone(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(DELETED_KEY);
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function writeDeletedTombstone(ids: Set<string>) {
-  try {
-    window.localStorage.setItem(DELETED_KEY, JSON.stringify([...ids]));
-  } catch {
-    // Tombstone persistence is best-effort; deletion still applies this session.
-  }
-}
 
 interface MeetingEntry {
   page: Page;
@@ -241,6 +219,11 @@ export default function MeetingScheduleShell() {
     dismissTrace,
     markMeetingSeen,
   } = useMeetingReviewStatePreference();
+  const {
+    tombstonesRef: deletedTombstoneRef,
+    tombstonesLoaded: deletionTombstonesLoaded,
+    addMeetingDeletionTombstone,
+  } = useMeetingDeletionTombstonesPreference();
   const [highlightedDateKey, setHighlightedDateKey] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(() => emptyForm(toDateKey(new Date())));
@@ -272,7 +255,6 @@ export default function MeetingScheduleShell() {
     Map<string, number>
   >(() => new Map());
   const initialCloudPullAttemptedRef = useRef(false);
-  const deletedTombstoneRef = useRef<Set<string>>(readDeletedTombstone());
   const calendarCellRefs = useRef(new Map<string, HTMLDivElement>());
   const highlightTimerRef = useRef<number | null>(null);
   const metadataWarmupScheduledRef = useRef(false);
@@ -353,11 +335,8 @@ export default function MeetingScheduleShell() {
   );
 
   const addTombstone = useCallback((pageId: string) => {
-    const next = new Set(deletedTombstoneRef.current);
-    next.add(pageId);
-    deletedTombstoneRef.current = next;
-    writeDeletedTombstone(next);
-  }, []);
+    addMeetingDeletionTombstone(pageId);
+  }, [addMeetingDeletionTombstone]);
 
   const handleDismissTrace = useCallback((pageId: string) => {
     dismissTrace(pageId);
@@ -411,11 +390,13 @@ export default function MeetingScheduleShell() {
       publishRootId(id);
       localPagesForMerge = await listPageMetadata(id);
       publishMeetings(localPagesForMerge, cachedCloud?.ok ? cachedCloud.pages : []);
-      scheduleMeetingIdleTask(() => {
-        void restoreDeletedMeetingPages(id!, deletedTombstoneRef.current).catch(
-          () => undefined
-        );
-      }, 1600);
+      if (deletionTombstonesLoaded) {
+        scheduleMeetingIdleTask(() => {
+          void restoreDeletedMeetingPages(id!, deletedTombstoneRef.current).catch(
+            () => undefined
+          );
+        }, 1600);
+      }
     } catch (error) {
       localLoadFailed = true;
       console.warn("Meeting schedule local cache load failed", error);
@@ -432,7 +413,13 @@ export default function MeetingScheduleShell() {
       void persistMeetingCloudMetadata(cloud, upsertPages);
     }
 
-  }, [scheduleMetadataCacheWarmup, upsertPages, viewMonth]);
+  }, [
+    deletionTombstonesLoaded,
+    deletedTombstoneRef,
+    scheduleMetadataCacheWarmup,
+    upsertPages,
+    viewMonth,
+  ]);
 
   const handleDeleteMeeting = useCallback(
     async (pageId: string) => {
