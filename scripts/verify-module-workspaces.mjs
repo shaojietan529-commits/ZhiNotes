@@ -279,6 +279,7 @@ for (const token of [
   "seedDailyNoteForImmediateOpen",
   "const pageRoute = `/page/${optimisticNote.id}`",
   "router.prefetch(pageRoute)",
+  'import("@/components/providers/PageShell")',
   "router.push(pageRoute)",
   "rememberPendingPageDraft(optimisticNote)",
   "upsertPages([optimisticNote])",
