@@ -16,6 +16,7 @@ const files = {
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
   localSchema: "src/lib/db/local/schema.ts",
@@ -176,6 +177,7 @@ function run() {
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
   const localSchema = readProjectFile(files.localSchema);
@@ -524,6 +526,36 @@ function run() {
     syncShell,
     "只保存 page id，不保存页面正文",
     "Sync UI must preserve the privacy boundary for the page pending queue."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "export async function getPendingCloudDatabaseSyncStatus",
+    "Smoke verifier must keep database pending upload status visible to the sync dashboard."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "const pending = await getPendingDatabaseSyncRecords(1000)",
+    "Database pending status must read local sync_log metadata."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "数据库 pending 上传队列",
+    "Sync UI must show database pending upload queue status."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "补传数据库队列",
+    "Sync UI must expose a manual database pending retry action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "不展示或导出数据库行值",
+    "Sync UI must preserve the privacy boundary for the database pending queue."
   );
   assertIncludes(
     files.accountPageSync,

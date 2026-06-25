@@ -27,7 +27,12 @@ import {
   type SyncLogSummary,
   type WorkspaceSettingRecord,
 } from "@/lib/db/local/queries";
-import { isDatabaseSyncEnabled } from "@/lib/database/accountDatabaseSync";
+import {
+  getPendingCloudDatabaseSyncStatus,
+  isDatabaseSyncEnabled,
+  reconcileDatabaseSync,
+  type PendingCloudDatabaseSyncStatus,
+} from "@/lib/database/accountDatabaseSync";
 import {
   getPendingCloudPageSyncStatus,
   isPageSyncEnabled,
@@ -340,6 +345,7 @@ type ExportAction = "backup" | "zip" | "markdown";
 type SyncQueueAction =
   | "queue"
   | "page-pending"
+  | "database-pending"
   | "payload-preview"
   | "conflict-review"
   | "conflict-resolution"
@@ -556,6 +562,17 @@ function SyncDashboard() {
   const [pagePendingMessage, setPagePendingMessage] = useState<string | null>(
     null
   );
+  const [databasePendingStatus, setDatabasePendingStatus] =
+    useState<PendingCloudDatabaseSyncStatus>(() => ({
+      enabled: isDatabaseSyncEnabled(),
+      pending: 0,
+      queued: 0,
+      syncLogPending: 0,
+      lastSyncAt: null,
+    }));
+  const [databasePendingMessage, setDatabasePendingMessage] = useState<
+    string | null
+  >(null);
   const [busyPermissionAction, setBusyPermissionAction] =
     useState<PermissionPolicyAction | null>(null);
   const [busyContractAction, setBusyContractAction] =
@@ -616,30 +633,32 @@ function SyncDashboard() {
           loadedSync,
           loadedSyncEntries,
           loadedHotCacheSetting,
+          loadedDatabasePendingStatus,
           loadedEnvironmentPreflight,
         ] = await Promise.all([
-            getAllDatabases(),
-            getDeletedPages(),
-            listStoredPageFiles().catch(() => [] as StoredPageFile[]),
-            getPageModuleCounts(),
-            getSyncLogSummary(),
-            getPendingSyncLogEntries(25),
-            getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY),
-            fetch("/api/web-beta/environment-preflight")
-              .then((response) => {
-                if (!response.ok) {
-                  throw new Error("Environment preflight failed.");
-                }
-                return response.json() as Promise<WebBetaEnvironmentPreflight>;
-              })
-              .catch((err) => {
-                console.error(
-                  "[Zhinote] Failed to load environment preflight:",
-                  err
-                );
-                return null;
-              }),
-          ]);
+          getAllDatabases(),
+          getDeletedPages(),
+          listStoredPageFiles().catch(() => [] as StoredPageFile[]),
+          getPageModuleCounts(),
+          getSyncLogSummary(),
+          getPendingSyncLogEntries(25),
+          getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY),
+          getPendingCloudDatabaseSyncStatus(),
+          fetch("/api/web-beta/environment-preflight")
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("Environment preflight failed.");
+              }
+              return response.json() as Promise<WebBetaEnvironmentPreflight>;
+            })
+            .catch((err) => {
+              console.error(
+                "[Zhinote] Failed to load environment preflight:",
+                err
+              );
+              return null;
+            }),
+        ]);
         if (!mounted) return;
         setWorkspaceIdentity(loadedIdentity);
         setDatabases(loadedDatabases);
@@ -649,6 +668,7 @@ function SyncDashboard() {
         setSyncSummary(loadedSync);
         setSyncEntries(loadedSyncEntries);
         setPagePendingStatus(getPendingCloudPageSyncStatus());
+        setDatabasePendingStatus(loadedDatabasePendingStatus);
         setHotCacheSetting(loadedHotCacheSetting);
         setHotCachePreferences(parseHotCachePreferences(loadedHotCacheSetting));
         setEnvironmentPreflight(loadedEnvironmentPreflight);
@@ -2303,6 +2323,37 @@ function SyncDashboard() {
       console.error("[Zhinote] Failed to retry page pending sync:", err);
       setPagePendingStatus(getPendingCloudPageSyncStatus());
       setPagePendingMessage(
+        err instanceof Error
+          ? `补传失败：${err.message}`
+          : "补传失败：未知错误。"
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleRetryDatabasePendingPush = async () => {
+    setBusyQueueAction("database-pending");
+    setDatabasePendingMessage(null);
+    try {
+      const result = await reconcileDatabaseSync({ quick: true });
+      const nextStatus = await getPendingCloudDatabaseSyncStatus();
+      setDatabasePendingStatus(nextStatus);
+      if (result.status === "ok") {
+        setDatabasePendingMessage(
+          `补传完成：推送 ${result.pushed} 条数据库记录，拉取 ${result.pulled} 条记录；当前 cloud key 队列 ${nextStatus.pending} 条，本地 sync_log ${nextStatus.syncLogPending} 条。`
+        );
+      } else {
+        setDatabasePendingMessage(
+          `补传暂未完成：${formatDatabaseSyncStatus(result.status)}${
+            result.message ? `，${result.message}` : ""
+          }；cloud key 队列 ${nextStatus.pending} 条，本地 sync_log ${nextStatus.syncLogPending} 条。`
+        );
+      }
+    } catch (err) {
+      console.error("[Zhinote] Failed to retry database pending sync:", err);
+      setDatabasePendingStatus(await getPendingCloudDatabaseSyncStatus());
+      setDatabasePendingMessage(
         err instanceof Error
           ? `补传失败：${err.message}`
           : "补传失败：未知错误。"
@@ -7701,6 +7752,74 @@ function SyncDashboard() {
               {pagePendingMessage && (
                 <p className="mt-2 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                   {pagePendingMessage}
+                </p>
+              )}
+            </div>
+            <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+                    数据库 pending 上传队列
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                    只保存 database/field/row/view 的 id 和同步日志元数据，不展示或导出数据库行值。
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleRetryDatabasePendingPush()}
+                  disabled={busyQueueAction === "database-pending"}
+                  className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  {busyQueueAction === "database-pending"
+                    ? "补传中..."
+                    : "补传数据库队列"}
+                </button>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="text-[11px] uppercase text-zinc-400">
+                    Cloud key 队列
+                  </div>
+                  <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                    {databasePendingStatus.pending}
+                  </div>
+                </div>
+                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="text-[11px] uppercase text-zinc-400">
+                    本地 sync_log
+                  </div>
+                  <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                    {databasePendingStatus.syncLogPending}
+                  </div>
+                </div>
+                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="text-[11px] uppercase text-zinc-400">
+                    内存批次
+                  </div>
+                  <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                    {databasePendingStatus.queued}
+                  </div>
+                </div>
+                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="text-[11px] uppercase text-zinc-400">
+                    最后同步
+                  </div>
+                  <div className="mt-1 text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                    {databasePendingStatus.lastSyncAt
+                      ? formatDate(databasePendingStatus.lastSyncAt)
+                      : "暂无记录"}
+                  </div>
+                </div>
+              </div>
+              <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                数据库同步当前
+                {databasePendingStatus.enabled ? "已开启" : "已关闭"}。普通同步只会补传
+                pending queue 里的数据库变更，不会把本地数据库缓存全量上传。
+              </p>
+              {databasePendingMessage && (
+                <p className="mt-2 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  {databasePendingMessage}
                 </p>
               )}
             </div>
@@ -14881,6 +15000,14 @@ function formatPageSyncStatus(status: string) {
   if (status === "unauthenticated") return "账号未登录";
   if (status === "unconfigured") return "云端未配置";
   if (status === "disabled") return "页面同步已关闭";
+  if (status === "error") return "云端同步错误";
+  return status;
+}
+
+function formatDatabaseSyncStatus(status: string) {
+  if (status === "unauthenticated") return "账号未登录";
+  if (status === "unconfigured") return "云端未配置";
+  if (status === "disabled") return "数据库同步已关闭";
   if (status === "error") return "云端同步错误";
   return status;
 }

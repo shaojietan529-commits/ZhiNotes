@@ -237,6 +237,7 @@ check(
 );
 
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
+const databaseSyncClient = read("src/lib/database/accountDatabaseSync.ts");
 const syncDashboardShell = read("src/components/modules/SyncShell.tsx");
 const reconcilePageSyncBody = pageSyncClient.slice(
   pageSyncClient.indexOf("export async function reconcilePageSync")
@@ -399,6 +400,25 @@ check(
     syncDashboardShell.includes("reconcilePageSync({ quick: true })") &&
     syncDashboardShell.includes("普通同步只会补传 pending queue 里的页面"),
   "同步页应展示页面 pending 上传队列并提供 quick 增量补传，不能暗示全量上传本地缓存"
+);
+check(
+  databaseSyncClient.includes("export interface PendingCloudDatabaseSyncStatus") &&
+    databaseSyncClient.includes("export async function getPendingCloudDatabaseSyncStatus") &&
+    databaseSyncClient.includes("const pending = await getPendingDatabaseSyncRecords(1000)") &&
+    databaseSyncClient.includes("pending: getPendingCloudDatabasePushKeys().length") &&
+    databaseSyncClient.includes("queued: queuedCloudDatabasePush.size") &&
+    databaseSyncClient.includes("syncLogPending") &&
+    databaseSyncClient.includes("lastSyncAt: getLastDatabaseSyncAt()"),
+  "数据库同步客户端应暴露只读 pending 上传状态，供同步页展示 cloud key、本地 sync_log 和内存批次"
+);
+check(
+  syncDashboardShell.includes("数据库 pending 上传队列") &&
+    syncDashboardShell.includes("不展示或导出数据库行值") &&
+    syncDashboardShell.includes("补传数据库队列") &&
+    syncDashboardShell.includes("reconcileDatabaseSync({ quick: true })") &&
+    syncDashboardShell.includes("普通同步只会补传") &&
+    syncDashboardShell.includes("不会把本地数据库缓存全量上传"),
+  "同步页应展示数据库 pending 上传队列并提供 quick 增量补传，不能暗示全量上传本地数据库缓存"
 );
 check(
   pageSyncClient.includes("fetchCloudPageMetadata") &&

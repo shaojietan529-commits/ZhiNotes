@@ -134,6 +134,14 @@ export interface PushLocalDatabasesResult {
   message?: string;
 }
 
+export interface PendingCloudDatabaseSyncStatus {
+  enabled: boolean;
+  pending: number;
+  queued: number;
+  syncLogPending: number;
+  lastSyncAt: string | null;
+}
+
 export interface DatabaseReconcileResult {
   status: DatabaseSyncStatus;
   pulled: number;
@@ -1047,6 +1055,23 @@ export async function flushPendingCloudDatabasePushes(): Promise<PushLocalDataba
     ...result,
     total: keys.length,
     skippedKeys: [...(result.skippedKeys ?? []), ...missingKeys],
+  };
+}
+
+export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudDatabaseSyncStatus> {
+  let syncLogPending = 0;
+  try {
+    const pending = await getPendingDatabaseSyncRecords(1000);
+    syncLogPending = pending.entries.length;
+  } catch {
+    syncLogPending = 0;
+  }
+  return {
+    enabled: isDatabaseSyncEnabled(),
+    pending: getPendingCloudDatabasePushKeys().length,
+    queued: queuedCloudDatabasePush.size,
+    syncLogPending,
+    lastSyncAt: getLastDatabaseSyncAt(),
   };
 }
 

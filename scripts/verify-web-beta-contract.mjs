@@ -75,6 +75,7 @@ const files = {
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
   localSchema: "src/lib/db/local/schema.ts",
@@ -325,6 +326,7 @@ function run() {
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
   const localSchema = readProjectFile(files.localSchema);
@@ -1044,8 +1046,57 @@ function run() {
       "只保存 page id，不保存页面正文",
       "Sync UI must document that page pending upload status contains ids only.",
     ],
+    [
+      "数据库 pending 上传队列",
+      "Sync UI must render database pending upload queue status.",
+    ],
+    [
+      "补传数据库队列",
+      "Sync UI must expose a manual database pending retry action.",
+    ],
+    [
+      "reconcileDatabaseSync({ quick: true })",
+      "Sync UI manual database retry must use quick incremental reconcile.",
+    ],
+    [
+      "不展示或导出数据库行值",
+      "Sync UI must preserve the privacy boundary for the database pending queue.",
+    ],
+    [
+      "不会把本地数据库缓存全量上传",
+      "Sync UI must explain database ordinary sync is pending-only.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "export async function getPendingCloudDatabaseSyncStatus",
+      "Database sync client must expose pending queue status for the sync dashboard.",
+    ],
+    [
+      "const pending = await getPendingDatabaseSyncRecords(1000)",
+      "Database pending status must read the local sync_log pending queue.",
+    ],
+    [
+      "pending: getPendingCloudDatabasePushKeys().length",
+      "Database pending status must expose the cloud key retry queue.",
+    ],
+    [
+      "queued: queuedCloudDatabasePush.size",
+      "Database pending status must expose the in-memory debounce queue.",
+    ],
+    [
+      "lastSyncAt: getLastDatabaseSyncAt()",
+      "Database pending status must expose the last sync timestamp.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.accountDatabaseSync,
+      accountDatabaseSync,
+      snippet,
+      message
+    );
   }
 
   for (const [snippet, message] of [
