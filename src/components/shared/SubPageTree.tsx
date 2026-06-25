@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getAllPageMetadata } from "@/lib/db/local/queries";
+import { getPageMetadata, listPageMetadata } from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 
 interface PagePositionTreeProps {
@@ -25,36 +25,41 @@ export default function PagePositionTree({ pageId }: PagePositionTreeProps) {
   } | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
-      const allPages = await getAllPageMetadata();
-      const currentPage = allPages.find((p) => p.id === pageId);
-      if (!currentPage) return;
+      const currentPage = await getPageMetadata(pageId);
+      if (!currentPage) {
+        if (!cancelled) setData(null);
+        return;
+      }
 
       const parentId = currentPage.parent_id;
-      const parent = parentId
-        ? allPages.find((p) => p.id === parentId) || null
-        : null;
-
-      // Siblings = pages with same parent (including current page)
-      const siblings = allPages.filter(
-        (p) => p.parent_id === parentId
-      );
-
-      // Children of current page
-      const children = allPages.filter((p) => p.parent_id === pageId);
+      const [parent, siblings, children] = await Promise.all([
+        parentId ? getPageMetadata(parentId) : Promise.resolve(null),
+        listPageMetadata(parentId),
+        listPageMetadata(pageId),
+      ]);
 
       // Grandchildren (children of children)
       const grandchildren = new Map<string, Page[]>();
-      for (const child of children) {
-        const gc = allPages.filter((p) => p.parent_id === child.id);
+      const grandchildEntries = await Promise.all(
+        children.map(async (child) => {
+          const grandchildren = await listPageMetadata(child.id);
+          return [child.id, grandchildren] as const;
+        })
+      );
+      for (const [childId, gc] of grandchildEntries) {
         if (gc.length > 0) {
-          grandchildren.set(child.id, gc);
+          grandchildren.set(childId, gc);
         }
       }
 
-      setData({ parent, siblings, children, grandchildren });
+      if (!cancelled) setData({ parent, siblings, children, grandchildren });
     }
-    load();
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, [pageId]);
 
   if (!data) return null;

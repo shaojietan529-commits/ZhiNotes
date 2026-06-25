@@ -281,22 +281,36 @@ function run() {
     );
   }
 
-  for (const [sourceLabel, source] of [
-    [files.subPageTree, subPageTree],
-  ]) {
-    assertIncludes(
-      sourceLabel,
-      source,
-      "getAllPageMetadata",
-      "Lightweight page pickers and hierarchy lookups must read page metadata instead of full page bodies."
-    );
-    assertNotIncludes(
-      sourceLabel,
-      source,
-      "getAllPages(",
-      "Lightweight page pickers and hierarchy lookups must not scan full page bodies after large imports."
-    );
-  }
+  assertIncludes(
+    files.subPageTree,
+    subPageTree,
+    "getPageMetadata(pageId)",
+    "SubPageTree must read the current page directly instead of scanning every page."
+  );
+  assertIncludes(
+    files.subPageTree,
+    subPageTree,
+    "listPageMetadata(parentId)",
+    "SubPageTree must read siblings through a parent-scoped metadata query."
+  );
+  assertIncludes(
+    files.subPageTree,
+    subPageTree,
+    "listPageMetadata(pageId)",
+    "SubPageTree must read children through a parent-scoped metadata query."
+  );
+  assertNotIncludes(
+    files.subPageTree,
+    subPageTree,
+    "getAllPageMetadata",
+    "SubPageTree must not scan every page to render local hierarchy."
+  );
+  assertNotIncludes(
+    files.subPageTree,
+    subPageTree,
+    "getAllPages(",
+    "SubPageTree must not scan full page bodies."
+  );
   assertIncludes(
     files.pageContextMenu,
     pageContextMenu,
