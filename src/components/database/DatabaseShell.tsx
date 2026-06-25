@@ -177,6 +177,15 @@ const DATABASE_IMPORT_CONFIRMATION_PHRASE =
 const DATABASE_TABLE_FROZEN_FIELD_LIMIT = 3;
 
 type RowWithPage = DatabaseRow & { page: Page };
+type DatabaseSnapshot = [
+  Database | null,
+  DatabaseField[],
+  RowWithPage[],
+  DatabaseView[],
+];
+type ReloadDatabaseOptions = {
+  preferLocalCache?: boolean;
+};
 type SortDirection = "asc" | "desc";
 type DatabaseRowOpenMode = "side-peek" | "center-peek" | "full-page";
 type DatabaseRowPeekMode = Exclude<DatabaseRowOpenMode, "full-page">;
@@ -273,6 +282,10 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     useState(false);
   const databaseImportInputRef = useRef<HTMLInputElement | null>(null);
   const initialCloudHydrateRef = useRef<string | null>(null);
+  const cloudFallbackSnapshotRef = useRef<{
+    databaseId: string;
+    snapshot: DatabaseSnapshot;
+  } | null>(null);
 
   const applyViewConfig = useCallback((configValue: string) => {
     const config = parseDatabaseViewConfig(configValue);
@@ -287,16 +300,17 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     setDateFieldId(config.dateFieldId);
   }, [initialRowSearch]);
 
-  const reload = useCallback(async () => {
-    const readLocalDatabase = () => Promise.all([
-      getDatabase(databaseId),
-      getFields(databaseId),
-      getRows(databaseId),
-      getViews(databaseId),
-    ]);
-    const readLocalDatabaseSafe = async (): Promise<
-      Awaited<ReturnType<typeof readLocalDatabase>>
-    > => {
+  const reload = useCallback(async (options: ReloadDatabaseOptions = {}) => {
+    const readLocalDatabase = async (): Promise<DatabaseSnapshot> => {
+      const [db, f, r, v] = await Promise.all([
+        getDatabase(databaseId),
+        getFields(databaseId),
+        getRows(databaseId),
+        getViews(databaseId),
+      ]);
+      return [db, f, r, v];
+    };
+    const readLocalDatabaseSafe = async (): Promise<DatabaseSnapshot> => {
       try {
         return await readLocalDatabase();
       } catch {
@@ -304,9 +318,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       }
     };
 
-    const applyLocalDatabase = (
-      [db, f, r, v]: Awaited<ReturnType<typeof readLocalDatabase>>
-    ) => {
+    const applyDatabaseSnapshot = ([db, f, r, v]: DatabaseSnapshot) => {
       setDatabase(db);
       setFields(f);
       setRows(r);
@@ -321,32 +333,54 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       setLoading(false);
     };
 
-    const localSnapshot = await readLocalDatabaseSafe();
-    applyLocalDatabase(localSnapshot);
-    setCacheNotice(null);
-
-    if (initialCloudHydrateRef.current === databaseId) return;
-    initialCloudHydrateRef.current = databaseId;
-    const cloud = await syncCloudDatabaseById(databaseId);
-    if (cloud.status === "ok" && cloud.pulled > 0) {
-      if (cloud.cacheWriteFailed) {
-        applyLocalDatabase(
-          buildDatabaseSnapshotFromCloudRecords(databaseId, cloud.records)
-        );
-        setCacheNotice(
-          "已直接从账号云端显示当前数据库；本机缓存暂时不可写，可稍后在账号页重建本机数据库缓存。"
-        );
-      } else {
-        applyLocalDatabase(await readLocalDatabaseSafe());
-      }
-    } else if (
-      cloud.status === "unauthenticated" ||
-      cloud.status === "unconfigured"
-    ) {
-      setCacheNotice(null);
-    } else if (cloud.status === "error") {
-      setCacheNotice(cloud.message ?? "云端数据库暂时不可用，当前显示本机缓存。");
+    if (options.preferLocalCache) {
+      cloudFallbackSnapshotRef.current = null;
     }
+
+    if (
+      !options.preferLocalCache &&
+      initialCloudHydrateRef.current !== databaseId
+    ) {
+      initialCloudHydrateRef.current = databaseId;
+      const cloud = await syncCloudDatabaseById(databaseId);
+      if (cloud.status === "ok" && cloud.records.length > 0) {
+        const cloudSnapshot = buildDatabaseSnapshotFromCloudRecords(
+          databaseId,
+          cloud.records
+        );
+        applyDatabaseSnapshot(cloudSnapshot);
+        if (cloud.cacheWriteFailed) {
+          cloudFallbackSnapshotRef.current = {
+            databaseId,
+            snapshot: cloudSnapshot,
+          };
+          setCacheNotice(
+            "已直接从账号云端显示当前数据库；本机缓存暂时不可写，可稍后在账号页重建本机数据库缓存。"
+          );
+        } else {
+          cloudFallbackSnapshotRef.current = null;
+          setCacheNotice(null);
+        }
+        return;
+      }
+      if (cloud.status === "error") {
+        setCacheNotice(cloud.message ?? "云端数据库暂时不可用，当前显示本机缓存。");
+      } else {
+        setCacheNotice(null);
+      }
+    } else {
+      setCacheNotice(null);
+    }
+
+    if (!options.preferLocalCache) {
+      const fallback = cloudFallbackSnapshotRef.current;
+      if (fallback?.databaseId === databaseId) {
+        applyDatabaseSnapshot(fallback.snapshot);
+        return;
+      }
+    }
+
+    applyDatabaseSnapshot(await readLocalDatabaseSafe());
   }, [databaseId, activeViewId, applyViewConfig, initialViewId]);
 
   useEffect(() => {
@@ -360,7 +394,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     const unsubscribe = subscribeDatabasesUpdated(() => {
       if (timer !== null) window.clearTimeout(timer);
       timer = window.setTimeout(() => {
-        void reload();
+        void reload({ preferLocalCache: true });
       }, 120);
     });
     return () => {
@@ -380,7 +414,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const handleAddField = useCallback(
     async (name: string, fieldType: string, config?: string) => {
       await addField(databaseId, { name, fieldType, config });
-      reload();
+      reload({ preferLocalCache: true });
     },
     [databaseId, reload]
   );
@@ -394,7 +428,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       );
       if (!ok) return;
       await deleteField(fieldId);
-      reload();
+      reload({ preferLocalCache: true });
     },
     [fields, reload]
   );
@@ -406,7 +440,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         fieldType: field.field_type,
         config: field.config ?? undefined,
       });
-      reload();
+      reload({ preferLocalCache: true });
     },
     [databaseId, reload]
   );
@@ -419,7 +453,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       >
     ) => {
       await updateField(fieldId, updates);
-      reload();
+      reload({ preferLocalCache: true });
     },
     [reload]
   );
@@ -443,19 +477,19 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         updateField(currentField.id, { position: targetField.position }),
         updateField(targetField.id, { position: currentField.position }),
       ]);
-      reload();
+      reload({ preferLocalCache: true });
     },
     [fields, reload]
   );
 
   const handleAddRow = useCallback(async () => {
     await addRow(databaseId);
-    reload();
+    reload({ preferLocalCache: true });
   }, [databaseId, reload]);
 
   const handleAddAndOpenRow = useCallback(async () => {
     const row = await addRow(databaseId);
-    await reload();
+    await reload({ preferLocalCache: true });
     router.push(`/page/${row.page_id}`);
   }, [databaseId, reload, router]);
 
@@ -465,7 +499,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         title: rowTitle,
         fieldValues,
       });
-      reload();
+      reload({ preferLocalCache: true });
     },
     [databaseId, reload]
   );
@@ -486,7 +520,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       });
       appendDatabaseTemplateRowReceipt(receipt);
       setTemplateRowReceipt(receipt);
-      reload();
+      reload({ preferLocalCache: true });
     },
     [databaseId, fields, reload]
   );
@@ -494,7 +528,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const handleUpdateRow = useCallback(
     async (rowId: string, fieldValues: Record<string, unknown>) => {
       await updateRow(rowId, { fieldValues });
-      reload();
+      reload({ preferLocalCache: true });
     },
     [reload]
   );
@@ -508,7 +542,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       );
       if (!ok) return;
       await deleteRow(rowId);
-      reload();
+      reload({ preferLocalCache: true });
     },
     [reload, rows]
   );
@@ -529,7 +563,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         updateRow(currentRow.id, { position: targetRow.position }),
         updateRow(targetRow.id, { position: currentRow.position }),
       ]);
-      reload();
+      reload({ preferLocalCache: true });
     },
     [reload, rows]
   );
@@ -543,7 +577,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         title: `${sourceRow.page?.title || "未命名页面"} 副本`,
         fieldValues,
       });
-      reload();
+      reload({ preferLocalCache: true });
     },
     [databaseId, reload, rows]
   );
@@ -552,7 +586,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     async (name: string, viewType: DatabaseView["view_type"]) => {
       const view = await addView(databaseId, { name, viewType });
       setActiveViewId(view.id);
-      reload();
+      reload({ preferLocalCache: true });
     },
     [databaseId, reload]
   );
@@ -562,7 +596,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       const nextName = name.trim();
       if (!nextName) return;
       await updateView(view.id, { name: nextName });
-      reload();
+      reload({ preferLocalCache: true });
     },
     [reload]
   );
@@ -576,7 +610,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           description: description.trim(),
         }),
       });
-      reload();
+      reload({ preferLocalCache: true });
     },
     [reload]
   );
@@ -590,7 +624,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           openMode,
         }),
       });
-      reload();
+      reload({ preferLocalCache: true });
     },
     [reload]
   );
@@ -605,7 +639,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       await updateView(copiedView.id, { config: view.config });
       setActiveViewId(copiedView.id);
       applyViewConfig(view.config);
-      reload();
+      reload({ preferLocalCache: true });
     },
     [applyViewConfig, databaseId, reload]
   );
@@ -637,7 +671,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         updateView(view.id, { position: targetView.position }),
         updateView(targetView.id, { position: view.position }),
       ]);
-      reload();
+      reload({ preferLocalCache: true });
     },
     [reload, views]
   );
@@ -659,7 +693,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         setActiveViewId(nextView?.id ?? null);
         if (nextView) applyViewConfig(nextView.config);
       }
-      reload();
+      reload({ preferLocalCache: true });
     },
     [activeViewId, applyViewConfig, reload, views]
   );
@@ -825,7 +859,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       setDatabaseImportReceipt(receipt);
       setDatabaseImportPreview(null);
       setDatabaseImportPhrase("");
-      await reload();
+      await reload({ preferLocalCache: true });
     } catch (err) {
       console.error("[Zhinote] Failed to apply database import:", err);
       window.alert(
@@ -899,7 +933,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
             },
           });
         }
-        await reload();
+        await reload({ preferLocalCache: true });
       } finally {
         setRelationCompletionBusyId(null);
       }
@@ -1141,7 +1175,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
               dateFieldId,
             }),
           });
-          reload();
+          reload({ preferLocalCache: true });
         }}
         visibleCount={visibleRows.length}
         totalCount={rows.length}

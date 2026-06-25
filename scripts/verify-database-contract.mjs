@@ -439,18 +439,21 @@ function run() {
   for (const snippet of [
     "syncCloudDatabaseById",
     "initialCloudHydrateRef",
+    "cloudFallbackSnapshotRef",
+    "ReloadDatabaseOptions",
     "readLocalDatabaseSafe",
-    "cloud.status === \"ok\" && cloud.pulled > 0",
+    "cloud.status === \"ok\" && cloud.records.length > 0",
     "cloud.cacheWriteFailed",
-    "buildDatabaseSnapshotFromCloudRecords(databaseId, cloud.records)",
+    "applyDatabaseSnapshot(cloudSnapshot)",
+    "buildDatabaseSnapshotFromCloudRecords(",
+    "reload({ preferLocalCache: true })",
     "setCacheNotice",
-    "applyLocalDatabase(await readLocalDatabaseSafe())",
   ]) {
     assertIncludes(
       files.databaseShell,
       databaseShell,
       snippet,
-      "DatabaseShell must load local cache first, tolerate cache read failures, then hydrate the opened database fully by id from cloud."
+      "DatabaseShell must open databases from the cloud record set first, keep local SQLite as an editable/cache fallback, and avoid reapplying stale cloud snapshots after local edits."
     );
   }
   for (const snippet of [
@@ -729,7 +732,7 @@ function run() {
   }
   for (const snippet of [
     "subscribeDatabasesUpdated",
-    "void reload()",
+    "void reload({ preferLocalCache: true })",
   ]) {
     assertIncludes(
       files.databaseShell,
