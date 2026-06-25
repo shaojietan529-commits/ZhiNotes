@@ -591,11 +591,17 @@ check(
 );
 check(
   dailyNotesShell.includes("expandedDateKeys") &&
+    dailyNotesShell.includes("visibleNoteLimitByDate") &&
     dailyNotesShell.includes("toggleDateExpansion") &&
-    dailyNotesShell.includes("const visibleNotes = isExpanded") &&
+    dailyNotesShell.includes("showMoreNotesForDate") &&
+    dailyNotesShell.includes("DAILY_CALENDAR_EXPAND_BATCH") &&
+    dailyNotesShell.includes("const visibleLimit = isExpanded") &&
+    dailyNotesShell.includes("const visibleNotes = dayNotes.slice(0, visibleLimit)") &&
+    dailyNotesShell.includes("Math.min(totalCount, currentLimit + DAILY_CALENDAR_EXPAND_BATCH)") &&
+    dailyNotesShell.includes("再显示 ${nextBatchCount} 条") &&
     dailyNotesShell.includes("dayNotes.length > DAILY_CALENDAR_VISIBLE_LIMIT") &&
     !dailyNotesShell.includes("hiddenNotes.map"),
-  "DailyNotesShell 月历单元格应只渲染折叠可见条目，更多纪要必须点击后按需展开"
+  "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开"
 );
 
 const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");

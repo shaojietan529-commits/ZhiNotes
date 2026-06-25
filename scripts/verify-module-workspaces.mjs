@@ -127,6 +127,9 @@ for (const token of [
   "DAILY_DATE_INDEX_BACKFILL_BATCH",
   "DAILY_DATE_INDEX_BACKFILL_MAX_PASSES",
   "waitForDailyBackfillIdle",
+  "DAILY_CALENDAR_EXPAND_BATCH",
+  "visibleNoteLimitByDate",
+  "showMoreNotesForDate",
 ]) {
   check(shells.daily.includes(token), `DailyNotesShell 缺少每日纪要性能护栏 ${token}`);
 }
@@ -297,6 +300,14 @@ check(
     !shells.daily.includes("fetchCloudPageById") &&
     !shells.daily.includes("scheduleDailyPeekPreload"),
   "DailyNotesShell 应直接加载 peek 弹窗壳来保证 + 号首开响应，但不应在日历打开路径预拉正文"
+);
+check(
+  shells.daily.includes("const visibleLimit = isExpanded") &&
+    shells.daily.includes("const visibleNotes = dayNotes.slice(0, visibleLimit)") &&
+    shells.daily.includes("Math.min(totalCount, currentLimit + DAILY_CALENDAR_EXPAND_BATCH)") &&
+    shells.daily.includes("再显示 ${nextBatchCount} 条") &&
+    !shells.daily.includes("? dayNotes\n                : dayNotes.slice"),
+  "DailyNotesShell 展开某一天时也必须分批渲染，不能一次性把大批量导入纪要全部挂到 DOM"
 );
 for (const token of [
   "daily_date_key",

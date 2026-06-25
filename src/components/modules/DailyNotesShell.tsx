@@ -49,6 +49,7 @@ const MONTH_LABELS = [
   "7 月", "8 月", "9 月", "10 月", "11 月", "12 月",
 ];
 const DAILY_CALENDAR_VISIBLE_LIMIT = 8;
+const DAILY_CALENDAR_EXPAND_BATCH = 24;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
 const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
 const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
@@ -78,6 +79,9 @@ export default function DailyNotesShell() {
   const [expandedDateKeys, setExpandedDateKeys] = useState<Set<string>>(
     () => new Set()
   );
+  const [visibleNoteLimitByDate, setVisibleNoteLimitByDate] = useState<
+    Map<string, number>
+  >(() => new Map());
   const loadRequestRef = useRef(0);
   const observedPageRevisionRef = useRef<string | null>(null);
   const [viewMonth, setViewMonth] = useState(() => {
@@ -404,12 +408,49 @@ export default function DailyNotesShell() {
       const next = new Set(current);
       if (next.has(dateKey)) {
         next.delete(dateKey);
+        setVisibleNoteLimitByDate((limits) => {
+          if (!limits.has(dateKey)) return limits;
+          const nextLimits = new Map(limits);
+          nextLimits.delete(dateKey);
+          return nextLimits;
+        });
       } else {
         next.add(dateKey);
+        setVisibleNoteLimitByDate((limits) => {
+          const nextLimits = new Map(limits);
+          nextLimits.set(
+            dateKey,
+            DAILY_CALENDAR_VISIBLE_LIMIT + DAILY_CALENDAR_EXPAND_BATCH
+          );
+          return nextLimits;
+        });
       }
       return next;
     });
   }, []);
+
+  const showMoreNotesForDate = useCallback(
+    (dateKey: string, totalCount: number) => {
+      setExpandedDateKeys((current) => {
+        if (current.has(dateKey)) return current;
+        const next = new Set(current);
+        next.add(dateKey);
+        return next;
+      });
+      setVisibleNoteLimitByDate((limits) => {
+        const currentLimit =
+          limits.get(dateKey) ??
+          DAILY_CALENDAR_VISIBLE_LIMIT + DAILY_CALENDAR_EXPAND_BATCH;
+        const nextLimits = new Map(limits);
+        nextLimits.set(
+          dateKey,
+          Math.min(totalCount, currentLimit + DAILY_CALENDAR_EXPAND_BATCH)
+        );
+        return nextLimits;
+      });
+    },
+    []
+  );
 
   // Drag a note chip onto another day: rewrite its 日期 property (and the
   // title too when the note is still date-titled) so it moves on the calendar.
@@ -541,12 +582,18 @@ export default function DailyNotesShell() {
               const key = toDateKey(cell.date);
               const dayNotes = notesByDate.get(key) ?? [];
               const isExpanded = expandedDateKeys.has(key);
-              const visibleNotes = isExpanded
-                ? dayNotes
-                : dayNotes.slice(0, DAILY_CALENDAR_VISIBLE_LIMIT);
+              const visibleLimit = isExpanded
+                ? (visibleNoteLimitByDate.get(key) ??
+                  DAILY_CALENDAR_VISIBLE_LIMIT + DAILY_CALENDAR_EXPAND_BATCH)
+                : DAILY_CALENDAR_VISIBLE_LIMIT;
+              const visibleNotes = dayNotes.slice(0, visibleLimit);
               const hiddenCount = Math.max(
                 0,
                 dayNotes.length - visibleNotes.length
+              );
+              const nextBatchCount = Math.min(
+                DAILY_CALENDAR_EXPAND_BATCH,
+                hiddenCount
               );
               const isToday = key === todayKey;
               const isDropTarget = draggedNoteId !== null && dragOverDateKey === key;
@@ -646,12 +693,24 @@ export default function DailyNotesShell() {
                     {dayNotes.length > DAILY_CALENDAR_VISIBLE_LIMIT && (
                       <button
                         type="button"
-                        onClick={() => toggleDateExpansion(key)}
+                        onClick={() => {
+                          if (isExpanded && hiddenCount === 0) {
+                            toggleDateExpansion(key);
+                            return;
+                          }
+                          if (isExpanded) {
+                            showMoreNotesForDate(key, dayNotes.length);
+                            return;
+                          }
+                          toggleDateExpansion(key);
+                        }}
                         aria-expanded={isExpanded}
                         className="rounded-md px-2 py-1 text-left text-xs leading-4 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                       >
                         {isExpanded
-                          ? `收起到 ${DAILY_CALENDAR_VISIBLE_LIMIT} 条`
+                          ? hiddenCount > 0
+                            ? `再显示 ${nextBatchCount} 条（剩余 ${hiddenCount}）`
+                            : `收起到 ${DAILY_CALENDAR_VISIBLE_LIMIT} 条`
                           : `+${hiddenCount} 条，点击展开`}
                       </button>
                     )}
