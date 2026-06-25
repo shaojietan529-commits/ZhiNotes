@@ -266,7 +266,8 @@ check(
 check(
   pageSyncClient.includes("isLocalCacheEvictionTombstone") &&
     pageSyncClient.includes("clearPendingCloudPushIds([...missing, ...evicted])") &&
-    pageSyncClient.includes("if (!remote && isLocalCacheEvictionTombstone(page)) continue;"),
+    !pageSyncClient.includes("const toPush: Page[]") &&
+    !pageSyncClient.includes("if (!remote && isLocalCacheEvictionTombstone(page)) continue;"),
   "被云端 manifest 驱逐的本机缓存页不能再通过 pending push 或 reconcile 反向污染云端"
 );
 check(
@@ -358,8 +359,12 @@ check(
 check(
   pageSyncClient.includes("const pendingPush = await flushPendingCloudPushes()") &&
     pageSyncClient.includes("const pushed = pendingPush.pushed") &&
-    pageSyncClient.includes("pendingPush.pushed + pushResult.accepted"),
-  "reconcile 每轮同步应先补发待上传页面，并把补发数量计入同步结果"
+    pageSyncClient.includes("const local = await getAllPageMetadata()") &&
+    pageSyncClient.includes("only flushPendingCloudPushes may") &&
+    !pageSyncClient.includes("const localAfter =") &&
+    !pageSyncClient.includes("const toPush: Page[]") &&
+    !pageSyncClient.includes("pendingPush.pushed + pushResult.accepted"),
+  "reconcile 每轮同步应先补发待上传页面；本地页面表只是缓存，不能全量扫描后按 updated_at 自动推上云"
 );
 check(
   pageSyncClient.includes("readSyncStorage(PENDING_PUSH_IDS_KEY)") &&

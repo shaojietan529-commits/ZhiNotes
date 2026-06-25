@@ -4,11 +4,11 @@
 //
 // On by default for signed-in browsers, with a local opt-out switch on
 // /account (stored in localStorage). When enabled and signed in, reconcile
-// compares the local page tree with the account's cloud copy and:
+// treats the account cloud as the source of truth and:
 //   - pulls remote pages that are newer or missing locally
-//   - pushes local pages that are newer or missing remotely
-// Conflicts resolve last-write-wins by updated_at. Tombstones (deleted_at)
-// propagate both ways so deletions follow the account too.
+//   - pushes only explicit local edits/deletes recorded in the pending queue
+// Conflicts resolve through explicit writes; the browser page table is only a
+// rebuildable cache, so a stale local row must not auto-promote itself to cloud.
 //
 // Only page fields sync: title, body HTML, hierarchy, position, icon,
 // properties, cover. Databases, files, comments and versions stay local.
@@ -18,6 +18,7 @@ import {
   applyRemotePages,
   clearLocalPageCacheExceptIds,
   clearLocalPageCacheForIds,
+  getAllPageMetadata,
   getAllPagesForSync,
   getPagesForSyncByIds,
   getLocalPageSyncSummary,
@@ -1782,7 +1783,7 @@ export async function reconcilePageSync(
     setRemoteWatermark(summary.watermark);
     setRemoteCursor(summary.cursor);
 
-    const local = await getAllPagesForSync();
+    const local = await getAllPageMetadata();
     const localById = new Map(local.map((p) => [p.id, p]));
 
     const toPull: string[] = [];
@@ -1821,27 +1822,17 @@ export async function reconcilePageSync(
     }
     const repaired = await repairDailyImportPlacement({ force: pulled > 0 });
 
-    // Recompute against fresh local state: the pull and the root merge may
-    // both have changed pages since the first snapshot.
-    const localAfter =
-      pulled > 0 || repaired > 0 ? await getAllPagesForSync() : local;
-    const toPush: Page[] = [];
-    for (const page of localAfter) {
-      const remote = index[page.id];
-      if (!remote && isLocalCacheEvictionTombstone(page)) continue;
-      if (!remote || page.updated_at > remote.u) toPush.push(page);
-    }
-
-    // Push in size-capped batches.
-    const pushResult = await pushCloudRecordsInBatches(toPush.map(toRecord));
-    const pushed = pendingPush.pushed + pushResult.accepted;
-    if (pushResult.status !== "ok") {
+    // Cloud is the source of truth. Do not scan the rebuildable browser cache
+    // and promote every "newer" local row; only flushPendingCloudPushes may
+    // upload explicit local edits/deletes that were queued at mutation time.
+    const pushed = pendingPush.pushed;
+    if (pendingPush.status !== "ok") {
       return {
-        status: pushResult.status,
+        status: pendingPush.status,
         pulled,
         pushed,
         repaired,
-        message: pushResult.message,
+        message: pendingPush.message,
       };
     }
 
