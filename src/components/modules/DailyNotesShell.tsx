@@ -99,9 +99,16 @@ export default function DailyNotesShell() {
   }, [router]);
 
   useEffect(() => {
-    return scheduleDailyIdleTask(() => {
+    const cancelPageShellPreload = scheduleDailyIdleTask(() => {
+      void import("@/components/providers/PageShell");
+    }, 500);
+    const cancelEditorPreload = scheduleDailyIdleTask(() => {
       void import("@/components/editor/Editor");
-    }, 900);
+    }, 1100);
+    return () => {
+      cancelPageShellPreload();
+      cancelEditorPreload();
+    };
   }, []);
 
   const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
