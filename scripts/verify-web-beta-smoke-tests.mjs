@@ -28,6 +28,7 @@ const files = {
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
+  sidebar: "src/components/sidebar/Sidebar.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
@@ -218,6 +219,7 @@ function run() {
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
+  const sidebar = readProjectFile(files.sidebar);
   const syncShell = readProjectFile(files.syncShell);
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
   const pageShell = readProjectFile(files.pageShell);
@@ -1058,6 +1060,36 @@ function run() {
     workspaceSettingsRoute,
     "workspace-settings-readonly-role",
     "Smoke verifier must keep viewer writes blocked."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "SIDEBAR_PRIMARY_ORDER_SETTING_KEY",
+    "Smoke verifier must keep sidebar primary order on a stable workspace setting key."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY",
+    "Smoke verifier must keep sidebar primary customizations on a stable workspace setting key."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "getWorkspaceSetting(SIDEBAR_PRIMARY_ORDER_SETTING_KEY)",
+    "Smoke verifier must keep sidebar order hydration on workspace_settings."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "upsertWorkspaceSetting(",
+    "Smoke verifier must keep sidebar preference saves in workspace_settings and sync_log."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "localStorage is only a fast boot cache and migration source",
+    "Smoke verifier must keep localStorage as sidebar cache/migration only."
   );
   assertIncludes(
     files.syncShell,

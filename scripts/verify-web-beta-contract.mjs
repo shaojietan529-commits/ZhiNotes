@@ -86,6 +86,7 @@ const files = {
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
+  sidebar: "src/components/sidebar/Sidebar.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
@@ -354,6 +355,7 @@ function run() {
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
+  const sidebar = readProjectFile(files.sidebar);
   const syncShell = readProjectFile(files.syncShell);
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
@@ -1451,6 +1453,46 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.localQueries, localQueries, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "SIDEBAR_PRIMARY_ORDER_SETTING_KEY",
+      "Sidebar primary order must use a stable workspace setting key.",
+    ],
+    [
+      "SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY",
+      "Sidebar primary customizations must use a stable workspace setting key.",
+    ],
+    [
+      "getWorkspaceSetting(SIDEBAR_PRIMARY_ORDER_SETTING_KEY)",
+      "Sidebar must hydrate primary order from workspace_settings.",
+    ],
+    [
+      "getWorkspaceSetting(SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY)",
+      "Sidebar must hydrate primary customizations from workspace_settings.",
+    ],
+    [
+      "upsertWorkspaceSetting(",
+      "Sidebar preference saves must enter workspace_settings and sync_log.",
+    ],
+    [
+      "workspaces.settings.sidebar_primary_order",
+      "Sidebar primary order must target cloud workspace settings.",
+    ],
+    [
+      "workspaces.settings.sidebar_primary_customization",
+      "Sidebar primary customizations must target cloud workspace settings.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Sidebar preferences must stay pending-only instead of uploading local cache.",
+    ],
+    [
+      "localStorage is only a fast boot cache and migration source",
+      "Sidebar localStorage usage must remain a cache/migration path, not the source of truth.",
+    ],
+  ]) {
+    assertSourceIncludes(files.sidebar, sidebar, snippet, message);
   }
   for (const [snippet, message] of [
     [

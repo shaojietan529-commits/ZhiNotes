@@ -29,13 +29,21 @@ import { ZhiNoteLogo, ZhiNoteMark } from "@/components/brand/ZhiNoteLogo";
 import { usePageCloudSync } from "@/hooks/usePageCloudSync";
 import { useDatabaseCloudSync } from "@/hooks/useDatabaseCloudSync";
 import {
+  getWorkspaceSetting,
+  upsertWorkspaceSetting,
+  type WorkspaceSettingRecord,
+} from "@/lib/db/local/queries";
+import {
   ACCOUNT_PROFILE_UPDATED_EVENT,
 } from "@/lib/account/clientProfile";
 import { fetchAccountSession } from "@/lib/account/clientSession";
 
-const SIDEBAR_PRIMARY_ORDER_KEY = "zhinote.sidebar.primaryOrder.v1";
-const SIDEBAR_PRIMARY_CUSTOMIZATION_KEY =
+const SIDEBAR_PRIMARY_ORDER_LOCAL_CACHE_KEY = "zhinote.sidebar.primaryOrder.v1";
+const SIDEBAR_PRIMARY_CUSTOMIZATION_LOCAL_CACHE_KEY =
   "zhinote.sidebar.primaryCustomization.v1";
+const SIDEBAR_PRIMARY_ORDER_SETTING_KEY = "sidebar.primaryOrder.v1";
+const SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY =
+  "sidebar.primaryCustomization.v1";
 
 interface SidebarPrimaryItem {
   id: string;
@@ -166,19 +174,119 @@ function moveSidebarPrimaryItem(
   return next;
 }
 
-function persistSidebarPrimaryOrder(items: SidebarPrimaryItem[]) {
+function safeJsonParse(value: string | null): unknown {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function readWorkspaceSettingValue(
+  setting: WorkspaceSettingRecord | null
+): unknown {
+  return safeJsonParse(setting?.valueJson ?? null);
+}
+
+function parseSidebarPrimaryOrderPayload(value: unknown): string[] | null {
+  const candidate =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as { order?: unknown; primaryOrder?: unknown }).order ??
+        (value as { order?: unknown; primaryOrder?: unknown }).primaryOrder
+      : value;
+  if (!Array.isArray(candidate)) return null;
+  return candidate.filter((item): item is string => typeof item === "string");
+}
+
+function parseSidebarPrimaryCustomizationPayload(
+  value: unknown
+): Record<string, SidebarPrimaryCustomization> {
+  const candidate =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as { customizations?: unknown; primaryCustomizations?: unknown })
+          .customizations ??
+        (value as { customizations?: unknown; primaryCustomizations?: unknown })
+          .primaryCustomizations ??
+        value
+      : value;
+  return parseSidebarPrimaryCustomizations(candidate);
+}
+
+function readSidebarPrimaryLocalCache() {
+  if (typeof window === "undefined") {
+    return {
+      hasOrder: false,
+      hasCustomizations: false,
+      order: null,
+      customizations: {},
+    };
+  }
+  const orderRaw = window.localStorage.getItem(
+    SIDEBAR_PRIMARY_ORDER_LOCAL_CACHE_KEY
+  );
+  const customizationRaw = window.localStorage.getItem(
+    SIDEBAR_PRIMARY_CUSTOMIZATION_LOCAL_CACHE_KEY
+  );
+  return {
+    hasOrder: Boolean(orderRaw),
+    hasCustomizations: Boolean(customizationRaw),
+    order: parseSidebarPrimaryOrderPayload(safeJsonParse(orderRaw)),
+    customizations: parseSidebarPrimaryCustomizationPayload(
+      safeJsonParse(customizationRaw)
+    ),
+  };
+}
+
+function writeSidebarPrimaryOrderLocalCache(order: string[]) {
+  if (typeof window === "undefined") return;
   window.localStorage.setItem(
-    SIDEBAR_PRIMARY_ORDER_KEY,
-    JSON.stringify(items.map((item) => item.id))
+    SIDEBAR_PRIMARY_ORDER_LOCAL_CACHE_KEY,
+    JSON.stringify(order)
   );
 }
 
-function persistSidebarPrimaryCustomizations(
+function writeSidebarPrimaryCustomizationsLocalCache(
   customizations: Record<string, SidebarPrimaryCustomization>
 ) {
+  if (typeof window === "undefined") return;
   window.localStorage.setItem(
-    SIDEBAR_PRIMARY_CUSTOMIZATION_KEY,
+    SIDEBAR_PRIMARY_CUSTOMIZATION_LOCAL_CACHE_KEY,
     JSON.stringify(customizations)
+  );
+}
+
+async function persistSidebarPrimaryOrder(items: SidebarPrimaryItem[]) {
+  const order = items.map((item) => item.id);
+  writeSidebarPrimaryOrderLocalCache(order);
+  await upsertWorkspaceSetting(
+    SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
+    {
+      schema_version: 1,
+      order,
+      cloud_target: "workspaces.settings.sidebar_primary_order",
+      local_cache_key: SIDEBAR_PRIMARY_ORDER_LOCAL_CACHE_KEY,
+      ordinary_sync_pending_only: true,
+    },
+    "sidebar-primary-ui"
+  );
+}
+
+async function persistSidebarPrimaryCustomizations(
+  customizations: Record<string, SidebarPrimaryCustomization>
+) {
+  const normalized = parseSidebarPrimaryCustomizations(customizations);
+  writeSidebarPrimaryCustomizationsLocalCache(normalized);
+  await upsertWorkspaceSetting(
+    SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
+    {
+      schema_version: 1,
+      customizations: normalized,
+      cloud_target: "workspaces.settings.sidebar_primary_customization",
+      local_cache_key: SIDEBAR_PRIMARY_CUSTOMIZATION_LOCAL_CACHE_KEY,
+      ordinary_sync_pending_only: true,
+    },
+    "sidebar-primary-ui"
   );
 }
 
@@ -259,25 +367,70 @@ export default function Sidebar() {
   }, []);
 
   useEffect(() => {
-    try {
-      const orderRaw = window.localStorage.getItem(SIDEBAR_PRIMARY_ORDER_KEY);
-      const customizationRaw = window.localStorage.getItem(
-        SIDEBAR_PRIMARY_CUSTOMIZATION_KEY
-      );
-      const customizations = parseSidebarPrimaryCustomizations(
-        customizationRaw ? JSON.parse(customizationRaw) : null
-      );
-      setPrimaryCustomizations(customizations);
+    let cancelled = false;
+    const localCache = readSidebarPrimaryLocalCache();
+    const hasLocalCache =
+      Boolean(localCache.order) ||
+      Object.keys(localCache.customizations).length > 0;
+
+    if (hasLocalCache) {
+      setPrimaryCustomizations(localCache.customizations);
       setPrimaryItems(
-        applySidebarPrimaryOrder(
-          orderRaw ? JSON.parse(orderRaw) : null,
-          customizations
-        )
+        applySidebarPrimaryOrder(localCache.order, localCache.customizations)
       );
-    } catch {
-      setPrimaryItems(DEFAULT_PRIMARY_ITEMS);
-      setPrimaryCustomizations({});
     }
+
+    async function loadWorkspaceSidebarSettings() {
+      try {
+        const [orderSetting, customizationSetting] = await Promise.all([
+          getWorkspaceSetting(SIDEBAR_PRIMARY_ORDER_SETTING_KEY),
+          getWorkspaceSetting(SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY),
+        ]);
+        if (cancelled) return;
+
+        const workspaceOrder = parseSidebarPrimaryOrderPayload(
+          readWorkspaceSettingValue(orderSetting)
+        );
+        const workspaceCustomizations = parseSidebarPrimaryCustomizationPayload(
+          readWorkspaceSettingValue(customizationSetting)
+        );
+        const hasWorkspaceSettings = Boolean(orderSetting || customizationSetting);
+
+        if (hasWorkspaceSettings) {
+          setPrimaryCustomizations(workspaceCustomizations);
+          setPrimaryItems(
+            applySidebarPrimaryOrder(workspaceOrder, workspaceCustomizations)
+          );
+          if (workspaceOrder) {
+            writeSidebarPrimaryOrderLocalCache(workspaceOrder);
+          }
+          writeSidebarPrimaryCustomizationsLocalCache(workspaceCustomizations);
+          return;
+        }
+
+        // localStorage is only a fast boot cache and migration source. The
+        // durable local record is workspace_settings, which queues sync_log.
+        if (localCache.hasOrder && localCache.order) {
+          void persistSidebarPrimaryOrder(
+            applySidebarPrimaryOrder(localCache.order, localCache.customizations)
+          );
+        }
+        if (localCache.hasCustomizations) {
+          void persistSidebarPrimaryCustomizations(localCache.customizations);
+        }
+      } catch (err) {
+        console.error("[Zhinote] Failed to load sidebar settings:", err);
+        if (!hasLocalCache && !cancelled) {
+          setPrimaryItems(DEFAULT_PRIMARY_ITEMS);
+          setPrimaryCustomizations({});
+        }
+      }
+    }
+
+    void loadWorkspaceSidebarSettings();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -403,7 +556,9 @@ export default function Sidebar() {
       primaryPointerDragRef.current = null;
       if (drag.hasMoved) {
         setPrimaryItems((items) => {
-          persistSidebarPrimaryOrder(items);
+          void persistSidebarPrimaryOrder(items).catch((err) => {
+            console.error("[Zhinote] Failed to save sidebar order:", err);
+          });
           return items;
         });
       }
@@ -440,7 +595,9 @@ export default function Sidebar() {
       [editingPrimaryItem.id]: { icon, label },
     };
     setPrimaryCustomizations(nextCustomizations);
-    persistSidebarPrimaryCustomizations(nextCustomizations);
+    void persistSidebarPrimaryCustomizations(nextCustomizations).catch((err) => {
+      console.error("[Zhinote] Failed to save sidebar customization:", err);
+    });
     setPrimaryItems((items) =>
       items.map((item) =>
         item.id === editingPrimaryItem.id ? { ...item, icon, label } : item
@@ -458,7 +615,9 @@ export default function Sidebar() {
     const nextCustomizations = { ...primaryCustomizations };
     delete nextCustomizations[editingPrimaryItem.id];
     setPrimaryCustomizations(nextCustomizations);
-    persistSidebarPrimaryCustomizations(nextCustomizations);
+    void persistSidebarPrimaryCustomizations(nextCustomizations).catch((err) => {
+      console.error("[Zhinote] Failed to reset sidebar customization:", err);
+    });
     setPrimaryItems((items) =>
       items.map((item) =>
         item.id === editingPrimaryItem.id
