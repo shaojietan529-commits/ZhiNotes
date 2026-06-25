@@ -282,7 +282,6 @@ function run() {
   }
 
   for (const [sourceLabel, source] of [
-    [files.pageContextMenu, pageContextMenu],
     [files.subPageTree, subPageTree],
   ]) {
     assertIncludes(
@@ -298,6 +297,30 @@ function run() {
       "Lightweight page pickers and hierarchy lookups must not scan full page bodies after large imports."
     );
   }
+  assertIncludes(
+    files.pageContextMenu,
+    pageContextMenu,
+    "listMoveTargetPageMetadata({",
+    "PageContextMenu move mode must load bounded move targets from the local index instead of scanning every page."
+  );
+  assertIncludes(
+    files.pageContextMenu,
+    pageContextMenu,
+    "query: moveQuery",
+    "PageContextMenu move target search must pass the typed query to the bounded lookup."
+  );
+  assertNotIncludes(
+    files.pageContextMenu,
+    pageContextMenu,
+    "getAllPageMetadata",
+    "PageContextMenu move mode must not scan every page when opening move targets."
+  );
+  assertNotIncludes(
+    files.pageContextMenu,
+    pageContextMenu,
+    "getAllPages(",
+    "PageContextMenu move mode must not scan full page bodies."
+  );
   assertIncludes(
     files.moveToDialog,
     moveToDialog,

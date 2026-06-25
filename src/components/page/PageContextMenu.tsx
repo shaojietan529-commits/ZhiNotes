@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import {
   deletePage,
   getNextPosition,
-  getAllPageMetadata,
   getPage,
+  listMoveTargetPageMetadata,
 } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
@@ -40,6 +40,7 @@ export default function PageContextMenu({
   const [moveMode, setMoveMode] = useState(false);
   const [moveQuery, setMoveQuery] = useState("");
   const [moveTargets, setMoveTargets] = useState<Page[]>([]);
+  const [moveTargetsLoading, setMoveTargetsLoading] = useState(false);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -63,10 +64,32 @@ export default function PageContextMenu({
 
   useEffect(() => {
     if (!moveMode) return;
-    getAllPageMetadata().then((pages) => {
-      setMoveTargets(pages.filter((p) => p.id !== pageId));
-    });
-  }, [moveMode, pageId]);
+    let cancelled = false;
+    const timer = window.setTimeout(
+      () => {
+        setMoveTargetsLoading(true);
+        listMoveTargetPageMetadata({
+          pageId,
+          query: moveQuery,
+          limit: 20,
+        })
+          .then((targets) => {
+            if (!cancelled) setMoveTargets(targets);
+          })
+          .catch(() => {
+            if (!cancelled) setMoveTargets([]);
+          })
+          .finally(() => {
+            if (!cancelled) setMoveTargetsLoading(false);
+          });
+      },
+      moveQuery.trim() ? 120 : 0
+    );
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [moveMode, pageId, moveQuery]);
 
   const copyLink = async () => {
     const url = `${window.location.origin}/page/${pageId}`;
@@ -123,14 +146,6 @@ export default function PageContextMenu({
     onClose();
   };
 
-  const filteredTargets = moveQuery.trim()
-    ? moveTargets.filter((p) =>
-        displayPageTitle(p.title)
-          .toLowerCase()
-          .includes(moveQuery.trim().toLowerCase())
-      )
-    : moveTargets;
-
   const left = Math.min(
     x,
     (typeof window !== "undefined" ? window.innerWidth : x) - 220
@@ -168,7 +183,7 @@ export default function PageContextMenu({
             <span className="text-xs">📂</span>
             <span>根目录</span>
           </button>
-          {filteredTargets.slice(0, 20).map((p) => (
+          {moveTargets.map((p) => (
             <button
               key={p.id}
               type="button"
@@ -179,8 +194,10 @@ export default function PageContextMenu({
               <span className="truncate">{displayPageTitle(p.title)}</span>
             </button>
           ))}
-          {filteredTargets.length === 0 && (
-            <p className="px-3 py-2 text-xs text-zinc-400">没有匹配页面</p>
+          {moveTargets.length === 0 && (
+            <p className="px-3 py-2 text-xs text-zinc-400">
+              {moveTargetsLoading ? "正在搜索..." : "没有匹配页面"}
+            </p>
           )}
         </div>
       </div>
