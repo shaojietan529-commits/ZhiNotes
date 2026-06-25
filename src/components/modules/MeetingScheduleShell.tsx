@@ -28,7 +28,11 @@ import {
   syncCloudPageMetadataDelta,
   type MeetingCloudMetadataResult,
 } from "@/lib/pages/accountPageSync";
-import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
+import {
+  getModuleRootId,
+  getModuleRootIdSync,
+  toDateKey,
+} from "@/lib/pages/moduleWorkspaces";
 import {
   createPageProperty,
   parsePageProperties,
@@ -270,6 +274,7 @@ export default function MeetingScheduleShell() {
   const calendarCellRefs = useRef(new Map<string, HTMLDivElement>());
   const highlightTimerRef = useRef<number | null>(null);
   const metadataWarmupScheduledRef = useRef(false);
+  const loadRequestRef = useRef(0);
 
   const scheduleMetadataCacheWarmup = useCallback(() => {
     if (metadataWarmupScheduledRef.current) return;
@@ -361,9 +366,25 @@ export default function MeetingScheduleShell() {
   }, []);
 
   const load = useCallback(async () => {
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
     const visibleRange = buildMonthGrid(viewMonth);
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
+    let localPagesForMerge: Page[] = [];
+
+    const publishRootId = (nextRootId: string | null) => {
+      if (loadRequestRef.current !== requestId) return;
+      setRootId(nextRootId);
+    };
+
+    const publishMeetings = (localPages: Page[], cloudPages: Page[] = []) => {
+      if (loadRequestRef.current !== requestId) return;
+      setMeetings(
+        mergeMeetingPages(localPages, cloudPages, deletedTombstoneRef.current)
+      );
+    };
+
     if (!initialCloudPullAttemptedRef.current) {
       initialCloudPullAttemptedRef.current = true;
       scheduleMetadataCacheWarmup();
@@ -371,45 +392,47 @@ export default function MeetingScheduleShell() {
 
     const cachedCloud = readCachedMeetingCloudMetadata(startDate, endDate);
     if (cachedCloud?.ok && cachedCloud.rootId) {
-      setRootId(cachedCloud.rootId);
-      setMeetings(
-        mergeMeetingPages([], cachedCloud.pages, deletedTombstoneRef.current)
-      );
+      publishRootId(cachedCloud.rootId);
+      publishMeetings([], cachedCloud.pages);
       void persistMeetingCloudMetadata(cachedCloud, upsertPages);
     }
 
-    const cloud = await loadMeetingCloudMetadata({
+    const cloudPromise = loadMeetingCloudMetadata({
       startDate,
       endDate,
       recentLimit: 12,
     }).catch(() => emptyMeetingCloudMetadata(false));
 
-    if (cloud.ok && cloud.rootId) {
-      setRootId(cloud.rootId);
-      setMeetings(mergeMeetingPages([], cloud.pages, deletedTombstoneRef.current));
-      writeCachedMeetingCloudMetadata(startDate, endDate, cloud);
-      void persistMeetingCloudMetadata(cloud, upsertPages);
-      return;
-    }
-
     let id: string | null = null;
-    let localPages: Page[] = [];
     let localLoadFailed = false;
     try {
-      id = await getModuleRootId("meeting-schedule");
-      setRootId(id);
-      await restoreDeletedMeetingPages(id, deletedTombstoneRef.current).catch(
-        () => undefined
-      );
-      localPages = await listPages(id);
+      id =
+        getModuleRootIdSync("meeting-schedule") ??
+        (cachedCloud?.ok ? cachedCloud.rootId : null) ??
+        (await getModuleRootId("meeting-schedule"));
+      publishRootId(id);
+      localPagesForMerge = await listPages(id);
+      publishMeetings(localPagesForMerge, cachedCloud?.ok ? cachedCloud.pages : []);
+      scheduleMeetingIdleTask(() => {
+        void restoreDeletedMeetingPages(id!, deletedTombstoneRef.current).catch(
+          () => undefined
+        );
+      }, 1600);
     } catch (error) {
       localLoadFailed = true;
       console.warn("Meeting schedule local cache load failed", error);
     }
 
     const nextRootId = id ?? (localLoadFailed ? generateId() : null);
-    if (nextRootId) setRootId(nextRootId);
-    setMeetings(mergeMeetingPages(localPages, [], deletedTombstoneRef.current));
+    if (nextRootId) publishRootId(nextRootId);
+
+    const cloud = await cloudPromise;
+    if (cloud.ok && cloud.rootId) {
+      publishRootId(cloud.rootId);
+      publishMeetings(localPagesForMerge, cloud.pages);
+      writeCachedMeetingCloudMetadata(startDate, endDate, cloud);
+      void persistMeetingCloudMetadata(cloud, upsertPages);
+    }
 
   }, [scheduleMetadataCacheWarmup, upsertPages, viewMonth]);
 
@@ -2627,6 +2650,26 @@ function buildMonthGrid(monthStart: Date): MonthCell[] {
     cells.push({ date, inMonth: date.getMonth() === month });
   }
   return cells;
+}
+
+function scheduleMeetingIdleTask(
+  callback: () => void,
+  timeout = 500
+): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
+    const idleId = maybeWindow.requestIdleCallback(callback, { timeout });
+    return () => maybeWindow.cancelIdleCallback?.(idleId);
+  }
+  const timer = window.setTimeout(callback, Math.min(timeout, 160));
+  return () => window.clearTimeout(timer);
 }
 
 // ── Auto-link completed meetings into 每日纪要 ─────────────────────

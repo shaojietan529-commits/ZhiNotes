@@ -680,6 +680,24 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "getModuleRootIdSync",
+    "Meeting calendar must reuse the cached root id so local cache can render first."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "const cloudPromise = loadMeetingCloudMetadata",
+    "Meeting calendar must start cloud hydration without blocking the local render."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "publishMeetings(localPagesForMerge, cloud.pages)",
+    "Meeting calendar must merge cloud metadata with local hot-cache meetings."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "persistMeetingCloudMetadata",
     "Meeting calendar must persist cloud metadata into the local hot cache."
   );

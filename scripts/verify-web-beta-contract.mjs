@@ -7523,6 +7523,30 @@ function run() {
     [
       files.meetingScheduleShell,
       meetingScheduleShell,
+      "getModuleRootIdSync",
+      "Meeting calendar must reuse the cached module root id for local-first rendering.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "const cloudPromise = loadMeetingCloudMetadata",
+      "Meeting calendar must start cloud hydration without blocking the local hot-cache render.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "publishMeetings(localPagesForMerge, cloud.pages)",
+      "Meeting calendar cloud hydration must merge with local hot-cache pages instead of replacing them.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "scheduleMeetingIdleTask",
+      "Meeting calendar maintenance work must run after the first local render.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
       "persistMeetingCloudMetadata",
       "Meeting calendar must persist cloud metadata into the local hot cache.",
     ],
