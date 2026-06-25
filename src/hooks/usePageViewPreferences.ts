@@ -5,10 +5,13 @@ import { getWorkspaceSetting, upsertWorkspaceSetting } from "@/lib/db/local/quer
 import {
   PAGE_VIEW_PREFERENCES_SETTING_KEY,
   getDefaultPageViewPreferences,
+  normalizeChildTreeViewModes,
   normalizeLockedPageIds,
   parsePageViewPreferencesWorkspaceSetting,
   type PageViewPreferencesWorkspaceSettingValue,
 } from "@/lib/sync/pageViewPreferencesWorkspaceSettings";
+
+export type ChildTreeViewMode = "list" | "calendar";
 
 export const PAGE_VIEW_PREFERENCES_CHANGED_EVENT =
   "zhinote:page-view-preferences-changed";
@@ -21,17 +24,28 @@ export function pageLockedLocalStorageKey(pageId: string) {
   return `zhinote.page.locked.${pageId}`;
 }
 
+export function childTreeViewModeLocalStorageKey(pageId: string) {
+  return `zhinote.childtree.view.${pageId}`;
+}
+
 export function readLegacyPageViewPreferences(
   pageIds: string[] = []
 ): PageViewPreferencesWorkspaceSettingValue {
   if (typeof window === "undefined") return getDefaultPageViewPreferences();
 
   const lockedPageIds = new Set<string>();
+  const childTreeViewModes: Record<string, ChildTreeViewMode> = {};
   for (const pageId of pageIds) {
     if (
       window.localStorage.getItem(pageLockedLocalStorageKey(pageId)) === "true"
     ) {
       lockedPageIds.add(pageId);
+    }
+    const childTreeMode = window.localStorage.getItem(
+      childTreeViewModeLocalStorageKey(pageId)
+    );
+    if (childTreeMode === "list" || childTreeMode === "calendar") {
+      childTreeViewModes[pageId] = childTreeMode;
     }
   }
 
@@ -42,6 +56,7 @@ export function readLegacyPageViewPreferences(
       window.localStorage.getItem(PAGE_COMMENTS_PANEL_LOCAL_STORAGE_KEY) ===
       "true",
     locked_page_ids: normalizeLockedPageIds([...lockedPageIds]),
+    child_tree_view_modes: normalizeChildTreeViewModes(childTreeViewModes),
   };
 }
 
@@ -71,6 +86,14 @@ export function writePageViewPreferencesFastCache(
     }
     for (const pageId of preferences.locked_page_ids) {
       window.localStorage.setItem(pageLockedLocalStorageKey(pageId), "true");
+    }
+    for (const pageId of knownPageIds) {
+      window.localStorage.removeItem(childTreeViewModeLocalStorageKey(pageId));
+    }
+    for (const [pageId, mode] of Object.entries(
+      preferences.child_tree_view_modes
+    )) {
+      window.localStorage.setItem(childTreeViewModeLocalStorageKey(pageId), mode);
     }
   } catch {
     // localStorage is only a fast boot cache and migration source.
@@ -114,7 +137,8 @@ export async function migrateLegacyPageViewPreferences(
   if (
     legacy.wide_page ||
     legacy.comments_panel_open ||
-    legacy.locked_page_ids.length > 0
+    legacy.locked_page_ids.length > 0 ||
+    Object.keys(legacy.child_tree_view_modes).length > 0
   ) {
     await upsertPageViewPreferencesSetting(legacy, source);
   }
@@ -151,7 +175,8 @@ export function usePageViewPreferences(pageId: string) {
         if (
           legacy.wide_page ||
           legacy.comments_panel_open ||
-          legacy.locked_page_ids.length > 0
+          legacy.locked_page_ids.length > 0 ||
+          Object.keys(legacy.child_tree_view_modes).length > 0
         ) {
           await upsertPageViewPreferencesSetting(
             legacy,
@@ -200,6 +225,9 @@ export function usePageViewPreferences(pageId: string) {
           locked_page_ids: patch.locked_page_ids
             ? normalizeLockedPageIds(patch.locked_page_ids)
             : current.locked_page_ids,
+          child_tree_view_modes: patch.child_tree_view_modes
+            ? normalizeChildTreeViewModes(patch.child_tree_view_modes)
+            : current.child_tree_view_modes,
         };
         writePageViewPreferencesFastCache(next, [pageId]);
         void upsertPageViewPreferencesSetting(next, source).catch((error) => {
@@ -258,13 +286,42 @@ export function usePageViewPreferences(pageId: string) {
     [persistPatch]
   );
 
+  const setChildTreeViewMode = useCallback(
+    (targetPageId: string, mode: ChildTreeViewMode) => {
+      setPreferences((current) => {
+        const next = {
+          ...current,
+          child_tree_view_modes: normalizeChildTreeViewModes({
+            ...current.child_tree_view_modes,
+            [targetPageId]: mode,
+          }),
+        };
+        writePageViewPreferencesFastCache(next, [pageId, targetPageId]);
+        void upsertPageViewPreferencesSetting(
+          next,
+          "local-child-tree-view-mode-ui"
+        ).catch((error) => {
+          console.warn(
+            "[Zhinote] Failed to persist child tree view preference:",
+            error
+          );
+        });
+        return next;
+      });
+    },
+    [pageId]
+  );
+
   return {
     locked: preferences.locked_page_ids.includes(pageId),
     widePage: preferences.wide_page,
     commentsPanelOpen: preferences.comments_panel_open,
+    childTreeViewMode: preferences.child_tree_view_modes[pageId] ?? "calendar",
+    childTreeViewModes: preferences.child_tree_view_modes,
     setLocked,
     setWidePage,
     setCommentsPanelOpen,
+    setChildTreeViewMode,
     toggleLock: () => setLocked(!preferences.locked_page_ids.includes(pageId)),
     toggleWidePage: () => setWidePage(!preferences.wide_page),
     toggleCommentsPanelOpen: () =>

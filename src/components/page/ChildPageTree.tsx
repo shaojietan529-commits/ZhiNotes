@@ -7,6 +7,7 @@ import {
   createPageWithCloud,
   updatePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
+import { usePageViewPreferences } from "@/hooks/usePageViewPreferences";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
@@ -52,6 +53,8 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
   const [chainRootId, setChainRootId] = useState<string | null>(null);
   const [dailyRootId, setDailyRootId] = useState<string | null>(null);
   const [meetingRootId, setMeetingRootId] = useState<string | null>(null);
+  const { childTreeViewMode: viewMode, setChildTreeViewMode } =
+    usePageViewPreferences(pageId);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -66,23 +69,13 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
   const isMeeting = pageId === meetingRootId;
   const hasCalendar = isDaily || isMeeting;
 
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window === "undefined") return "list";
-    const stored = localStorage.getItem(
-      `zhinote.childtree.view.${pageId}`
-    );
-    if (stored === "list") return "list";
-    return "calendar";
-  });
-
   const effectiveView = hasCalendar ? viewMode : "list";
 
   const switchView = useCallback(
     (mode: ViewMode) => {
-      setViewMode(mode);
-      localStorage.setItem(`zhinote.childtree.view.${pageId}`, mode);
+      setChildTreeViewMode(pageId, mode);
     },
-    [pageId]
+    [pageId, setChildTreeViewMode]
   );
 
   const inChain = useMemo(() => {

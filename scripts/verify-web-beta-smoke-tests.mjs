@@ -36,6 +36,7 @@ const files = {
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
+  childPageTree: "src/components/page/ChildPageTree.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
@@ -241,6 +242,7 @@ function run() {
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
+  const childPageTree = readProjectFile(files.childPageTree);
   const sidebar = readProjectFile(files.sidebar);
   const syncShell = readProjectFile(files.syncShell);
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
@@ -1150,6 +1152,12 @@ function run() {
     "Smoke verifier must keep page view preferences comment-body-free."
   );
   assertIncludes(
+    files.pageViewPreferencesWorkspaceSettings,
+    pageViewPreferencesWorkspaceSettings,
+    "child_tree_view_modes",
+    "Smoke verifier must keep child tree view modes in page view preference metadata."
+  );
+  assertIncludes(
     files.usePageViewPreferences,
     usePageViewPreferences,
     "getWorkspaceSetting(PAGE_VIEW_PREFERENCES_SETTING_KEY)",
@@ -1160,6 +1168,24 @@ function run() {
     usePageViewPreferences,
     "legacy-page-view-localStorage",
     "Smoke verifier must keep legacy page view preference migration."
+  );
+  assertIncludes(
+    files.usePageViewPreferences,
+    usePageViewPreferences,
+    "setChildTreeViewMode",
+    "Smoke verifier must keep child tree view mode persistence in page view preferences."
+  );
+  assertIncludes(
+    files.childPageTree,
+    childPageTree,
+    "usePageViewPreferences(pageId)",
+    "Smoke verifier must keep child page tree reading view mode from page view preferences."
+  );
+  assertIncludes(
+    files.childPageTree,
+    childPageTree,
+    "setChildTreeViewMode(pageId, mode)",
+    "Smoke verifier must keep child page tree saving view mode through page view preferences."
   );
   assertIncludes(
     files.workspaceSettingsRoute,

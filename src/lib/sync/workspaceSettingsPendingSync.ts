@@ -78,6 +78,7 @@ export type WorkspaceSettingCloudPayload =
       wide_page: boolean;
       comments_panel_open: boolean;
       locked_page_ids: string[];
+      child_tree_view_modes: Record<string, "list" | "calendar">;
     };
 
 export function buildWorkspaceSettingsPendingSyncPlan(input: {
@@ -174,10 +175,15 @@ export function buildWorkspaceSettingCloudPayload(
   }
 
   if (setting.key === PAGE_VIEW_PREFERENCES_SETTING_KEY) {
+    const pageViewPreferences =
+      parsePageViewPreferencesWorkspaceSettingValue(value);
     return {
       setting_key: PAGE_VIEW_PREFERENCES_SETTING_KEY,
       client_pending_row_id: PAGE_VIEW_PREFERENCES_SETTING_KEY,
-      ...parsePageViewPreferencesWorkspaceSettingValue(value),
+      wide_page: pageViewPreferences.wide_page,
+      comments_panel_open: pageViewPreferences.comments_panel_open,
+      locked_page_ids: pageViewPreferences.locked_page_ids,
+      child_tree_view_modes: pageViewPreferences.child_tree_view_modes,
     };
   }
 

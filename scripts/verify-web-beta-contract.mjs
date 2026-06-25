@@ -94,6 +94,7 @@ const files = {
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
+  childPageTree: "src/components/page/ChildPageTree.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
@@ -377,6 +378,7 @@ function run() {
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
+  const childPageTree = readProjectFile(files.childPageTree);
   const sidebar = readProjectFile(files.sidebar);
   const syncShell = readProjectFile(files.syncShell);
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
@@ -470,6 +472,7 @@ function run() {
     [files.usePageViewPreferences, usePageViewPreferences],
     [files.localQueries, localQueries],
     [files.databaseRouteSkeleton, databaseRouteSkeleton],
+    [files.childPageTree, childPageTree],
     [files.syncShell, syncShell],
     [files.moduleRouteSkeleton, moduleRouteSkeleton],
     [files.pageRouteSkeleton, pageRouteSkeleton],
@@ -1791,6 +1794,10 @@ function run() {
       "Workspace settings pending sync must upload only locked page ids for page view preferences.",
     ],
     [
+      "child_tree_view_modes",
+      "Workspace settings pending sync must upload only child-tree view mode metadata for page view preferences.",
+    ],
+    [
       "Page bodies, database row values, comments, files, tokens, and raw local cache dumps are never included",
       "Workspace settings pending sync must state the privacy boundary.",
     ],
@@ -1897,6 +1904,14 @@ function run() {
       "Page view preferences must persist only locked page ids.",
     ],
     [
+      "child_tree_view_modes",
+      "Page view preferences must persist only child-tree view mode metadata.",
+    ],
+    [
+      "child_tree_view_mode_count",
+      "Page view preferences receipt must summarize child-tree view modes without page content.",
+    ],
+    [
       "reads_page_body_text: false",
       "Page view preferences receipt must state it does not read page bodies.",
     ],
@@ -1949,6 +1964,14 @@ function run() {
       "legacy-page-view-localStorage",
       "Page view preferences hook must migrate legacy localStorage values into workspace_settings.",
     ],
+    [
+      "childTreeViewModeLocalStorageKey",
+      "Page view preferences hook must migrate legacy child-tree localStorage modes.",
+    ],
+    [
+      "setChildTreeViewMode",
+      "Page view preferences hook must expose child-tree view mode persistence.",
+    ],
   ]) {
     assertSourceIncludes(
       files.usePageViewPreferences,
@@ -1957,6 +1980,24 @@ function run() {
       message
     );
   }
+  for (const [snippet, message] of [
+    [
+      "usePageViewPreferences(pageId)",
+      "Child page tree must read view mode from page view preferences.",
+    ],
+    [
+      "setChildTreeViewMode(pageId, mode)",
+      "Child page tree must save view mode through workspace_settings-backed preferences.",
+    ],
+  ]) {
+    assertSourceIncludes(files.childPageTree, childPageTree, snippet, message);
+  }
+  assertSourceExcludes(
+    files.childPageTree,
+    childPageTree,
+    "zhinote.childtree.view",
+    "Child page tree must not own a localStorage-only child tree view preference."
+  );
   for (const [snippet, message] of [
     [
       'cloudNotConfiguredResponse("workspace-settings-update")',

@@ -7,6 +7,7 @@ export interface PageViewPreferencesWorkspaceSettingValue {
   wide_page: boolean;
   comments_panel_open: boolean;
   locked_page_ids: string[];
+  child_tree_view_modes: Record<string, "list" | "calendar">;
 }
 
 export interface PageViewPreferencesWorkspaceSettingsCloudPayload
@@ -39,6 +40,7 @@ export interface PageViewPreferencesWorkspaceSettingsCloudReceipt {
     reads_file_bytes: false;
     acknowledges_pending_row: typeof PAGE_VIEW_PREFERENCES_SETTING_KEY;
     locked_page_count: number;
+    child_tree_view_mode_count: number;
   };
   sync_rule: {
     ordinary_sync_pending_only: true;
@@ -63,6 +65,7 @@ const DEFAULT_PAGE_VIEW_PREFERENCES: PageViewPreferencesWorkspaceSettingValue = 
   wide_page: false,
   comments_panel_open: false,
   locked_page_ids: [],
+  child_tree_view_modes: {},
 };
 
 const FORBIDDEN_PAYLOAD_FIELDS = [
@@ -92,7 +95,10 @@ export function isPageViewPreferencesWorkspaceSettingKey(
 }
 
 export function getDefaultPageViewPreferences(): PageViewPreferencesWorkspaceSettingValue {
-  return { ...DEFAULT_PAGE_VIEW_PREFERENCES };
+  return {
+    ...DEFAULT_PAGE_VIEW_PREFERENCES,
+    child_tree_view_modes: {},
+  };
 }
 
 export function normalizeLockedPageIds(value: unknown): string[] {
@@ -111,6 +117,22 @@ export function normalizeLockedPageIds(value: unknown): string[] {
   return ids;
 }
 
+export function normalizeChildTreeViewModes(
+  value: unknown
+): Record<string, "list" | "calendar"> {
+  if (!isPlainRecord(value)) return {};
+
+  const output: Record<string, "list" | "calendar"> = {};
+  for (const [rawPageId, rawMode] of Object.entries(value)) {
+    const pageId = rawPageId.trim().slice(0, 80);
+    if (!pageId) continue;
+    if (rawMode !== "list" && rawMode !== "calendar") continue;
+    output[pageId] = rawMode;
+    if (Object.keys(output).length >= 256) break;
+  }
+  return output;
+}
+
 export function normalizePageViewPreferencesValue(
   value: unknown
 ): PageViewPreferencesWorkspaceSettingValue {
@@ -125,6 +147,11 @@ export function normalizePageViewPreferencesValue(
     ),
     locked_page_ids: normalizeLockedPageIds(
       value.locked_page_ids ?? value.lockedPageIds ?? value.locked_ids
+    ),
+    child_tree_view_modes: normalizeChildTreeViewModes(
+      value.child_tree_view_modes ??
+        value.childTreeViewModes ??
+        value.childtree_view_modes
     ),
   };
 }
@@ -198,6 +225,7 @@ export function buildPageViewPreferencesWorkspaceSettingsCloudValue(
     wide_page: payload.wide_page,
     comments_panel_open: payload.comments_panel_open,
     locked_page_ids: payload.locked_page_ids,
+    child_tree_view_modes: payload.child_tree_view_modes,
     privacy_boundary:
       "Page view preference metadata only. No page title, page body, comment body, database row value, file byte, token, or raw local cache dump is stored here.",
   };
@@ -232,7 +260,9 @@ export function parsePageViewPreferencesWorkspaceSettingsCloudValue(
       value.format === "zhinote-page-view-preferences-settings-cloud-value" &&
       value.format_version === 1 &&
       value.setting_key === PAGE_VIEW_PREFERENCES_SETTING_KEY &&
-      Array.isArray(value.locked_page_ids),
+      Array.isArray(value.locked_page_ids) &&
+      (value.child_tree_view_modes === undefined ||
+        isPlainRecord(value.child_tree_view_modes)),
     saved_at: typeof value.saved_at === "string" ? value.saved_at : null,
     ...preferences,
   };
@@ -261,6 +291,9 @@ export function buildPageViewPreferencesWorkspaceSettingsCloudReceipt(input: {
       reads_file_bytes: false,
       acknowledges_pending_row: input.payload.client_pending_row_id,
       locked_page_count: input.payload.locked_page_ids.length,
+      child_tree_view_mode_count: Object.keys(
+        input.payload.child_tree_view_modes
+      ).length,
     },
     sync_rule: {
       ordinary_sync_pending_only: true,
@@ -269,7 +302,7 @@ export function buildPageViewPreferencesWorkspaceSettingsCloudReceipt(input: {
       cloud_wins_except_unsynced_local_setting: true,
     },
     privacy_note:
-      "This receipt confirms only page view preferences and locked page ids were saved to workspaces.settings. It does not upload notes, page titles, comments, files, database rows, versions, or local cache dumps.",
+      "This receipt confirms only page view preferences, child-tree view modes, and locked page ids were saved to workspaces.settings. It does not upload notes, page titles, comments, files, database rows, versions, or local cache dumps.",
   };
 }
 
@@ -278,7 +311,8 @@ function readSettingPayloadValue(value: unknown): unknown {
   if (
     "wide_page" in value ||
     "comments_panel_open" in value ||
-    "locked_page_ids" in value
+    "locked_page_ids" in value ||
+    "child_tree_view_modes" in value
   ) {
     return value;
   }
