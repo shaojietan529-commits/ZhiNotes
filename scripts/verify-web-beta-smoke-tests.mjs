@@ -24,9 +24,12 @@ const files = {
   databaseShell: "src/components/database/DatabaseShell.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
+  dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
+  pageShell: "src/components/providers/PageShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
   pageRouteSkeleton: "src/components/page/PageRouteSkeleton.tsx",
+  localPerformance: "src/lib/performance/localPerformance.ts",
   databaseDetailRoute: "src/app/(workspace)/database/[databaseId]/page.tsx",
   databaseDetailRouteLoading:
     "src/app/(workspace)/database/[databaseId]/loading.tsx",
@@ -206,9 +209,12 @@ function run() {
   const databaseShell = readProjectFile(files.databaseShell);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const syncShell = readProjectFile(files.syncShell);
+  const dailyNotesShell = readProjectFile(files.dailyNotesShell);
+  const pageShell = readProjectFile(files.pageShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
   const pageRouteSkeleton = readProjectFile(files.pageRouteSkeleton);
+  const localPerformance = readProjectFile(files.localPerformance);
   const databaseDetailRoute = readProjectFile(files.databaseDetailRoute);
   const databaseDetailRouteLoading = readProjectFile(
     files.databaseDetailRouteLoading
@@ -307,6 +313,71 @@ function run() {
     pageRouteSkeleton,
     "云端同步在后台继续",
     "Page loading shell must explain cloud sync continues in the background."
+  );
+  assertIncludes(
+    files.localPerformance,
+    localPerformance,
+    'format: "zhinote-local-performance-snapshot"',
+    "Local performance snapshots must use an explicit privacy-auditable format."
+  );
+  for (const boundarySnippet of [
+    "reads_page_body_text: false",
+    "reads_database_row_values: false",
+    "reads_comment_bodies: false",
+    "reads_file_bytes: false",
+    "uploads_workspace_data: false",
+    "mutates_workspace_data: false",
+    "includes_raw_page_id: false",
+    "includes_page_title: false",
+  ]) {
+    assertIncludes(
+      files.localPerformance,
+      localPerformance,
+      boundarySnippet,
+      "Local performance snapshots must remain metadata-only and local-only."
+    );
+  }
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'kind: "daily-calendar"',
+    "Daily calendar loads must record metadata-only local performance snapshots."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'route: "/daily"',
+    "Daily performance snapshots must not include a raw page id."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    'kind: "page-open"',
+    "Page opens must record metadata-only local performance snapshots."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    'route: "/page/[pageId]"',
+    "Page performance snapshots must not include the raw page id."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "本地流畅度快照",
+    "Sync UI must show local performance snapshots for fluency debugging."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "local-performance-snapshots",
+    "Sync UI must provide a stable local performance panel anchor."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "readLocalPerformanceSnapshots",
+    "Sync UI must read local-only performance snapshots without cloud upload."
   );
   assertIncludes(
     files.databaseRouteSkeleton,
