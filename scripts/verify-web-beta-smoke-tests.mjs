@@ -25,6 +25,8 @@ const files = {
     "src/lib/sync/pageViewPreferencesWorkspaceSettings.ts",
   quickSearchWorkspaceSettings:
     "src/lib/sync/quickSearchWorkspaceSettings.ts",
+  calendarViewStateWorkspaceSettings:
+    "src/lib/sync/calendarViewStateWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
@@ -34,6 +36,8 @@ const files = {
   usePages: "src/hooks/usePages.ts",
   usePageFavorites: "src/hooks/usePageFavorites.ts",
   usePageViewPreferences: "src/hooks/usePageViewPreferences.ts",
+  useCalendarViewMonthPreference:
+    "src/hooks/useCalendarViewMonthPreference.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -233,6 +237,9 @@ function run() {
   const quickSearchWorkspaceSettings = readProjectFile(
     files.quickSearchWorkspaceSettings
   );
+  const calendarViewStateWorkspaceSettings = readProjectFile(
+    files.calendarViewStateWorkspaceSettings
+  );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
@@ -244,6 +251,9 @@ function run() {
   const usePages = readProjectFile(files.usePages);
   const usePageFavorites = readProjectFile(files.usePageFavorites);
   const usePageViewPreferences = readProjectFile(files.usePageViewPreferences);
+  const useCalendarViewMonthPreference = readProjectFile(
+    files.useCalendarViewMonthPreference
+  );
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
@@ -1123,6 +1133,24 @@ function run() {
     "Smoke verifier must keep quick search uploads limited to saved-search metadata."
   );
   assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "CALENDAR_VIEW_STATE_SETTING_KEY",
+    "Smoke verifier must keep calendar view state in the pending-only upload allowlist."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "daily_view_month",
+    "Smoke verifier must keep daily calendar view uploads limited to month metadata."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "meeting_view_month",
+    "Smoke verifier must keep meeting calendar view uploads limited to month metadata."
+  );
+  assertIncludes(
     files.pageFavoritesWorkspaceSettings,
     pageFavoritesWorkspaceSettings,
     'format: "zhinote-page-favorites-settings-cloud-receipt"',
@@ -1249,6 +1277,66 @@ function run() {
     "Smoke verifier must keep legacy saved search migration."
   );
   assertIncludes(
+    files.calendarViewStateWorkspaceSettings,
+    calendarViewStateWorkspaceSettings,
+    'format: "zhinote-calendar-view-state-settings-cloud-receipt"',
+    "Smoke verifier must keep calendar view state cloud receipts."
+  );
+  assertIncludes(
+    files.calendarViewStateWorkspaceSettings,
+    calendarViewStateWorkspaceSettings,
+    "workspaces.settings.calendar_view_state",
+    "Smoke verifier must keep calendar view state targeting cloud workspace settings."
+  );
+  assertIncludes(
+    files.calendarViewStateWorkspaceSettings,
+    calendarViewStateWorkspaceSettings,
+    "reads_page_titles: false",
+    "Smoke verifier must keep calendar view state page-title-free."
+  );
+  assertIncludes(
+    files.calendarViewStateWorkspaceSettings,
+    calendarViewStateWorkspaceSettings,
+    "reads_meeting_titles: false",
+    "Smoke verifier must keep calendar view state meeting-title-free."
+  );
+  assertIncludes(
+    files.calendarViewStateWorkspaceSettings,
+    calendarViewStateWorkspaceSettings,
+    "reads_database_row_values: false",
+    "Smoke verifier must keep calendar view state database-row-free."
+  );
+  assertIncludes(
+    files.useCalendarViewMonthPreference,
+    useCalendarViewMonthPreference,
+    "getWorkspaceSetting(CALENDAR_VIEW_STATE_SETTING_KEY)",
+    "Smoke verifier must keep calendar view months hydrating from workspace_settings."
+  );
+  assertIncludes(
+    files.useCalendarViewMonthPreference,
+    useCalendarViewMonthPreference,
+    "upsertWorkspaceSetting(",
+    "Smoke verifier must keep calendar view months writing workspace_settings and sync_log."
+  );
+  assertIncludes(
+    files.useCalendarViewMonthPreference,
+    useCalendarViewMonthPreference,
+    "legacy-calendar-view-month-localStorage",
+    "Smoke verifier must keep legacy calendar view month migration."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'useCalendarViewMonthPreference("daily")',
+    "Smoke verifier must keep daily notes calendar view month on workspace settings."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'useCalendarViewMonthPreference("meeting")',
+    "Smoke verifier must keep meeting calendar view month on workspace settings."
+  );
+  assertIncludes(
     files.workspaceSettingsRoute,
     workspaceSettingsRoute,
     'requireCloudWritesResponse("workspace-settings-update")',
@@ -1301,6 +1389,18 @@ function run() {
     workspaceSettingsRoute,
     "quick_search_saved_searches",
     "Smoke verifier must keep workspace settings API returning quick search saved-search metadata."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "validateCalendarViewStateWorkspaceSettingsCloudPayload",
+    "Smoke verifier must keep workspace settings API accepting calendar view state."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "calendar_view_state",
+    "Smoke verifier must keep workspace settings API returning calendar view metadata."
   );
   assertIncludes(
     files.workspaceSettingsRoute,

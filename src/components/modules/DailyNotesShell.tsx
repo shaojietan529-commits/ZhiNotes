@@ -46,6 +46,7 @@ import {
   writeDailyHotCacheSnapshot,
   type DailyHotCacheSnapshot,
 } from "@/lib/sync/dailyHotCacheSnapshot";
+import { useCalendarViewMonthPreference } from "@/hooks/useCalendarViewMonthPreference";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import PagePeekModal from "@/components/page/PagePeekModal";
@@ -100,10 +101,8 @@ export default function DailyNotesShell() {
   >(() => new Map());
   const loadRequestRef = useRef(0);
   const observedPageRevisionRef = useRef<string | null>(null);
-  const [viewMonth, setViewMonth] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
+  const { viewMonth, setViewMonth } =
+    useCalendarViewMonthPreference("daily");
 
   useEffect(() => {
     try {
@@ -609,9 +608,13 @@ export default function DailyNotesShell() {
   );
 
   const goPrev = () =>
-    setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+    setViewMonth(
+      new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1)
+    );
   const goNext = () =>
-    setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+    setViewMonth(
+      new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1)
+    );
   const goToday = () => {
     const now = new Date();
     setViewMonth(new Date(now.getFullYear(), now.getMonth(), 1));

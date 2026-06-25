@@ -83,6 +83,8 @@ const files = {
     "src/lib/sync/pageViewPreferencesWorkspaceSettings.ts",
   quickSearchWorkspaceSettings:
     "src/lib/sync/quickSearchWorkspaceSettings.ts",
+  calendarViewStateWorkspaceSettings:
+    "src/lib/sync/calendarViewStateWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
@@ -92,6 +94,8 @@ const files = {
   usePages: "src/hooks/usePages.ts",
   usePageFavorites: "src/hooks/usePageFavorites.ts",
   usePageViewPreferences: "src/hooks/usePageViewPreferences.ts",
+  useCalendarViewMonthPreference:
+    "src/hooks/useCalendarViewMonthPreference.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -369,6 +373,9 @@ function run() {
   const quickSearchWorkspaceSettings = readProjectFile(
     files.quickSearchWorkspaceSettings
   );
+  const calendarViewStateWorkspaceSettings = readProjectFile(
+    files.calendarViewStateWorkspaceSettings
+  );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
@@ -380,6 +387,9 @@ function run() {
   const usePages = readProjectFile(files.usePages);
   const usePageFavorites = readProjectFile(files.usePageFavorites);
   const usePageViewPreferences = readProjectFile(files.usePageViewPreferences);
+  const useCalendarViewMonthPreference = readProjectFile(
+    files.useCalendarViewMonthPreference
+  );
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
@@ -473,11 +483,16 @@ function run() {
       pageViewPreferencesWorkspaceSettings,
     ],
     [files.quickSearchWorkspaceSettings, quickSearchWorkspaceSettings],
+    [
+      files.calendarViewStateWorkspaceSettings,
+      calendarViewStateWorkspaceSettings,
+    ],
     [files.workspaceSettingsPendingSync, workspaceSettingsPendingSync],
     [files.workspaceSettingsRoute, workspaceSettingsRoute],
     [files.localSchema, localSchema],
     [files.usePageFavorites, usePageFavorites],
     [files.usePageViewPreferences, usePageViewPreferences],
+    [files.useCalendarViewMonthPreference, useCalendarViewMonthPreference],
     [files.localQueries, localQueries],
     [files.databaseRouteSkeleton, databaseRouteSkeleton],
     [files.childPageTree, childPageTree],
@@ -1815,6 +1830,18 @@ function run() {
       "Workspace settings pending sync must upload only saved-search metadata for quick search.",
     ],
     [
+      "CALENDAR_VIEW_STATE_SETTING_KEY",
+      "Workspace settings pending sync must include calendar view state settings.",
+    ],
+    [
+      "daily_view_month",
+      "Workspace settings pending sync must upload only daily view month metadata for calendar view state.",
+    ],
+    [
+      "meeting_view_month",
+      "Workspace settings pending sync must upload only meeting view month metadata for calendar view state.",
+    ],
+    [
       "Page bodies, database row values, comments, files, tokens, and raw local cache dumps are never included",
       "Workspace settings pending sync must state the privacy boundary.",
     ],
@@ -2094,6 +2121,112 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-calendar-view-state-settings-cloud-receipt"',
+      "Calendar view state settings must expose a stable cloud receipt.",
+    ],
+    [
+      "CALENDAR_VIEW_STATE_SETTING_KEY",
+      "Calendar view state settings must use a stable workspace setting key.",
+    ],
+    [
+      "workspaces.settings.calendar_view_state",
+      "Calendar view state settings must target workspace cloud settings.",
+    ],
+    [
+      "validateCalendarViewStateWorkspaceSettingsCloudPayload",
+      "Calendar view state settings must validate cloud payloads.",
+    ],
+    [
+      "daily_view_month",
+      "Calendar view state must persist daily calendar month metadata.",
+    ],
+    [
+      "meeting_view_month",
+      "Calendar view state must persist meeting calendar month metadata.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Calendar view state receipt must state it does not read page bodies.",
+    ],
+    [
+      "reads_page_titles: false",
+      "Calendar view state receipt must state it does not read page titles.",
+    ],
+    [
+      "reads_meeting_titles: false",
+      "Calendar view state receipt must state it does not read meeting titles.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Calendar view state receipt must state it does not read database row values.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Calendar view state must use pending-only ordinary sync.",
+    ],
+    [
+      "content_text",
+      "Calendar view state validator must reject page body fields.",
+    ],
+    [
+      "meeting_title",
+      "Calendar view state validator must reject meeting title fields.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.calendarViewStateWorkspaceSettings,
+      calendarViewStateWorkspaceSettings,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "CALENDAR_VIEW_STATE_SETTING_KEY",
+      "Calendar view hook must use the cloud-ready workspace setting key.",
+    ],
+    [
+      "getWorkspaceSetting(CALENDAR_VIEW_STATE_SETTING_KEY)",
+      "Calendar view hook must hydrate months from workspace_settings.",
+    ],
+    [
+      "upsertWorkspaceSetting(",
+      "Calendar view hook must persist months through workspace_settings and sync_log.",
+    ],
+    [
+      "localStorage is a fast boot cache and legacy migration source only",
+      "Calendar view hook must keep localStorage as cache/migration only.",
+    ],
+    [
+      "legacy-calendar-view-month-localStorage",
+      "Calendar view hook must migrate legacy localStorage months into workspace_settings.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.useCalendarViewMonthPreference,
+      useCalendarViewMonthPreference,
+      snippet,
+      message
+    );
+  }
+  for (const [file, source, snippet, message] of [
+    [
+      files.dailyNotesShell,
+      dailyNotesShell,
+      'useCalendarViewMonthPreference("daily")',
+      "Daily notes calendar must use the workspace-settings backed view month.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      'useCalendarViewMonthPreference("meeting")',
+      "Meeting calendar must use the workspace-settings backed view month.",
+    ],
+  ]) {
+    assertSourceIncludes(file, source, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       'cloudNotConfiguredResponse("workspace-settings-update")',
       "Workspace settings route must stay behind the cloud configured gate.",
     ],
@@ -2164,6 +2297,22 @@ function run() {
     [
       "QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY",
       "Workspace settings route must advertise quick search saved searches as a supported setting.",
+    ],
+    [
+      "validateCalendarViewStateWorkspaceSettingsCloudPayload",
+      "Workspace settings route must validate calendar view state payloads before writing.",
+    ],
+    [
+      "buildCalendarViewStateWorkspaceSettingsCloudValue",
+      "Workspace settings route must write calendar view state metadata to cloud settings.",
+    ],
+    [
+      "calendar_view_state",
+      "Workspace settings route must return calendar view state metadata on reads.",
+    ],
+    [
+      "CALENDAR_VIEW_STATE_SETTING_KEY",
+      "Workspace settings route must advertise calendar view state as a supported setting.",
     ],
     [
       "workspace-settings-readonly-role",

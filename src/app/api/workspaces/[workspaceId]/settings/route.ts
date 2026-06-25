@@ -54,6 +54,15 @@ import {
   parseQuickSearchSavedSearchesWorkspaceSettingsCloudValue,
   validateQuickSearchSavedSearchesWorkspaceSettingsCloudPayload,
 } from "@/lib/sync/quickSearchWorkspaceSettings";
+import {
+  CALENDAR_VIEW_STATE_CLOUD_FIELD,
+  CALENDAR_VIEW_STATE_SETTING_KEY,
+  buildCalendarViewStateWorkspaceSettingsCloudReceipt,
+  buildCalendarViewStateWorkspaceSettingsCloudValue,
+  isCalendarViewStateWorkspaceSettingKey,
+  parseCalendarViewStateWorkspaceSettingsCloudValue,
+  validateCalendarViewStateWorkspaceSettingsCloudPayload,
+} from "@/lib/sync/calendarViewStateWorkspaceSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -136,6 +145,10 @@ export async function GET(
       parseQuickSearchSavedSearchesWorkspaceSettingsCloudValue(
         isPlainObject(workspace.settings) ? workspace.settings : null
       );
+    const calendarViewState =
+      parseCalendarViewStateWorkspaceSettingsCloudValue(
+        isPlainObject(workspace.settings) ? workspace.settings : null
+      );
 
     return NextResponse.json(
       {
@@ -152,11 +165,13 @@ export async function GET(
           PAGE_FAVORITES_SETTING_KEY,
           PAGE_VIEW_PREFERENCES_SETTING_KEY,
           QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
+          CALENDAR_VIEW_STATE_SETTING_KEY,
         ],
         sidebar_settings: sidebarSettings,
         page_favorites: pageFavorites,
         page_view_preferences: pageViewPreferences,
         quick_search_saved_searches: quickSearchSavedSearches,
+        calendar_view_state: calendarViewState,
       }
     );
   } catch (error) {
@@ -200,11 +215,15 @@ export async function PATCH(
               ? validateQuickSearchSavedSearchesWorkspaceSettingsCloudPayload(
                   body.value
                 )
-              : {
-                  ok: false as const,
-                  message:
-                    "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1、page.viewPreferences.v1 或 quick_search.savedSearches.v1。",
-                };
+              : isCalendarViewStateWorkspaceSettingKey(settingKey)
+                ? validateCalendarViewStateWorkspaceSettingsCloudPayload(
+                    body.value
+                  )
+                : {
+                    ok: false as const,
+                    message:
+                      "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1、page.viewPreferences.v1、quick_search.savedSearches.v1 或 calendar.viewState.v1。",
+                  };
   if (!validatedPayload.ok) {
     return badRequestResponse(validatedPayload.message);
   }
@@ -291,9 +310,18 @@ export async function PATCH(
           validatedPayload.payload,
           savedAt
         );
-    } else {
+    } else if (
+      validatedPayload.payload.setting_key ===
+      QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY
+    ) {
       nextSettings[QUICK_SEARCH_SAVED_SEARCHES_CLOUD_FIELD] =
         buildQuickSearchSavedSearchesWorkspaceSettingsCloudValue(
+          validatedPayload.payload,
+          savedAt
+        );
+    } else {
+      nextSettings[CALENDAR_VIEW_STATE_CLOUD_FIELD] =
+        buildCalendarViewStateWorkspaceSettingsCloudValue(
           validatedPayload.payload,
           savedAt
         );
@@ -366,8 +394,22 @@ export async function PATCH(
       );
     }
 
+    if (
+      validatedPayload.payload.setting_key ===
+      QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY
+    ) {
+      return NextResponse.json(
+        buildQuickSearchSavedSearchesWorkspaceSettingsCloudReceipt({
+          workspaceId,
+          role: membership.role,
+          savedAt,
+          payload: validatedPayload.payload,
+        })
+      );
+    }
+
     return NextResponse.json(
-      buildQuickSearchSavedSearchesWorkspaceSettingsCloudReceipt({
+      buildCalendarViewStateWorkspaceSettingsCloudReceipt({
         workspaceId,
         role: membership.role,
         savedAt,

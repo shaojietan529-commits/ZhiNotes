@@ -31,6 +31,7 @@ import {
 } from "@/lib/pages/accountPageSync";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import { useCalendarViewMonthPreference } from "@/hooks/useCalendarViewMonthPreference";
 import {
   getModuleRootId,
   getModuleRootIdSync,
@@ -245,10 +246,8 @@ export default function MeetingScheduleShell() {
   const [creatingMeetingDateKey, setCreatingMeetingDateKey] = useState<
     string | null
   >(null);
-  const [viewMonth, setViewMonth] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
+  const { viewMonth, setViewMonth } =
+    useCalendarViewMonthPreference("meeting");
   const [highlightedDateKey, setHighlightedDateKey] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(() => emptyForm(toDateKey(new Date())));
@@ -323,28 +322,33 @@ export default function MeetingScheduleShell() {
     });
   }, []);
 
-  const focusCalendarDate = useCallback((dateKey: string) => {
-    const date = parseDateKeyToLocalDate(dateKey);
-    if (!date) return;
+  const focusCalendarDate = useCallback(
+    (dateKey: string) => {
+      const date = parseDateKeyToLocalDate(dateKey);
+      if (!date) return;
 
-    setViewMonth(new Date(date.getFullYear(), date.getMonth(), 1));
-    setHighlightedDateKey(dateKey);
+      setViewMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+      setHighlightedDateKey(dateKey);
 
-    window.setTimeout(() => {
-      calendarCellRefs.current.get(dateKey)?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }, 80);
+      window.setTimeout(() => {
+        calendarCellRefs.current.get(dateKey)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 80);
 
-    if (highlightTimerRef.current) {
-      window.clearTimeout(highlightTimerRef.current);
-    }
-    highlightTimerRef.current = window.setTimeout(() => {
-      setHighlightedDateKey((current) => (current === dateKey ? "" : current));
-      highlightTimerRef.current = null;
-    }, 7000);
-  }, []);
+      if (highlightTimerRef.current) {
+        window.clearTimeout(highlightTimerRef.current);
+      }
+      highlightTimerRef.current = window.setTimeout(() => {
+        setHighlightedDateKey((current) =>
+          current === dateKey ? "" : current
+        );
+        highlightTimerRef.current = null;
+      }, 7000);
+    },
+    [setViewMonth]
+  );
 
   useEffect(
     () => () => {
@@ -1163,9 +1167,13 @@ export default function MeetingScheduleShell() {
   );
 
   const goPrev = () =>
-    setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+    setViewMonth(
+      new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1)
+    );
   const goNext = () =>
-    setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+    setViewMonth(
+      new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1)
+    );
   const goToday = () => {
     const now = new Date();
     setViewMonth(new Date(now.getFullYear(), now.getMonth(), 1));

@@ -22,6 +22,10 @@ import {
   QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
   parseQuickSearchSavedSearchesWorkspaceSettingValue,
 } from "@/lib/sync/quickSearchWorkspaceSettings";
+import {
+  CALENDAR_VIEW_STATE_SETTING_KEY,
+  parseCalendarViewStateWorkspaceSettingValue,
+} from "@/lib/sync/calendarViewStateWorkspaceSettings";
 
 export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   HOT_CACHE_PREFERENCES_SETTING_KEY,
@@ -30,6 +34,7 @@ export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   PAGE_FAVORITES_SETTING_KEY,
   PAGE_VIEW_PREFERENCES_SETTING_KEY,
   QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
+  CALENDAR_VIEW_STATE_SETTING_KEY,
 ] as const;
 
 export type SupportedWorkspaceSettingSyncKey =
@@ -89,6 +94,12 @@ export type WorkspaceSettingCloudPayload =
       setting_key: typeof QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY;
       client_pending_row_id: typeof QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY;
       saved_searches: string[];
+    }
+  | {
+      setting_key: typeof CALENDAR_VIEW_STATE_SETTING_KEY;
+      client_pending_row_id: typeof CALENDAR_VIEW_STATE_SETTING_KEY;
+      daily_view_month: string | null;
+      meeting_view_month: string | null;
     };
 
 export function buildWorkspaceSettingsPendingSyncPlan(input: {
@@ -204,6 +215,17 @@ export function buildWorkspaceSettingCloudPayload(
       saved_searches:
         parseQuickSearchSavedSearchesWorkspaceSettingValue(value)
           .saved_searches,
+    };
+  }
+
+  if (setting.key === CALENDAR_VIEW_STATE_SETTING_KEY) {
+    const calendarViewState =
+      parseCalendarViewStateWorkspaceSettingValue(value);
+    return {
+      setting_key: CALENDAR_VIEW_STATE_SETTING_KEY,
+      client_pending_row_id: CALENDAR_VIEW_STATE_SETTING_KEY,
+      daily_view_month: calendarViewState.daily_view_month,
+      meeting_view_month: calendarViewState.meeting_view_month,
     };
   }
 
