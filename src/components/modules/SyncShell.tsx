@@ -348,6 +348,9 @@ import {
   buildSyncPullApiDisabledResponse,
 } from "@/lib/sync/syncPullApiStub";
 import {
+  buildCommentVersionReplayApiDisabledResponse,
+} from "@/lib/sync/commentVersionReplayApiStub";
+import {
   buildSyncReplayTestPlan,
   type SyncReplayTestPlan,
   type SyncReplayTestStatus,
@@ -407,6 +410,7 @@ type SyncQueueAction =
   | "sync-confirmation"
   | "sync-push-api-guard"
   | "sync-pull-api-guard"
+  | "comment-version-replay-api-guard"
   | "rollback-plan"
   | "restore-writeback"
   | "restore-preview-api-guard"
@@ -1164,6 +1168,10 @@ function SyncDashboard() {
   );
   const syncPullApiGuard = useMemo(
     () => buildSyncPullApiDisabledResponse(),
+    []
+  );
+  const commentVersionReplayApiGuard = useMemo(
+    () => buildCommentVersionReplayApiDisabledResponse(),
     []
   );
   const syncConfirmationReceipt = useMemo(
@@ -3249,6 +3257,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportCommentVersionReplayApiGuard = () => {
+    setBusyQueueAction("comment-version-replay-api-guard");
+    try {
+      downloadJsonFile(
+        `zhinote-comment-version-replay-api-disabled-${fileSafeTimestamp()}.json`,
+        {
+          ...commentVersionReplayApiGuard,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export comment/version replay API guard:",
+        err
+      );
+      window.alert("评论 / 版本回放 API 防护导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncReplayTestPlan = () => {
     setBusyQueueAction("replay-test-plan");
     try {
@@ -4734,6 +4763,81 @@ function SyncDashboard() {
             forbiddenFields={syncPullApiGuard.request_schema.forbidden_fields}
             fixtures={syncPullApiGuard.local_validator_report.fixtures}
             gates={syncPullApiGuard.enablement_gates}
+          />
+          <ApiGuardPanel
+            title="评论 / 版本回放 API 防护"
+            description="`/api/sync/comment-version-replay` 的专用关闭响应。它把未来评论和 page_versions 上云拆成 owner-gated row-id-only 请求、cloud.comments / cloud.page_versions manifest count 对账、本地 fixture 和启用门槛；当前 route 仍拒绝读取请求体、评论正文、版本快照、页面正文、上传工作区数据、写 server、确认行或修改本地 sync_log。"
+            exportLabel="导出评论/版本回放防护"
+            busy={busyQueueAction === "comment-version-replay-api-guard"}
+            onExport={handleExportCommentVersionReplayApiGuard}
+            summaries={[
+              {
+                label: "格式",
+                value: commentVersionReplayApiGuard.format,
+                detail: "专用响应",
+                status: "accepted",
+              },
+              {
+                label: "HTTP",
+                value:
+                  commentVersionReplayApiGuard.disabled_response_contract
+                    .http_status,
+                detail: "关闭状态",
+                status: "rejected",
+              },
+              {
+                label: "请求体",
+                value: commentVersionReplayApiGuard.can_read_request_body_now
+                  ? "是"
+                  : "否",
+                detail: "不读取正文",
+                status: "rejected",
+              },
+              {
+                label: "评论正文",
+                value: commentVersionReplayApiGuard.can_read_comment_bodies_now
+                  ? "是"
+                  : "否",
+                detail: "owner gate 前禁止",
+                status: "rejected",
+              },
+              {
+                label: "版本快照",
+                value:
+                  commentVersionReplayApiGuard.can_read_version_snapshots_now
+                    ? "是"
+                    : "否",
+                detail: "owner gate 前禁止",
+                status: "rejected",
+              },
+              {
+                label: "Manifest count",
+                value: commentVersionReplayApiGuard.boundary
+                  .requires_manifest_counts_before_ack
+                  ? "必需"
+                  : "缺失",
+                detail: "ack 前对账",
+                status: "rejected",
+              },
+              {
+                label: "Fixture 字段",
+                value:
+                  commentVersionReplayApiGuard.local_validator_report.summary
+                    .forbidden_fields_covered,
+                detail: "本地覆盖",
+                status: "rejected",
+              },
+            ]}
+            allowedFields={
+              commentVersionReplayApiGuard.request_schema.allowed_fields
+            }
+            forbiddenFields={
+              commentVersionReplayApiGuard.request_schema.forbidden_fields
+            }
+            fixtures={
+              commentVersionReplayApiGuard.local_validator_report.fixtures
+            }
+            gates={commentVersionReplayApiGuard.enablement_gates}
           />
         </section>
 

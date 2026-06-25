@@ -73,6 +73,10 @@ const files = {
     "src/app/api/web-beta/environment-preflight/route.ts",
   commentVersionCloudReplayContract:
     "src/lib/sync/commentVersionCloudReplayContract.ts",
+  commentVersionReplayApiStub:
+    "src/lib/sync/commentVersionReplayApiStub.ts",
+  commentVersionReplayRoute:
+    "src/app/api/sync/comment-version-replay/route.ts",
 };
 
 const requiredPageRoutes = [
@@ -133,6 +137,10 @@ const gatedOrDisabledApiRoutes = [
   {
     path: "src/app/api/sync/pull/route.ts",
     guard: "buildSyncPullApiDisabledResponse",
+  },
+  {
+    path: "src/app/api/sync/comment-version-replay/route.ts",
+    guard: "buildCommentVersionReplayApiDisabledResponse",
   },
   {
     path: "src/app/api/files/presign/route.ts",
@@ -311,6 +319,12 @@ function run() {
   );
   const commentVersionCloudReplayContract = readProjectFile(
     files.commentVersionCloudReplayContract
+  );
+  const commentVersionReplayApiStub = readProjectFile(
+    files.commentVersionReplayApiStub
+  );
+  const commentVersionReplayRoute = readProjectFile(
+    files.commentVersionReplayRoute
   );
 
   const scripts = packageJson.scripts ?? {};
@@ -558,6 +572,121 @@ function run() {
     ],
   ]) {
     assertIncludes(sourceLabel, source, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-comment-version-replay-api-disabled"',
+      "Comment/version replay API smoke coverage must include the stable disabled format.",
+    ],
+    [
+      "buildCommentVersionReplayApiDisabledResponse",
+      "Comment/version replay API smoke coverage must expose a disabled response builder.",
+    ],
+    [
+      'api_id: "comment-version-replay"',
+      "Comment/version replay API smoke coverage must identify the route.",
+    ],
+    [
+      'path: "/api/sync/comment-version-replay"',
+      "Comment/version replay API smoke coverage must bind to the route path.",
+    ],
+    [
+      "can_replay_now: false",
+      "Comment/version replay API smoke coverage must keep replay disabled.",
+    ],
+    [
+      "can_read_request_body_now: false",
+      "Comment/version replay API smoke coverage must not read request bodies.",
+    ],
+    [
+      "can_read_comment_bodies_now: false",
+      "Comment/version replay API smoke coverage must not read comment bodies.",
+    ],
+    [
+      "can_read_version_snapshots_now: false",
+      "Comment/version replay API smoke coverage must not read version snapshots.",
+    ],
+    [
+      "requires_owner_confirmation_before_replay: true",
+      "Comment/version replay API smoke coverage must require owner confirmation.",
+    ],
+    [
+      "requires_manifest_counts_before_ack: true",
+      "Comment/version replay API smoke coverage must require manifest counts before ack.",
+    ],
+    [
+      "requires_comment_manifest_count_before_ack: true",
+      "Comment/version replay API smoke coverage must require cloud.comments count acknowledgement.",
+    ],
+    [
+      "requires_page_versions_manifest_count_before_ack: true",
+      "Comment/version replay API smoke coverage must require cloud.page_versions count acknowledgement.",
+    ],
+    [
+      'schema_status: "planned-owner-gated-row-id-only"',
+      "Comment/version replay API smoke coverage must keep request schema row-id-only.",
+    ],
+    [
+      'schema_status: "planned-count-and-ack-receipt-only"',
+      "Comment/version replay API smoke coverage must keep response schema count-only.",
+    ],
+    [
+      '"comment-content-blocked"',
+      "Comment/version replay API smoke coverage must include comment content fixture rejection.",
+    ],
+    [
+      '"version-snapshot-blocked"',
+      "Comment/version replay API smoke coverage must include version snapshot fixture rejection.",
+    ],
+    [
+      "comment_body",
+      "Comment/version replay API smoke coverage must forbid comment bodies.",
+    ],
+    [
+      "version_snapshot",
+      "Comment/version replay API smoke coverage must forbid version snapshots.",
+    ],
+  ]) {
+    assertIncludes(
+      files.commentVersionReplayApiStub,
+      commentVersionReplayApiStub,
+      snippet,
+      message
+    );
+  }
+  assertIncludes(
+    files.commentVersionReplayRoute,
+    commentVersionReplayRoute,
+    "buildCommentVersionReplayApiDisabledResponse",
+    "Comment/version replay route must return its dedicated disabled response."
+  );
+  for (const [snippet, message] of [
+    [
+      "buildCommentVersionReplayApiDisabledResponse",
+      "Sync smoke coverage must build the comment/version replay API guard.",
+    ],
+    [
+      "handleExportCommentVersionReplayApiGuard",
+      "Sync smoke coverage must expose comment/version replay guard export.",
+    ],
+    [
+      "评论 / 版本回放 API 防护",
+      "Sync smoke coverage must render the comment/version replay API guard.",
+    ],
+    [
+      "导出评论/版本回放防护",
+      "Sync smoke coverage must expose the comment/version replay export button.",
+    ],
+    [
+      "commentVersionReplayApiGuard.can_read_comment_bodies_now",
+      "Sync smoke coverage must show that comment body reads are disabled.",
+    ],
+    [
+      ".requires_manifest_counts_before_ack",
+      "Sync smoke coverage must show the manifest count acknowledgement gate.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
   }
   assertIncludes(
     files.dailyNotesShell,

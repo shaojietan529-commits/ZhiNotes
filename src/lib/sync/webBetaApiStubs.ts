@@ -9,6 +9,7 @@ export type WebBetaApiStubId =
   | "workspace-settings-update"
   | "sync-push"
   | "sync-pull"
+  | "comment-version-replay"
   | "sync-replay-test"
   | "restore-preview"
   | "restore-apply"
@@ -155,6 +156,17 @@ export const WEB_BETA_API_STUBS: WebBetaApiStub[] = [
       "Enable only after conflict detection, cursors, local apply rules, and rollback behavior are implemented.",
     privacy_boundary:
       "The current stub returns a disabled response and does not fetch remote workspace data.",
+  },
+  {
+    id: "comment-version-replay",
+    method: "POST",
+    path: "/api/sync/comment-version-replay",
+    purpose:
+      "Future owner-gated endpoint for replaying pending comment and page_versions rows to cloud.comments and cloud.page_versions after manifest counts are ready.",
+    future_requirement:
+      "Enable only after authenticated workspace membership, owner confirmation, permission checks, audit events, idempotency, retry/dead-letter handling, manifest count acknowledgement, and rollback proof exist.",
+    privacy_boundary:
+      "The current dedicated disabled response does not read request bodies, comment bodies, version snapshots, page text, sync payloads, credentials, or upload workspace data.",
   },
   {
     id: "sync-replay-test",

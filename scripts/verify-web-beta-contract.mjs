@@ -44,6 +44,10 @@ const files = {
   syncPushRoute: "src/app/api/sync/push/route.ts",
   syncPullApiStub: "src/lib/sync/syncPullApiStub.ts",
   syncPullRoute: "src/app/api/sync/pull/route.ts",
+  commentVersionReplayApiStub:
+    "src/lib/sync/commentVersionReplayApiStub.ts",
+  commentVersionReplayRoute:
+    "src/app/api/sync/comment-version-replay/route.ts",
   cloudManifestCompareApiStub: "src/lib/sync/cloudManifestCompareApiStub.ts",
   cloudManifestCompareRoute: "src/app/api/cloud/manifest/compare/route.ts",
   cloudMigrationApplyApiStub: "src/lib/sync/cloudMigrationApplyApiStub.ts",
@@ -324,6 +328,12 @@ function run() {
   const syncPushRoute = readProjectFile(files.syncPushRoute);
   const syncPullApiStub = readProjectFile(files.syncPullApiStub);
   const syncPullRoute = readProjectFile(files.syncPullRoute);
+  const commentVersionReplayApiStub = readProjectFile(
+    files.commentVersionReplayApiStub
+  );
+  const commentVersionReplayRoute = readProjectFile(
+    files.commentVersionReplayRoute
+  );
   const cloudManifestCompareApiStub = readProjectFile(
     files.cloudManifestCompareApiStub
   );
@@ -475,6 +485,8 @@ function run() {
     [files.syncPushRoute, syncPushRoute],
     [files.syncPullApiStub, syncPullApiStub],
     [files.syncPullRoute, syncPullRoute],
+    [files.commentVersionReplayApiStub, commentVersionReplayApiStub],
+    [files.commentVersionReplayRoute, commentVersionReplayRoute],
     [files.cloudManifestCompareApiStub, cloudManifestCompareApiStub],
     [files.cloudManifestCompareRoute, cloudManifestCompareRoute],
     [files.cloudMigrationApplyApiStub, cloudMigrationApplyApiStub],
@@ -3281,6 +3293,12 @@ function run() {
         "buildSyncPullApiDisabledResponse",
         routeLabel
       );
+    } else if (stub.id === "comment-version-replay") {
+      assertRouteGuard(
+        routeFile,
+        "buildCommentVersionReplayApiDisabledResponse",
+        routeLabel
+      );
     } else if (stub.id === "cloud-manifest-compare") {
       assertRouteGuard(
         routeFile,
@@ -4982,6 +5000,174 @@ function run() {
     smokeTestVerifier,
     "buildSyncPullApiDisabledResponse",
     "Smoke tests must require the dedicated sync pull disabled response."
+  );
+  assertSourceIncludes(
+    files.apiStubs,
+    apiStubs,
+    'id: "comment-version-replay"',
+    "Web Beta API stubs must register the comment/version replay route."
+  );
+  assertSourceIncludes(
+    files.commentVersionReplayApiStub,
+    commentVersionReplayApiStub,
+    'format: "zhinote-comment-version-replay-api-disabled"',
+    "Comment/version replay API guard must expose a stable disabled response format."
+  );
+  assertSourceIncludes(
+    files.commentVersionReplayApiStub,
+    commentVersionReplayApiStub,
+    "buildCommentVersionReplayApiDisabledResponse",
+    "Comment/version replay API guard must expose a reusable disabled response builder."
+  );
+  for (const item of [
+    ['api_id: "comment-version-replay"', "Comment/version replay API guard must identify the replay route."],
+    ['path: "/api/sync/comment-version-replay"', "Comment/version replay API guard must bind to /api/sync/comment-version-replay."],
+    ['method: "POST"', "Comment/version replay API guard must document POST."],
+    ['stub_status: "disabled-local-stub"', "Comment/version replay API guard must stay disabled."],
+    ["can_replay_now: false", "Comment/version replay API guard must not replay now."],
+    ["can_read_request_body_now: false", "Comment/version replay API guard must not read request bodies."],
+    ["can_read_comment_bodies_now: false", "Comment/version replay API guard must not read comment bodies."],
+    ["can_read_version_snapshots_now: false", "Comment/version replay API guard must not read version snapshots."],
+    ["can_upload_workspace_data_now: false", "Comment/version replay API guard must not upload workspace data."],
+    ["can_write_server_data_now: false", "Comment/version replay API guard must not write server data."],
+    ["can_acknowledge_rows_now: false", "Comment/version replay API guard must not acknowledge rows."],
+    ["can_mark_local_rows_synced_now: false", "Comment/version replay API guard must not mutate local sync state."],
+    ["no_request_argument: true", "Comment/version replay route must not accept request arguments while disabled."],
+    ["endpoint_disabled: true", "Comment/version replay endpoint must remain disabled."],
+    ["reads_request_body: false", "Comment/version replay guard must not read request body."],
+    ["accepts_comment_body_payload: false", "Comment/version replay guard must reject comment body payloads."],
+    ["accepts_version_snapshot_payload: false", "Comment/version replay guard must reject version snapshots."],
+    ["accepts_page_body_payload: false", "Comment/version replay guard must reject page body payloads."],
+    ["reads_comment_bodies: false", "Comment/version replay guard must not read comment bodies."],
+    ["reads_version_snapshots: false", "Comment/version replay guard must not read version snapshots."],
+    ["reads_page_body_text: false", "Comment/version replay guard must not read page body text."],
+    ["writes_server_data: false", "Comment/version replay guard must not write server data."],
+    ["uploads_workspace_data: false", "Comment/version replay guard must not upload workspace data."],
+    ["acknowledges_sync_rows: false", "Comment/version replay guard must not acknowledge sync rows."],
+    ["mutates_local_sync_status: false", "Comment/version replay guard must not mutate local sync status."],
+    ["connects_cloud_services: false", "Comment/version replay guard must not connect cloud services."],
+    ["returns_comment_bodies: false", "Comment/version replay guard must not return comment bodies."],
+    ["returns_version_snapshots: false", "Comment/version replay guard must not return version snapshots."],
+    ["returns_page_body_text: false", "Comment/version replay guard must not return page text."],
+    ["returns_remote_rows: false", "Comment/version replay guard must not return remote rows."],
+    ["requires_owner_confirmation_before_replay: true", "Comment/version replay guard must require owner confirmation."],
+    ["requires_manifest_counts_before_ack: true", "Comment/version replay guard must require manifest counts before ack."],
+    ["requires_comment_manifest_count_before_ack: true", "Comment/version replay guard must require cloud.comments manifest counts."],
+    ["requires_page_versions_manifest_count_before_ack: true", "Comment/version replay guard must require cloud.page_versions manifest counts."],
+    ["requires_idempotency_before_enablement: true", "Comment/version replay guard must require idempotency."],
+    ["requires_retry_dead_letter_before_enablement: true", "Comment/version replay guard must require retry/dead-letter."],
+    ["requires_permission_check_before_enablement: true", "Comment/version replay guard must require permission checks."],
+    ["requires_audit_event_before_enablement: true", "Comment/version replay guard must require audit events."],
+    ["requires_rollback_proof_before_enablement: true", "Comment/version replay guard must require rollback proof."],
+    ['schema_status: "planned-owner-gated-row-id-only"', "Comment/version replay guard must expose owner-gated row-id-only request schema."],
+    ['schema_status: "planned-count-and-ack-receipt-only"', "Comment/version replay guard must expose count/ack response schema."],
+    ['format: "zhinote-comment-version-replay-api-validator-fixtures"', "Comment/version replay guard must include validator fixtures."],
+    ['validator_status: "not-executing-route"', "Comment/version replay validator must not execute the route."],
+    "forbidden_field_names",
+    "forbidden_fields_covered",
+    '"metadata-owner-gated-replay-request"',
+    '"comment-content-blocked"',
+    '"version-snapshot-blocked"',
+    '"ack-mutation-blocked"',
+    '"credential-fields-blocked"',
+    "owner_confirmation_receipt_id",
+    "comment_version_contract_id",
+    "sync_log_row_ids",
+    "cloud.comments",
+    "cloud.page_versions",
+    "comment_body",
+    "anchor_text",
+    "version_snapshot",
+    "content_text",
+    "content_yjs",
+    "page_body_text",
+    "raw_sync_log_payload",
+    "force_acknowledge",
+    "mark_synced",
+    "overwrite_cloud",
+    "delete_remote",
+    "token",
+    "cookie",
+    "secret_values",
+    '"owner-confirmation"',
+    '"workspace-membership"',
+    '"manifest-counts"',
+    '"idempotency"',
+    '"retry-dead-letter"',
+    '"permission-check"',
+    '"audit-event"',
+    '"rollback-proof"',
+  ]) {
+    const expected = Array.isArray(item) ? item[0] : item;
+    const message = Array.isArray(item)
+      ? item[1]
+      : "Comment/version replay API guard must preserve schema, fixtures, and enablement gates.";
+    assertSourceIncludes(
+      files.commentVersionReplayApiStub,
+      commentVersionReplayApiStub,
+      expected,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.commentVersionReplayRoute,
+    commentVersionReplayRoute,
+    "buildCommentVersionReplayApiDisabledResponse",
+    "Comment/version replay route must return the dedicated disabled response."
+  );
+  assertSourceIncludes(
+    files.commentVersionReplayRoute,
+    commentVersionReplayRoute,
+    "WEB_BETA_API_STUB_HTTP_STATUS",
+    "Comment/version replay route must keep the disabled Web Beta HTTP status."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildCommentVersionReplayApiDisabledResponse",
+    "Sync UI must build the comment/version replay API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportCommentVersionReplayApiGuard",
+    "Sync UI must export the comment/version replay API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "评论 / 版本回放 API 防护",
+    "Sync UI must render the comment/version replay API guard panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "导出评论/版本回放防护",
+    "Sync UI must render the comment/version replay API guard export button."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "commentVersionReplayApiGuard.can_read_comment_bodies_now",
+    "Sync UI must render the disabled comment body read state."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "commentVersionReplayApiGuard.boundary\n                  .requires_manifest_counts_before_ack",
+    "Sync UI must render the manifest count gate."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "fixtures={\n              commentVersionReplayApiGuard.local_validator_report.fixtures",
+    "Sync UI must render comment/version replay validator fixtures."
+  );
+  assertSourceIncludes(
+    files.smokeTestVerifier,
+    smokeTestVerifier,
+    "buildCommentVersionReplayApiDisabledResponse",
+    "Smoke tests must require the dedicated comment/version replay disabled response."
   );
   assertSourceIncludes(
     files.accountSessionBoundary,
