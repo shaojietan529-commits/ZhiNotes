@@ -231,9 +231,12 @@ check(
 check(
   pageUpdateBus.includes("PageUpdatePayload") &&
     accountPageSync.includes("toPageUpdatePayloads") &&
+    accountPageSync.includes("toPageUpdatePayloads(pulledPages)") &&
     usePagesHook.includes("message.pages?.length") &&
-    usePagesHook.includes("upsertPages(message.pages.map(remoteMetadataToPage))"),
-  "页面多端同步事件必须携带轻量 metadata payload，其他 tab 不能只靠全量重读本地 pages"
+    usePagesHook.includes('if (message.reason === "cloud-pull" && message.pages?.length)') &&
+    usePagesHook.includes("upsertPages(message.pages.map(remoteMetadataToPage))") &&
+    !usePagesHook.includes("!includeContent &&\n        message.reason === \"cloud-pull\""),
+  "页面多端同步事件必须携带轻量 metadata payload；includeContent 模块收到 payload 也不能全量重读正文"
 );
 check(
   pagePeekModal.includes("getPageMetadata") &&

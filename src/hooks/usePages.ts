@@ -210,11 +210,7 @@ export function usePages(options: UsePagesOptions = {}) {
     if (!dbReady) return;
     let timer: number | null = null;
     const unsubscribe = subscribePagesUpdated((message: PageUpdateMessage) => {
-      if (
-        !includeContent &&
-        message.reason === "cloud-pull" &&
-        message.pages?.length
-      ) {
+      if (message.reason === "cloud-pull" && message.pages?.length) {
         upsertPages(message.pages.map(remoteMetadataToPage));
         return;
       }

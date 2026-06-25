@@ -330,9 +330,12 @@ check(
 check(
   pageSyncClient.includes("emitPagesUpdated(") &&
     pageSyncClient.includes("toPageUpdatePayloads(changes.pages)") &&
+    pageSyncClient.includes("toPageUpdatePayloads(pages)") &&
+    pageSyncClient.includes("const pulledPages: RemotePageRecord[] = []") &&
+    pageSyncClient.includes("toPageUpdatePayloads(pulledPages)") &&
     pageSyncClient.indexOf("toPageUpdatePayloads(changes.pages)") >
       pageSyncClient.indexOf("const changes = await fetchCloudPageChangesSince"),
-  "增量拉取后的跨 tab 通知必须携带轻量页面 metadata，其他 tab 不能因只收到数量而全量刷新"
+  "云端拉取后的跨 tab 通知必须携带轻量页面 metadata，其他 tab 不能因只收到数量而全量刷新"
 );
 check(
   pageSyncClient.includes("PENDING_PUSH_IDS_KEY") &&
@@ -656,9 +659,9 @@ check(
   "页面云同步 hook 不应在每次云端拉取后再触发 usePages 或监听整个 pages store；本地写入走防抖上传队列，后台同步只做拉取和失败兜底"
 );
 check(
-  pageSyncClient.includes("emitPagesUpdated(\"cloud-pull\", pulled || repaired)") &&
+  pageSyncClient.includes("pulledPages.length > 0 ? toPageUpdatePayloads(pulledPages) : undefined") &&
     pageSyncClient.includes("pullIncrementalCloudChanges"),
-  "页面同步客户端应在增量/修复写入本机缓存后广播页面更新，而不是让同步 hook 再读一遍页面列表"
+  "页面同步客户端应在增量/修复写入本机缓存后优先广播轻量页面 payload，而不是让同步 hook 再读一遍页面列表"
 );
 check(
   pageSyncClient.includes("DAILY_IMPORT_REPAIR_SIGNATURE_KEY") &&

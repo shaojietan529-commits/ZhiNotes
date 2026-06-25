@@ -286,7 +286,7 @@ export async function pullCloudPagesByIds(
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
     }
-    emitPagesUpdated("cloud-pull", pages.length);
+    emitPagesUpdated("cloud-pull", pages.length, toPageUpdatePayloads(pages));
   }
   return { status: "ok", pulled: pages.length };
 }
@@ -806,16 +806,19 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
   }
 
   let pulled = 0;
+  const pulledPages: RemotePageRecord[] = [];
   let failed = 0;
   let failedReason: string | undefined;
   try {
     await applyRemotePageMetadata(pages);
     pulled = pages.length;
+    pulledPages.push(...pages);
   } catch {
     for (const page of pages) {
       try {
         await applyRemotePageMetadata([page]);
         pulled += 1;
+        pulledPages.push(page);
       } catch (error) {
         failed += 1;
         if (!failedReason) {
@@ -830,7 +833,7 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
     window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
   }
   if (pulled > 0) {
-    emitPagesUpdated("cloud-pull", pulled);
+    emitPagesUpdated("cloud-pull", pulled, toPageUpdatePayloads(pulledPages));
   }
 
   return {
@@ -1570,6 +1573,7 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
   const ids = Object.keys(index).filter(isValidRemotePageId);
   let cleared = 0;
   let pulled = 0;
+  const pulledPages: RemotePageRecord[] = [];
   clearAllPendingCloudPushesForCacheRebuild();
   clearPageSyncRuntimeCachesForCacheRebuild();
   const prune = await clearLocalPageCacheExceptIds(ids);
@@ -1597,6 +1601,7 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
     if (pages.length > 0) {
       await applyRemotePages(pages);
       pulled += pages.length;
+      pulledPages.push(...pages);
     }
   }
 
@@ -1609,7 +1614,11 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
   setRemoteCursor(summary.cursor);
   setLastPageSyncAtNow();
   if (pulled > 0 || cleared > 0 || repaired > 0) {
-    emitPagesUpdated("cloud-pull", pulled || cleared || repaired);
+    emitPagesUpdated(
+      "cloud-pull",
+      pulled || cleared || repaired,
+      pulledPages.length > 0 ? toPageUpdatePayloads(pulledPages) : undefined
+    );
   }
 
   return {
@@ -1777,6 +1786,7 @@ export async function reconcilePageSync(
     const localById = new Map(local.map((p) => [p.id, p]));
 
     const toPull: string[] = [];
+    const pulledPages: RemotePageRecord[] = [];
     for (const [id, entry] of Object.entries(index)) {
       const mine = localById.get(id);
       if (!mine || entry.u > mine.updated_at) toPull.push(id);
@@ -1802,6 +1812,7 @@ export async function reconcilePageSync(
       if (pages.length > 0) {
         await applyRemotePages(pages);
         pulled += pages.length;
+        pulledPages.push(...pages);
       }
     }
 
@@ -1838,7 +1849,11 @@ export async function reconcilePageSync(
       window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
     }
     if (pulled > 0 || repaired > 0) {
-      emitPagesUpdated("cloud-pull", pulled || repaired);
+      emitPagesUpdated(
+        "cloud-pull",
+        pulled || repaired,
+        pulledPages.length > 0 ? toPageUpdatePayloads(pulledPages) : undefined
+      );
     }
     return { status: "ok", pulled, pushed, repaired };
   } finally {
