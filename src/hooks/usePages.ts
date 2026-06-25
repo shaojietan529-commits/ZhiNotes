@@ -75,6 +75,18 @@ function loadPagesSnapshot(includeContent: boolean): Promise<Page[]> {
   return promise;
 }
 
+function mergeMetadataForCount(base: Page[], incoming: Page[]): Page[] {
+  const byId = new Map(base.map((page) => [page.id, page]));
+  for (const page of incoming) {
+    if (page.deleted_at) {
+      byId.delete(page.id);
+    } else {
+      byId.set(page.id, page);
+    }
+  }
+  return [...byId.values()];
+}
+
 export function usePages(options: UsePagesOptions = {}) {
   const includeContent = options.includeContent ?? false;
   const autoLoad = options.autoLoad ?? true;
@@ -87,34 +99,88 @@ export function usePages(options: UsePagesOptions = {}) {
     if (!dbReady) return;
     let all: Page[] = [];
     let localSnapshotLoaded = false;
-    try {
-      all = await loadPagesSnapshot(includeContent);
-      localSnapshotLoaded = true;
-      setPages(all);
-    } catch {
-      // The browser database is only a rebuildable cache. If it cannot be
-      // read, keep the workspace usable by falling back to cloud metadata.
-    }
+    let cloudPages: Page[] = [];
+    let cloudSnapshotAuthoritative = false;
 
-    const needsCloudCoverageRecovery = all.length === 0 || !localSnapshotLoaded;
-    if (!includeContent || !localSnapshotLoaded) {
+    if (!includeContent) {
       try {
         const cloud = await syncCloudPageMetadataDelta({
-          force: needsCloudCoverageRecovery,
-          requireLocalCacheCoverage: needsCloudCoverageRecovery,
+          force: false,
+          requireLocalCacheCoverage: false,
         });
-        if (cloud.status === "ok" && cloud.pages.length > 0) {
-          const cloudPages = cloud.pages.map(remoteMetadataToPage);
-          if (localSnapshotLoaded) {
-            upsertPages(cloudPages);
-          } else {
+        if (cloud.status === "ok") {
+          cloudPages = cloud.pages.map(remoteMetadataToPage);
+          if (cloud.fullRefresh) {
             all = cloudPages;
+            cloudSnapshotAuthoritative = true;
             setPages(cloudPages);
           }
         }
       } catch {
-        // Local pages are already visible when available. Cloud metadata
-        // refresh is best effort and should never block the current view.
+        // Cloud metadata refresh is best effort. If the network or auth layer
+        // is unavailable, the local browser cache below remains the fallback.
+      }
+    }
+
+    if (!cloudSnapshotAuthoritative) {
+      try {
+        all = await loadPagesSnapshot(includeContent);
+        localSnapshotLoaded = true;
+        setPages(all);
+      } catch {
+        // The browser database is only a rebuildable cache. If it cannot be
+        // read, keep the workspace usable by falling back to cloud metadata.
+      }
+
+      if (!includeContent && cloudPages.length > 0) {
+        if (localSnapshotLoaded) {
+          upsertPages(cloudPages);
+          all = mergeMetadataForCount(all, cloudPages);
+        } else {
+          all = cloudPages;
+          setPages(cloudPages);
+        }
+      }
+    }
+
+    const needsCloudCoverageRecovery =
+      !includeContent &&
+      !cloudSnapshotAuthoritative &&
+      (!localSnapshotLoaded || all.length === 0);
+    if (needsCloudCoverageRecovery) {
+      try {
+        const cloud = await syncCloudPageMetadataDelta({
+          force: true,
+          requireLocalCacheCoverage: true,
+        });
+        if (
+          cloud.status === "ok" &&
+          (cloud.fullRefresh || cloud.pages.length > 0)
+        ) {
+          const cloudPages = cloud.pages.map(remoteMetadataToPage);
+          all = cloudPages;
+          setPages(cloudPages);
+        }
+      } catch {
+        // If both cloud and local cache are unavailable, keep the existing
+        // in-memory workspace instead of blocking navigation.
+      }
+    }
+
+    if (includeContent && !localSnapshotLoaded) {
+      try {
+        const cloud = await syncCloudPageMetadataDelta({
+          force: true,
+          requireLocalCacheCoverage: true,
+        });
+        if (cloud.status === "ok" && cloud.pages.length > 0) {
+          const cloudPages = cloud.pages.map(remoteMetadataToPage);
+          all = cloudPages;
+          setPages(cloudPages);
+        }
+      } catch {
+        // Include-content callers still get metadata when the rebuildable
+        // browser database is temporarily unavailable.
       }
     }
 

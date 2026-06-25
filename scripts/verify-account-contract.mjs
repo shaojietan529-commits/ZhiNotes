@@ -414,16 +414,20 @@ const pageImportPlanPanel = read("src/components/modules/PageImportPlanPanel.tsx
 check(
   usePagesHook.includes("syncCloudPageMetadataDelta") &&
     usePagesHook.includes("setPages(all);") &&
-    usePagesHook.includes("const needsCloudCoverageRecovery = all.length === 0 || !localSnapshotLoaded") &&
-    usePagesHook.includes("force: needsCloudCoverageRecovery") &&
-    usePagesHook.includes("requireLocalCacheCoverage: needsCloudCoverageRecovery") &&
+    usePagesHook.includes("force: false") &&
+    usePagesHook.includes("requireLocalCacheCoverage: false") &&
+    usePagesHook.includes("const needsCloudCoverageRecovery =") &&
+    usePagesHook.includes("!cloudSnapshotAuthoritative") &&
+    usePagesHook.includes("(!localSnapshotLoaded || all.length === 0)") &&
+    usePagesHook.includes("force: true") &&
+    usePagesHook.includes("requireLocalCacheCoverage: true") &&
     usePagesHook.includes("localSnapshotLoaded") &&
     !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
     usePagesHook.includes("The browser database is only a rebuildable cache") &&
     usePagesHook.includes("setPages(cloudPages)") &&
-    usePagesHook.includes("refresh is best effort") &&
+    usePagesHook.includes("Cloud metadata refresh is best effort") &&
     !usePagesHook.includes("fetchCloudPageMetadata"),
-  "usePages 应先显示本地页面列表；本地缓存空/坏时可强制检查云端 metadata，但必须先让同步引擎从本地 cursor/summary 尝试增量恢复"
+  "usePages 应先走云端 metadata 增量，再用本地缓存兜底；只有缓存不可读且没有权威云端快照时才做覆盖恢复"
 );
 check(
   usePagesHook.includes("autoLoad?: boolean") &&

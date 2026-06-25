@@ -212,13 +212,17 @@ check(
     usePagesHook.includes("const cloudPages = cloud.pages.map(remoteMetadataToPage)") &&
     usePagesHook.includes("upsertPages(cloudPages)") &&
     usePagesHook.includes("setPages(cloudPages)") &&
-    usePagesHook.includes("const needsCloudCoverageRecovery = all.length === 0 || !localSnapshotLoaded") &&
-    usePagesHook.includes("force: needsCloudCoverageRecovery") &&
-    usePagesHook.includes("requireLocalCacheCoverage: needsCloudCoverageRecovery") &&
+    usePagesHook.includes("force: false") &&
+    usePagesHook.includes("requireLocalCacheCoverage: false") &&
+    usePagesHook.includes("const needsCloudCoverageRecovery =") &&
+    usePagesHook.includes("!cloudSnapshotAuthoritative") &&
+    usePagesHook.includes("(!localSnapshotLoaded || all.length === 0)") &&
+    usePagesHook.includes("force: true") &&
+    usePagesHook.includes("requireLocalCacheCoverage: true") &&
     !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
     !usePagesHook.includes("applyRemotePageMetadata") &&
     usePagesHook.includes("autoLoad?: boolean"),
-  "usePages 云端 metadata delta 必须直接合并到 store，并让同步引擎先尝试从本地 cursor 接续增量，不能本地列表为空就强制全量 pages"
+  "usePages 云端 metadata delta 必须优先合并到 store；本地缓存只做兜底，不能因为列表暂空就反复全量拉 pages"
 );
 check(
   pageUpdateBus.includes("PageUpdatePayload") &&

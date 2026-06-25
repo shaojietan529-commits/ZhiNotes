@@ -93,6 +93,12 @@ export default function DailyNotesShell() {
     }
   }, [router]);
 
+  useEffect(() => {
+    return scheduleDailyIdleTask(() => {
+      void import("@/components/page/PagePeekModal");
+    }, 900);
+  }, []);
+
   const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
     const includeCloud = opts?.includeCloud !== false;
     const requestId = loadRequestRef.current + 1;
@@ -174,22 +180,24 @@ export default function DailyNotesShell() {
     const dailyNotes = collectDailyNotes(localMetadata, dailyRootId);
     for (const note of dailyNotes) byId.set(note.id, note);
     publishNotes(Array.from(byId.values()));
-    void ensureDailyDateIndexBackfilled()
-      .then(async () => {
-        if (loadRequestRef.current !== requestId) return;
-        const refreshed = await listDailyPageMetadataForCalendar({
-          rootId: dailyRootId,
-          startDate,
-          endDate,
-          recentLimit: 12,
-        });
-        const nextById = new Map(byId);
-        for (const note of collectDailyNotes(refreshed, dailyRootId)) {
-          nextById.set(note.id, note);
-        }
-        publishNotes(Array.from(nextById.values()));
-      })
-      .catch(() => undefined);
+    scheduleDailyIdleTask(() => {
+      void ensureDailyDateIndexBackfilled()
+        .then(async () => {
+          if (loadRequestRef.current !== requestId) return;
+          const refreshed = await listDailyPageMetadataForCalendar({
+            rootId: dailyRootId,
+            startDate,
+            endDate,
+            recentLimit: 12,
+          });
+          const nextById = new Map(byId);
+          for (const note of collectDailyNotes(refreshed, dailyRootId)) {
+            nextById.set(note.id, note);
+          }
+          publishNotes(Array.from(nextById.values()));
+        })
+        .catch(() => undefined);
+    }, 1200);
 
     if (includeCloud) {
       setCloudLoading(true);
@@ -785,6 +793,23 @@ function waitForDailyBackfillIdle(): Promise<void> {
     }
     window.setTimeout(resolve, 80);
   });
+}
+
+function scheduleDailyIdleTask(callback: () => void, timeout = 500): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
+    const idleId = maybeWindow.requestIdleCallback(callback, { timeout });
+    return () => maybeWindow.cancelIdleCallback?.(idleId);
+  }
+  const timer = window.setTimeout(callback, Math.min(timeout, 160));
+  return () => window.clearTimeout(timer);
 }
 
 function collectDailyNotes(
