@@ -73,6 +73,7 @@ const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
 const pendingPageDrafts = read("src/lib/pages/pendingPageDrafts.ts");
 const sidebarSource = read("src/components/sidebar/Sidebar.tsx");
+const quickSearchSource = read("src/components/sidebar/QuickSearch.tsx");
 const favoritePagesSource = read("src/components/sidebar/FavoritePages.tsx");
 const trashPagesSource = read("src/components/sidebar/TrashPages.tsx");
 const pageTreeSource = read("src/components/sidebar/PageTree.tsx");
@@ -204,12 +205,15 @@ check(
 check(
   !sidebarSource.includes("usePages") &&
     sidebarSource.includes("upsertPages([page])") &&
+    !quickSearchSource.includes("const { pages, refresh } = usePages()") &&
+    quickSearchSource.includes("const pages = useWorkspaceStore((s) => s.pages)") &&
+    quickSearchSource.includes("usePages({ autoLoad: false })") &&
     !favoritePagesSource.includes("usePages") &&
     favoritePagesSource.includes("useWorkspaceStore((s) => s.pages)") &&
     !trashPagesSource.includes("usePages") &&
     trashPagesSource.includes("activePageCount") &&
     trashPagesSource.includes("upsertPages([restored])"),
-  "Sidebar/FavoritePages/TrashPages 不应各自挂 usePages 触发重复全量页面 metadata 刷新"
+  "Sidebar/QuickSearch/FavoritePages/TrashPages 不应各自挂 usePages 触发重复全量页面 metadata 刷新"
 );
 check(
     usePagesHook.includes("const cloudPages = cloud.pages.map(remoteMetadataToPage)") &&

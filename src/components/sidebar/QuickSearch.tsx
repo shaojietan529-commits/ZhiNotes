@@ -88,7 +88,8 @@ export default function QuickSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRequestRef = useRef(0);
   const router = useRouter();
-  const { pages, refresh } = usePages();
+  const pages = useWorkspaceStore((s) => s.pages);
+  const { refresh } = usePages({ autoLoad: false });
   const { favoriteIds } = usePageFavorites();
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
 
@@ -132,6 +133,11 @@ export default function QuickSearch() {
       void refreshDatabases({ broadcast: false });
     }
   }, [open, refreshDatabases]);
+
+  useEffect(() => {
+    if (!open || pages.length > 0) return;
+    void refresh({ broadcast: false });
+  }, [open, pages.length, refresh]);
 
   const handleSearch = useCallback(async (value: string) => {
     const requestId = searchRequestRef.current + 1;
