@@ -39,6 +39,12 @@ import {
   getLocalPerformanceNow,
   recordLocalPerformanceSnapshot,
 } from "@/lib/performance/localPerformance";
+import {
+  dailyHotCacheSnapshotPageToPage,
+  readDailyHotCacheSnapshot,
+  writeDailyHotCacheSnapshot,
+  type DailyHotCacheSnapshot,
+} from "@/lib/sync/dailyHotCacheSnapshot";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import PagePeekModal from "@/components/page/PagePeekModal";
@@ -46,7 +52,11 @@ import type { Page } from "@/lib/utils/types";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-type DailyNote = Page & { dailyDateKey?: string; cloudOnly?: boolean };
+type DailyNote = Page & {
+  dailyDateKey?: string;
+  cloudOnly?: boolean;
+  hotCacheOnly?: boolean;
+};
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 const MONTH_LABELS = [
@@ -129,6 +139,7 @@ export default function DailyNotesShell() {
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
     const byId = new Map<string, DailyNote>();
+    const cachedHotSnapshot = readDailyHotCacheSnapshot(startDate, endDate);
     const cachedCloud = includeCloud
       ? readCachedDailyCloudMetadata(startDate, endDate)
       : null;
@@ -195,6 +206,16 @@ export default function DailyNotesShell() {
       setRootId(id);
     };
 
+    if (cachedHotSnapshot) {
+      const merged = mergeDailyHotCacheSnapshot(byId, cachedHotSnapshot);
+      if (merged > 0) {
+        publishNotes(Array.from(byId.values()));
+        publishNotice(
+          `已先显示本机热缓存 ${merged} 条每日纪要 metadata，正在后台校正本地和云端主库…`
+        );
+      }
+    }
+
     if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
       rememberModuleRootId("daily", cachedCloud.rootId);
       publishRootId(cachedCloud.rootId);
@@ -252,6 +273,13 @@ export default function DailyNotesShell() {
     localNoteCount = dailyNotes.length;
     for (const note of dailyNotes) byId.set(note.id, note);
     publishNotes(Array.from(byId.values()));
+    writeDailyHotCacheSnapshot({
+      startDate,
+      endDate,
+      rootId: dailyRootId,
+      pages: Array.from(byId.values()),
+      source: "local-metadata",
+    });
     if (!includeCloud) {
       recordDailyPerformance("local-refresh", {
         local_pages: localMetadata.length,
@@ -293,6 +321,13 @@ export default function DailyNotesShell() {
           const merged = mergeCloudDailyNotes(byId, cloud);
           publishNotes(Array.from(byId.values()));
           writeCachedDailyCloudMetadata(startDate, endDate, cloud);
+          writeDailyHotCacheSnapshot({
+            startDate,
+            endDate,
+            rootId: cloud.rootId,
+            pages: Array.from(byId.values()),
+            source: "cloud-metadata",
+          });
           void persistDailyCloudMetadata(cloud, upsertPages);
           recordDailyPerformance("cloud-ok", {
             cloud_pages: cloud.pages.length,
@@ -1014,6 +1049,23 @@ function mergeCloudDailyNotes(
       byId.set(note.id, note);
       merged += 1;
     }
+  }
+  return merged;
+}
+
+function mergeDailyHotCacheSnapshot(
+  byId: Map<string, DailyNote>,
+  snapshot: DailyHotCacheSnapshot
+): number {
+  let merged = 0;
+  for (const page of snapshot.pages) {
+    if (byId.has(page.id)) continue;
+    byId.set(page.id, {
+      ...dailyHotCacheSnapshotPageToPage(page),
+      dailyDateKey: page.daily_date_key,
+      hotCacheOnly: true,
+    });
+    merged += 1;
   }
   return merged;
 }

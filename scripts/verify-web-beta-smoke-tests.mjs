@@ -15,6 +15,7 @@ const files = {
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
+  dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
@@ -201,6 +202,7 @@ function run() {
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
   const hotCacheLocalIndex = readProjectFile(files.hotCacheLocalIndex);
+  const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
   const hotCacheSelectionSettings = readProjectFile(
     files.hotCacheSelectionSettings
   );
@@ -745,6 +747,69 @@ function run() {
       );
     }
   }
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    'format: "zhinote-daily-hot-cache-snapshot"',
+    "Smoke verifier must keep the daily hot cache snapshot format."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    'route_target: "/daily"',
+    "Daily hot cache snapshot must stay scoped to the daily route."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "records_metadata_only: true",
+    "Daily hot cache snapshot must stay metadata-only."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "enters_sync_log: false",
+    "Daily hot cache snapshot must not enter the upload queue."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "window.localStorage.setItem",
+    "Daily hot cache snapshot must stay a local browser cache."
+  );
+  for (const forbiddenDailySnapshotSnippet of [
+    "page.content_text",
+    "page.content_yjs",
+    "comment.body",
+    "field_values",
+    "fetch(",
+    "recordSyncChange",
+    "INSERT INTO sync_log",
+  ]) {
+    if (dailyHotCacheSnapshot.includes(forbiddenDailySnapshotSnippet)) {
+      failures.push(
+        `${files.dailyHotCacheSnapshot} must not include ${forbiddenDailySnapshotSnippet}: daily hot cache snapshot must stay metadata-only and local-only.`
+      );
+    }
+  }
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "readDailyHotCacheSnapshot",
+    "Daily notes must read a local hot cache snapshot before slower cache/cloud checks."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "writeDailyHotCacheSnapshot",
+    "Daily notes must refresh the local hot cache snapshot after metadata loads."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "已先显示本机热缓存",
+    "Daily notes must surface the local hot cache first-paint path."
+  );
   assertIncludes(
     files.syncShell,
     syncShell,

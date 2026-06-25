@@ -73,6 +73,7 @@ const files = {
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
+  dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
@@ -85,6 +86,7 @@ const files = {
   databaseShell: "src/components/database/DatabaseShell.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
+  dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
   pageRouteSkeleton: "src/components/page/PageRouteSkeleton.tsx",
@@ -336,6 +338,7 @@ function run() {
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
   const hotCacheLocalIndex = readProjectFile(files.hotCacheLocalIndex);
+  const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
   const hotCacheSelectionSettings = readProjectFile(
     files.hotCacheSelectionSettings
   );
@@ -350,6 +353,7 @@ function run() {
   const databaseShell = readProjectFile(files.databaseShell);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const syncShell = readProjectFile(files.syncShell);
+  const dailyNotesShell = readProjectFile(files.dailyNotesShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
   const pageRouteSkeleton = readProjectFile(files.pageRouteSkeleton);
@@ -1129,6 +1133,96 @@ function run() {
     ],
   ]) {
     assertSourceExcludes(files.hotCacheLocalIndex, hotCacheLocalIndex, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-daily-hot-cache-snapshot"',
+      "Daily hot cache snapshot must expose a stable local snapshot format.",
+    ],
+    [
+      'route_target: "/daily"',
+      "Daily hot cache snapshot must stay scoped to the daily route.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Daily hot cache snapshot must align to cloud master plus local hot cache.",
+    ],
+    [
+      "window.localStorage.setItem",
+      "Daily hot cache snapshot must be a local browser cache.",
+    ],
+    [
+      "enters_sync_log: false",
+      "Daily hot cache snapshot must not enter the upload queue.",
+    ],
+    [
+      "stores_source_of_truth: false",
+      "Daily hot cache snapshot must not become the source of truth.",
+    ],
+    [
+      "records_metadata_only: true",
+      "Daily hot cache snapshot must remain metadata-only.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.dailyHotCacheSnapshot,
+      dailyHotCacheSnapshot,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Daily hot cache snapshot must not read page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Daily hot cache snapshot must not read page Yjs content.",
+    ],
+    [
+      "comment.body",
+      "Daily hot cache snapshot must not access comment bodies.",
+    ],
+    [
+      "field_values",
+      "Daily hot cache snapshot must not access database row values.",
+    ],
+    [
+      "fetch(",
+      "Daily hot cache snapshot must not call network APIs.",
+    ],
+    [
+      "recordSyncChange",
+      "Daily hot cache snapshot must not call the pending upload logger.",
+    ],
+    [
+      "INSERT INTO sync_log",
+      "Daily hot cache snapshot must not write pending upload rows.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.dailyHotCacheSnapshot,
+      dailyHotCacheSnapshot,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "readDailyHotCacheSnapshot",
+      "Daily notes must read the local hot cache snapshot before slower cache/cloud checks.",
+    ],
+    [
+      "writeDailyHotCacheSnapshot",
+      "Daily notes must refresh the local hot cache snapshot after metadata loads.",
+    ],
+    [
+      "已先显示本机热缓存",
+      "Daily notes must surface the local hot cache first-paint path.",
+    ],
+  ]) {
+    assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }
   for (const [snippet, message] of [
     [
