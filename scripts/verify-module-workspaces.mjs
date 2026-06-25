@@ -219,10 +219,14 @@ check(
     usePagesHook.includes("(!localSnapshotLoaded || all.length === 0)") &&
     usePagesHook.includes("force: true") &&
     usePagesHook.includes("requireLocalCacheCoverage: true") &&
+    usePagesHook.includes("cloudSnapshotAuthoritative = !includeContent") &&
+    usePagesHook.includes("includeContent && !localSnapshotLoaded && all.length === 0") &&
+    usePagesHook.indexOf("syncCloudPageMetadataDelta") <
+      usePagesHook.indexOf("loadPagesSnapshot(includeContent)") &&
     !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
     !usePagesHook.includes("applyRemotePageMetadata") &&
     usePagesHook.includes("autoLoad?: boolean"),
-  "usePages 云端 metadata delta 必须优先合并到 store；本地缓存只做兜底，不能因为列表暂空就反复全量拉 pages"
+  "usePages 云端 metadata delta 必须优先合并到 store；includeContent 模块也不能先等本地全量正文，本地缓存只做兜底"
 );
 check(
   pageUpdateBus.includes("PageUpdatePayload") &&

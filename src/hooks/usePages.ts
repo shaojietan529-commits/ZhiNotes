@@ -81,7 +81,18 @@ function mergeMetadataForCount(base: Page[], incoming: Page[]): Page[] {
     if (page.deleted_at) {
       byId.delete(page.id);
     } else {
-      byId.set(page.id, page);
+      const existing = byId.get(page.id);
+      byId.set(page.id, {
+        ...page,
+        content_text:
+          page.content_text === null && existing?.content_text !== null
+            ? existing?.content_text ?? null
+            : page.content_text,
+        content_yjs:
+          page.content_yjs === null && existing?.content_yjs !== null
+            ? existing?.content_yjs ?? null
+            : page.content_yjs,
+      });
     }
   }
   return [...byId.values()];
@@ -102,24 +113,24 @@ export function usePages(options: UsePagesOptions = {}) {
     let cloudPages: Page[] = [];
     let cloudSnapshotAuthoritative = false;
 
-    if (!includeContent) {
-      try {
-        const cloud = await syncCloudPageMetadataDelta({
-          force: false,
-          requireLocalCacheCoverage: false,
-        });
-        if (cloud.status === "ok") {
-          cloudPages = cloud.pages.map(remoteMetadataToPage);
-          if (cloud.fullRefresh) {
-            all = cloudPages;
-            cloudSnapshotAuthoritative = true;
-            setPages(cloudPages);
-          }
+    try {
+      const cloud = await syncCloudPageMetadataDelta({
+        force: false,
+        requireLocalCacheCoverage: false,
+      });
+      if (cloud.status === "ok") {
+        cloudPages = cloud.pages.map(remoteMetadataToPage);
+        if (cloud.fullRefresh) {
+          all = cloudPages;
+          cloudSnapshotAuthoritative = !includeContent;
+          setPages(cloudPages);
+        } else if (cloudPages.length > 0) {
+          upsertPages(cloudPages);
         }
-      } catch {
-        // Cloud metadata refresh is best effort. If the network or auth layer
-        // is unavailable, the local browser cache below remains the fallback.
       }
+    } catch {
+      // Cloud metadata refresh is best effort. If the network or auth layer
+      // is unavailable, the local browser cache below remains the fallback.
     }
 
     if (!cloudSnapshotAuthoritative) {
@@ -132,7 +143,7 @@ export function usePages(options: UsePagesOptions = {}) {
         // read, keep the workspace usable by falling back to cloud metadata.
       }
 
-      if (!includeContent && cloudPages.length > 0) {
+      if (cloudPages.length > 0) {
         if (localSnapshotLoaded) {
           upsertPages(cloudPages);
           all = mergeMetadataForCount(all, cloudPages);
@@ -167,7 +178,7 @@ export function usePages(options: UsePagesOptions = {}) {
       }
     }
 
-    if (includeContent && !localSnapshotLoaded) {
+    if (includeContent && !localSnapshotLoaded && all.length === 0) {
       try {
         const cloud = await syncCloudPageMetadataDelta({
           force: true,

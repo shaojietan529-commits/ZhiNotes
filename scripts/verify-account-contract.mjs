@@ -426,8 +426,12 @@ check(
     usePagesHook.includes("The browser database is only a rebuildable cache") &&
     usePagesHook.includes("setPages(cloudPages)") &&
     usePagesHook.includes("Cloud metadata refresh is best effort") &&
+    usePagesHook.includes("cloudSnapshotAuthoritative = !includeContent") &&
+    usePagesHook.includes("includeContent && !localSnapshotLoaded && all.length === 0") &&
+    usePagesHook.indexOf("syncCloudPageMetadataDelta") <
+      usePagesHook.indexOf("loadPagesSnapshot(includeContent)") &&
     !usePagesHook.includes("fetchCloudPageMetadata"),
-  "usePages 应先走云端 metadata 增量，再用本地缓存兜底；只有缓存不可读且没有权威云端快照时才做覆盖恢复"
+  "usePages 应先走云端 metadata 增量，再用本地缓存兜底；includeContent 也不能先等本地全量正文，只有缓存不可读且没有权威云端快照时才做覆盖恢复"
 );
 check(
   usePagesHook.includes("autoLoad?: boolean") &&
