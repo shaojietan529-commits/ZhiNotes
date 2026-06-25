@@ -382,20 +382,25 @@ check(
 );
 check(
   pageSyncClient.includes("readSyncStorage(PENDING_PUSH_IDS_KEY)") &&
+    pageSyncClient.includes("readSyncStorage(PENDING_PUSH_META_KEY)") &&
     !pageSyncClient.includes("zhinote.pagesync.pendingPushRecords"),
-  "待上传重试队列只能保存 page id，不能把页面正文复制进 localStorage"
+  "待上传重试队列只能保存 page id 和排队时间，不能把页面正文复制进 localStorage"
 );
 check(
   pageSyncClient.includes("export interface PendingCloudPageSyncStatus") &&
     pageSyncClient.includes("export function getPendingCloudPageSyncStatus") &&
-    pageSyncClient.includes("pending: getPendingCloudPushIds().length") &&
+    pageSyncClient.includes("pending: pendingIds.length") &&
     pageSyncClient.includes("queued: queuedCloudPush.size") &&
+    pageSyncClient.includes("oldestPendingQueuedAt") &&
+    pageSyncClient.includes("pendingSampleIds: pendingIds.slice(0, 5)") &&
     pageSyncClient.includes("lastSyncAt: getLastPageSyncAt()"),
-  "页面同步客户端应暴露只读 pending 上传状态，供同步页展示和补传前后对账"
+  "页面同步客户端应暴露只读 pending 上传状态、最早排队时间和样本 id，供同步页展示和补传前后对账"
 );
 check(
   syncDashboardShell.includes("页面 pending 上传队列") &&
-    syncDashboardShell.includes("只保存 page id，不保存页面正文") &&
+    syncDashboardShell.includes("只保存 page id 和排队时间，不保存页面正文") &&
+    syncDashboardShell.includes("最早排队") &&
+    syncDashboardShell.includes("样本 page id") &&
     syncDashboardShell.includes("补传页面队列") &&
     syncDashboardShell.includes("reconcilePageSync({ quick: true })") &&
     syncDashboardShell.includes("普通同步只会补传 pending queue 里的页面"),

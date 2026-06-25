@@ -8025,7 +8025,7 @@ function SyncDashboard() {
                     页面 pending 上传队列
                   </h3>
                   <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                    只保存 page id，不保存页面正文；失败、未登录或网络断开时会保留待重试。
+                    只保存 page id 和排队时间，不保存页面正文；失败、未登录或网络断开时会保留待重试。
                   </p>
                 </div>
                 <button
@@ -8039,7 +8039,7 @@ function SyncDashboard() {
                     : "补传页面队列"}
                 </button>
               </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <div className="mt-3 grid gap-2 sm:grid-cols-4">
                 <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
                   <div className="text-[11px] uppercase text-zinc-400">
                     待上传页面
@@ -8058,6 +8058,16 @@ function SyncDashboard() {
                 </div>
                 <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
                   <div className="text-[11px] uppercase text-zinc-400">
+                    最早排队
+                  </div>
+                  <div className="mt-1 text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                    {pagePendingStatus.oldestPendingQueuedAt
+                      ? formatDate(pagePendingStatus.oldestPendingQueuedAt)
+                      : "暂无 pending"}
+                  </div>
+                </div>
+                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="text-[11px] uppercase text-zinc-400">
                     最后同步
                   </div>
                   <div className="mt-1 text-xs font-medium text-zinc-700 dark:text-zinc-200">
@@ -8071,6 +8081,16 @@ function SyncDashboard() {
                 页面同步当前{pagePendingStatus.enabled ? "已开启" : "已关闭"}。
                 普通同步只会补传 pending queue 里的页面，不会把本地缓存全量上传。
               </p>
+              {pagePendingStatus.pendingSampleIds.length > 0 && (
+                <p className="mt-2 break-all text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  样本 page id：
+                  {pagePendingStatus.pendingSampleIds.join(", ")}
+                  {pagePendingStatus.pending >
+                  pagePendingStatus.pendingSampleIds.length
+                    ? " ..."
+                    : ""}
+                </p>
+              )}
               {pagePendingMessage && (
                 <p className="mt-2 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                   {pagePendingMessage}

@@ -1265,8 +1265,16 @@ function run() {
       "Sync UI manual page retry must use quick incremental reconcile.",
     ],
     [
-      "只保存 page id，不保存页面正文",
-      "Sync UI must document that page pending upload status contains ids only.",
+      "只保存 page id 和排队时间，不保存页面正文",
+      "Sync UI must document that page pending upload status contains metadata only.",
+    ],
+    [
+      "最早排队",
+      "Sync UI must render the oldest page pending queued timestamp.",
+    ],
+    [
+      "样本 page id",
+      "Sync UI must render metadata-only page pending sample ids.",
     ],
     [
       "数据库 pending 上传队列",
@@ -7624,8 +7632,26 @@ function run() {
     [
       files.accountPageSync,
       accountPageSync,
-      "pending: getPendingCloudPushIds().length",
+      "pending: pendingIds.length",
       "Account page sync pending status must count id-only pending pushes.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "PENDING_PUSH_META_KEY",
+      "Account page sync pending status must store queue metadata separately from page bodies.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "oldestPendingQueuedAt",
+      "Account page sync pending status must expose the oldest pending queued timestamp.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "pendingSampleIds",
+      "Account page sync pending status must expose a small metadata-only page id sample.",
     ],
     [
       files.accountPageSync,

@@ -682,6 +682,24 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "PENDING_PUSH_META_KEY",
+    "Smoke verifier must keep metadata-only page pending queue timestamps available."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "oldestPendingQueuedAt",
+    "Smoke verifier must keep the oldest page pending timestamp visible."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "pendingSampleIds",
+    "Smoke verifier must keep page pending sample ids visible."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "export async function getCloudPageManifestSummary",
     "Smoke verifier must keep cloud page manifest summary available to the sync dashboard."
   );
@@ -724,8 +742,20 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
-    "只保存 page id，不保存页面正文",
+    "只保存 page id 和排队时间，不保存页面正文",
     "Sync UI must preserve the privacy boundary for the page pending queue."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "最早排队",
+    "Sync UI must show the oldest page pending queue timestamp."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "样本 page id",
+    "Sync UI must expose metadata-only page pending sample ids."
   );
   assertIncludes(
     files.accountDatabaseSync,

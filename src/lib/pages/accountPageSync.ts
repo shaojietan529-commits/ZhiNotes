@@ -45,6 +45,7 @@ const LAST_SYNC_KEY = "zhinote.pagesync.lastSyncAt";
 const REMOTE_WATERMARK_KEY = "zhinote.pagesync.remoteWatermark";
 const REMOTE_CURSOR_KEY = "zhinote.pagesync.remoteCursor";
 const PENDING_PUSH_IDS_KEY = "zhinote.pagesync.pendingPushIds";
+const PENDING_PUSH_META_KEY = "zhinote.pagesync.pendingPushMeta";
 const AUTH_RETRY_KEY = "zhinote.pagesync.authRetry.v1";
 const DAILY_IMPORT_REPAIR_SIGNATURE_KEY =
   "zhinote.pagesync.dailyImportRepairSignature.v1";
@@ -121,8 +122,16 @@ export interface PendingCloudPageSyncStatus {
   enabled: boolean;
   pending: number;
   queued: number;
+  oldestPendingQueuedAt: string | null;
+  pendingSampleIds: string[];
   lastSyncAt: string | null;
 }
+
+interface PendingCloudPushMetaEntry {
+  queuedAt: string;
+}
+
+type PendingCloudPushMeta = Record<string, PendingCloudPushMetaEntry>;
 
 export interface PullCloudPageResult {
   status: PageSyncStatus;
@@ -1467,14 +1476,84 @@ function setPendingCloudPushIds(ids: string[]): void {
   const next = Array.from(new Set(ids.filter(isValidRemotePageId)));
   if (next.length === 0) {
     removeSyncStorage(PENDING_PUSH_IDS_KEY);
+    removeSyncStorage(PENDING_PUSH_META_KEY);
     return;
   }
   writeSyncStorage(PENDING_PUSH_IDS_KEY, JSON.stringify(next));
+  prunePendingCloudPushMetaToIds(next);
+}
+
+function getPendingCloudPushMeta(): PendingCloudPushMeta {
+  try {
+    const parsed = JSON.parse(readSyncStorage(PENDING_PUSH_META_KEY) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    const next: PendingCloudPushMeta = {};
+    for (const [id, value] of Object.entries(parsed)) {
+      if (
+        !isValidRemotePageId(id) ||
+        !value ||
+        typeof value !== "object" ||
+        Array.isArray(value)
+      ) {
+        continue;
+      }
+      const queuedAt = (value as { queuedAt?: unknown }).queuedAt;
+      if (
+        typeof queuedAt === "string" &&
+        !Number.isNaN(Date.parse(queuedAt))
+      ) {
+        next[id] = { queuedAt };
+      }
+    }
+    return next;
+  } catch {
+    return {};
+  }
+}
+
+function setPendingCloudPushMeta(meta: PendingCloudPushMeta): void {
+  const next: PendingCloudPushMeta = {};
+  for (const [id, value] of Object.entries(meta)) {
+    if (
+      isValidRemotePageId(id) &&
+      typeof value.queuedAt === "string" &&
+      !Number.isNaN(Date.parse(value.queuedAt))
+    ) {
+      next[id] = { queuedAt: value.queuedAt };
+    }
+  }
+  if (Object.keys(next).length === 0) {
+    removeSyncStorage(PENDING_PUSH_META_KEY);
+    return;
+  }
+  writeSyncStorage(PENDING_PUSH_META_KEY, JSON.stringify(next));
+}
+
+function prunePendingCloudPushMetaToIds(ids: string[]): void {
+  const allowedIds = new Set(ids.filter(isValidRemotePageId));
+  if (allowedIds.size === 0) {
+    removeSyncStorage(PENDING_PUSH_META_KEY);
+    return;
+  }
+  const next: PendingCloudPushMeta = {};
+  for (const [id, value] of Object.entries(getPendingCloudPushMeta())) {
+    if (allowedIds.has(id)) next[id] = value;
+  }
+  setPendingCloudPushMeta(next);
 }
 
 function markPendingCloudPush(id: string): void {
   if (!isValidRemotePageId(id)) return;
   setPendingCloudPushIds([...getPendingCloudPushIds(), id]);
+  const meta = getPendingCloudPushMeta();
+  if (!meta[id]) {
+    setPendingCloudPushMeta({
+      ...meta,
+      [id]: { queuedAt: new Date().toISOString() },
+    });
+  }
 }
 
 function markPendingCloudPushRecords(records: RemotePageRecord[]): void {
@@ -1493,10 +1572,21 @@ function clearPendingCloudPushIds(ids: string[]): void {
 }
 
 export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
+  const pendingIds = getPendingCloudPushIds();
+  const pendingMeta = getPendingCloudPushMeta();
+  const oldestPendingQueuedAt = pendingIds.reduce<string | null>((oldest, id) => {
+    const queuedAt = pendingMeta[id]?.queuedAt ?? null;
+    if (!queuedAt) return oldest;
+    if (!oldest) return queuedAt;
+    return Date.parse(queuedAt) < Date.parse(oldest) ? queuedAt : oldest;
+  }, null);
+
   return {
     enabled: isPageSyncEnabled(),
-    pending: getPendingCloudPushIds().length,
+    pending: pendingIds.length,
     queued: queuedCloudPush.size,
+    oldestPendingQueuedAt,
+    pendingSampleIds: pendingIds.slice(0, 5),
     lastSyncAt: getLastPageSyncAt(),
   };
 }
