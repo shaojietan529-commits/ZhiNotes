@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePages } from "@/hooks/usePages";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import {
   getDatabase,
@@ -167,6 +168,8 @@ import {
 } from "@/lib/database/databaseTemplateRows";
 import { subscribeDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 
 interface DatabaseShellProps {
   databaseId: string;
@@ -241,6 +244,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { pages: workspacePages } = usePages();
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const initialRowSearch = searchParams.get("q") ?? "";
   const initialViewId = searchParams.get("view") ?? "";
   const focusPageId = searchParams.get("focus") ?? "";
@@ -531,6 +535,60 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [reload]
   );
 
+  const primeDatabaseRowPageOpen = useCallback(
+    (
+      page: Page,
+      source: "database-row-create" | "database-row-open" = "database-row-open"
+    ) => {
+      upsertPages([page]);
+      rememberPendingPageDraft(page);
+      rememberPageRouteHandoff(page, source);
+      try {
+        router.prefetch(`/page/${page.id}`);
+      } catch {
+        // Prefetch is only a speed hint. The draft + route handoff already
+        // gives the full page enough metadata for an immediate first paint.
+      }
+    },
+    [router, upsertPages]
+  );
+
+  const openDatabaseRowFullPage = useCallback(
+    (
+      row: RowWithPage,
+      source: "database-row-create" | "database-row-open" = "database-row-open"
+    ) => {
+      primeDatabaseRowPageOpen(row.page, source);
+      router.push(`/page/${row.page_id}`);
+    },
+    [primeDatabaseRowPageOpen, router]
+  );
+
+  const openDatabaseRowFullPageById = useCallback(
+    (pageId: string) => {
+      const row = rows.find((item) => item.page_id === pageId) ?? null;
+      if (row) {
+        openDatabaseRowFullPage(row, "database-row-open");
+        return;
+      }
+      const page =
+        workspacePages.find((item) => item.id === pageId) ??
+        useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
+        null;
+      if (page) {
+        primeDatabaseRowPageOpen(page, "database-row-open");
+      }
+      router.push(`/page/${pageId}`);
+    },
+    [
+      openDatabaseRowFullPage,
+      primeDatabaseRowPageOpen,
+      router,
+      rows,
+      workspacePages,
+    ]
+  );
+
   const handleAddRow = useCallback(async () => {
     try {
       const row = await addRow(databaseId);
@@ -545,14 +603,14 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const handleAddAndOpenRow = useCallback(async () => {
     try {
       const row = await addRow(databaseId);
-      await appendLocalRow(row);
-      router.push(`/page/${row.page_id}`);
+      const rowWithPage = await appendLocalRow(row);
+      openDatabaseRowFullPage(rowWithPage, "database-row-create");
     } catch (error) {
       setCacheNotice(
         error instanceof Error ? error.message : "新建数据库行失败。"
       );
     }
-  }, [appendLocalRow, databaseId, router]);
+  }, [appendLocalRow, databaseId, openDatabaseRowFullPage]);
 
   const handleCreateRow = useCallback(
     async (rowTitle: string, fieldValues: Record<string, unknown>) => {
@@ -796,20 +854,20 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         ? parseDatabaseViewConfig(view.config).openMode
         : "side-peek";
       if (openMode === "full-page") {
-        router.push(`/page/${pageId}`);
+        openDatabaseRowFullPageById(pageId);
         return;
       }
       setRowPeekMode(openMode);
       setSidePeekPageId(pageId);
     },
-    [activeViewId, router, views]
+    [activeViewId, openDatabaseRowFullPageById, views]
   );
 
   const handleOpenPage = useCallback(
     (pageId: string) => {
-      router.push(`/page/${pageId}`);
+      openDatabaseRowFullPageById(pageId);
     },
-    [router]
+    [openDatabaseRowFullPageById]
   );
 
   const handleClearRelationHandoff = useCallback(() => {
@@ -1338,7 +1396,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           fields={relationCompletionFields}
           busyId={relationCompletionBusyId}
           onAddRelation={(row, field) => void handleAddFocusRelation(row, field)}
-          onOpenRow={(pageId) => router.push(`/page/${pageId}`)}
+          onOpenRow={openDatabaseRowFullPageById}
         />
       )}
 
@@ -1451,7 +1509,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           onClose={() => setSidePeekPageId(null)}
           onOpenFullPage={(pageId) => {
             setSidePeekPageId(null);
-            router.push(`/page/${pageId}`);
+            openDatabaseRowFullPageById(pageId);
           }}
         />
       )}

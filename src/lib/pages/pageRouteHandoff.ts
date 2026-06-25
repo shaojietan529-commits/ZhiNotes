@@ -32,6 +32,8 @@ interface PageRouteHandoff {
     | "daily-open"
     | "meeting-create"
     | "meeting-open"
+    | "database-row-create"
+    | "database-row-open"
     | "page-open";
   cached_at: string;
   expires_at: string;
