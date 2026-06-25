@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { ApiGuardPanel } from "@/components/modules/sync/ApiGuardPanel";
+import { usePageFavorites } from "@/hooks/usePageFavorites";
 import { usePages } from "@/hooks/usePages";
 import {
   getAllDatabases,
@@ -251,6 +252,12 @@ import {
   type HotCachePolicyPlan,
   type HotCachePolicyStatus,
 } from "@/lib/sync/hotCachePolicyPlan";
+import {
+  buildHotCacheWarmupPlan,
+  type HotCacheWarmupJob,
+  type HotCacheWarmupJobStatus,
+  type HotCacheWarmupPlan,
+} from "@/lib/sync/hotCacheWarmupPlan";
 import {
   DEFAULT_HOT_CACHE_PREFERENCES,
   HOT_CACHE_PREFERENCES_SETTING_KEY,
@@ -757,6 +764,7 @@ function SyncContent() {
 function SyncDashboard() {
   const router = useRouter();
   const { pages } = usePages();
+  const { favoriteIds } = usePageFavorites();
   const [databases, setDatabases] = useState<Database[]>([]);
   const [deletedPages, setDeletedPages] = useState<Page[]>([]);
   const [storedFiles, setStoredFiles] = useState<StoredPageFile[]>([]);
@@ -772,6 +780,9 @@ function SyncDashboard() {
   const [hotCacheSaveMessage, setHotCacheSaveMessage] = useState<string | null>(
     null
   );
+  const [hotCacheWarmupMessage, setHotCacheWarmupMessage] = useState<
+    string | null
+  >(null);
   const [busyAction, setBusyAction] = useState<ExportAction | null>(null);
   const [busyQueueAction, setBusyQueueAction] = useState<SyncQueueAction | null>(
     null
@@ -1058,6 +1069,25 @@ function SyncDashboard() {
         setting: hotCacheSetting,
       }),
     [hotCachePolicyPlan, hotCacheSetting]
+  );
+  const hotCacheWarmupPlan = useMemo(
+    () =>
+      buildHotCacheWarmupPlan({
+        pages,
+        databases,
+        files: storedFiles,
+        preferences: hotCachePreferences,
+        favoriteIds,
+        syncSummary,
+      }),
+    [
+      databases,
+      favoriteIds,
+      hotCachePreferences,
+      pages,
+      storedFiles,
+      syncSummary,
+    ]
   );
   const syncPayloadPreview = useMemo(
     () =>
@@ -2323,6 +2353,39 @@ function SyncDashboard() {
         ...hotCacheSelectionContract,
         exported_at: new Date().toISOString(),
       }
+    );
+  };
+
+  const handleExportHotCacheWarmupPlan = () => {
+    downloadJsonFile(`zhinote-hot-cache-warmup-plan-${fileSafeTimestamp()}.json`, {
+      ...hotCacheWarmupPlan,
+      exported_at: new Date().toISOString(),
+    });
+  };
+
+  const handleRunHotCacheWarmup = () => {
+    const routeTargets = Array.from(
+      new Set(
+        hotCacheWarmupPlan.jobs
+          .filter((job) => job.status === "ready")
+          .flatMap((job) => job.route_targets)
+      )
+    );
+
+    if (routeTargets.length === 0) {
+      setHotCacheWarmupMessage("当前没有可预热入口。请先开启至少一项热缓存偏好。");
+      return;
+    }
+
+    for (const routeTarget of routeTargets) {
+      try {
+        router.prefetch(routeTarget);
+      } catch {
+        // Route prefetch is best-effort; it must not block the sync dashboard.
+      }
+    }
+    setHotCacheWarmupMessage(
+      `已预热 ${routeTargets.length} 个本机入口：${routeTargets.join("、")}。这个动作不读取正文、不上传、不改缓存记录。`
     );
   };
 
@@ -3940,6 +4003,13 @@ function SyncDashboard() {
           onSyncCloud={() => void handleHotCachePreferencesCloudSync()}
           onPullCloud={() => void handleHotCachePreferencesCloudPull()}
           onExport={handleExportHotCacheSelectionContract}
+        />
+
+        <HotCacheWarmupPlanPanel
+          plan={hotCacheWarmupPlan}
+          message={hotCacheWarmupMessage}
+          onRun={handleRunHotCacheWarmup}
+          onExport={handleExportHotCacheWarmupPlan}
         />
 
         <CacheRebuildSafetyPanel
@@ -14230,6 +14300,220 @@ function HotCacheSelectionPanel({
         </ContractPanel>
       </div>
     </section>
+  );
+}
+
+function HotCacheWarmupPlanPanel({
+  plan,
+  message,
+  onRun,
+  onExport,
+}: {
+  plan: HotCacheWarmupPlan;
+  message: string | null;
+  onRun: () => void;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="hot-cache-warmup-plan"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Hot Cache Warmup
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            本机预热计划
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            把热缓存偏好翻译成可预热入口和 metadata 范围。当前动作只做 route
+            prefetch，不读取正文、不上传、不清缓存、不改本地数据记录。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onRun}
+            className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+          >
+            预热本机入口
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            导出预热计划
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <HotCacheWarmupSummaryCard
+          label="Ready"
+          value={plan.summary.ready}
+          detail="可立即预热"
+          status="ready"
+        />
+        <HotCacheWarmupSummaryCard
+          label="Off"
+          value={plan.summary.preference_off}
+          detail="用户未开启"
+          status="preference-off"
+        />
+        <HotCacheWarmupSummaryCard
+          label="Planned"
+          value={plan.summary.planned}
+          detail="等待云主库"
+          status="planned"
+        />
+        <HotCacheWarmupSummaryCard
+          label="Blocked"
+          value={plan.summary.blocked}
+          detail="缺少本地信号"
+          status="blocked"
+        />
+        <HotCacheWarmupSummaryCard
+          label="Metadata"
+          value={plan.summary.estimated_metadata_records}
+          detail={`${plan.summary.recent_days} 天范围`}
+          status="ready"
+        />
+        <HotCacheWarmupSummaryCard
+          label="Routes"
+          value={plan.summary.route_targets}
+          detail={plan.summary.plan_hash.replace("fnv1a:", "")}
+          status="ready"
+        />
+      </div>
+
+      {message ? (
+        <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+          {message}
+        </p>
+      ) : null}
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {plan.jobs.map((job) => (
+          <HotCacheWarmupJobRow key={job.id} job={job} />
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+        边界：{plan.privacy_boundary}
+      </div>
+    </section>
+  );
+}
+
+function HotCacheWarmupSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: HotCacheWarmupJobStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <HotCacheWarmupStatusPill status={status} />
+      </div>
+      <div className="mt-2 break-all text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function HotCacheWarmupJobRow({ job }: { job: HotCacheWarmupJob }) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {job.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {job.id}
+          </div>
+        </div>
+        <HotCacheWarmupStatusPill status={job.status} />
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <LocalMetadataManifestMiniStat
+          label="Candidates"
+          value={job.candidate_count}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Metadata"
+          value={job.estimated_metadata_records}
+        />
+      </div>
+      <dl className="mt-3 space-y-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            本机动作
+          </dt>
+          <dd>{job.action}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            入口
+          </dt>
+          <dd>
+            {job.route_targets.length > 0
+              ? job.route_targets.join("、")
+              : "暂无 route prefetch"}
+          </dd>
+        </div>
+        {job.blocked_reason ? (
+          <div>
+            <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+              原因
+            </dt>
+            <dd>{job.blocked_reason}</dd>
+          </div>
+        ) : null}
+      </dl>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {job.reason}
+      </p>
+    </article>
+  );
+}
+
+function HotCacheWarmupStatusPill({
+  status,
+}: {
+  status: HotCacheWarmupJobStatus;
+}) {
+  const labels: Record<HotCacheWarmupJobStatus, string> = {
+    ready: "可预热",
+    "preference-off": "未开启",
+    planned: "计划",
+    blocked: "阻塞",
+  };
+  const className =
+    status === "ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "preference-off"
+        ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300"
+        : status === "planned"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
