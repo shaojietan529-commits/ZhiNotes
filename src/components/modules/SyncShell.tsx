@@ -15,7 +15,9 @@ import { usePages } from "@/hooks/usePages";
 import {
   getAllDatabases,
   getDeletedPages,
+  getLocalDailySyncSummary,
   getLocalDatabaseSyncSummary,
+  getLocalMeetingSyncSummary,
   getLocalPageSyncSummary,
   getPageModuleCounts,
   getPendingSyncLogEntries,
@@ -37,6 +39,8 @@ import {
   type PendingCloudDatabaseSyncStatus,
 } from "@/lib/database/accountDatabaseSync";
 import {
+  getCloudDailyManifestSummary,
+  getCloudMeetingManifestSummary,
   getCloudPageManifestSummary,
   getPendingCloudPageSyncStatus,
   isPageSyncEnabled,
@@ -404,7 +408,7 @@ type CoreManifestCompareStatus =
   | "blocked"
   | "mismatch";
 type CoreManifestDomainCompare = {
-  id: "pages" | "databases";
+  id: "pages" | "daily" | "meetings" | "databases";
   title: string;
   localCount: number;
   cloudCount: number | null;
@@ -2586,14 +2590,22 @@ function SyncDashboard() {
     try {
       const [
         localPageSummary,
+        localDailySummary,
+        localMeetingSummary,
         localDatabaseSummary,
         cloudPageSummary,
+        cloudDailySummary,
+        cloudMeetingSummary,
         cloudDatabaseSummary,
         nextDatabasePending,
       ] = await Promise.all([
         getLocalPageSyncSummary(),
+        getLocalDailySyncSummary(),
+        getLocalMeetingSyncSummary(),
         getLocalDatabaseSyncSummary(),
         getCloudPageManifestSummary(),
+        getCloudDailyManifestSummary(),
+        getCloudMeetingManifestSummary(),
         getCloudDatabaseManifestSummary(),
         getPendingCloudDatabaseSyncStatus(),
       ]);
@@ -2607,6 +2619,20 @@ function SyncDashboard() {
           title: "页面",
           localSummary: localPageSummary,
           cloudResult: cloudPageSummary,
+          pending: nextPagePending.pending + nextPagePending.queued,
+        }),
+        buildCoreManifestDomainCompare({
+          id: "daily",
+          title: "每日纪要",
+          localSummary: localDailySummary,
+          cloudResult: cloudDailySummary,
+          pending: nextPagePending.pending + nextPagePending.queued,
+        }),
+        buildCoreManifestDomainCompare({
+          id: "meetings",
+          title: "会议日历",
+          localSummary: localMeetingSummary,
+          cloudResult: cloudMeetingSummary,
           pending: nextPagePending.pending + nextPagePending.queued,
         }),
         buildCoreManifestDomainCompare({
@@ -2626,7 +2652,7 @@ function SyncDashboard() {
         status: getCoreManifestOverallStatus(domains),
         domains,
         privacyNote:
-          "核心域云端 manifest 对账只读取本地/云端 metadata summary 的 count、deleted、watermark 和 pending 数，不读取页面正文、数据库值、评论正文或文件字节；不会上传或清理本机缓存。",
+          "核心域云端 manifest 对账只读取页面、每日纪要、会议和数据库的本地/云端 metadata summary 的 count、deleted、watermark 和 pending 数，不读取页面正文、数据库值、评论正文或文件字节；不会上传或清理本机缓存。",
       });
     } catch (err) {
       console.error("[Zhinote] Failed to compare core manifests:", err);
@@ -14550,9 +14576,9 @@ function CoreManifestComparePanel({
             {report ? <CoreManifestStatusPill status={report.status} /> : null}
           </div>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            只读检查页面和数据库这两个已接入账号同步的核心域：读取本地 metadata
-            summary 与云端 manifest summary 的 count、deleted、watermark，再结合 pending
-            队列判断是否已对齐。
+            只读检查页面、每日纪要、会议和数据库这四个已接入账号同步的核心域：读取本地
+            metadata summary 与云端 manifest summary 的 count、deleted、watermark，再结合
+            pending 队列判断是否已对齐。
           </p>
         </div>
         <button

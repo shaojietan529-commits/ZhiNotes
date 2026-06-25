@@ -362,6 +362,12 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "页面、每日纪要、会议和数据库这四个",
+    "Sync UI core manifest compare must cover daily notes and meetings."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "不会上传或清理本机缓存",
     "Core manifest compare must stay read-only."
   );
@@ -556,6 +562,30 @@ function run() {
     accountPageSync,
     "export async function getCloudPageManifestSummary",
     "Smoke verifier must keep cloud page manifest summary available to the sync dashboard."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "export async function getCloudDailyManifestSummary",
+    "Smoke verifier must keep cloud daily manifest summary available to the sync dashboard."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "export async function getCloudMeetingManifestSummary",
+    "Smoke verifier must keep cloud meeting manifest summary available to the sync dashboard."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "export async function getLocalDailySyncSummary",
+    "Smoke verifier must keep local daily manifest summary available to the sync dashboard."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "export async function getLocalMeetingSyncSummary",
+    "Smoke verifier must keep local meeting manifest summary available to the sync dashboard."
   );
   assertIncludes(
     files.syncShell,

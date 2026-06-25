@@ -251,9 +251,22 @@ export interface CloudPageManifestSummaryResult {
   message?: string;
 }
 
+export interface CloudPageDomainManifestSummaryResult {
+  status: PageSyncStatus;
+  summary: IndexSummary | null;
+  rootId?: string | null;
+  matched?: number;
+  scanned?: number;
+  cached?: boolean;
+  message?: string;
+}
+
 interface ReconcileOptions {
   quick?: boolean;
 }
+
+const CLOUD_DOMAIN_SUMMARY_START_DATE = "2000-01-01";
+const CLOUD_DOMAIN_SUMMARY_END_DATE = "2099-12-31";
 
 async function call(body: Record<string, unknown>): Promise<
   | { ok: true; json: Record<string, unknown> }
@@ -421,6 +434,80 @@ export async function getCloudPageManifestSummary(): Promise<CloudPageManifestSu
     };
   }
   return { status: "ok", summary };
+}
+
+function summarizeRemotePageMetadataRecords(
+  records: RemotePageRecord[]
+): IndexSummary {
+  let deleted = 0;
+  let maxUpdatedAt = "";
+  let maxUpdatedId = "";
+  for (const record of records) {
+    if (record.deleted_at) deleted += 1;
+    const updatedAt = record.updated_at || "";
+    if (
+      updatedAt > maxUpdatedAt ||
+      (updatedAt === maxUpdatedAt && record.id > maxUpdatedId)
+    ) {
+      maxUpdatedAt = updatedAt;
+      maxUpdatedId = record.id;
+    }
+  }
+  return {
+    count: records.length,
+    deleted,
+    maxUpdatedAt,
+    watermark: `${records.length}:${deleted}:${maxUpdatedAt}`,
+    cursor: maxUpdatedAt
+      ? JSON.stringify({ updatedAt: maxUpdatedAt, id: maxUpdatedId })
+      : "",
+  };
+}
+
+export async function getCloudDailyManifestSummary(): Promise<CloudPageDomainManifestSummaryResult> {
+  const result = await fetchDailyCloudMetadata({
+    startDate: CLOUD_DOMAIN_SUMMARY_START_DATE,
+    endDate: CLOUD_DOMAIN_SUMMARY_END_DATE,
+    recentLimit: 0,
+  });
+  if (result.status !== "ok") {
+    return {
+      status: result.status,
+      summary: null,
+      message: result.message,
+    };
+  }
+  return {
+    status: "ok",
+    summary: summarizeRemotePageMetadataRecords(result.pages),
+    rootId: result.rootId,
+    matched: result.matched,
+    scanned: result.scanned,
+    cached: result.cached,
+  };
+}
+
+export async function getCloudMeetingManifestSummary(): Promise<CloudPageDomainManifestSummaryResult> {
+  const result = await fetchMeetingCloudMetadata({
+    startDate: CLOUD_DOMAIN_SUMMARY_START_DATE,
+    endDate: CLOUD_DOMAIN_SUMMARY_END_DATE,
+    recentLimit: 0,
+  });
+  if (result.status !== "ok") {
+    return {
+      status: result.status,
+      summary: null,
+      message: result.message,
+    };
+  }
+  return {
+    status: "ok",
+    summary: summarizeRemotePageMetadataRecords(result.pages),
+    rootId: result.rootId,
+    matched: result.matched,
+    scanned: result.scanned,
+    cached: result.cached,
+  };
 }
 
 export async function fetchCloudPageMetadata(): Promise<CloudPageMetadataResult> {

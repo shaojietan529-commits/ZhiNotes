@@ -607,6 +607,14 @@ function run() {
       "Core manifest comparison must read local page metadata summary.",
     ],
     [
+      "getLocalDailySyncSummary",
+      "Core manifest comparison must read local daily note date-index metadata summary.",
+    ],
+    [
+      "getLocalMeetingSyncSummary",
+      "Core manifest comparison must read local meeting calendar metadata summary.",
+    ],
+    [
       "getLocalDatabaseSyncSummary",
       "Core manifest comparison must read local database metadata summary.",
     ],
@@ -615,8 +623,20 @@ function run() {
       "Core manifest comparison must read cloud page manifest summary.",
     ],
     [
+      "getCloudDailyManifestSummary",
+      "Core manifest comparison must read cloud daily note metadata summary.",
+    ],
+    [
+      "getCloudMeetingManifestSummary",
+      "Core manifest comparison must read cloud meeting calendar metadata summary.",
+    ],
+    [
       "getCloudDatabaseManifestSummary",
       "Core manifest comparison must read cloud database manifest summary.",
+    ],
+    [
+      "页面、每日纪要、会议和数据库这四个",
+      "Core manifest comparison must cover all first-phase core domains.",
     ],
     [
       "count、deleted、watermark",
@@ -632,6 +652,31 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      "export async function getLocalDailySyncSummary",
+      "Local queries must expose daily note metadata summary for core-domain compare.",
+    ],
+    [
+      "export async function getLocalMeetingSyncSummary",
+      "Local queries must expose meeting calendar metadata summary for core-domain compare.",
+    ],
+    [
+      "LOCAL_SYNC_SUMMARY_START_DATE",
+      "Local daily/meeting summaries must use a bounded date-index window.",
+    ],
+    [
+      "MEETING_METADATA_PROPERTY_NAMES",
+      "Local meeting summary must rely on meeting metadata properties.",
+    ],
+    [
+      "NULL AS content_yjs, NULL AS content_text",
+      "Local daily/meeting summary must preserve page metadata-only reads.",
+    ],
+  ]) {
+    assertSourceIncludes(files.localQueries, localQueries, snippet, message);
   }
 
   for (const [snippet, message] of [
@@ -1169,6 +1214,18 @@ function run() {
     [
       "export async function getCloudPageManifestSummary",
       "Page sync client must expose cloud page manifest summary for core-domain compare.",
+    ],
+    [
+      "export async function getCloudDailyManifestSummary",
+      "Page sync client must expose cloud daily manifest summary for core-domain compare.",
+    ],
+    [
+      "export async function getCloudMeetingManifestSummary",
+      "Page sync client must expose cloud meeting manifest summary for core-domain compare.",
+    ],
+    [
+      "summarizeRemotePageMetadataRecords",
+      "Page sync client must summarize daily and meeting metadata without page body reads.",
     ],
     [
       'call({ action: "summary" })',

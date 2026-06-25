@@ -44,6 +44,12 @@ export interface LocalPageSyncSummary {
   cursor: string;
 }
 
+export interface LocalPageDomainSyncSummary extends LocalPageSyncSummary {
+  rootId: string | null;
+  scanned: number;
+  dated: number;
+}
+
 type SyncOperation = "insert" | "update" | "delete" | "restore";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -51,6 +57,16 @@ const DAILY_DATE_INDEX_BACKFILL_DEFAULT_LIMIT = 240;
 const DAILY_CALENDAR_FALLBACK_SCAN_LIMIT = 240;
 const DAILY_RECENT_CANDIDATE_MULTIPLIER = 6;
 const DAILY_PARENT_LOOKUP_GUARD = 32;
+const LOCAL_SYNC_SUMMARY_START_DATE = "2000-01-01";
+const LOCAL_SYNC_SUMMARY_END_DATE = "2099-12-31";
+const MEETING_ROOT_TITLES = new Set(["ZhiHui", "会议日程"]);
+const MEETING_METADATA_PROPERTY_NAMES = new Set([
+  "会议痕迹",
+  "时间状态",
+  "录制状态",
+  "入会链接",
+  "会议号",
+]);
 
 function parseStoredProperties(
   raw: string | null
@@ -134,6 +150,66 @@ function inferDailyDateKey(title: string, properties: string | null): string | n
     (property) => property.name === "日期" && DATE_KEY_PATTERN.test(property.value)
   );
   return existing?.value ?? inferDateFromTitle((title || "").trim());
+}
+
+function getStoredPropertyValue(
+  properties: string | null,
+  name: string
+): string {
+  return parseStoredProperties(properties).find((property) => property.name === name)
+    ?.value ?? "";
+}
+
+function inferMeetingDateKey(
+  title: string,
+  properties: string | null
+): string | null {
+  const existing = getStoredPropertyValue(properties, "日期");
+  if (DATE_KEY_PATTERN.test(existing)) return existing;
+  return inferDateFromTitle((title || "").trim());
+}
+
+function isMeetingMetadataPage(page: Page): boolean {
+  if (page.deleted_at) return false;
+  const properties = parseStoredProperties(page.properties);
+  const propertyNames = new Set(properties.map((property) => property.name));
+  return (
+    [...MEETING_METADATA_PROPERTY_NAMES].some((name) => propertyNames.has(name)) ||
+    (page.icon === "🗓️" && Boolean(inferMeetingDateKey(page.title, page.properties)))
+  );
+}
+
+function buildLocalPageDomainSyncSummary(input: {
+  rows: Array<Pick<Page, "id" | "updated_at" | "deleted_at">>;
+  rootId: string | null;
+  scanned: number;
+}): LocalPageDomainSyncSummary {
+  let deleted = 0;
+  let maxUpdatedAt = "";
+  let maxUpdatedId = "";
+  for (const row of input.rows) {
+    if (row.deleted_at) deleted += 1;
+    if (
+      row.updated_at > maxUpdatedAt ||
+      (row.updated_at === maxUpdatedAt && row.id > maxUpdatedId)
+    ) {
+      maxUpdatedAt = row.updated_at;
+      maxUpdatedId = row.id;
+    }
+  }
+  return {
+    count: input.rows.length,
+    deleted,
+    maxUpdatedAt,
+    maxUpdatedId,
+    watermark: `${input.rows.length}:${deleted}:${maxUpdatedAt}`,
+    cursor: maxUpdatedAt
+      ? JSON.stringify({ updatedAt: maxUpdatedAt, id: maxUpdatedId })
+      : "",
+    rootId: input.rootId,
+    scanned: input.scanned,
+    dated: input.rows.length,
+  };
 }
 
 function pageMetadataSelect(alias = "") {
@@ -589,6 +665,98 @@ export async function listDailyPageMetadataForCalendar({
   }
 
   return Array.from(byId.values());
+}
+
+export async function getLocalDailySyncSummary(): Promise<LocalPageDomainSyncSummary> {
+  const db = await getDb();
+  const roots = db.query(
+    `SELECT id
+     FROM pages
+     WHERE deleted_at IS NULL
+       AND parent_id IS NULL
+       AND title = '每日纪要'
+     ORDER BY id ASC
+     LIMIT 1`
+  ) as unknown as Array<{ id: string }>;
+  const rootId = roots[0]?.id ?? null;
+  const activeRows = db.query(
+    `SELECT COUNT(*) as count
+     FROM pages
+     WHERE deleted_at IS NULL`
+  ) as unknown as Array<{ count: number }>;
+  if (!rootId) {
+    return buildLocalPageDomainSyncSummary({
+      rows: [],
+      rootId: null,
+      scanned: Number(activeRows[0]?.count ?? 0),
+    });
+  }
+  const rows = await listDailyPageMetadataForCalendar({
+    rootId,
+    startDate: LOCAL_SYNC_SUMMARY_START_DATE,
+    endDate: LOCAL_SYNC_SUMMARY_END_DATE,
+    recentLimit: 0,
+  });
+  return buildLocalPageDomainSyncSummary({
+    rows,
+    rootId,
+    scanned: Number(activeRows[0]?.count ?? rows.length),
+  });
+}
+
+export async function getLocalMeetingSyncSummary(): Promise<LocalPageDomainSyncSummary> {
+  const db = await getDb();
+  const active = db.query(
+    `SELECT ${PAGE_METADATA_SELECT}
+     FROM pages p
+     WHERE p.deleted_at IS NULL
+     ORDER BY p.updated_at DESC`
+  ) as unknown as Page[];
+  const root = active
+    .filter(
+      (page) => page.parent_id === null && MEETING_ROOT_TITLES.has(page.title)
+    )
+    .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+
+  const childrenByParent = new Map<string, Page[]>();
+  for (const page of active) {
+    if (!page.parent_id) continue;
+    const children = childrenByParent.get(page.parent_id) ?? [];
+    children.push(page);
+    childrenByParent.set(page.parent_id, children);
+  }
+
+  const ids = new Set<string>();
+  if (root) {
+    const visit = (parentId: string) => {
+      for (const child of childrenByParent.get(parentId) ?? []) {
+        if (ids.has(child.id)) continue;
+        ids.add(child.id);
+        visit(child.id);
+      }
+    };
+    visit(root.id);
+  }
+
+  for (const page of active) {
+    if (isMeetingMetadataPage(page)) ids.add(page.id);
+  }
+
+  const rows = active.filter((page) => {
+    if (!ids.has(page.id)) return false;
+    const dateKey = inferMeetingDateKey(page.title, page.properties);
+    return Boolean(
+      dateKey &&
+        dateKey >= LOCAL_SYNC_SUMMARY_START_DATE &&
+        dateKey <= LOCAL_SYNC_SUMMARY_END_DATE
+    );
+  });
+
+  return buildLocalPageDomainSyncSummary({
+    rows,
+    rootId: root?.id ?? null,
+    scanned: active.length,
+  });
 }
 
 export async function getDeletedPages(): Promise<Page[]> {

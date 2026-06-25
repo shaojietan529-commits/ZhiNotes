@@ -430,6 +430,8 @@ check(
 );
 check(
   pageSyncClient.includes("export async function getCloudPageManifestSummary") &&
+    pageSyncClient.includes("export async function getCloudDailyManifestSummary") &&
+    pageSyncClient.includes("export async function getCloudMeetingManifestSummary") &&
     pageSyncClient.includes('call({ action: "summary" })') &&
     databaseSyncClient.includes(
       "export async function getCloudDatabaseManifestSummary"
@@ -438,12 +440,17 @@ check(
     syncDashboardShell.includes("核心域云端 manifest 对账") &&
     syncDashboardShell.includes("只读检查核心域") &&
     syncDashboardShell.includes("getLocalPageSyncSummary") &&
+    syncDashboardShell.includes("getLocalDailySyncSummary") &&
+    syncDashboardShell.includes("getLocalMeetingSyncSummary") &&
     syncDashboardShell.includes("getLocalDatabaseSyncSummary") &&
     syncDashboardShell.includes("getCloudPageManifestSummary") &&
+    syncDashboardShell.includes("getCloudDailyManifestSummary") &&
+    syncDashboardShell.includes("getCloudMeetingManifestSummary") &&
     syncDashboardShell.includes("getCloudDatabaseManifestSummary") &&
+    syncDashboardShell.includes("页面、每日纪要、会议和数据库这四个") &&
     syncDashboardShell.includes("不读取页面正文、数据库值、评论正文或文件字节") &&
     syncDashboardShell.includes("不会上传或清理本机缓存"),
-  "同步页应提供核心域云端 manifest metadata-only 对账，只读 count/watermark/pending，不读取正文或上传/清缓存"
+  "同步页应提供页面、每日纪要、会议和数据库的核心域云端 manifest metadata-only 对账，只读 count/watermark/pending，不读取正文或上传/清缓存"
 );
 check(
   pageSyncClient.includes("fetchCloudPageMetadata") &&
@@ -874,6 +881,14 @@ const localPageSyncSummaryBody = localQueries.slice(
 check(
   localQueries.includes("clearLocalPageCacheForIds"),
   "local queries 应提供按云端页面 id 清理本机页面缓存的 helper"
+);
+check(
+  localQueries.includes("export async function getLocalDailySyncSummary") &&
+    localQueries.includes("export async function getLocalMeetingSyncSummary") &&
+    localQueries.includes("LOCAL_SYNC_SUMMARY_START_DATE") &&
+    localQueries.includes("MEETING_METADATA_PROPERTY_NAMES") &&
+    localQueries.includes("NULL AS content_yjs, NULL AS content_text"),
+  "local queries 应提供每日纪要和会议的本地 metadata-only summary，不能读取正文做对账"
 );
 check(
   localPageSyncSummaryBody.includes("SELECT id, updated_at, deleted_at") &&
