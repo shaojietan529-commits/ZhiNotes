@@ -20,6 +20,10 @@ import {
   rememberPendingPageDraft,
   readPendingPageDraft,
 } from "@/lib/pages/pendingPageDrafts";
+import {
+  clearPageRouteHandoff,
+  readPageRouteHandoff,
+} from "@/lib/pages/pageRouteHandoff";
 import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRecordRevision } from "@/hooks/usePageRevision";
@@ -63,6 +67,7 @@ export function usePage(
     setLoading(true);
     let localPage =
       readPendingPageDraft(pageId) ??
+      readPageRouteHandoff(pageId) ??
       useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
       null;
     if (localPage) {
@@ -82,6 +87,7 @@ export function usePage(
       if (storedPage) {
         localPage = storedPage;
         clearPendingPageDraft(pageId);
+        clearPageRouteHandoff(pageId);
       }
     } catch {
       // Keep the in-memory page if IndexedDB is slow or temporarily failing.
@@ -120,6 +126,7 @@ export function usePage(
       );
       if (cloudApplied) {
         clearPendingPageDraft(pageId);
+        clearPageRouteHandoff(pageId);
       } else if (!localPage) {
         setPage(null);
       }

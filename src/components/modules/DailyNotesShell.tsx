@@ -35,6 +35,7 @@ import {
   type DailyCloudMetadataResult,
 } from "@/lib/pages/accountPageSync";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
   getLocalPerformanceNow,
   recordLocalPerformanceSnapshot,
@@ -434,6 +435,7 @@ export default function DailyNotesShell() {
         cloudOnly: true,
       };
       rememberPendingPageDraft(optimisticNote);
+      rememberPageRouteHandoff(optimisticNote, "daily-create");
       setNotes((current) => [
         optimisticNote,
         ...current.filter((item) => item.id !== optimisticNote.id),
@@ -473,6 +475,7 @@ export default function DailyNotesShell() {
             )
           );
           upsertPages([noteForSave]);
+          rememberPageRouteHandoff(noteForSave, "daily-create");
           const persistStatus = await persistOptimisticDailyNote(
             dailyRootId,
             noteForSave,
@@ -497,6 +500,7 @@ export default function DailyNotesShell() {
 
   const openNotePage = useCallback((note: DailyNote) => {
     upsertPages([note]);
+    rememberPageRouteHandoff(note, "daily-open");
     setPeekPageId(note.id);
     setPeekInitialPage(note);
     try {
@@ -737,6 +741,8 @@ export default function DailyNotesShell() {
                   <div className="flex items-center justify-between">
                     <button
                       type="button"
+                      aria-label={`在 ${key} 新增每日纪要`}
+                      data-testid={`daily-add-note-${key}`}
                       disabled={creatingDateKey !== null}
                       onClick={() => void addNote(key)}
                       className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"

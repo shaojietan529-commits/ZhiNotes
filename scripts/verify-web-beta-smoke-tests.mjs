@@ -20,6 +20,7 @@ const files = {
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
@@ -209,6 +210,7 @@ function run() {
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
@@ -809,6 +811,67 @@ function run() {
     dailyNotesShell,
     "已先显示本机热缓存",
     "Daily notes must surface the local hot cache first-paint path."
+  );
+  assertIncludes(
+    files.pageRouteHandoff,
+    pageRouteHandoff,
+    'format: "zhinote-page-route-handoff"',
+    "Page route handoff must expose a stable local handoff format."
+  );
+  assertIncludes(
+    files.pageRouteHandoff,
+    pageRouteHandoff,
+    'route_target: "/page/[pageId]"',
+    "Page route handoff must stay scoped to page opening."
+  );
+  assertIncludes(
+    files.pageRouteHandoff,
+    pageRouteHandoff,
+    "window.sessionStorage.setItem",
+    "Page route handoff must stay a short-lived browser session cache."
+  );
+  assertIncludes(
+    files.pageRouteHandoff,
+    pageRouteHandoff,
+    "stores_source_of_truth: false",
+    "Page route handoff must not become the source of truth."
+  );
+  assertIncludes(
+    files.pageRouteHandoff,
+    pageRouteHandoff,
+    "enters_sync_log: false",
+    "Page route handoff must not enter the upload queue."
+  );
+  for (const forbiddenPageRouteHandoffSnippet of [
+    "fetch(",
+    "recordSyncChange",
+    "INSERT INTO sync_log",
+    "queueCloudPagePush",
+    "pushCloudPages",
+  ]) {
+    if (pageRouteHandoff.includes(forbiddenPageRouteHandoffSnippet)) {
+      failures.push(
+        `${files.pageRouteHandoff} must not include ${forbiddenPageRouteHandoffSnippet}: route handoff must stay local-only and out of sync.`
+      );
+    }
+  }
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "readPageRouteHandoff",
+    "Page opening must read route handoff before slower local DB or cloud checks."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
+    "Daily + creation must hand off the optimistic page before full page navigation."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "data-testid={`daily-add-note-${key}`}",
+    "Daily calendar + button must expose a stable test target."
   );
   assertIncludes(
     files.syncShell,

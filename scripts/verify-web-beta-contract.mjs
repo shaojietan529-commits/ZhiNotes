@@ -78,6 +78,7 @@ const files = {
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
@@ -345,6 +346,7 @@ function run() {
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
@@ -1220,6 +1222,98 @@ function run() {
     [
       "已先显示本机热缓存",
       "Daily notes must surface the local hot cache first-paint path.",
+    ],
+  ]) {
+    assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-page-route-handoff"',
+      "Page route handoff must expose a stable local handoff format.",
+    ],
+    [
+      'route_target: "/page/[pageId]"',
+      "Page route handoff must stay scoped to page opening.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-route-handoff"',
+      "Page route handoff must align to cloud master plus local-first page opening.",
+    ],
+    [
+      "window.sessionStorage.setItem",
+      "Page route handoff must be a short-lived browser session cache.",
+    ],
+    [
+      "stores_page_body_text: false",
+      "Page route handoff must not store page body text.",
+    ],
+    [
+      "stores_page_yjs: false",
+      "Page route handoff must not store Yjs editor state.",
+    ],
+    [
+      "enters_sync_log: false",
+      "Page route handoff must not enter the upload queue.",
+    ],
+    [
+      "stores_source_of_truth: false",
+      "Page route handoff must not become the source of truth.",
+    ],
+    [
+      "records_metadata_only: true",
+      "Page route handoff must stay metadata-only.",
+    ],
+  ]) {
+    assertSourceIncludes(files.pageRouteHandoff, pageRouteHandoff, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "fetch(",
+      "Page route handoff must not call network APIs.",
+    ],
+    [
+      "recordSyncChange",
+      "Page route handoff must not call the pending upload logger.",
+    ],
+    [
+      "INSERT INTO sync_log",
+      "Page route handoff must not write pending upload rows.",
+    ],
+    [
+      "queueCloudPagePush",
+      "Page route handoff must not queue cloud pushes.",
+    ],
+    [
+      "pushCloudPages",
+      "Page route handoff must not upload cloud pages.",
+    ],
+  ]) {
+    assertSourceExcludes(files.pageRouteHandoff, pageRouteHandoff, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "readPageRouteHandoff",
+      "usePage must read a route handoff before slower local DB or cloud checks.",
+    ],
+    [
+      "clearPageRouteHandoff",
+      "usePage must clear route handoffs after durable local or cloud hydration.",
+    ],
+  ]) {
+    assertSourceIncludes(files.usePage, usePage, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
+      "Daily + creation must hand off the optimistic page before full navigation.",
+    ],
+    [
+      "rememberPageRouteHandoff(note, \"daily-open\")",
+      "Daily note opening must hand off metadata before opening a page.",
+    ],
+    [
+      "data-testid={`daily-add-note-${key}`}",
+      "Daily calendar + buttons must expose stable test targets.",
     ],
   ]) {
     assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
