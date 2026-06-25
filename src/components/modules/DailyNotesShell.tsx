@@ -112,6 +112,22 @@ export default function DailyNotesShell() {
     const cachedCloud = includeCloud
       ? readCachedDailyCloudMetadata(startDate, endDate)
       : null;
+    const cloudMetadataPromise = includeCloud
+      ? fetchDailyCloudMetadata({
+          startDate,
+          endDate,
+          recentLimit: 12,
+        }).catch((error): DailyCloudMetadataResult => {
+          const message =
+            error instanceof Error ? error.message : "云端每日纪要索引读取失败。";
+          return {
+            status: "error",
+            pages: [],
+            total: 0,
+            message,
+          };
+        })
+      : null;
 
     const publishNotes = (nextNotes: DailyNote[]) => {
       if (loadRequestRef.current !== requestId) return;
@@ -209,11 +225,8 @@ export default function DailyNotesShell() {
       }
 
       try {
-        const cloud = await fetchDailyCloudMetadata({
-          startDate,
-          endDate,
-          recentLimit: 12,
-        });
+        if (!cloudMetadataPromise) return;
+        const cloud = await cloudMetadataPromise;
         if (cloud.status === "ok" && cloud.rootId) {
           rememberModuleRootId("daily", cloud.rootId);
           publishRootId(cloud.rootId);

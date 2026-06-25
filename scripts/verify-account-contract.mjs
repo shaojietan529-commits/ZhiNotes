@@ -453,10 +453,11 @@ const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
 check(
   dailyNotesShell.includes("const storedDailyRootId = getModuleRootIdSync(\"daily\")") &&
     dailyNotesShell.includes("const cachedCloud = includeCloud") &&
+    dailyNotesShell.includes("const cloudMetadataPromise = includeCloud") &&
     dailyNotesShell.indexOf("readCachedDailyCloudMetadata(startDate, endDate)") <
       dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") &&
     dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") <
-      dailyNotesShell.indexOf("fetchDailyCloudMetadata({") &&
+      dailyNotesShell.indexOf("const cloud = await cloudMetadataPromise") &&
     dailyNotesShell.includes("publishNotes(Array.from(byId.values()))") &&
     dailyNotesShell.includes("void ensureDailyDateIndexBackfilled()") &&
     !dailyNotesShell.includes("await ensureDailyDateIndexBackfilled()") &&
@@ -464,7 +465,7 @@ check(
     dailyNotesShell.includes("recentLimit: 12") &&
     dailyNotesShell.includes("rebuildPageDateKeyIndex") &&
     !dailyNotesShell.includes("getAllPageMetadata"),
-  "DailyNotesShell 首屏应本地/缓存优先，云端后台补齐；回退本机时只能走日期索引，不能扫描本机全量页面"
+  "DailyNotesShell 首屏应本地/缓存优先，云端请求可提前并行但只能后台补齐；回退本机时只能走日期索引，不能扫描本机全量页面"
 );
 check(
   dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
