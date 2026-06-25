@@ -412,6 +412,12 @@ check(
     !shells.schedule.includes("const dailyPages = await listPages(dailyRootId)"),
   "MeetingScheduleShell 关联每日纪要时应先读 metadata，不能为建立日期索引读取所有每日正文"
 );
+check(
+  shells.schedule.includes("localPagesForMerge = await listPageMetadata(id)") &&
+    !shells.schedule.includes("localPagesForMerge = await listPages(id)") &&
+    !shells.schedule.includes("import { listPages"),
+  "MeetingScheduleShell 日历首屏应只读本地会议 metadata，不能为渲染日历读取完整会议正文"
+);
 
 // 4. Sidebar promotes the primary workspaces, demotes the rest to 备选模块, and lets
 // owner reorder the primary sidebar items locally.

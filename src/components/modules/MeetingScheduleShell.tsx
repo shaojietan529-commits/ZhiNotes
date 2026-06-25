@@ -13,7 +13,6 @@ import {
   getDeletedPages,
   getPage,
   listPageMetadata,
-  listPages,
   restorePage,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
@@ -426,7 +425,7 @@ export default function MeetingScheduleShell() {
         (cachedCloud?.ok ? cachedCloud.rootId : null) ??
         (await getModuleRootId("meeting-schedule"));
       publishRootId(id);
-      localPagesForMerge = await listPages(id);
+      localPagesForMerge = await listPageMetadata(id);
       publishMeetings(localPagesForMerge, cachedCloud?.ok ? cachedCloud.pages : []);
       scheduleMeetingIdleTask(() => {
         void restoreDeletedMeetingPages(id!, deletedTombstoneRef.current).catch(

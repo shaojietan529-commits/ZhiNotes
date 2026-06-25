@@ -7728,6 +7728,18 @@ function run() {
     'fetch("/api/pages/account-sync"',
     "Meeting calendar must not bypass the shared account page sync helper."
   );
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "localPagesForMerge = await listPageMetadata(id)",
+    "Meeting calendar local hot-cache render must use metadata-only page reads."
+  );
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "localPagesForMerge = await listPages(id)",
+    "Meeting calendar local hot-cache render must not read full page bodies."
+  );
   for (const [sourceLabel, source, snippet, message] of [
     [
       files.databaseShell,
