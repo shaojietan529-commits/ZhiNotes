@@ -13,16 +13,12 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import type { EditorRef } from "@/components/editor/Editor";
 import Breadcrumb from "@/components/shared/Breadcrumb";
 import IconPicker from "@/components/shared/IconPicker";
-import Backlinks from "@/components/shared/Backlinks";
-import PageComments from "@/components/shared/PageComments";
 import BlockComments, {
   BLOCK_COMMENTS_CHANGED_EVENT,
   INLINE_COMMENT_SELECTED_EVENT,
 } from "@/components/shared/BlockComments";
-import CommentSidePanel from "@/components/shared/CommentSidePanel";
 import PageProperties from "@/components/page/PageProperties";
 import PageActionsMenu from "@/components/page/PageActionsMenu";
-import ChildPageTree from "@/components/page/ChildPageTree";
 import PageRouteSkeleton from "@/components/page/PageRouteSkeleton";
 import {
   parsePageProperties,
@@ -45,9 +41,7 @@ import {
   movePageWithCloud,
   updatePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
-import MoveToDialog from "@/components/page/MoveToDialog";
 import { maybeSnapshot, manualSnapshot } from "@/lib/comparison/versioning";
-import VersionHistoryPanel from "@/components/comparison/VersionHistoryPanel";
 import type { PageVersion } from "@/lib/utils/types";
 import {
   buildPageHtmlDocument,
@@ -73,6 +67,27 @@ const Editor = dynamic(() => import("@/components/editor/Editor"), {
   ssr: false,
   loading: () => <PageBodySkeleton />,
 });
+const Backlinks = dynamic(() => import("@/components/shared/Backlinks"), {
+  ssr: false,
+});
+const PageComments = dynamic(
+  () => import("@/components/shared/PageComments"),
+  { ssr: false }
+);
+const CommentSidePanel = dynamic(
+  () => import("@/components/shared/CommentSidePanel"),
+  { ssr: false }
+);
+const ChildPageTree = dynamic(() => import("@/components/page/ChildPageTree"), {
+  ssr: false,
+});
+const MoveToDialog = dynamic(() => import("@/components/page/MoveToDialog"), {
+  ssr: false,
+});
+const VersionHistoryPanel = dynamic(
+  () => import("@/components/comparison/VersionHistoryPanel"),
+  { ssr: false }
+);
 
 export default function PageShell({ pageId }: { pageId: string }) {
   return <PageContent pageId={pageId} />;
