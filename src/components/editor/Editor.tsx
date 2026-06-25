@@ -55,6 +55,7 @@ import { CalloutNode } from "./extensions/CalloutNode";
 import { ModuleCardNode } from "./extensions/ModuleCardNode";
 import { TableOfContentsNode } from "./extensions/TableOfContentsNode";
 import { BlockOperations } from "./extensions/BlockOperations";
+import { IndentExtension } from "./extensions/IndentExtension";
 import { ColumnBlockNode, ColumnLayoutNode } from "./extensions/ColumnsNode";
 import { BookmarkNode } from "./extensions/BookmarkNode";
 import { EquationNode } from "./extensions/EquationNode";
@@ -255,6 +256,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         SyncedBlockNode,
         EmbedNode,
         BlockOperations,
+        IndentExtension,
         Mention.configure({
           HTMLAttributes: {
             class:

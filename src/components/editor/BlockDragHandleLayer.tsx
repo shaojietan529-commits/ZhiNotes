@@ -215,7 +215,7 @@ export function BlockDragHandleLayer({
       const surface = getSurface();
       if (!surface) return null;
       const surfaceRect = surface.getBoundingClientRect();
-      const baseLeft = Math.max(0, meta.rect.left - surfaceRect.left - 26);
+      const baseLeft = 0;
       return {
         dragLeft: baseLeft + BLOCK_HANDLE_GAP,
         insertLeft: baseLeft,
