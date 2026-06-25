@@ -282,7 +282,6 @@ function run() {
   }
 
   for (const [sourceLabel, source] of [
-    [files.moveToDialog, moveToDialog],
     [files.pageContextMenu, pageContextMenu],
     [files.subPageTree, subPageTree],
   ]) {
@@ -299,6 +298,24 @@ function run() {
       "Lightweight page pickers and hierarchy lookups must not scan full page bodies after large imports."
     );
   }
+  assertIncludes(
+    files.moveToDialog,
+    moveToDialog,
+    "listMoveTargetPageMetadata({ pageId, query, limit: 30 })",
+    "MoveToDialog must load bounded move targets from the local index instead of scanning every page."
+  );
+  assertNotIncludes(
+    files.moveToDialog,
+    moveToDialog,
+    "getAllPageMetadata",
+    "MoveToDialog must not scan every page when opening the move picker."
+  );
+  assertNotIncludes(
+    files.moveToDialog,
+    moveToDialog,
+    "getAllPages(",
+    "MoveToDialog must not scan full page bodies."
+  );
   assertIncludes(
     files.industryChainSearch,
     industryChainSearch,

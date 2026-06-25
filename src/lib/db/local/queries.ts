@@ -279,6 +279,54 @@ export async function findDescendantPageMetadataByTitle(
   return partialRows[0] ?? null;
 }
 
+export async function listMoveTargetPageMetadata({
+  pageId,
+  query = "",
+  limit = 30,
+}: {
+  pageId: string;
+  query?: string;
+  limit?: number;
+}): Promise<Page[]> {
+  const db = await getDb();
+  const safeLimit = Math.max(1, Math.min(80, Math.floor(limit)));
+  const normalizedQuery = query.trim();
+  const queryFilter = normalizedQuery
+    ? "AND instr(lower(title), lower(?)) > 0"
+    : "";
+  const orderClause = normalizedQuery
+    ? `ORDER BY
+        CASE
+          WHEN lower(title) = lower(?) THEN 0
+          WHEN instr(lower(title), lower(?)) = 1 THEN 1
+          ELSE 2
+        END,
+        updated_at DESC`
+    : "ORDER BY updated_at DESC";
+  const params = normalizedQuery
+    ? [pageId, normalizedQuery, normalizedQuery, normalizedQuery, safeLimit]
+    : [pageId, safeLimit];
+
+  return db.query(
+    `WITH RECURSIVE excluded(id) AS (
+       SELECT ?
+       UNION ALL
+       SELECT pages.id
+       FROM pages
+       JOIN excluded ON pages.parent_id = excluded.id
+       WHERE pages.deleted_at IS NULL
+     )
+     SELECT ${PAGE_METADATA_SELECT}
+     FROM pages
+     WHERE deleted_at IS NULL
+       AND id NOT IN (SELECT id FROM excluded)
+       ${queryFilter}
+     ${orderClause}
+     LIMIT ?`,
+    params
+  ) as unknown as Page[];
+}
+
 function dailyDateCandidateWhere(alias = "pages"): string {
   const prefix = alias ? `${alias}.` : "";
   return `(

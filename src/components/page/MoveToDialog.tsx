@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getAllPageMetadata } from "@/lib/db/local/queries";
+import { listMoveTargetPageMetadata } from "@/lib/db/local/queries";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import type { Page } from "@/lib/utils/types";
 
@@ -18,24 +18,32 @@ export default function MoveToDialog({
 }: MoveToDialogProps) {
   const [query, setQuery] = useState("");
   const [pages, setPages] = useState<Page[]>([]);
+  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    getAllPageMetadata().then((all) => {
-      const excluded = new Set<string>();
-      excluded.add(pageId);
-      const addDescendants = (id: string) => {
-        for (const p of all) {
-          if (p.parent_id === id && !excluded.has(p.id)) {
-            excluded.add(p.id);
-            addDescendants(p.id);
-          }
-        }
-      };
-      addDescendants(pageId);
-      setPages(all.filter((p) => !excluded.has(p.id)));
-    });
-  }, [pageId]);
+    let cancelled = false;
+    const timer = window.setTimeout(
+      () => {
+        setLoading(true);
+        listMoveTargetPageMetadata({ pageId, query, limit: 30 })
+          .then((targets) => {
+            if (!cancelled) setPages(targets);
+          })
+          .catch(() => {
+            if (!cancelled) setPages([]);
+          })
+          .finally(() => {
+            if (!cancelled) setLoading(false);
+          });
+      },
+      query.trim() ? 160 : 0
+    );
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [pageId, query]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -45,14 +53,6 @@ export default function MoveToDialog({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
-
-  const filtered = query.trim()
-    ? pages.filter((p) =>
-        displayPageTitle(p.title)
-          .toLowerCase()
-          .includes(query.trim().toLowerCase())
-      )
-    : pages;
 
   return (
     <div
@@ -87,7 +87,7 @@ export default function MoveToDialog({
             <span className="font-medium">根目录（顶层）</span>
           </button>
 
-          {filtered.slice(0, 30).map((p) => (
+          {pages.map((p) => (
             <button
               key={p.id}
               type="button"
@@ -99,9 +99,9 @@ export default function MoveToDialog({
             </button>
           ))}
 
-          {filtered.length === 0 && (
+          {pages.length === 0 && (
             <p className="px-4 py-3 text-center text-xs text-zinc-400">
-              没有匹配的页面
+              {loading ? "正在搜索..." : "没有匹配的页面"}
             </p>
           )}
         </div>
