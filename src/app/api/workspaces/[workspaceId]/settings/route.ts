@@ -8,6 +8,7 @@ import {
   supabaseErrorResponse,
 } from "@/lib/cloud/api";
 import { getSupabaseUser, requestSupabaseRest } from "@/lib/cloud/supabaseRest";
+import { HOT_CACHE_PREFERENCES_SETTING_KEY } from "@/lib/sync/hotCacheSelectionSettings";
 import {
   HOT_CACHE_SETTINGS_CLOUD_PAYLOAD_MAX_BYTES,
   buildHotCacheSettingsCloudReceipt,
@@ -16,6 +17,16 @@ import {
   parseHotCacheSettingsCloudValue,
   validateHotCacheSettingsCloudPayload,
 } from "@/lib/sync/hotCacheSettingsCloud";
+import {
+  SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
+  SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
+  buildSidebarWorkspaceSettingsCloudReceipt,
+  buildSidebarWorkspaceSettingsCloudValue,
+  isSidebarWorkspaceSettingKey,
+  parseSidebarWorkspaceSettingsCloudValues,
+  sidebarWorkspaceSettingCloudField,
+  validateSidebarWorkspaceSettingsCloudPayload,
+} from "@/lib/sync/sidebarWorkspaceSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -84,14 +95,25 @@ export async function GET(
     const parsed = parseHotCacheSettingsCloudValue(
       isPlainObject(workspace.settings) ? workspace.settings : null
     );
+    const sidebarSettings = parseSidebarWorkspaceSettingsCloudValues(
+      isPlainObject(workspace.settings) ? workspace.settings : null
+    );
 
     return NextResponse.json(
-      buildHotCacheSettingsCloudReadReceipt({
-        workspaceId,
-        role: membership.role,
-        readAt: new Date().toISOString(),
-        parsed,
-      })
+      {
+        ...buildHotCacheSettingsCloudReadReceipt({
+          workspaceId,
+          role: membership.role,
+          readAt: new Date().toISOString(),
+          parsed,
+        }),
+        supported_setting_keys: [
+          HOT_CACHE_PREFERENCES_SETTING_KEY,
+          SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
+          SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
+        ],
+        sidebar_settings: sidebarSettings,
+      }
     );
   } catch (error) {
     return supabaseErrorResponse(error);
@@ -119,8 +141,21 @@ export async function PATCH(
   const body = await readBoundedJsonBody(request);
   if (!body.ok) return badRequestResponse(body.message);
 
-  const validation = validateHotCacheSettingsCloudPayload(body.value);
-  if (!validation.ok) return badRequestResponse(validation.message);
+  const record = isPlainObject(body.value) ? body.value : null;
+  const settingKey = record?.setting_key;
+  const validatedPayload =
+    settingKey === HOT_CACHE_PREFERENCES_SETTING_KEY
+      ? validateHotCacheSettingsCloudPayload(body.value)
+      : isSidebarWorkspaceSettingKey(settingKey)
+        ? validateSidebarWorkspaceSettingsCloudPayload(body.value)
+        : {
+            ok: false as const,
+            message:
+              "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1 或 sidebar.primaryCustomization.v1。",
+          };
+  if (!validatedPayload.ok) {
+    return badRequestResponse(validatedPayload.message);
+  }
 
   try {
     const user = await getSupabaseUser(accessToken);
@@ -159,7 +194,7 @@ export async function PATCH(
         {
           format: "zhinote-cloud-error",
           error: "workspace-settings-readonly-role",
-          message: "viewer 只能读取 workspace，不能修改热缓存偏好。",
+          message: "viewer 只能读取 workspace，不能修改工作区设置。",
         },
         { status: 403 }
       );
@@ -168,11 +203,23 @@ export async function PATCH(
     const savedAt = new Date().toISOString();
     const nextSettings = {
       ...(isPlainObject(workspace.settings) ? workspace.settings : {}),
-      hot_cache_preferences: buildHotCacheSettingsCloudValue(
-        validation.payload,
-        savedAt
-      ),
     };
+
+    if (
+      validatedPayload.payload.setting_key === HOT_CACHE_PREFERENCES_SETTING_KEY
+    ) {
+      nextSettings.hot_cache_preferences = buildHotCacheSettingsCloudValue(
+        validatedPayload.payload,
+        savedAt
+      );
+    } else {
+      nextSettings[
+        sidebarWorkspaceSettingCloudField(validatedPayload.payload.setting_key)
+      ] = buildSidebarWorkspaceSettingsCloudValue(
+        validatedPayload.payload,
+        savedAt
+      );
+    }
 
     await requestSupabaseRest<null>(
       `/workspaces?id=eq.${encodeURIComponent(workspaceId)}`,
@@ -189,12 +236,25 @@ export async function PATCH(
       accessToken
     );
 
+    if (
+      validatedPayload.payload.setting_key === HOT_CACHE_PREFERENCES_SETTING_KEY
+    ) {
+      return NextResponse.json(
+        buildHotCacheSettingsCloudReceipt({
+          workspaceId,
+          role: membership.role,
+          savedAt,
+          payload: validatedPayload.payload,
+        })
+      );
+    }
+
     return NextResponse.json(
-      buildHotCacheSettingsCloudReceipt({
+      buildSidebarWorkspaceSettingsCloudReceipt({
         workspaceId,
         role: membership.role,
         savedAt,
-        payload: validation.payload,
+        payload: validatedPayload.payload,
       })
     );
   } catch (error) {
@@ -220,10 +280,13 @@ async function readBoundedJsonBody(request: Request): Promise<
     };
   }
 
-  if (new TextEncoder().encode(text).length > HOT_CACHE_SETTINGS_CLOUD_PAYLOAD_MAX_BYTES) {
+  if (
+    new TextEncoder().encode(text).length >
+    HOT_CACHE_SETTINGS_CLOUD_PAYLOAD_MAX_BYTES
+  ) {
     return {
       ok: false,
-      message: "请求体过大。热缓存偏好同步只接受小型设置元数据。",
+      message: "请求体过大。工作区设置同步只接受小型设置元数据。",
     };
   }
 

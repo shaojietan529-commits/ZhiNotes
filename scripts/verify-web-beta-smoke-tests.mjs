@@ -18,6 +18,7 @@ const files = {
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
+  sidebarWorkspaceSettings: "src/lib/sync/sidebarWorkspaceSettings.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
@@ -209,6 +210,9 @@ function run() {
     files.hotCacheSelectionSettings
   );
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
+  const sidebarWorkspaceSettings = readProjectFile(
+    files.sidebarWorkspaceSettings
+  );
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
@@ -1090,6 +1094,36 @@ function run() {
     sidebar,
     "localStorage is only a fast boot cache and migration source",
     "Smoke verifier must keep localStorage as sidebar cache/migration only."
+  );
+  assertIncludes(
+    files.sidebarWorkspaceSettings,
+    sidebarWorkspaceSettings,
+    'format: "zhinote-sidebar-settings-cloud-receipt"',
+    "Smoke verifier must keep sidebar settings cloud receipts."
+  );
+  assertIncludes(
+    files.sidebarWorkspaceSettings,
+    sidebarWorkspaceSettings,
+    "workspaces.settings.sidebar_primary_order",
+    "Smoke verifier must keep sidebar primary order targeting cloud settings."
+  );
+  assertIncludes(
+    files.sidebarWorkspaceSettings,
+    sidebarWorkspaceSettings,
+    "workspaces.settings.sidebar_primary_customization",
+    "Smoke verifier must keep sidebar primary customization targeting cloud settings."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "validateSidebarWorkspaceSettingsCloudPayload",
+    "Smoke verifier must keep workspace settings API accepting sidebar settings."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "sidebar_settings",
+    "Smoke verifier must keep workspace settings API returning sidebar settings metadata."
   );
   assertIncludes(
     files.syncShell,

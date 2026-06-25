@@ -37,13 +37,14 @@ import {
   ACCOUNT_PROFILE_UPDATED_EVENT,
 } from "@/lib/account/clientProfile";
 import { fetchAccountSession } from "@/lib/account/clientSession";
+import {
+  SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
+  SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
+} from "@/lib/sync/sidebarWorkspaceSettings";
 
 const SIDEBAR_PRIMARY_ORDER_LOCAL_CACHE_KEY = "zhinote.sidebar.primaryOrder.v1";
 const SIDEBAR_PRIMARY_CUSTOMIZATION_LOCAL_CACHE_KEY =
   "zhinote.sidebar.primaryCustomization.v1";
-const SIDEBAR_PRIMARY_ORDER_SETTING_KEY = "sidebar.primaryOrder.v1";
-const SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY =
-  "sidebar.primaryCustomization.v1";
 
 interface SidebarPrimaryItem {
   id: string;

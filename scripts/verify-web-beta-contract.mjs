@@ -76,6 +76,7 @@ const files = {
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
+  sidebarWorkspaceSettings: "src/lib/sync/sidebarWorkspaceSettings.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
@@ -345,6 +346,9 @@ function run() {
     files.hotCacheSelectionSettings
   );
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
+  const sidebarWorkspaceSettings = readProjectFile(
+    files.sidebarWorkspaceSettings
+  );
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
@@ -1493,6 +1497,60 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.sidebar, sidebar, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-sidebar-settings-cloud-receipt"',
+      "Sidebar settings cloud receipt must have a stable format.",
+    ],
+    [
+      "workspaces.settings.sidebar_primary_order",
+      "Sidebar primary order must target cloud workspace settings.",
+    ],
+    [
+      "workspaces.settings.sidebar_primary_customization",
+      "Sidebar primary customizations must target cloud workspace settings.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Sidebar settings cloud receipt must preserve pending-only sync.",
+    ],
+    [
+      "uploads_workspace_content: false",
+      "Sidebar settings cloud receipt must not upload workspace content.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.sidebarWorkspaceSettings,
+      sidebarWorkspaceSettings,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "validateSidebarWorkspaceSettingsCloudPayload",
+      "Workspace settings API must accept sidebar setting payloads.",
+    ],
+    [
+      "buildSidebarWorkspaceSettingsCloudValue",
+      "Workspace settings API must write sidebar setting cloud values.",
+    ],
+    [
+      "sidebar_settings",
+      "Workspace settings API reads must return sidebar settings metadata.",
+    ],
+    [
+      "supported_setting_keys",
+      "Workspace settings API reads must disclose supported setting keys.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.workspaceSettingsRoute,
+      workspaceSettingsRoute,
+      snippet,
+      message
+    );
   }
   for (const [snippet, message] of [
     [
