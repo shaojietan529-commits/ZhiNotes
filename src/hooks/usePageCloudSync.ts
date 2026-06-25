@@ -2,8 +2,9 @@
 
 // Runs account page cloud sync in the background while the app is open so
 // both domains stay in step in near-real-time: on load, on a short interval,
-// whenever the tab regains focus/visibility, after local edits settle, and
-// on manual triggers. Still does nothing unless signed in to the account.
+// whenever the tab regains focus/visibility, and on manual triggers. Local
+// page writes already use a debounced cloud push queue; this hook is the
+// cross-device pull and offline-retry safety net.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -25,9 +26,6 @@ import { getPageUpdateClientId } from "@/lib/pages/pageUpdateBus";
 // within KV rate limits because only one visible tab holds the sync lease.
 const SYNC_INTERVAL_MS = 8 * 1000;
 const INITIAL_SYNC_DELAY_MS = 800;
-// Debounce after a local page change before pushing, so a burst of edits
-// (typing, drag) collapses into one sync.
-const EDIT_DEBOUNCE_MS = 4 * 1000;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.pagesync.leaderLease.v1";
 const LEASE_TTL_MS = 18 * 1000;
@@ -75,7 +73,6 @@ function claimSyncLease(force = false): boolean {
 
 export function usePageCloudSync() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
-  const pages = useWorkspaceStore((s) => s.pages);
   // Start as "disabled" on both server and client so SSR hydration matches;
   // the first effect run flips it based on the real localStorage flag.
   const [state, setState] = useState<PageCloudSyncState>("disabled");
@@ -204,23 +201,6 @@ export function usePageCloudSync() {
       document.removeEventListener("visibilitychange", handleVisible);
     };
   }, [dbReady, recoverLocalCacheFromCloud, runSync]);
-
-  // Push local edits up shortly after they settle. Reconcile is idempotent
-  // (no diff → no network write), and the pull→refresh path converges, so
-  // this debounced trigger cannot loop.
-  const firstEditRun = useRef(true);
-  useEffect(() => {
-    if (!dbReady) return;
-    if (firstEditRun.current) {
-      firstEditRun.current = false;
-      return;
-    }
-    const timer = window.setTimeout(
-      () => void runSync({ quick: true }),
-      EDIT_DEBOUNCE_MS
-    );
-    return () => window.clearTimeout(timer);
-  }, [pages, dbReady, runSync]);
 
   return { state, lastSyncAt, syncNow: runSync };
 }

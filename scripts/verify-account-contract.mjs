@@ -645,8 +645,10 @@ check(
 );
 check(
   !pageCloudSyncHook.includes("usePages") &&
-    !pageCloudSyncHook.includes("refresh({ reason: \"cloud-pull\" })"),
-  "页面云同步 hook 不应在每次云端拉取后再触发 usePages 全量/元数据刷新；应依赖页面更新广播收敛"
+    !pageCloudSyncHook.includes("refresh({ reason: \"cloud-pull\" })") &&
+    !pageCloudSyncHook.includes("useWorkspaceStore((s) => s.pages)") &&
+    !pageCloudSyncHook.includes("firstEditRun"),
+  "页面云同步 hook 不应在每次云端拉取后再触发 usePages 或监听整个 pages store；本地写入走防抖上传队列，后台同步只做拉取和失败兜底"
 );
 check(
   pageSyncClient.includes("emitPagesUpdated(\"cloud-pull\", pulled || repaired)") &&
