@@ -8,6 +8,7 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import {
+  applyRemotePages,
   applyRemotePageMetadata,
   deletePage,
   getDeletedPages,
@@ -24,9 +25,12 @@ import {
   fetchMeetingCloudMetadata,
   pageToRemoteRecord,
   pushCloudPages,
+  queueCloudPagePush,
   syncCloudPageMetadataDelta,
   type MeetingCloudMetadataResult,
 } from "@/lib/pages/accountPageSync";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
   getModuleRootId,
   getModuleRootIdSync,
@@ -197,7 +201,7 @@ interface CreateMeetingOptions {
 
 interface QueueResult {
   ok: boolean;
-  status: "queued" | "skipped" | "failed";
+  status: "queued" | "skipped" | "failed" | "pending";
   message: string;
   jobId?: string;
 }
@@ -817,78 +821,106 @@ export default function MeetingScheduleShell() {
         traceNote,
       });
 
-      let page: Page;
-      try {
-        page = await createPageWithCloud({
-          parentId: rootId,
-          title,
-          icon: "🗓️",
-        });
-      } catch (error) {
-        if (!isLocalDbIoError(error)) throw error;
-        const cloudResult = await createCloudOnlyMeetingPage({
-          rootId,
-          title,
-          properties: stringifyPageProperties(props),
-          contentText,
-        });
-        upsertMeetingInView(cloudResult.page);
-        return cloudResult;
-      }
+      const now = new Date().toISOString();
+      const optimisticPage = makeCloudOnlyPage({
+        id: generateId(),
+        parentId: rootId,
+        title,
+        icon: "🗓️",
+        contentText,
+        properties: stringifyPageProperties(props),
+        position: Date.now(),
+        depth: 1,
+        now,
+      });
+      const queueResult: QueueResult | undefined = options.enqueueRecording
+        ? {
+            ok: false,
+            status: "pending",
+            message: "录制任务正在后台入队，结果会回写会议页面。",
+          }
+        : undefined;
 
-      let updatedPage: Page | null;
-      try {
-        updatedPage = await updatePageWithCloud(page.id, {
-          properties: stringifyPageProperties(props),
-          content_text: contentText,
-        });
-      } catch (error) {
-        if (!isLocalDbIoError(error)) throw error;
-        const cloudResult = await createCloudOnlyMeetingPage({
-          rootId,
-          pageId: page.id,
-          title,
-          properties: stringifyPageProperties(props),
-          contentText,
-        });
-        upsertMeetingInView(cloudResult.page);
-        return cloudResult;
-      }
-      let finalPage = updatedPage ?? page;
-      let queueResult: QueueResult | undefined;
-      upsertMeetingInView(finalPage);
+      upsertMeetingInView(optimisticPage);
+      upsertPages([optimisticPage]);
+      rememberPendingPageDraft(optimisticPage);
+      rememberPageRouteHandoff(optimisticPage, "meeting-create");
+      void seedMeetingPageForImmediateOpen(optimisticPage);
 
-      if (options.enqueueRecording) {
-        queueResult = await enqueueMeetingRecordingRequest(
-          toMeetingEntry(finalPage),
-          false
-        );
-        const queueProps = parsePageProperties(finalPage.properties);
-        upsertPageProperty(queueProps, "录制任务", queueResult.ok ? "已入队" : "入队失败", {
-          type: "select",
-          options: ["未入队", "已入队", "入队失败"],
-        });
-        upsertPageProperty(queueProps, "录制任务ID", queueResult.jobId ?? "", {
-          type: "text",
-        });
-        upsertPageProperty(queueProps, "录制任务错误", queueResult.ok ? "" : queueResult.message, {
-          type: "text",
-        });
-        const queuedPage = await updatePageWithCloud(page.id, {
-          properties: stringifyPageProperties(queueProps),
-        });
-        finalPage = queuedPage ?? finalPage;
-        upsertMeetingInView(finalPage);
-      }
+      void (async () => {
+        let finalPage = optimisticPage;
+        try {
+          const latestPage = await getLatestOpenedMeetingPage(optimisticPage);
+          finalPage = {
+            ...latestPage,
+            parent_id: rootId,
+            depth: 1,
+            updated_at:
+              latestPage.parent_id === rootId
+                ? latestPage.updated_at
+                : new Date().toISOString(),
+          };
+          upsertMeetingInView(finalPage);
+          upsertPages([finalPage]);
+          rememberPendingPageDraft(finalPage);
+          rememberPageRouteHandoff(finalPage, "meeting-create");
+          await persistOptimisticMeetingPage(rootId, finalPage, upsertPages);
 
-      void pushMeetingPageCloudSnapshot(rootId, finalPage)
-        .then(() => load())
-        .catch(() => undefined);
-      void refresh().catch(() => undefined);
+          if (options.enqueueRecording) {
+            const actualQueueResult = await enqueueMeetingRecordingRequest(
+              toMeetingEntry(finalPage),
+              false
+            );
+            const queueProps = parsePageProperties(finalPage.properties);
+            upsertPageProperty(
+              queueProps,
+              "录制任务",
+              actualQueueResult.ok ? "已入队" : "入队失败",
+              {
+                type: "select",
+                options: ["未入队", "已入队", "入队失败"],
+              }
+            );
+            upsertPageProperty(
+              queueProps,
+              "录制任务ID",
+              actualQueueResult.jobId ?? "",
+              {
+                type: "text",
+              }
+            );
+            upsertPageProperty(
+              queueProps,
+              "录制任务错误",
+              actualQueueResult.ok ? "" : actualQueueResult.message,
+              {
+                type: "text",
+              }
+            );
+            finalPage = {
+              ...finalPage,
+              properties: stringifyPageProperties(queueProps),
+              updated_at: new Date().toISOString(),
+            };
+            upsertMeetingInView(finalPage);
+            upsertPages([finalPage]);
+            rememberPendingPageDraft(finalPage);
+            rememberPageRouteHandoff(finalPage, "meeting-create");
+            await persistOptimisticMeetingPage(rootId, finalPage, upsertPages);
+          }
 
-      return { page: finalPage, queueResult };
+          await load();
+        } catch (error) {
+          console.warn("Meeting background persistence failed", error);
+          queueCloudPagePush(pageToRemoteRecord(finalPage));
+        } finally {
+          void refresh().catch(() => undefined);
+        }
+      })();
+
+      return { page: optimisticPage, queueResult };
     },
-    [rootId, upsertMeetingInView, refresh, load]
+    [rootId, upsertMeetingInView, upsertPages, refresh, load]
   );
 
   const handleCreate = useCallback(async () => {
@@ -1168,6 +1200,92 @@ export default function MeetingScheduleShell() {
     [load, refresh, rootId]
   );
 
+  const primeMeetingPageOpen = useCallback(
+    (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
+      upsertPages([page]);
+      rememberPendingPageDraft(page);
+      rememberPageRouteHandoff(page, source);
+      try {
+        router.prefetch(`/page/${page.id}`);
+      } catch {
+        // Prefetch is a speed hint. The handoff and pending draft already cover
+        // the first paint when the browser cache or cloud is slow.
+      }
+    },
+    [router, upsertPages]
+  );
+
+  const openMeetingFullPage = useCallback(
+    (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
+      primeMeetingPageOpen(page, source);
+      router.push(`/page/${page.id}`);
+    },
+    [primeMeetingPageOpen, router]
+  );
+
+  const openMeetingFullPageById = useCallback(
+    (pageId: string) => {
+      const page =
+        meetings.find((item) => item.id === pageId) ??
+        (selectedMeeting?.page.id === pageId ? selectedMeeting.page : null) ??
+        useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
+        null;
+      if (page) {
+        openMeetingFullPage(page, "meeting-open");
+        return;
+      }
+      router.push(`/page/${pageId}`);
+    },
+    [meetings, openMeetingFullPage, router, selectedMeeting]
+  );
+
+  const quickCreateMeetingForDate = useCallback(
+    async (dateKey: string) => {
+      if (creatingMeetingDateKey !== null) return;
+      setCreatingMeetingDateKey(dateKey);
+      setIntakeError("");
+      setIntakeMessage(`${dateKey} 的会议页面正在打开，后台会继续保存到账号云端…`);
+      try {
+        const result = await createMeetingPage(
+          {
+            ...emptyForm(dateKey),
+            topic: "",
+            organizer: "",
+            time: "",
+          },
+          {
+            importSource: "手动创建",
+            traceStatus: "已留痕-待补时间",
+            timeStatus: "待补充",
+            recordingStatus: "未执行",
+            traceNote:
+              "从日历快速创建，等待补齐主题、时间、平台和入会方式。",
+          }
+        );
+        setFormOpen(false);
+        focusCalendarDate(dateKey);
+        setIntakeMessage(`${dateKey} 的会议页面已先加入日历，正在打开…`);
+        openMeetingFullPage(result.page, "meeting-create");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "创建会议失败。";
+        setIntakeError(message);
+        setIntakeMessage("");
+      } finally {
+        window.setTimeout(() => {
+          setCreatingMeetingDateKey((current) =>
+            current === dateKey ? null : current
+          );
+        }, 250);
+      }
+    },
+    [
+      createMeetingPage,
+      creatingMeetingDateKey,
+      focusCalendarDate,
+      openMeetingFullPage,
+    ]
+  );
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
@@ -1207,6 +1325,8 @@ export default function MeetingScheduleShell() {
                 </div>
                 <button
                   type="button"
+                  data-testid="meeting-intake-import-button"
+                  aria-label="导入会议信息到日历"
                   onClick={() => void handleImportInvite()}
                   disabled={intakeLoading || !rootId || !intakeText.trim()}
                   className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
@@ -1443,7 +1563,10 @@ export default function MeetingScheduleShell() {
                     <li key={entry.page.id}>
                       <Link
                         href={`/page/${entry.page.id}`}
-                        onClick={() => markSeen(entry.page.id)}
+                        onClick={() => {
+                          markSeen(entry.page.id);
+                          primeMeetingPageOpen(entry.page, "meeting-open");
+                        }}
                         className="flex w-full items-center gap-3 px-2 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                       >
                         {unseen ? (
@@ -1627,8 +1750,10 @@ export default function MeetingScheduleShell() {
                     </span>
                     <button
                       type="button"
+                      data-testid={`meeting-add-${key}`}
+                      aria-label={`创建 ${key} 的会议页面`}
                       disabled={creatingMeetingDateKey !== null}
-                      onClick={() => openForm(key)}
+                      onClick={() => void quickCreateMeetingForDate(key)}
                       className="text-zinc-300 opacity-0 transition-opacity hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:text-zinc-200"
                       title="在这天加会议"
                     >
@@ -1640,6 +1765,7 @@ export default function MeetingScheduleShell() {
                       <button
                         key={entry.page.id}
                         type="button"
+                        data-testid={`meeting-calendar-entry-${entry.page.id}`}
                         onClick={() => setSelectedMeeting(entry)}
                         onContextMenu={(e) => {
                           e.preventDefault();
@@ -1742,8 +1868,8 @@ export default function MeetingScheduleShell() {
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
-          onOpen={(id) => router.push(`/page/${id}`)}
-          onOpenFull={(id) => router.push(`/page/${id}`)}
+          onOpen={openMeetingFullPageById}
+          onOpenFull={openMeetingFullPageById}
           onChanged={() => void handleContextMenuChanged(contextMenu.pageId)}
         />
       )}
@@ -1755,7 +1881,7 @@ export default function MeetingScheduleShell() {
             setRunNowMessage("");
             setSelectedMeeting(null);
           }}
-          onOpenFull={(id) => router.push(`/page/${id}`)}
+          onOpenFull={openMeetingFullPageById}
           onDelete={(id) => void handleDeleteMeeting(id)}
           onStartNow={handleStartRecordingNow}
         />
@@ -2037,54 +2163,85 @@ function mergeMeetingPages(
   return [...byId.values()];
 }
 
-async function createCloudOnlyMeetingPage({
-  rootId,
-  pageId,
-  title,
-  properties,
-  contentText,
-}: {
-  rootId: string;
-  pageId?: string;
-  title: string;
-  properties: string;
-  contentText: string;
-}): Promise<CreateMeetingResult> {
-  const now = new Date().toISOString();
-  const rootPage = makeCloudOnlyPage({
-    id: rootId,
-    parentId: null,
-    title: "ZhiHui",
-    icon: "🗓️",
-    contentText: "",
-    properties: null,
-    position: 0,
-    depth: 0,
-    now,
-  });
-  const page = makeCloudOnlyPage({
-    id: pageId ?? generateId(),
-    parentId: rootId,
-    title,
-    icon: "🗓️",
-    contentText,
-    properties,
-    position: Date.now(),
-    depth: 1,
-    now,
-  });
+async function seedMeetingPageForImmediateOpen(page: Page): Promise<void> {
+  try {
+    await applyRemotePages([pageToRemoteRecord(page)]);
+  } catch {
+    // The in-memory store and pending draft already let the page open. Local
+    // cache persistence can be retried by the pending upload path.
+  }
+}
 
-  const result = await pushCloudPages([
-    pageToRemoteRecord(rootPage),
-    pageToRemoteRecord(page),
-  ]);
-  if (result.status !== "ok") {
-    throw new Error(
-      `本地数据库写入失败，云端保存也失败：${result.message || result.status}`
-    );
+async function getLatestOpenedMeetingPage(page: Page): Promise<Page> {
+  const memoryPage = useWorkspaceStore
+    .getState()
+    .pages.find((item) => item.id === page.id);
+  if (memoryPage) return { ...page, ...memoryPage };
+
+  const localPage = await getPage(page.id).catch(() => null);
+  if (localPage) return { ...page, ...localPage };
+
+  return page;
+}
+
+async function persistOptimisticMeetingPage(
+  rootId: string,
+  page: Page,
+  upsertPages: (pages: Page[]) => void
+): Promise<"cloud" | "local-only"> {
+  const rootRecord = await makeMeetingRootRecord(rootId, page.updated_at);
+  const pageRecord = pageToRemoteRecord(page);
+  const records = [rootRecord, pageRecord];
+  const localPages = records.map(cloudRecordToPage);
+
+  try {
+    await applyRemotePages(records);
+  } catch {
+    // The current page is already visible from memory. A rebuildable cache miss
+    // must not block the user's write path.
+  } finally {
+    upsertPages(localPages);
   }
 
-  return { page, cloudOnly: true };
+  const result = await pushCloudPages(records);
+  if (result.status === "ok") return "cloud";
+  if (
+    result.status === "disabled" ||
+    result.status === "unauthenticated" ||
+    result.status === "unconfigured"
+  ) {
+    return "local-only";
+  }
+  throw new Error(result.message || "云端保存失败。");
+}
+
+async function makeMeetingRootRecord(
+  rootId: string,
+  updatedAt: string
+): Promise<RemotePageRecord> {
+  const rootPage = await getPage(rootId).catch(() => null);
+  if (rootPage) {
+    return pageToRemoteRecord({
+      ...rootPage,
+      updated_at:
+        rootPage.updated_at && rootPage.updated_at > updatedAt
+          ? rootPage.updated_at
+          : updatedAt,
+    });
+  }
+  return pageToRemoteRecord(
+    makeCloudOnlyPage({
+      id: rootId,
+      parentId: null,
+      title: "ZhiHui",
+      icon: "🗓️",
+      contentText: "",
+      properties: null,
+      position: 0,
+      depth: 0,
+      now: updatedAt,
+    })
+  );
 }
 
 function makeCloudOnlyPage({
@@ -2126,11 +2283,6 @@ function makeCloudOnlyPage({
     deleted_at: null,
     sync_version: 1,
   };
-}
-
-function isLocalDbIoError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
-  return /SQLITE_IOERR|disk I\/O error|quota/i.test(message);
 }
 
 function toMeetingEntry(page: Page): MeetingEntry {
@@ -2345,6 +2497,7 @@ function displayTranscriptionModel(value: string) {
 
 function formatQueueResultForMessage(result?: QueueResult) {
   if (!result) return " 这条会议暂未进入录制队列。";
+  if (result.status === "pending") return ` ${result.message}`;
   if (result.ok) return " 已进入本地 runner 录制队列。";
   if (result.status === "skipped") return ` ${result.message}`;
   return ` 会议已保留，但录制任务入队失败：${result.message}`;

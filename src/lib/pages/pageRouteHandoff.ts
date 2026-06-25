@@ -27,7 +27,12 @@ interface PageRouteHandoff {
   format_version: 1;
   route_target: "/page/[pageId]";
   architecture_target: "cloud-master-local-route-handoff";
-  source: "daily-create" | "daily-open" | "page-open";
+  source:
+    | "daily-create"
+    | "daily-open"
+    | "meeting-create"
+    | "meeting-open"
+    | "page-open";
   cached_at: string;
   expires_at: string;
   privacy_boundary: string;

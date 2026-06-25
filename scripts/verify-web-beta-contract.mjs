@@ -1320,6 +1320,35 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      "quickCreateMeetingForDate",
+      "Meeting calendar + buttons must create and open a meeting page directly.",
+    ],
+    [
+      "rememberPageRouteHandoff(optimisticPage, \"meeting-create\")",
+      "Meeting creation must hand off the optimistic page before full navigation.",
+    ],
+    [
+      "rememberPendingPageDraft(optimisticPage)",
+      "Meeting creation must keep an in-memory draft for immediate page opening.",
+    ],
+    [
+      "persistOptimisticMeetingPage",
+      "Meeting creation must persist the optimistic page through local cache and cloud push.",
+    ],
+    [
+      "data-testid={`meeting-add-${key}`}",
+      "Meeting calendar + buttons must expose stable test targets.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildHotCacheWarmupReceipt",
       "Sync UI must build a hot cache warmup receipt.",
     ],

@@ -874,6 +874,30 @@ function run() {
     "Daily calendar + button must expose a stable test target."
   );
   assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "quickCreateMeetingForDate",
+    "Meeting calendar + button must create and open a meeting page directly."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "rememberPageRouteHandoff(optimisticPage, \"meeting-create\")",
+    "Meeting creation must hand off the optimistic page before page navigation."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "rememberPendingPageDraft(optimisticPage)",
+    "Meeting creation must keep an in-memory draft for immediate page opening."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "data-testid={`meeting-add-${key}`}",
+    "Meeting calendar + button must expose a stable test target."
+  );
+  assertIncludes(
     files.syncShell,
     syncShell,
     "本地热缓存策略",
