@@ -81,6 +81,8 @@ const files = {
     "src/lib/sync/pageFavoritesWorkspaceSettings.ts",
   pageViewPreferencesWorkspaceSettings:
     "src/lib/sync/pageViewPreferencesWorkspaceSettings.ts",
+  quickSearchWorkspaceSettings:
+    "src/lib/sync/quickSearchWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
@@ -96,6 +98,7 @@ const files = {
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   childPageTree: "src/components/page/ChildPageTree.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
+  quickSearch: "src/components/sidebar/QuickSearch.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
@@ -363,6 +366,9 @@ function run() {
   const pageViewPreferencesWorkspaceSettings = readProjectFile(
     files.pageViewPreferencesWorkspaceSettings
   );
+  const quickSearchWorkspaceSettings = readProjectFile(
+    files.quickSearchWorkspaceSettings
+  );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
@@ -380,6 +386,7 @@ function run() {
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const childPageTree = readProjectFile(files.childPageTree);
   const sidebar = readProjectFile(files.sidebar);
+  const quickSearch = readProjectFile(files.quickSearch);
   const syncShell = readProjectFile(files.syncShell);
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
@@ -465,6 +472,7 @@ function run() {
       files.pageViewPreferencesWorkspaceSettings,
       pageViewPreferencesWorkspaceSettings,
     ],
+    [files.quickSearchWorkspaceSettings, quickSearchWorkspaceSettings],
     [files.workspaceSettingsPendingSync, workspaceSettingsPendingSync],
     [files.workspaceSettingsRoute, workspaceSettingsRoute],
     [files.localSchema, localSchema],
@@ -473,6 +481,7 @@ function run() {
     [files.localQueries, localQueries],
     [files.databaseRouteSkeleton, databaseRouteSkeleton],
     [files.childPageTree, childPageTree],
+    [files.quickSearch, quickSearch],
     [files.syncShell, syncShell],
     [files.moduleRouteSkeleton, moduleRouteSkeleton],
     [files.pageRouteSkeleton, pageRouteSkeleton],
@@ -1798,6 +1807,14 @@ function run() {
       "Workspace settings pending sync must upload only child-tree view mode metadata for page view preferences.",
     ],
     [
+      "QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY",
+      "Workspace settings pending sync must include quick search saved-search settings.",
+    ],
+    [
+      "saved_searches",
+      "Workspace settings pending sync must upload only saved-search metadata for quick search.",
+    ],
+    [
       "Page bodies, database row values, comments, files, tokens, and raw local cache dumps are never included",
       "Workspace settings pending sync must state the privacy boundary.",
     ],
@@ -2000,6 +2017,83 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      'format: "zhinote-quick-search-saved-searches-settings-cloud-receipt"',
+      "Quick search saved searches must expose a stable cloud receipt.",
+    ],
+    [
+      "QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY",
+      "Quick search saved searches must use a stable workspace setting key.",
+    ],
+    [
+      "workspaces.settings.quick_search_saved_searches",
+      "Quick search saved searches must target workspace cloud settings.",
+    ],
+    [
+      "validateQuickSearchSavedSearchesWorkspaceSettingsCloudPayload",
+      "Quick search saved searches must validate cloud payloads.",
+    ],
+    [
+      "saved_searches",
+      "Quick search saved searches must persist only saved-search metadata.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Quick search saved searches receipt must state it does not read page bodies.",
+    ],
+    [
+      "reads_page_titles: false",
+      "Quick search saved searches receipt must state it does not read page titles.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Quick search saved searches receipt must state it does not read database row values.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Quick search saved searches must use pending-only ordinary sync.",
+    ],
+    [
+      "content_text",
+      "Quick search saved searches validator must reject page body fields.",
+    ],
+    [
+      "database_title",
+      "Quick search saved searches validator must reject database title fields.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.quickSearchWorkspaceSettings,
+      quickSearchWorkspaceSettings,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY",
+      "Quick search UI must use the cloud-ready saved searches setting key.",
+    ],
+    [
+      "getWorkspaceSetting(QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY)",
+      "Quick search UI must hydrate saved searches from workspace_settings.",
+    ],
+    [
+      "upsertWorkspaceSetting(",
+      "Quick search UI must persist saved searches through workspace_settings and sync_log.",
+    ],
+    [
+      "localStorage is a fast boot cache and legacy migration source only",
+      "Quick search UI must keep localStorage as cache/migration only.",
+    ],
+    [
+      "legacy-quick-search-saved-searches-localStorage",
+      "Quick search UI must migrate legacy saved searches into workspace_settings.",
+    ],
+  ]) {
+    assertSourceIncludes(files.quickSearch, quickSearch, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       'cloudNotConfiguredResponse("workspace-settings-update")',
       "Workspace settings route must stay behind the cloud configured gate.",
     ],
@@ -2054,6 +2148,22 @@ function run() {
     [
       "PAGE_VIEW_PREFERENCES_SETTING_KEY",
       "Workspace settings route must advertise page view preferences as a supported setting.",
+    ],
+    [
+      "validateQuickSearchSavedSearchesWorkspaceSettingsCloudPayload",
+      "Workspace settings route must validate quick search saved-search payloads before writing.",
+    ],
+    [
+      "buildQuickSearchSavedSearchesWorkspaceSettingsCloudValue",
+      "Workspace settings route must write quick search saved-search metadata to cloud settings.",
+    ],
+    [
+      "quick_search_saved_searches",
+      "Workspace settings route must return quick search saved-search metadata on reads.",
+    ],
+    [
+      "QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY",
+      "Workspace settings route must advertise quick search saved searches as a supported setting.",
     ],
     [
       "workspace-settings-readonly-role",

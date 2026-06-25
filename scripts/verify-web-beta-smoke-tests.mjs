@@ -23,6 +23,8 @@ const files = {
     "src/lib/sync/pageFavoritesWorkspaceSettings.ts",
   pageViewPreferencesWorkspaceSettings:
     "src/lib/sync/pageViewPreferencesWorkspaceSettings.ts",
+  quickSearchWorkspaceSettings:
+    "src/lib/sync/quickSearchWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
@@ -38,6 +40,7 @@ const files = {
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   childPageTree: "src/components/page/ChildPageTree.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
+  quickSearch: "src/components/sidebar/QuickSearch.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
@@ -227,6 +230,9 @@ function run() {
   const pageViewPreferencesWorkspaceSettings = readProjectFile(
     files.pageViewPreferencesWorkspaceSettings
   );
+  const quickSearchWorkspaceSettings = readProjectFile(
+    files.quickSearchWorkspaceSettings
+  );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
@@ -244,6 +250,7 @@ function run() {
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const childPageTree = readProjectFile(files.childPageTree);
   const sidebar = readProjectFile(files.sidebar);
+  const quickSearch = readProjectFile(files.quickSearch);
   const syncShell = readProjectFile(files.syncShell);
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
   const pageShell = readProjectFile(files.pageShell);
@@ -1104,6 +1111,18 @@ function run() {
     "Smoke verifier must keep page view preferences in the pending-only upload allowlist."
   );
   assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY",
+    "Smoke verifier must keep quick search saved searches in the pending-only upload allowlist."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "saved_searches",
+    "Smoke verifier must keep quick search uploads limited to saved-search metadata."
+  );
+  assertIncludes(
     files.pageFavoritesWorkspaceSettings,
     pageFavoritesWorkspaceSettings,
     'format: "zhinote-page-favorites-settings-cloud-receipt"',
@@ -1188,6 +1207,48 @@ function run() {
     "Smoke verifier must keep child page tree saving view mode through page view preferences."
   );
   assertIncludes(
+    files.quickSearchWorkspaceSettings,
+    quickSearchWorkspaceSettings,
+    'format: "zhinote-quick-search-saved-searches-settings-cloud-receipt"',
+    "Smoke verifier must keep quick search saved searches cloud receipts."
+  );
+  assertIncludes(
+    files.quickSearchWorkspaceSettings,
+    quickSearchWorkspaceSettings,
+    "workspaces.settings.quick_search_saved_searches",
+    "Smoke verifier must keep quick search saved searches targeting cloud workspace settings."
+  );
+  assertIncludes(
+    files.quickSearchWorkspaceSettings,
+    quickSearchWorkspaceSettings,
+    "reads_page_titles: false",
+    "Smoke verifier must keep saved searches title-free."
+  );
+  assertIncludes(
+    files.quickSearchWorkspaceSettings,
+    quickSearchWorkspaceSettings,
+    "reads_database_row_values: false",
+    "Smoke verifier must keep saved searches database-row-free."
+  );
+  assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "getWorkspaceSetting(QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY)",
+    "Smoke verifier must keep quick search hydrating saved searches from workspace_settings."
+  );
+  assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "upsertWorkspaceSetting(",
+    "Smoke verifier must keep quick search saved searches writing workspace_settings and sync_log."
+  );
+  assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "legacy-quick-search-saved-searches-localStorage",
+    "Smoke verifier must keep legacy saved search migration."
+  );
+  assertIncludes(
     files.workspaceSettingsRoute,
     workspaceSettingsRoute,
     'requireCloudWritesResponse("workspace-settings-update")',
@@ -1228,6 +1289,18 @@ function run() {
     workspaceSettingsRoute,
     "page_view_preferences",
     "Smoke verifier must keep workspace settings API returning page view preferences metadata."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "validateQuickSearchSavedSearchesWorkspaceSettingsCloudPayload",
+    "Smoke verifier must keep workspace settings API accepting quick search saved searches."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "quick_search_saved_searches",
+    "Smoke verifier must keep workspace settings API returning quick search saved-search metadata."
   );
   assertIncludes(
     files.workspaceSettingsRoute,

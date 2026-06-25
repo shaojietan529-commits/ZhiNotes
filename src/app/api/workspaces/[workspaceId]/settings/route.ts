@@ -45,6 +45,15 @@ import {
   parsePageViewPreferencesWorkspaceSettingsCloudValue,
   validatePageViewPreferencesWorkspaceSettingsCloudPayload,
 } from "@/lib/sync/pageViewPreferencesWorkspaceSettings";
+import {
+  QUICK_SEARCH_SAVED_SEARCHES_CLOUD_FIELD,
+  QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
+  buildQuickSearchSavedSearchesWorkspaceSettingsCloudReceipt,
+  buildQuickSearchSavedSearchesWorkspaceSettingsCloudValue,
+  isQuickSearchSavedSearchesWorkspaceSettingKey,
+  parseQuickSearchSavedSearchesWorkspaceSettingsCloudValue,
+  validateQuickSearchSavedSearchesWorkspaceSettingsCloudPayload,
+} from "@/lib/sync/quickSearchWorkspaceSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -123,6 +132,10 @@ export async function GET(
       parsePageViewPreferencesWorkspaceSettingsCloudValue(
         isPlainObject(workspace.settings) ? workspace.settings : null
       );
+    const quickSearchSavedSearches =
+      parseQuickSearchSavedSearchesWorkspaceSettingsCloudValue(
+        isPlainObject(workspace.settings) ? workspace.settings : null
+      );
 
     return NextResponse.json(
       {
@@ -138,10 +151,12 @@ export async function GET(
           SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
           PAGE_FAVORITES_SETTING_KEY,
           PAGE_VIEW_PREFERENCES_SETTING_KEY,
+          QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
         ],
         sidebar_settings: sidebarSettings,
         page_favorites: pageFavorites,
         page_view_preferences: pageViewPreferences,
+        quick_search_saved_searches: quickSearchSavedSearches,
       }
     );
   } catch (error) {
@@ -181,11 +196,15 @@ export async function PATCH(
           ? validatePageFavoritesWorkspaceSettingsCloudPayload(body.value)
           : isPageViewPreferencesWorkspaceSettingKey(settingKey)
             ? validatePageViewPreferencesWorkspaceSettingsCloudPayload(body.value)
-            : {
-                ok: false as const,
-                message:
-                  "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1 或 page.viewPreferences.v1。",
-              };
+            : isQuickSearchSavedSearchesWorkspaceSettingKey(settingKey)
+              ? validateQuickSearchSavedSearchesWorkspaceSettingsCloudPayload(
+                  body.value
+                )
+              : {
+                  ok: false as const,
+                  message:
+                    "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1、page.viewPreferences.v1 或 quick_search.savedSearches.v1。",
+                };
   if (!validatedPayload.ok) {
     return badRequestResponse(validatedPayload.message);
   }
@@ -264,9 +283,17 @@ export async function PATCH(
           validatedPayload.payload,
           savedAt
         );
-    } else {
+    } else if (
+      validatedPayload.payload.setting_key === PAGE_VIEW_PREFERENCES_SETTING_KEY
+    ) {
       nextSettings[PAGE_VIEW_PREFERENCES_CLOUD_FIELD] =
         buildPageViewPreferencesWorkspaceSettingsCloudValue(
+          validatedPayload.payload,
+          savedAt
+        );
+    } else {
+      nextSettings[QUICK_SEARCH_SAVED_SEARCHES_CLOUD_FIELD] =
+        buildQuickSearchSavedSearchesWorkspaceSettingsCloudValue(
           validatedPayload.payload,
           savedAt
         );
@@ -326,8 +353,21 @@ export async function PATCH(
       );
     }
 
+    if (
+      validatedPayload.payload.setting_key === PAGE_VIEW_PREFERENCES_SETTING_KEY
+    ) {
+      return NextResponse.json(
+        buildPageViewPreferencesWorkspaceSettingsCloudReceipt({
+          workspaceId,
+          role: membership.role,
+          savedAt,
+          payload: validatedPayload.payload,
+        })
+      );
+    }
+
     return NextResponse.json(
-      buildPageViewPreferencesWorkspaceSettingsCloudReceipt({
+      buildQuickSearchSavedSearchesWorkspaceSettingsCloudReceipt({
         workspaceId,
         role: membership.role,
         savedAt,

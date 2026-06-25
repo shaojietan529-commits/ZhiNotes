@@ -18,6 +18,10 @@ import {
   PAGE_VIEW_PREFERENCES_SETTING_KEY,
   parsePageViewPreferencesWorkspaceSettingValue,
 } from "@/lib/sync/pageViewPreferencesWorkspaceSettings";
+import {
+  QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
+  parseQuickSearchSavedSearchesWorkspaceSettingValue,
+} from "@/lib/sync/quickSearchWorkspaceSettings";
 
 export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   HOT_CACHE_PREFERENCES_SETTING_KEY,
@@ -25,6 +29,7 @@ export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
   PAGE_FAVORITES_SETTING_KEY,
   PAGE_VIEW_PREFERENCES_SETTING_KEY,
+  QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
 ] as const;
 
 export type SupportedWorkspaceSettingSyncKey =
@@ -79,6 +84,11 @@ export type WorkspaceSettingCloudPayload =
       comments_panel_open: boolean;
       locked_page_ids: string[];
       child_tree_view_modes: Record<string, "list" | "calendar">;
+    }
+  | {
+      setting_key: typeof QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY;
+      client_pending_row_id: typeof QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY;
+      saved_searches: string[];
     };
 
 export function buildWorkspaceSettingsPendingSyncPlan(input: {
@@ -184,6 +194,16 @@ export function buildWorkspaceSettingCloudPayload(
       comments_panel_open: pageViewPreferences.comments_panel_open,
       locked_page_ids: pageViewPreferences.locked_page_ids,
       child_tree_view_modes: pageViewPreferences.child_tree_view_modes,
+    };
+  }
+
+  if (setting.key === QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY) {
+    return {
+      setting_key: QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
+      client_pending_row_id: QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
+      saved_searches:
+        parseQuickSearchSavedSearchesWorkspaceSettingValue(value)
+          .saved_searches,
     };
   }
 

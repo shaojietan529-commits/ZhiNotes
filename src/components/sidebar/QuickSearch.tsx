@@ -2,7 +2,11 @@
 
 import { Fragment, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { searchPages } from "@/lib/db/local/queries";
+import {
+  getWorkspaceSetting,
+  searchPages,
+  upsertWorkspaceSetting,
+} from "@/lib/db/local/queries";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useDatabases } from "@/hooks/useDatabases";
@@ -24,6 +28,11 @@ import {
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { RESEARCH_TEMPLATE_QUICK_ACTIONS } from "@/lib/modules/researchTemplateStarters";
+import {
+  QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
+  normalizeQuickSearchSavedSearches,
+  parseQuickSearchSavedSearchesWorkspaceSetting,
+} from "@/lib/sync/quickSearchWorkspaceSettings";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -79,8 +88,9 @@ export default function QuickSearch() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Page[]>([]);
   const { databases, refresh: refreshDatabases } = useDatabases();
-  const [savedSearches, setSavedSearches] =
-    useState<string[]>(readSavedSearches);
+  const [savedSearches, setSavedSearches] = useState<string[]>(
+    readSavedSearchesLocalCache
+  );
   const [resultFilter, setResultFilter] = useState<ResultFilter>("all");
   const [pageActivityFilter, setPageActivityFilter] =
     useState<PageActivityFilter>("suggested");
@@ -139,6 +149,43 @@ export default function QuickSearch() {
     void refresh({ broadcast: false });
   }, [open, pages.length, refresh]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const localCache = readSavedSearchesLocalCache();
+
+    async function loadSavedSearchesWorkspaceSetting() {
+      try {
+        const setting = await getWorkspaceSetting(QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY);
+        if (cancelled) return;
+
+        if (setting) {
+          const workspaceSearches =
+            parseQuickSearchSavedSearchesWorkspaceSetting(setting)
+              .saved_searches;
+          setSavedSearches(workspaceSearches);
+          writeSavedSearchesLocalCache(workspaceSearches);
+          return;
+        }
+
+        // localStorage is a fast boot cache and legacy migration source only.
+        // The durable local record is workspace_settings, which queues sync_log.
+        if (localCache.length > 0) {
+          void persistSavedSearchesWorkspaceSetting(
+            localCache,
+            "legacy-quick-search-saved-searches-localStorage"
+          );
+        }
+      } catch (error) {
+        console.error("[Zhinote] Failed to load saved searches:", error);
+      }
+    }
+
+    void loadSavedSearchesWorkspaceSetting();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleSearch = useCallback(async (value: string) => {
     const requestId = searchRequestRef.current + 1;
     searchRequestRef.current = requestId;
@@ -156,6 +203,11 @@ export default function QuickSearch() {
   const handleSaveSearch = () => {
     const nextSavedSearches = saveSearchQuery(trimmedQuery, savedSearches);
     setSavedSearches(nextSavedSearches);
+    void persistSavedSearchesWorkspaceSetting(nextSavedSearches).catch(
+      (error) => {
+        console.error("[Zhinote] Failed to save quick search query:", error);
+      }
+    );
   };
 
   const handleRemoveSavedSearch = (savedSearch: string) => {
@@ -163,7 +215,11 @@ export default function QuickSearch() {
       (item) => item.toLowerCase() !== savedSearch.toLowerCase()
     );
     setSavedSearches(nextSavedSearches);
-    writeSavedSearches(nextSavedSearches);
+    void persistSavedSearchesWorkspaceSetting(nextSavedSearches).catch(
+      (error) => {
+        console.error("[Zhinote] Failed to remove saved search query:", error);
+      }
+    );
   };
 
   const handleSelect = (pageId: string) => {
@@ -1730,18 +1786,14 @@ function getFilterEmptyLabel(filter: ResultFilter) {
   return "结果";
 }
 
-function readSavedSearches() {
+function readSavedSearchesLocalCache() {
   if (typeof window === "undefined") return [];
   try {
     const rawValue = window.localStorage.getItem(SAVED_SEARCHES_KEY);
     if (!rawValue) return [];
     const parsed = JSON.parse(rawValue);
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((value): value is string => typeof value === "string")
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .slice(0, MAX_SAVED_SEARCHES);
+    return normalizeQuickSearchSavedSearches(parsed);
   } catch {
     return [];
   }
@@ -1756,13 +1808,34 @@ function saveSearchQuery(query: string, currentSearches: string[]) {
       (item) => item.toLowerCase() !== normalizedQuery.toLowerCase()
     ),
   ].slice(0, MAX_SAVED_SEARCHES);
-  writeSavedSearches(nextSavedSearches);
   return nextSavedSearches;
 }
 
-function writeSavedSearches(savedSearches: string[]) {
+function writeSavedSearchesLocalCache(savedSearches: string[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(savedSearches));
+  window.localStorage.setItem(
+    SAVED_SEARCHES_KEY,
+    JSON.stringify(normalizeQuickSearchSavedSearches(savedSearches))
+  );
+}
+
+async function persistSavedSearchesWorkspaceSetting(
+  savedSearches: string[],
+  source = "quick-search-ui"
+) {
+  const normalized = normalizeQuickSearchSavedSearches(savedSearches);
+  writeSavedSearchesLocalCache(normalized);
+  await upsertWorkspaceSetting(
+    QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
+    {
+      schema_version: 1,
+      saved_searches: normalized,
+      cloud_target: "workspaces.settings.quick_search_saved_searches",
+      local_cache_key: SAVED_SEARCHES_KEY,
+      ordinary_sync_pending_only: true,
+    },
+    source
+  );
 }
 
 function getMatchingCommands(
