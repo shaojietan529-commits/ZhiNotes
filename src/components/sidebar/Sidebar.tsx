@@ -42,6 +42,9 @@ import {
   SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
 } from "@/lib/sync/sidebarWorkspaceSettings";
 
+const SIDEBAR_PRIMARY_ORDER_KEY = SIDEBAR_PRIMARY_ORDER_SETTING_KEY;
+const SIDEBAR_PRIMARY_CUSTOMIZATION_KEY =
+  SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY;
 const SIDEBAR_PRIMARY_ORDER_LOCAL_CACHE_KEY = "zhinote.sidebar.primaryOrder.v1";
 const SIDEBAR_PRIMARY_CUSTOMIZATION_LOCAL_CACHE_KEY =
   "zhinote.sidebar.primaryCustomization.v1";
@@ -261,7 +264,7 @@ async function persistSidebarPrimaryOrder(items: SidebarPrimaryItem[]) {
   const order = items.map((item) => item.id);
   writeSidebarPrimaryOrderLocalCache(order);
   await upsertWorkspaceSetting(
-    SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
+    SIDEBAR_PRIMARY_ORDER_KEY,
     {
       schema_version: 1,
       order,
@@ -279,7 +282,7 @@ async function persistSidebarPrimaryCustomizations(
   const normalized = parseSidebarPrimaryCustomizations(customizations);
   writeSidebarPrimaryCustomizationsLocalCache(normalized);
   await upsertWorkspaceSetting(
-    SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
+    SIDEBAR_PRIMARY_CUSTOMIZATION_KEY,
     {
       schema_version: 1,
       customizations: normalized,
