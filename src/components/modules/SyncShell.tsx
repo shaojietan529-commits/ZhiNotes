@@ -259,6 +259,11 @@ import {
   type HotCacheWarmupPlan,
 } from "@/lib/sync/hotCacheWarmupPlan";
 import {
+  buildHotCacheWarmupReceipt,
+  type HotCacheWarmupReceipt,
+  type HotCacheWarmupReceiptJobStatus,
+} from "@/lib/sync/hotCacheWarmupReceipt";
+import {
   DEFAULT_HOT_CACHE_PREFERENCES,
   HOT_CACHE_PREFERENCES_SETTING_KEY,
   buildHotCacheSelectionContract,
@@ -783,6 +788,8 @@ function SyncDashboard() {
   const [hotCacheWarmupMessage, setHotCacheWarmupMessage] = useState<
     string | null
   >(null);
+  const [hotCacheWarmupReceipt, setHotCacheWarmupReceipt] =
+    useState<HotCacheWarmupReceipt | null>(null);
   const [busyAction, setBusyAction] = useState<ExportAction | null>(null);
   const [busyQueueAction, setBusyQueueAction] = useState<SyncQueueAction | null>(
     null
@@ -2363,6 +2370,20 @@ function SyncDashboard() {
     });
   };
 
+  const handleExportHotCacheWarmupReceipt = () => {
+    if (!hotCacheWarmupReceipt) {
+      setHotCacheWarmupMessage("还没有本机预热收据。请先运行一次预热。");
+      return;
+    }
+    downloadJsonFile(
+      `zhinote-hot-cache-warmup-receipt-${fileSafeTimestamp()}.json`,
+      {
+        ...hotCacheWarmupReceipt,
+        exported_at: new Date().toISOString(),
+      }
+    );
+  };
+
   const handleRunHotCacheWarmup = () => {
     const routeTargets = Array.from(
       new Set(
@@ -2371,8 +2392,18 @@ function SyncDashboard() {
           .flatMap((job) => job.route_targets)
       )
     );
+    const startedAt = new Date().toISOString();
+    const failedRouteTargets: string[] = [];
 
     if (routeTargets.length === 0) {
+      setHotCacheWarmupReceipt(
+        buildHotCacheWarmupReceipt({
+          plan: hotCacheWarmupPlan,
+          attemptedRouteTargets: [],
+          startedAt,
+          finishedAt: new Date().toISOString(),
+        })
+      );
       setHotCacheWarmupMessage("当前没有可预热入口。请先开启至少一项热缓存偏好。");
       return;
     }
@@ -2381,11 +2412,20 @@ function SyncDashboard() {
       try {
         router.prefetch(routeTarget);
       } catch {
+        failedRouteTargets.push(routeTarget);
         // Route prefetch is best-effort; it must not block the sync dashboard.
       }
     }
+    const receipt = buildHotCacheWarmupReceipt({
+      plan: hotCacheWarmupPlan,
+      attemptedRouteTargets: routeTargets,
+      failedRouteTargets,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+    });
+    setHotCacheWarmupReceipt(receipt);
     setHotCacheWarmupMessage(
-      `已预热 ${routeTargets.length} 个本机入口：${routeTargets.join("、")}。这个动作不读取正文、不上传、不改缓存记录。`
+      `已预热 ${routeTargets.length} 个本机入口，生成 metadata-only 收据：${receipt.summary.prefetched_jobs} 个 job 已执行、${receipt.summary.skipped_jobs} 个 job 跳过。这个动作不读取正文、不上传、不改缓存记录。`
     );
   };
 
@@ -4007,9 +4047,11 @@ function SyncDashboard() {
 
         <HotCacheWarmupPlanPanel
           plan={hotCacheWarmupPlan}
+          receipt={hotCacheWarmupReceipt}
           message={hotCacheWarmupMessage}
           onRun={handleRunHotCacheWarmup}
           onExport={handleExportHotCacheWarmupPlan}
+          onExportReceipt={handleExportHotCacheWarmupReceipt}
         />
 
         <CacheRebuildSafetyPanel
@@ -14305,14 +14347,18 @@ function HotCacheSelectionPanel({
 
 function HotCacheWarmupPlanPanel({
   plan,
+  receipt,
   message,
   onRun,
   onExport,
+  onExportReceipt,
 }: {
   plan: HotCacheWarmupPlan;
+  receipt: HotCacheWarmupReceipt | null;
   message: string | null;
   onRun: () => void;
   onExport: () => void;
+  onExportReceipt: () => void;
 }) {
   return (
     <section
@@ -14346,6 +14392,13 @@ function HotCacheWarmupPlanPanel({
             className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             导出预热计划
+          </button>
+          <button
+            type="button"
+            onClick={onExportReceipt}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            导出预热收据
           </button>
         </div>
       </div>
@@ -14395,6 +14448,15 @@ function HotCacheWarmupPlanPanel({
         </p>
       ) : null}
 
+      {receipt ? (
+        <HotCacheWarmupReceiptPanel receipt={receipt} />
+      ) : (
+        <div className="mt-4 rounded-md border border-dashed border-zinc-200 px-3 py-2 text-xs leading-5 text-zinc-400 dark:border-zinc-800">
+          尚未生成预热收据。运行“预热本机入口”后，会记录 route
+          prefetch 结果、跳过原因和 metadata 范围，方便之后对账和排查卡顿。
+        </div>
+      )}
+
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {plan.jobs.map((job) => (
           <HotCacheWarmupJobRow key={job.id} job={job} />
@@ -14403,6 +14465,80 @@ function HotCacheWarmupPlanPanel({
 
       <div className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
         边界：{plan.privacy_boundary}
+      </div>
+    </section>
+  );
+}
+
+function HotCacheWarmupReceiptPanel({
+  receipt,
+}: {
+  receipt: HotCacheWarmupReceipt;
+}) {
+  return (
+    <section className="mt-4 rounded-md border border-blue-100 bg-blue-50 px-3 py-3 text-xs dark:border-blue-950 dark:bg-blue-950/40">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="font-semibold text-blue-900 dark:text-blue-100">
+            最近一次预热收据
+          </div>
+          <p className="mt-1 max-w-3xl leading-5 text-blue-700 dark:text-blue-200">
+            收据只记录 route、job 状态和 metadata 数量，不是云端主库，也不保存正文、
+            文件或数据库行值。
+          </p>
+        </div>
+        <div className="font-mono text-[10px] text-blue-500 dark:text-blue-300">
+          {receipt.finished_at}
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+        <LocalMetadataManifestMiniStat
+          label="Prefetched"
+          value={receipt.summary.prefetched_jobs}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Skipped"
+          value={receipt.summary.skipped_jobs}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Routes"
+          value={receipt.summary.attempted_routes}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Failed"
+          value={receipt.summary.failed_routes}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Metadata"
+          value={receipt.summary.estimated_metadata_records}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Pending"
+          value={receipt.summary.pending_rows_protected}
+        />
+      </div>
+      <div className="mt-3 grid gap-2 lg:grid-cols-2">
+        {receipt.jobs.map((job) => (
+          <article
+            key={job.job_id}
+            className="rounded-md bg-white/70 px-3 py-2 dark:bg-zinc-950/40"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="font-semibold text-blue-950 dark:text-blue-50">
+                  {job.title}
+                </div>
+                <div className="mt-1 font-mono text-[10px] text-blue-500 dark:text-blue-300">
+                  {job.job_id}
+                </div>
+              </div>
+              <HotCacheWarmupReceiptStatusPill status={job.status} />
+            </div>
+            <p className="mt-2 leading-5 text-blue-700 dark:text-blue-200">
+              {job.reason}
+            </p>
+          </article>
+        ))}
       </div>
     </section>
   );
@@ -14430,6 +14566,36 @@ function HotCacheWarmupSummaryCard({
       </div>
       <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
     </div>
+  );
+}
+
+function HotCacheWarmupReceiptStatusPill({
+  status,
+}: {
+  status: HotCacheWarmupReceiptJobStatus;
+}) {
+  const labels: Record<HotCacheWarmupReceiptJobStatus, string> = {
+    prefetched: "已预热",
+    "preference-off": "未开启",
+    planned: "计划",
+    blocked: "阻塞",
+    "no-routes": "无入口",
+  };
+  const className =
+    status === "prefetched"
+      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "preference-off"
+        ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300"
+        : status === "planned"
+          ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : status === "no-routes"
+            ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+            : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
