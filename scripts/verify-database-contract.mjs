@@ -100,6 +100,12 @@ function assertIncludes(sourceLabel, source, snippet, message) {
   }
 }
 
+function assertNotIncludes(sourceLabel, source, snippet, message) {
+  if (source.includes(snippet)) {
+    failures.push(`${sourceLabel} must not include ${snippet}: ${message}`);
+  }
+}
+
 function assertNoLocalDatabaseMutationImport(sourceLabel, source) {
   const mutationNames = [
     "addField",
@@ -279,7 +285,6 @@ function run() {
     "cacheWriteFailed?: boolean",
     "pushCloudDatabaseRecords",
     "fetchCloudDatabaseRecordsByKeys",
-    "pushLocalDatabasesToCloud",
     "rebuildDatabaseCacheFromCloud",
     "reconcileDatabaseSync",
     "DatabaseReconcileOptions",
@@ -305,7 +310,6 @@ function run() {
     "databaseMetadataDeltaGeneration += 1",
     "lastDatabaseMetadataDeltaResult = null",
     "generation === databaseMetadataDeltaGeneration",
-    "getAllDatabaseRecordsForSync",
     "getDatabaseRecordsForSyncByKeys",
     "getPendingDatabaseSyncRecords",
     "getRemoteDatabaseRecordKey",
@@ -347,6 +351,18 @@ function run() {
       "Database cloud sync client must stay default-on, incremental, and fully drain paged cloud results."
     );
   }
+  assertNotIncludes(
+    files.databaseAccountSyncClient,
+    databaseAccountSyncClient,
+    "pushLocalDatabasesToCloud",
+    "Database sync must treat cloud as source of truth; ordinary account sync can only upload explicit pending local changes."
+  );
+  assertNotIncludes(
+    files.databaseAccountSyncClient,
+    databaseAccountSyncClient,
+    "getAllDatabaseRecordsForSync",
+    "Database sync client must not scan and upload the full local cache."
+  );
   if (
     databaseAccountSyncClient.indexOf(
       "clearAllPendingCloudDatabasePushesForCacheRebuild()"
@@ -601,6 +617,9 @@ function run() {
     "database_fields",
     "database_views",
     "ensureDatabaseRowPage",
+    "parseRemoteDatabaseRecordKey",
+    "queryDatabaseRowsByIds",
+    "WHERE id IN",
     "getPendingDatabaseSyncRecords",
     "getLocalDatabaseSyncSummary",
     "markDatabaseSyncLogEntriesSynced",
@@ -636,15 +655,28 @@ function run() {
       );
     }
   }
+  const getDatabaseRecordsForSyncByKeysBody = queries.slice(
+    queries.indexOf("export async function getDatabaseRecordsForSyncByKeys"),
+    queries.indexOf("export async function getPendingDatabaseSyncRecords")
+  );
+  if (
+    getDatabaseRecordsForSyncByKeysBody.includes(
+      "getAllDatabaseRecordsForSync()"
+    )
+  ) {
+    failures.push(
+      "Pending database upload must fetch queued records by key instead of scanning the full local cache."
+    );
+  }
   for (const snippet of [
     "数据库云同步",
     "默认开启",
     "handleDatabaseSyncToggle",
     "setDatabaseSyncEnabled",
     "window.confirm",
-    "上传本机数据库",
+    "上传待同步变更",
     "重建本机数据库缓存",
-    "数据库结构、字段、视图和行值会上传",
+    "数据库会按账号云端主库同步",
   ]) {
     assertIncludes(
       files.accountShell,

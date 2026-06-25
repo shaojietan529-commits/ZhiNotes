@@ -2272,6 +2272,135 @@ function isRemoteDatabaseRecordKey(value: string): boolean {
   );
 }
 
+function parseRemoteDatabaseRecordKey(
+  value: string
+): { type: RemoteDatabaseRecordType; id: string } | null {
+  if (!isRemoteDatabaseRecordKey(value)) return null;
+  const [type, id] = value.split(":");
+  if (!isRemoteDatabaseRecordType(type) || !id) return null;
+  return { type, id };
+}
+
+function remoteRecordFromDatabase(database: Database): RemoteDatabaseRecord {
+  return {
+    type: "database",
+    id: database.id,
+    database_id: database.id,
+    parent_page_id: database.parent_page_id,
+    page_id: null,
+    owner_id: database.owner_id,
+    title: database.title,
+    icon: database.icon,
+    description: database.description,
+    name: null,
+    field_type: null,
+    view_type: null,
+    config: null,
+    field_values: null,
+    position: 0,
+    created_at: database.created_at,
+    updated_at: database.updated_at,
+    deleted_at: database.deleted_at,
+  };
+}
+
+function remoteRecordFromField(field: DatabaseField): RemoteDatabaseRecord {
+  return {
+    type: "field",
+    id: field.id,
+    database_id: field.database_id,
+    parent_page_id: null,
+    page_id: null,
+    owner_id: field.owner_id,
+    title: null,
+    icon: null,
+    description: null,
+    name: field.name,
+    field_type: field.field_type,
+    view_type: null,
+    config: field.config,
+    field_values: null,
+    position: field.position,
+    created_at: field.created_at,
+    updated_at: field.updated_at,
+    deleted_at: field.deleted_at,
+  };
+}
+
+function remoteRecordFromView(view: DatabaseView): RemoteDatabaseRecord {
+  return {
+    type: "view",
+    id: view.id,
+    database_id: view.database_id,
+    parent_page_id: null,
+    page_id: null,
+    owner_id: view.owner_id,
+    title: null,
+    icon: null,
+    description: null,
+    name: view.name,
+    field_type: null,
+    view_type: view.view_type,
+    config: view.config,
+    field_values: null,
+    position: view.position,
+    created_at: view.created_at,
+    updated_at: view.updated_at,
+    deleted_at: view.deleted_at,
+  };
+}
+
+function remoteRecordFromRow(row: DatabaseRow): RemoteDatabaseRecord {
+  return {
+    type: "row",
+    id: row.id,
+    database_id: row.database_id,
+    parent_page_id: null,
+    page_id: row.page_id,
+    owner_id: row.owner_id,
+    title: null,
+    icon: null,
+    description: null,
+    name: null,
+    field_type: null,
+    view_type: null,
+    config: null,
+    field_values: row.field_values,
+    position: row.position,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    deleted_at: row.deleted_at,
+  };
+}
+
+type DatabaseSyncTableName =
+  | "databases"
+  | "database_fields"
+  | "database_rows"
+  | "database_views";
+
+function queryDatabaseRowsByIds<T>(
+  db: SqliteDb,
+  tableName: DatabaseSyncTableName,
+  ids: string[]
+): T[] {
+  const uniqueIds = Array.from(new Set(ids)).filter(Boolean);
+  if (uniqueIds.length === 0) return [];
+  const rows: T[] = [];
+  const chunkSize = 200;
+  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+    const chunk = uniqueIds.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    rows.push(
+      ...((db.query(
+        `SELECT * FROM ${tableName} WHERE id IN (${placeholders})`,
+        chunk
+      ) as unknown) as T[])
+    );
+  }
+  return rows;
+}
+
 export async function getAllDatabaseRecordsForSync(): Promise<
   RemoteDatabaseRecord[]
 > {
@@ -2282,106 +2411,63 @@ export async function getAllDatabaseRecordsForSync(): Promise<
   const views = db.query("SELECT * FROM database_views") as unknown as DatabaseView[];
 
   return [
-    ...databases.map(
-      (database): RemoteDatabaseRecord => ({
-        type: "database",
-        id: database.id,
-        database_id: database.id,
-        parent_page_id: database.parent_page_id,
-        page_id: null,
-        owner_id: database.owner_id,
-        title: database.title,
-        icon: database.icon,
-        description: database.description,
-        name: null,
-        field_type: null,
-        view_type: null,
-        config: null,
-        field_values: null,
-        position: 0,
-        created_at: database.created_at,
-        updated_at: database.updated_at,
-        deleted_at: database.deleted_at,
-      })
-    ),
-    ...fields.map(
-      (field): RemoteDatabaseRecord => ({
-        type: "field",
-        id: field.id,
-        database_id: field.database_id,
-        parent_page_id: null,
-        page_id: null,
-        owner_id: field.owner_id,
-        title: null,
-        icon: null,
-        description: null,
-        name: field.name,
-        field_type: field.field_type,
-        view_type: null,
-        config: field.config,
-        field_values: null,
-        position: field.position,
-        created_at: field.created_at,
-        updated_at: field.updated_at,
-        deleted_at: field.deleted_at,
-      })
-    ),
-    ...views.map(
-      (view): RemoteDatabaseRecord => ({
-        type: "view",
-        id: view.id,
-        database_id: view.database_id,
-        parent_page_id: null,
-        page_id: null,
-        owner_id: view.owner_id,
-        title: null,
-        icon: null,
-        description: null,
-        name: view.name,
-        field_type: null,
-        view_type: view.view_type,
-        config: view.config,
-        field_values: null,
-        position: view.position,
-        created_at: view.created_at,
-        updated_at: view.updated_at,
-        deleted_at: view.deleted_at,
-      })
-    ),
-    ...rows.map(
-      (row): RemoteDatabaseRecord => ({
-        type: "row",
-        id: row.id,
-        database_id: row.database_id,
-        parent_page_id: null,
-        page_id: row.page_id,
-        owner_id: row.owner_id,
-        title: null,
-        icon: null,
-        description: null,
-        name: null,
-        field_type: null,
-        view_type: null,
-        config: null,
-        field_values: row.field_values,
-        position: row.position,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        deleted_at: row.deleted_at,
-      })
-    ),
+    ...databases.map(remoteRecordFromDatabase),
+    ...fields.map(remoteRecordFromField),
+    ...views.map(remoteRecordFromView),
+    ...rows.map(remoteRecordFromRow),
   ];
 }
 
 export async function getDatabaseRecordsForSyncByKeys(
   keys: string[]
 ): Promise<RemoteDatabaseRecord[]> {
-  const wanted = new Set(keys.filter(isRemoteDatabaseRecordKey));
-  if (wanted.size === 0) return [];
-  const records = await getAllDatabaseRecordsForSync();
-  return records.filter((record) =>
-    wanted.has(getRemoteDatabaseRecordKey(record))
+  const grouped: Record<RemoteDatabaseRecordType, string[]> = {
+    database: [],
+    field: [],
+    view: [],
+    row: [],
+  };
+  for (const key of keys) {
+    const parsed = parseRemoteDatabaseRecordKey(key);
+    if (parsed) grouped[parsed.type].push(parsed.id);
+  }
+  if (
+    grouped.database.length === 0 &&
+    grouped.field.length === 0 &&
+    grouped.view.length === 0 &&
+    grouped.row.length === 0
+  ) {
+    return [];
+  }
+
+  const db = await getDb();
+  const databases = queryDatabaseRowsByIds<Database>(
+    db,
+    "databases",
+    grouped.database
   );
+  const fields = queryDatabaseRowsByIds<DatabaseField>(
+    db,
+    "database_fields",
+    grouped.field
+  );
+  const views = queryDatabaseRowsByIds<DatabaseView>(
+    db,
+    "database_views",
+    grouped.view
+  );
+  const rows = queryDatabaseRowsByIds<DatabaseRow>(
+    db,
+    "database_rows",
+    grouped.row
+  );
+
+  return [
+    ...databases.map(remoteRecordFromDatabase),
+    ...fields.map(remoteRecordFromField),
+    ...views.map(remoteRecordFromView),
+    ...rows.map(remoteRecordFromRow),
+  ];
 }
 
 export async function getPendingDatabaseSyncRecords(

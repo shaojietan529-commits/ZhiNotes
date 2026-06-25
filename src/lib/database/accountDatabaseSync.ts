@@ -9,7 +9,6 @@
 import {
   applyRemoteDatabaseRecords,
   clearLocalDatabaseCacheExceptKeys,
-  getAllDatabaseRecordsForSync,
   getDatabaseRecordsForSyncByKeys,
   getLocalDatabaseSyncSummary,
   getPendingDatabaseSyncRecords,
@@ -1122,26 +1121,6 @@ async function pushCloudDatabaseRecordsInBatches(
     acceptedKeys,
     skippedKeys,
   };
-}
-
-export async function pushLocalDatabasesToCloud(): Promise<PushLocalDatabasesResult> {
-  if (!isDatabaseSyncEnabled()) {
-    return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
-  }
-  const pending = await getPendingDatabaseSyncRecords(1000);
-  const records = await getAllDatabaseRecordsForSync();
-  const result = await pushCloudDatabaseRecordsInBatches(records);
-  if (result.status !== "ok") return result;
-  const acknowledged = new Set([
-    ...(result.acceptedKeys ?? []),
-    ...(result.skippedKeys ?? []),
-  ]);
-  const marked = await markDatabaseSyncLogEntriesSynced(
-    pending.entries
-      .filter((entry) => acknowledged.has(entry.key))
-      .map((entry) => entry.logId)
-  );
-  return { ...result, marked };
 }
 
 export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLocalDatabasesResult> {

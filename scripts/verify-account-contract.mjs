@@ -845,9 +845,9 @@ check(
 check(
   accountShell.includes("数据库云同步") &&
     accountShell.includes("setDatabaseSyncEnabled") &&
-    accountShell.includes("上传本机数据库") &&
+    accountShell.includes("上传待同步变更") &&
     accountShell.includes("重建本机数据库缓存") &&
-    accountShell.includes("数据库结构、字段、视图和行值会上传"),
+    accountShell.includes("数据库会按账号云端主库同步"),
   "AccountShell 应提供独立的数据库云同步开关、确认边界和本机缓存重建入口"
 );
 check(

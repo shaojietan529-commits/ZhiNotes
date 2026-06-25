@@ -30,7 +30,7 @@ import {
 import {
   getLastDatabaseSyncAt,
   isDatabaseSyncEnabled,
-  pushLocalDatabasesToCloud,
+  pushPendingLocalDatabaseChangesToCloud,
   rebuildDatabaseCacheFromCloud,
   reconcileDatabaseSync,
   setDatabaseSyncEnabled,
@@ -335,11 +335,11 @@ export default function AccountShell() {
     setDatabasePushBusy(true);
     setDatabaseSyncNotice(null);
     try {
-      const result = await pushLocalDatabasesToCloud();
+      const result = await pushPendingLocalDatabaseChangesToCloud();
       if (result.status === "ok") {
         setDatabaseSyncLastAt(getLastDatabaseSyncAt());
         setDatabaseSyncNotice(
-          `本机数据库已上传到账号云端：推送 ${result.pushed}/${result.total} 条，远端跳过 ${result.skipped} 条较旧记录。`
+          `待同步数据库变更已上传：推送 ${result.pushed}/${result.total} 条，远端跳过 ${result.skipped} 条较旧记录。`
         );
       } else if (result.status === "unauthenticated") {
         setDatabaseSyncNotice("登录已过期，请重新登录后再上传数据库。");
@@ -388,7 +388,7 @@ export default function AccountShell() {
     const next = !databaseSyncOn;
     if (next) {
       const ok = window.confirm(
-        "开启后，本浏览器的数据库结构、字段、视图和行值会上传到你账号的云端存储，并和其他登录同一账号的浏览器同步。本地文件、评论、版本历史不会上传。确定开启吗？"
+        "开启后，数据库会按账号云端主库同步；本机新产生且进入待同步队列的数据库修改会上传到云端，并和其他登录同一账号的浏览器同步。确定开启吗？"
       );
       if (!ok) return;
     }
@@ -396,11 +396,11 @@ export default function AccountShell() {
     setDatabaseSyncOn(next);
     setDatabaseSyncNotice(
       next
-        ? "已开启。正在上传本机数据库，把当前本机数据库设为账号云端主库。"
+        ? "已开启。正在按云端主库同步，并上传本机待同步变更。"
         : "已关闭。云端已有数据库数据保留，不再继续同步。"
     );
     if (next) {
-      void handleDatabasePushRun();
+      void handleDatabaseSyncRun();
     }
   }
 
@@ -901,8 +901,8 @@ export default function AccountShell() {
                   </p>
                   <p className="mt-1 text-xs text-zinc-400">
                     默认开启：云端作为数据库主库，本机浏览器只做可重建缓存。同步范围包括
-                    数据库结构、字段、视图和行值；页面正文、本地文件、评论、版本历史仍不上传。
-                    需要时可以暂停同步、上传本机数据库，或按云端主库重建本机数据库缓存。
+                    数据库结构、字段、视图和行值。需要时可以暂停同步、上传本机待同步变更，
+                    或按云端主库重建本机数据库缓存。
                   </p>
                 </div>
                 <button
@@ -946,7 +946,7 @@ export default function AccountShell() {
                     }
                     className="rounded-lg border border-sky-300 px-3 py-1.5 text-sm text-sky-700 hover:bg-sky-50 disabled:opacity-40 dark:border-sky-700/70 dark:text-sky-300 dark:hover:bg-sky-900/20"
                   >
-                    {databasePushBusy ? "上传中…" : "上传本机数据库"}
+                    {databasePushBusy ? "上传中…" : "上传待同步变更"}
                   </button>
                   <button
                     onClick={() => void handleDatabaseCacheRebuildRun()}
@@ -976,7 +976,7 @@ export default function AccountShell() {
 
               <p className="mt-3 text-[11px] leading-5 text-zinc-400">
                 这相当于把数据库主账本放到云端保险柜，本机只保留复印件。复印件坏了可以清掉重拉；
-                如果你手动上传本机数据库，请先确认当前本机数据库就是你想保留的版本。
+                手动上传只会提交本机明确记录过的待同步修改，不会把整份本机缓存覆盖到云端。
               </p>
             </div>
           )}
