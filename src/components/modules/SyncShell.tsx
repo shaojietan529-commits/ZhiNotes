@@ -217,6 +217,12 @@ import {
   type CloudMasterReconcileReport,
 } from "@/lib/sync/cloudMasterReconcile";
 import {
+  buildLocalMetadataManifest,
+  type LocalMetadataManifestDomain,
+  type LocalMetadataManifestDomainStatus,
+  type LocalMetadataManifestReport,
+} from "@/lib/sync/localMetadataManifest";
+import {
   buildSyncConflictReviewReport,
   type SyncConflictReviewReport,
   type SyncConflictReviewStatus,
@@ -688,6 +694,27 @@ function SyncDashboard() {
       pageModuleTotals,
       pages.length,
       storedFiles.length,
+      syncSummary,
+      workspaceIdentity,
+    ]
+  );
+  const localMetadataManifest = useMemo(
+    () =>
+      buildLocalMetadataManifest({
+        pages,
+        deletedPages,
+        databases,
+        files: storedFiles,
+        pageModuleCounts,
+        syncSummary,
+        workspaceIdentity,
+      }),
+    [
+      databases,
+      deletedPages,
+      pageModuleCounts,
+      pages,
+      storedFiles,
       syncSummary,
       workspaceIdentity,
     ]
@@ -1921,6 +1948,16 @@ function SyncDashboard() {
     );
   };
 
+  const handleExportLocalMetadataManifest = () => {
+    downloadJsonFile(
+      `zhinote-local-metadata-manifest-${fileSafeTimestamp()}.json`,
+      {
+        ...localMetadataManifest,
+        exported_at: new Date().toISOString(),
+      }
+    );
+  };
+
   const handleExportSyncQueueSnapshot = async () => {
     setBusyQueueAction("queue");
     try {
@@ -3143,6 +3180,11 @@ function SyncDashboard() {
         <CloudMasterReconcilePanel
           report={cloudMasterReconcile}
           onExport={handleExportCloudMasterReconcile}
+        />
+
+        <LocalMetadataManifestPanel
+          report={localMetadataManifest}
+          onExport={handleExportLocalMetadataManifest}
         />
 
         <WebLaunchDecisionSummaryPanel
@@ -12761,6 +12803,244 @@ function BetaStatusPill({ status }: { status: WebBetaReadinessStatus }) {
         : status === "manual-confirmation"
           ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
           : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function LocalMetadataManifestPanel({
+  report,
+  onExport,
+}: {
+  report: LocalMetadataManifestReport;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="local-metadata-manifest"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Local Metadata Manifest
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            本地 metadata manifest
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这是迁移对账的本地资产清单：只记录各数据域的数量、水位和稳定
+            hash，不导出 raw ids、正文、数据库单元格、评论内容、文件内容或密钥。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          导出本地 manifest
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <LocalMetadataManifestSummaryCard
+          label="数据域"
+          value={report.summary.domains}
+          detail="metadata only"
+          status="ready"
+        />
+        <LocalMetadataManifestSummaryCard
+          label="Ready"
+          value={report.summary.ready_domains}
+          detail="可本地对账"
+          status="ready"
+        />
+        <LocalMetadataManifestSummaryCard
+          label="Partial"
+          value={report.summary.partial_domains}
+          detail="仍缺云端表"
+          status="partial"
+        />
+        <LocalMetadataManifestSummaryCard
+          label="Planned"
+          value={report.summary.planned_domains}
+          detail="待建合同"
+          status="planned"
+        />
+        <LocalMetadataManifestSummaryCard
+          label="Pending"
+          value={report.summary.local_pending_sync_rows}
+          detail="待上传队列"
+          status={
+            report.summary.local_pending_sync_rows > 0 ? "partial" : "ready"
+          }
+        />
+        <LocalMetadataManifestSummaryCard
+          label="Hash"
+          value={report.summary.manifest_hash.replace("fnv1a:", "")}
+          detail={report.hash_algorithm}
+          status="ready"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <ContractPanel title="Manifest 数据域">
+          <div className="grid gap-2 md:grid-cols-2">
+            {report.domains.map((domain) => (
+              <LocalMetadataManifestDomainRow
+                key={domain.id}
+                domain={domain}
+              />
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="隐私边界">
+          <div className="space-y-2">
+            {[
+              ["正文", report.boundary.reads_page_body_text],
+              ["数据库单元格", report.boundary.reads_database_row_values],
+              ["评论内容", report.boundary.reads_comment_bodies],
+              ["文件内容", report.boundary.reads_file_bytes],
+              ["文件文本", report.boundary.reads_file_text],
+              ["密钥", report.boundary.reads_secret_values],
+              ["上传", report.boundary.uploads_workspace_data],
+              ["写 server", report.boundary.writes_server_data],
+            ].map(([label, value]) => (
+              <div
+                key={String(label)}
+                className="flex items-center justify-between rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900"
+              >
+                <span className="text-zinc-500 dark:text-zinc-400">
+                  不读取/不执行：{label}
+                </span>
+                <span className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  {value ? "异常" : "通过"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+            最新 watermark：
+            {report.summary.latest_watermark ?? "暂无可用更新时间"}
+          </p>
+        </ContractPanel>
+      </div>
+    </section>
+  );
+}
+
+function LocalMetadataManifestSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: LocalMetadataManifestDomainStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <LocalMetadataManifestStatusPill status={status} />
+      </div>
+      <div className="mt-2 break-all text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function LocalMetadataManifestDomainRow({
+  domain,
+}: {
+  domain: LocalMetadataManifestDomain;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {domain.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {domain.id}
+          </div>
+        </div>
+        <LocalMetadataManifestStatusPill status={domain.status} />
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <LocalMetadataManifestMiniStat label="Count" value={domain.count} />
+        <LocalMetadataManifestMiniStat
+          label="Secondary"
+          value={domain.secondary_count}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Hash"
+          value={domain.metadata_hash.replace("fnv1a:", "")}
+        />
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {domain.note}
+      </p>
+      <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        <div className="text-[10px] font-medium text-zinc-400">
+          排除字段
+        </div>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {domain.excluded_private_fields.slice(0, 5).map((field) => (
+            <span
+              key={field}
+              className="rounded-md bg-white px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"
+            >
+              {field}
+            </span>
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function LocalMetadataManifestMiniStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div className="rounded-md bg-white px-2 py-1 dark:bg-zinc-950">
+      <div className="text-[10px] text-zinc-400">{label}</div>
+      <div className="mt-1 break-all font-mono text-[11px] font-semibold text-zinc-800 dark:text-zinc-100">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function LocalMetadataManifestStatusPill({
+  status,
+}: {
+  status: LocalMetadataManifestDomainStatus;
+}) {
+  const labels: Record<LocalMetadataManifestDomainStatus, string> = {
+    ready: "就绪",
+    partial: "部分",
+    planned: "计划",
+  };
+  const className =
+    status === "ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "partial"
+        ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+        : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>

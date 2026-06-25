@@ -69,6 +69,7 @@ const files = {
   webLaunchWorkbench: "src/lib/sync/webLaunchWorkbench.ts",
   webBetaAutonomyQueue: "src/lib/sync/webBetaAutonomyQueue.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
+  localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   apiGuardPanel: "src/components/modules/sync/ApiGuardPanel.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
@@ -305,6 +306,7 @@ function run() {
   const webLaunchWorkbench = readProjectFile(files.webLaunchWorkbench);
   const webBetaAutonomyQueue = readProjectFile(files.webBetaAutonomyQueue);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
+  const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const syncShell = readProjectFile(files.syncShell);
   const apiGuardPanel = readProjectFile(files.apiGuardPanel);
   const migration = readProjectFile(files.migration);
@@ -366,10 +368,186 @@ function run() {
     [files.webLaunchWorkbench, webLaunchWorkbench],
     [files.webBetaAutonomyQueue, webBetaAutonomyQueue],
     [files.cloudMasterReconcile, cloudMasterReconcile],
+    [files.localMetadataManifest, localMetadataManifest],
     [files.syncShell, syncShell],
     [files.apiGuardPanel, apiGuardPanel],
   ]) {
     assertNoLegacySingularEnv(source, label);
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-local-metadata-manifest"',
+      "Local metadata manifest must expose a stable export format.",
+    ],
+    [
+      'manifest_status: "local-metadata-only"',
+      "Local metadata manifest must remain metadata-only.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Local metadata manifest must align to cloud master plus local hot cache.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Local metadata manifest must not read page body text.",
+    ],
+    [
+      "reads_page_yjs: false",
+      "Local metadata manifest must not read Yjs payloads.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Local metadata manifest must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Local metadata manifest must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Local metadata manifest must not read file bytes.",
+    ],
+    [
+      "reads_file_text: false",
+      "Local metadata manifest must not read file text.",
+    ],
+    [
+      "includes_raw_ids_in_export: false",
+      "Local metadata manifest must not export raw ids.",
+    ],
+    [
+      "local_workspace_hash",
+      "Local metadata manifest must hash the local workspace id.",
+    ],
+    [
+      "cloud_workspace_hash",
+      "Local metadata manifest must hash the cloud workspace id.",
+    ],
+    [
+      'id: "pages"',
+      "Local metadata manifest must cover pages.",
+    ],
+    [
+      'id: "databases"',
+      "Local metadata manifest must cover databases.",
+    ],
+    [
+      'id: "files"',
+      "Local metadata manifest must cover files.",
+    ],
+    [
+      'id: "comments"',
+      "Local metadata manifest must cover comments.",
+    ],
+    [
+      'id: "versions"',
+      "Local metadata manifest must cover versions.",
+    ],
+    [
+      'id: "wiki-links"',
+      "Local metadata manifest must cover wiki links.",
+    ],
+    [
+      'id: "sync-log"',
+      "Local metadata manifest must cover pending queue metadata.",
+    ],
+    [
+      "hash_algorithm: \"fnv1a-stable-json-v1\"",
+      "Local metadata manifest must expose the hash algorithm.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.localMetadataManifest,
+      localMetadataManifest,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Local metadata manifest must not access page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Local metadata manifest must not access page Yjs content.",
+    ],
+    [
+      "page.title",
+      "Local metadata manifest must not access page titles.",
+    ],
+    [
+      "database.description",
+      "Local metadata manifest must not access database descriptions.",
+    ],
+    [
+      "file.dataUrl",
+      "Local metadata manifest must not access stored file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Local metadata manifest must not access extracted file text.",
+    ],
+    [
+      "comment.body",
+      "Local metadata manifest must not access comment bodies.",
+    ],
+    [
+      "field_values",
+      "Local metadata manifest must not access database row values.",
+    ],
+    [
+      "fetch(",
+      "Local metadata manifest must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Local metadata manifest must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Local metadata manifest must not mutate the local database.",
+    ],
+    [
+      "local_workspace_id:",
+      "Local metadata manifest must not export raw local workspace ids.",
+    ],
+    [
+      "cloud_workspace_id:",
+      "Local metadata manifest must not export raw cloud workspace ids.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.localMetadataManifest,
+      localMetadataManifest,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildLocalMetadataManifest",
+      "Sync UI must build the local metadata manifest.",
+    ],
+    [
+      "LocalMetadataManifestPanel",
+      "Sync UI must render the local metadata manifest panel.",
+    ],
+    [
+      "本地 metadata manifest",
+      "Sync UI must expose the local metadata manifest section.",
+    ],
+    [
+      "handleExportLocalMetadataManifest",
+      "Sync UI must export the local metadata manifest.",
+    ],
+    [
+      "导出本地 manifest",
+      "Sync UI must render the local manifest export button.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
 
   for (const [snippet, message] of [
