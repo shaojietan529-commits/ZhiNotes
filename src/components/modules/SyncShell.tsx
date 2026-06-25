@@ -171,6 +171,7 @@ import {
 import {
   buildCloudMigrationApplyApiDisabledResponse,
 } from "@/lib/sync/cloudMigrationApplyApiStub";
+import { buildCloudManifestCompareApiDisabledResponse } from "@/lib/sync/cloudManifestCompareApiStub";
 import {
   buildWebBetaSmokeTestPlan,
   type WebBetaSmokeTestPlan,
@@ -356,6 +357,7 @@ type WebBetaContractAction =
   | "permission-check-envelope"
   | "account-session"
   | "high-risk-registry"
+  | "cloud-manifest-api-guard"
   | "migration-sql"
   | "cloud-migration-api-guard"
   | "next-actions"
@@ -1116,6 +1118,10 @@ function SyncDashboard() {
       cloudSchemaMigrationPlan,
       permissionDecisionReport,
     ]
+  );
+  const cloudManifestCompareApiGuard = useMemo(
+    () => buildCloudManifestCompareApiDisabledResponse(),
+    []
   );
   const cloudMigrationApplyApiGuard = useMemo(
     () => buildCloudMigrationApplyApiDisabledResponse(),
@@ -2782,6 +2788,27 @@ function SyncDashboard() {
       window.alert(
         "Cloud migration SQL draft export failed. Please check the console."
       );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportCloudManifestCompareApiGuard = () => {
+    setBusyContractAction("cloud-manifest-api-guard");
+    try {
+      downloadJsonFile(
+        `zhinote-cloud-manifest-compare-api-disabled-${fileSafeTimestamp()}.json`,
+        {
+          ...cloudManifestCompareApiGuard,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export cloud manifest compare API guard:",
+        err
+      );
+      window.alert("云端 manifest 对账 API 防护导出失败，请查看控制台。");
     } finally {
       setBusyContractAction(null);
     }
@@ -5977,6 +6004,81 @@ function SyncDashboard() {
               </div>
             </div>
           </ContractPanel>
+
+          <ApiGuardPanel
+            title="云端 manifest 对账 API 防护"
+            description="`/api/cloud/manifest/compare` 的专用关闭响应。它把未来云端主库对账拆成 metadata-only query、manifest summary、id-only 缺口报告、本地 fixture 和启用门槛；当前 route 仍拒绝读取 query、连接云端、读取远端 manifest、返回正文、写 server、上传 workspace 数据或覆盖本地缓存。"
+            exportLabel="导出 manifest 防护"
+            busy={busyContractAction === "cloud-manifest-api-guard"}
+            onExport={handleExportCloudManifestCompareApiGuard}
+            summaries={[
+              {
+                label: "格式",
+                value: cloudManifestCompareApiGuard.format,
+                detail: "专用响应",
+                status: "accepted",
+              },
+              {
+                label: "HTTP",
+                value:
+                  cloudManifestCompareApiGuard.disabled_response_contract
+                    .http_status,
+                detail: "关闭状态",
+                status: "rejected",
+              },
+              {
+                label: "远端 manifest",
+                value: cloudManifestCompareApiGuard.can_read_remote_manifest_now
+                  ? "是"
+                  : "否",
+                detail: "当前不读取",
+                status: "rejected",
+              },
+              {
+                label: "内容",
+                value: cloudManifestCompareApiGuard.can_read_workspace_content_now
+                  ? "是"
+                  : "否",
+                detail: "不返回正文/文件",
+                status: "rejected",
+              },
+              {
+                label: "写入",
+                value: cloudManifestCompareApiGuard.can_write_server_data_now
+                  ? "是"
+                  : "否",
+                detail: "只读合同",
+                status: "rejected",
+              },
+              {
+                label: "禁止字段",
+                value:
+                  cloudManifestCompareApiGuard.request_schema.forbidden_fields
+                    .length,
+                detail: "载荷已阻止",
+                status: "rejected",
+              },
+              {
+                label: "Fixture 字段",
+                value:
+                  cloudManifestCompareApiGuard.local_validator_report.summary
+                    .forbidden_fields_covered,
+                detail: "本地覆盖",
+                status: "rejected",
+              },
+            ]}
+            allowedFields={
+              cloudManifestCompareApiGuard.request_schema.allowed_fields
+            }
+            forbiddenFields={
+              cloudManifestCompareApiGuard.request_schema.forbidden_fields
+            }
+            fixtures={
+              cloudManifestCompareApiGuard.local_validator_report.fixtures
+            }
+            gates={cloudManifestCompareApiGuard.enablement_gates}
+            gateColumnsClassName="grid gap-2 md:grid-cols-2 xl:grid-cols-4"
+          />
 
           <ApiGuardPanel
             title="云迁移应用 API 防护"

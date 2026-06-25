@@ -13,6 +13,7 @@ export type WebBetaApiStubId =
   | "file-presign"
   | "permission-check"
   | "audit-events"
+  | "cloud-manifest-compare"
   | "cloud-migration-apply";
 
 export interface WebBetaApiStub {
@@ -196,6 +197,17 @@ export const WEB_BETA_API_STUBS: WebBetaApiStub[] = [
       "Enable only after authenticated actor identity, workspace membership, metadata-only schema validation, permission decision linkage, retention policy, tamper-resistant audit storage, owner audit export, and validator-backed forbidden payload rejection exist.",
     privacy_boundary:
       "The current dedicated disabled response does not read request bodies, accept event payloads, inspect page text, database values, comments, file bytes, backups, prompts, model output, secrets, signed URLs, or write audit logs.",
+  },
+  {
+    id: "cloud-manifest-compare",
+    method: "GET",
+    path: "/api/cloud/manifest/compare?workspaceId=:workspaceId",
+    purpose:
+      "Future endpoint for comparing cloud metadata manifests against local reconcile reports before migration or cache rebuild.",
+    future_requirement:
+      "Enable only after authenticated workspace membership, metadata-only manifest schema, permission checks, audit events, rate limits, and owner review exist.",
+    privacy_boundary:
+      "The current stub does not read query values, connect cloud services, read remote manifests, return workspace content, write server data, or upload workspace data.",
   },
   {
     id: "cloud-migration-apply",

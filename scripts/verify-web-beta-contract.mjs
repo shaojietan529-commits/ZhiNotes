@@ -44,6 +44,8 @@ const files = {
   syncPushRoute: "src/app/api/sync/push/route.ts",
   syncPullApiStub: "src/lib/sync/syncPullApiStub.ts",
   syncPullRoute: "src/app/api/sync/pull/route.ts",
+  cloudManifestCompareApiStub: "src/lib/sync/cloudManifestCompareApiStub.ts",
+  cloudManifestCompareRoute: "src/app/api/cloud/manifest/compare/route.ts",
   cloudMigrationApplyApiStub: "src/lib/sync/cloudMigrationApplyApiStub.ts",
   cloudMigrationApplyRoute: "src/app/api/cloud/migrations/apply/route.ts",
   syncOptInGate: "src/lib/sync/syncOptInGate.ts",
@@ -265,6 +267,12 @@ function run() {
   const syncPushRoute = readProjectFile(files.syncPushRoute);
   const syncPullApiStub = readProjectFile(files.syncPullApiStub);
   const syncPullRoute = readProjectFile(files.syncPullRoute);
+  const cloudManifestCompareApiStub = readProjectFile(
+    files.cloudManifestCompareApiStub
+  );
+  const cloudManifestCompareRoute = readProjectFile(
+    files.cloudManifestCompareRoute
+  );
   const cloudMigrationApplyApiStub = readProjectFile(
     files.cloudMigrationApplyApiStub
   );
@@ -336,6 +344,8 @@ function run() {
     [files.syncPushRoute, syncPushRoute],
     [files.syncPullApiStub, syncPullApiStub],
     [files.syncPullRoute, syncPullRoute],
+    [files.cloudManifestCompareApiStub, cloudManifestCompareApiStub],
+    [files.cloudManifestCompareRoute, cloudManifestCompareRoute],
     [files.cloudMigrationApplyApiStub, cloudMigrationApplyApiStub],
     [files.cloudMigrationApplyRoute, cloudMigrationApplyRoute],
     [files.workspaceIdentity, workspaceIdentity],
@@ -639,6 +649,12 @@ function run() {
       assertRouteGuard(
         routeFile,
         "buildSyncPullApiDisabledResponse",
+        routeLabel
+      );
+    } else if (stub.id === "cloud-manifest-compare") {
+      assertRouteGuard(
+        routeFile,
+        "buildCloudManifestCompareApiDisabledResponse",
         routeLabel
       );
     } else if (stub.id === "cloud-migration-apply") {
@@ -2400,6 +2416,137 @@ function run() {
   ]) {
     assertSourceIncludes(files.deploymentTarget, deploymentTarget, snippet, message);
   }
+  assertSourceIncludes(
+    files.cloudManifestCompareApiStub,
+    cloudManifestCompareApiStub,
+    'format: "zhinote-cloud-manifest-compare-api-disabled"',
+    "Cloud manifest compare API guard must expose a stable disabled response format."
+  );
+  assertSourceIncludes(
+    files.cloudManifestCompareApiStub,
+    cloudManifestCompareApiStub,
+    "buildCloudManifestCompareApiDisabledResponse",
+    "Cloud manifest compare API guard must expose a reusable disabled response builder."
+  );
+  for (const item of [
+    ['api_id: "cloud-manifest-compare"', "Cloud manifest compare API guard must identify the compare route."],
+    ['path: "/api/cloud/manifest/compare?workspaceId=:workspaceId"', "Cloud manifest compare API guard must bind to manifest compare path."],
+    ['method: "GET"', "Cloud manifest compare API guard must document GET."],
+    ['stub_status: "disabled-local-stub"', "Cloud manifest compare API guard must stay disabled."],
+    ["can_compare_manifest_now: false", "Cloud manifest compare API guard must not compare now."],
+    ["can_read_query_now: false", "Cloud manifest compare API guard must not read query values now."],
+    ["can_connect_cloud_now: false", "Cloud manifest compare API guard must not connect cloud services."],
+    ["can_read_remote_manifest_now: false", "Cloud manifest compare API guard must not read remote manifests now."],
+    ["can_read_workspace_content_now: false", "Cloud manifest compare API guard must not read workspace content."],
+    ["can_write_server_data_now: false", "Cloud manifest compare API guard must not write server data."],
+    ["can_upload_workspace_data_now: false", "Cloud manifest compare API guard must not upload workspace data."],
+    ["no_request_argument: true", "Cloud manifest compare API guard must not accept a request argument."],
+    ["endpoint_disabled: true", "Cloud manifest compare API guard must preserve disabled endpoint boundary."],
+    ["reads_query: false", "Cloud manifest compare API guard must not read query values."],
+    ["connects_cloud_services: false", "Cloud manifest compare API guard must not connect cloud services."],
+    ["reads_remote_manifest: false", "Cloud manifest compare API guard must not read remote manifests."],
+    ["reads_workspace_content: false", "Cloud manifest compare API guard must not read workspace content."],
+    ["reads_page_body_text: false", "Cloud manifest compare API guard must not read page text."],
+    ["reads_database_row_values: false", "Cloud manifest compare API guard must not read database values."],
+    ["reads_comment_bodies: false", "Cloud manifest compare API guard must not read comments."],
+    ["reads_file_bytes: false", "Cloud manifest compare API guard must not read file bytes."],
+    ["writes_server_data: false", "Cloud manifest compare API guard must not write server data."],
+    ["writes_workspace_data: false", "Cloud manifest compare API guard must not write workspace data."],
+    ["uploads_workspace_data: false", "Cloud manifest compare API guard must not upload workspace data."],
+    ["deletes_local_rows: false", "Cloud manifest compare API guard must not delete local rows."],
+    ["overwrites_local_cache: false", "Cloud manifest compare API guard must not overwrite local cache."],
+    ["returns_manifest_counts: false", "Cloud manifest compare API guard must not return counts while disabled."],
+    ["returns_missing_ids: false", "Cloud manifest compare API guard must not return missing ids while disabled."],
+    ["returns_workspace_content: false", "Cloud manifest compare API guard must not return content."],
+    ["requires_metadata_only_manifest_before_enablement: true", "Cloud manifest compare API guard must require metadata-only manifest before enablement."],
+    ["requires_owner_review_before_migration: true", "Cloud manifest compare API guard must require owner review before migration."],
+    ['schema_status: "planned-query-metadata-only"', "Cloud manifest compare API guard must expose metadata-only query schema."],
+    ['schema_status: "planned-manifest-summary-only"', "Cloud manifest compare API guard must expose manifest summary response schema."],
+    ['format: "zhinote-cloud-manifest-compare-api-validator-fixtures"', "Cloud manifest compare API guard must include validator fixtures."],
+    ['validator_status: "not-executing-route"', "Cloud manifest compare validator must not execute the route."],
+    '"metadata-manifest-compare-request"',
+    '"workspace-content-blocked"',
+    '"file-and-backup-payload-blocked"',
+    '"credential-fields-blocked"',
+    '"write-and-delete-actions-blocked"',
+    "page_body_text",
+    "database_cell_values",
+    "comment_body",
+    "version_snapshot",
+    "file_bytes",
+    "backup_payload",
+    "raw_local_manifest",
+    "raw_remote_manifest",
+    "signed_download_url",
+    "local_file_path",
+    "token",
+    "cookie",
+    "secret_values",
+    "apply_migration",
+    "overwrite_cloud",
+    "overwrite_local",
+    "delete_remote",
+    "delete_local",
+  ]) {
+    const expected = Array.isArray(item) ? item[0] : item;
+    const message = Array.isArray(item)
+      ? item[1]
+      : "Cloud manifest compare API guard must preserve schema, fixtures, and enablement gates.";
+    assertSourceIncludes(
+      files.cloudManifestCompareApiStub,
+      cloudManifestCompareApiStub,
+      expected,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.cloudManifestCompareRoute,
+    cloudManifestCompareRoute,
+    "buildCloudManifestCompareApiDisabledResponse",
+    "Cloud manifest compare route must return the dedicated disabled response."
+  );
+  assertSourceIncludes(
+    files.cloudManifestCompareRoute,
+    cloudManifestCompareRoute,
+    "WEB_BETA_API_STUB_HTTP_STATUS",
+    "Cloud manifest compare route must keep the disabled Web Beta HTTP status."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildCloudManifestCompareApiDisabledResponse",
+    "Sync UI must build the cloud manifest compare API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportCloudManifestCompareApiGuard",
+    "Sync UI must export the cloud manifest compare API guard."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "云端 manifest 对账 API 防护",
+    "Sync UI must render the cloud manifest compare API guard panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "导出 manifest 防护",
+    "Sync UI must render the cloud manifest compare API guard export button."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "cloudManifestCompareApiGuard.can_read_remote_manifest_now",
+    "Sync UI must render the disabled remote manifest read state."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "fixtures={\n              cloudManifestCompareApiGuard.local_validator_report.fixtures",
+    "Sync UI must render cloud manifest compare validator fixtures."
+  );
   assertSourceIncludes(
     files.cloudMigrationApplyApiStub,
     cloudMigrationApplyApiStub,

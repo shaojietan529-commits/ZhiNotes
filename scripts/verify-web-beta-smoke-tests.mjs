@@ -70,6 +70,10 @@ const gatedOrDisabledApiRoutes = [
     guard: "buildAuditEventsApiDisabledResponse",
   },
   {
+    path: "src/app/api/cloud/manifest/compare/route.ts",
+    guard: "buildCloudManifestCompareApiDisabledResponse",
+  },
+  {
     path: "src/app/api/cloud/migrations/apply/route.ts",
     guard: "buildCloudMigrationApplyApiDisabledResponse",
   },
@@ -264,6 +268,18 @@ function run() {
     syncShell,
     "导出对账报告",
     "Sync UI must expose the cloud master reconcile export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "云端 manifest 对账 API 防护",
+    "Sync UI must render the cloud manifest compare API guard."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出 manifest 防护",
+    "Sync UI must expose the cloud manifest compare export."
   );
   assertIncludes(
     files.syncShell,
