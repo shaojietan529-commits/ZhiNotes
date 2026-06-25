@@ -245,6 +245,10 @@ import {
   type CommentVersionReplayReceiptStatus,
 } from "@/lib/sync/commentVersionReplayReceipt";
 import {
+  buildCommentVersionReplayAckGate,
+  type CommentVersionReplayAckGate,
+} from "@/lib/sync/commentVersionReplayAckGate";
+import {
   buildCloudMasterReconcileReport,
   type CloudMasterDomain,
   type CloudMasterDomainStatus,
@@ -1188,6 +1192,10 @@ function SyncDashboard() {
         apiGuard: commentVersionReplayApiGuard,
       }),
     [commentVersionCloudReplayContract, commentVersionReplayApiGuard]
+  );
+  const commentVersionReplayAckGate = useMemo(
+    () => buildCommentVersionReplayAckGate(commentVersionReplayReceiptDraft),
+    [commentVersionReplayReceiptDraft]
   );
   const syncConfirmationReceipt = useMemo(
     () =>
@@ -5152,6 +5160,7 @@ function SyncDashboard() {
         />
         <CommentVersionReplayReceiptPanel
           receipt={commentVersionReplayReceiptDraft}
+          ackGate={commentVersionReplayAckGate}
           busy={busyQueueAction === "comment-version-replay-receipt"}
           onExport={handleExportCommentVersionReplayReceipt}
         />
@@ -11053,10 +11062,12 @@ function CommentVersionReplayStatusPill({
 
 function CommentVersionReplayReceiptPanel({
   receipt,
+  ackGate,
   busy,
   onExport,
 }: {
   receipt: CommentVersionReplayReceiptDraft;
+  ackGate: CommentVersionReplayAckGate;
   busy: boolean;
   onExport: () => void;
 }) {
@@ -11121,12 +11132,59 @@ function CommentVersionReplayReceiptPanel({
           detail="不能标记 synced"
           tone="high"
         />
+        <PayloadSummaryCard
+          label="ack gate"
+          value={ackGate.summary.ack_ready_checks}
+          detail="gate closed"
+          tone="high"
+        />
       </div>
 
       <div className="mt-4 grid gap-3 xl:grid-cols-2">
         {receipt.manifest_counts.map((count) => (
           <CommentVersionManifestCountRow key={count.id} count={count} />
         ))}
+      </div>
+
+      <div className="mt-4 rounded-md border border-red-100 bg-red-50/60 p-3 dark:border-red-950 dark:bg-red-950/30">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h3 className="text-xs font-semibold text-red-800 dark:text-red-200">
+              ack gate closed：缺少 durable remote receipt
+            </h3>
+            <p className="mt-1 max-w-3xl text-xs leading-5 text-red-700/80 dark:text-red-200/80">
+              这个 gate 是最后一道闸门：没有云端回执、manifest count、ack cursor
+              和 idempotency proof 前，不能把任何本地 pending sync_log 行改成 synced。
+            </p>
+          </div>
+          <div className="rounded-md bg-white px-3 py-2 text-xs text-red-700 shadow-sm dark:bg-red-950 dark:text-red-200">
+            missing remote evidence: {ackGate.summary.missing_remote_evidence}
+          </div>
+        </div>
+        <div className="mt-3 grid gap-2 xl:grid-cols-2">
+          {ackGate.checks.map((check) => (
+            <div
+              key={check.id}
+              className="rounded-md bg-white px-3 py-2 text-xs dark:bg-zinc-950"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {check.label}
+                </div>
+                <span className="rounded bg-red-100 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
+                  {check.status}
+                </span>
+              </div>
+              <div className="mt-1 text-[11px] text-zinc-400">
+                local_expected_rows: {check.local_expected_rows ?? "null"} /
+                remote_evidence: null
+              </div>
+              <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+                {check.reason}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 xl:grid-cols-2">

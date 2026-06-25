@@ -75,6 +75,8 @@ const files = {
     "src/lib/sync/commentVersionCloudReplayContract.ts",
   commentVersionReplayReceipt:
     "src/lib/sync/commentVersionReplayReceipt.ts",
+  commentVersionReplayAckGate:
+    "src/lib/sync/commentVersionReplayAckGate.ts",
   commentVersionReplayApiStub:
     "src/lib/sync/commentVersionReplayApiStub.ts",
   commentVersionReplayRoute:
@@ -324,6 +326,9 @@ function run() {
   );
   const commentVersionReplayReceipt = readProjectFile(
     files.commentVersionReplayReceipt
+  );
+  const commentVersionReplayAckGate = readProjectFile(
+    files.commentVersionReplayAckGate
   );
   const commentVersionReplayApiStub = readProjectFile(
     files.commentVersionReplayApiStub
@@ -641,6 +646,63 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-comment-version-replay-ack-gate"',
+      "Comment/version replay ack gate smoke coverage must include the stable format.",
+    ],
+    [
+      '"blocked-until-durable-remote-receipt"',
+      "Comment/version replay ack gate smoke coverage must block until remote receipt exists.",
+    ],
+    [
+      "local_gate_only: true",
+      "Comment/version replay ack gate smoke coverage must stay local only.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Comment/version replay ack gate smoke coverage must not read comment bodies.",
+    ],
+    [
+      "reads_sync_log_payloads: false",
+      "Comment/version replay ack gate smoke coverage must not read sync_log payloads.",
+    ],
+    [
+      "reads_cloud_manifest: false",
+      "Comment/version replay ack gate smoke coverage must not read cloud manifests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Comment/version replay ack gate smoke coverage must not connect cloud services.",
+    ],
+    [
+      "can_mark_local_rows_synced_now: false",
+      "Comment/version replay ack gate smoke coverage must block marking rows synced.",
+    ],
+    [
+      "can_update_sync_log_now: false",
+      "Comment/version replay ack gate smoke coverage must block sync_log updates.",
+    ],
+    [
+      'allowed_update_scope: "none"',
+      "Comment/version replay ack gate smoke coverage must forbid local update scope.",
+    ],
+    [
+      "cloud.comments manifest count equals accepted comment rows",
+      "Comment/version replay ack gate smoke coverage must require comment count evidence.",
+    ],
+    [
+      "cloud.page_versions manifest count equals accepted version rows",
+      "Comment/version replay ack gate smoke coverage must require version count evidence.",
+    ],
+  ]) {
+    assertIncludes(
+      files.commentVersionReplayAckGate,
+      commentVersionReplayAckGate,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildCommentVersionReplayReceiptDraft",
       "Sync smoke coverage must build the comment/version replay receipt draft.",
     ],
@@ -663,6 +725,22 @@ function run() {
     [
       "不能标记 synced",
       "Sync smoke coverage must explain local rows remain pending.",
+    ],
+    [
+      "buildCommentVersionReplayAckGate",
+      "Sync smoke coverage must build the comment/version replay ack gate.",
+    ],
+    [
+      "ack gate closed：缺少 durable remote receipt",
+      "Sync smoke coverage must render the ack gate status.",
+    ],
+    [
+      "missing remote evidence",
+      "Sync smoke coverage must render missing remote evidence.",
+    ],
+    [
+      "不能把任何本地 pending sync_log 行改成 synced",
+      "Sync smoke coverage must explain the ack gate blocks sync_log updates.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);

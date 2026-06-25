@@ -77,6 +77,8 @@ const files = {
     "src/lib/sync/commentVersionCloudReplayContract.ts",
   commentVersionReplayReceipt:
     "src/lib/sync/commentVersionReplayReceipt.ts",
+  commentVersionReplayAckGate:
+    "src/lib/sync/commentVersionReplayAckGate.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
@@ -380,6 +382,9 @@ function run() {
   const commentVersionReplayReceipt = readProjectFile(
     files.commentVersionReplayReceipt
   );
+  const commentVersionReplayAckGate = readProjectFile(
+    files.commentVersionReplayAckGate
+  );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
@@ -519,6 +524,7 @@ function run() {
       commentVersionCloudReplayContract,
     ],
     [files.commentVersionReplayReceipt, commentVersionReplayReceipt],
+    [files.commentVersionReplayAckGate, commentVersionReplayAckGate],
     [files.localMetadataManifest, localMetadataManifest],
     [files.hotCachePolicyPlan, hotCachePolicyPlan],
     [files.hotCacheWarmupReceipt, hotCacheWarmupReceipt],
@@ -1756,6 +1762,91 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-comment-version-replay-ack-gate"',
+      "Comment/version replay ack gate must expose a stable format.",
+    ],
+    [
+      '"blocked-until-durable-remote-receipt"',
+      "Comment/version replay ack gate must block until a durable remote receipt exists.",
+    ],
+    [
+      "local_gate_only: true",
+      "Comment/version replay ack gate must remain local gate only.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Comment/version replay ack gate must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: false",
+      "Comment/version replay ack gate must not read version snapshots.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Comment/version replay ack gate must not read page text.",
+    ],
+    [
+      "reads_sync_log_payloads: false",
+      "Comment/version replay ack gate must not read sync_log payloads.",
+    ],
+    [
+      "reads_cloud_manifest: false",
+      "Comment/version replay ack gate must not read cloud manifests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Comment/version replay ack gate must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Comment/version replay ack gate must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Comment/version replay ack gate must not mutate sync_log.",
+    ],
+    [
+      "can_mark_local_rows_synced_now: false",
+      "Comment/version replay ack gate must not allow marking rows synced.",
+    ],
+    [
+      "can_update_sync_log_now: false",
+      "Comment/version replay ack gate must block sync_log updates.",
+    ],
+    [
+      'allowed_update_scope: "none"',
+      "Comment/version replay ack gate must forbid update scope while blocked.",
+    ],
+    [
+      "durable replay receipt id from /api/sync/comment-version-replay",
+      "Comment/version replay ack gate must require a durable server receipt.",
+    ],
+    [
+      "cloud.comments manifest count equals accepted comment rows",
+      "Comment/version replay ack gate must require comment manifest counts.",
+    ],
+    [
+      "cloud.page_versions manifest count equals accepted version rows",
+      "Comment/version replay ack gate must require version manifest counts.",
+    ],
+    [
+      "idempotency proof that retry attempts did not duplicate rows",
+      "Comment/version replay ack gate must require idempotency proof.",
+    ],
+    [
+      "clear pending rows after a disabled API response",
+      "Comment/version replay ack gate must forbid clearing pending rows after disabled responses.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.commentVersionReplayAckGate,
+      commentVersionReplayAckGate,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildCommentVersionReplayReceiptDraft",
       "Sync UI must build the comment/version replay receipt draft.",
     ],
@@ -1786,6 +1877,26 @@ function run() {
     [
       "不能标记 synced",
       "Sync UI must explain local rows cannot be marked synced.",
+    ],
+    [
+      "buildCommentVersionReplayAckGate",
+      "Sync UI must build the comment/version replay ack gate.",
+    ],
+    [
+      "commentVersionReplayAckGate",
+      "Sync UI must memoize the comment/version replay ack gate.",
+    ],
+    [
+      "ack gate closed：缺少 durable remote receipt",
+      "Sync UI must render the replay ack gate status.",
+    ],
+    [
+      "missing remote evidence",
+      "Sync UI must render missing remote evidence.",
+    ],
+    [
+      "不能把任何本地 pending sync_log 行改成 synced",
+      "Sync UI must explain the ack gate blocks local sync_log updates.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
