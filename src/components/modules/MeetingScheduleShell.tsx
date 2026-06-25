@@ -32,6 +32,7 @@ import {
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { useCalendarViewMonthPreference } from "@/hooks/useCalendarViewMonthPreference";
+import { useMeetingReviewStatePreference } from "@/hooks/useMeetingReviewStatePreference";
 import {
   getModuleRootId,
   getModuleRootIdSync,
@@ -100,20 +101,6 @@ function writeDeletedTombstone(ids: Set<string>) {
     window.localStorage.setItem(DELETED_KEY, JSON.stringify([...ids]));
   } catch {
     // Tombstone persistence is best-effort; deletion still applies this session.
-  }
-}
-
-// Meetings whose "待补时间 / 失败留痕" reminder the owner dismissed. The meeting
-// itself stays on the calendar; only the warning chip is hidden.
-const TRACE_DISMISSED_KEY = "zhinote.zhihui.trace-dismissed";
-
-function readDismissedTraces(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(TRACE_DISMISSED_KEY);
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-  } catch {
-    return new Set();
   }
 }
 
@@ -248,6 +235,12 @@ export default function MeetingScheduleShell() {
   >(null);
   const { viewMonth, setViewMonth } =
     useCalendarViewMonthPreference("meeting");
+  const {
+    dismissedTraces,
+    seenIds,
+    dismissTrace,
+    markMeetingSeen,
+  } = useMeetingReviewStatePreference();
   const [highlightedDateKey, setHighlightedDateKey] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(() => emptyForm(toDateKey(new Date())));
@@ -366,26 +359,9 @@ export default function MeetingScheduleShell() {
     writeDeletedTombstone(next);
   }, []);
 
-  const [dismissedTraces, setDismissedTraces] = useState<Set<string>>(
-    readDismissedTraces
-  );
-
   const handleDismissTrace = useCallback((pageId: string) => {
-    setDismissedTraces((prev) => {
-      if (prev.has(pageId)) return prev;
-      const next = new Set(prev);
-      next.add(pageId);
-      try {
-        window.localStorage.setItem(
-          TRACE_DISMISSED_KEY,
-          JSON.stringify([...next])
-        );
-      } catch {
-        // Best-effort; the reminder still hides for this session.
-      }
-      return next;
-    });
-  }, []);
+    dismissTrace(pageId);
+  }, [dismissTrace]);
 
   const load = useCallback(async () => {
     const requestId = loadRequestRef.current + 1;
@@ -556,28 +532,9 @@ export default function MeetingScheduleShell() {
       .slice(0, 8);
   }, [entries]);
 
-  const SEEN_KEY = "zhinote.zhihui.seen";
-  const [seenIds, setSeenIds] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
-    try {
-      const raw = window.localStorage.getItem(SEEN_KEY);
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
-  const seenIdsRef = useRef(seenIds);
-  seenIdsRef.current = seenIds;
-
   const markSeen = useCallback((id: string) => {
-    setSeenIds((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      window.localStorage.setItem(SEEN_KEY, JSON.stringify([...next]));
-      return next;
-    });
-  }, []);
+    markMeetingSeen(id);
+  }, [markMeetingSeen]);
 
   // 会议纪要 only lists meetings that are actually done: the recording
   // succeeded or the meeting is marked 已完成 (which is when the note/纪要 has

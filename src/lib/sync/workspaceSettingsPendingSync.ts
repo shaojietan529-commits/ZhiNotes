@@ -26,6 +26,10 @@ import {
   CALENDAR_VIEW_STATE_SETTING_KEY,
   parseCalendarViewStateWorkspaceSettingValue,
 } from "@/lib/sync/calendarViewStateWorkspaceSettings";
+import {
+  MEETING_REVIEW_STATE_SETTING_KEY,
+  parseMeetingReviewStateWorkspaceSettingValue,
+} from "@/lib/sync/meetingReviewStateWorkspaceSettings";
 
 export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   HOT_CACHE_PREFERENCES_SETTING_KEY,
@@ -35,6 +39,7 @@ export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   PAGE_VIEW_PREFERENCES_SETTING_KEY,
   QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
   CALENDAR_VIEW_STATE_SETTING_KEY,
+  MEETING_REVIEW_STATE_SETTING_KEY,
 ] as const;
 
 export type SupportedWorkspaceSettingSyncKey =
@@ -100,6 +105,12 @@ export type WorkspaceSettingCloudPayload =
       client_pending_row_id: typeof CALENDAR_VIEW_STATE_SETTING_KEY;
       daily_view_month: string | null;
       meeting_view_month: string | null;
+    }
+  | {
+      setting_key: typeof MEETING_REVIEW_STATE_SETTING_KEY;
+      client_pending_row_id: typeof MEETING_REVIEW_STATE_SETTING_KEY;
+      seen_meeting_page_ids: string[];
+      dismissed_trace_page_ids: string[];
     };
 
 export function buildWorkspaceSettingsPendingSyncPlan(input: {
@@ -226,6 +237,17 @@ export function buildWorkspaceSettingCloudPayload(
       client_pending_row_id: CALENDAR_VIEW_STATE_SETTING_KEY,
       daily_view_month: calendarViewState.daily_view_month,
       meeting_view_month: calendarViewState.meeting_view_month,
+    };
+  }
+
+  if (setting.key === MEETING_REVIEW_STATE_SETTING_KEY) {
+    const meetingReviewState =
+      parseMeetingReviewStateWorkspaceSettingValue(value);
+    return {
+      setting_key: MEETING_REVIEW_STATE_SETTING_KEY,
+      client_pending_row_id: MEETING_REVIEW_STATE_SETTING_KEY,
+      seen_meeting_page_ids: meetingReviewState.seen_meeting_page_ids,
+      dismissed_trace_page_ids: meetingReviewState.dismissed_trace_page_ids,
     };
   }
 

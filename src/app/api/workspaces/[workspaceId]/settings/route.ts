@@ -63,6 +63,15 @@ import {
   parseCalendarViewStateWorkspaceSettingsCloudValue,
   validateCalendarViewStateWorkspaceSettingsCloudPayload,
 } from "@/lib/sync/calendarViewStateWorkspaceSettings";
+import {
+  MEETING_REVIEW_STATE_CLOUD_FIELD,
+  MEETING_REVIEW_STATE_SETTING_KEY,
+  buildMeetingReviewStateWorkspaceSettingsCloudReceipt,
+  buildMeetingReviewStateWorkspaceSettingsCloudValue,
+  isMeetingReviewStateWorkspaceSettingKey,
+  parseMeetingReviewStateWorkspaceSettingsCloudValue,
+  validateMeetingReviewStateWorkspaceSettingsCloudPayload,
+} from "@/lib/sync/meetingReviewStateWorkspaceSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -149,6 +158,10 @@ export async function GET(
       parseCalendarViewStateWorkspaceSettingsCloudValue(
         isPlainObject(workspace.settings) ? workspace.settings : null
       );
+    const meetingReviewState =
+      parseMeetingReviewStateWorkspaceSettingsCloudValue(
+        isPlainObject(workspace.settings) ? workspace.settings : null
+      );
 
     return NextResponse.json(
       {
@@ -166,12 +179,14 @@ export async function GET(
           PAGE_VIEW_PREFERENCES_SETTING_KEY,
           QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
           CALENDAR_VIEW_STATE_SETTING_KEY,
+          MEETING_REVIEW_STATE_SETTING_KEY,
         ],
         sidebar_settings: sidebarSettings,
         page_favorites: pageFavorites,
         page_view_preferences: pageViewPreferences,
         quick_search_saved_searches: quickSearchSavedSearches,
         calendar_view_state: calendarViewState,
+        meeting_review_state: meetingReviewState,
       }
     );
   } catch (error) {
@@ -219,11 +234,15 @@ export async function PATCH(
                 ? validateCalendarViewStateWorkspaceSettingsCloudPayload(
                     body.value
                   )
-                : {
-                    ok: false as const,
-                    message:
-                      "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1、page.viewPreferences.v1、quick_search.savedSearches.v1 或 calendar.viewState.v1。",
-                  };
+                : isMeetingReviewStateWorkspaceSettingKey(settingKey)
+                  ? validateMeetingReviewStateWorkspaceSettingsCloudPayload(
+                      body.value
+                    )
+                  : {
+                      ok: false as const,
+                      message:
+                        "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1、page.viewPreferences.v1、quick_search.savedSearches.v1、calendar.viewState.v1 或 meeting.reviewState.v1。",
+                    };
   if (!validatedPayload.ok) {
     return badRequestResponse(validatedPayload.message);
   }
@@ -319,9 +338,17 @@ export async function PATCH(
           validatedPayload.payload,
           savedAt
         );
-    } else {
+    } else if (
+      validatedPayload.payload.setting_key === CALENDAR_VIEW_STATE_SETTING_KEY
+    ) {
       nextSettings[CALENDAR_VIEW_STATE_CLOUD_FIELD] =
         buildCalendarViewStateWorkspaceSettingsCloudValue(
+          validatedPayload.payload,
+          savedAt
+        );
+    } else {
+      nextSettings[MEETING_REVIEW_STATE_CLOUD_FIELD] =
+        buildMeetingReviewStateWorkspaceSettingsCloudValue(
           validatedPayload.payload,
           savedAt
         );
@@ -408,8 +435,19 @@ export async function PATCH(
       );
     }
 
+    if (validatedPayload.payload.setting_key === CALENDAR_VIEW_STATE_SETTING_KEY) {
+      return NextResponse.json(
+        buildCalendarViewStateWorkspaceSettingsCloudReceipt({
+          workspaceId,
+          role: membership.role,
+          savedAt,
+          payload: validatedPayload.payload,
+        })
+      );
+    }
+
     return NextResponse.json(
-      buildCalendarViewStateWorkspaceSettingsCloudReceipt({
+      buildMeetingReviewStateWorkspaceSettingsCloudReceipt({
         workspaceId,
         role: membership.role,
         savedAt,

@@ -85,6 +85,8 @@ const files = {
     "src/lib/sync/quickSearchWorkspaceSettings.ts",
   calendarViewStateWorkspaceSettings:
     "src/lib/sync/calendarViewStateWorkspaceSettings.ts",
+  meetingReviewStateWorkspaceSettings:
+    "src/lib/sync/meetingReviewStateWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
@@ -96,6 +98,8 @@ const files = {
   usePageViewPreferences: "src/hooks/usePageViewPreferences.ts",
   useCalendarViewMonthPreference:
     "src/hooks/useCalendarViewMonthPreference.ts",
+  useMeetingReviewStatePreference:
+    "src/hooks/useMeetingReviewStatePreference.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -376,6 +380,9 @@ function run() {
   const calendarViewStateWorkspaceSettings = readProjectFile(
     files.calendarViewStateWorkspaceSettings
   );
+  const meetingReviewStateWorkspaceSettings = readProjectFile(
+    files.meetingReviewStateWorkspaceSettings
+  );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
@@ -389,6 +396,9 @@ function run() {
   const usePageViewPreferences = readProjectFile(files.usePageViewPreferences);
   const useCalendarViewMonthPreference = readProjectFile(
     files.useCalendarViewMonthPreference
+  );
+  const useMeetingReviewStatePreference = readProjectFile(
+    files.useMeetingReviewStatePreference
   );
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
@@ -487,12 +497,17 @@ function run() {
       files.calendarViewStateWorkspaceSettings,
       calendarViewStateWorkspaceSettings,
     ],
+    [
+      files.meetingReviewStateWorkspaceSettings,
+      meetingReviewStateWorkspaceSettings,
+    ],
     [files.workspaceSettingsPendingSync, workspaceSettingsPendingSync],
     [files.workspaceSettingsRoute, workspaceSettingsRoute],
     [files.localSchema, localSchema],
     [files.usePageFavorites, usePageFavorites],
     [files.usePageViewPreferences, usePageViewPreferences],
     [files.useCalendarViewMonthPreference, useCalendarViewMonthPreference],
+    [files.useMeetingReviewStatePreference, useMeetingReviewStatePreference],
     [files.localQueries, localQueries],
     [files.databaseRouteSkeleton, databaseRouteSkeleton],
     [files.childPageTree, childPageTree],
@@ -1842,6 +1857,18 @@ function run() {
       "Workspace settings pending sync must upload only meeting view month metadata for calendar view state.",
     ],
     [
+      "MEETING_REVIEW_STATE_SETTING_KEY",
+      "Workspace settings pending sync must include meeting review state settings.",
+    ],
+    [
+      "seen_meeting_page_ids",
+      "Workspace settings pending sync must upload only seen meeting page ids for meeting review state.",
+    ],
+    [
+      "dismissed_trace_page_ids",
+      "Workspace settings pending sync must upload only dismissed trace page ids for meeting review state.",
+    ],
+    [
       "Page bodies, database row values, comments, files, tokens, and raw local cache dumps are never included",
       "Workspace settings pending sync must state the privacy boundary.",
     ],
@@ -2227,6 +2254,102 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-meeting-review-state-settings-cloud-receipt"',
+      "Meeting review state settings must expose a stable cloud receipt.",
+    ],
+    [
+      "MEETING_REVIEW_STATE_SETTING_KEY",
+      "Meeting review state settings must use a stable workspace setting key.",
+    ],
+    [
+      "workspaces.settings.meeting_review_state",
+      "Meeting review state settings must target workspace cloud settings.",
+    ],
+    [
+      "validateMeetingReviewStateWorkspaceSettingsCloudPayload",
+      "Meeting review state settings must validate cloud payloads.",
+    ],
+    [
+      "seen_meeting_page_ids",
+      "Meeting review state must persist seen meeting page id metadata.",
+    ],
+    [
+      "dismissed_trace_page_ids",
+      "Meeting review state must persist dismissed trace page id metadata.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Meeting review state receipt must state it does not read page bodies.",
+    ],
+    [
+      "reads_page_titles: false",
+      "Meeting review state receipt must state it does not read page titles.",
+    ],
+    [
+      "reads_meeting_titles: false",
+      "Meeting review state receipt must state it does not read meeting titles.",
+    ],
+    [
+      "reads_meeting_urls: false",
+      "Meeting review state receipt must state it does not read meeting URLs.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Meeting review state must use pending-only ordinary sync.",
+    ],
+    [
+      "meeting_title",
+      "Meeting review state validator must reject meeting title fields.",
+    ],
+    [
+      "join_url",
+      "Meeting review state validator must reject meeting URL fields.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.meetingReviewStateWorkspaceSettings,
+      meetingReviewStateWorkspaceSettings,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "MEETING_REVIEW_STATE_SETTING_KEY",
+      "Meeting review hook must use the cloud-ready workspace setting key.",
+    ],
+    [
+      "getWorkspaceSetting(MEETING_REVIEW_STATE_SETTING_KEY)",
+      "Meeting review hook must hydrate state from workspace_settings.",
+    ],
+    [
+      "upsertWorkspaceSetting(",
+      "Meeting review hook must persist state through workspace_settings and sync_log.",
+    ],
+    [
+      "localStorage is a fast boot cache and legacy migration source only",
+      "Meeting review hook must keep localStorage as cache/migration only.",
+    ],
+    [
+      "legacy-meeting-review-state-localStorage",
+      "Meeting review hook must migrate legacy localStorage state into workspace_settings.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.useMeetingReviewStatePreference,
+      useMeetingReviewStatePreference,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "useMeetingReviewStatePreference()",
+    "Meeting schedule must use the workspace-settings backed review state."
+  );
+  for (const [snippet, message] of [
+    [
       'cloudNotConfiguredResponse("workspace-settings-update")',
       "Workspace settings route must stay behind the cloud configured gate.",
     ],
@@ -2313,6 +2436,22 @@ function run() {
     [
       "CALENDAR_VIEW_STATE_SETTING_KEY",
       "Workspace settings route must advertise calendar view state as a supported setting.",
+    ],
+    [
+      "validateMeetingReviewStateWorkspaceSettingsCloudPayload",
+      "Workspace settings route must validate meeting review state payloads before writing.",
+    ],
+    [
+      "buildMeetingReviewStateWorkspaceSettingsCloudValue",
+      "Workspace settings route must write meeting review state metadata to cloud settings.",
+    ],
+    [
+      "meeting_review_state",
+      "Workspace settings route must return meeting review state metadata on reads.",
+    ],
+    [
+      "MEETING_REVIEW_STATE_SETTING_KEY",
+      "Workspace settings route must advertise meeting review state as a supported setting.",
     ],
     [
       "workspace-settings-readonly-role",
