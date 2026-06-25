@@ -332,8 +332,14 @@ function run() {
   assertIncludes(
     files.wikiSuggestion,
     wikiSuggestion,
+    "listRecentPageMetadata(8)",
+    "Wiki link empty-query suggestions must read only the bounded recent page metadata list."
+  );
+  assertNotIncludes(
+    files.wikiSuggestion,
+    wikiSuggestion,
     "getAllPageMetadata",
-    "Wiki link suggestions may still use metadata for empty-query recent pages."
+    "Wiki link suggestions must not scan every page after large imports."
   );
   assertNotIncludes(
     files.wikiSuggestion,

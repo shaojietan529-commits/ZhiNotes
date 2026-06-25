@@ -220,6 +220,19 @@ export async function getAllPageMetadata(): Promise<Page[]> {
   ) as unknown as Page[];
 }
 
+export async function listRecentPageMetadata(limit = 8): Promise<Page[]> {
+  const db = await getDb();
+  const safeLimit = Math.max(1, Math.min(50, Math.floor(limit)));
+  return db.query(
+    `SELECT ${PAGE_METADATA_SELECT}
+     FROM pages
+     WHERE deleted_at IS NULL
+     ORDER BY updated_at DESC
+     LIMIT ?`,
+    [safeLimit]
+  ) as unknown as Page[];
+}
+
 function dailyDateCandidateWhere(alias = "pages"): string {
   const prefix = alias ? `${alias}.` : "";
   return `(
