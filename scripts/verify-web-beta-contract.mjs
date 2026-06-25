@@ -75,6 +75,7 @@ const files = {
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
@@ -324,6 +325,7 @@ function run() {
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
@@ -7379,9 +7381,39 @@ function run() {
       "mergeMetadataForCount",
       "Cloud metadata hydration must preserve local page body content.",
     ],
+    [
+      files.usePage,
+      usePage,
+      "queueCloudPagePush(record)",
+      "Page edits must enqueue account-cloud upload through the pending queue.",
+    ],
+    [
+      files.usePage,
+      usePage,
+      "void persistOptimisticPageToLocalCache(record, upsertPages)",
+      "Page edits must persist the rebuildable local cache in the background.",
+    ],
+    [
+      files.usePage,
+      usePage,
+      "rememberPendingPageDraft(optimistic)",
+      "Page edits must keep an immediate in-memory draft while the rebuildable local cache is being written.",
+    ],
+    [
+      files.usePage,
+      usePage,
+      "clearPendingPageDraft(record.id)",
+      "Page edit drafts must clear after the local cache write catches up.",
+    ],
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
+  assertSourceExcludes(
+    files.usePage,
+    usePage,
+    "await pushCloudPages([record])",
+    "Page edits must not block input on direct cloud push."
+  );
 
   const summary = {
     env_requirements: requiredEnvKeys.length,

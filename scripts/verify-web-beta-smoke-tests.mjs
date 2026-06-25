@@ -16,6 +16,7 @@ const files = {
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
@@ -175,6 +176,7 @@ function run() {
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
@@ -601,6 +603,35 @@ function run() {
     "mergeMetadataForCount",
     "Page list cloud hydration must preserve local page body content."
   );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "queueCloudPagePush(record)",
+    "Page editing must enqueue cloud upload instead of blocking on the cloud."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "void persistOptimisticPageToLocalCache(record, upsertPages)",
+    "Page editing must persist the local hot cache in the background."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "rememberPendingPageDraft(optimistic)",
+    "Page editing must keep an immediate draft while local cache persistence catches up."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "clearPendingPageDraft(record.id)",
+    "Page editing must clear the immediate draft after local cache persistence catches up."
+  );
+  if (usePage.includes("await pushCloudPages([record])")) {
+    failures.push(
+      "usePage should not await pushCloudPages during editor updates; edits must be local-first and pending-queue backed."
+    );
+  }
   assertIncludes(
     files.syncShell,
     syncShell,

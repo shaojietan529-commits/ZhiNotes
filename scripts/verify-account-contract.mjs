@@ -603,10 +603,15 @@ check(
 );
 check(
   usePageHook.includes("pageToRemoteRecord(optimistic)") &&
-    usePageHook.includes("await pushCloudPages([record])") &&
+    usePageHook.includes("setPage(optimistic)") &&
+    usePageHook.includes("upsertPages([optimistic])") &&
+    usePageHook.includes("rememberPendingPageDraft(optimistic)") &&
     usePageHook.includes("queueCloudPagePush(record)") &&
-    usePageHook.includes("hydrateRemotePageIntoLocalCache(record)"),
-  "usePage 编辑保存应先写账号云端，再把同一份云端记录回填为本机可重建缓存"
+    usePageHook.includes("void persistOptimisticPageToLocalCache(record, upsertPages)") &&
+    usePageHook.includes("clearPendingPageDraft(record.id)") &&
+    usePageHook.includes("hydrateRemotePageIntoLocalCache(record)") &&
+    !usePageHook.includes("await pushCloudPages([record])"),
+  "usePage 编辑保存应先更新本机热缓存和临时草稿并登记 pending 队列；云端上传和本地 SQLite 回填都不能阻塞输入"
 );
 check(
   !usePageHook.includes("updatePage(pageId, updates)") &&

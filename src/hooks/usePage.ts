@@ -11,13 +11,13 @@ import {
 import {
   fetchCloudPageById,
   pageToRemoteRecord,
-  pushCloudPages,
   queueCloudPageDelete,
   queueCloudPagePush,
   type CloudPageLookupResult,
 } from "@/lib/pages/accountPageSync";
 import {
   clearPendingPageDraft,
+  rememberPendingPageDraft,
   readPendingPageDraft,
 } from "@/lib/pages/pendingPageDrafts";
 import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
@@ -158,31 +158,13 @@ export function usePage(
 
       setPage(optimistic);
       upsertPages([optimistic]);
+      rememberPendingPageDraft(optimistic);
 
-      let shouldHydrateOptimisticRecord = true;
-      try {
-        const pushed = await pushCloudPages([record]);
-        if (pushed.status !== "ok") {
-          queueCloudPagePush(record);
-        } else if (pushed.skipped.includes(record.id)) {
-          shouldHydrateOptimisticRecord = false;
-          void load();
-        }
-      } catch {
-        queueCloudPagePush(record);
-      }
-
-      if (shouldHydrateOptimisticRecord) {
-        const hydrated = await hydrateRemotePageIntoLocalCache(record);
-        if (hydrated) {
-          setPage(hydrated);
-          upsertPages([hydrated]);
-        }
-        return hydrated ?? optimistic;
-      }
+      queueCloudPagePush(record);
+      void persistOptimisticPageToLocalCache(record, upsertPages);
       return optimistic;
     },
-    [pageId, page, upsertPages, load]
+    [pageId, page, upsertPages]
   );
 
   const remove = useCallback(async () => {
@@ -256,6 +238,17 @@ async function hydrateRemotePageIntoLocalCache(
     // renders so reading is not blocked by a broken browser cache.
     if (record.deleted_at) return null;
     return remoteRecordToPage(record);
+  }
+}
+
+async function persistOptimisticPageToLocalCache(
+  record: RemotePageRecord,
+  upsertPages: (pages: Page[]) => void
+): Promise<void> {
+  const hydrated = await hydrateRemotePageIntoLocalCache(record);
+  if (hydrated) {
+    clearPendingPageDraft(record.id);
+    upsertPages([hydrated]);
   }
 }
 
