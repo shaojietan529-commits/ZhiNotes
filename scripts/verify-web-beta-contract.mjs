@@ -83,6 +83,11 @@ const files = {
   databaseShell: "src/components/database/DatabaseShell.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
+  moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
+  dailyRoute: "src/app/(workspace)/daily/page.tsx",
+  dailyRouteLoading: "src/app/(workspace)/daily/loading.tsx",
+  scheduleRoute: "src/app/(workspace)/schedule/page.tsx",
+  scheduleRouteLoading: "src/app/(workspace)/schedule/loading.tsx",
   apiGuardPanel: "src/components/modules/sync/ApiGuardPanel.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
 };
@@ -334,6 +339,11 @@ function run() {
   const databaseShell = readProjectFile(files.databaseShell);
   const syncShell = readProjectFile(files.syncShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
+  const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
+  const dailyRoute = readProjectFile(files.dailyRoute);
+  const dailyRouteLoading = readProjectFile(files.dailyRouteLoading);
+  const scheduleRoute = readProjectFile(files.scheduleRoute);
+  const scheduleRouteLoading = readProjectFile(files.scheduleRouteLoading);
   const apiGuardPanel = readProjectFile(files.apiGuardPanel);
   const migration = readProjectFile(files.migration);
 
@@ -402,9 +412,44 @@ function run() {
     [files.localSchema, localSchema],
     [files.localQueries, localQueries],
     [files.syncShell, syncShell],
+    [files.moduleRouteSkeleton, moduleRouteSkeleton],
+    [files.dailyRoute, dailyRoute],
+    [files.dailyRouteLoading, dailyRouteLoading],
+    [files.scheduleRoute, scheduleRoute],
+    [files.scheduleRouteLoading, scheduleRouteLoading],
     [files.apiGuardPanel, apiGuardPanel],
   ]) {
     assertNoLegacySingularEnv(source, label);
+  }
+
+  for (const [sourceLabel, source] of [
+    [files.dailyRoute, dailyRoute],
+    [files.dailyRouteLoading, dailyRouteLoading],
+    [files.scheduleRoute, scheduleRoute],
+    [files.scheduleRouteLoading, scheduleRouteLoading],
+  ]) {
+    assertSourceIncludes(
+      sourceLabel,
+      source,
+      "ModuleRouteSkeleton",
+      "Daily notes and meeting calendar routes must keep an immediate shell while route segments or client chunks load."
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "先显示本地热缓存",
+      "The workspace route skeleton must communicate local hot-cache-first rendering.",
+    ],
+    [
+      "后台刷新云端索引",
+      "The workspace route skeleton must communicate background cloud index hydration.",
+    ],
+    [
+      "grid-cols-7",
+      "The workspace route skeleton must resemble the calendar grid before heavy modules hydrate.",
+    ],
+  ]) {
+    assertSourceIncludes(files.moduleRouteSkeleton, moduleRouteSkeleton, snippet, message);
   }
 
   for (const [snippet, message] of [

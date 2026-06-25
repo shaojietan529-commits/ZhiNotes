@@ -24,6 +24,11 @@ const files = {
   databaseShell: "src/components/database/DatabaseShell.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
+  moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
+  dailyRoute: "src/app/(workspace)/daily/page.tsx",
+  dailyRouteLoading: "src/app/(workspace)/daily/loading.tsx",
+  scheduleRoute: "src/app/(workspace)/schedule/page.tsx",
+  scheduleRouteLoading: "src/app/(workspace)/schedule/loading.tsx",
   environmentPreflightRoute:
     "src/app/api/web-beta/environment-preflight/route.ts",
 };
@@ -38,7 +43,14 @@ const requiredPageRoutes = [
   "src/app/(workspace)/modules/ai/page.tsx",
   "src/app/(workspace)/modules/portfolio/page.tsx",
   "src/app/(workspace)/modules/meetings/page.tsx",
+  "src/app/(workspace)/daily/page.tsx",
+  "src/app/(workspace)/schedule/page.tsx",
   "src/app/auth/callback/page.tsx",
+];
+
+const requiredLoadingRoutes = [
+  "src/app/(workspace)/daily/loading.tsx",
+  "src/app/(workspace)/schedule/loading.tsx",
 ];
 
 const gatedOrDisabledApiRoutes = [
@@ -185,6 +197,11 @@ function run() {
   const databaseShell = readProjectFile(files.databaseShell);
   const syncShell = readProjectFile(files.syncShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
+  const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
+  const dailyRoute = readProjectFile(files.dailyRoute);
+  const dailyRouteLoading = readProjectFile(files.dailyRouteLoading);
+  const scheduleRoute = readProjectFile(files.scheduleRoute);
+  const scheduleRouteLoading = readProjectFile(files.scheduleRouteLoading);
   const environmentPreflightRoute = readProjectFile(
     files.environmentPreflightRoute
   );
@@ -204,6 +221,40 @@ function run() {
   for (const routeFile of requiredPageRoutes) {
     assertFileExists(routeFile, "Smoke route check missing page route");
   }
+
+  for (const loadingRouteFile of requiredLoadingRoutes) {
+    assertFileExists(
+      loadingRouteFile,
+      "Smoke route check missing workspace loading route"
+    );
+  }
+
+  for (const [sourceLabel, source] of [
+    [files.dailyRoute, dailyRoute],
+    [files.dailyRouteLoading, dailyRouteLoading],
+    [files.scheduleRoute, scheduleRoute],
+    [files.scheduleRouteLoading, scheduleRouteLoading],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "ModuleRouteSkeleton",
+      "Daily and meeting calendar routes must show an immediate loading shell before client hydration completes."
+    );
+  }
+
+  assertIncludes(
+    files.moduleRouteSkeleton,
+    moduleRouteSkeleton,
+    "先显示本地热缓存",
+    "Workspace module loading shell must explain that local hot cache renders first."
+  );
+  assertIncludes(
+    files.moduleRouteSkeleton,
+    moduleRouteSkeleton,
+    "后台刷新云端索引",
+    "Workspace module loading shell must explain cloud index hydration happens in the background."
+  );
 
   for (const { path: routeFile, guard } of gatedOrDisabledApiRoutes) {
     const source = readProjectFile(routeFile);
