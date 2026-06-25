@@ -71,6 +71,7 @@ const files = {
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
+  hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
@@ -332,6 +333,7 @@ function run() {
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
+  const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
   const hotCacheSelectionSettings = readProjectFile(
     files.hotCacheSelectionSettings
   );
@@ -421,6 +423,7 @@ function run() {
     [files.cloudMasterReconcile, cloudMasterReconcile],
     [files.localMetadataManifest, localMetadataManifest],
     [files.hotCachePolicyPlan, hotCachePolicyPlan],
+    [files.hotCacheWarmupReceipt, hotCacheWarmupReceipt],
     [files.hotCacheSelectionSettings, hotCacheSelectionSettings],
     [files.hotCacheSettingsCloud, hotCacheSettingsCloud],
     [files.workspaceSettingsRoute, workspaceSettingsRoute],
@@ -942,6 +945,121 @@ function run() {
     [
       "导出热缓存策略",
       "Sync UI must render the hot cache policy export button.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-hot-cache-warmup-receipt"',
+      "Hot cache warmup receipt must expose a stable export format.",
+    ],
+    [
+      'receipt_status: "route-prefetch-receipt"',
+      "Hot cache warmup receipt must stay route-prefetch scoped.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Hot cache warmup receipt must align to cloud master plus local hot cache.",
+    ],
+    [
+      "records_metadata_only: true",
+      "Hot cache warmup receipt must only record metadata.",
+    ],
+    [
+      "stores_receipt_as_source_of_truth: false",
+      "Hot cache warmup receipt must not become the source of truth.",
+    ],
+    [
+      "prefetches_routes_only: true",
+      "Hot cache warmup receipt must only record route prefetches.",
+    ],
+    [
+      "mutates_local_cache_records: false",
+      "Hot cache warmup receipt must not mutate local cache records.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Hot cache warmup receipt must not upload workspace data.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.hotCacheWarmupReceipt,
+      hotCacheWarmupReceipt,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Hot cache warmup receipt must not access page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Hot cache warmup receipt must not access page Yjs content.",
+    ],
+    [
+      "database.description",
+      "Hot cache warmup receipt must not access database descriptions.",
+    ],
+    [
+      "file.dataUrl",
+      "Hot cache warmup receipt must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Hot cache warmup receipt must not access file text.",
+    ],
+    [
+      "comment.body",
+      "Hot cache warmup receipt must not access comment bodies.",
+    ],
+    [
+      "field_values",
+      "Hot cache warmup receipt must not access database row values.",
+    ],
+    [
+      "fetch(",
+      "Hot cache warmup receipt must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Hot cache warmup receipt must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Hot cache warmup receipt must not mutate the local database.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.hotCacheWarmupReceipt,
+      hotCacheWarmupReceipt,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildHotCacheWarmupReceipt",
+      "Sync UI must build a hot cache warmup receipt.",
+    ],
+    [
+      "HotCacheWarmupReceiptPanel",
+      "Sync UI must render the hot cache warmup receipt panel.",
+    ],
+    [
+      "最近一次预热收据",
+      "Sync UI must expose the latest hot cache warmup receipt.",
+    ],
+    [
+      "handleExportHotCacheWarmupReceipt",
+      "Sync UI must export the hot cache warmup receipt.",
+    ],
+    [
+      "导出预热收据",
+      "Sync UI must render the hot cache warmup receipt export button.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);

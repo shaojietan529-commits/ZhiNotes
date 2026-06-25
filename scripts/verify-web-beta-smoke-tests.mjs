@@ -13,6 +13,7 @@ const files = {
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
+  hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
@@ -197,6 +198,7 @@ function run() {
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
+  const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
   const hotCacheSelectionSettings = readProjectFile(
     files.hotCacheSelectionSettings
   );
@@ -633,6 +635,48 @@ function run() {
     }
   }
   assertIncludes(
+    files.hotCacheWarmupReceipt,
+    hotCacheWarmupReceipt,
+    'format: "zhinote-hot-cache-warmup-receipt"',
+    "Smoke verifier must keep the hot cache warmup receipt."
+  );
+  assertIncludes(
+    files.hotCacheWarmupReceipt,
+    hotCacheWarmupReceipt,
+    "records_metadata_only: true",
+    "Hot cache warmup receipt must stay metadata-only."
+  );
+  assertIncludes(
+    files.hotCacheWarmupReceipt,
+    hotCacheWarmupReceipt,
+    "stores_receipt_as_source_of_truth: false",
+    "Hot cache warmup receipt must not become the source of truth."
+  );
+  assertIncludes(
+    files.hotCacheWarmupReceipt,
+    hotCacheWarmupReceipt,
+    "prefetches_routes_only: true",
+    "Hot cache warmup receipt must only record route prefetch."
+  );
+  for (const forbiddenReceiptSnippet of [
+    "page.content_text",
+    "page.content_yjs",
+    "database.description",
+    "file.dataUrl",
+    "file.textContent",
+    "comment.body",
+    "field_values",
+    "fetch(",
+    "localStorage.setItem",
+    "db.run",
+  ]) {
+    if (hotCacheWarmupReceipt.includes(forbiddenReceiptSnippet)) {
+      failures.push(
+        `${files.hotCacheWarmupReceipt} must not include ${forbiddenReceiptSnippet}: hot cache warmup receipt must stay metadata-only.`
+      );
+    }
+  }
+  assertIncludes(
     files.syncShell,
     syncShell,
     "本地热缓存策略",
@@ -667,6 +711,24 @@ function run() {
     syncShell,
     "导出预热计划",
     "Sync UI must expose the hot cache warmup export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildHotCacheWarmupReceipt",
+    "Sync UI must build a hot cache warmup receipt."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "最近一次预热收据",
+    "Sync UI must render the latest hot cache warmup receipt."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出预热收据",
+    "Sync UI must expose the hot cache warmup receipt export."
   );
   assertIncludes(
     files.localSchema,
