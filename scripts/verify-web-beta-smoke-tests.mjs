@@ -9,6 +9,7 @@ const root = process.cwd();
 const files = {
   packageJson: "package.json",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
+  cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   environmentPreflightRoute:
     "src/app/api/web-beta/environment-preflight/route.ts",
@@ -142,6 +143,7 @@ function assertFileExists(relativePath, message) {
 function run() {
   const packageJson = JSON.parse(readProjectFile(files.packageJson));
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
+  const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const syncShell = readProjectFile(files.syncShell);
   const environmentPreflightRoute = readProjectFile(
     files.environmentPreflightRoute
@@ -228,6 +230,48 @@ function run() {
     "Sync UI must expose smoke test plan export."
   );
   assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    'architecture_target: "cloud-master-local-hot-cache"',
+    "Smoke verifier must keep the cloud-master local-cache target report wired."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    'report_status: "local-audit-only"',
+    "Smoke verifier must keep the reconcile report local-audit-only."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "ordinary_sync_pending_only: true",
+    "Smoke verifier must preserve pending-only sync for cloud-master migration."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "It does not read page body text, comment bodies, file bytes, token values, or upload data.",
+    "Smoke verifier must preserve the sensitive-content privacy boundary."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "全域上云对账",
+    "Sync UI must render the cloud master reconcile panel."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出对账报告",
+    "Sync UI must expose the cloud master reconcile export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "getPageModuleCounts",
+    "Sync UI must include metadata counts for comments, versions, and links."
+  );
+  assertIncludes(
     files.environmentPreflightRoute,
     environmentPreflightRoute,
     "buildWebBetaEnvironmentPreflight",
@@ -239,6 +283,7 @@ function run() {
     page_routes_checked: requiredPageRoutes.length,
     gated_or_disabled_api_routes_checked: gatedOrDisabledApiRoutes.length,
     boundary_checks: requiredBoundarySnippets.length,
+    cloud_master_reconcile_checks: 7,
   };
 
   if (failures.length > 0) {

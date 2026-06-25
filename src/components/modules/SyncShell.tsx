@@ -15,11 +15,15 @@ import { usePages } from "@/hooks/usePages";
 import {
   getAllDatabases,
   getDeletedPages,
+  getPageModuleCounts,
   getPendingSyncLogEntries,
   getSyncLogSummary,
+  type PageModuleCounts,
   type SyncLogEntry,
   type SyncLogSummary,
 } from "@/lib/db/local/queries";
+import { isDatabaseSyncEnabled } from "@/lib/database/accountDatabaseSync";
+import { isPageSyncEnabled } from "@/lib/pages/accountPageSync";
 import {
   exportWorkspaceBackup,
   exportWorkspaceMarkdown,
@@ -202,6 +206,15 @@ import {
   type SyncPayloadPreview,
   type SyncPayloadRisk,
 } from "@/lib/sync/syncPayloadPreview";
+import {
+  buildCloudMasterReconcileReport,
+  type CloudMasterDomain,
+  type CloudMasterDomainStatus,
+  type CloudMasterGateStatus,
+  type CloudMasterMigrationGate,
+  type CloudMasterCachePolicy,
+  type CloudMasterReconcileReport,
+} from "@/lib/sync/cloudMasterReconcile";
 import {
   buildSyncConflictReviewReport,
   type SyncConflictReviewReport,
@@ -484,6 +497,9 @@ function SyncDashboard() {
   const [databases, setDatabases] = useState<Database[]>([]);
   const [deletedPages, setDeletedPages] = useState<Page[]>([]);
   const [storedFiles, setStoredFiles] = useState<StoredPageFile[]>([]);
+  const [pageModuleCounts, setPageModuleCounts] = useState<
+    Record<string, PageModuleCounts>
+  >({});
   const [syncSummary, setSyncSummary] = useState<SyncLogSummary | null>(null);
   const [syncEntries, setSyncEntries] = useState<SyncLogEntry[]>([]);
   const [busyAction, setBusyAction] = useState<ExportAction | null>(null);
@@ -546,6 +562,7 @@ function SyncDashboard() {
           loadedDatabases,
           loadedDeletedPages,
           loadedFiles,
+          loadedPageModuleCounts,
           loadedSync,
           loadedSyncEntries,
           loadedEnvironmentPreflight,
@@ -553,6 +570,7 @@ function SyncDashboard() {
             getAllDatabases(),
             getDeletedPages(),
             listStoredPageFiles().catch(() => [] as StoredPageFile[]),
+            getPageModuleCounts(),
             getSyncLogSummary(),
             getPendingSyncLogEntries(25),
             fetch("/api/web-beta/environment-preflight")
@@ -575,6 +593,7 @@ function SyncDashboard() {
         setDatabases(loadedDatabases);
         setDeletedPages(loadedDeletedPages);
         setStoredFiles(loadedFiles);
+        setPageModuleCounts(loadedPageModuleCounts);
         setSyncSummary(loadedSync);
         setSyncEntries(loadedSyncEntries);
         setEnvironmentPreflight(loadedEnvironmentPreflight);
@@ -626,6 +645,51 @@ function SyncDashboard() {
   }, []);
 
   const fileSummary = useMemo(() => summarizeFiles(storedFiles), [storedFiles]);
+  const pageModuleTotals = useMemo(
+    () =>
+      Object.values(pageModuleCounts).reduce(
+        (total, counts) => ({
+          versions: total.versions + counts.versions,
+          pageComments: total.pageComments + counts.pageComments,
+          blockComments: total.blockComments + counts.blockComments,
+          wikiLinks:
+            total.wikiLinks + counts.outgoingLinks + counts.backlinks,
+        }),
+        {
+          versions: 0,
+          pageComments: 0,
+          blockComments: 0,
+          wikiLinks: 0,
+        }
+      ),
+    [pageModuleCounts]
+  );
+  const cloudMasterReconcile = useMemo(
+    () =>
+      buildCloudMasterReconcileReport({
+        activePages: pages.length,
+        deletedPages: deletedPages.length,
+        databases: databases.length,
+        uploadedFiles: storedFiles.length,
+        pageVersions: pageModuleTotals.versions,
+        pageComments: pageModuleTotals.pageComments,
+        blockComments: pageModuleTotals.blockComments,
+        wikiLinks: pageModuleTotals.wikiLinks,
+        syncSummary,
+        workspaceIdentity,
+        pageSyncEnabled: isPageSyncEnabled(),
+        databaseSyncEnabled: isDatabaseSyncEnabled(),
+      }),
+    [
+      databases.length,
+      deletedPages.length,
+      pageModuleTotals,
+      pages.length,
+      storedFiles.length,
+      syncSummary,
+      workspaceIdentity,
+    ]
+  );
   const syncPayloadPreview = useMemo(
     () =>
       buildSyncPayloadPreview({
@@ -1841,6 +1905,16 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportCloudMasterReconcile = () => {
+    downloadJsonFile(
+      `zhinote-cloud-master-reconcile-${fileSafeTimestamp()}.json`,
+      {
+        ...cloudMasterReconcile,
+        exported_at: new Date().toISOString(),
+      }
+    );
+  };
+
   const handleExportSyncQueueSnapshot = async () => {
     setBusyQueueAction("queue");
     try {
@@ -3038,6 +3112,11 @@ function SyncDashboard() {
             />
           ))}
         </section>
+
+        <CloudMasterReconcilePanel
+          report={cloudMasterReconcile}
+          onExport={handleExportCloudMasterReconcile}
+        />
 
         <WebLaunchDecisionSummaryPanel
           workbench={webLaunchWorkbenchPacket}
@@ -12578,6 +12657,303 @@ function BetaStatusPill({ status }: { status: WebBetaReadinessStatus }) {
       : status === "partial"
         ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
         : status === "manual-confirmation"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function CloudMasterReconcilePanel({
+  report,
+  onExport,
+}: {
+  report: CloudMasterReconcileReport;
+  onExport: () => void;
+}) {
+  const syncRules = [
+    "云端是真实主库",
+    "本地只是热缓存",
+    "普通同步只上传 pending 变更",
+    "本地缓存可重建",
+    "本地输入先落缓存再进待上传队列",
+    "默认云端赢，本机未上传编辑例外",
+  ];
+
+  return (
+    <section
+      id="cloud-master-reconcile"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Cloud Master Reconcile
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            全域上云对账
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            目标架构是云端主库 + 本地热缓存：所有真实数据最终在云端，
+            本地只保留常用副本和待上传队列。这个面板只读本地数量和同步状态，
+            不上传数据、不读取正文、不读取文件内容。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          导出对账报告
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <CloudMasterSummaryCard
+          label="结论"
+          value="未完成"
+          detail="全域仍有缺口"
+          status="blocked"
+        />
+        <CloudMasterSummaryCard
+          label="云端主库"
+          value={
+            report.summary.cloud_primary_ready +
+            report.summary.cloud_primary_partial
+          }
+          detail={`${report.summary.domains} 个数据域`}
+          status="partial"
+        />
+        <CloudMasterSummaryCard
+          label="待迁移"
+          value={report.summary.migration_needed}
+          detail="需要云端表或对账"
+          status="blocked"
+        />
+        <CloudMasterSummaryCard
+          label="仅本地"
+          value={report.summary.local_only}
+          detail="必须补云端主库"
+          status="blocked"
+        />
+        <CloudMasterSummaryCard
+          label="待上传"
+          value={report.summary.pending_sync_rows}
+          detail="本地 pending 队列"
+          status={report.summary.pending_sync_rows > 0 ? "partial" : "ready"}
+        />
+        <CloudMasterSummaryCard
+          label="本地缓存"
+          value={report.summary.local_cache_records}
+          detail="只读 metadata 统计"
+          status="partial"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+        <ContractPanel title="数据域覆盖">
+          <div className="grid gap-2 md:grid-cols-2">
+            {report.domains.map((domain) => (
+              <CloudMasterDomainRow key={domain.id} domain={domain} />
+            ))}
+          </div>
+        </ContractPanel>
+        <div className="space-y-4">
+          <ContractPanel title="同步规则">
+            <div className="grid gap-2">
+              {syncRules.map((rule) => (
+                <div
+                  key={rule}
+                  className="rounded-md bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                >
+                  {rule}
+                </div>
+              ))}
+            </div>
+          </ContractPanel>
+          <ContractPanel title="本地热缓存策略">
+            <div className="space-y-2">
+              {report.cache_policies.map((policy) => (
+                <CloudMasterCachePolicyRow
+                  key={policy.id}
+                  policy={policy}
+                />
+              ))}
+            </div>
+          </ContractPanel>
+        </div>
+      </div>
+
+      <ContractPanel title="迁移前 gate" className="mt-4">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {report.migration_gates.map((gate) => (
+            <CloudMasterMigrationGateRow key={gate.id} gate={gate} />
+          ))}
+        </div>
+      </ContractPanel>
+    </section>
+  );
+}
+
+function CloudMasterSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: CloudMasterGateStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <CloudMasterGateStatusPill status={status} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function CloudMasterDomainRow({ domain }: { domain: CloudMasterDomain }) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {domain.title}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-400">
+            本地数量：{domain.count ?? "配置项"}
+          </div>
+        </div>
+        <CloudMasterDomainStatusPill status={domain.status} />
+      </div>
+      <dl className="mt-3 space-y-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            云端范围
+          </dt>
+          <dd>{domain.cloud_scope}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            本地缓存
+          </dt>
+          <dd>{domain.local_cache_scope}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            当前缺口
+          </dt>
+          <dd>{domain.current_gap}</dd>
+        </div>
+      </dl>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        下一步：{domain.next_action}
+      </p>
+    </article>
+  );
+}
+
+function CloudMasterCachePolicyRow({
+  policy,
+}: {
+  policy: CloudMasterCachePolicy;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {policy.title}
+        </div>
+        <CloudMasterGateStatusPill status={policy.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {policy.detail}
+      </p>
+    </article>
+  );
+}
+
+function CloudMasterMigrationGateRow({
+  gate,
+}: {
+  gate: CloudMasterMigrationGate;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {gate.title}
+        </div>
+        <CloudMasterGateStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.next_action}
+      </p>
+    </article>
+  );
+}
+
+function CloudMasterDomainStatusPill({
+  status,
+}: {
+  status: CloudMasterDomainStatus;
+}) {
+  const labels: Record<CloudMasterDomainStatus, string> = {
+    "cloud-primary-ready": "云端主库",
+    "cloud-primary-partial": "部分云端",
+    "migration-needed": "待迁移",
+    "local-only": "仅本地",
+    "not-covered": "未覆盖",
+  };
+  const className =
+    status === "cloud-primary-ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "cloud-primary-partial"
+        ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+        : status === "migration-needed"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : status === "local-only"
+            ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+            : "bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function CloudMasterGateStatusPill({
+  status,
+}: {
+  status: CloudMasterGateStatus;
+}) {
+  const labels: Record<CloudMasterGateStatus, string> = {
+    ready: "就绪",
+    partial: "部分",
+    blocked: "阻塞",
+    planned: "计划",
+  };
+  const className =
+    status === "ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "partial"
+        ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+        : status === "planned"
           ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
           : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 

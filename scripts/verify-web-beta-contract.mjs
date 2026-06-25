@@ -66,6 +66,7 @@ const files = {
   webBetaNextActions: "src/lib/sync/webBetaNextActions.ts",
   webLaunchWorkbench: "src/lib/sync/webLaunchWorkbench.ts",
   webBetaAutonomyQueue: "src/lib/sync/webBetaAutonomyQueue.ts",
+  cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   apiGuardPanel: "src/components/modules/sync/ApiGuardPanel.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
@@ -295,6 +296,7 @@ function run() {
   const webBetaNextActions = readProjectFile(files.webBetaNextActions);
   const webLaunchWorkbench = readProjectFile(files.webLaunchWorkbench);
   const webBetaAutonomyQueue = readProjectFile(files.webBetaAutonomyQueue);
+  const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const syncShell = readProjectFile(files.syncShell);
   const apiGuardPanel = readProjectFile(files.apiGuardPanel);
   const migration = readProjectFile(files.migration);
@@ -353,10 +355,186 @@ function run() {
     [files.webBetaNextActions, webBetaNextActions],
     [files.webLaunchWorkbench, webLaunchWorkbench],
     [files.webBetaAutonomyQueue, webBetaAutonomyQueue],
+    [files.cloudMasterReconcile, cloudMasterReconcile],
     [files.syncShell, syncShell],
     [files.apiGuardPanel, apiGuardPanel],
   ]) {
     assertNoLegacySingularEnv(source, label);
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-cloud-master-reconcile-report"',
+      "Cloud master reconcile report must expose a stable local export format.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Cloud master reconcile must lock the target architecture to cloud master plus local hot cache.",
+    ],
+    [
+      'report_status: "local-audit-only"',
+      "Cloud master reconcile must remain a local audit report, not a migration writer.",
+    ],
+    [
+      "This report reads local metadata counts and sync state only.",
+      "Cloud master reconcile must document the metadata-only privacy boundary.",
+    ],
+    [
+      "It does not read page body text, comment bodies, file bytes, token values, or upload data.",
+      "Cloud master reconcile must explicitly forbid sensitive content reads and uploads.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Cloud master reconcile must preserve pending-only ordinary sync.",
+    ],
+    [
+      "local_writes_first_hit_cache_then_pending_queue: true",
+      "Cloud master reconcile must preserve local-speed writes through cache and pending queue.",
+    ],
+    [
+      "cloud_wins_by_default_except_unuploaded_pending_edits: true",
+      "Cloud master reconcile must preserve the cloud-wins conflict rule with local pending exceptions.",
+    ],
+    [
+      'id: "pages"',
+      "Cloud master reconcile must cover pages.",
+    ],
+    [
+      'id: "daily-notes"',
+      "Cloud master reconcile must cover daily notes.",
+    ],
+    [
+      'id: "meetings"',
+      "Cloud master reconcile must cover meetings.",
+    ],
+    [
+      'id: "databases"',
+      "Cloud master reconcile must cover databases.",
+    ],
+    [
+      'id: "files"',
+      "Cloud master reconcile must cover files.",
+    ],
+    [
+      'id: "comments"',
+      "Cloud master reconcile must cover comments.",
+    ],
+    [
+      'id: "versions"',
+      "Cloud master reconcile must cover versions.",
+    ],
+    [
+      'id: "wiki-links"',
+      "Cloud master reconcile must cover knowledge links.",
+    ],
+    [
+      'id: "module-config"',
+      "Cloud master reconcile must cover module and sidebar settings.",
+    ],
+    [
+      'id: "permissions"',
+      "Cloud master reconcile must cover permissions.",
+    ],
+    [
+      'id: "recent-hot-cache"',
+      "Cloud master reconcile must cover recent-content hot cache policy.",
+    ],
+    [
+      'id: "user-selected-cache"',
+      "Cloud master reconcile must cover user-selected local cache policy.",
+    ],
+    [
+      'id: "pending-queue"',
+      "Cloud master reconcile must cover the pending upload queue.",
+    ],
+    [
+      'id: "rebuildable-cache"',
+      "Cloud master reconcile must cover rebuildable cache policy.",
+    ],
+    [
+      'id: "cloud-manifest-compare"',
+      "Cloud master reconcile must require cloud manifest comparison before migration.",
+    ],
+    [
+      'id: "dry-run-migration"',
+      "Cloud master reconcile must require dry-run migration before real migration.",
+    ],
+    [
+      'id: "post-migration-cache-rebuild"',
+      "Cloud master reconcile must require local cache rebuild after migration.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.cloudMasterReconcile,
+      cloudMasterReconcile,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "fetch(",
+      "Cloud master reconcile must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Cloud master reconcile must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Cloud master reconcile must not mutate the local database.",
+    ],
+    [
+      "INSERT INTO",
+      "Cloud master reconcile must not insert rows.",
+    ],
+    [
+      "UPDATE ",
+      "Cloud master reconcile must not update rows.",
+    ],
+    [
+      "DELETE FROM",
+      "Cloud master reconcile must not delete rows.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.cloudMasterReconcile,
+      cloudMasterReconcile,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildCloudMasterReconcileReport",
+      "Sync UI must build the cloud master reconcile report.",
+    ],
+    [
+      "CloudMasterReconcilePanel",
+      "Sync UI must render the cloud master reconcile panel.",
+    ],
+    [
+      "全域上云对账",
+      "Sync UI must expose the cloud migration reconcile section.",
+    ],
+    [
+      "handleExportCloudMasterReconcile",
+      "Sync UI must export the local reconcile report.",
+    ],
+    [
+      "getPageModuleCounts",
+      "Sync UI must include comments, versions, and link metadata counts.",
+    ],
+    [
+      "isPageSyncEnabled()",
+      "Sync UI must report page cloud-primary status.",
+    ],
+    [
+      "isDatabaseSyncEnabled()",
+      "Sync UI must report database cloud-primary status.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
 
   for (const [snippet, message] of [
