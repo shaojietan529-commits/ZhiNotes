@@ -81,10 +81,14 @@ const files = {
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
+  databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
   pageRouteSkeleton: "src/components/page/PageRouteSkeleton.tsx",
+  databaseDetailRoute: "src/app/(workspace)/database/[databaseId]/page.tsx",
+  databaseDetailRouteLoading:
+    "src/app/(workspace)/database/[databaseId]/loading.tsx",
   dailyRoute: "src/app/(workspace)/daily/page.tsx",
   dailyRouteLoading: "src/app/(workspace)/daily/loading.tsx",
   pageDetailRoute: "src/app/(workspace)/page/[pageId]/page.tsx",
@@ -340,10 +344,15 @@ function run() {
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
+  const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const syncShell = readProjectFile(files.syncShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
   const pageRouteSkeleton = readProjectFile(files.pageRouteSkeleton);
+  const databaseDetailRoute = readProjectFile(files.databaseDetailRoute);
+  const databaseDetailRouteLoading = readProjectFile(
+    files.databaseDetailRouteLoading
+  );
   const dailyRoute = readProjectFile(files.dailyRoute);
   const dailyRouteLoading = readProjectFile(files.dailyRouteLoading);
   const pageDetailRoute = readProjectFile(files.pageDetailRoute);
@@ -417,9 +426,12 @@ function run() {
     [files.workspaceSettingsRoute, workspaceSettingsRoute],
     [files.localSchema, localSchema],
     [files.localQueries, localQueries],
+    [files.databaseRouteSkeleton, databaseRouteSkeleton],
     [files.syncShell, syncShell],
     [files.moduleRouteSkeleton, moduleRouteSkeleton],
     [files.pageRouteSkeleton, pageRouteSkeleton],
+    [files.databaseDetailRoute, databaseDetailRoute],
+    [files.databaseDetailRouteLoading, databaseDetailRouteLoading],
     [files.dailyRoute, dailyRoute],
     [files.dailyRouteLoading, dailyRouteLoading],
     [files.pageDetailRoute, pageDetailRoute],
@@ -455,6 +467,18 @@ function run() {
       "Page detail routes must keep an immediate shell while route segments or client chunks load."
     );
   }
+  for (const [sourceLabel, source] of [
+    [files.databaseDetailRoute, databaseDetailRoute],
+    [files.databaseDetailRouteLoading, databaseDetailRouteLoading],
+    [files.databaseShell, databaseShell],
+  ]) {
+    assertSourceIncludes(
+      sourceLabel,
+      source,
+      "DatabaseRouteSkeleton",
+      "Database detail routes must keep an immediate shell while route segments, client chunks, or local records hydrate."
+    );
+  }
   for (const [snippet, message] of [
     [
       "先显示本地热缓存",
@@ -486,6 +510,26 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.pageRouteSkeleton, pageRouteSkeleton, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "本地热缓存会先加载",
+      "The database route skeleton must communicate local hot-cache-first rendering.",
+    ],
+    [
+      "云端索引在后台继续",
+      "The database route skeleton must communicate background cloud index hydration.",
+    ],
+    [
+      "aria-live",
+      "The database route skeleton must announce loading progress accessibly.",
+    ],
+    [
+      "grid-cols-[1.4fr_1fr_1fr_1fr]",
+      "The database route skeleton must resemble a database table before rows hydrate.",
+    ],
+  ]) {
+    assertSourceIncludes(files.databaseRouteSkeleton, databaseRouteSkeleton, snippet, message);
   }
 
   for (const [snippet, message] of [

@@ -8,6 +8,10 @@ const root = process.cwd();
 const files = {
   packageJson: "package.json",
   databaseShell: "src/components/database/DatabaseShell.tsx",
+  databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
+  databaseDetailRoute: "src/app/(workspace)/database/[databaseId]/page.tsx",
+  databaseDetailRouteLoading:
+    "src/app/(workspace)/database/[databaseId]/loading.tsx",
   databaseModuleShell: "src/components/modules/DatabasesShell.tsx",
   databaseModuleRoute: "src/app/(workspace)/modules/databases/page.tsx",
   databaseModuleDashboard: "src/lib/database/databaseModuleDashboard.ts",
@@ -151,6 +155,11 @@ function assertViewFile(viewType) {
 function run() {
   const packageJson = readProjectFile(files.packageJson);
   const databaseShell = readProjectFile(files.databaseShell);
+  const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
+  const databaseDetailRoute = readProjectFile(files.databaseDetailRoute);
+  const databaseDetailRouteLoading = readProjectFile(
+    files.databaseDetailRouteLoading
+  );
   const databaseModuleShell = readProjectFile(files.databaseModuleShell);
   const databaseModuleRoute = readProjectFile(files.databaseModuleRoute);
   const databaseModuleDashboard = readProjectFile(files.databaseModuleDashboard);
@@ -363,6 +372,32 @@ function run() {
     "getAllDatabaseRecordsForSync",
     "Database sync client must not scan and upload the full local cache."
   );
+  for (const [sourceLabel, source] of [
+    [files.databaseDetailRoute, databaseDetailRoute],
+    [files.databaseDetailRouteLoading, databaseDetailRouteLoading],
+    [files.databaseShell, databaseShell],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "DatabaseRouteSkeleton",
+      "Database detail routes must show an immediate loading shell before database records hydrate."
+    );
+  }
+  for (const snippet of [
+    "DatabaseBodySkeleton",
+    "本地热缓存会先加载",
+    "云端索引在后台继续",
+    "aria-live",
+    "grid-cols-[1.4fr_1fr_1fr_1fr]",
+  ]) {
+    assertIncludes(
+      files.databaseRouteSkeleton,
+      databaseRouteSkeleton,
+      snippet,
+      "Database loading shell must communicate hot-cache-first hydration and resemble a database table."
+    );
+  }
   if (
     databaseAccountSyncClient.indexOf(
       "clearAllPendingCloudDatabasePushesForCacheRebuild()"

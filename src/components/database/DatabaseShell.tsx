@@ -51,6 +51,7 @@ import TimelineView from "./views/TimelineView";
 import ChartView from "./views/ChartView";
 import FormView from "./views/FormView";
 import FeedView from "./views/FeedView";
+import { DatabaseBodySkeleton } from "./DatabaseRouteSkeleton";
 import {
   normalizeRelationValue,
   stringifyRelationValue,
@@ -1038,11 +1039,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   );
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
-      </div>
-    );
+    return <DatabaseBodySkeleton />;
   }
 
   if (!database) {

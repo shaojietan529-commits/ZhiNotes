@@ -2,10 +2,11 @@
 
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
+import DatabaseRouteSkeleton from "@/components/database/DatabaseRouteSkeleton";
 
 const DatabasePage = dynamic(
   () => import("@/components/providers/DatabasePageShell"),
-  { ssr: false }
+  { ssr: false, loading: () => <DatabaseRouteSkeleton /> }
 );
 
 export default function DatabaseRoute() {

@@ -22,10 +22,14 @@ const files = {
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
+  databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
   pageRouteSkeleton: "src/components/page/PageRouteSkeleton.tsx",
+  databaseDetailRoute: "src/app/(workspace)/database/[databaseId]/page.tsx",
+  databaseDetailRouteLoading:
+    "src/app/(workspace)/database/[databaseId]/loading.tsx",
   dailyRoute: "src/app/(workspace)/daily/page.tsx",
   dailyRouteLoading: "src/app/(workspace)/daily/loading.tsx",
   pageDetailRoute: "src/app/(workspace)/page/[pageId]/page.tsx",
@@ -55,6 +59,7 @@ const requiredLoadingRoutes = [
   "src/app/(workspace)/daily/loading.tsx",
   "src/app/(workspace)/schedule/loading.tsx",
   "src/app/(workspace)/page/[pageId]/loading.tsx",
+  "src/app/(workspace)/database/[databaseId]/loading.tsx",
 ];
 
 const gatedOrDisabledApiRoutes = [
@@ -199,10 +204,15 @@ function run() {
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
+  const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const syncShell = readProjectFile(files.syncShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
   const pageRouteSkeleton = readProjectFile(files.pageRouteSkeleton);
+  const databaseDetailRoute = readProjectFile(files.databaseDetailRoute);
+  const databaseDetailRouteLoading = readProjectFile(
+    files.databaseDetailRouteLoading
+  );
   const dailyRoute = readProjectFile(files.dailyRoute);
   const dailyRouteLoading = readProjectFile(files.dailyRouteLoading);
   const pageDetailRoute = readProjectFile(files.pageDetailRoute);
@@ -261,6 +271,18 @@ function run() {
       "Page detail route must show an immediate loading shell before client hydration completes."
     );
   }
+  for (const [sourceLabel, source] of [
+    [files.databaseDetailRoute, databaseDetailRoute],
+    [files.databaseDetailRouteLoading, databaseDetailRouteLoading],
+    [files.databaseShell, databaseShell],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "DatabaseRouteSkeleton",
+      "Database detail routes must show an immediate loading shell before database records hydrate."
+    );
+  }
 
   assertIncludes(
     files.moduleRouteSkeleton,
@@ -285,6 +307,24 @@ function run() {
     pageRouteSkeleton,
     "云端同步在后台继续",
     "Page loading shell must explain cloud sync continues in the background."
+  );
+  assertIncludes(
+    files.databaseRouteSkeleton,
+    databaseRouteSkeleton,
+    "本地热缓存会先加载",
+    "Database loading shell must explain local hot cache renders first."
+  );
+  assertIncludes(
+    files.databaseRouteSkeleton,
+    databaseRouteSkeleton,
+    "云端索引在后台继续",
+    "Database loading shell must explain cloud index hydration continues in the background."
+  );
+  assertIncludes(
+    files.databaseRouteSkeleton,
+    databaseRouteSkeleton,
+    "aria-live",
+    "Database loading shell must announce loading progress accessibly."
   );
 
   for (const { path: routeFile, guard } of gatedOrDisabledApiRoutes) {
