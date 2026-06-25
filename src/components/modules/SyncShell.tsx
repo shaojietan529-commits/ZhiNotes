@@ -28,7 +28,12 @@ import {
   type WorkspaceSettingRecord,
 } from "@/lib/db/local/queries";
 import { isDatabaseSyncEnabled } from "@/lib/database/accountDatabaseSync";
-import { isPageSyncEnabled } from "@/lib/pages/accountPageSync";
+import {
+  getPendingCloudPageSyncStatus,
+  isPageSyncEnabled,
+  reconcilePageSync,
+  type PendingCloudPageSyncStatus,
+} from "@/lib/pages/accountPageSync";
 import {
   exportWorkspaceBackup,
   exportWorkspaceMarkdown,
@@ -334,6 +339,7 @@ import type { Database, Page } from "@/lib/utils/types";
 type ExportAction = "backup" | "zip" | "markdown";
 type SyncQueueAction =
   | "queue"
+  | "page-pending"
   | "payload-preview"
   | "conflict-review"
   | "conflict-resolution"
@@ -543,6 +549,13 @@ function SyncDashboard() {
   const [busyQueueAction, setBusyQueueAction] = useState<SyncQueueAction | null>(
     null
   );
+  const [pagePendingStatus, setPagePendingStatus] =
+    useState<PendingCloudPageSyncStatus>(() =>
+      getPendingCloudPageSyncStatus()
+    );
+  const [pagePendingMessage, setPagePendingMessage] = useState<string | null>(
+    null
+  );
   const [busyPermissionAction, setBusyPermissionAction] =
     useState<PermissionPolicyAction | null>(null);
   const [busyContractAction, setBusyContractAction] =
@@ -635,6 +648,7 @@ function SyncDashboard() {
         setPageModuleCounts(loadedPageModuleCounts);
         setSyncSummary(loadedSync);
         setSyncEntries(loadedSyncEntries);
+        setPagePendingStatus(getPendingCloudPageSyncStatus());
         setHotCacheSetting(loadedHotCacheSetting);
         setHotCachePreferences(parseHotCachePreferences(loadedHotCacheSetting));
         setEnvironmentPreflight(loadedEnvironmentPreflight);
@@ -2262,6 +2276,37 @@ function SyncDashboard() {
     } catch (err) {
       console.error("[Zhinote] Failed to export sync queue snapshot:", err);
       window.alert("Sync queue export failed. Please check the console.");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleRetryPagePendingPush = async () => {
+    setBusyQueueAction("page-pending");
+    setPagePendingMessage(null);
+    try {
+      const result = await reconcilePageSync({ quick: true });
+      const nextStatus = getPendingCloudPageSyncStatus();
+      setPagePendingStatus(nextStatus);
+      if (result.status === "ok") {
+        setPagePendingMessage(
+          `补传完成：推送 ${result.pushed} 个页面，拉取 ${result.pulled} 个页面；当前仍有 ${nextStatus.pending} 个页面待上传。`
+        );
+      } else {
+        setPagePendingMessage(
+          `补传暂未完成：${formatPageSyncStatus(result.status)}${
+            result.message ? `，${result.message}` : ""
+          }；待上传 ${nextStatus.pending} 个页面。`
+        );
+      }
+    } catch (err) {
+      console.error("[Zhinote] Failed to retry page pending sync:", err);
+      setPagePendingStatus(getPendingCloudPageSyncStatus());
+      setPagePendingMessage(
+        err instanceof Error
+          ? `补传失败：${err.message}`
+          : "补传失败：未知错误。"
+      );
     } finally {
       setBusyQueueAction(null);
     }
@@ -7599,6 +7644,65 @@ function SyncDashboard() {
               >
                 {busyQueueAction === "queue" ? "导出中..." : "导出队列"}
               </button>
+            </div>
+            <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+                    页面 pending 上传队列
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                    只保存 page id，不保存页面正文；失败、未登录或网络断开时会保留待重试。
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleRetryPagePendingPush()}
+                  disabled={busyQueueAction === "page-pending"}
+                  className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  {busyQueueAction === "page-pending"
+                    ? "补传中..."
+                    : "补传页面队列"}
+                </button>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="text-[11px] uppercase text-zinc-400">
+                    待上传页面
+                  </div>
+                  <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                    {pagePendingStatus.pending}
+                  </div>
+                </div>
+                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="text-[11px] uppercase text-zinc-400">
+                    内存批次
+                  </div>
+                  <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                    {pagePendingStatus.queued}
+                  </div>
+                </div>
+                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="text-[11px] uppercase text-zinc-400">
+                    最后同步
+                  </div>
+                  <div className="mt-1 text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                    {pagePendingStatus.lastSyncAt
+                      ? formatDate(pagePendingStatus.lastSyncAt)
+                      : "暂无记录"}
+                  </div>
+                </div>
+              </div>
+              <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                页面同步当前{pagePendingStatus.enabled ? "已开启" : "已关闭"}。
+                普通同步只会补传 pending queue 里的页面，不会把本地缓存全量上传。
+              </p>
+              {pagePendingMessage && (
+                <p className="mt-2 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  {pagePendingMessage}
+                </p>
+              )}
             </div>
             {syncSummary && syncSummary.tables.length > 0 ? (
               <div className="mt-4 space-y-4">
@@ -14771,6 +14875,14 @@ function getStringArray(value: unknown) {
 
 function isValidCloudEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function formatPageSyncStatus(status: string) {
+  if (status === "unauthenticated") return "账号未登录";
+  if (status === "unconfigured") return "云端未配置";
+  if (status === "disabled") return "页面同步已关闭";
+  if (status === "error") return "云端同步错误";
+  return status;
 }
 
 function formatDate(value: string) {

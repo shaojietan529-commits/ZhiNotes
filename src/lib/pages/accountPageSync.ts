@@ -117,6 +117,13 @@ export interface ReconcileResult {
   skipped?: boolean;
 }
 
+export interface PendingCloudPageSyncStatus {
+  enabled: boolean;
+  pending: number;
+  queued: number;
+  lastSyncAt: string | null;
+}
+
 export interface PullCloudPageResult {
   status: PageSyncStatus;
   pulled: number;
@@ -1371,6 +1378,15 @@ function clearPendingCloudPushIds(ids: string[]): void {
   setPendingCloudPushIds(
     getPendingCloudPushIds().filter((id) => !cleared.has(id))
   );
+}
+
+export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
+  return {
+    enabled: isPageSyncEnabled(),
+    pending: getPendingCloudPushIds().length,
+    queued: queuedCloudPush.size,
+    lastSyncAt: getLastPageSyncAt(),
+  };
 }
 
 function clearAllPendingCloudPushesForCacheRebuild(): void {

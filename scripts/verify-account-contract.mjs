@@ -237,6 +237,7 @@ check(
 );
 
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
+const syncDashboardShell = read("src/components/modules/SyncShell.tsx");
 const reconcilePageSyncBody = pageSyncClient.slice(
   pageSyncClient.indexOf("export async function reconcilePageSync")
 );
@@ -382,6 +383,22 @@ check(
   pageSyncClient.includes("readSyncStorage(PENDING_PUSH_IDS_KEY)") &&
     !pageSyncClient.includes("zhinote.pagesync.pendingPushRecords"),
   "待上传重试队列只能保存 page id，不能把页面正文复制进 localStorage"
+);
+check(
+  pageSyncClient.includes("export interface PendingCloudPageSyncStatus") &&
+    pageSyncClient.includes("export function getPendingCloudPageSyncStatus") &&
+    pageSyncClient.includes("pending: getPendingCloudPushIds().length") &&
+    pageSyncClient.includes("queued: queuedCloudPush.size") &&
+    pageSyncClient.includes("lastSyncAt: getLastPageSyncAt()"),
+  "页面同步客户端应暴露只读 pending 上传状态，供同步页展示和补传前后对账"
+);
+check(
+  syncDashboardShell.includes("页面 pending 上传队列") &&
+    syncDashboardShell.includes("只保存 page id，不保存页面正文") &&
+    syncDashboardShell.includes("补传页面队列") &&
+    syncDashboardShell.includes("reconcilePageSync({ quick: true })") &&
+    syncDashboardShell.includes("普通同步只会补传 pending queue 里的页面"),
+  "同步页应展示页面 pending 上传队列并提供 quick 增量补传，不能暗示全量上传本地缓存"
 );
 check(
   pageSyncClient.includes("fetchCloudPageMetadata") &&

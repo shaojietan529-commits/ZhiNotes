@@ -502,6 +502,30 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "export function getPendingCloudPageSyncStatus",
+    "Smoke verifier must keep page pending upload status visible to the sync dashboard."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "页面 pending 上传队列",
+    "Sync UI must show page pending upload queue status."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "补传页面队列",
+    "Sync UI must expose a manual page pending retry action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "只保存 page id，不保存页面正文",
+    "Sync UI must preserve the privacy boundary for the page pending queue."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "fetchMeetingCloudMetadata",
     "Smoke verifier must keep meeting calendar cloud metadata behind the shared page sync helper."
   );

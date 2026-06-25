@@ -1026,6 +1026,22 @@ function run() {
       "从云端恢复偏好",
       "Sync UI must render the hot-cache cloud restore button.",
     ],
+    [
+      "页面 pending 上传队列",
+      "Sync UI must render page pending upload queue status.",
+    ],
+    [
+      "补传页面队列",
+      "Sync UI must expose a manual page pending retry action.",
+    ],
+    [
+      "reconcilePageSync({ quick: true })",
+      "Sync UI manual page retry must use quick incremental reconcile.",
+    ],
+    [
+      "只保存 page id，不保存页面正文",
+      "Sync UI must document that page pending upload status contains ids only.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
@@ -7247,6 +7263,18 @@ function run() {
   }
 
   for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "export function getPendingCloudPageSyncStatus",
+      "Account page sync must expose page pending upload status for the sync dashboard.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "pending: getPendingCloudPushIds().length",
+      "Account page sync pending status must count id-only pending pushes.",
+    ],
     [
       files.accountPageSync,
       accountPageSync,
