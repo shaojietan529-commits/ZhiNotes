@@ -550,9 +550,10 @@ check(
 );
 check(
   usePageHook.includes("setPage(localPage)") &&
+    usePageHook.includes("} else {\n      setPage(null);\n    }") &&
     usePageHook.includes("setLoading(false)") &&
     usePageHook.includes("queueCloudPagePush(localPage)"),
-  "usePage 应先显示本地缓存保证可用，并在发现本地较新时补发云端上传"
+  "usePage 应先显示当前页本地缓存；没有当前页元数据时要清掉旧页面，并在发现本地较新时补发云端上传"
 );
 check(
   usePageHook.includes("pageToRemoteRecord(optimistic)") &&

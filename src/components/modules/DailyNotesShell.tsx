@@ -96,6 +96,7 @@ export default function DailyNotesShell() {
   useEffect(() => {
     return scheduleDailyIdleTask(() => {
       void import("@/components/page/PagePeekModal");
+      void import("@/components/editor/Editor");
     }, 900);
   }, []);
 

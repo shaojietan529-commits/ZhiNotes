@@ -67,6 +67,8 @@ export function usePage(
     if (localPage) {
       setPage(localPage);
       setLoading(localPage.content_text == null);
+    } else {
+      setPage(null);
     }
     try {
       const storedPage = await getPage(pageId);
