@@ -77,6 +77,7 @@ const files = {
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   sidebarWorkspaceSettings: "src/lib/sync/sidebarWorkspaceSettings.ts",
+  workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
@@ -349,6 +350,9 @@ function run() {
   const sidebarWorkspaceSettings = readProjectFile(
     files.sidebarWorkspaceSettings
   );
+  const workspaceSettingsPendingSync = readProjectFile(
+    files.workspaceSettingsPendingSync
+  );
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
@@ -440,6 +444,7 @@ function run() {
     [files.hotCacheWarmupReceipt, hotCacheWarmupReceipt],
     [files.hotCacheSelectionSettings, hotCacheSelectionSettings],
     [files.hotCacheSettingsCloud, hotCacheSettingsCloud],
+    [files.workspaceSettingsPendingSync, workspaceSettingsPendingSync],
     [files.workspaceSettingsRoute, workspaceSettingsRoute],
     [files.localSchema, localSchema],
     [files.localQueries, localQueries],
@@ -1713,6 +1718,55 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-workspace-settings-pending-sync-plan"',
+      "Workspace settings pending sync must expose a stable plan format.",
+    ],
+    [
+      "SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS",
+      "Workspace settings pending sync must use an explicit upload allowlist.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Workspace settings pending sync must only upload pending changes.",
+    ],
+    [
+      'pending_queue_table: "sync_log"',
+      "Workspace settings pending sync must be driven by sync_log.",
+    ],
+    [
+      'local_table: "workspace_settings"',
+      "Workspace settings pending sync must read workspace_settings as local metadata.",
+    ],
+    [
+      "buildWorkspaceSettingCloudPayload",
+      "Workspace settings pending sync must build explicit cloud payloads.",
+    ],
+    [
+      "SIDEBAR_PRIMARY_ORDER_SETTING_KEY",
+      "Workspace settings pending sync must include sidebar order settings.",
+    ],
+    [
+      "SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY",
+      "Workspace settings pending sync must include sidebar customization settings.",
+    ],
+    [
+      "HOT_CACHE_PREFERENCES_SETTING_KEY",
+      "Workspace settings pending sync must include hot cache preferences.",
+    ],
+    [
+      "Page bodies, database row values, comments, files, tokens, and raw local cache dumps are never included",
+      "Workspace settings pending sync must state the privacy boundary.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.workspaceSettingsPendingSync,
+      workspaceSettingsPendingSync,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       'cloudNotConfiguredResponse("workspace-settings-update")',
       "Workspace settings route must stay behind the cloud configured gate.",
     ],
@@ -1794,8 +1848,24 @@ function run() {
       "Sync UI must expose an explicit hot-cache preferences cloud pull action.",
     ],
     [
-      "同步偏好到云端",
-      "Sync UI must render the hot-cache cloud sync button.",
+      "同步待上传设置",
+      "Sync UI must render the workspace settings pending sync button.",
+    ],
+    [
+      "buildWorkspaceSettingsPendingSyncPlan",
+      "Sync UI must use the pending-only workspace settings sync plan.",
+    ],
+    [
+      "listWorkspaceSettings()",
+      "Sync UI must read local workspace settings before pending-only upload.",
+    ],
+    [
+      "markWorkspaceSettingSyncLogEntriesSynced(uploadedKeys)",
+      "Sync UI must acknowledge only successfully uploaded workspace settings.",
+    ],
+    [
+      'setBusyCloudAction("workspace-settings")',
+      "Sync UI must expose workspace settings upload as its own busy state.",
     ],
     [
       "从云端恢复偏好",

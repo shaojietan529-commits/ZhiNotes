@@ -19,6 +19,7 @@ const files = {
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   sidebarWorkspaceSettings: "src/lib/sync/sidebarWorkspaceSettings.ts",
+  workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
@@ -212,6 +213,9 @@ function run() {
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
   const sidebarWorkspaceSettings = readProjectFile(
     files.sidebarWorkspaceSettings
+  );
+  const workspaceSettingsPendingSync = readProjectFile(
+    files.workspaceSettingsPendingSync
   );
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
@@ -1042,6 +1046,36 @@ function run() {
     "Smoke verifier must keep forbidden-field validation for cloud settings."
   );
   assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    'format: "zhinote-workspace-settings-pending-sync-plan"',
+    "Smoke verifier must keep workspace settings pending sync plan format."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS",
+    "Smoke verifier must keep workspace settings upload allowlist."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "ordinary_sync_pending_only: true",
+    "Smoke verifier must keep workspace settings uploads pending-only."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "buildWorkspaceSettingCloudPayload",
+    "Smoke verifier must keep explicit workspace settings cloud payloads."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY",
+    "Smoke verifier must keep sidebar settings in the pending-only upload allowlist."
+  );
+  assertIncludes(
     files.workspaceSettingsRoute,
     workspaceSettingsRoute,
     'requireCloudWritesResponse("workspace-settings-update")',
@@ -1140,8 +1174,8 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
-    "同步偏好到云端",
-    "Sync UI must expose the hot cache cloud sync button."
+    "同步待上传设置",
+    "Sync UI must expose the workspace settings pending sync button."
   );
   assertIncludes(
     files.syncShell,

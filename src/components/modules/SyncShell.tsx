@@ -25,6 +25,7 @@ import {
   getSyncLogSummary,
   getWorkspaceSetting,
   hasPendingWorkspaceSettingSyncLogEntry,
+  listWorkspaceSettings,
   markWorkspaceSettingSyncLogEntriesSynced,
   upsertWorkspaceSetting,
   type PageModuleCounts,
@@ -279,6 +280,11 @@ import {
   type HotCacheSelectionContract,
 } from "@/lib/sync/hotCacheSelectionSettings";
 import {
+  buildWorkspaceSettingCloudPayload,
+  buildWorkspaceSettingsPendingSyncPlan,
+  type SupportedWorkspaceSettingSyncKey,
+} from "@/lib/sync/workspaceSettingsPendingSync";
+import {
   buildSyncConflictReviewReport,
   type SyncConflictReviewReport,
   type SyncConflictReviewStatus,
@@ -462,7 +468,7 @@ type CloudAlphaAction =
   | "link-workspace"
   | "unlink-workspace"
   | "link-receipt"
-  | "hot-cache-settings"
+  | "workspace-settings"
   | "hot-cache-settings-pull"
   | "clear";
 type WebBetaContractAction =
@@ -2509,7 +2515,7 @@ function SyncDashboard() {
         clearCloudSession();
         setCloudSession(null);
       }
-      setHotCacheSaveMessage("需要先完成云端登录，再同步热缓存偏好。");
+      setHotCacheSaveMessage("需要先完成云端登录，再同步待上传设置。");
       return;
     }
 
@@ -2519,52 +2525,94 @@ function SyncDashboard() {
       return;
     }
 
-    setBusyCloudAction("hot-cache-settings");
-    setHotCacheSaveMessage("正在同步热缓存偏好到云端 settings...");
+    setBusyCloudAction("workspace-settings");
+    setHotCacheSaveMessage("正在扫描 workspace_settings pending queue...");
     try {
-      const response = await fetch(
-        `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${cloudSession.accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            setting_key: HOT_CACHE_PREFERENCES_SETTING_KEY,
-            client_pending_row_id: HOT_CACHE_PREFERENCES_SETTING_KEY,
-            preferences: hotCachePreferences,
-          }),
-        }
-      );
-      const body = await readCloudApiBody(response);
+      const [settings, pendingEntries] = await Promise.all([
+        listWorkspaceSettings(),
+        getPendingSyncLogEntries(500),
+      ]);
+      const plan = buildWorkspaceSettingsPendingSyncPlan({
+        pendingEntries,
+        settings,
+      });
 
-      if (!response.ok) {
+      if (plan.upload_keys.length === 0) {
+        const [nextSyncSummary, nextSyncEntries] = await Promise.all([
+          getSyncLogSummary(),
+          getPendingSyncLogEntries(25),
+        ]);
+        setSyncSummary(nextSyncSummary);
+        setSyncEntries(nextSyncEntries);
         setHotCacheSaveMessage(
-          response.status === 501
-            ? `云端设置写入尚未开启：${getCloudApiDetail(body, response)}`
-            : `云端同步失败：${getCloudApiDetail(body, response)}`
+          plan.summary.pending_rows_seen === 0
+            ? "当前没有待上传的 workspace_settings 设置。"
+            : `当前没有可上传的白名单设置；跳过 ${plan.summary.skipped_pending_settings} 项，缺失本地记录 ${plan.summary.missing_local_settings} 项。`
         );
         return;
       }
 
-      const marked = await markWorkspaceSettingSyncLogEntriesSynced([
-        HOT_CACHE_PREFERENCES_SETTING_KEY,
-      ]);
+      const settingsByKey = new Map(
+        settings.map((setting) => [setting.key, setting])
+      );
+      const uploadedKeys: SupportedWorkspaceSettingSyncKey[] = [];
+      const failedMessages: string[] = [];
+
+      for (const key of plan.upload_keys) {
+        const setting = settingsByKey.get(key);
+        if (!setting) continue;
+        const payload = buildWorkspaceSettingCloudPayload(setting);
+        if (!payload) {
+          failedMessages.push(`${key}: 无法生成云端 payload`);
+          continue;
+        }
+
+        const response = await fetch(
+          `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${cloudSession.accessToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          }
+        );
+        const body = await readCloudApiBody(response);
+        if (!response.ok) {
+          failedMessages.push(
+            `${key}: ${getCloudApiDetail(body, response)}`
+          );
+          continue;
+        }
+        uploadedKeys.push(key);
+      }
+
+      const marked =
+        uploadedKeys.length > 0
+          ? await markWorkspaceSettingSyncLogEntriesSynced(uploadedKeys)
+          : 0;
       const [nextSyncSummary, nextSyncEntries] = await Promise.all([
         getSyncLogSummary(),
         getPendingSyncLogEntries(25),
       ]);
+      const refreshedHotCacheSetting = await getWorkspaceSetting(
+        HOT_CACHE_PREFERENCES_SETTING_KEY
+      );
+      setHotCacheSetting(refreshedHotCacheSetting);
+      setHotCachePreferences(parseHotCachePreferences(refreshedHotCacheSetting));
       setSyncSummary(nextSyncSummary);
       setSyncEntries(nextSyncEntries);
-      const savedAt = getRecordString(body, "saved_at");
+      const skipped =
+        plan.summary.skipped_pending_settings +
+        plan.summary.missing_local_settings;
       setHotCacheSaveMessage(
-        `云端已保存热缓存偏好，本地 pending 已确认 ${marked} 条${
-          savedAt ? `，时间 ${formatDate(savedAt)}` : ""
-        }。`
+        `已上传 ${uploadedKeys.length}/${plan.upload_keys.length} 项 workspace settings，本地 pending 已确认 ${marked} 条${
+          skipped > 0 ? `；跳过 ${skipped} 项非白名单或缺失设置` : ""
+        }${failedMessages.length > 0 ? `；失败 ${failedMessages.length} 项仍保留待重试` : ""}。`
       );
     } catch (err) {
-      console.error("[Zhinote] Failed to sync hot cache preferences:", err);
+      console.error("[Zhinote] Failed to sync workspace settings:", err);
       setHotCacheSaveMessage(
         err instanceof Error
           ? `云端同步失败：${err.message}`
@@ -4082,7 +4130,7 @@ function SyncDashboard() {
           contract={hotCacheSelectionContract}
           preferences={hotCachePreferences}
           saveMessage={hotCacheSaveMessage}
-          cloudSyncBusy={busyCloudAction === "hot-cache-settings"}
+          cloudSyncBusy={busyCloudAction === "workspace-settings"}
           cloudPullBusy={busyCloudAction === "hot-cache-settings-pull"}
           cloudSyncDisabled={Boolean(hotCacheCloudSyncDisabledReason)}
           cloudSyncDisabledReason={hotCacheCloudSyncDisabledReason}
@@ -14260,8 +14308,8 @@ function HotCacheSelectionPanel({
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             这里保存的是缓存偏好，不是内容本身。保存后会写入本地
-            workspace_settings，并新增一条 pending sync_log；未来后台只上传这条
-            setting 变更，不会全量上传本地缓存。
+            workspace_settings，并新增 pending sync_log；普通同步只上传
+            workspace_settings 里进入待上传队列的白名单 setting 变更，不会全量上传本地缓存。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -14271,7 +14319,7 @@ function HotCacheSelectionPanel({
             disabled={cloudSyncDisabled || cloudSyncBusy || cloudPullBusy}
             className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
           >
-            {cloudSyncBusy ? "正在同步..." : "同步偏好到云端"}
+            {cloudSyncBusy ? "正在同步..." : "同步待上传设置"}
           </button>
           <button
             type="button"
