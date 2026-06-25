@@ -712,6 +712,7 @@ async function runCloudPageMetadataDelta(
 export async function pushCloudPages(
   records: RemotePageRecord[]
 ): Promise<PushCloudPagesResult> {
+  markPendingCloudPushRecords(records);
   if (!isPageSyncEnabled()) {
     return { status: "disabled", accepted: [], skipped: [] };
   }
@@ -1355,6 +1356,12 @@ function setPendingCloudPushIds(ids: string[]): void {
 function markPendingCloudPush(id: string): void {
   if (!isValidRemotePageId(id)) return;
   setPendingCloudPushIds([...getPendingCloudPushIds(), id]);
+}
+
+function markPendingCloudPushRecords(records: RemotePageRecord[]): void {
+  for (const record of records) {
+    markPendingCloudPush(record.id);
+  }
 }
 
 function clearPendingCloudPushIds(ids: string[]): void {

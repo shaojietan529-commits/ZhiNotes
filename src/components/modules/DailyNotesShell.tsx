@@ -1020,12 +1020,15 @@ async function persistOptimisticDailyNote(
 ): Promise<"cloud" | "local-only"> {
   const rootRecord = makeDailyRootMetadataRecord(rootId, note.updated_at);
   const records = [rootRecord, pageToRemoteRecord(note)];
-  void applyRemotePages(records)
-    .then(() => {
-      upsertPages(records.map(remoteRecordToPage));
-    })
-    .catch(() => undefined);
-  upsertPages(records.map(remoteRecordToPage));
+  const localPages = records.map(remoteRecordToPage);
+  try {
+    await applyRemotePages(records);
+  } catch {
+    // The page is already open from memory. Cache persistence can be retried
+    // later from the pending upload queue.
+  } finally {
+    upsertPages(localPages);
+  }
   return pushDailyCloudRecords(records);
 }
 

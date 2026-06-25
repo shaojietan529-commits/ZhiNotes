@@ -344,6 +344,18 @@ check(
     pageSyncClient.includes("flushPendingCloudPushes"),
   "页面同步客户端应维护只含 page id 的待上传队列，用于失败后重试云端写回"
 );
+const pushCloudPagesBody = pageSyncClient.slice(
+  pageSyncClient.indexOf("export async function pushCloudPages"),
+  pageSyncClient.indexOf("async function pushCloudRecordsInBatches")
+);
+check(
+  pushCloudPagesBody.includes("markPendingCloudPushRecords(records);") &&
+    pushCloudPagesBody.includes("if (!isPageSyncEnabled())") &&
+    pushCloudPagesBody.indexOf("markPendingCloudPushRecords(records);") <
+      pushCloudPagesBody.indexOf("if (!isPageSyncEnabled())") &&
+    pushCloudPagesBody.includes("clearPendingCloudPushIds([...accepted, ...skipped])"),
+  "直接 pushCloudPages 必须先登记 pending id，再尝试云端上传；成功或被远端跳过后才清理 pending"
+);
 check(
   pageSyncClient.includes("getPagesForSyncByIds") &&
     pageSyncClient.includes("pages = await getPagesForSyncByIds(ids)") &&
@@ -421,9 +433,13 @@ const filesShell = read("src/components/modules/FilesShell.tsx");
 const pageImportPlanPanel = read("src/components/modules/PageImportPlanPanel.tsx");
 check(
   usePagesHook.includes("syncCloudPageMetadataDelta") &&
+    usePagesHook.includes("renderLocalPagesSnapshot") &&
+    usePagesHook.includes("await renderLocalPagesSnapshot()") &&
+    usePagesHook.includes("loadPagesSnapshot(includeContent)") &&
     usePagesHook.includes("setPages(all);") &&
     usePagesHook.includes("force: false") &&
     usePagesHook.includes("requireLocalCacheCoverage: false") &&
+    usePagesHook.includes("mergeMetadataForCount(all, cloudPages)") &&
     usePagesHook.includes("const needsCloudCoverageRecovery =") &&
     usePagesHook.includes("!cloudSnapshotAuthoritative") &&
     usePagesHook.includes("(!localSnapshotLoaded || all.length === 0)") &&
@@ -431,15 +447,15 @@ check(
     usePagesHook.includes("requireLocalCacheCoverage: true") &&
     usePagesHook.includes("localSnapshotLoaded") &&
     !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
-    usePagesHook.includes("The browser database is only a rebuildable cache") &&
+    usePagesHook.includes("The browser database is only a rebuildable hot cache") &&
     usePagesHook.includes("setPages(cloudPages)") &&
     usePagesHook.includes("Cloud metadata refresh is best effort") &&
-    usePagesHook.includes("cloudSnapshotAuthoritative = !includeContent") &&
+    usePagesHook.includes("cloudSnapshotAuthoritative = true") &&
     usePagesHook.includes("includeContent && !localSnapshotLoaded && all.length === 0") &&
-    usePagesHook.indexOf("syncCloudPageMetadataDelta") <
-      usePagesHook.indexOf("loadPagesSnapshot(includeContent)") &&
+    usePagesHook.indexOf("await renderLocalPagesSnapshot()") <
+      usePagesHook.indexOf("const cloud = await syncCloudPageMetadataDelta") &&
     !usePagesHook.includes("fetchCloudPageMetadata"),
-  "usePages 应先走云端 metadata 增量，再用本地缓存兜底；includeContent 也不能先等本地全量正文，只有缓存不可读且没有权威云端快照时才做覆盖恢复"
+  "usePages 应先显示本地热缓存，再用云端 metadata 增量校正；includeContent 只能在本地缓存不可读时用云端 metadata 兜底"
 );
 check(
   usePagesHook.includes("autoLoad?: boolean") &&

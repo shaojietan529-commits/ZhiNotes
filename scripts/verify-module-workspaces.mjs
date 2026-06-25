@@ -210,7 +210,10 @@ check(
 );
 check(
     usePagesHook.includes("const cloudPages = cloud.pages.map(remoteMetadataToPage)") &&
-    usePagesHook.includes("upsertPages(cloudPages)") &&
+    usePagesHook.includes("renderLocalPagesSnapshot") &&
+    usePagesHook.includes("await renderLocalPagesSnapshot()") &&
+    usePagesHook.includes("loadPagesSnapshot(includeContent)") &&
+    usePagesHook.includes("mergeMetadataForCount(all, cloudPages)") &&
     usePagesHook.includes("setPages(cloudPages)") &&
     usePagesHook.includes("force: false") &&
     usePagesHook.includes("requireLocalCacheCoverage: false") &&
@@ -219,14 +222,14 @@ check(
     usePagesHook.includes("(!localSnapshotLoaded || all.length === 0)") &&
     usePagesHook.includes("force: true") &&
     usePagesHook.includes("requireLocalCacheCoverage: true") &&
-    usePagesHook.includes("cloudSnapshotAuthoritative = !includeContent") &&
+    usePagesHook.includes("cloudSnapshotAuthoritative = true") &&
     usePagesHook.includes("includeContent && !localSnapshotLoaded && all.length === 0") &&
-    usePagesHook.indexOf("syncCloudPageMetadataDelta") <
-      usePagesHook.indexOf("loadPagesSnapshot(includeContent)") &&
+    usePagesHook.indexOf("await renderLocalPagesSnapshot()") <
+      usePagesHook.indexOf("const cloud = await syncCloudPageMetadataDelta") &&
     !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
     !usePagesHook.includes("applyRemotePageMetadata") &&
     usePagesHook.includes("autoLoad?: boolean"),
-  "usePages 云端 metadata delta 必须优先合并到 store；includeContent 模块也不能先等本地全量正文，本地缓存只做兜底"
+  "usePages 必须先显示本地热缓存，再用云端 metadata delta 校正；includeContent 模块只在本地缓存不可读时用云端 metadata 兜底"
 );
 check(
   pageUpdateBus.includes("PageUpdatePayload") &&
@@ -277,6 +280,13 @@ check(
     shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
       shells.daily.indexOf("persistOptimisticDailyNote"),
   "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再打开弹窗，快速释放 + 按钮并后台持久化"
+);
+check(
+  shells.daily.includes("await applyRemotePages(records)") &&
+    shells.daily.indexOf("await applyRemotePages(records)") <
+      shells.daily.indexOf("return pushDailyCloudRecords(records)") &&
+    shells.daily.includes("upsertPages(localPages)"),
+  "DailyNotesShell 后台保存每日纪要必须先写本地可重建缓存和 pending-aware 记录，再尝试云端上传"
 );
 check(
   shells.daily.includes("@/components/page/PagePeekModal") &&
