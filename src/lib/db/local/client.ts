@@ -150,6 +150,7 @@ function installLocalSchema(db: SqliteDb) {
   // is ever dropped or rewritten.
   ensureColumn(db, "pages", "properties", "TEXT");
   ensureColumn(db, "pages", "daily_date_key", "TEXT");
+  ensureColumn(db, "page_versions", "deleted_at", "TEXT");
   ensureIndex(
     db,
     "idx_pages_daily_date",

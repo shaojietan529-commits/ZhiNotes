@@ -71,6 +71,8 @@ const files = {
   scheduleRouteLoading: "src/app/(workspace)/schedule/loading.tsx",
   environmentPreflightRoute:
     "src/app/api/web-beta/environment-preflight/route.ts",
+  commentVersionCloudReplayContract:
+    "src/lib/sync/commentVersionCloudReplayContract.ts",
 };
 
 const requiredPageRoutes = [
@@ -213,6 +215,12 @@ function assertIncludes(sourceLabel, source, snippet, message) {
   }
 }
 
+function assertExcludes(sourceLabel, source, snippet, message) {
+  if (source.includes(snippet)) {
+    failures.push(`${sourceLabel} must not include ${snippet}: ${message}`);
+  }
+}
+
 function assertFileExists(relativePath, message) {
   if (!existsSync(path.join(root, relativePath))) {
     failures.push(`${message}: ${relativePath}`);
@@ -300,6 +308,9 @@ function run() {
   const scheduleRouteLoading = readProjectFile(files.scheduleRouteLoading);
   const environmentPreflightRoute = readProjectFile(
     files.environmentPreflightRoute
+  );
+  const commentVersionCloudReplayContract = readProjectFile(
+    files.commentVersionCloudReplayContract
   );
 
   const scripts = packageJson.scripts ?? {};
@@ -409,6 +420,144 @@ function run() {
       boundarySnippet,
       "Local performance snapshots must remain metadata-only and local-only."
     );
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-comment-version-cloud-replay-contract"',
+      "Comment/version replay smoke coverage must include the stable contract format.",
+    ],
+    [
+      'contract_status: "owner-gated-content-sync-contract"',
+      "Comment/version replay smoke coverage must keep content sync owner gated.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Comment/version replay smoke coverage must keep ordinary sync pending-only.",
+    ],
+    [
+      "sync_log_contains_row_ids_only: true",
+      "Comment/version replay smoke coverage must keep sync_log previews row-id-only.",
+    ],
+    [
+      "content_payload_loaded_only_after_owner_confirmation: true",
+      "Comment/version replay smoke coverage must gate content loading.",
+    ],
+    [
+      "metadata_reports_must_exclude_content: true",
+      "Comment/version replay smoke coverage must keep metadata reports content-free.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Comment/version replay smoke coverage must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: false",
+      "Comment/version replay smoke coverage must not read version snapshots.",
+    ],
+    [
+      "cloud.comments",
+      "Comment/version replay smoke coverage must include the comments cloud target.",
+    ],
+    [
+      "cloud.page_versions",
+      "Comment/version replay smoke coverage must include the page_versions cloud target.",
+    ],
+    [
+      "page_versions now uses deleted_at as a soft tombstone",
+      "Comment/version replay smoke coverage must include the page_versions tombstone rule.",
+    ],
+  ]) {
+    assertIncludes(
+      files.commentVersionCloudReplayContract,
+      commentVersionCloudReplayContract,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "uploads_workspace_data: true",
+      "Comment/version replay must not upload workspace data directly.",
+    ],
+    [
+      "reads_comment_bodies: true",
+      "Comment/version replay must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: true",
+      "Comment/version replay must not read version snapshots.",
+    ],
+  ]) {
+    assertExcludes(
+      files.commentVersionCloudReplayContract,
+      commentVersionCloudReplayContract,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildCommentVersionCloudReplayContract",
+      "Sync smoke coverage must build the comment/version replay contract.",
+    ],
+    [
+      "评论 / 版本上云回放合同",
+      "Sync smoke coverage must expose the comment/version replay panel.",
+    ],
+    [
+      "owner-gated content sync",
+      "Sync smoke coverage must expose the owner-gated content-sync boundary.",
+    ],
+    [
+      "pending-only",
+      "Sync smoke coverage must expose the pending-only boundary.",
+    ],
+    [
+      "不读取评论正文、版本快照或页面正文",
+      "Sync smoke coverage must expose the no-content-read boundary.",
+    ],
+    [
+      "page_versions deleted_at tombstone",
+      "Sync smoke coverage must expose the page_versions tombstone.",
+    ],
+    [
+      "cloud.comments",
+      "Sync smoke coverage must expose the comments cloud target.",
+    ],
+    [
+      "cloud.page_versions",
+      "Sync smoke coverage must expose the page_versions cloud target.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.localSchema,
+      localSchema,
+      "CREATE TABLE IF NOT EXISTS page_versions",
+      "Local schema must define page_versions for replay smoke coverage.",
+    ],
+    [
+      files.localSchema,
+      localSchema,
+      "deleted_at    TEXT",
+      "Local page_versions schema must include deleted_at.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "UPDATE page_versions SET deleted_at = ?",
+      "Version deletion must be a soft tombstone update.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "FROM page_versions WHERE page_id = ? AND deleted_at IS NULL",
+      "Version reads must ignore soft-deleted records.",
+    ],
+  ]) {
+    assertIncludes(sourceLabel, source, snippet, message);
   }
   assertIncludes(
     files.dailyNotesShell,

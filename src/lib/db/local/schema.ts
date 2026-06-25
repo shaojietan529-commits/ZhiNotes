@@ -47,6 +47,7 @@ export const CREATE_TABLES_SQL = `
     content_text  TEXT,
     summary       TEXT,
     created_at    TEXT NOT NULL,
+    deleted_at    TEXT,
     sync_version  INTEGER NOT NULL DEFAULT 0
   );
 

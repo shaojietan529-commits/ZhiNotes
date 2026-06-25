@@ -69,6 +69,8 @@ const files = {
   webLaunchWorkbench: "src/lib/sync/webLaunchWorkbench.ts",
   webBetaAutonomyQueue: "src/lib/sync/webBetaAutonomyQueue.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
+  commentVersionCloudReplayContract:
+    "src/lib/sync/commentVersionCloudReplayContract.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
@@ -360,6 +362,9 @@ function run() {
   const webLaunchWorkbench = readProjectFile(files.webLaunchWorkbench);
   const webBetaAutonomyQueue = readProjectFile(files.webBetaAutonomyQueue);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
+  const commentVersionCloudReplayContract = readProjectFile(
+    files.commentVersionCloudReplayContract
+  );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
@@ -492,6 +497,10 @@ function run() {
     [files.webLaunchWorkbench, webLaunchWorkbench],
     [files.webBetaAutonomyQueue, webBetaAutonomyQueue],
     [files.cloudMasterReconcile, cloudMasterReconcile],
+    [
+      files.commentVersionCloudReplayContract,
+      commentVersionCloudReplayContract,
+    ],
     [files.localMetadataManifest, localMetadataManifest],
     [files.hotCachePolicyPlan, hotCachePolicyPlan],
     [files.hotCacheWarmupReceipt, hotCacheWarmupReceipt],
@@ -1478,6 +1487,165 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-comment-version-cloud-replay-contract"',
+      "Comment/version replay contract must expose a stable format.",
+    ],
+    [
+      'contract_status: "owner-gated-content-sync-contract"',
+      "Comment/version replay contract must remain owner gated.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Comment/version replay must only consider ordinary pending sync rows.",
+    ],
+    [
+      "sync_log_contains_row_ids_only: true",
+      "Comment/version replay contract must keep sync_log previews row-id-only.",
+    ],
+    [
+      "content_payload_loaded_only_after_owner_confirmation: true",
+      "Comment/version content payloads must only load after owner confirmation.",
+    ],
+    [
+      "metadata_reports_must_exclude_content: true",
+      "Comment/version metadata reports must exclude content values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Comment/version replay contract must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: false",
+      "Comment/version replay contract must not read version snapshots.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Comment/version replay contract must not read page body text.",
+    ],
+    [
+      "cloud.comments",
+      "Comment replay must target the future cloud.comments table.",
+    ],
+    [
+      "cloud.page_versions",
+      "Version replay must target the future cloud.page_versions table.",
+    ],
+    [
+      "page_versions now uses deleted_at as a soft tombstone",
+      "Version replay must rely on the page_versions deleted_at tombstone.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.commentVersionCloudReplayContract,
+      commentVersionCloudReplayContract,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "uploads_workspace_data: true",
+      "Comment/version replay contract must not upload workspace data directly.",
+    ],
+    [
+      "reads_comment_bodies: true",
+      "Comment/version replay contract must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: true",
+      "Comment/version replay contract must not read version snapshots.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.commentVersionCloudReplayContract,
+      commentVersionCloudReplayContract,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildCommentVersionCloudReplayContract",
+      "Sync UI must build the comment/version cloud replay contract.",
+    ],
+    [
+      "commentVersionCloudReplayContract",
+      "Sync UI must memoize the comment/version cloud replay contract.",
+    ],
+    [
+      "评论 / 版本上云回放合同",
+      "Sync UI must expose the comment/version cloud replay panel.",
+    ],
+    [
+      "owner-gated content sync",
+      "Sync UI must show the owner-gated content-sync boundary.",
+    ],
+    [
+      "pending-only",
+      "Sync UI must show that ordinary sync stays pending-only.",
+    ],
+    [
+      "不读取评论正文、版本快照或页面正文",
+      "Sync UI must show the no-content-read boundary.",
+    ],
+    [
+      "page_versions deleted_at tombstone",
+      "Sync UI must show the page_versions deleted_at tombstone.",
+    ],
+    [
+      "cloud.comments",
+      "Sync UI must show the future comments cloud target.",
+    ],
+    [
+      "cloud.page_versions",
+      "Sync UI must show the future page_versions cloud target.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.localSchema,
+      localSchema,
+      "CREATE TABLE IF NOT EXISTS page_versions",
+      "Local schema must define page_versions.",
+    ],
+    [
+      files.localSchema,
+      localSchema,
+      "deleted_at    TEXT",
+      "Local page_versions schema must include deleted_at.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "UPDATE page_versions SET deleted_at = ?",
+      "Version deletion must be a soft tombstone update.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      '"page_versions",',
+      "Version tombstone changes must target page_versions in sync_log.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      '["deleted_at"],',
+      "Version tombstone changes must queue the deleted_at field.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "FROM page_versions WHERE page_id = ? AND deleted_at IS NULL",
+      "Version reads must ignore soft-deleted records.",
+    ],
+  ]) {
+    assertSourceIncludes(sourceLabel, source, snippet, message);
   }
 
   for (const [snippet, message] of [

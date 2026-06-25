@@ -792,7 +792,10 @@ export async function getPageModuleCounts(): Promise<
   applyCountRows(
     counts,
     db.query(
-      "SELECT page_id as pageId, COUNT(*) as count FROM page_versions GROUP BY page_id"
+      `SELECT page_id as pageId, COUNT(*) as count
+       FROM page_versions
+       WHERE deleted_at IS NULL
+       GROUP BY page_id`
     ) as unknown as CountRow[],
     "versions"
   );
@@ -3274,7 +3277,7 @@ function parseChangedCols(value: string | null) {
 export async function getVersions(pageId: string): Promise<PageVersion[]> {
   const db = await getDb();
   return db.query(
-    "SELECT * FROM page_versions WHERE page_id = ? ORDER BY version_num DESC",
+    "SELECT * FROM page_versions WHERE page_id = ? AND deleted_at IS NULL ORDER BY version_num DESC",
     [pageId]
   ) as unknown as PageVersion[];
 }
@@ -3282,7 +3285,7 @@ export async function getVersions(pageId: string): Promise<PageVersion[]> {
 export async function getVersion(id: string): Promise<PageVersion | null> {
   const db = await getDb();
   const rows = db.query(
-    "SELECT * FROM page_versions WHERE id = ?",
+    "SELECT * FROM page_versions WHERE id = ? AND deleted_at IS NULL",
     [id]
   ) as unknown as PageVersion[];
   return rows[0] || null;
@@ -3293,7 +3296,7 @@ export async function getLatestVersion(
 ): Promise<PageVersion | null> {
   const db = await getDb();
   const rows = db.query(
-    "SELECT * FROM page_versions WHERE page_id = ? ORDER BY version_num DESC LIMIT 1",
+    "SELECT * FROM page_versions WHERE page_id = ? AND deleted_at IS NULL ORDER BY version_num DESC LIMIT 1",
     [pageId]
   ) as unknown as PageVersion[];
   return rows[0] || null;
@@ -3343,13 +3346,14 @@ export async function createVersion(
 
 export async function deleteVersion(id: string): Promise<void> {
   const db = await getDb();
-  db.run("DELETE FROM page_versions WHERE id = ?", [id]);
+  const now = nowISO();
+  db.run("UPDATE page_versions SET deleted_at = ? WHERE id = ?", [now, id]);
   recordSyncChange(
     db,
     "page_versions",
     id,
     "delete",
-    ["id"],
-    nowISO()
+    ["deleted_at"],
+    now
   );
 }

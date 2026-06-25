@@ -233,6 +233,12 @@ import {
   type SyncPayloadRisk,
 } from "@/lib/sync/syncPayloadPreview";
 import {
+  buildCommentVersionCloudReplayContract,
+  type CommentVersionCloudReplayContract,
+  type CommentVersionReplaySurface,
+  type CommentVersionReplaySurfaceStatus,
+} from "@/lib/sync/commentVersionCloudReplayContract";
+import {
   buildCloudMasterReconcileReport,
   type CloudMasterDomain,
   type CloudMasterDomainStatus,
@@ -1124,6 +1130,10 @@ function SyncDashboard() {
         entries: syncEntries,
       }),
     [syncEntries, syncSummary, workspaceIdentity]
+  );
+  const commentVersionCloudReplayContract = useMemo(
+    () => buildCommentVersionCloudReplayContract({ syncPayloadPreview }),
+    [syncPayloadPreview]
   );
   const pendingDomainRows = useMemo(
     () => buildPendingDomainRows(syncSummary),
@@ -4996,6 +5006,10 @@ function SyncDashboard() {
             </p>
           )}
         </section>
+
+        <CommentVersionCloudReplayPanel
+          contract={commentVersionCloudReplayContract}
+        />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -10697,6 +10711,197 @@ function PayloadRiskPill({ risk }: { risk: SyncPayloadRisk }) {
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {risk}
+    </span>
+  );
+}
+
+function CommentVersionCloudReplayPanel({
+  contract,
+}: {
+  contract: CommentVersionCloudReplayContract;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            评论 / 版本上云回放合同
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这是 owner-gated content sync 的本地合同：普通同步保持
+            pending-only，只上传 sync_log 明确记录的行号和元数据；在你确认前，
+            不读取评论正文、版本快照或页面正文，也不写服务器数据。
+            目标云表固定为 cloud.comments 和 cloud.page_versions。
+          </p>
+        </div>
+        <span className="w-fit rounded-md bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          {contract.contract_status}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-5">
+        <PayloadSummaryCard
+          label="待回放"
+          value={contract.summary.pending_rows}
+          detail="评论和版本 pending 行"
+          tone={contract.summary.pending_rows > 0 ? "medium" : "low"}
+        />
+        <PayloadSummaryCard
+          label="已纳入"
+          value={contract.summary.included_rows}
+          detail="仅元数据预览"
+          tone="low"
+        />
+        <PayloadSummaryCard
+          label="owner gate"
+          value={contract.summary.owner_gated_surfaces}
+          detail="正文上传前必须确认"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="append-only"
+          value={contract.summary.append_only_surfaces}
+          detail="版本历史不被正文覆盖"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="tombstone"
+          value={contract.summary.tombstone_ready_surfaces}
+          detail="page_versions deleted_at tombstone"
+          tone="low"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        {contract.surfaces.map((surface) => (
+          <CommentVersionReplaySurfaceRow
+            key={surface.id}
+            surface={surface}
+          />
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="目标云表">
+          <div className="space-y-2">
+            {contract.required_cloud_tables.map((table) => (
+              <article
+                key={table.table}
+                className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900"
+              >
+                <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  cloud.{table.table}
+                </div>
+                <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                  {table.key_rule}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {table.required_indexes.map((index) => (
+                    <span
+                      key={index}
+                      className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+                    >
+                      {index}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+                  {table.retention_rule}
+                </p>
+              </article>
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="启用前阻塞项">
+          <div className="space-y-2">
+            {contract.blocked_until_owner_gate.map((item) => (
+              <div
+                key={item}
+                className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+    </section>
+  );
+}
+
+function CommentVersionReplaySurfaceRow({
+  surface,
+}: {
+  surface: CommentVersionReplaySurface;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {surface.title}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-400">
+            {surface.included_rows} 已纳入 / {surface.pending_rows} 待回放
+          </div>
+        </div>
+        <CommentVersionReplayStatusPill status={surface.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {surface.local_tables.map((table) => (
+          <span
+            key={table}
+            className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {table}
+          </span>
+        ))}
+        <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+          {surface.cloud_target}
+        </span>
+      </div>
+      {surface.operations.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {surface.operations.map((operation) => (
+            <span
+              key={operation.operation}
+              className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+            >
+              {operation.operation}: {operation.count}
+            </span>
+          ))}
+        </div>
+      )}
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {surface.deletion_rule}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {surface.replay_rule}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {surface.privacy_boundary}
+      </p>
+    </article>
+  );
+}
+
+function CommentVersionReplayStatusPill({
+  status,
+}: {
+  status: CommentVersionReplaySurfaceStatus;
+}) {
+  const className =
+    status === "ready-for-owner-gated-replay"
+      ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+      : "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300";
+  const label =
+    status === "ready-for-owner-gated-replay"
+      ? "owner gate"
+      : "no local pending";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {label}
     </span>
   );
 }

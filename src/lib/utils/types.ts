@@ -27,6 +27,7 @@ export interface PageVersion {
   content_text: string | null;
   summary: string | null;
   created_at: string;
+  deleted_at: string | null;
   sync_version: number;
 }
 
