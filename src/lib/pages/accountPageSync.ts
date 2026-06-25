@@ -199,7 +199,27 @@ export interface DailyCloudMetadataResult {
   message?: string;
 }
 
+export interface MeetingCloudMetadataResult {
+  status: PageSyncStatus;
+  pages: RemotePageRecord[];
+  total: number;
+  rootId?: string | null;
+  matched?: number;
+  rangeCount?: number;
+  recentCount?: number;
+  scanned?: number;
+  cached?: boolean;
+  watermark?: string;
+  message?: string;
+}
+
 interface DailyCloudMetadataOptions {
+  startDate?: string;
+  endDate?: string;
+  recentLimit?: number;
+}
+
+interface MeetingCloudMetadataOptions {
   startDate?: string;
   endDate?: string;
   recentLimit?: number;
@@ -860,6 +880,48 @@ export async function fetchDailyCloudMetadata(
     action: options.startDate || options.endDate
       ? "daily-calendar-metadata"
       : "daily-metadata",
+    ...(options.startDate ? { startDate: options.startDate } : {}),
+    ...(options.endDate ? { endDate: options.endDate } : {}),
+    ...(typeof options.recentLimit === "number"
+      ? { recentLimit: options.recentLimit }
+      : {}),
+  });
+  if (!res.ok) {
+    return {
+      status: res.status,
+      pages: [],
+      total: 0,
+      message: res.message,
+    };
+  }
+  const pages = Array.isArray(res.json.pages)
+    ? (res.json.pages as RemotePageRecord[])
+    : [];
+  return {
+    status: "ok",
+    pages,
+    total: typeof res.json.count === "number" ? res.json.count : pages.length,
+    rootId: typeof res.json.rootId === "string" ? res.json.rootId : null,
+    matched: typeof res.json.matched === "number" ? res.json.matched : undefined,
+    rangeCount:
+      typeof res.json.rangeCount === "number" ? res.json.rangeCount : undefined,
+    recentCount:
+      typeof res.json.recentCount === "number" ? res.json.recentCount : undefined,
+    scanned: typeof res.json.scanned === "number" ? res.json.scanned : undefined,
+    cached: typeof res.json.cached === "boolean" ? res.json.cached : undefined,
+    watermark:
+      typeof res.json.watermark === "string" ? res.json.watermark : undefined,
+  };
+}
+
+export async function fetchMeetingCloudMetadata(
+  options: MeetingCloudMetadataOptions = {}
+): Promise<MeetingCloudMetadataResult> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", pages: [], total: 0 };
+  }
+  const res = await call({
+    action: "meeting-calendar-metadata",
     ...(options.startDate ? { startDate: options.startDate } : {}),
     ...(options.endDate ? { endDate: options.endDate } : {}),
     ...(typeof options.recentLimit === "number"

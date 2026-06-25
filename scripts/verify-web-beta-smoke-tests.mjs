@@ -15,9 +15,11 @@ const files = {
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
+  accountPageSync: "src/lib/pages/accountPageSync.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
+  meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   environmentPreflightRoute:
     "src/app/api/web-beta/environment-preflight/route.ts",
 };
@@ -170,9 +172,11 @@ function run() {
   );
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
+  const accountPageSync = readProjectFile(files.accountPageSync);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const syncShell = readProjectFile(files.syncShell);
+  const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const environmentPreflightRoute = readProjectFile(
     files.environmentPreflightRoute
   );
@@ -490,6 +494,42 @@ function run() {
     syncShell,
     "hasPendingWorkspaceSettingSyncLogEntry",
     "Sync UI must protect local pending hot cache settings before restore."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "fetchMeetingCloudMetadata",
+    "Smoke verifier must keep meeting calendar cloud metadata behind the shared page sync helper."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    'action: "meeting-calendar-metadata"',
+    "Smoke verifier must keep the meeting calendar metadata server action wired."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "fetchMeetingCloudMetadata",
+    "Meeting calendar must load cloud metadata through the shared helper."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "persistMeetingCloudMetadata",
+    "Meeting calendar must persist cloud metadata into the local hot cache."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "applyRemotePageMetadata",
+    "Meeting calendar must use metadata-only local cache writes."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "pushCloudPages",
+    "Meeting calendar cloud-only fallback must push through the shared pending-aware helper."
   );
   assertIncludes(
     files.syncShell,

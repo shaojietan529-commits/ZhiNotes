@@ -8,18 +8,26 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePages } from "@/hooks/usePages";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import {
+  applyRemotePageMetadata,
   deletePage,
   getDeletedPages,
   getPage,
   listPageMetadata,
   listPages,
   restorePage,
+  type RemotePageRecord,
 } from "@/lib/db/local/queries";
 import {
   createPageWithCloud,
   updatePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
-import { syncCloudPageMetadataDelta } from "@/lib/pages/accountPageSync";
+import {
+  fetchMeetingCloudMetadata,
+  pageToRemoteRecord,
+  pushCloudPages,
+  syncCloudPageMetadataDelta,
+  type MeetingCloudMetadataResult,
+} from "@/lib/pages/accountPageSync";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import {
   createPageProperty,
@@ -196,37 +204,9 @@ interface CreateMeetingResult {
   cloudOnly?: boolean;
 }
 
-interface CloudPageRecord {
-  id: string;
-  parent_id: string | null;
-  title: string;
-  icon: string | null;
-  cover_url: string | null;
-  content_text: string | null;
-  properties: string | null;
-  position: number;
-  depth: number;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-}
-
-interface MeetingCloudMetadataResponse {
-  ok?: boolean;
-  rootId?: string | null;
-  pages?: CloudPageRecord[];
-  count?: number;
-  matched?: number;
-  rangeCount?: number;
-  recentCount?: number;
-  scanned?: number;
-  cached?: boolean;
-  watermark?: string;
-  error?: string;
-}
-
 interface MeetingCloudMetadataSnapshot {
   ok: boolean;
+  status?: MeetingCloudMetadataResult["status"];
   rootId: string | null;
   pages: Page[];
   count?: number;
@@ -249,6 +229,7 @@ const MEETING_CLOUD_CACHE_PREFIX = "zhinote.zhihui.cloudMetadata.";
 export default function MeetingScheduleShell() {
   const router = useRouter();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const { refresh } = usePages({ autoLoad: false });
   const pageRevision = usePageRevision();
   const [rootId, setRootId] = useState<string | null>(null);
@@ -394,6 +375,7 @@ export default function MeetingScheduleShell() {
       setMeetings(
         mergeMeetingPages([], cachedCloud.pages, deletedTombstoneRef.current)
       );
+      void persistMeetingCloudMetadata(cachedCloud, upsertPages);
     }
 
     const cloud = await loadMeetingCloudMetadata({
@@ -406,6 +388,7 @@ export default function MeetingScheduleShell() {
       setRootId(cloud.rootId);
       setMeetings(mergeMeetingPages([], cloud.pages, deletedTombstoneRef.current));
       writeCachedMeetingCloudMetadata(startDate, endDate, cloud);
+      void persistMeetingCloudMetadata(cloud, upsertPages);
       return;
     }
 
@@ -428,7 +411,7 @@ export default function MeetingScheduleShell() {
     if (nextRootId) setRootId(nextRootId);
     setMeetings(mergeMeetingPages(localPages, [], deletedTombstoneRef.current));
 
-  }, [scheduleMetadataCacheWarmup, viewMonth]);
+  }, [scheduleMetadataCacheWarmup, upsertPages, viewMonth]);
 
   const handleDeleteMeeting = useCallback(
     async (pageId: string) => {
@@ -1750,66 +1733,37 @@ async function pushMeetingPageCloudSnapshot(rootId: string, meetingPage: Page) {
   try {
     const rootPage = await getPage(rootId);
     if (!rootPage) return;
-    await fetch("/api/pages/account-sync", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        action: "push",
-        pages: [toPageSyncRecord(rootPage), toPageSyncRecord(meetingPage)],
-      }),
-    });
+    await pushCloudPages([
+      pageToRemoteRecord(rootPage),
+      pageToRemoteRecord(meetingPage),
+    ]);
   } catch {
     // The local page remains visible; account page sync can retry later.
   }
 }
 
-function toPageSyncRecord(page: Page) {
-  return {
-    id: page.id,
-    parent_id: page.parent_id ?? null,
-    title: page.title ?? "",
-    icon: page.icon ?? null,
-    cover_url: page.cover_url ?? null,
-    content_text: page.content_text ?? null,
-    properties: page.properties ?? null,
-    position: page.position ?? 0,
-    depth: page.depth ?? 0,
-    created_at: page.created_at,
-    updated_at: page.updated_at,
-    deleted_at: page.deleted_at ?? null,
-  };
-}
-
 async function loadMeetingCloudMetadata(
   options: MeetingCloudMetadataOptions = {}
 ): Promise<MeetingCloudMetadataSnapshot> {
-  const res = await fetch("/api/pages/account-sync", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      action: "meeting-calendar-metadata",
-      ...(options.startDate ? { startDate: options.startDate } : {}),
-      ...(options.endDate ? { endDate: options.endDate } : {}),
-      ...(typeof options.recentLimit === "number"
-        ? { recentLimit: options.recentLimit }
-        : {}),
-    }),
-  });
-  if (!res.ok) return emptyMeetingCloudMetadata(false);
-  const data = (await res.json()) as MeetingCloudMetadataResponse;
+  const data = await fetchMeetingCloudMetadata(options);
+  if (data.status !== "ok") {
+    return {
+      ...emptyMeetingCloudMetadata(false),
+      status: data.status,
+    };
+  }
   return {
-    ok: data.ok !== false,
-    rootId: typeof data.rootId === "string" ? data.rootId : null,
-    pages: (data.pages ?? []).map(cloudRecordToPage),
-    count: typeof data.count === "number" ? data.count : undefined,
-    matched: typeof data.matched === "number" ? data.matched : undefined,
-    rangeCount:
-      typeof data.rangeCount === "number" ? data.rangeCount : undefined,
-    recentCount:
-      typeof data.recentCount === "number" ? data.recentCount : undefined,
-    scanned: typeof data.scanned === "number" ? data.scanned : undefined,
-    cached: typeof data.cached === "boolean" ? data.cached : undefined,
-    watermark: typeof data.watermark === "string" ? data.watermark : undefined,
+    ok: true,
+    status: data.status,
+    rootId: data.rootId ?? null,
+    pages: data.pages.map(cloudRecordToPage),
+    count: data.total,
+    matched: data.matched,
+    rangeCount: data.rangeCount,
+    recentCount: data.recentCount,
+    scanned: data.scanned,
+    cached: data.cached,
+    watermark: data.watermark,
   };
 }
 
@@ -1877,7 +1831,46 @@ function writeCachedMeetingCloudMetadata(
   }
 }
 
-function cloudRecordToPage(record: CloudPageRecord): Page {
+async function persistMeetingCloudMetadata(
+  cloud: MeetingCloudMetadataSnapshot,
+  upsertPages: (pages: Page[]) => void
+): Promise<void> {
+  if (!cloud.ok || !cloud.rootId) return;
+  const updatedAt = latestMeetingUpdatedAt(cloud.pages);
+  const rootRecord: RemotePageRecord = {
+    id: cloud.rootId,
+    parent_id: null,
+    title: "ZhiHui",
+    icon: "🗓️",
+    cover_url: null,
+    content_text: null,
+    properties: null,
+    position: 0,
+    depth: 0,
+    created_at: updatedAt,
+    updated_at: updatedAt,
+    deleted_at: null,
+  };
+  const records = [rootRecord, ...cloud.pages.map(pageToRemoteRecord)];
+  try {
+    await applyRemotePageMetadata(records);
+    upsertPages(records.map(cloudRecordToPage));
+  } catch {
+    // The visible cloud snapshot already rendered; local hot-cache persistence
+    // can retry through the next calendar load or the background sync.
+  }
+}
+
+function latestMeetingUpdatedAt(pages: Page[]): string {
+  const latest = pages.reduce(
+    (current, page) =>
+      page.updated_at && page.updated_at > current ? page.updated_at : current,
+    ""
+  );
+  return latest || new Date().toISOString();
+}
+
+function cloudRecordToPage(record: RemotePageRecord): Page {
   return {
     id: record.id,
     owner_id: DEFAULT_OWNER_ID,
@@ -1951,18 +1944,13 @@ async function createCloudOnlyMeetingPage({
     now,
   });
 
-  const res = await fetch("/api/pages/account-sync", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      action: "push",
-      pages: [toPageSyncRecord(rootPage), toPageSyncRecord(page)],
-    }),
-  });
-  if (!res.ok) {
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
+  const result = await pushCloudPages([
+    pageToRemoteRecord(rootPage),
+    pageToRemoteRecord(page),
+  ]);
+  if (result.status !== "ok") {
     throw new Error(
-      `本地数据库写入失败，云端保存也失败：${data.error || res.status}`
+      `本地数据库写入失败，云端保存也失败：${result.message || result.status}`
     );
   }
 

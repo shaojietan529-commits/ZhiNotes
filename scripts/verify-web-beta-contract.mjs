@@ -74,9 +74,11 @@ const files = {
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
+  accountPageSync: "src/lib/pages/accountPageSync.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
+  meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   apiGuardPanel: "src/components/modules/sync/ApiGuardPanel.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
 };
@@ -319,9 +321,11 @@ function run() {
   );
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
+  const accountPageSync = readProjectFile(files.accountPageSync);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const syncShell = readProjectFile(files.syncShell);
+  const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const apiGuardPanel = readProjectFile(files.apiGuardPanel);
   const migration = readProjectFile(files.migration);
 
@@ -7238,6 +7242,59 @@ function run() {
     );
   }
 
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "export async function fetchMeetingCloudMetadata",
+      "Account page sync must expose a shared meeting metadata helper.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      'action: "meeting-calendar-metadata"',
+      "Account page sync must call the meeting calendar metadata server action.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "fetchMeetingCloudMetadata",
+      "Meeting calendar must pull cloud metadata through the shared helper.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "persistMeetingCloudMetadata",
+      "Meeting calendar must persist cloud metadata into the local hot cache.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "applyRemotePageMetadata",
+      "Meeting calendar must use metadata-only local cache writes for cloud pulls.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "pushCloudPages",
+      "Meeting calendar cloud-only fallback must push through the shared helper.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "pageToRemoteRecord",
+      "Meeting calendar cloud pushes must use the shared remote record converter.",
+    ],
+  ]) {
+    assertSourceIncludes(sourceLabel, source, snippet, message);
+  }
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'fetch("/api/pages/account-sync"',
+    "Meeting calendar must not bypass the shared account page sync helper."
+  );
+
   const summary = {
     env_requirements: requiredEnvKeys.length,
     api_stubs: apiStubRows.length,
@@ -7271,6 +7328,7 @@ function run() {
     web_beta_autonomy_queue_checks: 37,
     web_alpha_launch_decision_checks: 39,
     web_beta_owner_review_packet_checks: 40,
+    meeting_cloud_metadata_hot_cache_checks: 8,
     warnings: warnings.length,
   };
 
