@@ -923,6 +923,15 @@ check(
     accountShell.includes("数据库表格、本地文件、评论、版本历史不会上传或删除"),
   "重建本机页面缓存前必须解释云端数据和本地私有数据边界"
 );
+check(
+  syncDashboardShell.includes("本机缓存重建入口") &&
+    syncDashboardShell.includes("云端 manifest 是重建来源") &&
+    syncDashboardShell.includes("不会把本地缓存全量上传") &&
+    syncDashboardShell.includes("本地 pending 变更未清空前不建议重建") &&
+    syncDashboardShell.includes("保留本地数据库私有页面") &&
+    syncDashboardShell.includes("router.push(\"/account\")"),
+  "同步页应提供缓存重建安全入口：先展示 pending 风险，再跳转账号页确认重建，不能在同步页直接清缓存"
+);
 
 const sidebar = read("src/components/sidebar/Sidebar.tsx");
 check(

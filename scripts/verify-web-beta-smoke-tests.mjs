@@ -504,6 +504,24 @@ function run() {
     "Sync UI must protect local pending hot cache settings before restore."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    "本机缓存重建入口",
+    "Sync UI must render the cache rebuild safety entrypoint."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "本地 pending 变更未清空前不建议重建",
+    "Sync UI must warn before rebuilding cache with local pending edits."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "前往账号页重建缓存",
+    "Sync UI must hand cache rebuilds off to the account page confirmation flow."
+  );
+  assertIncludes(
     files.accountPageSync,
     accountPageSync,
     "export function getPendingCloudPageSyncStatus",

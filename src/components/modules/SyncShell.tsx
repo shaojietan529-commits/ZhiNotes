@@ -3696,6 +3696,13 @@ function SyncDashboard() {
           onExport={handleExportHotCacheSelectionContract}
         />
 
+        <CacheRebuildSafetyPanel
+          pageStatus={pagePendingStatus}
+          databaseStatus={databasePendingStatus}
+          totalSyncPending={syncSummary?.pending ?? 0}
+          onOpenAccount={() => router.push("/account")}
+        />
+
         <WebLaunchDecisionSummaryPanel
           workbench={webLaunchWorkbenchPacket}
           alphaDecision={webAlphaLaunchDecisionReceipt}
@@ -13506,6 +13513,150 @@ function BetaStatusPill({ status }: { status: WebBetaReadinessStatus }) {
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[status]}
     </span>
+  );
+}
+
+function CacheRebuildSafetyPanel({
+  pageStatus,
+  databaseStatus,
+  totalSyncPending,
+  onOpenAccount,
+}: {
+  pageStatus: PendingCloudPageSyncStatus;
+  databaseStatus: PendingCloudDatabaseSyncStatus;
+  totalSyncPending: number;
+  onOpenAccount: () => void;
+}) {
+  const pagePending = pageStatus.pending + pageStatus.queued;
+  const databasePending =
+    databaseStatus.pending +
+    databaseStatus.queued +
+    databaseStatus.syncLogPending;
+  const hasPending = pagePending > 0 || databasePending > 0 || totalSyncPending > 0;
+  const disabledDomains = [
+    pageStatus.enabled ? null : "页面同步关闭",
+    databaseStatus.enabled ? null : "数据库同步关闭",
+  ].filter(Boolean);
+  const readiness = hasPending
+    ? "先补传"
+    : disabledDomains.length > 0
+      ? "先开启同步"
+      : "可重建";
+  const readinessClass = hasPending
+    ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+    : disabledDomains.length > 0
+      ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300"
+      : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+
+  return (
+    <section
+      id="cache-rebuild-safety-entrypoint"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Cache Rebuild
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              本机缓存重建入口
+            </h2>
+            <span className={`rounded-md px-2 py-1 text-[10px] ${readinessClass}`}>
+              {readiness}
+            </span>
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            云端 manifest 是重建来源，本机页面和数据库缓存只是可清空、可重拉的复印件。
+            这里不执行清缓存动作，只做重建前安全判断，并跳转到账号页的确认弹窗。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenAccount}
+          className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+        >
+          前往账号页重建缓存
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <CacheRebuildFact
+          label="页面 pending"
+          value={`${pagePending} 条`}
+          detail={
+            pageStatus.lastSyncAt
+              ? `上次同步 ${formatDate(pageStatus.lastSyncAt)}`
+              : pageStatus.enabled
+                ? "尚无页面同步时间"
+                : "页面同步当前关闭"
+          }
+        />
+        <CacheRebuildFact
+          label="数据库 pending"
+          value={`${databasePending} 条`}
+          detail={
+            databaseStatus.lastSyncAt
+              ? `上次同步 ${formatDate(databaseStatus.lastSyncAt)}`
+              : databaseStatus.enabled
+                ? "尚无数据库同步时间"
+                : "数据库同步当前关闭"
+          }
+        />
+        <CacheRebuildFact
+          label="全局 sync_log"
+          value={`${totalSyncPending} 条`}
+          detail="普通同步只补传明确排队的本地修改"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+          <p className="font-medium text-zinc-800 dark:text-zinc-100">
+            安全边界
+          </p>
+          <p className="mt-1">
+            不会把本地缓存全量上传；普通同步只能上传 pending queue 里明确记录的修改。
+            页面重建会保留本地数据库私有页面，数据库重建不会触碰页面、本地文件、评论或版本历史。
+          </p>
+        </div>
+        <div className="rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          <p className="font-medium">重建建议</p>
+          <p className="mt-1">
+            本地 pending 变更未清空前不建议重建。先使用页面/数据库补传按钮确认队列清零，
+            再到账号页按云端主库重建本机缓存，避免未上传的新输入被本地清理隐藏。
+          </p>
+        </div>
+      </div>
+
+      {disabledDomains.length > 0 ? (
+        <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+          需要先处理：{disabledDomains.join("、")}。
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function CacheRebuildFact({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800">
+      <p className="text-[10px] uppercase tracking-wide text-zinc-400">
+        {label}
+      </p>
+      <p className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+        {value}
+      </p>
+      <p className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</p>
+    </div>
   );
 }
 

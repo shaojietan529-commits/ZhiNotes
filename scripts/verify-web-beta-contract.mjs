@@ -1086,6 +1086,30 @@ function run() {
       "普通同步仍只上传这些 pending 行指向的明确变更",
       "Full-domain pending distribution must preserve pending-only ordinary sync.",
     ],
+    [
+      "本机缓存重建入口",
+      "Sync UI must expose the local cache rebuild safety entrypoint.",
+    ],
+    [
+      "云端 manifest 是重建来源",
+      "Cache rebuild entrypoint must explain the cloud manifest source of truth.",
+    ],
+    [
+      "不会把本地缓存全量上传",
+      "Cache rebuild entrypoint must preserve the no-full-cache-upload boundary.",
+    ],
+    [
+      "本地 pending 变更未清空前不建议重建",
+      "Cache rebuild entrypoint must warn before rebuilding with local pending edits.",
+    ],
+    [
+      "前往账号页重建缓存",
+      "Cache rebuild entrypoint must hand off to the confirmed account-page rebuild action.",
+    ],
+    [
+      "router.push(\"/account\")",
+      "Cache rebuild entrypoint must navigate to the account page instead of directly clearing cache.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
