@@ -197,6 +197,16 @@ export const SYNC_API_CONTRACTS: SyncApiContract[] = [
       "Returns metadata and counts first; page bodies should be pulled through the sync API.",
   },
   {
+    id: "workspace-settings-update",
+    method: "PATCH",
+    path: "/api/workspaces/:workspaceId/settings",
+    status: "local-draft",
+    purpose:
+      "Save small workspace settings metadata, starting with hot-cache preferences that already exist as a local pending row.",
+    payloadBoundary:
+      "Accepts only hot-cache preference fields; rejects page bodies, file bytes, database row values, comments, credentials, and raw cache dumps.",
+  },
+  {
     id: "sync-push",
     method: "POST",
     path: "/api/sync/push",

@@ -13,6 +13,8 @@ const files = {
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
+  hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
+  workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
@@ -53,6 +55,10 @@ const gatedOrDisabledApiRoutes = [
   {
     path: "src/app/api/workspaces/[workspaceId]/bootstrap/route.ts",
     guard: 'cloudNotConfiguredResponse("workspace-bootstrap")',
+  },
+  {
+    path: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
+    guard: 'cloudNotConfiguredResponse("workspace-settings-update")',
   },
   {
     path: "src/app/api/sync/push/route.ts",
@@ -158,6 +164,8 @@ function run() {
   const hotCacheSelectionSettings = readProjectFile(
     files.hotCacheSelectionSettings
   );
+  const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
+  const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const syncShell = readProjectFile(files.syncShell);
@@ -378,6 +386,12 @@ function run() {
     "Smoke verifier must keep workspace setting changes in sync_log scope."
   );
   assertIncludes(
+    files.localQueries,
+    localQueries,
+    "markWorkspaceSettingSyncLogEntriesSynced",
+    "Smoke verifier must keep workspace setting acknowledgement available."
+  );
+  assertIncludes(
     files.hotCacheSelectionSettings,
     hotCacheSelectionSettings,
     'format: "zhinote-hot-cache-selection-contract"',
@@ -396,6 +410,30 @@ function run() {
     "Smoke verifier must keep hot cache selection pending-only."
   );
   assertIncludes(
+    files.hotCacheSettingsCloud,
+    hotCacheSettingsCloud,
+    'format: "zhinote-hot-cache-settings-cloud-receipt"',
+    "Smoke verifier must keep the hot cache settings cloud receipt."
+  );
+  assertIncludes(
+    files.hotCacheSettingsCloud,
+    hotCacheSettingsCloud,
+    "HOT_CACHE_SETTINGS_FORBIDDEN_FIELDS",
+    "Smoke verifier must keep forbidden-field validation for cloud settings."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    'requireCloudWritesResponse("workspace-settings-update")',
+    "Smoke verifier must keep workspace settings writes behind the cloud write gate."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "workspace-settings-readonly-role",
+    "Smoke verifier must keep viewer writes blocked."
+  );
+  assertIncludes(
     files.syncShell,
     syncShell,
     "常驻本地缓存选择",
@@ -406,6 +444,12 @@ function run() {
     syncShell,
     "导出选择合同",
     "Sync UI must expose the hot cache selection export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "同步偏好到云端",
+    "Sync UI must expose the hot cache cloud sync button."
   );
   assertIncludes(
     files.syncShell,
@@ -440,7 +484,7 @@ function run() {
     cloud_master_reconcile_checks: 7,
     local_metadata_manifest_checks: 7,
     hot_cache_policy_checks: 6,
-    hot_cache_selection_checks: 8,
+    hot_cache_selection_checks: 14,
   };
 
   if (failures.length > 0) {

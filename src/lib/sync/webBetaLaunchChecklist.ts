@@ -51,7 +51,7 @@ export interface WebBetaLaunchTrack {
 }
 
 export interface WebBetaRouteCheck {
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "PATCH";
   route: string;
   surface: "workspace" | "module" | "api";
   status: "local-route" | "disabled-stub" | "cloud-alpha-gated" | "blocked";
@@ -413,7 +413,8 @@ function isCloudAlphaApiStub(id: WebBetaApiStubId) {
     id === "auth-logout" ||
     id === "workspace-list" ||
     id === "workspace-create" ||
-    id === "workspace-bootstrap"
+    id === "workspace-bootstrap" ||
+    id === "workspace-settings-update"
   );
 }
 

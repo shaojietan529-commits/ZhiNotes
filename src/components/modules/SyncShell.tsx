@@ -19,6 +19,7 @@ import {
   getPendingSyncLogEntries,
   getSyncLogSummary,
   getWorkspaceSetting,
+  markWorkspaceSettingSyncLogEntriesSynced,
   upsertWorkspaceSetting,
   type PageModuleCounts,
   type SyncLogEntry,
@@ -364,6 +365,7 @@ type CloudAlphaAction =
   | "link-workspace"
   | "unlink-workspace"
   | "link-receipt"
+  | "hot-cache-settings"
   | "clear";
 type WebBetaContractAction =
   | "contract"
@@ -1497,6 +1499,13 @@ function SyncDashboard() {
     if (cloudWorkspace?.id === selectedCloudWorkspaceId) return cloudWorkspace;
     return null;
   }, [cloudWorkspace, cloudWorkspaces, selectedCloudWorkspaceId]);
+  const hotCacheCloudWorkspaceId =
+    selectedCloudWorkspaceId || workspaceIdentity?.cloud_workspace_id || "";
+  const hotCacheCloudSyncDisabledReason = !cloudSession || cloudSessionExpired
+    ? "需要先完成云端登录。"
+    : !hotCacheCloudWorkspaceId
+      ? "需要先选择并连接云工作区。"
+      : "";
 
   const handleSelectedCloudWorkspaceChange = (workspaceId: string) => {
     setSelectedCloudWorkspaceId(workspaceId);
@@ -2048,6 +2057,78 @@ function SyncDashboard() {
       console.error("[Zhinote] Failed to save hot cache preferences:", err);
       setHotCachePreferences(parseHotCachePreferences(hotCacheSetting));
       setHotCacheSaveMessage("保存失败，已恢复为上一次设置。");
+    }
+  };
+
+  const handleHotCachePreferencesCloudSync = async () => {
+    if (!cloudSession || cloudSessionExpired) {
+      if (cloudSessionExpired) {
+        clearCloudSession();
+        setCloudSession(null);
+      }
+      setHotCacheSaveMessage("需要先完成云端登录，再同步热缓存偏好。");
+      return;
+    }
+
+    const workspaceId = hotCacheCloudWorkspaceId;
+    if (!workspaceId) {
+      setHotCacheSaveMessage("需要先选择并连接云工作区。");
+      return;
+    }
+
+    setBusyCloudAction("hot-cache-settings");
+    setHotCacheSaveMessage("正在同步热缓存偏好到云端 settings...");
+    try {
+      const response = await fetch(
+        `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${cloudSession.accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            setting_key: HOT_CACHE_PREFERENCES_SETTING_KEY,
+            client_pending_row_id: HOT_CACHE_PREFERENCES_SETTING_KEY,
+            preferences: hotCachePreferences,
+          }),
+        }
+      );
+      const body = await readCloudApiBody(response);
+
+      if (!response.ok) {
+        setHotCacheSaveMessage(
+          response.status === 501
+            ? `云端设置写入尚未开启：${getCloudApiDetail(body, response)}`
+            : `云端同步失败：${getCloudApiDetail(body, response)}`
+        );
+        return;
+      }
+
+      const marked = await markWorkspaceSettingSyncLogEntriesSynced([
+        HOT_CACHE_PREFERENCES_SETTING_KEY,
+      ]);
+      const [nextSyncSummary, nextSyncEntries] = await Promise.all([
+        getSyncLogSummary(),
+        getPendingSyncLogEntries(25),
+      ]);
+      setSyncSummary(nextSyncSummary);
+      setSyncEntries(nextSyncEntries);
+      const savedAt = getRecordString(body, "saved_at");
+      setHotCacheSaveMessage(
+        `云端已保存热缓存偏好，本地 pending 已确认 ${marked} 条${
+          savedAt ? `，时间 ${formatDate(savedAt)}` : ""
+        }。`
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to sync hot cache preferences:", err);
+      setHotCacheSaveMessage(
+        err instanceof Error
+          ? `云端同步失败：${err.message}`
+          : "云端同步失败：未知错误。"
+      );
+    } finally {
+      setBusyCloudAction(null);
     }
   };
 
@@ -3289,7 +3370,11 @@ function SyncDashboard() {
           contract={hotCacheSelectionContract}
           preferences={hotCachePreferences}
           saveMessage={hotCacheSaveMessage}
+          cloudSyncBusy={busyCloudAction === "hot-cache-settings"}
+          cloudSyncDisabled={Boolean(hotCacheCloudSyncDisabledReason)}
+          cloudSyncDisabledReason={hotCacheCloudSyncDisabledReason}
           onChange={handleHotCachePreferencesChange}
+          onSyncCloud={() => void handleHotCachePreferencesCloudSync()}
           onExport={handleExportHotCacheSelectionContract}
         />
 
@@ -12921,13 +13006,21 @@ function HotCacheSelectionPanel({
   contract,
   preferences,
   saveMessage,
+  cloudSyncBusy,
+  cloudSyncDisabled,
+  cloudSyncDisabledReason,
   onChange,
+  onSyncCloud,
   onExport,
 }: {
   contract: HotCacheSelectionContract;
   preferences: HotCachePreferences;
   saveMessage: string | null;
+  cloudSyncBusy: boolean;
+  cloudSyncDisabled: boolean;
+  cloudSyncDisabledReason: string;
   onChange: (preferences: HotCachePreferences) => void;
+  onSyncCloud: () => void;
   onExport: () => void;
 }) {
   const updatePreference = (patch: Partial<HotCachePreferences>) => {
@@ -12958,14 +13051,29 @@ function HotCacheSelectionPanel({
             setting 变更，不会全量上传本地缓存。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onExport}
-          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        >
-          导出选择合同
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onSyncCloud}
+            disabled={cloudSyncDisabled || cloudSyncBusy}
+            className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+          >
+            {cloudSyncBusy ? "正在同步..." : "同步偏好到云端"}
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            导出选择合同
+          </button>
+        </div>
       </div>
+      {cloudSyncDisabledReason ? (
+        <p className="mt-2 text-[11px] leading-4 text-zinc-400">
+          云端同步：{cloudSyncDisabledReason}
+        </p>
+      ) : null}
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <ContractPanel title="用户选择">

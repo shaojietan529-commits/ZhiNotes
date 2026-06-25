@@ -2639,6 +2639,41 @@ export async function markDatabaseSyncLogEntriesSynced(
   return marked;
 }
 
+export async function markWorkspaceSettingSyncLogEntriesSynced(
+  keys: string[]
+): Promise<number> {
+  const db = await getDb();
+  const uniqueKeys = Array.from(
+    new Set(keys.map((key) => key.trim()).filter(Boolean))
+  );
+  if (uniqueKeys.length === 0) return 0;
+
+  let marked = 0;
+  const chunkSize = 200;
+  for (let i = 0; i < uniqueKeys.length; i += chunkSize) {
+    const chunk = uniqueKeys.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const beforeRows = db.query(
+      `SELECT COUNT(*) as count
+       FROM sync_log
+       WHERE table_name = 'workspace_settings'
+         AND row_id IN (${placeholders})
+         AND synced = 0`,
+      chunk
+    );
+    db.run(
+      `UPDATE sync_log
+       SET synced = 1
+       WHERE table_name = 'workspace_settings'
+         AND row_id IN (${placeholders})
+         AND synced = 0`,
+      chunk
+    );
+    marked += Number(beforeRows[0]?.count ?? 0);
+  }
+  return marked;
+}
+
 export async function clearLocalDatabaseCacheExceptKeys(
   keepKeys: string[]
 ): Promise<LocalDatabaseCachePruneResult> {

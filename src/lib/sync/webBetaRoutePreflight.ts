@@ -250,6 +250,7 @@ function isCloudAlphaApiStub(id: WebBetaApiStubId) {
     id === "auth-logout" ||
     id === "workspace-list" ||
     id === "workspace-create" ||
-    id === "workspace-bootstrap"
+    id === "workspace-bootstrap" ||
+    id === "workspace-settings-update"
   );
 }

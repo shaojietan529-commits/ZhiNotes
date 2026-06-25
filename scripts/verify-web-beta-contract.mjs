@@ -72,6 +72,8 @@ const files = {
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
+  hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
+  workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
@@ -315,6 +317,8 @@ function run() {
   const hotCacheSelectionSettings = readProjectFile(
     files.hotCacheSelectionSettings
   );
+  const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
+  const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const syncShell = readProjectFile(files.syncShell);
@@ -381,6 +385,8 @@ function run() {
     [files.localMetadataManifest, localMetadataManifest],
     [files.hotCachePolicyPlan, hotCachePolicyPlan],
     [files.hotCacheSelectionSettings, hotCacheSelectionSettings],
+    [files.hotCacheSettingsCloud, hotCacheSettingsCloud],
+    [files.workspaceSettingsRoute, workspaceSettingsRoute],
     [files.localSchema, localSchema],
     [files.localQueries, localQueries],
     [files.syncShell, syncShell],
@@ -748,6 +754,14 @@ function run() {
       '["value_json", "source", "updated_at"]',
       "Workspace setting updates must queue only setting metadata columns.",
     ],
+    [
+      "markWorkspaceSettingSyncLogEntriesSynced",
+      "Workspace settings must support local pending acknowledgement after cloud receipt.",
+    ],
+    [
+      "WHERE table_name = 'workspace_settings'",
+      "Workspace settings acknowledgement must stay scoped to workspace_settings rows.",
+    ],
   ]) {
     assertSourceIncludes(files.localQueries, localQueries, snippet, message);
   }
@@ -855,6 +869,76 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-hot-cache-settings-cloud-receipt"',
+      "Hot cache cloud settings must expose a stable receipt format.",
+    ],
+    [
+      "HOT_CACHE_SETTINGS_FORBIDDEN_FIELDS",
+      "Hot cache cloud settings must keep a forbidden payload field list.",
+    ],
+    [
+      "validateHotCacheSettingsCloudPayload",
+      "Hot cache cloud settings must validate request payloads.",
+    ],
+    [
+      "buildHotCacheSettingsCloudReceipt",
+      "Hot cache cloud settings must build a metadata-only receipt.",
+    ],
+    [
+      "workspaces.settings.hot_cache_preferences",
+      "Hot cache cloud settings must write only the workspace settings target.",
+    ],
+    [
+      "uploads_workspace_content: false",
+      "Hot cache cloud settings receipt must state workspace content is not uploaded.",
+    ],
+    [
+      "content_text",
+      "Hot cache cloud settings validator must reject page text fields.",
+    ],
+    [
+      "file_bytes",
+      "Hot cache cloud settings validator must reject file byte fields.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.hotCacheSettingsCloud,
+      hotCacheSettingsCloud,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      'cloudNotConfiguredResponse("workspace-settings-update")',
+      "Workspace settings route must stay behind the cloud configured gate.",
+    ],
+    [
+      'requireCloudWritesResponse("workspace-settings-update")',
+      "Workspace settings route must stay behind the cloud writes gate.",
+    ],
+    [
+      "validateHotCacheSettingsCloudPayload",
+      "Workspace settings route must validate hot-cache payloads before writing.",
+    ],
+    [
+      "workspace-settings-readonly-role",
+      "Workspace settings route must reject viewer writes.",
+    ],
+    [
+      "HOT_CACHE_SETTINGS_CLOUD_PAYLOAD_MAX_BYTES",
+      "Workspace settings route must bound request body size.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.workspaceSettingsRoute,
+      workspaceSettingsRoute,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildHotCacheSelectionContract",
       "Sync UI must build the hot cache selection contract.",
     ],
@@ -877,6 +961,18 @@ function run() {
     [
       "导出选择合同",
       "Sync UI must export the hot cache selection contract.",
+    ],
+    [
+      "handleHotCachePreferencesCloudSync",
+      "Sync UI must expose an explicit hot-cache preferences cloud sync action.",
+    ],
+    [
+      "markWorkspaceSettingSyncLogEntriesSynced",
+      "Sync UI must acknowledge local pending settings after cloud success.",
+    ],
+    [
+      "同步偏好到云端",
+      "Sync UI must render the hot-cache cloud sync button.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
@@ -7165,7 +7261,8 @@ function isCloudAlphaStub(id) {
     id === "auth-logout" ||
     id === "workspace-list" ||
     id === "workspace-create" ||
-    id === "workspace-bootstrap"
+    id === "workspace-bootstrap" ||
+    id === "workspace-settings-update"
   );
 }
 
