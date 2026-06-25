@@ -36,36 +36,70 @@ export function useDatabases() {
       if (!dbReady) return [];
       let all: Database[] = [];
       let localSnapshotLoaded = false;
-      try {
-        all = await loadDatabaseSnapshot();
-        localSnapshotLoaded = true;
-      } catch {
-        // Treat local SQLite as a cache: if it is cold or temporarily broken,
-        // still attempt cloud metadata below instead of blocking navigation.
-      }
-      setDatabases(all);
+      let cloudRecords: CloudDatabaseRecord[] = [];
+      let cloudSnapshotAuthoritative = false;
 
       try {
-        const needsCloudCoverageRecovery =
-          all.length === 0 || !localSnapshotLoaded;
         const cloud = await syncCloudDatabaseMetadataDelta({
           restoreLocalCursor: true,
-          requireLocalCacheCoverage: needsCloudCoverageRecovery,
+          requireLocalCacheCoverage: false,
         });
         if (cloud.status === "ok") {
-          all = mergeDatabaseMetadata(all, cloud.records);
-          if (cloud.cacheWriteFailed && all.length === 0) {
+          cloudRecords = cloud.records;
+          if (cloud.fullRefresh) {
             all = mergeDatabaseMetadata([], cloud.records);
+            cloudSnapshotAuthoritative = true;
+            setDatabases(all);
           }
-          setDatabases(all);
           if (cloud.pulled > 0 && options.broadcast !== false) {
             emitDatabasesUpdated("cloud-pull", cloud.pulled, cloud.records);
           }
         }
       } catch {
-        // The local database list is already visible. Cloud delta refresh is
-        // best effort so a broken browser cache or missing cloud config cannot
-        // block navigation.
+        // Cloud metadata refresh is best effort. If the network or auth layer
+        // is unavailable, the local browser cache below remains the fallback.
+      }
+
+      if (!cloudSnapshotAuthoritative) {
+        try {
+          all = await loadDatabaseSnapshot();
+          localSnapshotLoaded = true;
+          setDatabases(all);
+        } catch {
+          // Treat local SQLite as a cache: if it is cold or temporarily broken,
+          // still attempt cloud metadata below instead of blocking navigation.
+        }
+
+        if (cloudRecords.length > 0) {
+          all = mergeDatabaseMetadata(all, cloudRecords);
+          setDatabases(all);
+        }
+      }
+
+      const needsCloudCoverageRecovery =
+        !cloudSnapshotAuthoritative &&
+        (!localSnapshotLoaded || all.length === 0);
+      if (needsCloudCoverageRecovery) {
+        try {
+          const cloud = await syncCloudDatabaseMetadataDelta({
+            force: true,
+            restoreLocalCursor: true,
+            requireLocalCacheCoverage: true,
+          });
+          if (
+            cloud.status === "ok" &&
+            (cloud.fullRefresh || cloud.records.length > 0)
+          ) {
+            all = mergeDatabaseMetadata([], cloud.records);
+            setDatabases(all);
+            if (cloud.pulled > 0 && options.broadcast !== false) {
+              emitDatabasesUpdated("cloud-pull", cloud.pulled, cloud.records);
+            }
+          }
+        } catch {
+          // If both cloud and local cache are unavailable, keep the in-memory
+          // list instead of blocking navigation.
+        }
       }
 
       return all;

@@ -149,6 +149,7 @@ export interface DatabaseReconcileOptions {
 }
 
 interface SyncCloudDatabaseMetadataOptions {
+  force?: boolean;
   restoreLocalCursor?: boolean;
   fullRefresh?: boolean;
   requireLocalCacheCoverage?: boolean;
@@ -721,12 +722,14 @@ export async function syncCloudDatabaseMetadataDelta(
     };
   }
 
-  if (databaseMetadataDeltaInFlight) return databaseMetadataDeltaInFlight;
-  if (
-    lastDatabaseMetadataDeltaResult &&
-    Date.now() - lastDatabaseMetadataDeltaAt < METADATA_DELTA_THROTTLE_MS
-  ) {
-    return lastDatabaseMetadataDeltaResult;
+  if (!options.force) {
+    if (databaseMetadataDeltaInFlight) return databaseMetadataDeltaInFlight;
+    if (
+      lastDatabaseMetadataDeltaResult &&
+      Date.now() - lastDatabaseMetadataDeltaAt < METADATA_DELTA_THROTTLE_MS
+    ) {
+      return lastDatabaseMetadataDeltaResult;
+    }
   }
 
   const generation = databaseMetadataDeltaGeneration;

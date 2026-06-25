@@ -313,6 +313,7 @@ function run() {
     "PENDING_PUSH_KEYS_KEY",
     "memoryDatabaseRemoteCursor",
     "memoryLastDatabaseSyncAt",
+    "force?: boolean",
     "fullRefresh?: boolean",
     "requireLocalCacheCoverage?: boolean",
     "options.requireLocalCacheCoverage",
@@ -484,22 +485,23 @@ function run() {
     "databaseSnapshotInFlight",
     "setDatabases(all)",
     "Treat local SQLite as a cache",
-    "mergeDatabaseMetadata(all, cloud.records)",
+    "Cloud metadata refresh is best effort",
+    "mergeDatabaseMetadata(all, cloudRecords)",
     "mergeDatabaseMetadata(current, message.records ?? [])",
     "message.records?.length",
-    "cloud.cacheWriteFailed",
-    "Cloud delta refresh is",
     "subscribeDatabasesUpdated",
     "emitDatabasesUpdated",
     "restoreLocalCursor: true",
+    "force: true",
     "const needsCloudCoverageRecovery =",
-    "requireLocalCacheCoverage: needsCloudCoverageRecovery",
+    "requireLocalCacheCoverage: false",
+    "requireLocalCacheCoverage: true",
   ]) {
     assertIncludes(
       files.useDatabases,
       useDatabases,
       snippet,
-      "Database list UI must show local cache first and then prewarm cloud metadata via incremental delta."
+      "Database list UI must use cloud metadata delta first, then treat local SQLite as a rebuildable cache fallback."
     );
   }
   if (
