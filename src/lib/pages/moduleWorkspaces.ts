@@ -90,6 +90,28 @@ export function getModuleRootIdSync(key: ModuleWorkspaceKey): string | null {
   return window.localStorage.getItem(storageKey(key));
 }
 
+export async function findLocalModuleRootId(
+  key: ModuleWorkspaceKey
+): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const def = MODULE_WORKSPACES[key];
+  const stored = window.localStorage.getItem(storageKey(key));
+  const localTitleSet = new Set([def.title, ...(def.legacyTitles ?? [])]);
+  const allPages = await getAllPageMetadata();
+
+  const storedPage = stored
+    ? allPages.find((page) => page.id === stored && !page.deleted_at)
+    : null;
+  if (storedPage) return storedPage.id;
+
+  const adopted = allPages
+    .filter((page) => page.parent_id === null && localTitleSet.has(page.title ?? ""))
+    .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+  if (!adopted) return null;
+  rememberRoot(key, adopted.id);
+  return adopted.id;
+}
+
 // Concurrent callers (e.g. React strict-mode double effects, or two
 // components mounting together) must share one lookup, otherwise both can
 // miss the stored id and each create a duplicate root page.

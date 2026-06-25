@@ -17,6 +17,7 @@ import {
   updatePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
 import {
+  findLocalModuleRootId,
   getModuleRootId,
   getModuleRootIdSync,
   rememberModuleRootId,
@@ -164,10 +165,13 @@ export default function DailyNotesShell() {
       cachedCloud?.status === "ok" && cachedCloud.rootId
         ? cachedCloud.rootId
         : null;
-    const dailyRootId =
-      storedDailyRootId ?? cachedDailyRootId ?? (await getModuleRootId("daily"));
+    const localDailyRootId =
+      storedDailyRootId ??
+      cachedDailyRootId ??
+      (await findLocalModuleRootId("daily"));
+    const dailyRootId = localDailyRootId ?? (await getModuleRootId("daily"));
     publishRootId(dailyRootId);
-    if (storedDailyRootId) {
+    if (localDailyRootId) {
       void getModuleRootId("daily")
         .then(async (confirmedRootId) => {
           if (

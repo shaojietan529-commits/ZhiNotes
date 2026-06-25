@@ -28,6 +28,7 @@ const read = (rel) => {
 const helper = read("src/lib/pages/moduleWorkspaces.ts");
 for (const token of [
   "getModuleRootId",
+  "findLocalModuleRootId",
   "getModuleRootIdsSync",
   "MODULE_ROOT_IDS_EVENT",
   "MODULE_WORKSPACE_LIST",
@@ -134,6 +135,17 @@ for (const token of [
 ]) {
   check(shells.daily.includes(token), `DailyNotesShell 缺少每日纪要性能护栏 ${token}`);
 }
+check(
+  shells.daily.includes('await findLocalModuleRootId("daily")') &&
+    shells.daily.includes(
+      'const dailyRootId = localDailyRootId ?? (await getModuleRootId("daily"))'
+    ) &&
+    shells.daily.indexOf('await findLocalModuleRootId("daily")') <
+      shells.daily.indexOf(
+        'const dailyRootId = localDailyRootId ?? (await getModuleRootId("daily"))'
+      ),
+  "DailyNotesShell 必须先用本地 root 元数据快速显示日历，再后台确认云端 canonical root"
+);
 check(
   shells.daily.includes("void ensureDailyDateIndexBackfilled()"),
   "DailyNotesShell 日期索引重建必须后台运行，不能阻塞首屏"
