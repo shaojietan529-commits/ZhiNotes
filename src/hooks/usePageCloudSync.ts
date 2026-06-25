@@ -17,8 +17,10 @@ import {
   isPageSyncEnabled,
   reconcilePageSync,
   getLastPageSyncAt,
+  getPendingCloudPageSyncStatus,
   PAGE_SYNC_CONFIG_EVENT,
   syncCloudPageMetadataDelta,
+  type PendingCloudPageSyncStatus,
 } from "@/lib/pages/accountPageSync";
 import { getPageUpdateClientId } from "@/lib/pages/pageUpdateBus";
 
@@ -29,6 +31,15 @@ const INITIAL_SYNC_DELAY_MS = 800;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.pagesync.leaderLease.v1";
 const LEASE_TTL_MS = 18 * 1000;
+
+const EMPTY_PAGE_PENDING_STATUS: PendingCloudPageSyncStatus = {
+  enabled: false,
+  pending: 0,
+  queued: 0,
+  oldestPendingQueuedAt: null,
+  pendingSampleIds: [],
+  lastSyncAt: null,
+};
 
 export type PageCloudSyncState =
   | "disabled"
@@ -77,17 +88,26 @@ export function usePageCloudSync() {
   // the first effect run flips it based on the real localStorage flag.
   const [state, setState] = useState<PageCloudSyncState>("disabled");
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<PendingCloudPageSyncStatus>(
+    EMPTY_PAGE_PENDING_STATUS
+  );
   const runningRef = useRef(false);
   const authRetryAfterRef = useRef(0);
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
 
+  const refreshPendingStatus = useCallback(() => {
+    setPendingStatus(getPendingCloudPageSyncStatus());
+  }, []);
+
   const runSync = useCallback(async (options: { quick?: boolean; forceLease?: boolean } = {}) => {
     if (!isPageSyncEnabled()) {
       setState("disabled");
+      refreshPendingStatus();
       return;
     }
     if (!options.forceLease && Date.now() < authRetryAfterRef.current) {
       setState("signed-out");
+      refreshPendingStatus();
       return;
     }
     if (!claimSyncLease(options.forceLease)) {
@@ -96,11 +116,13 @@ export function usePageCloudSync() {
         setState("synced");
         setLastSyncAt(last);
       }
+      refreshPendingStatus();
       return;
     }
     if (runningRef.current) return;
     runningRef.current = true;
     setState("syncing");
+    refreshPendingStatus();
     try {
       const result = await reconcilePageSync({ quick: options.quick });
       if (result.status === "ok") {
@@ -122,8 +144,9 @@ export function usePageCloudSync() {
       }
     } finally {
       runningRef.current = false;
+      refreshPendingStatus();
     }
-  }, []);
+  }, [refreshPendingStatus]);
 
   const recoverLocalCacheFromCloud = useCallback(async () => {
     const signal = getLocalCacheRecoverySignal();
@@ -151,10 +174,12 @@ export function usePageCloudSync() {
     } else {
       setState("error");
     }
-  }, [runSync]);
+    refreshPendingStatus();
+  }, [refreshPendingStatus, runSync]);
 
   useEffect(() => {
     if (!dbReady) return;
+    refreshPendingStatus();
     const initialSyncTimer = window.setTimeout(() => {
       void runSync({ quick: true });
     }, INITIAL_SYNC_DELAY_MS);
@@ -200,7 +225,7 @@ export function usePageCloudSync() {
       window.removeEventListener("online", handleForeground);
       document.removeEventListener("visibilitychange", handleVisible);
     };
-  }, [dbReady, recoverLocalCacheFromCloud, runSync]);
+  }, [dbReady, recoverLocalCacheFromCloud, refreshPendingStatus, runSync]);
 
-  return { state, lastSyncAt, syncNow: runSync };
+  return { state, lastSyncAt, pendingStatus, syncNow: runSync };
 }

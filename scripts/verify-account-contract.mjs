@@ -702,6 +702,7 @@ check(
 );
 
 const pageCloudSyncHook = read("src/hooks/usePageCloudSync.ts");
+const databaseCloudSyncHook = read("src/hooks/useDatabaseCloudSync.ts");
 check(
   (pageCloudSyncHook.match(/runSync\(\{ quick: true \}/g) ?? []).length >= 4,
   "页面云同步 hook 的加载、轮询、前台恢复和编辑后同步应默认走 quick 增量"
@@ -737,6 +738,21 @@ check(
     pageCloudSyncHook.includes('result.status === "unauthenticated"') &&
     pageCloudSyncHook.includes('result.status === "unconfigured"'),
   "页面同步在未登录/未配置时应短期退避，避免多端或本地开发环境持续空转轮询"
+);
+check(
+  pageCloudSyncHook.includes("getPendingCloudPageSyncStatus") &&
+    pageCloudSyncHook.includes("pendingStatus") &&
+    pageCloudSyncHook.includes("refreshPendingStatus") &&
+    pageCloudSyncHook.includes("return { state, lastSyncAt, pendingStatus, syncNow: runSync }"),
+  "页面云同步 hook 应把 pending 队列计数暴露给侧边栏，保证本地未上传输入可见"
+);
+check(
+  databaseCloudSyncHook.includes("getPendingCloudDatabaseSyncStatus") &&
+    databaseCloudSyncHook.includes("pendingStatus") &&
+    databaseCloudSyncHook.includes("syncLogPending") &&
+    databaseCloudSyncHook.includes("refreshPendingStatus") &&
+    databaseCloudSyncHook.includes("return { state, lastSyncAt, pendingStatus, syncNow: runSync }"),
+  "数据库云同步 hook 应把 cloud key 队列和 sync_log pending 计数暴露给侧边栏"
 );
 check(
   pageCloudSyncHook.includes("LOCAL_CACHE_RECOVERY_EVENT") &&
@@ -1017,6 +1033,14 @@ check(
 check(
   sidebar.includes("accountLabel"),
   "Sidebar 应显示登录用户名，而不是固定显示账号"
+);
+check(
+  sidebar.includes("pageSyncPendingTotal") &&
+    sidebar.includes("databaseSyncPendingTotal") &&
+    sidebar.includes("普通同步只补传 pending queue") &&
+    sidebar.includes("pageSync.pendingStatus.pending") &&
+    sidebar.includes("databaseSync.pendingStatus.syncLogPending"),
+  "Sidebar 账号行应显示页面/数据库 pending 同步计数，让本地未上传输入在全局可见"
 );
 
 if (errors.length > 0) {

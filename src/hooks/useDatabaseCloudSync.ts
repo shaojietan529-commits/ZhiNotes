@@ -14,9 +14,11 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   DATABASE_SYNC_CONFIG_EVENT,
   getLastDatabaseSyncAt,
+  getPendingCloudDatabaseSyncStatus,
   isDatabaseSyncEnabled,
   reconcileDatabaseSync,
   syncCloudDatabaseMetadataDelta,
+  type PendingCloudDatabaseSyncStatus,
 } from "@/lib/database/accountDatabaseSync";
 import {
   DATABASE_LOCAL_UPDATE_EVENT,
@@ -31,6 +33,14 @@ const EDIT_DEBOUNCE_MS = 4 * 1000;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.databasesync.leaderLease.v1";
 const LEASE_TTL_MS = 22 * 1000;
+
+const EMPTY_DATABASE_PENDING_STATUS: PendingCloudDatabaseSyncStatus = {
+  enabled: false,
+  pending: 0,
+  queued: 0,
+  syncLogPending: 0,
+  lastSyncAt: null,
+};
 
 export type DatabaseCloudSyncState =
   | "disabled"
@@ -81,18 +91,26 @@ export function useDatabaseCloudSync() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const [state, setState] = useState<DatabaseCloudSyncState>("disabled");
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] =
+    useState<PendingCloudDatabaseSyncStatus>(EMPTY_DATABASE_PENDING_STATUS);
   const runningRef = useRef(false);
   const authRetryAfterRef = useRef(0);
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
+
+  const refreshPendingStatus = useCallback(async () => {
+    setPendingStatus(await getPendingCloudDatabaseSyncStatus());
+  }, []);
 
   const runSync = useCallback(
     async (options: { forceLease?: boolean; quick?: boolean } = {}) => {
       if (!isDatabaseSyncEnabled()) {
         setState("disabled");
+        void refreshPendingStatus();
         return;
       }
       if (!options.forceLease && Date.now() < authRetryAfterRef.current) {
         setState("signed-out");
+        void refreshPendingStatus();
         return;
       }
       if (!claimSyncLease(options.forceLease)) {
@@ -101,11 +119,13 @@ export function useDatabaseCloudSync() {
           setState("synced");
           setLastSyncAt(last);
         }
+        void refreshPendingStatus();
         return;
       }
       if (runningRef.current) return;
       runningRef.current = true;
       setState("syncing");
+      void refreshPendingStatus();
       try {
         const result = await reconcileDatabaseSync({ quick: options.quick });
         if (result.status === "ok") {
@@ -136,9 +156,10 @@ export function useDatabaseCloudSync() {
         }
       } finally {
         runningRef.current = false;
+        void refreshPendingStatus();
       }
     },
-    []
+    [refreshPendingStatus]
   );
 
   const recoverLocalCacheFromCloud = useCallback(async () => {
@@ -169,11 +190,13 @@ export function useDatabaseCloudSync() {
     } else {
       setState("error");
     }
-  }, [runSync]);
+    void refreshPendingStatus();
+  }, [refreshPendingStatus, runSync]);
 
   useEffect(() => {
     if (!dbReady) return;
     let editSyncTimer: number | undefined;
+    void refreshPendingStatus();
     const initialSyncTimer = window.setTimeout(() => {
       void runSync({ quick: true });
     }, INITIAL_SYNC_DELAY_MS);
@@ -230,7 +253,7 @@ export function useDatabaseCloudSync() {
       window.removeEventListener("online", handleForeground);
       document.removeEventListener("visibilitychange", handleVisible);
     };
-  }, [dbReady, recoverLocalCacheFromCloud, runSync]);
+  }, [dbReady, recoverLocalCacheFromCloud, refreshPendingStatus, runSync]);
 
-  return { state, lastSyncAt, syncNow: runSync };
+  return { state, lastSyncAt, pendingStatus, syncNow: runSync };
 }

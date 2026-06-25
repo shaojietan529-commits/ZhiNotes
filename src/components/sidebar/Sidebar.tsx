@@ -210,6 +210,40 @@ export default function Sidebar() {
   const sidebarModules = PLATFORM_MODULES.filter(
     (module) => module.route && module.route !== "/"
   );
+  const pageSyncPendingTotal =
+    pageSync.pendingStatus.pending + pageSync.pendingStatus.queued;
+  const databaseSyncPendingTotal =
+    databaseSync.pendingStatus.pending +
+    databaseSync.pendingStatus.queued +
+    databaseSync.pendingStatus.syncLogPending;
+  const pageSyncTitle =
+    pageSyncPendingTotal > 0
+      ? `页面同步：${pageSyncPendingTotal} 个待上传；普通同步只补传 pending queue`
+      : pageSync.state === "synced"
+        ? `页面已同步${
+            pageSync.lastSyncAt
+              ? ` · ${new Date(pageSync.lastSyncAt).toLocaleTimeString("zh-CN")}`
+              : ""
+          }`
+        : pageSync.state === "syncing"
+          ? "页面同步中…"
+          : pageSync.state === "signed-out"
+            ? "页面同步：未登录"
+            : "页面同步出错";
+  const databaseSyncTitle =
+    databaseSyncPendingTotal > 0
+      ? `数据库同步：${databaseSyncPendingTotal} 条待上传；普通同步只补传 pending queue`
+      : databaseSync.state === "synced"
+        ? `数据库已同步${
+            databaseSync.lastSyncAt
+              ? ` · ${new Date(databaseSync.lastSyncAt).toLocaleTimeString("zh-CN")}`
+              : ""
+          }`
+        : databaseSync.state === "syncing"
+          ? "数据库同步中…"
+          : databaseSync.state === "signed-out"
+            ? "数据库同步：未登录"
+            : "数据库同步出错";
 
   const refreshAccountLabel = useCallback(async () => {
     try {
@@ -705,45 +739,39 @@ export default function Sidebar() {
           className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
         >
           <span className="shrink-0 text-base">👤</span>
-          <span className="truncate">{accountLabel}</span>
+          <span className="min-w-0 flex-1 truncate">{accountLabel}</span>
           {pageSync.state !== "disabled" && (
             <span
-              className="ml-auto shrink-0 text-[10px]"
-              title={
-                pageSync.state === "synced"
-                  ? `页面已同步${pageSync.lastSyncAt ? ` · ${new Date(pageSync.lastSyncAt).toLocaleTimeString("zh-CN")}` : ""}`
-                  : pageSync.state === "syncing"
-                    ? "页面同步中…"
-                    : pageSync.state === "signed-out"
-                      ? "页面同步：未登录"
-                      : "页面同步出错"
-              }
+              className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[10px]"
+              title={pageSyncTitle}
             >
               {pageSync.state === "synced"
                 ? "☁️"
                 : pageSync.state === "syncing"
                   ? "⏳"
                 : "⚠️"}
+              {pageSyncPendingTotal > 0 && (
+                <span className="rounded-full bg-amber-500 px-1 text-[9px] font-semibold leading-4 text-white">
+                  {pageSyncPendingTotal}
+                </span>
+              )}
             </span>
           )}
           {databaseSync.state !== "disabled" && (
             <span
-              className="ml-1 shrink-0 text-[10px]"
-              title={
-                databaseSync.state === "synced"
-                  ? `数据库已同步${databaseSync.lastSyncAt ? ` · ${new Date(databaseSync.lastSyncAt).toLocaleTimeString("zh-CN")}` : ""}`
-                  : databaseSync.state === "syncing"
-                    ? "数据库同步中…"
-                    : databaseSync.state === "signed-out"
-                      ? "数据库同步：未登录"
-                      : "数据库同步出错"
-              }
+              className="ml-1 inline-flex shrink-0 items-center gap-0.5 text-[10px]"
+              title={databaseSyncTitle}
             >
               {databaseSync.state === "synced"
                 ? "🗄️"
                 : databaseSync.state === "syncing"
                   ? "⏳"
                   : "⚠️"}
+              {databaseSyncPendingTotal > 0 && (
+                <span className="rounded-full bg-amber-500 px-1 text-[9px] font-semibold leading-4 text-white">
+                  {databaseSyncPendingTotal}
+                </span>
+              )}
             </span>
           )}
         </Link>
