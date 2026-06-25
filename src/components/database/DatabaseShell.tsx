@@ -342,6 +342,13 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       initialCloudHydrateRef.current !== databaseId
     ) {
       initialCloudHydrateRef.current = databaseId;
+      // Keep the UI local-speed: render the rebuildable cache first, then let
+      // the account cloud ledger refresh it in the background.
+      const localSnapshot = await readLocalDatabaseSafe();
+      const renderedLocalSnapshot = Boolean(localSnapshot[0]);
+      if (renderedLocalSnapshot) {
+        applyDatabaseSnapshot(localSnapshot);
+      }
       const cloud = await syncCloudDatabaseById(databaseId);
       if (cloud.status === "ok" && cloud.records.length > 0) {
         const cloudSnapshot = buildDatabaseSnapshotFromCloudRecords(
@@ -359,6 +366,16 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           );
         } else {
           cloudFallbackSnapshotRef.current = null;
+          setCacheNotice(null);
+        }
+        return;
+      }
+      if (renderedLocalSnapshot) {
+        if (cloud.status === "error") {
+          setCacheNotice(
+            cloud.message ?? "云端数据库暂时不可用，当前显示本机缓存。"
+          );
+        } else {
           setCacheNotice(null);
         }
         return;

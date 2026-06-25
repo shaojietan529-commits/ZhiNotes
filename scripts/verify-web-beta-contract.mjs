@@ -77,6 +77,7 @@ const files = {
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
+  databaseShell: "src/components/database/DatabaseShell.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   apiGuardPanel: "src/components/modules/sync/ApiGuardPanel.tsx",
@@ -324,6 +325,7 @@ function run() {
   const accountPageSync = readProjectFile(files.accountPageSync);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
+  const databaseShell = readProjectFile(files.databaseShell);
   const syncShell = readProjectFile(files.syncShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const apiGuardPanel = readProjectFile(files.apiGuardPanel);
@@ -7294,6 +7296,34 @@ function run() {
     'fetch("/api/pages/account-sync"',
     "Meeting calendar must not bypass the shared account page sync helper."
   );
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.databaseShell,
+      databaseShell,
+      "renderedLocalSnapshot",
+      "Database detail pages must render the local hot cache before waiting for cloud hydration.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "applyDatabaseSnapshot(localSnapshot)",
+      "Database detail pages must show rebuildable local cache immediately when available.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "syncCloudDatabaseById(databaseId)",
+      "Database detail pages must still hydrate from the account cloud ledger.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "云端数据库暂时不可用，当前显示本机缓存。",
+      "Database detail pages must preserve local cache fallback messaging.",
+    ],
+  ]) {
+    assertSourceIncludes(sourceLabel, source, snippet, message);
+  }
 
   const summary = {
     env_requirements: requiredEnvKeys.length,
@@ -7329,6 +7359,7 @@ function run() {
     web_alpha_launch_decision_checks: 39,
     web_beta_owner_review_packet_checks: 40,
     meeting_cloud_metadata_hot_cache_checks: 8,
+    database_local_first_cloud_hydration_checks: 4,
     warnings: warnings.length,
   };
 

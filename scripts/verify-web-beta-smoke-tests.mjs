@@ -18,6 +18,7 @@ const files = {
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
+  databaseShell: "src/components/database/DatabaseShell.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   environmentPreflightRoute:
@@ -175,6 +176,7 @@ function run() {
   const accountPageSync = readProjectFile(files.accountPageSync);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
+  const databaseShell = readProjectFile(files.databaseShell);
   const syncShell = readProjectFile(files.syncShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const environmentPreflightRoute = readProjectFile(
@@ -530,6 +532,24 @@ function run() {
     meetingScheduleShell,
     "pushCloudPages",
     "Meeting calendar cloud-only fallback must push through the shared pending-aware helper."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "renderedLocalSnapshot",
+    "Database detail page must render local hot cache before waiting for cloud hydration."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "applyDatabaseSnapshot(localSnapshot)",
+    "Database detail page must display the rebuildable local cache immediately when available."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "syncCloudDatabaseById(databaseId)",
+    "Database detail page must still hydrate from the account cloud ledger in the background."
   );
   assertIncludes(
     files.syncShell,
