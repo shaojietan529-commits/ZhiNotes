@@ -12,6 +12,7 @@ const files = {
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
+  hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
@@ -195,6 +196,7 @@ function run() {
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
+  const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheSelectionSettings = readProjectFile(
     files.hotCacheSelectionSettings
   );
@@ -595,6 +597,42 @@ function run() {
     "Smoke verifier must keep the recent-content hot cache policy."
   );
   assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    'format: "zhinote-hot-cache-warmup-plan"',
+    "Smoke verifier must keep the hot cache warmup plan."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    "prefetches_routes_only: true",
+    "Hot cache warmup must remain route-prefetch only."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    "mutates_local_cache_records: false",
+    "Hot cache warmup must not mutate local cache records."
+  );
+  for (const forbiddenWarmupSnippet of [
+    "page.content_text",
+    "page.content_yjs",
+    "database.description",
+    "file.dataUrl",
+    "file.textContent",
+    "comment.body",
+    "field_values",
+    "fetch(",
+    "localStorage.setItem",
+    "db.run",
+  ]) {
+    if (hotCacheWarmupPlan.includes(forbiddenWarmupSnippet)) {
+      failures.push(
+        `${files.hotCacheWarmupPlan} must not include ${forbiddenWarmupSnippet}: hot cache warmup must stay metadata-only.`
+      );
+    }
+  }
+  assertIncludes(
     files.syncShell,
     syncShell,
     "本地热缓存策略",
@@ -605,6 +643,30 @@ function run() {
     syncShell,
     "导出热缓存策略",
     "Sync UI must expose the hot cache policy export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildHotCacheWarmupPlan",
+    "Sync UI must build the hot cache warmup plan."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "本机预热计划",
+    "Sync UI must render the hot cache warmup plan panel."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "预热本机入口",
+    "Sync UI must expose route prefetch for hot cache warmup."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出预热计划",
+    "Sync UI must expose the hot cache warmup export."
   );
   assertIncludes(
     files.localSchema,
