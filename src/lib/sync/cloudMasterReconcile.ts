@@ -218,12 +218,15 @@ export function buildCloudMasterReconcileReport(
       id: "module-config",
       title: "模块、侧边栏和用户偏好",
       count: null,
-      status: "migration-needed",
-      cloud_scope: "模块顺序、图标、名称、侧边栏 pin、热缓存选择和用户偏好",
+      status: "cloud-primary-partial",
+      cloud_scope:
+        "已覆盖 workspace_settings 里的侧边栏顺序、图标/名称自定义、收藏、页面视图偏好、搜索、日历、ZhiHui 状态和热缓存选择；后续再扩 account_settings / module_settings",
       local_cache_scope: "UI 配置本机即时生效，后台同步到账号",
       pending_rule: "配置变更走小型 settings pending queue",
-      current_gap: "当前模块/侧边栏偏好仍主要在本地浏览器状态中",
-      next_action: "新增 account_settings / module_settings 云端表和本地热缓存策略 UI",
+      current_gap:
+        "常用设置已通过 workspace_settings 走 pending-only 云端同步；账号级偏好、项目 pin 和更细的模块运行态仍需独立 account_settings / module_settings",
+      next_action:
+        "把剩余账号级偏好和模块运行态逐项迁入 settings pending queue，并在对账页显示每个 setting key 的云端确认状态",
     },
     {
       id: "permissions",
@@ -261,7 +264,8 @@ export function buildCloudMasterReconcileReport(
       id: "rebuildable-cache",
       title: "本地缓存可重建",
       status: "partial",
-      detail: "页面和数据库已有重建入口；文件、评论、版本和配置还需要纳入同一策略。",
+      detail:
+        "页面、数据库和常用 workspace_settings 已有重建入口；文件、评论、版本以及剩余 account/module settings 还需要纳入同一策略。",
     },
   ];
 

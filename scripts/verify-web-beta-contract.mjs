@@ -2892,6 +2892,14 @@ function run() {
       "Cloud master reconcile must cover module and sidebar settings.",
     ],
     [
+      "已覆盖 workspace_settings 里的侧边栏顺序、图标/名称自定义、收藏、页面视图偏好、搜索、日历、ZhiHui 状态和热缓存选择",
+      "Cloud master reconcile must reflect that common module/sidebar preferences are now partially cloud-primary through workspace_settings.",
+    ],
+    [
+      "剩余账号级偏好和模块运行态逐项迁入 settings pending queue",
+      "Cloud master reconcile must keep the next settings migration action explicit.",
+    ],
+    [
       'id: "permissions"',
       "Cloud master reconcile must cover permissions.",
     ],
@@ -2910,6 +2918,10 @@ function run() {
     [
       'id: "rebuildable-cache"',
       "Cloud master reconcile must cover rebuildable cache policy.",
+    ],
+    [
+      "页面、数据库和常用 workspace_settings 已有重建入口",
+      "Cloud master reconcile must treat workspace_settings as part of the rebuildable cloud-master cache path.",
     ],
     [
       'id: "cloud-manifest-compare"',

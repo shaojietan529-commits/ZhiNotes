@@ -556,6 +556,18 @@ function run() {
   assertIncludes(
     files.cloudMasterReconcile,
     cloudMasterReconcile,
+    "已覆盖 workspace_settings 里的侧边栏顺序、图标/名称自定义、收藏、页面视图偏好、搜索、日历、ZhiHui 状态和热缓存选择",
+    "Smoke verifier must show module/sidebar settings are partially cloud-primary through workspace_settings."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "页面、数据库和常用 workspace_settings 已有重建入口",
+    "Smoke verifier must include workspace_settings in the rebuildable local-cache path."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
     "It does not read page body text, comment bodies, file bytes, token values, or upload data.",
     "Smoke verifier must preserve the sensitive-content privacy boundary."
   );
