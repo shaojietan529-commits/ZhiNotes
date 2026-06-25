@@ -1395,6 +1395,18 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "rememberPendingPageDraft(note)",
+    "Daily note full-page opening must keep an in-memory draft for immediate first paint."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "openDailyNoteFullPageById",
+    "Daily note context menu and peek modal must use the local-first full-page opening path."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "data-testid={`daily-add-note-${key}`}",
     "Daily calendar + button must expose a stable test target."
   );

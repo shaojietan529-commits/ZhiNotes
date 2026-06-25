@@ -1433,8 +1433,16 @@ function run() {
       "Daily + creation must hand off the optimistic page before full navigation.",
     ],
     [
-      "rememberPageRouteHandoff(note, \"daily-open\")",
+      "rememberPageRouteHandoff(note, source)",
       "Daily note opening must hand off metadata before opening a page.",
+    ],
+    [
+      "rememberPendingPageDraft(note)",
+      "Daily note opening must keep an in-memory draft for immediate full-page first paint.",
+    ],
+    [
+      "openDailyNoteFullPageById",
+      "Daily note context menu and peek modal must use the local-first full-page opening path.",
     ],
     [
       "data-testid={`daily-add-note-${key}`}",

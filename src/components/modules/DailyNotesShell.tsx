@@ -497,17 +497,57 @@ export default function DailyNotesShell() {
     [creatingDateKey, rootId, router, upsertPages]
   );
 
+  const primeDailyNoteOpen = useCallback(
+    (note: DailyNote, source: "daily-create" | "daily-open" = "daily-open") => {
+      upsertPages([note]);
+      rememberPendingPageDraft(note);
+      rememberPageRouteHandoff(note, source);
+      try {
+        router.prefetch(`/page/${note.id}`);
+      } catch {
+        // Route prefetch is best-effort. The pending draft and handoff carry
+        // the metadata needed for immediate first paint.
+      }
+    },
+    [router, upsertPages]
+  );
+
+  const openDailyNoteFullPage = useCallback(
+    (note: DailyNote, source: "daily-create" | "daily-open" = "daily-open") => {
+      primeDailyNoteOpen(note, source);
+      router.push(`/page/${note.id}`);
+    },
+    [primeDailyNoteOpen, router]
+  );
+
+  const openDailyNoteFullPageById = useCallback(
+    (pageId: string) => {
+      const storePage =
+        useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
+        null;
+      const note =
+        notes.find((item) => item.id === pageId) ??
+        (peekInitialPage?.id === pageId ? peekInitialPage : null) ??
+        (storePage
+          ? {
+              ...storePage,
+              dailyDateKey: readDailyNoteDateKey(storePage),
+            }
+          : null);
+      if (note) {
+        openDailyNoteFullPage(note, "daily-open");
+        return;
+      }
+      router.push(`/page/${pageId}`);
+    },
+    [notes, openDailyNoteFullPage, peekInitialPage, router]
+  );
+
   const openNotePage = useCallback((note: DailyNote) => {
-    upsertPages([note]);
-    rememberPageRouteHandoff(note, "daily-open");
+    primeDailyNoteOpen(note, "daily-open");
     setPeekPageId(note.id);
     setPeekInitialPage(note);
-    try {
-      router.prefetch(`/page/${note.id}`);
-    } catch {
-      // Full-page prefetch is best-effort; the peek modal already has metadata.
-    }
-  }, [router, upsertPages]);
+  }, [primeDailyNoteOpen]);
 
   const toggleDateExpansion = useCallback((dateKey: string) => {
     setExpandedDateKeys((current) => {
@@ -890,9 +930,9 @@ export default function DailyNotesShell() {
           onClose={() => setContextMenu(null)}
           onOpen={(id) => {
             setContextMenu(null);
-            router.push(`/page/${id}`);
+            openDailyNoteFullPageById(id);
           }}
-          onOpenFull={(id) => router.push(`/page/${id}`)}
+          onOpenFull={openDailyNoteFullPageById}
           onChanged={() => void load({ includeCloud: false })}
         />
       )}
@@ -907,7 +947,7 @@ export default function DailyNotesShell() {
           onOpenFull={(id) => {
             setPeekPageId(null);
             setPeekInitialPage(null);
-            router.push(`/page/${id}`);
+            openDailyNoteFullPageById(id);
           }}
           onChanged={() => void load({ includeCloud: false })}
         />
