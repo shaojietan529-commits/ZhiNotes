@@ -12,6 +12,9 @@ const files = {
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
+  hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
+  localSchema: "src/lib/db/local/schema.ts",
+  localQueries: "src/lib/db/local/queries.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   environmentPreflightRoute:
     "src/app/api/web-beta/environment-preflight/route.ts",
@@ -152,6 +155,11 @@ function run() {
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
+  const hotCacheSelectionSettings = readProjectFile(
+    files.hotCacheSelectionSettings
+  );
+  const localSchema = readProjectFile(files.localSchema);
+  const localQueries = readProjectFile(files.localQueries);
   const syncShell = readProjectFile(files.syncShell);
   const environmentPreflightRoute = readProjectFile(
     files.environmentPreflightRoute
@@ -352,6 +360,54 @@ function run() {
     "Sync UI must expose the hot cache policy export."
   );
   assertIncludes(
+    files.localSchema,
+    localSchema,
+    "CREATE TABLE IF NOT EXISTS workspace_settings",
+    "Smoke verifier must keep the local workspace settings table."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "upsertWorkspaceSetting",
+    "Smoke verifier must keep workspace setting saves available."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    '"workspace_settings"',
+    "Smoke verifier must keep workspace setting changes in sync_log scope."
+  );
+  assertIncludes(
+    files.hotCacheSelectionSettings,
+    hotCacheSelectionSettings,
+    'format: "zhinote-hot-cache-selection-contract"',
+    "Smoke verifier must keep the hot cache selection contract."
+  );
+  assertIncludes(
+    files.hotCacheSelectionSettings,
+    hotCacheSelectionSettings,
+    "workspaces.settings.hot_cache_preferences",
+    "Smoke verifier must keep cloud workspace settings as the target."
+  );
+  assertIncludes(
+    files.hotCacheSelectionSettings,
+    hotCacheSelectionSettings,
+    "ordinary_sync_pending_only: true",
+    "Smoke verifier must keep hot cache selection pending-only."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "常驻本地缓存选择",
+    "Sync UI must render the hot cache selection panel."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出选择合同",
+    "Sync UI must expose the hot cache selection export."
+  );
+  assertIncludes(
     files.syncShell,
     syncShell,
     "云端 manifest 对账 API 防护",
@@ -384,6 +440,7 @@ function run() {
     cloud_master_reconcile_checks: 7,
     local_metadata_manifest_checks: 7,
     hot_cache_policy_checks: 6,
+    hot_cache_selection_checks: 8,
   };
 
   if (failures.length > 0) {

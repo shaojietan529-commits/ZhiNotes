@@ -18,9 +18,12 @@ import {
   getPageModuleCounts,
   getPendingSyncLogEntries,
   getSyncLogSummary,
+  getWorkspaceSetting,
+  upsertWorkspaceSetting,
   type PageModuleCounts,
   type SyncLogEntry,
   type SyncLogSummary,
+  type WorkspaceSettingRecord,
 } from "@/lib/db/local/queries";
 import { isDatabaseSyncEnabled } from "@/lib/database/accountDatabaseSync";
 import { isPageSyncEnabled } from "@/lib/pages/accountPageSync";
@@ -228,6 +231,15 @@ import {
   type HotCachePolicyPlan,
   type HotCachePolicyStatus,
 } from "@/lib/sync/hotCachePolicyPlan";
+import {
+  DEFAULT_HOT_CACHE_PREFERENCES,
+  HOT_CACHE_PREFERENCES_SETTING_KEY,
+  buildHotCacheSelectionContract,
+  normalizeHotCachePreferences,
+  parseHotCachePreferences,
+  type HotCachePreferences,
+  type HotCacheSelectionContract,
+} from "@/lib/sync/hotCacheSelectionSettings";
 import {
   buildSyncConflictReviewReport,
   type SyncConflictReviewReport,
@@ -516,6 +528,13 @@ function SyncDashboard() {
   >({});
   const [syncSummary, setSyncSummary] = useState<SyncLogSummary | null>(null);
   const [syncEntries, setSyncEntries] = useState<SyncLogEntry[]>([]);
+  const [hotCacheSetting, setHotCacheSetting] =
+    useState<WorkspaceSettingRecord | null>(null);
+  const [hotCachePreferences, setHotCachePreferences] =
+    useState<HotCachePreferences>(DEFAULT_HOT_CACHE_PREFERENCES);
+  const [hotCacheSaveMessage, setHotCacheSaveMessage] = useState<string | null>(
+    null
+  );
   const [busyAction, setBusyAction] = useState<ExportAction | null>(null);
   const [busyQueueAction, setBusyQueueAction] = useState<SyncQueueAction | null>(
     null
@@ -579,6 +598,7 @@ function SyncDashboard() {
           loadedPageModuleCounts,
           loadedSync,
           loadedSyncEntries,
+          loadedHotCacheSetting,
           loadedEnvironmentPreflight,
         ] = await Promise.all([
             getAllDatabases(),
@@ -587,6 +607,7 @@ function SyncDashboard() {
             getPageModuleCounts(),
             getSyncLogSummary(),
             getPendingSyncLogEntries(25),
+            getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY),
             fetch("/api/web-beta/environment-preflight")
               .then((response) => {
                 if (!response.ok) {
@@ -610,6 +631,8 @@ function SyncDashboard() {
         setPageModuleCounts(loadedPageModuleCounts);
         setSyncSummary(loadedSync);
         setSyncEntries(loadedSyncEntries);
+        setHotCacheSetting(loadedHotCacheSetting);
+        setHotCachePreferences(parseHotCachePreferences(loadedHotCacheSetting));
         setEnvironmentPreflight(loadedEnvironmentPreflight);
         setEnvironmentPreflightError(
           loadedEnvironmentPreflight
@@ -736,6 +759,14 @@ function SyncDashboard() {
         syncSummary,
       }),
     [databases, deletedPages, pageModuleCounts, pages, storedFiles, syncSummary]
+  );
+  const hotCacheSelectionContract = useMemo(
+    () =>
+      buildHotCacheSelectionContract({
+        plan: hotCachePolicyPlan,
+        setting: hotCacheSetting,
+      }),
+    [hotCachePolicyPlan, hotCacheSetting]
   );
   const syncPayloadPreview = useMemo(
     () =>
@@ -1983,6 +2014,43 @@ function SyncDashboard() {
     });
   };
 
+  const handleExportHotCacheSelectionContract = () => {
+    downloadJsonFile(
+      `zhinote-hot-cache-selection-contract-${fileSafeTimestamp()}.json`,
+      {
+        ...hotCacheSelectionContract,
+        exported_at: new Date().toISOString(),
+      }
+    );
+  };
+
+  const handleHotCachePreferencesChange = async (
+    nextPreferences: HotCachePreferences
+  ) => {
+    const normalized = normalizeHotCachePreferences(nextPreferences);
+    setHotCachePreferences(normalized);
+    setHotCacheSaveMessage("正在保存到本地设置队列...");
+    try {
+      const saved = await upsertWorkspaceSetting(
+        HOT_CACHE_PREFERENCES_SETTING_KEY,
+        normalized,
+        "local-hot-cache-ui"
+      );
+      const [nextSyncSummary, nextSyncEntries] = await Promise.all([
+        getSyncLogSummary(),
+        getPendingSyncLogEntries(25),
+      ]);
+      setHotCacheSetting(saved);
+      setSyncSummary(nextSyncSummary);
+      setSyncEntries(nextSyncEntries);
+      setHotCacheSaveMessage("已保存到本地，并加入待上传队列。");
+    } catch (err) {
+      console.error("[Zhinote] Failed to save hot cache preferences:", err);
+      setHotCachePreferences(parseHotCachePreferences(hotCacheSetting));
+      setHotCacheSaveMessage("保存失败，已恢复为上一次设置。");
+    }
+  };
+
   const handleExportSyncQueueSnapshot = async () => {
     setBusyQueueAction("queue");
     try {
@@ -3215,6 +3283,14 @@ function SyncDashboard() {
         <HotCachePolicyPlanPanel
           plan={hotCachePolicyPlan}
           onExport={handleExportHotCachePolicyPlan}
+        />
+
+        <HotCacheSelectionPanel
+          contract={hotCacheSelectionContract}
+          preferences={hotCachePreferences}
+          saveMessage={hotCacheSaveMessage}
+          onChange={handleHotCachePreferencesChange}
+          onExport={handleExportHotCacheSelectionContract}
         />
 
         <WebLaunchDecisionSummaryPanel
@@ -12838,6 +12914,196 @@ function BetaStatusPill({ status }: { status: WebBetaReadinessStatus }) {
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[status]}
     </span>
+  );
+}
+
+function HotCacheSelectionPanel({
+  contract,
+  preferences,
+  saveMessage,
+  onChange,
+  onExport,
+}: {
+  contract: HotCacheSelectionContract;
+  preferences: HotCachePreferences;
+  saveMessage: string | null;
+  onChange: (preferences: HotCachePreferences) => void;
+  onExport: () => void;
+}) {
+  const updatePreference = (patch: Partial<HotCachePreferences>) => {
+    void onChange({ ...preferences, ...patch });
+  };
+  const handleRecentDaysChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    updatePreference({
+      recentDays: event.target.value === "90" ? 90 : 30,
+    });
+  };
+
+  return (
+    <section
+      id="hot-cache-selection"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Hot Cache Selection
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            常驻本地缓存选择
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这里保存的是缓存偏好，不是内容本身。保存后会写入本地
+            workspace_settings，并新增一条 pending sync_log；未来后台只上传这条
+            setting 变更，不会全量上传本地缓存。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          导出选择合同
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <ContractPanel title="用户选择">
+          <div className="space-y-3">
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+              最近内容范围
+              <select
+                value={String(preferences.recentDays)}
+                onChange={handleRecentDaysChange}
+                className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              >
+                <option value="30">最近 30 天</option>
+                <option value="90">最近 90 天</option>
+              </select>
+            </label>
+            <div className="grid gap-2">
+              <HotCachePreferenceCheckbox
+                label="当前月份每日纪要"
+                checked={preferences.keepCurrentMonthDailyNotes}
+                onChange={(checked) =>
+                  updatePreference({ keepCurrentMonthDailyNotes: checked })
+                }
+              />
+              <HotCachePreferenceCheckbox
+                label="打开过的数据库视图"
+                checked={preferences.keepActiveDatabases}
+                onChange={(checked) =>
+                  updatePreference({ keepActiveDatabases: checked })
+                }
+              />
+              <HotCachePreferenceCheckbox
+                label="最近文件预览 metadata"
+                checked={preferences.keepRecentFilePreviews}
+                onChange={(checked) =>
+                  updatePreference({ keepRecentFilePreviews: checked })
+                }
+              />
+              <HotCachePreferenceCheckbox
+                label="收藏页面和重点公司"
+                checked={preferences.keepFavoritePages}
+                onChange={(checked) =>
+                  updatePreference({ keepFavoritePages: checked })
+                }
+              />
+              <HotCachePreferenceCheckbox
+                label="当前项目"
+                checked={preferences.keepCurrentProjects}
+                onChange={(checked) =>
+                  updatePreference({ keepCurrentProjects: checked })
+                }
+              />
+            </div>
+            {saveMessage ? (
+              <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                {saveMessage}
+              </p>
+            ) : null}
+          </div>
+        </ContractPanel>
+
+        <ContractPanel title="同步合同">
+          <div className="grid gap-2 md:grid-cols-2">
+            <HotCacheContractFact
+              label="云端目标"
+              value={contract.cloud_target}
+            />
+            <HotCacheContractFact
+              label="本地目标"
+              value={contract.local_target}
+            />
+            <HotCacheContractFact
+              label="队列表"
+              value={contract.pending_queue_table}
+            />
+            <HotCacheContractFact
+              label="Setting key"
+              value={contract.setting_key}
+            />
+            <HotCacheContractFact
+              label="已启用"
+              value={`${contract.summary.enabled_preferences} 项`}
+            />
+            <HotCacheContractFact
+              label="Pending"
+              value={`${contract.summary.pending_rows} 行`}
+            />
+          </div>
+          <div className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+            普通同步规则：只上传 `{contract.sync_rule.table_name}` 中
+            row_id 为 `{contract.sync_rule.row_id}` 的 pending setting 变更。
+          </div>
+          <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+            禁止 payload：{contract.forbidden_payload_fields.join(", ")}
+          </p>
+        </ContractPanel>
+      </div>
+    </section>
+  );
+}
+
+function HotCachePreferenceCheckbox({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+      <span>{label}</span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-4 w-4 accent-blue-500"
+      />
+    </label>
+  );
+}
+
+function HotCacheContractFact({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+      <div className="text-[10px] uppercase tracking-wide text-zinc-400">
+        {label}
+      </div>
+      <div className="mt-1 break-all font-mono text-[11px] font-semibold text-zinc-800 dark:text-zinc-100">
+        {value}
+      </div>
+    </div>
   );
 }
 

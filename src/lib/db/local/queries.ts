@@ -25,6 +25,16 @@ export interface SyncLogEntry {
   synced: number;
 }
 
+export interface WorkspaceSettingRecord {
+  key: string;
+  valueJson: string;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  syncVersion: number;
+}
+
 export interface LocalPageSyncSummary {
   count: number;
   deleted: number;
@@ -159,6 +169,103 @@ function recordSyncChange(
      VALUES (?, ?, ?, ?, ?, 0)`,
     [tableName, rowId, operation, JSON.stringify(changedCols), timestamp]
   );
+}
+
+// ─── Workspace Settings ─────────────────────────────────────
+
+function toWorkspaceSettingRecord(
+  row: Record<string, unknown>
+): WorkspaceSettingRecord {
+  return {
+    key: String(row.key ?? ""),
+    valueJson: String(row.value_json ?? "{}"),
+    source: String(row.source ?? "local"),
+    createdAt: String(row.created_at ?? ""),
+    updatedAt: String(row.updated_at ?? ""),
+    deletedAt: row.deleted_at ? String(row.deleted_at) : null,
+    syncVersion: Number(row.sync_version ?? 0),
+  };
+}
+
+export async function listWorkspaceSettings(): Promise<WorkspaceSettingRecord[]> {
+  const db = await getDb();
+  return db
+    .query(
+      `SELECT key, value_json, source, created_at, updated_at, deleted_at, sync_version
+       FROM workspace_settings
+       WHERE deleted_at IS NULL
+       ORDER BY updated_at DESC`
+    )
+    .map(toWorkspaceSettingRecord);
+}
+
+export async function getWorkspaceSetting(
+  key: string
+): Promise<WorkspaceSettingRecord | null> {
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT key, value_json, source, created_at, updated_at, deleted_at, sync_version
+     FROM workspace_settings
+     WHERE key = ? AND deleted_at IS NULL`,
+    [key]
+  );
+  return rows[0] ? toWorkspaceSettingRecord(rows[0]) : null;
+}
+
+export async function upsertWorkspaceSetting(
+  key: string,
+  value: unknown,
+  source = "local"
+): Promise<WorkspaceSettingRecord> {
+  const db = await getDb();
+  const now = nowISO();
+  const valueJson = JSON.stringify(value ?? {});
+  const existing = db.query(
+    "SELECT key FROM workspace_settings WHERE key = ?",
+    [key]
+  );
+
+  if (existing.length > 0) {
+    db.run(
+      `UPDATE workspace_settings
+       SET value_json = ?,
+           source = ?,
+           updated_at = ?,
+           deleted_at = NULL,
+           sync_version = sync_version + 1
+       WHERE key = ?`,
+      [valueJson, source, now, key]
+    );
+    recordSyncChange(
+      db,
+      "workspace_settings",
+      key,
+      "update",
+      ["value_json", "source", "updated_at"],
+      now
+    );
+  } else {
+    db.run(
+      `INSERT INTO workspace_settings
+       (key, value_json, source, created_at, updated_at, sync_version)
+       VALUES (?, ?, ?, ?, ?, 1)`,
+      [key, valueJson, source, now, now]
+    );
+    recordSyncChange(
+      db,
+      "workspace_settings",
+      key,
+      "insert",
+      ["key", "value_json", "source", "created_at", "updated_at"],
+      now
+    );
+  }
+
+  const saved = await getWorkspaceSetting(key);
+  if (!saved) {
+    throw new Error(`Workspace setting ${key} was not saved.`);
+  }
+  return saved;
 }
 
 // ─── Pages ───────────────────────────────────────────────────

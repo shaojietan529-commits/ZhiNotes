@@ -149,6 +149,16 @@ export const CREATE_TABLES_SQL = `
 
   CREATE INDEX IF NOT EXISTS idx_block_comments_page ON block_comments(page_id, resolved, created_at);
 
+  CREATE TABLE IF NOT EXISTS workspace_settings (
+    key           TEXT PRIMARY KEY,
+    value_json    TEXT NOT NULL DEFAULT '{}',
+    source        TEXT NOT NULL DEFAULT 'local',
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    deleted_at    TEXT,
+    sync_version  INTEGER NOT NULL DEFAULT 0
+  );
+
   CREATE TABLE IF NOT EXISTS sync_log (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     table_name    TEXT NOT NULL,
@@ -160,4 +170,5 @@ export const CREATE_TABLES_SQL = `
   );
 
   CREATE INDEX IF NOT EXISTS idx_synclog_pending ON sync_log(synced, timestamp);
+  CREATE INDEX IF NOT EXISTS idx_workspace_settings_updated ON workspace_settings(updated_at DESC);
 `;

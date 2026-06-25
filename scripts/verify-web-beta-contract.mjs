@@ -71,6 +71,9 @@ const files = {
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
+  hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
+  localSchema: "src/lib/db/local/schema.ts",
+  localQueries: "src/lib/db/local/queries.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   apiGuardPanel: "src/components/modules/sync/ApiGuardPanel.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
@@ -309,6 +312,11 @@ function run() {
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
+  const hotCacheSelectionSettings = readProjectFile(
+    files.hotCacheSelectionSettings
+  );
+  const localSchema = readProjectFile(files.localSchema);
+  const localQueries = readProjectFile(files.localQueries);
   const syncShell = readProjectFile(files.syncShell);
   const apiGuardPanel = readProjectFile(files.apiGuardPanel);
   const migration = readProjectFile(files.migration);
@@ -372,6 +380,9 @@ function run() {
     [files.cloudMasterReconcile, cloudMasterReconcile],
     [files.localMetadataManifest, localMetadataManifest],
     [files.hotCachePolicyPlan, hotCachePolicyPlan],
+    [files.hotCacheSelectionSettings, hotCacheSelectionSettings],
+    [files.localSchema, localSchema],
+    [files.localQueries, localQueries],
     [files.syncShell, syncShell],
     [files.apiGuardPanel, apiGuardPanel],
   ]) {
@@ -691,6 +702,181 @@ function run() {
     [
       "导出热缓存策略",
       "Sync UI must render the hot cache policy export button.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      "CREATE TABLE IF NOT EXISTS workspace_settings",
+      "Local schema must include a rebuildable settings cache table.",
+    ],
+    [
+      "value_json",
+      "Local workspace settings must store JSON preference payloads.",
+    ],
+    [
+      "idx_workspace_settings_updated",
+      "Local workspace settings must have an updated_at index.",
+    ],
+  ]) {
+    assertSourceIncludes(files.localSchema, localSchema, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "WorkspaceSettingRecord",
+      "Local queries must expose workspace setting records.",
+    ],
+    [
+      "getWorkspaceSetting",
+      "Local queries must read one workspace setting.",
+    ],
+    [
+      "upsertWorkspaceSetting",
+      "Local queries must save one workspace setting.",
+    ],
+    [
+      '"workspace_settings"',
+      "Workspace setting changes must target the workspace_settings table.",
+    ],
+    [
+      "recordSyncChange(",
+      "Workspace setting saves must enter sync_log.",
+    ],
+    [
+      '["value_json", "source", "updated_at"]',
+      "Workspace setting updates must queue only setting metadata columns.",
+    ],
+  ]) {
+    assertSourceIncludes(files.localQueries, localQueries, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-hot-cache-selection-contract"',
+      "Hot cache selection contract must expose a stable export format.",
+    ],
+    [
+      'contract_status: "local-settings-pending-contract"',
+      "Hot cache selection must be a local settings pending contract.",
+    ],
+    [
+      "HOT_CACHE_PREFERENCES_SETTING_KEY",
+      "Hot cache selection must use a stable setting key.",
+    ],
+    [
+      "workspaces.settings.hot_cache_preferences",
+      "Hot cache selection must target cloud workspace settings.",
+    ],
+    [
+      "workspace_settings.value_json",
+      "Hot cache selection must target local workspace settings.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Hot cache selection must use pending-only sync.",
+    ],
+    [
+      "saves_user_setting_locally: true",
+      "Hot cache selection must save preferences locally first.",
+    ],
+    [
+      "queues_pending_setting_change: true",
+      "Hot cache selection must queue settings for upload.",
+    ],
+    [
+      "mutates_cache_records: false",
+      "Hot cache selection contract must not evict cache records.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Hot cache selection contract must not upload workspace data.",
+    ],
+    [
+      "keepCurrentMonthDailyNotes",
+      "Hot cache selection must include daily note preference.",
+    ],
+    [
+      "keepActiveDatabases",
+      "Hot cache selection must include database preference.",
+    ],
+    [
+      "keepFavoritePages",
+      "Hot cache selection must include favorite pages preference.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.hotCacheSelectionSettings,
+      hotCacheSelectionSettings,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Hot cache selection contract must not access page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Hot cache selection contract must not access page Yjs content.",
+    ],
+    [
+      "database.description",
+      "Hot cache selection contract must not access database descriptions.",
+    ],
+    [
+      "file.dataUrl",
+      "Hot cache selection contract must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Hot cache selection contract must not access extracted file text.",
+    ],
+    [
+      "comment.body",
+      "Hot cache selection contract must not access comment bodies.",
+    ],
+    [
+      "field_values",
+      "Hot cache selection contract must not access database row values.",
+    ],
+    [
+      "fetch(",
+      "Hot cache selection contract must not call network APIs.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.hotCacheSelectionSettings,
+      hotCacheSelectionSettings,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildHotCacheSelectionContract",
+      "Sync UI must build the hot cache selection contract.",
+    ],
+    [
+      "HotCacheSelectionPanel",
+      "Sync UI must render the hot cache selection panel.",
+    ],
+    [
+      "常驻本地缓存选择",
+      "Sync UI must expose hot cache selection controls.",
+    ],
+    [
+      "handleHotCachePreferencesChange",
+      "Sync UI must save hot cache preferences.",
+    ],
+    [
+      "upsertWorkspaceSetting",
+      "Sync UI must save preferences through workspace settings.",
+    ],
+    [
+      "导出选择合同",
+      "Sync UI must export the hot cache selection contract.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
