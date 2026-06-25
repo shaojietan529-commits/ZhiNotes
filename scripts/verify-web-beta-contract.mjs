@@ -1066,6 +1066,26 @@ function run() {
       "不会把本地数据库缓存全量上传",
       "Sync UI must explain database ordinary sync is pending-only.",
     ],
+    [
+      "buildPendingDomainRows",
+      "Sync UI must aggregate pending sync rows by full cloud-master data domain.",
+    ],
+    [
+      "全域 pending 变更分布",
+      "Sync UI must render a full-domain pending distribution panel.",
+    ],
+    [
+      "只读取 sync_log 的表名、计数和时间戳",
+      "Full-domain pending distribution must stay metadata-only.",
+    ],
+    [
+      "不读取页面正文、评论正文、数据库值、文件",
+      "Full-domain pending distribution must preserve sensitive content boundaries.",
+    ],
+    [
+      "普通同步仍只上传这些 pending 行指向的明确变更",
+      "Full-domain pending distribution must preserve pending-only ordinary sync.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }

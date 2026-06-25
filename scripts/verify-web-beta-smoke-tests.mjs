@@ -558,6 +558,24 @@ function run() {
     "Sync UI must preserve the privacy boundary for the database pending queue."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    "全域 pending 变更分布",
+    "Sync UI must show a full-domain pending distribution panel."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "只读取 sync_log 的表名、计数和时间戳",
+    "Sync UI full-domain pending distribution must stay metadata-only."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "普通同步仍只上传这些 pending 行指向的明确变更",
+    "Sync UI full-domain pending distribution must preserve pending-only sync."
+  );
+  assertIncludes(
     files.accountPageSync,
     accountPageSync,
     "fetchMeetingCloudMetadata",

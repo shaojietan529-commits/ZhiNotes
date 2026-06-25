@@ -368,6 +368,32 @@ type SyncQueueAction =
   | "restore-apply-api-guard"
   | "restore-confirmation"
   | "replay-test-plan";
+type PendingDomainId =
+  | "pages"
+  | "databases"
+  | "comments"
+  | "versions"
+  | "files"
+  | "settings"
+  | "permissions"
+  | "audit"
+  | "other";
+type PendingDomainRow = {
+  id: PendingDomainId;
+  label: string;
+  detail: string;
+  pending: number;
+  total: number;
+  lastChangeAt: string | null;
+  tableNames: string[];
+};
+type PendingDomainDefinition = {
+  id: Exclude<PendingDomainId, "other">;
+  label: string;
+  detail: string;
+  tableNames: string[];
+  tablePrefixes?: string[];
+};
 type PermissionPolicyAction = "policy";
 type CloudAlphaAction =
   | "login"
@@ -429,6 +455,85 @@ interface CloudAlphaWorkspace {
   created_at?: string;
   updated_at?: string;
 }
+
+const PENDING_DOMAIN_DEFINITIONS: PendingDomainDefinition[] = [
+  {
+    id: "pages",
+    label: "页面 / 每日纪要 / 会议页",
+    detail: "页面树、每日纪要、会议页和页面关系的待上传变更。",
+    tableNames: ["pages", "deleted_pages", "wiki_links", "page_links"],
+    tablePrefixes: ["page_relation", "daily_", "meeting_page"],
+  },
+  {
+    id: "databases",
+    label: "数据库",
+    detail: "数据库、字段、行、视图和关系字段的待上传变更。",
+    tableNames: [
+      "databases",
+      "database_fields",
+      "database_rows",
+      "database_views",
+      "database_relations",
+    ],
+    tablePrefixes: ["database_"],
+  },
+  {
+    id: "comments",
+    label: "评论",
+    detail: "Page comment、block comment 和批注元数据的待上传变更。",
+    tableNames: ["page_comments", "block_comments", "comments"],
+    tablePrefixes: ["comment_"],
+  },
+  {
+    id: "versions",
+    label: "版本历史",
+    detail: "页面版本、历史快照和回滚元数据的待上传变更。",
+    tableNames: ["page_versions", "versions"],
+    tablePrefixes: ["version_"],
+  },
+  {
+    id: "files",
+    label: "文件 / 报告",
+    detail: "文件索引、报告附件和私有对象存储元数据的待上传变更。",
+    tableNames: ["files", "uploaded_files", "page_files", "stored_files"],
+    tablePrefixes: ["file_", "files_", "report_file"],
+  },
+  {
+    id: "settings",
+    label: "模块 / 侧边栏 / 偏好",
+    detail: "模块顺序、侧边栏配置、热缓存选择和用户偏好的待上传变更。",
+    tableNames: [
+      "workspace_settings",
+      "module_settings",
+      "sidebar_settings",
+      "sidebar_items",
+      "user_preferences",
+      "module_roots",
+    ],
+    tablePrefixes: ["setting_", "settings_", "module_", "sidebar_"],
+  },
+  {
+    id: "permissions",
+    label: "权限 / 共享",
+    detail: "成员、角色、分享白名单和权限配置的待上传变更。",
+    tableNames: [
+      "permissions",
+      "permission_roles",
+      "shares",
+      "workspace_members",
+      "users",
+      "accounts",
+    ],
+    tablePrefixes: ["permission_", "share_", "member_"],
+  },
+  {
+    id: "audit",
+    label: "审计 / 对账",
+    detail: "同步审计、迁移对账和高风险动作收据的待上传变更。",
+    tableNames: ["audit_events", "sync_audit", "migration_receipts"],
+    tablePrefixes: ["audit_", "receipt_", "migration_"],
+  },
+];
 
 const READINESS_ITEMS: Array<{
   title: string;
@@ -814,6 +919,10 @@ function SyncDashboard() {
         entries: syncEntries,
       }),
     [syncEntries, syncSummary, workspaceIdentity]
+  );
+  const pendingDomainRows = useMemo(
+    () => buildPendingDomainRows(syncSummary),
+    [syncSummary]
   );
   const syncConflictReview = useMemo(
     () =>
@@ -7823,6 +7932,68 @@ function SyncDashboard() {
                 </p>
               )}
             </div>
+            <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+              <div>
+                <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+                  全域 pending 变更分布
+                </h3>
+                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  只读取 sync_log 的表名、计数和时间戳；不读取页面正文、评论正文、数据库值、文件
+                  bytes 或版本快照。
+                </p>
+              </div>
+              <div className="mt-3 grid gap-2">
+                {pendingDomainRows.map((row) => (
+                  <div
+                    key={row.id}
+                    className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              row.pending > 0
+                                ? "bg-amber-500"
+                                : "bg-emerald-500"
+                            }`}
+                            aria-hidden="true"
+                          />
+                          <span className="font-medium text-zinc-800 dark:text-zinc-100">
+                            {row.label}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                          {row.detail}
+                        </p>
+                        <p className="mt-1 truncate text-[11px] text-zinc-400">
+                          {row.tableNames.length > 0
+                            ? `本地表：${row.tableNames.join(", ")}`
+                            : "本地表：暂无变更"}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                          {row.pending}
+                        </div>
+                        <div className="text-[11px] text-zinc-400">
+                          pending / {row.total} total
+                        </div>
+                        <div className="mt-1 text-[11px] text-zinc-400">
+                          {row.lastChangeAt
+                            ? formatDate(row.lastChangeAt)
+                            : "暂无记录"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                普通同步仍只上传这些 pending 行指向的明确变更，不会全量上传本地缓存；
+                后续全域上云迁移会用这张分布表做缺口对账。
+              </p>
+            </div>
             {syncSummary && syncSummary.tables.length > 0 ? (
               <div className="mt-4 space-y-4">
                 <div className="space-y-2">
@@ -14503,6 +14674,82 @@ function SyncEntryRow({ entry }: { entry: SyncLogEntry }) {
       </div>
     </div>
   );
+}
+
+function buildPendingDomainRows(
+  syncSummary: SyncLogSummary | null
+): PendingDomainRow[] {
+  const tableRows = syncSummary?.tables ?? [];
+  const matchedTables = new Set<string>();
+
+  const rows: PendingDomainRow[] = PENDING_DOMAIN_DEFINITIONS.map(
+    (definition) => {
+      const matchingTables = tableRows.filter((table) =>
+        isPendingDomainTable(table.tableName, definition)
+      );
+      matchingTables.forEach((table) => matchedTables.add(table.tableName));
+
+      return {
+        id: definition.id,
+        label: definition.label,
+        detail: definition.detail,
+        pending: sumPendingTables(matchingTables, "pending"),
+        total: sumPendingTables(matchingTables, "total"),
+        lastChangeAt: latestPendingDomainChange(matchingTables),
+        tableNames: matchingTables.map((table) => table.tableName),
+      };
+    }
+  );
+
+  const unmatchedTables = tableRows.filter(
+    (table) => !matchedTables.has(table.tableName)
+  );
+  if (unmatchedTables.length > 0) {
+    rows.push({
+      id: "other",
+      label: "其他本地表",
+      detail: "尚未归入固定数据域的 pending 变更，用来发现新的上云范围。",
+      pending: sumPendingTables(unmatchedTables, "pending"),
+      total: sumPendingTables(unmatchedTables, "total"),
+      lastChangeAt: latestPendingDomainChange(unmatchedTables),
+      tableNames: unmatchedTables.map((table) => table.tableName),
+    });
+  }
+
+  return rows.sort((a, b) => {
+    if (b.pending !== a.pending) return b.pending - a.pending;
+    if (b.total !== a.total) return b.total - a.total;
+    return PENDING_DOMAIN_DEFINITIONS.findIndex((item) => item.id === a.id) -
+      PENDING_DOMAIN_DEFINITIONS.findIndex((item) => item.id === b.id);
+  });
+}
+
+function isPendingDomainTable(
+  tableName: string,
+  definition: PendingDomainDefinition
+) {
+  const normalized = tableName.toLowerCase();
+  return (
+    definition.tableNames.includes(normalized) ||
+    (definition.tablePrefixes ?? []).some((prefix) =>
+      normalized.startsWith(prefix)
+    )
+  );
+}
+
+function sumPendingTables(
+  tables: SyncLogSummary["tables"],
+  key: "pending" | "total"
+) {
+  return tables.reduce((total, table) => total + table[key], 0);
+}
+
+function latestPendingDomainChange(tables: SyncLogSummary["tables"]) {
+  return tables.reduce<string | null>((latest, table) => {
+    if (!table.lastChangeAt) return latest;
+    if (!latest) return table.lastChangeAt;
+    return table.lastChangeAt > latest ? table.lastChangeAt : latest;
+  }, null);
 }
 
 function PermissionMatrix({ roleId }: { roleId: PermissionRoleId }) {

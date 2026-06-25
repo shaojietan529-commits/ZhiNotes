@@ -3027,8 +3027,7 @@ export async function getSyncLogSummary(): Promise<SyncLogSummary> {
        MAX(timestamp) as lastChangeAt
      FROM sync_log
      GROUP BY table_name
-     ORDER BY pending DESC, lastChangeAt DESC
-     LIMIT 8`
+     ORDER BY pending DESC, lastChangeAt DESC`
   ) as unknown as Array<{
     tableName: string;
     total: number | null;

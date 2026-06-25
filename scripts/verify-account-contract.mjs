@@ -421,6 +421,14 @@ check(
   "同步页应展示数据库 pending 上传队列并提供 quick 增量补传，不能暗示全量上传本地数据库缓存"
 );
 check(
+  syncDashboardShell.includes("全域 pending 变更分布") &&
+    syncDashboardShell.includes("buildPendingDomainRows") &&
+    syncDashboardShell.includes("只读取 sync_log 的表名、计数和时间戳") &&
+    syncDashboardShell.includes("不读取页面正文、评论正文、数据库值、文件") &&
+    syncDashboardShell.includes("普通同步仍只上传这些 pending 行指向的明确变更"),
+  "同步页应按全域数据面展示 pending 分布，并保持 metadata-only 与 pending-only 边界"
+);
+check(
   pageSyncClient.includes("fetchCloudPageMetadata") &&
     pageSyncClient.includes('call({ action: "metadata" })') &&
     pageSyncClient.includes("setRemoteCursor(summary.cursor)"),
