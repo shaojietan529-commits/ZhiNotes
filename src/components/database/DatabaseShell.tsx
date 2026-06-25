@@ -15,6 +15,7 @@ import { formatRelativeDate } from "@/lib/utils/dates";
 import {
   getDatabase,
   getFields,
+  getPage,
   getRows,
   getViews,
 } from "@/lib/db/local/queries";
@@ -282,10 +283,15 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     useState(false);
   const databaseImportInputRef = useRef<HTMLInputElement | null>(null);
   const initialCloudHydrateRef = useRef<string | null>(null);
+  const optimisticDatabaseMutationBlockUntilRef = useRef(0);
   const cloudFallbackSnapshotRef = useRef<{
     databaseId: string;
     snapshot: DatabaseSnapshot;
   } | null>(null);
+
+  const markOptimisticDatabaseMutation = useCallback(() => {
+    optimisticDatabaseMutationBlockUntilRef.current = Date.now() + 1500;
+  }, []);
 
   const applyViewConfig = useCallback((configValue: string) => {
     const config = parseDatabaseViewConfig(configValue);
@@ -409,6 +415,9 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   useEffect(() => {
     let timer: number | null = null;
     const unsubscribe = subscribeDatabasesUpdated(() => {
+      if (Date.now() < optimisticDatabaseMutationBlockUntilRef.current) {
+        return;
+      }
       if (timer !== null) window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         void reload({ preferLocalCache: true });
@@ -499,55 +508,104 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [fields, reload]
   );
 
+  const appendLocalRow = useCallback(
+    async (row: DatabaseRow) => {
+      const rowWithPage = await attachLocalPageToRow(row);
+      markOptimisticDatabaseMutation();
+      setRows((current) => upsertLocalRows(current, [rowWithPage]));
+      return rowWithPage;
+    },
+    [markOptimisticDatabaseMutation]
+  );
+
+  const persistDatabaseRowInBackground = useCallback(
+    (operation: Promise<unknown>) => {
+      void operation.catch((error) => {
+        const message =
+          error instanceof Error ? error.message : "数据库本机缓存写入失败。";
+        setCacheNotice(message);
+        void reload({ preferLocalCache: true });
+      });
+    },
+    [reload]
+  );
+
   const handleAddRow = useCallback(async () => {
-    await addRow(databaseId);
-    reload({ preferLocalCache: true });
-  }, [databaseId, reload]);
+    try {
+      const row = await addRow(databaseId);
+      await appendLocalRow(row);
+    } catch (error) {
+      setCacheNotice(
+        error instanceof Error ? error.message : "新建数据库行失败。"
+      );
+    }
+  }, [appendLocalRow, databaseId]);
 
   const handleAddAndOpenRow = useCallback(async () => {
-    const row = await addRow(databaseId);
-    await reload({ preferLocalCache: true });
-    router.push(`/page/${row.page_id}`);
-  }, [databaseId, reload, router]);
+    try {
+      const row = await addRow(databaseId);
+      await appendLocalRow(row);
+      router.push(`/page/${row.page_id}`);
+    } catch (error) {
+      setCacheNotice(
+        error instanceof Error ? error.message : "新建数据库行失败。"
+      );
+    }
+  }, [appendLocalRow, databaseId, router]);
 
   const handleCreateRow = useCallback(
     async (rowTitle: string, fieldValues: Record<string, unknown>) => {
-      await addRow(databaseId, {
-        title: rowTitle,
-        fieldValues,
-      });
-      reload({ preferLocalCache: true });
+      try {
+        const row = await addRow(databaseId, {
+          title: rowTitle,
+          fieldValues,
+        });
+        await appendLocalRow(row);
+      } catch (error) {
+        setCacheNotice(
+          error instanceof Error ? error.message : "新建数据库行失败。"
+        );
+      }
     },
-    [databaseId, reload]
+    [appendLocalRow, databaseId]
   );
 
   const handleAddTemplateRow = useCallback(
     async (template: NoteTemplate) => {
-      const draft = buildDatabaseTemplateRowDraft(template, fields);
-      const row = await addRow(databaseId, {
-        title: template.title,
-        fieldValues: draft.field_values,
-        contentText: template.html,
-      });
-      const receipt = buildDatabaseTemplateRowReceipt({
-        template,
-        draft,
-        row,
-        source_surface: "database-page",
-      });
-      appendDatabaseTemplateRowReceipt(receipt);
-      setTemplateRowReceipt(receipt);
-      reload({ preferLocalCache: true });
+      try {
+        const draft = buildDatabaseTemplateRowDraft(template, fields);
+        const row = await addRow(databaseId, {
+          title: template.title,
+          fieldValues: draft.field_values,
+          contentText: template.html,
+        });
+        await appendLocalRow(row);
+        const receipt = buildDatabaseTemplateRowReceipt({
+          template,
+          draft,
+          row,
+          source_surface: "database-page",
+        });
+        appendDatabaseTemplateRowReceipt(receipt);
+        setTemplateRowReceipt(receipt);
+      } catch (error) {
+        setCacheNotice(
+          error instanceof Error ? error.message : "套用数据库模板失败。"
+        );
+      }
     },
-    [databaseId, fields, reload]
+    [appendLocalRow, databaseId, fields]
   );
 
   const handleUpdateRow = useCallback(
-    async (rowId: string, fieldValues: Record<string, unknown>) => {
-      await updateRow(rowId, { fieldValues });
-      reload({ preferLocalCache: true });
+    (rowId: string, fieldValues: Record<string, unknown>) => {
+      markOptimisticDatabaseMutation();
+      setRows((current) =>
+        updateLocalRowFieldValues(current, rowId, fieldValues)
+      );
+      persistDatabaseRowInBackground(updateRow(rowId, { fieldValues }));
     },
-    [reload]
+    [markOptimisticDatabaseMutation, persistDatabaseRowInBackground]
   );
 
   const handleDeleteRow = useCallback(
@@ -558,10 +616,11 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         `要删除记录「${rowTitle}」吗？这会把当前数据库行和它的本地页面一起软删除，不会上传或外发任何内容。`
       );
       if (!ok) return;
-      await deleteRow(rowId);
-      reload({ preferLocalCache: true });
+      markOptimisticDatabaseMutation();
+      setRows((current) => current.filter((item) => item.id !== rowId));
+      persistDatabaseRowInBackground(deleteRow(rowId));
     },
-    [reload, rows]
+    [markOptimisticDatabaseMutation, persistDatabaseRowInBackground, rows]
   );
 
   const handleMoveRow = useCallback(
@@ -576,13 +635,21 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       const targetRow = orderedRows[targetIndex];
       if (!currentRow || !targetRow) return;
 
-      await Promise.all([
-        updateRow(currentRow.id, { position: targetRow.position }),
-        updateRow(targetRow.id, { position: currentRow.position }),
-      ]);
-      reload({ preferLocalCache: true });
+      markOptimisticDatabaseMutation();
+      setRows((current) =>
+        updateLocalRowPositions(current, {
+          [currentRow.id]: targetRow.position,
+          [targetRow.id]: currentRow.position,
+        })
+      );
+      persistDatabaseRowInBackground(
+        Promise.all([
+          updateRow(currentRow.id, { position: targetRow.position }),
+          updateRow(targetRow.id, { position: currentRow.position }),
+        ])
+      );
     },
-    [reload, rows]
+    [markOptimisticDatabaseMutation, persistDatabaseRowInBackground, rows]
   );
 
   const handleDuplicateRow = useCallback(
@@ -590,13 +657,19 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       const sourceRow = rows.find((row) => row.id === rowId);
       if (!sourceRow) return;
       const fieldValues = parseFieldValues(sourceRow.field_values);
-      await addRow(databaseId, {
-        title: `${sourceRow.page?.title || "未命名页面"} 副本`,
-        fieldValues,
-      });
-      reload({ preferLocalCache: true });
+      try {
+        const row = await addRow(databaseId, {
+          title: `${sourceRow.page?.title || "未命名页面"} 副本`,
+          fieldValues,
+        });
+        await appendLocalRow(row);
+      } catch (error) {
+        setCacheNotice(
+          error instanceof Error ? error.message : "复制数据库行失败。"
+        );
+      }
     },
-    [databaseId, reload, rows]
+    [appendLocalRow, databaseId, rows]
   );
 
   const handleAddView = useCallback(
@@ -943,19 +1016,25 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         const fieldValues = parseFieldValues(row.field_values);
         const currentIds = normalizeRelationValue(fieldValues[field.id]);
         if (!currentIds.includes(focusPageId)) {
-          await updateRow(row.id, {
-            fieldValues: {
-              ...fieldValues,
-              [field.id]: [...currentIds, focusPageId],
-            },
-          });
+          const nextFieldValues = {
+            ...fieldValues,
+            [field.id]: [...currentIds, focusPageId],
+          };
+          markOptimisticDatabaseMutation();
+          setRows((current) =>
+            updateLocalRowFieldValues(current, row.id, nextFieldValues)
+          );
+          persistDatabaseRowInBackground(
+            updateRow(row.id, {
+              fieldValues: nextFieldValues,
+            })
+          );
         }
-        await reload({ preferLocalCache: true });
       } finally {
         setRelationCompletionBusyId(null);
       }
     },
-    [focusPageId, reload]
+    [focusPageId, markOptimisticDatabaseMutation, persistDatabaseRowInBackground]
   );
 
   if (loading) {
@@ -3928,6 +4007,83 @@ function parseDatabaseRowOpenMode(value: unknown): DatabaseRowOpenMode {
   if (value === "center-peek") return "center-peek";
   if (value === "full-page") return "full-page";
   return "side-peek";
+}
+
+async function attachLocalPageToRow(row: DatabaseRow): Promise<RowWithPage> {
+  const page = await getPage(row.page_id).catch(() => null);
+  return {
+    ...row,
+    page: page ?? makeFallbackRowPage(row),
+  };
+}
+
+function makeFallbackRowPage(row: DatabaseRow): Page {
+  return {
+    id: row.page_id,
+    owner_id: row.owner_id,
+    parent_id: null,
+    database_id: row.database_id,
+    title: "未命名页面",
+    icon: null,
+    cover_url: null,
+    content_yjs: null,
+    content_text: "",
+    properties: null,
+    position: row.position,
+    depth: 0,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    deleted_at: null,
+    sync_version: row.sync_version,
+  };
+}
+
+function upsertLocalRows(current: RowWithPage[], rows: RowWithPage[]) {
+  const byId = new Map(current.map((row) => [row.id, row]));
+  for (const row of rows) {
+    byId.set(row.id, row);
+  }
+  return Array.from(byId.values()).sort(compareRowsByManualPosition);
+}
+
+function updateLocalRowFieldValues(
+  rows: RowWithPage[],
+  rowId: string,
+  fieldValues: Record<string, unknown>
+) {
+  const updatedAt = new Date().toISOString();
+  return rows.map((row) =>
+    row.id === rowId
+      ? {
+          ...row,
+          field_values: JSON.stringify(fieldValues),
+          updated_at: updatedAt,
+        }
+      : row
+  );
+}
+
+function updateLocalRowPositions(
+  rows: RowWithPage[],
+  positions: Record<string, number>
+) {
+  const updatedAt = new Date().toISOString();
+  return rows
+    .map((row) =>
+      Object.prototype.hasOwnProperty.call(positions, row.id)
+        ? {
+            ...row,
+            position: positions[row.id],
+            updated_at: updatedAt,
+          }
+        : row
+    )
+    .sort(compareRowsByManualPosition);
+}
+
+function compareRowsByManualPosition(left: RowWithPage, right: RowWithPage) {
+  if (left.position !== right.position) return left.position - right.position;
+  return left.created_at.localeCompare(right.created_at);
 }
 
 function getVisibleFields(fields: DatabaseField[], hiddenFieldIds: string[]) {

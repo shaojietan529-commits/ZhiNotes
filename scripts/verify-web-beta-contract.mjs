@@ -7358,6 +7358,46 @@ function run() {
   }
   for (const [sourceLabel, source, snippet, message] of [
     [
+      files.databaseShell,
+      databaseShell,
+      "optimisticDatabaseMutationBlockUntilRef",
+      "Database row edits must suppress self-triggered reloads while optimistic local state is active.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "updateLocalRowFieldValues(current, rowId, fieldValues)",
+      "Database cell edits must update visible rows before background persistence.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "persistDatabaseRowInBackground(updateRow(rowId, { fieldValues }))",
+      "Database cell edits must persist through the pending-aware database mutation helper in the background.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "upsertLocalRows(current, [rowWithPage])",
+      "Database row creation must append the local row to the current view without a full reload.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "updateLocalRowPositions(current, {",
+      "Database row moves must update local row order before background persistence.",
+    ],
+  ]) {
+    assertSourceIncludes(sourceLabel, source, snippet, message);
+  }
+  assertSourceExcludes(
+    files.databaseShell,
+    databaseShell,
+    "await updateRow(rowId, { fieldValues });",
+    "Database cell edits must not await local write and reload the whole database."
+  );
+  for (const [sourceLabel, source, snippet, message] of [
+    [
       files.usePages,
       usePages,
       "renderLocalPagesSnapshot",

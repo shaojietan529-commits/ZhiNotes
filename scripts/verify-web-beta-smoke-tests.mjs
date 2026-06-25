@@ -580,6 +580,41 @@ function run() {
     "Database detail page must still hydrate from the account cloud ledger in the background."
   );
   assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "optimisticDatabaseMutationBlockUntilRef",
+    "Database row edits must suppress self-triggered reloads while optimistic local state is active."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "updateLocalRowFieldValues(current, rowId, fieldValues)",
+    "Database cell edits must update visible rows before background persistence."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "persistDatabaseRowInBackground(updateRow(rowId, { fieldValues }))",
+    "Database cell edits must persist through the pending-aware database mutation helper in the background."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "upsertLocalRows(current, [rowWithPage])",
+    "Database row creation must append the local row to the current view without a full reload."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "updateLocalRowPositions(current, {",
+    "Database row moves must update local row order before background persistence."
+  );
+  if (databaseShell.includes("await updateRow(rowId, { fieldValues });")) {
+    failures.push(
+      `${files.databaseShell} must not await database cell updates before refreshing the whole database.`
+    );
+  }
+  assertIncludes(
     files.usePages,
     usePages,
     "renderLocalPagesSnapshot",
