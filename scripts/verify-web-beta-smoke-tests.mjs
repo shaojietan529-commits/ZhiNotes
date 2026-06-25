@@ -2313,8 +2313,14 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "const cloudPromise = loadMeetingCloudMetadata",
-    "Meeting calendar must start cloud hydration without blocking the local render."
+    "const cloudPromise = includeCloud",
+    "Meeting calendar must gate cloud hydration so local-only refreshes do not block the local render."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "void load({ includeCloud: false })",
+    "Meeting calendar page-revision refresh must avoid repeating cloud hydration."
   );
   assertIncludes(
     files.meetingScheduleShell,

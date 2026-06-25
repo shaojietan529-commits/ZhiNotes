@@ -616,6 +616,10 @@ check(
 );
 check(
   meetingScheduleShell.includes("readCachedMeetingCloudMetadata(startDate, endDate)") &&
+    meetingScheduleShell.includes("const includeCloud = opts?.includeCloud !== false") &&
+    meetingScheduleShell.includes("const cachedCloud = includeCloud") &&
+    meetingScheduleShell.includes("const cloudPromise = includeCloud") &&
+    meetingScheduleShell.includes("if (!cloudPromise) return") &&
     meetingScheduleShell.includes("scheduleMetadataCacheWarmup") &&
     meetingScheduleShell.includes("requestIdleCallback") &&
     meetingScheduleShell.includes("syncCloudPageMetadataDelta().catch") &&
@@ -630,16 +634,22 @@ check(
 check(
   meetingScheduleShell.includes("MEETING_CLOUD_CACHE_PREFIX") &&
     meetingScheduleShell.includes("writeCachedMeetingCloudMetadata") &&
+    meetingScheduleShell.includes("retainedCloudPages") &&
+    meetingScheduleShell.includes("const localPageIds = new Set") &&
     meetingScheduleShell.includes("Meeting schedule local cache load failed"),
   "MeetingScheduleShell 云端会议 metadata 应只把轻量窗口结果作为本机可重建缓存"
 );
 check(
   meetingScheduleShell.includes("upsertMeetingInView(finalPage)") &&
-    meetingScheduleShell.includes("pushMeetingPageCloudSnapshot(rootId, finalPage)") &&
-    meetingScheduleShell.indexOf("pushMeetingPageCloudSnapshot(rootId, finalPage)") <
-      meetingScheduleShell.indexOf(".then(() => load())") &&
-    !meetingScheduleShell.includes("void load().catch(() => undefined);"),
-  "MeetingScheduleShell 新导入会议应先保留乐观结果，云端快照写完后再刷新日历"
+    meetingScheduleShell.includes("persistOptimisticMeetingPage(rootId, finalPage, upsertPages)") &&
+    meetingScheduleShell.includes("observedPageRevisionRef") &&
+    meetingScheduleShell.includes("void load({ includeCloud: true })") &&
+    meetingScheduleShell.includes("void load({ includeCloud: false })") &&
+    meetingScheduleShell.includes("await load({ includeCloud: false })") &&
+    !meetingScheduleShell.includes("await load();") &&
+    !meetingScheduleShell.includes("void load().catch(() => undefined);") &&
+    !meetingScheduleShell.includes("}, [dbReady, load, pageRevision]);"),
+  "MeetingScheduleShell 新导入和本地 revision 刷新应保留乐观结果，并只做本地 metadata 刷新，不能重复触发云端日历索引"
 );
 check(
   meetingScheduleShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&

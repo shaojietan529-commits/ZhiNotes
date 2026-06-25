@@ -9704,8 +9704,14 @@ function run() {
     [
       files.meetingScheduleShell,
       meetingScheduleShell,
-      "const cloudPromise = loadMeetingCloudMetadata",
-      "Meeting calendar must start cloud hydration without blocking the local hot-cache render.",
+      "const cloudPromise = includeCloud",
+      "Meeting calendar must gate cloud hydration so local-only refreshes do not block the hot-cache render.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "void load({ includeCloud: false })",
+      "Meeting calendar page-revision refresh must avoid repeating cloud hydration.",
     ],
     [
       files.meetingScheduleShell,

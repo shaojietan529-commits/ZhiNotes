@@ -259,6 +259,12 @@ export default function MeetingScheduleShell() {
   const highlightTimerRef = useRef<number | null>(null);
   const metadataWarmupScheduledRef = useRef(false);
   const loadRequestRef = useRef(0);
+  const meetingsRef = useRef<Page[]>([]);
+  const observedPageRevisionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    meetingsRef.current = meetings;
+  }, [meetings]);
 
   useEffect(() => {
     try {
@@ -342,7 +348,8 @@ export default function MeetingScheduleShell() {
     dismissTrace(pageId);
   }, [dismissTrace]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
+    const includeCloud = opts?.includeCloud !== false;
     const requestId = loadRequestRef.current + 1;
     loadRequestRef.current = requestId;
     const visibleRange = buildMonthGrid(viewMonth);
@@ -357,28 +364,44 @@ export default function MeetingScheduleShell() {
 
     const publishMeetings = (localPages: Page[], cloudPages: Page[] = []) => {
       if (loadRequestRef.current !== requestId) return;
+      const localPageIds = new Set(localPages.map((page) => page.id));
+      const retainedCloudPages = includeCloud
+        ? []
+        : meetingsRef.current.filter(
+            (page) =>
+              !localPageIds.has(page.id) &&
+              !deletedTombstoneRef.current.has(page.id)
+          );
       setMeetings(
-        mergeMeetingPages(localPages, cloudPages, deletedTombstoneRef.current)
+        mergeMeetingPages(
+          localPages,
+          [...retainedCloudPages, ...cloudPages],
+          deletedTombstoneRef.current
+        )
       );
     };
 
-    if (!initialCloudPullAttemptedRef.current) {
+    if (includeCloud && !initialCloudPullAttemptedRef.current) {
       initialCloudPullAttemptedRef.current = true;
       scheduleMetadataCacheWarmup();
     }
 
-    const cachedCloud = readCachedMeetingCloudMetadata(startDate, endDate);
+    const cachedCloud = includeCloud
+      ? readCachedMeetingCloudMetadata(startDate, endDate)
+      : null;
     if (cachedCloud?.ok && cachedCloud.rootId) {
       publishRootId(cachedCloud.rootId);
       publishMeetings([], cachedCloud.pages);
       void persistMeetingCloudMetadata(cachedCloud, upsertPages);
     }
 
-    const cloudPromise = loadMeetingCloudMetadata({
-      startDate,
-      endDate,
-      recentLimit: 12,
-    }).catch(() => emptyMeetingCloudMetadata(false));
+    const cloudPromise = includeCloud
+      ? loadMeetingCloudMetadata({
+          startDate,
+          endDate,
+          recentLimit: 12,
+        }).catch(() => emptyMeetingCloudMetadata(false))
+      : null;
 
     let id: string | null = null;
     let localLoadFailed = false;
@@ -405,6 +428,7 @@ export default function MeetingScheduleShell() {
     const nextRootId = id ?? (localLoadFailed ? generateId() : null);
     if (nextRootId) publishRootId(nextRootId);
 
+    if (!cloudPromise) return;
     const cloud = await cloudPromise;
     if (cloud.ok && cloud.rootId) {
       publishRootId(cloud.rootId);
@@ -449,7 +473,7 @@ export default function MeetingScheduleShell() {
       if (deleted.some((p) => p.id === pageId)) {
         addTombstone(pageId);
       }
-      await load();
+      await load({ includeCloud: false });
     },
     [addTombstone, load]
   );
@@ -457,9 +481,23 @@ export default function MeetingScheduleShell() {
   useEffect(() => {
     if (!dbReady) return;
     queueMicrotask(() => {
-      void load();
+      void load({ includeCloud: true });
     });
-  }, [dbReady, load, pageRevision]);
+  }, [dbReady, load]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    if (observedPageRevisionRef.current === null) {
+      observedPageRevisionRef.current = pageRevision;
+      return;
+    }
+    if (observedPageRevisionRef.current === pageRevision) return;
+    observedPageRevisionRef.current = pageRevision;
+    const timer = window.setTimeout(() => {
+      void load({ includeCloud: false });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [dbReady, pageRevision, load]);
 
   // Receive meeting text captured by the ZhiNote Chrome extension. The
   // extension's content script grabs the text on a logged-in meeting page
@@ -857,7 +895,7 @@ export default function MeetingScheduleShell() {
             await persistOptimisticMeetingPage(rootId, finalPage, upsertPages);
           }
 
-          await load();
+          await load({ includeCloud: false });
         } catch (error) {
           console.warn("Meeting background persistence failed", error);
           queueCloudPagePush(pageToRemoteRecord(finalPage));
@@ -1087,7 +1125,7 @@ export default function MeetingScheduleShell() {
       }
     }
     await refresh();
-    await load();
+    await load({ includeCloud: false });
     setRetryLoading(false);
     setRetryResult(
       fixed > 0
@@ -1146,7 +1184,7 @@ export default function MeetingScheduleShell() {
         setSelectedMeeting(toMeetingEntry(updatedPage));
       }
       await refresh();
-      await load();
+      await load({ includeCloud: false });
       setRunNowMessage(queueResult.message);
     },
     [load, refresh, rootId]
