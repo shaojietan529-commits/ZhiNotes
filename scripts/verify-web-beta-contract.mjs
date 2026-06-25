@@ -75,6 +75,8 @@ const files = {
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   commentVersionCloudReplayContract:
     "src/lib/sync/commentVersionCloudReplayContract.ts",
+  commentVersionReplayReceipt:
+    "src/lib/sync/commentVersionReplayReceipt.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
@@ -375,6 +377,9 @@ function run() {
   const commentVersionCloudReplayContract = readProjectFile(
     files.commentVersionCloudReplayContract
   );
+  const commentVersionReplayReceipt = readProjectFile(
+    files.commentVersionReplayReceipt
+  );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
@@ -513,6 +518,7 @@ function run() {
       files.commentVersionCloudReplayContract,
       commentVersionCloudReplayContract,
     ],
+    [files.commentVersionReplayReceipt, commentVersionReplayReceipt],
     [files.localMetadataManifest, localMetadataManifest],
     [files.hotCachePolicyPlan, hotCachePolicyPlan],
     [files.hotCacheWarmupReceipt, hotCacheWarmupReceipt],
@@ -1658,6 +1664,131 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-comment-version-replay-receipt-draft"',
+      "Comment/version replay receipt draft must expose a stable format.",
+    ],
+    [
+      '"blocked-until-cloud-manifest-counts"',
+      "Comment/version replay receipt must keep ack blocked until cloud counts exist.",
+    ],
+    [
+      '"no-local-pending"',
+      "Comment/version replay receipt must distinguish empty local pending state.",
+    ],
+    [
+      "local_draft_only: true",
+      "Comment/version replay receipt must remain local draft only.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Comment/version replay receipt must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: false",
+      "Comment/version replay receipt must not read version snapshots.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Comment/version replay receipt must not read page body text.",
+    ],
+    [
+      "reads_cloud_manifest: false",
+      "Comment/version replay receipt must not read cloud manifests locally.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Comment/version replay receipt must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Comment/version replay receipt must not mutate local sync_log.",
+    ],
+    [
+      "can_acknowledge_without_cloud_counts: false",
+      "Comment/version replay receipt must not allow ack without cloud counts.",
+    ],
+    [
+      "can_mark_local_rows_synced: false",
+      "Comment/version replay receipt must not mark local rows synced.",
+    ],
+    [
+      "cloud_manifest_count: null",
+      "Comment/version replay receipt must keep cloud count empty until a real cloud manifest exists.",
+    ],
+    [
+      "cloud_manifest_watermark: null",
+      "Comment/version replay receipt must keep cloud watermark empty until a real cloud manifest exists.",
+    ],
+    [
+      "can_acknowledge_rows: false",
+      "Comment/version replay receipt must block per-surface acknowledgement.",
+    ],
+    [
+      'schema_status: "planned-count-and-ack-receipt-only"',
+      "Comment/version replay receipt must keep response schema count-only.",
+    ],
+    [
+      "cloud.comments manifest count",
+      "Comment/version replay receipt must require cloud.comments count evidence.",
+    ],
+    [
+      "cloud.page_versions manifest count",
+      "Comment/version replay receipt must require cloud.page_versions count evidence.",
+    ],
+    [
+      "local_rows_remain_pending: true",
+      "Comment/version replay receipt must keep local rows pending.",
+    ],
+    [
+      "can_acknowledge_any_rows_now: false",
+      "Comment/version replay receipt must block all acknowledgement today.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.commentVersionReplayReceipt,
+      commentVersionReplayReceipt,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildCommentVersionReplayReceiptDraft",
+      "Sync UI must build the comment/version replay receipt draft.",
+    ],
+    [
+      "commentVersionReplayReceiptDraft",
+      "Sync UI must memoize the comment/version replay receipt draft.",
+    ],
+    [
+      "handleExportCommentVersionReplayReceipt",
+      "Sync UI must export the comment/version replay receipt draft.",
+    ],
+    [
+      "评论 / 版本回放 manifest count 与 ack 收据草案",
+      "Sync UI must render the manifest count and ack receipt panel.",
+    ],
+    [
+      "导出回放收据草案",
+      "Sync UI must expose the replay receipt draft export button.",
+    ],
+    [
+      "cloud_manifest_count: null",
+      "Sync UI must show missing cloud manifest counts.",
+    ],
+    [
+      "不能 acknowledge rows",
+      "Sync UI must explain ack is blocked.",
+    ],
+    [
+      "不能标记 synced",
+      "Sync UI must explain local rows cannot be marked synced.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
 
   for (const [snippet, message] of [

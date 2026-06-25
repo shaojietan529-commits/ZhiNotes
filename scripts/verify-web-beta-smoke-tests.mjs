@@ -73,6 +73,8 @@ const files = {
     "src/app/api/web-beta/environment-preflight/route.ts",
   commentVersionCloudReplayContract:
     "src/lib/sync/commentVersionCloudReplayContract.ts",
+  commentVersionReplayReceipt:
+    "src/lib/sync/commentVersionReplayReceipt.ts",
   commentVersionReplayApiStub:
     "src/lib/sync/commentVersionReplayApiStub.ts",
   commentVersionReplayRoute:
@@ -319,6 +321,9 @@ function run() {
   );
   const commentVersionCloudReplayContract = readProjectFile(
     files.commentVersionCloudReplayContract
+  );
+  const commentVersionReplayReceipt = readProjectFile(
+    files.commentVersionReplayReceipt
   );
   const commentVersionReplayApiStub = readProjectFile(
     files.commentVersionReplayApiStub
@@ -572,6 +577,95 @@ function run() {
     ],
   ]) {
     assertIncludes(sourceLabel, source, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-comment-version-replay-receipt-draft"',
+      "Comment/version replay receipt smoke coverage must include the stable receipt format.",
+    ],
+    [
+      '"blocked-until-cloud-manifest-counts"',
+      "Comment/version replay receipt smoke coverage must block ack until cloud counts exist.",
+    ],
+    [
+      "local_draft_only: true",
+      "Comment/version replay receipt smoke coverage must stay local draft only.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Comment/version replay receipt smoke coverage must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: false",
+      "Comment/version replay receipt smoke coverage must not read version snapshots.",
+    ],
+    [
+      "reads_cloud_manifest: false",
+      "Comment/version replay receipt smoke coverage must not read cloud manifests.",
+    ],
+    [
+      "can_acknowledge_without_cloud_counts: false",
+      "Comment/version replay receipt smoke coverage must block ack without counts.",
+    ],
+    [
+      "can_mark_local_rows_synced: false",
+      "Comment/version replay receipt smoke coverage must block marking local rows synced.",
+    ],
+    [
+      "cloud_manifest_count: null",
+      "Comment/version replay receipt smoke coverage must keep cloud counts empty.",
+    ],
+    [
+      "can_acknowledge_rows: false",
+      "Comment/version replay receipt smoke coverage must block surface ack.",
+    ],
+    [
+      "cloud.comments manifest count",
+      "Comment/version replay receipt smoke coverage must require comments count evidence.",
+    ],
+    [
+      "cloud.page_versions manifest count",
+      "Comment/version replay receipt smoke coverage must require versions count evidence.",
+    ],
+    [
+      "local_rows_remain_pending: true",
+      "Comment/version replay receipt smoke coverage must keep local rows pending.",
+    ],
+  ]) {
+    assertIncludes(
+      files.commentVersionReplayReceipt,
+      commentVersionReplayReceipt,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildCommentVersionReplayReceiptDraft",
+      "Sync smoke coverage must build the comment/version replay receipt draft.",
+    ],
+    [
+      "评论 / 版本回放 manifest count 与 ack 收据草案",
+      "Sync smoke coverage must render the replay receipt panel.",
+    ],
+    [
+      "导出回放收据草案",
+      "Sync smoke coverage must expose replay receipt export.",
+    ],
+    [
+      "cloud_manifest_count: null",
+      "Sync smoke coverage must show missing cloud counts.",
+    ],
+    [
+      "不能 acknowledge rows",
+      "Sync smoke coverage must explain ack is blocked.",
+    ],
+    [
+      "不能标记 synced",
+      "Sync smoke coverage must explain local rows remain pending.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
   }
   for (const [snippet, message] of [
     [

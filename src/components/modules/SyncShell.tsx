@@ -239,6 +239,12 @@ import {
   type CommentVersionReplaySurfaceStatus,
 } from "@/lib/sync/commentVersionCloudReplayContract";
 import {
+  buildCommentVersionReplayReceiptDraft,
+  type CommentVersionReplayManifestCount,
+  type CommentVersionReplayReceiptDraft,
+  type CommentVersionReplayReceiptStatus,
+} from "@/lib/sync/commentVersionReplayReceipt";
+import {
   buildCloudMasterReconcileReport,
   type CloudMasterDomain,
   type CloudMasterDomainStatus,
@@ -411,6 +417,7 @@ type SyncQueueAction =
   | "sync-push-api-guard"
   | "sync-pull-api-guard"
   | "comment-version-replay-api-guard"
+  | "comment-version-replay-receipt"
   | "rollback-plan"
   | "restore-writeback"
   | "restore-preview-api-guard"
@@ -1173,6 +1180,14 @@ function SyncDashboard() {
   const commentVersionReplayApiGuard = useMemo(
     () => buildCommentVersionReplayApiDisabledResponse(),
     []
+  );
+  const commentVersionReplayReceiptDraft = useMemo(
+    () =>
+      buildCommentVersionReplayReceiptDraft({
+        contract: commentVersionCloudReplayContract,
+        apiGuard: commentVersionReplayApiGuard,
+      }),
+    [commentVersionCloudReplayContract, commentVersionReplayApiGuard]
   );
   const syncConfirmationReceipt = useMemo(
     () =>
@@ -3278,6 +3293,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportCommentVersionReplayReceipt = () => {
+    setBusyQueueAction("comment-version-replay-receipt");
+    try {
+      downloadJsonFile(
+        `zhinote-comment-version-replay-receipt-draft-${fileSafeTimestamp()}.json`,
+        {
+          ...commentVersionReplayReceiptDraft,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export comment/version replay receipt draft:",
+        err
+      );
+      window.alert("评论 / 版本回放收据草案导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncReplayTestPlan = () => {
     setBusyQueueAction("replay-test-plan");
     try {
@@ -5113,6 +5149,11 @@ function SyncDashboard() {
 
         <CommentVersionCloudReplayPanel
           contract={commentVersionCloudReplayContract}
+        />
+        <CommentVersionReplayReceiptPanel
+          receipt={commentVersionReplayReceiptDraft}
+          busy={busyQueueAction === "comment-version-replay-receipt"}
+          onExport={handleExportCommentVersionReplayReceipt}
         />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -11006,6 +11047,196 @@ function CommentVersionReplayStatusPill({
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {label}
+    </span>
+  );
+}
+
+function CommentVersionReplayReceiptPanel({
+  receipt,
+  busy,
+  onExport,
+}: {
+  receipt: CommentVersionReplayReceiptDraft;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            评论 / 版本回放 manifest count 与 ack 收据草案
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这是本地 draft receipt，只使用 pending metadata。它不读取评论正文、
+            版本快照、页面正文或云端 manifest；在 cloud.comments 和
+            cloud.page_versions 的 manifest count 以及 durable replay receipt
+            返回前，ack blocked，不能 acknowledge rows，也不能把本地 sync_log 标记为 synced。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出回放收据草案"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-5">
+        <PayloadSummaryCard
+          label="状态"
+          value={receipt.receipt_status}
+          detail="ack 仍阻塞"
+          tone={
+            receipt.receipt_status === "blocked-until-cloud-manifest-counts"
+              ? "high"
+              : "low"
+          }
+        />
+        <PayloadSummaryCard
+          label="本地 pending"
+          value={receipt.summary.local_pending_rows}
+          detail="来自 sync_log metadata"
+          tone={receipt.summary.local_pending_rows > 0 ? "medium" : "low"}
+        />
+        <PayloadSummaryCard
+          label="缺失云 count"
+          value={receipt.summary.missing_cloud_manifest_counts}
+          detail="cloud manifest 未读取"
+          tone={
+            receipt.summary.missing_cloud_manifest_counts > 0 ? "high" : "low"
+          }
+        />
+        <PayloadSummaryCard
+          label="ack ready"
+          value={receipt.summary.ack_ready_surfaces}
+          detail="当前应为 0"
+          tone={receipt.summary.ack_ready_surfaces > 0 ? "medium" : "low"}
+        />
+        <PayloadSummaryCard
+          label="本地 sync_log"
+          value={receipt.boundary.can_mark_local_rows_synced ? "可改" : "不改"}
+          detail="不能标记 synced"
+          tone="high"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        {receipt.manifest_counts.map((count) => (
+          <CommentVersionManifestCountRow key={count.id} count={count} />
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="ack 需要的远端证据">
+          <div className="space-y-2">
+            {receipt.ack_policy.required_remote_evidence.map((item) => (
+              <div
+                key={item}
+                className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="receipt 字段边界">
+          <div className="space-y-2">
+            {receipt.replay_receipt_schema.required_fields_before_ack.map(
+              (field) => (
+                <div
+                  key={field}
+                  className="rounded-md bg-zinc-50 px-3 py-2 font-mono text-[11px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+                >
+                  {field}
+                </div>
+              )
+            )}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <p className="mt-4 border-t border-zinc-100 pt-3 text-xs leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {receipt.ack_policy.local_rows_remain_pending
+          ? "本地 rows remain pending：没有云端 count 和 durable ack 前，不能清空 pending queue。"
+          : "本地 pending 状态已准备修改。"}
+      </p>
+    </section>
+  );
+}
+
+function CommentVersionManifestCountRow({
+  count,
+}: {
+  count: CommentVersionReplayManifestCount;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {count.cloud_target}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-400">
+            {count.local_included_rows} 已纳入 / {count.local_pending_rows} 待回放
+          </div>
+        </div>
+        <CommentVersionReceiptStatusPill
+          status={
+            count.status === "missing-cloud-count"
+              ? "blocked-until-cloud-manifest-counts"
+              : "no-local-pending"
+          }
+        />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {count.local_tables.map((table) => (
+          <span
+            key={table}
+            className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {table}
+          </span>
+        ))}
+        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          cloud_manifest_count: null
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        expected_cloud_delta_rows: {count.expected_cloud_delta_rows}; ack:
+        {count.can_acknowledge_rows ? " allowed" : " blocked"}
+      </p>
+      <div className="mt-2 space-y-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+        {count.ack_blockers.map((blocker) => (
+          <p
+            key={blocker}
+            className="text-[11px] leading-4 text-zinc-400 dark:text-zinc-500"
+          >
+            {blocker}
+          </p>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function CommentVersionReceiptStatusPill({
+  status,
+}: {
+  status: CommentVersionReplayReceiptStatus;
+}) {
+  const blocked = status === "blocked-until-cloud-manifest-counts";
+  return (
+    <span
+      className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${
+        blocked
+          ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+          : "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      }`}
+    >
+      {blocked ? "ack blocked" : "no local pending"}
     </span>
   );
 }
