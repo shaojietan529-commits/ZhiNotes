@@ -30,6 +30,13 @@ interface PagePeekModalProps {
   onChanged?: () => void;
 }
 
+function getInitialPeekPage(pageId: string, initialPage?: Page | null): Page | null {
+  if (initialPage?.id === pageId) return initialPage;
+  return (
+    useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ?? null
+  );
+}
+
 // A center modal that shows a page (title + properties + body) fully editable,
 // without leaving the current view — Notion's "peek" behaviour.
 export default function PagePeekModal({
@@ -41,9 +48,11 @@ export default function PagePeekModal({
 }: PagePeekModalProps) {
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const [fallbackPage, setFallbackPage] = useState<Page | null>(
-    initialPage ?? null
+    () => getInitialPeekPage(pageId, initialPage)
   );
-  const [metadataLoading, setMetadataLoading] = useState(!initialPage);
+  const [metadataLoading, setMetadataLoading] = useState(
+    () => !getInitialPeekPage(pageId, initialPage)
+  );
   const [editorLoadRequested, setEditorLoadRequested] = useState(false);
   const { page, loading, update } = usePage(pageId, {
     enabled: editorLoadRequested,
@@ -80,8 +89,9 @@ export default function PagePeekModal({
     if (previousPageIdRef.current === pageId) return;
     previousPageIdRef.current = pageId;
     queueMicrotask(() => {
-      setFallbackPage(initialPage ?? null);
-      setMetadataLoading(!initialPage);
+      const nextInitial = getInitialPeekPage(pageId, initialPage);
+      setFallbackPage(nextInitial);
+      setMetadataLoading(!nextInitial);
       setEditorLoadRequested(false);
       setMountedEditorPageId(null);
       setChildPagesReadyPageId(null);
@@ -89,15 +99,16 @@ export default function PagePeekModal({
   }, [initialPage, pageId]);
 
   useEffect(() => {
-    if (!initialPage) return;
+    const nextInitial = getInitialPeekPage(pageId, initialPage);
+    if (!nextInitial) return;
     queueMicrotask(() => {
-      setFallbackPage(initialPage);
+      setFallbackPage(nextInitial);
       setMetadataLoading(false);
     });
-  }, [initialPage]);
+  }, [initialPage, pageId]);
 
   useEffect(() => {
-    if (initialPage?.id === pageId) return;
+    if (initialPage?.id === pageId || fallbackPage?.id === pageId) return;
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) setMetadataLoading(true);
@@ -120,7 +131,7 @@ export default function PagePeekModal({
     return () => {
       cancelled = true;
     };
-  }, [initialPage, pageId]);
+  }, [fallbackPage?.id, initialPage, pageId]);
 
   useEffect(() => {
     if (!page) return;

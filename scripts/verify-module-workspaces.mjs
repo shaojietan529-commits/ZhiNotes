@@ -237,6 +237,8 @@ check(
 );
 check(
   pagePeekModal.includes("getPageMetadata") &&
+    pagePeekModal.includes("getInitialPeekPage") &&
+    pagePeekModal.includes("useWorkspaceStore.getState().pages.find") &&
     pagePeekModal.includes("editorLoadRequested") &&
     pagePeekModal.includes("schedulePeekContentLoad") &&
     pagePeekModal.includes("enabled: editorLoadRequested") &&
@@ -267,15 +269,18 @@ check(
     shells.daily.indexOf("upsertPages([optimisticNote])") &&
     shells.daily.indexOf("upsertPages([optimisticNote])") <
       shells.daily.indexOf("setPeekPageId(optimisticNote.id)") &&
+    shells.daily.includes("window.setTimeout(() =>") &&
+    shells.daily.includes("current === dateKey ? null : current") &&
     shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
       shells.daily.indexOf("persistOptimisticDailyNote"),
-  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再打开弹窗并后台持久化"
+  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再打开弹窗，快速释放 + 按钮并后台持久化"
 );
 check(
-  shells.daily.includes("@/components/page/LazyPagePeekModal") &&
+  shells.daily.includes("@/components/page/PagePeekModal") &&
+    !shells.daily.includes("@/components/page/LazyPagePeekModal") &&
     !shells.daily.includes("fetchCloudPageById") &&
     !shells.daily.includes("scheduleDailyPeekPreload"),
-  "DailyNotesShell 应懒加载 peek 弹窗，且不应在日历打开路径预拉正文"
+  "DailyNotesShell 应直接加载 peek 弹窗壳来保证 + 号首开响应，但不应在日历打开路径预拉正文"
 );
 for (const token of [
   "daily_date_key",

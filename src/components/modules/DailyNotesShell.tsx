@@ -36,7 +36,7 @@ import {
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import PageContextMenu from "@/components/page/PageContextMenu";
-import PagePeekModal from "@/components/page/LazyPagePeekModal";
+import PagePeekModal from "@/components/page/PagePeekModal";
 import type { Page } from "@/lib/utils/types";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -95,7 +95,6 @@ export default function DailyNotesShell() {
 
   useEffect(() => {
     return scheduleDailyIdleTask(() => {
-      void import("@/components/page/PagePeekModal");
       void import("@/components/editor/Editor");
     }, 900);
   }, []);
@@ -336,6 +335,9 @@ export default function DailyNotesShell() {
       setPeekPageId(optimisticNote.id);
       setPeekInitialPage(optimisticNote);
       void seedDailyNoteForImmediateOpen(optimisticNote);
+      window.setTimeout(() => {
+        setCreatingDateKey((current) => (current === dateKey ? null : current));
+      }, 250);
       setCloudNotice(`${dateKey} 的每日纪要正在打开，后台会继续保存到账号云端…`);
 
       try {
@@ -379,7 +381,7 @@ export default function DailyNotesShell() {
             error instanceof Error ? error.message : "账号云端保存失败";
           setCloudNotice(`每日纪要已在当前页面打开，但后台保存失败：${message}`);
         } finally {
-          setCreatingDateKey(null);
+          setCreatingDateKey((current) => (current === dateKey ? null : current));
         }
       })();
     },

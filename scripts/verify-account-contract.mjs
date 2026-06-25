@@ -762,12 +762,15 @@ const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");
 check(
   lazyPagePeekModal.includes('dynamic(() => import("@/components/page/PagePeekModal")') &&
-    dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
+    dailyNotesShell.includes('@/components/page/PagePeekModal') &&
+    !dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
     dailyNotesShell.includes("setPeekPageId(note.id)") &&
+    dailyNotesShell.includes("window.setTimeout(() =>") &&
+    dailyNotesShell.includes("current === dateKey ? null : current") &&
     !dailyNotesShell.includes("fetchCloudPageById") &&
     dailyNotesShell.includes("router.push(`/page/${id}`)") &&
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal'),
-  "每日纪要和知识库都应懒加载页面弹窗；每日纪要完整页面只在用户明确打开完整页面时进入"
+  "每日纪要应直接加载页面弹窗壳并快速释放 + 按钮；知识库仍可懒加载弹窗；每日纪要完整页面只在用户明确打开完整页面时进入"
 );
 
 const localQueries = read("src/lib/db/local/queries.ts");
