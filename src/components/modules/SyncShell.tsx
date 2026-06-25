@@ -19,6 +19,7 @@ import {
   getPendingSyncLogEntries,
   getSyncLogSummary,
   getWorkspaceSetting,
+  hasPendingWorkspaceSettingSyncLogEntry,
   markWorkspaceSettingSyncLogEntriesSynced,
   upsertWorkspaceSetting,
   type PageModuleCounts,
@@ -366,6 +367,7 @@ type CloudAlphaAction =
   | "unlink-workspace"
   | "link-receipt"
   | "hot-cache-settings"
+  | "hot-cache-settings-pull"
   | "clear";
 type WebBetaContractAction =
   | "contract"
@@ -2132,6 +2134,115 @@ function SyncDashboard() {
     }
   };
 
+  const handleHotCachePreferencesCloudPull = async () => {
+    if (!cloudSession || cloudSessionExpired) {
+      if (cloudSessionExpired) {
+        clearCloudSession();
+        setCloudSession(null);
+      }
+      setHotCacheSaveMessage("需要先完成云端登录，再从云端恢复热缓存偏好。");
+      return;
+    }
+
+    const workspaceId = hotCacheCloudWorkspaceId;
+    if (!workspaceId) {
+      setHotCacheSaveMessage("需要先选择并连接云工作区。");
+      return;
+    }
+
+    setBusyCloudAction("hot-cache-settings-pull");
+    setHotCacheSaveMessage("正在检查本地是否还有未上传的热缓存偏好...");
+    try {
+      const hasLocalPending = await hasPendingWorkspaceSettingSyncLogEntry(
+        HOT_CACHE_PREFERENCES_SETTING_KEY
+      );
+      if (hasLocalPending) {
+        setHotCacheSaveMessage(
+          "本地还有未上传的热缓存偏好。请先同步到云端，或确认放弃本地改动后再从云端恢复。"
+        );
+        return;
+      }
+
+      setHotCacheSaveMessage("正在从云端读取热缓存偏好...");
+      const response = await fetch(
+        `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${cloudSession.accessToken}`,
+          },
+        }
+      );
+      const body = await readCloudApiBody(response);
+
+      if (!response.ok) {
+        setHotCacheSaveMessage(
+          response.status === 501
+            ? `云端设置读取尚未开启：${getCloudApiDetail(body, response)}`
+            : `云端读取失败：${getCloudApiDetail(body, response)}`
+        );
+        return;
+      }
+
+      if (!getRecordBoolean(body, "setting_found")) {
+        setHotCacheSaveMessage(
+          "云端还没有热缓存偏好。当前本地偏好保持不变。"
+        );
+        return;
+      }
+
+      if (!getRecordBoolean(body, "cloud_value_valid")) {
+        setHotCacheSaveMessage(
+          "云端热缓存偏好格式不符合当前合同，已保留本地设置。"
+        );
+        return;
+      }
+
+      const preferencesRecord = getRecordValue(body, "preferences");
+      if (!preferencesRecord) {
+        setHotCacheSaveMessage(
+          "云端响应没有返回可用偏好，已保留本地设置。"
+        );
+        return;
+      }
+
+      const normalized = normalizeHotCachePreferences(
+        preferencesRecord as Partial<HotCachePreferences>
+      );
+      const saved = await upsertWorkspaceSetting(
+        HOT_CACHE_PREFERENCES_SETTING_KEY,
+        normalized,
+        "cloud-hot-cache-settings-pull"
+      );
+      const marked = await markWorkspaceSettingSyncLogEntriesSynced([
+        HOT_CACHE_PREFERENCES_SETTING_KEY,
+      ]);
+      const [nextSyncSummary, nextSyncEntries] = await Promise.all([
+        getSyncLogSummary(),
+        getPendingSyncLogEntries(25),
+      ]);
+      setHotCachePreferences(normalized);
+      setHotCacheSetting(saved);
+      setSyncSummary(nextSyncSummary);
+      setSyncEntries(nextSyncEntries);
+      const savedAt = getRecordString(body, "saved_at");
+      setHotCacheSaveMessage(
+        `已从云端恢复热缓存偏好，本地缓存设置已重建并确认 ${marked} 条 pending${
+          savedAt ? `，云端保存时间 ${formatDate(savedAt)}` : ""
+        }。`
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to pull hot cache preferences:", err);
+      setHotCacheSaveMessage(
+        err instanceof Error
+          ? `云端读取失败：${err.message}`
+          : "云端读取失败：未知错误。"
+      );
+    } finally {
+      setBusyCloudAction(null);
+    }
+  };
+
   const handleExportSyncQueueSnapshot = async () => {
     setBusyQueueAction("queue");
     try {
@@ -3371,10 +3482,12 @@ function SyncDashboard() {
           preferences={hotCachePreferences}
           saveMessage={hotCacheSaveMessage}
           cloudSyncBusy={busyCloudAction === "hot-cache-settings"}
+          cloudPullBusy={busyCloudAction === "hot-cache-settings-pull"}
           cloudSyncDisabled={Boolean(hotCacheCloudSyncDisabledReason)}
           cloudSyncDisabledReason={hotCacheCloudSyncDisabledReason}
           onChange={handleHotCachePreferencesChange}
           onSyncCloud={() => void handleHotCachePreferencesCloudSync()}
+          onPullCloud={() => void handleHotCachePreferencesCloudPull()}
           onExport={handleExportHotCacheSelectionContract}
         />
 
@@ -13007,20 +13120,24 @@ function HotCacheSelectionPanel({
   preferences,
   saveMessage,
   cloudSyncBusy,
+  cloudPullBusy,
   cloudSyncDisabled,
   cloudSyncDisabledReason,
   onChange,
   onSyncCloud,
+  onPullCloud,
   onExport,
 }: {
   contract: HotCacheSelectionContract;
   preferences: HotCachePreferences;
   saveMessage: string | null;
   cloudSyncBusy: boolean;
+  cloudPullBusy: boolean;
   cloudSyncDisabled: boolean;
   cloudSyncDisabledReason: string;
   onChange: (preferences: HotCachePreferences) => void;
   onSyncCloud: () => void;
+  onPullCloud: () => void;
   onExport: () => void;
 }) {
   const updatePreference = (patch: Partial<HotCachePreferences>) => {
@@ -13055,10 +13172,18 @@ function HotCacheSelectionPanel({
           <button
             type="button"
             onClick={onSyncCloud}
-            disabled={cloudSyncDisabled || cloudSyncBusy}
+            disabled={cloudSyncDisabled || cloudSyncBusy || cloudPullBusy}
             className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
           >
             {cloudSyncBusy ? "正在同步..." : "同步偏好到云端"}
+          </button>
+          <button
+            type="button"
+            onClick={onPullCloud}
+            disabled={cloudSyncDisabled || cloudSyncBusy || cloudPullBusy}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {cloudPullBusy ? "正在读取..." : "从云端恢复偏好"}
           </button>
           <button
             type="button"

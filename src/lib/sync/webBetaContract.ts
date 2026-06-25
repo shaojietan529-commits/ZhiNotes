@@ -207,6 +207,16 @@ export const SYNC_API_CONTRACTS: SyncApiContract[] = [
       "Accepts only hot-cache preference fields; rejects page bodies, file bytes, database row values, comments, credentials, and raw cache dumps.",
   },
   {
+    id: "workspace-settings-read",
+    method: "GET",
+    path: "/api/workspaces/:workspaceId/settings",
+    status: "local-draft",
+    purpose:
+      "Read small workspace settings metadata so a cleared local hot cache can rebuild user hot-cache preferences from the cloud master.",
+    payloadBoundary:
+      "Returns only hot-cache preference metadata; does not return page bodies, file bytes, database rows, comments, credentials, or raw local cache dumps.",
+  },
+  {
     id: "sync-push",
     method: "POST",
     path: "/api/sync/push",

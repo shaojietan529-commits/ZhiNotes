@@ -5,6 +5,7 @@ export type WebBetaApiStubId =
   | "workspace-list"
   | "workspace-create"
   | "workspace-bootstrap"
+  | "workspace-settings-read"
   | "workspace-settings-update"
   | "sync-push"
   | "sync-pull"
@@ -119,6 +120,17 @@ export const WEB_BETA_API_STUBS: WebBetaApiStub[] = [
       "Private alpha endpoint for saving workspace settings metadata such as hot-cache preferences after the local pending row exists.",
     future_requirement:
       "Enable only after Supabase Auth, workspace membership RLS, owner/researcher write checks, forbidden-payload validation, and local sync_log acknowledgement behavior are verified.",
+    privacy_boundary:
+      "The current disabled response does not read page bodies, file bytes, database rows, comments, credentials, raw local cache dumps, or sync queue payloads.",
+  },
+  {
+    id: "workspace-settings-read",
+    method: "GET",
+    path: "/api/workspaces/:workspaceId/settings",
+    purpose:
+      "Private alpha endpoint for reading workspace settings metadata so local hot-cache preferences can be rebuilt from the cloud master.",
+    future_requirement:
+      "Enable only after Supabase Auth, workspace membership RLS, metadata-only response validation, and local unsynced-setting conflict protection are verified.",
     privacy_boundary:
       "The current disabled response does not read page bodies, file bytes, database rows, comments, credentials, raw local cache dumps, or sync queue payloads.",
   },

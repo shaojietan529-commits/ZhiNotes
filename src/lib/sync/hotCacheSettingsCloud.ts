@@ -25,6 +25,8 @@ export const HOT_CACHE_SETTINGS_FORBIDDEN_FIELDS = [
   "password",
 ] as const;
 
+type HotCacheSettingsCloudRole = "owner" | "researcher" | "viewer";
+
 export interface HotCacheSettingsCloudPayload {
   setting_key: typeof HOT_CACHE_PREFERENCES_SETTING_KEY;
   preferences: HotCachePreferences;
@@ -52,6 +54,43 @@ export interface HotCacheSettingsCloudReceipt {
     local_pending_table: "sync_log";
     local_pending_row_id: typeof HOT_CACHE_PREFERENCES_SETTING_KEY;
     cloud_wins_except_unsynced_local_setting: true;
+  };
+  privacy_note: string;
+}
+
+export interface ParsedHotCacheSettingsCloudValue {
+  setting_found: boolean;
+  cloud_value_valid: boolean;
+  saved_at: string | null;
+  preferences: HotCachePreferences;
+}
+
+export interface HotCacheSettingsCloudReadReceipt {
+  format: "zhinote-hot-cache-settings-cloud-read-receipt";
+  format_version: 1;
+  setting_key: typeof HOT_CACHE_PREFERENCES_SETTING_KEY;
+  cloud_target: typeof HOT_CACHE_CLOUD_TARGET;
+  workspace_id: string;
+  read_at: string;
+  role: HotCacheSettingsCloudRole;
+  setting_found: boolean;
+  cloud_value_valid: boolean;
+  saved_at: string | null;
+  preferences: HotCachePreferences;
+  summary: {
+    reads_workspace_settings: true;
+    writes_workspace_settings: false;
+    uploads_workspace_content: false;
+    reads_page_body_text: false;
+    reads_file_bytes: false;
+    returns_cache_preferences_only: true;
+  };
+  sync_rule: {
+    ordinary_sync_pending_only: true;
+    local_pending_table: "sync_log";
+    local_pending_row_id: typeof HOT_CACHE_PREFERENCES_SETTING_KEY;
+    cloud_wins_except_unsynced_local_setting: true;
+    local_unsynced_setting_must_block_pull: true;
   };
   privacy_note: string;
 }
@@ -127,6 +166,45 @@ export function buildHotCacheSettingsCloudValue(
   };
 }
 
+export function parseHotCacheSettingsCloudValue(
+  settings: Record<string, unknown> | null
+): ParsedHotCacheSettingsCloudValue {
+  const value = settings?.hot_cache_preferences;
+  if (value === undefined || value === null) {
+    return {
+      setting_found: false,
+      cloud_value_valid: true,
+      saved_at: null,
+      preferences: normalizeHotCachePreferences({}),
+    };
+  }
+
+  if (!isPlainRecord(value)) {
+    return {
+      setting_found: true,
+      cloud_value_valid: false,
+      saved_at: null,
+      preferences: normalizeHotCachePreferences({}),
+    };
+  }
+
+  const preferences = isPlainRecord(value.preferences)
+    ? normalizeHotCachePreferences(value.preferences as Partial<HotCachePreferences>)
+    : normalizeHotCachePreferences({});
+  const savedAt = typeof value.saved_at === "string" ? value.saved_at : null;
+
+  return {
+    setting_found: true,
+    cloud_value_valid:
+      value.format === "zhinote-hot-cache-settings-cloud-value" &&
+      value.format_version === 1 &&
+      value.setting_key === HOT_CACHE_PREFERENCES_SETTING_KEY &&
+      isPlainRecord(value.preferences),
+    saved_at: savedAt,
+    preferences,
+  };
+}
+
 export function buildHotCacheSettingsCloudReceipt(input: {
   workspaceId: string;
   role: "owner" | "researcher";
@@ -160,6 +238,44 @@ export function buildHotCacheSettingsCloudReceipt(input: {
   };
 }
 
+export function buildHotCacheSettingsCloudReadReceipt(input: {
+  workspaceId: string;
+  role: HotCacheSettingsCloudRole;
+  readAt: string;
+  parsed: ParsedHotCacheSettingsCloudValue;
+}): HotCacheSettingsCloudReadReceipt {
+  return {
+    format: "zhinote-hot-cache-settings-cloud-read-receipt",
+    format_version: 1,
+    setting_key: HOT_CACHE_PREFERENCES_SETTING_KEY,
+    cloud_target: HOT_CACHE_CLOUD_TARGET,
+    workspace_id: input.workspaceId,
+    read_at: input.readAt,
+    role: input.role,
+    setting_found: input.parsed.setting_found,
+    cloud_value_valid: input.parsed.cloud_value_valid,
+    saved_at: input.parsed.saved_at,
+    preferences: input.parsed.preferences,
+    summary: {
+      reads_workspace_settings: true,
+      writes_workspace_settings: false,
+      uploads_workspace_content: false,
+      reads_page_body_text: false,
+      reads_file_bytes: false,
+      returns_cache_preferences_only: true,
+    },
+    sync_rule: {
+      ordinary_sync_pending_only: true,
+      local_pending_table: "sync_log",
+      local_pending_row_id: HOT_CACHE_PREFERENCES_SETTING_KEY,
+      cloud_wins_except_unsynced_local_setting: true,
+      local_unsynced_setting_must_block_pull: true,
+    },
+    privacy_note:
+      "This read receipt returns only the hot-cache preference setting from workspaces.settings. It does not read note bodies, files, database rows, comments, versions, or raw local cache dumps.",
+  };
+}
+
 function findForbiddenPayloadField(value: unknown, depth = 0): string | null {
   if (!value || typeof value !== "object" || depth > 8) return null;
   if (Array.isArray(value)) {
@@ -182,4 +298,8 @@ function findForbiddenPayloadField(value: unknown, depth = 0): string | null {
   }
 
   return null;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

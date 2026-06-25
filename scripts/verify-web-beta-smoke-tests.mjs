@@ -61,6 +61,10 @@ const gatedOrDisabledApiRoutes = [
     guard: 'cloudNotConfiguredResponse("workspace-settings-update")',
   },
   {
+    path: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
+    guard: 'cloudNotConfiguredResponse("workspace-settings-read")',
+  },
+  {
     path: "src/app/api/sync/push/route.ts",
     guard: "buildSyncPushApiDisabledResponse",
   },
@@ -418,6 +422,18 @@ function run() {
   assertIncludes(
     files.hotCacheSettingsCloud,
     hotCacheSettingsCloud,
+    'format: "zhinote-hot-cache-settings-cloud-read-receipt"',
+    "Smoke verifier must keep the hot cache settings cloud read receipt."
+  );
+  assertIncludes(
+    files.hotCacheSettingsCloud,
+    hotCacheSettingsCloud,
+    "local_unsynced_setting_must_block_pull: true",
+    "Smoke verifier must keep cloud-to-local settings pulls conflict-aware."
+  );
+  assertIncludes(
+    files.hotCacheSettingsCloud,
+    hotCacheSettingsCloud,
     "HOT_CACHE_SETTINGS_FORBIDDEN_FIELDS",
     "Smoke verifier must keep forbidden-field validation for cloud settings."
   );
@@ -426,6 +442,18 @@ function run() {
     workspaceSettingsRoute,
     'requireCloudWritesResponse("workspace-settings-update")',
     "Smoke verifier must keep workspace settings writes behind the cloud write gate."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    'cloudNotConfiguredResponse("workspace-settings-read")',
+    "Smoke verifier must keep workspace settings reads behind the cloud configured gate."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "buildHotCacheSettingsCloudReadReceipt",
+    "Smoke verifier must keep workspace settings read receipts."
   );
   assertIncludes(
     files.workspaceSettingsRoute,
@@ -450,6 +478,18 @@ function run() {
     syncShell,
     "同步偏好到云端",
     "Sync UI must expose the hot cache cloud sync button."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "从云端恢复偏好",
+    "Sync UI must expose the hot cache cloud restore button."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "hasPendingWorkspaceSettingSyncLogEntry",
+    "Sync UI must protect local pending hot cache settings before restore."
   );
   assertIncludes(
     files.syncShell,

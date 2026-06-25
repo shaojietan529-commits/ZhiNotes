@@ -759,6 +759,10 @@ function run() {
       "Workspace settings must support local pending acknowledgement after cloud receipt.",
     ],
     [
+      "hasPendingWorkspaceSettingSyncLogEntry",
+      "Workspace settings must expose pending checks before cloud-to-local rebuilds.",
+    ],
+    [
       "WHERE table_name = 'workspace_settings'",
       "Workspace settings acknowledgement must stay scoped to workspace_settings rows.",
     ],
@@ -873,6 +877,10 @@ function run() {
       "Hot cache cloud settings must expose a stable receipt format.",
     ],
     [
+      'format: "zhinote-hot-cache-settings-cloud-read-receipt"',
+      "Hot cache cloud settings must expose a stable read receipt format.",
+    ],
+    [
       "HOT_CACHE_SETTINGS_FORBIDDEN_FIELDS",
       "Hot cache cloud settings must keep a forbidden payload field list.",
     ],
@@ -883,6 +891,14 @@ function run() {
     [
       "buildHotCacheSettingsCloudReceipt",
       "Hot cache cloud settings must build a metadata-only receipt.",
+    ],
+    [
+      "parseHotCacheSettingsCloudValue",
+      "Hot cache cloud settings must parse cloud settings for cache rebuild.",
+    ],
+    [
+      "buildHotCacheSettingsCloudReadReceipt",
+      "Hot cache cloud settings must build a metadata-only read receipt.",
     ],
     [
       "workspaces.settings.hot_cache_preferences",
@@ -900,6 +916,10 @@ function run() {
       "file_bytes",
       "Hot cache cloud settings validator must reject file byte fields.",
     ],
+    [
+      "local_unsynced_setting_must_block_pull: true",
+      "Hot cache cloud settings read receipt must protect local unsynced settings.",
+    ],
   ]) {
     assertSourceIncludes(
       files.hotCacheSettingsCloud,
@@ -914,8 +934,20 @@ function run() {
       "Workspace settings route must stay behind the cloud configured gate.",
     ],
     [
+      'cloudNotConfiguredResponse("workspace-settings-read")',
+      "Workspace settings read route must stay behind the cloud configured gate.",
+    ],
+    [
       'requireCloudWritesResponse("workspace-settings-update")',
       "Workspace settings route must stay behind the cloud writes gate.",
+    ],
+    [
+      "buildHotCacheSettingsCloudReadReceipt",
+      "Workspace settings route must return a hot-cache settings read receipt.",
+    ],
+    [
+      "parseHotCacheSettingsCloudValue",
+      "Workspace settings route must parse stored cloud preferences before returning them.",
     ],
     [
       "validateHotCacheSettingsCloudPayload",
@@ -971,8 +1003,20 @@ function run() {
       "Sync UI must acknowledge local pending settings after cloud success.",
     ],
     [
+      "hasPendingWorkspaceSettingSyncLogEntry",
+      "Sync UI must block cloud preference pulls when local settings are still pending.",
+    ],
+    [
+      "handleHotCachePreferencesCloudPull",
+      "Sync UI must expose an explicit hot-cache preferences cloud pull action.",
+    ],
+    [
       "同步偏好到云端",
       "Sync UI must render the hot-cache cloud sync button.",
+    ],
+    [
+      "从云端恢复偏好",
+      "Sync UI must render the hot-cache cloud restore button.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
@@ -7262,6 +7306,7 @@ function isCloudAlphaStub(id) {
     id === "workspace-list" ||
     id === "workspace-create" ||
     id === "workspace-bootstrap" ||
+    id === "workspace-settings-read" ||
     id === "workspace-settings-update"
   );
 }

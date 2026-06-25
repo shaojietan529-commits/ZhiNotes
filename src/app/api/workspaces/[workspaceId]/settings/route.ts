@@ -11,7 +11,9 @@ import { getSupabaseUser, requestSupabaseRest } from "@/lib/cloud/supabaseRest";
 import {
   HOT_CACHE_SETTINGS_CLOUD_PAYLOAD_MAX_BYTES,
   buildHotCacheSettingsCloudReceipt,
+  buildHotCacheSettingsCloudReadReceipt,
   buildHotCacheSettingsCloudValue,
+  parseHotCacheSettingsCloudValue,
   validateHotCacheSettingsCloudPayload,
 } from "@/lib/sync/hotCacheSettingsCloud";
 
@@ -30,6 +32,70 @@ interface CloudWorkspaceRow {
 
 interface CloudMembershipRow {
   role: "owner" | "researcher" | "viewer";
+}
+
+export async function GET(
+  request: Request,
+  context: WorkspaceSettingsContext
+) {
+  const disabled = cloudNotConfiguredResponse("workspace-settings-read");
+  if (disabled) return disabled;
+
+  const accessToken = getBearerToken(request);
+  if (!accessToken) return authRequiredResponse();
+
+  const { workspaceId } = await context.params;
+  if (!isUuid(workspaceId)) {
+    return badRequestResponse("workspaceId 必须是 UUID。");
+  }
+
+  try {
+    const user = await getSupabaseUser(accessToken);
+    const [workspaceRows, membershipRows] = await Promise.all([
+      requestSupabaseRest<CloudWorkspaceRow[]>(
+        `/workspaces?id=eq.${encodeURIComponent(
+          workspaceId
+        )}&select=id,settings`,
+        { method: "GET" },
+        accessToken
+      ),
+      requestSupabaseRest<CloudMembershipRow[]>(
+        `/workspace_members?workspace_id=eq.${encodeURIComponent(
+          workspaceId
+        )}&user_id=eq.${encodeURIComponent(user.id)}&select=role`,
+        { method: "GET" },
+        accessToken
+      ),
+    ]);
+
+    const workspace = workspaceRows[0] ?? null;
+    const membership = membershipRows[0] ?? null;
+    if (!workspace || !membership) {
+      return NextResponse.json(
+        {
+          format: "zhinote-cloud-error",
+          error: "workspace-not-found-or-forbidden",
+          message: "没有找到该 workspace，或当前用户没有访问权限。",
+        },
+        { status: 404 }
+      );
+    }
+
+    const parsed = parseHotCacheSettingsCloudValue(
+      isPlainObject(workspace.settings) ? workspace.settings : null
+    );
+
+    return NextResponse.json(
+      buildHotCacheSettingsCloudReadReceipt({
+        workspaceId,
+        role: membership.role,
+        readAt: new Date().toISOString(),
+        parsed,
+      })
+    );
+  } catch (error) {
+    return supabaseErrorResponse(error);
+  }
 }
 
 export async function PATCH(

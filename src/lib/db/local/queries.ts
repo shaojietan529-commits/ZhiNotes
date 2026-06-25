@@ -2674,6 +2674,25 @@ export async function markWorkspaceSettingSyncLogEntriesSynced(
   return marked;
 }
 
+export async function hasPendingWorkspaceSettingSyncLogEntry(
+  key: string
+): Promise<boolean> {
+  const normalizedKey = key.trim();
+  if (!normalizedKey) return false;
+
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT 1 as present
+     FROM sync_log
+     WHERE table_name = 'workspace_settings'
+       AND row_id = ?
+       AND synced = 0
+     LIMIT 1`,
+    [normalizedKey]
+  );
+  return rows.length > 0;
+}
+
 export async function clearLocalDatabaseCacheExceptKeys(
   keepKeys: string[]
 ): Promise<LocalDatabaseCachePruneResult> {
