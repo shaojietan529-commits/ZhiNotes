@@ -21,6 +21,8 @@ const files = {
   sidebarWorkspaceSettings: "src/lib/sync/sidebarWorkspaceSettings.ts",
   pageFavoritesWorkspaceSettings:
     "src/lib/sync/pageFavoritesWorkspaceSettings.ts",
+  pageViewPreferencesWorkspaceSettings:
+    "src/lib/sync/pageViewPreferencesWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
@@ -29,6 +31,7 @@ const files = {
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
   usePageFavorites: "src/hooks/usePageFavorites.ts",
+  usePageViewPreferences: "src/hooks/usePageViewPreferences.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -220,6 +223,9 @@ function run() {
   const pageFavoritesWorkspaceSettings = readProjectFile(
     files.pageFavoritesWorkspaceSettings
   );
+  const pageViewPreferencesWorkspaceSettings = readProjectFile(
+    files.pageViewPreferencesWorkspaceSettings
+  );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
@@ -230,6 +236,7 @@ function run() {
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
   const usePageFavorites = readProjectFile(files.usePageFavorites);
+  const usePageViewPreferences = readProjectFile(files.usePageViewPreferences);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
@@ -1089,6 +1096,12 @@ function run() {
     "Smoke verifier must keep page favorites in the pending-only upload allowlist."
   );
   assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "PAGE_VIEW_PREFERENCES_SETTING_KEY",
+    "Smoke verifier must keep page view preferences in the pending-only upload allowlist."
+  );
+  assertIncludes(
     files.pageFavoritesWorkspaceSettings,
     pageFavoritesWorkspaceSettings,
     'format: "zhinote-page-favorites-settings-cloud-receipt"',
@@ -1119,6 +1132,36 @@ function run() {
     "Smoke verifier must keep legacy page favorite migration."
   );
   assertIncludes(
+    files.pageViewPreferencesWorkspaceSettings,
+    pageViewPreferencesWorkspaceSettings,
+    'format: "zhinote-page-view-preferences-settings-cloud-receipt"',
+    "Smoke verifier must keep page view preferences cloud receipts."
+  );
+  assertIncludes(
+    files.pageViewPreferencesWorkspaceSettings,
+    pageViewPreferencesWorkspaceSettings,
+    "workspaces.settings.page_view_preferences",
+    "Smoke verifier must keep page view preferences targeting cloud workspace settings."
+  );
+  assertIncludes(
+    files.pageViewPreferencesWorkspaceSettings,
+    pageViewPreferencesWorkspaceSettings,
+    "reads_comment_bodies: false",
+    "Smoke verifier must keep page view preferences comment-body-free."
+  );
+  assertIncludes(
+    files.usePageViewPreferences,
+    usePageViewPreferences,
+    "getWorkspaceSetting(PAGE_VIEW_PREFERENCES_SETTING_KEY)",
+    "Smoke verifier must keep page view preferences hydrating from workspace_settings."
+  );
+  assertIncludes(
+    files.usePageViewPreferences,
+    usePageViewPreferences,
+    "legacy-page-view-localStorage",
+    "Smoke verifier must keep legacy page view preference migration."
+  );
+  assertIncludes(
     files.workspaceSettingsRoute,
     workspaceSettingsRoute,
     'requireCloudWritesResponse("workspace-settings-update")',
@@ -1147,6 +1190,18 @@ function run() {
     workspaceSettingsRoute,
     "page_favorites",
     "Smoke verifier must keep workspace settings API returning page favorites metadata."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "validatePageViewPreferencesWorkspaceSettingsCloudPayload",
+    "Smoke verifier must keep workspace settings API accepting page view preferences."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "page_view_preferences",
+    "Smoke verifier must keep workspace settings API returning page view preferences metadata."
   );
   assertIncludes(
     files.workspaceSettingsRoute,

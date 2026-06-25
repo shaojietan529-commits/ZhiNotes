@@ -14,12 +14,17 @@ import {
   PAGE_FAVORITES_SETTING_KEY,
   parsePageFavoritesWorkspaceSettingValue,
 } from "@/lib/sync/pageFavoritesWorkspaceSettings";
+import {
+  PAGE_VIEW_PREFERENCES_SETTING_KEY,
+  parsePageViewPreferencesWorkspaceSettingValue,
+} from "@/lib/sync/pageViewPreferencesWorkspaceSettings";
 
 export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   HOT_CACHE_PREFERENCES_SETTING_KEY,
   SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
   SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
   PAGE_FAVORITES_SETTING_KEY,
+  PAGE_VIEW_PREFERENCES_SETTING_KEY,
 ] as const;
 
 export type SupportedWorkspaceSettingSyncKey =
@@ -66,6 +71,13 @@ export type WorkspaceSettingCloudPayload =
       setting_key: typeof PAGE_FAVORITES_SETTING_KEY;
       client_pending_row_id: typeof PAGE_FAVORITES_SETTING_KEY;
       favorite_page_ids: string[];
+    }
+  | {
+      setting_key: typeof PAGE_VIEW_PREFERENCES_SETTING_KEY;
+      client_pending_row_id: typeof PAGE_VIEW_PREFERENCES_SETTING_KEY;
+      wide_page: boolean;
+      comments_panel_open: boolean;
+      locked_page_ids: string[];
     };
 
 export function buildWorkspaceSettingsPendingSyncPlan(input: {
@@ -158,6 +170,14 @@ export function buildWorkspaceSettingCloudPayload(
       client_pending_row_id: PAGE_FAVORITES_SETTING_KEY,
       favorite_page_ids:
         parsePageFavoritesWorkspaceSettingValue(value).favorite_page_ids,
+    };
+  }
+
+  if (setting.key === PAGE_VIEW_PREFERENCES_SETTING_KEY) {
+    return {
+      setting_key: PAGE_VIEW_PREFERENCES_SETTING_KEY,
+      client_pending_row_id: PAGE_VIEW_PREFERENCES_SETTING_KEY,
+      ...parsePageViewPreferencesWorkspaceSettingValue(value),
     };
   }
 

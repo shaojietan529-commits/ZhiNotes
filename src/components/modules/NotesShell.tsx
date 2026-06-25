@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
+import {
+  PAGE_VIEW_PREFERENCES_CHANGED_EVENT,
+  migrateLegacyPageViewPreferences,
+  readLegacyPageViewPreferences,
+  writePageViewPreferencesFastCache,
+} from "@/hooks/usePageViewPreferences";
 import { usePages } from "@/hooks/usePages";
 import {
   getPageModuleCounts,
@@ -191,15 +197,54 @@ function NotesDashboard() {
   }, [loadCounts, pages.length]);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      const nextLockedIds = new Set<string>();
-      for (const page of pages) {
-        if (window.localStorage.getItem(`zhinote.page.locked.${page.id}`) === "true") {
-          nextLockedIds.add(page.id);
+    let cancelled = false;
+    const pageIds = pages.map((page) => page.id);
+
+    const refreshLockedIds = async (event?: Event) => {
+      const preferencesFromEvent = (
+        event as
+          | CustomEvent<{
+              preferences?: { locked_page_ids: string[] };
+            }>
+          | undefined
+      )?.detail?.preferences;
+      if (preferencesFromEvent) {
+        setLockedPageIds(new Set(preferencesFromEvent.locked_page_ids));
+        return;
+      }
+
+      try {
+        const preferences = await migrateLegacyPageViewPreferences(
+          pageIds,
+          "legacy-notes-locked-pages-localStorage"
+        );
+        if (cancelled) return;
+        writePageViewPreferencesFastCache(preferences, pageIds, {
+          notify: false,
+        });
+        setLockedPageIds(new Set(preferences.locked_page_ids));
+      } catch (error) {
+        console.warn("[Zhinote] Failed to hydrate notes lock badges:", error);
+        if (!cancelled) {
+          setLockedPageIds(
+            new Set(readLegacyPageViewPreferences(pageIds).locked_page_ids)
+          );
         }
       }
-      setLockedPageIds(nextLockedIds);
-    });
+    };
+
+    queueMicrotask(() => void refreshLockedIds());
+    window.addEventListener(
+      PAGE_VIEW_PREFERENCES_CHANGED_EVENT,
+      refreshLockedIds
+    );
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        PAGE_VIEW_PREFERENCES_CHANGED_EVENT,
+        refreshLockedIds
+      );
+    };
   }, [pages]);
 
   const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);

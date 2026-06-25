@@ -50,6 +50,7 @@ import {
   exportPageAsMarkdown,
 } from "@/lib/export/pageExport";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
+import { usePageViewPreferences } from "@/hooks/usePageViewPreferences";
 import {
   PAGE_LOCAL_COMMAND_EVENT,
   type PageLocalCommand,
@@ -108,12 +109,18 @@ function PageContent({ pageId }: { pageId: string }) {
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<PageProperty[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [locked, setLocked] = useState(false);
-  const [widePage, setWidePage] = useState(false);
   const { isFavorite, toggleFavorite } = usePageFavorites();
+  const {
+    locked,
+    widePage,
+    commentsPanelOpen: showComments,
+    setCommentsPanelOpen,
+    toggleLock,
+    toggleWidePage,
+    toggleCommentsPanelOpen,
+  } = usePageViewPreferences(pageId);
   const favorite = isFavorite(pageId);
   const [showInfo, setShowInfo] = useState(false);
-  const [showComments, setShowComments] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
   const pageClipboard = useWorkspaceStore((s) => s.pageClipboard);
@@ -192,38 +199,9 @@ function PageContent({ pageId }: { pageId: string }) {
     });
   }, [page]);
 
-  useEffect(() => {
-    queueMicrotask(() => {
-      const value = window.localStorage.getItem(`zhinote.page.locked.${pageId}`);
-      setLocked(value === "true");
-    });
-  }, [pageId]);
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      const value = window.localStorage.getItem("zhinote.page.wide");
-      setWidePage(value === "true");
-    });
-  }, []);
-
-  // Remember whether the right-hand comment panel is open across pages/sessions.
-  useEffect(() => {
-    queueMicrotask(() => {
-      const value = window.localStorage.getItem("zhinote.page.comments-panel");
-      setShowComments(value === "true");
-    });
-  }, []);
-
   const handleToggleComments = useCallback(() => {
-    setShowComments((current) => {
-      const next = !current;
-      window.localStorage.setItem(
-        "zhinote.page.comments-panel",
-        next ? "true" : "false"
-      );
-      return next;
-    });
-  }, []);
+    toggleCommentsPanelOpen();
+  }, [toggleCommentsPanelOpen]);
 
   // Keep a live count of text comments so the toolbar button can show a badge.
   useEffect(() => {
@@ -245,13 +223,12 @@ function PageContent({ pageId }: { pageId: string }) {
   // Clicking commented text should reveal the panel so the comment is visible.
   useEffect(() => {
     const handleSelected = () => {
-      setShowComments(true);
-      window.localStorage.setItem("zhinote.page.comments-panel", "true");
+      setCommentsPanelOpen(true);
     };
     window.addEventListener(INLINE_COMMENT_SELECTED_EVENT, handleSelected);
     return () =>
       window.removeEventListener(INLINE_COMMENT_SELECTED_EVENT, handleSelected);
-  }, []);
+  }, [setCommentsPanelOpen]);
 
   const handleTitleChange = useCallback(
     async (newTitle: string) => {
@@ -475,20 +452,12 @@ function PageContent({ pageId }: { pageId: string }) {
   }, [locked, update]);
 
   const handleToggleLock = useCallback(() => {
-    setLocked((current) => {
-      const next = !current;
-      window.localStorage.setItem(`zhinote.page.locked.${pageId}`, String(next));
-      return next;
-    });
-  }, [pageId]);
+    toggleLock();
+  }, [toggleLock]);
 
   const handleToggleWidth = useCallback(() => {
-    setWidePage((current) => {
-      const next = !current;
-      window.localStorage.setItem("zhinote.page.wide", String(next));
-      return next;
-    });
-  }, []);
+    toggleWidePage();
+  }, [toggleWidePage]);
 
   const handleToggleFavorite = useCallback(() => {
     toggleFavorite(pageId);

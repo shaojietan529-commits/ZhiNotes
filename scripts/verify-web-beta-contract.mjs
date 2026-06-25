@@ -79,6 +79,8 @@ const files = {
   sidebarWorkspaceSettings: "src/lib/sync/sidebarWorkspaceSettings.ts",
   pageFavoritesWorkspaceSettings:
     "src/lib/sync/pageFavoritesWorkspaceSettings.ts",
+  pageViewPreferencesWorkspaceSettings:
+    "src/lib/sync/pageViewPreferencesWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
@@ -87,6 +89,7 @@ const files = {
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
   usePageFavorites: "src/hooks/usePageFavorites.ts",
+  usePageViewPreferences: "src/hooks/usePageViewPreferences.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -356,6 +359,9 @@ function run() {
   const pageFavoritesWorkspaceSettings = readProjectFile(
     files.pageFavoritesWorkspaceSettings
   );
+  const pageViewPreferencesWorkspaceSettings = readProjectFile(
+    files.pageViewPreferencesWorkspaceSettings
+  );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
@@ -366,6 +372,7 @@ function run() {
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
   const usePageFavorites = readProjectFile(files.usePageFavorites);
+  const usePageViewPreferences = readProjectFile(files.usePageViewPreferences);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
@@ -452,10 +459,15 @@ function run() {
     [files.hotCacheSelectionSettings, hotCacheSelectionSettings],
     [files.hotCacheSettingsCloud, hotCacheSettingsCloud],
     [files.pageFavoritesWorkspaceSettings, pageFavoritesWorkspaceSettings],
+    [
+      files.pageViewPreferencesWorkspaceSettings,
+      pageViewPreferencesWorkspaceSettings,
+    ],
     [files.workspaceSettingsPendingSync, workspaceSettingsPendingSync],
     [files.workspaceSettingsRoute, workspaceSettingsRoute],
     [files.localSchema, localSchema],
     [files.usePageFavorites, usePageFavorites],
+    [files.usePageViewPreferences, usePageViewPreferences],
     [files.localQueries, localQueries],
     [files.databaseRouteSkeleton, databaseRouteSkeleton],
     [files.syncShell, syncShell],
@@ -1771,6 +1783,14 @@ function run() {
       "Workspace settings pending sync must upload only favorite page ids for page favorites.",
     ],
     [
+      "PAGE_VIEW_PREFERENCES_SETTING_KEY",
+      "Workspace settings pending sync must include page view preferences.",
+    ],
+    [
+      "locked_page_ids",
+      "Workspace settings pending sync must upload only locked page ids for page view preferences.",
+    ],
+    [
       "Page bodies, database row values, comments, files, tokens, and raw local cache dumps are never included",
       "Workspace settings pending sync must state the privacy boundary.",
     ],
@@ -1857,6 +1877,88 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-page-view-preferences-settings-cloud-receipt"',
+      "Page view preferences must expose a stable cloud receipt.",
+    ],
+    [
+      "PAGE_VIEW_PREFERENCES_SETTING_KEY",
+      "Page view preferences must use a stable workspace setting key.",
+    ],
+    [
+      "workspaces.settings.page_view_preferences",
+      "Page view preferences must target workspace cloud settings.",
+    ],
+    [
+      "validatePageViewPreferencesWorkspaceSettingsCloudPayload",
+      "Page view preferences must validate cloud payloads.",
+    ],
+    [
+      "locked_page_ids",
+      "Page view preferences must persist only locked page ids.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Page view preferences receipt must state it does not read page bodies.",
+    ],
+    [
+      "reads_page_titles: false",
+      "Page view preferences receipt must state it does not read page titles.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Page view preferences receipt must state it does not read comment bodies.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Page view preferences must use pending-only ordinary sync.",
+    ],
+    [
+      "content_text",
+      "Page view preferences validator must reject page body fields.",
+    ],
+    [
+      "comment_body",
+      "Page view preferences validator must reject comment body fields.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.pageViewPreferencesWorkspaceSettings,
+      pageViewPreferencesWorkspaceSettings,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "PAGE_VIEW_PREFERENCES_SETTING_KEY",
+      "Page view preferences hook must use the cloud-ready workspace setting key.",
+    ],
+    [
+      "getWorkspaceSetting(PAGE_VIEW_PREFERENCES_SETTING_KEY)",
+      "Page view preferences hook must hydrate from workspace_settings.",
+    ],
+    [
+      "upsertWorkspaceSetting(",
+      "Page view preferences hook must persist changes through workspace_settings and sync_log.",
+    ],
+    [
+      "localStorage is only a fast boot cache and migration source",
+      "Page view preferences hook must keep localStorage as cache/migration only.",
+    ],
+    [
+      "legacy-page-view-localStorage",
+      "Page view preferences hook must migrate legacy localStorage values into workspace_settings.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.usePageViewPreferences,
+      usePageViewPreferences,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       'cloudNotConfiguredResponse("workspace-settings-update")',
       "Workspace settings route must stay behind the cloud configured gate.",
     ],
@@ -1895,6 +1997,22 @@ function run() {
     [
       "PAGE_FAVORITES_SETTING_KEY",
       "Workspace settings route must advertise page favorites as a supported setting.",
+    ],
+    [
+      "validatePageViewPreferencesWorkspaceSettingsCloudPayload",
+      "Workspace settings route must validate page view preference payloads before writing.",
+    ],
+    [
+      "buildPageViewPreferencesWorkspaceSettingsCloudValue",
+      "Workspace settings route must write page view preference metadata to cloud settings.",
+    ],
+    [
+      "page_view_preferences",
+      "Workspace settings route must return page view preference metadata on reads.",
+    ],
+    [
+      "PAGE_VIEW_PREFERENCES_SETTING_KEY",
+      "Workspace settings route must advertise page view preferences as a supported setting.",
     ],
     [
       "workspace-settings-readonly-role",
