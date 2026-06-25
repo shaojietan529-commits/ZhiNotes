@@ -19,6 +19,8 @@ const files = {
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   sidebarWorkspaceSettings: "src/lib/sync/sidebarWorkspaceSettings.ts",
+  pageFavoritesWorkspaceSettings:
+    "src/lib/sync/pageFavoritesWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
@@ -26,6 +28,7 @@ const files = {
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
+  usePageFavorites: "src/hooks/usePageFavorites.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -214,6 +217,9 @@ function run() {
   const sidebarWorkspaceSettings = readProjectFile(
     files.sidebarWorkspaceSettings
   );
+  const pageFavoritesWorkspaceSettings = readProjectFile(
+    files.pageFavoritesWorkspaceSettings
+  );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
@@ -223,6 +229,7 @@ function run() {
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
+  const usePageFavorites = readProjectFile(files.usePageFavorites);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
@@ -1076,6 +1083,42 @@ function run() {
     "Smoke verifier must keep sidebar settings in the pending-only upload allowlist."
   );
   assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "PAGE_FAVORITES_SETTING_KEY",
+    "Smoke verifier must keep page favorites in the pending-only upload allowlist."
+  );
+  assertIncludes(
+    files.pageFavoritesWorkspaceSettings,
+    pageFavoritesWorkspaceSettings,
+    'format: "zhinote-page-favorites-settings-cloud-receipt"',
+    "Smoke verifier must keep page favorites settings cloud receipts."
+  );
+  assertIncludes(
+    files.pageFavoritesWorkspaceSettings,
+    pageFavoritesWorkspaceSettings,
+    "workspaces.settings.page_favorites",
+    "Smoke verifier must keep page favorites targeting cloud workspace settings."
+  );
+  assertIncludes(
+    files.pageFavoritesWorkspaceSettings,
+    pageFavoritesWorkspaceSettings,
+    "reads_page_titles: false",
+    "Smoke verifier must keep page favorite settings title-free."
+  );
+  assertIncludes(
+    files.usePageFavorites,
+    usePageFavorites,
+    "getWorkspaceSetting(PAGE_FAVORITES_SETTING_KEY)",
+    "Smoke verifier must keep page favorites hydrating from workspace_settings."
+  );
+  assertIncludes(
+    files.usePageFavorites,
+    usePageFavorites,
+    "legacy-page-favorites-localStorage",
+    "Smoke verifier must keep legacy page favorite migration."
+  );
+  assertIncludes(
     files.workspaceSettingsRoute,
     workspaceSettingsRoute,
     'requireCloudWritesResponse("workspace-settings-update")',
@@ -1092,6 +1135,18 @@ function run() {
     workspaceSettingsRoute,
     "buildHotCacheSettingsCloudReadReceipt",
     "Smoke verifier must keep workspace settings read receipts."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "validatePageFavoritesWorkspaceSettingsCloudPayload",
+    "Smoke verifier must keep workspace settings API accepting page favorites."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "page_favorites",
+    "Smoke verifier must keep workspace settings API returning page favorites metadata."
   );
   assertIncludes(
     files.workspaceSettingsRoute,

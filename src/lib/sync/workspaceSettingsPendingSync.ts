@@ -10,11 +10,16 @@ import {
   SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
   SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
 } from "@/lib/sync/sidebarWorkspaceSettings";
+import {
+  PAGE_FAVORITES_SETTING_KEY,
+  parsePageFavoritesWorkspaceSettingValue,
+} from "@/lib/sync/pageFavoritesWorkspaceSettings";
 
 export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   HOT_CACHE_PREFERENCES_SETTING_KEY,
   SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
   SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
+  PAGE_FAVORITES_SETTING_KEY,
 ] as const;
 
 export type SupportedWorkspaceSettingSyncKey =
@@ -56,6 +61,11 @@ export type WorkspaceSettingCloudPayload =
       setting_key: typeof SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY;
       client_pending_row_id: typeof SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY;
       customizations: Record<string, { icon?: string; label?: string }>;
+    }
+  | {
+      setting_key: typeof PAGE_FAVORITES_SETTING_KEY;
+      client_pending_row_id: typeof PAGE_FAVORITES_SETTING_KEY;
+      favorite_page_ids: string[];
     };
 
 export function buildWorkspaceSettingsPendingSyncPlan(input: {
@@ -139,6 +149,15 @@ export function buildWorkspaceSettingCloudPayload(
       customizations: normalizeSidebarPrimaryCustomizations(
         readSettingPayloadValue(value, "customizations")
       ),
+    };
+  }
+
+  if (setting.key === PAGE_FAVORITES_SETTING_KEY) {
+    return {
+      setting_key: PAGE_FAVORITES_SETTING_KEY,
+      client_pending_row_id: PAGE_FAVORITES_SETTING_KEY,
+      favorite_page_ids:
+        parsePageFavoritesWorkspaceSettingValue(value).favorite_page_ids,
     };
   }
 

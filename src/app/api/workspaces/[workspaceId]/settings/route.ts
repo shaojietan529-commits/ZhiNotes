@@ -27,6 +27,15 @@ import {
   sidebarWorkspaceSettingCloudField,
   validateSidebarWorkspaceSettingsCloudPayload,
 } from "@/lib/sync/sidebarWorkspaceSettings";
+import {
+  PAGE_FAVORITES_CLOUD_FIELD,
+  PAGE_FAVORITES_SETTING_KEY,
+  buildPageFavoritesWorkspaceSettingsCloudReceipt,
+  buildPageFavoritesWorkspaceSettingsCloudValue,
+  isPageFavoritesWorkspaceSettingKey,
+  parsePageFavoritesWorkspaceSettingsCloudValue,
+  validatePageFavoritesWorkspaceSettingsCloudPayload,
+} from "@/lib/sync/pageFavoritesWorkspaceSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +107,9 @@ export async function GET(
     const sidebarSettings = parseSidebarWorkspaceSettingsCloudValues(
       isPlainObject(workspace.settings) ? workspace.settings : null
     );
+    const pageFavorites = parsePageFavoritesWorkspaceSettingsCloudValue(
+      isPlainObject(workspace.settings) ? workspace.settings : null
+    );
 
     return NextResponse.json(
       {
@@ -111,8 +123,10 @@ export async function GET(
           HOT_CACHE_PREFERENCES_SETTING_KEY,
           SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
           SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
+          PAGE_FAVORITES_SETTING_KEY,
         ],
         sidebar_settings: sidebarSettings,
+        page_favorites: pageFavorites,
       }
     );
   } catch (error) {
@@ -148,11 +162,13 @@ export async function PATCH(
       ? validateHotCacheSettingsCloudPayload(body.value)
       : isSidebarWorkspaceSettingKey(settingKey)
         ? validateSidebarWorkspaceSettingsCloudPayload(body.value)
-        : {
-            ok: false as const,
-            message:
-              "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1 或 sidebar.primaryCustomization.v1。",
-          };
+        : isPageFavoritesWorkspaceSettingKey(settingKey)
+          ? validatePageFavoritesWorkspaceSettingsCloudPayload(body.value)
+          : {
+              ok: false as const,
+              message:
+                "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1 或 page.favorites.v1。",
+            };
   if (!validatedPayload.ok) {
     return badRequestResponse(validatedPayload.message);
   }
@@ -212,13 +228,23 @@ export async function PATCH(
         validatedPayload.payload,
         savedAt
       );
-    } else {
+    } else if (
+      validatedPayload.payload.setting_key === SIDEBAR_PRIMARY_ORDER_SETTING_KEY ||
+      validatedPayload.payload.setting_key ===
+        SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY
+    ) {
       nextSettings[
         sidebarWorkspaceSettingCloudField(validatedPayload.payload.setting_key)
       ] = buildSidebarWorkspaceSettingsCloudValue(
         validatedPayload.payload,
         savedAt
       );
+    } else {
+      nextSettings[PAGE_FAVORITES_CLOUD_FIELD] =
+        buildPageFavoritesWorkspaceSettingsCloudValue(
+          validatedPayload.payload,
+          savedAt
+        );
     }
 
     await requestSupabaseRest<null>(
@@ -249,8 +275,23 @@ export async function PATCH(
       );
     }
 
+    if (
+      validatedPayload.payload.setting_key === SIDEBAR_PRIMARY_ORDER_SETTING_KEY ||
+      validatedPayload.payload.setting_key ===
+        SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY
+    ) {
+      return NextResponse.json(
+        buildSidebarWorkspaceSettingsCloudReceipt({
+          workspaceId,
+          role: membership.role,
+          savedAt,
+          payload: validatedPayload.payload,
+        })
+      );
+    }
+
     return NextResponse.json(
-      buildSidebarWorkspaceSettingsCloudReceipt({
+      buildPageFavoritesWorkspaceSettingsCloudReceipt({
         workspaceId,
         role: membership.role,
         savedAt,

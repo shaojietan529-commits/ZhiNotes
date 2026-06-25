@@ -198,7 +198,7 @@ export function buildHotCacheWarmupPlan(
           : "blocked"
         : "preference-off",
       preference_key: "keepFavoritePages",
-      cloud_source: "future account_settings favorites + local favorites",
+      cloud_source: "workspaces.settings.page_favorites + local workspace_settings",
       local_target: "pinned page metadata cache",
       candidate_count: input.preferences.keepFavoritePages
         ? favoritePages.length

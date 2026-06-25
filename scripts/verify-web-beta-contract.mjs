@@ -77,6 +77,8 @@ const files = {
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   sidebarWorkspaceSettings: "src/lib/sync/sidebarWorkspaceSettings.ts",
+  pageFavoritesWorkspaceSettings:
+    "src/lib/sync/pageFavoritesWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
@@ -84,6 +86,7 @@ const files = {
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
+  usePageFavorites: "src/hooks/usePageFavorites.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -350,6 +353,9 @@ function run() {
   const sidebarWorkspaceSettings = readProjectFile(
     files.sidebarWorkspaceSettings
   );
+  const pageFavoritesWorkspaceSettings = readProjectFile(
+    files.pageFavoritesWorkspaceSettings
+  );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
@@ -359,6 +365,7 @@ function run() {
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
+  const usePageFavorites = readProjectFile(files.usePageFavorites);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
@@ -444,9 +451,11 @@ function run() {
     [files.hotCacheWarmupReceipt, hotCacheWarmupReceipt],
     [files.hotCacheSelectionSettings, hotCacheSelectionSettings],
     [files.hotCacheSettingsCloud, hotCacheSettingsCloud],
+    [files.pageFavoritesWorkspaceSettings, pageFavoritesWorkspaceSettings],
     [files.workspaceSettingsPendingSync, workspaceSettingsPendingSync],
     [files.workspaceSettingsRoute, workspaceSettingsRoute],
     [files.localSchema, localSchema],
+    [files.usePageFavorites, usePageFavorites],
     [files.localQueries, localQueries],
     [files.databaseRouteSkeleton, databaseRouteSkeleton],
     [files.syncShell, syncShell],
@@ -1754,6 +1763,14 @@ function run() {
       "Workspace settings pending sync must include hot cache preferences.",
     ],
     [
+      "PAGE_FAVORITES_SETTING_KEY",
+      "Workspace settings pending sync must include page favorite settings.",
+    ],
+    [
+      "favorite_page_ids",
+      "Workspace settings pending sync must upload only favorite page ids for page favorites.",
+    ],
+    [
       "Page bodies, database row values, comments, files, tokens, and raw local cache dumps are never included",
       "Workspace settings pending sync must state the privacy boundary.",
     ],
@@ -1764,6 +1781,79 @@ function run() {
       snippet,
       message
     );
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-page-favorites-settings-cloud-receipt"',
+      "Page favorites settings must expose a stable cloud receipt.",
+    ],
+    [
+      "PAGE_FAVORITES_SETTING_KEY",
+      "Page favorites settings must use a stable workspace setting key.",
+    ],
+    [
+      "workspaces.settings.page_favorites",
+      "Page favorites settings must target workspace cloud settings.",
+    ],
+    [
+      "validatePageFavoritesWorkspaceSettingsCloudPayload",
+      "Page favorites settings must validate cloud payloads.",
+    ],
+    [
+      "favorite_page_ids",
+      "Page favorites settings must persist only page ids.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Page favorites receipt must state it does not read page bodies.",
+    ],
+    [
+      "reads_page_titles: false",
+      "Page favorites receipt must state it does not read page titles.",
+    ],
+    [
+      "ordinary_sync_pending_only: true",
+      "Page favorites settings must use pending-only ordinary sync.",
+    ],
+    [
+      "content_text",
+      "Page favorites validator must reject page body fields.",
+    ],
+    [
+      "page_title",
+      "Page favorites validator must reject page title fields.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.pageFavoritesWorkspaceSettings,
+      pageFavoritesWorkspaceSettings,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "PAGE_FAVORITES_SETTING_KEY",
+      "Page favorites hook must use the cloud-ready workspace setting key.",
+    ],
+    [
+      "getWorkspaceSetting(PAGE_FAVORITES_SETTING_KEY)",
+      "Page favorites hook must hydrate from workspace_settings.",
+    ],
+    [
+      "upsertWorkspaceSetting(",
+      "Page favorites hook must persist changes through workspace_settings and sync_log.",
+    ],
+    [
+      "localStorage is a fast cache only",
+      "Page favorites hook must keep localStorage as a fast cache only.",
+    ],
+    [
+      "legacy-page-favorites-localStorage",
+      "Page favorites hook must migrate legacy localStorage values into workspace_settings.",
+    ],
+  ]) {
+    assertSourceIncludes(files.usePageFavorites, usePageFavorites, snippet, message);
   }
   for (const [snippet, message] of [
     [
@@ -1789,6 +1879,22 @@ function run() {
     [
       "validateHotCacheSettingsCloudPayload",
       "Workspace settings route must validate hot-cache payloads before writing.",
+    ],
+    [
+      "validatePageFavoritesWorkspaceSettingsCloudPayload",
+      "Workspace settings route must validate page favorite payloads before writing.",
+    ],
+    [
+      "buildPageFavoritesWorkspaceSettingsCloudValue",
+      "Workspace settings route must write page favorite metadata to cloud settings.",
+    ],
+    [
+      "page_favorites",
+      "Workspace settings route must return page favorite metadata on reads.",
+    ],
+    [
+      "PAGE_FAVORITES_SETTING_KEY",
+      "Workspace settings route must advertise page favorites as a supported setting.",
     ],
     [
       "workspace-settings-readonly-role",
