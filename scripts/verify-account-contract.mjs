@@ -793,9 +793,24 @@ check(
 );
 
 const pageShell = read("src/components/providers/PageShell.tsx");
+const pageRoute = read("src/app/(workspace)/page/[pageId]/page.tsx");
+const pageRouteLoading = read("src/app/(workspace)/page/[pageId]/loading.tsx");
+const pageRouteSkeleton = read("src/components/page/PageRouteSkeleton.tsx");
 check(
   pageShell.includes("usePages({ autoLoad: false })"),
   "PageShell 打开完整页面时不能为了 refresh 方法自动读取全量页面 metadata"
+);
+check(
+  pageRoute.includes("PageRouteSkeleton") &&
+    pageRouteLoading.includes("PageRouteSkeleton") &&
+    pageShell.includes("PageRouteSkeleton"),
+  "页面动态路由、动态组件 fallback、单页缓存读取等待态都必须显示同一个页面骨架，避免点击后空白或只转圈"
+);
+check(
+  pageRouteSkeleton.includes("本地缓存会先加载") &&
+    pageRouteSkeleton.includes("云端同步在后台继续") &&
+    pageRouteSkeleton.includes("animate-pulse"),
+  "页面打开骨架必须说明本地缓存优先、云端后台同步，并保持轻量骨架反馈"
 );
 const pageSimpleUpdateBody = pageShell.slice(
   pageShell.indexOf("const handleTitleChange"),

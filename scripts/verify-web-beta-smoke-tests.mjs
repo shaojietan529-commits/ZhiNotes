@@ -25,8 +25,11 @@ const files = {
   syncShell: "src/components/modules/SyncShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
+  pageRouteSkeleton: "src/components/page/PageRouteSkeleton.tsx",
   dailyRoute: "src/app/(workspace)/daily/page.tsx",
   dailyRouteLoading: "src/app/(workspace)/daily/loading.tsx",
+  pageDetailRoute: "src/app/(workspace)/page/[pageId]/page.tsx",
+  pageDetailRouteLoading: "src/app/(workspace)/page/[pageId]/loading.tsx",
   scheduleRoute: "src/app/(workspace)/schedule/page.tsx",
   scheduleRouteLoading: "src/app/(workspace)/schedule/loading.tsx",
   environmentPreflightRoute:
@@ -51,6 +54,7 @@ const requiredPageRoutes = [
 const requiredLoadingRoutes = [
   "src/app/(workspace)/daily/loading.tsx",
   "src/app/(workspace)/schedule/loading.tsx",
+  "src/app/(workspace)/page/[pageId]/loading.tsx",
 ];
 
 const gatedOrDisabledApiRoutes = [
@@ -198,8 +202,11 @@ function run() {
   const syncShell = readProjectFile(files.syncShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
+  const pageRouteSkeleton = readProjectFile(files.pageRouteSkeleton);
   const dailyRoute = readProjectFile(files.dailyRoute);
   const dailyRouteLoading = readProjectFile(files.dailyRouteLoading);
+  const pageDetailRoute = readProjectFile(files.pageDetailRoute);
+  const pageDetailRouteLoading = readProjectFile(files.pageDetailRouteLoading);
   const scheduleRoute = readProjectFile(files.scheduleRoute);
   const scheduleRouteLoading = readProjectFile(files.scheduleRouteLoading);
   const environmentPreflightRoute = readProjectFile(
@@ -243,6 +250,18 @@ function run() {
     );
   }
 
+  for (const [sourceLabel, source] of [
+    [files.pageDetailRoute, pageDetailRoute],
+    [files.pageDetailRouteLoading, pageDetailRouteLoading],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "PageRouteSkeleton",
+      "Page detail route must show an immediate loading shell before client hydration completes."
+    );
+  }
+
   assertIncludes(
     files.moduleRouteSkeleton,
     moduleRouteSkeleton,
@@ -254,6 +273,18 @@ function run() {
     moduleRouteSkeleton,
     "后台刷新云端索引",
     "Workspace module loading shell must explain cloud index hydration happens in the background."
+  );
+  assertIncludes(
+    files.pageRouteSkeleton,
+    pageRouteSkeleton,
+    "本地缓存会先加载",
+    "Page loading shell must explain local cache renders first."
+  );
+  assertIncludes(
+    files.pageRouteSkeleton,
+    pageRouteSkeleton,
+    "云端同步在后台继续",
+    "Page loading shell must explain cloud sync continues in the background."
   );
 
   for (const { path: routeFile, guard } of gatedOrDisabledApiRoutes) {

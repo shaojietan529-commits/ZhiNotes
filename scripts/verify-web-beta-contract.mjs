@@ -84,8 +84,11 @@ const files = {
   syncShell: "src/components/modules/SyncShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
+  pageRouteSkeleton: "src/components/page/PageRouteSkeleton.tsx",
   dailyRoute: "src/app/(workspace)/daily/page.tsx",
   dailyRouteLoading: "src/app/(workspace)/daily/loading.tsx",
+  pageDetailRoute: "src/app/(workspace)/page/[pageId]/page.tsx",
+  pageDetailRouteLoading: "src/app/(workspace)/page/[pageId]/loading.tsx",
   scheduleRoute: "src/app/(workspace)/schedule/page.tsx",
   scheduleRouteLoading: "src/app/(workspace)/schedule/loading.tsx",
   apiGuardPanel: "src/components/modules/sync/ApiGuardPanel.tsx",
@@ -340,8 +343,11 @@ function run() {
   const syncShell = readProjectFile(files.syncShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
+  const pageRouteSkeleton = readProjectFile(files.pageRouteSkeleton);
   const dailyRoute = readProjectFile(files.dailyRoute);
   const dailyRouteLoading = readProjectFile(files.dailyRouteLoading);
+  const pageDetailRoute = readProjectFile(files.pageDetailRoute);
+  const pageDetailRouteLoading = readProjectFile(files.pageDetailRouteLoading);
   const scheduleRoute = readProjectFile(files.scheduleRoute);
   const scheduleRouteLoading = readProjectFile(files.scheduleRouteLoading);
   const apiGuardPanel = readProjectFile(files.apiGuardPanel);
@@ -413,8 +419,11 @@ function run() {
     [files.localQueries, localQueries],
     [files.syncShell, syncShell],
     [files.moduleRouteSkeleton, moduleRouteSkeleton],
+    [files.pageRouteSkeleton, pageRouteSkeleton],
     [files.dailyRoute, dailyRoute],
     [files.dailyRouteLoading, dailyRouteLoading],
+    [files.pageDetailRoute, pageDetailRoute],
+    [files.pageDetailRouteLoading, pageDetailRouteLoading],
     [files.scheduleRoute, scheduleRoute],
     [files.scheduleRouteLoading, scheduleRouteLoading],
     [files.apiGuardPanel, apiGuardPanel],
@@ -435,6 +444,17 @@ function run() {
       "Daily notes and meeting calendar routes must keep an immediate shell while route segments or client chunks load."
     );
   }
+  for (const [sourceLabel, source] of [
+    [files.pageDetailRoute, pageDetailRoute],
+    [files.pageDetailRouteLoading, pageDetailRouteLoading],
+  ]) {
+    assertSourceIncludes(
+      sourceLabel,
+      source,
+      "PageRouteSkeleton",
+      "Page detail routes must keep an immediate shell while route segments or client chunks load."
+    );
+  }
   for (const [snippet, message] of [
     [
       "先显示本地热缓存",
@@ -450,6 +470,22 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.moduleRouteSkeleton, moduleRouteSkeleton, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "本地缓存会先加载",
+      "The page route skeleton must communicate local-cache-first rendering.",
+    ],
+    [
+      "云端同步在后台继续",
+      "The page route skeleton must communicate background cloud sync.",
+    ],
+    [
+      "aria-live",
+      "The page route skeleton must announce loading progress accessibly.",
+    ],
+  ]) {
+    assertSourceIncludes(files.pageRouteSkeleton, pageRouteSkeleton, snippet, message);
   }
 
   for (const [snippet, message] of [

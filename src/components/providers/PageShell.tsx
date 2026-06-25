@@ -23,6 +23,7 @@ import CommentSidePanel from "@/components/shared/CommentSidePanel";
 import PageProperties from "@/components/page/PageProperties";
 import PageActionsMenu from "@/components/page/PageActionsMenu";
 import ChildPageTree from "@/components/page/ChildPageTree";
+import PageRouteSkeleton from "@/components/page/PageRouteSkeleton";
 import {
   parsePageProperties,
   stringifyPageProperties,
@@ -544,14 +545,7 @@ function PageContent({ pageId }: { pageId: string }) {
   );
 
   if (loading && !page) {
-    return (
-      <div className="flex h-screen">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
-        </main>
-      </div>
-    );
+    return <PageRouteSkeleton message="正在从本地缓存打开页面，云端回填会在后台继续。" />;
   }
 
   if (!page) {
