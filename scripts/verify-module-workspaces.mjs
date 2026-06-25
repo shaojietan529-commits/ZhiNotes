@@ -113,9 +113,9 @@ for (const token of [
   "rebuildPageDateKeyIndex",
   "seedDailyNoteForImmediateOpen",
   'router.prefetch("/page/zhinote-route-prefetch")',
-  "router.prefetch(`/page/${optimisticNote.id}`)",
-  "setPeekPageId(optimisticNote.id)",
-  "setPeekInitialPage(optimisticNote)",
+  "const pageRoute = `/page/${optimisticNote.id}`",
+  "router.prefetch(pageRoute)",
+  "router.push(pageRoute)",
   "<PagePeekModal",
   "rememberPendingPageDraft(optimisticNote)",
   "openNotePage",
@@ -258,8 +258,9 @@ check(
 );
 for (const token of [
   "seedDailyNoteForImmediateOpen",
-  "setPeekPageId(optimisticNote.id)",
-  "setPeekInitialPage(optimisticNote)",
+  "const pageRoute = `/page/${optimisticNote.id}`",
+  "router.prefetch(pageRoute)",
+  "router.push(pageRoute)",
   "rememberPendingPageDraft(optimisticNote)",
   "upsertPages([optimisticNote])",
   "applyRemotePages([pageToRemoteRecord(note)])",
@@ -267,19 +268,21 @@ for (const token of [
 ]) {
   check(
     shells.daily.includes(token),
-    `DailyNotesShell 新建/打开纪要应先进入轻量弹窗，缺少 ${token}`
+    `DailyNotesShell 新建纪要应直接进入完整页面，已有纪要仍可轻量预览，缺少 ${token}`
   );
 }
 check(
   shells.daily.indexOf("rememberPendingPageDraft(optimisticNote)") <
     shells.daily.indexOf("upsertPages([optimisticNote])") &&
     shells.daily.indexOf("upsertPages([optimisticNote])") <
-      shells.daily.indexOf("setPeekPageId(optimisticNote.id)") &&
+      shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
+    shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
+      shells.daily.indexOf("router.push(pageRoute)") &&
     shells.daily.includes("window.setTimeout(() =>") &&
     shells.daily.includes("current === dateKey ? null : current") &&
-    shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
+    shells.daily.indexOf("router.push(pageRoute)") <
       shells.daily.indexOf("persistOptimisticDailyNote"),
-  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再打开弹窗，快速释放 + 按钮并后台持久化"
+  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再直接进入完整页面，快速释放 + 按钮并后台持久化"
 );
 check(
   shells.daily.includes("await applyRemotePages(records)") &&

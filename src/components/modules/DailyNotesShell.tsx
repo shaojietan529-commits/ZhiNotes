@@ -332,19 +332,19 @@ export default function DailyNotesShell() {
         ...current.filter((item) => item.id !== optimisticNote.id),
       ]);
       upsertPages([optimisticNote]);
-      setPeekPageId(optimisticNote.id);
-      setPeekInitialPage(optimisticNote);
       void seedDailyNoteForImmediateOpen(optimisticNote);
       window.setTimeout(() => {
         setCreatingDateKey((current) => (current === dateKey ? null : current));
       }, 250);
       setCloudNotice(`${dateKey} 的每日纪要正在打开，后台会继续保存到账号云端…`);
 
+      const pageRoute = `/page/${optimisticNote.id}`;
       try {
-        router.prefetch(`/page/${optimisticNote.id}`);
+        router.prefetch(pageRoute);
       } catch {
         // Route prefetch is best-effort; navigation still happens immediately.
       }
+      router.push(pageRoute);
       void (async () => {
         try {
           const dailyRootId = initialRootId ?? (await getModuleRootId("daily"));

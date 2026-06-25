@@ -518,12 +518,13 @@ check(
     dailyNotesShell.indexOf("rememberPendingPageDraft(optimisticNote)") <
       dailyNotesShell.indexOf("upsertPages([optimisticNote])") &&
     dailyNotesShell.indexOf("upsertPages([optimisticNote])") <
-      dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id)") &&
+      dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
+      dailyNotesShell.indexOf("router.push(pageRoute)") &&
+    dailyNotesShell.indexOf("router.push(pageRoute)") <
       dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
-    dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id)") <
-      dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
-    dailyNotesShell.includes("setPeekInitialPage(optimisticNote)") &&
+    dailyNotesShell.includes("const pageRoute = `/page/${optimisticNote.id}`") &&
+    dailyNotesShell.includes("router.prefetch(pageRoute)") &&
     dailyNotesShell.includes("<PagePeekModal") &&
     dailyNotesShell.includes("initialPage={peekInitialPage}") &&
     dailyNotesShell.includes("router.push(`/page/${id}`)") &&
@@ -534,7 +535,7 @@ check(
     dailyNotesShell.includes("applyRemotePages(records)") &&
     dailyNotesShell.includes("return pushDailyCloudRecords(records)") &&
     !dailyNotesShell.includes("createPageWithCloud"),
-  "DailyNotesShell 点击 + 应立即打开乐观草稿弹窗，完整页面只作为弹窗内进一步操作，后台保存到云端"
+  "DailyNotesShell 点击 + 应立即进入乐观草稿完整页面，后台保存到云端；已有纪要仍可用 peek 预览"
 );
 check(
   dailyNotesShell.includes("expandedDateKeys") &&
@@ -814,9 +815,10 @@ check(
     dailyNotesShell.includes("window.setTimeout(() =>") &&
     dailyNotesShell.includes("current === dateKey ? null : current") &&
     !dailyNotesShell.includes("fetchCloudPageById") &&
+    dailyNotesShell.includes("router.push(pageRoute)") &&
     dailyNotesShell.includes("router.push(`/page/${id}`)") &&
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal'),
-  "每日纪要应直接加载页面弹窗壳并快速释放 + 按钮；知识库仍可懒加载弹窗；每日纪要完整页面只在用户明确打开完整页面时进入"
+  "每日纪要 + 应直接进入完整页面并快速释放按钮；已有纪要仍可直接加载页面弹窗壳预览；知识库仍可懒加载弹窗"
 );
 
 const localQueries = read("src/lib/db/local/queries.ts");
