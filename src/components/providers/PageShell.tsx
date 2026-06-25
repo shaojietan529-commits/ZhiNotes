@@ -62,6 +62,10 @@ import {
   type PageResearchStructureSignal,
   type PageResearchStructureStatus,
 } from "@/lib/pages/pageResearchStructure";
+import {
+  getLocalPerformanceNow,
+  recordLocalPerformanceSnapshot,
+} from "@/lib/performance/localPerformance";
 
 const Editor = dynamic(() => import("@/components/editor/Editor"), {
   ssr: false,
@@ -125,11 +129,44 @@ function PageContent({ pageId }: { pageId: string }) {
   const [editorMounted, setEditorMounted] = useState(false);
   const [pagePeripheralsMounted, setPagePeripheralsMounted] = useState(false);
   const hasPage = Boolean(page);
+  const pageOpenStartedAtRef = useRef(getLocalPerformanceNow());
+  const pageOpenStartedAtIsoRef = useRef(new Date().toISOString());
+  const reportedPageOpenRef = useRef<string | null>(null);
 
   useEffect(() => {
     setCurrentPageId(pageId);
     return () => setCurrentPageId(null);
   }, [pageId, setCurrentPageId]);
+
+  useEffect(() => {
+    pageOpenStartedAtRef.current = getLocalPerformanceNow();
+    pageOpenStartedAtIsoRef.current = new Date().toISOString();
+    reportedPageOpenRef.current = null;
+  }, [pageId]);
+
+  useEffect(() => {
+    if (!page || loading || reportedPageOpenRef.current === pageId) return;
+    reportedPageOpenRef.current = pageId;
+    const durationMs = getLocalPerformanceNow() - pageOpenStartedAtRef.current;
+    const propertyCount = parsePageProperties(page.properties).length;
+    recordLocalPerformanceSnapshot({
+      kind: "page-open",
+      label: "页面打开",
+      route: "/page/[pageId]",
+      status: page.content_text == null ? "metadata-ready" : "content-ready",
+      startedAt: pageOpenStartedAtIsoRef.current,
+      durationMs,
+      localFirstMs: durationMs,
+      backgroundMs: 0,
+      counts: {
+        has_content_html: page.content_text ? 1 : 0,
+        has_cover: page.cover_url ? 1 : 0,
+        property_count: propertyCount,
+        locked: locked ? 1 : 0,
+        wide_page: widePage ? 1 : 0,
+      },
+    });
+  }, [loading, locked, page, pageId, widePage]);
 
   useEffect(() => {
     setEditorMounted(false);

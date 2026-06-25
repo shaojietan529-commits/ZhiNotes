@@ -35,6 +35,10 @@ import {
   type DailyCloudMetadataResult,
 } from "@/lib/pages/accountPageSync";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import {
+  getLocalPerformanceNow,
+  recordLocalPerformanceSnapshot,
+} from "@/lib/performance/localPerformance";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import PagePeekModal from "@/components/page/PagePeekModal";
@@ -115,6 +119,11 @@ export default function DailyNotesShell() {
     const includeCloud = opts?.includeCloud !== false;
     const requestId = loadRequestRef.current + 1;
     loadRequestRef.current = requestId;
+    const performanceStartedAt = new Date().toISOString();
+    const performanceStart = getLocalPerformanceNow();
+    let firstVisibleMs: number | null = null;
+    let firstVisibleCount = 0;
+    let localNoteCount = 0;
     if (!includeCloud) setCloudLoading(false);
     const visibleRange = buildMonthGrid(viewMonth);
     const startDate = toDateKey(visibleRange[0].date);
@@ -142,7 +151,38 @@ export default function DailyNotesShell() {
 
     const publishNotes = (nextNotes: DailyNote[]) => {
       if (loadRequestRef.current !== requestId) return;
+      if (firstVisibleMs === null && nextNotes.length > 0) {
+        firstVisibleMs = getLocalPerformanceNow() - performanceStart;
+        firstVisibleCount = nextNotes.length;
+      }
       setNotes(nextNotes);
+    };
+
+    const recordDailyPerformance = (
+      status: string,
+      counts?: Record<string, number | null | undefined>
+    ) => {
+      if (loadRequestRef.current !== requestId) return;
+      const durationMs = getLocalPerformanceNow() - performanceStart;
+      recordLocalPerformanceSnapshot({
+        kind: "daily-calendar",
+        label: "每日纪要日历加载",
+        route: "/daily",
+        status,
+        startedAt: performanceStartedAt,
+        durationMs,
+        localFirstMs: firstVisibleMs,
+        backgroundMs:
+          firstVisibleMs === null ? null : durationMs - firstVisibleMs,
+        counts: {
+          month_cells: visibleRange.length,
+          visible_notes: byId.size,
+          local_notes: localNoteCount,
+          first_visible_notes: firstVisibleCount,
+          cloud_enabled: includeCloud ? 1 : 0,
+          ...counts,
+        },
+      });
     };
 
     const publishNotice = (message: string | null) => {
@@ -209,8 +249,14 @@ export default function DailyNotesShell() {
       recentLimit: 12,
     });
     const dailyNotes = collectDailyNotes(localMetadata, dailyRootId);
+    localNoteCount = dailyNotes.length;
     for (const note of dailyNotes) byId.set(note.id, note);
     publishNotes(Array.from(byId.values()));
+    if (!includeCloud) {
+      recordDailyPerformance("local-refresh", {
+        local_pages: localMetadata.length,
+      });
+    }
     scheduleDailyIdleTask(() => {
       void ensureDailyDateIndexBackfilled()
         .then(async () => {
@@ -248,6 +294,12 @@ export default function DailyNotesShell() {
           publishNotes(Array.from(byId.values()));
           writeCachedDailyCloudMetadata(startDate, endDate, cloud);
           void persistDailyCloudMetadata(cloud, upsertPages);
+          recordDailyPerformance("cloud-ok", {
+            cloud_pages: cloud.pages.length,
+            cloud_range: cloud.rangeCount ?? 0,
+            cloud_total: cloud.total,
+            cloud_merged: merged,
+          });
           publishNotice(
             cloud.pages.length > 0
               ? `云端每日纪要已补齐 ${cloud.pages.length} 条，其中当前日历范围 ${cloud.rangeCount ?? 0} 条。`
@@ -259,15 +311,20 @@ export default function DailyNotesShell() {
         }
         if (cloud.status === "disabled") {
           publishNotice("页面同步已关闭，只显示本机每日纪要。");
+          recordDailyPerformance("cloud-disabled");
         } else if (cloud.status === "unauthenticated") {
           publishNotice("当前浏览器未登录账号，只显示本机每日纪要。");
+          recordDailyPerformance("cloud-unauthenticated");
         } else if (cloud.status === "unconfigured") {
           publishNotice("云端账号系统未配置，只显示本机每日纪要。");
+          recordDailyPerformance("cloud-unconfigured");
         } else {
           publishNotice(cloud.message ?? "云端每日纪要索引读取失败。");
+          recordDailyPerformance("cloud-error");
         }
       } catch {
         publishNotice("云端每日纪要索引读取失败。");
+        recordDailyPerformance("cloud-error");
       } finally {
         if (loadRequestRef.current === requestId) setCloudLoading(false);
       }

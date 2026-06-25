@@ -346,6 +346,13 @@ import {
   type CloudWorkspaceBootstrapProof,
   type LocalWorkspaceIdentity,
 } from "@/lib/sync/workspaceIdentity";
+import {
+  LOCAL_PERFORMANCE_EVENT,
+  LOCAL_PERFORMANCE_STORAGE_KEY,
+  clearLocalPerformanceSnapshots,
+  readLocalPerformanceSnapshots,
+  type LocalPerformanceSnapshot,
+} from "@/lib/performance/localPerformance";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -836,6 +843,34 @@ function SyncDashboard() {
   ] = useState("");
   const [restoreConfirmationPhrase, setRestoreConfirmationPhrase] =
     useState("");
+  const [performanceSnapshots, setPerformanceSnapshots] = useState<
+    LocalPerformanceSnapshot[]
+  >([]);
+
+  useEffect(() => {
+    const refreshPerformanceSnapshots = () => {
+      setPerformanceSnapshots(readLocalPerformanceSnapshots());
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === LOCAL_PERFORMANCE_STORAGE_KEY) {
+        refreshPerformanceSnapshots();
+      }
+    };
+
+    refreshPerformanceSnapshots();
+    window.addEventListener(
+      LOCAL_PERFORMANCE_EVENT,
+      refreshPerformanceSnapshots
+    );
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(
+        LOCAL_PERFORMANCE_EVENT,
+        refreshPerformanceSnapshots
+      );
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -3797,6 +3832,11 @@ function SyncDashboard() {
     }
   };
 
+  const handleClearPerformanceSnapshots = () => {
+    clearLocalPerformanceSnapshots();
+    setPerformanceSnapshots([]);
+  };
+
   return (
     <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -3907,6 +3947,11 @@ function SyncDashboard() {
           databaseStatus={databasePendingStatus}
           totalSyncPending={syncSummary?.pending ?? 0}
           onOpenAccount={() => router.push("/account")}
+        />
+
+        <LocalPerformancePanel
+          snapshots={performanceSnapshots}
+          onClear={handleClearPerformanceSnapshots}
         />
 
         <WebLaunchDecisionSummaryPanel
@@ -13886,6 +13931,124 @@ function CacheRebuildFact({
   );
 }
 
+function LocalPerformancePanel({
+  snapshots,
+  onClear,
+}: {
+  snapshots: LocalPerformanceSnapshot[];
+  onClear: () => void;
+}) {
+  const latest = snapshots[0] ?? null;
+  const dailyAverage = averagePerformanceMs(snapshots, "daily-calendar");
+  const pageAverage = averagePerformanceMs(snapshots, "page-open");
+  const recentSnapshots = snapshots.slice(0, 6);
+
+  return (
+    <section
+      id="local-performance-snapshots"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Local Performance
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            本地流畅度快照
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这里只记录本机耗时、状态和数量，用来判断日历或页面打开慢在哪一段。
+            不读取页面正文、数据库值、评论正文或文件字节，也不会上传工作区数据。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={snapshots.length === 0}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          清空本机快照
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <CacheRebuildFact
+          label="最近一次"
+          value={latest ? formatPerformanceMs(latest.duration_ms) : "暂无"}
+          detail={
+            latest
+              ? `${latest.label} · ${formatDate(latest.recorded_at)}`
+              : "访问 /daily 或打开页面后会出现记录"
+          }
+        />
+        <CacheRebuildFact
+          label="每日纪要平均"
+          value={formatPerformanceMs(dailyAverage)}
+          detail="包含第一次显示和后台云端补齐的总耗时"
+        />
+        <CacheRebuildFact
+          label="页面打开平均"
+          value={formatPerformanceMs(pageAverage)}
+          detail="不包含页面标题、正文或原始页面 ID"
+        />
+      </div>
+
+      {recentSnapshots.length > 0 ? (
+        <div className="mt-4 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-400 dark:bg-zinc-900">
+              <tr>
+                <th className="px-3 py-2 font-medium">环节</th>
+                <th className="px-3 py-2 font-medium">状态</th>
+                <th className="px-3 py-2 font-medium">总耗时</th>
+                <th className="px-3 py-2 font-medium">首屏</th>
+                <th className="px-3 py-2 font-medium">后台</th>
+                <th className="px-3 py-2 font-medium">数量</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              {recentSnapshots.map((snapshot) => (
+                <tr key={snapshot.id}>
+                  <td className="px-3 py-2 text-zinc-700 dark:text-zinc-200">
+                    <div className="font-medium">{snapshot.label}</div>
+                    <div className="mt-1 text-[11px] text-zinc-400">
+                      {snapshot.route} · {formatDate(snapshot.recorded_at)}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">
+                    {formatPerformanceStatus(snapshot.status)}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-zinc-700 dark:text-zinc-200">
+                    {formatPerformanceMs(snapshot.duration_ms)}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-zinc-500 dark:text-zinc-400">
+                    {formatPerformanceMs(snapshot.local_first_ms)}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-zinc-500 dark:text-zinc-400">
+                    {formatPerformanceMs(snapshot.background_ms)}
+                  </td>
+                  <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">
+                    {formatPerformanceCounts(snapshot.counts)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-md bg-zinc-50 px-3 py-3 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+          暂无本地快照。打开每日纪要日历或进入任意页面后，这里会显示最近的本机耗时。
+        </div>
+      )}
+
+      <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+        隐私边界：localStorage 仅保留最近 24 条 metadata 快照；不含页面标题、正文、原始
+        page id、数据库行值、评论正文、文件字节或账号密钥。
+      </p>
+    </section>
+  );
+}
+
 function HotCacheSelectionPanel({
   contract,
   preferences,
@@ -15783,6 +15946,44 @@ function formatDatabaseSyncStatus(status: string) {
   if (status === "disabled") return "数据库同步已关闭";
   if (status === "error") return "云端同步错误";
   return status;
+}
+
+function formatPerformanceStatus(status: string) {
+  const labels: Record<string, string> = {
+    "cloud-ok": "云端补齐完成",
+    "cloud-disabled": "云端关闭",
+    "cloud-unauthenticated": "未登录",
+    "cloud-unconfigured": "云端未配置",
+    "cloud-error": "云端读取失败",
+    "local-refresh": "本地刷新",
+    "content-ready": "正文可用",
+    "metadata-ready": "metadata 可用",
+  };
+  return labels[status] ?? status;
+}
+
+function formatPerformanceMs(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "暂无";
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}s`;
+  return `${Math.round(value)}ms`;
+}
+
+function averagePerformanceMs(
+  snapshots: LocalPerformanceSnapshot[],
+  kind: LocalPerformanceSnapshot["kind"]
+) {
+  const values = snapshots
+    .filter((snapshot) => snapshot.kind === kind)
+    .map((snapshot) => snapshot.duration_ms)
+    .filter((value) => Number.isFinite(value));
+  if (values.length === 0) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function formatPerformanceCounts(counts: Record<string, number>) {
+  const entries = Object.entries(counts).slice(0, 4);
+  if (entries.length === 0) return "无";
+  return entries.map(([key, value]) => `${key}: ${value}`).join(" · ");
 }
 
 function formatDate(value: string) {
