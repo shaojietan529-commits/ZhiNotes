@@ -14,6 +14,7 @@ const files = {
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
+  hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
@@ -199,6 +200,7 @@ function run() {
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
+  const hotCacheLocalIndex = readProjectFile(files.hotCacheLocalIndex);
   const hotCacheSelectionSettings = readProjectFile(
     files.hotCacheSelectionSettings
   );
@@ -677,6 +679,73 @@ function run() {
     }
   }
   assertIncludes(
+    files.localSchema,
+    localSchema,
+    "CREATE TABLE IF NOT EXISTS hot_cache_entries",
+    "Smoke verifier must keep the rebuildable local hot cache metadata index table."
+  );
+  assertIncludes(
+    files.localSchema,
+    localSchema,
+    "idx_hot_cache_entries_route",
+    "Smoke verifier must keep a route index for local hot cache lookup."
+  );
+  assertIncludes(
+    files.hotCacheLocalIndex,
+    hotCacheLocalIndex,
+    'format: "zhinote-hot-cache-local-index-write-receipt"',
+    "Smoke verifier must keep the local hot cache index write receipt."
+  );
+  assertIncludes(
+    files.hotCacheLocalIndex,
+    hotCacheLocalIndex,
+    "INSERT INTO hot_cache_entries",
+    "Local hot cache index must write only the dedicated rebuildable index table."
+  );
+  assertIncludes(
+    files.hotCacheLocalIndex,
+    hotCacheLocalIndex,
+    "enters_sync_log: false",
+    "Local hot cache index writes must stay out of the upload queue."
+  );
+  assertIncludes(
+    files.hotCacheLocalIndex,
+    hotCacheLocalIndex,
+    "mutates_local_hot_cache_index: true",
+    "Local hot cache index write receipt must disclose the local-only mutation."
+  );
+  assertIncludes(
+    files.hotCacheLocalIndex,
+    hotCacheLocalIndex,
+    "stores_source_of_truth: false",
+    "Local hot cache index must not become the source of truth."
+  );
+  assertIncludes(
+    files.hotCacheLocalIndex,
+    hotCacheLocalIndex,
+    "records_metadata_only: true",
+    "Local hot cache index must stay metadata-only."
+  );
+  for (const forbiddenIndexSnippet of [
+    "page.content_text",
+    "page.content_yjs",
+    "database.description",
+    "file.dataUrl",
+    "file.textContent",
+    "comment.body",
+    "field_values",
+    "fetch(",
+    "localStorage.setItem",
+    "recordSyncChange",
+    "INSERT INTO sync_log",
+  ]) {
+    if (hotCacheLocalIndex.includes(forbiddenIndexSnippet)) {
+      failures.push(
+        `${files.hotCacheLocalIndex} must not include ${forbiddenIndexSnippet}: local hot cache index must stay metadata-only and out of sync_log.`
+      );
+    }
+  }
+  assertIncludes(
     files.syncShell,
     syncShell,
     "本地热缓存策略",
@@ -729,6 +798,24 @@ function run() {
     syncShell,
     "导出预热收据",
     "Sync UI must expose the hot cache warmup receipt export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "writeHotCacheWarmupReceiptToLocalIndex",
+    "Sync UI must persist warmup receipts to the local metadata index."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "本地热缓存索引",
+    "Sync UI must render the local hot cache index summary."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "不进 sync_log",
+    "Sync UI must explain that the local hot cache index does not enter the upload queue."
   );
   assertIncludes(
     files.localSchema,

@@ -171,4 +171,25 @@ export const CREATE_TABLES_SQL = `
 
   CREATE INDEX IF NOT EXISTS idx_synclog_pending ON sync_log(synced, timestamp);
   CREATE INDEX IF NOT EXISTS idx_workspace_settings_updated ON workspace_settings(updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS hot_cache_entries (
+    id             TEXT PRIMARY KEY,
+    scope          TEXT NOT NULL,
+    plan_hash      TEXT NOT NULL,
+    job_id         TEXT NOT NULL,
+    route_target   TEXT NOT NULL DEFAULT '',
+    receipt_status TEXT NOT NULL,
+    source_status  TEXT NOT NULL,
+    attempted_routes INTEGER NOT NULL DEFAULT 0,
+    failed_routes  INTEGER NOT NULL DEFAULT 0,
+    estimated_metadata_records INTEGER NOT NULL DEFAULT 0,
+    warmed_at      TEXT NOT NULL,
+    expires_at     TEXT,
+    source_receipt_format TEXT NOT NULL DEFAULT 'zhinote-hot-cache-warmup-receipt',
+    metadata_json  TEXT NOT NULL DEFAULT '{}'
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_hot_cache_entries_scope ON hot_cache_entries(scope, warmed_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_hot_cache_entries_plan ON hot_cache_entries(plan_hash, warmed_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_hot_cache_entries_route ON hot_cache_entries(route_target, warmed_at DESC);
 `;

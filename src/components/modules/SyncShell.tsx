@@ -264,6 +264,12 @@ import {
   type HotCacheWarmupReceiptJobStatus,
 } from "@/lib/sync/hotCacheWarmupReceipt";
 import {
+  getHotCacheLocalIndexSummary,
+  writeHotCacheWarmupReceiptToLocalIndex,
+  type HotCacheLocalIndexSummary,
+  type HotCacheLocalIndexWriteReceipt,
+} from "@/lib/sync/hotCacheLocalIndex";
+import {
   DEFAULT_HOT_CACHE_PREFERENCES,
   HOT_CACHE_PREFERENCES_SETTING_KEY,
   buildHotCacheSelectionContract,
@@ -790,6 +796,11 @@ function SyncDashboard() {
   >(null);
   const [hotCacheWarmupReceipt, setHotCacheWarmupReceipt] =
     useState<HotCacheWarmupReceipt | null>(null);
+  const [hotCacheLocalIndexSummary, setHotCacheLocalIndexSummary] =
+    useState<HotCacheLocalIndexSummary | null>(null);
+  const [hotCacheLocalIndexWriteReceipt, setHotCacheLocalIndexWriteReceipt] =
+    useState<HotCacheLocalIndexWriteReceipt | null>(null);
+  const [hotCacheWarmupBusy, setHotCacheWarmupBusy] = useState(false);
   const [busyAction, setBusyAction] = useState<ExportAction | null>(null);
   const [busyQueueAction, setBusyQueueAction] = useState<SyncQueueAction | null>(
     null
@@ -904,6 +915,7 @@ function SyncDashboard() {
           loadedSync,
           loadedSyncEntries,
           loadedHotCacheSetting,
+          loadedHotCacheLocalIndexSummary,
           loadedDatabasePendingStatus,
           loadedEnvironmentPreflight,
         ] = await Promise.all([
@@ -914,6 +926,7 @@ function SyncDashboard() {
           getSyncLogSummary(),
           getPendingSyncLogEntries(25),
           getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY),
+          getHotCacheLocalIndexSummary(),
           getPendingCloudDatabaseSyncStatus(),
           fetch("/api/web-beta/environment-preflight")
             .then((response) => {
@@ -942,6 +955,7 @@ function SyncDashboard() {
         setDatabasePendingStatus(loadedDatabasePendingStatus);
         setHotCacheSetting(loadedHotCacheSetting);
         setHotCachePreferences(parseHotCachePreferences(loadedHotCacheSetting));
+        setHotCacheLocalIndexSummary(loadedHotCacheLocalIndexSummary);
         setEnvironmentPreflight(loadedEnvironmentPreflight);
         setEnvironmentPreflightError(
           loadedEnvironmentPreflight
@@ -2384,7 +2398,19 @@ function SyncDashboard() {
     );
   };
 
-  const handleRunHotCacheWarmup = () => {
+  const persistHotCacheWarmupReceipt = async (
+    receipt: HotCacheWarmupReceipt
+  ): Promise<HotCacheLocalIndexWriteReceipt> => {
+    const writeReceipt = await writeHotCacheWarmupReceiptToLocalIndex(receipt);
+    const nextSummary = await getHotCacheLocalIndexSummary();
+    setHotCacheLocalIndexWriteReceipt(writeReceipt);
+    setHotCacheLocalIndexSummary(nextSummary);
+    return writeReceipt;
+  };
+
+  const handleRunHotCacheWarmup = async () => {
+    if (hotCacheWarmupBusy) return;
+    setHotCacheWarmupBusy(true);
     const routeTargets = Array.from(
       new Set(
         hotCacheWarmupPlan.jobs
@@ -2396,15 +2422,26 @@ function SyncDashboard() {
     const failedRouteTargets: string[] = [];
 
     if (routeTargets.length === 0) {
-      setHotCacheWarmupReceipt(
-        buildHotCacheWarmupReceipt({
-          plan: hotCacheWarmupPlan,
-          attemptedRouteTargets: [],
-          startedAt,
-          finishedAt: new Date().toISOString(),
-        })
-      );
-      setHotCacheWarmupMessage("当前没有可预热入口。请先开启至少一项热缓存偏好。");
+      const receipt = buildHotCacheWarmupReceipt({
+        plan: hotCacheWarmupPlan,
+        attemptedRouteTargets: [],
+        startedAt,
+        finishedAt: new Date().toISOString(),
+      });
+      setHotCacheWarmupReceipt(receipt);
+      try {
+        const writeReceipt = await persistHotCacheWarmupReceipt(receipt);
+        setHotCacheWarmupMessage(
+          `当前没有可预热入口，但已写入本地热缓存索引 ${writeReceipt.summary.indexed_rows} 行用于对账。这个索引不进 sync_log、不上传、不是云端主库。`
+        );
+      } catch (err) {
+        console.error("[Zhinote] Failed to write hot cache index:", err);
+        setHotCacheWarmupMessage(
+          "当前没有可预热入口；本地热缓存索引写入失败，但不会影响云端主库或 pending queue。"
+        );
+      } finally {
+        setHotCacheWarmupBusy(false);
+      }
       return;
     }
 
@@ -2424,9 +2461,19 @@ function SyncDashboard() {
       finishedAt: new Date().toISOString(),
     });
     setHotCacheWarmupReceipt(receipt);
-    setHotCacheWarmupMessage(
-      `已预热 ${routeTargets.length} 个本机入口，生成 metadata-only 收据：${receipt.summary.prefetched_jobs} 个 job 已执行、${receipt.summary.skipped_jobs} 个 job 跳过。这个动作不读取正文、不上传、不改缓存记录。`
-    );
+    try {
+      const writeReceipt = await persistHotCacheWarmupReceipt(receipt);
+      setHotCacheWarmupMessage(
+        `已预热 ${routeTargets.length} 个本机入口，并写入本地热缓存索引 ${writeReceipt.summary.indexed_rows} 行：${receipt.summary.prefetched_jobs} 个 job 已执行、${receipt.summary.skipped_jobs} 个 job 跳过。这个动作不读取正文、不进 sync_log、不上传。`
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to write hot cache index:", err);
+      setHotCacheWarmupMessage(
+        `已预热 ${routeTargets.length} 个本机入口并生成 metadata-only 收据，但本地热缓存索引写入失败。预热不读取正文、不上传，也不会影响云端主库。`
+      );
+    } finally {
+      setHotCacheWarmupBusy(false);
+    }
   };
 
   const handleHotCachePreferencesChange = async (
@@ -4048,7 +4095,10 @@ function SyncDashboard() {
         <HotCacheWarmupPlanPanel
           plan={hotCacheWarmupPlan}
           receipt={hotCacheWarmupReceipt}
+          indexSummary={hotCacheLocalIndexSummary}
+          indexWriteReceipt={hotCacheLocalIndexWriteReceipt}
           message={hotCacheWarmupMessage}
+          busy={hotCacheWarmupBusy}
           onRun={handleRunHotCacheWarmup}
           onExport={handleExportHotCacheWarmupPlan}
           onExportReceipt={handleExportHotCacheWarmupReceipt}
@@ -14348,15 +14398,21 @@ function HotCacheSelectionPanel({
 function HotCacheWarmupPlanPanel({
   plan,
   receipt,
+  indexSummary,
+  indexWriteReceipt,
   message,
+  busy,
   onRun,
   onExport,
   onExportReceipt,
 }: {
   plan: HotCacheWarmupPlan;
   receipt: HotCacheWarmupReceipt | null;
+  indexSummary: HotCacheLocalIndexSummary | null;
+  indexWriteReceipt: HotCacheLocalIndexWriteReceipt | null;
   message: string | null;
-  onRun: () => void;
+  busy: boolean;
+  onRun: () => void | Promise<void>;
   onExport: () => void;
   onExportReceipt: () => void;
 }) {
@@ -14381,10 +14437,11 @@ function HotCacheWarmupPlanPanel({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={onRun}
-            className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+            onClick={() => void onRun()}
+            disabled={busy}
+            className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
           >
-            预热本机入口
+            {busy ? "正在预热..." : "预热本机入口"}
           </button>
           <button
             type="button"
@@ -14448,6 +14505,11 @@ function HotCacheWarmupPlanPanel({
         </p>
       ) : null}
 
+      <HotCacheLocalIndexPanel
+        summary={indexSummary}
+        writeReceipt={indexWriteReceipt}
+      />
+
       {receipt ? (
         <HotCacheWarmupReceiptPanel receipt={receipt} />
       ) : (
@@ -14466,6 +14528,72 @@ function HotCacheWarmupPlanPanel({
       <div className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
         边界：{plan.privacy_boundary}
       </div>
+    </section>
+  );
+}
+
+function HotCacheLocalIndexPanel({
+  summary,
+  writeReceipt,
+}: {
+  summary: HotCacheLocalIndexSummary | null;
+  writeReceipt: HotCacheLocalIndexWriteReceipt | null;
+}) {
+  return (
+    <section className="mt-4 rounded-md border border-emerald-100 bg-emerald-50 px-3 py-3 text-xs dark:border-emerald-950 dark:bg-emerald-950/30">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="font-semibold text-emerald-900 dark:text-emerald-100">
+            本地热缓存索引
+          </div>
+          <p className="mt-1 max-w-3xl leading-5 text-emerald-700 dark:text-emerald-200">
+            只登记 route、job 状态、metadata 计数和时间戳；不保存正文、文件、评论或数据库行值。
+            这个索引不进 sync_log，不上传，不是云端主库，可清空后从云端主库重建。
+          </p>
+        </div>
+        <div className="font-mono text-[10px] text-emerald-500 dark:text-emerald-300">
+          {summary?.summary.latest_warmed_at ?? "尚未写入"}
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+        <LocalMetadataManifestMiniStat
+          label="Index rows"
+          value={summary?.summary.rows ?? 0}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Routes"
+          value={summary?.summary.distinct_route_targets ?? 0}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Metadata"
+          value={summary?.summary.total_metadata_records ?? 0}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Prefetched"
+          value={summary?.summary.prefetched_rows ?? 0}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Failed"
+          value={summary?.summary.failed_routes ?? 0}
+        />
+        <LocalMetadataManifestMiniStat label="sync_log" value="不进" />
+      </div>
+
+      {writeReceipt ? (
+        <div className="mt-3 rounded-md bg-white/70 px-3 py-2 leading-5 text-emerald-700 dark:bg-zinc-950/30 dark:text-emerald-200">
+          最近写入：{writeReceipt.summary.indexed_rows} 行，覆盖{" "}
+          {writeReceipt.summary.indexed_route_targets} 个 route，保护{" "}
+          {writeReceipt.summary.pending_rows_protected} 条待上传记录。边界：
+          records_metadata_only={String(writeReceipt.boundary.records_metadata_only)}
+          ，enters_sync_log={String(writeReceipt.boundary.enters_sync_log)}。
+        </div>
+      ) : (
+        <div className="mt-3 rounded-md border border-dashed border-emerald-200 px-3 py-2 leading-5 text-emerald-600 dark:border-emerald-900 dark:text-emerald-300">
+          还没有本轮写入收据。运行“预热本机入口”后，会把预热结果写成本地
+          metadata 索引，供后续日历、列表和同步页更快显示。
+        </div>
+      )}
     </section>
   );
 }

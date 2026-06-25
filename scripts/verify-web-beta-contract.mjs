@@ -72,6 +72,7 @@ const files = {
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
+  hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
@@ -334,6 +335,7 @@ function run() {
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
+  const hotCacheLocalIndex = readProjectFile(files.hotCacheLocalIndex);
   const hotCacheSelectionSettings = readProjectFile(
     files.hotCacheSelectionSettings
   );
@@ -1042,6 +1044,94 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-hot-cache-local-index-write-receipt"',
+      "Local hot cache index must expose a stable write receipt.",
+    ],
+    [
+      'format: "zhinote-hot-cache-local-index-summary"',
+      "Local hot cache index must expose a stable summary format.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Local hot cache index must align to cloud master plus local hot cache.",
+    ],
+    [
+      "INSERT INTO hot_cache_entries",
+      "Local hot cache index must write the dedicated rebuildable table.",
+    ],
+    [
+      "ON CONFLICT(id) DO UPDATE",
+      "Local hot cache index writes must be idempotent.",
+    ],
+    [
+      "enters_sync_log: false",
+      "Local hot cache index writes must not enter the upload queue.",
+    ],
+    [
+      "mutates_local_hot_cache_index: true",
+      "Local hot cache index write receipt must disclose the local-only mutation.",
+    ],
+    [
+      "stores_source_of_truth: false",
+      "Local hot cache index must not become the source of truth.",
+    ],
+    [
+      "records_metadata_only: true",
+      "Local hot cache index must remain metadata-only.",
+    ],
+  ]) {
+    assertSourceIncludes(files.hotCacheLocalIndex, hotCacheLocalIndex, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Local hot cache index must not access page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Local hot cache index must not access page Yjs content.",
+    ],
+    [
+      "database.description",
+      "Local hot cache index must not access database descriptions.",
+    ],
+    [
+      "file.dataUrl",
+      "Local hot cache index must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Local hot cache index must not access file text.",
+    ],
+    [
+      "comment.body",
+      "Local hot cache index must not access comment bodies.",
+    ],
+    [
+      "field_values",
+      "Local hot cache index must not access database row values.",
+    ],
+    [
+      "fetch(",
+      "Local hot cache index must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Local hot cache index must not write browser storage directly.",
+    ],
+    [
+      "recordSyncChange",
+      "Local hot cache index must not call the pending upload logger.",
+    ],
+    [
+      "INSERT INTO sync_log",
+      "Local hot cache index must not write pending upload rows.",
+    ],
+  ]) {
+    assertSourceExcludes(files.hotCacheLocalIndex, hotCacheLocalIndex, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "buildHotCacheWarmupReceipt",
       "Sync UI must build a hot cache warmup receipt.",
     ],
@@ -1061,11 +1151,35 @@ function run() {
       "导出预热收据",
       "Sync UI must render the hot cache warmup receipt export button.",
     ],
+    [
+      "writeHotCacheWarmupReceiptToLocalIndex",
+      "Sync UI must persist warmup receipts to the local metadata index.",
+    ],
+    [
+      "getHotCacheLocalIndexSummary",
+      "Sync UI must read the local hot cache index summary.",
+    ],
+    [
+      "本地热缓存索引",
+      "Sync UI must render the local hot cache index summary panel.",
+    ],
+    [
+      "不进 sync_log",
+      "Sync UI must tell the user that this index stays out of sync_log.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
 
   for (const [snippet, message] of [
+    [
+      "CREATE TABLE IF NOT EXISTS hot_cache_entries",
+      "Local schema must include a rebuildable local hot cache metadata index table.",
+    ],
+    [
+      "idx_hot_cache_entries_route",
+      "Local schema must index route targets for local hot cache lookup.",
+    ],
     [
       "CREATE TABLE IF NOT EXISTS workspace_settings",
       "Local schema must include a rebuildable settings cache table.",
