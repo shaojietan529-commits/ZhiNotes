@@ -14,6 +14,7 @@ import {
   pushCloudPages,
   queueCloudPageDelete,
   queueCloudPagePush,
+  type CloudPageLookupResult,
 } from "@/lib/pages/accountPageSync";
 import {
   clearPendingPageDraft,
@@ -70,6 +71,12 @@ export function usePage(
     } else {
       setPage(null);
     }
+
+    let cloudPagePromise: Promise<CloudPageLookupResult | null> | null = null;
+    if (localPage?.content_text == null) {
+      cloudPagePromise = fetchCloudPageById(pageId).catch(() => null);
+    }
+
     try {
       const storedPage = await getPage(pageId);
       if (storedPage) {
@@ -87,23 +94,32 @@ export function usePage(
     }
 
     if (localPage?.content_text != null) {
-      void refreshPageFromCloud(pageId, localPage, setPage, upsertPages);
+      if (cloudPagePromise) {
+        void refreshPageFromCloudResult(
+          cloudPagePromise,
+          localPage,
+          setPage,
+          upsertPages
+        );
+      } else {
+        void refreshPageFromCloud(pageId, localPage, setPage, upsertPages);
+      }
       setLoading(false);
       return;
     }
 
     try {
-      const cloud = await fetchCloudPageById(pageId);
-      if (cloud.status === "ok" && cloud.pages.length > 0) {
-        const remoteRecord = cloud.pages[0];
-        if (remoteIsAtLeastAsFresh(remoteRecord, localPage)) {
-          const hydrated = await hydrateRemotePageIntoLocalCache(remoteRecord);
-          clearPendingPageDraft(pageId);
-          if (hydrated) upsertPages([hydrated]);
-          setPage(hydrated);
-        } else if (localPage) {
-          queueCloudPagePush(localPage);
-        }
+      const cloud = cloudPagePromise
+        ? await cloudPagePromise
+        : await fetchCloudPageById(pageId);
+      const cloudApplied = await applyCloudPageLookup(
+        cloud,
+        localPage,
+        setPage,
+        upsertPages
+      );
+      if (cloudApplied) {
+        clearPendingPageDraft(pageId);
       } else if (!localPage) {
         setPage(null);
       }
@@ -251,23 +267,48 @@ async function refreshPageFromCloud(
 ): Promise<void> {
   try {
     const cloud = await fetchCloudPageById(pageId);
-    if (cloud.status !== "ok" || cloud.pages.length === 0) return;
-    const remoteRecord = cloud.pages[0];
-    if (remoteIsAtLeastAsFresh(remoteRecord, localPage)) {
-      const hydrated = await hydrateRemotePageIntoLocalCache(remoteRecord);
-      if (!hydrated) {
-        setPage(null);
-        return;
-      }
-      upsertPages([hydrated]);
-      setPage(hydrated);
-      return;
-    }
-    queueCloudPagePush(localPage);
+    await applyCloudPageLookup(cloud, localPage, setPage, upsertPages);
   } catch {
     // Local content is already visible; a cloud refresh failure should not
     // block reading or editing.
   }
+}
+
+async function refreshPageFromCloudResult(
+  cloudPromise: Promise<CloudPageLookupResult | null>,
+  localPage: Page,
+  setPage: (page: Page | null) => void,
+  upsertPages: (pages: Page[]) => void
+): Promise<void> {
+  const cloud = await cloudPromise;
+  await applyCloudPageLookup(cloud, localPage, setPage, upsertPages);
+}
+
+async function applyCloudPageLookup(
+  cloud: CloudPageLookupResult | null,
+  localPage: Page | null,
+  setPage: (page: Page | null) => void,
+  upsertPages: (pages: Page[]) => void
+): Promise<boolean> {
+  if (!cloud || cloud.status !== "ok" || cloud.pages.length === 0) {
+    return false;
+  }
+  const remoteRecord = cloud.pages[0];
+  if (remoteIsAtLeastAsFresh(remoteRecord, localPage)) {
+    const hydrated = await hydrateRemotePageIntoLocalCache(remoteRecord);
+    if (!hydrated) {
+      setPage(null);
+      return true;
+    }
+    upsertPages([hydrated]);
+    setPage(hydrated);
+    return true;
+  }
+  if (localPage) {
+    queueCloudPagePush(localPage);
+    return true;
+  }
+  return false;
 }
 
 function remoteIsAtLeastAsFresh(

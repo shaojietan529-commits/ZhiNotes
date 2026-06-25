@@ -679,7 +679,8 @@ check(
   "usePage 应封装云端页面回填本机缓存逻辑"
 );
 check(
-  usePageHook.includes("if (hydrated) upsertPages([hydrated])"),
+  usePageHook.includes("upsertPages([hydrated])") &&
+    usePageHook.includes("applyCloudPageLookup"),
   "usePage 云端拉取后应更新前端页面索引，避免依赖全量刷新"
 );
 check(
