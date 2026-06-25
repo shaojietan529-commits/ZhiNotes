@@ -68,6 +68,12 @@ export interface DatabaseSyncIndexSummary {
   cursor: string;
 }
 
+export interface CloudDatabaseManifestSummaryResult {
+  status: DatabaseSyncStatus;
+  summary: DatabaseSyncIndexSummary | null;
+  message?: string;
+}
+
 export interface CloudDatabaseChangesResult {
   status: DatabaseSyncStatus;
   records: CloudDatabaseRecord[];
@@ -496,6 +502,22 @@ async function call(body: Record<string, unknown>): Promise<
   } catch {
     return { ok: false, status: "error", message: "网络错误" };
   }
+}
+
+export async function getCloudDatabaseManifestSummary(): Promise<CloudDatabaseManifestSummaryResult> {
+  const res = await call({ action: "summary" });
+  if (!res.ok) {
+    return { status: res.status, summary: null, message: res.message };
+  }
+  const summary = normalizeSummary(res.json.summary);
+  if (!summary) {
+    return {
+      status: "error",
+      summary: null,
+      message: "云端数据库 manifest summary 格式无效",
+    };
+  }
+  return { status: "ok", summary };
 }
 
 export async function fetchCloudDatabaseRecordsByKeys(

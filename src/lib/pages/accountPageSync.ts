@@ -245,6 +245,12 @@ interface IndexSummary {
   cursor: string;
 }
 
+export interface CloudPageManifestSummaryResult {
+  status: PageSyncStatus;
+  summary: IndexSummary | null;
+  message?: string;
+}
+
 interface ReconcileOptions {
   quick?: boolean;
 }
@@ -396,6 +402,25 @@ export async function fetchCloudPageById(
   id: string
 ): Promise<CloudPageLookupResult> {
   return fetchCloudPagesByIds([id]);
+}
+
+export async function getCloudPageManifestSummary(): Promise<CloudPageManifestSummaryResult> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", summary: null };
+  }
+  const res = await call({ action: "summary" });
+  if (!res.ok) {
+    return { status: res.status, summary: null, message: res.message };
+  }
+  const summary = normalizeSummary(res.json.summary);
+  if (!summary) {
+    return {
+      status: "error",
+      summary: null,
+      message: "云端页面 manifest summary 格式无效",
+    };
+  }
+  return { status: "ok", summary };
 }
 
 export async function fetchCloudPageMetadata(): Promise<CloudPageMetadataResult> {

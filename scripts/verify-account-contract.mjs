@@ -429,6 +429,23 @@ check(
   "同步页应按全域数据面展示 pending 分布，并保持 metadata-only 与 pending-only 边界"
 );
 check(
+  pageSyncClient.includes("export async function getCloudPageManifestSummary") &&
+    pageSyncClient.includes('call({ action: "summary" })') &&
+    databaseSyncClient.includes(
+      "export async function getCloudDatabaseManifestSummary"
+    ) &&
+    databaseSyncClient.includes('call({ action: "summary" })') &&
+    syncDashboardShell.includes("核心域云端 manifest 对账") &&
+    syncDashboardShell.includes("只读检查核心域") &&
+    syncDashboardShell.includes("getLocalPageSyncSummary") &&
+    syncDashboardShell.includes("getLocalDatabaseSyncSummary") &&
+    syncDashboardShell.includes("getCloudPageManifestSummary") &&
+    syncDashboardShell.includes("getCloudDatabaseManifestSummary") &&
+    syncDashboardShell.includes("不读取页面正文、数据库值、评论正文或文件字节") &&
+    syncDashboardShell.includes("不会上传或清理本机缓存"),
+  "同步页应提供核心域云端 manifest metadata-only 对账，只读 count/watermark/pending，不读取正文或上传/清缓存"
+);
+check(
   pageSyncClient.includes("fetchCloudPageMetadata") &&
     pageSyncClient.includes('call({ action: "metadata" })') &&
     pageSyncClient.includes("setRemoteCursor(summary.cursor)"),

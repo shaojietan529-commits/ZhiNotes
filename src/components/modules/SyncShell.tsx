@@ -15,6 +15,8 @@ import { usePages } from "@/hooks/usePages";
 import {
   getAllDatabases,
   getDeletedPages,
+  getLocalDatabaseSyncSummary,
+  getLocalPageSyncSummary,
   getPageModuleCounts,
   getPendingSyncLogEntries,
   getSyncLogSummary,
@@ -28,12 +30,14 @@ import {
   type WorkspaceSettingRecord,
 } from "@/lib/db/local/queries";
 import {
+  getCloudDatabaseManifestSummary,
   getPendingCloudDatabaseSyncStatus,
   isDatabaseSyncEnabled,
   reconcileDatabaseSync,
   type PendingCloudDatabaseSyncStatus,
 } from "@/lib/database/accountDatabaseSync";
 import {
+  getCloudPageManifestSummary,
   getPendingCloudPageSyncStatus,
   isPageSyncEnabled,
   reconcilePageSync,
@@ -394,6 +398,31 @@ type PendingDomainDefinition = {
   tableNames: string[];
   tablePrefixes?: string[];
 };
+type CoreManifestCompareStatus =
+  | "matched"
+  | "needs-sync"
+  | "blocked"
+  | "mismatch";
+type CoreManifestDomainCompare = {
+  id: "pages" | "databases";
+  title: string;
+  localCount: number;
+  cloudCount: number | null;
+  localDeleted: number;
+  cloudDeleted: number | null;
+  localWatermark: string;
+  cloudWatermark: string | null;
+  pending: number;
+  status: CoreManifestCompareStatus;
+  note: string;
+};
+type CoreManifestCompareReport = {
+  checkedAt: string;
+  status: "matched" | "needs-sync" | "blocked" | "mismatch";
+  domains: CoreManifestDomainCompare[];
+  privacyNote: string;
+  message?: string;
+};
 type PermissionPolicyAction = "policy";
 type CloudAlphaAction =
   | "login"
@@ -534,6 +563,82 @@ const PENDING_DOMAIN_DEFINITIONS: PendingDomainDefinition[] = [
     tablePrefixes: ["audit_", "receipt_", "migration_"],
   },
 ];
+
+function buildCoreManifestDomainCompare(input: {
+  id: CoreManifestDomainCompare["id"];
+  title: string;
+  localSummary: {
+    count: number;
+    deleted: number;
+    watermark: string;
+  };
+  cloudResult: {
+    status: string;
+    summary: {
+      count: number;
+      deleted: number;
+      watermark: string;
+    } | null;
+    message?: string;
+  };
+  pending: number;
+}): CoreManifestDomainCompare {
+  const cloud = input.cloudResult.summary;
+  if (input.cloudResult.status !== "ok" || !cloud) {
+    return {
+      id: input.id,
+      title: input.title,
+      localCount: input.localSummary.count,
+      cloudCount: null,
+      localDeleted: input.localSummary.deleted,
+      cloudDeleted: null,
+      localWatermark: input.localSummary.watermark,
+      cloudWatermark: null,
+      pending: input.pending,
+      status: "blocked",
+      note:
+        input.cloudResult.message ??
+        `云端 ${input.title} manifest summary 暂不可读：${input.cloudResult.status}`,
+    };
+  }
+
+  const metadataMatches =
+    input.localSummary.count === cloud.count &&
+    input.localSummary.deleted === cloud.deleted &&
+    input.localSummary.watermark === cloud.watermark;
+  const status: CoreManifestCompareStatus =
+    input.pending > 0 ? "needs-sync" : metadataMatches ? "matched" : "mismatch";
+
+  return {
+    id: input.id,
+    title: input.title,
+    localCount: input.localSummary.count,
+    cloudCount: cloud.count,
+    localDeleted: input.localSummary.deleted,
+    cloudDeleted: cloud.deleted,
+    localWatermark: input.localSummary.watermark,
+    cloudWatermark: cloud.watermark,
+    pending: input.pending,
+    status,
+    note:
+      status === "matched"
+        ? "本地热缓存 metadata 与云端 manifest summary 对齐。"
+        : status === "needs-sync"
+          ? "本地还有 pending 变更，先补传再判断是否需要重建缓存。"
+          : "本地热缓存和云端 manifest 的 count 或 watermark 不一致，需要同步、拉取或重建缓存。",
+  };
+}
+
+function getCoreManifestOverallStatus(
+  domains: CoreManifestDomainCompare[]
+): CoreManifestCompareReport["status"] {
+  if (domains.some((domain) => domain.status === "blocked")) return "blocked";
+  if (domains.some((domain) => domain.status === "needs-sync")) {
+    return "needs-sync";
+  }
+  if (domains.some((domain) => domain.status === "mismatch")) return "mismatch";
+  return "matched";
+}
 
 const READINESS_ITEMS: Array<{
   title: string;
@@ -678,6 +783,10 @@ function SyncDashboard() {
   const [databasePendingMessage, setDatabasePendingMessage] = useState<
     string | null
   >(null);
+  const [coreManifestCompareReport, setCoreManifestCompareReport] =
+    useState<CoreManifestCompareReport | null>(null);
+  const [coreManifestCompareBusy, setCoreManifestCompareBusy] =
+    useState(false);
   const [busyPermissionAction, setBusyPermissionAction] =
     useState<PermissionPolicyAction | null>(null);
   const [busyContractAction, setBusyContractAction] =
@@ -2472,6 +2581,71 @@ function SyncDashboard() {
     }
   };
 
+  const handleRunCoreManifestCompare = async () => {
+    setCoreManifestCompareBusy(true);
+    try {
+      const [
+        localPageSummary,
+        localDatabaseSummary,
+        cloudPageSummary,
+        cloudDatabaseSummary,
+        nextDatabasePending,
+      ] = await Promise.all([
+        getLocalPageSyncSummary(),
+        getLocalDatabaseSyncSummary(),
+        getCloudPageManifestSummary(),
+        getCloudDatabaseManifestSummary(),
+        getPendingCloudDatabaseSyncStatus(),
+      ]);
+      const nextPagePending = getPendingCloudPageSyncStatus();
+      setPagePendingStatus(nextPagePending);
+      setDatabasePendingStatus(nextDatabasePending);
+
+      const domains = [
+        buildCoreManifestDomainCompare({
+          id: "pages",
+          title: "页面",
+          localSummary: localPageSummary,
+          cloudResult: cloudPageSummary,
+          pending: nextPagePending.pending + nextPagePending.queued,
+        }),
+        buildCoreManifestDomainCompare({
+          id: "databases",
+          title: "数据库",
+          localSummary: localDatabaseSummary,
+          cloudResult: cloudDatabaseSummary,
+          pending:
+            nextDatabasePending.pending +
+            nextDatabasePending.queued +
+            nextDatabasePending.syncLogPending,
+        }),
+      ];
+
+      setCoreManifestCompareReport({
+        checkedAt: new Date().toISOString(),
+        status: getCoreManifestOverallStatus(domains),
+        domains,
+        privacyNote:
+          "核心域云端 manifest 对账只读取本地/云端 metadata summary 的 count、deleted、watermark 和 pending 数，不读取页面正文、数据库值、评论正文或文件字节；不会上传或清理本机缓存。",
+      });
+    } catch (err) {
+      console.error("[Zhinote] Failed to compare core manifests:", err);
+      setCoreManifestCompareReport({
+        checkedAt: new Date().toISOString(),
+        status: "blocked",
+        domains: [],
+        privacyNote:
+          "核心域云端 manifest 对账失败前没有读取正文或文件，也没有上传或清理本机缓存。",
+        message:
+          err instanceof Error
+            ? `核心域云端 manifest 对账失败：${err.message}`
+            : "核心域云端 manifest 对账失败：未知错误。",
+      });
+    } finally {
+      setCoreManifestCompareBusy(false);
+    }
+  };
+
   const handleExportSyncPayloadPreview = async () => {
     setBusyQueueAction("payload-preview");
     try {
@@ -3675,6 +3849,12 @@ function SyncDashboard() {
         <LocalMetadataManifestPanel
           report={localMetadataManifest}
           onExport={handleExportLocalMetadataManifest}
+        />
+
+        <CoreManifestComparePanel
+          report={coreManifestCompareReport}
+          busy={coreManifestCompareBusy}
+          onRun={() => void handleRunCoreManifestCompare()}
         />
 
         <HotCachePolicyPlanPanel
@@ -14336,6 +14516,155 @@ function LocalMetadataManifestStatusPill({
       : status === "partial"
         ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
         : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function CoreManifestComparePanel({
+  report,
+  busy,
+  onRun,
+}: {
+  report: CoreManifestCompareReport | null;
+  busy: boolean;
+  onRun: () => void;
+}) {
+  return (
+    <section
+      id="core-cloud-manifest-compare"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Core Manifest Compare
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              核心域云端 manifest 对账
+            </h2>
+            {report ? <CoreManifestStatusPill status={report.status} /> : null}
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            只读检查页面和数据库这两个已接入账号同步的核心域：读取本地 metadata
+            summary 与云端 manifest summary 的 count、deleted、watermark，再结合 pending
+            队列判断是否已对齐。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRun}
+          disabled={busy}
+          className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+        >
+          {busy ? "检查中..." : "只读检查核心域"}
+        </button>
+      </div>
+
+      {report ? (
+        <div className="mt-4 space-y-4">
+          {report.message ? (
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+              {report.message}
+            </p>
+          ) : null}
+          <div className="grid gap-3 md:grid-cols-2">
+            {report.domains.map((domain) => (
+              <CoreManifestDomainRow key={domain.id} domain={domain} />
+            ))}
+          </div>
+          <p className="rounded-md bg-zinc-50 px-3 py-2 text-[11px] leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            {report.privacyNote} 检查时间：{formatDate(report.checkedAt)}
+          </p>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+          尚未运行。这个检查不会上传或清理本机缓存，也不读取页面正文、数据库值、评论正文或文件字节。
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CoreManifestDomainRow({
+  domain,
+}: {
+  domain: CoreManifestDomainCompare;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {domain.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {domain.id}
+          </div>
+        </div>
+        <CoreManifestStatusPill status={domain.status} />
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <LocalMetadataManifestMiniStat
+          label="Local count"
+          value={domain.localCount}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Cloud count"
+          value={domain.cloudCount ?? "不可读"}
+        />
+        <LocalMetadataManifestMiniStat label="Pending" value={domain.pending} />
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <LocalMetadataManifestMiniStat
+          label="Local deleted"
+          value={domain.localDeleted}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Cloud deleted"
+          value={domain.cloudDeleted ?? "不可读"}
+        />
+      </div>
+      <div className="mt-3 grid gap-2">
+        <LocalMetadataManifestMiniStat
+          label="Local watermark"
+          value={domain.localWatermark || "暂无"}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Cloud watermark"
+          value={domain.cloudWatermark || "暂无"}
+        />
+      </div>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {domain.note}
+      </p>
+    </article>
+  );
+}
+
+function CoreManifestStatusPill({
+  status,
+}: {
+  status: CoreManifestCompareStatus | CoreManifestCompareReport["status"];
+}) {
+  const labels: Record<CoreManifestCompareStatus, string> = {
+    matched: "已对齐",
+    "needs-sync": "先补传",
+    blocked: "阻塞",
+    mismatch: "需对账",
+  };
+  const className =
+    status === "matched"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "needs-sync"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : status === "mismatch"
+          ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>

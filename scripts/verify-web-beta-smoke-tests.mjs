@@ -348,6 +348,30 @@ function run() {
     "Sync UI must expose the local metadata manifest export."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    "核心域云端 manifest 对账",
+    "Sync UI must show the core cloud manifest compare panel."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "只读检查核心域",
+    "Sync UI must expose the read-only core manifest check action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "不会上传或清理本机缓存",
+    "Core manifest compare must stay read-only."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "不读取页面正文、数据库值、评论正文或文件字节",
+    "Core manifest compare must preserve sensitive content boundaries."
+  );
+  assertIncludes(
     files.hotCachePolicyPlan,
     hotCachePolicyPlan,
     'plan_status: "local-policy-only"',
@@ -528,6 +552,12 @@ function run() {
     "Smoke verifier must keep page pending upload status visible to the sync dashboard."
   );
   assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "export async function getCloudPageManifestSummary",
+    "Smoke verifier must keep cloud page manifest summary available to the sync dashboard."
+  );
+  assertIncludes(
     files.syncShell,
     syncShell,
     "页面 pending 上传队列",
@@ -550,6 +580,12 @@ function run() {
     accountDatabaseSync,
     "export async function getPendingCloudDatabaseSyncStatus",
     "Smoke verifier must keep database pending upload status visible to the sync dashboard."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "export async function getCloudDatabaseManifestSummary",
+    "Smoke verifier must keep cloud database manifest summary available to the sync dashboard."
   );
   assertIncludes(
     files.accountDatabaseSync,

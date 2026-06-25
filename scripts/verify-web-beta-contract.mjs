@@ -578,6 +578,58 @@ function run() {
       "导出本地 manifest",
       "Sync UI must render the local manifest export button.",
     ],
+    [
+      "CoreManifestComparePanel",
+      "Sync UI must render the core cloud manifest compare panel.",
+    ],
+    [
+      "核心域云端 manifest 对账",
+      "Sync UI must expose core-domain cloud manifest comparison.",
+    ],
+    [
+      "只读检查核心域",
+      "Sync UI must expose a read-only core-domain manifest check action.",
+    ],
+    [
+      "handleRunCoreManifestCompare",
+      "Sync UI must wire the core-domain manifest comparison action.",
+    ],
+    [
+      "buildCoreManifestDomainCompare",
+      "Sync UI must build per-domain manifest comparison rows.",
+    ],
+    [
+      "getCoreManifestOverallStatus",
+      "Sync UI must compute an overall core manifest comparison status.",
+    ],
+    [
+      "getLocalPageSyncSummary",
+      "Core manifest comparison must read local page metadata summary.",
+    ],
+    [
+      "getLocalDatabaseSyncSummary",
+      "Core manifest comparison must read local database metadata summary.",
+    ],
+    [
+      "getCloudPageManifestSummary",
+      "Core manifest comparison must read cloud page manifest summary.",
+    ],
+    [
+      "getCloudDatabaseManifestSummary",
+      "Core manifest comparison must read cloud database manifest summary.",
+    ],
+    [
+      "count、deleted、watermark",
+      "Core manifest comparison must stay summary-level and metadata-only.",
+    ],
+    [
+      "不读取页面正文、数据库值、评论正文或文件字节",
+      "Core manifest comparison must preserve sensitive content boundaries.",
+    ],
+    [
+      "不会上传或清理本机缓存",
+      "Core manifest comparison must be read-only and avoid cache mutation.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
@@ -1115,6 +1167,19 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      "export async function getCloudPageManifestSummary",
+      "Page sync client must expose cloud page manifest summary for core-domain compare.",
+    ],
+    [
+      'call({ action: "summary" })',
+      "Page sync client manifest summary must use the existing summary action.",
+    ],
+  ]) {
+    assertSourceIncludes(files.accountPageSync, accountPageSync, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
       "export async function getPendingCloudDatabaseSyncStatus",
       "Database sync client must expose pending queue status for the sync dashboard.",
     ],
@@ -1133,6 +1198,14 @@ function run() {
     [
       "lastSyncAt: getLastDatabaseSyncAt()",
       "Database pending status must expose the last sync timestamp.",
+    ],
+    [
+      "export async function getCloudDatabaseManifestSummary",
+      "Database sync client must expose cloud database manifest summary for core-domain compare.",
+    ],
+    [
+      'call({ action: "summary" })',
+      "Database sync client manifest summary must use the existing summary action.",
     ],
   ]) {
     assertSourceIncludes(
