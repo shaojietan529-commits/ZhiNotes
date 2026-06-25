@@ -309,6 +309,18 @@ check(
     !shells.daily.includes("? dayNotes\n                : dayNotes.slice"),
   "DailyNotesShell 展开某一天时也必须分批渲染，不能一次性把大批量导入纪要全部挂到 DOM"
 );
+check(
+  shells.schedule.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
+    shells.schedule.includes("visibleMeetingLimitByDate") &&
+    shells.schedule.includes("showMoreMeetingsForDate") &&
+    shells.schedule.includes("const visibleLimit = isExpanded") &&
+    shells.schedule.includes("const visibleMeetings = dayMeetings.slice(0, visibleLimit)") &&
+    shells.schedule.includes("Math.min(totalCount, currentLimit + MEETING_CALENDAR_EXPAND_BATCH)") &&
+    shells.schedule.includes("再显示 ${nextBatchCount} 场") &&
+    shells.schedule.includes("dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT") &&
+    !shells.schedule.includes("? dayMeetings\n                : dayMeetings.slice"),
+  "MeetingScheduleShell 展开某一天时也必须分批渲染，不能一次性把大批量导入会议全部挂到 DOM"
+);
 for (const token of [
   "daily_date_key",
   "idx_pages_daily_date",

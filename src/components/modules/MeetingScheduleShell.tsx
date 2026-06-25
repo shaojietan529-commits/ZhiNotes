@@ -74,6 +74,7 @@ const MEETING_PRIORITY_OPTIONS = [
 ];
 const DEFAULT_MEETING_PRIORITY = "default";
 const MEETING_CALENDAR_VISIBLE_LIMIT = 6;
+const MEETING_CALENDAR_EXPAND_BATCH = 24;
 
 // Meetings the owner explicitly deleted. We persist their ids here so the
 // audit-protection auto-restore (restoreDeletedMeetingPages) leaves them
@@ -269,6 +270,9 @@ export default function MeetingScheduleShell() {
   const [expandedMeetingDateKeys, setExpandedMeetingDateKeys] = useState<
     Set<string>
   >(() => new Set());
+  const [visibleMeetingLimitByDate, setVisibleMeetingLimitByDate] = useState<
+    Map<string, number>
+  >(() => new Map());
   const initialCloudPullAttemptedRef = useRef(false);
   const deletedTombstoneRef = useRef<Set<string>>(readDeletedTombstone());
   const calendarCellRefs = useRef(new Map<string, HTMLDivElement>());
@@ -592,12 +596,49 @@ export default function MeetingScheduleShell() {
       const next = new Set(current);
       if (next.has(dateKey)) {
         next.delete(dateKey);
+        setVisibleMeetingLimitByDate((limits) => {
+          if (!limits.has(dateKey)) return limits;
+          const nextLimits = new Map(limits);
+          nextLimits.delete(dateKey);
+          return nextLimits;
+        });
       } else {
         next.add(dateKey);
+        setVisibleMeetingLimitByDate((limits) => {
+          const nextLimits = new Map(limits);
+          nextLimits.set(
+            dateKey,
+            MEETING_CALENDAR_VISIBLE_LIMIT + MEETING_CALENDAR_EXPAND_BATCH
+          );
+          return nextLimits;
+        });
       }
       return next;
     });
   }, []);
+
+  const showMoreMeetingsForDate = useCallback(
+    (dateKey: string, totalCount: number) => {
+      setExpandedMeetingDateKeys((current) => {
+        if (current.has(dateKey)) return current;
+        const next = new Set(current);
+        next.add(dateKey);
+        return next;
+      });
+      setVisibleMeetingLimitByDate((limits) => {
+        const currentLimit =
+          limits.get(dateKey) ??
+          MEETING_CALENDAR_VISIBLE_LIMIT + MEETING_CALENDAR_EXPAND_BATCH;
+        const nextLimits = new Map(limits);
+        nextLimits.set(
+          dateKey,
+          Math.min(totalCount, currentLimit + MEETING_CALENDAR_EXPAND_BATCH)
+        );
+        return nextLimits;
+      });
+    },
+    []
+  );
 
   const createMeetingPage = useCallback(
     async (
@@ -1492,12 +1533,18 @@ export default function MeetingScheduleShell() {
               const key = toDateKey(cell.date);
               const dayMeetings = entriesByDate.get(key) ?? [];
               const isExpanded = expandedMeetingDateKeys.has(key);
-              const visibleMeetings = isExpanded
-                ? dayMeetings
-                : dayMeetings.slice(0, MEETING_CALENDAR_VISIBLE_LIMIT);
+              const visibleLimit = isExpanded
+                ? (visibleMeetingLimitByDate.get(key) ??
+                  MEETING_CALENDAR_VISIBLE_LIMIT + MEETING_CALENDAR_EXPAND_BATCH)
+                : MEETING_CALENDAR_VISIBLE_LIMIT;
+              const visibleMeetings = dayMeetings.slice(0, visibleLimit);
               const hiddenCount = Math.max(
                 0,
                 dayMeetings.length - visibleMeetings.length
+              );
+              const nextBatchCount = Math.min(
+                MEETING_CALENDAR_EXPAND_BATCH,
+                hiddenCount
               );
               const isToday = key === todayKey;
               const isHighlighted = key === highlightedDateKey;
@@ -1570,12 +1617,24 @@ export default function MeetingScheduleShell() {
                     {dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT && (
                       <button
                         type="button"
-                        onClick={() => toggleMeetingDateExpansion(key)}
+                        onClick={() => {
+                          if (isExpanded && hiddenCount === 0) {
+                            toggleMeetingDateExpansion(key);
+                            return;
+                          }
+                          if (isExpanded) {
+                            showMoreMeetingsForDate(key, dayMeetings.length);
+                            return;
+                          }
+                          toggleMeetingDateExpansion(key);
+                        }}
                         aria-expanded={isExpanded}
                         className="rounded bg-zinc-50 px-1.5 py-0.5 text-left text-xs text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                       >
                         {isExpanded
-                          ? `收起到 ${MEETING_CALENDAR_VISIBLE_LIMIT} 场`
+                          ? hiddenCount > 0
+                            ? `再显示 ${nextBatchCount} 场（剩余 ${hiddenCount}）`
+                            : `收起到 ${MEETING_CALENDAR_VISIBLE_LIMIT} 场`
                           : `+${hiddenCount} 场，点击展开`}
                       </button>
                     )}

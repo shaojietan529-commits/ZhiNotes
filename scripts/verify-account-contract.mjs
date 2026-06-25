@@ -638,12 +638,18 @@ check(
 );
 check(
   meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&
+    meetingScheduleShell.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
     meetingScheduleShell.includes("expandedMeetingDateKeys") &&
+    meetingScheduleShell.includes("visibleMeetingLimitByDate") &&
     meetingScheduleShell.includes("toggleMeetingDateExpansion") &&
-    meetingScheduleShell.includes("const visibleMeetings = isExpanded") &&
+    meetingScheduleShell.includes("showMoreMeetingsForDate") &&
+    meetingScheduleShell.includes("const visibleLimit = isExpanded") &&
+    meetingScheduleShell.includes("const visibleMeetings = dayMeetings.slice(0, visibleLimit)") &&
+    meetingScheduleShell.includes("Math.min(totalCount, currentLimit + MEETING_CALENDAR_EXPAND_BATCH)") &&
+    meetingScheduleShell.includes("再显示 ${nextBatchCount} 场") &&
     meetingScheduleShell.includes("dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT") &&
     !meetingScheduleShell.includes("{dayMeetings.map"),
-  "MeetingScheduleShell 月历单元格应只渲染折叠可见会议，更多会议必须点击后按需展开"
+  "MeetingScheduleShell 月历单元格应只渲染可见会议，更多会议必须点击后分批展开"
 );
 
 const usePageHook = read("src/hooks/usePage.ts");
