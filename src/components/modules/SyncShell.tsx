@@ -223,6 +223,12 @@ import {
   type LocalMetadataManifestReport,
 } from "@/lib/sync/localMetadataManifest";
 import {
+  buildHotCachePolicyPlan,
+  type HotCachePolicy,
+  type HotCachePolicyPlan,
+  type HotCachePolicyStatus,
+} from "@/lib/sync/hotCachePolicyPlan";
+import {
   buildSyncConflictReviewReport,
   type SyncConflictReviewReport,
   type SyncConflictReviewStatus,
@@ -718,6 +724,18 @@ function SyncDashboard() {
       syncSummary,
       workspaceIdentity,
     ]
+  );
+  const hotCachePolicyPlan = useMemo(
+    () =>
+      buildHotCachePolicyPlan({
+        pages,
+        deletedPages,
+        databases,
+        files: storedFiles,
+        pageModuleCounts,
+        syncSummary,
+      }),
+    [databases, deletedPages, pageModuleCounts, pages, storedFiles, syncSummary]
   );
   const syncPayloadPreview = useMemo(
     () =>
@@ -1958,6 +1976,13 @@ function SyncDashboard() {
     );
   };
 
+  const handleExportHotCachePolicyPlan = () => {
+    downloadJsonFile(`zhinote-hot-cache-policy-plan-${fileSafeTimestamp()}.json`, {
+      ...hotCachePolicyPlan,
+      exported_at: new Date().toISOString(),
+    });
+  };
+
   const handleExportSyncQueueSnapshot = async () => {
     setBusyQueueAction("queue");
     try {
@@ -3185,6 +3210,11 @@ function SyncDashboard() {
         <LocalMetadataManifestPanel
           report={localMetadataManifest}
           onExport={handleExportLocalMetadataManifest}
+        />
+
+        <HotCachePolicyPlanPanel
+          plan={hotCachePolicyPlan}
+          onExport={handleExportHotCachePolicyPlan}
         />
 
         <WebLaunchDecisionSummaryPanel
@@ -12803,6 +12833,227 @@ function BetaStatusPill({ status }: { status: WebBetaReadinessStatus }) {
         : status === "manual-confirmation"
           ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
           : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function HotCachePolicyPlanPanel({
+  plan,
+  onExport,
+}: {
+  plan: HotCachePolicyPlan;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="hot-cache-policy-plan"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Hot Cache Policy
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            本地热缓存策略
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这是“云端是真账本、本地是高速复印件”的缓存菜单：待上传变更永不清理，
+            最近内容默认保留，重点公司、收藏页面和数据库后续由用户选择。当前只读
+            metadata 数量，不清缓存、不上传、不读取正文。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          导出热缓存策略
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <HotCacheSummaryCard
+          label="策略"
+          value={plan.summary.policies}
+          detail={plan.plan_status}
+          status="default-on"
+        />
+        <HotCacheSummaryCard
+          label="默认"
+          value={plan.summary.default_on}
+          detail="自动热缓存"
+          status="default-on"
+        />
+        <HotCacheSummaryCard
+          label="可选"
+          value={plan.summary.user_selectable}
+          detail="用户可固定"
+          status="user-selectable"
+        />
+        <HotCacheSummaryCard
+          label="永不清理"
+          value={plan.summary.never_evict}
+          detail="pending 输入"
+          status="never-evict"
+        />
+        <HotCacheSummaryCard
+          label="估算热缓存"
+          value={plan.summary.estimated_default_hot_records}
+          detail="默认本地记录"
+          status="default-on"
+        />
+        <HotCacheSummaryCard
+          label="Hash"
+          value={plan.summary.policy_hash.replace("fnv1a:", "")}
+          detail="metadata only"
+          status="default-on"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <ContractPanel title="缓存策略清单">
+          <div className="grid gap-2 md:grid-cols-2">
+            {plan.policies.map((policy) => (
+              <HotCachePolicyRow key={policy.id} policy={policy} />
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="缓存边界">
+          <div className="space-y-2">
+            {[
+              ["不读页面正文", !plan.boundary.reads_page_body_text],
+              ["不读数据库行值", !plan.boundary.reads_database_row_values],
+              ["不读评论正文", !plan.boundary.reads_comment_bodies],
+              ["不读文件内容", !plan.boundary.reads_file_bytes],
+              ["不写云端", !plan.boundary.writes_server_data],
+              ["不改本地缓存", !plan.boundary.mutates_local_cache],
+            ].map(([label, passed]) => (
+              <div
+                key={String(label)}
+                className="flex items-center justify-between rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900"
+              >
+                <span className="text-zinc-500 dark:text-zinc-400">
+                  {label}
+                </span>
+                <span
+                  className={`rounded-md px-2 py-1 text-[10px] font-medium ${
+                    passed
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                  }`}
+                >
+                  {passed ? "通过" : "异常"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+            当前本地 metadata 记录：
+            {plan.summary.current_local_metadata_records}；pending：
+            {plan.summary.pending_sync_rows}
+          </p>
+        </ContractPanel>
+      </div>
+    </section>
+  );
+}
+
+function HotCacheSummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  status: HotCachePolicyStatus;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <HotCacheStatusPill status={status} />
+      </div>
+      <div className="mt-2 break-all text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
+}
+
+function HotCachePolicyRow({ policy }: { policy: HotCachePolicy }) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {policy.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {policy.id}
+          </div>
+        </div>
+        <HotCacheStatusPill status={policy.status} />
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <LocalMetadataManifestMiniStat
+          label="Eligible"
+          value={policy.eligible_count}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Local estimate"
+          value={policy.estimated_local_records}
+        />
+      </div>
+      <dl className="mt-3 space-y-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            云端来源
+          </dt>
+          <dd>{policy.cloud_source}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            本地行为
+          </dt>
+          <dd>{policy.local_behavior}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            清理规则
+          </dt>
+          <dd>{policy.eviction_rule}</dd>
+        </div>
+      </dl>
+      <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {policy.reason}
+      </p>
+    </article>
+  );
+}
+
+function HotCacheStatusPill({ status }: { status: HotCachePolicyStatus }) {
+  const labels: Record<HotCachePolicyStatus, string> = {
+    "default-on": "默认",
+    "user-selectable": "可选",
+    "never-evict": "保留",
+    planned: "计划",
+  };
+  const className =
+    status === "default-on"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "user-selectable"
+        ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+        : status === "never-evict"
+          ? "bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300"
+          : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>

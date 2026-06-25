@@ -11,6 +11,7 @@ const files = {
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
+  hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   environmentPreflightRoute:
     "src/app/api/web-beta/environment-preflight/route.ts",
@@ -150,6 +151,7 @@ function run() {
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
+  const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const syncShell = readProjectFile(files.syncShell);
   const environmentPreflightRoute = readProjectFile(
     files.environmentPreflightRoute
@@ -314,6 +316,42 @@ function run() {
     "Sync UI must expose the local metadata manifest export."
   );
   assertIncludes(
+    files.hotCachePolicyPlan,
+    hotCachePolicyPlan,
+    'plan_status: "local-policy-only"',
+    "Smoke verifier must keep the hot cache plan local-policy-only."
+  );
+  assertIncludes(
+    files.hotCachePolicyPlan,
+    hotCachePolicyPlan,
+    "mutates_local_cache: false",
+    "Smoke verifier must keep hot cache planning read-only."
+  );
+  assertIncludes(
+    files.hotCachePolicyPlan,
+    hotCachePolicyPlan,
+    'id: "pending-sync-never-evict"',
+    "Smoke verifier must ensure pending edits are never evicted."
+  );
+  assertIncludes(
+    files.hotCachePolicyPlan,
+    hotCachePolicyPlan,
+    'id: "recent-30-days"',
+    "Smoke verifier must keep the recent-content hot cache policy."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "本地热缓存策略",
+    "Sync UI must render the hot cache policy panel."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出热缓存策略",
+    "Sync UI must expose the hot cache policy export."
+  );
+  assertIncludes(
     files.syncShell,
     syncShell,
     "云端 manifest 对账 API 防护",
@@ -345,6 +383,7 @@ function run() {
     boundary_checks: requiredBoundarySnippets.length,
     cloud_master_reconcile_checks: 7,
     local_metadata_manifest_checks: 7,
+    hot_cache_policy_checks: 6,
   };
 
   if (failures.length > 0) {

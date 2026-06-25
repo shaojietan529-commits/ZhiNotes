@@ -70,6 +70,7 @@ const files = {
   webBetaAutonomyQueue: "src/lib/sync/webBetaAutonomyQueue.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
+  hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   apiGuardPanel: "src/components/modules/sync/ApiGuardPanel.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
@@ -307,6 +308,7 @@ function run() {
   const webBetaAutonomyQueue = readProjectFile(files.webBetaAutonomyQueue);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
+  const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const syncShell = readProjectFile(files.syncShell);
   const apiGuardPanel = readProjectFile(files.apiGuardPanel);
   const migration = readProjectFile(files.migration);
@@ -369,6 +371,7 @@ function run() {
     [files.webBetaAutonomyQueue, webBetaAutonomyQueue],
     [files.cloudMasterReconcile, cloudMasterReconcile],
     [files.localMetadataManifest, localMetadataManifest],
+    [files.hotCachePolicyPlan, hotCachePolicyPlan],
     [files.syncShell, syncShell],
     [files.apiGuardPanel, apiGuardPanel],
   ]) {
@@ -545,6 +548,149 @@ function run() {
     [
       "导出本地 manifest",
       "Sync UI must render the local manifest export button.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-hot-cache-policy-plan"',
+      "Hot cache policy plan must expose a stable export format.",
+    ],
+    [
+      'plan_status: "local-policy-only"',
+      "Hot cache policy plan must remain local-policy-only.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Hot cache policy plan must align to cloud master plus local hot cache.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Hot cache policy plan must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Hot cache policy plan must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Hot cache policy plan must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Hot cache policy plan must not read file bytes.",
+    ],
+    [
+      "writes_server_data: false",
+      "Hot cache policy plan must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Hot cache policy plan must not upload workspace data.",
+    ],
+    [
+      "mutates_local_cache: false",
+      "Hot cache policy plan must not mutate local cache.",
+    ],
+    [
+      'id: "pending-sync-never-evict"',
+      "Hot cache policy plan must protect pending edits from eviction.",
+    ],
+    [
+      'id: "recent-30-days"',
+      "Hot cache policy plan must cover recent default cache.",
+    ],
+    [
+      'id: "current-month-daily-notes"',
+      "Hot cache policy plan must cover daily note cache selection.",
+    ],
+    [
+      'id: "active-databases"',
+      "Hot cache policy plan must cover database cache selection.",
+    ],
+    [
+      'id: "favorite-pages"',
+      "Hot cache policy plan must reserve user-selected pinned cache.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.hotCachePolicyPlan,
+      hotCachePolicyPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Hot cache policy plan must not access page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Hot cache policy plan must not access page Yjs content.",
+    ],
+    [
+      "database.description",
+      "Hot cache policy plan must not access database descriptions.",
+    ],
+    [
+      "file.dataUrl",
+      "Hot cache policy plan must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Hot cache policy plan must not access extracted file text.",
+    ],
+    [
+      "comment.body",
+      "Hot cache policy plan must not access comment bodies.",
+    ],
+    [
+      "field_values",
+      "Hot cache policy plan must not access database row values.",
+    ],
+    [
+      "fetch(",
+      "Hot cache policy plan must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Hot cache policy plan must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Hot cache policy plan must not mutate the local database.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.hotCachePolicyPlan,
+      hotCachePolicyPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildHotCachePolicyPlan",
+      "Sync UI must build the hot cache policy plan.",
+    ],
+    [
+      "HotCachePolicyPlanPanel",
+      "Sync UI must render the hot cache policy panel.",
+    ],
+    [
+      "本地热缓存策略",
+      "Sync UI must expose the hot cache policy section.",
+    ],
+    [
+      "handleExportHotCachePolicyPlan",
+      "Sync UI must export the hot cache policy plan.",
+    ],
+    [
+      "导出热缓存策略",
+      "Sync UI must render the hot cache policy export button.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
