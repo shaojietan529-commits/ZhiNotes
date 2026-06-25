@@ -16,6 +16,7 @@ const files = {
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  usePages: "src/hooks/usePages.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -174,6 +175,7 @@ function run() {
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const usePages = readProjectFile(files.usePages);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
@@ -550,6 +552,30 @@ function run() {
     databaseShell,
     "syncCloudDatabaseById(databaseId)",
     "Database detail page must still hydrate from the account cloud ledger in the background."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "renderLocalPagesSnapshot",
+    "Page and sidebar lists must render local hot cache before waiting for cloud metadata."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "loadPagesSnapshot(includeContent)",
+    "Page and sidebar lists must read the rebuildable local snapshot first."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "syncCloudPageMetadataDelta",
+    "Page and sidebar lists must still hydrate from cloud metadata in the background."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "mergeMetadataForCount",
+    "Page list cloud hydration must preserve local page body content."
   );
   assertIncludes(
     files.syncShell,

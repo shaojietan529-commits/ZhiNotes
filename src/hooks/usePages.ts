@@ -113,6 +113,23 @@ export function usePages(options: UsePagesOptions = {}) {
     let cloudPages: Page[] = [];
     let cloudSnapshotAuthoritative = false;
 
+    const renderLocalPagesSnapshot = async (): Promise<boolean> => {
+      try {
+        all = await loadPagesSnapshot(includeContent);
+        localSnapshotLoaded = true;
+        setPages(all);
+        return true;
+      } catch {
+        // The browser database is only a rebuildable hot cache. If it cannot
+        // be read, keep the workspace usable through cloud metadata below.
+        return false;
+      }
+    };
+
+    // Page lists should feel local: render the rebuildable hot cache first,
+    // then let the cloud ledger correct metadata in the background.
+    await renderLocalPagesSnapshot();
+
     try {
       const cloud = await syncCloudPageMetadataDelta({
         force: false,
@@ -120,38 +137,23 @@ export function usePages(options: UsePagesOptions = {}) {
       });
       if (cloud.status === "ok") {
         cloudPages = cloud.pages.map(remoteMetadataToPage);
-        if (cloud.fullRefresh) {
+        if (cloud.fullRefresh && !includeContent) {
           all = cloudPages;
-          cloudSnapshotAuthoritative = !includeContent;
+          cloudSnapshotAuthoritative = true;
           setPages(cloudPages);
         } else if (cloudPages.length > 0) {
-          upsertPages(cloudPages);
+          if (localSnapshotLoaded) {
+            all = mergeMetadataForCount(all, cloudPages);
+            setPages(all);
+          } else {
+            all = cloudPages;
+            setPages(cloudPages);
+          }
         }
       }
     } catch {
       // Cloud metadata refresh is best effort. If the network or auth layer
-      // is unavailable, the local browser cache below remains the fallback.
-    }
-
-    if (!cloudSnapshotAuthoritative) {
-      try {
-        all = await loadPagesSnapshot(includeContent);
-        localSnapshotLoaded = true;
-        setPages(all);
-      } catch {
-        // The browser database is only a rebuildable cache. If it cannot be
-        // read, keep the workspace usable by falling back to cloud metadata.
-      }
-
-      if (cloudPages.length > 0) {
-        if (localSnapshotLoaded) {
-          upsertPages(cloudPages);
-          all = mergeMetadataForCount(all, cloudPages);
-        } else {
-          all = cloudPages;
-          setPages(cloudPages);
-        }
-      }
+      // is unavailable, the already-rendered local hot cache remains usable.
     }
 
     const needsCloudCoverageRecovery =
@@ -198,7 +200,7 @@ export function usePages(options: UsePagesOptions = {}) {
     if (options.broadcast !== false) {
       emitPagesUpdated(options.reason ?? "local-refresh", all.length);
     }
-  }, [dbReady, includeContent, setPages, upsertPages]);
+  }, [dbReady, includeContent, setPages]);
 
   useEffect(() => {
     if (!autoLoad) return;

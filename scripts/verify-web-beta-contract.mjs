@@ -75,6 +75,7 @@ const files = {
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  usePages: "src/hooks/usePages.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
@@ -323,6 +324,7 @@ function run() {
   const hotCacheSettingsCloud = readProjectFile(files.hotCacheSettingsCloud);
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const usePages = readProjectFile(files.usePages);
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
@@ -7320,6 +7322,34 @@ function run() {
       databaseShell,
       "云端数据库暂时不可用，当前显示本机缓存。",
       "Database detail pages must preserve local cache fallback messaging.",
+    ],
+  ]) {
+    assertSourceIncludes(sourceLabel, source, snippet, message);
+  }
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.usePages,
+      usePages,
+      "renderLocalPagesSnapshot",
+      "Page and sidebar lists must render the rebuildable local hot cache before cloud metadata.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "loadPagesSnapshot(includeContent)",
+      "Page and sidebar lists must load local IndexedDB snapshots first.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "syncCloudPageMetadataDelta",
+      "Page and sidebar lists must still hydrate from the account cloud ledger.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "mergeMetadataForCount",
+      "Cloud metadata hydration must preserve local page body content.",
     ],
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
