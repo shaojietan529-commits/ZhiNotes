@@ -2369,6 +2369,30 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "return queueMeetingCloudRecords(records)",
+    "Meeting creation must enqueue both the module root and meeting page through the shared cloud upload queue."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "function queueMeetingCloudRecords",
+    "Meeting creation must keep a dedicated queue helper for root + meeting page records."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "queueCloudPagePush(record)",
+    "Meeting creation must use the pending queue instead of waiting on a direct cloud push."
+  );
+  assertExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "const result = await pushCloudPages(records)",
+    "Meeting creation persistence must not wait on a direct pushCloudPages call."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "data-testid={`meeting-add-${key}`}",
     "Meeting calendar + button must expose a stable test target."
   );

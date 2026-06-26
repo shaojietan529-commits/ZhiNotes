@@ -664,6 +664,10 @@ check(
     meetingScheduleShell.includes("void load({ includeCloud: true })") &&
     meetingScheduleShell.includes("void load({ includeCloud: false })") &&
     meetingScheduleShell.includes("await load({ includeCloud: false })") &&
+    meetingScheduleShell.includes("return queueMeetingCloudRecords(records)") &&
+    meetingScheduleShell.includes("function queueMeetingCloudRecords") &&
+    meetingScheduleShell.includes("queueCloudPagePush(record)") &&
+    !meetingScheduleShell.includes("const result = await pushCloudPages(records)") &&
     meetingScheduleShell.includes("disabled={intakeLoading || !intakeText.trim()}") &&
     !meetingScheduleShell.includes("): Promise<CreateMeetingResult> =>") &&
     meetingScheduleShell.includes("): CreateMeetingResult =>") &&
@@ -674,7 +678,7 @@ check(
     !meetingScheduleShell.includes("await load();") &&
     !meetingScheduleShell.includes("void load().catch(() => undefined);") &&
     !meetingScheduleShell.includes("}, [dbReady, load, pageRevision]);"),
-  "MeetingScheduleShell 新导入和本地 revision 刷新应保留乐观结果，并只做本地 metadata 刷新，不能重复触发云端日历索引"
+  "MeetingScheduleShell 新导入和本地 revision 刷新应保留乐观结果，并只做本地 metadata 刷新；会议保存必须加入统一云端上传队列，不能在后台直接等待云端 push"
 );
 check(
   meetingScheduleShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&

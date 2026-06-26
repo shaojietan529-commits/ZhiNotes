@@ -487,13 +487,17 @@ check(
     shells.schedule.includes("): CreateMeetingResult =>") &&
     shells.schedule.includes("const result = createMeetingPage(form") &&
     shells.schedule.includes("const result = createMeetingPage(draft") &&
+    shells.schedule.includes("return queueMeetingCloudRecords(records)") &&
+    shells.schedule.includes("function queueMeetingCloudRecords") &&
+    shells.schedule.includes("queueCloudPagePush(record)") &&
+    !shells.schedule.includes("const result = await pushCloudPages(records)") &&
     !shells.schedule.includes("): Promise<CreateMeetingResult> =>") &&
     shells.schedule.includes("后台会继续保存到账号云端") &&
     shells.schedule.includes('data-testid="meeting-intake-import-button"') &&
     shells.schedule.includes("disabled={intakeLoading || !intakeText.trim()}") &&
     !shells.schedule.includes("disabled={intakeLoading || !rootId || !intakeText.trim()}") &&
     !shells.schedule.includes('rootId ? "导入" : "加载中..."'),
-  "MeetingScheduleShell 手动创建和导入会议应直接进入本地优先流程，导入按钮不能等待模块根页面先加载"
+  "MeetingScheduleShell 手动创建和导入会议应直接进入本地优先流程，导入按钮不能等待模块根页面先加载；会议页和 root 保存必须走统一云端上传队列"
 );
 check(
   shells.schedule.includes("listPageMetadata") &&

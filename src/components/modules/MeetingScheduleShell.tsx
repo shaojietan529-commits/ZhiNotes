@@ -2429,7 +2429,7 @@ async function persistOptimisticMeetingPage(
   rootId: string,
   page: Page,
   upsertPages: (pages: Page[]) => void
-): Promise<"cloud" | "local-only"> {
+): Promise<"queued" | "local-only"> {
   const rootRecord = await makeMeetingRootRecord(rootId, page.updated_at);
   const pageRecord = pageToRemoteRecord(page);
   const records = [rootRecord, pageRecord];
@@ -2444,16 +2444,17 @@ async function persistOptimisticMeetingPage(
     upsertPages(localPages);
   }
 
-  const result = await pushCloudPages(records);
-  if (result.status === "ok") return "cloud";
-  if (
-    result.status === "disabled" ||
-    result.status === "unauthenticated" ||
-    result.status === "unconfigured"
-  ) {
-    return "local-only";
+  return queueMeetingCloudRecords(records);
+}
+
+function queueMeetingCloudRecords(
+  records: RemotePageRecord[]
+): "queued" | "local-only" {
+  if (typeof window === "undefined") return "local-only";
+  for (const record of records) {
+    queueCloudPagePush(record);
   }
-  throw new Error(result.message || "云端保存失败。");
+  return "queued";
 }
 
 async function makeMeetingRootRecord(

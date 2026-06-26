@@ -2224,6 +2224,18 @@ function run() {
       "Meeting creation must persist the optimistic page through local cache and cloud push.",
     ],
     [
+      "return queueMeetingCloudRecords(records)",
+      "Meeting creation must enqueue both the module root and meeting page through the shared cloud upload queue.",
+    ],
+    [
+      "function queueMeetingCloudRecords",
+      "Meeting creation must keep a dedicated queue helper for root + meeting page records.",
+    ],
+    [
+      "queueCloudPagePush(record)",
+      "Meeting creation must use the pending queue instead of waiting on a direct cloud push.",
+    ],
+    [
       "data-testid={`meeting-add-${key}`}",
       "Meeting calendar + buttons must expose stable test targets.",
     ],
@@ -2247,6 +2259,12 @@ function run() {
       message
     );
   }
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "const result = await pushCloudPages(records)",
+    "Meeting creation persistence must not wait on a direct pushCloudPages call."
+  );
   for (const [snippet, message] of [
     [
       "buildHotCacheWarmupReceipt",
