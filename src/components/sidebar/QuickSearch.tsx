@@ -227,7 +227,7 @@ export default function QuickSearch() {
 
       deferredFullTextSearchTimerRef.current = window.setTimeout(() => {
         deferredFullTextSearchTimerRef.current = null;
-        void searchPages(trimmedValue)
+        void searchPages(trimmedValue, QUICK_SEARCH_RESULT_LIMIT)
           .then((fullTextResults) => {
             if (requestId !== searchRequestRef.current) return;
             setResults((currentResults) =>

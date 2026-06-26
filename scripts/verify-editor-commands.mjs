@@ -406,6 +406,18 @@ function run() {
     "listRecentPageMetadata(8)",
     "Wiki link empty-query suggestions must read only the bounded recent page metadata list."
   );
+  assertIncludes(
+    files.wikiSuggestion,
+    wikiSuggestion,
+    "searchPageMetadata(query, 8)",
+    "Wiki link typed suggestions must use bounded page metadata search instead of scanning page bodies."
+  );
+  assertNotIncludes(
+    files.wikiSuggestion,
+    wikiSuggestion,
+    "searchPages(",
+    "Wiki link typed suggestions must not run full-text page body scans while the editor is open."
+  );
   assertNotIncludes(
     files.wikiSuggestion,
     wikiSuggestion,

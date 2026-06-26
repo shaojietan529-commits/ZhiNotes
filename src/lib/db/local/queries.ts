@@ -2421,15 +2421,29 @@ export async function applyRemotePageMetadata(
   }
 }
 
-export async function searchPages(query: string): Promise<Page[]> {
+export async function searchPages(query: string, limit = 20): Promise<Page[]> {
   const db = await getDb();
   const normalizedQuery = normalizeSearchText(query);
   if (!normalizedQuery) return [];
 
-  const pages = db.query(
-    "SELECT * FROM pages WHERE deleted_at IS NULL"
-  ) as unknown as Page[];
   const tokens = getSearchTokens(normalizedQuery);
+  const searchTokens = tokens.length > 0 ? tokens : [normalizedQuery];
+  const where = searchTokens
+    .map(() => "(title LIKE ? OR properties LIKE ? OR content_text LIKE ?)")
+    .join(" OR ");
+  const binds = searchTokens.flatMap((token) => [
+    `%${token}%`,
+    `%${token}%`,
+    `%${token}%`,
+  ]);
+  const candidateLimit = Math.max(limit * 8, limit);
+  const pages = db.query(
+    `SELECT * FROM pages
+     WHERE deleted_at IS NULL AND (${where})
+     ORDER BY updated_at DESC
+     LIMIT ?`,
+    [...binds, candidateLimit]
+  ) as unknown as Page[];
 
   return pages
     .map((page) => ({
@@ -2444,7 +2458,7 @@ export async function searchPages(query: string): Promise<Page[]> {
         new Date(a.page.updated_at).getTime()
       );
     })
-    .slice(0, 20)
+    .slice(0, limit)
     .map((result) => result.page);
 }
 

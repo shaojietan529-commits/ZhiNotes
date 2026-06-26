@@ -4,7 +4,10 @@ import { ReactRenderer } from "@tiptap/react";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
 import { type SuggestionOptions } from "@tiptap/suggestion";
 import WikiLinkList, { type WikiLinkListRef } from "./WikiLinkList";
-import { searchPages, listRecentPageMetadata } from "@/lib/db/local/queries";
+import {
+  listRecentPageMetadata,
+  searchPageMetadata,
+} from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 
 const WikiLinkSuggestion: Omit<SuggestionOptions<Page>, "editor"> = {
@@ -16,7 +19,7 @@ const WikiLinkSuggestion: Omit<SuggestionOptions<Page>, "editor"> = {
       // Show recent pages when no query
       return await listRecentPageMetadata(8);
     }
-    return await searchPages(query);
+    return await searchPageMetadata(query, 8);
   },
 
   render: () => {

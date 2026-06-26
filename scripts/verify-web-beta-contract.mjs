@@ -142,6 +142,7 @@ const files = {
   trashPages: "src/components/sidebar/TrashPages.tsx",
   subPageTree: "src/components/shared/SubPageTree.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
+  wikiSuggestion: "src/components/editor/extensions/WikiLinkSuggestion.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
@@ -503,6 +504,7 @@ function run() {
   const trashPages = readProjectFile(files.trashPages);
   const subPageTree = readProjectFile(files.subPageTree);
   const quickSearch = readProjectFile(files.quickSearch);
+  const wikiSuggestion = readProjectFile(files.wikiSuggestion);
   const syncShell = readProjectFile(files.syncShell);
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
@@ -3697,9 +3699,41 @@ function run() {
       "mergeSearchResults(currentResults, fullTextResults)",
       "Quick search UI must merge deferred body matches into metadata-first results.",
     ],
+    [
+      "searchPages(trimmedValue, QUICK_SEARCH_RESULT_LIMIT)",
+      "Quick search deferred full-text search must keep a bounded result limit.",
+    ],
   ]) {
     assertSourceIncludes(files.quickSearch, quickSearch, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      "export async function searchPages(query: string, limit = 20)",
+      "Local full-text page search must expose a bounded result limit.",
+    ],
+    [
+      "content_text LIKE ?",
+      "Local full-text page search must filter candidate rows in SQLite instead of materializing every page body first.",
+    ],
+    [
+      "const candidateLimit = Math.max(limit * 8, limit)",
+      "Local full-text page search must cap candidate rows before JS scoring.",
+    ],
+  ]) {
+    assertSourceIncludes(files.localQueries, localQueries, snippet, message);
+  }
+  assertSourceIncludes(
+    files.wikiSuggestion,
+    wikiSuggestion,
+    "searchPageMetadata(query, 8)",
+    "Wiki link suggestions must use bounded metadata search while editing."
+  );
+  assertSourceExcludes(
+    files.wikiSuggestion,
+    wikiSuggestion,
+    "searchPages(",
+    "Wiki link suggestions must not run full-text page body scans while editing."
+  );
   for (const [snippet, message] of [
     [
       'format: "zhinote-calendar-view-state-settings-cloud-receipt"',

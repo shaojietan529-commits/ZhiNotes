@@ -73,6 +73,7 @@ const files = {
   trashPages: "src/components/sidebar/TrashPages.tsx",
   subPageTree: "src/components/shared/SubPageTree.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
+  wikiSuggestion: "src/components/editor/extensions/WikiLinkSuggestion.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
@@ -360,6 +361,7 @@ function run() {
   const trashPages = readProjectFile(files.trashPages);
   const subPageTree = readProjectFile(files.subPageTree);
   const quickSearch = readProjectFile(files.quickSearch);
+  const wikiSuggestion = readProjectFile(files.wikiSuggestion);
   const syncShell = readProjectFile(files.syncShell);
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
   const pageShell = readProjectFile(files.pageShell);
@@ -3140,6 +3142,36 @@ function run() {
     quickSearch,
     "mergeSearchResults(currentResults, fullTextResults)",
     "Smoke verifier must keep deferred full-text results merging into metadata-first results."
+  );
+  assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "searchPages(trimmedValue, QUICK_SEARCH_RESULT_LIMIT)",
+    "Smoke verifier must keep quick search deferred full-text results bounded."
+  );
+  for (const snippet of [
+    "export async function searchPages(query: string, limit = 20)",
+    "content_text LIKE ?",
+    "const candidateLimit = Math.max(limit * 8, limit)",
+  ]) {
+    assertIncludes(
+      files.localQueries,
+      localQueries,
+      snippet,
+      "Smoke verifier must keep local full-text page search candidate-bounded."
+    );
+  }
+  assertIncludes(
+    files.wikiSuggestion,
+    wikiSuggestion,
+    "searchPageMetadata(query, 8)",
+    "Smoke verifier must keep wiki link typed suggestions metadata-only and bounded."
+  );
+  assertExcludes(
+    files.wikiSuggestion,
+    wikiSuggestion,
+    "searchPages(",
+    "Smoke verifier must keep wiki link suggestions from scanning page bodies while editing."
   );
   assertIncludes(
     files.calendarViewStateWorkspaceSettings,
