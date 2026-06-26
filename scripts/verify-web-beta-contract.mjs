@@ -4130,6 +4130,46 @@ function run() {
       'id: "post-migration-cache-rebuild"',
       "Cloud master reconcile must require local cache rebuild after migration.",
     ],
+    [
+      "migration_checks",
+      "Cloud master reconcile must expose per-domain migration dry-run checks.",
+    ],
+    [
+      "cloud_evidence_required",
+      "Cloud master reconcile must list cloud-side evidence required for each dry-run check.",
+    ],
+    [
+      "local_evidence_required",
+      "Cloud master reconcile must list local-side evidence required for each dry-run check.",
+    ],
+    [
+      "pending_queue_rule",
+      "Cloud master reconcile must preserve pending-only rules in each dry-run check.",
+    ],
+    [
+      "rebuild_proof_required",
+      "Cloud master reconcile must require local cache rebuild proof by domain.",
+    ],
+    [
+      "重复风险",
+      "Cloud master reconcile must account for duplicate risk by domain.",
+    ],
+    [
+      "遗漏风险",
+      "Cloud master reconcile must account for missing-data risk by domain.",
+    ],
+    [
+      "旧缓存覆盖风险",
+      "Cloud master reconcile must account for stale-cache overwrite risk by domain.",
+    ],
+    [
+      'id: "check-daily-notes"',
+      "Cloud master reconcile must include a daily-note date-index dry-run check.",
+    ],
+    [
+      'id: "check-files"',
+      "Cloud master reconcile must include a metadata-only file dry-run check.",
+    ],
   ]) {
     assertSourceIncludes(
       files.cloudMasterReconcile,
@@ -4187,6 +4227,14 @@ function run() {
     [
       "handleExportCloudMasterReconcile",
       "Sync UI must export the local reconcile report.",
+    ],
+    [
+      "迁移 dry-run 明细",
+      "Sync UI must render per-domain migration dry-run checks.",
+    ],
+    [
+      "CloudMasterMigrationCheckRow",
+      "Sync UI must render migration dry-run check rows.",
     ],
     [
       "getPageModuleCounts",

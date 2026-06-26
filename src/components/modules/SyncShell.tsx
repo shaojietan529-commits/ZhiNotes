@@ -269,6 +269,7 @@ import {
   type CloudMasterDomain,
   type CloudMasterDomainStatus,
   type CloudMasterGateStatus,
+  type CloudMasterMigrationCheck,
   type CloudMasterMigrationGate,
   type CloudMasterCachePolicy,
   type CloudMasterReconcileReport,
@@ -16807,6 +16808,14 @@ function CloudMasterReconcilePanel({
           ))}
         </div>
       </ContractPanel>
+
+      <ContractPanel title="迁移 dry-run 明细" className="mt-4">
+        <div className="grid gap-2 lg:grid-cols-2">
+          {report.migration_checks.map((check) => (
+            <CloudMasterMigrationCheckRow key={check.id} check={check} />
+          ))}
+        </div>
+      </ContractPanel>
     </section>
   );
 }
@@ -17082,6 +17091,60 @@ function CloudMasterMigrationGateRow({
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         {gate.next_action}
       </p>
+    </article>
+  );
+}
+
+function CloudMasterMigrationCheckRow({
+  check,
+}: {
+  check: CloudMasterMigrationCheck;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {check.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {check.domain_id}
+          </div>
+        </div>
+        <CloudMasterGateStatusPill status={check.status} />
+      </div>
+      <dl className="mt-3 space-y-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            云端证据
+          </dt>
+          <dd>{check.cloud_evidence_required}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            本地证据
+          </dt>
+          <dd>{check.local_evidence_required}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            Pending 规则
+          </dt>
+          <dd>{check.pending_queue_rule}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            重建证明
+          </dt>
+          <dd>{check.rebuild_proof_required}</dd>
+        </div>
+      </dl>
+      <div className="mt-3 grid gap-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        <p>{check.duplicate_risk}</p>
+        <p>{check.missing_risk}</p>
+        <p>{check.stale_cache_risk}</p>
+        <p>下一步：{check.next_action}</p>
+      </div>
     </article>
   );
 }

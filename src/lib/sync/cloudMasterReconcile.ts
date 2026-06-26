@@ -59,6 +59,21 @@ export interface CloudMasterMigrationGate {
   next_action: string;
 }
 
+export interface CloudMasterMigrationCheck {
+  id: string;
+  domain_id: string;
+  title: string;
+  status: CloudMasterGateStatus;
+  cloud_evidence_required: string;
+  local_evidence_required: string;
+  pending_queue_rule: string;
+  rebuild_proof_required: string;
+  duplicate_risk: string;
+  missing_risk: string;
+  stale_cache_risk: string;
+  next_action: string;
+}
+
 export interface CloudMasterReconcileReport {
   format: "zhinote-cloud-master-reconcile-report";
   format_version: 1;
@@ -75,6 +90,8 @@ export interface CloudMasterReconcileReport {
     not_covered: number;
     pending_sync_rows: number;
     local_cache_records: number;
+    migration_checks: number;
+    migration_checks_blocked: number;
     page_sync_enabled: boolean;
     database_sync_enabled: boolean;
     cloud_workspace_linked: boolean;
@@ -90,6 +107,7 @@ export interface CloudMasterReconcileReport {
   domains: CloudMasterDomain[];
   cache_policies: CloudMasterCachePolicy[];
   migration_gates: CloudMasterMigrationGate[];
+  migration_checks: CloudMasterMigrationCheck[];
 }
 
 function countByStatus(
@@ -318,6 +336,164 @@ export function buildCloudMasterReconcileReport(
     },
   ];
 
+  const migrationChecks: CloudMasterMigrationCheck[] = [
+    {
+      id: "check-pages",
+      domain_id: "pages",
+      title: "页面和笔记正文 dry-run",
+      status: input.pageSyncEnabled ? "partial" : "blocked",
+      cloud_evidence_required:
+        "云端 page manifest：page id、parent id、updated_at、tombstone、body checksum，不返回正文。",
+      local_evidence_required:
+        "本地 page manifest：active/deleted 数量、层级边、updated_at watermark 和 body checksum，不读取正文。",
+      pending_queue_rule:
+        "开始迁移 dry-run 前，页面 pending 队列必须先补传或明确冻结；普通同步仍只能上传 pending page ids。",
+      rebuild_proof_required:
+        "清空本地页面缓存后，从云端 manifest 重建标题、层级、属性和回收站状态，并确认数量一致。",
+      duplicate_risk:
+        "重复风险：同一 Notion 导入页可能被本地旧 id 和云端新 id 同时保留，需要 stable source key 去重。",
+      missing_risk:
+        "遗漏风险：软删除页面、子页面和封面 metadata 容易漏计，必须单独列 tombstone 和 parent edge。",
+      stale_cache_risk:
+        "旧缓存覆盖风险：本地旧页面只能作为待上传候选，不能绕过 pending 队列直接覆盖云端。",
+      next_action:
+        "先做页面 manifest 对账和 disposable workspace dry-run，再开放真实迁移按钮。",
+    },
+    {
+      id: "check-daily-notes",
+      domain_id: "daily-notes",
+      title: "每日纪要日期索引 dry-run",
+      status: input.pageSyncEnabled ? "partial" : "blocked",
+      cloud_evidence_required:
+        "云端 daily index：日期、page id、title、updated_at、checksum，只返回 metadata。",
+      local_evidence_required:
+        "本地 daily index：按日期聚合的页面数量、无日期页面、重复日期页面和待上传 page ids。",
+      pending_queue_rule:
+        "新建或改期纪要必须先进入页面 pending 队列；迁移不能扫描本地缓存全量上传。",
+      rebuild_proof_required:
+        "从云端 daily index 重建月历，刷新后当前月和历史月数量一致。",
+      duplicate_risk:
+        "重复风险：同一天多个 Notion 导入纪要要保留多条，不能被日期唯一键误合并。",
+      missing_risk:
+        "遗漏风险：标题含日期但属性缺日期的纪要会掉出月历，需要列入待确认清单。",
+      stale_cache_risk:
+        "旧缓存覆盖风险：本地旧日期索引不能覆盖云端较新的日期属性。",
+      next_action:
+        "在对账页加入按日期的云端/本地数量差异，再做只读 dry-run 报告。",
+    },
+    {
+      id: "check-meetings",
+      domain_id: "meetings",
+      title: "会议和 ZhiHui 日历 dry-run",
+      status: input.pageSyncEnabled ? "partial" : "blocked",
+      cloud_evidence_required:
+        "云端 meeting manifest：date、time、platform、organizer、page id、updated_at，不返回会议正文、链接、会议号或密码。",
+      local_evidence_required:
+        "本地 meeting manifest：按日期聚合的会议 metadata、导入来源和 pending ids。",
+      pending_queue_rule:
+        "会议导入先写本地页面和 pending 记录；会议链接、会议号、密码不得进入导出的对账报告。",
+      rebuild_proof_required:
+        "从云端 meeting manifest 重建当前月会议日历，点击详情再按需拉正文。",
+      duplicate_risk:
+        "重复风险：同一邀请多次导入可能产生多个页面，需要 source hash 去重但保留人工拆分。",
+      missing_risk:
+        "遗漏风险：无时间、跨时区或标题识别失败的会议会落到错误日期，需要人工确认桶。",
+      stale_cache_risk:
+        "旧缓存覆盖风险：本地旧会议 metadata 不能覆盖云端较新的手工修正。",
+      next_action:
+        "补会议 manifest 的只读差异清单，再把失败重试状态纳入对账。",
+    },
+    {
+      id: "check-databases",
+      domain_id: "databases",
+      title: "数据库字段/视图/行值 dry-run",
+      status: input.databaseSyncEnabled ? "partial" : "blocked",
+      cloud_evidence_required:
+        "云端 database manifest：database id、field count、view count、row count、schema checksum，不返回 row values。",
+      local_evidence_required:
+        "本地 database manifest：数据库、字段、视图、行数量和 schema checksum，不读取单元格内容。",
+      pending_queue_rule:
+        "只上传 pending database keys；迁移不能把本地 IndexedDB 的数据库缓存整库提升为云端。",
+      rebuild_proof_required:
+        "清空本地数据库缓存后，从云端重建 schema/view metadata，打开数据库再按需加载行。",
+      duplicate_risk:
+        "重复风险：同名数据库或复制出来的数据库不能靠 title 去重，必须用 id/source key。",
+      missing_risk:
+        "遗漏风险：隐藏视图、公式字段、rollup/relation metadata 和删除 tombstone 必须纳入 manifest。",
+      stale_cache_risk:
+        "旧缓存覆盖风险：本地旧 schema 不能覆盖云端较新的字段重命名或视图规则。",
+      next_action:
+        "先完成 metadata-only schema manifest，对 row values 单独做 owner-gated 迁移。",
+    },
+    {
+      id: "check-files",
+      domain_id: "files",
+      title: "文件和附件 dry-run",
+      status: input.uploadedFiles > 0 ? "blocked" : "planned",
+      cloud_evidence_required:
+        "云端 file manifest：object id、page id、filename、size、mime、checksum、created_at，不返回文件字节。",
+      local_evidence_required:
+        "本地 file manifest：IndexedDB 文件记录数量、size、mime、checksum readiness，不读取文件内容。",
+      pending_queue_rule:
+        "文件字节必须走独立私有上传确认，不能混入普通 sync_log 或对账导出。",
+      rebuild_proof_required:
+        "从云端 file manifest 重建页面附件引用，只有用户打开时才取 signed URL。",
+      duplicate_risk:
+        "重复风险：同名文件多次导入要用 checksum + page id 区分，不能只按文件名去重。",
+      missing_risk:
+        "遗漏风险：HTML 报告、PDF、Excel、Word、PPT 和归档文件的 preview receipt 要逐类计数。",
+      stale_cache_risk:
+        "旧缓存覆盖风险：本地旧文件 receipt 不能覆盖云端对象存储中的新 checksum。",
+      next_action:
+        "先补 metadata-only file manifest 和 checksum readiness，再设计 owner-gated 上传。",
+    },
+    {
+      id: "check-comments-versions",
+      domain_id: "comments",
+      title: "评论和版本历史 dry-run",
+      status:
+        totalComments > 0 || input.pageVersions > 0 ? "blocked" : "planned",
+      cloud_evidence_required:
+        "云端 comment/version manifest：page id、anchor id、version number、updated_at、checksum，不返回评论正文或版本正文。",
+      local_evidence_required:
+        "本地 comment/version manifest：评论数量、block anchor 数量、版本数量和 append-only watermark。",
+      pending_queue_rule:
+        "评论编辑和版本追加必须有独立 pending 队列；不能依附页面正文覆盖。",
+      rebuild_proof_required:
+        "打开页面时从云端按需恢复评论和版本索引，长期正文快照不进列表预取。",
+      duplicate_risk:
+        "重复风险：版本历史只能 append-only，重跑迁移要按 page id + version number 幂等。",
+      missing_risk:
+        "遗漏风险：已 resolved 评论、block-level 评论和旧版本摘要不能只按页面计数推断。",
+      stale_cache_risk:
+        "旧缓存覆盖风险：本地旧评论状态不能覆盖云端较新的 resolved/open 状态。",
+      next_action:
+        "新增评论/版本 manifest 合同，再做 append-only dry-run。",
+    },
+    {
+      id: "check-settings-permissions",
+      domain_id: "module-config",
+      title: "设置、权限和审计 dry-run",
+      status: "partial",
+      cloud_evidence_required:
+        "云端 settings/permission manifest：setting key、owner、updated_at、role count、audit watermark，不返回 token 或隐私值。",
+      local_evidence_required:
+        "本地 settings manifest：workspace/account/module setting key 数量、pending rows 和允许白名单。",
+      pending_queue_rule:
+        "设置只上传白名单 key；权限和审计不能由本地离线队列静默补写。",
+      rebuild_proof_required:
+        "登出/清缓存后，从云端恢复侧边栏、热缓存偏好、模块 pin/layout 和账号显示名。",
+      duplicate_risk:
+        "重复风险：同一个设置 key 在 workspace/account/module 三层要按 scope 区分。",
+      missing_risk:
+        "遗漏风险：侧边栏顺序、图标、名称、用户偏好、分享名单和审计收据都要逐项覆盖。",
+      stale_cache_risk:
+        "旧缓存覆盖风险：本地旧 UI 设置不能覆盖云端较新的多端设置。",
+      next_action:
+        "补 account/module settings 的云端确认状态，再把 permission proof 纳入上线 gate。",
+    },
+  ];
+
   return {
     format: "zhinote-cloud-master-reconcile-report",
     format_version: 1,
@@ -335,6 +511,10 @@ export function buildCloudMasterReconcileReport(
       not_covered: countByStatus(domains, "not-covered"),
       pending_sync_rows: input.syncSummary?.pending ?? 0,
       local_cache_records: localCacheRecords,
+      migration_checks: migrationChecks.length,
+      migration_checks_blocked: migrationChecks.filter(
+        (check) => check.status === "blocked"
+      ).length,
       page_sync_enabled: input.pageSyncEnabled,
       database_sync_enabled: input.databaseSyncEnabled,
       cloud_workspace_linked: Boolean(input.workspaceIdentity?.cloud_workspace_id),
@@ -350,5 +530,6 @@ export function buildCloudMasterReconcileReport(
     domains,
     cache_policies: cachePolicies,
     migration_gates: migrationGates,
+    migration_checks: migrationChecks,
   };
 }

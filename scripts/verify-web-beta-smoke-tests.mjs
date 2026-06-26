@@ -1094,6 +1094,54 @@ function run() {
   assertIncludes(
     files.cloudMasterReconcile,
     cloudMasterReconcile,
+    "migration_checks",
+    "Smoke verifier must keep per-domain migration dry-run checks in the reconcile report."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "cloud_evidence_required",
+    "Smoke verifier must keep cloud evidence requirements for migration dry-run."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "local_evidence_required",
+    "Smoke verifier must keep local evidence requirements for migration dry-run."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "pending_queue_rule",
+    "Smoke verifier must keep pending queue rules for migration dry-run."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "rebuild_proof_required",
+    "Smoke verifier must keep cache rebuild proof requirements for migration dry-run."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "重复风险",
+    "Smoke verifier must keep duplicate-risk accounting for migration dry-run."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "遗漏风险",
+    "Smoke verifier must keep missing-risk accounting for migration dry-run."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "旧缓存覆盖风险",
+    "Smoke verifier must keep stale-cache overwrite risk accounting for migration dry-run."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
     "It does not read page body text, comment bodies, file bytes, token values, or upload data.",
     "Smoke verifier must preserve the sensitive-content privacy boundary."
   );
@@ -1108,6 +1156,12 @@ function run() {
     syncShell,
     "导出对账报告",
     "Sync UI must expose the cloud master reconcile export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "迁移 dry-run 明细",
+    "Sync UI must render per-domain migration dry-run checks."
   );
   assertIncludes(
     files.localMetadataManifest,
