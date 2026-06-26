@@ -1226,6 +1226,12 @@ function run() {
   assertIncludes(
     files.hotCacheWarmupPlan,
     hotCacheWarmupPlan,
+    "CURRENT_MONTH_DAILY_ROUTE_TARGET_LIMIT = 31",
+    "Hot cache warmup must keep current-month daily route prefetch bounded."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
     "FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12",
     "Hot cache warmup must keep favorite page route prefetch bounded."
   );
@@ -1256,8 +1262,14 @@ function run() {
   assertIncludes(
     files.hotCacheWarmupPlan,
     hotCacheWarmupPlan,
+    "纪要详情路由",
+    "Hot cache warmup must prefetch current-month daily note detail routes."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
     "正文按打开时补齐",
-    "Hot cache warmup must keep favorite page bodies out of route prefetch."
+    "Hot cache warmup must keep page bodies out of route prefetch."
   );
   assertIncludes(
     files.hotCacheWarmupPlan,

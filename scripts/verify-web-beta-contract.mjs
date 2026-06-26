@@ -1182,6 +1182,10 @@ function run() {
       "Hot cache warmup plan must keep active database route prefetch bounded.",
     ],
     [
+      "CURRENT_MONTH_DAILY_ROUTE_TARGET_LIMIT = 31",
+      "Hot cache warmup plan must keep current-month daily route prefetch bounded.",
+    ],
+    [
       "FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12",
       "Hot cache warmup plan must keep favorite page route prefetch bounded.",
     ],
@@ -1202,8 +1206,12 @@ function run() {
       "Hot cache warmup plan must keep database row values out of route prefetch.",
     ],
     [
+      "纪要详情路由",
+      "Hot cache warmup plan must prefetch current-month daily note detail routes.",
+    ],
+    [
       "正文按打开时补齐",
-      "Hot cache warmup plan must keep favorite page bodies out of route prefetch.",
+      "Hot cache warmup plan must keep page bodies out of route prefetch.",
     ],
     [
       "项目正文按打开时补齐",

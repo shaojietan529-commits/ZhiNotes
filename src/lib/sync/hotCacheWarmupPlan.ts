@@ -5,6 +5,7 @@ import type { HotCachePreferences } from "@/lib/sync/hotCacheSelectionSettings";
 import type { Database, Page } from "@/lib/utils/types";
 
 const ACTIVE_DATABASE_ROUTE_TARGET_LIMIT = 12;
+const CURRENT_MONTH_DAILY_ROUTE_TARGET_LIMIT = 31;
 const FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12;
 const CURRENT_PROJECT_ROUTE_TARGET_LIMIT = 12;
 
@@ -85,6 +86,10 @@ export function buildHotCacheWarmupPlan(
   const currentMonthDailyPages = activePages.filter((page) =>
     isCurrentMonthDailyPage(page, now)
   );
+  const currentMonthDailyRouteTargets =
+    input.preferences.keepCurrentMonthDailyNotes
+      ? buildCurrentMonthDailyRouteTargets(currentMonthDailyPages)
+      : [];
   const favoriteIdSet = new Set(input.favoriteIds);
   const favoritePages = activePages.filter((page) => favoriteIdSet.has(page.id));
   const projectPages = activePages.filter(isProjectMetadataPage);
@@ -147,14 +152,19 @@ export function buildHotCacheWarmupPlan(
         ? currentMonthDailyPages.length
         : 0,
       route_targets: input.preferences.keepCurrentMonthDailyNotes
-        ? ["/daily"]
+        ? ["/daily", ...currentMonthDailyRouteTargets]
         : [],
-      action: "预热每日纪要入口和当前月 metadata，日历先显示格子和纪要条。",
+      action:
+        "预热每日纪要入口、当前月 metadata 和纪要详情路由，日历先显示格子和纪要条，正文按打开时补齐。",
       reason: "每日纪要是高频入口，应该优先接近本地速度。",
       blocked_reason: input.preferences.keepCurrentMonthDailyNotes
         ? null
         : "用户未选择当前月份每日纪要常驻本地。",
-      excluded_private_fields: ["daily note body", "raw page id", "title"],
+      excluded_private_fields: [
+        "daily note body",
+        "daily note title export",
+        "free-form note text",
+      ],
     },
     {
       id: "active-database-views",
@@ -334,6 +344,21 @@ function buildActiveDatabaseRouteTargets(databases: Database[]): string[] {
     .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
     .slice(0, ACTIVE_DATABASE_ROUTE_TARGET_LIMIT)
     .map((database) => `/database/${encodeURIComponent(database.id)}`);
+}
+
+function buildCurrentMonthDailyRouteTargets(pages: Page[]): string[] {
+  return pages
+    .filter((page) => !page.deleted_at)
+    .filter((page) => Boolean(readDailyDateKey(page)))
+    .sort((left, right) => {
+      const leftDate = readDailyDateKey(left);
+      const rightDate = readDailyDateKey(right);
+      const dateOrder = rightDate.localeCompare(leftDate);
+      if (dateOrder !== 0) return dateOrder;
+      return right.updated_at.localeCompare(left.updated_at);
+    })
+    .slice(0, CURRENT_MONTH_DAILY_ROUTE_TARGET_LIMIT)
+    .map((page) => `/page/${encodeURIComponent(page.id)}`);
 }
 
 function buildFavoritePageRouteTargets(pages: Page[]): string[] {
