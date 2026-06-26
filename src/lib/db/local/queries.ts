@@ -66,6 +66,8 @@ type SyncOperation = "insert" | "update" | "delete" | "restore";
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DAILY_DATE_INDEX_BACKFILL_DEFAULT_LIMIT = 240;
 const DAILY_CALENDAR_FALLBACK_SCAN_LIMIT = 240;
+const DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT = 1200;
+const DAILY_CALENDAR_CHILD_FALLBACK_LIMIT = 1200;
 const DAILY_RECENT_CANDIDATE_MULTIPLIER = 6;
 const DAILY_PARENT_LOOKUP_GUARD = 32;
 const MEETING_CALENDAR_FALLBACK_SCAN_LIMIT = 360;
@@ -587,6 +589,43 @@ function dailyDateCandidateWhere(alias = "pages"): string {
   )`;
 }
 
+function buildDailyRangeSearchTokens(startDate: string, endDate: string): string[] {
+  const start = parseDateKeyParts(startDate);
+  const end = parseDateKeyParts(endDate);
+  if (!start || !end) return [];
+  const tokens = new Set<string>();
+  let year = start.year;
+  let month = start.month;
+  for (let guard = 0; guard < 14; guard += 1) {
+    if (year > end.year || (year === end.year && month > end.month)) break;
+    const monthPadded = String(month).padStart(2, "0");
+    const shortYear = String(year).slice(-2);
+    tokens.add(`${year}-${monthPadded}`);
+    tokens.add(`${year}/${month}`);
+    tokens.add(`${year}.${month}`);
+    tokens.add(`${year}年${month}月`);
+    tokens.add(`${shortYear}${monthPadded}`);
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return Array.from(tokens);
+}
+
+function parseDateKeyParts(
+  dateKey: string
+): { year: number; month: number; day: number } | null {
+  const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return { year, month, day };
+}
+
 export async function rebuildPageDateKeyIndex(
   options: { limit?: number; includeRemaining?: boolean } = {}
 ): Promise<{
@@ -656,6 +695,7 @@ export async function listDailyPageMetadataForCalendar({
   const readRows = (sql: string, bind: unknown[]) =>
     db.query(sql, bind) as unknown as Page[];
   const parentIdCache = new Map<string, string | null>();
+  const dateParentIdsForChildren = new Set<string>();
   const isDailyScopePage = (page: Page): boolean => {
     if (page.id === rootId) return false;
     if ((page.properties ?? "").includes("notion-daily-import")) return true;
@@ -677,7 +717,12 @@ export async function listDailyPageMetadataForCalendar({
     return false;
   };
   const addIfDailyScope = (row: Page) => {
-    if (isDailyScopePage(row)) byId.set(row.id, row);
+    if (!isDailyScopePage(row)) return;
+    byId.set(row.id, row);
+    const dateKey = inferDailyDateKey(row.title, row.properties);
+    if (dateKey && dateKey >= startDate && dateKey <= endDate) {
+      dateParentIdsForChildren.add(row.id);
+    }
   };
 
   const rangeRows = readRows(
@@ -714,6 +759,33 @@ export async function listDailyPageMetadataForCalendar({
     }
   }
 
+  const targetedTokens = buildDailyRangeSearchTokens(startDate, endDate);
+  if (targetedTokens.length > 0) {
+    const tokenWhere = targetedTokens
+      .map(() => "(p.title LIKE ? OR p.properties LIKE ?)")
+      .join(" OR ");
+    const tokenBinds = targetedTokens.flatMap((token) => [
+      `%${token}%`,
+      `%${token}%`,
+    ]);
+    const targetedFallbackRows = readRows(
+      `SELECT ${PAGE_METADATA_SELECT}
+       FROM pages p
+       WHERE p.deleted_at IS NULL
+         AND p.daily_date_key IS NULL
+         AND ${dailyDateCandidateWhere("p")}
+         AND (${tokenWhere})
+       ORDER BY p.updated_at DESC
+       LIMIT ?`,
+      [...tokenBinds, DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT]
+    );
+    for (const row of targetedFallbackRows) {
+      const dateKey = inferDailyDateKey(row.title, row.properties);
+      if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
+      addIfDailyScope(row);
+    }
+  }
+
   const fallbackRows = readRows(
     `SELECT ${PAGE_METADATA_SELECT}
      FROM pages p
@@ -729,6 +801,24 @@ export async function listDailyPageMetadataForCalendar({
     const dateKey = inferDailyDateKey(row.title, row.properties);
     if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
     byId.set(row.id, row);
+    dateParentIdsForChildren.add(row.id);
+  }
+
+  const childParentIds = Array.from(dateParentIdsForChildren).filter(
+    (id) => id !== rootId
+  );
+  if (childParentIds.length > 0) {
+    const placeholders = childParentIds.map(() => "?").join(", ");
+    const childRows = readRows(
+      `SELECT ${PAGE_METADATA_SELECT}
+       FROM pages p
+       WHERE p.deleted_at IS NULL
+         AND p.parent_id IN (${placeholders})
+       ORDER BY p.parent_id ASC, p.position ASC, p.updated_at DESC
+       LIMIT ?`,
+      [...childParentIds, DAILY_CALENDAR_CHILD_FALLBACK_LIMIT]
+    );
+    for (const row of childRows) addIfDailyScope(row);
   }
 
   return Array.from(byId.values());

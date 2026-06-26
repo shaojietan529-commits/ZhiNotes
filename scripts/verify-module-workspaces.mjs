@@ -347,10 +347,13 @@ for (const token of [
   "rebuildPageDateKeyIndex",
   "inferDailyDateKey",
   "DAILY_CALENDAR_FALLBACK_SCAN_LIMIT",
+  "DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT",
+  "DAILY_CALENDAR_CHILD_FALLBACK_LIMIT",
   "DAILY_RECENT_CANDIDATE_MULTIPLIER",
   "isDailyScopePage",
   "includeRemaining?: boolean",
   "dailyDateCandidateWhere",
+  "buildDailyRangeSearchTokens",
   "daily_date_key IS NULL",
 ]) {
   check(
@@ -365,8 +368,10 @@ check(
     localQueries.includes("p.daily_date_key >= ?") &&
     localQueries.includes("p.daily_date_key <= ?") &&
     localQueries.includes("addIfDailyScope(row)") &&
+    localQueries.includes("targetedFallbackRows") &&
+    localQueries.includes("dateParentIdsForChildren") &&
     localQueries.includes("SELECT parent_id FROM pages WHERE id = ?"),
-  "每日纪要月历首屏应先按日期索引取候选，再按父级归属过滤，不能递归展开整棵每日纪要树"
+  "每日纪要月历首屏应先按日期索引取候选，再用当前月份 token 和日期父页子节点做 bounded metadata fallback，不能递归展开整棵每日纪要树"
 );
 for (const token of [
   "installLocalSchema(db)",

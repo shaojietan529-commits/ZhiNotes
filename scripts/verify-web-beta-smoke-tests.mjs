@@ -1463,6 +1463,24 @@ function run() {
     "Daily notes must surface the local hot cache first-paint path."
   );
   assertIncludes(
+    files.localQueries,
+    localQueries,
+    "buildDailyRangeSearchTokens",
+    "Daily local metadata query must recover visible-month imported notes before broad background backfill finishes."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "targetedFallbackRows",
+    "Daily local metadata query must use a bounded visible-month fallback for missing date-index rows."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "dateParentIdsForChildren",
+    "Daily local metadata query must include bounded child metadata for date parent pages."
+  );
+  assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
     "readMeetingHotCacheSnapshot",

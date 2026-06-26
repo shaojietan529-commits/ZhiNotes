@@ -1417,6 +1417,30 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      "buildDailyRangeSearchTokens",
+      "Daily local metadata query must recover visible-month imported notes before broad background backfill finishes.",
+    ],
+    [
+      "targetedFallbackRows",
+      "Daily local metadata query must use a bounded visible-month fallback for missing date-index rows.",
+    ],
+    [
+      "dateParentIdsForChildren",
+      "Daily local metadata query must include bounded child metadata for date parent pages.",
+    ],
+    [
+      "DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT",
+      "Daily visible-month fallback must stay bounded.",
+    ],
+    [
+      "DAILY_CALENDAR_CHILD_FALLBACK_LIMIT",
+      "Daily date-parent child fallback must stay bounded.",
+    ],
+  ]) {
+    assertSourceIncludes(files.localQueries, localQueries, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       'format: "zhinote-meeting-hot-cache-snapshot"',
       "Meeting hot cache snapshot must have a stable format marker.",
     ],
