@@ -2127,6 +2127,24 @@ function run() {
     "Page opening must avoid showing not-found when a local-first route seed exists before IndexedDB readiness."
   );
   assertIncludes(
+    files.usePage,
+    usePage,
+    "schedulePageCloudHydration(pageId, localPage, setPage, upsertPages)",
+    "Page opening must defer cloud body hydration until after a local page has painted."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "requestIdleCallback(run",
+    "Page opening must schedule cloud body hydration during browser idle time."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "PAGE_CLOUD_HYDRATION_IDLE_MS",
+    "Page opening must keep the cloud hydration idle timeout explicit and bounded."
+  );
+  assertIncludes(
     files.pagePeekModal,
     pagePeekModal,
     "upsertPages([metadata])",
@@ -2143,6 +2161,12 @@ function run() {
     usePage,
     "setLoading(localPage.content_text == null)",
     "Page opening must treat metadata/handoff as first-paint ready while the full body hydrates in the background."
+  );
+  assertExcludes(
+    files.usePage,
+    usePage,
+    "cloudPagePromise",
+    "Page opening must not start a cloud body lookup before IndexedDB has had a chance to provide the local page."
   );
   assertIncludes(
     files.pageShell,

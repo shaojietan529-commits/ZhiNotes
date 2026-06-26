@@ -29,6 +29,8 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRecordRevision } from "@/hooks/usePageRevision";
 import type { Page } from "@/lib/utils/types";
 
+const PAGE_CLOUD_HYDRATION_IDLE_MS = 700;
+
 type PageUpdates = Partial<
   Pick<
     Page,
@@ -79,11 +81,6 @@ export function usePage(
       return;
     }
 
-    let cloudPagePromise: Promise<CloudPageLookupResult | null> | null = null;
-    if (localPage?.content_text == null) {
-      cloudPagePromise = fetchCloudPageById(pageId).catch(() => null);
-    }
-
     try {
       const storedPage = await getPage(pageId);
       if (storedPage) {
@@ -99,27 +96,12 @@ export function usePage(
       upsertPages([localPage]);
       setPage(localPage);
       setLoading(false);
-    }
-
-    if (localPage?.content_text != null) {
-      if (cloudPagePromise) {
-        void refreshPageFromCloudResult(
-          cloudPagePromise,
-          localPage,
-          setPage,
-          upsertPages
-        );
-      } else {
-        void refreshPageFromCloud(pageId, localPage, setPage, upsertPages);
-      }
-      setLoading(false);
+      schedulePageCloudHydration(pageId, localPage, setPage, upsertPages);
       return;
     }
 
     try {
-      const cloud = cloudPagePromise
-        ? await cloudPagePromise
-        : await fetchCloudPageById(pageId);
+      const cloud = await fetchCloudPageById(pageId);
       const cloudApplied = await applyCloudPageLookup(
         cloud,
         localPage,
@@ -285,14 +267,32 @@ async function refreshPageFromCloud(
   }
 }
 
-async function refreshPageFromCloudResult(
-  cloudPromise: Promise<CloudPageLookupResult | null>,
+function schedulePageCloudHydration(
+  pageId: string,
   localPage: Page,
   setPage: (page: Page | null) => void,
   upsertPages: (pages: Page[]) => void
-): Promise<void> {
-  const cloud = await cloudPromise;
-  await applyCloudPageLookup(cloud, localPage, setPage, upsertPages);
+): void {
+  const run = () => {
+    void refreshPageFromCloud(pageId, localPage, setPage, upsertPages);
+  };
+  if (typeof window === "undefined") {
+    run();
+    return;
+  }
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      callback: () => void,
+      options?: { timeout?: number }
+    ) => number;
+  };
+  if (maybeWindow.requestIdleCallback) {
+    maybeWindow.requestIdleCallback(run, {
+      timeout: PAGE_CLOUD_HYDRATION_IDLE_MS,
+    });
+    return;
+  }
+  window.setTimeout(run, Math.min(PAGE_CLOUD_HYDRATION_IDLE_MS, 160));
 }
 
 async function applyCloudPageLookup(

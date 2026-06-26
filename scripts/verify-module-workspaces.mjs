@@ -190,8 +190,12 @@ check(
     usePageHook.includes("readLocalFirstPageSeed") &&
     usePageHook.includes("if (!dbReady)") &&
     usePageHook.includes("setLoading(!localPage)") &&
-    usePageHook.includes("setLoading(false);"),
-  "usePage 必须把 metadata/handoff 当作可首屏打开状态，正文继续后台补齐"
+    usePageHook.includes("setLoading(false);") &&
+    usePageHook.includes("schedulePageCloudHydration(pageId, localPage, setPage, upsertPages)") &&
+    usePageHook.includes("requestIdleCallback(run") &&
+    usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
+    !usePageHook.includes("cloudPagePromise"),
+  "usePage 必须把 metadata/handoff 当作可首屏打开状态，云端正文 idle 后台补齐，不能抢在本地首屏前发云端正文查询"
 );
 check(
   usePageHook.includes("options: UsePageOptions") &&

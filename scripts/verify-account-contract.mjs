@@ -722,8 +722,12 @@ check(
     usePageHook.includes("if (!dbReady)") &&
     usePageHook.includes("setLoading(!localPage)") &&
     usePageHook.includes("setLoading(false)") &&
+    usePageHook.includes("schedulePageCloudHydration(pageId, localPage, setPage, upsertPages)") &&
+    usePageHook.includes("requestIdleCallback(run") &&
+    usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
+    !usePageHook.includes("cloudPagePromise") &&
     usePageHook.includes("queueCloudPagePush(localPage)"),
-  "usePage 应先显示当前页本地缓存；没有当前页元数据时要清掉旧页面，并在发现本地较新时补发云端上传"
+  "usePage 应先显示当前页本地缓存；云端正文只做 idle 后台回填，没有当前页元数据时才等云端查找，并在发现本地较新时补发云端上传"
 );
 check(
   usePageHook.includes("pageToRemoteRecord(optimistic)") &&

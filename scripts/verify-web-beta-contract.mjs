@@ -2009,6 +2009,18 @@ function run() {
       "clearPageRouteHandoff",
       "usePage must clear route handoffs after durable local or cloud hydration.",
     ],
+    [
+      "schedulePageCloudHydration(pageId, localPage, setPage, upsertPages)",
+      "usePage must defer cloud body hydration until after a local page has painted.",
+    ],
+    [
+      "requestIdleCallback(run",
+      "usePage must schedule cloud body hydration during browser idle time.",
+    ],
+    [
+      "PAGE_CLOUD_HYDRATION_IDLE_MS",
+      "usePage must keep the cloud hydration idle timeout explicit and bounded.",
+    ],
   ]) {
     assertSourceIncludes(files.usePage, usePage, snippet, message);
   }
@@ -2017,6 +2029,12 @@ function run() {
     usePage,
     "setLoading(localPage.content_text == null)",
     "usePage must treat metadata/handoff as first-paint ready while the full page body hydrates in the background."
+  );
+  assertSourceExcludes(
+    files.usePage,
+    usePage,
+    "cloudPagePromise",
+    "usePage must not start a cloud body lookup before IndexedDB has had a chance to provide the local page."
   );
   assertSourceIncludes(
     files.pageShell,
