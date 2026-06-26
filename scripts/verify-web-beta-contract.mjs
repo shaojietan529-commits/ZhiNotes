@@ -4070,6 +4070,26 @@ function run() {
       "Sync UI must expose a manual database pending retry action.",
     ],
     [
+      'data-testid="database-pending-queue-details"',
+      "Sync UI must expose a stable database pending queue details test hook.",
+    ],
+    [
+      'data-testid="database-pending-queue-fact"',
+      "Sync UI must expose stable database pending queue fact test hooks.",
+    ],
+    [
+      "数据库待上传队列详情",
+      "Sync UI must render database pending queue details in reader-facing language.",
+    ],
+    [
+      "这里只显示数据库队列数量",
+      "Database pending details must clarify the panel is metadata-only.",
+    ],
+    [
+      "不读取 row",
+      "Database pending details must avoid database row value reads.",
+    ],
+    [
       "reconcileDatabaseSync({ quick: true })",
       "Sync UI manual database retry must use quick incremental reconcile.",
     ],

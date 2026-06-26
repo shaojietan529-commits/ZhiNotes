@@ -3347,6 +3347,36 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    'data-testid="database-pending-queue-details"',
+    "Sync UI must expose a stable test hook for the database pending queue details panel."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid="database-pending-queue-fact"',
+    "Sync UI must expose stable test hooks for database pending queue facts."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "数据库待上传队列详情",
+    "Sync UI must render database pending queue details in reader-facing language."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "这里只显示数据库队列数量",
+    "Sync UI database pending details must clarify the panel is metadata-only."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "不读取 row",
+    "Sync UI database pending details must avoid reading database row values."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "DATABASE_SYNC_STATUS_EVENT",
     "Sync UI must listen to database pending queue status changes while open."
   );

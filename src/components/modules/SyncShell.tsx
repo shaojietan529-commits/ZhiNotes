@@ -9544,47 +9544,7 @@ function SyncDashboard() {
                     : "补传数据库队列"}
                 </button>
               </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                  <div className="text-[11px] uppercase text-zinc-400">
-                    Cloud key 队列
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                    {databasePendingStatus.pending}
-                  </div>
-                </div>
-                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                  <div className="text-[11px] uppercase text-zinc-400">
-                    本地 sync_log
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                    {databasePendingStatus.syncLogPending}
-                  </div>
-                </div>
-                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                  <div className="text-[11px] uppercase text-zinc-400">
-                    内存批次
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                    {databasePendingStatus.queued}
-                  </div>
-                </div>
-                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                  <div className="text-[11px] uppercase text-zinc-400">
-                    最后同步
-                  </div>
-                  <div className="mt-1 text-xs font-medium text-zinc-700 dark:text-zinc-200">
-                    {databasePendingStatus.lastSyncAt
-                      ? formatDate(databasePendingStatus.lastSyncAt)
-                      : "暂无记录"}
-                  </div>
-                </div>
-              </div>
-              <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                数据库同步当前
-                {databasePendingStatus.enabled ? "已开启" : "已关闭"}。普通同步只会补传
-                pending queue 里的数据库变更，不会把本地数据库缓存全量上传。
-              </p>
+              <DatabasePendingQueueDetails status={databasePendingStatus} />
               {databasePendingMessage && (
                 <p className="mt-2 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                   {databasePendingMessage}
@@ -15841,6 +15801,99 @@ function PagePendingQueueDetails({
       <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
         页面同步当前{status.enabled ? "已开启" : "已关闭"}。
         普通同步只会补传 pending queue 里的页面，不会把本地缓存全量上传。
+      </p>
+    </div>
+  );
+}
+
+function DatabasePendingQueueDetails({
+  status,
+}: {
+  status: PendingCloudDatabaseSyncStatus;
+}) {
+  const totalWaiting = status.pending + status.queued + status.syncLogPending;
+  const stateLabel =
+    totalWaiting > 0 ? "待补传" : status.enabled ? "队列清空" : "同步关闭";
+  const stateClass =
+    totalWaiting > 0
+      ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+      : status.enabled
+        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
+  const queueFacts = [
+    {
+      label: "Cloud key 队列",
+      value: String(status.pending),
+      detail: "明确排队等待补传的 database/field/row/view key。",
+    },
+    {
+      label: "本地 sync_log",
+      value: String(status.syncLogPending),
+      detail: "本地同步日志里的待上传数据库变更计数。",
+    },
+    {
+      label: "内存批次",
+      value: String(status.queued),
+      detail: "当前浏览器会话内等待合并的数据库记录。",
+    },
+    {
+      label: "最后同步",
+      value: status.lastSyncAt ? formatDate(status.lastSyncAt) : "暂无记录",
+      detail: status.enabled ? "最近一次数据库云同步时间。" : "数据库同步当前关闭。",
+    },
+  ];
+
+  return (
+    <div
+      data-testid="database-pending-queue-details"
+      className="mt-3 space-y-3"
+    >
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {queueFacts.map((fact) => (
+          <div
+            key={fact.label}
+            data-testid="database-pending-queue-fact"
+            className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
+          >
+            <div className="text-[11px] uppercase text-zinc-400">
+              {fact.label}
+            </div>
+            <div className="mt-1 break-words text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {fact.value}
+            </div>
+            <p className="mt-1 text-[11px] leading-4 text-zinc-400">
+              {fact.detail}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h4 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+              数据库待上传队列详情
+            </h4>
+            <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              这里只显示数据库队列数量、同步日志数量和同步时间，不读取 row
+              value；补传按钮才会尝试上传 pending queue。
+              不展示或导出数据库行值。
+            </p>
+          </div>
+          <span
+            className={`w-fit rounded-md px-2 py-1 text-[10px] ${stateClass}`}
+          >
+            {stateLabel}
+          </span>
+        </div>
+        <p className="mt-3 rounded bg-zinc-50 px-2 py-1 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-300">
+          普通同步只会补传 pending queue 里的数据库变更，不会把本地数据库缓存全量上传。
+        </p>
+      </div>
+
+      <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+        数据库同步当前{status.enabled ? "已开启" : "已关闭"}。Cloud key
+        队列、sync_log 和内存批次都清空后，才适合做本机缓存重建。
       </p>
     </div>
   );
