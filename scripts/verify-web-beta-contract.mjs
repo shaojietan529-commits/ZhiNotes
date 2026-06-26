@@ -1719,6 +1719,30 @@ function run() {
       "Daily local metadata query must recover visible-month imported notes before broad background backfill finishes.",
     ],
     [
+      "inferDailyDateKeyInRange",
+      "Daily local metadata query must infer no-year imported titles inside the visible calendar range.",
+    ],
+    [
+      "resolveMonthDayInRange",
+      "Daily local metadata query must resolve month/day titles against the current visible range.",
+    ],
+    [
+      "ENGLISH_MONTH_INDEX",
+      "Daily local metadata query must recover English month titles from Notion imports.",
+    ],
+    [
+      "DAILY_RANGE_SEARCH_TOKEN_LIMIT",
+      "Daily targeted fallback search tokens must stay bounded for SQLite parameter safety.",
+    ],
+    [
+      "tokens.add(`${currentMonth}月${currentDay}`)",
+      "Daily targeted fallback must include Chinese no-year day tokens.",
+    ],
+    [
+      "tokens.add(`${longMonthTitle} ${currentDay}`)",
+      "Daily targeted fallback must include English no-year day tokens.",
+    ],
+    [
       "targetedFallbackRows",
       "Daily local metadata query must use a bounded visible-month fallback for missing date-index rows.",
     ],

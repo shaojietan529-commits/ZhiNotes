@@ -1896,6 +1896,42 @@ function run() {
   assertIncludes(
     files.localQueries,
     localQueries,
+    "inferDailyDateKeyInRange",
+    "Daily local metadata query must infer no-year imported titles inside the visible calendar range."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "resolveMonthDayInRange",
+    "Daily local metadata query must resolve month/day titles against the current visible range."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "ENGLISH_MONTH_INDEX",
+    "Daily local metadata query must recover English month titles from Notion imports."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "DAILY_RANGE_SEARCH_TOKEN_LIMIT",
+    "Daily targeted fallback search tokens must stay bounded for SQLite parameter safety."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "tokens.add(`${currentMonth}月${currentDay}`)",
+    "Daily targeted fallback must include Chinese no-year day tokens."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "tokens.add(`${longMonthTitle} ${currentDay}`)",
+    "Daily targeted fallback must include English no-year day tokens."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
     "targetedFallbackRows",
     "Daily local metadata query must use a bounded visible-month fallback for missing date-index rows."
   );

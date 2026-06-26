@@ -130,6 +130,7 @@ const DAILY_CALENDAR_FALLBACK_SCAN_LIMIT = 240;
 const DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT = 1200;
 const DAILY_CALENDAR_CHILD_FALLBACK_LIMIT = 1200;
 const DAILY_RECENT_CANDIDATE_MULTIPLIER = 6;
+const DAILY_RANGE_SEARCH_TOKEN_LIMIT = 480;
 const DAILY_PARENT_LOOKUP_GUARD = 32;
 const MEETING_CALENDAR_FALLBACK_SCAN_LIMIT = 360;
 const LOCAL_SYNC_SUMMARY_START_DATE = "2000-01-01";
@@ -142,6 +143,26 @@ const MEETING_METADATA_PROPERTY_NAMES = new Set([
   "入会链接",
   "会议号",
 ]);
+const ENGLISH_MONTHS = [
+  ["jan", "january"],
+  ["feb", "february"],
+  ["mar", "march"],
+  ["apr", "april"],
+  ["may", "may"],
+  ["jun", "june"],
+  ["jul", "july"],
+  ["aug", "august"],
+  ["sep", "september"],
+  ["oct", "october"],
+  ["nov", "november"],
+  ["dec", "december"],
+] as const;
+const ENGLISH_MONTH_INDEX = new Map<string, number>(
+  ENGLISH_MONTHS.flatMap(([shortName, longName], index) => [
+    [shortName, index + 1],
+    [longName, index + 1],
+  ])
+);
 
 function parseStoredProperties(
   raw: string | null
@@ -180,6 +201,13 @@ function formatInferredDate(
     return null;
   }
   if (yearText.length === 2) year += year >= 70 ? 1900 : 2000;
+  if (!isValidDateParts(year, month, day)) {
+    return null;
+  }
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function isValidDateParts(year: number, month: number, day: number): boolean {
   if (
     year < 2000 ||
     year > 2099 ||
@@ -188,9 +216,14 @@ function formatInferredDate(
     day < 1 ||
     day > 31
   ) {
-    return null;
+    return false;
   }
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
 }
 
 function inferDateFromTitle(title: string): string | null {
@@ -228,6 +261,102 @@ export function inferDailyDateKey(
     (property) => property.name === "日期" && DATE_KEY_PATTERN.test(property.value)
   );
   return existing?.value ?? inferDateFromTitle((title || "").trim());
+}
+
+function inferDailyDateKeyInRange(
+  title: string,
+  properties: string | null,
+  startDate: string,
+  endDate: string
+): string | null {
+  const exact = inferDailyDateKey(title, properties);
+  if (exact) return exact;
+  return inferDateFromTitleInRange((title || "").trim(), startDate, endDate);
+}
+
+function inferDateFromTitleInRange(
+  title: string,
+  startDate: string,
+  endDate: string
+): string | null {
+  if (!title) return null;
+  const numericMonthDayPatterns = [
+    /(?:^|[^0-9])([0-1]?[0-9])\s*月\s*([0-3]?[0-9])\s*(?:日)?(?:[^0-9]|$)/,
+    /(?:^|[^0-9])([0-1]?[0-9])\s*[/.]\s*([0-3]?[0-9])(?:[^0-9]|$)/,
+  ];
+
+  for (const pattern of numericMonthDayPatterns) {
+    const match = title.match(pattern);
+    if (!match) continue;
+    const dateKey = resolveMonthDayInRange(
+      Number(match[1]),
+      Number(match[2]),
+      startDate,
+      endDate
+    );
+    if (dateKey) return dateKey;
+  }
+
+  const monthBeforeDay = title.match(
+    /(?:^|[^A-Za-z])([A-Za-z]{3,9})\.?\s+([0-3]?[0-9])(?:st|nd|rd|th)?(?:[^0-9A-Za-z]|$)/i
+  );
+  if (monthBeforeDay) {
+    const dateKey = resolveEnglishMonthDayInRange(
+      monthBeforeDay[1],
+      monthBeforeDay[2],
+      startDate,
+      endDate
+    );
+    if (dateKey) return dateKey;
+  }
+
+  const dayBeforeMonth = title.match(
+    /(?:^|[^0-9A-Za-z])([0-3]?[0-9])(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?(?:[^A-Za-z]|$)/i
+  );
+  if (dayBeforeMonth) {
+    const dateKey = resolveEnglishMonthDayInRange(
+      dayBeforeMonth[2],
+      dayBeforeMonth[1],
+      startDate,
+      endDate
+    );
+    if (dateKey) return dateKey;
+  }
+
+  return null;
+}
+
+function resolveEnglishMonthDayInRange(
+  monthText: string,
+  dayText: string,
+  startDate: string,
+  endDate: string
+): string | null {
+  const month = ENGLISH_MONTH_INDEX.get(monthText.toLowerCase());
+  if (!month) return null;
+  return resolveMonthDayInRange(month, Number(dayText), startDate, endDate);
+}
+
+function resolveMonthDayInRange(
+  month: number,
+  day: number,
+  startDate: string,
+  endDate: string
+): string | null {
+  const start = parseDateKeyParts(startDate);
+  const end = parseDateKeyParts(endDate);
+  if (!start || !end) return null;
+  for (let year = start.year; year <= end.year; year += 1) {
+    const dateKey = formatInferredDate(
+      String(year),
+      String(month),
+      String(day)
+    );
+    if (dateKey && dateKey >= startDate && dateKey <= endDate) {
+      return dateKey;
+    }
+  }
+  return null;
 }
 
 function getStoredPropertyValue(
@@ -1065,11 +1194,19 @@ export async function listMoveTargetPageMetadata({
 
 function dailyDateCandidateWhere(alias = "pages"): string {
   const prefix = alias ? `${alias}.` : "";
+  const englishMonthTitleWhere = ENGLISH_MONTHS.flatMap(
+    ([shortName, longName]) => [
+      `${prefix}title LIKE '%${shortName}%'`,
+      `${prefix}title LIKE '%${longName}%'`,
+    ]
+  ).join(" OR ");
   return `(
     ${prefix}properties LIKE '%日期%' OR
     ${prefix}properties LIKE '%notion-daily-import%' OR
     ${prefix}title GLOB '*[0-9][0-9][0-9][0-9]*' OR
-    ${prefix}title GLOB '*[0-9][0-9][0-9][0-9][0-9][0-9]*'
+    ${prefix}title GLOB '*[0-9][0-9][0-9][0-9][0-9][0-9]*' OR
+    ${prefix}title GLOB '*[0-9]月[0-9]*' OR
+    ${englishMonthTitleWhere}
   )`;
 }
 
@@ -1095,7 +1232,31 @@ function buildDailyRangeSearchTokens(startDate: string, endDate: string): string
       year += 1;
     }
   }
-  return Array.from(tokens);
+  const cursor = new Date(Date.UTC(start.year, start.month - 1, start.day));
+  const endTime = Date.UTC(end.year, end.month - 1, end.day);
+  for (let guard = 0; cursor.getTime() <= endTime && guard < 93; guard += 1) {
+    const currentMonth = cursor.getUTCMonth() + 1;
+    const currentDay = cursor.getUTCDate();
+    const monthPadded = String(currentMonth).padStart(2, "0");
+    const dayPadded = String(currentDay).padStart(2, "0");
+    const [shortMonth, longMonth] = ENGLISH_MONTHS[currentMonth - 1];
+    const shortMonthTitle =
+      shortMonth.charAt(0).toUpperCase() + shortMonth.slice(1);
+    const longMonthTitle =
+      longMonth.charAt(0).toUpperCase() + longMonth.slice(1);
+    tokens.add(`${currentMonth}月${currentDay}`);
+    tokens.add(`${currentMonth}月${currentDay}日`);
+    tokens.add(`${monthPadded}月${dayPadded}`);
+    tokens.add(`${monthPadded}月${dayPadded}日`);
+    tokens.add(`${currentMonth}/${currentDay}`);
+    tokens.add(`${monthPadded}/${dayPadded}`);
+    tokens.add(`${currentMonth}.${currentDay}`);
+    tokens.add(`${monthPadded}.${dayPadded}`);
+    tokens.add(`${shortMonthTitle} ${currentDay}`);
+    tokens.add(`${longMonthTitle} ${currentDay}`);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return Array.from(tokens).slice(0, DAILY_RANGE_SEARCH_TOKEN_LIMIT);
 }
 
 function parseDateKeyParts(
@@ -1203,7 +1364,12 @@ export async function listDailyPageMetadataForCalendar({
   const addIfDailyScope = (row: Page) => {
     if (!isDailyScopePage(row)) return;
     byId.set(row.id, row);
-    const dateKey = inferDailyDateKey(row.title, row.properties);
+    const dateKey = inferDailyDateKeyInRange(
+      row.title,
+      row.properties,
+      startDate,
+      endDate
+    );
     if (dateKey && dateKey >= startDate && dateKey <= endDate) {
       dateParentIdsForChildren.add(row.id);
     }
@@ -1264,7 +1430,12 @@ export async function listDailyPageMetadataForCalendar({
       [...tokenBinds, DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT]
     );
     for (const row of targetedFallbackRows) {
-      const dateKey = inferDailyDateKey(row.title, row.properties);
+      const dateKey = inferDailyDateKeyInRange(
+        row.title,
+        row.properties,
+        startDate,
+        endDate
+      );
       if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
       addIfDailyScope(row);
     }
@@ -1282,7 +1453,12 @@ export async function listDailyPageMetadataForCalendar({
   );
   for (const row of fallbackRows) {
     if (!isDailyScopePage(row)) continue;
-    const dateKey = inferDailyDateKey(row.title, row.properties);
+    const dateKey = inferDailyDateKeyInRange(
+      row.title,
+      row.properties,
+      startDate,
+      endDate
+    );
     if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
     byId.set(row.id, row);
     dateParentIdsForChildren.add(row.id);

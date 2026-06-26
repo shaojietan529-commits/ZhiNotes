@@ -381,6 +381,10 @@ for (const token of [
   "includeRemaining?: boolean",
   "dailyDateCandidateWhere",
   "buildDailyRangeSearchTokens",
+  "inferDailyDateKeyInRange",
+  "resolveMonthDayInRange",
+  "ENGLISH_MONTH_INDEX",
+  "DAILY_RANGE_SEARCH_TOKEN_LIMIT",
   "daily_date_key IS NULL",
 ]) {
   check(
