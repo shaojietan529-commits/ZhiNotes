@@ -1360,6 +1360,30 @@ function run() {
     "Core manifest compare must require manifest diff export before manual rebuild review."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildCoreDateManifestDiffReport",
+    "Core manifest compare must build date-level metadata diff evidence."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "日期级 metadata 差异",
+    "Sync UI must render date-level metadata diffs for daily notes and meetings."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "不展示标题、正文、会议链接、会议号、密码、评论或文件字节",
+    "Date-level manifest diff must preserve sensitive content boundaries."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "CORE_MANIFEST_DATE_DIFF_ROW_LIMIT",
+    "Date-level manifest diff must cap visible rows to keep large imports responsive."
+  );
+  assertIncludes(
     files.hotCachePolicyPlan,
     hotCachePolicyPlan,
     'plan_status: "local-policy-only"',

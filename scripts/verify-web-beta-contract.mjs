@@ -975,6 +975,30 @@ function run() {
       "Core manifest comparison summary must count watermark mismatches.",
     ],
     [
+      "buildCoreDateManifestDiffReport",
+      "Core manifest comparison must build date-level metadata diff evidence.",
+    ],
+    [
+      "dateBucketsCompared",
+      "Core manifest comparison summary must count compared date buckets.",
+    ],
+    [
+      "dateBucketsWithDiff",
+      "Core manifest comparison summary must count date buckets with diffs.",
+    ],
+    [
+      "日期级 metadata 差异",
+      "Sync UI must render date-level metadata diffs for daily notes and meetings.",
+    ],
+    [
+      "不展示标题、正文、会议链接、会议号、密码、评论或文件字节",
+      "Date-level manifest diff must preserve sensitive content boundaries.",
+    ],
+    [
+      "CORE_MANIFEST_DATE_DIFF_ROW_LIMIT",
+      "Date-level manifest diff must cap visible rows for large imports.",
+    ],
+    [
       "rebuildGate",
       "Core manifest comparison must expose per-domain rebuild gates.",
     ],

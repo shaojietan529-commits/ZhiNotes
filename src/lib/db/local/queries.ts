@@ -220,7 +220,10 @@ function inferDateFromTitle(title: string): string | null {
   return null;
 }
 
-function inferDailyDateKey(title: string, properties: string | null): string | null {
+export function inferDailyDateKey(
+  title: string,
+  properties: string | null
+): string | null {
   const existing = parseStoredProperties(properties).find(
     (property) => property.name === "日期" && DATE_KEY_PATTERN.test(property.value)
   );
@@ -235,7 +238,7 @@ function getStoredPropertyValue(
     ?.value ?? "";
 }
 
-function inferMeetingDateKey(
+export function inferMeetingDateKey(
   title: string,
   properties: string | null
 ): string | null {

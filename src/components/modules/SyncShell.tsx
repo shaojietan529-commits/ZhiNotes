@@ -16,10 +16,14 @@ import { usePages } from "@/hooks/usePages";
 import {
   getAllDatabases,
   getDeletedPages,
+  inferDailyDateKey,
+  inferMeetingDateKey,
   getLocalDailySyncSummary,
   getLocalDatabaseSyncSummary,
   getLocalMeetingSyncSummary,
   getLocalPageSyncSummary,
+  listDailyPageMetadataForCalendar,
+  listMeetingPageMetadataForCalendar,
   applyRemoteAccountModuleSettings,
   applyRemoteWorkspaceSettings,
   getPendingAccountModuleSettingSyncLogEntries,
@@ -61,6 +65,8 @@ import {
   getCloudMeetingManifestSummary,
   getCloudPageManifestSummary,
   getPendingCloudPageSyncStatus,
+  fetchDailyCloudMetadata,
+  fetchMeetingCloudMetadata,
   isPageSyncEnabled,
   reconcilePageSync,
   type PendingCloudPageSyncStatus,
@@ -521,6 +527,35 @@ type CoreManifestDomainCompare = {
   nextAction: string;
   safetyInvariant: string;
 };
+type CoreDateManifestDomainId = Extract<
+  CoreManifestDomainCompare["id"],
+  "daily" | "meetings"
+>;
+type CoreDateManifestDiffStatus =
+  | "matched"
+  | "local-extra"
+  | "cloud-extra"
+  | "mismatch";
+type CoreDateManifestRecord = Pick<Page, "title" | "properties">;
+type CoreDateManifestDiffRow = {
+  domain: CoreDateManifestDomainId;
+  title: string;
+  dateKey: string;
+  localCount: number;
+  cloudCount: number;
+  delta: number;
+  status: CoreDateManifestDiffStatus;
+  nextAction: string;
+};
+type CoreDateManifestDiffReport = {
+  comparedDates: number;
+  datesWithDiff: number;
+  rowsShown: number;
+  truncated: boolean;
+  blockedDomains: string[];
+  rows: CoreDateManifestDiffRow[];
+  privacyNote: string;
+};
 type CoreManifestCompareReport = {
   checkedAt: string;
   status: "matched" | "needs-sync" | "blocked" | "mismatch";
@@ -535,8 +570,12 @@ type CoreManifestCompareReport = {
     absoluteCountDelta: number;
     absoluteDeletedDelta: number;
     domainsWithWatermarkMismatch: number;
+    dateBucketsCompared: number;
+    dateBucketsWithDiff: number;
+    dateDiffRowsShown: number;
   };
   domains: CoreManifestDomainCompare[];
+  dateDiffReport: CoreDateManifestDiffReport;
   privacyNote: string;
   message?: string;
 };
@@ -683,6 +722,156 @@ const PENDING_DOMAIN_DEFINITIONS: PendingDomainDefinition[] = [
     tablePrefixes: ["audit_", "receipt_", "migration_"],
   },
 ];
+
+const CORE_MANIFEST_DATE_START_DATE = "2000-01-01";
+const CORE_MANIFEST_DATE_END_DATE = "2099-12-31";
+const CORE_MANIFEST_DATE_DIFF_ROW_LIMIT = 40;
+
+function buildEmptyCoreDateManifestDiffReport(): CoreDateManifestDiffReport {
+  return {
+    comparedDates: 0,
+    datesWithDiff: 0,
+    rowsShown: 0,
+    truncated: false,
+    blockedDomains: [],
+    rows: [],
+    privacyNote:
+      "日期级 metadata 对账尚未运行；不会读取标题以外的正文、会议链接、会议号、密码、评论或文件字节。",
+  };
+}
+
+function buildCoreDateCountMap(
+  records: CoreDateManifestRecord[],
+  inferDateKey: (title: string, properties: string | null) => string | null
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const record of records) {
+    const dateKey = inferDateKey(record.title ?? "", record.properties ?? null);
+    if (!dateKey) continue;
+    counts.set(dateKey, (counts.get(dateKey) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function buildCoreDateManifestDomainDiffRows(input: {
+  domain: CoreDateManifestDomainId;
+  title: string;
+  localRecords: CoreDateManifestRecord[];
+  cloudRecords: CoreDateManifestRecord[];
+  inferDateKey: (title: string, properties: string | null) => string | null;
+}): { comparedDates: number; rows: CoreDateManifestDiffRow[] } {
+  const localCounts = buildCoreDateCountMap(input.localRecords, input.inferDateKey);
+  const cloudCounts = buildCoreDateCountMap(input.cloudRecords, input.inferDateKey);
+  const dateKeys = Array.from(
+    new Set([...localCounts.keys(), ...cloudCounts.keys()])
+  ).sort((a, b) => b.localeCompare(a));
+
+  return {
+    comparedDates: dateKeys.length,
+    rows: dateKeys.map((dateKey) => {
+      const localCount = localCounts.get(dateKey) ?? 0;
+      const cloudCount = cloudCounts.get(dateKey) ?? 0;
+      const delta = localCount - cloudCount;
+      const status: CoreDateManifestDiffStatus =
+        delta === 0
+          ? "matched"
+          : cloudCount === 0
+            ? "local-extra"
+            : localCount === 0
+              ? "cloud-extra"
+              : "mismatch";
+      const nextAction =
+        status === "matched"
+          ? "日期桶已对齐。"
+          : status === "local-extra"
+            ? "本地有云端没有的日期桶；先确认 pending queue 是否待补传，避免本地缓存反向覆盖云端。"
+            : status === "cloud-extra"
+              ? "云端有本地没有的日期桶；优先从云端拉取或重建本地缓存。"
+              : "本地和云端同一天数量不同；检查导入重复、日期识别或旧缓存残留。";
+      return {
+        domain: input.domain,
+        title: input.title,
+        dateKey,
+        localCount,
+        cloudCount,
+        delta,
+        status,
+        nextAction,
+      };
+    }),
+  };
+}
+
+function buildCoreDateManifestDiffReport(input: {
+  daily: {
+    localRecords: CoreDateManifestRecord[];
+    cloudRecords: CoreDateManifestRecord[];
+    cloudStatus: string;
+  };
+  meetings: {
+    localRecords: CoreDateManifestRecord[];
+    cloudRecords: CoreDateManifestRecord[];
+    cloudStatus: string;
+  };
+}): CoreDateManifestDiffReport {
+  const blockedDomains: string[] = [];
+  const domainResults: Array<{
+    comparedDates: number;
+    rows: CoreDateManifestDiffRow[];
+  }> = [];
+
+  if (input.daily.cloudStatus === "ok") {
+    domainResults.push(
+      buildCoreDateManifestDomainDiffRows({
+        domain: "daily",
+        title: "每日纪要",
+        localRecords: input.daily.localRecords,
+        cloudRecords: input.daily.cloudRecords,
+        inferDateKey: inferDailyDateKey,
+      })
+    );
+  } else {
+    blockedDomains.push(`每日纪要：${input.daily.cloudStatus}`);
+  }
+
+  if (input.meetings.cloudStatus === "ok") {
+    domainResults.push(
+      buildCoreDateManifestDomainDiffRows({
+        domain: "meetings",
+        title: "会议日历",
+        localRecords: input.meetings.localRecords,
+        cloudRecords: input.meetings.cloudRecords,
+        inferDateKey: inferMeetingDateKey,
+      })
+    );
+  } else {
+    blockedDomains.push(`会议日历：${input.meetings.cloudStatus}`);
+  }
+
+  const diffRows = domainResults
+    .flatMap((result) => result.rows)
+    .filter((row) => row.status !== "matched")
+    .sort(
+      (a, b) =>
+        a.domain.localeCompare(b.domain) ||
+        b.dateKey.localeCompare(a.dateKey)
+    );
+  const visibleRows = diffRows.slice(0, CORE_MANIFEST_DATE_DIFF_ROW_LIMIT);
+
+  return {
+    comparedDates: domainResults.reduce(
+      (total, result) => total + result.comparedDates,
+      0
+    ),
+    datesWithDiff: diffRows.length,
+    rowsShown: visibleRows.length,
+    truncated: diffRows.length > visibleRows.length,
+    blockedDomains,
+    rows: visibleRows,
+    privacyNote:
+      "日期级 metadata 对账只比较每日纪要和会议的日期桶数量；不展示标题、正文、会议链接、会议号、密码、评论或文件字节。",
+  };
+}
 
 function buildCoreManifestDomainCompare(input: {
   id: CoreManifestDomainCompare["id"];
@@ -930,7 +1119,8 @@ function getCoreManifestOverallStatus(
 }
 
 function buildCoreManifestCompareSummary(
-  domains: CoreManifestDomainCompare[]
+  domains: CoreManifestDomainCompare[],
+  dateDiffReport: CoreDateManifestDiffReport = buildEmptyCoreDateManifestDiffReport()
 ): CoreManifestCompareReport["summary"] {
   return {
     matched: domains.filter((domain) => domain.status === "matched").length,
@@ -955,6 +1145,9 @@ function buildCoreManifestCompareSummary(
     domainsWithWatermarkMismatch: domains.filter(
       (domain) => domain.watermarkMatches === false
     ).length,
+    dateBucketsCompared: dateDiffReport.comparedDates,
+    dateBucketsWithDiff: dateDiffReport.datesWithDiff,
+    dateDiffRowsShown: dateDiffReport.rowsShown,
   };
 }
 
@@ -3585,6 +3778,39 @@ function SyncDashboard() {
       const nextPagePending = getPendingCloudPageSyncStatus();
       setPagePendingStatus(nextPagePending);
       setDatabasePendingStatus(nextDatabasePending);
+      const [
+        localDailyMetadata,
+        localMeetingMetadata,
+        cloudDailyMetadata,
+        cloudMeetingMetadata,
+      ] = await Promise.all([
+        localDailySummary.rootId
+          ? listDailyPageMetadataForCalendar({
+              rootId: localDailySummary.rootId,
+              startDate: CORE_MANIFEST_DATE_START_DATE,
+              endDate: CORE_MANIFEST_DATE_END_DATE,
+              recentLimit: 0,
+            })
+          : Promise.resolve([]),
+        localMeetingSummary.rootId
+          ? listMeetingPageMetadataForCalendar({
+              rootId: localMeetingSummary.rootId,
+              startDate: CORE_MANIFEST_DATE_START_DATE,
+              endDate: CORE_MANIFEST_DATE_END_DATE,
+              recentLimit: 0,
+            })
+          : Promise.resolve([]),
+        fetchDailyCloudMetadata({
+          startDate: CORE_MANIFEST_DATE_START_DATE,
+          endDate: CORE_MANIFEST_DATE_END_DATE,
+          recentLimit: 0,
+        }),
+        fetchMeetingCloudMetadata({
+          startDate: CORE_MANIFEST_DATE_START_DATE,
+          endDate: CORE_MANIFEST_DATE_END_DATE,
+          recentLimit: 0,
+        }),
+      ]);
 
       const domains = [
         buildCoreManifestDomainCompare({
@@ -3619,14 +3845,31 @@ function SyncDashboard() {
             nextDatabasePending.syncLogPending,
         }),
       ];
+      const dateDiffReport = buildCoreDateManifestDiffReport({
+        daily: {
+          localRecords: localDailyMetadata,
+          cloudRecords:
+            cloudDailyMetadata.status === "ok" ? cloudDailyMetadata.pages : [],
+          cloudStatus: cloudDailyMetadata.status,
+        },
+        meetings: {
+          localRecords: localMeetingMetadata,
+          cloudRecords:
+            cloudMeetingMetadata.status === "ok"
+              ? cloudMeetingMetadata.pages
+              : [],
+          cloudStatus: cloudMeetingMetadata.status,
+        },
+      });
 
       setCoreManifestCompareReport({
         checkedAt: new Date().toISOString(),
         status: getCoreManifestOverallStatus(domains),
-        summary: buildCoreManifestCompareSummary(domains),
+        summary: buildCoreManifestCompareSummary(domains, dateDiffReport),
         domains,
+        dateDiffReport,
         privacyNote:
-          "核心域云端 manifest 对账只读取页面、每日纪要、会议和数据库的本地/云端 metadata summary 的 count、deleted、watermark 和 pending 数，不读取页面正文、数据库值、评论正文或文件字节；不会上传或清理本机缓存。",
+          "核心域云端 manifest 对账只读取页面、每日纪要、会议和数据库的本地/云端 metadata summary 的 count、deleted、watermark、日期桶数量和 pending 数，不读取页面正文、数据库值、评论正文、会议链接、会议号、密码或文件字节；不会上传或清理本机缓存。",
       });
     } catch (err) {
       console.error("[Zhinote] Failed to compare core manifests:", err);
@@ -3635,6 +3878,7 @@ function SyncDashboard() {
         status: "blocked",
         summary: buildCoreManifestCompareSummary([]),
         domains: [],
+        dateDiffReport: buildEmptyCoreDateManifestDiffReport(),
         privacyNote:
           "核心域云端 manifest 对账失败前没有读取正文或文件，也没有上传或清理本机缓存。",
         message:
@@ -16964,7 +17208,7 @@ function CoreManifestComparePanel({
               {report.message}
             </p>
           ) : null}
-          <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-10">
+          <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-12">
             <LocalMetadataManifestMiniStat
               label="已对齐"
               value={report.summary.matched}
@@ -17005,12 +17249,25 @@ function CoreManifestComparePanel({
               label="Watermark diff"
               value={report.summary.domainsWithWatermarkMismatch}
             />
+            <LocalMetadataManifestMiniStat
+              label="Date buckets"
+              value={report.summary.dateBucketsCompared}
+            />
+            <LocalMetadataManifestMiniStat
+              label="Date diffs"
+              value={report.summary.dateBucketsWithDiff}
+            />
+            <LocalMetadataManifestMiniStat
+              label="Date rows"
+              value={report.summary.dateDiffRowsShown}
+            />
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {report.domains.map((domain) => (
               <CoreManifestDomainRow key={domain.id} domain={domain} />
             ))}
           </div>
+          <CoreDateManifestDiffPanel report={report.dateDiffReport} />
           <p className="rounded-md bg-zinc-50 px-3 py-2 text-[11px] leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
             {report.privacyNote} 检查时间：{formatDate(report.checkedAt)}
           </p>
@@ -17021,6 +17278,105 @@ function CoreManifestComparePanel({
         </div>
       )}
     </section>
+  );
+}
+
+function CoreDateManifestDiffPanel({
+  report,
+}: {
+  report: CoreDateManifestDiffReport;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-3 text-xs dark:border-zinc-800">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            日期级 metadata 差异
+          </div>
+          <p className="mt-1 max-w-3xl leading-5 text-zinc-500 dark:text-zinc-400">
+            对每日纪要和会议按日期桶做数量对账，用来定位“导入了但日历不显示”是本地缺、云端缺还是同一天数量不一致。
+          </p>
+        </div>
+        <div className="grid min-w-[220px] grid-cols-3 gap-2">
+          <LocalMetadataManifestMiniStat
+            label="Compared"
+            value={report.comparedDates}
+          />
+          <LocalMetadataManifestMiniStat
+            label="Diff dates"
+            value={report.datesWithDiff}
+          />
+          <LocalMetadataManifestMiniStat
+            label="Shown"
+            value={report.rowsShown}
+          />
+        </div>
+      </div>
+      {report.blockedDomains.length > 0 ? (
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 leading-5 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          以下日期级云端 metadata 暂不可读：
+          {report.blockedDomains.join("；")}。先恢复云端可读性后再判断日期差异。
+        </p>
+      ) : null}
+      {report.rows.length > 0 ? (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[720px] border-separate border-spacing-y-1 text-left">
+            <thead className="text-[10px] uppercase tracking-wider text-zinc-400">
+              <tr>
+                <th className="px-2 py-1 font-medium">Domain</th>
+                <th className="px-2 py-1 font-medium">Date</th>
+                <th className="px-2 py-1 font-medium">Local</th>
+                <th className="px-2 py-1 font-medium">Cloud</th>
+                <th className="px-2 py-1 font-medium">Delta</th>
+                <th className="px-2 py-1 font-medium">Status</th>
+                <th className="px-2 py-1 font-medium">Next</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.rows.map((row) => (
+                <tr
+                  key={`${row.domain}:${row.dateKey}`}
+                  className="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300"
+                >
+                  <td className="rounded-l-md px-2 py-2 font-medium">
+                    {row.title}
+                  </td>
+                  <td className="px-2 py-2 font-mono">{row.dateKey}</td>
+                  <td className="px-2 py-2 font-mono">{row.localCount}</td>
+                  <td className="px-2 py-2 font-mono">{row.cloudCount}</td>
+                  <td className="px-2 py-2 font-mono">
+                    {row.delta > 0 ? `+${row.delta}` : row.delta}
+                  </td>
+                  <td className="px-2 py-2">
+                    <CoreDateManifestDiffStatusPill status={row.status} />
+                  </td>
+                  <td className="rounded-r-md px-2 py-2 leading-5">
+                    {row.nextAction}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {report.truncated ? (
+            <p className="mt-2 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400">
+              只显示前 {CORE_MANIFEST_DATE_DIFF_ROW_LIMIT}
+              个需要处理的日期桶，避免大批量导入后同步页卡顿；完整差异数量已计入 Diff dates。
+            </p>
+          ) : null}
+        </div>
+      ) : report.blockedDomains.length > 0 ? (
+        <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+          日期级差异暂未证明；等云端 metadata 可读后再显示完整对账结果。
+        </p>
+      ) : (
+        <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 leading-5 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+          没有发现日期级数量差异。
+        </p>
+      )}
+      <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-[11px] leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+        {report.privacyNote}
+      </p>
+    </div>
   );
 }
 
@@ -17139,6 +17495,33 @@ function CoreManifestDomainRow({
         {domain.safetyInvariant}
       </p>
     </article>
+  );
+}
+
+function CoreDateManifestDiffStatusPill({
+  status,
+}: {
+  status: CoreDateManifestDiffStatus;
+}) {
+  const labels: Record<CoreDateManifestDiffStatus, string> = {
+    matched: "已对齐",
+    "local-extra": "本地多",
+    "cloud-extra": "云端多",
+    mismatch: "数量不同",
+  };
+  const className =
+    status === "matched"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "local-extra"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : status === "cloud-extra"
+          ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
