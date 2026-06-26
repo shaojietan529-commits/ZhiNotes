@@ -11213,6 +11213,30 @@ function run() {
     "localPagesForMerge = await listPageMetadata(id)",
     "Meeting calendar local hot-cache render must not read the entire meeting root on first paint."
   );
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "listDailyPageMetadataForCalendar({",
+    "Meeting calendar must link completed meetings to daily notes through bounded daily metadata reads."
+  );
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'from "@/hooks/usePages"',
+    "Meeting calendar must not import usePages because meeting create/import paths should not trigger global page refreshes."
+  );
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "await refresh()",
+    "Meeting calendar must not await global page refresh after create/import/status updates."
+  );
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "void refresh()",
+    "Meeting calendar background persistence must not trigger global page refreshes."
+  );
   for (const [sourceLabel, source, snippet, message] of [
     [
       files.databaseShell,

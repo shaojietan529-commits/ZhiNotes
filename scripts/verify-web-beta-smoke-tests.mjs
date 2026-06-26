@@ -2046,6 +2046,30 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "listDailyPageMetadataForCalendar({",
+    "Meeting schedule must link completed meetings to daily notes with bounded daily metadata reads."
+  );
+  assertExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'from "@/hooks/usePages"',
+    "Meeting schedule must not import usePages for create/import/status update paths."
+  );
+  assertExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "await refresh()",
+    "Meeting schedule must not await global page refresh after local-first updates."
+  );
+  assertExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "void refresh()",
+    "Meeting schedule must not fire global page refresh after background persistence."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "source: \"optimistic-local\"",
     "Meeting schedule hot cache must record optimistic local creates before background persistence."
   );

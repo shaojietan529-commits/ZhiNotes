@@ -625,8 +625,13 @@ const meetingScheduleOpensCreatedPageRoute =
   meetingScheduleShell.includes("const pageRoute = `/page/${result.page.id}`") ||
   meetingScheduleShell.includes("const pageRoute = `/page/${page.id}`");
 check(
-  meetingScheduleShell.includes("usePages({ autoLoad: false })"),
-  "MeetingScheduleShell 应使用手动页面 refresh，不能在会议日历首屏自动读取全量页面 metadata"
+  !meetingScheduleShell.includes('from "@/hooks/usePages"') &&
+    !meetingScheduleShell.includes("usePages(") &&
+    !meetingScheduleShell.includes("await refresh()") &&
+    !meetingScheduleShell.includes("void refresh()") &&
+    meetingScheduleShell.includes("upsertMeetingInView(updatedPage)") &&
+    meetingScheduleShell.includes("writeOptimisticMeetingHotCache(updatedPage, rootId)"),
+  "MeetingScheduleShell 创建、导入和状态更新应局部刷新会议日历与热缓存，不能挂 usePages 或全局页面 refresh"
 );
 check(
   meetingScheduleShell.includes("readCachedMeetingCloudMetadata(startDate, endDate)") &&

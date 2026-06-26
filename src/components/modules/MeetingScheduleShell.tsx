@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import { usePages } from "@/hooks/usePages";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import {
   applyRemotePages,
@@ -14,8 +13,8 @@ import {
   getDeletedPages,
   getPage,
   getWorkspaceSetting,
+  listDailyPageMetadataForCalendar,
   listMeetingPageMetadataForCalendar,
-  listPageMetadata,
   restorePage,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
@@ -99,6 +98,7 @@ const DEFAULT_MEETING_PRIORITY = "default";
 const MEETING_CALENDAR_VISIBLE_LIMIT = 6;
 const MEETING_CALENDAR_EXPAND_BATCH = 24;
 const MEETING_CALENDAR_REVEAL_BUFFER = 2;
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 interface MeetingEntry {
   page: Page;
@@ -222,7 +222,6 @@ export default function MeetingScheduleShell() {
   const router = useRouter();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
-  const { refresh } = usePages({ autoLoad: false });
   const pageRevision = usePageRevision();
   const [rootId, setRootId] = useState<string | null>(null);
   const [meetings, setMeetings] = useState<Page[]>([]);
@@ -1111,12 +1110,9 @@ export default function MeetingScheduleShell() {
             );
           }
 
-          await load({ includeCloud: false });
         } catch (error) {
           console.warn("Meeting background persistence failed", error);
           queueCloudPagePush(pageToRemoteRecord(finalPage));
-        } finally {
-          void refresh().catch(() => undefined);
         }
       })();
 
@@ -1127,8 +1123,6 @@ export default function MeetingScheduleShell() {
       upsertMeetingInView,
       upsertPages,
       writeOptimisticMeetingHotCache,
-      refresh,
-      load,
       revealMeetingOnCalendar,
     ]
   );
@@ -1352,6 +1346,10 @@ export default function MeetingScheduleShell() {
           });
           if (rootId && updatedPage) {
             await pushMeetingPageCloudSnapshot(rootId, updatedPage);
+            upsertMeetingInView(updatedPage);
+            upsertPages([updatedPage]);
+            writeOptimisticMeetingHotCache(updatedPage, rootId);
+            revealMeetingOnCalendar(updatedPage);
           }
           fixed++;
         }
@@ -1359,7 +1357,6 @@ export default function MeetingScheduleShell() {
         // skip individual failures
       }
     }
-    await refresh();
     await load({ includeCloud: false });
     setRetryLoading(false);
     setRetryResult(
@@ -1367,7 +1364,16 @@ export default function MeetingScheduleShell() {
         ? `已重新识别 ${fixed} 条会议`
         : "没有新的信息可以补充"
     );
-  }, [entries, refresh, load, rootId, todayKey]);
+  }, [
+    entries,
+    load,
+    revealMeetingOnCalendar,
+    rootId,
+    todayKey,
+    upsertMeetingInView,
+    upsertPages,
+    writeOptimisticMeetingHotCache,
+  ]);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
   const traceReviewEntries = useMemo(
@@ -1417,12 +1423,22 @@ export default function MeetingScheduleShell() {
       if (rootId && updatedPage) {
         await pushMeetingPageCloudSnapshot(rootId, updatedPage);
         setSelectedMeeting(toMeetingEntry(updatedPage));
+        upsertMeetingInView(updatedPage);
+        upsertPages([updatedPage]);
+        writeOptimisticMeetingHotCache(updatedPage, rootId);
+        revealMeetingOnCalendar(updatedPage);
       }
-      await refresh();
       await load({ includeCloud: false });
       setRunNowMessage(queueResult.message);
     },
-    [load, refresh, rootId]
+    [
+      load,
+      revealMeetingOnCalendar,
+      rootId,
+      upsertMeetingInView,
+      upsertPages,
+      writeOptimisticMeetingHotCache,
+    ]
   );
 
   const primeMeetingPageOpen = useCallback(
@@ -3181,7 +3197,17 @@ function scheduleMeetingIdleTask(
 
 async function linkCompletedMeetingsToDaily(completed: MeetingEntry[]) {
   const dailyRootId = await getModuleRootId("daily");
-  const dailyPages = await listPageMetadata(dailyRootId);
+  const dateKeys = completed
+    .map((entry) => entry.dateKey)
+    .filter((dateKey) => DATE_KEY_PATTERN.test(dateKey))
+    .sort();
+  if (dateKeys.length === 0) return;
+  const dailyPages = await listDailyPageMetadataForCalendar({
+    rootId: dailyRootId,
+    startDate: dateKeys[0],
+    endDate: dateKeys[dateKeys.length - 1],
+    recentLimit: 0,
+  });
 
   // Index daily pages by date key for fast lookup.
   const dailyByDate = new Map<string, Page>();

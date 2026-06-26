@@ -550,9 +550,12 @@ check(
   "MeetingScheduleShell 手动创建和导入会议应直接进入本地优先流程，导入按钮不能等待模块根页面先加载；会议页和 root 保存必须走统一云端上传队列"
 );
 check(
-  shells.schedule.includes("listPageMetadata") &&
-    !shells.schedule.includes("const dailyPages = await listPages(dailyRootId)"),
-  "MeetingScheduleShell 关联每日纪要时应先读 metadata，不能为建立日期索引读取所有每日正文"
+  shells.schedule.includes("listDailyPageMetadataForCalendar({") &&
+    shells.schedule.includes("startDate: dateKeys[0]") &&
+    shells.schedule.includes("endDate: dateKeys[dateKeys.length - 1]") &&
+    !shells.schedule.includes("const dailyPages = await listPages(dailyRootId)") &&
+    !shells.schedule.includes("const dailyPages = await listPageMetadata(dailyRootId)"),
+  "MeetingScheduleShell 关联每日纪要时应按日期范围读 metadata，不能扫描完整每日根或读取所有正文"
 );
 check(
   shells.schedule.includes("localPagesForMerge = await listMeetingPageMetadataForCalendar({") &&
@@ -560,6 +563,13 @@ check(
     !shells.schedule.includes("localPagesForMerge = await listPageMetadata(id)") &&
     !shells.schedule.includes("import { listPages"),
   "MeetingScheduleShell 日历首屏应按日期范围只读本地会议 metadata，不能为渲染日历扫描完整会议根或读取正文"
+);
+check(
+  !shells.schedule.includes('from "@/hooks/usePages"') &&
+    !shells.schedule.includes("usePages(") &&
+    !shells.schedule.includes("await refresh()") &&
+    !shells.schedule.includes("void refresh()"),
+  "MeetingScheduleShell 创建、导入和状态更新后必须局部更新日历与热缓存，不能触发全局页面刷新"
 );
 
 // 4. Sidebar promotes the primary workspaces, demotes the rest to 备选模块, and lets
