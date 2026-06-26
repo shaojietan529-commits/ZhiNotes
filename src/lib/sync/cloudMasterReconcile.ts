@@ -23,6 +23,9 @@ export interface CloudMasterReconcileInput {
   pageComments: number;
   blockComments: number;
   wikiLinks: number;
+  workspaceSettings: number;
+  accountSettings: number;
+  moduleSettings: number;
   syncSummary: SyncLogSummary | null;
   workspaceIdentity: LocalWorkspaceIdentity | null;
   pageSyncEnabled: boolean;
@@ -217,16 +220,19 @@ export function buildCloudMasterReconcileReport(
     {
       id: "module-config",
       title: "模块、侧边栏和用户偏好",
-      count: null,
+      count:
+        input.workspaceSettings + input.accountSettings + input.moduleSettings,
       status: "cloud-primary-partial",
       cloud_scope:
-        "已覆盖 workspace_settings 里的侧边栏顺序、图标/名称自定义、收藏、页面视图偏好、搜索、日历、ZhiHui 状态和热缓存选择；后续再扩 account_settings / module_settings",
-      local_cache_scope: "UI 配置本机即时生效，后台同步到账号",
-      pending_rule: "配置变更走小型 settings pending queue",
+        "workspace_settings、account_settings、module_settings：侧边栏顺序、图标/名称自定义、收藏、页面视图偏好、搜索、日历、ZhiHui 状态、热缓存选择、账号偏好和模块 pin/layout",
+      local_cache_scope:
+        "UI 配置本机即时生效，workspace/account/module 三类 setting 都可按云端重建",
+      pending_rule:
+        "配置变更走 settings pending queue；只上传白名单 setting key，不上传缓存快照",
       current_gap:
-        "常用设置已通过 workspace_settings 走 pending-only 云端同步；账号级偏好、项目 pin 和更细的模块运行态仍需独立 account_settings / module_settings",
+        "workspace_settings 已接入云端读写；account_settings 和 module_settings 已有本地账本与 pending-only 合同，但真实云端 API 仍需启用",
       next_action:
-        "把剩余账号级偏好和模块运行态逐项迁入 settings pending queue，并在对账页显示每个 setting key 的云端确认状态",
+        "把账号级偏好和模块运行态逐项接入云端 settings API，并在对账页显示每个 setting key 的云端确认状态",
     },
     {
       id: "permissions",

@@ -33,6 +33,8 @@ const files = {
   meetingDeletionTombstonesWorkspaceSettings:
     "src/lib/sync/meetingDeletionTombstonesWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
+  accountModuleSettingsPendingSync:
+    "src/lib/sync/accountModuleSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
@@ -305,6 +307,9 @@ function run() {
   );
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
+  );
+  const accountModuleSettingsPendingSync = readProjectFile(
+    files.accountModuleSettingsPendingSync
   );
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
@@ -1063,8 +1068,8 @@ function run() {
   assertIncludes(
     files.cloudMasterReconcile,
     cloudMasterReconcile,
-    "已覆盖 workspace_settings 里的侧边栏顺序、图标/名称自定义、收藏、页面视图偏好、搜索、日历、ZhiHui 状态和热缓存选择",
-    "Smoke verifier must show module/sidebar settings are partially cloud-primary through workspace_settings."
+    "workspace_settings、account_settings、module_settings",
+    "Smoke verifier must show workspace/account/module settings share the cloud-master settings boundary."
   );
   assertIncludes(
     files.cloudMasterReconcile,
@@ -1793,6 +1798,70 @@ function run() {
     "ordinary_sync_pending_only: true",
     "Smoke verifier must keep workspace settings uploads pending-only."
   );
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.localSchema,
+      localSchema,
+      "CREATE TABLE IF NOT EXISTS account_settings",
+      "Smoke verifier must keep account settings in the rebuildable local settings ledger.",
+    ],
+    [
+      files.localSchema,
+      localSchema,
+      "CREATE TABLE IF NOT EXISTS module_settings",
+      "Smoke verifier must keep module settings in the rebuildable local settings ledger.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "upsertAccountSetting",
+      "Smoke verifier must keep account setting writes queued through sync_log.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "upsertModuleSetting",
+      "Smoke verifier must keep module setting writes queued through sync_log.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      'format: "zhinote-account-module-settings-pending-sync-plan"',
+      "Smoke verifier must keep account/module settings pending sync plan format.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "SUPPORTED_ACCOUNT_SETTING_SYNC_KEYS",
+      "Smoke verifier must keep account settings upload allowlist.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "SUPPORTED_MODULE_SETTING_SYNC_KEYS",
+      "Smoke verifier must keep module settings upload allowlist.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "ordinary_sync_pending_only: true",
+      "Smoke verifier must keep account/module settings uploads pending-only.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "AccountModuleSettingsPendingPanel",
+      "Sync UI must render the account/module settings cloud boundary panel.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "账号和模块设置云主库边界",
+      "Sync UI must explain the account/module settings cloud boundary.",
+    ],
+  ]) {
+    assertIncludes(sourceLabel, source, snippet, message);
+  }
   assertIncludes(
     files.workspaceSettingsPendingSync,
     workspaceSettingsPendingSync,

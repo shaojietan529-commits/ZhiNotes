@@ -160,6 +160,28 @@ export const CREATE_TABLES_SQL = `
     sync_version  INTEGER NOT NULL DEFAULT 0
   );
 
+  CREATE TABLE IF NOT EXISTS account_settings (
+    key           TEXT PRIMARY KEY,
+    value_json    TEXT NOT NULL DEFAULT '{}',
+    source        TEXT NOT NULL DEFAULT 'local',
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    deleted_at    TEXT,
+    sync_version  INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS module_settings (
+    module_id     TEXT NOT NULL,
+    key           TEXT NOT NULL,
+    value_json    TEXT NOT NULL DEFAULT '{}',
+    source        TEXT NOT NULL DEFAULT 'local',
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    deleted_at    TEXT,
+    sync_version  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (module_id, key)
+  );
+
   CREATE TABLE IF NOT EXISTS sync_log (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     table_name    TEXT NOT NULL,
@@ -180,6 +202,8 @@ export const CREATE_TABLES_SQL = `
   CREATE INDEX IF NOT EXISTS idx_synclog_pending ON sync_log(synced, timestamp);
   CREATE INDEX IF NOT EXISTS idx_synclog_retry ON sync_log(synced, status, next_retry_at, timestamp);
   CREATE INDEX IF NOT EXISTS idx_workspace_settings_updated ON workspace_settings(updated_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_account_settings_updated ON account_settings(updated_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_module_settings_updated ON module_settings(module_id, updated_at DESC);
 
   CREATE TABLE IF NOT EXISTS hot_cache_entries (
     id             TEXT PRIMARY KEY,

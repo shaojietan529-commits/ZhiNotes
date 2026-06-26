@@ -101,6 +101,8 @@ const files = {
   meetingDeletionTombstonesWorkspaceSettings:
     "src/lib/sync/meetingDeletionTombstonesWorkspaceSettings.ts",
   workspaceSettingsPendingSync: "src/lib/sync/workspaceSettingsPendingSync.ts",
+  accountModuleSettingsPendingSync:
+    "src/lib/sync/accountModuleSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
@@ -448,6 +450,9 @@ function run() {
   const workspaceSettingsPendingSync = readProjectFile(
     files.workspaceSettingsPendingSync
   );
+  const accountModuleSettingsPendingSync = readProjectFile(
+    files.accountModuleSettingsPendingSync
+  );
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
@@ -608,6 +613,10 @@ function run() {
       meetingDeletionTombstonesWorkspaceSettings,
     ],
     [files.workspaceSettingsPendingSync, workspaceSettingsPendingSync],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+    ],
     [files.workspaceSettingsRoute, workspaceSettingsRoute],
     [files.localSchema, localSchema],
     [files.usePageFavorites, usePageFavorites],
@@ -2571,6 +2580,82 @@ function run() {
       message
     );
   }
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.localSchema,
+      localSchema,
+      "CREATE TABLE IF NOT EXISTS account_settings",
+      "Local schema must include account_settings for account-level cloud-master preferences.",
+    ],
+    [
+      files.localSchema,
+      localSchema,
+      "CREATE TABLE IF NOT EXISTS module_settings",
+      "Local schema must include module_settings for module-level cloud-master config.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "buildModuleSettingSyncRowId",
+      "Local queries must define stable module setting sync row ids.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "upsertAccountSetting",
+      "Local queries must write account settings through sync_log.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "upsertModuleSetting",
+      "Local queries must write module settings through sync_log.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      'format: "zhinote-account-module-settings-pending-sync-plan"',
+      "Account/module settings pending sync must expose a stable plan format.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "SUPPORTED_ACCOUNT_SETTING_SYNC_KEYS",
+      "Account settings pending sync must use an explicit upload allowlist.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "SUPPORTED_MODULE_SETTING_SYNC_KEYS",
+      "Module settings pending sync must use an explicit upload allowlist.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "ordinary_sync_pending_only: true",
+      "Account/module settings pending sync must only upload pending changes.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "uploads_workspace_cache_dump: false",
+      "Account/module settings pending sync must forbid local cache dump uploads.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "AccountModuleSettingsPendingPanel",
+      "Sync UI must render the account/module settings pending plan panel.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "账号和模块设置云主库边界",
+      "Sync UI must name the account/module settings cloud-master boundary.",
+    ],
+  ]) {
+    assertSourceIncludes(sourceLabel, source, snippet, message);
+  }
   for (const [snippet, message] of [
     [
       'format: "zhinote-page-favorites-settings-cloud-receipt"',
@@ -3557,12 +3642,12 @@ function run() {
       "Cloud master reconcile must cover module and sidebar settings.",
     ],
     [
-      "已覆盖 workspace_settings 里的侧边栏顺序、图标/名称自定义、收藏、页面视图偏好、搜索、日历、ZhiHui 状态和热缓存选择",
-      "Cloud master reconcile must reflect that common module/sidebar preferences are now partially cloud-primary through workspace_settings.",
+      "workspace_settings、account_settings、module_settings",
+      "Cloud master reconcile must reflect the workspace/account/module settings boundary.",
     ],
     [
-      "剩余账号级偏好和模块运行态逐项迁入 settings pending queue",
-      "Cloud master reconcile must keep the next settings migration action explicit.",
+      "账号级偏好和模块运行态逐项接入云端 settings API",
+      "Cloud master reconcile must keep the next account/module settings cloud API action explicit.",
     ],
     [
       'id: "permissions"',

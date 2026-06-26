@@ -20,6 +20,8 @@ import {
   getLocalDatabaseSyncSummary,
   getLocalMeetingSyncSummary,
   getLocalPageSyncSummary,
+  listAccountSettings,
+  listModuleSettings,
   getPageModuleCounts,
   getPendingSyncLogEntries,
   getSyncLogSummary,
@@ -30,6 +32,8 @@ import {
   markWorkspaceSettingSyncLogEntriesFailed,
   markWorkspaceSettingSyncLogEntriesSynced,
   upsertWorkspaceSetting,
+  type AccountSettingRecord,
+  type ModuleSettingRecord,
   type PageModuleCounts,
   type SyncLogEntry,
   type SyncLogSummary,
@@ -302,6 +306,10 @@ import {
   buildWorkspaceSettingsPendingSyncPlan,
   type SupportedWorkspaceSettingSyncKey,
 } from "@/lib/sync/workspaceSettingsPendingSync";
+import {
+  buildAccountModuleSettingsPendingSyncPlan,
+  type AccountModuleSettingsPendingSyncPlan,
+} from "@/lib/sync/accountModuleSettingsPendingSync";
 import {
   buildSyncConflictReviewReport,
   type SyncConflictReviewReport,
@@ -815,6 +823,15 @@ function SyncDashboard() {
   >({});
   const [syncSummary, setSyncSummary] = useState<SyncLogSummary | null>(null);
   const [syncEntries, setSyncEntries] = useState<SyncLogEntry[]>([]);
+  const [accountSettings, setAccountSettings] = useState<
+    AccountSettingRecord[]
+  >([]);
+  const [moduleSettings, setModuleSettings] = useState<ModuleSettingRecord[]>(
+    []
+  );
+  const [workspaceSettings, setWorkspaceSettings] = useState<
+    WorkspaceSettingRecord[]
+  >([]);
   const [hotCacheSetting, setHotCacheSetting] =
     useState<WorkspaceSettingRecord | null>(null);
   const [hotCachePreferences, setHotCachePreferences] =
@@ -945,6 +962,9 @@ function SyncDashboard() {
           loadedPageModuleCounts,
           loadedSync,
           loadedSyncEntries,
+          loadedWorkspaceSettings,
+          loadedAccountSettings,
+          loadedModuleSettings,
           loadedHotCacheSetting,
           loadedHotCacheLocalIndexSummary,
           loadedDatabasePendingStatus,
@@ -956,6 +976,9 @@ function SyncDashboard() {
           getPageModuleCounts(),
           getSyncLogSummary(),
           getPendingSyncLogEntries(25),
+          listWorkspaceSettings(),
+          listAccountSettings(),
+          listModuleSettings(),
           getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY),
           getHotCacheLocalIndexSummary(),
           getPendingCloudDatabaseSyncStatus(),
@@ -982,6 +1005,9 @@ function SyncDashboard() {
         setPageModuleCounts(loadedPageModuleCounts);
         setSyncSummary(loadedSync);
         setSyncEntries(loadedSyncEntries);
+        setWorkspaceSettings(loadedWorkspaceSettings);
+        setAccountSettings(loadedAccountSettings);
+        setModuleSettings(loadedModuleSettings);
         setPagePendingStatus(getPendingCloudPageSyncStatus());
         setDatabasePendingStatus(loadedDatabasePendingStatus);
         setHotCacheSetting(loadedHotCacheSetting);
@@ -1066,6 +1092,9 @@ function SyncDashboard() {
         pageComments: pageModuleTotals.pageComments,
         blockComments: pageModuleTotals.blockComments,
         wikiLinks: pageModuleTotals.wikiLinks,
+        workspaceSettings: workspaceSettings.length,
+        accountSettings: accountSettings.length,
+        moduleSettings: moduleSettings.length,
         syncSummary,
         workspaceIdentity,
         pageSyncEnabled: isPageSyncEnabled(),
@@ -1076,8 +1105,11 @@ function SyncDashboard() {
       deletedPages.length,
       pageModuleTotals,
       pages.length,
+      accountSettings.length,
+      moduleSettings.length,
       storedFiles.length,
       syncSummary,
+      workspaceSettings.length,
       workspaceIdentity,
     ]
   );
@@ -1121,6 +1153,15 @@ function SyncDashboard() {
         setting: hotCacheSetting,
       }),
     [hotCachePolicyPlan, hotCacheSetting]
+  );
+  const accountModuleSettingsPendingSyncPlan = useMemo(
+    () =>
+      buildAccountModuleSettingsPendingSyncPlan({
+        pendingEntries: syncEntries,
+        accountSettings,
+        moduleSettings,
+      }),
+    [accountSettings, moduleSettings, syncEntries]
   );
   const hotCacheWarmupPlan = useMemo(
     () =>
@@ -4214,6 +4255,10 @@ function SyncDashboard() {
         <CloudMasterReconcilePanel
           report={cloudMasterReconcile}
           onExport={handleExportCloudMasterReconcile}
+        />
+
+        <AccountModuleSettingsPendingPanel
+          plan={accountModuleSettingsPendingSyncPlan}
         />
 
         <LocalMetadataManifestPanel
@@ -16271,6 +16316,95 @@ function CloudMasterReconcilePanel({
         </div>
       </ContractPanel>
     </section>
+  );
+}
+
+function AccountModuleSettingsPendingPanel({
+  plan,
+}: {
+  plan: AccountModuleSettingsPendingSyncPlan;
+}) {
+  return (
+    <section
+      id="account-module-settings-pending-plan"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Settings Cloud Boundary
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            账号和模块设置云主库边界
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            账号级偏好和模块级配置现在有独立本地账本：本地即时生效，
+            只有明确进入 sync_log 的白名单 setting 才能进入待上传计划。
+            这个面板只读 key 和数量，不读取页面正文、文件、评论或数据库值。
+          </p>
+        </div>
+        <span className="w-fit rounded-md bg-sky-50 px-3 py-2 text-xs font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+          pending-only
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <CacheRebuildFact
+          label="账号设置"
+          value={`${plan.summary.account_settings_seen} 项`}
+          detail={`${plan.summary.uploadable_account_settings} 项待上传白名单`}
+        />
+        <CacheRebuildFact
+          label="模块设置"
+          value={`${plan.summary.module_settings_seen} 项`}
+          detail={`${plan.summary.uploadable_module_settings} 项待上传白名单`}
+        />
+        <CacheRebuildFact
+          label="Pending rows"
+          value={`${plan.summary.pending_rows_seen} 行`}
+          detail="只统计 account_settings / module_settings"
+        />
+        <CacheRebuildFact
+          label="跳过"
+          value={`${plan.summary.skipped_pending_rows} 行`}
+          detail="非白名单、缺本地记录或 row id 无效"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <ContractPanel title="允许的账号 setting">
+          <div className="space-y-2">
+            {plan.supported_account_setting_keys.map((key) => (
+              <SettingsBoundaryKeyRow key={key} value={key} />
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="允许的模块 setting">
+          <div className="space-y-2">
+            {plan.supported_module_setting_keys.map((key) => (
+              <SettingsBoundaryKeyRow key={key} value={key} />
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <div className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+        云端目标：{plan.cloud_targets.join(" + ")}；本地表：
+        {plan.local_tables.join(" + ")}。规则：普通同步只上传
+        sync_log 里明确排队的设置，不上传本地缓存快照。
+      </div>
+      <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+        {plan.privacy_boundary}
+      </p>
+    </section>
+  );
+}
+
+function SettingsBoundaryKeyRow({ value }: { value: string }) {
+  return (
+    <div className="rounded-md bg-zinc-50 px-3 py-2 font-mono text-[11px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+      {value}
+    </div>
   );
 }
 

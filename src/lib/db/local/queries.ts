@@ -46,6 +46,27 @@ export interface WorkspaceSettingRecord {
   syncVersion: number;
 }
 
+export interface AccountSettingRecord {
+  key: string;
+  valueJson: string;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  syncVersion: number;
+}
+
+export interface ModuleSettingRecord {
+  moduleId: string;
+  key: string;
+  valueJson: string;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  syncVersion: number;
+}
+
 export interface LocalPageSyncSummary {
   count: number;
   deleted: number;
@@ -409,6 +430,247 @@ export async function upsertWorkspaceSetting(
   const saved = await getWorkspaceSetting(key);
   if (!saved) {
     throw new Error(`Workspace setting ${key} was not saved.`);
+  }
+  return saved;
+}
+
+// ─── Account + Module Settings ───────────────────────────────
+
+function toAccountSettingRecord(
+  row: Record<string, unknown>
+): AccountSettingRecord {
+  return {
+    key: String(row.key ?? ""),
+    valueJson: String(row.value_json ?? "{}"),
+    source: String(row.source ?? "local"),
+    createdAt: String(row.created_at ?? ""),
+    updatedAt: String(row.updated_at ?? ""),
+    deletedAt: row.deleted_at ? String(row.deleted_at) : null,
+    syncVersion: Number(row.sync_version ?? 0),
+  };
+}
+
+function toModuleSettingRecord(
+  row: Record<string, unknown>
+): ModuleSettingRecord {
+  return {
+    moduleId: String(row.module_id ?? ""),
+    key: String(row.key ?? ""),
+    valueJson: String(row.value_json ?? "{}"),
+    source: String(row.source ?? "local"),
+    createdAt: String(row.created_at ?? ""),
+    updatedAt: String(row.updated_at ?? ""),
+    deletedAt: row.deleted_at ? String(row.deleted_at) : null,
+    syncVersion: Number(row.sync_version ?? 0),
+  };
+}
+
+export function buildModuleSettingSyncRowId(
+  moduleId: string,
+  key: string
+): string {
+  return `${encodeURIComponent(moduleId.trim())}::${encodeURIComponent(
+    key.trim()
+  )}`;
+}
+
+export function parseModuleSettingSyncRowId(
+  rowId: string
+): { moduleId: string; key: string } | null {
+  const [encodedModuleId, encodedKey, extra] = rowId.split("::");
+  if (!encodedModuleId || !encodedKey || extra !== undefined) return null;
+  try {
+    const moduleId = decodeURIComponent(encodedModuleId).trim();
+    const key = decodeURIComponent(encodedKey).trim();
+    if (!moduleId || !key) return null;
+    return { moduleId, key };
+  } catch {
+    return null;
+  }
+}
+
+export async function listAccountSettings(): Promise<AccountSettingRecord[]> {
+  const db = await getDb();
+  return db
+    .query(
+      `SELECT key, value_json, source, created_at, updated_at, deleted_at, sync_version
+       FROM account_settings
+       WHERE deleted_at IS NULL
+       ORDER BY updated_at DESC`
+    )
+    .map(toAccountSettingRecord);
+}
+
+export async function getAccountSetting(
+  key: string
+): Promise<AccountSettingRecord | null> {
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT key, value_json, source, created_at, updated_at, deleted_at, sync_version
+     FROM account_settings
+     WHERE key = ? AND deleted_at IS NULL`,
+    [key]
+  );
+  return rows[0] ? toAccountSettingRecord(rows[0]) : null;
+}
+
+export async function upsertAccountSetting(
+  key: string,
+  value: unknown,
+  source = "local"
+): Promise<AccountSettingRecord> {
+  const normalizedKey = key.trim();
+  if (!normalizedKey) throw new Error("Account setting key is required.");
+  const db = await getDb();
+  const now = nowISO();
+  const valueJson = JSON.stringify(value ?? {});
+  const existing = db.query(
+    "SELECT key FROM account_settings WHERE key = ?",
+    [normalizedKey]
+  );
+
+  if (existing.length > 0) {
+    db.run(
+      `UPDATE account_settings
+       SET value_json = ?,
+           source = ?,
+           updated_at = ?,
+           deleted_at = NULL,
+           sync_version = sync_version + 1
+       WHERE key = ?`,
+      [valueJson, source, now, normalizedKey]
+    );
+    recordSyncChange(
+      db,
+      "account_settings",
+      normalizedKey,
+      "update",
+      ["value_json", "source", "updated_at"],
+      now
+    );
+  } else {
+    db.run(
+      `INSERT INTO account_settings
+       (key, value_json, source, created_at, updated_at, sync_version)
+       VALUES (?, ?, ?, ?, ?, 1)`,
+      [normalizedKey, valueJson, source, now, now]
+    );
+    recordSyncChange(
+      db,
+      "account_settings",
+      normalizedKey,
+      "insert",
+      ["key", "value_json", "source", "created_at", "updated_at"],
+      now
+    );
+  }
+
+  const saved = await getAccountSetting(normalizedKey);
+  if (!saved) {
+    throw new Error(`Account setting ${normalizedKey} was not saved.`);
+  }
+  return saved;
+}
+
+export async function listModuleSettings(
+  moduleId?: string
+): Promise<ModuleSettingRecord[]> {
+  const db = await getDb();
+  if (moduleId?.trim()) {
+    return db
+      .query(
+        `SELECT module_id, key, value_json, source, created_at, updated_at, deleted_at, sync_version
+         FROM module_settings
+         WHERE module_id = ? AND deleted_at IS NULL
+         ORDER BY updated_at DESC`,
+        [moduleId.trim()]
+      )
+      .map(toModuleSettingRecord);
+  }
+  return db
+    .query(
+      `SELECT module_id, key, value_json, source, created_at, updated_at, deleted_at, sync_version
+       FROM module_settings
+       WHERE deleted_at IS NULL
+       ORDER BY module_id ASC, updated_at DESC`
+    )
+    .map(toModuleSettingRecord);
+}
+
+export async function getModuleSetting(
+  moduleId: string,
+  key: string
+): Promise<ModuleSettingRecord | null> {
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT module_id, key, value_json, source, created_at, updated_at, deleted_at, sync_version
+     FROM module_settings
+     WHERE module_id = ? AND key = ? AND deleted_at IS NULL`,
+    [moduleId.trim(), key.trim()]
+  );
+  return rows[0] ? toModuleSettingRecord(rows[0]) : null;
+}
+
+export async function upsertModuleSetting(
+  moduleId: string,
+  key: string,
+  value: unknown,
+  source = "local"
+): Promise<ModuleSettingRecord> {
+  const normalizedModuleId = moduleId.trim();
+  const normalizedKey = key.trim();
+  if (!normalizedModuleId) throw new Error("Module setting module id is required.");
+  if (!normalizedKey) throw new Error("Module setting key is required.");
+  const db = await getDb();
+  const now = nowISO();
+  const valueJson = JSON.stringify(value ?? {});
+  const rowId = buildModuleSettingSyncRowId(normalizedModuleId, normalizedKey);
+  const existing = db.query(
+    "SELECT key FROM module_settings WHERE module_id = ? AND key = ?",
+    [normalizedModuleId, normalizedKey]
+  );
+
+  if (existing.length > 0) {
+    db.run(
+      `UPDATE module_settings
+       SET value_json = ?,
+           source = ?,
+           updated_at = ?,
+           deleted_at = NULL,
+           sync_version = sync_version + 1
+       WHERE module_id = ? AND key = ?`,
+      [valueJson, source, now, normalizedModuleId, normalizedKey]
+    );
+    recordSyncChange(
+      db,
+      "module_settings",
+      rowId,
+      "update",
+      ["value_json", "source", "updated_at"],
+      now
+    );
+  } else {
+    db.run(
+      `INSERT INTO module_settings
+       (module_id, key, value_json, source, created_at, updated_at, sync_version)
+       VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      [normalizedModuleId, normalizedKey, valueJson, source, now, now]
+    );
+    recordSyncChange(
+      db,
+      "module_settings",
+      rowId,
+      "insert",
+      ["module_id", "key", "value_json", "source", "created_at", "updated_at"],
+      now
+    );
+  }
+
+  const saved = await getModuleSetting(normalizedModuleId, normalizedKey);
+  if (!saved) {
+    throw new Error(
+      `Module setting ${normalizedModuleId}/${normalizedKey} was not saved.`
+    );
   }
   return saved;
 }
@@ -3206,6 +3468,207 @@ export async function hasPendingWorkspaceSettingSyncLogEntry(
     [normalizedKey]
   );
   return rows.length > 0;
+}
+
+export async function markAccountSettingSyncLogEntriesSynced(
+  keys: string[]
+): Promise<number> {
+  return markNamedSettingSyncLogEntriesSynced("account_settings", keys);
+}
+
+export async function markAccountSettingSyncLogEntriesAttempted(
+  keys: string[]
+): Promise<number> {
+  return markNamedSettingSyncLogEntriesStatus("account_settings", keys, "attempted");
+}
+
+export async function markAccountSettingSyncLogEntriesFailed(
+  keys: string[],
+  error: string,
+  retryDelayMs = 60_000
+): Promise<number> {
+  return markNamedSettingSyncLogEntriesStatus(
+    "account_settings",
+    keys,
+    "failed",
+    error,
+    retryDelayMs
+  );
+}
+
+export async function markModuleSettingSyncLogEntriesSynced(
+  rowIds: string[]
+): Promise<number> {
+  return markNamedSettingSyncLogEntriesSynced("module_settings", rowIds);
+}
+
+export async function markModuleSettingSyncLogEntriesAttempted(
+  rowIds: string[]
+): Promise<number> {
+  return markNamedSettingSyncLogEntriesStatus(
+    "module_settings",
+    rowIds,
+    "attempted"
+  );
+}
+
+export async function markModuleSettingSyncLogEntriesFailed(
+  rowIds: string[],
+  error: string,
+  retryDelayMs = 60_000
+): Promise<number> {
+  return markNamedSettingSyncLogEntriesStatus(
+    "module_settings",
+    rowIds,
+    "failed",
+    error,
+    retryDelayMs
+  );
+}
+
+export async function hasPendingAccountSettingSyncLogEntry(
+  key: string
+): Promise<boolean> {
+  return hasPendingNamedSettingSyncLogEntry("account_settings", key);
+}
+
+export async function hasPendingModuleSettingSyncLogEntry(
+  moduleId: string,
+  key: string
+): Promise<boolean> {
+  return hasPendingNamedSettingSyncLogEntry(
+    "module_settings",
+    buildModuleSettingSyncRowId(moduleId, key)
+  );
+}
+
+type NamedSettingSyncTable = "account_settings" | "module_settings";
+
+async function markNamedSettingSyncLogEntriesSynced(
+  tableName: NamedSettingSyncTable,
+  rowIds: string[]
+): Promise<number> {
+  const db = await getDb();
+  const uniqueRowIds = normalizeSettingSyncRowIds(rowIds);
+  if (uniqueRowIds.length === 0) return 0;
+
+  let marked = 0;
+  const chunkSize = 200;
+  for (let i = 0; i < uniqueRowIds.length; i += chunkSize) {
+    const chunk = uniqueRowIds.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const beforeRows = db.query(
+      `SELECT COUNT(*) as count
+       FROM sync_log
+       WHERE table_name = ?
+         AND row_id IN (${placeholders})
+         AND synced = 0`,
+      [tableName, ...chunk]
+    );
+    db.run(
+      `UPDATE sync_log
+       SET synced = 1,
+           status = 'synced',
+           last_attempt_at = COALESCE(last_attempt_at, ?),
+           next_retry_at = NULL,
+           last_error = NULL
+       WHERE table_name = ?
+         AND row_id IN (${placeholders})
+         AND synced = 0`,
+      [nowISO(), tableName, ...chunk]
+    );
+    marked += Number(beforeRows[0]?.count ?? 0);
+  }
+  return marked;
+}
+
+async function markNamedSettingSyncLogEntriesStatus(
+  tableName: NamedSettingSyncTable,
+  rowIds: string[],
+  status: "attempted" | "failed",
+  error = "",
+  retryDelayMs = 60_000
+): Promise<number> {
+  const db = await getDb();
+  const uniqueRowIds = normalizeSettingSyncRowIds(rowIds);
+  if (uniqueRowIds.length === 0) return 0;
+
+  let marked = 0;
+  const chunkSize = 200;
+  const now = nowISO();
+  const retryAt =
+    status === "failed"
+      ? new Date(
+          Date.parse(now) + Math.max(5_000, Math.floor(retryDelayMs))
+        ).toISOString()
+      : null;
+  const safeError = error.trim().slice(0, 500) || "sync failed";
+
+  for (let i = 0; i < uniqueRowIds.length; i += chunkSize) {
+    const chunk = uniqueRowIds.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const beforeRows = db.query(
+      `SELECT COUNT(*) as count
+       FROM sync_log
+       WHERE table_name = ?
+         AND row_id IN (${placeholders})
+         AND synced = 0`,
+      [tableName, ...chunk]
+    );
+    if (status === "attempted") {
+      db.run(
+        `UPDATE sync_log
+         SET status = 'in_flight',
+             attempt_count = attempt_count + 1,
+             last_attempt_at = ?,
+             next_retry_at = NULL,
+             last_error = NULL
+         WHERE table_name = ?
+           AND row_id IN (${placeholders})
+           AND synced = 0`,
+        [now, tableName, ...chunk]
+      );
+    } else {
+      db.run(
+        `UPDATE sync_log
+         SET status = 'failed',
+             next_retry_at = ?,
+             last_error = ?
+         WHERE table_name = ?
+           AND row_id IN (${placeholders})
+           AND synced = 0`,
+        [retryAt, safeError, tableName, ...chunk]
+      );
+    }
+    marked += Number(beforeRows[0]?.count ?? 0);
+  }
+  return marked;
+}
+
+async function hasPendingNamedSettingSyncLogEntry(
+  tableName: NamedSettingSyncTable,
+  rowId: string
+): Promise<boolean> {
+  const normalizedRowId = rowId.trim();
+  if (!normalizedRowId) return false;
+
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT 1 as present
+     FROM sync_log
+     WHERE table_name = ?
+       AND row_id = ?
+       AND synced = 0
+     LIMIT 1`,
+    [tableName, normalizedRowId]
+  );
+  return rows.length > 0;
+}
+
+function normalizeSettingSyncRowIds(rowIds: string[]): string[] {
+  return Array.from(
+    new Set(rowIds.map((rowId) => rowId.trim()).filter(Boolean))
+  );
 }
 
 export async function clearLocalDatabaseCacheExceptKeys(
