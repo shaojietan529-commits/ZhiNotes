@@ -110,6 +110,7 @@ const files = {
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
+  pagePeekModal: "src/components/page/PagePeekModal.tsx",
   usePageFavorites: "src/hooks/usePageFavorites.ts",
   usePageViewPreferences: "src/hooks/usePageViewPreferences.ts",
   useCalendarViewMonthPreference:
@@ -462,6 +463,7 @@ function run() {
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
+  const pagePeekModal = readProjectFile(files.pagePeekModal);
   const usePageFavorites = readProjectFile(files.usePageFavorites);
   const usePageViewPreferences = readProjectFile(files.usePageViewPreferences);
   const useCalendarViewMonthPreference = readProjectFile(
@@ -1418,6 +1420,14 @@ function run() {
       "Daily notes must refresh the local hot cache snapshot after metadata loads.",
     ],
     [
+      "writeOptimisticDailyHotCache",
+      "Daily + creation must update the local hot cache before background persistence.",
+    ],
+    [
+      "source: \"optimistic-local\"",
+      "Daily hot cache must record optimistic local creates before cloud upload.",
+    ],
+    [
       "已先显示本机热缓存",
       "Daily notes must surface the local hot cache first-paint path.",
     ],
@@ -1671,6 +1681,24 @@ function run() {
     "setLoading(localPage.content_text == null)",
     "usePage must treat metadata/handoff as first-paint ready while the full page body hydrates in the background."
   );
+  assertSourceIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    "upsertPages([metadata])",
+    "Peek modal must promote metadata into memory so editor loading can proceed before cloud body hydration."
+  );
+  assertSourceIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    "queueCloudPagePush(pageToRemoteRecord(page))",
+    "Peek modal fallback saves must use the pending cloud upload queue instead of blocking on direct push."
+  );
+  assertSourceExcludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    "await pushCloudPages",
+    "Peek modal fallback saves must not block editing on a direct cloud push."
+  );
   for (const [snippet, message] of [
     [
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
@@ -1691,6 +1719,10 @@ function run() {
     [
       "data-testid={`daily-add-note-${key}`}",
       "Daily calendar + buttons must expose stable test targets.",
+    ],
+    [
+      "queueCloudPagePush(record)",
+      "Daily + creation must enqueue account-cloud upload instead of waiting on direct push.",
     ],
   ]) {
     assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);

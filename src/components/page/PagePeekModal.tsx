@@ -13,7 +13,10 @@ import {
   stringifyPageProperties,
   type PageProperty,
 } from "@/lib/pages/pageProperties";
-import { pageToRemoteRecord, pushCloudPages } from "@/lib/pages/accountPageSync";
+import {
+  pageToRemoteRecord,
+  queueCloudPagePush,
+} from "@/lib/pages/accountPageSync";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
@@ -118,6 +121,7 @@ export default function PagePeekModal({
         if (cancelled) return;
         if (metadata) {
           setFallbackPage(metadata);
+          upsertPages([metadata]);
         } else {
           setEditorLoadRequested(true);
         }
@@ -131,7 +135,7 @@ export default function PagePeekModal({
     return () => {
       cancelled = true;
     };
-  }, [fallbackPage?.id, initialPage, pageId]);
+  }, [fallbackPage?.id, initialPage, pageId, upsertPages]);
 
   useEffect(() => {
     if (!page) return;
@@ -437,15 +441,17 @@ async function persistPeekUpdate({
   };
   setFallbackPage(nextPage);
   upsertPages([nextPage]);
-  await pushPeekCloudPage(nextPage).catch(() => undefined);
+  try {
+    pushPeekCloudPage(nextPage);
+  } catch {
+    // Queueing is best-effort; the local editor state remains visible and the
+    // next page-sync cycle can still pick up pending changes.
+  }
   return nextPage;
 }
 
-async function pushPeekCloudPage(page: Page) {
-  const result = await pushCloudPages([pageToRemoteRecord(page)]);
-  if (result.status !== "ok") {
-    throw new Error(result.message || "云端保存失败。");
-  }
+function pushPeekCloudPage(page: Page) {
+  queueCloudPagePush(pageToRemoteRecord(page));
 }
 
 function PeekChildPages({

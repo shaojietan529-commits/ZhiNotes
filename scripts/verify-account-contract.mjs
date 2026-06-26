@@ -575,6 +575,8 @@ check(
     dailyNotesShell.indexOf("rememberPendingPageDraft(optimisticNote)") <
       dailyNotesShell.indexOf("upsertPages([optimisticNote])") &&
     dailyNotesShell.indexOf("upsertPages([optimisticNote])") <
+      dailyNotesShell.indexOf("writeOptimisticDailyHotCache") &&
+    dailyNotesShell.indexOf("writeOptimisticDailyHotCache") <
       dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
       dailyNotesShell.indexOf("router.push(pageRoute)") &&
@@ -589,11 +591,12 @@ check(
     dailyNotesShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
     dailyNotesShell.includes("applyRemotePages([pageToRemoteRecord(note)])") &&
     dailyNotesShell.includes("openNotePage") &&
-    dailyNotesShell.includes("后台会继续保存到账号云端") &&
+    dailyNotesShell.includes("后台会加入账号云端上传队列") &&
     dailyNotesShell.includes("applyRemotePages(records)") &&
-    dailyNotesShell.includes("return pushDailyCloudRecords(records)") &&
+    dailyNotesShell.includes("return queueDailyCloudRecords(records)") &&
+    dailyNotesShell.includes("queueCloudPagePush(record)") &&
     !dailyNotesShell.includes("createPageWithCloud"),
-  "DailyNotesShell 点击 + 应立即进入乐观草稿完整页面，后台保存到云端；已有纪要仍可用 peek 预览"
+  "DailyNotesShell 点击 + 应立即进入乐观草稿完整页面，后台加入云端上传队列；已有纪要仍可用 peek 预览"
 );
 check(
   dailyNotesShell.includes("expandedDateKeys") &&

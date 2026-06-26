@@ -31,7 +31,7 @@ import {
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
   fetchDailyCloudMetadata,
-  pushCloudPages,
+  queueCloudPagePush,
   type DailyCloudMetadataResult,
 } from "@/lib/pages/accountPageSync";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
@@ -440,11 +440,17 @@ export default function DailyNotesShell() {
         ...current.filter((item) => item.id !== optimisticNote.id),
       ]);
       upsertPages([optimisticNote]);
+      writeOptimisticDailyHotCache({
+        note: optimisticNote,
+        currentNotes: notes,
+        viewMonth,
+        rootId: initialRootId,
+      });
       void seedDailyNoteForImmediateOpen(optimisticNote);
       window.setTimeout(() => {
         setCreatingDateKey((current) => (current === dateKey ? null : current));
       }, 250);
-      setCloudNotice(`${dateKey} 的每日纪要正在打开，后台会继续保存到账号云端…`);
+      setCloudNotice(`${dateKey} 的每日纪要正在打开，后台会加入账号云端上传队列…`);
 
       const pageRoute = `/page/${optimisticNote.id}`;
       try {
@@ -481,8 +487,8 @@ export default function DailyNotesShell() {
             upsertPages
           );
           setCloudNotice(
-            persistStatus === "cloud"
-              ? `${dateKey} 的每日纪要已保存；本地缓存会在后台自动重建。`
+            persistStatus === "queued"
+              ? `${dateKey} 的每日纪要已在本机保存，并加入云端后台上传队列。`
               : `${dateKey} 的每日纪要已在本机保存；登录或配置账号云端后会自动同步。`
           );
         } catch (error) {
@@ -494,7 +500,7 @@ export default function DailyNotesShell() {
         }
       })();
     },
-    [creatingDateKey, rootId, router, upsertPages]
+    [creatingDateKey, notes, rootId, router, upsertPages, viewMonth]
   );
 
   const primeDailyNoteOpen = useCallback(
@@ -1245,7 +1251,7 @@ async function persistOptimisticDailyNote(
   rootId: string,
   note: DailyNote,
   upsertPages: (pages: Page[]) => void
-): Promise<"cloud" | "local-only"> {
+): Promise<"queued" | "local-only"> {
   const rootRecord = makeDailyRootMetadataRecord(rootId, note.updated_at);
   const records = [rootRecord, pageToRemoteRecord(note)];
   const localPages = records.map(remoteRecordToPage);
@@ -1257,7 +1263,7 @@ async function persistOptimisticDailyNote(
   } finally {
     upsertPages(localPages);
   }
-  return pushDailyCloudRecords(records);
+  return queueDailyCloudRecords(records);
 }
 
 async function seedDailyNoteForImmediateOpen(note: DailyNote): Promise<void> {
@@ -1312,21 +1318,40 @@ function makeRemoteBackedPage({
   };
 }
 
-async function pushDailyCloudRecords(
+function queueDailyCloudRecords(
   records: RemotePageRecord[]
-): Promise<"cloud" | "local-only"> {
-  const result = await pushCloudPages(records);
-  if (result.status === "ok") {
-    return "cloud";
+): "queued" | "local-only" {
+  if (typeof window === "undefined") return "local-only";
+  for (const record of records) {
+    queueCloudPagePush(record);
   }
-  if (
-    result.status === "disabled" ||
-    result.status === "unauthenticated" ||
-    result.status === "unconfigured"
-  ) {
-    return "local-only";
-  }
-  throw new Error(result.message || "云端保存失败。");
+  return "queued";
+}
+
+function writeOptimisticDailyHotCache({
+  note,
+  currentNotes,
+  viewMonth,
+  rootId,
+}: {
+  note: DailyNote;
+  currentNotes: DailyNote[];
+  viewMonth: Date;
+  rootId: string | null;
+}) {
+  const visibleRange = buildMonthGrid(viewMonth);
+  const startDate = toDateKey(visibleRange[0].date);
+  const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
+  writeDailyHotCacheSnapshot({
+    startDate,
+    endDate,
+    rootId,
+    pages: [
+      note,
+      ...currentNotes.filter((currentNote) => currentNote.id !== note.id),
+    ],
+    source: "optimistic-local",
+  });
 }
 
 function pageToRemoteRecord(page: Page): RemotePageRecord {

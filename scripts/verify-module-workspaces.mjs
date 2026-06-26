@@ -285,7 +285,9 @@ for (const token of [
   "router.push(pageRoute)",
   "rememberPendingPageDraft(optimisticNote)",
   "upsertPages([optimisticNote])",
+  "writeOptimisticDailyHotCache",
   "applyRemotePages([pageToRemoteRecord(note)])",
+  "queueCloudPagePush(record)",
   "openNotePage",
 ]) {
   check(
@@ -297,6 +299,8 @@ check(
   shells.daily.indexOf("rememberPendingPageDraft(optimisticNote)") <
     shells.daily.indexOf("upsertPages([optimisticNote])") &&
     shells.daily.indexOf("upsertPages([optimisticNote])") <
+      shells.daily.indexOf("writeOptimisticDailyHotCache") &&
+    shells.daily.indexOf("writeOptimisticDailyHotCache") <
       shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
       shells.daily.indexOf("router.push(pageRoute)") &&
@@ -309,9 +313,9 @@ check(
 check(
   shells.daily.includes("await applyRemotePages(records)") &&
     shells.daily.indexOf("await applyRemotePages(records)") <
-      shells.daily.indexOf("return pushDailyCloudRecords(records)") &&
+      shells.daily.indexOf("return queueDailyCloudRecords(records)") &&
     shells.daily.includes("upsertPages(localPages)"),
-  "DailyNotesShell 后台保存每日纪要必须先写本地可重建缓存和 pending-aware 记录，再尝试云端上传"
+  "DailyNotesShell 后台保存每日纪要必须先写本地可重建缓存和 pending queue 记录，再让账号同步后台上传"
 );
 check(
   shells.daily.includes("@/components/page/PagePeekModal") &&
