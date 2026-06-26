@@ -363,8 +363,14 @@ check(
 );
 check(
   shells.schedule.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
+    shells.schedule.includes("MEETING_CALENDAR_REVEAL_BUFFER") &&
     shells.schedule.includes("visibleMeetingLimitByDate") &&
     shells.schedule.includes("showMoreMeetingsForDate") &&
+    shells.schedule.includes("revealMeetingOnCalendar") &&
+    shells.schedule.includes("setExpandedMeetingDateKeys((current) =>") &&
+    shells.schedule.includes("setVisibleMeetingLimitByDate((limits) =>") &&
+    shells.schedule.includes("revealMeetingOnCalendar(optimisticPage)") &&
+    shells.schedule.includes("revealMeetingOnCalendar(finalPage)") &&
     shells.schedule.includes("const visibleLimit = isExpanded") &&
     shells.schedule.includes("const visibleMeetings = dayMeetings.slice(0, visibleLimit)") &&
     shells.schedule.includes("Math.min(totalCount, currentLimit + MEETING_CALENDAR_EXPAND_BATCH)") &&

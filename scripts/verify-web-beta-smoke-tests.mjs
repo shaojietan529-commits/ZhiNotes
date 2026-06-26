@@ -2295,6 +2295,18 @@ function run() {
     "Meeting calendar + button must expose a stable test target."
   );
   assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "revealMeetingOnCalendar(optimisticPage)",
+    "Meeting import/create must reveal the optimistic meeting in the calendar immediately."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "MEETING_CALENDAR_REVEAL_BUFFER",
+    "Meeting calendar must expand a crowded date enough to show a newly imported meeting."
+  );
+  assertIncludes(
     files.syncShell,
     syncShell,
     "本地热缓存策略",

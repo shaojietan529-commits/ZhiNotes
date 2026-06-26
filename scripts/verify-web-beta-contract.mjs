@@ -2161,6 +2161,14 @@ function run() {
       "data-testid={`meeting-add-${key}`}",
       "Meeting calendar + buttons must expose stable test targets.",
     ],
+    [
+      "revealMeetingOnCalendar(optimisticPage)",
+      "Meeting import/create must reveal the optimistic meeting in the calendar immediately.",
+    ],
+    [
+      "MEETING_CALENDAR_REVEAL_BUFFER",
+      "Meeting calendar must expand a crowded date enough to show a newly imported meeting.",
+    ],
   ]) {
     assertSourceIncludes(
       files.meetingScheduleShell,

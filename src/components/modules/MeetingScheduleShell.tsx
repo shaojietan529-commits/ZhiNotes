@@ -98,6 +98,7 @@ const MEETING_PRIORITY_OPTIONS = [
 const DEFAULT_MEETING_PRIORITY = "default";
 const MEETING_CALENDAR_VISIBLE_LIMIT = 6;
 const MEETING_CALENDAR_EXPAND_BATCH = 24;
+const MEETING_CALENDAR_REVEAL_BUFFER = 2;
 
 interface MeetingEntry {
   page: Page;
@@ -400,6 +401,51 @@ export default function MeetingScheduleShell() {
       }, 7000);
     },
     [setViewMonth]
+  );
+
+  const revealMeetingOnCalendar = useCallback(
+    (page: Page) => {
+      const entry = toMeetingEntry(page);
+      if (!entry.dateKey) return;
+
+      const currentDayEntries = [
+        ...meetingsRef.current.filter((item) => item.id !== page.id),
+        page,
+      ]
+        .map(toMeetingEntry)
+        .filter((item) => item.dateKey === entry.dateKey);
+      const nextIndex = currentDayEntries.findIndex(
+        (item) => item.page.id === page.id
+      );
+      const requiredLimit =
+        nextIndex >= 0 ? nextIndex + 1 : MEETING_CALENDAR_VISIBLE_LIMIT;
+
+      if (requiredLimit > MEETING_CALENDAR_VISIBLE_LIMIT) {
+        setExpandedMeetingDateKeys((current) => {
+          if (current.has(entry.dateKey)) return current;
+          const next = new Set(current);
+          next.add(entry.dateKey);
+          return next;
+        });
+        setVisibleMeetingLimitByDate((limits) => {
+          const currentLimit =
+            limits.get(entry.dateKey) ?? MEETING_CALENDAR_VISIBLE_LIMIT;
+          if (currentLimit >= requiredLimit) return limits;
+          const next = new Map(limits);
+          next.set(
+            entry.dateKey,
+            Math.min(
+              currentDayEntries.length,
+              requiredLimit + MEETING_CALENDAR_REVEAL_BUFFER
+            )
+          );
+          return next;
+        });
+      }
+
+      focusCalendarDate(entry.dateKey);
+    },
+    [focusCalendarDate]
   );
 
   useEffect(
@@ -966,6 +1012,7 @@ export default function MeetingScheduleShell() {
       rememberPendingPageDraft(optimisticPage);
       rememberPageRouteHandoff(optimisticPage, "meeting-create");
       writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);
+      revealMeetingOnCalendar(optimisticPage);
       void seedMeetingPageForImmediateOpen(optimisticPage);
 
       void (async () => {
@@ -991,6 +1038,7 @@ export default function MeetingScheduleShell() {
           rememberPendingPageDraft(finalPage);
           rememberPageRouteHandoff(finalPage, "meeting-create");
           writeOptimisticMeetingHotCache(finalPage, resolvedRootId);
+          revealMeetingOnCalendar(finalPage);
           await persistOptimisticMeetingPage(
             resolvedRootId,
             finalPage,
@@ -1038,6 +1086,7 @@ export default function MeetingScheduleShell() {
             rememberPendingPageDraft(finalPage);
             rememberPageRouteHandoff(finalPage, "meeting-create");
             writeOptimisticMeetingHotCache(finalPage, resolvedRootId);
+            revealMeetingOnCalendar(finalPage);
             await persistOptimisticMeetingPage(
               resolvedRootId,
               finalPage,
@@ -1063,6 +1112,7 @@ export default function MeetingScheduleShell() {
       writeOptimisticMeetingHotCache,
       refresh,
       load,
+      revealMeetingOnCalendar,
     ]
   );
 

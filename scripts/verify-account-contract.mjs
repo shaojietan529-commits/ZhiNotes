@@ -685,6 +685,10 @@ check(
     meetingScheduleShell.includes("visibleMeetingLimitByDate") &&
     meetingScheduleShell.includes("toggleMeetingDateExpansion") &&
     meetingScheduleShell.includes("showMoreMeetingsForDate") &&
+    meetingScheduleShell.includes("revealMeetingOnCalendar") &&
+    meetingScheduleShell.includes("MEETING_CALENDAR_REVEAL_BUFFER") &&
+    meetingScheduleShell.includes("revealMeetingOnCalendar(optimisticPage)") &&
+    meetingScheduleShell.includes("revealMeetingOnCalendar(finalPage)") &&
     meetingScheduleShell.includes("const visibleLimit = isExpanded") &&
     meetingScheduleShell.includes("const visibleMeetings = dayMeetings.slice(0, visibleLimit)") &&
     meetingScheduleShell.includes("Math.min(totalCount, currentLimit + MEETING_CALENDAR_EXPAND_BATCH)") &&
