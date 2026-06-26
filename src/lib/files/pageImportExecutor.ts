@@ -3,8 +3,8 @@
 //
 // This runs ONLY after the user has reviewed the plan and explicitly confirmed
 // in the UI (batch page creation is a high-risk action). It never uploads raw
-// file bytes or calls AI. Markdown/plain-text/notebook become real page bodies;
-// created page records then follow the user's account page-sync setting. Other
+// file bytes or calls AI. Markdown/plain-text/RTF/notebook become real page
+// bodies; created page records then follow the user's account page-sync setting. Other
 // page-import / local-retain files become local file pages with a metadata
 // preview block; spreadsheets and unknown formats are skipped here and routed
 // to their own confirmed flows (database column mapping / owner review).
@@ -21,6 +21,7 @@ import {
 } from "@/lib/files/filePage";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
 import { convertNotebookToHtml } from "@/lib/files/notebook";
+import { convertRtfToHtml } from "@/lib/files/rtf";
 import type { PageImportPlan, PageImportPlanItem } from "./pageImportPlan";
 
 export interface PageImportExecutionResult {
@@ -190,6 +191,20 @@ export async function executePageImportPlan(
         await updatePageWithCloud(page.id, { content_text: html });
         createdPageIds.push(page.id);
         createdPages += 1;
+        continue;
+      }
+
+      if (item.lane === "page-import" && stored.kind === "rtf") {
+        const text = stored.textContent ?? "";
+        const html = convertRtfToHtml(text);
+        const page = await createPageWithCloud({
+          title: deriveTitle(stored.name, ""),
+          icon: "RTF",
+        });
+        await updatePageWithCloud(page.id, { content_text: html });
+        createdPageIds.push(page.id);
+        createdPages += 1;
+        notes.push("RTF 已本地转换为可编辑页面；没有上传文件内容。");
         continue;
       }
 

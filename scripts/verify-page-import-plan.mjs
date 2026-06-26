@@ -97,6 +97,11 @@ check(
   "Notebook 路线必须说明本地可编辑导入和不执行代码"
 );
 check(
+  source.includes("RTF 会在本地提取纯文本段落") &&
+    source.includes("rtf-pages"),
+  "RTF 路线必须说明本地可编辑导入"
+);
+check(
   source.includes("PDF 先创建本地文件页") &&
     source.includes("PowerPoint/ODP 先创建本地文件页"),
   "PDF 和 PowerPoint 路线必须说明先创建本地文件页"
@@ -200,6 +205,12 @@ check(
     executorSource.includes('stored.kind === "notebook"') &&
     executorSource.includes("未执行"),
   "执行器必须把 Notebook 本地转换为可编辑页面，并声明不执行代码"
+);
+check(
+  executorSource.includes("convertRtfToHtml") &&
+    executorSource.includes('stored.kind === "rtf"') &&
+    executorSource.includes("RTF 已本地转换为可编辑页面"),
+  "执行器必须把 RTF 本地转换为可编辑页面"
 );
 // Spreadsheets and unknown formats must be skipped (not created) in this stage.
 check(

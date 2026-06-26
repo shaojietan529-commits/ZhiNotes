@@ -348,8 +348,8 @@ export default function PageImportPlanPanel() {
               确认后执行导入
             </p>
             <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-              本次会创建 {executableCount} 个本地页面或文件页。Markdown / 纯文本 / Notebook 会转为可编辑正文；
-              HTML、PDF、Office、RTF、EPUB、媒体和 iWork 会先创建本地文件页用于预览或复核；
+              本次会创建 {executableCount} 个本地页面或文件页。Markdown / 纯文本 / RTF / Notebook 会转为可编辑正文；
+              HTML、PDF、Office、EPUB、媒体和 iWork 会先创建本地文件页用于预览或复核；
               表格走数据库模块列映射确认，未知格式需单独复核，本步骤会跳过。中途任何一步失败会自动回退本次已创建的页面。
               导入只在本地进行，不上传、不调用 AI；页面记录是否同步云端继续跟随账号同步设置。
             </p>
