@@ -3311,6 +3311,18 @@ function run() {
   assertIncludes(
     files.accountDatabaseSync,
     accountDatabaseSync,
+    'DATABASE_SYNC_STATUS_EVENT = "zhinote:databasesync-status"',
+    "Smoke verifier must keep database pending queue status events available."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "emitDatabaseSyncStatusChanged",
+    "Database sync client must emit status changes when queue metadata changes."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
     "export async function getCloudDatabaseManifestSummary",
     "Smoke verifier must keep cloud database manifest summary available to the sync dashboard."
   );
@@ -3331,6 +3343,18 @@ function run() {
     syncShell,
     "补传数据库队列",
     "Sync UI must expose a manual database pending retry action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "DATABASE_SYNC_STATUS_EVENT",
+    "Sync UI must listen to database pending queue status changes while open."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "refreshDatabasePendingStatus",
+    "Sync UI must refresh database pending queue details without requiring navigation."
   );
   assertIncludes(
     files.syncShell,

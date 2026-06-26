@@ -50,6 +50,7 @@ let memoryDatabaseRemoteCursor = "";
 let memoryLastDatabaseSyncAt: string | null = null;
 
 export const DATABASE_SYNC_CONFIG_EVENT = "zhinote:databasesync-config";
+export const DATABASE_SYNC_STATUS_EVENT = "zhinote:databasesync-status";
 
 export type DatabaseSyncStatus =
   | "ok"
@@ -195,6 +196,20 @@ export function setDatabaseSyncEnabled(enabled: boolean): void {
   authRetryAfter = 0;
   writeSyncStorage(ENABLED_KEY, String(enabled));
   window.dispatchEvent(new CustomEvent(DATABASE_SYNC_CONFIG_EVENT));
+  emitDatabaseSyncStatusChanged();
+}
+
+function emitDatabaseSyncStatusChanged(): void {
+  if (typeof window === "undefined") return;
+  void getPendingCloudDatabaseSyncStatus()
+    .then((status) => {
+      window.dispatchEvent(
+        new CustomEvent(DATABASE_SYNC_STATUS_EVENT, { detail: status })
+      );
+    })
+    .catch(() => {
+      window.dispatchEvent(new CustomEvent(DATABASE_SYNC_STATUS_EVENT));
+    });
 }
 
 function readSyncStorage(key: string): string | null {
@@ -232,6 +247,7 @@ function setLastDatabaseSyncAtNow(): void {
   const iso = new Date().toISOString();
   memoryLastDatabaseSyncAt = iso;
   writeSyncStorage(LAST_SYNC_KEY, iso);
+  emitDatabaseSyncStatusChanged();
 }
 
 function getRemoteCursor(): string {
@@ -398,9 +414,11 @@ function setPendingCloudDatabasePushKeys(keys: string[]): void {
   const uniqueKeys = Array.from(new Set(keys.filter(isValidRecordKey)));
   if (uniqueKeys.length === 0) {
     removeSyncStorage(PENDING_PUSH_KEYS_KEY);
+    emitDatabaseSyncStatusChanged();
     return;
   }
   writeSyncStorage(PENDING_PUSH_KEYS_KEY, JSON.stringify(uniqueKeys));
+  emitDatabaseSyncStatusChanged();
 }
 
 function markPendingCloudDatabasePushKey(key: string): void {
@@ -424,6 +442,7 @@ function clearAllPendingCloudDatabasePushesForCacheRebuild(): void {
   }
   queuedCloudDatabasePush = new Map();
   setPendingCloudDatabasePushKeys([]);
+  emitDatabaseSyncStatusChanged();
 }
 
 function clearDatabaseSyncRuntimeCachesForCacheRebuild(): void {
@@ -1068,12 +1087,16 @@ export function queueCloudDatabaseRecords(
     queuedCloudDatabasePush.set(key, record);
   }
   if (queuedCloudDatabasePush.size === 0) return;
+  emitDatabaseSyncStatusChanged();
   if (queuedCloudDatabasePushTimer) clearTimeout(queuedCloudDatabasePushTimer);
   queuedCloudDatabasePushTimer = setTimeout(() => {
     const batch = [...queuedCloudDatabasePush.values()];
     queuedCloudDatabasePush = new Map();
     queuedCloudDatabasePushTimer = null;
-    void pushCloudDatabaseRecordsInBatches(batch);
+    emitDatabaseSyncStatusChanged();
+    void pushCloudDatabaseRecordsInBatches(batch).finally(() => {
+      emitDatabaseSyncStatusChanged();
+    });
   }, delayMs);
 }
 
@@ -1216,12 +1239,14 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
   }
   const pendingLogIds = pending.entries.map((entry) => entry.logId);
   await markDatabaseSyncLogEntriesAttempted(pendingLogIds);
+  emitDatabaseSyncStatusChanged();
   const result = await pushCloudDatabaseRecordsInBatches(pending.records);
   if (result.status !== "ok") {
     await markDatabaseSyncLogEntriesFailed(
       pendingLogIds,
       result.message ?? result.status
     );
+    emitDatabaseSyncStatusChanged();
     return result;
   }
   const acknowledged = new Set([
@@ -1233,6 +1258,7 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
       .filter((entry) => acknowledged.has(entry.key))
       .map((entry) => entry.logId)
   );
+  emitDatabaseSyncStatusChanged();
   return {
     status: "ok",
     pushed: result.pushed,

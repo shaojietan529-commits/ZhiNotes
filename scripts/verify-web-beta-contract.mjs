@@ -4074,6 +4074,14 @@ function run() {
       "Sync UI manual database retry must use quick incremental reconcile.",
     ],
     [
+      "DATABASE_SYNC_STATUS_EVENT",
+      "Sync UI must subscribe to database pending queue status events.",
+    ],
+    [
+      "refreshDatabasePendingStatus",
+      "Sync UI must refresh database pending queue details while the sync center stays open.",
+    ],
+    [
       "不展示或导出数据库行值",
       "Sync UI must preserve the privacy boundary for the database pending queue.",
     ],
@@ -4157,6 +4165,14 @@ function run() {
     [
       "export async function getPendingCloudDatabaseSyncStatus",
       "Database sync client must expose pending queue status for the sync dashboard.",
+    ],
+    [
+      'DATABASE_SYNC_STATUS_EVENT = "zhinote:databasesync-status"',
+      "Database sync client must expose a pending queue status event.",
+    ],
+    [
+      "emitDatabaseSyncStatusChanged",
+      "Database sync client must emit queue status updates for open dashboards.",
     ],
     [
       "const pending = await getPendingDatabaseSyncRecords(1000)",

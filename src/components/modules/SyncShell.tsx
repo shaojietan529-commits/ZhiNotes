@@ -54,6 +54,8 @@ import {
   type WorkspaceSettingRecord,
 } from "@/lib/db/local/queries";
 import {
+  DATABASE_SYNC_CONFIG_EVENT,
+  DATABASE_SYNC_STATUS_EVENT,
   getCloudDatabaseManifestSummary,
   getPendingCloudDatabaseSyncStatus,
   isDatabaseSyncEnabled,
@@ -1511,6 +1513,47 @@ function SyncDashboard() {
         refreshPagePendingStatus
       );
       window.removeEventListener("storage", refreshPagePendingStatus);
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const refreshDatabasePendingStatus = (event?: Event) => {
+      const next = (
+        event as CustomEvent<PendingCloudDatabaseSyncStatus> | undefined
+      )?.detail;
+      if (next) {
+        setDatabasePendingStatus(next);
+        return;
+      }
+      void getPendingCloudDatabaseSyncStatus().then((status) => {
+        if (mounted) setDatabasePendingStatus(status);
+      });
+    };
+
+    refreshDatabasePendingStatus();
+    window.addEventListener(
+      DATABASE_SYNC_STATUS_EVENT,
+      refreshDatabasePendingStatus
+    );
+    window.addEventListener(
+      DATABASE_SYNC_CONFIG_EVENT,
+      refreshDatabasePendingStatus
+    );
+    window.addEventListener("storage", refreshDatabasePendingStatus);
+    const timer = window.setInterval(refreshDatabasePendingStatus, 5000);
+    return () => {
+      mounted = false;
+      window.removeEventListener(
+        DATABASE_SYNC_STATUS_EVENT,
+        refreshDatabasePendingStatus
+      );
+      window.removeEventListener(
+        DATABASE_SYNC_CONFIG_EVENT,
+        refreshDatabasePendingStatus
+      );
+      window.removeEventListener("storage", refreshDatabasePendingStatus);
       window.clearInterval(timer);
     };
   }, []);
