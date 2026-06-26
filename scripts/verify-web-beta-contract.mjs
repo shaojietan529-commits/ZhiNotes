@@ -9980,14 +9980,26 @@ function run() {
   assertSourceIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "localPagesForMerge = await listPageMetadata(id)",
-    "Meeting calendar local hot-cache render must use metadata-only page reads."
+    "localPagesForMerge = await listMeetingPageMetadataForCalendar({",
+    "Meeting calendar local hot-cache render must use bounded date-range metadata reads."
+  );
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "recentLimit: 12",
+    "Meeting calendar local hot-cache render must keep a small recent window without full-root scans."
   );
   assertSourceExcludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
     "localPagesForMerge = await listPages(id)",
     "Meeting calendar local hot-cache render must not read full page bodies."
+  );
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "localPagesForMerge = await listPageMetadata(id)",
+    "Meeting calendar local hot-cache render must not read the entire meeting root on first paint."
   );
   for (const [sourceLabel, source, snippet, message] of [
     [

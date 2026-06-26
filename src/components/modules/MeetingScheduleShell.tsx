@@ -13,6 +13,7 @@ import {
   deletePage,
   getDeletedPages,
   getPage,
+  listMeetingPageMetadataForCalendar,
   listPageMetadata,
   restorePage,
   type RemotePageRecord,
@@ -425,7 +426,12 @@ export default function MeetingScheduleShell() {
         (cachedCloud?.ok ? cachedCloud.rootId : null) ??
         (await getModuleRootId("meeting-schedule"));
       publishRootId(id);
-      localPagesForMerge = await listPageMetadata(id);
+      localPagesForMerge = await listMeetingPageMetadataForCalendar({
+        rootId: id,
+        startDate,
+        endDate,
+        recentLimit: 12,
+      });
       publishMeetings(
         localPagesForMerge,
         cachedCloud?.ok ? cachedCloud.pages : []

@@ -68,6 +68,7 @@ const DAILY_DATE_INDEX_BACKFILL_DEFAULT_LIMIT = 240;
 const DAILY_CALENDAR_FALLBACK_SCAN_LIMIT = 240;
 const DAILY_RECENT_CANDIDATE_MULTIPLIER = 6;
 const DAILY_PARENT_LOOKUP_GUARD = 32;
+const MEETING_CALENDAR_FALLBACK_SCAN_LIMIT = 360;
 const LOCAL_SYNC_SUMMARY_START_DATE = "2000-01-01";
 const LOCAL_SYNC_SUMMARY_END_DATE = "2099-12-31";
 const MEETING_ROOT_TITLES = new Set(["ZhiHui", "会议日程"]);
@@ -188,6 +189,28 @@ function isMeetingMetadataPage(page: Page): boolean {
     [...MEETING_METADATA_PROPERTY_NAMES].some((name) => propertyNames.has(name)) ||
     (page.icon === "🗓️" && Boolean(inferMeetingDateKey(page.title, page.properties)))
   );
+}
+
+function meetingCalendarScopeWhere(alias = "pages"): string {
+  const prefix = alias ? `${alias}.` : "";
+  return `(
+    ${prefix}parent_id = ? OR
+    ${prefix}properties LIKE '%会议痕迹%' OR
+    ${prefix}properties LIKE '%时间状态%' OR
+    ${prefix}properties LIKE '%录制状态%' OR
+    ${prefix}properties LIKE '%入会链接%' OR
+    ${prefix}properties LIKE '%会议号%' OR
+    ${prefix}icon = '🗓️'
+  )`;
+}
+
+function meetingDateCandidateWhere(alias = "pages"): string {
+  const prefix = alias ? `${alias}.` : "";
+  return `(
+    ${prefix}properties LIKE '%日期%' OR
+    ${prefix}title GLOB '*[0-9][0-9][0-9][0-9]*' OR
+    ${prefix}title GLOB '*[0-9][0-9][0-9][0-9][0-9][0-9]*'
+  )`;
 }
 
 function buildLocalPageDomainSyncSummary(input: {
@@ -704,6 +727,74 @@ export async function listDailyPageMetadataForCalendar({
   for (const row of fallbackRows) {
     if (!isDailyScopePage(row)) continue;
     const dateKey = inferDailyDateKey(row.title, row.properties);
+    if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
+    byId.set(row.id, row);
+  }
+
+  return Array.from(byId.values());
+}
+
+export async function listMeetingPageMetadataForCalendar({
+  rootId,
+  startDate,
+  endDate,
+  recentLimit = 8,
+}: {
+  rootId: string;
+  startDate: string;
+  endDate: string;
+  recentLimit?: number;
+}): Promise<Page[]> {
+  const db = await getDb();
+  const byId = new Map<string, Page>();
+  const readRows = (sql: string, bind: unknown[]) =>
+    db.query(sql, bind) as unknown as Page[];
+  const isMeetingScopePage = (page: Page): boolean =>
+    page.parent_id === rootId || isMeetingMetadataPage(page);
+  const addIfMeetingScope = (row: Page) => {
+    if (isMeetingScopePage(row)) byId.set(row.id, row);
+  };
+
+  const rangeRows = readRows(
+    `SELECT ${PAGE_METADATA_SELECT}
+     FROM pages p
+     WHERE p.deleted_at IS NULL
+       AND p.daily_date_key >= ?
+       AND p.daily_date_key <= ?
+       AND ${meetingCalendarScopeWhere("p")}
+     ORDER BY p.daily_date_key ASC, p.updated_at DESC`,
+    [startDate, endDate, rootId]
+  );
+  for (const row of rangeRows) addIfMeetingScope(row);
+
+  if (recentLimit > 0) {
+    const recentRows = readRows(
+      `SELECT ${PAGE_METADATA_SELECT}
+       FROM pages p
+       WHERE p.deleted_at IS NULL
+         AND p.daily_date_key IS NOT NULL
+         AND ${meetingCalendarScopeWhere("p")}
+       ORDER BY p.daily_date_key DESC, p.updated_at DESC
+       LIMIT ?`,
+      [rootId, Math.max(1, Math.min(50, Math.floor(recentLimit)))]
+    );
+    for (const row of recentRows) addIfMeetingScope(row);
+  }
+
+  const fallbackRows = readRows(
+    `SELECT ${PAGE_METADATA_SELECT}
+     FROM pages p
+     WHERE p.deleted_at IS NULL
+       AND p.daily_date_key IS NULL
+       AND ${meetingCalendarScopeWhere("p")}
+       AND ${meetingDateCandidateWhere("p")}
+     ORDER BY p.updated_at DESC
+     LIMIT ?`,
+    [rootId, MEETING_CALENDAR_FALLBACK_SCAN_LIMIT]
+  );
+  for (const row of fallbackRows) {
+    if (!isMeetingScopePage(row)) continue;
+    const dateKey = inferMeetingDateKey(row.title, row.properties);
     if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
     byId.set(row.id, row);
   }

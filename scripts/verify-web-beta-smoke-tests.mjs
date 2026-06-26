@@ -1489,6 +1489,18 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "listMeetingPageMetadataForCalendar({",
+    "Meeting schedule must load first-paint local metadata through a bounded date-range query."
+  );
+  assertExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "localPagesForMerge = await listPageMetadata(id)",
+    "Meeting schedule must not scan the entire meeting root for first-paint calendar metadata."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "source: \"optimistic-local\"",
     "Meeting schedule hot cache must record optimistic local creates before background persistence."
   );
