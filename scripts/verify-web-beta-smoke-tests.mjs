@@ -16,6 +16,7 @@ const files = {
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
+  meetingHotCacheSnapshot: "src/lib/sync/meetingHotCacheSnapshot.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   sidebarWorkspaceSettings: "src/lib/sync/sidebarWorkspaceSettings.ts",
@@ -274,6 +275,9 @@ function run() {
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
   const hotCacheLocalIndex = readProjectFile(files.hotCacheLocalIndex);
   const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
+  const meetingHotCacheSnapshot = readProjectFile(
+    files.meetingHotCacheSnapshot
+  );
   const hotCacheSelectionSettings = readProjectFile(
     files.hotCacheSelectionSettings
   );
@@ -1373,6 +1377,74 @@ function run() {
     }
   }
   assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    'format: "zhinote-meeting-hot-cache-snapshot"',
+    "Smoke verifier must keep the meeting hot cache snapshot format."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    'route_target: "/schedule"',
+    "Meeting hot cache snapshot must stay scoped to the schedule route."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "records_metadata_only: true",
+    "Meeting hot cache snapshot must stay metadata-only."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "stores_join_url: false",
+    "Meeting hot cache snapshot must never store join URLs."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "stores_meeting_id: false",
+    "Meeting hot cache snapshot must never store meeting ids."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "stores_passcode: false",
+    "Meeting hot cache snapshot must never store meeting passcodes."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "enters_sync_log: false",
+    "Meeting hot cache snapshot must not enter the upload queue."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "window.localStorage.setItem",
+    "Meeting hot cache snapshot must stay a local browser cache."
+  );
+  for (const forbiddenMeetingSnapshotSnippet of [
+    "page.content_text",
+    "page.content_yjs",
+    "comment.body",
+    "field_values",
+    "fetch(",
+    "recordSyncChange",
+    "INSERT INTO sync_log",
+    "\"入会链接\"",
+    "\"会议号\"",
+    "\"会议密码\"",
+    "joinUrl:",
+    "meetingId:",
+  ]) {
+    if (meetingHotCacheSnapshot.includes(forbiddenMeetingSnapshotSnippet)) {
+      failures.push(
+        `${files.meetingHotCacheSnapshot} must not include ${forbiddenMeetingSnapshotSnippet}: meeting hot cache snapshot must stay metadata-only, local-only, and free of meeting credentials.`
+      );
+    }
+  }
+  assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
     "readDailyHotCacheSnapshot",
@@ -1389,6 +1461,24 @@ function run() {
     dailyNotesShell,
     "已先显示本机热缓存",
     "Daily notes must surface the local hot cache first-paint path."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "readMeetingHotCacheSnapshot",
+    "Meeting schedule must read a local hot cache snapshot before slower cache/cloud checks."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "meetingHotCacheSnapshotPageToPage",
+    "Meeting schedule must convert the local hot cache snapshot back into metadata-only pages."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "writeMeetingHotCacheSnapshot",
+    "Meeting schedule must refresh the local hot cache snapshot after metadata loads."
   );
   assertIncludes(
     files.pageRouteHandoff,

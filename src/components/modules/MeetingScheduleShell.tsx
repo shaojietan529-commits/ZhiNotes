@@ -40,6 +40,11 @@ import {
   toDateKey,
 } from "@/lib/pages/moduleWorkspaces";
 import {
+  meetingHotCacheSnapshotPageToPage,
+  readMeetingHotCacheSnapshot,
+  writeMeetingHotCacheSnapshot,
+} from "@/lib/sync/meetingHotCacheSnapshot";
+import {
   createPageProperty,
   parsePageProperties,
   stringifyPageProperties,
@@ -356,6 +361,7 @@ export default function MeetingScheduleShell() {
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
     let localPagesForMerge: Page[] = [];
+    const cachedHotSnapshot = readMeetingHotCacheSnapshot(startDate, endDate);
 
     const publishRootId = (nextRootId: string | null) => {
       if (loadRequestRef.current !== requestId) return;
@@ -380,6 +386,14 @@ export default function MeetingScheduleShell() {
         )
       );
     };
+
+    if (cachedHotSnapshot) {
+      publishRootId(cachedHotSnapshot.root_id);
+      publishMeetings(
+        [],
+        cachedHotSnapshot.pages.map(meetingHotCacheSnapshotPageToPage)
+      );
+    }
 
     if (includeCloud && !initialCloudPullAttemptedRef.current) {
       initialCloudPullAttemptedRef.current = true;
@@ -412,7 +426,21 @@ export default function MeetingScheduleShell() {
         (await getModuleRootId("meeting-schedule"));
       publishRootId(id);
       localPagesForMerge = await listPageMetadata(id);
-      publishMeetings(localPagesForMerge, cachedCloud?.ok ? cachedCloud.pages : []);
+      publishMeetings(
+        localPagesForMerge,
+        cachedCloud?.ok ? cachedCloud.pages : []
+      );
+      writeMeetingHotCacheSnapshot({
+        startDate,
+        endDate,
+        rootId: id,
+        pages: mergeMeetingPages(
+          localPagesForMerge,
+          cachedCloud?.ok ? cachedCloud.pages : [],
+          deletedTombstoneRef.current
+        ),
+        source: "local-metadata",
+      });
       if (deletionTombstonesLoaded) {
         scheduleMeetingIdleTask(() => {
           void restoreDeletedMeetingPages(id!, deletedTombstoneRef.current).catch(
@@ -434,6 +462,17 @@ export default function MeetingScheduleShell() {
       publishRootId(cloud.rootId);
       publishMeetings(localPagesForMerge, cloud.pages);
       writeCachedMeetingCloudMetadata(startDate, endDate, cloud);
+      writeMeetingHotCacheSnapshot({
+        startDate,
+        endDate,
+        rootId: cloud.rootId,
+        pages: mergeMeetingPages(
+          localPagesForMerge,
+          cloud.pages,
+          deletedTombstoneRef.current
+        ),
+        source: "cloud-metadata",
+      });
       void persistMeetingCloudMetadata(cloud, upsertPages);
     }
 

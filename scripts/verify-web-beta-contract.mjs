@@ -84,6 +84,7 @@ const files = {
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
+  meetingHotCacheSnapshot: "src/lib/sync/meetingHotCacheSnapshot.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
   sidebarWorkspaceSettings: "src/lib/sync/sidebarWorkspaceSettings.ts",
@@ -416,6 +417,9 @@ function run() {
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
   const hotCacheLocalIndex = readProjectFile(files.hotCacheLocalIndex);
   const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
+  const meetingHotCacheSnapshot = readProjectFile(
+    files.meetingHotCacheSnapshot
+  );
   const hotCacheSelectionSettings = readProjectFile(
     files.hotCacheSelectionSettings
   );
@@ -1410,6 +1414,129 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-meeting-hot-cache-snapshot"',
+      "Meeting hot cache snapshot must have a stable format marker.",
+    ],
+    [
+      'route_target: "/schedule"',
+      "Meeting hot cache snapshot must stay scoped to the schedule route.",
+    ],
+    [
+      "window.localStorage.setItem",
+      "Meeting hot cache snapshot must stay in local browser cache.",
+    ],
+    [
+      "enters_sync_log: false",
+      "Meeting hot cache snapshot must not enter the upload queue.",
+    ],
+    [
+      "stores_source_of_truth: false",
+      "Meeting hot cache snapshot must not become the source of truth.",
+    ],
+    [
+      "records_metadata_only: true",
+      "Meeting hot cache snapshot must remain metadata-only.",
+    ],
+    [
+      "stores_join_url: false",
+      "Meeting hot cache snapshot must never store join URLs.",
+    ],
+    [
+      "stores_meeting_id: false",
+      "Meeting hot cache snapshot must never store meeting ids.",
+    ],
+    [
+      "stores_passcode: false",
+      "Meeting hot cache snapshot must never store passcodes.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.meetingHotCacheSnapshot,
+      meetingHotCacheSnapshot,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Meeting hot cache snapshot must not read page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Meeting hot cache snapshot must not read page Yjs content.",
+    ],
+    [
+      "comment.body",
+      "Meeting hot cache snapshot must not access comment bodies.",
+    ],
+    [
+      "field_values",
+      "Meeting hot cache snapshot must not access database row values.",
+    ],
+    [
+      "fetch(",
+      "Meeting hot cache snapshot must not call network APIs.",
+    ],
+    [
+      "recordSyncChange",
+      "Meeting hot cache snapshot must not call the pending upload logger.",
+    ],
+    [
+      "INSERT INTO sync_log",
+      "Meeting hot cache snapshot must not write pending upload rows.",
+    ],
+    [
+      "\"入会链接\"",
+      "Meeting hot cache snapshot must not persist join-link properties.",
+    ],
+    [
+      "\"会议号\"",
+      "Meeting hot cache snapshot must not persist meeting-id properties.",
+    ],
+    [
+      "\"会议密码\"",
+      "Meeting hot cache snapshot must not persist passcode properties.",
+    ],
+    [
+      "joinUrl:",
+      "Meeting hot cache snapshot must not persist parsed join URLs.",
+    ],
+    [
+      "meetingId:",
+      "Meeting hot cache snapshot must not persist parsed meeting ids.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.meetingHotCacheSnapshot,
+      meetingHotCacheSnapshot,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "readMeetingHotCacheSnapshot",
+      "Meeting schedule must read the local hot cache snapshot before slower cache/cloud checks.",
+    ],
+    [
+      "meetingHotCacheSnapshotPageToPage",
+      "Meeting schedule must convert the local hot cache snapshot back into metadata-only pages.",
+    ],
+    [
+      "writeMeetingHotCacheSnapshot",
+      "Meeting schedule must refresh the local hot cache snapshot after metadata loads.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      snippet,
+      message
+    );
   }
   for (const [snippet, message] of [
     [
