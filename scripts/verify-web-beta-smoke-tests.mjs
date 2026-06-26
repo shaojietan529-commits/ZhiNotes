@@ -3914,6 +3914,30 @@ function run() {
     "router.prefetch(`/page/${page.id}`)",
     "Shared page navigation must prefetch page routes as a speed hint."
   );
+  assertIncludes(
+    files.localFirstPageNavigation,
+    localFirstPageNavigation,
+    "pageShellWarmupRef",
+    "Shared page navigation must warm the page shell once for module, sidebar, and search opens."
+  );
+  assertIncludes(
+    files.localFirstPageNavigation,
+    localFirstPageNavigation,
+    "warmPageShell();",
+    "Shared page navigation must start page shell warmup before route navigation."
+  );
+  assertIncludes(
+    files.localFirstPageNavigation,
+    localFirstPageNavigation,
+    'import("@/components/providers/PageShell")',
+    "Shared page navigation must preload the page shell without reading page bodies."
+  );
+  assertExcludes(
+    files.localFirstPageNavigation,
+    localFirstPageNavigation,
+    'import("@/components/editor/Editor")',
+    "Shared page navigation must not preload the heavy editor bundle before metadata first paint."
+  );
   for (const forbiddenLocalFirstNavigationSnippet of [
     "queueCloudPagePush",
     "pushCloudPages",

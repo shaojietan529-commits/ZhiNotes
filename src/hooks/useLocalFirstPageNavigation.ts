@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import {
@@ -18,12 +18,24 @@ interface LocalFirstPageNavigationOptions {
 export function useLocalFirstPageNavigation() {
   const router = useRouter();
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
+  const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
+
+  const warmPageShell = useCallback(() => {
+    if (!pageShellWarmupRef.current) {
+      pageShellWarmupRef.current = import("@/components/providers/PageShell").catch(
+        () => {
+          pageShellWarmupRef.current = null;
+        }
+      );
+    }
+  }, []);
 
   return useCallback(
     (
       target: Page | string,
       options: LocalFirstPageNavigationOptions = {}
     ) => {
+      warmPageShell();
       const pageId = typeof target === "string" ? target : target.id;
       const page =
         typeof target === "string"
@@ -51,6 +63,6 @@ export function useLocalFirstPageNavigation() {
         router.push(href);
       }
     },
-    [router, upsertPages]
+    [router, upsertPages, warmPageShell]
   );
 }

@@ -11379,6 +11379,24 @@ function run() {
       "Shared page navigation must prefetch the page route as a non-authoritative speed hint.",
     ],
     [
+      files.localFirstPageNavigation,
+      localFirstPageNavigation,
+      "pageShellWarmupRef",
+      "Shared page navigation must warm the page shell once for module, sidebar, and search opens.",
+    ],
+    [
+      files.localFirstPageNavigation,
+      localFirstPageNavigation,
+      "warmPageShell();",
+      "Shared page navigation must start page shell warmup before route navigation.",
+    ],
+    [
+      files.localFirstPageNavigation,
+      localFirstPageNavigation,
+      'import("@/components/providers/PageShell")',
+      "Shared page navigation must preload the page shell without reading page bodies.",
+    ],
+    [
       files.sidebar,
       sidebar,
       'openPage(page, { source: "sidebar-create" })',
@@ -11543,6 +11561,7 @@ function run() {
     "sync_log",
     "content_text",
     "content_yjs",
+    'import("@/components/editor/Editor")',
   ]) {
     assertSourceExcludes(
       files.localFirstPageNavigation,
