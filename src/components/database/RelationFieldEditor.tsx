@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Page } from "@/lib/utils/types";
 import {
   getRelationPages,
   normalizeRelationValue,
 } from "@/lib/database/relationValues";
+import { searchPageMetadata } from "@/lib/db/local/queries";
 
 interface RelationFieldEditorProps {
   value: unknown;
@@ -25,16 +26,58 @@ export default function RelationFieldEditor({
   preferredPage,
 }: RelationFieldEditorProps) {
   const [query, setQuery] = useState("");
+  const [metadataResults, setMetadataResults] = useState<Page[]>([]);
+  const [metadataSearching, setMetadataSearching] = useState(false);
   const selectedIds = normalizeRelationValue(value);
-  const selectedRelations = getRelationPages(value, pages);
   const normalizedQuery = query.trim().toLowerCase();
   const canAddPreferredPage =
     Boolean(preferredPage) && !selectedIds.includes(preferredPage?.id ?? "");
+  const metadataResultIds = useMemo(
+    () => new Set(metadataResults.map((page) => page.id)),
+    [metadataResults]
+  );
+  const suggestionPages = useMemo(
+    () => mergeRelationPageSuggestions([...pages, ...metadataResults]),
+    [metadataResults, pages]
+  );
+  const selectedRelations = getRelationPages(value, suggestionPages);
+
+  useEffect(() => {
+    let cancelled = false;
+    const searchQuery = query.trim();
+
+    queueMicrotask(() => {
+      if (!searchQuery) {
+        if (!cancelled) {
+          setMetadataSearching(false);
+        }
+        return;
+      }
+
+      if (cancelled) return;
+      setMetadataSearching(true);
+      void searchPageMetadata(searchQuery, 8)
+        .then((results) => {
+          if (!cancelled) setMetadataResults(results);
+        })
+        .catch(() => {
+          if (!cancelled) setMetadataResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setMetadataSearching(false);
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [query]);
 
   const suggestions = normalizedQuery
-    ? pages
+    ? suggestionPages
       .filter((page) => !selectedIds.includes(page.id))
       .filter((page) =>
+        metadataResultIds.has(page.id) ||
         `${page.title} ${page.content_text ?? ""}`
           .toLowerCase()
           .includes(normalizedQuery)
@@ -121,7 +164,7 @@ export default function RelationFieldEditor({
               ))
             ) : (
               <div className="px-2 py-1.5 text-xs text-zinc-400">
-                没有匹配页面
+                {metadataSearching ? "搜索中..." : "没有匹配页面"}
               </div>
             )}
           </div>
@@ -129,4 +172,12 @@ export default function RelationFieldEditor({
       </div>
     </div>
   );
+}
+
+function mergeRelationPageSuggestions(pages: Page[]) {
+  const byId = new Map<string, Page>();
+  for (const page of pages) {
+    if (!byId.has(page.id)) byId.set(page.id, page);
+  }
+  return Array.from(byId.values());
 }

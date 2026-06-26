@@ -4,11 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
+import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
-import {
-  countActiveDatabases,
-  countActivePages,
-} from "@/lib/db/local/queries";
+import { countActivePages } from "@/lib/db/local/queries";
 import { subscribeDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
 import {
   MODULE_EXTENSION_SLOTS,
@@ -65,8 +63,8 @@ export default function ModuleDashboard() {
   const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
+  const { databases, refresh: refreshDatabases } = useDatabases();
   const [pageCount, setPageCount] = useState(0);
-  const [databaseCount, setDatabaseCount] = useState(0);
   const [exportingManifest, setExportingManifest] = useState(false);
   const [exportingOnboarding, setExportingOnboarding] = useState(false);
   const [exportingStarterPack, setExportingStarterPack] = useState(false);
@@ -76,6 +74,7 @@ export default function ModuleDashboard() {
   const activeModules = useMemo(() => getModulesByStatus("active"), []);
   const betaModules = useMemo(() => getModulesByStatus("beta"), []);
   const plannedModules = useMemo(() => getModulesByStatus("planned"), []);
+  const databaseCount = databases.length;
   const moduleManifest = useMemo(() => buildModuleManifestReport(), []);
   const moduleOnboarding = useMemo(() => buildModuleOnboardingContract(), []);
   const moduleStarterPack = useMemo(() => buildModuleStarterPackContract(), []);
@@ -104,13 +103,12 @@ export default function ModuleDashboard() {
 
   const refreshWorkspaceCounts = useCallback(async () => {
     if (!dbReady) return;
-    const [nextPageCount, nextDatabaseCount] = await Promise.all([
+    const [nextPageCount] = await Promise.all([
       countActivePages(),
-      countActiveDatabases(),
+      refreshDatabases({ broadcast: false }),
     ]);
     setPageCount(nextPageCount);
-    setDatabaseCount(nextDatabaseCount);
-  }, [dbReady]);
+  }, [dbReady, refreshDatabases]);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -147,7 +145,7 @@ export default function ModuleDashboard() {
 
   const handleNewDatabase = async () => {
     const database = await createDatabase({ title: "未命名投研数据库" });
-    setDatabaseCount((count) => count + 1);
+    void refreshDatabases();
     router.push(`/database/${database.id}`);
   };
 
@@ -156,7 +154,7 @@ export default function ModuleDashboard() {
     if (!starter) return;
     const result = await executeModuleStarter(starter);
     if (result.database) {
-      setDatabaseCount((count) => count + 1);
+      void refreshDatabases();
     }
     if (result.page) {
       upsertPages([result.page]);

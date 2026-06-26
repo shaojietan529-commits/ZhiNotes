@@ -6,13 +6,14 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
-import { usePages } from "@/hooks/usePages";
 import {
   getDatabase,
   getFields,
+  getPageMetadata,
   getRows,
   getViews,
 } from "@/lib/db/local/queries";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   addField,
   addRow,
@@ -54,7 +55,10 @@ import {
   getDatabaseFieldDescription,
   isSelectLikeFieldType,
 } from "@/lib/database/fields";
-import { stringifyRelationValue } from "@/lib/database/relationValues";
+import {
+  normalizeRelationValue,
+  stringifyRelationValue,
+} from "@/lib/database/relationValues";
 import { formatDatabaseNumberValue } from "@/lib/database/numberValues";
 import { evaluateDatabaseFormula } from "@/lib/database/formula";
 import { evaluateDatabaseRollup } from "@/lib/database/rollup";
@@ -122,7 +126,6 @@ interface InlineDatabaseViewConfig {
 function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { pages: workspacePages } = usePages();
   const databaseId: string = node.attrs.databaseId;
 
   const [database, setDatabase] = useState<Database | null>(null);
@@ -132,12 +135,13 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadedRelationPages, setLoadedRelationPages] = useState<Page[]>([]);
 
   const reload = useCallback(async () => {
     const [db, f, r, v] = await Promise.all([
       getDatabase(databaseId),
       getFields(databaseId),
-      getRows(databaseId),
+      getRows(databaseId, { includePageContent: false }),
       getViews(databaseId),
     ]);
     setDatabase(db);
@@ -348,11 +352,13 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
   const handleOpenPage = useCallback(
     (pageId: string) => {
       openPage(
-        workspacePages.find((page) => page.id === pageId) ?? pageId,
+        loadedRelationPages.find((page) => page.id === pageId) ??
+          rows.find((row) => row.page_id === pageId)?.page ??
+          pageId,
         { source: "inline-database-open" }
       );
     },
-    [openPage, workspacePages]
+    [loadedRelationPages, openPage, rows]
   );
 
   const activeView = views.find((v) => v.id === activeViewId) || views[0];
@@ -364,12 +370,49 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
     () => getInlineVisibleFields(fields, activeViewConfig.hiddenFieldIds),
     [fields, activeViewConfig.hiddenFieldIds]
   );
+  const inlineRelationPageIds = useMemo(
+    () => collectInlineRelationPageIds(rows, fields),
+    [rows, fields]
+  );
+  const inlineRelationPageIdKey = useMemo(
+    () => inlineRelationPageIds.join("|"),
+    [inlineRelationPageIds]
+  );
+  useEffect(() => {
+    let cancelled = false;
+    const pageIds = inlineRelationPageIdKey
+      ? inlineRelationPageIdKey.split("|")
+      : [];
+
+    queueMicrotask(() => {
+      if (pageIds.length === 0) {
+        if (!cancelled) setLoadedRelationPages([]);
+        return;
+      }
+
+      void loadInlineRelationPages(pageIds).then((pages) => {
+        if (!cancelled) setLoadedRelationPages(pages);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inlineRelationPageIdKey]);
+  const relationPages = useMemo(
+    () =>
+      mergeInlinePageSnapshots([
+        ...rows.map((row) => row.page),
+        ...loadedRelationPages,
+      ]),
+    [loadedRelationPages, rows]
+  );
   const visibleRows = useMemo(
     () =>
       getInlineVisibleRows({
         rows,
         fields,
-        relationPages: workspacePages,
+        relationPages,
         search: activeViewConfig.rowSearch,
         filterRules: activeViewConfig.filterRules,
         filterMatchMode: activeViewConfig.filterMatchMode,
@@ -378,7 +421,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
     [
       rows,
       fields,
-      workspacePages,
+      relationPages,
       activeViewConfig.rowSearch,
       activeViewConfig.filterRules,
       activeViewConfig.filterMatchMode,
@@ -396,10 +439,10 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
             rows: visibleRows,
             fields,
             field: groupField,
-            relationPages: workspacePages,
+            relationPages,
           })
         : [],
-    [fields, groupField, visibleRows, workspacePages]
+    [fields, groupField, visibleRows, relationPages]
   );
   const usesGroupedRows =
     groupField !== null &&
@@ -438,7 +481,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
     canMoveRows: isDefaultInlineSortRules(activeViewConfig.sortRules),
     onOpenRow: handleOpenRow,
     onOpenPage: handleOpenPage,
-    relationPages: workspacePages,
+    relationPages,
     groupFieldId: activeViewConfig.groupFieldId,
     dateFieldId: activeViewConfig.dateFieldId,
   };
@@ -629,14 +672,14 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
                   fields={fields}
                   rows={visibleRows}
                   chartGroupFieldId={activeViewConfig.chartGroupFieldId}
-                  relationPages={workspacePages}
+                  relationPages={relationPages}
                   onOpenRow={handleOpenRow}
                 />
               )}
               {activeView?.view_type === "form" && (
                 <FormView
                   fields={visibleFields}
-                  relationPages={workspacePages}
+                  relationPages={relationPages}
                   onOpenPage={handleOpenPage}
                   onCreateRow={handleCreateRow}
                 />
@@ -656,6 +699,62 @@ function parseFieldValues(fieldValues: string) {
   } catch {
     return {};
   }
+}
+
+function collectInlineRelationPageIds(
+  rows: RowWithPage[],
+  fields: DatabaseField[]
+) {
+  const relationFieldIds = new Set(
+    fields
+      .filter((field) => field.field_type === "relation")
+      .map((field) => field.id)
+  );
+  const pageIds = new Set<string>();
+
+  for (const row of rows) {
+    if (row.page_id) pageIds.add(row.page_id);
+    if (row.page?.id) pageIds.add(row.page.id);
+
+    const values = parseFieldValues(row.field_values);
+    for (const fieldId of relationFieldIds) {
+      for (const relationPageId of normalizeRelationValue(values[fieldId])) {
+        pageIds.add(relationPageId);
+      }
+    }
+  }
+
+  return Array.from(pageIds).sort();
+}
+
+async function loadInlineRelationPages(pageIds: string[]) {
+  const cachedPages = useWorkspaceStore.getState().pages;
+  const pagesById = new Map(cachedPages.map((page) => [page.id, page]));
+  const missingPageIds = pageIds.filter((pageId) => !pagesById.has(pageId));
+  const loadedPages = await Promise.all(
+    missingPageIds.map(async (pageId) => {
+      try {
+        return await getPageMetadata(pageId);
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return mergeInlinePageSnapshots([
+    ...pageIds.map((pageId) => pagesById.get(pageId) ?? null),
+    ...loadedPages,
+  ]);
+}
+
+function mergeInlinePageSnapshots(pages: Array<Page | null | undefined>) {
+  const byId = new Map<string, Page>();
+  for (const page of pages) {
+    if (page?.id && !byId.has(page.id)) {
+      byId.set(page.id, page);
+    }
+  }
+  return Array.from(byId.values());
 }
 
 function parseInlineDatabaseViewConfig(config: string): InlineDatabaseViewConfig {

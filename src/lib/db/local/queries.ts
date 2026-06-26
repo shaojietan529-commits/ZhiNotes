@@ -2448,6 +2448,47 @@ export async function searchPages(query: string): Promise<Page[]> {
     .map((result) => result.page);
 }
 
+export async function searchPageMetadata(
+  query: string,
+  limit = 20
+): Promise<Page[]> {
+  const db = await getDb();
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return [];
+
+  const tokens = getSearchTokens(normalizedQuery);
+  const searchTokens = tokens.length > 0 ? tokens : [normalizedQuery];
+  const where = searchTokens
+    .map(() => "(title LIKE ? OR properties LIKE ?)")
+    .join(" OR ");
+  const binds = searchTokens.flatMap((token) => [`%${token}%`, `%${token}%`]);
+  const candidateLimit = Math.max(limit * 4, limit);
+  const pages = db.query(
+    `SELECT ${PAGE_METADATA_SELECT}
+     FROM pages
+     WHERE deleted_at IS NULL AND (${where})
+     ORDER BY updated_at DESC
+     LIMIT ?`,
+    [...binds, candidateLimit]
+  ) as unknown as Page[];
+
+  return pages
+    .map((page) => ({
+      page,
+      score: scorePageMetadataSearch(page, normalizedQuery, tokens),
+    }))
+    .filter((result) => Number.isFinite(result.score))
+    .sort((a, b) => {
+      if (a.score !== b.score) return a.score - b.score;
+      return (
+        new Date(b.page.updated_at).getTime() -
+        new Date(a.page.updated_at).getTime()
+      );
+    })
+    .slice(0, limit)
+    .map((result) => result.page);
+}
+
 function scorePageSearch(page: Page, query: string, tokens: string[]) {
   const title = normalizeSearchText(page.title || "未命名页面");
   const content = normalizeSearchText(stripSearchHtml(page.content_text ?? ""));
@@ -2461,6 +2502,24 @@ function scorePageSearch(page: Page, query: string, tokens: string[]) {
   if (content.includes(query)) return 50 + content.indexOf(query) / 10000;
   if (tokens.every((token) => content.includes(token))) {
     return 70 + getTokenSpreadScore(content, tokens) / 10;
+  }
+
+  return Number.POSITIVE_INFINITY;
+}
+
+function scorePageMetadataSearch(page: Page, query: string, tokens: string[]) {
+  const title = normalizeSearchText(page.title || "未命名页面");
+  const properties = normalizeSearchText(page.properties ?? "");
+
+  if (title === query) return 0;
+  if (title.startsWith(query)) return 10 + title.length / 1000;
+  if (title.includes(query)) return 20 + title.indexOf(query) / 1000;
+  if (tokens.every((token) => title.includes(token))) {
+    return 30 + getTokenSpreadScore(title, tokens);
+  }
+  if (properties.includes(query)) return 60 + properties.indexOf(query) / 10000;
+  if (tokens.every((token) => properties.includes(token))) {
+    return 80 + getTokenSpreadScore(properties, tokens) / 10;
   }
 
   return Number.POSITIVE_INFINITY;

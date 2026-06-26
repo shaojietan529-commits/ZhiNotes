@@ -4303,6 +4303,31 @@ function run() {
     'from "@/hooks/usePages"',
     "Breadcrumb editor block must not import usePages for global metadata scans."
   );
+  for (const snippet of [
+    "collectInlineRelationPageIds",
+    "loadInlineRelationPages",
+    "getPageMetadata(pageId)",
+    "getRows(databaseId, { includePageContent: false })",
+  ]) {
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline database block must resolve only referenced relation pages through bounded metadata reads."
+    );
+  }
+  assertExcludes(
+    files.inlineDatabaseNode,
+    inlineDatabaseNode,
+    'from "@/hooks/usePages"',
+    "Inline database block must not import usePages for global metadata scans."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "export async function searchPageMetadata",
+    "Relation field search must use a bounded metadata query for local-first UX."
+  );
   for (const [sourceLabel, source, requiredSources] of [
     [files.inlineDatabaseNode, inlineDatabaseNode, ['source: "inline-database-open"']],
     [files.compareShell, compareShell, ['source: "compare-return"']],

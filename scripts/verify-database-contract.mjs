@@ -1799,6 +1799,38 @@ function run() {
     "Inline database UI must append local template-row write receipts."
   );
   for (const snippet of [
+    "collectInlineRelationPageIds",
+    "loadInlineRelationPages",
+    "getPageMetadata(pageId)",
+    "normalizeRelationValue(values[fieldId])",
+    "getRows(databaseId, { includePageContent: false })",
+  ]) {
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline databases must resolve relation pages through targeted metadata reads instead of a global page load."
+    );
+  }
+  assertNotIncludes(
+    files.inlineDatabaseNode,
+    inlineDatabaseNode,
+    'from "@/hooks/usePages"',
+    "Inline databases must not import usePages because page editors should not trigger a global page metadata scan."
+  );
+  assertIncludes(
+    files.queries,
+    queries,
+    "export async function searchPageMetadata",
+    "Relation editors must have a bounded metadata search path that does not hydrate full page bodies."
+  );
+  assertIncludes(
+    files.relationEditor,
+    relationEditor,
+    "searchPageMetadata(searchQuery, 8)",
+    "Relation editors must search page metadata lazily instead of relying on a global page list."
+  );
+  for (const snippet of [
     "parseInlineDatabaseViewConfig",
     "getInlineVisibleRows",
     "getInlineVisibleFields",
