@@ -588,6 +588,9 @@ check(
       dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
     dailyNotesShell.includes("const pageRoute = `/page/${optimisticNote.id}`") &&
     dailyNotesShell.includes("router.prefetch(pageRoute)") &&
+    dailyNotesShell.includes("setOpeningDraft({ pageId: optimisticNote.id, dateKey })") &&
+    dailyNotesShell.includes("data-testid={`daily-opening-note-${key}`}") &&
+    dailyNotesShell.includes("title: dateKey") &&
     dailyNotesShell.includes("<PagePeekModal") &&
     dailyNotesShell.includes("initialPage={peekInitialPage}") &&
     dailyNotesShell.includes("openDailyNoteFullPageById") &&
@@ -914,6 +917,8 @@ check(
 check(
   pageShell.includes("scheduleEditorMount") &&
     pageShell.includes("scheduleDeferredMount") &&
+    pageShell.includes("return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);") &&
+    pageShell.includes("requestIdleCallback(callback, { timeout: 300 })") &&
     pageShell.includes("if (loading && !page)") &&
     pageShell.includes("editorMounted ?") &&
     pageShell.includes("PageBodySkeleton"),

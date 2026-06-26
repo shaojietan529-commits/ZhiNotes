@@ -72,6 +72,11 @@ type DailyNote = Page & {
   hotCacheOnly?: boolean;
 };
 
+type OpeningDailyDraft = {
+  pageId: string;
+  dateKey: string;
+};
+
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 const MONTH_LABELS = [
   "1 月", "2 月", "3 月", "4 月", "5 月", "6 月",
@@ -96,6 +101,9 @@ export default function DailyNotesShell() {
   const [cloudNotice, setCloudNotice] = useState<string | null>(null);
   const [cloudLoading, setCloudLoading] = useState(false);
   const [creatingDateKey, setCreatingDateKey] = useState<string | null>(null);
+  const [openingDraft, setOpeningDraft] = useState<OpeningDailyDraft | null>(
+    null
+  );
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
     x: number;
@@ -510,7 +518,7 @@ export default function DailyNotesShell() {
         ...makeRemoteBackedPage({
           id: generateId(),
           parentId: initialRootId,
-          title: "",
+          title: dateKey,
           icon: null,
           properties,
           contentText: "",
@@ -523,6 +531,7 @@ export default function DailyNotesShell() {
         dailyDateKey: dateKey,
         cloudOnly: true,
       };
+      setOpeningDraft({ pageId: optimisticNote.id, dateKey });
       rememberPendingPageDraft(optimisticNote);
       rememberPageRouteHandoff(optimisticNote, "daily-create");
       setNotes((current) => [
@@ -587,6 +596,9 @@ export default function DailyNotesShell() {
             error instanceof Error ? error.message : "账号云端保存失败";
           setCloudNotice(`每日纪要已在当前页面打开，但后台保存失败：${message}`);
         } finally {
+          setOpeningDraft((current) =>
+            current?.pageId === optimisticNote.id ? null : current
+          );
           setCreatingDateKey((current) => (current === dateKey ? null : current));
         }
       })();
@@ -848,6 +860,7 @@ export default function DailyNotesShell() {
               );
               const isToday = key === todayKey;
               const isDropTarget = draggedNoteId !== null && dragOverDateKey === key;
+              const isOpeningDraft = openingDraft?.dateKey === key;
               return (
                 <div
                   key={key}
@@ -897,7 +910,7 @@ export default function DailyNotesShell() {
                       className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                       title="在这天新增纪要"
                     >
-                      {creatingDateKey === key ? "…" : "+"}
+                      {creatingDateKey === key || isOpeningDraft ? "…" : "+"}
                     </button>
                     <span
                       className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-sm ${
@@ -912,6 +925,24 @@ export default function DailyNotesShell() {
                     </span>
                   </div>
                   <div className="mt-1 flex flex-col gap-1 overflow-visible">
+                    {isOpeningDraft && (
+                      <button
+                        type="button"
+                        data-testid={`daily-opening-note-${key}`}
+                        onClick={() => {
+                          if (openingDraft) {
+                            router.push(`/page/${openingDraft.pageId}`);
+                          }
+                        }}
+                        className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-left text-xs leading-4 text-amber-700 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
+                        title={`${key} 的新纪要正在打开`}
+                      >
+                        <span className="shrink-0">↗</span>
+                        <span className="min-w-0 flex-1 truncate">
+                          正在打开新纪要…
+                        </span>
+                      </button>
+                    )}
                     {visibleNotes.map((note) => (
                       <button
                         key={note.id}

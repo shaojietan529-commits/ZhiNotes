@@ -209,8 +209,8 @@ function PageContent({ pageId }: { pageId: string }) {
   useEffect(() => {
     setEditorMounted(false);
     if (!hasPage) return;
-    void loadEditorModule();
     return scheduleEditorMount(() => {
+      void loadEditorModule();
       setEditorMounted(true);
     });
   }, [pageId, hasPage]);
@@ -1013,12 +1013,25 @@ function PageSyncStatusBadge({
 
 function scheduleEditorMount(callback: () => void): () => void {
   if (typeof window === "undefined") return () => undefined;
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
   let timer: number | null = null;
+  let idleId: number | null = null;
   const frame = window.requestAnimationFrame(() => {
-    timer = window.setTimeout(callback, 0);
+    if (maybeWindow.requestIdleCallback) {
+      idleId = maybeWindow.requestIdleCallback(callback, { timeout: 300 });
+      return;
+    }
+    timer = window.setTimeout(callback, 60);
   });
   return () => {
     window.cancelAnimationFrame(frame);
+    if (idleId !== null) maybeWindow.cancelIdleCallback?.(idleId);
     if (timer !== null) window.clearTimeout(timer);
   };
 }

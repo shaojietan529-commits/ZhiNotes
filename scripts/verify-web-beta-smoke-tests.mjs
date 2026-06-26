@@ -2153,8 +2153,14 @@ function run() {
   assertIncludes(
     files.pageShell,
     pageShell,
-    "void loadEditorModule();",
-    "Page shell must start warming the editor module after page metadata is visible."
+    "return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);",
+    "Page shell must defer warming the editor module until after page metadata is visible."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "requestIdleCallback(callback, { timeout: 300 })",
+    "Page shell editor warmup must use an idle callback so it does not compete with the route first paint."
   );
   assertIncludes(
     files.accountPageSync,
@@ -2257,6 +2263,12 @@ function run() {
     dailyNotesShell,
     "data-testid={`daily-add-note-${key}`}",
     "Daily calendar + button must expose a stable test target."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "data-testid={`daily-opening-note-${key}`}",
+    "Daily calendar must show an immediate opening chip after + is clicked."
   );
   assertIncludes(
     files.meetingScheduleShell,

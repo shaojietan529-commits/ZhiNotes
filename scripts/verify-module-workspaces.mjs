@@ -210,11 +210,10 @@ check(
     pageShell.includes("const Editor = dynamic(loadEditorModule") &&
     pageShell.includes("loading: () => <PageBodySkeleton />") &&
     !pageShell.includes("import Editor from \"@/components/editor/Editor\"") &&
-    pageShell.includes("void loadEditorModule();") &&
-    pageShell.indexOf("void loadEditorModule();") <
-      pageShell.indexOf("return scheduleEditorMount") &&
+    pageShell.includes("return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);") &&
+    pageShell.includes("requestIdleCallback(callback, { timeout: 300 })") &&
     pageShell.includes("usePages({ autoLoad: false })"),
-  "PageShell 必须动态加载并在页面首屏后预热编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
+  "PageShell 必须动态加载并在页面首屏后空闲预热编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
 );
 check(
   accountPageSync.includes('export const PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status"') &&
@@ -303,6 +302,10 @@ for (const token of [
   "const pageRoute = `/page/${optimisticNote.id}`",
   "warmPageRoute();",
   "router.prefetch(pageRoute)",
+  "type OpeningDailyDraft",
+  "setOpeningDraft({ pageId: optimisticNote.id, dateKey })",
+  "title: dateKey",
+  "data-testid={`daily-opening-note-${key}`}",
   "onPointerEnter={warmPageRoute}",
   "onFocus={warmPageRoute}",
   'import("@/components/providers/PageShell")',
