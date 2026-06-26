@@ -4054,6 +4054,14 @@ function run() {
       "Sync UI must clarify that reading queue details does not trigger upload.",
     ],
     [
+      "PAGE_SYNC_STATUS_EVENT",
+      "Sync UI must subscribe to page pending queue status events.",
+    ],
+    [
+      "refreshPagePendingStatus",
+      "Sync UI must refresh page pending queue details while the sync center stays open.",
+    ],
+    [
       "数据库 pending 上传队列",
       "Sync UI must render database pending upload queue status.",
     ],

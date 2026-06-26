@@ -3291,6 +3291,18 @@ function run() {
     "Sync UI must clarify that reading queue details does not trigger upload."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    "PAGE_SYNC_STATUS_EVENT",
+    "Sync UI must listen to page pending queue status changes while open."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "refreshPagePendingStatus",
+    "Sync UI must refresh page pending queue details without requiring navigation."
+  );
+  assertIncludes(
     files.accountDatabaseSync,
     accountDatabaseSync,
     "export async function getPendingCloudDatabaseSyncStatus",

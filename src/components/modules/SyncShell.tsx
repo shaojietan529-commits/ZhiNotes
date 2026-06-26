@@ -65,6 +65,8 @@ import {
   getCloudMeetingManifestSummary,
   getCloudPageManifestSummary,
   getPendingCloudPageSyncStatus,
+  PAGE_SYNC_CONFIG_EVENT,
+  PAGE_SYNC_STATUS_EVENT,
   fetchDailyCloudMetadata,
   fetchMeetingCloudMetadata,
   isPageSyncEnabled,
@@ -1484,6 +1486,32 @@ function SyncDashboard() {
 
     return () => {
       mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshPagePendingStatus = (event?: Event) => {
+      const next = (event as CustomEvent<PendingCloudPageSyncStatus> | undefined)
+        ?.detail;
+      setPagePendingStatus(next ?? getPendingCloudPageSyncStatus());
+    };
+
+    refreshPagePendingStatus();
+    window.addEventListener(PAGE_SYNC_STATUS_EVENT, refreshPagePendingStatus);
+    window.addEventListener(PAGE_SYNC_CONFIG_EVENT, refreshPagePendingStatus);
+    window.addEventListener("storage", refreshPagePendingStatus);
+    const timer = window.setInterval(refreshPagePendingStatus, 5000);
+    return () => {
+      window.removeEventListener(
+        PAGE_SYNC_STATUS_EVENT,
+        refreshPagePendingStatus
+      );
+      window.removeEventListener(
+        PAGE_SYNC_CONFIG_EVENT,
+        refreshPagePendingStatus
+      );
+      window.removeEventListener("storage", refreshPagePendingStatus);
+      window.clearInterval(timer);
     };
   }, []);
 
