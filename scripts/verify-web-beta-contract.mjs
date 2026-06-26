@@ -2642,6 +2642,24 @@ function run() {
       "Account/module settings pending sync must forbid local cache dump uploads.",
     ],
     [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "ACCOUNT_MODULE_SETTINGS_FORBIDDEN_FIELDS",
+      "Account/module settings cloud payloads must reject forbidden private fields.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      'format: "zhinote-account-module-settings-cloud-receipt"',
+      "Account/module settings cloud writes must produce a stable receipt.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      'format: "zhinote-account-module-settings-cloud-read-summary"',
+      "Account/module settings cloud reads must expose a stable metadata summary.",
+    ],
+    [
       files.syncShell,
       syncShell,
       "AccountModuleSettingsPendingPanel",
@@ -3338,6 +3356,30 @@ function run() {
       "Workspace settings route must advertise meeting deletion tombstones as a supported setting.",
     ],
     [
+      "validateAccountModuleSettingCloudPayload",
+      "Workspace settings route must validate account/module settings payloads before writing.",
+    ],
+    [
+      "buildAccountModuleSettingCloudValue",
+      "Workspace settings route must write account/module settings metadata to cloud settings.",
+    ],
+    [
+      "parseAccountModuleSettingsCloudValues",
+      "Workspace settings route must parse account/module settings cloud values on reads.",
+    ],
+    [
+      "account_module_settings",
+      "Workspace settings route must return account/module settings metadata on reads.",
+    ],
+    [
+      "ACCOUNT_DISPLAY_NAME_SETTING_KEY",
+      "Workspace settings route must advertise account display names as a supported setting.",
+    ],
+    [
+      "MODULE_PINNED_ITEMS_SETTING_KEY",
+      "Workspace settings route must advertise module pinned items as a supported setting.",
+    ],
+    [
       "workspace-settings-readonly-role",
       "Workspace settings route must reject viewer writes.",
     ],
@@ -3413,6 +3455,26 @@ function run() {
     [
       'setBusyCloudAction("workspace-settings")',
       "Sync UI must expose workspace settings upload as its own busy state.",
+    ],
+    [
+      "handleAccountModuleSettingsCloudSync",
+      "Sync UI must expose an explicit account/module settings cloud sync action.",
+    ],
+    [
+      'setBusyCloudAction("account-module-settings")',
+      "Sync UI must expose account/module settings upload as its own busy state.",
+    ],
+    [
+      "markAccountSettingSyncLogEntriesSynced",
+      "Sync UI must acknowledge only successfully uploaded account settings.",
+    ],
+    [
+      "markModuleSettingSyncLogEntriesSynced",
+      "Sync UI must acknowledge only successfully uploaded module settings.",
+    ],
+    [
+      "同步账号/模块设置",
+      "Sync UI must render the account/module settings cloud sync button.",
     ],
     [
       "从云端恢复偏好",

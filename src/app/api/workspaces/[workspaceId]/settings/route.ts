@@ -81,6 +81,20 @@ import {
   parseMeetingDeletionTombstonesWorkspaceSettingsCloudValue,
   validateMeetingDeletionTombstonesWorkspaceSettingsCloudPayload,
 } from "@/lib/sync/meetingDeletionTombstonesWorkspaceSettings";
+import {
+  ACCOUNT_DISPLAY_NAME_SETTING_KEY,
+  ACCOUNT_SETTINGS_CLOUD_FIELD,
+  ACCOUNT_UI_PREFERENCES_SETTING_KEY,
+  MODULE_DASHBOARD_LAYOUT_SETTING_KEY,
+  MODULE_PINNED_ITEMS_SETTING_KEY,
+  MODULE_SETTINGS_CLOUD_FIELD,
+  buildAccountModuleSettingCloudValue,
+  buildAccountModuleSettingsCloudReceipt,
+  isSupportedAccountSettingSyncKey,
+  isSupportedModuleSettingSyncKey,
+  parseAccountModuleSettingsCloudValues,
+  validateAccountModuleSettingCloudPayload,
+} from "@/lib/sync/accountModuleSettingsPendingSync";
 
 export const dynamic = "force-dynamic";
 
@@ -175,6 +189,9 @@ export async function GET(
       parseMeetingDeletionTombstonesWorkspaceSettingsCloudValue(
         isPlainObject(workspace.settings) ? workspace.settings : null
       );
+    const accountModuleSettings = parseAccountModuleSettingsCloudValues(
+      isPlainObject(workspace.settings) ? workspace.settings : null
+    );
 
     return NextResponse.json(
       {
@@ -194,6 +211,10 @@ export async function GET(
           CALENDAR_VIEW_STATE_SETTING_KEY,
           MEETING_REVIEW_STATE_SETTING_KEY,
           MEETING_DELETION_TOMBSTONES_SETTING_KEY,
+          ACCOUNT_DISPLAY_NAME_SETTING_KEY,
+          ACCOUNT_UI_PREFERENCES_SETTING_KEY,
+          MODULE_PINNED_ITEMS_SETTING_KEY,
+          MODULE_DASHBOARD_LAYOUT_SETTING_KEY,
         ],
         sidebar_settings: sidebarSettings,
         page_favorites: pageFavorites,
@@ -202,6 +223,7 @@ export async function GET(
         calendar_view_state: calendarViewState,
         meeting_review_state: meetingReviewState,
         meeting_deletion_tombstones: meetingDeletionTombstones,
+        account_module_settings: accountModuleSettings,
       }
     );
   } catch (error) {
@@ -257,10 +279,14 @@ export async function PATCH(
                     ? validateMeetingDeletionTombstonesWorkspaceSettingsCloudPayload(
                         body.value
                       )
+                    : typeof settingKey === "string" &&
+                        (isSupportedAccountSettingSyncKey(settingKey) ||
+                          isSupportedModuleSettingSyncKey(settingKey))
+                      ? validateAccountModuleSettingCloudPayload(body.value)
                     : {
                         ok: false as const,
                         message:
-                          "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1、page.viewPreferences.v1、quick_search.savedSearches.v1、calendar.viewState.v1、meeting.reviewState.v1 或 meeting.deletionTombstones.v1。",
+                          "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1、page.viewPreferences.v1、quick_search.savedSearches.v1、calendar.viewState.v1、meeting.reviewState.v1、meeting.deletionTombstones.v1、account_profile.display_name.v1、account_preferences.ui.v1、module_settings.pinned_items.v1 或 module_settings.dashboard_layout.v1。",
                       };
   if (!validatedPayload.ok) {
     return badRequestResponse(validatedPayload.message);
@@ -314,7 +340,51 @@ export async function PATCH(
       ...(isPlainObject(workspace.settings) ? workspace.settings : {}),
     };
 
-    if (
+    if ("table_name" in validatedPayload.payload) {
+      if (validatedPayload.payload.table_name === "account_settings") {
+        const existingAccountSettingsValue =
+          nextSettings[ACCOUNT_SETTINGS_CLOUD_FIELD];
+        const existingAccountSettings: Record<string, unknown> = isPlainObject(
+          existingAccountSettingsValue
+        )
+          ? existingAccountSettingsValue
+          : {};
+        nextSettings[ACCOUNT_SETTINGS_CLOUD_FIELD] = {
+          ...existingAccountSettings,
+          [validatedPayload.payload.setting_key]:
+            buildAccountModuleSettingCloudValue(
+              validatedPayload.payload,
+              savedAt
+            ),
+        };
+      } else {
+        const existingModuleSettingsValue =
+          nextSettings[MODULE_SETTINGS_CLOUD_FIELD];
+        const existingModuleSettings: Record<string, unknown> = isPlainObject(
+          existingModuleSettingsValue
+        )
+          ? existingModuleSettingsValue
+          : {};
+        const existingModuleBucketValue =
+          existingModuleSettings[validatedPayload.payload.module_id];
+        const existingModuleBucket: Record<string, unknown> = isPlainObject(
+          existingModuleBucketValue
+        )
+          ? existingModuleBucketValue
+          : {};
+        nextSettings[MODULE_SETTINGS_CLOUD_FIELD] = {
+          ...existingModuleSettings,
+          [validatedPayload.payload.module_id]: {
+            ...existingModuleBucket,
+            [validatedPayload.payload.setting_key]:
+              buildAccountModuleSettingCloudValue(
+                validatedPayload.payload,
+                savedAt
+              ),
+          },
+        };
+      }
+    } else if (
       validatedPayload.payload.setting_key === HOT_CACHE_PREFERENCES_SETTING_KEY
     ) {
       nextSettings.hot_cache_preferences = buildHotCacheSettingsCloudValue(
@@ -395,6 +465,17 @@ export async function PATCH(
       },
       accessToken
     );
+
+    if ("table_name" in validatedPayload.payload) {
+      return NextResponse.json(
+        buildAccountModuleSettingsCloudReceipt({
+          workspaceId,
+          role: membership.role,
+          savedAt,
+          payload: validatedPayload.payload,
+        })
+      );
+    }
 
     if (
       validatedPayload.payload.setting_key === HOT_CACHE_PREFERENCES_SETTING_KEY

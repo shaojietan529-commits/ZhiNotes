@@ -1848,6 +1848,24 @@ function run() {
       "Smoke verifier must keep account/module settings uploads pending-only.",
     ],
     [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "ACCOUNT_MODULE_SETTINGS_FORBIDDEN_FIELDS",
+      "Smoke verifier must keep forbidden-field validation for account/module settings.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      'format: "zhinote-account-module-settings-cloud-receipt"',
+      "Smoke verifier must keep account/module settings cloud write receipts.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "parseAccountModuleSettingsCloudValues",
+      "Smoke verifier must keep account/module settings cloud read summaries.",
+    ],
+    [
       files.syncShell,
       syncShell,
       "AccountModuleSettingsPendingPanel",
@@ -2317,6 +2335,42 @@ function run() {
     workspaceSettingsRoute,
     "meeting_deletion_tombstones",
     "Smoke verifier must keep workspace settings API returning meeting deletion tombstone metadata."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "validateAccountModuleSettingCloudPayload",
+    "Smoke verifier must keep workspace settings API accepting account/module settings."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "account_module_settings",
+    "Smoke verifier must keep workspace settings API returning account/module settings metadata."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handleAccountModuleSettingsCloudSync",
+    "Smoke verifier must keep account/module settings cloud sync action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "markAccountSettingSyncLogEntriesSynced",
+    "Smoke verifier must acknowledge account setting pending rows after cloud success."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "markModuleSettingSyncLogEntriesSynced",
+    "Smoke verifier must acknowledge module setting pending rows after cloud success."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "同步账号/模块设置",
+    "Smoke verifier must render the account/module settings cloud sync button."
   );
   assertIncludes(
     files.workspaceSettingsRoute,

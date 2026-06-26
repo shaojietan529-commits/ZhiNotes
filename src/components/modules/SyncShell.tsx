@@ -26,8 +26,15 @@ import {
   getPendingSyncLogEntries,
   getSyncLogSummary,
   getWorkspaceSetting,
+  markAccountSettingSyncLogEntriesAttempted,
+  markAccountSettingSyncLogEntriesFailed,
+  markAccountSettingSyncLogEntriesSynced,
+  markModuleSettingSyncLogEntriesAttempted,
+  markModuleSettingSyncLogEntriesFailed,
+  markModuleSettingSyncLogEntriesSynced,
   hasPendingWorkspaceSettingSyncLogEntry,
   listWorkspaceSettings,
+  buildModuleSettingSyncRowId,
   markWorkspaceSettingSyncLogEntriesAttempted,
   markWorkspaceSettingSyncLogEntriesFailed,
   markWorkspaceSettingSyncLogEntriesSynced,
@@ -307,7 +314,9 @@ import {
   type SupportedWorkspaceSettingSyncKey,
 } from "@/lib/sync/workspaceSettingsPendingSync";
 import {
+  buildAccountModuleSettingCloudPayload,
   buildAccountModuleSettingsPendingSyncPlan,
+  type SupportedAccountSettingSyncKey,
   type AccountModuleSettingsPendingSyncPlan,
 } from "@/lib/sync/accountModuleSettingsPendingSync";
 import {
@@ -502,6 +511,7 @@ type CloudAlphaAction =
   | "unlink-workspace"
   | "link-receipt"
   | "workspace-settings"
+  | "account-module-settings"
   | "hot-cache-settings-pull"
   | "clear";
 type WebBetaContractAction =
@@ -839,6 +849,10 @@ function SyncDashboard() {
   const [hotCacheSaveMessage, setHotCacheSaveMessage] = useState<string | null>(
     null
   );
+  const [
+    accountModuleSettingsSyncMessage,
+    setAccountModuleSettingsSyncMessage,
+  ] = useState<string | null>(null);
   const [hotCacheWarmupMessage, setHotCacheWarmupMessage] = useState<
     string | null
   >(null);
@@ -2728,6 +2742,230 @@ function SyncDashboard() {
     }
   };
 
+  const handleAccountModuleSettingsCloudSync = async () => {
+    if (!cloudSession || cloudSessionExpired) {
+      if (cloudSessionExpired) {
+        clearCloudSession();
+        setCloudSession(null);
+      }
+      setAccountModuleSettingsSyncMessage(
+        "需要先完成云端登录，再同步账号/模块设置。"
+      );
+      return;
+    }
+
+    const workspaceId = hotCacheCloudWorkspaceId;
+    if (!workspaceId) {
+      setAccountModuleSettingsSyncMessage("需要先选择并连接云工作区。");
+      return;
+    }
+
+    setBusyCloudAction("account-module-settings");
+    setAccountModuleSettingsSyncMessage(
+      "正在扫描 account_settings / module_settings pending queue..."
+    );
+    try {
+      const [latestAccountSettings, latestModuleSettings, pendingEntries] =
+        await Promise.all([
+          listAccountSettings(),
+          listModuleSettings(),
+          getPendingSyncLogEntries(500),
+        ]);
+      const plan = buildAccountModuleSettingsPendingSyncPlan({
+        pendingEntries,
+        accountSettings: latestAccountSettings,
+        moduleSettings: latestModuleSettings,
+      });
+
+      if (
+        plan.upload_account_keys.length === 0 &&
+        plan.upload_module_rows.length === 0
+      ) {
+        const [nextSyncSummary, nextSyncEntries] = await Promise.all([
+          getSyncLogSummary(),
+          getPendingSyncLogEntries(25),
+        ]);
+        setAccountSettings(latestAccountSettings);
+        setModuleSettings(latestModuleSettings);
+        setSyncSummary(nextSyncSummary);
+        setSyncEntries(nextSyncEntries);
+        setAccountModuleSettingsSyncMessage(
+          plan.summary.pending_rows_seen === 0
+            ? "当前没有待上传的账号/模块设置。"
+            : `当前没有可上传的白名单设置；跳过 ${plan.summary.skipped_pending_rows} 行。`
+        );
+        return;
+      }
+
+      const accountSettingsByKey = new Map(
+        latestAccountSettings.map((setting) => [setting.key, setting])
+      );
+      const moduleSettingsByRowId = new Map(
+        latestModuleSettings.map((setting) => [
+          buildModuleSettingSyncRowId(setting.moduleId, setting.key),
+          setting,
+        ])
+      );
+      const uploadedAccountKeys: SupportedAccountSettingSyncKey[] = [];
+      const uploadedModuleRowIds: string[] = [];
+      const failedAccountKeys: SupportedAccountSettingSyncKey[] = [];
+      const failedModuleRowIds: string[] = [];
+      const failedMessages: string[] = [];
+
+      await Promise.all([
+        markAccountSettingSyncLogEntriesAttempted(plan.upload_account_keys),
+        markModuleSettingSyncLogEntriesAttempted(
+          plan.upload_module_rows.map((row) => row.row_id)
+        ),
+      ]);
+
+      for (const key of plan.upload_account_keys) {
+        const setting = accountSettingsByKey.get(key);
+        if (!setting) continue;
+        const payload = buildAccountModuleSettingCloudPayload(setting);
+        if (!payload) {
+          failedAccountKeys.push(key);
+          failedMessages.push(`${key}: 无法生成云端 payload`);
+          continue;
+        }
+
+        let response: Response;
+        try {
+          response = await fetch(
+            `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
+            {
+              method: "PATCH",
+              headers: {
+                Authorization: `Bearer ${cloudSession.accessToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            }
+          );
+        } catch (error) {
+          failedAccountKeys.push(key);
+          failedMessages.push(
+            `${key}: ${error instanceof Error ? error.message : "网络错误"}`
+          );
+          continue;
+        }
+        const body = await readCloudApiBody(response);
+        if (!response.ok) {
+          failedAccountKeys.push(key);
+          failedMessages.push(
+            `${key}: ${getCloudApiDetail(body, response)}`
+          );
+          continue;
+        }
+        uploadedAccountKeys.push(key);
+      }
+
+      for (const row of plan.upload_module_rows) {
+        const setting = moduleSettingsByRowId.get(row.row_id);
+        if (!setting) continue;
+        const payload = buildAccountModuleSettingCloudPayload(setting);
+        if (!payload) {
+          failedModuleRowIds.push(row.row_id);
+          failedMessages.push(`${row.row_id}: 无法生成云端 payload`);
+          continue;
+        }
+
+        let response: Response;
+        try {
+          response = await fetch(
+            `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
+            {
+              method: "PATCH",
+              headers: {
+                Authorization: `Bearer ${cloudSession.accessToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            }
+          );
+        } catch (error) {
+          failedModuleRowIds.push(row.row_id);
+          failedMessages.push(
+            `${row.row_id}: ${
+              error instanceof Error ? error.message : "网络错误"
+            }`
+          );
+          continue;
+        }
+        const body = await readCloudApiBody(response);
+        if (!response.ok) {
+          failedModuleRowIds.push(row.row_id);
+          failedMessages.push(
+            `${row.row_id}: ${getCloudApiDetail(body, response)}`
+          );
+          continue;
+        }
+        uploadedModuleRowIds.push(row.row_id);
+      }
+
+      const [markedAccount, markedModule] = await Promise.all([
+        uploadedAccountKeys.length > 0
+          ? markAccountSettingSyncLogEntriesSynced(uploadedAccountKeys)
+          : Promise.resolve(0),
+        uploadedModuleRowIds.length > 0
+          ? markModuleSettingSyncLogEntriesSynced(uploadedModuleRowIds)
+          : Promise.resolve(0),
+      ]);
+      await Promise.all([
+        failedAccountKeys.length > 0
+          ? markAccountSettingSyncLogEntriesFailed(
+              failedAccountKeys,
+              failedMessages.join("; ")
+            )
+          : Promise.resolve(0),
+        failedModuleRowIds.length > 0
+          ? markModuleSettingSyncLogEntriesFailed(
+              failedModuleRowIds,
+              failedMessages.join("; ")
+            )
+          : Promise.resolve(0),
+      ]);
+
+      const [
+        refreshedAccountSettings,
+        refreshedModuleSettings,
+        nextSyncSummary,
+        nextSyncEntries,
+      ] = await Promise.all([
+        listAccountSettings(),
+        listModuleSettings(),
+        getSyncLogSummary(),
+        getPendingSyncLogEntries(25),
+      ]);
+      setAccountSettings(refreshedAccountSettings);
+      setModuleSettings(refreshedModuleSettings);
+      setSyncSummary(nextSyncSummary);
+      setSyncEntries(nextSyncEntries);
+      setAccountModuleSettingsSyncMessage(
+        `已上传账号设置 ${uploadedAccountKeys.length}/${plan.upload_account_keys.length} 项、模块设置 ${uploadedModuleRowIds.length}/${plan.upload_module_rows.length} 项，本地 pending 已确认 ${
+          markedAccount + markedModule
+        } 条${
+          plan.summary.skipped_pending_rows > 0
+            ? `；跳过 ${plan.summary.skipped_pending_rows} 行非白名单或无效记录`
+            : ""
+        }${
+          failedMessages.length > 0
+            ? `；失败 ${failedMessages.length} 项仍保留待重试`
+            : ""
+        }。`
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to sync account/module settings:", err);
+      setAccountModuleSettingsSyncMessage(
+        err instanceof Error
+          ? `账号/模块设置云端同步失败：${err.message}`
+          : "账号/模块设置云端同步失败：未知错误。"
+      );
+    } finally {
+      setBusyCloudAction(null);
+    }
+  };
+
   const handleHotCachePreferencesCloudPull = async () => {
     if (!cloudSession || cloudSessionExpired) {
       if (cloudSessionExpired) {
@@ -4259,6 +4497,11 @@ function SyncDashboard() {
 
         <AccountModuleSettingsPendingPanel
           plan={accountModuleSettingsPendingSyncPlan}
+          message={accountModuleSettingsSyncMessage}
+          cloudSyncBusy={busyCloudAction === "account-module-settings"}
+          cloudSyncDisabled={Boolean(hotCacheCloudSyncDisabledReason)}
+          cloudSyncDisabledReason={hotCacheCloudSyncDisabledReason}
+          onSyncCloud={() => void handleAccountModuleSettingsCloudSync()}
         />
 
         <LocalMetadataManifestPanel
@@ -16321,8 +16564,18 @@ function CloudMasterReconcilePanel({
 
 function AccountModuleSettingsPendingPanel({
   plan,
+  message,
+  cloudSyncBusy,
+  cloudSyncDisabled,
+  cloudSyncDisabledReason,
+  onSyncCloud,
 }: {
   plan: AccountModuleSettingsPendingSyncPlan;
+  message: string | null;
+  cloudSyncBusy: boolean;
+  cloudSyncDisabled: boolean;
+  cloudSyncDisabledReason: string;
+  onSyncCloud: () => void;
 }) {
   return (
     <section
@@ -16347,6 +16600,32 @@ function AccountModuleSettingsPendingPanel({
           pending-only
         </span>
       </div>
+
+      <div className="mt-4 flex flex-col gap-2 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-xs font-medium text-zinc-700 dark:text-zinc-200">
+            同步账号/模块设置
+          </div>
+          <p className="mt-1 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400">
+            只上传 sync_log 里明确排队的账号显示名、账号偏好和模块配置。
+            失败会保留本地 pending，后续可重试。
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={cloudSyncBusy || cloudSyncDisabled}
+          title={cloudSyncDisabled ? cloudSyncDisabledReason : undefined}
+          onClick={onSyncCloud}
+          className="inline-flex min-h-9 items-center justify-center rounded-md bg-zinc-900 px-3 text-xs font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
+        >
+          {cloudSyncBusy ? "同步中..." : "同步账号/模块设置"}
+        </button>
+      </div>
+      {message ? (
+        <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+          {message}
+        </p>
+      ) : null}
 
       <div className="mt-4 grid gap-3 md:grid-cols-4">
         <CacheRebuildFact
