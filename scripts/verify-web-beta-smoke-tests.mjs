@@ -2946,6 +2946,38 @@ function run() {
     "setChildTreeViewMode(pageId, mode)",
     "Smoke verifier must keep child page tree saving view mode through page view preferences."
   );
+  for (const [snippet, message] of [
+    [
+      "const workspacePages = useWorkspaceStore((s) => s.pages)",
+      "Smoke verifier must keep child page tree seeded from already-loaded workspace pages.",
+    ],
+    [
+      "listPageMetadata(pageId)",
+      "Smoke verifier must keep child page tree using parent-scoped metadata reads.",
+    ],
+    [
+      "collectDescendantsFromMemory(pageId, workspacePages)",
+      "Smoke verifier must keep child page tree reusing in-memory descendants.",
+    ],
+  ]) {
+    assertIncludes(files.childPageTree, childPageTree, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'from "@/hooks/usePages"',
+      "Smoke verifier must keep child page tree from importing usePages for global auto-loads.",
+    ],
+    [
+      "usePages()",
+      "Smoke verifier must keep child page tree from calling usePages for global auto-loads.",
+    ],
+    [
+      "usePages({",
+      "Smoke verifier must keep child page tree from calling usePages for global auto-loads.",
+    ],
+  ]) {
+    assertExcludes(files.childPageTree, childPageTree, snippet, message);
+  }
   assertIncludes(
     files.quickSearchWorkspaceSettings,
     quickSearchWorkspaceSettings,

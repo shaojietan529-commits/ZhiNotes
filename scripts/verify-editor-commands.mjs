@@ -420,9 +420,14 @@ function run() {
   );
   for (const snippet of [
     "const upsertPages = useWorkspaceStore((s) => s.upsertPages)",
+    "const workspacePages = useWorkspaceStore((s) => s.pages)",
+    "listPageMetadata(pageId)",
     "upsertPages([child])",
-    "upsertPages([updatedChild ?? child])",
-    "if (updatedNote) upsertPages([updatedNote])",
+    "upsertPages([pageToOpen])",
+    "upsertPages([updatedNote])",
+    "setScopedPages((current) => mergePageLists(current, [child]))",
+    "setScopedPages((current) => mergePageLists(current, [pageToOpen]))",
+    "setScopedPages((current) => mergePageLists(current, [updatedNote]))",
   ]) {
     assertIncludes(
       files.childPageTree,
@@ -433,13 +438,15 @@ function run() {
   }
   for (const snippet of [
     "await refresh()",
+    "usePages()",
+    "usePages({",
     "const { pages, refresh } = usePages()",
   ]) {
     assertNotIncludes(
       files.childPageTree,
       childPageTree,
       snippet,
-      "ChildPageTree create/move actions must not trigger a full page-list refresh after large imports."
+      "ChildPageTree must not trigger a full page-list refresh after large imports or page opens."
     );
   }
 

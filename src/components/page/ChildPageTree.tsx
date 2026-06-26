@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { usePages } from "@/hooks/usePages";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import {
   createPageWithCloud,
   updatePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
+import { listPageMetadata } from "@/lib/db/local/queries";
 import { usePageViewPreferences } from "@/hooks/usePageViewPreferences";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
@@ -42,14 +42,17 @@ const MONTH_LABELS = [
   "7 月", "8 月", "9 月", "10 月", "11 月", "12 月",
 ];
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const CHILD_TREE_MEMORY_DESCENDANT_LIMIT = 600;
+const CHILD_TREE_PREFETCH_CHILD_LIMIT = 80;
 
 type ViewMode = "list" | "calendar";
 
 export default function ChildPageTree({ pageId }: { pageId: string }) {
   const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
+  const workspacePages = useWorkspaceStore((s) => s.pages);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
-  const { pages } = usePages();
+  const [scopedPages, setScopedPages] = useState<Page[]>([]);
   const [chainRootId, setChainRootId] = useState<string | null>(null);
   const [dailyRootId, setDailyRootId] = useState<string | null>(null);
   const [meetingRootId, setMeetingRootId] = useState<string | null>(null);
@@ -64,6 +67,32 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       void getModuleRootId("meeting-schedule").then(setMeetingRootId);
     });
   }, [dbReady]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      void loadScopedChildPages(pageId)
+        .then((nextPages) => {
+          if (!cancelled) setScopedPages(nextPages);
+        })
+        .catch(() => {
+          if (!cancelled) setScopedPages([]);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dbReady, pageId]);
+
+  const pages = useMemo(
+    () =>
+      mergePageLists(
+        scopedPages,
+        collectDescendantsFromMemory(pageId, workspacePages)
+      ),
+    [pageId, scopedPages, workspacePages]
+  );
 
   const isDaily = pageId === dailyRootId;
   const isMeeting = pageId === meetingRootId;
@@ -98,6 +127,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
     async (parentId: string) => {
       const child = await createPageWithCloud({ parentId });
       upsertPages([child]);
+      setScopedPages((current) => mergePageLists(current, [child]));
       openPage(child, { source: "child-page-create" });
     },
     [openPage, upsertPages]
@@ -118,6 +148,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       });
       const pageToOpen = updatedChild ?? child;
       upsertPages([pageToOpen]);
+      setScopedPages((current) => mergePageLists(current, [pageToOpen]));
       openPage(pageToOpen, { source: "child-page-create" });
     },
     [openPage, pageId, upsertPages]
@@ -146,7 +177,10 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
         updates.title = dateKey;
       }
       const updatedNote = await updatePageWithCloud(noteId, updates);
-      if (updatedNote) upsertPages([updatedNote]);
+      if (updatedNote) {
+        upsertPages([updatedNote]);
+        setScopedPages((current) => mergePageLists(current, [updatedNote]));
+      }
     },
     [children, upsertPages]
   );
@@ -240,6 +274,73 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       )}
     </section>
   );
+}
+
+async function loadScopedChildPages(pageId: string): Promise<Page[]> {
+  const children = await listPageMetadata(pageId);
+  const grandchildLists = await Promise.all(
+    children.slice(0, CHILD_TREE_PREFETCH_CHILD_LIMIT).map(async (child) => {
+      try {
+        return await listPageMetadata(child.id);
+      } catch {
+        return [];
+      }
+    })
+  );
+  return mergePageLists(children, grandchildLists.flat());
+}
+
+function mergePageLists(...groups: Page[][]): Page[] {
+  const byId = new Map<string, Page>();
+  for (const group of groups) {
+    for (const page of group) {
+      if (page.deleted_at) {
+        byId.delete(page.id);
+      } else {
+        const existing = byId.get(page.id);
+        const next =
+          existing && existing.updated_at > page.updated_at
+            ? mergePageSnapshot(existing, page)
+            : mergePageSnapshot(page, existing);
+        byId.set(page.id, next);
+      }
+    }
+  }
+  return [...byId.values()];
+}
+
+function mergePageSnapshot(incoming: Page, existing?: Page): Page {
+  if (!existing) return incoming;
+  return {
+    ...incoming,
+    content_text:
+      incoming.content_text === null && existing.content_text !== null
+        ? existing.content_text
+        : incoming.content_text,
+    content_yjs:
+      incoming.content_yjs === null && existing.content_yjs !== null
+        ? existing.content_yjs
+        : incoming.content_yjs,
+  };
+}
+
+function collectDescendantsFromMemory(rootId: string, pages: Page[]): Page[] {
+  const byParent = new Map<string | null, Page[]>();
+  for (const page of pages) {
+    const group = byParent.get(page.parent_id) ?? [];
+    group.push(page);
+    byParent.set(page.parent_id, group);
+  }
+
+  const result: Page[] = [];
+  const queue = [...(byParent.get(rootId) ?? [])];
+  while (queue.length > 0 && result.length < CHILD_TREE_MEMORY_DESCENDANT_LIMIT) {
+    const page = queue.shift();
+    if (!page || page.deleted_at) continue;
+    result.push(page);
+    queue.push(...(byParent.get(page.id) ?? []));
+  }
+  return result;
 }
 
 function CalendarView({

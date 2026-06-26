@@ -3496,6 +3496,38 @@ function run() {
   ]) {
     assertSourceIncludes(files.childPageTree, childPageTree, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      "const workspacePages = useWorkspaceStore((s) => s.pages)",
+      "Child page tree must seed from already-loaded workspace pages without auto-loading the global page list.",
+    ],
+    [
+      "listPageMetadata(pageId)",
+      "Child page tree must load children through parent-scoped metadata queries.",
+    ],
+    [
+      "collectDescendantsFromMemory(pageId, workspacePages)",
+      "Child page tree must reuse loaded descendants from memory for fast first paint.",
+    ],
+  ]) {
+    assertSourceIncludes(files.childPageTree, childPageTree, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'from "@/hooks/usePages"',
+      "Child page tree must not import usePages because it auto-loads the global metadata snapshot by default.",
+    ],
+    [
+      "usePages()",
+      "Child page tree must not call usePages because page open should not trigger a global metadata scan.",
+    ],
+    [
+      "usePages({",
+      "Child page tree must not call usePages because page open should not trigger a global metadata scan.",
+    ],
+  ]) {
+    assertSourceExcludes(files.childPageTree, childPageTree, snippet, message);
+  }
   assertSourceExcludes(
     files.childPageTree,
     childPageTree,
