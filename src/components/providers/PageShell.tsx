@@ -42,6 +42,12 @@ import {
   movePageWithCloud,
   updatePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
+import {
+  getPendingCloudPageSyncStatus,
+  PAGE_SYNC_CONFIG_EVENT,
+  PAGE_SYNC_STATUS_EVENT,
+  type PendingCloudPageSyncStatus,
+} from "@/lib/pages/accountPageSync";
 import { maybeSnapshot, manualSnapshot } from "@/lib/comparison/versioning";
 import type { PageVersion } from "@/lib/utils/types";
 import {
@@ -133,6 +139,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const [exportingPageStructure, setExportingPageStructure] = useState(false);
   const [applyingResearchActionId, setApplyingResearchActionId] =
     useState<string | null>(null);
+  const [pageSyncStatus, setPageSyncStatus] =
+    useState<PendingCloudPageSyncStatus>(() => getPendingCloudPageSyncStatus());
   const shouldLoadVersions = showHistory || showInfo;
   const { versions, refresh: refreshVersions } = useVersions(pageId, {
     enabled: shouldLoadVersions,
@@ -154,6 +162,25 @@ function PageContent({ pageId }: { pageId: string }) {
     pageOpenStartedAtIsoRef.current = new Date().toISOString();
     reportedPageOpenRef.current = null;
   }, [pageId]);
+
+  useEffect(() => {
+    const refreshStatus = (event?: Event) => {
+      const next = (event as CustomEvent<PendingCloudPageSyncStatus> | undefined)
+        ?.detail;
+      setPageSyncStatus(next ?? getPendingCloudPageSyncStatus());
+    };
+    refreshStatus();
+    window.addEventListener(PAGE_SYNC_STATUS_EVENT, refreshStatus);
+    window.addEventListener(PAGE_SYNC_CONFIG_EVENT, refreshStatus);
+    window.addEventListener("storage", refreshStatus);
+    const timer = window.setInterval(refreshStatus, 5000);
+    return () => {
+      window.removeEventListener(PAGE_SYNC_STATUS_EVENT, refreshStatus);
+      window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, refreshStatus);
+      window.removeEventListener("storage", refreshStatus);
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     if (!page || loading || reportedPageOpenRef.current === pageId) return;
@@ -732,6 +759,7 @@ function PageContent({ pageId }: { pageId: string }) {
               <Breadcrumb pageId={pageId} />
             </div>
             <div className="flex items-center gap-1">
+              <PageSyncStatusBadge status={pageSyncStatus} />
               <button
                 onClick={handleToggleFavorite}
                 className={`flex h-7 w-7 items-center justify-center rounded transition-colors ${
@@ -927,6 +955,51 @@ function PageContent({ pageId }: { pageId: string }) {
         />
       )}
     </div>
+  );
+}
+
+function PageSyncStatusBadge({
+  status,
+}: {
+  status: PendingCloudPageSyncStatus;
+}) {
+  const totalPending = status.pending + status.queued;
+  const syncedAt = status.lastSyncAt ? new Date(status.lastSyncAt) : null;
+  const syncedAtLabel =
+    syncedAt && !Number.isNaN(syncedAt.getTime())
+      ? syncedAt.toLocaleTimeString("zh-CN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : null;
+  let label = "本地已保存";
+  let tone =
+    "border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400";
+  let title = "页面已在本机保存；云端状态会在后台继续更新。";
+
+  if (!status.enabled) {
+    label = "本地已保存";
+    title = "页面同步已关闭；当前编辑只显示本地保存状态。";
+  } else if (totalPending > 0) {
+    label = status.queued > 0 ? `同步排队 ${totalPending}` : `等待云同步 ${totalPending}`;
+    tone =
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300";
+    title = `已有 ${totalPending} 个页面变更进入本地待上传队列；输入不会被云端上传阻塞。`;
+  } else if (syncedAtLabel) {
+    label = `云端已同步 ${syncedAtLabel}`;
+    tone =
+      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300";
+    title = `最近一次页面云同步时间：${syncedAt?.toLocaleString("zh-CN") ?? syncedAtLabel}。`;
+  }
+
+  return (
+    <span
+      data-testid="page-sync-status-badge"
+      title={title}
+      className={`hidden h-7 items-center rounded border px-2 text-[11px] font-medium md:inline-flex ${tone}`}
+    >
+      {label}
+    </span>
   );
 }
 

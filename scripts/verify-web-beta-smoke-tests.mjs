@@ -2044,6 +2044,24 @@ function run() {
     "void loadEditorModule();",
     "Page shell must start warming the editor module after page metadata is visible."
   );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    'PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status"',
+    "Page sync queue changes must emit a local status event for visible save/upload feedback."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "getPendingCloudPageSyncStatus",
+    "Page shell must read the local page sync queue status without triggering upload."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    'data-testid="page-sync-status-badge"',
+    "Page shell must render a stable sync status badge for local saved / pending cloud state."
+  );
   assertExcludes(
     files.pagePeekModal,
     pagePeekModal,

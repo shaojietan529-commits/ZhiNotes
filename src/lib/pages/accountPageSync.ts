@@ -50,6 +50,7 @@ const AUTH_RETRY_KEY = "zhinote.pagesync.authRetry.v1";
 const DAILY_IMPORT_REPAIR_SIGNATURE_KEY =
   "zhinote.pagesync.dailyImportRepairSignature.v1";
 export const PAGE_SYNC_CONFIG_EVENT = "zhinote:pagesync-config";
+export const PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status";
 
 const PULL_BATCH = 40;
 const PUSH_BATCH_RECORDS = 50;
@@ -96,6 +97,7 @@ export function setPageSyncEnabled(enabled: boolean): void {
   authRetryAfter = 0;
   writeSyncStorage(ENABLED_KEY, String(enabled));
   window.dispatchEvent(new CustomEvent(PAGE_SYNC_CONFIG_EVENT));
+  emitPageSyncStatusChanged();
 }
 
 export function getLastPageSyncAt(): string | null {
@@ -841,6 +843,7 @@ export async function pushCloudPages(
   records: RemotePageRecord[]
 ): Promise<PushCloudPagesResult> {
   markPendingCloudPushRecords(records);
+  emitPageSyncStatusChanged();
   if (!isPageSyncEnabled()) {
     return { status: "disabled", accepted: [], skipped: [] };
   }
@@ -1117,11 +1120,13 @@ export function queueCloudPagePush(
   const record = "owner_id" in page ? pageToRemoteRecord(page) : page;
   markPendingCloudPush(record.id);
   queuedCloudPush.set(record.id, record);
+  emitPageSyncStatusChanged();
   if (queuedCloudPushTimer) clearTimeout(queuedCloudPushTimer);
   queuedCloudPushTimer = setTimeout(() => {
     const batch = [...queuedCloudPush.values()];
     queuedCloudPush = new Map();
     queuedCloudPushTimer = null;
+    emitPageSyncStatusChanged();
     if (batch.length > 0) {
       void pushCloudRecordsInBatches(batch);
     }
@@ -1331,6 +1336,7 @@ function setLastPageSyncAtNow() {
   const iso = new Date().toISOString();
   memoryLastPageSyncAt = iso;
   writeSyncStorage(LAST_SYNC_KEY, iso);
+  emitPageSyncStatusChanged();
 }
 
 async function restoreCursorFromLocalMetadata(
@@ -1569,6 +1575,7 @@ function clearPendingCloudPushIds(ids: string[]): void {
   setPendingCloudPushIds(
     getPendingCloudPushIds().filter((id) => !cleared.has(id))
   );
+  emitPageSyncStatusChanged();
 }
 
 export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
@@ -1591,6 +1598,15 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
   };
 }
 
+function emitPageSyncStatusChanged(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(PAGE_SYNC_STATUS_EVENT, {
+      detail: getPendingCloudPageSyncStatus(),
+    })
+  );
+}
+
 function clearAllPendingCloudPushesForCacheRebuild(): void {
   if (queuedCloudPushTimer) {
     clearTimeout(queuedCloudPushTimer);
@@ -1598,6 +1614,7 @@ function clearAllPendingCloudPushesForCacheRebuild(): void {
   }
   queuedCloudPush = new Map();
   setPendingCloudPushIds([]);
+  emitPageSyncStatusChanged();
 }
 
 function clearPageSyncRuntimeCachesForCacheRebuild(): void {

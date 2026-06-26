@@ -214,6 +214,17 @@ check(
   "PageShell 必须动态加载并在页面首屏后预热编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
 );
 check(
+  accountPageSync.includes('export const PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status"') &&
+    accountPageSync.includes("getPendingCloudPageSyncStatus") &&
+    accountPageSync.includes("emitPageSyncStatusChanged();") &&
+    pageShell.includes("PAGE_SYNC_STATUS_EVENT") &&
+    pageShell.includes("getPendingCloudPageSyncStatus") &&
+    pageShell.includes("PageSyncStatusBadge") &&
+    pageShell.includes('data-testid="page-sync-status-badge"') &&
+    pageShell.includes("等待云同步"),
+  "PageShell 必须显示只读页面同步状态 badge，让本地保存和云端待上传队列对用户可见"
+);
+check(
   pageTreeSource.includes("SIDEBAR_PAGE_TREE_ROOT_LIMIT") &&
     pageTreeSource.includes("childrenByParent") &&
     pageTreeSource.includes("visibleRootPages") &&

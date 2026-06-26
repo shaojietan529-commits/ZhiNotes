@@ -1993,6 +1993,24 @@ function run() {
     "Page shell must start warming the editor module after page metadata is visible."
   );
   assertSourceIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    'PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status"',
+    "Page sync queue changes must emit a local status event for visible save/upload feedback."
+  );
+  assertSourceIncludes(
+    files.pageShell,
+    pageShell,
+    "getPendingCloudPageSyncStatus",
+    "Page shell must read the local page sync queue status without triggering upload."
+  );
+  assertSourceIncludes(
+    files.pageShell,
+    pageShell,
+    'data-testid="page-sync-status-badge"',
+    "Page shell must render a stable sync status badge for local saved / pending cloud state."
+  );
+  assertSourceIncludes(
     files.pagePeekModal,
     pagePeekModal,
     "upsertPages([metadata])",
