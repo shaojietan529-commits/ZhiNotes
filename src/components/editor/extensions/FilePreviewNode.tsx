@@ -33,6 +33,7 @@ import {
 } from "@/lib/files/filePreviewStructure";
 import { highlightCodeToHtml } from "@/lib/codeHighlight";
 import { convertZipToHtml } from "@/lib/files/archive";
+import { dataUrlToArrayBuffer } from "@/lib/files/dataUrl";
 import { convertEpubToHtml } from "@/lib/files/epub";
 import { convertNotebookToHtml } from "@/lib/files/notebook";
 import { convertOdpToHtml, convertOdtToHtml } from "@/lib/files/openDocument";
@@ -2104,11 +2105,6 @@ async function convertPresentationToHtml(file: StoredPageFile) {
   }
 
   return convertPptxToHtml(await dataUrlToArrayBuffer(file.dataUrl));
-}
-
-async function dataUrlToArrayBuffer(dataUrl: string) {
-  const response = await fetch(dataUrl);
-  return response.arrayBuffer();
 }
 
 function downloadJsonFile(fileName: string, value: unknown) {

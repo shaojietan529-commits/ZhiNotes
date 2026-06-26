@@ -3,7 +3,7 @@
 //
 // This runs ONLY after the user has reviewed the plan and explicitly confirmed
 // in the UI (batch page creation is a high-risk action). It never uploads raw
-// file bytes or calls AI. Markdown/plain-text/RTF/notebook become real page
+// file bytes or calls AI. Markdown/plain-text/RTF/EPUB/notebook become real page
 // bodies; created page records then follow the user's account page-sync setting. Other
 // page-import / local-retain files become local file pages with a metadata
 // preview block; spreadsheets and unknown formats are skipped here and routed
@@ -20,6 +20,8 @@ import {
   buildFileLibraryPageContent,
 } from "@/lib/files/filePage";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
+import { dataUrlToArrayBuffer } from "@/lib/files/dataUrl";
+import { convertEpubToHtml } from "@/lib/files/epub";
 import { convertNotebookToHtml } from "@/lib/files/notebook";
 import { convertRtfToHtml } from "@/lib/files/rtf";
 import type { PageImportPlan, PageImportPlanItem } from "./pageImportPlan";
@@ -205,6 +207,21 @@ export async function executePageImportPlan(
         createdPageIds.push(page.id);
         createdPages += 1;
         notes.push("RTF 已本地转换为可编辑页面；没有上传文件内容。");
+        continue;
+      }
+
+      if (item.lane === "page-import" && stored.kind === "epub") {
+        const html = await convertEpubToHtml(
+          await dataUrlToArrayBuffer(stored.dataUrl)
+        );
+        const page = await createPageWithCloud({
+          title: deriveTitle(stored.name, ""),
+          icon: "EPUB",
+        });
+        await updatePageWithCloud(page.id, { content_text: html });
+        createdPageIds.push(page.id);
+        createdPages += 1;
+        notes.push("EPUB 已本地解析为可编辑页面；没有加载远程资源或上传文件内容。");
         continue;
       }
 

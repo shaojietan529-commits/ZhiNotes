@@ -102,6 +102,11 @@ check(
   "RTF 路线必须说明本地可编辑导入"
 );
 check(
+  source.includes("EPUB 会在本地解析目录和章节") &&
+    source.includes("epub-pages"),
+  "EPUB 路线必须说明本地可编辑导入"
+);
+check(
   source.includes("PDF 先创建本地文件页") &&
     source.includes("PowerPoint/ODP 先创建本地文件页"),
   "PDF 和 PowerPoint 路线必须说明先创建本地文件页"
@@ -211,6 +216,13 @@ check(
     executorSource.includes('stored.kind === "rtf"') &&
     executorSource.includes("RTF 已本地转换为可编辑页面"),
   "执行器必须把 RTF 本地转换为可编辑页面"
+);
+check(
+  executorSource.includes("convertEpubToHtml") &&
+    executorSource.includes('stored.kind === "epub"') &&
+    executorSource.includes("EPUB 已本地解析为可编辑页面") &&
+    executorSource.includes("没有加载远程资源"),
+  "执行器必须把 EPUB 本地转换为可编辑页面并声明不加载远程资源"
 );
 // Spreadsheets and unknown formats must be skipped (not created) in this stage.
 check(
