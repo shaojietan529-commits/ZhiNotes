@@ -1206,6 +1206,14 @@ function run() {
       "Hot cache warmup plan must keep current project route prefetch bounded.",
     ],
     [
+      "PINNED_DATABASE_ROUTE_TARGET_LIMIT = 24",
+      "Hot cache warmup plan must keep pinned database route prefetch bounded.",
+    ],
+    [
+      'preference_key: "pinnedDatabaseIds"',
+      "Hot cache warmup plan must use the explicit pinned database preference.",
+    ],
+    [
       "`/database/${encodeURIComponent(database.id)}`",
       "Hot cache warmup plan must prefetch active database detail routes when selected.",
     ],
@@ -1216,6 +1224,10 @@ function run() {
     [
       "行值继续按需加载",
       "Hot cache warmup plan must keep database row values out of route prefetch.",
+    ],
+    [
+      "用户未选择指定数据库常驻本地。",
+      "Hot cache warmup plan must explain when pinned database cache is preference-off.",
     ],
     [
       "纪要详情路由",
@@ -2611,6 +2623,10 @@ function run() {
       "Hot cache selection must include database preference.",
     ],
     [
+      "pinnedDatabaseIds",
+      "Hot cache selection must include pinned database preference.",
+    ],
+    [
       "keepFavoritePages",
       "Hot cache selection must include favorite pages preference.",
     ],
@@ -3730,6 +3746,14 @@ function run() {
     [
       "当前月份会议日历",
       "Sync UI must expose current-month meeting hot cache selection.",
+    ],
+    [
+      "指定数据库",
+      "Sync UI must expose pinned database hot cache selection.",
+    ],
+    [
+      "只保存数据库 ID 清单",
+      "Sync UI must explain pinned databases store setting metadata only.",
     ],
     [
       "handleHotCachePreferencesChange",

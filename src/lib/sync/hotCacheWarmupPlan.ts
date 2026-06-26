@@ -9,6 +9,7 @@ const CURRENT_MONTH_DAILY_ROUTE_TARGET_LIMIT = 31;
 const CURRENT_MONTH_MEETING_ROUTE_TARGET_LIMIT = 60;
 const FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12;
 const CURRENT_PROJECT_ROUTE_TARGET_LIMIT = 12;
+const PINNED_DATABASE_ROUTE_TARGET_LIMIT = 24;
 
 export type HotCacheWarmupJobStatus =
   | "ready"
@@ -105,6 +106,14 @@ export function buildHotCacheWarmupPlan(
     input.preferences.keepActiveDatabases
       ? buildActiveDatabaseRouteTargets(input.databases)
       : [];
+  const pinnedDatabases = getPinnedDatabases(
+    input.databases,
+    input.preferences.pinnedDatabaseIds
+  );
+  const pinnedDatabaseRouteTargets = buildPinnedDatabaseRouteTargets(
+    pinnedDatabases,
+    input.preferences.pinnedDatabaseIds
+  );
   const favoritePageRouteTargets = input.preferences.keepFavoritePages
     ? buildFavoritePageRouteTargets(favoritePages)
     : [];
@@ -230,6 +239,47 @@ export function buildHotCacheWarmupPlan(
         ? null
         : "用户未选择数据库视图常驻本地。",
       excluded_private_fields: ["row cell values", "database description"],
+    },
+    {
+      id: "pinned-databases",
+      title: "指定数据库",
+      status:
+        input.preferences.pinnedDatabaseIds.length === 0
+          ? "preference-off"
+          : pinnedDatabases.length > 0
+            ? "ready"
+            : "blocked",
+      preference_key: "pinnedDatabaseIds",
+      cloud_source:
+        "workspaces.settings.hot_cache_preferences.pinnedDatabaseIds + database manifest",
+      local_target: "pinned database schema and view metadata cache",
+      candidate_count:
+        input.preferences.pinnedDatabaseIds.length > 0
+          ? pinnedDatabases.length
+          : 0,
+      estimated_metadata_records:
+        input.preferences.pinnedDatabaseIds.length > 0
+          ? pinnedDatabases.length
+          : 0,
+      route_targets:
+        pinnedDatabases.length > 0
+          ? ["/modules/databases", ...pinnedDatabaseRouteTargets]
+          : [],
+      action:
+        "预热用户指定数据库的详情路由，schema 和视图 metadata 优先可见，行值继续按打开时分页加载。",
+      reason:
+        "指定数据库是用户明确选择的投研表格，比普通最近打开记录更应该接近本地速度。",
+      blocked_reason:
+        input.preferences.pinnedDatabaseIds.length === 0
+          ? "用户未选择指定数据库常驻本地。"
+          : pinnedDatabases.length === 0
+            ? "当前浏览器还没有可匹配的指定数据库 metadata。"
+            : null,
+      excluded_private_fields: [
+        "row cell values",
+        "database description",
+        "view private filters",
+      ],
     },
     {
       id: "recent-file-preview-metadata",
@@ -384,6 +434,38 @@ function buildActiveDatabaseRouteTargets(databases: Database[]): string[] {
     .filter((database) => !database.deleted_at)
     .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
     .slice(0, ACTIVE_DATABASE_ROUTE_TARGET_LIMIT)
+    .map((database) => `/database/${encodeURIComponent(database.id)}`);
+}
+
+function getPinnedDatabases(
+  databases: Database[],
+  pinnedDatabaseIds: string[]
+): Database[] {
+  const databaseById = new Map(
+    databases
+      .filter((database) => !database.deleted_at)
+      .map((database) => [database.id, database])
+  );
+  return pinnedDatabaseIds
+    .map((id) => databaseById.get(id))
+    .filter((database): database is Database => Boolean(database))
+    .slice(0, PINNED_DATABASE_ROUTE_TARGET_LIMIT);
+}
+
+function buildPinnedDatabaseRouteTargets(
+  databases: Database[],
+  pinnedDatabaseIds: string[]
+): string[] {
+  const pinnedOrder = new Map(
+    pinnedDatabaseIds.map((id, index) => [id, index] as const)
+  );
+  return [...databases]
+    .sort(
+      (left, right) =>
+        (pinnedOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+        (pinnedOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER)
+    )
+    .slice(0, PINNED_DATABASE_ROUTE_TARGET_LIMIT)
     .map((database) => `/database/${encodeURIComponent(database.id)}`);
 }
 

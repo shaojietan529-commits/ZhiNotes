@@ -1202,6 +1202,12 @@ function run() {
   assertIncludes(
     files.hotCachePolicyPlan,
     hotCachePolicyPlan,
+    'id: "pinned-databases"',
+    "Smoke verifier must keep pinned database hot cache selection covered."
+  );
+  assertIncludes(
+    files.hotCachePolicyPlan,
+    hotCachePolicyPlan,
     'id: "current-month-meetings"',
     "Smoke verifier must keep current-month meeting hot cache selection covered."
   );
@@ -1262,6 +1268,18 @@ function run() {
   assertIncludes(
     files.hotCacheWarmupPlan,
     hotCacheWarmupPlan,
+    "PINNED_DATABASE_ROUTE_TARGET_LIMIT = 24",
+    "Hot cache warmup must keep pinned database route prefetch bounded."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    'preference_key: "pinnedDatabaseIds"',
+    "Hot cache warmup must use the explicit pinned database preference."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
     "`/database/${encodeURIComponent(database.id)}`",
     "Hot cache warmup must prefetch active database detail routes when selected."
   );
@@ -1276,6 +1294,12 @@ function run() {
     hotCacheWarmupPlan,
     "行值继续按需加载",
     "Hot cache warmup must keep database row values out of route prefetch."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    "用户未选择指定数据库常驻本地。",
+    "Hot cache warmup must explain when pinned database cache is preference-off."
   );
   assertIncludes(
     files.hotCacheWarmupPlan,
@@ -1985,6 +2009,12 @@ function run() {
     hotCacheSelectionSettings,
     "keepCurrentMonthMeetings",
     "Smoke verifier must keep current-month meeting hot cache user preference."
+  );
+  assertIncludes(
+    files.hotCacheSelectionSettings,
+    hotCacheSelectionSettings,
+    "pinnedDatabaseIds",
+    "Smoke verifier must keep pinned database hot cache user preference."
   );
   assertIncludes(
     files.hotCacheSelectionSettings,
@@ -2787,6 +2817,18 @@ function run() {
     syncShell,
     "当前月份会议日历",
     "Sync UI must expose current-month meeting hot cache selection."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "指定数据库",
+    "Sync UI must expose pinned database hot cache selection."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "只保存数据库 ID 清单",
+    "Sync UI must explain pinned databases store setting metadata only."
   );
   assertIncludes(
     files.syncShell,

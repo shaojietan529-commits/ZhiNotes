@@ -4684,6 +4684,7 @@ function SyncDashboard() {
         <HotCacheSelectionPanel
           contract={hotCacheSelectionContract}
           preferences={hotCachePreferences}
+          databases={databases}
           restorePlan={workspaceSettingsRestorePlan}
           saveMessage={hotCacheSaveMessage}
           cloudSyncBusy={busyCloudAction === "workspace-settings"}
@@ -15347,6 +15348,7 @@ function LocalPerformancePanel({
 function HotCacheSelectionPanel({
   contract,
   preferences,
+  databases,
   restorePlan,
   saveMessage,
   cloudSyncBusy,
@@ -15360,6 +15362,7 @@ function HotCacheSelectionPanel({
 }: {
   contract: HotCacheSelectionContract;
   preferences: HotCachePreferences;
+  databases: Database[];
   restorePlan: WorkspaceSettingsCloudRestorePlan | null;
   saveMessage: string | null;
   cloudSyncBusy: boolean;
@@ -15377,6 +15380,26 @@ function HotCacheSelectionPanel({
   const handleRecentDaysChange = (event: ChangeEvent<HTMLSelectElement>) => {
     updatePreference({
       recentDays: event.target.value === "90" ? 90 : 30,
+    });
+  };
+  const databaseOptions = useMemo(
+    () =>
+      databases
+        .filter((database) => !database.deleted_at)
+        .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
+        .slice(0, 24),
+    [databases]
+  );
+  const pinnedDatabaseIdSet = useMemo(
+    () => new Set(preferences.pinnedDatabaseIds),
+    [preferences.pinnedDatabaseIds]
+  );
+  const updatePinnedDatabase = (databaseId: string, checked: boolean) => {
+    const nextIds = checked
+      ? [...preferences.pinnedDatabaseIds, databaseId]
+      : preferences.pinnedDatabaseIds.filter((id) => id !== databaseId);
+    updatePreference({
+      pinnedDatabaseIds: Array.from(new Set(nextIds)).slice(0, 24),
     });
   };
 
@@ -15488,6 +15511,41 @@ function HotCacheSelectionPanel({
                   updatePreference({ keepCurrentProjects: checked })
                 }
               />
+            </div>
+            <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                    指定数据库
+                  </div>
+                  <p className="mt-1 text-[11px] leading-4 text-zinc-400">
+                    只保存数据库 ID 清单，用于预热 schema、视图和数据库入口；不保存行值。
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                  {preferences.pinnedDatabaseIds.length}/24
+                </span>
+              </div>
+              {databaseOptions.length > 0 ? (
+                <div className="mt-3 grid max-h-48 gap-2 overflow-y-auto pr-1">
+                  {databaseOptions.map((database) => (
+                    <HotCachePreferenceCheckbox
+                      key={database.id}
+                      label={`${database.icon || "🗄️"} ${
+                        database.title || "未命名数据库"
+                      }`}
+                      checked={pinnedDatabaseIdSet.has(database.id)}
+                      onChange={(checked) =>
+                        updatePinnedDatabase(database.id, checked)
+                      }
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-400 dark:bg-zinc-900">
+                  暂无可选择的数据库。
+                </p>
+              )}
             </div>
             {saveMessage ? (
               <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
@@ -15984,7 +16042,7 @@ function HotCachePreferenceCheckbox({
 }) {
   return (
     <label className="flex items-center justify-between rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
-      <span>{label}</span>
+      <span className="min-w-0 truncate pr-3">{label}</span>
       <input
         type="checkbox"
         checked={checked}

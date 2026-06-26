@@ -6,6 +6,7 @@ export const HOT_CACHE_PREFERENCES_CHANGED_EVENT =
   "zhinote:hot-cache-preferences-changed";
 export const HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY =
   "zhinote.hot-cache-preferences.changed-at";
+const MAX_PINNED_DATABASE_IDS = 24;
 
 export interface HotCachePreferences {
   recentDays: 30 | 90;
@@ -15,6 +16,7 @@ export interface HotCachePreferences {
   keepRecentFilePreviews: boolean;
   keepFavoritePages: boolean;
   keepCurrentProjects: boolean;
+  pinnedDatabaseIds: string[];
 }
 
 export interface HotCacheSelectionContract {
@@ -45,6 +47,7 @@ export interface HotCacheSelectionContract {
     recent_days: 30 | 90;
     plan_policy_hash: string;
     pending_rows: number;
+    pinned_databases: number;
   };
   allowed_preference_keys: Array<keyof HotCachePreferences>;
   sync_rule: {
@@ -66,6 +69,7 @@ export const DEFAULT_HOT_CACHE_PREFERENCES: HotCachePreferences = {
   keepRecentFilePreviews: false,
   keepFavoritePages: false,
   keepCurrentProjects: false,
+  pinnedDatabaseIds: [],
 };
 
 export function metadataRecentLimitForHotCachePreferences(
@@ -138,6 +142,7 @@ export function normalizeHotCachePreferences(
       typeof value.keepCurrentProjects === "boolean"
         ? value.keepCurrentProjects
         : DEFAULT_HOT_CACHE_PREFERENCES.keepCurrentProjects,
+    pinnedDatabaseIds: normalizePinnedDatabaseIds(value.pinnedDatabaseIds),
   };
 }
 
@@ -153,6 +158,7 @@ export function buildHotCacheSelectionContract(input: {
     preferences.keepRecentFilePreviews,
     preferences.keepFavoritePages,
     preferences.keepCurrentProjects,
+    preferences.pinnedDatabaseIds.length > 0,
   ].filter(Boolean).length;
 
   return {
@@ -184,6 +190,7 @@ export function buildHotCacheSelectionContract(input: {
       recent_days: preferences.recentDays,
       plan_policy_hash: input.plan.summary.policy_hash,
       pending_rows: input.plan.summary.pending_sync_rows,
+      pinned_databases: preferences.pinnedDatabaseIds.length,
     },
     allowed_preference_keys: [
       "recentDays",
@@ -193,6 +200,7 @@ export function buildHotCacheSelectionContract(input: {
       "keepRecentFilePreviews",
       "keepFavoritePages",
       "keepCurrentProjects",
+      "pinnedDatabaseIds",
     ],
     sync_rule: {
       ordinary_sync_pending_only: true,
@@ -213,4 +221,18 @@ export function buildHotCacheSelectionContract(input: {
     ],
     preferences,
   };
+}
+
+function normalizePinnedDatabaseIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return DEFAULT_HOT_CACHE_PREFERENCES.pinnedDatabaseIds;
+
+  const ids = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+    ids.add(trimmed);
+    if (ids.size >= MAX_PINNED_DATABASE_IDS) break;
+  }
+  return Array.from(ids);
 }

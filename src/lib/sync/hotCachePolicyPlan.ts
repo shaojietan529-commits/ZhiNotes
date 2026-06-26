@@ -200,6 +200,24 @@ export function buildHotCachePolicyPlan(
       ],
     },
     {
+      id: "pinned-databases",
+      title: "指定数据库",
+      status: "user-selectable",
+      cloud_source:
+        "workspaces.settings.hot_cache_preferences.pinnedDatabaseIds + database manifest",
+      local_behavior: "用户点选的数据库 schema 和视图 metadata 常驻；行值按需分页加载",
+      eviction_rule: "用户取消固定前不自动清理；本地缓存可从云端数据库 manifest 重建",
+      eligible_count: input.databases.length,
+      estimated_local_records: input.databases.length,
+      reason:
+        "用户明确指定的投研表格应该优先接近本地速度，但不能把行值当作热缓存偏好上传。",
+      excluded_private_fields: [
+        "row cell values",
+        "database description",
+        "view private filters",
+      ],
+    },
+    {
       id: "recent-file-previews",
       title: "最近文件预览 metadata",
       status: input.files.length > 0 ? "user-selectable" : "planned",
