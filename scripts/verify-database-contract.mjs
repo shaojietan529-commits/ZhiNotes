@@ -56,6 +56,7 @@ const files = {
   moduleActions: "src/lib/modules/actions.ts",
   registry: "src/lib/modules/registry.ts",
   filePreviewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
+  spreadsheet: "src/lib/files/spreadsheet.ts",
   companyResearchShell: "src/components/modules/CompanyResearchShell.tsx",
   meetingsShell: "src/components/modules/MeetingsShell.tsx",
   portfolioShell: "src/components/modules/PortfolioShell.tsx",
@@ -126,7 +127,7 @@ function assertNoLocalDatabaseMutationImport(sourceLabel, source) {
     "updateView",
   ];
   const localQueryImports = source.matchAll(
-    /import\s*{([\s\S]*?)}\s*from\s*"@\/lib\/db\/local\/queries";/g
+    /import\s*{([^}]*)}\s*from\s*"@\/lib\/db\/local\/queries";/g
   );
   for (const match of localQueryImports) {
     const importedNames = match[1]
@@ -209,6 +210,7 @@ function run() {
   const moduleActions = readProjectFile(files.moduleActions);
   const registry = readProjectFile(files.registry);
   const filePreviewNode = readProjectFile(files.filePreviewNode);
+  const spreadsheet = readProjectFile(files.spreadsheet);
   const companyResearchShell = readProjectFile(files.companyResearchShell);
   const meetingsShell = readProjectFile(files.meetingsShell);
   const portfolioShell = readProjectFile(files.portfolioShell);
@@ -630,7 +632,7 @@ function run() {
   for (const [sourceLabel, source] of [
     [files.databaseShell, databaseShell],
     [files.inlineDatabaseNode, inlineDatabaseNode],
-    [files.filePreviewNode, filePreviewNode],
+    [files.spreadsheet, spreadsheet],
     [files.databaseImport, databaseImport],
     [files.moduleActions, moduleActions],
     [files.sidebar, sidebar],
@@ -2246,7 +2248,7 @@ function run() {
     "can_review_schema_now: true",
     "can_review_views_now: true",
     "can_create_template_rows_without_manual_click_now: false",
-    "can_bulk_import_spreadsheet_now: false",
+    "can_bulk_import_spreadsheet_now: true",
     "can_export_row_values_from_module_now: false",
     "can_send_database_values_to_ai_now: false",
     "can_sync_database_values_now: false",

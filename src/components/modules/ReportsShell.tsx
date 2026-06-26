@@ -1110,9 +1110,9 @@ function ReportsDashboard() {
               detail="报告"
             />
             <IntakeMetric
-              label="表格候选"
+              label="表格入库"
               value={reportIntake.summary.spreadsheet_candidates}
-              detail="入库候选"
+              detail="确认后导入"
             />
             <IntakeMetric
               label="页面扫描"

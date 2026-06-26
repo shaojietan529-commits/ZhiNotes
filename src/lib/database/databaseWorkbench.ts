@@ -134,7 +134,7 @@ export interface DatabaseWorkbenchDecisionSummary {
   can_review_views_now: true;
   can_open_relation_schema_gate_now: true;
   can_create_template_rows_without_manual_click_now: false;
-  can_bulk_import_spreadsheet_now: false;
+  can_bulk_import_spreadsheet_now: true;
   can_export_row_values_from_module_now: false;
   can_send_database_values_to_ai_now: false;
   can_sync_database_values_now: false;
@@ -242,7 +242,7 @@ const LANE_META: Record<
   "import-export": {
     id: "import-export",
     title: "导入导出闸门",
-    description: "把 CSV/XLSX 值导出和 Excel/CSV/ODS 追加导入留在手动确认路径里。",
+    description: "把 CSV/XLSX 值导出和 Excel/CSV/ODS 导入留在手动确认路径里。",
     route: "/modules/databases",
     privacy_boundary:
       "模块页不导出行值、不读取表格值；真实导入导出只能在具体数据库页确认。",
@@ -394,12 +394,12 @@ function buildDecisionSummary(
   return {
     current_state: "local-database-owner-review",
     current_conclusion:
-      "可以继续在本地复核数据库结构、视图、关系缺口和模板行入口；模板行写入、CSV/XLSX 导出、Excel/CSV/ODS 追加导入、云同步和 AI 使用数据库值仍然必须由你单独确认。",
+      "可以继续在本地复核数据库结构、视图、关系缺口和模板行入口；Excel/CSV/ODS 可在确认后导入本地数据库，模板行写入、CSV/XLSX 导出、云同步和 AI 使用数据库值仍然必须由你单独确认。",
     can_review_schema_now: true,
     can_review_views_now: true,
     can_open_relation_schema_gate_now: true,
     can_create_template_rows_without_manual_click_now: false,
-    can_bulk_import_spreadsheet_now: false,
+    can_bulk_import_spreadsheet_now: true,
     can_export_row_values_from_module_now: false,
     can_send_database_values_to_ai_now: false,
     can_sync_database_values_now: false,
@@ -408,6 +408,7 @@ function buildDecisionSummary(
       "继续从工作台打开跟踪表、研究图谱和就绪区域做人工复核。",
       "继续导出仅元数据数据库工作台包，不包含字段名、行值或页面正文。",
       "继续在具体数据库页手动创建模板行，敏感投资字段仍由用户手动填写。",
+      "继续通过确认后的文件批量导入或页面预览流程，把 Excel/CSV/ODS 转成本地数据库。",
     ],
     blocked_work: [
       "不能从模块中心读取、展示或导出数据库行值。",
@@ -496,16 +497,16 @@ function buildDecisionSummary(
         id: "spreadsheet-import-export",
         title: "导入导出闸门",
         status: "requires-owner-confirmation",
-        answer: "只在具体数据库页",
+        answer: "确认后执行",
         evidence:
           importExportActions.length > 0
             ? `${importExportActions.length} 个数据库存在导入/导出确认动作；模块中心只显示就绪状态。`
-            : "导入导出就绪状态已保留手动闸门，真实值导入或导出不在模块中心执行。",
+            : "导入导出就绪状态已保留手动闸门；文件批量导入或具体数据库页确认后才能写入真实值。",
         next_action:
-          "CSV/XLSX 导出、Excel/CSV/ODS 追加导入和字段映射都必须在具体数据库页复核后执行。",
+          "CSV/XLSX 导出、Excel/CSV/ODS 导入和字段映射都必须在文件批量导入计划、页面预览块或具体数据库页复核后执行。",
         route: "/modules/databases",
         target_section_id: "databases-import-export-readiness",
-        allowed_now: false,
+        allowed_now: true,
         requires_owner_confirmation: true,
         blocked_until_cloud_ai_gate: false,
         workbench_writes_workspace_data: false,

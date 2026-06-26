@@ -239,8 +239,8 @@ function buildCoverageGaps(
       status: activeSpreadsheet > 0 ? "manual-confirmation" : "ready",
       evidence:
         activeSpreadsheet > 0
-          ? `${activeSpreadsheet} 个表格文件可以作为本地数据库导入候选。`
-          : "当前没有表格导入候选。",
+          ? `${activeSpreadsheet} 个表格文件可以在确认后导入本地数据库。`
+          : "当前没有待入库表格。",
       required_action:
         "导入前确认字段、行数、目标表名、回滚边界，并输入确认文本。",
     },

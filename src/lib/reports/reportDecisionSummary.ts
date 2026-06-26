@@ -24,6 +24,7 @@ export interface ReportDecisionSummaryItem {
     | "html-page-native-preview"
     | "markdown-editable-page-import"
     | "pdf-office-conversion-review"
+    | "spreadsheet-confirmed-database-import"
     | "tracker-relation-intake"
     | "cloud-ai-external-resource-boundary";
   title: string;
@@ -86,7 +87,7 @@ export interface ReportDecisionSummary {
   can_import_markdown_editable_now: true;
   can_review_pdf_office_locally_now: true;
   can_write_tracker_rows_without_manual_click_now: false;
-  can_bulk_import_spreadsheet_now: false;
+  can_bulk_import_spreadsheet_now: true;
   can_load_external_html_resources_now: false;
   can_send_reports_to_ai_now: false;
   can_sync_report_files_now: false;
@@ -132,7 +133,7 @@ export function buildReportDecisionSummary(
     summary_status: "local-report-owner-review",
     current_state: "local-report-owner-review",
     current_conclusion:
-      "报告库现在可以继续本地创建页面、原生展示 HTML/PDF、导入 Markdown、复核 Office/Notebook 转换，并把单个报告接入跟踪表；批量表格入库、HTML 外部资源、AI 总结、云同步和文件外发仍保持关闭，必须由你确认。",
+      "报告库现在可以继续本地创建页面、原生展示 HTML/PDF、导入 Markdown、复核 Office/Notebook 转换，并把表格文件通过确认门槛导入本地数据库；HTML 外部资源、AI 总结、云同步和文件外发仍保持关闭，必须由你确认。",
     privacy_note:
       "由聚合后的报告工作流摘要在本地生成。不包含文件名、报告标题、页面文本、文件字节、抽取后的文件文本、数据库行值、提示词、token、凭证、云端数据或 AI 输出。",
     boundary: {
@@ -159,7 +160,7 @@ export function buildReportDecisionSummary(
     can_import_markdown_editable_now: true,
     can_review_pdf_office_locally_now: true,
     can_write_tracker_rows_without_manual_click_now: false,
-    can_bulk_import_spreadsheet_now: false,
+    can_bulk_import_spreadsheet_now: true,
     can_load_external_html_resources_now: false,
     can_send_reports_to_ai_now: false,
     can_sync_report_files_now: false,
@@ -168,10 +169,11 @@ export function buildReportDecisionSummary(
       "HTML Page 预览继续使用沙盒 iframe；外部图片、脚本、样式、字体和 frame 默认阻止。",
       "Markdown 可编辑导入可以直接生成页面内容，同时保留本地原文件动作收据。",
       "PDF、Word、PPT、Excel、EPUB、RTF 和 Notebook 先进入本地预览、转换复核或复核队列。",
+      "Excel/CSV/ODS 可以通过批量导入计划或页面预览块确认后创建本地数据库。",
     ],
     blocked_work: [
       "不能默认加载 HTML 报告里的远程资源或执行外部脚本。",
-      "不能默认把 Excel/CSV/ODS 批量写入数据库行。",
+      "不能绕过确认文本静默把 Excel/CSV/ODS 写入数据库行。",
       "不能把报告正文、文件文本、文件字节、文件名或页面正文发送给 AI 服务。",
       "不能自动同步报告文件、生成分享链接、执行 Notebook 或解包写入工作区。",
     ],
@@ -246,6 +248,26 @@ export function buildReportDecisionSummary(
         enables_ai: false,
       },
       {
+        id: "spreadsheet-confirmed-database-import",
+        title: "表格确认入库",
+        status: "requires-owner-confirmation",
+        answer: "确认后导入",
+        evidence: `${summary.spreadsheet_candidates} 个表格文件可通过确认门槛转成本地数据库；报告决策摘要不读取单元格值。`,
+        next_action:
+          "打开文件模块批量导入计划或页面文件预览块，确认字段、行数、回滚边界，并输入确认文本后再创建数据库。",
+        route: "/modules/files",
+        target_section_id: "files-native-strategy",
+        allowed_now: true,
+        requires_owner_confirmation: true,
+        blocks_report_externalization: false,
+        writes_workspace_data: false,
+        reads_file_bytes: false,
+        reads_file_text: false,
+        reads_page_body_text: false,
+        uploads_data: false,
+        enables_ai: false,
+      },
+      {
         id: "tracker-relation-intake",
         title: "跟踪表与关系",
         status: "requires-owner-confirmation",
@@ -308,7 +330,7 @@ export function buildReportDecisionSummary(
 function buildTopBlockers(summary: ReportDecisionSummary["summary"]) {
   const blockers = [
     `${summary.active_confirmation_groups} 个活跃格式组需要你确认。`,
-    `${summary.spreadsheet_candidates} 个表格候选仍禁止默认批量入库。`,
+    `${summary.spreadsheet_candidates} 个表格文件可确认入库，但禁止绕过确认文本静默写入。`,
     `${summary.blocked_items} 个阻塞项来自旧版、未知格式或明确 gap。`,
   ];
 
