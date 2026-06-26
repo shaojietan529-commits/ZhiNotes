@@ -1824,6 +1824,24 @@ function run() {
       "Smoke verifier must keep module setting writes queued through sync_log.",
     ],
     [
+      files.localQueries,
+      localQueries,
+      "applyRemoteAccountModuleSettings",
+      "Smoke verifier must keep account/module settings cloud restore writing local cache rows.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "Cannot restore cloud account/module settings while local account/module setting changes are still pending.",
+      "Smoke verifier must keep account/module settings cloud restore blocked by local pending rows.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "getPendingAccountModuleSettingSyncLogEntries",
+      "Smoke verifier must keep account/module settings pending rows readable before cloud restore.",
+    ],
+    [
       files.accountModuleSettingsPendingSync,
       accountModuleSettingsPendingSync,
       'format: "zhinote-account-module-settings-pending-sync-plan"',
@@ -1864,6 +1882,30 @@ function run() {
       accountModuleSettingsPendingSync,
       "parseAccountModuleSettingsCloudValues",
       "Smoke verifier must keep account/module settings cloud read summaries.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      'format: "zhinote-account-module-settings-cloud-restore-plan"',
+      "Smoke verifier must keep account/module settings cloud restore plan format.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      'architecture_target: "cloud-master-local-cache-rebuild"',
+      "Smoke verifier must keep account/module settings restore aligned to local cache rebuild.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "local_pending_must_be_empty: true",
+      "Smoke verifier must keep account/module settings restore blocked unless local pending is empty.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "writes_sync_log: false",
+      "Smoke verifier must keep account/module settings cloud restore out of sync_log.",
     ],
     [
       files.syncShell,
@@ -2357,6 +2399,24 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "handleAccountModuleSettingsCloudPull",
+    "Smoke verifier must keep account/module settings cloud restore action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "getPendingAccountModuleSettingSyncLogEntries",
+    "Smoke verifier must keep account/module settings cloud restore checking local pending rows."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "applyRemoteAccountModuleSettings",
+    "Smoke verifier must keep account/module settings cloud restore applying local cache rows."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "markAccountSettingSyncLogEntriesSynced",
     "Smoke verifier must acknowledge account setting pending rows after cloud success."
   );
@@ -2371,6 +2431,12 @@ function run() {
     syncShell,
     "同步账号/模块设置",
     "Smoke verifier must render the account/module settings cloud sync button."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "从云端恢复设置",
+    "Smoke verifier must render the account/module settings cloud restore button."
   );
   assertIncludes(
     files.workspaceSettingsRoute,

@@ -67,6 +67,30 @@ export interface ModuleSettingRecord {
   syncVersion: number;
 }
 
+export interface RemoteAccountSettingCacheRecord {
+  key: string;
+  value: Record<string, unknown>;
+  savedAt?: string | null;
+}
+
+export interface RemoteModuleSettingCacheRecord {
+  moduleId: string;
+  key: string;
+  value: Record<string, unknown>;
+  savedAt?: string | null;
+}
+
+export interface ApplyRemoteAccountModuleSettingsReceipt {
+  format: "zhinote-account-module-settings-local-restore-receipt";
+  formatVersion: 1;
+  source: "cloud-account-module-settings-pull";
+  appliedAt: string;
+  accountSettingsApplied: number;
+  moduleSettingsApplied: number;
+  writesSyncLog: false;
+  privacyBoundary: string;
+}
+
 export interface LocalPageSyncSummary {
   count: number;
   deleted: number;
@@ -673,6 +697,122 @@ export async function upsertModuleSetting(
     );
   }
   return saved;
+}
+
+export async function applyRemoteAccountModuleSettings(input: {
+  accountSettings: RemoteAccountSettingCacheRecord[];
+  moduleSettings: RemoteModuleSettingCacheRecord[];
+}): Promise<ApplyRemoteAccountModuleSettingsReceipt> {
+  const db = await getDb();
+  const pendingRows = db.query(
+    `SELECT id
+     FROM sync_log
+     WHERE synced = 0
+       AND table_name IN ('account_settings', 'module_settings')
+     LIMIT 1`
+  );
+  if (pendingRows.length > 0) {
+    throw new Error(
+      "Cannot restore cloud account/module settings while local account/module setting changes are still pending."
+    );
+  }
+
+  const appliedAt = nowISO();
+  let accountSettingsApplied = 0;
+  let moduleSettingsApplied = 0;
+
+  for (const setting of input.accountSettings) {
+    const key = setting.key.trim();
+    if (!key) continue;
+    const updatedAt = normalizeRemoteSettingTimestamp(setting.savedAt, appliedAt);
+    const valueJson = JSON.stringify(setting.value ?? {});
+    const existing = db.query("SELECT key FROM account_settings WHERE key = ?", [
+      key,
+    ]);
+    if (existing.length > 0) {
+      db.run(
+        `UPDATE account_settings
+         SET value_json = ?,
+             source = ?,
+             updated_at = ?,
+             deleted_at = NULL,
+             sync_version = sync_version + 1
+         WHERE key = ?`,
+        [valueJson, "cloud-account-module-settings-pull", updatedAt, key]
+      );
+    } else {
+      db.run(
+        `INSERT INTO account_settings
+         (key, value_json, source, created_at, updated_at, sync_version)
+         VALUES (?, ?, ?, ?, ?, 1)`,
+        [
+          key,
+          valueJson,
+          "cloud-account-module-settings-pull",
+          updatedAt,
+          updatedAt,
+        ]
+      );
+    }
+    accountSettingsApplied += 1;
+  }
+
+  for (const setting of input.moduleSettings) {
+    const moduleId = setting.moduleId.trim();
+    const key = setting.key.trim();
+    if (!moduleId || !key) continue;
+    const updatedAt = normalizeRemoteSettingTimestamp(setting.savedAt, appliedAt);
+    const valueJson = JSON.stringify(setting.value ?? {});
+    const existing = db.query(
+      "SELECT key FROM module_settings WHERE module_id = ? AND key = ?",
+      [moduleId, key]
+    );
+    if (existing.length > 0) {
+      db.run(
+        `UPDATE module_settings
+         SET value_json = ?,
+             source = ?,
+             updated_at = ?,
+             deleted_at = NULL,
+             sync_version = sync_version + 1
+         WHERE module_id = ? AND key = ?`,
+        [
+          valueJson,
+          "cloud-account-module-settings-pull",
+          updatedAt,
+          moduleId,
+          key,
+        ]
+      );
+    } else {
+      db.run(
+        `INSERT INTO module_settings
+         (module_id, key, value_json, source, created_at, updated_at, sync_version)
+         VALUES (?, ?, ?, ?, ?, ?, 1)`,
+        [
+          moduleId,
+          key,
+          valueJson,
+          "cloud-account-module-settings-pull",
+          updatedAt,
+          updatedAt,
+        ]
+      );
+    }
+    moduleSettingsApplied += 1;
+  }
+
+  return {
+    format: "zhinote-account-module-settings-local-restore-receipt",
+    formatVersion: 1,
+    source: "cloud-account-module-settings-pull",
+    appliedAt,
+    accountSettingsApplied,
+    moduleSettingsApplied,
+    writesSyncLog: false,
+    privacyBoundary:
+      "Cloud account/module settings restore writes local cache rows only. It does not create sync_log rows and does not read page bodies, database row values, comments, files, tokens, or raw local cache dumps.",
+  };
 }
 
 // ─── Pages ───────────────────────────────────────────────────
@@ -3671,6 +3811,15 @@ function normalizeSettingSyncRowIds(rowIds: string[]): string[] {
   );
 }
 
+function normalizeRemoteSettingTimestamp(
+  value: string | null | undefined,
+  fallback: string
+): string {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed) return fallback;
+  return Number.isNaN(Date.parse(trimmed)) ? fallback : trimmed;
+}
+
 export async function clearLocalDatabaseCacheExceptKeys(
   keepKeys: string[]
 ): Promise<LocalDatabaseCachePruneResult> {
@@ -4133,6 +4282,65 @@ export async function getPendingSyncLogEntries(
      ORDER BY timestamp DESC, id DESC
      LIMIT ?`,
     [safeLimit]
+  ) as unknown as Array<{
+    id: number;
+    tableName: string;
+    rowId: string;
+    operation: string;
+    changedCols: string | null;
+    timestamp: string;
+    synced: number;
+    status: string;
+    attemptCount: number | null;
+    lastAttemptAt: string | null;
+    nextRetryAt: string | null;
+    lastError: string | null;
+    payloadHash: string | null;
+    source: string | null;
+  }>;
+
+  return rows.map((row) => ({
+    id: Number(row.id),
+    tableName: row.tableName,
+    rowId: row.rowId,
+    operation: row.operation,
+    changedCols: parseChangedCols(row.changedCols),
+    timestamp: row.timestamp,
+    synced: Number(row.synced),
+    status: row.status || "pending",
+    attemptCount: Number(row.attemptCount ?? 0),
+    lastAttemptAt: row.lastAttemptAt ?? null,
+    nextRetryAt: row.nextRetryAt ?? null,
+    lastError: row.lastError ?? null,
+    payloadHash: row.payloadHash ?? null,
+    source: row.source ?? "local",
+  }));
+}
+
+export async function getPendingAccountModuleSettingSyncLogEntries(): Promise<
+  SyncLogEntry[]
+> {
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT
+       id,
+       table_name as tableName,
+       row_id as rowId,
+       operation,
+       changed_cols as changedCols,
+       timestamp,
+       synced,
+       status,
+       attempt_count as attemptCount,
+       last_attempt_at as lastAttemptAt,
+       next_retry_at as nextRetryAt,
+       last_error as lastError,
+       payload_hash as payloadHash,
+       source
+     FROM sync_log
+     WHERE synced = 0
+       AND table_name IN ('account_settings', 'module_settings')
+     ORDER BY timestamp DESC, id DESC`
   ) as unknown as Array<{
     id: number;
     tableName: string;

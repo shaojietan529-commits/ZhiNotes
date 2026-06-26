@@ -2612,6 +2612,24 @@ function run() {
       "Local queries must write module settings through sync_log.",
     ],
     [
+      files.localQueries,
+      localQueries,
+      "applyRemoteAccountModuleSettings",
+      "Local queries must support rebuilding account/module settings from cloud metadata.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "Cannot restore cloud account/module settings while local account/module setting changes are still pending.",
+      "Local account/module restore must refuse to overwrite unsynced local setting edits.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "getPendingAccountModuleSettingSyncLogEntries",
+      "Local queries must expose account/module pending rows before cloud restore.",
+    ],
+    [
       files.accountModuleSettingsPendingSync,
       accountModuleSettingsPendingSync,
       'format: "zhinote-account-module-settings-pending-sync-plan"',
@@ -2658,6 +2676,30 @@ function run() {
       accountModuleSettingsPendingSync,
       'format: "zhinote-account-module-settings-cloud-read-summary"',
       "Account/module settings cloud reads must expose a stable metadata summary.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      'format: "zhinote-account-module-settings-cloud-restore-plan"',
+      "Account/module settings cloud restore must expose a stable restore plan.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      'architecture_target: "cloud-master-local-cache-rebuild"',
+      "Account/module settings cloud restore must rebuild local cache from the cloud master.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "local_pending_must_be_empty: true",
+      "Account/module settings cloud restore must require local pending rows to be empty.",
+    ],
+    [
+      files.accountModuleSettingsPendingSync,
+      accountModuleSettingsPendingSync,
+      "writes_sync_log: false",
+      "Account/module settings cloud restore must not create echo-loop sync_log rows.",
     ],
     [
       files.syncShell,
@@ -3465,6 +3507,22 @@ function run() {
       "Sync UI must expose account/module settings upload as its own busy state.",
     ],
     [
+      "handleAccountModuleSettingsCloudPull",
+      "Sync UI must expose an explicit account/module settings cloud restore action.",
+    ],
+    [
+      'setBusyCloudAction("account-module-settings-pull")',
+      "Sync UI must expose account/module settings restore as its own busy state.",
+    ],
+    [
+      "getPendingAccountModuleSettingSyncLogEntries",
+      "Sync UI must block account/module settings restore when local pending rows exist.",
+    ],
+    [
+      "applyRemoteAccountModuleSettings",
+      "Sync UI must rebuild account/module local cache from validated cloud metadata.",
+    ],
+    [
       "markAccountSettingSyncLogEntriesSynced",
       "Sync UI must acknowledge only successfully uploaded account settings.",
     ],
@@ -3475,6 +3533,10 @@ function run() {
     [
       "同步账号/模块设置",
       "Sync UI must render the account/module settings cloud sync button.",
+    ],
+    [
+      "从云端恢复设置",
+      "Sync UI must render the account/module settings cloud restore button.",
     ],
     [
       "从云端恢复偏好",

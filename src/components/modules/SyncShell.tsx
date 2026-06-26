@@ -20,6 +20,8 @@ import {
   getLocalDatabaseSyncSummary,
   getLocalMeetingSyncSummary,
   getLocalPageSyncSummary,
+  applyRemoteAccountModuleSettings,
+  getPendingAccountModuleSettingSyncLogEntries,
   listAccountSettings,
   listModuleSettings,
   getPageModuleCounts,
@@ -316,7 +318,9 @@ import {
 import {
   buildAccountModuleSettingCloudPayload,
   buildAccountModuleSettingsPendingSyncPlan,
+  buildAccountModuleSettingsCloudRestorePlan,
   type SupportedAccountSettingSyncKey,
+  type AccountModuleSettingsCloudRestorePlan,
   type AccountModuleSettingsPendingSyncPlan,
 } from "@/lib/sync/accountModuleSettingsPendingSync";
 import {
@@ -512,6 +516,7 @@ type CloudAlphaAction =
   | "link-receipt"
   | "workspace-settings"
   | "account-module-settings"
+  | "account-module-settings-pull"
   | "hot-cache-settings-pull"
   | "clear";
 type WebBetaContractAction =
@@ -853,6 +858,10 @@ function SyncDashboard() {
     accountModuleSettingsSyncMessage,
     setAccountModuleSettingsSyncMessage,
   ] = useState<string | null>(null);
+  const [
+    accountModuleSettingsRestorePlan,
+    setAccountModuleSettingsRestorePlan,
+  ] = useState<AccountModuleSettingsCloudRestorePlan | null>(null);
   const [hotCacheWarmupMessage, setHotCacheWarmupMessage] = useState<
     string | null
   >(null);
@@ -2966,6 +2975,132 @@ function SyncDashboard() {
     }
   };
 
+  const handleAccountModuleSettingsCloudPull = async () => {
+    if (!cloudSession || cloudSessionExpired) {
+      if (cloudSessionExpired) {
+        clearCloudSession();
+        setCloudSession(null);
+      }
+      setAccountModuleSettingsSyncMessage(
+        "需要先完成云端登录，再从云端恢复账号/模块设置。"
+      );
+      return;
+    }
+
+    const workspaceId = hotCacheCloudWorkspaceId;
+    if (!workspaceId) {
+      setAccountModuleSettingsSyncMessage("需要先选择并连接云工作区。");
+      return;
+    }
+
+    setBusyCloudAction("account-module-settings-pull");
+    setAccountModuleSettingsSyncMessage(
+      "正在检查本地账号/模块设置是否还有未上传改动..."
+    );
+    try {
+      const pendingEntries = await getPendingAccountModuleSettingSyncLogEntries();
+      if (pendingEntries.length > 0) {
+        const blockedPlan = buildAccountModuleSettingsCloudRestorePlan({
+          cloudReadBody: null,
+          pendingEntries,
+        });
+        setAccountModuleSettingsRestorePlan(blockedPlan);
+        const preview = pendingEntries
+          .slice(0, 3)
+          .map((entry) => `${entry.tableName}:${entry.rowId}`)
+          .join("、");
+        setAccountModuleSettingsSyncMessage(
+          `本地还有 ${pendingEntries.length} 条账号/模块设置未上传，暂不允许从云端覆盖本地缓存${
+            preview ? `：${preview}` : ""
+          }。请先同步到云端，或以后增加“放弃本地改动”确认流程后再恢复。`
+        );
+        return;
+      }
+
+      setAccountModuleSettingsSyncMessage(
+        "正在从云端读取账号/模块设置元数据..."
+      );
+      const response = await fetch(
+        `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${cloudSession.accessToken}`,
+          },
+        }
+      );
+      const body = await readCloudApiBody(response);
+
+      if (!response.ok) {
+        setAccountModuleSettingsSyncMessage(
+          response.status === 501
+            ? `云端设置读取尚未开启：${getCloudApiDetail(body, response)}`
+            : `云端读取失败：${getCloudApiDetail(body, response)}`
+        );
+        return;
+      }
+
+      const restorePlan = buildAccountModuleSettingsCloudRestorePlan({
+        cloudReadBody: body,
+        pendingEntries,
+      });
+      setAccountModuleSettingsRestorePlan(restorePlan);
+
+      if (!restorePlan.restore_allowed) {
+        setAccountModuleSettingsSyncMessage(
+          restorePlan.blocked_reason === "invalid-cloud-summary"
+            ? "云端账号/模块设置格式不符合当前合同，已保留本地缓存。"
+            : restorePlan.blocked_reason === "missing-cloud-summary"
+              ? "云端响应没有返回账号/模块设置摘要，已保留本地缓存。"
+              : "本地还有未上传账号/模块设置，已保留本地缓存。"
+        );
+        return;
+      }
+
+      if (restorePlan.summary.total_restore_rows === 0) {
+        setAccountModuleSettingsSyncMessage(
+          "云端还没有账号/模块设置。本地缓存保持不变。"
+        );
+        return;
+      }
+
+      const receipt = await applyRemoteAccountModuleSettings({
+        accountSettings: restorePlan.account_settings_to_restore,
+        moduleSettings: restorePlan.module_settings_to_restore,
+      });
+      const [
+        refreshedAccountSettings,
+        refreshedModuleSettings,
+        nextSyncSummary,
+        nextSyncEntries,
+      ] = await Promise.all([
+        listAccountSettings(),
+        listModuleSettings(),
+        getSyncLogSummary(),
+        getPendingSyncLogEntries(25),
+      ]);
+      setAccountSettings(refreshedAccountSettings);
+      setModuleSettings(refreshedModuleSettings);
+      setSyncSummary(nextSyncSummary);
+      setSyncEntries(nextSyncEntries);
+      setAccountModuleSettingsSyncMessage(
+        `已从云端恢复账号设置 ${receipt.accountSettingsApplied} 项、模块设置 ${receipt.moduleSettingsApplied} 项到本地缓存；此操作没有写入 sync_log，也没有上传本地数据。`
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to pull account/module settings:",
+        err
+      );
+      setAccountModuleSettingsSyncMessage(
+        err instanceof Error
+          ? `账号/模块设置云端恢复失败：${err.message}`
+          : "账号/模块设置云端恢复失败：未知错误。"
+      );
+    } finally {
+      setBusyCloudAction(null);
+    }
+  };
+
   const handleHotCachePreferencesCloudPull = async () => {
     if (!cloudSession || cloudSessionExpired) {
       if (cloudSessionExpired) {
@@ -4497,11 +4632,14 @@ function SyncDashboard() {
 
         <AccountModuleSettingsPendingPanel
           plan={accountModuleSettingsPendingSyncPlan}
+          restorePlan={accountModuleSettingsRestorePlan}
           message={accountModuleSettingsSyncMessage}
           cloudSyncBusy={busyCloudAction === "account-module-settings"}
+          cloudPullBusy={busyCloudAction === "account-module-settings-pull"}
           cloudSyncDisabled={Boolean(hotCacheCloudSyncDisabledReason)}
           cloudSyncDisabledReason={hotCacheCloudSyncDisabledReason}
           onSyncCloud={() => void handleAccountModuleSettingsCloudSync()}
+          onPullCloud={() => void handleAccountModuleSettingsCloudPull()}
         />
 
         <LocalMetadataManifestPanel
@@ -16564,18 +16702,24 @@ function CloudMasterReconcilePanel({
 
 function AccountModuleSettingsPendingPanel({
   plan,
+  restorePlan,
   message,
   cloudSyncBusy,
+  cloudPullBusy,
   cloudSyncDisabled,
   cloudSyncDisabledReason,
   onSyncCloud,
+  onPullCloud,
 }: {
   plan: AccountModuleSettingsPendingSyncPlan;
+  restorePlan: AccountModuleSettingsCloudRestorePlan | null;
   message: string | null;
   cloudSyncBusy: boolean;
+  cloudPullBusy: boolean;
   cloudSyncDisabled: boolean;
   cloudSyncDisabledReason: string;
   onSyncCloud: () => void;
+  onPullCloud: () => void;
 }) {
   return (
     <section
@@ -16601,30 +16745,65 @@ function AccountModuleSettingsPendingPanel({
         </span>
       </div>
 
-      <div className="mt-4 flex flex-col gap-2 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-4 flex flex-col gap-3 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="text-xs font-medium text-zinc-700 dark:text-zinc-200">
-            同步账号/模块设置
+            同步与恢复账号/模块设置
           </div>
           <p className="mt-1 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400">
             只上传 sync_log 里明确排队的账号显示名、账号偏好和模块配置。
-            失败会保留本地 pending，后续可重试。
+            从云端恢复前会检查本地 pending，避免云端旧值覆盖未上传改动。
           </p>
         </div>
-        <button
-          type="button"
-          disabled={cloudSyncBusy || cloudSyncDisabled}
-          title={cloudSyncDisabled ? cloudSyncDisabledReason : undefined}
-          onClick={onSyncCloud}
-          className="inline-flex min-h-9 items-center justify-center rounded-md bg-zinc-900 px-3 text-xs font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
-        >
-          {cloudSyncBusy ? "同步中..." : "同步账号/模块设置"}
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            disabled={cloudSyncBusy || cloudPullBusy || cloudSyncDisabled}
+            title={cloudSyncDisabled ? cloudSyncDisabledReason : undefined}
+            onClick={onSyncCloud}
+            className="inline-flex min-h-9 items-center justify-center rounded-md bg-zinc-900 px-3 text-xs font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
+          >
+            {cloudSyncBusy ? "同步中..." : "同步账号/模块设置"}
+          </button>
+          <button
+            type="button"
+            disabled={cloudSyncBusy || cloudPullBusy || cloudSyncDisabled}
+            title={cloudSyncDisabled ? cloudSyncDisabledReason : undefined}
+            onClick={onPullCloud}
+            className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800 dark:disabled:border-zinc-800 dark:disabled:text-zinc-600"
+          >
+            {cloudPullBusy ? "恢复中..." : "从云端恢复设置"}
+          </button>
+        </div>
       </div>
       {message ? (
         <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
           {message}
         </p>
+      ) : null}
+      {restorePlan ? (
+        <div className="mt-3 grid gap-3 md:grid-cols-4">
+          <CacheRebuildFact
+            label="恢复状态"
+            value={restorePlan.restore_allowed ? "可恢复" : "已阻塞"}
+            detail={restorePlan.blocked_reason ?? "云端摘要有效"}
+          />
+          <CacheRebuildFact
+            label="云端账号设置"
+            value={`${restorePlan.summary.cloud_account_settings} 项`}
+            detail="可重建本地账号缓存"
+          />
+          <CacheRebuildFact
+            label="云端模块设置"
+            value={`${restorePlan.summary.cloud_module_settings} 项`}
+            detail="可重建本地模块缓存"
+          />
+          <CacheRebuildFact
+            label="本地 pending"
+            value={`${restorePlan.summary.local_pending_rows} 行`}
+            detail="必须为 0 才能恢复"
+          />
+        </div>
       ) : null}
 
       <div className="mt-4 grid gap-3 md:grid-cols-4">

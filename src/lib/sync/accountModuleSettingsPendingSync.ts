@@ -1,6 +1,8 @@
 import type {
   AccountSettingRecord,
   ModuleSettingRecord,
+  RemoteAccountSettingCacheRecord,
+  RemoteModuleSettingCacheRecord,
   SyncLogEntry,
 } from "@/lib/db/local/queries";
 import {
@@ -187,6 +189,47 @@ export interface AccountModuleSettingsCloudReceipt {
     cloud_wins_except_unsynced_local_setting: true;
   };
   privacy_note: string;
+}
+
+export interface AccountModuleSettingsCloudRestorePlan {
+  format: "zhinote-account-module-settings-cloud-restore-plan";
+  format_version: 1;
+  architecture_target: "cloud-master-local-cache-rebuild";
+  direction: "cloud-to-local-cache";
+  restore_allowed: boolean;
+  blocked_reason:
+    | null
+    | "local-pending-settings"
+    | "missing-cloud-summary"
+    | "invalid-cloud-summary";
+  local_pending_must_be_empty: true;
+  cloud_value_valid: boolean;
+  cloud_settings_found: boolean;
+  pending_rows: Array<{
+    table_name: "account_settings" | "module_settings";
+    row_id: string;
+    status: string;
+  }>;
+  account_settings_to_restore: RemoteAccountSettingCacheRecord[];
+  module_settings_to_restore: RemoteModuleSettingCacheRecord[];
+  summary: {
+    local_pending_rows: number;
+    cloud_account_settings: number;
+    cloud_module_settings: number;
+    total_restore_rows: number;
+  };
+  boundary: {
+    reads_workspace_settings: true;
+    writes_local_cache_records: true;
+    writes_sync_log: false;
+    uploads_workspace_content: false;
+    reads_page_body_text: false;
+    reads_database_row_values: false;
+    reads_comment_bodies: false;
+    reads_file_bytes: false;
+    reads_secret_values: false;
+  };
+  privacy_boundary: string;
 }
 
 export type AccountModuleSettingsValidationResult =
@@ -554,6 +597,73 @@ export function buildAccountModuleSettingsCloudReceipt(input: {
   };
 }
 
+export function buildAccountModuleSettingsCloudRestorePlan(input: {
+  cloudReadBody: unknown;
+  pendingEntries: SyncLogEntry[];
+}): AccountModuleSettingsCloudRestorePlan {
+  const pendingRows = input.pendingEntries
+    .filter(
+      (entry) =>
+        entry.tableName === "account_settings" ||
+        entry.tableName === "module_settings"
+    )
+    .map((entry) => ({
+      table_name: entry.tableName as "account_settings" | "module_settings",
+      row_id: entry.rowId,
+      status: entry.status,
+    }));
+  const cloudSummary = isPlainRecord(input.cloudReadBody)
+    ? input.cloudReadBody.account_module_settings
+    : null;
+  const parsed = parseAccountModuleSettingsCloudRestoreRecords(cloudSummary);
+  const cloudSettingsFound =
+    parsed.cloudValueValid &&
+    (parsed.accountSettings.length > 0 || parsed.moduleSettings.length > 0);
+  const blockedReason =
+    pendingRows.length > 0
+      ? "local-pending-settings"
+      : !isPlainRecord(cloudSummary)
+        ? "missing-cloud-summary"
+        : !parsed.cloudValueValid
+          ? "invalid-cloud-summary"
+          : null;
+
+  return {
+    format: "zhinote-account-module-settings-cloud-restore-plan",
+    format_version: 1,
+    architecture_target: "cloud-master-local-cache-rebuild",
+    direction: "cloud-to-local-cache",
+    restore_allowed: blockedReason === null,
+    blocked_reason: blockedReason,
+    local_pending_must_be_empty: true,
+    cloud_value_valid: parsed.cloudValueValid,
+    cloud_settings_found: cloudSettingsFound,
+    pending_rows: pendingRows,
+    account_settings_to_restore: parsed.accountSettings,
+    module_settings_to_restore: parsed.moduleSettings,
+    summary: {
+      local_pending_rows: pendingRows.length,
+      cloud_account_settings: parsed.accountSettings.length,
+      cloud_module_settings: parsed.moduleSettings.length,
+      total_restore_rows:
+        parsed.accountSettings.length + parsed.moduleSettings.length,
+    },
+    boundary: {
+      reads_workspace_settings: true,
+      writes_local_cache_records: true,
+      writes_sync_log: false,
+      uploads_workspace_content: false,
+      reads_page_body_text: false,
+      reads_database_row_values: false,
+      reads_comment_bodies: false,
+      reads_file_bytes: false,
+      reads_secret_values: false,
+    },
+    privacy_boundary:
+      "Cloud restore reads only account/module settings metadata from the workspace settings response and rebuilds local cache rows. It never uploads local data, writes sync_log, reads page bodies, database values, comments, files, secrets, or raw local cache dumps.",
+  };
+}
+
 export function isSupportedAccountSettingSyncKey(
   key: string
 ): key is SupportedAccountSettingSyncKey {
@@ -653,6 +763,101 @@ function isValidAccountModuleSettingCloudValue(
     isPlainRecord(value.value) &&
     typeof value.saved_at === "string"
   );
+}
+
+function parseAccountModuleSettingsCloudRestoreRecords(value: unknown): {
+  cloudValueValid: boolean;
+  accountSettings: RemoteAccountSettingCacheRecord[];
+  moduleSettings: RemoteModuleSettingCacheRecord[];
+} {
+  if (!isPlainRecord(value)) {
+    return {
+      cloudValueValid: false,
+      accountSettings: [],
+      moduleSettings: [],
+    };
+  }
+  if (
+    value.format !== "zhinote-account-module-settings-cloud-read-summary" ||
+    value.format_version !== 1 ||
+    value.cloud_value_valid !== true
+  ) {
+    return {
+      cloudValueValid: false,
+      accountSettings: [],
+      moduleSettings: [],
+    };
+  }
+
+  const accountSettings: RemoteAccountSettingCacheRecord[] = [];
+  const moduleSettings: RemoteModuleSettingCacheRecord[] = [];
+  const accountBucket = value.account_settings;
+  const moduleBucket = value.module_settings;
+  let valid = true;
+
+  if (isPlainRecord(accountBucket)) {
+    for (const [key, rawCloudValue] of Object.entries(accountBucket)) {
+      if (!isSupportedAccountSettingSyncKey(key)) {
+        valid = false;
+        continue;
+      }
+      if (
+        !isValidAccountModuleSettingCloudValue(
+          rawCloudValue,
+          "account_settings"
+        )
+      ) {
+        valid = false;
+        continue;
+      }
+      accountSettings.push({
+        key,
+        value: rawCloudValue.value,
+        savedAt: rawCloudValue.saved_at,
+      });
+    }
+  } else if (accountBucket !== undefined && accountBucket !== null) {
+    valid = false;
+  }
+
+  if (isPlainRecord(moduleBucket)) {
+    for (const [moduleId, rawModuleBucket] of Object.entries(moduleBucket)) {
+      if (!isPlainRecord(rawModuleBucket)) {
+        valid = false;
+        continue;
+      }
+      for (const [key, rawCloudValue] of Object.entries(rawModuleBucket)) {
+        if (!isSupportedModuleSettingSyncKey(key)) {
+          valid = false;
+          continue;
+        }
+        if (
+          !isValidAccountModuleSettingCloudValue(
+            rawCloudValue,
+            "module_settings"
+          ) ||
+          rawCloudValue.module_id !== moduleId
+        ) {
+          valid = false;
+          continue;
+        }
+        moduleSettings.push({
+          moduleId,
+          key,
+          value: rawCloudValue.value,
+          savedAt: rawCloudValue.saved_at,
+        });
+      }
+    }
+  } else if (moduleBucket !== undefined && moduleBucket !== null) {
+    valid = false;
+  }
+
+  return {
+    cloudValueValid: valid,
+    accountSettings: valid ? accountSettings : [],
+    moduleSettings: valid ? moduleSettings : [],
+  };
 }
 
 function findForbiddenPayloadField(value: unknown, depth = 0): string | null {
