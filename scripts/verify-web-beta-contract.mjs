@@ -4107,8 +4107,16 @@ function run() {
       "Cloud master reconcile must cover rebuildable cache policy.",
     ],
     [
-      "页面、数据库和常用 workspace_settings 已有重建入口",
+      "页面、数据库、hot_cache_preferences 和常用 workspace_settings 已有重建入口",
       "Cloud master reconcile must treat workspace_settings as part of the rebuildable cloud-master cache path.",
+    ],
+    [
+      "指定数据库常驻本地",
+      "Cloud master reconcile must reflect pinned database hot cache selection.",
+    ],
+    [
+      "只上传 setting metadata，不上传本地缓存",
+      "Cloud master reconcile must keep user-selected hot cache settings pending-only.",
     ],
     [
       'id: "cloud-manifest-compare"',

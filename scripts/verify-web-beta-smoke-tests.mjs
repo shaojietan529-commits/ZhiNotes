@@ -1076,8 +1076,20 @@ function run() {
   assertIncludes(
     files.cloudMasterReconcile,
     cloudMasterReconcile,
-    "页面、数据库和常用 workspace_settings 已有重建入口",
+    "页面、数据库、hot_cache_preferences 和常用 workspace_settings 已有重建入口",
     "Smoke verifier must include workspace_settings in the rebuildable local-cache path."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "指定数据库常驻本地",
+    "Smoke verifier must keep pinned databases reflected in user-selected hot cache reconciliation."
+  );
+  assertIncludes(
+    files.cloudMasterReconcile,
+    cloudMasterReconcile,
+    "只上传 setting metadata，不上传本地缓存",
+    "Smoke verifier must keep user-selected hot cache settings pending-only."
   );
   assertIncludes(
     files.cloudMasterReconcile,

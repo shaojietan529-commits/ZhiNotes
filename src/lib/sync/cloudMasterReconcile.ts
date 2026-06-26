@@ -251,14 +251,16 @@ export function buildCloudMasterReconcileReport(
     {
       id: "recent-hot-cache",
       title: "最近内容热缓存",
-      status: "planned",
-      detail: "默认缓存最近 30 天、最近打开页面、当前月份日历和最近数据库视图。",
+      status: "partial",
+      detail:
+        "默认缓存最近 30 天、当前月份每日纪要、当前月份会议日历和最近数据库视图；预热只生成 metadata/route 目标，不读取正文或数据库行值。",
     },
     {
       id: "user-selected-cache",
       title: "用户手动选择常驻本地",
-      status: "planned",
-      detail: "后续允许选择重点公司、收藏页面、当前项目和指定数据库常驻本地。",
+      status: "partial",
+      detail:
+        "已允许收藏页面和重点公司、当前项目、当前月份会议日历、当前月份每日纪要、打开过的数据库视图和指定数据库常驻本地；这些选择保存为 workspace_settings.hot_cache_preferences，只上传 setting metadata，不上传本地缓存。",
     },
     {
       id: "pending-queue",
@@ -271,7 +273,7 @@ export function buildCloudMasterReconcileReport(
       title: "本地缓存可重建",
       status: "partial",
       detail:
-        "页面、数据库和常用 workspace_settings 已有重建入口；文件、评论、版本以及剩余 account/module settings 还需要纳入同一策略。",
+        "页面、数据库、hot_cache_preferences 和常用 workspace_settings 已有重建入口；文件、评论、版本以及剩余 account/module settings 还需要纳入同一策略。",
     },
   ];
 
