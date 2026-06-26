@@ -759,7 +759,10 @@ function PageContent({ pageId }: { pageId: string }) {
               <Breadcrumb pageId={pageId} />
             </div>
             <div className="flex items-center gap-1">
-              <PageSyncStatusBadge status={pageSyncStatus} />
+              <PageSyncStatusBadge
+                status={pageSyncStatus}
+                onOpenSync={() => router.push("/modules/sync")}
+              />
               <button
                 onClick={handleToggleFavorite}
                 className={`flex h-7 w-7 items-center justify-center rounded transition-colors ${
@@ -959,8 +962,10 @@ function PageContent({ pageId }: { pageId: string }) {
 }
 
 function PageSyncStatusBadge({
+  onOpenSync,
   status,
 }: {
+  onOpenSync: () => void;
   status: PendingCloudPageSyncStatus;
 }) {
   const totalPending = status.pending + status.queued;
@@ -975,31 +980,34 @@ function PageSyncStatusBadge({
   let label = "本地已保存";
   let tone =
     "border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400";
-  let title = "页面已在本机保存；云端状态会在后台继续更新。";
+  let title = "页面已在本机保存；点击打开同步中心查看队列。";
 
   if (!status.enabled) {
     label = "本地已保存";
-    title = "页面同步已关闭；当前编辑只显示本地保存状态。";
+    title = "页面同步已关闭；点击打开同步中心查看设置。";
   } else if (totalPending > 0) {
     label = status.queued > 0 ? `同步排队 ${totalPending}` : `等待云同步 ${totalPending}`;
     tone =
       "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300";
-    title = `已有 ${totalPending} 个页面变更进入本地待上传队列；输入不会被云端上传阻塞。`;
+    title = `已有 ${totalPending} 个页面变更进入本地待上传队列；点击打开同步中心处理补传。`;
   } else if (syncedAtLabel) {
     label = `云端已同步 ${syncedAtLabel}`;
     tone =
       "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300";
-    title = `最近一次页面云同步时间：${syncedAt?.toLocaleString("zh-CN") ?? syncedAtLabel}。`;
+    title = `最近一次页面云同步时间：${syncedAt?.toLocaleString("zh-CN") ?? syncedAtLabel}；点击打开同步中心。`;
   }
 
   return (
-    <span
+    <button
+      type="button"
       data-testid="page-sync-status-badge"
+      aria-label={`${label}，打开同步中心`}
+      onClick={onOpenSync}
       title={title}
-      className={`hidden h-7 items-center rounded border px-2 text-[11px] font-medium md:inline-flex ${tone}`}
+      className={`hidden h-7 items-center rounded border px-2 text-[11px] font-medium transition-colors hover:border-zinc-300 hover:bg-zinc-100 dark:hover:border-zinc-700 dark:hover:bg-zinc-800 md:inline-flex ${tone}`}
     >
       {label}
-    </span>
+    </button>
   );
 }
 

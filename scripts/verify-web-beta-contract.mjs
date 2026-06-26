@@ -2011,6 +2011,12 @@ function run() {
     "Page shell must render a stable sync status badge for local saved / pending cloud state."
   );
   assertSourceIncludes(
+    files.pageShell,
+    pageShell,
+    'router.push("/modules/sync")',
+    "Page sync status badge must open the Sync module where pending queues can be reviewed and retried."
+  );
+  assertSourceIncludes(
     files.pagePeekModal,
     pagePeekModal,
     "upsertPages([metadata])",

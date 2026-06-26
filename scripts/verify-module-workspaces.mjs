@@ -220,9 +220,11 @@ check(
     pageShell.includes("PAGE_SYNC_STATUS_EVENT") &&
     pageShell.includes("getPendingCloudPageSyncStatus") &&
     pageShell.includes("PageSyncStatusBadge") &&
+    pageShell.includes('router.push("/modules/sync")') &&
     pageShell.includes('data-testid="page-sync-status-badge"') &&
+    pageShell.includes('aria-label={`${label}，打开同步中心`}') &&
     pageShell.includes("等待云同步"),
-  "PageShell 必须显示只读页面同步状态 badge，让本地保存和云端待上传队列对用户可见"
+  "PageShell 必须显示只读页面同步状态 badge，并提供到同步中心的队列查看入口"
 );
 check(
   pageTreeSource.includes("SIDEBAR_PAGE_TREE_ROOT_LIMIT") &&

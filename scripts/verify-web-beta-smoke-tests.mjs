@@ -2062,6 +2062,12 @@ function run() {
     'data-testid="page-sync-status-badge"',
     "Page shell must render a stable sync status badge for local saved / pending cloud state."
   );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    'router.push("/modules/sync")',
+    "Page sync status badge must open the Sync module where pending queues can be reviewed and retried."
+  );
   assertExcludes(
     files.pagePeekModal,
     pagePeekModal,
