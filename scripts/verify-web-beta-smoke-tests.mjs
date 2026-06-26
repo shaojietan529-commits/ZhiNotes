@@ -8,6 +8,7 @@ const root = process.cwd();
 
 const files = {
   packageJson: "package.json",
+  routeSmokeVerifier: "scripts/verify-route-smoke.mjs",
   hotDataPlan: "src/lib/sync/webBetaHotDataPlan.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
@@ -272,6 +273,7 @@ function assertFileExists(relativePath, message) {
 
 function run() {
   const packageJson = JSON.parse(readProjectFile(files.packageJson));
+  const routeSmokeVerifier = readProjectFile(files.routeSmokeVerifier);
   const hotDataPlan = readProjectFile(files.hotDataPlan);
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
@@ -411,11 +413,43 @@ function run() {
     "build",
     "verify:web-beta",
     "verify:replay-harness",
+    "verify:route-smoke",
   ]) {
     if (typeof scripts[scriptName] !== "string") {
       failures.push(`package.json missing script ${scriptName}`);
     }
   }
+
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    "nextBin",
+    "Route smoke verifier must start the local Next.js server directly without browser automation dependencies."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    'path: "/daily"',
+    "Route smoke verifier must cover the daily calendar route."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    'path: "/page/zhinote-route-prefetch"',
+    "Route smoke verifier must cover the page shell route used for warm navigation."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    "privacyBoundary",
+    "Route smoke verifier must document that it does not read private workspace data."
+  );
+  assertExcludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    "playwright",
+    "Route smoke verifier must avoid Playwright because it is not installed in the repo."
+  );
 
   for (const routeFile of requiredPageRoutes) {
     assertFileExists(routeFile, "Smoke route check missing page route");

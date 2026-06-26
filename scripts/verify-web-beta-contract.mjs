@@ -23,6 +23,7 @@ const files = {
   hotDataPlan: "src/lib/sync/webBetaHotDataPlan.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   smokeTestVerifier: "scripts/verify-web-beta-smoke-tests.mjs",
+  routeSmokeVerifier: "scripts/verify-route-smoke.mjs",
   replayHarnessVerifier: "scripts/verify-replay-harness-safety.mjs",
   environmentPreflight: "src/lib/sync/webBetaEnvironmentPreflight.ts",
   launchChecklist: "src/lib/sync/webBetaLaunchChecklist.ts",
@@ -331,6 +332,7 @@ function run() {
   const hotDataPlan = readProjectFile(files.hotDataPlan);
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const smokeTestVerifier = readProjectFile(files.smokeTestVerifier);
+  const routeSmokeVerifier = readProjectFile(files.routeSmokeVerifier);
   const replayHarnessVerifier = readProjectFile(files.replayHarnessVerifier);
   const environmentPreflight = readProjectFile(files.environmentPreflight);
   const launchChecklist = readProjectFile(files.launchChecklist);
@@ -7981,6 +7983,43 @@ function run() {
     packageJson,
     '"verify:web-alpha"',
     "package.json must expose the Web Alpha verification receipt command."
+  );
+  assertSourceIncludes(
+    files.packageJson,
+    packageJson,
+    '"verify:route-smoke": "node scripts/verify-route-smoke.mjs"',
+    "package.json must expose the no-browser local route smoke command."
+  );
+  for (const [snippet, message] of [
+    [
+      "nextBin",
+      "Route smoke verifier must start Next.js directly without browser automation dependencies.",
+    ],
+    [
+      'path: "/daily"',
+      "Route smoke verifier must cover the daily calendar route.",
+    ],
+    [
+      'path: "/page/zhinote-route-prefetch"',
+      "Route smoke verifier must cover the page shell warmup route.",
+    ],
+    [
+      "privacyBoundary",
+      "Route smoke verifier must document its private-data boundary.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.routeSmokeVerifier,
+      routeSmokeVerifier,
+      snippet,
+      message
+    );
+  }
+  assertSourceExcludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    "playwright",
+    "Route smoke verifier must not depend on Playwright because the repo does not install it."
   );
   assertSourceIncludes(
     files.webAlphaReceiptVerifier,

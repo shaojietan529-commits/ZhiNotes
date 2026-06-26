@@ -23,6 +23,7 @@
     "verify:zhihui-glossary": "node scripts/verify-zhihui-glossary-contract.mjs",
     "verify:web-beta": "node scripts/verify-web-beta-contract.mjs",
     "verify:web-beta:smoke": "node scripts/verify-web-beta-smoke-tests.mjs",
+    "verify:route-smoke": "node scripts/verify-route-smoke.mjs",
     "verify:web-alpha": "node scripts/verify-web-alpha-handoff-receipt.mjs",
     "import:notion-daily": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/notion-daily-notes-import.mjs"
   },
