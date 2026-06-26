@@ -545,7 +545,7 @@ function FilesDashboard() {
           <Metric label="总大小" value={workbench.summary.total_size_label} />
           <Metric label="原生预览" value={workbench.summary.native_files} />
           <Metric label="转换复核" value={workbench.summary.converted_files} />
-          <Metric label="表格候选" value={workbench.summary.spreadsheet_candidates} />
+          <Metric label="表格入库" value={workbench.summary.spreadsheet_candidates} />
           <Metric label="HTML 报告" value={workbench.summary.html_reports} />
           <Metric label="需确认" value={workbench.summary.confirmation_required_files} />
           <Metric label="动作" value={workbench.summary.actions} />
@@ -1443,7 +1443,7 @@ function FilePreviewRoutingHubPanel({
           value={packet.summary.editable_import_routes}
         />
         <FilePreviewRoutingFact
-          label="表格候选"
+          label="表格入库"
           value={packet.summary.database_import_candidates}
         />
         <FilePreviewRoutingFact
@@ -1653,7 +1653,7 @@ function getNativeRouteLabel(
   const labels: Record<typeof route, string> = {
     "page-native-preview": "Page 原生预览",
     "editable-page-import": "可编辑页面导入",
-    "database-import-candidate": "数据库导入候选",
+    "confirmed-database-import": "确认后导入数据库",
     "conversion-review": "转换复核",
     "metadata-retain": "元数据留存",
   };
@@ -2205,7 +2205,7 @@ const FILE_LIBRARY_FILTERS: Array<{
   {
     id: "database",
     label: "表格入库",
-    description: "Excel、CSV、TSV、ODS 等数据库导入候选。",
+    description: "Excel、CSV、TSV、ODS 等可确认入库的表格文件。",
   },
   {
     id: "metadata",

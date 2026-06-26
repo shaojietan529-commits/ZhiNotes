@@ -375,7 +375,7 @@ function buildReviewSequence(
       route: "/modules/reports",
       target_section_id: "reports-format-playbook",
       reason: spreadsheet
-        ? `${spreadsheet.active_items} 个活跃表格候选；批量导入仍在闸门后。`
+        ? `${spreadsheet.active_items} 个活跃表格可确认入库；批量导入仍在闸门后。`
         : "当前覆盖行里没有表格路线。",
       completion_signal: "字段映射、行数、回滚边界和确认文本齐备后，才写入数据库行。",
     },

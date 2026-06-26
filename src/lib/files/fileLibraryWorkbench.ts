@@ -131,7 +131,7 @@ export interface FileLibraryDecisionSummary {
   current_conclusion: string;
   can_preview_native_now: true;
   can_review_converted_import_now: true;
-  can_bulk_import_spreadsheet_now: false;
+  can_bulk_import_spreadsheet_now: true;
   can_load_external_html_resources_now: false;
   can_send_files_to_ai_now: false;
   can_sync_file_bytes_now: false;
@@ -155,7 +155,7 @@ export interface FileLibraryNativeStrategyItem {
   default_route:
     | "page-native-preview"
     | "editable-page-import"
-    | "database-import-candidate"
+    | "confirmed-database-import"
     | "conversion-review"
     | "metadata-retain";
   native_preference: "primary" | "supported" | "review-required" | "retain-only";
@@ -256,10 +256,10 @@ const LANE_META: Record<
   "database-import": {
     id: "database-import",
     title: "表格入库",
-    description: "Excel、CSV、TSV、ODS 是数据库候选，但必须输入确认文本。",
+    description: "Excel、CSV、TSV、ODS 可在确认后写入本地数据库。",
     route: "/modules/databases",
     privacy_boundary:
-      "工作台不读取表格单元格值；真实入库只在页面预览或数据库页确认后发生。",
+      "工作台不读取表格单元格值；真实入库只在批量导入计划或页面预览确认后发生。",
   },
   "metadata-review": {
     id: "metadata-review",
@@ -362,17 +362,17 @@ function buildNativeStrategy(): FileLibraryNativeStrategy {
     primary_written_note_format: "markdown",
     editable_page_format: "tiptap-html",
     current_recommendation:
-      "如果必须选一个原生容器，ZhiNotes 页面是统一容器；AI 生成的可视化报告优先用 HTML 沙盒原生预览，个人写作优先用 Markdown 导入为可编辑块，表格资料优先转为本地数据库候选。",
+      "如果必须选一个原生容器，ZhiNotes 页面是统一容器；AI 生成的可视化报告优先用 HTML 沙盒原生预览，个人写作优先用 Markdown 导入为可编辑块，表格资料优先通过确认门槛转为本地数据库。",
     safe_defaults: [
       "HTML 报告默认以沙盒 iframe 在 page 内原生预览，并阻止外部资源。",
       "Markdown/MDX 默认可本地预览，也可以导入为可编辑 page 内容。",
       "PDF、图片、音频、视频和文本优先使用浏览器本地原生预览。",
-      "Excel/CSV/ODS 默认只进入数据库导入候选，真实入库前必须输入确认文本。",
+      "Excel/CSV/ODS 可在批量导入计划或页面预览中确认后创建本地数据库。",
     ],
     blocked_defaults: [
       "不默认加载 HTML 外部图片、脚本、样式、字体或 frame。",
       "不默认把 Office、PDF、Notebook 或表格内容发送给 AI 或云端。",
-      "不默认批量导入表格单元格值，也不自动创建数据库行。",
+      "不绕过确认文本批量导入表格单元格值，也不静默创建数据库行。",
       "不默认执行 notebook 代码、解包 ZIP 到工作区、或删除本地文件。",
     ],
     items: [
@@ -415,10 +415,10 @@ function buildNativeStrategy(): FileLibraryNativeStrategy {
       nativeStrategyItem(
         "spreadsheet-database",
         "Excel / CSV / ODS",
-        "database-import-candidate",
+        "confirmed-database-import",
         "review-required",
         "模型表、跟踪表、财务数据、指标表和交易可比数据。",
-        "先显示本地表格预览，再作为数据库导入候选；不把表格当普通文档处理。",
+        "先显示本地表格预览，再通过批量导入计划或文件预览块确认后创建数据库。",
         "导入数据库前必须输入确认文本，不批量静默写入行。",
         "/modules/databases",
         "databases-import-export-readiness",
@@ -523,22 +523,23 @@ function buildDecisionSummary(
   return {
     current_state: "local-file-routing-only",
     current_conclusion:
-      "可以继续把文件留在本地 page 中预览、转换复核和整理路线；表格批量入库、HTML 外部资源、AI 文件处理、云同步和文件字节外发仍然需要你单独确认。",
+      "可以继续把文件留在本地 page 中预览、转换复核和整理路线；表格可在确认后本地入库，HTML 外部资源、AI 文件处理、云同步和文件字节外发仍然需要你单独确认。",
     can_preview_native_now: true,
     can_review_converted_import_now: true,
-    can_bulk_import_spreadsheet_now: false,
+    can_bulk_import_spreadsheet_now: true,
     can_load_external_html_resources_now: false,
     can_send_files_to_ai_now: false,
     can_sync_file_bytes_now: false,
     safe_local_work: [
       "HTML、PDF、图片、音频、视频和文本优先保留在 page 内本地预览。",
       "Markdown、Word、PPT、RTF、EPUB 和 Notebook 先本地转换预览，再人工复核。",
+      "Excel/CSV/ODS 可以通过批量导入计划确认后创建本地数据库。",
       "ZIP、未知格式和旧版 Office 先本地留存或元数据复核。",
       "导出文件工作台时继续排除文件名、字节、正文和表格值。",
     ],
     blocked_work: [
       "不能默认加载 HTML 远程图片、脚本、样式、字体或 iframe。",
-      "不能默认把 Excel/CSV 批量写入数据库行。",
+      "不能绕过确认文本静默把 Excel/CSV 写入数据库行。",
       "不能把文件文本、文件字节或文件名发送给 AI 服务或云端。",
       "不能自动删除、覆盖、解包、执行 notebook 或同步文件。",
     ],
@@ -592,12 +593,12 @@ function buildDecisionSummary(
         title: "表格入库",
         status: "requires-owner-confirmation",
         answer: "确认后再写",
-        evidence: `${spreadsheetFiles.length} 个表格文件是数据库导入候选；工作台不读取单元格值。`,
+        evidence: `${spreadsheetFiles.length} 个表格文件可在确认后导入数据库；工作台不读取单元格值。`,
         next_action:
-          "入库前确认字段、行数、目标数据库、回滚边界，并输入确认文本。",
+          "打开文件模块批量导入计划或页面预览块，确认字段、行数、回滚边界，并输入确认文本。",
         route: "/modules/databases",
         target_section_id: "databases-import-export-readiness",
-        allowed_now: false,
+        allowed_now: true,
         requires_owner_confirmation: true,
         blocks_file_externalization: false,
         writes_workspace_data: false,
@@ -769,18 +770,18 @@ function buildActions(files: FileLibraryFileItem[]): FileLibraryAction[] {
         id: `file-library:spreadsheet:${file.local_file_id}`,
         lane_id: "database-import",
         file_id: file.local_file_id,
-        title: "表格文件是数据库导入候选",
+        title: "表格文件可确认后导入数据库",
         priority: "high",
         status: "needs-database-confirmation",
         evidence: `${file.kind_label} · ${file.size_label}`,
         next_action:
-          "先在页面预览中检查字段、行数和回滚边界，再输入确认文本创建本地数据库。",
+          "通过批量导入计划或页面预览检查字段、行数和回滚边界，再输入确认文本创建本地数据库。",
         action_route: "/modules/databases",
         route_label: "打开数据库",
         requires_manual_confirmation: true,
         writes_workspace_data: false,
         privacy_boundary:
-          "工作台不读取表格值，也不会创建数据库行。",
+          "工作台不读取表格值；只有确认后的导入流程会创建数据库和行。",
       });
     }
 
@@ -1070,7 +1071,7 @@ function getNextAction(
 
 function getCapabilityNextAction(capabilityId: string) {
   if (capabilityId === "html-report") return "复核 HTML 外部资源边界。";
-  if (capabilityId === "spreadsheet") return "复核表格入库确认门槛。";
+  if (capabilityId === "spreadsheet") return "复核表格确认入库门槛。";
   if (capabilityId === "word" || capabilityId === "presentation") {
     return "复核 Office 转换保真度和旧版文件留存策略。";
   }
