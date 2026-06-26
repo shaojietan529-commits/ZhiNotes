@@ -1280,6 +1280,30 @@ function run() {
     "Core manifest compare must preserve sensitive content boundaries."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildCoreManifestCompareSummary",
+    "Core manifest compare must expose a structured summary for rebuild readiness."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "云端 manifest 是重建来源；本地缓存只是复印件，不能反向覆盖云端。",
+    "Core manifest compare must keep the cloud manifest as the cache rebuild source of truth."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "未上传编辑必须保留，不能被云端旧值覆盖",
+    "Core manifest compare must preserve unuploaded local edits before rebuild."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "先导出",
+    "Core manifest compare must require manifest diff export before manual rebuild review."
+  );
+  assertIncludes(
     files.hotCachePolicyPlan,
     hotCachePolicyPlan,
     'plan_status: "local-policy-only"',

@@ -493,6 +493,11 @@ type CoreManifestCompareStatus =
   | "needs-sync"
   | "blocked"
   | "mismatch";
+type CoreManifestRebuildGate =
+  | "cloud-rebuild-ready"
+  | "pending-first"
+  | "blocked"
+  | "manual-review";
 type CoreManifestDomainCompare = {
   id: "pages" | "daily" | "meetings" | "databases";
   title: string;
@@ -505,10 +510,24 @@ type CoreManifestDomainCompare = {
   pending: number;
   status: CoreManifestCompareStatus;
   note: string;
+  rebuildGate: CoreManifestRebuildGate;
+  canRebuildFromCloudManifest: boolean;
+  ownerReviewRequired: boolean;
+  nextAction: string;
+  safetyInvariant: string;
 };
 type CoreManifestCompareReport = {
   checkedAt: string;
   status: "matched" | "needs-sync" | "blocked" | "mismatch";
+  summary: {
+    matched: number;
+    needsSync: number;
+    mismatch: number;
+    blocked: number;
+    rebuildReady: number;
+    ownerReviewRequired: number;
+    pendingRows: number;
+  };
   domains: CoreManifestDomainCompare[];
   privacyNote: string;
   message?: string;
@@ -678,6 +697,11 @@ function buildCoreManifestDomainCompare(input: {
 }): CoreManifestDomainCompare {
   const cloud = input.cloudResult.summary;
   if (input.cloudResult.status !== "ok" || !cloud) {
+    const action = buildCoreManifestDomainAction({
+      status: "blocked",
+      title: input.title,
+      pending: input.pending,
+    });
     return {
       id: input.id,
       title: input.title,
@@ -692,6 +716,7 @@ function buildCoreManifestDomainCompare(input: {
       note:
         input.cloudResult.message ??
         `云端 ${input.title} manifest summary 暂不可读：${input.cloudResult.status}`,
+      ...action,
     };
   }
 
@@ -701,6 +726,11 @@ function buildCoreManifestDomainCompare(input: {
     input.localSummary.watermark === cloud.watermark;
   const status: CoreManifestCompareStatus =
     input.pending > 0 ? "needs-sync" : metadataMatches ? "matched" : "mismatch";
+  const action = buildCoreManifestDomainAction({
+    status,
+    title: input.title,
+    pending: input.pending,
+  });
 
   return {
     id: input.id,
@@ -719,6 +749,57 @@ function buildCoreManifestDomainCompare(input: {
         : status === "needs-sync"
           ? "本地还有 pending 变更，先补传再判断是否需要重建缓存。"
           : "本地热缓存和云端 manifest 的 count 或 watermark 不一致，需要同步、拉取或重建缓存。",
+    ...action,
+  };
+}
+
+function buildCoreManifestDomainAction(input: {
+  status: CoreManifestCompareStatus;
+  title: string;
+  pending: number;
+}): Pick<
+  CoreManifestDomainCompare,
+  | "rebuildGate"
+  | "canRebuildFromCloudManifest"
+  | "ownerReviewRequired"
+  | "nextAction"
+  | "safetyInvariant"
+> {
+  const safetyInvariant =
+    "云端 manifest 是重建来源；本地缓存只是复印件，不能反向覆盖云端。";
+  if (input.status === "blocked") {
+    return {
+      rebuildGate: "blocked",
+      canRebuildFromCloudManifest: false,
+      ownerReviewRequired: true,
+      nextAction: `先修复 ${input.title} 的登录、环境变量或云端 manifest 可读性，再允许任何缓存重建。`,
+      safetyInvariant,
+    };
+  }
+  if (input.status === "needs-sync") {
+    return {
+      rebuildGate: "pending-first",
+      canRebuildFromCloudManifest: false,
+      ownerReviewRequired: true,
+      nextAction: `先补传 ${input.pending} 条本地 pending 变更；未上传编辑必须保留，不能被云端旧值覆盖。`,
+      safetyInvariant,
+    };
+  }
+  if (input.status === "mismatch") {
+    return {
+      rebuildGate: "manual-review",
+      canRebuildFromCloudManifest: true,
+      ownerReviewRequired: true,
+      nextAction: `先导出 ${input.title} 的本地/云端 manifest 差异，人工确认后再从云端重建本地缓存。`,
+      safetyInvariant,
+    };
+  }
+  return {
+    rebuildGate: "cloud-rebuild-ready",
+    canRebuildFromCloudManifest: true,
+    ownerReviewRequired: false,
+    nextAction: `${input.title} 已对齐；如果本地缓存损坏，可按云端 manifest 重建，不需要上传本地缓存。`,
+    safetyInvariant,
   };
 }
 
@@ -731,6 +812,24 @@ function getCoreManifestOverallStatus(
   }
   if (domains.some((domain) => domain.status === "mismatch")) return "mismatch";
   return "matched";
+}
+
+function buildCoreManifestCompareSummary(
+  domains: CoreManifestDomainCompare[]
+): CoreManifestCompareReport["summary"] {
+  return {
+    matched: domains.filter((domain) => domain.status === "matched").length,
+    needsSync: domains.filter((domain) => domain.status === "needs-sync")
+      .length,
+    mismatch: domains.filter((domain) => domain.status === "mismatch").length,
+    blocked: domains.filter((domain) => domain.status === "blocked").length,
+    rebuildReady: domains.filter(
+      (domain) => domain.rebuildGate === "cloud-rebuild-ready"
+    ).length,
+    ownerReviewRequired: domains.filter((domain) => domain.ownerReviewRequired)
+      .length,
+    pendingRows: domains.reduce((total, domain) => total + domain.pending, 0),
+  };
 }
 
 const READINESS_ITEMS: Array<{
@@ -3398,6 +3497,7 @@ function SyncDashboard() {
       setCoreManifestCompareReport({
         checkedAt: new Date().toISOString(),
         status: getCoreManifestOverallStatus(domains),
+        summary: buildCoreManifestCompareSummary(domains),
         domains,
         privacyNote:
           "核心域云端 manifest 对账只读取页面、每日纪要、会议和数据库的本地/云端 metadata summary 的 count、deleted、watermark 和 pending 数，不读取页面正文、数据库值、评论正文或文件字节；不会上传或清理本机缓存。",
@@ -3407,6 +3507,7 @@ function SyncDashboard() {
       setCoreManifestCompareReport({
         checkedAt: new Date().toISOString(),
         status: "blocked",
+        summary: buildCoreManifestCompareSummary([]),
         domains: [],
         privacyNote:
           "核心域云端 manifest 对账失败前没有读取正文或文件，也没有上传或清理本机缓存。",
@@ -16737,6 +16838,36 @@ function CoreManifestComparePanel({
               {report.message}
             </p>
           ) : null}
+          <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-7">
+            <LocalMetadataManifestMiniStat
+              label="已对齐"
+              value={report.summary.matched}
+            />
+            <LocalMetadataManifestMiniStat
+              label="待补传"
+              value={report.summary.needsSync}
+            />
+            <LocalMetadataManifestMiniStat
+              label="需复核"
+              value={report.summary.mismatch}
+            />
+            <LocalMetadataManifestMiniStat
+              label="阻塞"
+              value={report.summary.blocked}
+            />
+            <LocalMetadataManifestMiniStat
+              label="可云端重建"
+              value={report.summary.rebuildReady}
+            />
+            <LocalMetadataManifestMiniStat
+              label="Owner review"
+              value={report.summary.ownerReviewRequired}
+            />
+            <LocalMetadataManifestMiniStat
+              label="Pending rows"
+              value={report.summary.pendingRows}
+            />
+          </div>
           <div className="grid gap-3 md:grid-cols-2">
             {report.domains.map((domain) => (
               <CoreManifestDomainRow key={domain.id} domain={domain} />
@@ -16804,8 +16935,28 @@ function CoreManifestDomainRow({
           value={domain.cloudWatermark || "暂无"}
         />
       </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <LocalMetadataManifestMiniStat
+          label="Rebuild gate"
+          value={domain.rebuildGate}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Cloud rebuild"
+          value={domain.canRebuildFromCloudManifest ? "允许" : "暂缓"}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Owner review"
+          value={domain.ownerReviewRequired ? "需要" : "不需要"}
+        />
+      </div>
       <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
         {domain.note}
+      </p>
+      <p className="mt-2 rounded-md bg-zinc-50 px-3 py-2 leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+        下一步：{domain.nextAction}
+      </p>
+      <p className="mt-2 rounded-md bg-emerald-50 px-3 py-2 leading-5 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+        {domain.safetyInvariant}
       </p>
     </article>
   );

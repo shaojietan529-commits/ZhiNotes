@@ -943,6 +943,34 @@ function run() {
       "Sync UI must compute an overall core manifest comparison status.",
     ],
     [
+      "buildCoreManifestCompareSummary",
+      "Sync UI must expose structured core manifest comparison summary counts.",
+    ],
+    [
+      "rebuildGate",
+      "Core manifest comparison must expose per-domain rebuild gates.",
+    ],
+    [
+      "canRebuildFromCloudManifest",
+      "Core manifest comparison must declare whether a domain can rebuild from the cloud manifest.",
+    ],
+    [
+      "ownerReviewRequired",
+      "Core manifest comparison must declare whether owner review is required before rebuild.",
+    ],
+    [
+      "云端 manifest 是重建来源；本地缓存只是复印件，不能反向覆盖云端。",
+      "Core manifest comparison must keep the cloud manifest as the cache rebuild source of truth.",
+    ],
+    [
+      "未上传编辑必须保留，不能被云端旧值覆盖",
+      "Core manifest comparison must preserve unuploaded local edits before rebuild.",
+    ],
+    [
+      "人工确认后再从云端重建本地缓存",
+      "Core manifest comparison must require owner review before mismatch rebuild.",
+    ],
+    [
       "getLocalPageSyncSummary",
       "Core manifest comparison must read local page metadata summary.",
     ],
