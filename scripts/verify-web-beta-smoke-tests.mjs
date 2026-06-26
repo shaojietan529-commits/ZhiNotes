@@ -1220,14 +1220,32 @@ function run() {
   assertIncludes(
     files.hotCacheWarmupPlan,
     hotCacheWarmupPlan,
+    "FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12",
+    "Hot cache warmup must keep favorite page route prefetch bounded."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
     "`/database/${encodeURIComponent(database.id)}`",
     "Hot cache warmup must prefetch active database detail routes when selected."
   );
   assertIncludes(
     files.hotCacheWarmupPlan,
     hotCacheWarmupPlan,
+    "`/page/${encodeURIComponent(page.id)}`",
+    "Hot cache warmup must prefetch favorite page detail routes when selected."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
     "行值继续按需加载",
     "Hot cache warmup must keep database row values out of route prefetch."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    "正文按打开时补齐",
+    "Hot cache warmup must keep favorite page bodies out of route prefetch."
   );
   for (const forbiddenWarmupSnippet of [
     "page.content_text",

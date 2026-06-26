@@ -5,6 +5,7 @@ import type { HotCachePreferences } from "@/lib/sync/hotCacheSelectionSettings";
 import type { Database, Page } from "@/lib/utils/types";
 
 const ACTIVE_DATABASE_ROUTE_TARGET_LIMIT = 12;
+const FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12;
 
 export type HotCacheWarmupJobStatus =
   | "ready"
@@ -89,6 +90,9 @@ export function buildHotCacheWarmupPlan(
     input.preferences.keepActiveDatabases
       ? buildActiveDatabaseRouteTargets(input.databases)
       : [];
+  const favoritePageRouteTargets = input.preferences.keepFavoritePages
+    ? buildFavoritePageRouteTargets(favoritePages)
+    : [];
   const pendingRows = input.syncSummary?.pending ?? 0;
 
   const jobs: HotCacheWarmupJob[] = [
@@ -214,9 +218,10 @@ export function buildHotCacheWarmupPlan(
         ? favoritePages.length
         : 0,
       route_targets: input.preferences.keepFavoritePages
-        ? ["/knowledge-base", "/modules/company-research"]
+        ? ["/knowledge-base", "/modules/company-research", ...favoritePageRouteTargets]
         : [],
-      action: "预热知识库和公司研究入口，优先打开已收藏/重点公司 metadata。",
+      action:
+        "预热知识库、公司研究入口和收藏页面详情路由，metadata 优先可见，正文按打开时补齐。",
       reason: "主动固定的研究对象比普通最近内容更重要。",
       blocked_reason:
         input.preferences.keepFavoritePages && favoritePages.length === 0
@@ -224,7 +229,11 @@ export function buildHotCacheWarmupPlan(
           : input.preferences.keepFavoritePages
             ? null
             : "用户未选择收藏页面和重点公司常驻本地。",
-      excluded_private_fields: ["page body", "free-form preference values"],
+      excluded_private_fields: [
+        "page body",
+        "page title export",
+        "free-form preference values",
+      ],
     },
     {
       id: "current-projects",
@@ -302,6 +311,14 @@ function buildActiveDatabaseRouteTargets(databases: Database[]): string[] {
     .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
     .slice(0, ACTIVE_DATABASE_ROUTE_TARGET_LIMIT)
     .map((database) => `/database/${encodeURIComponent(database.id)}`);
+}
+
+function buildFavoritePageRouteTargets(pages: Page[]): string[] {
+  return pages
+    .filter((page) => !page.deleted_at)
+    .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
+    .slice(0, FAVORITE_PAGE_ROUTE_TARGET_LIMIT)
+    .map((page) => `/page/${encodeURIComponent(page.id)}`);
 }
 
 function isCurrentMonthDailyPage(page: Page, now: Date): boolean {

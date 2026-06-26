@@ -1178,12 +1178,24 @@ function run() {
       "Hot cache warmup plan must keep active database route prefetch bounded.",
     ],
     [
+      "FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12",
+      "Hot cache warmup plan must keep favorite page route prefetch bounded.",
+    ],
+    [
       "`/database/${encodeURIComponent(database.id)}`",
       "Hot cache warmup plan must prefetch active database detail routes when selected.",
     ],
     [
+      "`/page/${encodeURIComponent(page.id)}`",
+      "Hot cache warmup plan must prefetch favorite page detail routes when selected.",
+    ],
+    [
       "行值继续按需加载",
       "Hot cache warmup plan must keep database row values out of route prefetch.",
+    ],
+    [
+      "正文按打开时补齐",
+      "Hot cache warmup plan must keep favorite page bodies out of route prefetch.",
     ],
   ]) {
     assertSourceIncludes(
