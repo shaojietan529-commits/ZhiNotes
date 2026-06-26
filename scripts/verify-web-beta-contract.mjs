@@ -2030,6 +2030,12 @@ function run() {
   ]) {
     assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }
+  assertSourceExcludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'import("@/components/editor/Editor")',
+    "Daily calendar must not preload the heavy editor bundle during first-paint metadata loading."
+  );
   for (const [snippet, message] of [
     [
       "quickCreateMeetingForDate",
@@ -11332,7 +11338,7 @@ function run() {
     meeting_cloud_metadata_hot_cache_checks: 8,
     database_local_first_cloud_hydration_checks: 4,
     metadata_first_quick_search_checks: 4,
-    daily_lazy_peek_modal_checks: 1,
+    daily_lazy_peek_modal_checks: 2,
     warnings: warnings.length,
   };
 

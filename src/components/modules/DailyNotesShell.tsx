@@ -134,12 +134,8 @@ export default function DailyNotesShell() {
     const cancelPageShellPreload = scheduleDailyIdleTask(() => {
       void import("@/components/providers/PageShell");
     }, 500);
-    const cancelEditorPreload = scheduleDailyIdleTask(() => {
-      void import("@/components/editor/Editor");
-    }, 1100);
     return () => {
       cancelPageShellPreload();
-      cancelEditorPreload();
     };
   }, []);
 

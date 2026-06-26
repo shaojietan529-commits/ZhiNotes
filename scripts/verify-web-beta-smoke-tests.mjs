@@ -2044,6 +2044,12 @@ function run() {
     "@/components/page/LazyPagePeekModal",
     "Daily calendar must lazy-load the heavy page peek modal instead of bundling it into first paint."
   );
+  assertExcludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'import("@/components/editor/Editor")',
+    "Daily calendar must not preload the heavy editor bundle during first-paint metadata loading."
+  );
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
@@ -3790,7 +3796,7 @@ function run() {
     file_metadata_first_paint_checks: 4,
     deferred_page_content_checks: 9,
     metadata_first_quick_search_checks: 4,
-    daily_lazy_peek_modal_checks: 1,
+    daily_lazy_peek_modal_checks: 2,
   };
 
   if (failures.length > 0) {

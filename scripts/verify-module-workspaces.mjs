@@ -323,7 +323,8 @@ check(
     lazyPagePeekModal.includes("dynamic(() => import(\"@/components/page/PagePeekModal\")") &&
     lazyPagePeekModal.includes("正在打开页面…") &&
     !shells.daily.includes("fetchCloudPageById") &&
-    !shells.daily.includes("scheduleDailyPeekPreload"),
+    !shells.daily.includes("scheduleDailyPeekPreload") &&
+    !shells.daily.includes('import("@/components/editor/Editor")'),
   "DailyNotesShell 应懒加载 peek 弹窗并提供本地壳，保证日历首屏不捆绑重编辑器，也不在日历打开路径预拉正文"
 );
 check(
