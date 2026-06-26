@@ -464,6 +464,9 @@ for (const token of [
 ]) {
   check(shells.schedule.includes(token), `MeetingScheduleShell 缺少 ${token}`);
 }
+const meetingScheduleOpensCreatedPageRoute =
+  shells.schedule.includes("const pageRoute = `/page/${page.id}`") ||
+  shells.schedule.includes("const pageRoute = `/page/${result.page.id}`");
 check(
   shells.schedule.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
     shells.schedule.includes("creatingMeetingDateKey") &&
@@ -473,7 +476,7 @@ check(
     shells.schedule.includes("onPointerDown={warmMeetingPageRoute}") &&
     shells.schedule.includes('importSource: "手动创建"') &&
     shells.schedule.includes("openCreatedMeetingPage") &&
-    shells.schedule.includes("const pageRoute = `/page/${page.id}`") &&
+    meetingScheduleOpensCreatedPageRoute &&
     shells.schedule.includes("router.prefetch(pageRoute)") &&
     shells.schedule.includes("router.push(pageRoute)") &&
     shells.schedule.includes("openCreatedMeetingPage(result.page)") &&

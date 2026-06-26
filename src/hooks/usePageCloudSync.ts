@@ -19,6 +19,7 @@ import {
   getLastPageSyncAt,
   getPendingCloudPageSyncStatus,
   PAGE_SYNC_CONFIG_EVENT,
+  PAGE_SYNC_STATUS_EVENT,
   syncCloudPageMetadataDelta,
   type PendingCloudPageSyncStatus,
 } from "@/lib/pages/accountPageSync";
@@ -205,8 +206,20 @@ export function usePageCloudSync() {
       if (event.key === LOCAL_CACHE_RECOVERY_SIGNAL_KEY && event.newValue) {
         void recoverLocalCacheFromCloud();
       }
+      if (event.key?.startsWith("zhinote.pagesync.")) {
+        refreshPendingStatus();
+      }
+    };
+    const handleStatus = (event: Event) => {
+      const detail = (event as CustomEvent<PendingCloudPageSyncStatus>).detail;
+      if (detail) {
+        setPendingStatus(detail);
+      } else {
+        refreshPendingStatus();
+      }
     };
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
+    window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus);
     window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT, handleLocalCacheRecovery);
     window.addEventListener("storage", handleLocalCacheRecoveryStorage);
     window.addEventListener("focus", handleForeground);
@@ -216,6 +229,7 @@ export function usePageCloudSync() {
       window.clearTimeout(initialSyncTimer);
       window.clearInterval(interval);
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
+      window.removeEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus);
       window.removeEventListener(
         LOCAL_CACHE_RECOVERY_EVENT,
         handleLocalCacheRecovery

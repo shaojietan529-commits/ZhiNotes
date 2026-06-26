@@ -1491,7 +1491,7 @@ export default function MeetingScheduleShell() {
         setFormOpen(false);
         focusCalendarDate(dateKey);
         setIntakeMessage(`${dateKey} 的会议页面已先加入日历，正在打开…`);
-        openMeetingFullPage(result.page, "meeting-create");
+        openCreatedMeetingPage(result.page);
       } catch (error) {
         const message = error instanceof Error ? error.message : "创建会议失败。";
         setIntakeError(message);
@@ -1508,7 +1508,7 @@ export default function MeetingScheduleShell() {
       createMeetingPage,
       creatingMeetingDateKey,
       focusCalendarDate,
-      openMeetingFullPage,
+      openCreatedMeetingPage,
     ]
   );
 

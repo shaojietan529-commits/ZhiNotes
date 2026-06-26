@@ -621,6 +621,9 @@ check(
 );
 
 const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");
+const meetingScheduleOpensCreatedPageRoute =
+  meetingScheduleShell.includes("const pageRoute = `/page/${result.page.id}`") ||
+  meetingScheduleShell.includes("const pageRoute = `/page/${page.id}`");
 check(
   meetingScheduleShell.includes("usePages({ autoLoad: false })"),
   "MeetingScheduleShell 应使用手动页面 refresh，不能在会议日历首屏自动读取全量页面 metadata"
@@ -673,10 +676,10 @@ check(
   meetingScheduleShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
     meetingScheduleShell.includes("creatingMeetingDateKey") &&
     meetingScheduleShell.includes('importSource: "手动创建"') &&
-    meetingScheduleShell.includes("const pageRoute = `/page/${result.page.id}`") &&
+    meetingScheduleOpensCreatedPageRoute &&
     meetingScheduleShell.includes("router.prefetch(pageRoute)") &&
     meetingScheduleShell.includes("router.push(pageRoute)") &&
-    meetingScheduleShell.indexOf("const pageRoute = `/page/${result.page.id}`") <
+    meetingScheduleShell.indexOf("const pageRoute = `/page/${") <
       meetingScheduleShell.indexOf("router.push(pageRoute)") &&
     meetingScheduleShell.includes("后台会继续保存到账号云端"),
   "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后直接进入完整会议页面并后台同步"
@@ -782,12 +785,28 @@ check(
   "页面云同步 hook 应把 pending 队列计数暴露给侧边栏，保证本地未上传输入可见"
 );
 check(
+  pageCloudSyncHook.includes("PAGE_SYNC_STATUS_EVENT") &&
+    pageCloudSyncHook.includes("window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus)") &&
+    pageCloudSyncHook.includes("window.removeEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus)") &&
+    pageCloudSyncHook.includes('event.key?.startsWith("zhinote.pagesync.")') &&
+    pageCloudSyncHook.includes("CustomEvent<PendingCloudPageSyncStatus>"),
+  "页面云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，避免本地输入进入上传队列后 UI 等轮询才更新"
+);
+check(
   databaseCloudSyncHook.includes("getPendingCloudDatabaseSyncStatus") &&
     databaseCloudSyncHook.includes("pendingStatus") &&
     databaseCloudSyncHook.includes("syncLogPending") &&
     databaseCloudSyncHook.includes("refreshPendingStatus") &&
     databaseCloudSyncHook.includes("return { state, lastSyncAt, pendingStatus, syncNow: runSync }"),
   "数据库云同步 hook 应把 cloud key 队列和 sync_log pending 计数暴露给侧边栏"
+);
+check(
+  databaseCloudSyncHook.includes("DATABASE_SYNC_STATUS_EVENT") &&
+    databaseCloudSyncHook.includes("window.addEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus)") &&
+    databaseCloudSyncHook.includes("window.removeEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus)") &&
+    databaseCloudSyncHook.includes('event.key?.startsWith("zhinote.databasesync.")') &&
+    databaseCloudSyncHook.includes("CustomEvent<PendingCloudDatabaseSyncStatus>"),
+  "数据库云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，避免数据库本地变更进入上传队列后 UI 等轮询才更新"
 );
 check(
   pageCloudSyncHook.includes("LOCAL_CACHE_RECOVERY_EVENT") &&

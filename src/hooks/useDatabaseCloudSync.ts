@@ -13,6 +13,7 @@ import {
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   DATABASE_SYNC_CONFIG_EVENT,
+  DATABASE_SYNC_STATUS_EVENT,
   getLastDatabaseSyncAt,
   getPendingCloudDatabaseSyncStatus,
   isDatabaseSyncEnabled,
@@ -216,6 +217,9 @@ export function useDatabaseCloudSync() {
       if (event.key === LOCAL_CACHE_RECOVERY_SIGNAL_KEY && event.newValue) {
         void recoverLocalCacheFromCloud();
       }
+      if (event.key?.startsWith("zhinote.databasesync.")) {
+        void refreshPendingStatus();
+      }
     };
     const handleLocalDatabaseUpdate = (event: Event) => {
       const message = (event as CustomEvent<DatabaseUpdateMessage>).detail;
@@ -225,7 +229,17 @@ export function useDatabaseCloudSync() {
         void runSync({ quick: true });
       }, EDIT_DEBOUNCE_MS);
     };
+    const handleStatus = (event: Event) => {
+      const detail = (event as CustomEvent<PendingCloudDatabaseSyncStatus>)
+        .detail;
+      if (detail) {
+        setPendingStatus(detail);
+      } else {
+        void refreshPendingStatus();
+      }
+    };
     window.addEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
+    window.addEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus);
     window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT, handleLocalCacheRecovery);
     window.addEventListener("storage", handleLocalCacheRecoveryStorage);
     window.addEventListener(
@@ -240,6 +254,7 @@ export function useDatabaseCloudSync() {
       window.clearTimeout(initialSyncTimer);
       window.clearInterval(interval);
       window.removeEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
+      window.removeEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus);
       window.removeEventListener(
         LOCAL_CACHE_RECOVERY_EVENT,
         handleLocalCacheRecovery
