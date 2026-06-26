@@ -1553,6 +1553,12 @@ function run() {
     "readPageRouteHandoff",
     "Page opening must read route handoff before slower local DB or cloud checks."
   );
+  assertExcludes(
+    files.usePage,
+    usePage,
+    "setLoading(localPage.content_text == null)",
+    "Page opening must treat metadata/handoff as first-paint ready while the full body hydrates in the background."
+  );
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,

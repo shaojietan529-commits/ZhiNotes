@@ -72,7 +72,7 @@ export function usePage(
       null;
     if (localPage) {
       setPage(localPage);
-      setLoading(localPage.content_text == null);
+      setLoading(false);
     } else {
       setPage(null);
     }
@@ -96,7 +96,7 @@ export function usePage(
     if (localPage) {
       upsertPages([localPage]);
       setPage(localPage);
-      setLoading(localPage.content_text == null);
+      setLoading(false);
     }
 
     if (localPage?.content_text != null) {

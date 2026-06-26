@@ -1632,6 +1632,12 @@ function run() {
   ]) {
     assertSourceIncludes(files.usePage, usePage, snippet, message);
   }
+  assertSourceExcludes(
+    files.usePage,
+    usePage,
+    "setLoading(localPage.content_text == null)",
+    "usePage must treat metadata/handoff as first-paint ready while the full page body hydrates in the background."
+  );
   for (const [snippet, message] of [
     [
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
