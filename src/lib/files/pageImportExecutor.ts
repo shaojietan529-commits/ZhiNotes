@@ -3,8 +3,8 @@
 //
 // This runs ONLY after the user has reviewed the plan and explicitly confirmed
 // in the UI (batch page creation is a high-risk action). It never uploads raw
-// file bytes or calls AI. Markdown/plain-text become real page bodies; created
-// page records then follow the user's account page-sync setting. Other
+// file bytes or calls AI. Markdown/plain-text/notebook become real page bodies;
+// created page records then follow the user's account page-sync setting. Other
 // page-import / local-retain files become local file pages with a metadata
 // preview block; spreadsheets and unknown formats are skipped here and routed
 // to their own confirmed flows (database column mapping / owner review).
@@ -20,6 +20,7 @@ import {
   buildFileLibraryPageContent,
 } from "@/lib/files/filePage";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
+import { convertNotebookToHtml } from "@/lib/files/notebook";
 import type { PageImportPlan, PageImportPlanItem } from "./pageImportPlan";
 
 export interface PageImportExecutionResult {
@@ -57,6 +58,27 @@ function deriveTitle(fileName: string, text: string): string {
   }
   const base = fileName.replace(/\.[^.]+$/, "").trim();
   return base || "未命名页面";
+}
+
+function deriveNotebookTitle(fileName: string, text: string): string {
+  try {
+    const parsed = JSON.parse(text) as {
+      cells?: Array<{ cell_type?: string; source?: string | string[] }>;
+    };
+    const headingLine = parsed.cells
+      ?.filter((cell) => cell.cell_type === "markdown")
+      .map((cell) =>
+        Array.isArray(cell.source) ? cell.source.join("") : cell.source ?? ""
+      )
+      .flatMap((source) => source.split(/\r?\n/))
+      .find((line) => /^\s{0,3}#{1,6}\s+/.test(line));
+    const cleaned = headingLine?.replace(/^\s{0,3}#{1,6}\s+/, "").trim();
+    if (cleaned) return cleaned.replace(/[#*`_]/g, "").slice(0, 120);
+  } catch {
+    // Fall back to file name for malformed notebooks; conversion will render
+    // the parse failure inside the page body for review.
+  }
+  return deriveTitle(fileName, "");
 }
 
 function textToParagraphs(text: string): string {
@@ -168,6 +190,20 @@ export async function executePageImportPlan(
         await updatePageWithCloud(page.id, { content_text: html });
         createdPageIds.push(page.id);
         createdPages += 1;
+        continue;
+      }
+
+      if (item.lane === "page-import" && stored.kind === "notebook") {
+        const text = stored.textContent ?? "";
+        const html = convertNotebookToHtml(text);
+        const page = await createPageWithCloud({
+          title: deriveNotebookTitle(stored.name, text),
+          icon: "NOTE",
+        });
+        await updatePageWithCloud(page.id, { content_text: html });
+        createdPageIds.push(page.id);
+        createdPages += 1;
+        notes.push("Notebook 已本地解析为可编辑页面；代码单元格只作为文本保留，未执行。");
         continue;
       }
 

@@ -91,8 +91,10 @@ check(
   "PageImportPlanItem 必须暴露 execution_note"
 );
 check(
-  source.includes("RTF、EPUB、Notebook") && source.includes("Notebook 不执行代码"),
-  "RTF/EPUB/Notebook 路线必须说明本地转换和不执行代码"
+  source.includes("Notebook 会在本地解析") &&
+    source.includes("不执行代码") &&
+    source.includes("notebook-pages"),
+  "Notebook 路线必须说明本地可编辑导入和不执行代码"
 );
 check(
   source.includes("PDF 先创建本地文件页") &&
@@ -192,6 +194,12 @@ check(
     executorSource.includes("syncs_page_records_to_account_cloud: true") &&
     executorSource.includes("enables_ai: false"),
   "执行器必须声明不上传原始文件、不调用 AI，并明确页面记录跟随账号同步"
+);
+check(
+  executorSource.includes("convertNotebookToHtml") &&
+    executorSource.includes('stored.kind === "notebook"') &&
+    executorSource.includes("未执行"),
+  "执行器必须把 Notebook 本地转换为可编辑页面，并声明不执行代码"
 );
 // Spreadsheets and unknown formats must be skipped (not created) in this stage.
 check(

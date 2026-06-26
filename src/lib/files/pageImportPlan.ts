@@ -258,17 +258,31 @@ const FORMAT_ROUTES: PageImportFormatRoute[] = [
   },
   {
     id: "research-document-preview",
-    label: "RTF / EPUB / Notebook",
-    extensions: [".rtf", ".epub", ".ipynb"],
+    label: "RTF / EPUB",
+    extensions: [".rtf", ".epub"],
     lane: "local-retain",
     destination_module: "files",
     target_kind: "retained-file",
     needs_conversion: true,
     preview_route: "file-page-converted-preview",
     privacy_boundary:
-      "RTF、EPUB、Notebook 先创建本地文件页，本地解析预览；Notebook 不执行代码。",
+      "RTF、EPUB 先创建本地文件页，本地解析预览。",
     execution_note:
-      "确认后创建本地文件页，用本地转换预览正文或 notebook cells。",
+      "确认后创建本地文件页，用本地转换预览正文。",
+  },
+  {
+    id: "notebook-pages",
+    label: "Jupyter Notebook",
+    extensions: [".ipynb"],
+    lane: "page-import",
+    destination_module: "notes",
+    target_kind: "page",
+    needs_conversion: true,
+    preview_route: "editable-page-body",
+    privacy_boundary:
+      "Notebook 会在本地解析 markdown/code cells 并生成可编辑页面；只读取 JSON 文本，不执行代码。",
+    execution_note:
+      "确认后读取 notebook JSON，把单元格转换为可编辑页面正文；代码块保留为文本。",
   },
   {
     id: "archive-review",
