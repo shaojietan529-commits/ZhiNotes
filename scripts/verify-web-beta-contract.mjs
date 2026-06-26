@@ -2036,6 +2036,24 @@ function run() {
     'import("@/components/editor/Editor")',
     "Daily calendar must not preload the heavy editor bundle during first-paint metadata loading."
   );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "pageShellWarmupRef",
+    "Daily calendar must warm the full-page shell once without repeatedly importing it."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "onPointerEnter={warmPageRoute}",
+    "Daily calendar + controls must warm the page shell on pointer intent before navigation."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "onFocus={warmPageRoute}",
+    "Daily calendar + controls must warm the page shell on keyboard focus before navigation."
+  );
   for (const [snippet, message] of [
     [
       "quickCreateMeetingForDate",
@@ -11338,7 +11356,7 @@ function run() {
     meeting_cloud_metadata_hot_cache_checks: 8,
     database_local_first_cloud_hydration_checks: 4,
     metadata_first_quick_search_checks: 4,
-    daily_lazy_peek_modal_checks: 2,
+    daily_lazy_peek_modal_checks: 5,
     warnings: warnings.length,
   };
 

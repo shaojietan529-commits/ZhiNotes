@@ -112,6 +112,7 @@ export default function DailyNotesShell() {
   >(() => new Map());
   const loadRequestRef = useRef(0);
   const observedPageRevisionRef = useRef<string | null>(null);
+  const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
   const { viewMonth, setViewMonth } =
     useCalendarViewMonthPreference("daily");
   const [hotCachePreferences, setHotCachePreferences] = useState(
@@ -122,22 +123,29 @@ export default function DailyNotesShell() {
     [hotCachePreferences]
   );
 
-  useEffect(() => {
+  const warmPageRoute = useCallback(() => {
     try {
       router.prefetch("/page/zhinote-route-prefetch");
     } catch {
       // Prefetch only improves perceived speed; it should never block the page.
     }
+    if (!pageShellWarmupRef.current) {
+      pageShellWarmupRef.current = import("@/components/providers/PageShell").catch(
+        () => {
+          pageShellWarmupRef.current = null;
+        }
+      );
+    }
   }, [router]);
 
   useEffect(() => {
     const cancelPageShellPreload = scheduleDailyIdleTask(() => {
-      void import("@/components/providers/PageShell");
+      warmPageRoute();
     }, 500);
     return () => {
       cancelPageShellPreload();
     };
-  }, []);
+  }, [warmPageRoute]);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -514,6 +522,7 @@ export default function DailyNotesShell() {
       setCloudNotice(`${dateKey} 的每日纪要正在打开，后台会加入账号云端上传队列…`);
 
       const pageRoute = `/page/${optimisticNote.id}`;
+      warmPageRoute();
       try {
         router.prefetch(pageRoute);
       } catch {
@@ -749,6 +758,8 @@ export default function DailyNotesShell() {
             <button
               type="button"
               disabled={creatingDateKey !== null}
+              onPointerEnter={warmPageRoute}
+              onFocus={warmPageRoute}
               onClick={() => void addNote(todayKey)}
               className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
@@ -854,6 +865,8 @@ export default function DailyNotesShell() {
                       aria-label={`在 ${key} 新增每日纪要`}
                       data-testid={`daily-add-note-${key}`}
                       disabled={creatingDateKey !== null}
+                      onPointerEnter={warmPageRoute}
+                      onFocus={warmPageRoute}
                       onClick={() => void addNote(key)}
                       className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                       title="在这天新增纪要"

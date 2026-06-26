@@ -281,7 +281,10 @@ check(
 for (const token of [
   "seedDailyNoteForImmediateOpen",
   "const pageRoute = `/page/${optimisticNote.id}`",
+  "warmPageRoute();",
   "router.prefetch(pageRoute)",
+  "onPointerEnter={warmPageRoute}",
+  "onFocus={warmPageRoute}",
   'import("@/components/providers/PageShell")',
   "router.push(pageRoute)",
   "rememberPendingPageDraft(optimisticNote)",

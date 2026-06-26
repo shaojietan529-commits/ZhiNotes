@@ -2053,6 +2053,24 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "pageShellWarmupRef",
+    "Daily calendar must warm the full-page shell once without repeatedly importing it."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "onPointerEnter={warmPageRoute}",
+    "Daily calendar + controls must warm the page shell on pointer intent before navigation."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "onFocus={warmPageRoute}",
+    "Daily calendar + controls must warm the page shell on keyboard focus before navigation."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
     "Daily + creation must hand off the optimistic page before full page navigation."
   );
@@ -3796,7 +3814,7 @@ function run() {
     file_metadata_first_paint_checks: 4,
     deferred_page_content_checks: 9,
     metadata_first_quick_search_checks: 4,
-    daily_lazy_peek_modal_checks: 2,
+    daily_lazy_peek_modal_checks: 5,
   };
 
   if (failures.length > 0) {
