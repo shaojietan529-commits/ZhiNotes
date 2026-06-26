@@ -1116,6 +1116,19 @@ export default function MeetingScheduleShell() {
     ]
   );
 
+  const openCreatedMeetingPage = useCallback(
+    (page: Page) => {
+      const pageRoute = `/page/${page.id}`;
+      try {
+        router.prefetch(pageRoute);
+      } catch {
+        // The page draft handoff already carries the first paint if prefetch is unavailable.
+      }
+      router.push(pageRoute);
+    },
+    [router]
+  );
+
   const handleCreate = useCallback(async () => {
     if (creatingMeetingDateKey !== null) return;
     const targetDateKey = form.date || toDateKey(new Date());
@@ -1126,12 +1139,6 @@ export default function MeetingScheduleShell() {
       const result = await createMeetingPage(form, {
         importSource: "手动创建",
       });
-      const pageRoute = `/page/${result.page.id}`;
-      try {
-        router.prefetch(pageRoute);
-      } catch {
-        // Navigation is still immediate enough if prefetch is unavailable.
-      }
       setFormOpen(false);
       focusCalendarDate(targetDateKey);
       setIntakeMessage(
@@ -1139,7 +1146,7 @@ export default function MeetingScheduleShell() {
           result.cloudOnly ? "本地缓存暂不可写，已先保存在账号云端。" : ""
         }`
       );
-      router.push(pageRoute);
+      openCreatedMeetingPage(result.page);
     } catch (error) {
       const message = error instanceof Error ? error.message : "创建会议失败。";
       setIntakeError(message);
@@ -1152,7 +1159,7 @@ export default function MeetingScheduleShell() {
     creatingMeetingDateKey,
     focusCalendarDate,
     form,
-    router,
+    openCreatedMeetingPage,
   ]);
 
   const handleImportInvite = useCallback(async () => {
@@ -1216,16 +1223,17 @@ export default function MeetingScheduleShell() {
       setIntakeText("");
       setIntakeMessage(
         hasExecutableTime
-          ? `${formatImportDateMessage(draft.date)}${result?.cloudOnly ? " Edge 本地数据库写入失败，已改存到账号云端。" : ""} 入会链接、会议号和会议密码已保存到会议页面。${formatQueueResultForMessage(
+          ? `${formatImportDateMessage(draft.date)}会议页面正在打开；${result?.cloudOnly ? " Edge 本地数据库写入失败，已改存到账号云端。" : ""} 入会链接、会议号和会议密码已保存到会议页面。${formatQueueResultForMessage(
               result?.queueResult
             )}`
-          : "已保留会议痕迹，但还缺明确开始时间；请稍后打开会议页补齐。"
+          : "已保留会议痕迹并正在打开会议页，但还缺明确开始时间；请在页面里补齐。"
       );
+      openCreatedMeetingPage(result.page);
     } catch (error) {
       const message = error instanceof Error ? error.message : "读取会议信息失败。";
       const fallback = buildFallbackTraceFromInput(input, form.date || toDateKey(new Date()));
       try {
-        await createMeetingPage(fallback.draft, {
+        const result = await createMeetingPage(fallback.draft, {
           importSource: "会议信息输入",
           hasJoinUrl: Boolean(fallback.joinUrl),
           joinUrlHost: fallback.joinUrlHost,
@@ -1244,7 +1252,8 @@ export default function MeetingScheduleShell() {
           traceNote: `解析接口失败，但已保留会议痕迹。失败原因：${message}`,
         });
         focusCalendarDate(fallback.draft.date);
-        setIntakeError(`解析失败但已保留痕迹：${message}`);
+        setIntakeError(`解析失败但已保留痕迹，并正在打开会议页：${message}`);
+        openCreatedMeetingPage(result.page);
       } catch (fallbackError) {
         const fallbackMessage =
           fallbackError instanceof Error ? fallbackError.message : "保留会议痕迹失败。";
@@ -1262,6 +1271,7 @@ export default function MeetingScheduleShell() {
     intakeRecordingDevice,
     intakeText,
     intakeTranscriptionModel,
+    openCreatedMeetingPage,
   ]);
 
   const todayKey = toDateKey(new Date());

@@ -468,9 +468,11 @@ check(
   shells.schedule.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
     shells.schedule.includes("creatingMeetingDateKey") &&
     shells.schedule.includes('importSource: "手动创建"') &&
-    shells.schedule.includes("const pageRoute = `/page/${result.page.id}`") &&
+    shells.schedule.includes("openCreatedMeetingPage") &&
+    shells.schedule.includes("const pageRoute = `/page/${page.id}`") &&
     shells.schedule.includes("router.prefetch(pageRoute)") &&
     shells.schedule.includes("router.push(pageRoute)") &&
+    shells.schedule.includes("openCreatedMeetingPage(result.page)") &&
     shells.schedule.includes("后台会继续保存到账号云端") &&
     shells.schedule.includes('data-testid="meeting-intake-import-button"') &&
     shells.schedule.includes("disabled={intakeLoading || !intakeText.trim()}") &&

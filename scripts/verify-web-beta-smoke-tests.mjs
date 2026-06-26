@@ -2279,6 +2279,18 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "openCreatedMeetingPage",
+    "Meeting manual create and invite import must share the same local-first page opening path."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "openCreatedMeetingPage(result.page)",
+    "Meeting invite imports must open the newly created page immediately after optimistic local create."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "rememberPageRouteHandoff(optimisticPage, \"meeting-create\")",
     "Meeting creation must hand off the optimistic page before page navigation."
   );

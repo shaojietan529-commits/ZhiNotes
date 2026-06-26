@@ -2146,6 +2146,18 @@ function run() {
       "Meeting calendar + buttons must create and open a meeting page directly.",
     ],
     [
+      "openCreatedMeetingPage",
+      "Meeting manual create and invite import must share the same local-first page opening path.",
+    ],
+    [
+      "openCreatedMeetingPage(result.page)",
+      "Meeting invite imports must open the newly created page immediately after the optimistic local create.",
+    ],
+    [
+      "会议页面正在打开；",
+      "Meeting invite import success must tell the owner that the created page is opening now.",
+    ],
+    [
       "rememberPageRouteHandoff(optimisticPage, \"meeting-create\")",
       "Meeting creation must hand off the optimistic page before full navigation.",
     ],
