@@ -11,7 +11,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
-import { usePages } from "@/hooks/usePages";
 import {
   getNextPosition,
   updateWikiLinks,
@@ -36,6 +35,10 @@ import {
 } from "@/lib/files/filePage";
 import PageContextMenu from "@/components/page/PageContextMenu";
 import PagePeekModal from "@/components/page/LazyPagePeekModal";
+import {
+  listScopedPageMetadata,
+  mergePageMetadata,
+} from "@/lib/pages/scopedPageMetadata";
 import type { Page } from "@/lib/utils/types";
 
 const IMPORT_ACCEPT = [
@@ -80,7 +83,8 @@ function fileKindIcon(kind: PageFileKind): string {
 export default function KnowledgeBaseShell() {
   const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
-  const { pages, refresh } = usePages();
+  const upsertWorkspacePages = useWorkspaceStore((s) => s.upsertPages);
+  const [pages, setPages] = useState<Page[]>([]);
   const [rootId, setRootId] = useState<string | null>(null);
   const [industryRootId, setIndustryRootId] = useState<string | null>(null);
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
@@ -105,6 +109,13 @@ export default function KnowledgeBaseShell() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Which page imported files should land under (null = board root).
   const importTargetRef = useRef<string | null>(null);
+  const mergeScopedPages = useCallback(
+    (incoming: Page[]) => {
+      setPages((current) => mergePageMetadata(current, incoming));
+      upsertWorkspacePages(incoming);
+    },
+    [upsertWorkspacePages]
+  );
 
   useEffect(() => {
     if (!dbReady) return;
@@ -113,6 +124,32 @@ export default function KnowledgeBaseShell() {
       void getModuleRootId("industry-chain").then(setIndustryRootId);
     });
   }, [dbReady]);
+
+  const loadScopedPages = useCallback(async () => {
+    const roots = [rootId, industryRootId].filter((id): id is string =>
+      Boolean(id)
+    );
+    if (roots.length === 0) return;
+    const scoped = (
+      await Promise.all(
+        roots.map((id) =>
+          listScopedPageMetadata(id, {
+            includeRoot: true,
+            includeDescendants: true,
+          })
+        )
+      )
+    ).flat();
+    setPages(mergePageMetadata([], scoped));
+    upsertWorkspacePages(scoped);
+  }, [industryRootId, rootId, upsertWorkspacePages]);
+
+  useEffect(() => {
+    if (!rootId && !industryRootId) return;
+    queueMicrotask(() => {
+      void loadScopedPages();
+    });
+  }, [industryRootId, loadScopedPages, rootId]);
 
   const cards = useMemo(
     () =>
@@ -157,16 +194,16 @@ export default function KnowledgeBaseShell() {
   const addCard = useCallback(async () => {
     if (!rootId) return;
     const page = await createPageWithCloud({ parentId: rootId });
-    await refresh();
+    mergeScopedPages([page]);
     setPeekPageId(page.id);
-  }, [rootId, refresh]);
+  }, [mergeScopedPages, rootId]);
 
   const renameCard = useCallback(
     async (id: string, title: string) => {
-      await updatePageWithCloud(id, { title });
-      await refresh();
+      const updated = await updatePageWithCloud(id, { title });
+      if (updated) mergeScopedPages([updated]);
     },
-    [refresh]
+    [mergeScopedPages]
   );
 
   const linkCardToIndustryParent = useCallback(
@@ -191,19 +228,19 @@ export default function KnowledgeBaseShell() {
         title: displayPageTitle(industryLinkCard.title),
         icon: industryLinkCard.icon ?? "🏢",
       });
-      await updatePageWithCloud(linkPage.id, {
+      const updatedLinkPage = await updatePageWithCloud(linkPage.id, {
         properties: buildIndustryCompanyLinkProperties(industryLinkCard),
         content_text: buildIndustryCompanyLinkContent(industryLinkCard),
       });
       await updateWikiLinks(linkPage.id, [industryLinkCard.id]);
-      await refresh();
+      mergeScopedPages([updatedLinkPage ?? linkPage]);
       setIndustryLinkCardId(null);
       setIndustryLinkNotice(
         `已把「${displayPageTitle(industryLinkCard.title)}」链入产业链。`
       );
       window.setTimeout(() => setIndustryLinkNotice(null), 2600);
     },
-    [industryLinkCard, pages, refresh]
+    [industryLinkCard, mergeScopedPages, pages]
   );
 
   // Owner-confirmed import: triggered only by an explicit file pick. Files
@@ -216,6 +253,7 @@ export default function KnowledgeBaseShell() {
       setImporting(true);
       setImportNotice(null);
       let imported = 0;
+      const importedPages: Page[] = [];
       try {
         for (const file of Array.from(fileList)) {
           const stored = await savePageFile(file);
@@ -224,12 +262,13 @@ export default function KnowledgeBaseShell() {
             title: buildFileLibraryPageTitle(stored),
             icon: fileKindIcon(stored.kind),
           });
-          await updatePageWithCloud(page.id, {
+          const updated = await updatePageWithCloud(page.id, {
             content_text: buildFileLibraryPageContent(stored),
           });
+          importedPages.push(updated ?? page);
           imported += 1;
         }
-        await refresh();
+        mergeScopedPages(importedPages);
         setImportNotice(`已导入 ${imported} 个文件（仅保存在本机浏览器）。`);
       } catch (err) {
         console.error("[Zhinote] Knowledge base file import failed:", err);
@@ -243,7 +282,7 @@ export default function KnowledgeBaseShell() {
         importTargetRef.current = null;
       }
     },
-    [rootId, refresh]
+    [mergeScopedPages, rootId]
   );
 
   const pickFilesFor = useCallback((parentId: string | null) => {
@@ -271,7 +310,8 @@ export default function KnowledgeBaseShell() {
       if (spot.position === "inside") {
         newPosition = await getNextPosition(target.id);
         newParentId = target.id;
-        await movePageWithCloud(dragged, newParentId, newPosition);
+        const moved = await movePageWithCloud(dragged, newParentId, newPosition);
+        if (moved) mergeScopedPages([moved]);
       } else {
         newParentId = rootId;
         const siblings = cards.filter((c) => c.id !== dragged);
@@ -286,7 +326,8 @@ export default function KnowledgeBaseShell() {
             : prevPos + 2;
         newPosition =
           insertIndex === 0 ? prevPos - 1 : (prevPos + nextPos) / 2;
-        await movePageWithCloud(dragged, newParentId, newPosition);
+        const moved = await movePageWithCloud(dragged, newParentId, newPosition);
+        if (moved) mergeScopedPages([moved]);
       }
       pushPageMove({
         pageId: dragged,
@@ -296,28 +337,27 @@ export default function KnowledgeBaseShell() {
         toPosition: newPosition,
         timestamp: Date.now(),
       });
-      await refresh();
     } catch (err) {
       console.error("[Zhinote] Knowledge base drag move failed:", err);
     }
-  }, [draggedId, dropSpot, cards, pages, rootId, refresh, pushPageMove]);
+  }, [draggedId, dropSpot, cards, mergeScopedPages, pages, rootId, pushPageMove]);
 
   const handleUndo = useCallback(async () => {
     const record = popPageMove();
     if (!record) return;
     try {
-      await movePageWithCloud(
+      const moved = await movePageWithCloud(
         record.pageId,
         record.fromParentId!,
         record.fromPosition
       );
-      await refresh();
+      if (moved) mergeScopedPages([moved]);
       setUndoNotice("已撤回移动");
       setTimeout(() => setUndoNotice(null), 2000);
     } catch (err) {
       console.error("[Zhinote] Undo move failed:", err);
     }
-  }, [popPageMove, refresh]);
+  }, [mergeScopedPages, popPageMove]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -461,7 +501,7 @@ export default function KnowledgeBaseShell() {
           initialPage={peekPage}
           onClose={() => setPeekPageId(null)}
           onOpenFull={openKnowledgePage}
-          onChanged={() => void refresh()}
+          onChanged={() => void loadScopedPages()}
         />
       )}
 
@@ -473,7 +513,7 @@ export default function KnowledgeBaseShell() {
           onClose={() => setContextMenu(null)}
           onOpen={(id) => setPeekPageId(id)}
           onOpenFull={openKnowledgePage}
-          onChanged={() => void refresh()}
+          onChanged={() => void loadScopedPages()}
         />
       )}
 

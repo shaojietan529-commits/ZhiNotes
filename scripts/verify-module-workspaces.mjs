@@ -82,6 +82,7 @@ const moduleDashboardSource = read("src/components/modules/ModuleDashboard.tsx")
 const pageTreeSource = read("src/components/sidebar/PageTree.tsx");
 const pageUpdateBus = read("src/lib/pages/pageUpdateBus.ts");
 const accountPageSync = read("src/lib/pages/accountPageSync.ts");
+const scopedPageMetadata = read("src/lib/pages/scopedPageMetadata.ts");
 const forbidden = ["XMLHttpRequest", "enables_ai", "getUserMedia"];
 for (const [name, source] of Object.entries(shells)) {
   for (const token of forbidden) {
@@ -317,6 +318,38 @@ check(
 check(
   !shells.daily.includes("getAllPageMetadata"),
   "DailyNotesShell 不应在日历刷新时调用 getAllPageMetadata 全量扫描"
+);
+check(
+  scopedPageMetadata.includes("listScopedPageMetadata") &&
+    scopedPageMetadata.includes("listPageMetadata(rootId)") &&
+    scopedPageMetadata.includes("listPageMetadata(current.id)") &&
+    scopedPageMetadata.includes("mergePageMetadata"),
+  "scopedPageMetadata 必须提供 root-scoped 页面元数据读取，避免模块入口扫全局页面"
+);
+check(
+  shells.knowledge.includes("listScopedPageMetadata") &&
+    shells.knowledge.includes("mergeScopedPages") &&
+    shells.knowledge.includes("upsertWorkspacePages(incoming)") &&
+    shells.knowledge.includes("mergeScopedPages([page])") &&
+    shells.knowledge.includes("mergeScopedPages([updatedLinkPage ?? linkPage])") &&
+    shells.knowledge.includes("onChanged={() => void loadScopedPages()}") &&
+    !shells.knowledge.includes('from "@/hooks/usePages"') &&
+    !shells.knowledge.includes("usePages(") &&
+    !shells.knowledge.includes("await refresh()"),
+  "KnowledgeBaseShell 必须按知识库/产业链 root 读取 scoped metadata，并在新建/链接/移动后本地合并，不能触发全局页面刷新"
+);
+check(
+  shells.chain.includes("listScopedPageMetadata") &&
+    shells.chain.includes("mergeScopedPages") &&
+    shells.chain.includes("upsertWorkspacePages(incoming)") &&
+    shells.chain.includes("includeDescendants: false") &&
+    shells.chain.includes("mergeScopedPages([child])") &&
+    shells.chain.includes("mergeScopedPages([updatedLinkPage ?? linkPage])") &&
+    shells.chain.includes("onChanged={() => void loadScopedPages()}") &&
+    !shells.chain.includes('from "@/hooks/usePages"') &&
+    !shells.chain.includes("usePages(") &&
+    !shells.chain.includes("await refresh()"),
+  "IndustryChainShell 必须只读取产业链树和知识库公司候选 scoped metadata，创建/链接后本地合并，不能触发全局页面刷新"
 );
 for (const token of [
   "seedDailyNoteForImmediateOpen",

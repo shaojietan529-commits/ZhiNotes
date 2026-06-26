@@ -4,10 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
-import { usePages } from "@/hooks/usePages";
-import {
-  updateWikiLinks,
-} from "@/lib/db/local/queries";
+import { updateWikiLinks } from "@/lib/db/local/queries";
 import {
   createPageWithCloud,
   updatePageWithCloud,
@@ -23,6 +20,10 @@ import {
   resolveIndustryNodeTargetPageId,
 } from "@/lib/pages/industryChainCompanyLinks";
 import PageContextMenu from "@/components/page/PageContextMenu";
+import {
+  listScopedPageMetadata,
+  mergePageMetadata,
+} from "@/lib/pages/scopedPageMetadata";
 import type { Page } from "@/lib/utils/types";
 
 // A rotating palette so each top-level sector reads as its own color family.
@@ -78,7 +79,8 @@ type SectorTheme = (typeof SECTOR_THEMES)[number];
 export default function IndustryChainShell() {
   const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
-  const { pages, refresh } = usePages();
+  const upsertWorkspacePages = useWorkspaceStore((s) => s.upsertPages);
+  const [pages, setPages] = useState<Page[]>([]);
   const [rootId, setRootId] = useState<string | null>(null);
   const [knowledgeRootId, setKnowledgeRootId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
@@ -90,6 +92,13 @@ export default function IndustryChainShell() {
     null
   );
   const [linkNotice, setLinkNotice] = useState<string | null>(null);
+  const mergeScopedPages = useCallback(
+    (incoming: Page[]) => {
+      setPages((current) => mergePageMetadata(current, incoming));
+      upsertWorkspacePages(incoming);
+    },
+    [upsertWorkspacePages]
+  );
 
   useEffect(() => {
     if (!dbReady) return;
@@ -98,6 +107,36 @@ export default function IndustryChainShell() {
       void getModuleRootId("knowledge-base").then(setKnowledgeRootId);
     });
   }, [dbReady]);
+
+  const loadScopedPages = useCallback(async () => {
+    const scoped: Page[] = [];
+    if (rootId) {
+      scoped.push(
+        ...(await listScopedPageMetadata(rootId, {
+          includeRoot: true,
+          includeDescendants: true,
+        }))
+      );
+    }
+    if (knowledgeRootId) {
+      scoped.push(
+        ...(await listScopedPageMetadata(knowledgeRootId, {
+          includeRoot: true,
+          includeDescendants: false,
+        }))
+      );
+    }
+    if (scoped.length === 0) return;
+    setPages(mergePageMetadata([], scoped));
+    upsertWorkspacePages(scoped);
+  }, [knowledgeRootId, rootId, upsertWorkspacePages]);
+
+  useEffect(() => {
+    if (!rootId && !knowledgeRootId) return;
+    queueMicrotask(() => {
+      void loadScopedPages();
+    });
+  }, [knowledgeRootId, loadScopedPages, rootId]);
 
   // Top-level sectors are the direct children of the root page.
   const sectors = useMemo(
@@ -134,18 +173,18 @@ export default function IndustryChainShell() {
         parentId,
         title: "未命名分类",
       });
-      await refresh();
+      mergeScopedPages([child]);
       if (navigate) openPage(child, { source: "module-create" });
     },
-    [openPage, refresh]
+    [mergeScopedPages, openPage]
   );
 
   const renameNode = useCallback(
     async (id: string, title: string) => {
-      await updatePageWithCloud(id, { title });
-      await refresh();
+      const updated = await updatePageWithCloud(id, { title });
+      if (updated) mergeScopedPages([updated]);
     },
-    [refresh]
+    [mergeScopedPages]
   );
 
   const linkCompanyToParent = useCallback(
@@ -172,17 +211,17 @@ export default function IndustryChainShell() {
         title: displayPageTitle(companyPage.title),
         icon: companyPage.icon ?? "🏢",
       });
-      await updatePageWithCloud(linkPage.id, {
+      const updatedLinkPage = await updatePageWithCloud(linkPage.id, {
         properties: buildIndustryCompanyLinkProperties(companyPage),
         content_text: buildIndustryCompanyLinkContent(companyPage),
       });
       await updateWikiLinks(linkPage.id, [companyPage.id]);
-      await refresh();
+      mergeScopedPages([updatedLinkPage ?? linkPage]);
       setCompanyLinkParentId(null);
       setLinkNotice(`已把「${displayPageTitle(companyPage.title)}」链接到产业链层级。`);
       window.setTimeout(() => setLinkNotice(null), 2600);
     },
-    [companyLinkParentId, pages, refresh]
+    [companyLinkParentId, mergeScopedPages, pages]
   );
 
   const openIndustryNode = useCallback(
@@ -284,7 +323,7 @@ export default function IndustryChainShell() {
           onClose={() => setContextMenu(null)}
           onOpen={openIndustryNode}
           onOpenFull={openIndustryNode}
-          onChanged={() => void refresh()}
+          onChanged={() => void loadScopedPages()}
         />
       )}
 

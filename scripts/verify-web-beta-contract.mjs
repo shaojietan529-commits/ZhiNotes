@@ -109,6 +109,7 @@ const files = {
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
+  scopedPageMetadata: "src/lib/pages/scopedPageMetadata.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
@@ -463,6 +464,7 @@ function run() {
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
+  const scopedPageMetadata = readProjectFile(files.scopedPageMetadata);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
   );
@@ -3527,6 +3529,74 @@ function run() {
     ],
   ]) {
     assertSourceExcludes(files.childPageTree, childPageTree, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "listScopedPageMetadata",
+      "Knowledge and industry modules must share a root-scoped page metadata helper.",
+    ],
+    [
+      "listPageMetadata(rootId)",
+      "Scoped page metadata must start from a specific module root instead of all pages.",
+    ],
+    [
+      "listPageMetadata(current.id)",
+      "Scoped page metadata must walk descendants from already-scoped children.",
+    ],
+    [
+      "mergePageMetadata",
+      "Scoped page metadata must support optimistic local merges after mutations.",
+    ],
+  ]) {
+    assertSourceIncludes(files.scopedPageMetadata, scopedPageMetadata, snippet, message);
+  }
+  for (const [sourceLabel, source, expectedSnippets] of [
+    [
+      files.knowledgeBaseShell,
+      knowledgeBaseShell,
+      [
+        "listScopedPageMetadata",
+        "mergeScopedPages",
+        "upsertWorkspacePages(incoming)",
+        "mergeScopedPages([page])",
+        "mergeScopedPages([updatedLinkPage ?? linkPage])",
+        "onChanged={() => void loadScopedPages()}",
+      ],
+    ],
+    [
+      files.industryChainShell,
+      industryChainShell,
+      [
+        "listScopedPageMetadata",
+        "mergeScopedPages",
+        "upsertWorkspacePages(incoming)",
+        "includeDescendants: false",
+        "mergeScopedPages([child])",
+        "mergeScopedPages([updatedLinkPage ?? linkPage])",
+        "onChanged={() => void loadScopedPages()}",
+      ],
+    ],
+  ]) {
+    for (const snippet of expectedSnippets) {
+      assertSourceIncludes(
+        sourceLabel,
+        source,
+        snippet,
+        "Knowledge base and industry chain modules must use scoped metadata reads and optimistic local page merges."
+      );
+    }
+    for (const forbiddenSnippet of [
+      'from "@/hooks/usePages"',
+      "usePages(",
+      "await refresh()",
+    ]) {
+      assertSourceExcludes(
+        sourceLabel,
+        source,
+        forbiddenSnippet,
+        "Knowledge base and industry chain modules must not trigger global page refreshes on first paint or local mutations."
+      );
+    }
   }
   assertSourceExcludes(
     files.childPageTree,
