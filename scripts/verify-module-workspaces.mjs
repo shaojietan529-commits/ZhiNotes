@@ -471,8 +471,12 @@ check(
     shells.schedule.includes("const pageRoute = `/page/${result.page.id}`") &&
     shells.schedule.includes("router.prefetch(pageRoute)") &&
     shells.schedule.includes("router.push(pageRoute)") &&
-    shells.schedule.includes("后台会继续保存到账号云端"),
-  "MeetingScheduleShell 手动创建会议应直接进入完整页面，不能让用户点完后留在日历里等刷新"
+    shells.schedule.includes("后台会继续保存到账号云端") &&
+    shells.schedule.includes('data-testid="meeting-intake-import-button"') &&
+    shells.schedule.includes("disabled={intakeLoading || !intakeText.trim()}") &&
+    !shells.schedule.includes("disabled={intakeLoading || !rootId || !intakeText.trim()}") &&
+    !shells.schedule.includes('rootId ? "导入" : "加载中..."'),
+  "MeetingScheduleShell 手动创建和导入会议应直接进入本地优先流程，导入按钮不能等待模块根页面先加载"
 );
 check(
   shells.schedule.includes("listPageMetadata") &&

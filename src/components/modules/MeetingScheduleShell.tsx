@@ -1525,10 +1525,10 @@ export default function MeetingScheduleShell() {
                   data-testid="meeting-intake-import-button"
                   aria-label="导入会议信息到日历"
                   onClick={() => void handleImportInvite()}
-                  disabled={intakeLoading || !rootId || !intakeText.trim()}
+                  disabled={intakeLoading || !intakeText.trim()}
                   className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
                 >
-                  {intakeLoading ? "读取中..." : rootId ? "导入" : "加载中..."}
+                  {intakeLoading ? "读取中..." : "导入"}
                 </button>
               </div>
               <textarea

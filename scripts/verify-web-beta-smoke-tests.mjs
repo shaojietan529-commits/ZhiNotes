@@ -2297,6 +2297,24 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "disabled={intakeLoading || !intakeText.trim()}",
+    "Meeting import button must be available as soon as text is present; root id resolution happens in the create path."
+  );
+  assertExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "disabled={intakeLoading || !rootId || !intakeText.trim()}",
+    "Meeting import button must not wait for the module root id before accepting pasted invite text."
+  );
+  assertExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'rootId ? "导入" : "加载中..."',
+    "Meeting import button must not show loading only because the module root id has not hydrated yet."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "revealMeetingOnCalendar(optimisticPage)",
     "Meeting import/create must reveal the optimistic meeting in the calendar immediately."
   );

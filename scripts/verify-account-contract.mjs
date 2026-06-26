@@ -661,6 +661,9 @@ check(
     meetingScheduleShell.includes("void load({ includeCloud: true })") &&
     meetingScheduleShell.includes("void load({ includeCloud: false })") &&
     meetingScheduleShell.includes("await load({ includeCloud: false })") &&
+    meetingScheduleShell.includes("disabled={intakeLoading || !intakeText.trim()}") &&
+    !meetingScheduleShell.includes("disabled={intakeLoading || !rootId || !intakeText.trim()}") &&
+    !meetingScheduleShell.includes('rootId ? "导入" : "加载中..."') &&
     !meetingScheduleShell.includes("await load();") &&
     !meetingScheduleShell.includes("void load().catch(() => undefined);") &&
     !meetingScheduleShell.includes("}, [dbReady, load, pageRevision]);"),

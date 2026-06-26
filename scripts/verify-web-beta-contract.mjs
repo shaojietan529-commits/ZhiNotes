@@ -2162,6 +2162,10 @@ function run() {
       "Meeting calendar + buttons must expose stable test targets.",
     ],
     [
+      "disabled={intakeLoading || !intakeText.trim()}",
+      "Meeting import button must be available as soon as text is present; root id resolution happens in the create path.",
+    ],
+    [
       "revealMeetingOnCalendar(optimisticPage)",
       "Meeting import/create must reveal the optimistic meeting in the calendar immediately.",
     ],
@@ -2336,6 +2340,18 @@ function run() {
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "disabled={intakeLoading || !rootId || !intakeText.trim()}",
+    "Meeting import button must not wait for the module root id before accepting pasted invite text."
+  );
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'rootId ? "导入" : "加载中..."',
+    "Meeting import button must not show loading only because the module root id has not hydrated yet."
+  );
   for (const [sourceLabel, source, snippet, message] of [
     [
       files.localSchema,
