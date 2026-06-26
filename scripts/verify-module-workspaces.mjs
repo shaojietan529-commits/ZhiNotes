@@ -480,6 +480,10 @@ check(
     shells.schedule.includes("router.prefetch(pageRoute)") &&
     shells.schedule.includes("router.push(pageRoute)") &&
     shells.schedule.includes("openCreatedMeetingPage(result.page)") &&
+    shells.schedule.includes("): CreateMeetingResult =>") &&
+    shells.schedule.includes("const result = createMeetingPage(form") &&
+    shells.schedule.includes("const result = createMeetingPage(draft") &&
+    !shells.schedule.includes("): Promise<CreateMeetingResult> =>") &&
     shells.schedule.includes("后台会继续保存到账号云端") &&
     shells.schedule.includes('data-testid="meeting-intake-import-button"') &&
     shells.schedule.includes("disabled={intakeLoading || !intakeText.trim()}") &&

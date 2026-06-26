@@ -665,6 +665,10 @@ check(
     meetingScheduleShell.includes("void load({ includeCloud: false })") &&
     meetingScheduleShell.includes("await load({ includeCloud: false })") &&
     meetingScheduleShell.includes("disabled={intakeLoading || !intakeText.trim()}") &&
+    !meetingScheduleShell.includes("): Promise<CreateMeetingResult> =>") &&
+    meetingScheduleShell.includes("): CreateMeetingResult =>") &&
+    meetingScheduleShell.includes("const result = createMeetingPage(form") &&
+    meetingScheduleShell.includes("const result = createMeetingPage(draft") &&
     !meetingScheduleShell.includes("disabled={intakeLoading || !rootId || !intakeText.trim()}") &&
     !meetingScheduleShell.includes('rootId ? "导入" : "加载中..."') &&
     !meetingScheduleShell.includes("await load();") &&

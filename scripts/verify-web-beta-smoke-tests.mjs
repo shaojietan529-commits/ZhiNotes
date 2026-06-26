@@ -2309,6 +2309,30 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "): CreateMeetingResult =>",
+    "Meeting creation must return the optimistic page synchronously so navigation is not blocked by background persistence."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "const result = createMeetingPage(form",
+    "Manual meeting creation must open from a synchronous optimistic result."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "const result = createMeetingPage(draft",
+    "Invite import must open from a synchronous optimistic result after parsing completes."
+  );
+  assertExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "): Promise<CreateMeetingResult> =>",
+    "Meeting creation must not wrap the optimistic result in a Promise before opening the page."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "rememberPageRouteHandoff(optimisticPage, \"meeting-create\")",
     "Meeting creation must hand off the optimistic page before page navigation."
   );

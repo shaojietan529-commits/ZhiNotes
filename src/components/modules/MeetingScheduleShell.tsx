@@ -840,10 +840,10 @@ export default function MeetingScheduleShell() {
   );
 
   const createMeetingPage = useCallback(
-    async (
+    (
       draft: MeetingFormState,
       options: CreateMeetingOptions = {}
-    ): Promise<CreateMeetingResult> => {
+    ): CreateMeetingResult => {
       const optimisticRootId = rootId ?? getModuleRootIdSync("meeting-schedule");
       const topic = draft.topic.trim() || "未命名会议";
       const organizer = draft.organizer.trim();
@@ -1147,14 +1147,14 @@ export default function MeetingScheduleShell() {
     [router, warmMeetingPageRoute]
   );
 
-  const handleCreate = useCallback(async () => {
+  const handleCreate = useCallback(() => {
     if (creatingMeetingDateKey !== null) return;
     const targetDateKey = form.date || toDateKey(new Date());
     setCreatingMeetingDateKey(targetDateKey);
     setIntakeError("");
     setIntakeMessage("正在创建会议页面，后台会继续保存到账号云端…");
     try {
-      const result = await createMeetingPage(form, {
+      const result = createMeetingPage(form, {
         importSource: "手动创建",
       });
       setFormOpen(false);
@@ -1215,7 +1215,7 @@ export default function MeetingScheduleShell() {
           ? inferTranscriptionModel(input)
           : intakeTranscriptionModel;
 
-      const result = await createMeetingPage(draft, {
+      const result = createMeetingPage(draft, {
         importSource: "会议信息输入",
         hasJoinUrl: meeting.hasJoinUrl,
         joinUrlHost: meeting.joinUrlHost,
@@ -1251,7 +1251,7 @@ export default function MeetingScheduleShell() {
       const message = error instanceof Error ? error.message : "读取会议信息失败。";
       const fallback = buildFallbackTraceFromInput(input, form.date || toDateKey(new Date()));
       try {
-        const result = await createMeetingPage(fallback.draft, {
+        const result = createMeetingPage(fallback.draft, {
           importSource: "会议信息输入",
           hasJoinUrl: Boolean(fallback.joinUrl),
           joinUrlHost: fallback.joinUrlHost,
@@ -1466,13 +1466,13 @@ export default function MeetingScheduleShell() {
   );
 
   const quickCreateMeetingForDate = useCallback(
-    async (dateKey: string) => {
+    (dateKey: string) => {
       if (creatingMeetingDateKey !== null) return;
       setCreatingMeetingDateKey(dateKey);
       setIntakeError("");
       setIntakeMessage(`${dateKey} 的会议页面正在打开，后台会继续保存到账号云端…`);
       try {
-        const result = await createMeetingPage(
+        const result = createMeetingPage(
           {
             ...emptyForm(dateKey),
             topic: "",

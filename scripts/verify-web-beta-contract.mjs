@@ -2178,6 +2178,18 @@ function run() {
       "Meeting invite imports must open the newly created page immediately after the optimistic local create.",
     ],
     [
+      "): CreateMeetingResult =>",
+      "Meeting creation must return the optimistic page synchronously so navigation is not blocked by background persistence.",
+    ],
+    [
+      "const result = createMeetingPage(form",
+      "Manual meeting creation must open from a synchronous optimistic result.",
+    ],
+    [
+      "const result = createMeetingPage(draft",
+      "Invite import must open from a synchronous optimistic result after parsing completes.",
+    ],
+    [
       "会议页面正在打开；",
       "Meeting invite import success must tell the owner that the created page is opening now.",
     ],
