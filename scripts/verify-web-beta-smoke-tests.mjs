@@ -1804,6 +1804,30 @@ function run() {
     "Daily notes must read a local hot cache snapshot before slower cache/cloud checks."
   );
   assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "readDailyHotCacheSnapshotsForRange",
+    "Daily hot cache must expose an overlapping-range reader for faster refresh first paint."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "rangesOverlap",
+    "Daily hot cache overlap reads must stay bounded to intersecting date ranges."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "readDailyHotCacheSnapshotsForRange",
+    "Daily notes must read overlapping local hot cache snapshots before slower local/cloud checks."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "已先显示本机重叠热缓存",
+    "Daily notes must surface when overlapping local hot cache metadata supplied first paint."
+  );
+  assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
     "writeDailyHotCacheSnapshot",

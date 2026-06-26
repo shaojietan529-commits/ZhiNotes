@@ -4,6 +4,7 @@ import type { Page } from "@/lib/utils/types";
 const DAILY_HOT_CACHE_PREFIX = "zhinote.daily.hotCacheSnapshot.";
 const DAILY_HOT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const DAILY_HOT_CACHE_MAX_PAGES = 500;
+const DAILY_HOT_CACHE_OVERLAP_MAX_SNAPSHOTS = 6;
 
 type DailyHotCacheSnapshotInputPage = Page & { dailyDateKey?: string };
 
@@ -72,6 +73,39 @@ export function readDailyHotCacheSnapshot(
   } catch {
     return null;
   }
+}
+
+export function readDailyHotCacheSnapshotsForRange(
+  startDate: string,
+  endDate: string
+): DailyHotCacheSnapshot[] {
+  if (typeof window === "undefined") return [];
+  const snapshots: DailyHotCacheSnapshot[] = [];
+  try {
+    const storage = window.localStorage;
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (!key?.startsWith(DAILY_HOT_CACHE_PREFIX)) continue;
+      const raw = storage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as Partial<DailyHotCacheSnapshot>;
+      if (!isDailyHotCacheSnapshotShape(parsed)) continue;
+      if (isExpiredDailyHotCacheSnapshot(parsed)) {
+        storage.removeItem(key);
+        continue;
+      }
+      if (!rangesOverlap(parsed.start_date, parsed.end_date, startDate, endDate)) {
+        continue;
+      }
+      snapshots.push(parsed);
+    }
+  } catch {
+    return snapshots;
+  }
+
+  return snapshots
+    .sort((a, b) => b.cached_at.localeCompare(a.cached_at))
+    .slice(0, DAILY_HOT_CACHE_OVERLAP_MAX_SNAPSHOTS);
 }
 
 export function writeDailyHotCacheSnapshot(input: {
@@ -211,12 +245,37 @@ function isValidDailyHotCacheSnapshot(
   endDate: string
 ): value is DailyHotCacheSnapshot {
   return (
+    isDailyHotCacheSnapshotShape(value) &&
+    value.start_date === startDate &&
+    value.end_date === endDate
+  );
+}
+
+function isDailyHotCacheSnapshotShape(
+  value: Partial<DailyHotCacheSnapshot>
+): value is DailyHotCacheSnapshot {
+  return (
     value.format === "zhinote-daily-hot-cache-snapshot" &&
     value.format_version === 1 &&
     value.route_target === "/daily" &&
-    value.start_date === startDate &&
-    value.end_date === endDate &&
+    typeof value.start_date === "string" &&
+    typeof value.end_date === "string" &&
     typeof value.cached_at === "string" &&
     Array.isArray(value.pages)
   );
+}
+
+function isExpiredDailyHotCacheSnapshot(
+  value: DailyHotCacheSnapshot
+): boolean {
+  return Date.now() - Date.parse(value.cached_at) > DAILY_HOT_CACHE_TTL_MS;
+}
+
+function rangesOverlap(
+  leftStart: string,
+  leftEnd: string,
+  rightStart: string,
+  rightEnd: string
+): boolean {
+  return leftStart <= rightEnd && rightStart <= leftEnd;
 }

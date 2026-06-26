@@ -44,6 +44,7 @@ import {
 import {
   dailyHotCacheSnapshotPageToPage,
   readDailyHotCacheSnapshot,
+  readDailyHotCacheSnapshotsForRange,
   writeDailyHotCacheSnapshot,
   type DailyHotCacheSnapshot,
 } from "@/lib/sync/dailyHotCacheSnapshot";
@@ -209,6 +210,10 @@ export default function DailyNotesShell() {
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
     const byId = new Map<string, DailyNote>();
     const cachedHotSnapshot = readDailyHotCacheSnapshot(startDate, endDate);
+    const overlappingHotSnapshots = readDailyHotCacheSnapshotsForRange(
+      startDate,
+      endDate
+    );
     const cachedCloud = includeCloud
       ? readCachedDailyCloudMetadata(startDate, endDate)
       : null;
@@ -283,6 +288,22 @@ export default function DailyNotesShell() {
           `已先显示本机热缓存 ${merged} 条每日纪要 metadata，正在后台校正本地和云端主库…`
         );
       }
+    }
+
+    let overlappingHotMerged = 0;
+    for (const snapshot of overlappingHotSnapshots) {
+      overlappingHotMerged += mergeDailyHotCacheSnapshot(
+        byId,
+        snapshot,
+        startDate,
+        endDate
+      );
+    }
+    if (overlappingHotMerged > 0) {
+      publishNotes(Array.from(byId.values()));
+      publishNotice(
+        `已先显示本机重叠热缓存 ${overlappingHotMerged} 条每日纪要 metadata，后台继续校正本地和云端主库…`
+      );
     }
 
     if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
@@ -1193,10 +1214,19 @@ function mergeCloudDailyNotes(
 
 function mergeDailyHotCacheSnapshot(
   byId: Map<string, DailyNote>,
-  snapshot: DailyHotCacheSnapshot
+  snapshot: DailyHotCacheSnapshot,
+  startDate?: string,
+  endDate?: string
 ): number {
   let merged = 0;
   for (const page of snapshot.pages) {
+    if (
+      startDate &&
+      endDate &&
+      (page.daily_date_key < startDate || page.daily_date_key > endDate)
+    ) {
+      continue;
+    }
     if (byId.has(page.id)) continue;
     byId.set(page.id, {
       ...dailyHotCacheSnapshotPageToPage(page),
