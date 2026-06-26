@@ -25,6 +25,7 @@ import {
   stringifyPageProperties,
   type PageProperty,
 } from "@/lib/pages/pageProperties";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePage } from "@/hooks/usePage";
 import { usePages } from "@/hooks/usePages";
 import { useVersions } from "@/hooks/useVersions";
@@ -100,6 +101,7 @@ export default function PageShell({ pageId }: { pageId: string }) {
 
 function PageContent({ pageId }: { pageId: string }) {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const editorRef = useRef<EditorRef>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const copyNoticeTimeoutRef = useRef<number | null>(null);
@@ -515,11 +517,11 @@ function PageContent({ pageId }: { pageId: string }) {
       if (html) {
         await update({ content_text: html });
       }
-      router.push(`/page/${child.id}`);
+      openPage(child, { source: "child-page-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to create sub-page:", err);
     }
-  }, [locked, pageId, refresh, router, update]);
+  }, [locked, openPage, pageId, refresh, update]);
 
   const handleDuplicatePage = useCallback(async () => {
     if (!page) return;
@@ -529,14 +531,14 @@ function PageContent({ pageId }: { pageId: string }) {
       parentId: page.parent_id,
       icon: page.icon ?? undefined,
     });
-    await updatePageWithCloud(duplicate.id, {
+    const updatedDuplicate = await updatePageWithCloud(duplicate.id, {
       cover_url: page.cover_url ?? "",
       content_text: html,
     });
     await updateWikiLinks(duplicate.id, extractLinkedPageIdsFromHtml(html));
     await refresh();
-    router.push(`/page/${duplicate.id}`);
-  }, [page, refresh, router, title]);
+    openPage(updatedDuplicate ?? duplicate, { source: "duplicate-page-create" });
+  }, [openPage, page, refresh, title]);
 
   const pageStructure = useMemo(() => {
     if (!showInfo || !page) return null;

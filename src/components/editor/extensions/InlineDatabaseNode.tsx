@@ -5,6 +5,7 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import {
   getDatabase,
@@ -120,6 +121,7 @@ interface InlineDatabaseViewConfig {
 
 function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { pages: workspacePages } = usePages();
   const databaseId: string = node.attrs.databaseId;
 
@@ -337,16 +339,20 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
 
   const handleOpenRow = useCallback(
     (pageId: string) => {
-      router.push(`/page/${pageId}`);
+      const row = rows.find((item) => item.page_id === pageId);
+      openPage(row?.page ?? pageId, { source: "inline-database-open" });
     },
-    [router]
+    [openPage, rows]
   );
 
   const handleOpenPage = useCallback(
     (pageId: string) => {
-      router.push(`/page/${pageId}`);
+      openPage(
+        workspacePages.find((page) => page.id === pageId) ?? pageId,
+        { source: "inline-database-open" }
+      );
     },
-    [router]
+    [openPage, workspacePages]
   );
 
   const activeView = views.find((v) => v.id === activeViewId) || views[0];

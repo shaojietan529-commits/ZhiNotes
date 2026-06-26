@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { getPage } from "@/lib/db/local/queries";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import type { Page } from "@/lib/utils/types";
@@ -11,7 +11,7 @@ interface BreadcrumbProps {
 }
 
 export default function Breadcrumb({ pageId }: BreadcrumbProps) {
-  const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const collapsedMenuRef = useRef<HTMLSpanElement>(null);
   const [path, setPath] = useState<Page[]>([]);
   const [collapsedOpen, setCollapsedOpen] = useState(false);
@@ -106,7 +106,7 @@ export default function Breadcrumb({ pageId }: BreadcrumbProps) {
                       role="menuitem"
                       onClick={() => {
                         setCollapsedOpen(false);
-                        router.push(`/page/${page.id}`);
+                        openPage(page, { source: "breadcrumb-open" });
                       }}
                       className="flex w-full min-w-0 items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                       title={displayPageTitle(page.title)}
@@ -126,7 +126,7 @@ export default function Breadcrumb({ pageId }: BreadcrumbProps) {
               onClick={() => {
                 if (item.page.id !== pageId) {
                   setCollapsedOpen(false);
-                  router.push(`/page/${item.page.id}`);
+                  openPage(item.page, { source: "breadcrumb-open" });
                 }
               }}
               aria-current={item.page.id === pageId ? "page" : undefined}

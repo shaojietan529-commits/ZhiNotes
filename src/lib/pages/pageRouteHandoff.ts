@@ -38,6 +38,12 @@ export type PageRouteHandoffSource =
   | "child-page-open"
   | "module-create"
   | "module-open"
+  | "inline-database-open"
+  | "compare-return"
+  | "page-property-open"
+  | "breadcrumb-open"
+  | "backlink-open"
+  | "duplicate-page-create"
   | "trash-restore-open"
   | "page-open";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { getBacklinks } from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
@@ -18,7 +18,7 @@ const REFERENCE_LABELS = {
 } as const;
 
 export default function Backlinks({ pageId }: BacklinksProps) {
-  const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const [links, setLinks] = useState<Page[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -68,7 +68,7 @@ export default function Backlinks({ pageId }: BacklinksProps) {
         <ReferenceSection
           title={REFERENCE_LABELS.backlinks}
           pages={links}
-          onNavigate={(id) => router.push(`/page/${id}`)}
+          onNavigate={(page) => openPage(page, { source: "backlink-open" })}
         />
       )}
     </div>
@@ -82,7 +82,7 @@ function ReferenceSection({
 }: {
   title: string;
   pages: ReferencePage[];
-  onNavigate: (id: string) => void;
+  onNavigate: (page: ReferencePage) => void;
 }) {
   return (
     <div className="mb-4 last:mb-0">
@@ -93,7 +93,7 @@ function ReferenceSection({
         {pages.map((page) => (
           <li key={page.id}>
             <button
-              onClick={() => onNavigate(page.id)}
+              onClick={() => onNavigate(page)}
               className="group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
             >
               <span className="shrink-0">{page.icon || "📄"}</span>

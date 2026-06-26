@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import SideBySideDiff from "./SideBySideDiff";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePage } from "@/hooks/usePage";
 import { useVersions } from "@/hooks/useVersions";
 import { updatePageWithCloud } from "@/lib/pages/cloudPageMutations";
@@ -23,7 +24,7 @@ export default function CompareShell({ pageId }: { pageId: string }) {
 }
 
 function CompareContent({ pageId }: { pageId: string }) {
-  const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const searchParams = useSearchParams();
   const { page, loading } = usePage(pageId);
   const { versions, loading: versionsLoading, refresh } = useVersions(pageId);
@@ -90,9 +91,9 @@ function CompareContent({ pageId }: { pageId: string }) {
         `从 v${version.version_num} 恢复`
       );
       await refresh();
-      router.push(`/page/${pageId}`);
+      openPage(page ?? pageId, { source: "compare-return" });
     },
-    [page, pageId, refresh, router]
+    [openPage, page, pageId, refresh]
   );
 
   const fromVersion = useMemo(
@@ -120,7 +121,7 @@ function CompareContent({ pageId }: { pageId: string }) {
           <div className="flex items-center justify-between mb-6">
             <div>
               <button
-                onClick={() => router.push(`/page/${pageId}`)}
+                onClick={() => openPage(page ?? pageId, { source: "compare-return" })}
                 className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 mb-1"
               >
                 ← 返回页面

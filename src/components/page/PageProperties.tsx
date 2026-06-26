@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import {
   PAGE_PROPERTY_TYPES,
   createPageProperty,
@@ -513,6 +514,7 @@ function TagsValueEditor({
   onChange: (patch: Partial<Omit<PageProperty, "id">>) => void;
 }) {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const [draft, setDraft] = useState("");
   const [navigating, setNavigating] = useState<string | null>(null);
   const tags = parseTagsValue(property.value);
@@ -536,7 +538,7 @@ function TagsValueEditor({
     try {
       const pageId = await findIndustryChainPageId(tag);
       if (pageId) {
-        router.push(`/page/${pageId}`);
+        openPage(pageId, { source: "page-property-open" });
       } else {
         router.push("/industry-chain");
       }

@@ -51,6 +51,11 @@ const files = {
   localQueries: "src/lib/db/local/queries.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
+  inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
+  compareShell: "src/components/comparison/CompareShell.tsx",
+  pageProperties: "src/components/page/PageProperties.tsx",
+  breadcrumb: "src/components/shared/Breadcrumb.tsx",
+  backlinks: "src/components/shared/Backlinks.tsx",
   childPageTree: "src/components/page/ChildPageTree.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   pageTree: "src/components/sidebar/PageTree.tsx",
@@ -321,6 +326,11 @@ function run() {
   const localQueries = readProjectFile(files.localQueries);
   const databaseShell = readProjectFile(files.databaseShell);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
+  const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
+  const compareShell = readProjectFile(files.compareShell);
+  const pageProperties = readProjectFile(files.pageProperties);
+  const breadcrumb = readProjectFile(files.breadcrumb);
+  const backlinks = readProjectFile(files.backlinks);
   const childPageTree = readProjectFile(files.childPageTree);
   const sidebar = readProjectFile(files.sidebar);
   const pageTree = readProjectFile(files.pageTree);
@@ -2617,6 +2627,69 @@ function run() {
     '"module-open"',
     "Module-opened pages must have an explicit local-first route handoff source."
   );
+  for (const [sourceLabel, source, sourceName, message] of [
+    [
+      files.pageRouteHandoff,
+      pageRouteHandoff,
+      '"inline-database-open"',
+      "Inline database page opens must have an explicit local-first route handoff source.",
+    ],
+    [
+      files.pageRouteHandoff,
+      pageRouteHandoff,
+      '"compare-return"',
+      "Version compare return paths must have an explicit local-first route handoff source.",
+    ],
+    [
+      files.pageRouteHandoff,
+      pageRouteHandoff,
+      '"page-property-open"',
+      "Page property links must have an explicit local-first route handoff source.",
+    ],
+    [
+      files.pageRouteHandoff,
+      pageRouteHandoff,
+      '"breadcrumb-open"',
+      "Breadcrumb opens must have an explicit local-first route handoff source.",
+    ],
+    [
+      files.pageRouteHandoff,
+      pageRouteHandoff,
+      '"backlink-open"',
+      "Backlink opens must have an explicit local-first route handoff source.",
+    ],
+    [
+      files.pageRouteHandoff,
+      pageRouteHandoff,
+      '"duplicate-page-create"',
+      "Duplicated pages must have an explicit local-first route handoff source.",
+    ],
+  ]) {
+    assertIncludes(sourceLabel, source, sourceName, message);
+  }
+  for (const [sourceLabel, source, requiredSources] of [
+    [files.inlineDatabaseNode, inlineDatabaseNode, ['source: "inline-database-open"']],
+    [files.compareShell, compareShell, ['source: "compare-return"']],
+    [files.pageProperties, pageProperties, ['source: "page-property-open"']],
+    [files.breadcrumb, breadcrumb, ['source: "breadcrumb-open"']],
+    [files.backlinks, backlinks, ['source: "backlink-open"']],
+    [files.pageShell, pageShell, ['source: "child-page-create"', 'source: "duplicate-page-create"']],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "useLocalFirstPageNavigation",
+      "Common page opens must use the shared local-first page navigation helper."
+    );
+    for (const sourceSnippet of requiredSources) {
+      assertIncludes(
+        sourceLabel,
+        source,
+        sourceSnippet,
+        "Common page opens must tag route handoff with a specific source."
+      );
+    }
+  }
   for (const [sourceLabel, source, requiredSources] of [
     [files.notesShell, notesShell, ['source: "module-create"', 'source: "module-open"']],
     [files.filesShell, filesShell, ['source: "module-create"']],
