@@ -2075,6 +2075,24 @@ function run() {
     "Page opening must read route handoff before slower local DB or cloud checks."
   );
   assertIncludes(
+    files.usePage,
+    usePage,
+    "readLocalFirstPageSeed",
+    "Page opening must read local-first route seeds before waiting on IndexedDB readiness."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "if (!dbReady)",
+    "Page opening must keep local-first route seeds visible while IndexedDB is still starting."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "setLoading(!localPage)",
+    "Page opening must avoid showing not-found when a local-first route seed exists before IndexedDB readiness."
+  );
+  assertIncludes(
     files.pagePeekModal,
     pagePeekModal,
     "upsertPages([metadata])",

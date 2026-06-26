@@ -187,6 +187,9 @@ check(
 check(
   !usePageHook.includes("setLoading(localPage.content_text == null)") &&
     usePageHook.includes("if (localPage) {") &&
+    usePageHook.includes("readLocalFirstPageSeed") &&
+    usePageHook.includes("if (!dbReady)") &&
+    usePageHook.includes("setLoading(!localPage)") &&
     usePageHook.includes("setLoading(false);"),
   "usePage 必须把 metadata/handoff 当作可首屏打开状态，正文继续后台补齐"
 );

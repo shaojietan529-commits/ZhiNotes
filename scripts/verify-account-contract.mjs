@@ -509,7 +509,8 @@ check(
   usePagesHook.includes("syncCloudPageMetadataDelta") &&
     usePagesHook.includes("renderLocalPagesSnapshot") &&
     usePagesHook.includes("await renderLocalPagesSnapshot()") &&
-    usePagesHook.includes("loadPagesSnapshot(includeContent)") &&
+    usePagesHook.includes("loadPagesSnapshot(") &&
+    usePagesHook.includes("metadataFirstContent ? false : includeContent") &&
     usePagesHook.includes("setPages(all);") &&
     usePagesHook.includes("force: false") &&
     usePagesHook.includes("requireLocalCacheCoverage: false") &&
@@ -700,6 +701,9 @@ check(
 check(
   usePageHook.includes("setPage(localPage)") &&
     usePageHook.includes("} else {\n      setPage(null);\n    }") &&
+    usePageHook.includes("readLocalFirstPageSeed") &&
+    usePageHook.includes("if (!dbReady)") &&
+    usePageHook.includes("setLoading(!localPage)") &&
     usePageHook.includes("setLoading(false)") &&
     usePageHook.includes("queueCloudPagePush(localPage)"),
   "usePage 应先显示当前页本地缓存；没有当前页元数据时要清掉旧页面，并在发现本地较新时补发云端上传"
@@ -942,8 +946,7 @@ const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");
 check(
   lazyPagePeekModal.includes('dynamic(() => import("@/components/page/PagePeekModal")') &&
-    dailyNotesShell.includes('@/components/page/PagePeekModal') &&
-    !dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
+    dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
     dailyNotesShell.includes("setPeekPageId(note.id)") &&
     dailyNotesShell.includes("window.setTimeout(() =>") &&
     dailyNotesShell.includes("current === dateKey ? null : current") &&

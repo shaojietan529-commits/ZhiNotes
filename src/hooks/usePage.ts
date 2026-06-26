@@ -59,22 +59,24 @@ export function usePage(
   const pageRevision = usePageRecordRevision(pageId);
 
   const load = useCallback(async () => {
-    if (!enabled || !pageId || !dbReady) {
+    if (!enabled || !pageId) {
       setPage(null);
       setLoading(false);
       return;
     }
     setLoading(true);
-    let localPage =
-      readPendingPageDraft(pageId) ??
-      readPageRouteHandoff(pageId) ??
-      useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
-      null;
+    let localPage = readLocalFirstPageSeed(pageId);
     if (localPage) {
+      upsertPages([localPage]);
       setPage(localPage);
       setLoading(false);
     } else {
       setPage(null);
+    }
+
+    if (!dbReady) {
+      setLoading(!localPage);
+      return;
     }
 
     let cloudPagePromise: Promise<CloudPageLookupResult | null> | null = null;
@@ -194,6 +196,15 @@ export function usePage(
   }, [pageId, page]);
 
   return { page, loading, reload: load, update, remove };
+}
+
+function readLocalFirstPageSeed(pageId: string): Page | null {
+  return (
+    readPendingPageDraft(pageId) ??
+    readPageRouteHandoff(pageId) ??
+    useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
+    null
+  );
 }
 
 async function deletePageWithCloud(id: string): Promise<void> {

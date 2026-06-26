@@ -1992,6 +1992,18 @@ function run() {
       "usePage must read a route handoff before slower local DB or cloud checks.",
     ],
     [
+      "readLocalFirstPageSeed",
+      "usePage must read local-first route seeds before waiting on IndexedDB readiness.",
+    ],
+    [
+      "if (!dbReady)",
+      "usePage must keep local-first route seeds visible while IndexedDB is still starting.",
+    ],
+    [
+      "setLoading(!localPage)",
+      "usePage must avoid showing not-found when a local-first route seed exists before IndexedDB readiness.",
+    ],
+    [
       "clearPageRouteHandoff",
       "usePage must clear route handoffs after durable local or cloud hydration.",
     ],
