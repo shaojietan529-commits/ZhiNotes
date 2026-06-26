@@ -36,9 +36,9 @@ import { convertZipToHtml } from "@/lib/files/archive";
 import { dataUrlToArrayBuffer } from "@/lib/files/dataUrl";
 import { convertEpubToHtml } from "@/lib/files/epub";
 import { convertNotebookToHtml } from "@/lib/files/notebook";
-import { convertOdpToHtml, convertOdtToHtml } from "@/lib/files/openDocument";
-import { convertPptxToHtml } from "@/lib/files/presentation";
+import { convertPresentationToHtml } from "@/lib/files/presentationImport";
 import { convertRtfToHtml } from "@/lib/files/rtf";
+import { convertWordToHtml } from "@/lib/files/word";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
@@ -2066,45 +2066,6 @@ function isUrlValue(value: string) {
 function spreadsheetDatabaseTitle(fileName: string) {
   const title = fileName.replace(/\.[^.]+$/, "").trim();
   return title ? `${title} 数据库` : "导入的表格数据库";
-}
-
-async function convertWordToHtml(file: StoredPageFile) {
-  const lowerName = file.name.toLowerCase();
-  if (lowerName.endsWith(".doc")) {
-    throw new Error("暂不支持旧版 .doc 文件。请使用 .docx。");
-  }
-
-  if (lowerName.endsWith(".odt")) {
-    return convertOdtToHtml(await dataUrlToArrayBuffer(file.dataUrl));
-  }
-
-  const mammoth = await import("mammoth");
-  const result = await mammoth.convertToHtml({
-    arrayBuffer: await dataUrlToArrayBuffer(file.dataUrl),
-  });
-
-  if (!result.value.trim()) {
-    return "<p>这个 Word 文档没有生成可见内容。</p>";
-  }
-
-  return result.value;
-}
-
-async function convertPresentationToHtml(file: StoredPageFile) {
-  const lowerName = file.name.toLowerCase();
-  if (lowerName.endsWith(".ppt")) {
-    throw new Error("暂不支持旧版 .ppt 文件。请使用 .pptx。");
-  }
-
-  if (lowerName.endsWith(".odp")) {
-    return convertOdpToHtml(await dataUrlToArrayBuffer(file.dataUrl));
-  }
-
-  if (!lowerName.endsWith(".pptx")) {
-    throw new Error("暂不支持这个演示文稿格式。");
-  }
-
-  return convertPptxToHtml(await dataUrlToArrayBuffer(file.dataUrl));
 }
 
 function downloadJsonFile(fileName: string, value: unknown) {

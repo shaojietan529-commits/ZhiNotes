@@ -28,6 +28,8 @@ const files = {
   localStore: "src/lib/files/localStore.ts",
   fileLibrary: "src/lib/files/fileLibraryWorkbench.ts",
   previewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
+  word: "src/lib/files/word.ts",
+  presentationImport: "src/lib/files/presentationImport.ts",
   reportsShell: "src/components/modules/ReportsShell.tsx",
   meetingsShell: "src/components/modules/MeetingsShell.tsx",
   meetingTranscriptPage: "src/lib/meetings/meetingTranscriptPage.ts",
@@ -228,6 +230,9 @@ function run() {
   const localStore = readProjectFile(files.localStore);
   const fileLibrary = readProjectFile(files.fileLibrary);
   const previewNode = readProjectFile(files.previewNode);
+  const word = readProjectFile(files.word);
+  const presentationImport = readProjectFile(files.presentationImport);
+  const previewImplementation = [previewNode, word, presentationImport].join("\n");
   const reportsShell = readProjectFile(files.reportsShell);
   const meetingsShell = readProjectFile(files.meetingsShell);
   const meetingTranscriptPage = readProjectFile(files.meetingTranscriptPage);
@@ -313,10 +318,10 @@ function run() {
 
     for (const snippet of requirement.snippets) {
       assertIncludes(
-        files.previewNode,
-        previewNode,
+        `${files.previewNode} + shared converters`,
+        previewImplementation,
         snippet,
-        `Preview node must implement ${requirement.id}.`
+        `Preview implementation must cover ${requirement.id}.`
       );
     }
   }

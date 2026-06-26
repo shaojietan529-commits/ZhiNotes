@@ -107,9 +107,22 @@ check(
   "EPUB 路线必须说明本地可编辑导入"
 );
 check(
-  source.includes("PDF 先创建本地文件页") &&
-    source.includes("PowerPoint/ODP 先创建本地文件页"),
-  "PDF 和 PowerPoint 路线必须说明先创建本地文件页"
+  source.includes("DOCX/ODT 会在本地转换为可编辑页面") &&
+    source.includes("word-pages") &&
+    source.includes("旧版 .doc 不伪装成可编辑导入") &&
+    source.includes("legacy-word-retain"),
+  "Word 路线必须区分新版可编辑导入和旧版本地留存"
+);
+check(
+  source.includes("PPTX/ODP 会在本地提取幻灯片文本") &&
+    source.includes("presentation-pages") &&
+    source.includes("旧版 .ppt 不伪装成可编辑导入") &&
+    source.includes("legacy-presentation-retain"),
+  "PowerPoint 路线必须区分新版可编辑导入和旧版本地留存"
+);
+check(
+  source.includes("PDF 先创建本地文件页"),
+  "PDF 路线必须说明先创建本地文件页"
 );
 
 // ── Rollback plan ────────────────────────────────────────────
@@ -223,6 +236,18 @@ check(
     executorSource.includes("EPUB 已本地解析为可编辑页面") &&
     executorSource.includes("没有加载远程资源"),
   "执行器必须把 EPUB 本地转换为可编辑页面并声明不加载远程资源"
+);
+check(
+  executorSource.includes("convertWordToHtml") &&
+    executorSource.includes('stored.kind === "word"') &&
+    executorSource.includes("Word/ODT 已本地转换为可编辑页面"),
+  "执行器必须把新版 Word/ODT 本地转换为可编辑页面"
+);
+check(
+  executorSource.includes("convertPresentationToHtml") &&
+    executorSource.includes('stored.kind === "presentation"') &&
+    executorSource.includes("PowerPoint/ODP 已本地转换为可编辑页面"),
+  "执行器必须把新版 PowerPoint/ODP 本地转换为可编辑页面"
 );
 // Spreadsheets and unknown formats must be skipped (not created) in this stage.
 check(
