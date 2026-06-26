@@ -6,6 +6,7 @@ import type { Database, Page } from "@/lib/utils/types";
 
 const ACTIVE_DATABASE_ROUTE_TARGET_LIMIT = 12;
 const FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12;
+const CURRENT_PROJECT_ROUTE_TARGET_LIMIT = 12;
 
 export type HotCacheWarmupJobStatus =
   | "ready"
@@ -86,12 +87,16 @@ export function buildHotCacheWarmupPlan(
   );
   const favoriteIdSet = new Set(input.favoriteIds);
   const favoritePages = activePages.filter((page) => favoriteIdSet.has(page.id));
+  const projectPages = activePages.filter(isProjectMetadataPage);
   const activeDatabaseRouteTargets =
     input.preferences.keepActiveDatabases
       ? buildActiveDatabaseRouteTargets(input.databases)
       : [];
   const favoritePageRouteTargets = input.preferences.keepFavoritePages
     ? buildFavoritePageRouteTargets(favoritePages)
+    : [];
+  const currentProjectRouteTargets = input.preferences.keepCurrentProjects
+    ? buildCurrentProjectRouteTargets(projectPages)
     : [];
   const pendingRows = input.syncSummary?.pending ?? 0;
 
@@ -238,20 +243,38 @@ export function buildHotCacheWarmupPlan(
     {
       id: "current-projects",
       title: "当前项目",
-      status: input.preferences.keepCurrentProjects ? "planned" : "preference-off",
+      status: input.preferences.keepCurrentProjects
+        ? projectPages.length > 0
+          ? "ready"
+          : "blocked"
+        : "preference-off",
       preference_key: "keepCurrentProjects",
-      cloud_source: "future module_settings current_project pins",
+      cloud_source:
+        "pages manifest icon/title metadata + future module_settings current_project pins",
       local_target: "project workspace metadata cache",
-      candidate_count: 0,
-      estimated_metadata_records: 0,
+      candidate_count: input.preferences.keepCurrentProjects
+        ? projectPages.length
+        : 0,
+      estimated_metadata_records: input.preferences.keepCurrentProjects
+        ? projectPages.length
+        : 0,
       route_targets: input.preferences.keepCurrentProjects
-        ? ["/modules/projects", "/modules/research-graph"]
+        ? [
+            "/modules/projects",
+            "/modules/research-graph",
+            ...currentProjectRouteTargets,
+          ]
         : [],
-      action: "预热项目和研究图谱入口；项目 pin 云端化后再缓存具体项目 metadata。",
-      reason: "当前项目通常跨页面、会议和公司，需要先有云端项目 pin 作为主库。",
-      blocked_reason: input.preferences.keepCurrentProjects
-        ? "项目 pin 还没有纳入云端 module_settings 主库。"
-        : "用户未选择当前项目常驻本地。",
+      action:
+        "预热项目、研究图谱入口和当前项目页路由，metadata 优先可见，项目正文按打开时补齐。",
+      reason:
+        "当前项目通常跨页面、会议和公司；项目入口先出现，切换研究任务时不应等待云端。",
+      blocked_reason:
+        input.preferences.keepCurrentProjects && projectPages.length === 0
+          ? "当前浏览器还没有可匹配的项目页 metadata。"
+          : input.preferences.keepCurrentProjects
+            ? null
+            : "用户未选择当前项目常驻本地。",
       excluded_private_fields: ["project free text", "linked page bodies"],
     },
   ];
@@ -319,6 +342,23 @@ function buildFavoritePageRouteTargets(pages: Page[]): string[] {
     .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
     .slice(0, FAVORITE_PAGE_ROUTE_TARGET_LIMIT)
     .map((page) => `/page/${encodeURIComponent(page.id)}`);
+}
+
+function buildCurrentProjectRouteTargets(pages: Page[]): string[] {
+  return pages
+    .filter((page) => !page.deleted_at)
+    .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
+    .slice(0, CURRENT_PROJECT_ROUTE_TARGET_LIMIT)
+    .map((page) => `/page/${encodeURIComponent(page.id)}`);
+}
+
+function isProjectMetadataPage(page: Page): boolean {
+  const title = page.title || "";
+  return (
+    page.icon === "PRJ" ||
+    title.startsWith("投研项目：") ||
+    title.endsWith("项目简报")
+  );
 }
 
 function isCurrentMonthDailyPage(page: Page, now: Date): boolean {

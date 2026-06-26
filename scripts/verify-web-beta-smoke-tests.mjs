@@ -1194,6 +1194,12 @@ function run() {
     "Smoke verifier must keep the recent-content hot cache policy."
   );
   assertIncludes(
+    files.hotCachePolicyPlan,
+    hotCachePolicyPlan,
+    'id: "current-projects"',
+    "Smoke verifier must keep current project hot cache selection covered."
+  );
+  assertIncludes(
     files.hotCacheWarmupPlan,
     hotCacheWarmupPlan,
     'format: "zhinote-hot-cache-warmup-plan"',
@@ -1226,6 +1232,12 @@ function run() {
   assertIncludes(
     files.hotCacheWarmupPlan,
     hotCacheWarmupPlan,
+    "CURRENT_PROJECT_ROUTE_TARGET_LIMIT = 12",
+    "Hot cache warmup must keep current project route prefetch bounded."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
     "`/database/${encodeURIComponent(database.id)}`",
     "Hot cache warmup must prefetch active database detail routes when selected."
   );
@@ -1246,6 +1258,12 @@ function run() {
     hotCacheWarmupPlan,
     "正文按打开时补齐",
     "Hot cache warmup must keep favorite page bodies out of route prefetch."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    "项目正文按打开时补齐",
+    "Hot cache warmup must keep project page bodies out of route prefetch."
   );
   for (const forbiddenWarmupSnippet of [
     "page.content_text",

@@ -1078,6 +1078,10 @@ function run() {
       'id: "favorite-pages"',
       "Hot cache policy plan must reserve user-selected pinned cache.",
     ],
+    [
+      'id: "current-projects"',
+      "Hot cache policy plan must cover current project cache selection.",
+    ],
   ]) {
     assertSourceIncludes(
       files.hotCachePolicyPlan,
@@ -1182,6 +1186,10 @@ function run() {
       "Hot cache warmup plan must keep favorite page route prefetch bounded.",
     ],
     [
+      "CURRENT_PROJECT_ROUTE_TARGET_LIMIT = 12",
+      "Hot cache warmup plan must keep current project route prefetch bounded.",
+    ],
+    [
       "`/database/${encodeURIComponent(database.id)}`",
       "Hot cache warmup plan must prefetch active database detail routes when selected.",
     ],
@@ -1196,6 +1204,10 @@ function run() {
     [
       "正文按打开时补齐",
       "Hot cache warmup plan must keep favorite page bodies out of route prefetch.",
+    ],
+    [
+      "项目正文按打开时补齐",
+      "Hot cache warmup plan must keep project page bodies out of route prefetch.",
     ],
   ]) {
     assertSourceIncludes(

@@ -81,6 +81,7 @@ export function buildHotCachePolicyPlan(
   const currentMonthPages = activePages.filter((page) =>
     isSameMonth(page.updated_at, now)
   );
+  const projectPages = activePages.filter(isProjectMetadataPage);
   const pageModuleRows = Object.values(input.pageModuleCounts);
   const commentCount = pageModuleRows.reduce(
     (total, counts) => total + counts.pageComments + counts.blockComments,
@@ -200,6 +201,24 @@ export function buildHotCachePolicyPlan(
       excluded_private_fields: ["free-form preference values", "private notes"],
     },
     {
+      id: "current-projects",
+      title: "当前项目",
+      status: "user-selectable",
+      cloud_source:
+        "pages manifest icon/title metadata + future module_settings current_project pins",
+      local_behavior: "项目页 metadata 和项目入口常驻；项目正文和关联页面按打开时补齐",
+      eviction_rule: "未固定且 30 天未打开的项目页可降级为 metadata-only",
+      eligible_count: projectPages.length,
+      estimated_local_records: projectPages.length,
+      reason:
+        "投研项目通常串联公司、会议和数据库；项目页入口先出现，用户切换任务时不应等待云端。",
+      excluded_private_fields: [
+        "project page body",
+        "linked page bodies",
+        "database row values",
+      ],
+    },
+    {
       id: "comments-on-open-pages",
       title: "打开页面的评论线程",
       status: "planned",
@@ -287,6 +306,15 @@ function isSameMonth(value: string | null, now: Date): boolean {
   return (
     date.getUTCFullYear() === now.getUTCFullYear() &&
     date.getUTCMonth() === now.getUTCMonth()
+  );
+}
+
+function isProjectMetadataPage(page: Page): boolean {
+  const title = page.title || "";
+  return (
+    page.icon === "PRJ" ||
+    title.startsWith("投研项目：") ||
+    title.endsWith("项目简报")
   );
 }
 
