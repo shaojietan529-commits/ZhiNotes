@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { usePage } from "@/hooks/usePage";
 import { usePages } from "@/hooks/usePages";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { formatRelativeDate } from "@/lib/utils/dates";
@@ -327,7 +328,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       const [db, f, r, v] = await Promise.all([
         getDatabase(databaseId),
         getFields(databaseId),
-        getRows(databaseId),
+        getRows(databaseId, { includePageContent: false }),
         getViews(databaseId),
       ]);
       return [db, f, r, v];
@@ -1667,8 +1668,15 @@ function DatabaseRowSidePeekPanel({
   onOpenFullPage: (pageId: string) => void;
 }) {
   const isCenterPeek = mode === "center-peek";
-  const pageTitle = row.page?.title || "未命名页面";
-  const pagePreview = getPageTextPreview(row.page?.content_text);
+  const { page: hydratedPage, loading: pagePreviewLoading } = usePage(
+    row.page_id,
+    {
+      enabled: Boolean(row.page_id),
+    }
+  );
+  const displayPage = hydratedPage ?? row.page;
+  const pageTitle = displayPage?.title || "未命名页面";
+  const pagePreview = getPageTextPreview(displayPage?.content_text);
   const fieldSummaries = fields
     .filter((field) => field.position !== 0)
     .map((field) => ({
@@ -1706,7 +1714,7 @@ function DatabaseRowSidePeekPanel({
               {database.title || "未命名数据库"}
             </div>
             <h2 className="mt-2 flex min-w-0 items-center gap-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-              <span className="shrink-0">{row.page?.icon || "📄"}</span>
+              <span className="shrink-0">{displayPage?.icon || "📄"}</span>
               <span className="truncate">{pageTitle}</span>
             </h2>
             <p className="mt-1 text-xs text-zinc-400">
@@ -1730,7 +1738,8 @@ function DatabaseRowSidePeekPanel({
               页面预览
             </div>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-700 dark:text-zinc-300">
-              {pagePreview || "暂无页面正文预览。"}
+              {pagePreview ||
+                (pagePreviewLoading ? "正在加载页面摘要…" : "暂无页面正文预览。")}
             </p>
           </section>
 
@@ -1774,7 +1783,7 @@ function DatabaseRowSidePeekPanel({
 
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-5 py-3 dark:border-zinc-800">
           <p className="text-[11px] text-zinc-400">
-            只读取本地页面和当前行字段，不上传、不调用 AI。
+            只按需读取当前行页面和字段，不上传、不调用 AI。
           </p>
           <button
             type="button"

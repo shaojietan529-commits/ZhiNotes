@@ -2226,10 +2226,21 @@ export async function deleteField(id: string): Promise<void> {
 
 // ─── Database Rows ───────────────────────────────────────────
 
-export async function getRows(databaseId: string): Promise<(DatabaseRow & { page: Page })[]> {
+export interface GetRowsOptions {
+  includePageContent?: boolean;
+}
+
+export async function getRows(
+  databaseId: string,
+  options: GetRowsOptions = {}
+): Promise<(DatabaseRow & { page: Page })[]> {
   const db = await getDb();
+  const pageContentSelect =
+    options.includePageContent === false
+      ? "NULL as page_content_text"
+      : "p.content_text as page_content_text";
   const rows = db.query(
-    `SELECT dr.*, p.title as page_title, p.icon as page_icon, p.cover_url as page_cover_url, p.content_text as page_content_text, p.created_at as page_created_at, p.updated_at as page_updated_at
+    `SELECT dr.*, p.title as page_title, p.icon as page_icon, p.cover_url as page_cover_url, ${pageContentSelect}, p.created_at as page_created_at, p.updated_at as page_updated_at
      FROM database_rows dr
      INNER JOIN pages p ON p.id = dr.page_id
      WHERE dr.database_id = ? AND dr.deleted_at IS NULL AND p.deleted_at IS NULL

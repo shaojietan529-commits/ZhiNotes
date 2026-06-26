@@ -10132,6 +10132,30 @@ function run() {
       "exportDatabaseAsCsv(database, fields, visibleRows, workspacePages)",
       "Database CSV export must still use the full visible row set, not the render-capped subset.",
     ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "getRows(databaseId, { includePageContent: false })",
+      "Database detail first paint must read row page metadata without page bodies.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "const { page: hydratedPage, loading: pagePreviewLoading } = usePage(",
+      "Database row side peek must hydrate the single page body only after the row is opened.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "includePageContent?: boolean",
+      "Local database row queries must expose a page-body opt-out for metadata-only views.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "NULL as page_content_text",
+      "Local database row metadata reads must omit page bodies when includePageContent is false.",
+    ],
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
