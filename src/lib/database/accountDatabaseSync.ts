@@ -37,6 +37,7 @@ const PUSH_BATCH_BYTES = 800 * 1024;
 const CLOUD_DATABASE_PUSH_DEBOUNCE_MS = 1000;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const METADATA_DELTA_THROTTLE_MS = 2500;
+const AUTH_RETRY_PROBE_WINDOW_KEY = "__zhinoteDatabaseSyncAuthRetryProbe";
 
 let queuedCloudDatabasePush = new Map<string, CloudDatabaseRecord>();
 let queuedCloudDatabasePushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -46,6 +47,7 @@ let lastDatabaseMetadataDeltaResult: CloudDatabaseMetadataDeltaResult | null = n
 let databaseMetadataDeltaGeneration = 0;
 let authRetryAfter = 0;
 let authRetryStatus: DatabaseSyncStatus | null = null;
+let authRetryProbeInFlight: Promise<AuthRetryProbeStatus> | null = null;
 let memoryDatabaseRemoteCursor = "";
 let memoryLastDatabaseSyncAt: string | null = null;
 
@@ -62,6 +64,10 @@ export type DatabaseSyncStatus =
 export type DatabaseSyncRecordType = "database" | "field" | "row" | "view";
 
 export type CloudDatabaseRecord = RemoteDatabaseRecord;
+type AuthRetryProbeStatus = DatabaseSyncStatus | "ok";
+type AuthRetryProbeWindow = Window & {
+  [AUTH_RETRY_PROBE_WINDOW_KEY]?: Promise<AuthRetryProbeStatus>;
+};
 
 export interface DatabaseSyncIndexSummary {
   count: number;
@@ -502,6 +508,12 @@ async function call(body: Record<string, unknown>): Promise<
       status: authRetryStatus ?? "unauthenticated",
     };
   }
+  const probedStatus = await waitForAuthRetryProbe();
+  if (probedStatus) {
+    return { ok: false, status: probedStatus };
+  }
+  const finishAuthRetryProbe = startAuthRetryProbe();
+  let probeStatus: AuthRetryProbeStatus = "ok";
   try {
     const res = await fetch("/api/databases/account-sync", {
       method: "POST",
@@ -509,10 +521,12 @@ async function call(body: Record<string, unknown>): Promise<
       body: JSON.stringify(body),
     });
     if (res.status === 501) {
+      probeStatus = "unconfigured";
       rememberAuthRetryStatus("unconfigured");
       return { ok: false, status: "unconfigured" };
     }
     if (res.status === 401) {
+      probeStatus = "unauthenticated";
       rememberAuthRetryStatus("unauthenticated");
       return { ok: false, status: "unauthenticated" };
     }
@@ -528,6 +542,8 @@ async function call(body: Record<string, unknown>): Promise<
     return { ok: true, json };
   } catch {
     return { ok: false, status: "error", message: "网络错误" };
+  } finally {
+    finishAuthRetryProbe(probeStatus);
   }
 }
 
@@ -870,6 +886,47 @@ function shouldBackOffAuthRetry(): boolean {
   const stored = readStoredAuthRetryStatus();
   if (stored) return true;
   return authRetryStatus !== null && Date.now() < authRetryAfter;
+}
+
+async function waitForAuthRetryProbe(): Promise<DatabaseSyncStatus | null> {
+  const probe = getAuthRetryProbe();
+  if (!probe) return null;
+  const status = await probe.catch((): AuthRetryProbeStatus => "ok");
+  return status === "unauthenticated" || status === "unconfigured"
+    ? status
+    : null;
+}
+
+function startAuthRetryProbe(): (status: AuthRetryProbeStatus) => void {
+  if (getAuthRetryProbe()) return () => {};
+  let settle: (status: AuthRetryProbeStatus) => void = () => {};
+  const probe = new Promise<AuthRetryProbeStatus>((resolve) => {
+    settle = resolve;
+  });
+  setAuthRetryProbe(probe);
+  return (status: AuthRetryProbeStatus) => {
+    if (getAuthRetryProbe() === probe) setAuthRetryProbe(null);
+    settle(status);
+  };
+}
+
+function getAuthRetryProbe(): Promise<AuthRetryProbeStatus> | null {
+  if (authRetryProbeInFlight) return authRetryProbeInFlight;
+  if (typeof window === "undefined") return null;
+  return (window as AuthRetryProbeWindow)[AUTH_RETRY_PROBE_WINDOW_KEY] ?? null;
+}
+
+function setAuthRetryProbe(
+  probe: Promise<AuthRetryProbeStatus> | null
+): void {
+  authRetryProbeInFlight = probe;
+  if (typeof window === "undefined") return;
+  const target = window as AuthRetryProbeWindow;
+  if (probe) {
+    target[AUTH_RETRY_PROBE_WINDOW_KEY] = probe;
+  } else {
+    delete target[AUTH_RETRY_PROBE_WINDOW_KEY];
+  }
 }
 
 function rememberAuthRetryStatus(status: DatabaseSyncStatus): void {

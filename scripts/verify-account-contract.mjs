@@ -828,6 +828,12 @@ check(
 check(
   pageSyncClient.includes("AUTH_RETRY_BACKOFF_MS") &&
     pageSyncClient.includes('AUTH_RETRY_KEY = "zhinote.pagesync.authRetry.v1"') &&
+    pageSyncClient.includes("authRetryProbeInFlight") &&
+    pageSyncClient.includes("__zhinotePageSyncAuthRetryProbe") &&
+    pageSyncClient.includes("getAuthRetryProbe") &&
+    pageSyncClient.includes("setAuthRetryProbe") &&
+    pageSyncClient.includes("waitForAuthRetryProbe") &&
+    pageSyncClient.includes("startAuthRetryProbe") &&
     pageSyncClient.includes("shouldBackOffAuthRetry") &&
     pageSyncClient.includes("readStoredAuthRetryStatus") &&
     pageSyncClient.includes("JSON.stringify({ status, until: authRetryAfter })") &&
@@ -835,6 +841,21 @@ check(
     pageSyncClient.includes("rememberAuthRetryStatus(result.status)") &&
     pageSyncClient.includes("throttled: true"),
   "页面 metadata 增量同步在未登录/未配置时应跨刷新退避，避免页面列表刷新反复请求云端"
+);
+check(
+  databaseSyncClient.includes("AUTH_RETRY_BACKOFF_MS") &&
+    databaseSyncClient.includes('AUTH_RETRY_KEY = "zhinote.databasesync.authRetry.v1"') &&
+    databaseSyncClient.includes("authRetryProbeInFlight") &&
+    databaseSyncClient.includes("__zhinoteDatabaseSyncAuthRetryProbe") &&
+    databaseSyncClient.includes("getAuthRetryProbe") &&
+    databaseSyncClient.includes("setAuthRetryProbe") &&
+    databaseSyncClient.includes("waitForAuthRetryProbe") &&
+    databaseSyncClient.includes("startAuthRetryProbe") &&
+    databaseSyncClient.includes("shouldBackOffAuthRetry") &&
+    databaseSyncClient.includes("readStoredAuthRetryStatus") &&
+    databaseSyncClient.includes("JSON.stringify({ status, until: authRetryAfter })") &&
+    databaseSyncClient.includes("removeSyncStorage(AUTH_RETRY_KEY)"),
+  "数据库同步在未登录/未配置时应跨刷新退避并合并并发探测，避免数据库 metadata 刷新反复请求云端"
 );
 check(
   pageSyncClient.includes("PAGE_LOOKUP_CACHE_MS") &&

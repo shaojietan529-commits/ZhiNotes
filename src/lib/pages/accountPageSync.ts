@@ -61,6 +61,7 @@ const METADATA_DELTA_THROTTLE_MS = 2500;
 const PAGE_LOOKUP_CACHE_MS = 4000;
 const PAGE_LOOKUP_CACHE_LIMIT = 60;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
+const AUTH_RETRY_PROBE_WINDOW_KEY = "__zhinotePageSyncAuthRetryProbe";
 // Covers stored as data URLs can be multi-MB; skip oversized ones rather
 // than failing the whole page push.
 const MAX_COVER_CHARS = 300 * 1024;
@@ -78,6 +79,7 @@ const pageLookupCache = new Map<
 >();
 let authRetryAfter = 0;
 let authRetryStatus: PageSyncStatus | null = null;
+let authRetryProbeInFlight: Promise<AuthRetryProbeStatus> | null = null;
 let memoryRemoteWatermark: string | null = null;
 let memoryRemoteCursor: string | null = null;
 let memoryLastPageSyncAt: string | null = null;
@@ -134,6 +136,10 @@ interface PendingCloudPushMetaEntry {
 }
 
 type PendingCloudPushMeta = Record<string, PendingCloudPushMetaEntry>;
+type AuthRetryProbeStatus = PageSyncStatus | "ok";
+type AuthRetryProbeWindow = Window & {
+  [AUTH_RETRY_PROBE_WINDOW_KEY]?: Promise<AuthRetryProbeStatus>;
+};
 
 export interface PullCloudPageResult {
   status: PageSyncStatus;
@@ -289,6 +295,12 @@ async function call(body: Record<string, unknown>): Promise<
       status: authRetryStatus ?? "unauthenticated",
     };
   }
+  const probedStatus = await waitForAuthRetryProbe();
+  if (probedStatus) {
+    return { ok: false, status: probedStatus };
+  }
+  const finishAuthRetryProbe = startAuthRetryProbe();
+  let probeStatus: AuthRetryProbeStatus = "ok";
   try {
     const res = await fetch("/api/pages/account-sync", {
       method: "POST",
@@ -296,10 +308,12 @@ async function call(body: Record<string, unknown>): Promise<
       body: JSON.stringify(body),
     });
     if (res.status === 501) {
+      probeStatus = "unconfigured";
       rememberAuthRetryStatus("unconfigured");
       return { ok: false, status: "unconfigured" };
     }
     if (res.status === 401) {
+      probeStatus = "unauthenticated";
       rememberAuthRetryStatus("unauthenticated");
       return { ok: false, status: "unauthenticated" };
     }
@@ -315,6 +329,8 @@ async function call(body: Record<string, unknown>): Promise<
     return { ok: true, json };
   } catch {
     return { ok: false, status: "error", message: "网络错误" };
+  } finally {
+    finishAuthRetryProbe(probeStatus);
   }
 }
 
@@ -681,6 +697,47 @@ function shouldBackOffAuthRetry(): boolean {
   const stored = readStoredAuthRetryStatus();
   if (stored) return true;
   return authRetryStatus !== null && Date.now() < authRetryAfter;
+}
+
+async function waitForAuthRetryProbe(): Promise<PageSyncStatus | null> {
+  const probe = getAuthRetryProbe();
+  if (!probe) return null;
+  const status = await probe.catch((): AuthRetryProbeStatus => "ok");
+  return status === "unauthenticated" || status === "unconfigured"
+    ? status
+    : null;
+}
+
+function startAuthRetryProbe(): (status: AuthRetryProbeStatus) => void {
+  if (getAuthRetryProbe()) return () => {};
+  let settle: (status: AuthRetryProbeStatus) => void = () => {};
+  const probe = new Promise<AuthRetryProbeStatus>((resolve) => {
+    settle = resolve;
+  });
+  setAuthRetryProbe(probe);
+  return (status: AuthRetryProbeStatus) => {
+    if (getAuthRetryProbe() === probe) setAuthRetryProbe(null);
+    settle(status);
+  };
+}
+
+function getAuthRetryProbe(): Promise<AuthRetryProbeStatus> | null {
+  if (authRetryProbeInFlight) return authRetryProbeInFlight;
+  if (typeof window === "undefined") return null;
+  return (window as AuthRetryProbeWindow)[AUTH_RETRY_PROBE_WINDOW_KEY] ?? null;
+}
+
+function setAuthRetryProbe(
+  probe: Promise<AuthRetryProbeStatus> | null
+): void {
+  authRetryProbeInFlight = probe;
+  if (typeof window === "undefined") return;
+  const target = window as AuthRetryProbeWindow;
+  if (probe) {
+    target[AUTH_RETRY_PROBE_WINDOW_KEY] = probe;
+  } else {
+    delete target[AUTH_RETRY_PROBE_WINDOW_KEY];
+  }
 }
 
 function rememberAuthRetryStatus(status: PageSyncStatus): void {
