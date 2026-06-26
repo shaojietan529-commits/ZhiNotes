@@ -2032,6 +2032,18 @@ function run() {
     "setLoading(localPage.content_text == null)",
     "Page opening must treat metadata/handoff as first-paint ready while the full body hydrates in the background."
   );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "const loadEditorModule = () => import(\"@/components/editor/Editor\")",
+    "Page shell must keep the editor behind a dynamic import instead of blocking title/properties first paint."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "void loadEditorModule();",
+    "Page shell must start warming the editor module after page metadata is visible."
+  );
   assertExcludes(
     files.pagePeekModal,
     pagePeekModal,

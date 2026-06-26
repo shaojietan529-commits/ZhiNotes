@@ -69,7 +69,9 @@ import {
   recordLocalPerformanceSnapshot,
 } from "@/lib/performance/localPerformance";
 
-const Editor = dynamic(() => import("@/components/editor/Editor"), {
+const loadEditorModule = () => import("@/components/editor/Editor");
+
+const Editor = dynamic(loadEditorModule, {
   ssr: false,
   loading: () => <PageBodySkeleton />,
 });
@@ -180,6 +182,7 @@ function PageContent({ pageId }: { pageId: string }) {
   useEffect(() => {
     setEditorMounted(false);
     if (!hasPage) return;
+    void loadEditorModule();
     return scheduleEditorMount(() => {
       setEditorMounted(true);
     });

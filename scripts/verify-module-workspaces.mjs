@@ -203,11 +203,15 @@ check(
   "usePage 必须优先读取新建页面的内存草稿，让每日纪要 + 点击后无需等待本地缓存写入"
 );
 check(
-  pageShell.includes("dynamic(() => import(\"@/components/editor/Editor\")") &&
+  pageShell.includes("const loadEditorModule = () => import(\"@/components/editor/Editor\")") &&
+    pageShell.includes("const Editor = dynamic(loadEditorModule") &&
     pageShell.includes("loading: () => <PageBodySkeleton />") &&
     !pageShell.includes("import Editor from \"@/components/editor/Editor\"") &&
+    pageShell.includes("void loadEditorModule();") &&
+    pageShell.indexOf("void loadEditorModule();") <
+      pageShell.indexOf("return scheduleEditorMount") &&
     pageShell.includes("usePages({ autoLoad: false })"),
-  "PageShell 必须动态加载编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
+  "PageShell 必须动态加载并在页面首屏后预热编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
 );
 check(
   pageTreeSource.includes("SIDEBAR_PAGE_TREE_ROOT_LIMIT") &&
