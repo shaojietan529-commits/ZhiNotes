@@ -4,6 +4,8 @@ import { parsePageProperties } from "@/lib/pages/pageProperties";
 import type { HotCachePreferences } from "@/lib/sync/hotCacheSelectionSettings";
 import type { Database, Page } from "@/lib/utils/types";
 
+const ACTIVE_DATABASE_ROUTE_TARGET_LIMIT = 12;
+
 export type HotCacheWarmupJobStatus =
   | "ready"
   | "preference-off"
@@ -83,6 +85,10 @@ export function buildHotCacheWarmupPlan(
   );
   const favoriteIdSet = new Set(input.favoriteIds);
   const favoritePages = activePages.filter((page) => favoriteIdSet.has(page.id));
+  const activeDatabaseRouteTargets =
+    input.preferences.keepActiveDatabases
+      ? buildActiveDatabaseRouteTargets(input.databases)
+      : [];
   const pendingRows = input.syncSummary?.pending ?? 0;
 
   const jobs: HotCacheWarmupJob[] = [
@@ -155,9 +161,10 @@ export function buildHotCacheWarmupPlan(
         ? input.databases.length
         : 0,
       route_targets: input.preferences.keepActiveDatabases
-        ? ["/modules/databases"]
+        ? ["/modules/databases", ...activeDatabaseRouteTargets]
         : [],
-      action: "预热数据库模块入口，字段和视图 metadata 优先可见，行值继续按需加载。",
+      action:
+        "预热数据库模块入口和最近打开的数据库详情路由，字段和视图 metadata 优先可见，行值继续按需加载。",
       reason: "投研表格如果每次等待云端，会直接影响记录和比较效率。",
       blocked_reason: input.preferences.keepActiveDatabases
         ? null
@@ -287,6 +294,14 @@ export function buildHotCacheWarmupPlan(
     },
     jobs,
   };
+}
+
+function buildActiveDatabaseRouteTargets(databases: Database[]): string[] {
+  return databases
+    .filter((database) => !database.deleted_at)
+    .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
+    .slice(0, ACTIVE_DATABASE_ROUTE_TARGET_LIMIT)
+    .map((database) => `/database/${encodeURIComponent(database.id)}`);
 }
 
 function isCurrentMonthDailyPage(page: Page, now: Date): boolean {

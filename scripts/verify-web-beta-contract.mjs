@@ -81,6 +81,7 @@ const files = {
     "src/lib/sync/commentVersionReplayAckGate.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
+  hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
@@ -417,6 +418,7 @@ function run() {
   );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
+  const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
   const hotCacheLocalIndex = readProjectFile(files.hotCacheLocalIndex);
   const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
@@ -1156,6 +1158,89 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-hot-cache-warmup-plan"',
+      "Hot cache warmup plan must expose a stable export format.",
+    ],
+    [
+      "prefetches_routes_only: true",
+      "Hot cache warmup plan must remain route-prefetch only.",
+    ],
+    [
+      "mutates_local_cache_records: false",
+      "Hot cache warmup plan must not mutate local cache records.",
+    ],
+    [
+      "ACTIVE_DATABASE_ROUTE_TARGET_LIMIT = 12",
+      "Hot cache warmup plan must keep active database route prefetch bounded.",
+    ],
+    [
+      "`/database/${encodeURIComponent(database.id)}`",
+      "Hot cache warmup plan must prefetch active database detail routes when selected.",
+    ],
+    [
+      "行值继续按需加载",
+      "Hot cache warmup plan must keep database row values out of route prefetch.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.hotCacheWarmupPlan,
+      hotCacheWarmupPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Hot cache warmup plan must not access page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Hot cache warmup plan must not access page Yjs content.",
+    ],
+    [
+      "database.description",
+      "Hot cache warmup plan must not access database descriptions.",
+    ],
+    [
+      "file.dataUrl",
+      "Hot cache warmup plan must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Hot cache warmup plan must not access file text.",
+    ],
+    [
+      "comment.body",
+      "Hot cache warmup plan must not access comment bodies.",
+    ],
+    [
+      "field_values",
+      "Hot cache warmup plan must not access database row values.",
+    ],
+    [
+      "fetch(",
+      "Hot cache warmup plan must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Hot cache warmup plan must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Hot cache warmup plan must not mutate the local database.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.hotCacheWarmupPlan,
+      hotCacheWarmupPlan,
+      snippet,
+      message
+    );
   }
 
   for (const [snippet, message] of [

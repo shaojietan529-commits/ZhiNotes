@@ -1211,6 +1211,24 @@ function run() {
     "mutates_local_cache_records: false",
     "Hot cache warmup must not mutate local cache records."
   );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    "ACTIVE_DATABASE_ROUTE_TARGET_LIMIT = 12",
+    "Hot cache warmup must keep active database route prefetch bounded."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    "`/database/${encodeURIComponent(database.id)}`",
+    "Hot cache warmup must prefetch active database detail routes when selected."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    "行值继续按需加载",
+    "Hot cache warmup must keep database row values out of route prefetch."
+  );
   for (const forbiddenWarmupSnippet of [
     "page.content_text",
     "page.content_yjs",
