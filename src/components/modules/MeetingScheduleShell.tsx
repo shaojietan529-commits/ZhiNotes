@@ -48,9 +48,13 @@ import {
 } from "@/lib/sync/meetingHotCacheSnapshot";
 import {
   DEFAULT_HOT_CACHE_PREFERENCES,
+  HOT_CACHE_PREFERENCES_CHANGED_EVENT,
+  HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY,
   HOT_CACHE_PREFERENCES_SETTING_KEY,
   metadataRecentLimitForHotCachePreferences,
+  normalizeHotCachePreferences,
   parseHotCachePreferences,
+  type HotCachePreferences,
 } from "@/lib/sync/hotCacheSelectionSettings";
 import {
   createPageProperty,
@@ -289,14 +293,47 @@ export default function MeetingScheduleShell() {
   useEffect(() => {
     if (!dbReady) return;
     let cancelled = false;
-    void getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)
-      .then((setting) => {
+
+    const reloadHotCachePreferences = () => {
+      void getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)
+        .then((setting) => {
+          if (cancelled) return;
+          setHotCachePreferences(parseHotCachePreferences(setting));
+        })
+        .catch(() => undefined);
+    };
+
+    const handleHotCachePreferencesChanged = (event: Event) => {
+      const preferencesFromEvent = (
+        event as CustomEvent<{ preferences?: Partial<HotCachePreferences> }>
+      ).detail?.preferences;
+      if (preferencesFromEvent) {
         if (cancelled) return;
-        setHotCachePreferences(parseHotCachePreferences(setting));
-      })
-      .catch(() => undefined);
+        setHotCachePreferences(normalizeHotCachePreferences(preferencesFromEvent));
+        return;
+      }
+      reloadHotCachePreferences();
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY) {
+        reloadHotCachePreferences();
+      }
+    };
+
+    reloadHotCachePreferences();
+    window.addEventListener(
+      HOT_CACHE_PREFERENCES_CHANGED_EVENT,
+      handleHotCachePreferencesChanged
+    );
+    window.addEventListener("storage", handleStorage);
     return () => {
       cancelled = true;
+      window.removeEventListener(
+        HOT_CACHE_PREFERENCES_CHANGED_EVENT,
+        handleHotCachePreferencesChanged
+      );
+      window.removeEventListener("storage", handleStorage);
     };
   }, [dbReady]);
 

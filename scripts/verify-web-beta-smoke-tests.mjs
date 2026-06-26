@@ -1472,6 +1472,18 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "HOT_CACHE_PREFERENCES_CHANGED_EVENT",
+    "Daily notes must react when hot-cache preferences change locally."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY",
+    "Daily notes must react to hot-cache preference changes from other tabs."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "metadataRecentLimitForHotCachePreferences",
     "Daily notes must translate hot-cache preference into a bounded recent metadata window."
   );
@@ -1546,6 +1558,18 @@ function run() {
     meetingScheduleShell,
     "HOT_CACHE_PREFERENCES_SETTING_KEY",
     "Meeting schedule must read the user hot-cache preference setting."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "HOT_CACHE_PREFERENCES_CHANGED_EVENT",
+    "Meeting schedule must react when hot-cache preferences change locally."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY",
+    "Meeting schedule must react to hot-cache preference changes from other tabs."
   );
   assertIncludes(
     files.meetingScheduleShell,
@@ -1853,6 +1877,12 @@ function run() {
     hotCacheSelectionSettings,
     "metadataRecentLimitForHotCachePreferences",
     "Smoke verifier must keep the bounded recent metadata limit helper."
+  );
+  assertIncludes(
+    files.hotCacheSelectionSettings,
+    hotCacheSelectionSettings,
+    "notifyHotCachePreferencesChanged",
+    "Smoke verifier must keep the hot-cache preference change notifier."
   );
   assertIncludes(
     files.hotCacheSelectionSettings,
@@ -2643,6 +2673,12 @@ function run() {
     syncShell,
     "导出选择合同",
     "Sync UI must expose the hot cache selection export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "notifyHotCachePreferencesChanged",
+    "Sync UI must notify other local surfaces after hot-cache preferences change."
   );
   assertIncludes(
     files.syncShell,

@@ -306,6 +306,7 @@ import {
   DEFAULT_HOT_CACHE_PREFERENCES,
   HOT_CACHE_PREFERENCES_SETTING_KEY,
   buildHotCacheSelectionContract,
+  notifyHotCachePreferencesChanged,
   normalizeHotCachePreferences,
   parseHotCachePreferences,
   type HotCachePreferences,
@@ -2615,6 +2616,7 @@ function SyncDashboard() {
       setHotCacheSetting(saved);
       setSyncSummary(nextSyncSummary);
       setSyncEntries(nextSyncEntries);
+      notifyHotCachePreferencesChanged(normalized);
       setHotCacheSaveMessage("已保存到本地，并加入待上传队列。");
     } catch (err) {
       console.error("[Zhinote] Failed to save hot cache preferences:", err);
@@ -2733,7 +2735,11 @@ function SyncDashboard() {
         HOT_CACHE_PREFERENCES_SETTING_KEY
       );
       setHotCacheSetting(refreshedHotCacheSetting);
-      setHotCachePreferences(parseHotCachePreferences(refreshedHotCacheSetting));
+      const refreshedHotCachePreferences = parseHotCachePreferences(
+        refreshedHotCacheSetting
+      );
+      setHotCachePreferences(refreshedHotCachePreferences);
+      notifyHotCachePreferencesChanged(refreshedHotCachePreferences);
       setSyncSummary(nextSyncSummary);
       setSyncEntries(nextSyncEntries);
       const skipped =
@@ -3205,7 +3211,11 @@ function SyncDashboard() {
       ]);
       setWorkspaceSettings(refreshedWorkspaceSettings);
       setHotCacheSetting(refreshedHotCacheSetting);
-      setHotCachePreferences(parseHotCachePreferences(refreshedHotCacheSetting));
+      const restoredHotCachePreferences = parseHotCachePreferences(
+        refreshedHotCacheSetting
+      );
+      setHotCachePreferences(restoredHotCachePreferences);
+      notifyHotCachePreferencesChanged(restoredHotCachePreferences);
       setSyncSummary(nextSyncSummary);
       setSyncEntries(nextSyncEntries);
       setHotCacheSaveMessage(

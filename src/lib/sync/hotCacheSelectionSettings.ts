@@ -2,6 +2,10 @@ import type { WorkspaceSettingRecord } from "@/lib/db/local/queries";
 import type { HotCachePolicyPlan } from "@/lib/sync/hotCachePolicyPlan";
 
 export const HOT_CACHE_PREFERENCES_SETTING_KEY = "hot_cache_preferences.v1";
+export const HOT_CACHE_PREFERENCES_CHANGED_EVENT =
+  "zhinote:hot-cache-preferences-changed";
+export const HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY =
+  "zhinote.hot-cache-preferences.changed-at";
 
 export interface HotCachePreferences {
   recentDays: 30 | 90;
@@ -67,6 +71,27 @@ export function metadataRecentLimitForHotCachePreferences(
 ): number {
   // This is a bounded metadata window, not a promise to cache full content.
   return preferences.recentDays === 90 ? 72 : 24;
+}
+
+export function notifyHotCachePreferencesChanged(
+  preferences: HotCachePreferences
+) {
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(
+    new CustomEvent(HOT_CACHE_PREFERENCES_CHANGED_EVENT, {
+      detail: { preferences },
+    })
+  );
+
+  try {
+    window.localStorage.setItem(
+      HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY,
+      String(Date.now())
+    );
+  } catch {
+    // localStorage is only a cross-tab hint; workspace_settings is durable.
+  }
 }
 
 export function parseHotCachePreferences(

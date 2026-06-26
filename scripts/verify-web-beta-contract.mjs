@@ -1424,6 +1424,14 @@ function run() {
       "Daily notes must read the user hot-cache preference setting.",
     ],
     [
+      "HOT_CACHE_PREFERENCES_CHANGED_EVENT",
+      "Daily notes must react when hot-cache preferences change locally.",
+    ],
+    [
+      "HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY",
+      "Daily notes must react to hot-cache preference changes from other tabs.",
+    ],
+    [
       "metadataRecentLimitForHotCachePreferences",
       "Daily notes must translate hot-cache preference into a bounded recent metadata window.",
     ],
@@ -1588,6 +1596,14 @@ function run() {
     [
       "HOT_CACHE_PREFERENCES_SETTING_KEY",
       "Meeting schedule must read the user hot-cache preference setting.",
+    ],
+    [
+      "HOT_CACHE_PREFERENCES_CHANGED_EVENT",
+      "Meeting schedule must react when hot-cache preferences change locally.",
+    ],
+    [
+      "HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY",
+      "Meeting schedule must react to hot-cache preference changes from other tabs.",
     ],
     [
       "metadataRecentLimitForHotCachePreferences",
@@ -2432,6 +2448,10 @@ function run() {
     [
       "metadataRecentLimitForHotCachePreferences",
       "Hot cache selection must expose a bounded recent metadata limit helper.",
+    ],
+    [
+      "notifyHotCachePreferencesChanged",
+      "Hot cache selection must expose a local preference change notifier.",
     ],
     [
       "preferences.recentDays === 90 ? 72 : 24",
@@ -3545,6 +3565,10 @@ function run() {
     [
       "upsertWorkspaceSetting",
       "Sync UI must save preferences through workspace settings.",
+    ],
+    [
+      "notifyHotCachePreferencesChanged",
+      "Sync UI must notify other local surfaces after hot-cache preferences change.",
     ],
     [
       "导出选择合同",
