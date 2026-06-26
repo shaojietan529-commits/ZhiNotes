@@ -115,7 +115,7 @@ function downloadJson(fileName: string, value: unknown) {
 export default function PageImportPlanPanel() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { refresh: refreshPages } = usePages({ autoLoad: false });
+  const { upsertPages } = usePages({ autoLoad: false });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [plan, setPlan] = useState<PageImportPlan | null>(null);
   const [files, setFiles] = useState<File[]>([]);
@@ -162,8 +162,13 @@ export default function PageImportPlanPanel() {
     try {
       const res = await executePageImportPlan(files, plan);
       setResult(res);
-      await refreshPages();
-      if (res.status === "completed" && res.first_page_id) {
+      if (res.status === "completed" && res.created_page_metadata.length > 0) {
+        upsertPages(res.created_page_metadata);
+      }
+      const firstPage = res.created_page_metadata[0] ?? null;
+      if (res.status === "completed" && firstPage) {
+        openPage(firstPage, { source: "module-create" });
+      } else if (res.status === "completed" && res.first_page_id) {
         openPage(res.first_page_id, { source: "module-create" });
       } else if (res.status === "completed" && res.first_database_id) {
         router.push(`/database/${res.first_database_id}`);

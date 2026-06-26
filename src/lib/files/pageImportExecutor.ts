@@ -31,6 +31,7 @@ import {
 } from "@/lib/files/spreadsheet";
 import { convertWordToHtml } from "@/lib/files/word";
 import type { PageImportPlan, PageImportPlanItem } from "./pageImportPlan";
+import type { Page } from "@/lib/utils/types";
 
 export interface PageImportExecutionResult {
   status: "completed" | "rolled-back";
@@ -44,6 +45,7 @@ export interface PageImportExecutionResult {
   rolled_back_databases: number;
   first_page_id: string | null;
   first_database_id: string | null;
+  created_page_metadata: Page[];
   notes: string[];
   boundaries: {
     reads_file_bytes_now: true;
@@ -95,6 +97,14 @@ function deriveNotebookTitle(fileName: string, text: string): string {
   return deriveTitle(fileName, "");
 }
 
+function toPageMetadata(page: Page): Page {
+  return {
+    ...page,
+    content_yjs: null,
+    content_text: null,
+  };
+}
+
 function textToParagraphs(text: string): string {
   const blocks = text.replace(/\r\n/g, "\n").split(/\n{2,}/);
   const html = blocks
@@ -119,6 +129,7 @@ export async function executePageImportPlan(
   opts?: { onProgress?: (done: number, total: number) => void }
 ): Promise<PageImportExecutionResult> {
   const createdPageIds: string[] = [];
+  const createdPageMetadata: Page[] = [];
   const createdDatabaseIds: string[] = [];
   const notes: string[] = [];
   let createdPages = 0;
@@ -146,6 +157,8 @@ export async function executePageImportPlan(
     rolled_back_databases: rolledBackDatabases,
     first_page_id: createdPageIds[0] ?? null,
     first_database_id: createdDatabaseIds[0] ?? null,
+    created_page_metadata:
+      status === "completed" ? createdPageMetadata : [],
     notes,
     boundaries: {
       reads_file_bytes_now: true,
@@ -182,6 +195,11 @@ export async function executePageImportPlan(
       }
     }
     return { rolledBackPages, rolledBackDatabases };
+  };
+
+  const rememberCreatedPage = (page: Page) => {
+    createdPageIds.push(page.id);
+    createdPageMetadata.push(toPageMetadata(page));
   };
 
   try {
@@ -227,8 +245,10 @@ export async function executePageImportPlan(
           title: deriveTitle(stored.name, text),
           icon: "MD",
         });
-        await updatePageWithCloud(page.id, { content_text: html });
-        createdPageIds.push(page.id);
+        const updatedPage = await updatePageWithCloud(page.id, {
+          content_text: html,
+        });
+        rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
         continue;
       }
@@ -240,8 +260,10 @@ export async function executePageImportPlan(
           title: deriveTitle(stored.name, text),
           icon: "TXT",
         });
-        await updatePageWithCloud(page.id, { content_text: html });
-        createdPageIds.push(page.id);
+        const updatedPage = await updatePageWithCloud(page.id, {
+          content_text: html,
+        });
+        rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
         continue;
       }
@@ -253,8 +275,10 @@ export async function executePageImportPlan(
           title: deriveTitle(stored.name, ""),
           icon: "RTF",
         });
-        await updatePageWithCloud(page.id, { content_text: html });
-        createdPageIds.push(page.id);
+        const updatedPage = await updatePageWithCloud(page.id, {
+          content_text: html,
+        });
+        rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
         notes.push("RTF 已本地转换为可编辑页面；没有上传文件内容。");
         continue;
@@ -268,8 +292,10 @@ export async function executePageImportPlan(
           title: deriveTitle(stored.name, ""),
           icon: "EPUB",
         });
-        await updatePageWithCloud(page.id, { content_text: html });
-        createdPageIds.push(page.id);
+        const updatedPage = await updatePageWithCloud(page.id, {
+          content_text: html,
+        });
+        rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
         notes.push("EPUB 已本地解析为可编辑页面；没有加载远程资源或上传文件内容。");
         continue;
@@ -281,8 +307,10 @@ export async function executePageImportPlan(
           title: deriveTitle(stored.name, ""),
           icon: "DOC",
         });
-        await updatePageWithCloud(page.id, { content_text: html });
-        createdPageIds.push(page.id);
+        const updatedPage = await updatePageWithCloud(page.id, {
+          content_text: html,
+        });
+        rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
         notes.push("Word/ODT 已本地转换为可编辑页面；没有上传文件内容。");
         continue;
@@ -294,8 +322,10 @@ export async function executePageImportPlan(
           title: deriveTitle(stored.name, ""),
           icon: "PPT",
         });
-        await updatePageWithCloud(page.id, { content_text: html });
-        createdPageIds.push(page.id);
+        const updatedPage = await updatePageWithCloud(page.id, {
+          content_text: html,
+        });
+        rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
         notes.push("PowerPoint/ODP 已本地转换为可编辑页面；没有上传文件内容。");
         continue;
@@ -308,8 +338,10 @@ export async function executePageImportPlan(
           title: deriveNotebookTitle(stored.name, text),
           icon: "NOTE",
         });
-        await updatePageWithCloud(page.id, { content_text: html });
-        createdPageIds.push(page.id);
+        const updatedPage = await updatePageWithCloud(page.id, {
+          content_text: html,
+        });
+        rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
         notes.push("Notebook 已本地解析为可编辑页面；代码单元格只作为文本保留，未执行。");
         continue;
@@ -322,10 +354,10 @@ export async function executePageImportPlan(
         title: buildFileLibraryPageTitle(stored),
         icon: "FILE",
       });
-      await updatePageWithCloud(page.id, {
+      const updatedPage = await updatePageWithCloud(page.id, {
         content_text: buildFileLibraryPageContent(stored),
       });
-      createdPageIds.push(page.id);
+      rememberCreatedPage(updatedPage ?? page);
       retainedFilePages += 1;
     }
 

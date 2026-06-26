@@ -192,6 +192,12 @@ check(existsSync(executorPath), `${executorFile} 不存在`);
 const executorSource = existsSync(executorPath)
   ? readFileSync(executorPath, "utf8")
   : "";
+const panelFile = "src/components/modules/PageImportPlanPanel.tsx";
+const panelPath = path.join(root, panelFile);
+check(existsSync(panelPath), `${panelFile} 不存在`);
+const panelSource = existsSync(panelPath)
+  ? readFileSync(panelPath, "utf8")
+  : "";
 
 check(
   executorSource.includes("export async function executePageImportPlan"),
@@ -200,6 +206,13 @@ check(
 check(
   executorSource.includes("export function countExecutableItems"),
   "缺少 countExecutableItems 辅助函数"
+);
+check(
+  executorSource.includes("created_page_metadata") &&
+    executorSource.includes("toPageMetadata") &&
+    executorSource.includes("content_text: null") &&
+    executorSource.includes("rememberCreatedPage"),
+  "执行器必须返回不含正文的 created_page_metadata，供导入完成后乐观合并页面索引"
 );
 // Rollback must exist and soft-delete created pages.
 check(
@@ -274,6 +287,13 @@ check(
 check(
   executorSource.includes("skippedBlocked"),
   "执行器必须跳过待复核文件"
+);
+check(
+  panelSource.includes("const { upsertPages } = usePages({ autoLoad: false })") &&
+    panelSource.includes("upsertPages(res.created_page_metadata)") &&
+    panelSource.includes('openPage(firstPage, { source: "module-create" })') &&
+    !panelSource.includes("refreshPages()"),
+  "PageImportPlanPanel 执行导入后必须乐观合并页面 metadata，不能刷新全局页面列表"
 );
 
 if (errors.length > 0) {
