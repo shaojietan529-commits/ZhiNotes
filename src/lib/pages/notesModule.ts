@@ -36,6 +36,10 @@ export interface NotesModuleSnapshot {
   counts: PageModuleCounts;
 }
 
+export interface NotesModuleWorkbenchOptions {
+  bodyScanEnabled?: boolean;
+}
+
 export interface NotesModuleLane {
   id: NotesModuleLaneId;
   title: string;
@@ -153,7 +157,7 @@ export interface NotesModuleWorkbenchReport {
   boundary: {
     local_report_only: true;
     reads_page_metadata: true;
-    reads_page_content_html: true;
+    reads_page_content_html: boolean;
     reads_page_versions_metadata: true;
     reads_comment_counts: true;
     reads_wiki_link_counts: true;
@@ -278,22 +282,27 @@ const FORBIDDEN_ACTIONS = [
 ];
 
 export function buildNotesModuleWorkbenchReport(
-  snapshots: NotesModuleSnapshot[]
+  snapshots: NotesModuleSnapshot[],
+  options: NotesModuleWorkbenchOptions = {}
 ): NotesModuleWorkbenchReport {
-  const pages = snapshots.map(buildPageItem).sort(sortPages);
-  const actions = buildActions(pages).sort(sortActions);
+  const bodyScanEnabled = options.bodyScanEnabled ?? true;
+  const pages = snapshots
+    .map((snapshot) => buildPageItem(snapshot, bodyScanEnabled))
+    .sort(sortPages);
+  const actions = buildActions(pages, bodyScanEnabled).sort(sortActions);
   const lanes = buildLanes(actions);
 
   return {
     format: "zhinote-notes-module-workbench",
     format_version: 1,
     report_status: "local-notes-module-only",
-    privacy_note:
-      "这份笔记工作台只在本地生成，只读取活跃页面元数据、本地页面 HTML 结构、版本数量、评论数量、页面链接数量、本地收藏状态和锁定状态。它不读取数据库行、行值、文件字节、关联页面正文、云端数据、提示词、token、凭证、持仓或交易计划。导出的工作台只包含结构计数和状态，不包含页面正文或评论正文，也不会写入工作区、连接云服务、上传数据或启用 AI。",
+    privacy_note: bodyScanEnabled
+      ? "这份笔记工作台只在本地生成，只读取活跃页面元数据、本地页面 HTML 结构、版本数量、评论数量、页面链接数量、本地收藏状态和锁定状态。它不读取数据库行、行值、文件字节、关联页面正文、云端数据、提示词、token、凭证、持仓或交易计划。导出的工作台只包含结构计数和状态，不包含页面正文或评论正文，也不会写入工作区、连接云服务、上传数据或启用 AI。"
+      : "这份笔记工作台处于轻量模式，只读取活跃页面元数据、版本数量、评论数量、页面链接数量、本地收藏状态和锁定状态；不读取页面 HTML 正文。需要字数、标题结构、文件块、同步块等正文结构指标时，必须由用户手动触发正文结构扫描。",
     boundary: {
       local_report_only: true,
       reads_page_metadata: true,
-      reads_page_content_html: true,
+      reads_page_content_html: bodyScanEnabled,
       reads_page_versions_metadata: true,
       reads_comment_counts: true,
       reads_wiki_link_counts: true,
@@ -308,7 +317,7 @@ export function buildNotesModuleWorkbenchReport(
       includes_comment_body_text: false,
       includes_file_bytes: false,
     },
-    summary: summarize(pages, actions),
+    summary: summarize(pages, actions, bodyScanEnabled),
     decision_summary: buildDecisionSummary(pages, actions),
     lanes,
     pages,
@@ -518,15 +527,19 @@ function buildDecisionSummary(
   };
 }
 
-function buildPageItem(snapshot: NotesModuleSnapshot): NotesModulePageItem {
+function buildPageItem(
+  snapshot: NotesModuleSnapshot,
+  bodyScanEnabled: boolean
+): NotesModulePageItem {
   const page = snapshot.page;
   const displayTitle = displayPageTitle(page.title);
   const counts = snapshot.counts ?? {
     ...EMPTY_COUNTS,
     pageId: page.id,
   };
+  const html = bodyScanEnabled ? page.content_text ?? "" : "";
   const structure = buildPageResearchStructureReport({
-    html: page.content_text ?? "",
+    html,
     title: displayTitle,
     metadata: {
       favorite: snapshot.favorite,
@@ -539,7 +552,7 @@ function buildPageItem(snapshot: NotesModuleSnapshot): NotesModulePageItem {
   const unresolvedComments =
     counts.unresolvedPageComments + counts.unresolvedBlockComments;
   const comments = counts.pageComments + counts.blockComments;
-  const role = inferPageRole(page.title, page.content_text ?? "");
+  const role = inferPageRole(page.title, html);
 
   return {
     page_id: page.id,
@@ -574,14 +587,20 @@ function buildPageItem(snapshot: NotesModuleSnapshot): NotesModulePageItem {
       favorite: snapshot.favorite,
       locked: snapshot.locked,
     }),
-    next_action: getPageNextAction(structure.structure_status, counts, structure.summary),
+    next_action: bodyScanEnabled
+      ? getPageNextAction(structure.structure_status, counts, structure.summary)
+      : getMetadataOnlyNextAction(counts),
     open_route: `/page/${page.id}`,
-    privacy_boundary:
-      "页面汇总只在本地生成，只保存页面标题、结构计数、元数据计数和路由；不包含页面正文、评论正文、关联页面正文、数据库行值或文件字节。",
+    privacy_boundary: bodyScanEnabled
+      ? "页面汇总只在本地生成，只保存页面标题、结构计数、元数据计数和路由；不包含页面正文、评论正文、关联页面正文、数据库行值或文件字节。"
+      : "页面汇总处于轻量模式，只保存页面标题、元数据计数和路由；不读取页面 HTML 正文。",
   };
 }
 
-function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
+function buildActions(
+  pages: NotesModulePageItem[],
+  bodyScanEnabled: boolean
+): NotesModuleAction[] {
   const actions: NotesModuleAction[] = [];
 
   if (pages.length === 0) {
@@ -605,7 +624,55 @@ function buildActions(pages: NotesModulePageItem[]): NotesModuleAction[] {
     return actions;
   }
 
+  if (!bodyScanEnabled && pages.length > 0) {
+    actions.push({
+      id: "notes-workbench:manual-body-scan",
+      lane_id: "structure",
+      page_id: null,
+      title: "正文结构扫描未运行",
+      priority: "medium",
+      status: "review-only",
+      evidence: `${pages.length} 个页面已用轻量元数据进入工作台。`,
+      next_action:
+        "需要字数、标题层级、文件块、同步块和投研结构判断时，手动点击“扫描正文结构”。",
+      action_route: "/modules/notes",
+      route_label: "扫描正文结构",
+      writes_workspace_data: false,
+      requires_manual_confirmation: true,
+      privacy_boundary:
+        "轻量模式不读取页面 HTML 正文；正文结构扫描只能由用户主动触发。",
+    });
+  }
+
   for (const page of pages) {
+    if (!bodyScanEnabled) {
+      if (
+        page.outgoing_links + page.backlinks > 0 ||
+        page.versions > 0 ||
+        page.comments > 0
+      ) {
+        continue;
+      }
+      actions.push({
+        id: `notes-workbench:metadata-review:${page.page_id}`,
+        lane_id: "knowledge-base",
+        page_id: page.page_id,
+        title: `${page.title} 等待轻量整理`,
+        priority: "low",
+        status: "review-only",
+        evidence: "轻量模式只看到标题、层级、版本、评论和链接计数。",
+        next_action:
+          "先确认是否要收藏、锁定或归入公司/会议/报告层级；正文结构可稍后手动扫描。",
+        action_route: page.open_route,
+        route_label: "打开页面",
+        writes_workspace_data: false,
+        requires_manual_confirmation: false,
+        privacy_boundary:
+          "这条建议只基于页面元数据，不读取或导出页面正文。",
+      });
+      continue;
+    }
+
     if (page.structure_status === "empty") {
       actions.push({
         id: `notes-workbench:empty:${page.page_id}`,
@@ -880,7 +947,8 @@ function reviewStep(
 
 function summarize(
   pages: NotesModulePageItem[],
-  actions: NotesModuleAction[]
+  actions: NotesModuleAction[],
+  bodyScanEnabled: boolean
 ): NotesModuleWorkbenchReport["summary"] {
   return {
     pages: pages.length,
@@ -889,17 +957,25 @@ function summarize(
     favorite_pages: pages.filter((page) => page.favorite).length,
     locked_pages: pages.filter((page) => page.locked).length,
     pages_with_covers: pages.filter((page) => page.has_cover).length,
-    empty_pages: pages.filter((page) => page.structure_status === "empty").length,
-    structured_pages: pages.filter((page) => page.structure_status === "ready")
-      .length,
-    thin_pages: pages.filter((page) => page.structure_status === "thin").length,
-    needs_structure_pages: pages.filter(
-      (page) => page.structure_status === "needs-structure"
-    ).length,
-    pages_with_files: pages.filter((page) => page.file_blocks > 0).length,
-    pages_with_inline_databases: pages.filter(
-      (page) => page.database_blocks > 0
-    ).length,
+    empty_pages: bodyScanEnabled
+      ? pages.filter((page) => page.structure_status === "empty").length
+      : 0,
+    structured_pages: bodyScanEnabled
+      ? pages.filter((page) => page.structure_status === "ready").length
+      : 0,
+    thin_pages: bodyScanEnabled
+      ? pages.filter((page) => page.structure_status === "thin").length
+      : 0,
+    needs_structure_pages: bodyScanEnabled
+      ? pages.filter((page) => page.structure_status === "needs-structure")
+          .length
+      : 0,
+    pages_with_files: bodyScanEnabled
+      ? pages.filter((page) => page.file_blocks > 0).length
+      : 0,
+    pages_with_inline_databases: bodyScanEnabled
+      ? pages.filter((page) => page.database_blocks > 0).length
+      : 0,
     pages_with_links: pages.filter(
       (page) => page.outgoing_links + page.page_mentions > 0
     ).length,
@@ -908,12 +984,26 @@ function summarize(
     pages_with_unresolved_comments: pages.filter(
       (page) => page.unresolved_comments > 0
     ).length,
-    total_words: pages.reduce((sum, page) => sum + page.word_count, 0),
-    total_blocks: pages.reduce((sum, page) => sum + page.block_count, 0),
+    total_words: bodyScanEnabled
+      ? pages.reduce((sum, page) => sum + page.word_count, 0)
+      : 0,
+    total_blocks: bodyScanEnabled
+      ? pages.reduce((sum, page) => sum + page.block_count, 0)
+      : 0,
     actions: actions.length,
     high_priority_actions: actions.filter((action) => action.priority === "high")
       .length,
   };
+}
+
+function getMetadataOnlyNextAction(counts: PageModuleCounts) {
+  if (counts.outgoingLinks + counts.backlinks === 0) {
+    return "轻量模式下先补页面关系或归档层级；正文结构可手动扫描。";
+  }
+  if (counts.versions === 0) {
+    return "轻量模式下先保存命名版本；正文结构可手动扫描。";
+  }
+  return "元数据关系可用；需要正文结构指标时再手动扫描。";
 }
 
 function inferPageRole(

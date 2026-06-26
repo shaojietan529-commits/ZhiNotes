@@ -11387,6 +11387,42 @@ function run() {
       "Notes module must render page metadata before deferred body hydration.",
     ],
     [
+      files.notesShell,
+      notesShell,
+      "includeContent: contentScanEnabled",
+      "Notes module must not load every imported page body until the user explicitly starts a content scan.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "setContentScanEnabled(true)",
+      "Notes module must expose an explicit local content scan action instead of scanning page bodies on first paint.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "{ bodyScanEnabled: contentScanEnabled }",
+      "Notes workbench must report whether it is allowed to inspect local page HTML bodies.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "scanEnabled: contentScanEnabled",
+      "Synced block registry must stay disabled until the explicit local content scan is enabled.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "upsertPages([page])",
+      "Notes module must optimistically add newly created blank notes instead of refreshing the full page list.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "upsertPages([result.page])",
+      "Notes module must optimistically add newly created template notes instead of refreshing the full page list.",
+    ],
+    [
       files.companyResearchShell,
       companyResearchShell,
       "deferContent: true",
@@ -11581,6 +11617,18 @@ function run() {
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
+  assertSourceExcludes(
+    files.notesShell,
+    notesShell,
+    "includeContent: true",
+    "Notes module must not default to full body hydration after large imports."
+  );
+  assertSourceExcludes(
+    files.notesShell,
+    notesShell,
+    "await refresh()",
+    "Notes module create/open flow must not wait for a full page-list refresh."
+  );
   for (const [sourceLabel, source, requiredSources] of [
     [files.inlineDatabaseNode, inlineDatabaseNode, ['source: "inline-database-open"']],
     [files.compareShell, compareShell, ['source: "compare-return"']],

@@ -173,8 +173,10 @@ function NotesContent() {
 function NotesDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
+  const [contentScanEnabled, setContentScanEnabled] = useState(false);
   const { pages, refresh } = usePages({
-    includeContent: true,
+    includeContent: contentScanEnabled,
     deferContent: true,
   });
   const { favoriteIds } = usePageFavorites();
@@ -261,14 +263,26 @@ function NotesDashboard() {
           favorite: favoriteIdSet.has(page.id),
           locked: lockedPageIds.has(page.id),
           counts: counts[page.id] ?? getEmptyPageCounts(page.id),
-        }))
+        })),
+        { bodyScanEnabled: contentScanEnabled }
       ),
-    [counts, favoriteIdSet, lockedPageIds, pages]
+    [contentScanEnabled, counts, favoriteIdSet, lockedPageIds, pages]
   );
   const syncedBlockRegistry = useMemo(
-    () => buildSyncedBlockRegistryReport(pages),
-    [pages]
+    () =>
+      buildSyncedBlockRegistryReport(pages, {
+        scanEnabled: contentScanEnabled,
+      }),
+    [contentScanEnabled, pages]
   );
+
+  const handleStartContentScan = () => {
+    if (!contentScanEnabled) {
+      setContentScanEnabled(true);
+      return;
+    }
+    void refresh();
+  };
 
   const handleCreateBlankPage = async () => {
     setBusyAction("blank-page");
@@ -277,8 +291,8 @@ function NotesDashboard() {
         title: "未命名研究笔记",
         icon: "NOTE",
       });
-      await refresh();
-      await loadCounts();
+      upsertPages([page]);
+      void loadCounts();
       openPage(page, { source: "module-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to create note page:", err);
@@ -300,9 +314,9 @@ function NotesDashboard() {
         templateTitle: starter.templateTitle,
         icon: starter.icon,
       });
-      await refresh();
-      await loadCounts();
       if (result.page) {
+        upsertPages([result.page]);
+        void loadCounts();
         openPage(result.page, { source: "module-create" });
       } else {
         router.push(result.route);
@@ -398,6 +412,13 @@ function NotesDashboard() {
             >
               所有模块
             </button>
+            <button
+              type="button"
+              onClick={handleStartContentScan}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {contentScanEnabled ? "重新扫描正文结构" : "扫描正文结构"}
+            </button>
           </div>
         </header>
 
@@ -480,14 +501,18 @@ function NotesDashboard() {
 
         <SyncedBlockRegistryPanel
           report={syncedBlockRegistry}
+          contentScanEnabled={contentScanEnabled}
           exporting={exportingSyncedRegistry}
+          onStartContentScan={handleStartContentScan}
           onExport={handleExportSyncedRegistry}
           onOpenPage={(pageId) => openPage(pageId, { source: "module-open" })}
         />
 
         <NotesWorkbenchPanel
           report={workbench}
+          contentScanEnabled={contentScanEnabled}
           exporting={exportingWorkbench}
+          onStartContentScan={handleStartContentScan}
           onExport={handleExportWorkbench}
           onOpenRoute={(route) => router.push(route)}
           onReviewStepOpen={handleReviewStepNavigate}
@@ -678,12 +703,16 @@ function NotesFormatEntryCard({
 
 function SyncedBlockRegistryPanel({
   report,
+  contentScanEnabled,
   exporting,
+  onStartContentScan,
   onExport,
   onOpenPage,
 }: {
   report: SyncedBlockRegistryReport;
+  contentScanEnabled: boolean;
   exporting: boolean;
+  onStartContentScan: () => void;
   onExport: () => void;
   onOpenPage: (pageId: string) => void;
 }) {
@@ -707,14 +736,23 @@ function SyncedBlockRegistryPanel({
             不读取同步块正文，不跨页面改写内容，不上传、不调用 AI。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onExport}
-          disabled={exporting}
-          className="w-fit whitespace-nowrap rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        >
-          {exporting ? "导出中..." : "导出 registry"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onStartContentScan}
+            className="w-fit whitespace-nowrap rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {contentScanEnabled ? "重新扫描同步块" : "扫描同步块"}
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={exporting}
+            className="w-fit whitespace-nowrap rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exporting ? "导出中..." : "导出 registry"}
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -749,7 +787,9 @@ function SyncedBlockRegistryPanel({
           <div className="mt-3 space-y-2">
             {visibleGroups.length === 0 ? (
               <p className="rounded-md border border-dashed border-zinc-200 px-3 py-6 text-center text-xs text-zinc-400 dark:border-zinc-800">
-                当前还没有同步块。可以在编辑器里插入“同步块”后回到这里复核。
+                {contentScanEnabled
+                  ? "当前还没有同步块。可以在编辑器里插入“同步块”后回到这里复核。"
+                  : "当前是轻量模式，尚未读取页面正文。需要同步块清单时先点击扫描。"}
               </p>
             ) : (
               visibleGroups.map((group) => (
@@ -1068,13 +1108,17 @@ function NotesDecisionStatusPill({
 
 function NotesWorkbenchPanel({
   report,
+  contentScanEnabled,
   exporting,
+  onStartContentScan,
   onExport,
   onOpenRoute,
   onReviewStepOpen,
 }: {
   report: NotesModuleWorkbenchReport;
+  contentScanEnabled: boolean;
   exporting: boolean;
+  onStartContentScan: () => void;
   onExport: () => void;
   onOpenRoute: (route: string) => void;
   onReviewStepOpen: (
@@ -1099,14 +1143,23 @@ function NotesWorkbenchPanel({
             导出安全拆成行动队列。导出不包含页面正文、评论正文或文件字节。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onExport}
-          disabled={exporting}
-          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        >
-          {exporting ? "导出中..." : "导出笔记工作台"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onStartContentScan}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {contentScanEnabled ? "重新扫描结构" : "扫描正文结构"}
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={exporting}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exporting ? "导出中..." : "导出笔记工作台"}
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">

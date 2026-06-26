@@ -698,6 +698,37 @@ function run() {
     "Module center must render the module roadmap panel."
   );
   for (const snippet of [
+    "const [contentScanEnabled, setContentScanEnabled] = useState(false)",
+    "includeContent: contentScanEnabled",
+    "deferContent: true",
+    "{ bodyScanEnabled: contentScanEnabled }",
+    "buildSyncedBlockRegistryReport(pages, {",
+    "scanEnabled: contentScanEnabled",
+    "setContentScanEnabled(true)",
+    "upsertPages([page])",
+    "upsertPages([result.page])",
+    "void loadCounts()",
+    "扫描正文结构",
+  ]) {
+    assertIncludes(
+      files.notesShell,
+      notesShell,
+      snippet,
+      "Notes module must keep first paint metadata-only, make body scans explicit, and update newly created pages optimistically."
+    );
+  }
+  for (const snippet of [
+    "includeContent: true",
+    "await refresh()",
+  ]) {
+    assertExcludes(
+      files.notesShell,
+      notesShell,
+      snippet,
+      "Notes module must not auto-hydrate every page body or block create/open on full page refresh."
+    );
+  }
+  for (const snippet of [
     "buildProjectProgressSnapshot",
     "ProjectProgressSnapshotPanel",
     "module-progress-snapshot",

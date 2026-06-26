@@ -3976,6 +3976,33 @@ function run() {
       "Content-heavy research modules must render page metadata before deferred body hydration."
     );
   }
+  for (const snippet of [
+    "includeContent: contentScanEnabled",
+    "setContentScanEnabled(true)",
+    "{ bodyScanEnabled: contentScanEnabled }",
+    "scanEnabled: contentScanEnabled",
+    "upsertPages([page])",
+    "upsertPages([result.page])",
+  ]) {
+    assertIncludes(
+      files.notesShell,
+      notesShell,
+      snippet,
+      "Notes module must keep first paint metadata-only, make body scans explicit, and update newly created pages optimistically."
+    );
+  }
+  assertExcludes(
+    files.notesShell,
+    notesShell,
+    "includeContent: true",
+    "Notes module must not default to full body hydration after large imports."
+  );
+  assertExcludes(
+    files.notesShell,
+    notesShell,
+    "await refresh()",
+    "Notes module create/open flow must not wait for a full page-list refresh."
+  );
   assertIncludes(
     files.usePage,
     usePage,

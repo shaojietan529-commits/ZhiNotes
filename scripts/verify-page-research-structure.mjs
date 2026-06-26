@@ -148,8 +148,9 @@ function run() {
     'format: "zhinote-notes-module-workbench"',
     'report_status: "local-notes-module-only"',
     "buildNotesModuleWorkbenchReport",
+    "bodyScanEnabled",
     "reads_page_metadata: true",
-    "reads_page_content_html: true",
+    "reads_page_content_html: bodyScanEnabled",
     "reads_page_versions_metadata: true",
     "reads_comment_counts: true",
     "reads_wiki_link_counts: true",
@@ -239,7 +240,7 @@ function run() {
   for (const snippet of [
     "getPageModuleCounts",
     "SELECT id FROM pages WHERE deleted_at IS NULL",
-    "COUNT(*) as count FROM page_versions",
+    "FROM page_versions",
     "FROM page_comments",
     "FROM block_comments",
     "FROM wiki_links",
@@ -256,7 +257,7 @@ function run() {
   for (const snippet of [
     "listPageMetadata(pageId)",
     "正在按需加载正文",
-    "pushCloudPages",
+    "queueCloudPagePush",
     "pageToRemoteRecord",
     "upsertPages([updated])",
   ]) {

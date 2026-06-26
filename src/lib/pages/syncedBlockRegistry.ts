@@ -24,13 +24,17 @@ export interface SyncedBlockRegistryGroup {
   refs: SyncedBlockRegistryInstance[];
 }
 
+export interface SyncedBlockRegistryOptions {
+  scanEnabled?: boolean;
+}
+
 export interface SyncedBlockRegistryReport {
   format: "zhinote-synced-block-registry";
   format_version: 1;
-  report_status: "local-metadata-only";
+  report_status: "local-metadata-only" | "local-scan-disabled";
   privacy_note: string;
   boundary: {
-    reads_page_html_for_sync_ids: true;
+    reads_page_html_for_sync_ids: boolean;
     reads_page_titles: true;
     reads_synced_block_content: false;
     writes_workspace_data: false;
@@ -53,9 +57,11 @@ export interface SyncedBlockRegistryReport {
 }
 
 export function buildSyncedBlockRegistryReport(
-  pages: Page[]
+  pages: Page[],
+  options: SyncedBlockRegistryOptions = {}
 ): SyncedBlockRegistryReport {
-  const instances = pages.flatMap(extractSyncedBlockInstances);
+  const scanEnabled = options.scanEnabled ?? true;
+  const instances = scanEnabled ? pages.flatMap(extractSyncedBlockInstances) : [];
   const pageIdsWithSyncedBlocks = new Set(
     instances.map((instance) => instance.page_id)
   );
@@ -64,11 +70,12 @@ export function buildSyncedBlockRegistryReport(
   return {
     format: "zhinote-synced-block-registry",
     format_version: 1,
-    report_status: "local-metadata-only",
-    privacy_note:
-      "这份同步块 registry 只在本地读取页面 HTML 中的 data-sync-id 和页面标题，用来列出同步块实例关系。它不读取同步块正文，不跨页面改写内容，不上传、不调用 AI、不连接云服务。",
+    report_status: scanEnabled ? "local-metadata-only" : "local-scan-disabled",
+    privacy_note: scanEnabled
+      ? "这份同步块 registry 只在本地读取页面 HTML 中的 data-sync-id 和页面标题，用来列出同步块实例关系。它不读取同步块正文，不跨页面改写内容，不上传、不调用 AI、不连接云服务。"
+      : "同步块 registry 当前处于轻量模式，不读取页面 HTML 正文。需要列出 data-sync-id 实例关系时，必须由用户手动触发正文结构扫描。",
     boundary: {
-      reads_page_html_for_sync_ids: true,
+      reads_page_html_for_sync_ids: scanEnabled,
       reads_page_titles: true,
       reads_synced_block_content: false,
       writes_workspace_data: false,
@@ -78,7 +85,7 @@ export function buildSyncedBlockRegistryReport(
       performs_cross_page_sync: false,
     },
     summary: {
-      pages_scanned: pages.length,
+      pages_scanned: scanEnabled ? pages.length : 0,
       pages_with_synced_blocks: pageIdsWithSyncedBlocks.size,
       synced_groups: groups.length,
       synced_instances: instances.length,
@@ -92,11 +99,17 @@ export function buildSyncedBlockRegistryReport(
       ).length,
     },
     groups,
-    next_steps: [
-      "先用 registry 确认哪些 sync id 已经跨页面复用，避免误把私人页面内容同步到不该出现的位置。",
-      "本地-first 阶段只展示实例关系，不自动跨页面同步正文。",
-      "云同步上线前需要定义原始块、实例列表、解除同步、删除语义、权限边界和冲突处理。",
-    ],
+    next_steps: scanEnabled
+      ? [
+          "先用 registry 确认哪些 sync id 已经跨页面复用，避免误把私人页面内容同步到不该出现的位置。",
+          "本地-first 阶段只展示实例关系，不自动跨页面同步正文。",
+          "云同步上线前需要定义原始块、实例列表、解除同步、删除语义、权限边界和冲突处理。",
+        ]
+      : [
+          "首屏先保持轻量模式，避免大批量导入页面拖慢笔记模块。",
+          "需要同步块实例关系时，手动触发正文结构扫描。",
+          "扫描仍只发生在本地浏览器，不上传、不调用 AI。",
+        ],
   };
 }
 
