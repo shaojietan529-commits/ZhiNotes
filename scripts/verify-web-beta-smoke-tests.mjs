@@ -8,6 +8,7 @@ const root = process.cwd();
 
 const files = {
   packageJson: "package.json",
+  hotDataPlan: "src/lib/sync/webBetaHotDataPlan.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
@@ -270,6 +271,7 @@ function assertFileExists(relativePath, message) {
 
 function run() {
   const packageJson = JSON.parse(readProjectFile(files.packageJson));
+  const hotDataPlan = readProjectFile(files.hotDataPlan);
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
@@ -1037,6 +1039,42 @@ function run() {
     "Cloudflare cache bypass, auth callback redirects, TLS, WAF, rate limits, and rollback",
     "Smoke test plan must cover Cloudflare staging behavior."
   );
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-web-beta-hot-data-plan"',
+      "Hot data plan must keep a stable export format.",
+    ],
+    [
+      'id: "current-month-daily"',
+      "Hot data plan must cover current-month daily notes.",
+    ],
+    [
+      'id: "current-month-meetings"',
+      "Hot data plan must cover current-month meetings.",
+    ],
+    [
+      'id: "favorite-pages"',
+      "Hot data plan must cover favorite pages.",
+    ],
+    [
+      'id: "recent-pages"',
+      "Hot data plan must cover recent pages.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Hot data plan must not read page body text.",
+    ],
+    [
+      "stores_meeting_credentials: false",
+      "Hot data plan must not store meeting credentials.",
+    ],
+    [
+      '"meeting.join_url"',
+      "Hot data plan must exclude meeting join URLs.",
+    ],
+  ]) {
+    assertIncludes(files.hotDataPlan, hotDataPlan, snippet, message);
+  }
   assertIncludes(
     files.syncShell,
     syncShell,
@@ -1144,6 +1182,12 @@ function run() {
     cloudMasterReconcile,
     "It does not read page body text, comment bodies, file bytes, token values, or upload data.",
     "Smoke verifier must preserve the sensitive-content privacy boundary."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "热数据与流畅度",
+    "Sync UI must render the hot data plan panel."
   );
   assertIncludes(
     files.syncShell,
@@ -3554,6 +3598,12 @@ function run() {
     "Sync UI must include metadata counts for comments, versions, and links."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出热数据计划",
+    "Sync UI must expose hot data plan export."
+  );
+  assertIncludes(
     files.environmentPreflightRoute,
     environmentPreflightRoute,
     "buildWebBetaEnvironmentPreflight",
@@ -3569,6 +3619,7 @@ function run() {
     local_metadata_manifest_checks: 7,
     hot_cache_policy_checks: 6,
     hot_cache_selection_checks: 14,
+    hot_data_plan_checks: 10,
   };
 
   if (failures.length > 0) {

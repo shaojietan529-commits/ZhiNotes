@@ -20,6 +20,7 @@ const files = {
   privateFileStoragePolicy: "src/lib/sync/privateFileStoragePolicy.ts",
   filePresignApiStub: "src/lib/sync/filePresignApiStub.ts",
   filePresignRoute: "src/app/api/files/presign/route.ts",
+  hotDataPlan: "src/lib/sync/webBetaHotDataPlan.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   smokeTestVerifier: "scripts/verify-web-beta-smoke-tests.mjs",
   replayHarnessVerifier: "scripts/verify-replay-harness-safety.mjs",
@@ -327,6 +328,7 @@ function run() {
   const privateFileStoragePolicy = readProjectFile(files.privateFileStoragePolicy);
   const filePresignApiStub = readProjectFile(files.filePresignApiStub);
   const filePresignRoute = readProjectFile(files.filePresignRoute);
+  const hotDataPlan = readProjectFile(files.hotDataPlan);
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const smokeTestVerifier = readProjectFile(files.smokeTestVerifier);
   const replayHarnessVerifier = readProjectFile(files.replayHarnessVerifier);
@@ -10434,6 +10436,101 @@ function run() {
     "Sync UI must render restore apply validator fixtures."
   );
 
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-web-beta-hot-data-plan"',
+      "Hot data plan must export a stable format.",
+    ],
+    [
+      'plan_status: "local-cache-plan-only"',
+      "Hot data plan must remain a local cache plan.",
+    ],
+    [
+      "CURRENT_MONTH_DAILY_ROUTE_TARGET_LIMIT = 45",
+      "Hot data plan must cap current-month daily route targets.",
+    ],
+    [
+      "CURRENT_MONTH_MEETING_ROUTE_TARGET_LIMIT = 60",
+      "Hot data plan must cap current-month meeting route targets.",
+    ],
+    [
+      'id: "current-month-daily"',
+      "Hot data plan must prioritize current-month daily notes.",
+    ],
+    [
+      'id: "current-month-meetings"',
+      "Hot data plan must prioritize current-month meeting calendar metadata.",
+    ],
+    [
+      'id: "favorite-pages"',
+      "Hot data plan must prioritize favorites.",
+    ],
+    [
+      'id: "recent-pages"',
+      "Hot data plan must prioritize recently updated pages.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Hot data plan must not read page body text.",
+    ],
+    [
+      "reads_page_content_yjs: false",
+      "Hot data plan must not read collaborative page bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Hot data plan must not read file bytes.",
+    ],
+    [
+      "stores_meeting_credentials: false",
+      "Hot data plan must not store meeting credentials.",
+    ],
+    [
+      '"meeting.join_url"',
+      "Hot data plan must explicitly exclude meeting join URLs.",
+    ],
+    [
+      '"meeting.passcode"',
+      "Hot data plan must explicitly exclude meeting passcodes.",
+    ],
+    [
+      '"meeting.transcript"',
+      "Hot data plan must explicitly exclude meeting transcripts.",
+    ],
+  ]) {
+    assertSourceIncludes(files.hotDataPlan, hotDataPlan, snippet, message);
+  }
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "buildWebBetaHotDataPlan",
+    "Sync UI must build the Web Beta hot data plan."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "HotDataPlanPanel",
+    "Sync UI must render the hot data plan panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "热数据与流畅度",
+    "Sync UI must name the hot data plan panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "导出热数据计划",
+    "Sync UI must expose the hot data plan export."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "usePageFavorites",
+    "Sync UI must include local favorites in the hot data plan."
+  );
+
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"
   );
@@ -11053,6 +11150,7 @@ function run() {
     link_proof_contract_checks: 7,
     deployment_target_checks: 16,
     private_file_storage_policy_checks: 45,
+    hot_data_plan_checks: 20,
     file_presign_api_guard_checks: 86,
     audit_events_api_guard_checks: 89,
     smoke_test_plan_checks: 16,

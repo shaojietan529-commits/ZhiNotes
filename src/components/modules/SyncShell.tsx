@@ -219,6 +219,10 @@ import {
   type WebBetaSmokeTestStatus,
 } from "@/lib/sync/webBetaSmokeTestPlan";
 import {
+  buildWebBetaHotDataPlan,
+  type WebBetaHotDataPlan,
+} from "@/lib/sync/webBetaHotDataPlan";
+import {
   buildWebAlphaHandoffBundle,
   type WebAlphaHandoffBundle,
   type WebAlphaHandoffStatus,
@@ -552,7 +556,8 @@ type WebBetaContractAction =
   | "web-alpha-handoff"
   | "web-alpha-launch-decision"
   | "web-beta-owner-review"
-  | "route-preflight";
+  | "route-preflight"
+  | "hot-data-plan";
 type ReadinessStatus = "Ready" | "Partial" | "Missing" | "Needs confirmation";
 
 type CloudAlphaMessageTone = "info" | "success" | "warning" | "error";
@@ -1687,6 +1692,14 @@ function SyncDashboard() {
   const filePresignApiGuard = useMemo(
     () => buildFilePresignApiDisabledResponse(),
     []
+  );
+  const webBetaHotDataPlan = useMemo(
+    () =>
+      buildWebBetaHotDataPlan({
+        activePages: pages,
+        favoritePageIds: favoriteIds,
+      }),
+    [favoriteIds, pages]
   );
   const webBetaLaunchChecklist = useMemo(
     () =>
@@ -4339,6 +4352,24 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportWebBetaHotDataPlan = () => {
+    setBusyContractAction("hot-data-plan");
+    try {
+      downloadJsonFile(
+        `zhinote-web-beta-hot-data-plan-${fileSafeTimestamp()}.json`,
+        {
+          ...webBetaHotDataPlan,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export hot data plan:", err);
+      window.alert("热数据计划导出失败，请查看控制台。");
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
   const handleExportWebBetaReadiness = () => {
     setBusyContractAction("readiness");
     try {
@@ -4680,6 +4711,12 @@ function SyncDashboard() {
         <HotCachePolicyPlanPanel
           plan={hotCachePolicyPlan}
           onExport={handleExportHotCachePolicyPlan}
+        />
+
+        <HotDataPlanPanel
+          plan={webBetaHotDataPlan}
+          busy={busyContractAction === "hot-data-plan"}
+          onExport={handleExportWebBetaHotDataPlan}
         />
 
         <HotCacheSelectionPanel
@@ -9977,6 +10014,126 @@ function WebLaunchDecisionSummaryPanel({
         </div>
       </div>
     </section>
+  );
+}
+
+function HotDataPlanPanel({
+  plan,
+  busy,
+  onExport,
+}: {
+  plan: WebBetaHotDataPlan;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            热数据与流畅度
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            云端为主，本地保留常用副本
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这份计划只根据页面 metadata 和本地收藏 ID 计算热数据集合：
+            当前月份每日纪要、当前月份会议日历、收藏页面和最近更新页面。
+            它不读取页面正文、文件字节、评论正文、数据库行值、会议入会凭证或转写内容。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出热数据计划"}
+        </button>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-5">
+        <BetaSummaryCard
+          label="策略"
+          value={plan.summary.policies}
+          detail="热数据分组"
+          tone="partial"
+        />
+        <BetaSummaryCard
+          label="候选页"
+          value={plan.summary.candidate_pages}
+          detail="仅 metadata"
+          tone="ready"
+        />
+        <BetaSummaryCard
+          label="预热路由"
+          value={plan.summary.route_targets}
+          detail="打开更快"
+          tone="ready"
+        />
+        <BetaSummaryCard
+          label="本地记录"
+          value={plan.summary.metadata_records}
+          detail="不含正文"
+          tone="partial"
+        />
+        <BetaSummaryCard
+          label="边界"
+          value="不上传"
+          detail="本地计划"
+          tone="manual-confirmation"
+        />
+      </div>
+      <div className="mt-4 grid gap-2 xl:grid-cols-2">
+        {plan.policies.map((policy) => (
+          <HotDataPolicyRow key={policy.id} policy={policy} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function HotDataPolicyRow({
+  policy,
+}: {
+  policy: WebBetaHotDataPlan["policies"][number];
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {policy.title}
+          </h3>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {policy.reason}
+          </p>
+        </div>
+        <BetaStatusPill status={policy.status} />
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <IdentityMetric
+          label="候选"
+          value={`${policy.eligible_count}`}
+          detail="metadata 记录"
+        />
+        <IdentityMetric
+          label="路由"
+          value={`${policy.route_targets.length}`}
+          detail="预热目标"
+        />
+        <IdentityMetric
+          label="来源"
+          value={policy.cloud_source}
+          detail="云端索引"
+        />
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {policy.local_cache_scope}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {policy.eviction_rule}
+      </p>
+    </article>
   );
 }
 
