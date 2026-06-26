@@ -31,6 +31,14 @@ export type PageImportDestinationModule =
   | "databases"
   | "files";
 
+export type PageImportPreviewRoute =
+  | "editable-page-body"
+  | "file-page-native-preview"
+  | "file-page-converted-preview"
+  | "database-mapping"
+  | "local-metadata-review"
+  | "blocked-owner-review";
+
 export interface PageImportSourceFile {
   /** Display name of the user-selected file (used for in-app review only). */
   name: string;
@@ -46,7 +54,9 @@ export interface PageImportFormatRoute {
   destination_module: PageImportDestinationModule;
   target_kind: PageImportTargetKind;
   needs_conversion: boolean;
+  preview_route: PageImportPreviewRoute;
   privacy_boundary: string;
+  execution_note: string;
 }
 
 export interface PageImportPlanItem {
@@ -60,8 +70,10 @@ export interface PageImportPlanItem {
   destination_module: PageImportDestinationModule;
   target_kind: PageImportTargetKind;
   needs_conversion: boolean;
+  preview_route: PageImportPreviewRoute;
   confirmation_required: boolean;
   reason: string;
+  execution_note: string;
 }
 
 export interface PageImportRollbackStep {
@@ -129,6 +141,7 @@ export interface ExportablePageImportManifest {
     extension: string;
     lane: PageImportLaneId;
     destination_module: PageImportDestinationModule;
+    preview_route: PageImportPreviewRoute;
     item_count: number;
     total_size_bytes: number;
     confirmation_required: boolean;
@@ -157,8 +170,10 @@ const FORMAT_ROUTES: PageImportFormatRoute[] = [
     destination_module: "notes",
     target_kind: "page",
     needs_conversion: true,
+    preview_route: "editable-page-body",
     privacy_boundary:
       "Markdown 会本地转换为页面；创建前展示文件名和目标页面数量。",
+    execution_note: "确认后读取文本并转成可编辑页面正文。",
   },
   {
     id: "html-pages",
@@ -168,8 +183,11 @@ const FORMAT_ROUTES: PageImportFormatRoute[] = [
     destination_module: "reports",
     target_kind: "page",
     needs_conversion: true,
+    preview_route: "file-page-native-preview",
     privacy_boundary:
       "HTML 的外部资源和脚本必须先经过本地安全复核再创建页面。",
+    execution_note:
+      "确认后创建报告文件页，用沙盒 HTML 预览；外部资源默认继续阻止。",
   },
   {
     id: "plain-text-pages",
@@ -179,7 +197,9 @@ const FORMAT_ROUTES: PageImportFormatRoute[] = [
     destination_module: "notes",
     target_kind: "page",
     needs_conversion: false,
+    preview_route: "editable-page-body",
     privacy_boundary: "纯文本按段落本地转换为页面；不读取内容用于其它用途。",
+    execution_note: "确认后读取文本并转成可编辑页面正文。",
   },
   {
     id: "spreadsheet-database",
@@ -189,19 +209,94 @@ const FORMAT_ROUTES: PageImportFormatRoute[] = [
     destination_module: "databases",
     target_kind: "database-row",
     needs_conversion: true,
+    preview_route: "database-mapping",
     privacy_boundary:
       "表格走确认后的数据库导入；先展示列映射和行数再写入。",
+    execution_note:
+      "本批量页面导入阶段会跳过，后续进入数据库列映射确认流程。",
   },
   {
-    id: "office-retain",
-    label: "Word / PPT / PDF",
-    extensions: [".pdf", ".docx", ".doc", ".odt", ".pptx", ".ppt", ".odp"],
+    id: "pdf-preview",
+    label: "PDF",
+    extensions: [".pdf"],
     lane: "local-retain",
     destination_module: "files",
     target_kind: "retained-file",
     needs_conversion: false,
+    preview_route: "file-page-native-preview",
     privacy_boundary:
-      "Office/PDF 先本地留存并生成文件页面，不在批量导入里解析正文。",
+      "PDF 先创建本地文件页，用浏览器原生能力预览，不在批量导入里解析正文。",
+    execution_note: "确认后创建本地文件页，页面内保留 PDF 预览和下载入口。",
+  },
+  {
+    id: "word-preview",
+    label: "Word / ODT",
+    extensions: [".docx", ".doc", ".odt"],
+    lane: "local-retain",
+    destination_module: "files",
+    target_kind: "retained-file",
+    needs_conversion: true,
+    preview_route: "file-page-converted-preview",
+    privacy_boundary:
+      "Word/ODT 先创建本地文件页；DOCX/ODT 可本地转换预览，旧版 .doc 留存复核。",
+    execution_note:
+      "确认后创建本地文件页；DOCX/ODT 在文件页预览，旧版 .doc 仅下载复核。",
+  },
+  {
+    id: "presentation-preview",
+    label: "PowerPoint / ODP",
+    extensions: [".pptx", ".ppt", ".odp"],
+    lane: "local-retain",
+    destination_module: "files",
+    target_kind: "retained-file",
+    needs_conversion: true,
+    preview_route: "file-page-converted-preview",
+    privacy_boundary:
+      "PowerPoint/ODP 先创建本地文件页；PPTX/ODP 可提取幻灯片文本预览，旧版 .ppt 留存复核。",
+    execution_note:
+      "确认后创建本地文件页；PPTX/ODP 在文件页预览，旧版 .ppt 仅下载复核。",
+  },
+  {
+    id: "research-document-preview",
+    label: "RTF / EPUB / Notebook",
+    extensions: [".rtf", ".epub", ".ipynb"],
+    lane: "local-retain",
+    destination_module: "files",
+    target_kind: "retained-file",
+    needs_conversion: true,
+    preview_route: "file-page-converted-preview",
+    privacy_boundary:
+      "RTF、EPUB、Notebook 先创建本地文件页，本地解析预览；Notebook 不执行代码。",
+    execution_note:
+      "确认后创建本地文件页，用本地转换预览正文或 notebook cells。",
+  },
+  {
+    id: "archive-review",
+    label: "ZIP",
+    extensions: [".zip"],
+    lane: "local-retain",
+    destination_module: "files",
+    target_kind: "retained-file",
+    needs_conversion: false,
+    preview_route: "local-metadata-review",
+    privacy_boundary:
+      "ZIP 只读取本地目录元数据用于复核，不自动解包写入工作区。",
+    execution_note:
+      "确认后创建本地文件页；如需解包导入，必须另走 ZIP 预检和确认。",
+  },
+  {
+    id: "iwork-retain",
+    label: "Apple iWork",
+    extensions: [".pages", ".numbers", ".key", ".keynote"],
+    lane: "local-retain",
+    destination_module: "files",
+    target_kind: "retained-file",
+    needs_conversion: false,
+    preview_route: "local-metadata-review",
+    privacy_boundary:
+      "iWork 文件先作为本地附件留存；建议先导出为 Word、Excel 或 PowerPoint 再导入。",
+    execution_note:
+      "确认后创建本地文件页，暂不自动转换 Pages、Numbers 或 Keynote。",
   },
   {
     id: "media-retain",
@@ -224,7 +319,9 @@ const FORMAT_ROUTES: PageImportFormatRoute[] = [
     destination_module: "files",
     target_kind: "retained-file",
     needs_conversion: false,
+    preview_route: "file-page-native-preview",
     privacy_boundary: "媒体文件本地留存，不转写、不上传、不调用 AI。",
+    execution_note: "确认后创建本地文件页，用浏览器原生媒体预览。",
   },
 ];
 
@@ -242,8 +339,10 @@ const BLOCKED_ROUTE: Omit<PageImportFormatRoute, "extensions"> = {
   destination_module: "files",
   target_kind: "none",
   needs_conversion: false,
+  preview_route: "blocked-owner-review",
   privacy_boundary:
     "无法识别或高风险格式默认阻塞，必须由用户单独确认后再处理。",
+  execution_note: "本阶段不会创建页面；需要用户单独复核后再决定处理方式。",
 };
 
 const REQUIRED_GATES: PageImportGate[] = [
@@ -305,8 +404,10 @@ export function classifyImportFile(
       destination_module: BLOCKED_ROUTE.destination_module,
       target_kind: BLOCKED_ROUTE.target_kind,
       needs_conversion: BLOCKED_ROUTE.needs_conversion,
+      preview_route: BLOCKED_ROUTE.preview_route,
       confirmation_required: true,
       reason: BLOCKED_ROUTE.privacy_boundary,
+      execution_note: BLOCKED_ROUTE.execution_note,
     };
   }
 
@@ -324,8 +425,10 @@ export function classifyImportFile(
     destination_module: route.destination_module,
     target_kind: route.target_kind,
     needs_conversion: route.needs_conversion,
+    preview_route: route.preview_route,
     confirmation_required: confirmationRequired,
     reason: route.privacy_boundary,
+    execution_note: route.execution_note,
   };
 }
 
@@ -439,7 +542,8 @@ export function buildExportablePageImportManifest(
   plan: PageImportPlan
 ): ExportablePageImportManifest {
   // Aggregate by extension + lane so the exported manifest carries no file names.
-  const groupKey = (item: PageImportPlanItem) => `${item.extension}__${item.lane}`;
+  const groupKey = (item: PageImportPlanItem) =>
+    `${item.extension}__${item.lane}__${item.preview_route}`;
   const groups = new Map<
     string,
     ExportablePageImportManifest["extension_groups"][number]
@@ -458,6 +562,7 @@ export function buildExportablePageImportManifest(
         extension: item.extension,
         lane: item.lane,
         destination_module: item.destination_module,
+        preview_route: item.preview_route,
         item_count: 1,
         total_size_bytes: item.size_bytes,
         confirmation_required: item.confirmation_required,

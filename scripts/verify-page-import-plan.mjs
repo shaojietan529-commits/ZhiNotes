@@ -3,7 +3,9 @@
 // Verifies the batch page-import planner contract:
 // - The planner module exists and stays metadata-only (no byte/content reads).
 // - It routes Markdown/HTML/text to page-import, spreadsheets to database-import,
-//   Office/media to local-retain, and unknown formats to blocked-review.
+//   preview-first files to local-retain, and unknown formats to blocked-review.
+// - It exposes a per-file preview route so the UI can explain whether the file
+//   becomes editable body, a native/converted file page, database mapping, or review.
 // - It builds a rollback plan and an exportable manifest that redacts file names.
 
 import { existsSync, readFileSync } from "node:fs";
@@ -56,10 +58,47 @@ const requiredExtensions = [
   ".xlsx",
   ".pdf",
   ".docx",
+  ".pptx",
+  ".rtf",
+  ".epub",
+  ".ipynb",
+  ".zip",
+  ".pages",
+  ".numbers",
 ];
 for (const ext of requiredExtensions) {
   check(source.includes(`"${ext}"`), `路由缺少扩展名 ${ext}`);
 }
+
+// ── Preview routes ───────────────────────────────────────────
+const requiredPreviewRoutes = [
+  "editable-page-body",
+  "file-page-native-preview",
+  "file-page-converted-preview",
+  "database-mapping",
+  "local-metadata-review",
+  "blocked-owner-review",
+];
+for (const route of requiredPreviewRoutes) {
+  check(source.includes(`"${route}"`), `缺少预览路线 ${route}`);
+}
+check(
+  source.includes("preview_route: PageImportPreviewRoute"),
+  "PageImportPlanItem 必须暴露 preview_route"
+);
+check(
+  source.includes("execution_note: string"),
+  "PageImportPlanItem 必须暴露 execution_note"
+);
+check(
+  source.includes("RTF、EPUB、Notebook") && source.includes("Notebook 不执行代码"),
+  "RTF/EPUB/Notebook 路线必须说明本地转换和不执行代码"
+);
+check(
+  source.includes("PDF 先创建本地文件页") &&
+    source.includes("PowerPoint/ODP 先创建本地文件页"),
+  "PDF 和 PowerPoint 路线必须说明先创建本地文件页"
+);
 
 // ── Rollback plan ────────────────────────────────────────────
 check(source.includes("rollback_plan"), "缺少 rollback_plan 字段");
@@ -175,6 +214,7 @@ console.log(
       lanes: requiredLanes.length,
       routed_extensions: requiredExtensions.length,
       required_gates: requiredGates.length,
+      preview_routes: requiredPreviewRoutes.length,
       boundary_flags: requiredBoundaryFlags.length,
       redacts_file_names_in_export: true,
       raw_file_bytes_local_only: true,

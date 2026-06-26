@@ -8,6 +8,7 @@ import {
   buildExportablePageImportManifest,
   type PageImportLaneId,
   type PageImportPlan,
+  type PageImportPreviewRoute,
   type PageImportSourceFile,
 } from "@/lib/files/pageImportPlan";
 import {
@@ -37,6 +38,42 @@ const LANE_BADGE: Record<
   },
   "blocked-review": {
     label: "阻塞复核",
+    className:
+      "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  },
+};
+
+const PREVIEW_ROUTE_BADGE: Record<
+  PageImportPreviewRoute,
+  { label: string; className: string }
+> = {
+  "editable-page-body": {
+    label: "可编辑正文",
+    className:
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  },
+  "file-page-native-preview": {
+    label: "文件页原生预览",
+    className:
+      "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
+  },
+  "file-page-converted-preview": {
+    label: "文件页转换预览",
+    className:
+      "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300",
+  },
+  "database-mapping": {
+    label: "数据库列映射",
+    className:
+      "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
+  },
+  "local-metadata-review": {
+    label: "本地元数据复核",
+    className:
+      "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+  },
+  "blocked-owner-review": {
+    label: "需人工复核",
     className:
       "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
   },
@@ -231,6 +268,7 @@ export default function PageImportPlanPanel() {
                   <th className="px-3 py-2 font-medium">类型</th>
                   <th className="px-3 py-2 font-medium">大小</th>
                   <th className="px-3 py-2 font-medium">去向</th>
+                  <th className="px-3 py-2 font-medium">预览路线</th>
                   <th className="px-3 py-2 font-medium">目标模块</th>
                   <th className="px-3 py-2 font-medium">需转换</th>
                   <th className="px-3 py-2 font-medium">需确认</th>
@@ -239,6 +277,7 @@ export default function PageImportPlanPanel() {
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {plan.items.map((item) => {
                   const badge = LANE_BADGE[item.lane];
+                  const previewBadge = PREVIEW_ROUTE_BADGE[item.preview_route];
                   return (
                     <tr
                       key={item.index}
@@ -262,6 +301,14 @@ export default function PageImportPlanPanel() {
                           className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${badge.className}`}
                         >
                           {badge.label}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${previewBadge.className}`}
+                          title={item.execution_note}
+                        >
+                          {previewBadge.label}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-zinc-500">
@@ -301,10 +348,10 @@ export default function PageImportPlanPanel() {
               确认后执行导入
             </p>
             <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-              本次会创建 {executableCount} 个本地页面（Markdown / 纯文本转为页面正文，
-              其它文件创建为本地文件页）。表格走数据库模块的列映射确认，未知格式需单独复核，
-              本步骤会跳过。中途任何一步失败会自动回退本次已创建的页面。导入只在本地进行，
-              不上传、不同步、不调用 AI。
+              本次会创建 {executableCount} 个本地页面或文件页。Markdown / 纯文本会转为可编辑正文；
+              HTML、PDF、Office、RTF、EPUB、Notebook、媒体和 iWork 会先创建本地文件页用于预览或复核；
+              表格走数据库模块列映射确认，未知格式需单独复核，本步骤会跳过。中途任何一步失败会自动回退本次已创建的页面。
+              导入只在本地进行，不上传、不调用 AI；页面记录是否同步云端继续跟随账号同步设置。
             </p>
             <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-200">
               <input
