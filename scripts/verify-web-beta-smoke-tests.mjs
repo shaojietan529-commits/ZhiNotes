@@ -2546,8 +2546,8 @@ function run() {
   assertIncludes(
     files.databaseShell,
     databaseShell,
-    "syncCloudDatabaseById(databaseId)",
-    "Database detail page must still hydrate from the account cloud ledger in the background."
+    "syncCloudDatabaseById(databaseId, { maxBatches: 1 })",
+    "Database detail page must hydrate the first cloud database batch without waiting for the full database."
   );
   assertIncludes(
     files.databaseShell,
@@ -2598,6 +2598,18 @@ function run() {
     "Database row moves must update local row order before background persistence."
   );
   for (const [snippet, message] of [
+    [
+      "startOffset: cloud.nextOffset",
+      "Database detail page must continue cloud database hydration from the next page offset.",
+    ],
+    [
+      "collectRecords: false",
+      "Database detail background cloud hydration must avoid retaining the full database record set in memory.",
+    ],
+    [
+      "readLocalDatabaseSafe().then(applyDatabaseSnapshot)",
+      "Database detail page must refresh from local cache after background cloud hydration completes.",
+    ],
     [
       "DATABASE_VIEW_INITIAL_RENDER_LIMIT",
       "Database views must keep an explicit first-render row cap for large imports.",

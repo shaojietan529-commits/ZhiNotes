@@ -10005,8 +10005,8 @@ function run() {
     [
       files.databaseShell,
       databaseShell,
-      "syncCloudDatabaseById(databaseId)",
-      "Database detail pages must still hydrate from the account cloud ledger.",
+      "syncCloudDatabaseById(databaseId, { maxBatches: 1 })",
+      "Database detail pages must hydrate the first cloud database batch without waiting for the full database.",
     ],
     [
       files.databaseShell,
@@ -10048,6 +10048,24 @@ function run() {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
   for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.databaseShell,
+      databaseShell,
+      "startOffset: cloud.nextOffset",
+      "Database detail pages must continue cloud database hydration from the next page offset.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "collectRecords: false",
+      "Database detail background cloud hydration must avoid retaining the full database record set in memory.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "readLocalDatabaseSafe().then(applyDatabaseSnapshot)",
+      "Database detail pages must refresh from local cache after background cloud hydration completes.",
+    ],
     [
       files.databaseShell,
       databaseShell,

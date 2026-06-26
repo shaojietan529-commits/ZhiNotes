@@ -372,13 +372,15 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       if (renderedLocalSnapshot) {
         applyDatabaseSnapshot(localSnapshot);
       }
-      const cloud = await syncCloudDatabaseById(databaseId);
+      const cloud = await syncCloudDatabaseById(databaseId, { maxBatches: 1 });
       if (cloud.status === "ok" && cloud.records.length > 0) {
         const cloudSnapshot = buildDatabaseSnapshotFromCloudRecords(
           databaseId,
           cloud.records
         );
-        applyDatabaseSnapshot(cloudSnapshot);
+        if (!renderedLocalSnapshot || !cloud.hasMore) {
+          applyDatabaseSnapshot(cloudSnapshot);
+        }
         if (cloud.cacheWriteFailed) {
           cloudFallbackSnapshotRef.current = {
             databaseId,
@@ -390,6 +392,29 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         } else {
           cloudFallbackSnapshotRef.current = null;
           setCacheNotice(null);
+        }
+        if (cloud.hasMore && cloud.nextOffset !== null) {
+          void syncCloudDatabaseById(databaseId, {
+            startOffset: cloud.nextOffset,
+            collectRecords: false,
+          }).then((backgroundCloud) => {
+            if (backgroundCloud.status !== "ok") {
+              setCacheNotice(
+                backgroundCloud.message ??
+                  "云端数据库后台补齐暂时失败，当前显示已缓存内容。"
+              );
+              return;
+            }
+            if (backgroundCloud.cacheWriteFailed) {
+              setCacheNotice(
+                "云端数据库已读取，但本机缓存暂时不可写；可稍后在账号页重建本机数据库缓存。"
+              );
+              return;
+            }
+            if (backgroundCloud.pulled > 0) {
+              void readLocalDatabaseSafe().then(applyDatabaseSnapshot);
+            }
+          });
         }
         return;
       }

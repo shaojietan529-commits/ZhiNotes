@@ -291,7 +291,14 @@ function run() {
     "fullRefresh: true",
     "cloudDatabaseMetadataToDatabases",
     "syncCloudDatabaseById",
+    "SyncCloudDatabaseByIdOptions",
+    "startOffset?: number",
+    "collectRecords?: boolean",
+    "options.collectRecords !== false",
+    "options.startOffset ?? 0",
     "cacheWriteFailed?: boolean",
+    "nextOffset: number | null",
+    "hasMore: boolean",
     "pushCloudDatabaseRecords",
     "fetchCloudDatabaseRecordsByKeys",
     "rebuildDatabaseCacheFromCloud",
@@ -346,7 +353,7 @@ function run() {
     "queueCloudDatabaseRecordsForKeys",
     "flushPendingCloudDatabasePushes",
     "pushPendingLocalDatabaseChangesToCloud",
-    "nextOffset <= offset",
+    "safeNextOffset <= offset",
     "changes.cursor === cursor",
     "cacheWriteFailed",
     "records?: CloudDatabaseRecord[]",
@@ -357,7 +364,7 @@ function run() {
       files.databaseAccountSyncClient,
       databaseAccountSyncClient,
       snippet,
-      "Database cloud sync client must stay default-on, incremental, and fully drain paged cloud results."
+      "Database cloud sync client must stay default-on, incremental, and support both full paged drains and bounded first-batch detail hydration."
     );
   }
   assertNotIncludes(
@@ -489,6 +496,9 @@ function run() {
   }
   for (const snippet of [
     "syncCloudDatabaseById",
+    "syncCloudDatabaseById(databaseId, { maxBatches: 1 })",
+    "startOffset: cloud.nextOffset",
+    "collectRecords: false",
     "initialCloudHydrateRef",
     "cloudFallbackSnapshotRef",
     "ReloadDatabaseOptions",
@@ -496,6 +506,7 @@ function run() {
     "cloud.status === \"ok\" && cloud.records.length > 0",
     "cloud.cacheWriteFailed",
     "applyDatabaseSnapshot(cloudSnapshot)",
+    "readLocalDatabaseSafe().then(applyDatabaseSnapshot)",
     "buildDatabaseSnapshotFromCloudRecords(",
     "reload({ preferLocalCache: true })",
     "setCacheNotice",
@@ -1311,7 +1322,7 @@ function run() {
     "居中预览",
     "打开完整页面",
     "getPageTextPreview",
-    "只读取本地页面和当前行字段",
+    "只按需读取当前行页面和字段",
   ]) {
     assertIncludes(
       files.databaseShell,

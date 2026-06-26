@@ -163,6 +163,12 @@ export interface DatabaseReconcileOptions {
   quick?: boolean;
 }
 
+export interface SyncCloudDatabaseByIdOptions {
+  startOffset?: number;
+  maxBatches?: number;
+  collectRecords?: boolean;
+}
+
 interface SyncCloudDatabaseMetadataOptions {
   force?: boolean;
   restoreLocalCursor?: boolean;
@@ -919,24 +925,38 @@ function toDatabaseUpdatePayloads(
 }
 
 export async function syncCloudDatabaseById(
-  databaseId: string
+  databaseId: string,
+  options: SyncCloudDatabaseByIdOptions = {}
 ): Promise<{
   status: DatabaseSyncStatus;
   pulled: number;
   total: number;
   records: CloudDatabaseRecord[];
+  nextOffset: number | null;
+  hasMore: boolean;
   cacheWriteFailed?: boolean;
   message?: string;
 }> {
   if (!isDatabaseSyncEnabled()) {
-    return { status: "disabled", pulled: 0, total: 0, records: [] };
+    return {
+      status: "disabled",
+      pulled: 0,
+      total: 0,
+      records: [],
+      nextOffset: null,
+      hasMore: false,
+    };
   }
-  let offset = 0;
+  let offset = Math.max(0, options.startOffset ?? 0);
   let pulled = 0;
   let total = 0;
   let hasMore = false;
+  let nextOffset: number | null = null;
   let cacheWriteFailed = false;
   const records: CloudDatabaseRecord[] = [];
+  const maxBatches = Math.max(1, options.maxBatches ?? Number.POSITIVE_INFINITY);
+  const collectRecords = options.collectRecords !== false;
+  let batches = 0;
 
   do {
     const result = await fetchCloudDatabaseRecordsByDatabaseId(
@@ -950,13 +970,15 @@ export async function syncCloudDatabaseById(
         pulled,
         total,
         records,
+        nextOffset,
+        hasMore,
         cacheWriteFailed,
         message: result.message,
       };
     }
     total = result.total;
     if (result.records.length > 0) {
-      records.push(...result.records);
+      if (collectRecords) records.push(...result.records);
       try {
         await applyRemoteDatabaseRecords(result.records);
       } catch {
@@ -965,23 +987,35 @@ export async function syncCloudDatabaseById(
       pulled += result.records.length;
     }
     hasMore = result.hasMore && result.nextOffset !== null;
+    nextOffset = hasMore ? result.nextOffset : null;
     if (hasMore) {
-      const nextOffset = result.nextOffset ?? offset + result.records.length;
-      if (nextOffset <= offset) {
+      const safeNextOffset = result.nextOffset ?? offset + result.records.length;
+      if (safeNextOffset <= offset) {
         return {
           status: "error",
           pulled,
           total,
           records,
+          nextOffset: safeNextOffset,
+          hasMore,
           cacheWriteFailed,
           message: "云端数据库分页游标没有前进，已停止本次拉取。",
         };
       }
-      offset = nextOffset;
+      offset = safeNextOffset;
     }
-  } while (hasMore);
+    batches += 1;
+  } while (hasMore && batches < maxBatches);
 
-  return { status: "ok", pulled, total, records, cacheWriteFailed };
+  return {
+    status: "ok",
+    pulled,
+    total,
+    records,
+    nextOffset,
+    hasMore,
+    cacheWriteFailed,
+  };
 }
 
 export async function pushCloudDatabaseRecords(
