@@ -1023,6 +1023,22 @@ check(
   "数据库 pending 上传失败时应保留 sync_log 并记录失败原因，成功后才标记 synced"
 );
 check(
+  localQueries.includes("markWorkspaceSettingSyncLogEntriesAttempted") &&
+    localQueries.includes("markWorkspaceSettingSyncLogEntriesFailed") &&
+    localQueries.includes("markWorkspaceSettingSyncLogEntriesStatus") &&
+    localQueries.includes("table_name = 'workspace_settings'") &&
+    localQueries.includes("status = 'in_flight'") &&
+    localQueries.includes("status = 'failed'"),
+  "workspace_settings pending 上传也应记录上传中/失败待重试状态"
+);
+check(
+  syncDashboardShell.includes("markWorkspaceSettingSyncLogEntriesAttempted") &&
+    syncDashboardShell.includes("markWorkspaceSettingSyncLogEntriesFailed") &&
+    syncDashboardShell.includes("failedKeys") &&
+    syncDashboardShell.includes("failedMessages.join(\"; \")"),
+  "同步页手动上传 workspace settings 时应把失败原因写回 sync_log"
+);
+check(
   syncDashboardShell.includes("formatSyncLogStatus") &&
     syncDashboardShell.includes("失败待重试") &&
     syncDashboardShell.includes("下次重试") &&

@@ -26,6 +26,8 @@ import {
   getWorkspaceSetting,
   hasPendingWorkspaceSettingSyncLogEntry,
   listWorkspaceSettings,
+  markWorkspaceSettingSyncLogEntriesAttempted,
+  markWorkspaceSettingSyncLogEntriesFailed,
   markWorkspaceSettingSyncLogEntriesSynced,
   upsertWorkspaceSetting,
   type PageModuleCounts,
@@ -2599,30 +2601,43 @@ function SyncDashboard() {
         settings.map((setting) => [setting.key, setting])
       );
       const uploadedKeys: SupportedWorkspaceSettingSyncKey[] = [];
+      const failedKeys: SupportedWorkspaceSettingSyncKey[] = [];
       const failedMessages: string[] = [];
+      await markWorkspaceSettingSyncLogEntriesAttempted(plan.upload_keys);
 
       for (const key of plan.upload_keys) {
         const setting = settingsByKey.get(key);
         if (!setting) continue;
         const payload = buildWorkspaceSettingCloudPayload(setting);
         if (!payload) {
+          failedKeys.push(key);
           failedMessages.push(`${key}: 无法生成云端 payload`);
           continue;
         }
 
-        const response = await fetch(
-          `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
-          {
-            method: "PATCH",
-            headers: {
-              Authorization: `Bearer ${cloudSession.accessToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-          }
-        );
+        let response: Response;
+        try {
+          response = await fetch(
+            `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
+            {
+              method: "PATCH",
+              headers: {
+                Authorization: `Bearer ${cloudSession.accessToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            }
+          );
+        } catch (error) {
+          failedKeys.push(key);
+          failedMessages.push(
+            `${key}: ${error instanceof Error ? error.message : "网络错误"}`
+          );
+          continue;
+        }
         const body = await readCloudApiBody(response);
         if (!response.ok) {
+          failedKeys.push(key);
           failedMessages.push(
             `${key}: ${getCloudApiDetail(body, response)}`
           );
@@ -2635,6 +2650,12 @@ function SyncDashboard() {
         uploadedKeys.length > 0
           ? await markWorkspaceSettingSyncLogEntriesSynced(uploadedKeys)
           : 0;
+      if (failedKeys.length > 0) {
+        await markWorkspaceSettingSyncLogEntriesFailed(
+          failedKeys,
+          failedMessages.join("; ")
+        );
+      }
       const [nextSyncSummary, nextSyncEntries] = await Promise.all([
         getSyncLogSummary(),
         getPendingSyncLogEntries(25),

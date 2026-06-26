@@ -2914,6 +2914,89 @@ export async function markWorkspaceSettingSyncLogEntriesSynced(
   return marked;
 }
 
+export async function markWorkspaceSettingSyncLogEntriesAttempted(
+  keys: string[]
+): Promise<number> {
+  return markWorkspaceSettingSyncLogEntriesStatus(keys, "attempted");
+}
+
+export async function markWorkspaceSettingSyncLogEntriesFailed(
+  keys: string[],
+  error: string,
+  retryDelayMs = 60_000
+): Promise<number> {
+  return markWorkspaceSettingSyncLogEntriesStatus(
+    keys,
+    "failed",
+    error,
+    retryDelayMs
+  );
+}
+
+async function markWorkspaceSettingSyncLogEntriesStatus(
+  keys: string[],
+  status: "attempted" | "failed",
+  error = "",
+  retryDelayMs = 60_000
+): Promise<number> {
+  const db = await getDb();
+  const uniqueKeys = Array.from(
+    new Set(keys.map((key) => key.trim()).filter(Boolean))
+  );
+  if (uniqueKeys.length === 0) return 0;
+
+  let marked = 0;
+  const chunkSize = 200;
+  const now = nowISO();
+  const retryAt =
+    status === "failed"
+      ? new Date(
+          Date.parse(now) + Math.max(5_000, Math.floor(retryDelayMs))
+        ).toISOString()
+      : null;
+  const safeError = error.trim().slice(0, 500) || "sync failed";
+
+  for (let i = 0; i < uniqueKeys.length; i += chunkSize) {
+    const chunk = uniqueKeys.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const beforeRows = db.query(
+      `SELECT COUNT(*) as count
+       FROM sync_log
+       WHERE table_name = 'workspace_settings'
+         AND row_id IN (${placeholders})
+         AND synced = 0`,
+      chunk
+    );
+    if (status === "attempted") {
+      db.run(
+        `UPDATE sync_log
+         SET status = 'in_flight',
+             attempt_count = attempt_count + 1,
+             last_attempt_at = ?,
+             next_retry_at = NULL,
+             last_error = NULL
+         WHERE table_name = 'workspace_settings'
+           AND row_id IN (${placeholders})
+           AND synced = 0`,
+        [now, ...chunk]
+      );
+    } else {
+      db.run(
+        `UPDATE sync_log
+         SET status = 'failed',
+             next_retry_at = ?,
+             last_error = ?
+         WHERE table_name = 'workspace_settings'
+           AND row_id IN (${placeholders})
+           AND synced = 0`,
+        [retryAt, safeError, ...chunk]
+      );
+    }
+    marked += Number(beforeRows[0]?.count ?? 0);
+  }
+  return marked;
+}
+
 export async function hasPendingWorkspaceSettingSyncLogEntry(
   key: string
 ): Promise<boolean> {
