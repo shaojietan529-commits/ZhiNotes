@@ -184,8 +184,10 @@ check(
   "moduleWorkspaces 写入 root id 缓存后必须广播本地事件，避免侧边栏等 UI 等到刷新才更新"
 );
 check(
-  usePageHook.includes("setLoading(localPage.content_text == null)"),
-  "usePage 必须在目录卡片缺正文时保持正文按需加载状态"
+  !usePageHook.includes("setLoading(localPage.content_text == null)") &&
+    usePageHook.includes("if (localPage) {") &&
+    usePageHook.includes("setLoading(false);"),
+  "usePage 必须把 metadata/handoff 当作可首屏打开状态，正文继续后台补齐"
 );
 check(
   usePageHook.includes("options: UsePageOptions") &&

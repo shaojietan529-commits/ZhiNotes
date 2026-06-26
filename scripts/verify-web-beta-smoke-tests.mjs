@@ -2597,6 +2597,46 @@ function run() {
     "updateLocalRowPositions(current, {",
     "Database row moves must update local row order before background persistence."
   );
+  for (const [snippet, message] of [
+    [
+      "DATABASE_VIEW_INITIAL_RENDER_LIMIT",
+      "Database views must keep an explicit first-render row cap for large imports.",
+    ],
+    [
+      "DATABASE_VIEW_RENDER_BATCH",
+      "Database views must load additional rows in bounded batches.",
+    ],
+    [
+      "DATABASE_VIEW_RENDER_CAPPED_TYPES",
+      "Database views must declare which row-heavy views are render capped.",
+    ],
+    [
+      "visibleRows.slice(0, databaseViewRowRenderLimit)",
+      "Database row-heavy views must render a capped subset instead of every visible row.",
+    ],
+    [
+      "renderedRowGroups",
+      "Grouped database views must apply the render cap before mounting grouped rows.",
+    ],
+    [
+      "DatabaseViewShowMoreRows",
+      "Database views must expose a load-more control when rows are withheld from the first paint.",
+    ],
+    [
+      "再显示 {nextBatchCount} 行",
+      "Database load-more control must disclose the next bounded row batch.",
+    ],
+    [
+      "exportDatabaseAsXlsx(database, fields, visibleRows, workspacePages)",
+      "Database Excel export must still use the full visible row set, not the render-capped subset.",
+    ],
+    [
+      "exportDatabaseAsCsv(database, fields, visibleRows, workspacePages)",
+      "Database CSV export must still use the full visible row set, not the render-capped subset.",
+    ],
+  ]) {
+    assertIncludes(files.databaseShell, databaseShell, snippet, message);
+  }
   if (databaseShell.includes("await updateRow(rowId, { fieldValues });")) {
     failures.push(
       `${files.databaseShell} must not await database cell updates before refreshing the whole database.`

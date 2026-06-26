@@ -180,6 +180,14 @@ const DATABASE_IMPORT_ACCEPT =
 const DATABASE_IMPORT_CONFIRMATION_PHRASE =
   getHighRiskRequiredPhrase("bulk-import");
 const DATABASE_TABLE_FROZEN_FIELD_LIMIT = 3;
+const DATABASE_VIEW_INITIAL_RENDER_LIMIT = 80;
+const DATABASE_VIEW_RENDER_BATCH = 80;
+const DATABASE_VIEW_RENDER_CAPPED_TYPES = new Set([
+  "table",
+  "list",
+  "gallery",
+  "feed",
+]);
 
 type RowWithPage = DatabaseRow & { page: Page };
 type DatabaseSnapshot = [
@@ -272,6 +280,9 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [frozenFieldIds, setFrozenFieldIds] = useState<string[]>([]);
   const [chartGroupFieldId, setChartGroupFieldId] = useState("");
   const [dateFieldId, setDateFieldId] = useState("");
+  const [databaseViewRowRenderLimit, setDatabaseViewRowRenderLimit] = useState(
+    DATABASE_VIEW_INITIAL_RENDER_LIMIT
+  );
   const [relationCompletionBusyId, setRelationCompletionBusyId] =
     useState<string | null>(null);
   const [databaseImportPreview, setDatabaseImportPreview] =
@@ -878,6 +889,19 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const activeViewConfig = activeView
     ? parseDatabaseViewConfig(activeView.config)
     : null;
+
+  useEffect(() => {
+    setDatabaseViewRowRenderLimit(DATABASE_VIEW_INITIAL_RENDER_LIMIT);
+  }, [
+    databaseId,
+    activeViewId,
+    activeView?.view_type,
+    rowSearch,
+    filterRules,
+    filterMatchMode,
+    sortRules,
+    groupFieldId,
+  ]);
   const activeViewDescription = activeViewConfig?.description.trim() ?? "";
   const sidePeekRow = useMemo(
     () =>
@@ -941,6 +965,56 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     Boolean(groupField) &&
     Boolean(activeView) &&
     isGroupedViewType(activeView?.view_type);
+  const isRenderCappedView = isDatabaseRenderCappedViewType(
+    activeView?.view_type
+  );
+  const renderedVisibleRows = useMemo(
+    () =>
+      isRenderCappedView
+        ? visibleRows.slice(0, databaseViewRowRenderLimit)
+        : visibleRows,
+    [databaseViewRowRenderLimit, isRenderCappedView, visibleRows]
+  );
+  const renderedRowGroups = useMemo(() => {
+    if (!usesGroupedRows) {
+      return rowGroups.map((group) => ({ group, rows: group.rows }));
+    }
+    if (!isRenderCappedView) {
+      return rowGroups.map((group) => ({ group, rows: group.rows }));
+    }
+
+    let remaining = databaseViewRowRenderLimit;
+    return rowGroups
+      .map((group) => {
+        const rowsForGroup = group.rows.slice(0, Math.max(remaining, 0));
+        remaining -= rowsForGroup.length;
+        return { group, rows: rowsForGroup };
+      })
+      .filter((entry) => entry.rows.length > 0);
+  }, [
+    databaseViewRowRenderLimit,
+    isRenderCappedView,
+    rowGroups,
+    usesGroupedRows,
+  ]);
+  const renderedDatabaseRowCount = usesGroupedRows
+    ? renderedRowGroups.reduce((total, entry) => total + entry.rows.length, 0)
+    : renderedVisibleRows.length;
+  const remainingRenderRowCount = Math.max(
+    visibleRows.length - renderedDatabaseRowCount,
+    0
+  );
+  const nextRenderRowBatchCount = Math.min(
+    DATABASE_VIEW_RENDER_BATCH,
+    remainingRenderRowCount
+  );
+  const canShowMoreDatabaseRows =
+    isRenderCappedView && remainingRenderRowCount > 0;
+  const handleShowMoreDatabaseRows = useCallback(() => {
+    setDatabaseViewRowRenderLimit((current) =>
+      Math.min(visibleRows.length, current + DATABASE_VIEW_RENDER_BATCH)
+    );
+  }, [visibleRows.length]);
 
   const handleExportXlsx = useCallback(async () => {
     if (!database) return;
@@ -1125,6 +1199,14 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const visibleFieldViewProps = {
     ...allFieldViewProps,
     fields: visibleFields,
+  };
+  const renderCappedAllFieldViewProps = {
+    ...allFieldViewProps,
+    rows: renderedVisibleRows,
+  };
+  const renderCappedVisibleFieldViewProps = {
+    ...visibleFieldViewProps,
+    rows: renderedVisibleRows,
   };
 
   return (
@@ -1408,7 +1490,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
               当前分组没有可显示的行。
             </p>
           ) : (
-            rowGroups.map((group) => (
+            renderedRowGroups.map(({ group, rows: groupRenderedRows }) => (
               <section
                 key={group.id}
                 className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900"
@@ -1418,34 +1500,36 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
                     {group.label}
                   </h3>
                   <span className="shrink-0 rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
-                    {group.rows.length} 行
+                    {groupRenderedRows.length === group.rows.length
+                      ? `${group.rows.length} 行`
+                      : `${groupRenderedRows.length} / ${group.rows.length} 行`}
                   </span>
                 </div>
                 {activeView?.view_type === "table" && (
                   <TableView
                     {...visibleFieldViewProps}
-                    rows={group.rows}
+                    rows={groupRenderedRows}
                     showAddRow={false}
                   />
                 )}
                 {activeView?.view_type === "list" && (
                   <ListView
                     {...visibleFieldViewProps}
-                    rows={group.rows}
+                    rows={groupRenderedRows}
                     showAddRow={false}
                   />
                 )}
                 {activeView?.view_type === "gallery" && (
                   <GalleryView
                     {...visibleFieldViewProps}
-                    rows={group.rows}
+                    rows={groupRenderedRows}
                     showAddRow={false}
                   />
                 )}
                 {activeView?.view_type === "feed" && (
                   <FeedView
                     {...allFieldViewProps}
-                    rows={group.rows}
+                    rows={groupRenderedRows}
                     showAddRow={false}
                   />
                 )}
@@ -1472,11 +1556,17 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         </div>
       ) : (
         <>
-          {activeView?.view_type === "table" && <TableView {...visibleFieldViewProps} />}
-          {activeView?.view_type === "list" && <ListView {...visibleFieldViewProps} />}
+          {activeView?.view_type === "table" && (
+            <TableView {...renderCappedVisibleFieldViewProps} />
+          )}
+          {activeView?.view_type === "list" && (
+            <ListView {...renderCappedVisibleFieldViewProps} />
+          )}
           {activeView?.view_type === "kanban" && <KanbanView {...allFieldViewProps} />}
           {activeView?.view_type === "calendar" && <CalendarView {...allFieldViewProps} />}
-          {activeView?.view_type === "gallery" && <GalleryView {...visibleFieldViewProps} />}
+          {activeView?.view_type === "gallery" && (
+            <GalleryView {...renderCappedVisibleFieldViewProps} />
+          )}
           {activeView?.view_type === "timeline" && <TimelineView {...allFieldViewProps} />}
           {activeView?.view_type === "chart" && (
             <ChartView
@@ -1495,8 +1585,19 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
               onCreateRow={handleCreateRow}
             />
           )}
-          {activeView?.view_type === "feed" && <FeedView {...allFieldViewProps} />}
+          {activeView?.view_type === "feed" && (
+            <FeedView {...renderCappedAllFieldViewProps} />
+          )}
         </>
+      )}
+
+      {canShowMoreDatabaseRows && (
+        <DatabaseViewShowMoreRows
+          renderedCount={renderedDatabaseRowCount}
+          totalCount={visibleRows.length}
+          nextBatchCount={nextRenderRowBatchCount}
+          onShowMore={handleShowMoreDatabaseRows}
+        />
       )}
 
       {sidePeekRow && (
@@ -1513,6 +1614,37 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function isDatabaseRenderCappedViewType(viewType: string | undefined) {
+  return Boolean(viewType && DATABASE_VIEW_RENDER_CAPPED_TYPES.has(viewType));
+}
+
+function DatabaseViewShowMoreRows({
+  renderedCount,
+  totalCount,
+  nextBatchCount,
+  onShowMore,
+}: {
+  renderedCount: number;
+  totalCount: number;
+  nextBatchCount: number;
+  onShowMore: () => void;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-center gap-3 rounded-md border border-dashed border-zinc-200 px-3 py-3 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+      <span>
+        已显示 {renderedCount} / {totalCount} 行
+      </span>
+      <button
+        type="button"
+        onClick={onShowMore}
+        className="rounded border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+      >
+        再显示 {nextBatchCount} 行
+      </button>
     </div>
   );
 }

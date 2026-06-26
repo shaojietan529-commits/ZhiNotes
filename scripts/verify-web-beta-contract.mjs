@@ -10078,6 +10078,60 @@ function run() {
       "updateLocalRowPositions(current, {",
       "Database row moves must update local row order before background persistence.",
     ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "DATABASE_VIEW_INITIAL_RENDER_LIMIT",
+      "Database views must keep an explicit first-render row cap for large imports.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "DATABASE_VIEW_RENDER_BATCH",
+      "Database views must load additional rows in bounded batches.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "DATABASE_VIEW_RENDER_CAPPED_TYPES",
+      "Database views must declare which row-heavy views are render capped.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "visibleRows.slice(0, databaseViewRowRenderLimit)",
+      "Database row-heavy views must render a capped subset instead of every visible row.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "renderedRowGroups",
+      "Grouped database views must apply the render cap before mounting grouped rows.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "DatabaseViewShowMoreRows",
+      "Database views must expose a load-more control when rows are withheld from the first paint.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "再显示 {nextBatchCount} 行",
+      "Database load-more control must disclose the next bounded row batch.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "exportDatabaseAsXlsx(database, fields, visibleRows, workspacePages)",
+      "Database Excel export must still use the full visible row set, not the render-capped subset.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "exportDatabaseAsCsv(database, fields, visibleRows, workspacePages)",
+      "Database CSV export must still use the full visible row set, not the render-capped subset.",
+    ],
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
