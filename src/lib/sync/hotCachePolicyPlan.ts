@@ -3,6 +3,7 @@ import type {
   SyncLogSummary,
 } from "@/lib/db/local/queries";
 import type { StoredPageFile } from "@/lib/files/localStore";
+import { parsePageProperties } from "@/lib/pages/pageProperties";
 import type { Database, Page } from "@/lib/utils/types";
 
 export type HotCachePolicyStatus =
@@ -80,6 +81,9 @@ export function buildHotCachePolicyPlan(
   );
   const currentMonthPages = activePages.filter((page) =>
     isSameMonth(page.updated_at, now)
+  );
+  const currentMonthMeetingPages = activePages.filter((page) =>
+    isCurrentMonthMeetingPage(page, now)
   );
   const projectPages = activePages.filter(isProjectMetadataPage);
   const pageModuleRows = Object.values(input.pageModuleCounts);
@@ -159,6 +163,25 @@ export function buildHotCachePolicyPlan(
       reason:
         "每日纪要是高频入口，当前月应该避免刷新后长时间空白；后续需要云端日期索引做精确筛选。",
       excluded_private_fields: ["daily note body", "raw page id", "title"],
+    },
+    {
+      id: "current-month-meetings",
+      title: "当前月份会议日历",
+      status: "default-on",
+      cloud_source: "meeting page date metadata index",
+      local_behavior: "会议日历先显示当前月 metadata，会议正文和入会凭证按打开时读取",
+      eviction_rule: "跨月后保留最近月份，旧会议按用户选择缓存",
+      eligible_count: currentMonthMeetingPages.length,
+      estimated_local_records: currentMonthMeetingPages.length,
+      reason:
+        "会议日历是投研日程入口，当前月会议应优先显示，但不能预取入会凭证。",
+      excluded_private_fields: [
+        "meeting body",
+        "join url",
+        "meeting id",
+        "meeting passcode",
+        "transcript text",
+      ],
     },
     {
       id: "active-databases",
@@ -307,6 +330,43 @@ function isSameMonth(value: string | null, now: Date): boolean {
     date.getUTCFullYear() === now.getUTCFullYear() &&
     date.getUTCMonth() === now.getUTCMonth()
   );
+}
+
+const MEETING_METADATA_PROPERTY_NAMES = new Set([
+  "会议痕迹",
+  "时间状态",
+  "录制状态",
+  "录制链路",
+  "会议优先级",
+  "录制任务",
+  "转写模型",
+  "组织者",
+  "平台",
+]);
+
+function isCurrentMonthMeetingPage(page: Page, now: Date): boolean {
+  const dateKey = readMeetingDateKey(page);
+  return Boolean(
+    dateKey &&
+      dateKey.startsWith(
+        `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(
+          2,
+          "0"
+        )}-`
+      )
+  );
+}
+
+function readMeetingDateKey(page: Page): string {
+  const properties = parsePageProperties(page.properties);
+  const hasMeetingMetadata = properties.some((property) =>
+    MEETING_METADATA_PROPERTY_NAMES.has(property.name)
+  );
+  if (!hasMeetingMetadata) return "";
+  const date = properties.find((property) => property.name === "日期")?.value;
+  return typeof date === "string" && /^\d{4}-\d{2}-\d{2}/.test(date)
+    ? date.slice(0, 10)
+    : "";
 }
 
 function isProjectMetadataPage(page: Page): boolean {

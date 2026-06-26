@@ -1200,6 +1200,12 @@ function run() {
     "Smoke verifier must keep current project hot cache selection covered."
   );
   assertIncludes(
+    files.hotCachePolicyPlan,
+    hotCachePolicyPlan,
+    'id: "current-month-meetings"',
+    "Smoke verifier must keep current-month meeting hot cache selection covered."
+  );
+  assertIncludes(
     files.hotCacheWarmupPlan,
     hotCacheWarmupPlan,
     'format: "zhinote-hot-cache-warmup-plan"',
@@ -1228,6 +1234,12 @@ function run() {
     hotCacheWarmupPlan,
     "CURRENT_MONTH_DAILY_ROUTE_TARGET_LIMIT = 31",
     "Hot cache warmup must keep current-month daily route prefetch bounded."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    "CURRENT_MONTH_MEETING_ROUTE_TARGET_LIMIT = 60",
+    "Hot cache warmup must keep current-month meeting route prefetch bounded."
   );
   assertIncludes(
     files.hotCacheWarmupPlan,
@@ -1268,8 +1280,20 @@ function run() {
   assertIncludes(
     files.hotCacheWarmupPlan,
     hotCacheWarmupPlan,
+    "会议详情路由",
+    "Hot cache warmup must prefetch current-month meeting detail routes."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
     "正文按打开时补齐",
     "Hot cache warmup must keep page bodies out of route prefetch."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    "入会凭证按打开时补齐",
+    "Hot cache warmup must keep meeting credentials out of route prefetch."
   );
   assertIncludes(
     files.hotCacheWarmupPlan,
@@ -1286,6 +1310,12 @@ function run() {
     "comment.body",
     "field_values",
     "fetch(",
+    "\"入会链接\"",
+    "\"会议号\"",
+    "\"会议密码\"",
+    "joinUrl:",
+    "meetingId:",
+    "passcode:",
     "localStorage.setItem",
     "db.run",
   ]) {

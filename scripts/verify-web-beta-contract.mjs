@@ -1082,6 +1082,10 @@ function run() {
       'id: "current-projects"',
       "Hot cache policy plan must cover current project cache selection.",
     ],
+    [
+      'id: "current-month-meetings"',
+      "Hot cache policy plan must cover current-month meeting cache selection.",
+    ],
   ]) {
     assertSourceIncludes(
       files.hotCachePolicyPlan,
@@ -1186,6 +1190,10 @@ function run() {
       "Hot cache warmup plan must keep current-month daily route prefetch bounded.",
     ],
     [
+      "CURRENT_MONTH_MEETING_ROUTE_TARGET_LIMIT = 60",
+      "Hot cache warmup plan must keep current-month meeting route prefetch bounded.",
+    ],
+    [
       "FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12",
       "Hot cache warmup plan must keep favorite page route prefetch bounded.",
     ],
@@ -1210,8 +1218,16 @@ function run() {
       "Hot cache warmup plan must prefetch current-month daily note detail routes.",
     ],
     [
+      "会议详情路由",
+      "Hot cache warmup plan must prefetch current-month meeting detail routes.",
+    ],
+    [
       "正文按打开时补齐",
       "Hot cache warmup plan must keep page bodies out of route prefetch.",
+    ],
+    [
+      "入会凭证按打开时补齐",
+      "Hot cache warmup plan must keep meeting credentials out of route prefetch.",
     ],
     [
       "项目正文按打开时补齐",
@@ -1253,6 +1269,30 @@ function run() {
     [
       "field_values",
       "Hot cache warmup plan must not access database row values.",
+    ],
+    [
+      "\"入会链接\"",
+      "Hot cache warmup plan must not access meeting join URL properties.",
+    ],
+    [
+      "\"会议号\"",
+      "Hot cache warmup plan must not access meeting id properties.",
+    ],
+    [
+      "\"会议密码\"",
+      "Hot cache warmup plan must not access meeting passcode properties.",
+    ],
+    [
+      "joinUrl:",
+      "Hot cache warmup plan must not serialize meeting join URLs.",
+    ],
+    [
+      "meetingId:",
+      "Hot cache warmup plan must not serialize meeting ids.",
+    ],
+    [
+      "passcode:",
+      "Hot cache warmup plan must not serialize meeting passcodes.",
     ],
     [
       "fetch(",

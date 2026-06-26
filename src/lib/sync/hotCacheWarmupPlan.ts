@@ -6,6 +6,7 @@ import type { Database, Page } from "@/lib/utils/types";
 
 const ACTIVE_DATABASE_ROUTE_TARGET_LIMIT = 12;
 const CURRENT_MONTH_DAILY_ROUTE_TARGET_LIMIT = 31;
+const CURRENT_MONTH_MEETING_ROUTE_TARGET_LIMIT = 60;
 const FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12;
 const CURRENT_PROJECT_ROUTE_TARGET_LIMIT = 12;
 
@@ -90,6 +91,11 @@ export function buildHotCacheWarmupPlan(
     input.preferences.keepCurrentMonthDailyNotes
       ? buildCurrentMonthDailyRouteTargets(currentMonthDailyPages)
       : [];
+  const currentMonthMeetingPages = activePages.filter((page) =>
+    isCurrentMonthMeetingPage(page, now)
+  );
+  const currentMonthMeetingRouteTargets =
+    buildCurrentMonthMeetingRouteTargets(currentMonthMeetingPages);
   const favoriteIdSet = new Set(input.favoriteIds);
   const favoritePages = activePages.filter((page) => favoriteIdSet.has(page.id));
   const projectPages = activePages.filter(isProjectMetadataPage);
@@ -164,6 +170,29 @@ export function buildHotCacheWarmupPlan(
         "daily note body",
         "daily note title export",
         "free-form note text",
+      ],
+    },
+    {
+      id: "current-month-meetings",
+      title: "当前月份会议日历",
+      status: "ready",
+      preference_key: "always",
+      cloud_source: "meeting page date metadata index",
+      local_target: "meeting calendar metadata cache",
+      candidate_count: currentMonthMeetingPages.length,
+      estimated_metadata_records: currentMonthMeetingPages.length,
+      route_targets: ["/schedule", ...currentMonthMeetingRouteTargets],
+      action:
+        "预热会议日历入口、当前月会议 metadata 和会议详情路由，日历先显示会议条，会议正文和入会凭证按打开时补齐。",
+      reason:
+        "会议日历是投研日程入口，当前月会议应优先显示，但不能预取入会凭证。",
+      blocked_reason: null,
+      excluded_private_fields: [
+        "meeting body",
+        "join url",
+        "meeting id",
+        "meeting passcode",
+        "transcript text",
       ],
     },
     {
@@ -361,6 +390,21 @@ function buildCurrentMonthDailyRouteTargets(pages: Page[]): string[] {
     .map((page) => `/page/${encodeURIComponent(page.id)}`);
 }
 
+function buildCurrentMonthMeetingRouteTargets(pages: Page[]): string[] {
+  return pages
+    .filter((page) => !page.deleted_at)
+    .filter((page) => Boolean(readMeetingDateKey(page)))
+    .sort((left, right) => {
+      const leftDate = readMeetingDateKey(left);
+      const rightDate = readMeetingDateKey(right);
+      const dateOrder = rightDate.localeCompare(leftDate);
+      if (dateOrder !== 0) return dateOrder;
+      return right.updated_at.localeCompare(left.updated_at);
+    })
+    .slice(0, CURRENT_MONTH_MEETING_ROUTE_TARGET_LIMIT)
+    .map((page) => `/page/${encodeURIComponent(page.id)}`);
+}
+
 function buildFavoritePageRouteTargets(pages: Page[]): string[] {
   return pages
     .filter((page) => !page.deleted_at)
@@ -384,6 +428,43 @@ function isProjectMetadataPage(page: Page): boolean {
     title.startsWith("投研项目：") ||
     title.endsWith("项目简报")
   );
+}
+
+const MEETING_METADATA_PROPERTY_NAMES = new Set([
+  "会议痕迹",
+  "时间状态",
+  "录制状态",
+  "录制链路",
+  "会议优先级",
+  "录制任务",
+  "转写模型",
+  "组织者",
+  "平台",
+]);
+
+function isCurrentMonthMeetingPage(page: Page, now: Date): boolean {
+  const dateKey = readMeetingDateKey(page);
+  return Boolean(
+    dateKey &&
+      dateKey.startsWith(
+        `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(
+          2,
+          "0"
+        )}-`
+      )
+  );
+}
+
+function readMeetingDateKey(page: Page): string {
+  const properties = parsePageProperties(page.properties);
+  const hasMeetingMetadata = properties.some((property) =>
+    MEETING_METADATA_PROPERTY_NAMES.has(property.name)
+  );
+  if (!hasMeetingMetadata) return "";
+  const date = properties.find((property) => property.name === "日期")?.value;
+  return typeof date === "string" && /^\d{4}-\d{2}-\d{2}/.test(date)
+    ? date.slice(0, 10)
+    : "";
 }
 
 function isCurrentMonthDailyPage(page: Page, now: Date): boolean {
