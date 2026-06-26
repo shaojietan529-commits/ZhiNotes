@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   getNextPosition,
@@ -52,7 +52,7 @@ interface PageTreeItemProps {
   childrenByParent: Map<string | null, Page[]>;
   level: number;
   currentPageId: string | null;
-  onNavigate: (id: string) => void;
+  onNavigate: (id: string, page?: Page) => void;
   onRefresh: () => void;
   draggedId: string | null;
   onDragStart: (id: string) => void;
@@ -95,7 +95,7 @@ function PageTreeItem({
     const child = await createPageWithCloud({ parentId: page.id });
     onRefresh();
     setExpanded(true);
-    onNavigate(child.id);
+    onNavigate(child.id, child);
   };
 
   const handleToggle = (e: React.MouseEvent) => {
@@ -269,7 +269,7 @@ function PageTreeItem({
 }
 
 export default function PageTree() {
-  const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { pages, refresh } = usePages();
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -345,10 +345,10 @@ export default function PageTree() {
   const hiddenRootCount = Math.max(0, rootPages.length - visibleRootPages.length);
 
   const handleNavigate = useCallback(
-    (id: string) => {
-      router.push(`/page/${id}`);
+    (id: string, page?: Page) => {
+      openPage(page ?? pagesById.get(id) ?? id, { source: "sidebar-open" });
     },
-    [router]
+    [openPage, pagesById]
   );
 
   const handleDragEnd = useCallback(async () => {
@@ -489,11 +489,11 @@ export default function PageTree() {
           onClose={() => setContextMenu(null)}
           onOpen={(id) => {
             setContextMenu(null);
-            router.push(`/page/${id}`);
+            handleNavigate(id);
           }}
           onOpenFull={(id) => {
             setContextMenu(null);
-            router.push(`/page/${id}`);
+            handleNavigate(id);
           }}
           onChanged={() => refresh()}
         />

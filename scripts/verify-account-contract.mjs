@@ -584,7 +584,8 @@ check(
     dailyNotesShell.includes("router.prefetch(pageRoute)") &&
     dailyNotesShell.includes("<PagePeekModal") &&
     dailyNotesShell.includes("initialPage={peekInitialPage}") &&
-    dailyNotesShell.includes("router.push(`/page/${id}`)") &&
+    dailyNotesShell.includes("openDailyNoteFullPageById") &&
+    dailyNotesShell.includes("openDailyNoteFullPage(note, \"daily-open\")") &&
     dailyNotesShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
     dailyNotesShell.includes("applyRemotePages([pageToRemoteRecord(note)])") &&
     dailyNotesShell.includes("openNotePage") &&
@@ -938,7 +939,8 @@ check(
     dailyNotesShell.includes("current === dateKey ? null : current") &&
     !dailyNotesShell.includes("fetchCloudPageById") &&
     dailyNotesShell.includes("router.push(pageRoute)") &&
-    dailyNotesShell.includes("router.push(`/page/${id}`)") &&
+    dailyNotesShell.includes("openDailyNoteFullPageById") &&
+    dailyNotesShell.includes("openDailyNoteFullPage(note, \"daily-open\")") &&
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal'),
   "每日纪要 + 应直接进入完整页面并快速释放按钮；已有纪要仍可直接加载页面弹窗壳预览；知识库仍可懒加载弹窗"
 );

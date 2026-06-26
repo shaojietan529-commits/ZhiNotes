@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -299,7 +300,7 @@ export default function Sidebar() {
   const { databases, refresh: refreshDatabases } = useDatabases();
   const sidebarOpen = useWorkspaceStore((s) => s.sidebarOpen);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
-  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
+  const openPage = useLocalFirstPageNavigation();
   const [backupRunning, setBackupRunning] = useState(false);
   const [markdownExportRunning, setMarkdownExportRunning] = useState(false);
   const [zipExportRunning, setZipExportRunning] = useState(false);
@@ -454,8 +455,7 @@ export default function Sidebar() {
   const handleNewPage = async () => {
     try {
       const page = await createPageWithCloud();
-      upsertPages([page]);
-      router.push(`/page/${page.id}`);
+      openPage(page, { source: "sidebar-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to create page:", err);
     }

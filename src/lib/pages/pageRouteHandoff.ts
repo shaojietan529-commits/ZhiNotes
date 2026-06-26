@@ -22,19 +22,29 @@ interface PageRouteHandoffPage {
   sync_version: number;
 }
 
+export type PageRouteHandoffSource =
+  | "daily-create"
+  | "daily-open"
+  | "meeting-create"
+  | "meeting-open"
+  | "database-row-create"
+  | "database-row-open"
+  | "sidebar-create"
+  | "sidebar-open"
+  | "favorite-open"
+  | "quick-search-create"
+  | "quick-search-open"
+  | "child-page-create"
+  | "child-page-open"
+  | "trash-restore-open"
+  | "page-open";
+
 interface PageRouteHandoff {
   format: "zhinote-page-route-handoff";
   format_version: 1;
   route_target: "/page/[pageId]";
   architecture_target: "cloud-master-local-route-handoff";
-  source:
-    | "daily-create"
-    | "daily-open"
-    | "meeting-create"
-    | "meeting-open"
-    | "database-row-create"
-    | "database-row-open"
-    | "page-open";
+  source: PageRouteHandoffSource;
   cached_at: string;
   expires_at: string;
   privacy_boundary: string;
@@ -56,7 +66,7 @@ interface PageRouteHandoff {
 
 export function rememberPageRouteHandoff(
   page: Page,
-  source: PageRouteHandoff["source"] = "page-open"
+  source: PageRouteHandoffSource = "page-open"
 ): void {
   if (typeof window === "undefined") return;
   const now = Date.now();

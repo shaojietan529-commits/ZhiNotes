@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { getPageMetadata, listPageMetadata } from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 
@@ -16,7 +16,7 @@ interface PagePositionTreeProps {
  *     - Children of current page
  */
 export default function PagePositionTree({ pageId }: PagePositionTreeProps) {
-  const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const [data, setData] = useState<{
     parent: Page | null;
     siblings: Page[];
@@ -69,7 +69,17 @@ export default function PagePositionTree({ pageId }: PagePositionTreeProps) {
   // Don't show if this is a lone top-level page with no children
   if (!parent && siblings.length <= 1 && children.length === 0) return null;
 
-  const navigate = (id: string) => router.push(`/page/${id}`);
+  const navigate = (id: string) => {
+    const page =
+      [parent, ...siblings, ...children]
+        .filter((item): item is Page => Boolean(item))
+        .find((item) => item.id === id) ??
+      [...grandchildren.values()]
+        .flat()
+        .find((item) => item.id === id) ??
+      id;
+    openPage(page, { source: "child-page-open" });
+  };
 
   return (
     <div className="mt-8 mb-4 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">

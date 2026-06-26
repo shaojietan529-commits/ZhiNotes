@@ -216,7 +216,7 @@ check(
 );
 check(
   !sidebarSource.includes("usePages") &&
-    sidebarSource.includes("upsertPages([page])") &&
+    sidebarSource.includes('openPage(page, { source: "sidebar-create" })') &&
     !quickSearchSource.includes("const { pages, refresh } = usePages()") &&
     quickSearchSource.includes("const pages = useWorkspaceStore((s) => s.pages)") &&
     quickSearchSource.includes("usePages({ autoLoad: false })") &&

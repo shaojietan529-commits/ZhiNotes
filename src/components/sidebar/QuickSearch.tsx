@@ -2,6 +2,7 @@
 
 import { Fragment, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import {
   getWorkspaceSetting,
   searchPages,
@@ -98,6 +99,7 @@ export default function QuickSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRequestRef = useRef(0);
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const pages = useWorkspaceStore((s) => s.pages);
   const { refresh } = usePages({ autoLoad: false });
   const { favoriteIds } = usePageFavorites();
@@ -222,11 +224,21 @@ export default function QuickSearch() {
     );
   };
 
-  const handleSelect = (pageId: string) => {
-    router.push(`/page/${pageId}`);
+  const resetPalette = () => {
     setOpen(false);
     setQuery("");
     setResults([]);
+  };
+
+  const handleSelect = (pageId: string, page?: Page) => {
+    openPage(
+      page ??
+        results.find((candidate) => candidate.id === pageId) ??
+        pages.find((candidate) => candidate.id === pageId) ??
+        pageId,
+      { source: "quick-search-open" }
+    );
+    resetPalette();
   };
 
   const handleCreatePage = async () => {
@@ -234,13 +246,15 @@ export default function QuickSearch() {
       title: trimmedQuery || "未命名",
     });
     await refresh();
-    handleSelect(page.id);
+    openPage(page, { source: "quick-search-create" });
+    resetPalette();
   };
 
   const handleCreateBlankPage = async () => {
     const page = await createPageWithCloud();
     await refresh();
-    handleSelect(page.id);
+    openPage(page, { source: "quick-search-create" });
+    resetPalette();
   };
 
   const handleCreateDatabase = async () => {
@@ -957,7 +971,7 @@ export default function QuickSearch() {
       setResults([]);
       return;
     }
-    handleSelect(entry.page.id);
+    handleSelect(entry.page.id, entry.page);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

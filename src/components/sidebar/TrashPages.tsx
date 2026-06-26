@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { getDeletedPages, restorePage } from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 export default function TrashPages() {
-  const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const activePageCount = useWorkspaceStore((s) => s.pages.length);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const [pages, setPages] = useState<Page[]>([]);
@@ -33,9 +33,9 @@ export default function TrashPages() {
       const restored = await restorePage(pageId);
       if (restored) upsertPages([restored]);
       await load();
-      if (restored) router.push(`/page/${restored.id}`);
+      if (restored) openPage(restored, { source: "trash-restore-open" });
     },
-    [load, router, upsertPages]
+    [load, openPage, upsertPages]
   );
 
   if (loading || pages.length === 0) return null;

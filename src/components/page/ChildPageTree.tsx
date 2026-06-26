@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { usePages } from "@/hooks/usePages";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import {
   createPageWithCloud,
   updatePageWithCloud,
@@ -46,7 +46,7 @@ const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 type ViewMode = "list" | "calendar";
 
 export default function ChildPageTree({ pageId }: { pageId: string }) {
-  const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const { pages } = usePages();
@@ -98,9 +98,9 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
     async (parentId: string) => {
       const child = await createPageWithCloud({ parentId });
       upsertPages([child]);
-      router.push(`/page/${child.id}`);
+      openPage(child, { source: "child-page-create" });
     },
-    [router, upsertPages]
+    [openPage, upsertPages]
   );
 
   const addNoteOnDate = useCallback(
@@ -116,10 +116,11 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       const updatedChild = await updatePageWithCloud(child.id, {
         properties: stringifyPageProperties(props),
       });
-      upsertPages([updatedChild ?? child]);
-      router.push(`/page/${child.id}`);
+      const pageToOpen = updatedChild ?? child;
+      upsertPages([pageToOpen]);
+      openPage(pageToOpen, { source: "child-page-create" });
     },
-    [pageId, router, upsertPages]
+    [openPage, pageId, upsertPages]
   );
 
   const moveNoteToDate = useCallback(
@@ -148,6 +149,15 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       if (updatedNote) upsertPages([updatedNote]);
     },
     [children, upsertPages]
+  );
+
+  const handleOpenChild = useCallback(
+    (id: string) => {
+      openPage(pages.find((page) => page.id === id) ?? id, {
+        source: "child-page-open",
+      });
+    },
+    [openPage, pages]
   );
 
   if (children.length === 0) return null;
@@ -210,7 +220,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       {effectiveView === "calendar" ? (
         <CalendarView
           childPages={children}
-          onOpen={(id) => router.push(`/page/${id}`)}
+          onOpen={handleOpenChild}
           onAddOnDate={addNoteOnDate}
           onMoveToDate={moveNoteToDate}
         />
@@ -222,7 +232,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
               node={child}
               allPages={pages}
               level={0}
-              onOpen={(id) => router.push(`/page/${id}`)}
+              onOpen={handleOpenChild}
               onAddChild={(id) => void addChild(id)}
             />
           ))}

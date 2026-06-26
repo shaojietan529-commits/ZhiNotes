@@ -1,12 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
 export default function FavoritePages() {
-  const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const pages = useWorkspaceStore((s) => s.pages);
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
   const { favoriteIds, setFavorite } = usePageFavorites();
@@ -35,7 +35,7 @@ export default function FavoritePages() {
             >
               <button
                 type="button"
-                onClick={() => router.push(`/page/${page.id}`)}
+                onClick={() => openPage(page, { source: "favorite-open" })}
                 className="flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 text-left text-sm"
               >
                 <span className="shrink-0 w-5 text-center text-sm">

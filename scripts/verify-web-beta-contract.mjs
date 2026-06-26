@@ -103,6 +103,7 @@ const files = {
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
+  localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
@@ -120,6 +121,10 @@ const files = {
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   childPageTree: "src/components/page/ChildPageTree.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
+  pageTree: "src/components/sidebar/PageTree.tsx",
+  favoritePages: "src/components/sidebar/FavoritePages.tsx",
+  trashPages: "src/components/sidebar/TrashPages.tsx",
+  subPageTree: "src/components/shared/SubPageTree.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
@@ -421,6 +426,9 @@ function run() {
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
+  const localFirstPageNavigation = readProjectFile(
+    files.localFirstPageNavigation
+  );
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
@@ -441,6 +449,10 @@ function run() {
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const childPageTree = readProjectFile(files.childPageTree);
   const sidebar = readProjectFile(files.sidebar);
+  const pageTree = readProjectFile(files.pageTree);
+  const favoritePages = readProjectFile(files.favoritePages);
+  const trashPages = readProjectFile(files.trashPages);
+  const subPageTree = readProjectFile(files.subPageTree);
   const quickSearch = readProjectFile(files.quickSearch);
   const syncShell = readProjectFile(files.syncShell);
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
@@ -562,6 +574,11 @@ function run() {
     [files.localQueries, localQueries],
     [files.databaseRouteSkeleton, databaseRouteSkeleton],
     [files.childPageTree, childPageTree],
+    [files.localFirstPageNavigation, localFirstPageNavigation],
+    [files.pageTree, pageTree],
+    [files.favoritePages, favoritePages],
+    [files.trashPages, trashPages],
+    [files.subPageTree, subPageTree],
     [files.quickSearch, quickSearch],
     [files.syncShell, syncShell],
     [files.moduleRouteSkeleton, moduleRouteSkeleton],
@@ -9925,8 +9942,94 @@ function run() {
       "clearPendingPageDraft(record.id)",
       "Page edit drafts must clear after the local cache write catches up.",
     ],
+    [
+      files.localFirstPageNavigation,
+      localFirstPageNavigation,
+      "rememberPendingPageDraft(page)",
+      "Shared page navigation must keep an in-memory draft before opening the page route.",
+    ],
+    [
+      files.localFirstPageNavigation,
+      localFirstPageNavigation,
+      'rememberPageRouteHandoff(page, options.source ?? "page-open")',
+      "Shared page navigation must hand off metadata before slower local DB or cloud checks.",
+    ],
+    [
+      files.localFirstPageNavigation,
+      localFirstPageNavigation,
+      "router.prefetch(`/page/${page.id}`)",
+      "Shared page navigation must prefetch the page route as a non-authoritative speed hint.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'openPage(page, { source: "sidebar-create" })',
+      "Sidebar page creation must open through the local-first page navigation helper.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      'source: "sidebar-open"',
+      "Sidebar page tree opens must use local-first route handoff metadata.",
+    ],
+    [
+      files.favoritePages,
+      favoritePages,
+      'source: "favorite-open"',
+      "Favorite page opens must use local-first route handoff metadata.",
+    ],
+    [
+      files.trashPages,
+      trashPages,
+      'source: "trash-restore-open"',
+      "Restored pages must open through local-first route handoff metadata.",
+    ],
+    [
+      files.quickSearch,
+      quickSearch,
+      'source: "quick-search-open"',
+      "Quick search page opens must use local-first route handoff metadata.",
+    ],
+    [
+      files.quickSearch,
+      quickSearch,
+      'source: "quick-search-create"',
+      "Quick search page creation must use local-first route handoff metadata.",
+    ],
+    [
+      files.childPageTree,
+      childPageTree,
+      'source: "child-page-open"',
+      "Child page tree opens must use local-first route handoff metadata.",
+    ],
+    [
+      files.childPageTree,
+      childPageTree,
+      'source: "child-page-create"',
+      "Child page creation must use local-first route handoff metadata.",
+    ],
+    [
+      files.subPageTree,
+      subPageTree,
+      'source: "child-page-open"',
+      "Page position tree opens must use local-first route handoff metadata.",
+    ],
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
+  }
+  for (const forbiddenLocalFirstNavigationSnippet of [
+    "queueCloudPagePush",
+    "pushCloudPages",
+    "sync_log",
+    "content_text",
+    "content_yjs",
+  ]) {
+    assertSourceExcludes(
+      files.localFirstPageNavigation,
+      localFirstPageNavigation,
+      forbiddenLocalFirstNavigationSnippet,
+      "Shared page navigation must stay a metadata-only route hint, not a cloud sync or content cache."
+    );
   }
   assertSourceExcludes(
     files.usePage,
