@@ -1090,6 +1090,14 @@ export async function getAllPageMetadata(): Promise<Page[]> {
   ) as unknown as Page[];
 }
 
+export async function countActivePages(): Promise<number> {
+  const db = await getDb();
+  const rows = db.query(
+    "SELECT COUNT(*) as count FROM pages WHERE deleted_at IS NULL"
+  ) as unknown as Array<{ count: number }>;
+  return Number(rows[0]?.count ?? 0);
+}
+
 export async function listRecentPageMetadata(limit = 8): Promise<Page[]> {
   const db = await getDb();
   const safeLimit = Math.max(1, Math.min(50, Math.floor(limit)));
@@ -2901,6 +2909,14 @@ export async function getAllDatabases(): Promise<Database[]> {
   return db.query(
     "SELECT * FROM databases WHERE deleted_at IS NULL ORDER BY updated_at DESC"
   ) as unknown as Database[];
+}
+
+export async function countActiveDatabases(): Promise<number> {
+  const db = await getDb();
+  const rows = db.query(
+    "SELECT COUNT(*) as count FROM databases WHERE deleted_at IS NULL"
+  ) as unknown as Array<{ count: number }>;
+  return Number(rows[0]?.count ?? 0);
 }
 
 export async function updateDatabase(

@@ -75,7 +75,7 @@ export async function executeModuleStarter(
     };
   }
 
-  const page = await createPageWithCloud({
+  let page = await createPageWithCloud({
     title: starter.title,
     icon: starter.icon,
   });
@@ -88,7 +88,10 @@ export async function executeModuleStarter(
         item.aliases.includes(templateTitle)
     );
     if (template) {
-      await updatePageWithCloud(page.id, { content_text: template.html });
+      page =
+        (await updatePageWithCloud(page.id, {
+          content_text: template.html,
+        })) ?? page;
     }
   }
 

@@ -78,6 +78,7 @@ const sidebarSource = read("src/components/sidebar/Sidebar.tsx");
 const quickSearchSource = read("src/components/sidebar/QuickSearch.tsx");
 const favoritePagesSource = read("src/components/sidebar/FavoritePages.tsx");
 const trashPagesSource = read("src/components/sidebar/TrashPages.tsx");
+const moduleDashboardSource = read("src/components/modules/ModuleDashboard.tsx");
 const pageTreeSource = read("src/components/sidebar/PageTree.tsx");
 const pageUpdateBus = read("src/lib/pages/pageUpdateBus.ts");
 const accountPageSync = read("src/lib/pages/accountPageSync.ts");
@@ -252,6 +253,22 @@ check(
     trashPagesSource.includes("activePageCount") &&
     trashPagesSource.includes("upsertPages([restored])"),
   "Sidebar/QuickSearch/FavoritePages/TrashPages 不应各自挂 usePages 触发重复全量页面 metadata 刷新"
+);
+check(
+  moduleDashboardSource.includes("countActivePages") &&
+    moduleDashboardSource.includes("countActiveDatabases") &&
+    moduleDashboardSource.includes("refreshWorkspaceCounts") &&
+    moduleDashboardSource.includes("subscribePagesUpdated") &&
+    moduleDashboardSource.includes("subscribeDatabasesUpdated") &&
+    moduleDashboardSource.includes("scheduleCountRefresh") &&
+    moduleDashboardSource.includes("upsertPages([page])") &&
+    moduleDashboardSource.includes("setPageCount((count) => count + 1)") &&
+    moduleDashboardSource.includes("setDatabaseCount((count) => count + 1)") &&
+    !moduleDashboardSource.includes('from "@/hooks/usePages"') &&
+    !moduleDashboardSource.includes('from "@/hooks/useDatabases"') &&
+    !moduleDashboardSource.includes("await refresh()") &&
+    !moduleDashboardSource.includes("await refreshDatabases()"),
+  "ModuleDashboard 只应读取轻量页面/数据库数量，创建后本地乐观更新，不能为了模块中心首屏或 starter 扫全量页面/数据库列表"
 );
 check(
     usePagesHook.includes("const cloudPages = cloud.pages.map(remoteMetadataToPage)") &&

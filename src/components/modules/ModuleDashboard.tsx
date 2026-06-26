@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
-import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
-import { usePages } from "@/hooks/usePages";
+import {
+  countActiveDatabases,
+  countActivePages,
+} from "@/lib/db/local/queries";
+import { subscribeDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
 import {
   MODULE_EXTENSION_SLOTS,
   PLATFORM_MODULES,
@@ -47,10 +50,12 @@ import {
   type ProjectProgressStatus,
 } from "@/lib/modules/projectProgressSnapshot";
 import { executeModuleStarter } from "@/lib/modules/actions";
+import { subscribePagesUpdated } from "@/lib/pages/pageUpdateBus";
 import {
   DEFAULT_APP_LANGUAGE_LABEL,
   DEFAULT_APP_LOCALE,
 } from "@/lib/i18n/platformLanguage";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { ZhiNoteLogo } from "@/components/brand/ZhiNoteLogo";
 
 const STATUS_ORDER: ModuleStatus[] = ["active", "beta", "planned"];
@@ -58,8 +63,10 @@ const STATUS_ORDER: ModuleStatus[] = ["active", "beta", "planned"];
 export default function ModuleDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { pages, refresh } = usePages();
-  const { databases, refresh: refreshDatabases } = useDatabases();
+  const dbReady = useWorkspaceStore((s) => s.dbReady);
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
+  const [pageCount, setPageCount] = useState(0);
+  const [databaseCount, setDatabaseCount] = useState(0);
   const [exportingManifest, setExportingManifest] = useState(false);
   const [exportingOnboarding, setExportingOnboarding] = useState(false);
   const [exportingStarterPack, setExportingStarterPack] = useState(false);
@@ -86,24 +93,61 @@ export default function ModuleDashboard() {
   const progressSnapshot = useMemo(
     () =>
       buildProjectProgressSnapshot({
-        page_count: pages.length,
-        database_count: databases.length,
+        page_count: pageCount,
+        database_count: databaseCount,
         manifest: moduleManifest,
         health: moduleHealth,
         roadmap: moduleRoadmap,
       }),
-    [databases.length, moduleHealth, moduleManifest, moduleRoadmap, pages.length]
+    [databaseCount, moduleHealth, moduleManifest, moduleRoadmap, pageCount]
   );
+
+  const refreshWorkspaceCounts = useCallback(async () => {
+    if (!dbReady) return;
+    const [nextPageCount, nextDatabaseCount] = await Promise.all([
+      countActivePages(),
+      countActiveDatabases(),
+    ]);
+    setPageCount(nextPageCount);
+    setDatabaseCount(nextDatabaseCount);
+  }, [dbReady]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    queueMicrotask(() => {
+      void refreshWorkspaceCounts();
+    });
+  }, [dbReady, refreshWorkspaceCounts]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    let timer: number | null = null;
+    const scheduleCountRefresh = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void refreshWorkspaceCounts();
+      }, 120);
+    };
+    const unsubscribePages = subscribePagesUpdated(scheduleCountRefresh);
+    const unsubscribeDatabases =
+      subscribeDatabasesUpdated(scheduleCountRefresh);
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      unsubscribePages();
+      unsubscribeDatabases();
+    };
+  }, [dbReady, refreshWorkspaceCounts]);
 
   const handleNewPage = async () => {
     const page = await createPageWithCloud({ title: "未命名研究笔记" });
-    await refresh();
+    upsertPages([page]);
+    setPageCount((count) => count + 1);
     openPage(page, { source: "module-create" });
   };
 
   const handleNewDatabase = async () => {
     const database = await createDatabase({ title: "未命名投研数据库" });
-    await refreshDatabases();
+    setDatabaseCount((count) => count + 1);
     router.push(`/database/${database.id}`);
   };
 
@@ -112,10 +156,11 @@ export default function ModuleDashboard() {
     if (!starter) return;
     const result = await executeModuleStarter(starter);
     if (result.database) {
-      await refreshDatabases();
+      setDatabaseCount((count) => count + 1);
     }
-    await refresh();
     if (result.page) {
+      upsertPages([result.page]);
+      setPageCount((count) => count + 1);
       openPage(result.page, { source: "module-create" });
     } else {
       router.push(result.route);
@@ -280,8 +325,8 @@ export default function ModuleDashboard() {
         </header>
 
         <section className="grid gap-3 md:grid-cols-5">
-          <Metric label="页面" value={pages.length} />
-          <Metric label="数据库" value={databases.length} />
+          <Metric label="页面" value={pageCount} />
+          <Metric label="数据库" value={databaseCount} />
           <Metric label="已启用模块" value={activeModules.length} />
           <Metric label="Beta 模块" value={betaModules.length} />
           <Metric label="规划中模块" value={plannedModules.length} />

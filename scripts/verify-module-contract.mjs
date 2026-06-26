@@ -194,6 +194,12 @@ function assertIncludes(sourceLabel, source, snippet, message) {
   }
 }
 
+function assertExcludes(sourceLabel, source, snippet, message) {
+  if (source.includes(snippet)) {
+    failures.push(`${sourceLabel} must not include ${snippet}: ${message}`);
+  }
+}
+
 function assertFileExists(relativePath, message) {
   if (!existsSync(path.join(root, relativePath))) {
     failures.push(`${message}: ${relativePath}`);
@@ -640,6 +646,39 @@ function run() {
     "buildModuleRoadmapReport",
     "Module center must build the module roadmap report."
   );
+  for (const snippet of [
+    "countActivePages",
+    "countActiveDatabases",
+    "refreshWorkspaceCounts",
+    "subscribePagesUpdated",
+    "subscribeDatabasesUpdated",
+    "scheduleCountRefresh",
+    "upsertPages([page])",
+    "setPageCount((count) => count + 1)",
+    "setDatabaseCount((count) => count + 1)",
+  ]) {
+    assertIncludes(
+      files.dashboard,
+      dashboard,
+      snippet,
+      "Module center must read only lightweight workspace counts and update optimistic local counts after creation."
+    );
+  }
+  for (const snippet of [
+    'from "@/hooks/usePages"',
+    'from "@/hooks/useDatabases"',
+    "const { pages, refresh } = usePages()",
+    "const { databases, refresh: refreshDatabases } = useDatabases()",
+    "await refresh()",
+    "await refreshDatabases()",
+  ]) {
+    assertExcludes(
+      files.dashboard,
+      dashboard,
+      snippet,
+      "Module center must not auto-load page/database lists just to render counts or create starters."
+    );
+  }
   assertIncludes(
     files.dashboard,
     dashboard,
