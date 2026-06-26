@@ -97,7 +97,7 @@ function FilesContent() {
 function FilesDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { refresh: refreshPages } = usePages({ autoLoad: false });
+  const { upsertPages } = usePages({ autoLoad: false });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const zipPreviewInputRef = useRef<HTMLInputElement | null>(null);
   const [storedFiles, setStoredFiles] = useState<StoredPageFileMetadata[]>([]);
@@ -304,7 +304,8 @@ function FilesDashboard() {
         }
       }
 
-      await Promise.all([loadStoredFiles(), refreshPages()]);
+      upsertPages(createdPages);
+      await loadStoredFiles();
       if (selectedFiles.length === 1 && createdPages[0]) {
         openPage(createdPages[0], { source: "module-create" });
         return;
@@ -369,7 +370,7 @@ function FilesDashboard() {
         return;
       }
       const page = await createFileLibraryPageFromStoredFile(storedFile);
-      await refreshPages();
+      upsertPages([page]);
       openPage(page, { source: "module-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to create page for stored file:", err);

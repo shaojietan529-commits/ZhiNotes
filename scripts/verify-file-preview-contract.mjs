@@ -1754,6 +1754,8 @@ function run() {
     "buildFilePreviewActionReceipt",
     "appendFilePreviewActionReceipt",
     "buildFileLibraryPageContent",
+    "upsertPages(createdPages)",
+    "upsertPages([page])",
     "FILE_LIBRARY_PAGE_ACTION_LABEL",
     "文件没有上传、同步或调用 AI",
     "从本地文件创建 Page",
@@ -1765,6 +1767,11 @@ function run() {
       filesShell,
       snippet,
       "Files module must create generic local file pages from user-selected files without upload or AI."
+    );
+  }
+  if (filesShell.includes("refreshPages()")) {
+    fail(
+      `${files.filesShell} must not include refreshPages(): Files module must optimistically merge created file pages instead of refreshing the full page list.`
     );
   }
   for (const snippet of [
