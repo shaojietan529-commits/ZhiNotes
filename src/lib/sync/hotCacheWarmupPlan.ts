@@ -95,7 +95,9 @@ export function buildHotCacheWarmupPlan(
     isCurrentMonthMeetingPage(page, now)
   );
   const currentMonthMeetingRouteTargets =
-    buildCurrentMonthMeetingRouteTargets(currentMonthMeetingPages);
+    input.preferences.keepCurrentMonthMeetings
+      ? buildCurrentMonthMeetingRouteTargets(currentMonthMeetingPages)
+      : [];
   const favoriteIdSet = new Set(input.favoriteIds);
   const favoritePages = activePages.filter((page) => favoriteIdSet.has(page.id));
   const projectPages = activePages.filter(isProjectMetadataPage);
@@ -175,18 +177,28 @@ export function buildHotCacheWarmupPlan(
     {
       id: "current-month-meetings",
       title: "当前月份会议日历",
-      status: "ready",
-      preference_key: "always",
+      status: input.preferences.keepCurrentMonthMeetings
+        ? "ready"
+        : "preference-off",
+      preference_key: "keepCurrentMonthMeetings",
       cloud_source: "meeting page date metadata index",
       local_target: "meeting calendar metadata cache",
-      candidate_count: currentMonthMeetingPages.length,
-      estimated_metadata_records: currentMonthMeetingPages.length,
-      route_targets: ["/schedule", ...currentMonthMeetingRouteTargets],
+      candidate_count: input.preferences.keepCurrentMonthMeetings
+        ? currentMonthMeetingPages.length
+        : 0,
+      estimated_metadata_records: input.preferences.keepCurrentMonthMeetings
+        ? currentMonthMeetingPages.length
+        : 0,
+      route_targets: input.preferences.keepCurrentMonthMeetings
+        ? ["/schedule", ...currentMonthMeetingRouteTargets]
+        : [],
       action:
         "预热会议日历入口、当前月会议 metadata 和会议详情路由，日历先显示会议条，会议正文和入会凭证按打开时补齐。",
       reason:
         "会议日历是投研日程入口，当前月会议应优先显示，但不能预取入会凭证。",
-      blocked_reason: null,
+      blocked_reason: input.preferences.keepCurrentMonthMeetings
+        ? null
+        : "用户未选择当前月份会议日历常驻本地。",
       excluded_private_fields: [
         "meeting body",
         "join url",

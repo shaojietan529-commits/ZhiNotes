@@ -10,6 +10,7 @@ export const HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY =
 export interface HotCachePreferences {
   recentDays: 30 | 90;
   keepCurrentMonthDailyNotes: boolean;
+  keepCurrentMonthMeetings: boolean;
   keepActiveDatabases: boolean;
   keepRecentFilePreviews: boolean;
   keepFavoritePages: boolean;
@@ -60,6 +61,7 @@ export interface HotCacheSelectionContract {
 export const DEFAULT_HOT_CACHE_PREFERENCES: HotCachePreferences = {
   recentDays: 30,
   keepCurrentMonthDailyNotes: true,
+  keepCurrentMonthMeetings: true,
   keepActiveDatabases: true,
   keepRecentFilePreviews: false,
   keepFavoritePages: false,
@@ -116,6 +118,10 @@ export function normalizeHotCachePreferences(
       typeof value.keepCurrentMonthDailyNotes === "boolean"
         ? value.keepCurrentMonthDailyNotes
         : DEFAULT_HOT_CACHE_PREFERENCES.keepCurrentMonthDailyNotes,
+    keepCurrentMonthMeetings:
+      typeof value.keepCurrentMonthMeetings === "boolean"
+        ? value.keepCurrentMonthMeetings
+        : DEFAULT_HOT_CACHE_PREFERENCES.keepCurrentMonthMeetings,
     keepActiveDatabases:
       typeof value.keepActiveDatabases === "boolean"
         ? value.keepActiveDatabases
@@ -142,6 +148,7 @@ export function buildHotCacheSelectionContract(input: {
   const preferences = parseHotCachePreferences(input.setting);
   const enabledPreferences = [
     preferences.keepCurrentMonthDailyNotes,
+    preferences.keepCurrentMonthMeetings,
     preferences.keepActiveDatabases,
     preferences.keepRecentFilePreviews,
     preferences.keepFavoritePages,
@@ -181,6 +188,7 @@ export function buildHotCacheSelectionContract(input: {
     allowed_preference_keys: [
       "recentDays",
       "keepCurrentMonthDailyNotes",
+      "keepCurrentMonthMeetings",
       "keepActiveDatabases",
       "keepRecentFilePreviews",
       "keepFavoritePages",

@@ -167,7 +167,7 @@ export function buildHotCachePolicyPlan(
     {
       id: "current-month-meetings",
       title: "当前月份会议日历",
-      status: "default-on",
+      status: "user-selectable",
       cloud_source: "meeting page date metadata index",
       local_behavior: "会议日历先显示当前月 metadata，会议正文和入会凭证按打开时读取",
       eviction_rule: "跨月后保留最近月份，旧会议按用户选择缓存",

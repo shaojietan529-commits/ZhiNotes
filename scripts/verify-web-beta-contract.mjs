@@ -1194,6 +1194,10 @@ function run() {
       "Hot cache warmup plan must keep current-month meeting route prefetch bounded.",
     ],
     [
+      'preference_key: "keepCurrentMonthMeetings"',
+      "Hot cache warmup plan must let users disable current-month meeting route prefetch.",
+    ],
+    [
       "FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12",
       "Hot cache warmup plan must keep favorite page route prefetch bounded.",
     ],
@@ -1228,6 +1232,10 @@ function run() {
     [
       "入会凭证按打开时补齐",
       "Hot cache warmup plan must keep meeting credentials out of route prefetch.",
+    ],
+    [
+      "用户未选择当前月份会议日历常驻本地。",
+      "Hot cache warmup plan must explain when current-month meeting cache is preference-off.",
     ],
     [
       "项目正文按打开时补齐",
@@ -2595,6 +2603,10 @@ function run() {
       "Hot cache selection must include daily note preference.",
     ],
     [
+      "keepCurrentMonthMeetings",
+      "Hot cache selection must include current-month meeting preference.",
+    ],
+    [
       "keepActiveDatabases",
       "Hot cache selection must include database preference.",
     ],
@@ -3714,6 +3726,10 @@ function run() {
     [
       "常驻本地缓存选择",
       "Sync UI must expose hot cache selection controls.",
+    ],
+    [
+      "当前月份会议日历",
+      "Sync UI must expose current-month meeting hot cache selection.",
     ],
     [
       "handleHotCachePreferencesChange",

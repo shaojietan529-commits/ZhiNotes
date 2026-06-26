@@ -15454,6 +15454,13 @@ function HotCacheSelectionPanel({
                 }
               />
               <HotCachePreferenceCheckbox
+                label="当前月份会议日历"
+                checked={preferences.keepCurrentMonthMeetings}
+                onChange={(checked) =>
+                  updatePreference({ keepCurrentMonthMeetings: checked })
+                }
+              />
+              <HotCachePreferenceCheckbox
                 label="打开过的数据库视图"
                 checked={preferences.keepActiveDatabases}
                 onChange={(checked) =>

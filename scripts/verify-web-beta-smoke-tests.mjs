@@ -1244,6 +1244,12 @@ function run() {
   assertIncludes(
     files.hotCacheWarmupPlan,
     hotCacheWarmupPlan,
+    'preference_key: "keepCurrentMonthMeetings"',
+    "Hot cache warmup must let users disable current-month meeting route prefetch."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
     "FAVORITE_PAGE_ROUTE_TARGET_LIMIT = 12",
     "Hot cache warmup must keep favorite page route prefetch bounded."
   );
@@ -1294,6 +1300,12 @@ function run() {
     hotCacheWarmupPlan,
     "入会凭证按打开时补齐",
     "Hot cache warmup must keep meeting credentials out of route prefetch."
+  );
+  assertIncludes(
+    files.hotCacheWarmupPlan,
+    hotCacheWarmupPlan,
+    "用户未选择当前月份会议日历常驻本地。",
+    "Hot cache warmup must explain when current-month meeting cache is preference-off."
   );
   assertIncludes(
     files.hotCacheWarmupPlan,
@@ -1967,6 +1979,12 @@ function run() {
     hotCacheSelectionSettings,
     "ordinary_sync_pending_only: true",
     "Smoke verifier must keep hot cache selection pending-only."
+  );
+  assertIncludes(
+    files.hotCacheSelectionSettings,
+    hotCacheSelectionSettings,
+    "keepCurrentMonthMeetings",
+    "Smoke verifier must keep current-month meeting hot cache user preference."
   );
   assertIncludes(
     files.hotCacheSelectionSettings,
@@ -2763,6 +2781,12 @@ function run() {
     syncShell,
     "常驻本地缓存选择",
     "Sync UI must render the hot cache selection panel."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "当前月份会议日历",
+    "Sync UI must expose current-month meeting hot cache selection."
   );
   assertIncludes(
     files.syncShell,
