@@ -86,7 +86,7 @@ function ResearchGraphContent() {
 function ResearchGraphDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { pages, refresh: refreshPages } = usePages({
+  const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
   });
@@ -257,8 +257,9 @@ function ResearchGraphDashboard() {
       const updatedPage = await updatePageWithCloud(page.id, {
         content_text: buildResearchProjectBriefPageHtml(projectBrief),
       });
-      await refreshPages();
-      openPage(updatedPage ?? page, { source: "module-create" });
+      const createdPage = updatedPage ?? page;
+      upsertPages([createdPage]);
+      openPage(createdPage, { source: "module-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to create research project page:", err);
       window.alert("研究项目页创建失败，请查看控制台。");

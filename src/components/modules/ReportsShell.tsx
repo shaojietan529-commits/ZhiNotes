@@ -179,7 +179,7 @@ function ReportsContent() {
 function ReportsDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { pages, refresh } = usePages({
+  const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
   });
@@ -337,7 +337,9 @@ function ReportsDashboard() {
     setBusyAction(starter.label);
     try {
       const result = await executeModuleStarter(starter);
-      await refresh();
+      if (result.page) {
+        upsertPages([result.page]);
+      }
       if (result.database) {
         await refreshDatabases();
       }
@@ -386,7 +388,7 @@ function ReportsDashboard() {
         }
       }
 
-      await refresh();
+      upsertPages(createdPages);
       if (selectedFiles.length === 1 && createdPages[0]) {
         openPage(createdPages[0], { source: "module-create" });
         return;
@@ -478,8 +480,9 @@ function ReportsDashboard() {
           note: "Markdown 已从报告库模块导入为本地可编辑页面。",
         })
       );
-      await refresh();
-      openPage(updatedPage ?? page, { source: "module-create" });
+      const createdPage = updatedPage ?? page;
+      upsertPages([createdPage]);
+      openPage(createdPage, { source: "module-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to import markdown note:", err);
       window.alert(

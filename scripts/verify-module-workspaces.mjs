@@ -296,13 +296,15 @@ check(
 );
 check(
   pageUpdateBus.includes("PageUpdatePayload") &&
+    pageUpdateBus.includes("emitPageSnapshotsUpdated") &&
     accountPageSync.includes("toPageUpdatePayloads") &&
     accountPageSync.includes("toPageUpdatePayloads(pulledPages)") &&
     usePagesHook.includes("message.pages?.length") &&
-    usePagesHook.includes('if (message.reason === "cloud-pull" && message.pages?.length)') &&
+    !usePagesHook.includes('if (message.reason === "cloud-pull" && message.pages?.length)') &&
+    usePagesHook.includes("emitPageSnapshotsUpdated(reason, incomingPages)") &&
     usePagesHook.includes("upsertPages(message.pages.map(remoteMetadataToPage))") &&
     !usePagesHook.includes("!includeContent &&\n        message.reason === \"cloud-pull\""),
-  "页面多端同步事件必须携带轻量 metadata payload；includeContent 模块收到 payload 也不能全量重读正文"
+  "页面多端同步事件必须携带轻量 metadata payload；任何带 payload 的页面事件都应直接合并，includeContent 模块不能全量重读正文"
 );
 check(
   pagePeekModal.includes("getPageMetadata") &&

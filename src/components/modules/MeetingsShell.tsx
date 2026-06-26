@@ -142,7 +142,7 @@ function MeetingsContent() {
 function MeetingsDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { pages, refresh } = usePages({
+  const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
   });
@@ -244,7 +244,9 @@ function MeetingsDashboard() {
     setBusyAction(starter.label);
     try {
       const result = await executeModuleStarter(starter);
-      await refresh();
+      if (result.page) {
+        upsertPages([result.page]);
+      }
       if (result.database) {
         await refreshDatabases();
       }
@@ -292,7 +294,7 @@ function MeetingsDashboard() {
         }
       }
 
-      await refresh();
+      upsertPages(createdPages);
       if (selectedFiles.length === 1 && createdPages[0]) {
         openPage(createdPages[0], { source: "module-create" });
         return;

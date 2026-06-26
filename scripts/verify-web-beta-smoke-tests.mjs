@@ -4105,6 +4105,26 @@ function run() {
       "Content-heavy research modules must render page metadata before deferred body hydration."
     );
   }
+  for (const [sourceLabel, source] of [
+    [files.companyResearchShell, companyResearchShell],
+    [files.meetingsShell, meetingsShell],
+    [files.reportsShell, reportsShell],
+    [files.portfolioShell, portfolioShell],
+    [files.researchGraphShell, researchGraphShell],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "upsertPages",
+      "Content-heavy research modules must optimistically merge newly created pages instead of waiting on global page refresh."
+    );
+    assertExcludes(
+      sourceLabel,
+      source,
+      "await refresh()",
+      "Content-heavy research module create/import flows must not wait for a full page-list refresh."
+    );
+  }
   for (const snippet of [
     "includeContent: contentScanEnabled",
     "setContentScanEnabled(true)",

@@ -9,6 +9,7 @@ import {
 import { syncCloudPageMetadataDelta } from "@/lib/pages/accountPageSync";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
+  emitPageSnapshotsUpdated,
   emitPagesUpdated,
   subscribePagesUpdated,
   type PageUpdateMessage,
@@ -151,6 +152,15 @@ export function usePages(options: UsePagesOptions = {}) {
   const setPages = useWorkspaceStore((s) => s.setPages);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
 
+  const upsertPageSnapshots = useCallback(
+    (incomingPages: Page[], reason: PageUpdateReason = "cloud-push") => {
+      if (incomingPages.length === 0) return;
+      upsertPages(incomingPages);
+      emitPageSnapshotsUpdated(reason, incomingPages);
+    },
+    [upsertPages]
+  );
+
   const refresh = useCallback(async (options: RefreshOptions = {}) => {
     if (!dbReady) return;
     let all: Page[] = [];
@@ -263,7 +273,7 @@ export function usePages(options: UsePagesOptions = {}) {
     if (!dbReady) return;
     let timer: number | null = null;
     const unsubscribe = subscribePagesUpdated((message: PageUpdateMessage) => {
-      if (message.reason === "cloud-pull" && message.pages?.length) {
+      if (message.pages?.length) {
         upsertPages(message.pages.map(remoteMetadataToPage));
         return;
       }
@@ -278,5 +288,5 @@ export function usePages(options: UsePagesOptions = {}) {
     };
   }, [autoLoad, dbReady, includeContent, refresh, upsertPages]);
 
-  return { pages, refresh };
+  return { pages, refresh, upsertPages: upsertPageSnapshots };
 }

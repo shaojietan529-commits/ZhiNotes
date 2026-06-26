@@ -30,6 +30,20 @@ export interface PageUpdateMessage {
   pages?: PageUpdatePayload[];
 }
 
+interface PageUpdateSnapshot {
+  id: string;
+  parent_id: string | null;
+  title: string;
+  icon: string | null;
+  cover_url: string | null;
+  properties: string | null;
+  position: number;
+  depth: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
 const CHANNEL_NAME = "zhinote:pages-updated:v1";
 const STORAGE_KEY = "zhinote.pages.updated.broadcast.v1";
 
@@ -74,6 +88,32 @@ export function emitPagesUpdated(
   } catch {
     // BroadcastChannel is the primary path; storage is only a fallback.
   }
+}
+
+function pageSnapshotToUpdatePayload(
+  page: PageUpdateSnapshot
+): PageUpdatePayload {
+  return {
+    id: page.id,
+    parent_id: page.parent_id,
+    title: page.title,
+    icon: page.icon,
+    cover_url: page.cover_url,
+    content_text: null,
+    properties: page.properties,
+    position: page.position,
+    depth: page.depth,
+    created_at: page.created_at,
+    updated_at: page.updated_at,
+    deleted_at: page.deleted_at,
+  };
+}
+
+export function emitPageSnapshotsUpdated(
+  reason: PageUpdateReason = "cloud-push",
+  pages: PageUpdateSnapshot[]
+) {
+  emitPagesUpdated(reason, pages.length, pages.map(pageSnapshotToUpdatePayload));
 }
 
 function isPageUpdateMessage(value: unknown): value is PageUpdateMessage {

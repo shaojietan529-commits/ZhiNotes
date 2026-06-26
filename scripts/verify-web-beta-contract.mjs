@@ -11748,6 +11748,26 @@ function run() {
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
+  for (const [sourceLabel, source] of [
+    [files.companyResearchShell, companyResearchShell],
+    [files.meetingsShell, meetingsShell],
+    [files.reportsShell, reportsShell],
+    [files.portfolioShell, portfolioShell],
+    [files.researchGraphShell, researchGraphShell],
+  ]) {
+    assertSourceIncludes(
+      sourceLabel,
+      source,
+      "upsertPages",
+      "Content-heavy research modules must optimistically merge newly created pages instead of waiting on global page refresh."
+    );
+    assertSourceExcludes(
+      sourceLabel,
+      source,
+      "await refresh()",
+      "Content-heavy research module create/import flows must not wait for a full page-list refresh."
+    );
+  }
   assertSourceExcludes(
     files.notesShell,
     notesShell,

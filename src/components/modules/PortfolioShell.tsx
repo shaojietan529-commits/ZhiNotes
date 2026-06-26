@@ -88,7 +88,7 @@ function PortfolioContent() {
 function PortfolioDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { pages, refresh } = usePages({
+  const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
   });
@@ -164,7 +164,9 @@ function PortfolioDashboard() {
     setBusyAction(starter.label);
     try {
       const result = await executeModuleStarter(starter);
-      await refresh();
+      if (result.page) {
+        upsertPages([result.page]);
+      }
       if (result.database) {
         await refreshDatabases();
       }
