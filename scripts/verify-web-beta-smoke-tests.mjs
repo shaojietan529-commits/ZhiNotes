@@ -2041,6 +2041,12 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "@/components/page/LazyPagePeekModal",
+    "Daily calendar must lazy-load the heavy page peek modal instead of bundling it into first paint."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
     "Daily + creation must hand off the optimistic page before full page navigation."
   );
@@ -3784,6 +3790,7 @@ function run() {
     file_metadata_first_paint_checks: 4,
     deferred_page_content_checks: 9,
     metadata_first_quick_search_checks: 4,
+    daily_lazy_peek_modal_checks: 1,
   };
 
   if (failures.length > 0) {

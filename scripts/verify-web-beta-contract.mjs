@@ -2000,6 +2000,10 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      "@/components/page/LazyPagePeekModal",
+      "Daily calendar must lazy-load the heavy page peek modal instead of bundling it into first paint.",
+    ],
+    [
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
       "Daily + creation must hand off the optimistic page before full navigation.",
     ],
@@ -11328,6 +11332,7 @@ function run() {
     meeting_cloud_metadata_hot_cache_checks: 8,
     database_local_first_cloud_hydration_checks: 4,
     metadata_first_quick_search_checks: 4,
+    daily_lazy_peek_modal_checks: 1,
     warnings: warnings.length,
   };
 

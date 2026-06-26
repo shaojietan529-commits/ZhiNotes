@@ -71,6 +71,7 @@ const localClient = read("src/lib/db/local/client.ts");
 const usePageHook = read("src/hooks/usePage.ts");
 const usePagesHook = read("src/hooks/usePages.ts");
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
+const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
 const pendingPageDrafts = read("src/lib/pages/pendingPageDrafts.ts");
 const sidebarSource = read("src/components/sidebar/Sidebar.tsx");
@@ -233,7 +234,7 @@ check(
     usePagesHook.includes("const cloudPages = cloud.pages.map(remoteMetadataToPage)") &&
     usePagesHook.includes("renderLocalPagesSnapshot") &&
     usePagesHook.includes("await renderLocalPagesSnapshot()") &&
-    usePagesHook.includes("loadPagesSnapshot(includeContent)") &&
+    usePagesHook.includes("metadataFirstContent ? false : includeContent") &&
     usePagesHook.includes("mergeMetadataForCount(all, cloudPages)") &&
     usePagesHook.includes("setPages(cloudPages)") &&
     usePagesHook.includes("force: false") &&
@@ -318,11 +319,12 @@ check(
   "DailyNotesShell 后台保存每日纪要必须先写本地可重建缓存和 pending queue 记录，再让账号同步后台上传"
 );
 check(
-  shells.daily.includes("@/components/page/PagePeekModal") &&
-    !shells.daily.includes("@/components/page/LazyPagePeekModal") &&
+  shells.daily.includes("@/components/page/LazyPagePeekModal") &&
+    lazyPagePeekModal.includes("dynamic(() => import(\"@/components/page/PagePeekModal\")") &&
+    lazyPagePeekModal.includes("正在打开页面…") &&
     !shells.daily.includes("fetchCloudPageById") &&
     !shells.daily.includes("scheduleDailyPeekPreload"),
-  "DailyNotesShell 应直接加载 peek 弹窗壳来保证 + 号首开响应，但不应在日历打开路径预拉正文"
+  "DailyNotesShell 应懒加载 peek 弹窗并提供本地壳，保证日历首屏不捆绑重编辑器，也不在日历打开路径预拉正文"
 );
 check(
   shells.daily.includes("const visibleLimit = isExpanded") &&
