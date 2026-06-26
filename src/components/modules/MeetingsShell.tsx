@@ -142,7 +142,10 @@ function MeetingsContent() {
 function MeetingsDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { pages, refresh } = usePages({ includeContent: true });
+  const { pages, refresh } = usePages({
+    includeContent: true,
+    deferContent: true,
+  });
   const transcriptFileInputRef = useRef<HTMLInputElement | null>(null);
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [busyAction, setBusyAction] = useState<string | null>(null);

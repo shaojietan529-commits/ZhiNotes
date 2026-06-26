@@ -179,7 +179,10 @@ function ReportsContent() {
 function ReportsDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { pages, refresh } = usePages({ includeContent: true });
+  const { pages, refresh } = usePages({
+    includeContent: true,
+    deferContent: true,
+  });
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingIntake, setExportingIntake] = useState(false);

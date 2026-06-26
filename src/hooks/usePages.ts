@@ -19,6 +19,7 @@ import type { Page } from "@/lib/utils/types";
 
 interface UsePagesOptions {
   includeContent?: boolean;
+  deferContent?: boolean;
   autoLoad?: boolean;
 }
 
@@ -29,6 +30,8 @@ interface RefreshOptions {
 
 let metadataSnapshotInFlight: Promise<Page[]> | null = null;
 let contentSnapshotInFlight: Promise<Page[]> | null = null;
+let deferredContentHydrationScheduled = false;
+let deferredContentHydrationInFlight: Promise<void> | null = null;
 
 function remoteMetadataToPage(record: RemotePageRecord): Page {
   return {
@@ -75,6 +78,46 @@ function loadPagesSnapshot(includeContent: boolean): Promise<Page[]> {
   return promise;
 }
 
+function scheduleIdleTask(callback: () => void, timeout = 1200): void {
+  if (typeof window === "undefined") return;
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+  };
+  if (maybeWindow.requestIdleCallback) {
+    maybeWindow.requestIdleCallback(callback, { timeout });
+    return;
+  }
+  window.setTimeout(callback, Math.min(timeout, 500));
+}
+
+function scheduleDeferredContentHydration(): void {
+  if (
+    deferredContentHydrationScheduled ||
+    deferredContentHydrationInFlight ||
+    typeof window === "undefined"
+  ) {
+    return;
+  }
+  deferredContentHydrationScheduled = true;
+  scheduleIdleTask(() => {
+    deferredContentHydrationScheduled = false;
+    deferredContentHydrationInFlight = loadPagesSnapshot(true)
+      .then((contentPages) => {
+        useWorkspaceStore.getState().upsertPages(contentPages);
+      })
+      .catch(() => {
+        // Full page bodies are a background enhancement. Metadata already
+        // rendered, so a transient local-cache miss should not block modules.
+      })
+      .finally(() => {
+        deferredContentHydrationInFlight = null;
+      });
+  });
+}
+
 function mergeMetadataForCount(base: Page[], incoming: Page[]): Page[] {
   const byId = new Map(base.map((page) => [page.id, page]));
   for (const page of incoming) {
@@ -100,6 +143,8 @@ function mergeMetadataForCount(base: Page[], incoming: Page[]): Page[] {
 
 export function usePages(options: UsePagesOptions = {}) {
   const includeContent = options.includeContent ?? false;
+  const deferContent = options.deferContent ?? false;
+  const metadataFirstContent = includeContent && deferContent;
   const autoLoad = options.autoLoad ?? true;
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const pages = useWorkspaceStore((s) => s.pages);
@@ -115,7 +160,9 @@ export function usePages(options: UsePagesOptions = {}) {
 
     const renderLocalPagesSnapshot = async (): Promise<boolean> => {
       try {
-        all = await loadPagesSnapshot(includeContent);
+        all = await loadPagesSnapshot(
+          metadataFirstContent ? false : includeContent
+        );
         localSnapshotLoaded = true;
         setPages(all);
         return true;
@@ -137,7 +184,7 @@ export function usePages(options: UsePagesOptions = {}) {
       });
       if (cloud.status === "ok") {
         cloudPages = cloud.pages.map(remoteMetadataToPage);
-        if (cloud.fullRefresh && !includeContent) {
+        if (cloud.fullRefresh && (!includeContent || metadataFirstContent)) {
           all = cloudPages;
           cloudSnapshotAuthoritative = true;
           setPages(cloudPages);
@@ -157,7 +204,7 @@ export function usePages(options: UsePagesOptions = {}) {
     }
 
     const needsCloudCoverageRecovery =
-      !includeContent &&
+      (!includeContent || metadataFirstContent) &&
       !cloudSnapshotAuthoritative &&
       (!localSnapshotLoaded || all.length === 0);
     if (needsCloudCoverageRecovery) {
@@ -200,7 +247,11 @@ export function usePages(options: UsePagesOptions = {}) {
     if (options.broadcast !== false) {
       emitPagesUpdated(options.reason ?? "local-refresh", all.length);
     }
-  }, [dbReady, includeContent, setPages]);
+
+    if (metadataFirstContent) {
+      scheduleDeferredContentHydration();
+    }
+  }, [dbReady, includeContent, metadataFirstContent, setPages]);
 
   useEffect(() => {
     if (!autoLoad) return;

@@ -173,7 +173,10 @@ function NotesContent() {
 function NotesDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { pages, refresh } = usePages({ includeContent: true });
+  const { pages, refresh } = usePages({
+    includeContent: true,
+    deferContent: true,
+  });
   const { favoriteIds } = usePageFavorites();
   const [counts, setCounts] = useState<Record<string, PageModuleCounts>>({});
   const [lockedPageIds, setLockedPageIds] = useState<Set<string>>(

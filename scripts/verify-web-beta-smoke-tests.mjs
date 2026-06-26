@@ -3448,8 +3448,26 @@ function run() {
   assertIncludes(
     files.usePages,
     usePages,
-    "loadPagesSnapshot(includeContent)",
-    "Page and sidebar lists must read the rebuildable local snapshot first."
+    "metadataFirstContent ? false : includeContent",
+    "Page and sidebar lists must read the rebuildable local snapshot first, with content callers allowed to start metadata-only."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "deferContent?: boolean",
+    "Content-heavy modules must be able to defer page body hydration until after metadata first paint."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "scheduleDeferredContentHydration",
+    "Content-heavy modules must hydrate full page bodies in a background idle task."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "useWorkspaceStore.getState().upsertPages(contentPages)",
+    "Deferred page body hydration must merge content into the existing metadata store instead of replacing cloud metadata."
   );
   assertIncludes(
     files.usePages,
@@ -3463,6 +3481,21 @@ function run() {
     "mergeMetadataForCount",
     "Page list cloud hydration must preserve local page body content."
   );
+  for (const [sourceLabel, source] of [
+    [files.notesShell, notesShell],
+    [files.companyResearchShell, companyResearchShell],
+    [files.meetingsShell, meetingsShell],
+    [files.reportsShell, reportsShell],
+    [files.portfolioShell, portfolioShell],
+    [files.researchGraphShell, researchGraphShell],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "deferContent: true",
+      "Content-heavy research modules must render page metadata before deferred body hydration."
+    );
+  }
   assertIncludes(
     files.usePage,
     usePage,
@@ -3725,6 +3758,7 @@ function run() {
     hot_cache_selection_checks: 14,
     hot_data_plan_checks: 10,
     file_metadata_first_paint_checks: 4,
+    deferred_page_content_checks: 9,
   };
 
   if (failures.length > 0) {

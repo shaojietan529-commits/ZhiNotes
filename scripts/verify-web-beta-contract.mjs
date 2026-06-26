@@ -10984,8 +10984,26 @@ function run() {
     [
       files.usePages,
       usePages,
-      "loadPagesSnapshot(includeContent)",
-      "Page and sidebar lists must load local IndexedDB snapshots first.",
+      "metadataFirstContent ? false : includeContent",
+      "Page and sidebar lists must load local IndexedDB snapshots first, with content-heavy modules starting metadata-only.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "deferContent?: boolean",
+      "Content-heavy modules must be able to defer page body hydration until after metadata first paint.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "scheduleDeferredContentHydration",
+      "Content-heavy modules must hydrate full page bodies in a background idle task.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "useWorkspaceStore.getState().upsertPages(contentPages)",
+      "Deferred page body hydration must merge content into the existing metadata store.",
     ],
     [
       files.usePages,
@@ -10998,6 +11016,42 @@ function run() {
       usePages,
       "mergeMetadataForCount",
       "Cloud metadata hydration must preserve local page body content.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "deferContent: true",
+      "Notes module must render page metadata before deferred body hydration.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      "deferContent: true",
+      "Company research module must render page metadata before deferred body hydration.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      "deferContent: true",
+      "Meetings module must render page metadata before deferred body hydration.",
+    ],
+    [
+      files.reportsShell,
+      reportsShell,
+      "deferContent: true",
+      "Reports module must render page metadata before deferred body hydration.",
+    ],
+    [
+      files.portfolioShell,
+      portfolioShell,
+      "deferContent: true",
+      "Portfolio module must render page metadata before deferred body hydration.",
+    ],
+    [
+      files.researchGraphShell,
+      researchGraphShell,
+      "deferContent: true",
+      "Research graph module must render page metadata before deferred body hydration.",
     ],
     [
       files.usePage,
