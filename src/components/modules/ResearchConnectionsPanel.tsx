@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import {
   buildResearchGraph,
@@ -31,6 +32,7 @@ export default function ResearchConnectionsPanel({
   focusKind,
 }: ResearchConnectionsPanelProps) {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [exportingGraphReport, setExportingGraphReport] = useState(false);
 
@@ -97,6 +99,9 @@ export default function ResearchConnectionsPanel({
         .slice(0, 4),
     [focusKind, graphReport.relation_handoff_packets]
   );
+  const pagesById = useMemo(() => new Map(pages.map((page) => [page.id, page])), [
+    pages,
+  ]);
   const primaryCompletionTarget = completionTargets[0] ?? null;
   const relationCount = graph.relationLinks.length;
   const connectedAssetCount = new Set(
@@ -156,7 +161,9 @@ export default function ResearchConnectionsPanel({
         <RelationList
           links={focusLinks}
           focusKind={focusKind}
-          onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
+          onOpenPage={(pageId) =>
+            openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" })
+          }
         />
         <div className="space-y-4">
           <CompletionGuidePanel
@@ -188,7 +195,9 @@ export default function ResearchConnectionsPanel({
         assets={focusUnlinkedAssets}
         focusKind={focusKind}
         completionTarget={primaryCompletionTarget}
-        onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
+        onOpenPage={(pageId) =>
+          openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" })
+        }
         onCompleteAsset={(asset, target) =>
           router.push(buildDatabaseRoute(target.databaseId, asset))
         }

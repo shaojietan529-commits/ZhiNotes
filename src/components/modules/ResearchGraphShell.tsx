@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useDatabases } from "@/hooks/useDatabases";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import { addField } from "@/lib/database/cloudDatabaseMutations";
@@ -84,6 +85,7 @@ function ResearchGraphContent() {
 
 function ResearchGraphDashboard() {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { pages, refresh: refreshPages } = usePages({ includeContent: true });
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
@@ -150,6 +152,12 @@ function ResearchGraphDashboard() {
       }),
     [graphReport, projectHorizon, projectMode, projectTopic, workbenchPacket]
   );
+  const pagesById = useMemo(() => new Map(pages.map((page) => [page.id, page])), [
+    pages,
+  ]);
+  const openGraphPage = (pageId: string) => {
+    openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" });
+  };
   const recentLinks = graph.relationLinks.slice(0, 12);
   const unlinkedAssets = graph.unlinkedAssets.slice(0, 12);
   const completionActions = graphReport.completion_plan.actions.slice(0, 10);
@@ -243,11 +251,11 @@ function ResearchGraphDashboard() {
         title: buildResearchProjectPageTitle(projectBrief),
         icon: "🧭",
       });
-      await updatePageWithCloud(page.id, {
+      const updatedPage = await updatePageWithCloud(page.id, {
         content_text: buildResearchProjectBriefPageHtml(projectBrief),
       });
       await refreshPages();
-      router.push(`/page/${page.id}`);
+      openPage(updatedPage ?? page, { source: "module-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to create research project page:", err);
       window.alert("研究项目页创建失败，请查看控制台。");
@@ -418,7 +426,7 @@ function ResearchGraphDashboard() {
           highPriorityItems={graphReport.summary.high_priority_unlinked_assets}
           actionableItems={graphReport.summary.actionable_priority_items}
           onOpenRoute={(route) => router.push(route)}
-          onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
+          onOpenPage={openGraphPage}
         />
 
         <RelationHandoffPanel
@@ -452,13 +460,13 @@ function ResearchGraphDashboard() {
           <RelationLinksPanel
             links={recentLinks}
             total={graph.relationLinks.length}
-            onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
+            onOpenPage={openGraphPage}
           />
           <UnlinkedAssetsPanel
             assets={unlinkedAssets}
             total={graph.unlinkedAssets.length}
             actionByAssetId={completionActionByAssetId}
-            onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
+            onOpenPage={openGraphPage}
             onCompleteAction={(action) => router.push(action.database_route)}
           />
         </section>

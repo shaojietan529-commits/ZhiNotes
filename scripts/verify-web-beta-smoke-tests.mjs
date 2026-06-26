@@ -62,6 +62,21 @@ const files = {
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
+  notesShell: "src/components/modules/NotesShell.tsx",
+  filesShell: "src/components/modules/FilesShell.tsx",
+  meetingsShell: "src/components/modules/MeetingsShell.tsx",
+  reportsShell: "src/components/modules/ReportsShell.tsx",
+  projectsShell: "src/components/modules/ProjectsShell.tsx",
+  moduleDashboard: "src/components/modules/ModuleDashboard.tsx",
+  companyResearchShell: "src/components/modules/CompanyResearchShell.tsx",
+  portfolioShell: "src/components/modules/PortfolioShell.tsx",
+  researchConnectionsPanel:
+    "src/components/modules/ResearchConnectionsPanel.tsx",
+  researchGraphShell: "src/components/modules/ResearchGraphShell.tsx",
+  industryChainShell: "src/components/modules/IndustryChainShell.tsx",
+  knowledgeBaseShell: "src/components/modules/KnowledgeBaseShell.tsx",
+  aiWorkbenchShell: "src/components/modules/AiWorkbenchShell.tsx",
+  pageImportPlanPanel: "src/components/modules/PageImportPlanPanel.tsx",
   moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
   pageRouteSkeleton: "src/components/page/PageRouteSkeleton.tsx",
   localPerformance: "src/lib/performance/localPerformance.ts",
@@ -317,6 +332,22 @@ function run() {
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
   const pageShell = readProjectFile(files.pageShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
+  const notesShell = readProjectFile(files.notesShell);
+  const filesShell = readProjectFile(files.filesShell);
+  const meetingsShell = readProjectFile(files.meetingsShell);
+  const reportsShell = readProjectFile(files.reportsShell);
+  const projectsShell = readProjectFile(files.projectsShell);
+  const moduleDashboard = readProjectFile(files.moduleDashboard);
+  const companyResearchShell = readProjectFile(files.companyResearchShell);
+  const portfolioShell = readProjectFile(files.portfolioShell);
+  const researchConnectionsPanel = readProjectFile(
+    files.researchConnectionsPanel
+  );
+  const researchGraphShell = readProjectFile(files.researchGraphShell);
+  const industryChainShell = readProjectFile(files.industryChainShell);
+  const knowledgeBaseShell = readProjectFile(files.knowledgeBaseShell);
+  const aiWorkbenchShell = readProjectFile(files.aiWorkbenchShell);
+  const pageImportPlanPanel = readProjectFile(files.pageImportPlanPanel);
   const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
   const pageRouteSkeleton = readProjectFile(files.pageRouteSkeleton);
   const localPerformance = readProjectFile(files.localPerformance);
@@ -2574,6 +2605,49 @@ function run() {
     'source: "child-page-open"',
     "Page position tree opens must use local-first page navigation."
   );
+  assertIncludes(
+    files.pageRouteHandoff,
+    pageRouteHandoff,
+    '"module-create"',
+    "Module-created pages must have an explicit local-first route handoff source."
+  );
+  assertIncludes(
+    files.pageRouteHandoff,
+    pageRouteHandoff,
+    '"module-open"',
+    "Module-opened pages must have an explicit local-first route handoff source."
+  );
+  for (const [sourceLabel, source, requiredSources] of [
+    [files.notesShell, notesShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.filesShell, filesShell, ['source: "module-create"']],
+    [files.meetingsShell, meetingsShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.reportsShell, reportsShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.projectsShell, projectsShell, ['source: "module-create"']],
+    [files.moduleDashboard, moduleDashboard, ['source: "module-create"']],
+    [files.companyResearchShell, companyResearchShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.portfolioShell, portfolioShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.researchConnectionsPanel, researchConnectionsPanel, ['source: "module-open"']],
+    [files.researchGraphShell, researchGraphShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.industryChainShell, industryChainShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.knowledgeBaseShell, knowledgeBaseShell, ['source: "module-open"']],
+    [files.aiWorkbenchShell, aiWorkbenchShell, ['source: "module-open"']],
+    [files.pageImportPlanPanel, pageImportPlanPanel, ['source: "module-create"']],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "useLocalFirstPageNavigation",
+      "Module page opens must use the shared local-first page navigation helper."
+    );
+    for (const sourceSnippet of requiredSources) {
+      assertIncludes(
+        sourceLabel,
+        source,
+        sourceSnippet,
+        "Module page opens must tag route handoff with module-create or module-open."
+      );
+    }
+  }
   if (usePage.includes("await pushCloudPages([record])")) {
     failures.push(
       "usePage should not await pushCloudPages during editor updates; edits must be local-first and pending-queue backed."

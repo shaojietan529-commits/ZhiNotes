@@ -36,6 +36,8 @@ export type PageRouteHandoffSource =
   | "quick-search-open"
   | "child-page-create"
   | "child-page-open"
+  | "module-create"
+  | "module-open"
   | "trash-restore-open"
   | "page-open";
 

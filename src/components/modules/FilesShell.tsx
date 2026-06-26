@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import PageImportPlanPanel from "@/components/modules/PageImportPlanPanel";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import {
   createPageWithCloud,
@@ -64,6 +65,7 @@ import {
 } from "@/lib/reports/reportIntake";
 import { buildReportReviewQueue } from "@/lib/reports/reportReviewQueue";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import type { Page } from "@/lib/utils/types";
 
 export default function FilesShell() {
   return (
@@ -92,6 +94,7 @@ function FilesContent() {
 
 function FilesDashboard() {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { refresh: refreshPages } = usePages({ autoLoad: false });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const zipPreviewInputRef = useRef<HTMLInputElement | null>(null);
@@ -289,7 +292,7 @@ function FilesDashboard() {
     setCreatingFilePages(true);
     setFilePageBatchMessage(null);
     try {
-      const createdPages: Array<{ id: string }> = [];
+      const createdPages: Page[] = [];
       let failed = 0;
 
       for (const file of selectedFiles) {
@@ -305,7 +308,7 @@ function FilesDashboard() {
 
       await Promise.all([loadStoredFiles(), refreshPages()]);
       if (selectedFiles.length === 1 && createdPages[0]) {
-        router.push(`/page/${createdPages[0].id}`);
+        openPage(createdPages[0], { source: "module-create" });
         return;
       }
 
@@ -335,7 +338,7 @@ function FilesDashboard() {
       title: buildFileLibraryPageTitle(storedFile),
       icon: "FILE",
     });
-    await updatePageWithCloud(page.id, {
+    const updatedPage = await updatePageWithCloud(page.id, {
       content_text: buildFileLibraryPageContent(storedFile),
     });
     const actionKind = getFileLibraryReceiptActionKind(storedFile);
@@ -353,7 +356,7 @@ function FilesDashboard() {
             : "文件已从文件模块创建为本地页面预览；没有上传、同步或调用 AI。",
       })
     );
-    return page;
+    return updatedPage ?? page;
   };
 
   const handleCreatePageForStoredFile = async (storedFile: StoredPageFile) => {
@@ -362,7 +365,7 @@ function FilesDashboard() {
     try {
       const page = await createFileLibraryPageFromStoredFile(storedFile);
       await refreshPages();
-      router.push(`/page/${page.id}`);
+      openPage(page, { source: "module-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to create page for stored file:", err);
       window.alert(

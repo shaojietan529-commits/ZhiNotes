@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import {
   updateWikiLinks,
@@ -76,7 +76,7 @@ const SECTOR_THEMES = [
 type SectorTheme = (typeof SECTOR_THEMES)[number];
 
 export default function IndustryChainShell() {
-  const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const { pages, refresh } = usePages();
   const [rootId, setRootId] = useState<string | null>(null);
@@ -135,9 +135,9 @@ export default function IndustryChainShell() {
         title: "未命名分类",
       });
       await refresh();
-      if (navigate) router.push(`/page/${child.id}`);
+      if (navigate) openPage(child, { source: "module-create" });
     },
-    [refresh, router]
+    [openPage, refresh]
   );
 
   const renameNode = useCallback(
@@ -191,9 +191,12 @@ export default function IndustryChainShell() {
       const targetId = page
         ? resolveIndustryNodeTargetPageId(page, pages)
         : id;
-      router.push(`/page/${targetId}`);
+      openPage(
+        pages.find((candidate) => candidate.id === targetId) ?? targetId,
+        { source: "module-open" }
+      );
     },
-    [pages, router]
+    [openPage, pages]
   );
 
   return (
@@ -279,8 +282,8 @@ export default function IndustryChainShell() {
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
-          onOpen={(id) => router.push(`/page/${id}`)}
-          onOpenFull={(id) => router.push(`/page/${id}`)}
+          onOpen={openIndustryNode}
+          onOpenFull={openIndustryNode}
           onChanged={() => void refresh()}
         />
       )}

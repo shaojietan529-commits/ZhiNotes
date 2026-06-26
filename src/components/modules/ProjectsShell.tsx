@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useDatabases } from "@/hooks/useDatabases";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import { addRow } from "@/lib/database/cloudDatabaseMutations";
@@ -65,6 +66,7 @@ function ProjectsContent() {
 
 function ProjectsDashboard() {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { pages, refresh: refreshPages } = usePages();
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
@@ -139,11 +141,11 @@ function ProjectsDashboard() {
         title: buildResearchProjectPageTitle(projectBrief),
         icon: "PRJ",
       });
-      await updatePageWithCloud(page.id, {
+      const updatedPage = await updatePageWithCloud(page.id, {
         content_text: buildResearchProjectBriefPageHtml(projectBrief),
       });
       await refreshPages();
-      router.push(`/page/${page.id}`);
+      openPage(updatedPage ?? page, { source: "module-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to create project page:", err);
       window.alert("投研项目页创建失败，请查看控制台。");
@@ -236,7 +238,11 @@ function ProjectsDashboard() {
       const result = await executeModuleStarter(starter);
       await refreshDatabases();
       await refreshPages();
-      router.push(result.route);
+      if (result.page) {
+        openPage(result.page, { source: "module-create" });
+      } else {
+        router.push(result.route);
+      }
     } catch (err) {
       console.error("[Zhinote] Failed to run project starter:", err);
       window.alert("投研项目模块动作失败，请查看控制台。");

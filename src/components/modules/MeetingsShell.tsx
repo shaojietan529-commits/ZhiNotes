@@ -12,6 +12,7 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { useDatabases } from "@/hooks/useDatabases";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import { addRow } from "@/lib/database/cloudDatabaseMutations";
@@ -140,6 +141,7 @@ function MeetingsContent() {
 
 function MeetingsDashboard() {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { pages, refresh } = usePages({ includeContent: true });
   const transcriptFileInputRef = useRef<HTMLInputElement | null>(null);
   const { databases, refresh: refreshDatabases } = useDatabases();
@@ -243,7 +245,11 @@ function MeetingsDashboard() {
       if (result.database) {
         await refreshDatabases();
       }
-      router.push(result.route);
+      if (result.page) {
+        openPage(result.page, { source: "module-create" });
+      } else {
+        router.push(result.route);
+      }
     } catch (err) {
       console.error("[Zhinote] Failed to run meeting starter:", err);
       window.alert("会议动作失败，请查看控制台。");
@@ -285,7 +291,7 @@ function MeetingsDashboard() {
 
       await refresh();
       if (selectedFiles.length === 1 && createdPages[0]) {
-        router.push(`/page/${createdPages[0].id}`);
+        openPage(createdPages[0], { source: "module-create" });
         return;
       }
 
@@ -317,7 +323,7 @@ function MeetingsDashboard() {
       title: buildMeetingTranscriptPageTitle(storedFile),
       icon: "TRN",
     });
-    await updatePageWithCloud(page.id, {
+    const updatedPage = await updatePageWithCloud(page.id, {
       content_text: buildMeetingTranscriptPageContent(storedFile),
     });
     appendFilePreviewActionReceipt(
@@ -334,7 +340,7 @@ function MeetingsDashboard() {
             : "会议文件已从会议模块创建为本地页面预览；没有上传、转写或调用 AI。",
       })
     );
-    return page;
+    return updatedPage ?? page;
   };
 
   const handleExportFollowUp = () => {
@@ -1323,7 +1329,7 @@ function MeetingsDashboard() {
               id: page.id,
               label: page.title || "未命名会议纪要",
               meta: formatUpdated(page.updated_at),
-              onOpen: () => router.push(`/page/${page.id}`),
+              onOpen: () => openPage(page, { source: "module-open" }),
             }))}
           />
           <ResourceList

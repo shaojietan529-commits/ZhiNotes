@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getAllDatabases } from "@/lib/db/local/queries";
 import { listStoredPageFiles, type StoredPageFile } from "@/lib/files/localStore";
@@ -87,6 +88,7 @@ function AiWorkbenchContent() {
 
 function AiWorkbenchDashboard() {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { pages } = usePages();
   const [databases, setDatabases] = useState<Database[]>([]);
   const [storedFiles, setStoredFiles] = useState<StoredPageFile[]>([]);
@@ -670,7 +672,7 @@ function AiWorkbenchDashboard() {
                     page={page}
                     selected={selectedPageIds.includes(page.id)}
                     onToggle={() => togglePage(page.id)}
-                    onOpen={() => router.push(`/page/${page.id}`)}
+                    onOpen={() => openPage(page, { source: "module-open" })}
                   />
                 ))
               ) : (

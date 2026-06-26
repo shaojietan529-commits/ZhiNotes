@@ -13,6 +13,7 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { useDatabases } from "@/hooks/useDatabases";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import {
   getFields,
@@ -177,6 +178,7 @@ function ReportsContent() {
 
 function ReportsDashboard() {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { pages, refresh } = usePages({ includeContent: true });
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -336,7 +338,11 @@ function ReportsDashboard() {
       if (result.database) {
         await refreshDatabases();
       }
-      router.push(result.route);
+      if (result.page) {
+        openPage(result.page, { source: "module-create" });
+      } else {
+        router.push(result.route);
+      }
     } catch (err) {
       console.error("[Zhinote] Failed to run report starter:", err);
       window.alert("报告库动作失败，请查看控制台。");
@@ -379,7 +385,7 @@ function ReportsDashboard() {
 
       await refresh();
       if (selectedFiles.length === 1 && createdPages[0]) {
-        router.push(`/page/${createdPages[0].id}`);
+        openPage(createdPages[0], { source: "module-create" });
         return;
       }
 
@@ -409,7 +415,7 @@ function ReportsDashboard() {
       title: reportPageTitleFromStoredFile(storedFile),
       icon: "RPT",
     });
-    await updatePageWithCloud(page.id, {
+    const updatedPage = await updatePageWithCloud(page.id, {
       content_text: createReportPageContent(storedFile),
     });
     appendFilePreviewActionReceipt(
@@ -426,7 +432,7 @@ function ReportsDashboard() {
             : "报告文件已从报告库模块创建为本地页面预览。",
       })
     );
-    return page;
+    return updatedPage ?? page;
   };
 
   const handleMarkdownFileSelected = async (
@@ -454,7 +460,7 @@ function ReportsDashboard() {
         icon: "MD",
       });
       const contentHtml = createMarkdownImportedPageContent(storedFile, pages);
-      await updatePageWithCloud(page.id, {
+      const updatedPage = await updatePageWithCloud(page.id, {
         content_text: contentHtml,
       });
       await updateWikiLinks(page.id, extractLinkedPageIdsFromHtml(contentHtml));
@@ -470,7 +476,7 @@ function ReportsDashboard() {
         })
       );
       await refresh();
-      router.push(`/page/${page.id}`);
+      openPage(updatedPage ?? page, { source: "module-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to import markdown note:", err);
       window.alert(
@@ -935,7 +941,9 @@ function ReportsDashboard() {
                     <ReportReviewQueueItemCard
                       key={item.id}
                       item={item}
-                      onOpen={() => router.push(`/page/${item.page_id}`)}
+                      onOpen={() =>
+                        openPage(item.page_id, { source: "module-open" })
+                      }
                     />
                   ))}
                 </div>
@@ -1135,7 +1143,7 @@ function ReportsDashboard() {
                 <ReportIntakeItemCard
                   key={item.id}
                   item={item}
-                  onOpen={() => router.push(`/page/${item.page_id}`)}
+                  onOpen={() => openPage(item.page_id, { source: "module-open" })}
                 />
               ))}
             </div>
@@ -1222,7 +1230,11 @@ function ReportsDashboard() {
                     <ReportConnectionSuggestionCard
                       key={suggestion.id}
                       suggestion={suggestion}
-                      onOpenReport={() => router.push(`/page/${suggestion.report_page_id}`)}
+                      onOpenReport={() =>
+                        openPage(suggestion.report_page_id, {
+                          source: "module-open",
+                        })
+                      }
                       onOpenRoute={(route) => router.push(route)}
                     />
                   ))}
@@ -1314,7 +1326,7 @@ function ReportsDashboard() {
                   trackerReady={reportTrackers.length > 0}
                   busy={trackerIntakeBusyId === item.id}
                   onCreate={() => void handleCreateTrackerRow(item)}
-                  onOpen={() => router.push(`/page/${item.page_id}`)}
+                  onOpen={() => openPage(item.page_id, { source: "module-open" })}
                 />
               ))}
             </div>
@@ -1875,7 +1887,7 @@ function ReportsDashboard() {
               id: page.id,
               label: page.title || "未命名研究报告",
               meta: formatUpdated(page.updated_at),
-              onOpen: () => router.push(`/page/${page.id}`),
+              onOpen: () => openPage(page, { source: "module-open" }),
             }))}
           />
           <ResourceList

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import {
   buildPageImportPlan,
@@ -75,7 +75,7 @@ function downloadJson(fileName: string, value: unknown) {
  * bytes, create pages/databases, upload, or call AI.
  */
 export default function PageImportPlanPanel() {
-  const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { refresh: refreshPages } = usePages({ autoLoad: false });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [plan, setPlan] = useState<PageImportPlan | null>(null);
@@ -125,7 +125,7 @@ export default function PageImportPlanPanel() {
       setResult(res);
       await refreshPages();
       if (res.status === "completed" && res.first_page_id) {
-        router.push(`/page/${res.first_page_id}`);
+        openPage(res.first_page_id, { source: "module-create" });
       }
     } catch (err) {
       console.error("[Zhinote] import execution error:", err);

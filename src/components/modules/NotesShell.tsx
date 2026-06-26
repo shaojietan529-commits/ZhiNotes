@@ -17,6 +17,7 @@ import {
   type PageModuleCounts,
 } from "@/lib/db/local/queries";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import {
   buildNotesModuleWorkbenchReport,
@@ -171,6 +172,7 @@ function NotesContent() {
 
 function NotesDashboard() {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { pages, refresh } = usePages({ includeContent: true });
   const { favoriteIds } = usePageFavorites();
   const [counts, setCounts] = useState<Record<string, PageModuleCounts>>({});
@@ -274,7 +276,7 @@ function NotesDashboard() {
       });
       await refresh();
       await loadCounts();
-      router.push(`/page/${page.id}`);
+      openPage(page, { source: "module-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to create note page:", err);
       window.alert("笔记创建失败，请查看控制台。");
@@ -297,7 +299,11 @@ function NotesDashboard() {
       });
       await refresh();
       await loadCounts();
-      router.push(result.route);
+      if (result.page) {
+        openPage(result.page, { source: "module-create" });
+      } else {
+        router.push(result.route);
+      }
     } catch (err) {
       console.error("[Zhinote] Failed to create template note:", err);
       window.alert("模板笔记创建失败，请查看控制台。");
@@ -473,7 +479,7 @@ function NotesDashboard() {
           report={syncedBlockRegistry}
           exporting={exportingSyncedRegistry}
           onExport={handleExportSyncedRegistry}
-          onOpenPage={(pageId) => router.push(`/page/${pageId}`)}
+          onOpenPage={(pageId) => openPage(pageId, { source: "module-open" })}
         />
 
         <NotesWorkbenchPanel

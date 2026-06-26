@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useDatabases } from "@/hooks/useDatabases";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import {
   MODULE_EXTENSION_SLOTS,
@@ -56,6 +57,7 @@ const STATUS_ORDER: ModuleStatus[] = ["active", "beta", "planned"];
 
 export default function ModuleDashboard() {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { pages, refresh } = usePages();
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [exportingManifest, setExportingManifest] = useState(false);
@@ -96,7 +98,7 @@ export default function ModuleDashboard() {
   const handleNewPage = async () => {
     const page = await createPageWithCloud({ title: "未命名研究笔记" });
     await refresh();
-    router.push(`/page/${page.id}`);
+    openPage(page, { source: "module-create" });
   };
 
   const handleNewDatabase = async () => {
@@ -113,7 +115,11 @@ export default function ModuleDashboard() {
       await refreshDatabases();
     }
     await refresh();
-    router.push(result.route);
+    if (result.page) {
+      openPage(result.page, { source: "module-create" });
+    } else {
+      router.push(result.route);
+    }
   };
 
   const handleExportManifest = () => {

@@ -8,9 +8,9 @@
 // stay in browser IndexedDB (no upload, no AI, no external fetch).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import {
   getNextPosition,
@@ -78,7 +78,7 @@ function fileKindIcon(kind: PageFileKind): string {
 }
 
 export default function KnowledgeBaseShell() {
-  const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const { pages, refresh } = usePages();
   const [rootId, setRootId] = useState<string | null>(null);
@@ -141,6 +141,15 @@ export default function KnowledgeBaseShell() {
     () =>
       peekPageId ? pages.find((page) => page.id === peekPageId) ?? null : null,
     [pages, peekPageId]
+  );
+  const pagesById = useMemo(() => new Map(pages.map((page) => [page.id, page])), [
+    pages,
+  ]);
+  const openKnowledgePage = useCallback(
+    (id: string) => {
+      openPage(pagesById.get(id) ?? id, { source: "module-open" });
+    },
+    [openPage, pagesById]
   );
 
   // New cards start untitled and icon-less (Notion-style); the title input
@@ -423,7 +432,7 @@ export default function KnowledgeBaseShell() {
                   dropSpot={dropSpot?.pageId === card.id ? dropSpot : null}
                   anyDragging={draggedId !== null}
                   onOpen={(id) => setPeekPageId(id)}
-                  onOpenFull={(id) => router.push(`/page/${id}`)}
+                  onOpenFull={openKnowledgePage}
                   onRename={(id, title) => void renameCard(id, title)}
                   onImport={(id) => pickFilesFor(id)}
                   onLinkIndustry={(id) => setIndustryLinkCardId(id)}
@@ -451,7 +460,7 @@ export default function KnowledgeBaseShell() {
           pageId={peekPageId}
           initialPage={peekPage}
           onClose={() => setPeekPageId(null)}
-          onOpenFull={(id) => router.push(`/page/${id}`)}
+          onOpenFull={openKnowledgePage}
           onChanged={() => void refresh()}
         />
       )}
@@ -463,7 +472,7 @@ export default function KnowledgeBaseShell() {
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
           onOpen={(id) => setPeekPageId(id)}
-          onOpenFull={(id) => router.push(`/page/${id}`)}
+          onOpenFull={openKnowledgePage}
           onChanged={() => void refresh()}
         />
       )}

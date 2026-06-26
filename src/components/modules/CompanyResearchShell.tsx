@@ -7,6 +7,7 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { useDatabases } from "@/hooks/useDatabases";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import { addRow } from "@/lib/database/cloudDatabaseMutations";
@@ -116,6 +117,7 @@ function CompanyResearchContent() {
 
 function CompanyResearchDashboard() {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const { pages, refresh } = usePages({ includeContent: true });
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -223,7 +225,11 @@ function CompanyResearchDashboard() {
       if (result.database) {
         await refreshDatabases();
       }
-      router.push(result.route);
+      if (result.page) {
+        openPage(result.page, { source: "module-create" });
+      } else {
+        router.push(result.route);
+      }
     } catch (err) {
       console.error("[Zhinote] Failed to run company starter:", err);
       window.alert("公司研究动作失败，请查看控制台。");
@@ -716,7 +722,7 @@ function CompanyResearchDashboard() {
                   trackerReady={companyTrackers.length > 0}
                   busy={trackerIntakeBusyId === item.page_id}
                   onCreate={() => void handleCreateTrackerRow(item)}
-                  onOpen={() => router.push(`/page/${item.page_id}`)}
+                  onOpen={() => openPage(item.page_id, { source: "module-open" })}
                 />
               ))}
             </div>
@@ -1001,7 +1007,7 @@ function CompanyResearchDashboard() {
               id: page.id,
               label: page.title || "未命名公司研究",
               meta: formatUpdated(page.updated_at),
-              onOpen: () => router.push(`/page/${page.id}`),
+              onOpen: () => openPage(page, { source: "module-open" }),
             }))}
           />
           <ResourceList
