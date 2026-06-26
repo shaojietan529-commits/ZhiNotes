@@ -95,6 +95,33 @@ interface EditorProps {
   onUpdate?: (html: string, text: string, linkedPageIds: string[]) => void;
 }
 
+const CODE_BLOCK_LANGUAGE_OPTIONS = [
+  { label: "Plain", value: "text" },
+  { label: "JavaScript", value: "javascript" },
+  { label: "TypeScript", value: "typescript" },
+  { label: "Python", value: "python" },
+  { label: "SQL", value: "sql" },
+  { label: "HTML", value: "html" },
+  { label: "CSS", value: "css" },
+  { label: "JSON", value: "json" },
+  { label: "Markdown", value: "markdown" },
+  { label: "YAML", value: "yaml" },
+  { label: "XML", value: "xml" },
+  { label: "Shell", value: "bash" },
+  { label: "LaTeX", value: "latex" },
+  { label: "BibTeX", value: "bibtex" },
+  { label: "Mermaid", value: "mermaid" },
+  { label: "RIS", value: "ris" },
+  { label: "Julia", value: "julia" },
+  { label: "SAS", value: "sas" },
+  { label: "Stata", value: "stata" },
+  { label: "Log", value: "log" },
+];
+
+const CODE_BLOCK_LANGUAGE_VALUES = CODE_BLOCK_LANGUAGE_OPTIONS.map(
+  (option) => option.value
+).join(",");
+
 export interface EditorRef {
   insertSubPageLink: (childId: string, childTitle: string) => string | undefined;
   insertInlineDatabase: (databaseId: string) => string | undefined;
@@ -584,6 +611,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         <div
           className="zhinote-editor-surface"
           data-editable={editable ? "true" : "false"}
+          data-code-languages={CODE_BLOCK_LANGUAGE_VALUES}
         >
           <BlockDragHandleLayer editor={editor} editable={editable} />
           <CodeBlockCopyLayer editor={editor} />

@@ -1436,7 +1436,8 @@ function run() {
     "FilePreviewRoutingReviewStepCard",
     "FilePreviewRoutingStatusPill",
     "buildFilesModuleIntakeReport",
-    "listStoredPageFiles",
+    "listStoredPageFileMetadata",
+    "getStoredPageFile",
     "文件库中心",
     "文件工作台",
     "文件预览路由总控",
@@ -1502,6 +1503,34 @@ function run() {
       "Files module UI must render the local file workbench, routes, and safety boundary."
     );
   }
+  for (const snippet of [
+    "DB_VERSION = 2",
+    'METADATA_STORE_NAME = "file_metadata"',
+    "StoredPageFileMetadata",
+    "listStoredPageFileMetadata",
+    "toStoredPageFileMetadata",
+    "writeStoredPageFileMetadata",
+    "hasTextContent",
+  ]) {
+    assertIncludes(
+      files.localStore,
+      localStore,
+      snippet,
+      "Local file storage must keep a metadata-only index for fast file-library first paint."
+    );
+  }
+  assertIncludes(
+    files.filesShell,
+    filesShell,
+    "getStoredPageFile(fileId)",
+    "Files module must load full file payload only for a specific local-file action."
+  );
+  assertIncludes(
+    files.fileLibrary,
+    fileLibrary,
+    "type StoredPageFileMetadata",
+    "File Library workbench must be computed from metadata instead of full file payload records."
+  );
   assertIncludes(
     files.filesRoute,
     filesRoute,
@@ -1700,7 +1729,7 @@ function run() {
   }
   for (const snippet of [
     "fileInputRef",
-    "storedFileById",
+    "getStoredPageFile(fileId)",
     "handleChooseFiles",
     "handleFilesSelected",
     "handleCreatePageForStoredFile",

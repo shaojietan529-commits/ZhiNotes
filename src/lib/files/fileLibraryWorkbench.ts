@@ -5,7 +5,7 @@ import {
 import {
   formatFileSize,
   type PageFileKind,
-  type StoredPageFile,
+  type StoredPageFileMetadata,
 } from "@/lib/files/localStore";
 
 export type FileLibraryLaneId =
@@ -301,7 +301,7 @@ const FORBIDDEN_ACTIONS = [
 ];
 
 export function buildFileLibraryWorkbenchReport(
-  storedFiles: StoredPageFile[]
+  storedFiles: StoredPageFileMetadata[]
 ): FileLibraryWorkbenchReport {
   const fileItems = storedFiles
     .map((file, index) => buildFileItem(file, index))
@@ -648,7 +648,10 @@ function buildDecisionSummary(
   };
 }
 
-function buildFileItem(file: StoredPageFile, index: number): FileLibraryFileItem {
+function buildFileItem(
+  file: StoredPageFileMetadata,
+  index: number
+): FileLibraryFileItem {
   const capability = getCapabilityForKind(file.kind);
   const supportLevel = capability?.support_level ?? "unknown";
   const laneId = getLaneForKind(file.kind, supportLevel);
@@ -687,7 +690,7 @@ function buildFileItem(file: StoredPageFile, index: number): FileLibraryFileItem
 }
 
 function buildFormatGroups(
-  storedFiles: StoredPageFile[]
+  storedFiles: StoredPageFileMetadata[]
 ): FileLibraryFormatGroup[] {
   return FILE_PREVIEW_CAPABILITIES.map((capability) => {
     const localFileCount = storedFiles.filter((file) =>
@@ -1038,7 +1041,7 @@ function isEditableImportCandidate(kind: PageFileKind) {
   ].includes(kind);
 }
 
-function isLegacyRetainCandidate(file: StoredPageFile) {
+function isLegacyRetainCandidate(file: Pick<StoredPageFileMetadata, "name">) {
   const name = file.name.toLowerCase();
   return name.endsWith(".doc") || name.endsWith(".ppt");
 }

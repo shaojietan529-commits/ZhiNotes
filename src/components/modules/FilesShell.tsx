@@ -43,9 +43,11 @@ import {
 } from "@/lib/files/filePreviewRouting";
 import {
   formatFileSize,
-  listStoredPageFiles,
+  getStoredPageFile,
+  listStoredPageFileMetadata,
   savePageFile,
   type StoredPageFile,
+  type StoredPageFileMetadata,
 } from "@/lib/files/localStore";
 import {
   buildFileLibraryPageContent,
@@ -98,7 +100,7 @@ function FilesDashboard() {
   const { refresh: refreshPages } = usePages({ autoLoad: false });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const zipPreviewInputRef = useRef<HTMLInputElement | null>(null);
-  const [storedFiles, setStoredFiles] = useState<StoredPageFile[]>([]);
+  const [storedFiles, setStoredFiles] = useState<StoredPageFileMetadata[]>([]);
   const [fileFilterId, setFileFilterId] = useState<FileLibraryFilterId>("all");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exportingWorkbench, setExportingWorkbench] = useState(false);
@@ -121,7 +123,7 @@ function FilesDashboard() {
   const loadStoredFiles = useCallback(async () => {
     try {
       setLoadError(null);
-      setStoredFiles(await listStoredPageFiles());
+      setStoredFiles(await listStoredPageFileMetadata());
     } catch (err) {
       console.error("[Zhinote] Failed to load file library:", err);
       setLoadError("无法加载本地文件库。");
@@ -169,10 +171,6 @@ function FilesDashboard() {
 
   const fileNameById = useMemo(
     () => new Map(storedFiles.map((file) => [file.id, file.name])),
-    [storedFiles]
-  );
-  const storedFileById = useMemo(
-    () => new Map(storedFiles.map((file) => [file.id, file])),
     [storedFiles]
   );
   const filteredFiles = useMemo(
@@ -359,10 +357,17 @@ function FilesDashboard() {
     return updatedPage ?? page;
   };
 
-  const handleCreatePageForStoredFile = async (storedFile: StoredPageFile) => {
-    setCreatingExistingFilePageId(storedFile.id);
+  const handleCreatePageForStoredFile = async (fileId: string) => {
+    setCreatingExistingFilePageId(fileId);
     setFilePageBatchMessage(null);
     try {
+      const storedFile = await getStoredPageFile(fileId);
+      if (!storedFile) {
+        window.alert(
+          "这个本地文件的完整内容没有找到。文件没有上传；请重新选择或刷新文件库。"
+        );
+        return;
+      }
       const page = await createFileLibraryPageFromStoredFile(storedFile);
       await refreshPages();
       openPage(page, { source: "module-create" });
@@ -703,10 +708,9 @@ function FilesDashboard() {
                     key={file.local_file_id}
                     item={file}
                     localName={fileNameById.get(file.local_file_id) ?? file.display_label}
-                    storedFile={storedFileById.get(file.local_file_id) ?? null}
                     creatingPage={creatingExistingFilePageId === file.local_file_id}
-                    onCreatePage={(storedFile) =>
-                      void handleCreatePageForStoredFile(storedFile)
+                    onCreatePage={(fileId) =>
+                      void handleCreatePageForStoredFile(fileId)
                     }
                   />
                 ))
@@ -1814,15 +1818,13 @@ function FileFormatGroupCard({
 function FileCard({
   item,
   localName,
-  storedFile,
   creatingPage,
   onCreatePage,
 }: {
   item: FileLibraryFileItem;
   localName: string;
-  storedFile: StoredPageFile | null;
   creatingPage: boolean;
-  onCreatePage: (storedFile: StoredPageFile) => void;
+  onCreatePage: (fileId: string) => void;
 }) {
   return (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -1853,8 +1855,8 @@ function FileCard({
       <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-800">
         <button
           type="button"
-          onClick={() => storedFile && onCreatePage(storedFile)}
-          disabled={!storedFile || creatingPage}
+          onClick={() => onCreatePage(item.local_file_id)}
+          disabled={creatingPage}
           className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
         >
           {creatingPage ? "创建中..." : "从本地文件创建 Page"}
@@ -1954,7 +1956,7 @@ function getForbiddenActionLabel(action: string): string {
 }
 
 function buildFilesModuleIntakeReport(
-  storedFiles: StoredPageFile[]
+  storedFiles: StoredPageFileMetadata[]
 ): ReportIntakeReport {
   const items = storedFiles.map((file, index) => {
     const capability = getFilePreviewCapabilityByKind(file.kind);

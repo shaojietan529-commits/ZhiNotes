@@ -54,6 +54,7 @@ const files = {
     "src/hooks/useMeetingDeletionTombstonesPreference.ts",
   localSchema: "src/lib/db/local/schema.ts",
   localQueries: "src/lib/db/local/queries.ts",
+  fileLocalStore: "src/lib/files/localStore.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
@@ -337,6 +338,7 @@ function run() {
   );
   const localSchema = readProjectFile(files.localSchema);
   const localQueries = readProjectFile(files.localQueries);
+  const fileLocalStore = readProjectFile(files.fileLocalStore);
   const databaseShell = readProjectFile(files.databaseShell);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
@@ -985,6 +987,30 @@ function run() {
     databaseRouteSkeleton,
     "aria-live",
     "Database loading shell must announce loading progress accessibly."
+  );
+  assertIncludes(
+    files.fileLocalStore,
+    fileLocalStore,
+    'METADATA_STORE_NAME = "file_metadata"',
+    "File library first paint must have a metadata-only IndexedDB index."
+  );
+  assertIncludes(
+    files.fileLocalStore,
+    fileLocalStore,
+    "listStoredPageFileMetadata",
+    "File library must be able to list local file metadata without loading every file payload."
+  );
+  assertIncludes(
+    files.filesShell,
+    filesShell,
+    "listStoredPageFileMetadata",
+    "Files module must render its workbench from file metadata first."
+  );
+  assertIncludes(
+    files.filesShell,
+    filesShell,
+    "getStoredPageFile(fileId)",
+    "Files module must defer full file payload reads until a single-file action."
   );
 
   for (const { path: routeFile, guard } of gatedOrDisabledApiRoutes) {
@@ -3674,6 +3700,7 @@ function run() {
     hot_cache_policy_checks: 6,
     hot_cache_selection_checks: 14,
     hot_data_plan_checks: 10,
+    file_metadata_first_paint_checks: 4,
   };
 
   if (failures.length > 0) {

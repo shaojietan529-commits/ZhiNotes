@@ -3,8 +3,9 @@
 import { nanoid } from "nanoid";
 
 const DB_NAME = "zhinote-files";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "files";
+const METADATA_STORE_NAME = "file_metadata";
 const TEXT_FILE_EXTENSIONS = [
   ".txt",
   ".text",
@@ -133,6 +134,16 @@ export interface StoredPageFile {
   createdAt: string;
 }
 
+export interface StoredPageFileMetadata {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  kind: PageFileKind;
+  createdAt: string;
+  hasTextContent: boolean;
+}
+
 let dbPromise: Promise<IDBDatabase> | null = null;
 
 function openFilesDb(): Promise<IDBDatabase> {
@@ -150,6 +161,9 @@ function openFilesDb(): Promise<IDBDatabase> {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(METADATA_STORE_NAME)) {
+        db.createObjectStore(METADATA_STORE_NAME, { keyPath: "id" });
       }
     };
 
@@ -407,8 +421,9 @@ export async function savePageFile(file: File): Promise<StoredPageFile> {
   const db = await openFilesDb();
 
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
+    const tx = db.transaction([STORE_NAME, METADATA_STORE_NAME], "readwrite");
     tx.objectStore(STORE_NAME).put(storedFile);
+    tx.objectStore(METADATA_STORE_NAME).put(toStoredPageFileMetadata(storedFile));
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -438,5 +453,55 @@ export async function listStoredPageFiles(): Promise<StoredPageFile[]> {
     const request = tx.objectStore(STORE_NAME).getAll();
     request.onsuccess = () => resolve(request.result as StoredPageFile[]);
     request.onerror = () => reject(request.error);
+  });
+}
+
+export async function listStoredPageFileMetadata(): Promise<
+  StoredPageFileMetadata[]
+> {
+  const db = await openFilesDb();
+  const metadata = await new Promise<StoredPageFileMetadata[]>(
+    (resolve, reject) => {
+      const tx = db.transaction(METADATA_STORE_NAME, "readonly");
+      const request = tx.objectStore(METADATA_STORE_NAME).getAll();
+      request.onsuccess = () =>
+        resolve(request.result as StoredPageFileMetadata[]);
+      request.onerror = () => reject(request.error);
+    }
+  );
+  if (metadata.length > 0) return metadata;
+
+  const legacyFiles = await listStoredPageFiles();
+  if (legacyFiles.length === 0) return [];
+  const legacyMetadata = legacyFiles.map(toStoredPageFileMetadata);
+  await writeStoredPageFileMetadata(legacyMetadata);
+  return legacyMetadata;
+}
+
+function toStoredPageFileMetadata(file: StoredPageFile): StoredPageFileMetadata {
+  return {
+    id: file.id,
+    name: file.name,
+    mimeType: file.mimeType,
+    size: file.size,
+    kind: file.kind,
+    createdAt: file.createdAt,
+    hasTextContent: Boolean(file.textContent),
+  };
+}
+
+async function writeStoredPageFileMetadata(
+  metadata: StoredPageFileMetadata[]
+): Promise<void> {
+  if (metadata.length === 0) return;
+  const db = await openFilesDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(METADATA_STORE_NAME, "readwrite");
+    const store = tx.objectStore(METADATA_STORE_NAME);
+    for (const item of metadata) {
+      store.put(item);
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
