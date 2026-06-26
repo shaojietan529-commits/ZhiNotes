@@ -600,6 +600,31 @@ export default function MeetingScheduleShell() {
     markMeetingSeen(id);
   }, [markMeetingSeen]);
 
+  const writeOptimisticMeetingHotCache = useCallback(
+    (page: Page, rootHint: string | null) => {
+      const visibleRange = buildMonthGrid(viewMonth);
+      const startDate = toDateKey(visibleRange[0].date);
+      const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
+      const pages = mergeMeetingPages(
+        [page],
+        meetingsRef.current,
+        deletedTombstoneRef.current
+      ).filter((item) => {
+        const dateKey = toMeetingEntry(item).dateKey;
+        return dateKey >= startDate && dateKey <= endDate;
+      });
+
+      writeMeetingHotCacheSnapshot({
+        startDate,
+        endDate,
+        rootId: rootHint,
+        pages,
+        source: "optimistic-local",
+      });
+    },
+    [deletedTombstoneRef, viewMonth]
+  );
+
   // 会议纪要 only lists meetings that are actually done: the recording
   // succeeded or the meeting is marked 已完成 (which is when the note/纪要 has
   // been produced). Pending/upcoming meetings stay out of this list — they
@@ -684,9 +709,7 @@ export default function MeetingScheduleShell() {
       draft: MeetingFormState,
       options: CreateMeetingOptions = {}
     ): Promise<CreateMeetingResult> => {
-      if (!rootId) {
-        throw new Error("会议模块还在加载，请等页面完成加载后再导入。");
-      }
+      const optimisticRootId = rootId ?? getModuleRootIdSync("meeting-schedule");
       const topic = draft.topic.trim() || "未命名会议";
       const organizer = draft.organizer.trim();
       const title = [topic, organizer, draft.date].filter(Boolean).join("-");
@@ -849,13 +872,13 @@ export default function MeetingScheduleShell() {
       const now = new Date().toISOString();
       const optimisticPage = makeCloudOnlyPage({
         id: generateId(),
-        parentId: rootId,
+        parentId: optimisticRootId,
         title,
         icon: "🗓️",
         contentText,
         properties: stringifyPageProperties(props),
         position: Date.now(),
-        depth: 1,
+        depth: optimisticRootId ? 1 : 0,
         now,
       });
       const queueResult: QueueResult | undefined = options.enqueueRecording
@@ -870,18 +893,24 @@ export default function MeetingScheduleShell() {
       upsertPages([optimisticPage]);
       rememberPendingPageDraft(optimisticPage);
       rememberPageRouteHandoff(optimisticPage, "meeting-create");
+      writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);
       void seedMeetingPageForImmediateOpen(optimisticPage);
 
       void (async () => {
         let finalPage = optimisticPage;
         try {
+          const resolvedRootId =
+            rootId ??
+            getModuleRootIdSync("meeting-schedule") ??
+            (await getModuleRootId("meeting-schedule"));
+          if (!rootId) setRootId(resolvedRootId);
           const latestPage = await getLatestOpenedMeetingPage(optimisticPage);
           finalPage = {
             ...latestPage,
-            parent_id: rootId,
+            parent_id: resolvedRootId,
             depth: 1,
             updated_at:
-              latestPage.parent_id === rootId
+              latestPage.parent_id === resolvedRootId
                 ? latestPage.updated_at
                 : new Date().toISOString(),
           };
@@ -889,7 +918,12 @@ export default function MeetingScheduleShell() {
           upsertPages([finalPage]);
           rememberPendingPageDraft(finalPage);
           rememberPageRouteHandoff(finalPage, "meeting-create");
-          await persistOptimisticMeetingPage(rootId, finalPage, upsertPages);
+          writeOptimisticMeetingHotCache(finalPage, resolvedRootId);
+          await persistOptimisticMeetingPage(
+            resolvedRootId,
+            finalPage,
+            upsertPages
+          );
 
           if (options.enqueueRecording) {
             const actualQueueResult = await enqueueMeetingRecordingRequest(
@@ -931,7 +965,12 @@ export default function MeetingScheduleShell() {
             upsertPages([finalPage]);
             rememberPendingPageDraft(finalPage);
             rememberPageRouteHandoff(finalPage, "meeting-create");
-            await persistOptimisticMeetingPage(rootId, finalPage, upsertPages);
+            writeOptimisticMeetingHotCache(finalPage, resolvedRootId);
+            await persistOptimisticMeetingPage(
+              resolvedRootId,
+              finalPage,
+              upsertPages
+            );
           }
 
           await load({ includeCloud: false });
@@ -945,7 +984,14 @@ export default function MeetingScheduleShell() {
 
       return { page: optimisticPage, queueResult };
     },
-    [rootId, upsertMeetingInView, upsertPages, refresh, load]
+    [
+      rootId,
+      upsertMeetingInView,
+      upsertPages,
+      writeOptimisticMeetingHotCache,
+      refresh,
+      load,
+    ]
   );
 
   const handleCreate = useCallback(async () => {

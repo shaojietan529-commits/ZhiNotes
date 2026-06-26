@@ -1481,6 +1481,30 @@ function run() {
     "Meeting schedule must refresh the local hot cache snapshot after metadata loads."
   );
   assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "writeOptimisticMeetingHotCache",
+    "Meeting schedule must update the hot cache as soon as a local meeting draft is created."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "source: \"optimistic-local\"",
+    "Meeting schedule hot cache must record optimistic local creates before background persistence."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "getModuleRootId(\"meeting-schedule\")",
+    "Meeting schedule must resolve the real module root in the background instead of blocking first paint."
+  );
+  assertExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "会议模块还在加载，请等页面完成加载后再导入。",
+    "Meeting creation must not fail just because the module root has not loaded yet."
+  );
+  assertIncludes(
     files.pageRouteHandoff,
     pageRouteHandoff,
     'format: "zhinote-page-route-handoff"',
