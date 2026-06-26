@@ -3,11 +3,11 @@
 //
 // This runs ONLY after the user has reviewed the plan and explicitly confirmed
 // in the UI (batch page creation is a high-risk action). It never uploads raw
-// file bytes or calls AI. Markdown/plain-text/RTF/EPUB/notebook/new Office files become real page
-// bodies; created page records then follow the user's account page-sync setting. Other
+// file bytes or calls AI. Markdown/plain-text/RTF/EPUB/notebook/new Office files
+// become real page bodies; spreadsheets become real local databases; created
+// page/database records then follow the user's account sync settings. Other
 // page-import / local-retain files become local file pages with a metadata
-// preview block; spreadsheets and unknown formats are skipped here and routed
-// to their own confirmed flows (database column mapping / owner review).
+// preview block; unknown formats are skipped here and routed to owner review.
 
 import {
   createPageWithCloud,
@@ -25,24 +25,33 @@ import { convertEpubToHtml } from "@/lib/files/epub";
 import { convertNotebookToHtml } from "@/lib/files/notebook";
 import { convertPresentationToHtml } from "@/lib/files/presentationImport";
 import { convertRtfToHtml } from "@/lib/files/rtf";
+import {
+  importSpreadsheetAsDatabase,
+  rollbackSpreadsheetDatabase,
+} from "@/lib/files/spreadsheet";
 import { convertWordToHtml } from "@/lib/files/word";
 import type { PageImportPlan, PageImportPlanItem } from "./pageImportPlan";
 
 export interface PageImportExecutionResult {
   status: "completed" | "rolled-back";
   created_pages: number;
+  created_databases: number;
   retained_file_pages: number;
   skipped_database: number;
   skipped_blocked: number;
   failed: number;
   rolled_back_pages: number;
+  rolled_back_databases: number;
   first_page_id: string | null;
+  first_database_id: string | null;
   notes: string[];
   boundaries: {
     reads_file_bytes_now: true;
     creates_pages_now: true;
+    creates_databases_now: true;
     uploads_file_bytes: false;
     syncs_page_records_to_account_cloud: true;
+    syncs_database_records_to_account_cloud: true;
     uploads_data: false;
     enables_ai: false;
   };
@@ -110,45 +119,69 @@ export async function executePageImportPlan(
   opts?: { onProgress?: (done: number, total: number) => void }
 ): Promise<PageImportExecutionResult> {
   const createdPageIds: string[] = [];
+  const createdDatabaseIds: string[] = [];
   const notes: string[] = [];
   let createdPages = 0;
+  let createdDatabases = 0;
   let retainedFilePages = 0;
   let skippedDatabase = 0;
   let skippedBlocked = 0;
 
   const total = plan.items.length;
 
-  const finish = (status: PageImportExecutionResult["status"], failed: number, rolledBack: number): PageImportExecutionResult => ({
+  const finish = (
+    status: PageImportExecutionResult["status"],
+    failed: number,
+    rolledBackPages: number,
+    rolledBackDatabases: number
+  ): PageImportExecutionResult => ({
     status,
     created_pages: createdPages,
+    created_databases: createdDatabases,
     retained_file_pages: retainedFilePages,
     skipped_database: skippedDatabase,
     skipped_blocked: skippedBlocked,
     failed,
-    rolled_back_pages: rolledBack,
+    rolled_back_pages: rolledBackPages,
+    rolled_back_databases: rolledBackDatabases,
     first_page_id: createdPageIds[0] ?? null,
+    first_database_id: createdDatabaseIds[0] ?? null,
     notes,
     boundaries: {
       reads_file_bytes_now: true,
       creates_pages_now: true,
+      creates_databases_now: true,
       uploads_file_bytes: false,
       syncs_page_records_to_account_cloud: true,
+      syncs_database_records_to_account_cloud: true,
       uploads_data: false,
       enables_ai: false,
     },
   });
 
-  const rollback = async (): Promise<number> => {
-    let undone = 0;
+  const rollback = async (): Promise<{
+    rolledBackPages: number;
+    rolledBackDatabases: number;
+  }> => {
+    let rolledBackPages = 0;
+    let rolledBackDatabases = 0;
     for (const id of [...createdPageIds].reverse()) {
       try {
         await deletePageWithCloud(id);
-        undone += 1;
+        rolledBackPages += 1;
       } catch (err) {
         console.error("[Zhinote] rollback failed for page", id, err);
       }
     }
-    return undone;
+    for (const id of [...createdDatabaseIds].reverse()) {
+      try {
+        await rollbackSpreadsheetDatabase(id);
+        rolledBackDatabases += 1;
+      } catch (err) {
+        console.error("[Zhinote] rollback failed for database", id, err);
+      }
+    }
+    return { rolledBackPages, rolledBackDatabases };
   };
 
   try {
@@ -157,10 +190,6 @@ export async function executePageImportPlan(
       const file = files[item.index - 1];
       opts?.onProgress?.(i, total);
 
-      if (item.lane === "database-import") {
-        skippedDatabase += 1;
-        continue;
-      }
       if (item.lane === "blocked-review") {
         skippedBlocked += 1;
         continue;
@@ -171,6 +200,25 @@ export async function executePageImportPlan(
       }
 
       const stored = await savePageFile(file);
+
+      if (item.lane === "database-import") {
+        if (stored.kind !== "spreadsheet") {
+          skippedDatabase += 1;
+          continue;
+        }
+        const result = await importSpreadsheetAsDatabase(stored);
+        createdDatabaseIds.push(result.database_id);
+        createdDatabases += 1;
+        notes.push(
+          `表格已本地导入为数据库「${result.database_title}」：${result.rows_imported} 行、${result.columns_imported} 列；没有上传文件内容。`
+        );
+        if (result.truncated_rows) {
+          notes.push(
+            `表格 ${result.rows_available - result.rows_imported} 行未导入，保留在原始文件预览中以避免卡顿。`
+          );
+        }
+        continue;
+      }
 
       if (item.lane === "page-import" && stored.kind === "markdown") {
         const text = stored.textContent ?? "";
@@ -282,14 +330,14 @@ export async function executePageImportPlan(
     }
 
     opts?.onProgress?.(total, total);
-    return finish("completed", 0, 0);
+    return finish("completed", 0, 0, 0);
   } catch (err) {
     console.error("[Zhinote] batch import failed; rolling back:", err);
     const undone = await rollback();
     notes.push(
-      `导入中途失败，已回退 ${undone} 个本次创建的页面。文件没有上传或外发。`
+      `导入中途失败，已回退 ${undone.rolledBackPages} 个本次创建的页面、${undone.rolledBackDatabases} 个数据库。文件没有上传或外发。`
     );
-    return finish("rolled-back", 1, undone);
+    return finish("rolled-back", 1, undone.rolledBackPages, undone.rolledBackDatabases);
   }
 }
 
@@ -297,6 +345,8 @@ export async function executePageImportPlan(
 export function countExecutableItems(plan: PageImportPlan): number {
   return plan.items.filter(
     (item: PageImportPlanItem) =>
-      item.lane === "page-import" || item.lane === "local-retain"
+      item.lane === "page-import" ||
+      item.lane === "local-retain" ||
+      item.lane === "database-import"
   ).length;
 }

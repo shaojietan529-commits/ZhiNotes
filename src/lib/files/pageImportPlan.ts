@@ -2,7 +2,7 @@
 //
 // This module builds a metadata-only import plan from a set of user-selected
 // files. It NEVER reads file bytes or file contents. It decides, per file,
-// whether the file should become a local page, a database import candidate,
+// whether the file should become a local page, a local database,
 // be retained as a local file, or be blocked for owner review. It also builds
 // a rollback plan so a confirmed batch import can be undone if any step fails.
 //
@@ -21,6 +21,7 @@ export type PageImportLaneId =
 
 export type PageImportTargetKind =
   | "page"
+  | "database"
   | "database-row"
   | "retained-file"
   | "none";
@@ -80,7 +81,12 @@ export interface PageImportRollbackStep {
   /** Reverse execution order; highest order is undone first. */
   order: number;
   item_index: number;
-  action: "soft-delete-page" | "soft-delete-database-row" | "discard-local-file" | "none";
+  action:
+    | "soft-delete-page"
+    | "soft-delete-database"
+    | "soft-delete-database-row"
+    | "discard-local-file"
+    | "none";
   target_kind: PageImportTargetKind;
   note: string;
 }
@@ -207,13 +213,13 @@ const FORMAT_ROUTES: PageImportFormatRoute[] = [
     extensions: [".csv", ".tsv", ".xlsx", ".xls", ".ods"],
     lane: "database-import",
     destination_module: "databases",
-    target_kind: "database-row",
+    target_kind: "database",
     needs_conversion: true,
     preview_route: "database-mapping",
     privacy_boundary:
-      "表格走确认后的数据库导入；先展示列映射和行数再写入。",
+      "表格走确认后的数据库导入；确认后本地创建新数据库并写入前 500 行、最多 50 列。",
     execution_note:
-      "本批量页面导入阶段会跳过，后续进入数据库列映射确认流程。",
+      "确认后读取第一个有内容的工作表，把表头转成字段、数据行转成数据库行。",
   },
   {
     id: "pdf-preview",
@@ -377,7 +383,7 @@ const FORMAT_ROUTES: PageImportFormatRoute[] = [
 
 const LANE_LABELS: Record<PageImportLaneId, string> = {
   "page-import": "导入为页面",
-  "database-import": "数据库导入候选",
+  "database-import": "导入为数据库",
   "local-retain": "本地留存",
   "blocked-review": "阻塞复核",
 };
@@ -490,6 +496,7 @@ function buildRollbackPlan(
   const creating = items.filter(
     (item) =>
       item.target_kind === "page" ||
+      item.target_kind === "database" ||
       item.target_kind === "database-row" ||
       item.target_kind === "retained-file"
   );
@@ -499,6 +506,8 @@ function buildRollbackPlan(
       const action: PageImportRollbackStep["action"] =
         item.target_kind === "page"
           ? "soft-delete-page"
+          : item.target_kind === "database"
+          ? "soft-delete-database"
           : item.target_kind === "database-row"
           ? "soft-delete-database-row"
           : item.target_kind === "retained-file"
@@ -512,6 +521,8 @@ function buildRollbackPlan(
         note:
           action === "soft-delete-page"
             ? "导入失败时软删除已创建的页面（可在回收逻辑中恢复）。"
+            : action === "soft-delete-database"
+            ? "导入失败时软删除已创建的数据库及其行页面。"
             : action === "soft-delete-database-row"
             ? "导入失败时软删除已创建的数据库行及其页面。"
             : "导入失败时丢弃本地留存文件记录。",

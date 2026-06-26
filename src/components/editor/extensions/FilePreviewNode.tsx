@@ -6,15 +6,6 @@ import type { NodeViewProps } from "@tiptap/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
-  getFields,
-} from "@/lib/db/local/queries";
-import {
-  addField,
-  addRow,
-  createDatabase,
-  updateField,
-} from "@/lib/database/cloudDatabaseMutations";
-import {
   formatFileSize,
   getStoredPageFile,
   type PageFileKind,
@@ -38,6 +29,12 @@ import { convertEpubToHtml } from "@/lib/files/epub";
 import { convertNotebookToHtml } from "@/lib/files/notebook";
 import { convertPresentationToHtml } from "@/lib/files/presentationImport";
 import { convertRtfToHtml } from "@/lib/files/rtf";
+import {
+  convertSpreadsheetToHtml,
+  importSpreadsheetAsDatabase,
+  SPREADSHEET_DATABASE_COLUMN_LIMIT,
+  SPREADSHEET_DATABASE_ROW_LIMIT,
+} from "@/lib/files/spreadsheet";
 import { convertWordToHtml } from "@/lib/files/word";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
@@ -63,13 +60,8 @@ type ConvertedPreview =
   | { status: "ready"; srcDoc: string }
   | { status: "error"; message: string };
 
-type SpreadsheetCell = string | number | boolean | null;
-type SpreadsheetFieldType = "text" | "number" | "date" | "checkbox" | "url";
-
 const PREVIEW_CSP =
   "default-src 'none'; img-src data: blob:; media-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; frame-src data: blob:; child-src data: blob:; connect-src 'none';";
-const SPREADSHEET_DATABASE_ROW_LIMIT = 500;
-const SPREADSHEET_DATABASE_COLUMN_LIMIT = 50;
 const BULK_IMPORT_CONFIRMATION_PHRASE =
   getHighRiskRequiredPhrase("bulk-import");
 const EXTERNAL_RESOURCE_CONFIRMATION_PHRASE = getHighRiskRequiredPhrase(
@@ -491,61 +483,15 @@ function FilePreviewComponent({
 
     setDatabaseImporting(true);
     try {
-      const table = await readSpreadsheetTable(file);
-      if (table.rows.length === 0) {
-        window.alert(
-          "这个表格没有可导入的数据行。第一个非空行会被当作表头。"
-        );
-        return;
-      }
-
-      const importedRows = table.rows.slice(0, SPREADSHEET_DATABASE_ROW_LIMIT);
       const ok = window.confirm(
-        `要把这个表格批量导入为新数据库吗？将创建 1 个本地数据库、最多 ${table.headers.length} 个字段和 ${importedRows.length} 行。原始文件保留在本地，不会上传。`
+        `要把这个表格批量导入为新数据库吗？将创建 1 个本地数据库，最多 ${SPREADSHEET_DATABASE_COLUMN_LIMIT} 个字段和 ${SPREADSHEET_DATABASE_ROW_LIMIT} 行。原始文件保留在本地，不会上传。`
       );
       if (!ok) return;
 
-      const database = await createDatabase({
-        title: spreadsheetDatabaseTitle(file.name),
-      });
-      const fields = await getFields(database.id);
-      const nameField = fields[0];
-      if (nameField) {
-        await updateField(nameField.id, { name: table.headers[0] || "名称" });
-      }
-
-      const dataFields = [];
-      for (let columnIndex = 1; columnIndex < table.headers.length; columnIndex += 1) {
-        const values = importedRows.map((row) => stringifySpreadsheetCell(row[columnIndex]));
-        const fieldType = inferSpreadsheetFieldType(values);
-        const field = await addField(database.id, {
-          name: table.headers[columnIndex],
-          fieldType,
-        });
-        dataFields.push({ field, columnIndex, fieldType });
-      }
-
-      for (let rowIndex = 0; rowIndex < importedRows.length; rowIndex += 1) {
-        const row = importedRows[rowIndex];
-        const title = stringifySpreadsheetCell(row[0]).trim() || `第 ${rowIndex + 1} 行`;
-        const fieldValues: Record<string, unknown> = {};
-
-        for (const { field, columnIndex, fieldType } of dataFields) {
-          const value = coerceSpreadsheetFieldValue(
-            stringifySpreadsheetCell(row[columnIndex]),
-            fieldType
-          );
-          if (value !== "" && value !== null) {
-            fieldValues[field.id] = value;
-          }
-        }
-
-        await addRow(database.id, { title, fieldValues });
-      }
-
-      if (table.rows.length > importedRows.length) {
+      const importResult = await importSpreadsheetAsDatabase(file);
+      if (importResult.truncated_rows) {
         window.alert(
-          `已把前 ${importedRows.length} 行导入到新数据库。还有 ${table.rows.length - importedRows.length} 行保留在原始文件预览中，避免页面卡住。`
+          `已把前 ${importResult.rows_imported} 行导入到新数据库。还有 ${importResult.rows_available - importResult.rows_imported} 行保留在原始文件预览中，避免页面卡住。`
         );
       }
 
@@ -554,12 +500,12 @@ function FilePreviewComponent({
         creates_database_rows: true,
         confirmation_required: true,
         confirmation_matched: bulkImportReceipt.typed_phrase_matches,
-        rows_written: importedRows.length,
-        fields_written: table.headers.length,
+        rows_written: importResult.rows_imported,
+        fields_written: importResult.columns_imported,
         note: "表格行已在输入确认短语后导入到新的本地数据库。",
       });
 
-      router.push(`/database/${database.id}`);
+      router.push(`/database/${importResult.database_id}`);
     } catch (err) {
       window.alert(
         err instanceof Error
@@ -1846,226 +1792,6 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-}
-
-async function convertSpreadsheetToHtml(file: StoredPageFile) {
-  const XLSX = await import("xlsx");
-  const { input, options } = await getSpreadsheetInput(file);
-  const workbook = XLSX.read(input, {
-    type: typeof input === "string" ? "string" : "array",
-    ...options,
-  });
-
-  if (workbook.SheetNames.length === 0) {
-    return "<p>这个表格文件没有工作表。</p>";
-  }
-
-  const renderedSheets = workbook.SheetNames.slice(0, 5).map((sheetName) => {
-    const worksheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<Array<string | number | boolean | null>>(
-      worksheet,
-      {
-        header: 1,
-        blankrows: false,
-        raw: false,
-      }
-    );
-    const visibleRows = rows.slice(0, 200);
-    const visibleColumnCount = Math.max(
-      1,
-      Math.min(
-        50,
-        visibleRows.reduce((max, row) => Math.max(max, row.length), 0)
-      )
-    );
-
-    if (visibleRows.length === 0) {
-      return `<section><h2>${escapeHtml(sheetName)}</h2><p>这个工作表为空。</p></section>`;
-    }
-
-    const headerRow = visibleRows[0] ?? [];
-    const bodyRows = visibleRows.slice(1);
-    const headerCells = Array.from({ length: visibleColumnCount }, (_value, index) => {
-      const value = String(headerRow[index] ?? "").trim() || `列 ${index + 1}`;
-      return `<th scope="col">${escapeHtml(value)}</th>`;
-    }).join("");
-    const tableRows =
-      bodyRows.length > 0
-        ? bodyRows
-            .map((row) => {
-              const cells = Array.from(
-                { length: visibleColumnCount },
-                (_value, index) => `<td>${escapeHtml(String(row[index] ?? ""))}</td>`
-              ).join("");
-              return `<tr>${cells}</tr>`;
-            })
-            .join("")
-        : `<tr><td colspan="${visibleColumnCount}">这个工作表没有数据行。</td></tr>`;
-    const summary = `<p><small>工作表预览：共 ${rows.length} 行，显示 ${visibleRows.length} 行、${visibleColumnCount} 列。</small></p>`;
-
-    const truncated =
-      rows.length > visibleRows.length
-        ? `<p><small>仅显示前 ${visibleRows.length} 行。</small></p>`
-        : "";
-
-    return `<section><h2>${escapeHtml(sheetName)}</h2>${summary}${truncated}<table><thead>${headerCells}</thead><tbody>${tableRows}</tbody></table></section>`;
-  });
-
-  const sheetNotice =
-    workbook.SheetNames.length > 5
-      ? `<p><small>仅显示 ${workbook.SheetNames.length} 个工作表中的前 5 个。</small></p>`
-      : "";
-
-  return `${sheetNotice}${renderedSheets.join("\n")}`;
-}
-
-async function readSpreadsheetTable(file: StoredPageFile) {
-  const XLSX = await import("xlsx");
-  const { input, options } = await getSpreadsheetInput(file);
-  const workbook = XLSX.read(input, {
-    type: typeof input === "string" ? "string" : "array",
-    ...options,
-  });
-
-  if (workbook.SheetNames.length === 0) {
-    throw new Error("这个表格文件没有可导入的工作表。");
-  }
-
-  for (const sheetName of workbook.SheetNames) {
-    const worksheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<Array<SpreadsheetCell>>(worksheet, {
-      header: 1,
-      blankrows: false,
-      raw: false,
-      defval: "",
-    });
-    const normalizedRows = rows
-      .map((row) => row.map(normalizeSpreadsheetCell))
-      .filter((row) => row.some((cell) => stringifySpreadsheetCell(cell).trim()));
-
-    if (normalizedRows.length === 0) continue;
-
-    const columnCount = Math.min(
-      SPREADSHEET_DATABASE_COLUMN_LIMIT,
-      normalizedRows.reduce((max, row) => Math.max(max, row.length), 0)
-    );
-    const headers = dedupeSpreadsheetHeaders(
-      Array.from({ length: columnCount }, (_value, index) => {
-        const header = stringifySpreadsheetCell(normalizedRows[0][index]).trim();
-        return header || `列 ${index + 1}`;
-      })
-    );
-    const dataRows = normalizedRows
-      .slice(1)
-      .map((row) =>
-        Array.from({ length: columnCount }, (_value, index) =>
-          normalizeSpreadsheetCell(row[index] ?? "")
-        )
-      )
-      .filter((row) => row.some((cell) => stringifySpreadsheetCell(cell).trim()));
-
-    return { sheetName, headers, rows: dataRows };
-  }
-
-  throw new Error("这个表格文件不包含可见行。");
-}
-
-async function getSpreadsheetInput(file: StoredPageFile) {
-  const lowerName = file.name.toLowerCase();
-  if (
-    (lowerName.endsWith(".csv") || lowerName.endsWith(".tsv")) &&
-    file.textContent
-  ) {
-    return {
-      input: file.textContent,
-      options: lowerName.endsWith(".tsv") ? { FS: "\t" } : {},
-    };
-  }
-
-  return { input: await dataUrlToArrayBuffer(file.dataUrl), options: {} };
-}
-
-function normalizeSpreadsheetCell(value: unknown): SpreadsheetCell {
-  if (value === null || value === undefined) return "";
-  if (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  ) {
-    return value;
-  }
-  if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
-  }
-  return String(value);
-}
-
-function stringifySpreadsheetCell(value: SpreadsheetCell | undefined) {
-  if (value === null || value === undefined) return "";
-  return String(value);
-}
-
-function dedupeSpreadsheetHeaders(headers: string[]) {
-  const seen = new Map<string, number>();
-  return headers.map((header, index) => {
-    const base = header.trim() || `列 ${index + 1}`;
-    const count = seen.get(base) ?? 0;
-    seen.set(base, count + 1);
-    return count === 0 ? base : `${base} (${count + 1})`;
-  });
-}
-
-function inferSpreadsheetFieldType(values: string[]): SpreadsheetFieldType {
-  const nonEmpty = values.map((value) => value.trim()).filter(Boolean);
-  if (nonEmpty.length === 0) return "text";
-  if (nonEmpty.every(isBooleanValue)) return "checkbox";
-  if (nonEmpty.every(isIsoDateValue)) return "date";
-  if (nonEmpty.every(isNumberValue)) return "number";
-  if (nonEmpty.every(isUrlValue)) return "url";
-  return "text";
-}
-
-function coerceSpreadsheetFieldValue(value: string, fieldType: SpreadsheetFieldType) {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-
-  if (fieldType === "checkbox") return parseBooleanValue(trimmed);
-  if (fieldType === "date") return normalizeDateValue(trimmed);
-  if (fieldType === "number") return Number(trimmed.replace(/,/g, ""));
-
-  return trimmed;
-}
-
-function isBooleanValue(value: string) {
-  return /^(true|false|yes|no|y|n|1|0)$/i.test(value.trim());
-}
-
-function parseBooleanValue(value: string) {
-  return /^(true|yes|y|1)$/i.test(value.trim());
-}
-
-function isIsoDateValue(value: string) {
-  return /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(value.trim());
-}
-
-function normalizeDateValue(value: string) {
-  const match = value.trim().match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
-  if (!match) return value;
-  const [, year, month, day] = match;
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-}
-
-function isNumberValue(value: string) {
-  return /^-?\d{1,3}(,\d{3})*(\.\d+)?$|^-?\d+(\.\d+)?$/.test(value.trim());
-}
-
-function isUrlValue(value: string) {
-  return /^https?:\/\/\S+$/i.test(value.trim());
-}
-
-function spreadsheetDatabaseTitle(fileName: string) {
-  const title = fileName.replace(/\.[^.]+$/, "").trim();
-  return title ? `${title} 数据库` : "导入的表格数据库";
 }
 
 function downloadJsonFile(fileName: string, value: unknown) {

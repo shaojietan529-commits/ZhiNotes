@@ -28,6 +28,7 @@ const files = {
   localStore: "src/lib/files/localStore.ts",
   fileLibrary: "src/lib/files/fileLibraryWorkbench.ts",
   previewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
+  spreadsheet: "src/lib/files/spreadsheet.ts",
   word: "src/lib/files/word.ts",
   presentationImport: "src/lib/files/presentationImport.ts",
   reportsShell: "src/components/modules/ReportsShell.tsx",
@@ -230,9 +231,15 @@ function run() {
   const localStore = readProjectFile(files.localStore);
   const fileLibrary = readProjectFile(files.fileLibrary);
   const previewNode = readProjectFile(files.previewNode);
+  const spreadsheet = readProjectFile(files.spreadsheet);
   const word = readProjectFile(files.word);
   const presentationImport = readProjectFile(files.presentationImport);
-  const previewImplementation = [previewNode, word, presentationImport].join("\n");
+  const previewImplementation = [
+    previewNode,
+    spreadsheet,
+    word,
+    presentationImport,
+  ].join("\n");
   const reportsShell = readProjectFile(files.reportsShell);
   const meetingsShell = readProjectFile(files.meetingsShell);
   const meetingTranscriptPage = readProjectFile(files.meetingTranscriptPage);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import {
@@ -27,7 +28,7 @@ const LANE_BADGE: Record<
       "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
   },
   "database-import": {
-    label: "数据库候选",
+    label: "导入为数据库",
     className:
       "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
   },
@@ -112,6 +113,7 @@ function downloadJson(fileName: string, value: unknown) {
  * bytes, create pages/databases, upload, or call AI.
  */
 export default function PageImportPlanPanel() {
+  const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
   const { refresh: refreshPages } = usePages({ autoLoad: false });
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -125,9 +127,9 @@ export default function PageImportPlanPanel() {
 
   const handleFilesSelected = (event: ChangeEvent<HTMLInputElement>) => {
     const fileList = event.target.files;
-    event.target.value = "";
     if (!fileList || fileList.length === 0) return;
     const selected = Array.from(fileList);
+    event.target.value = "";
     // Plan is built from metadata only (name + size); bytes are read only later
     // if the user explicitly confirms the import.
     const sources: PageImportSourceFile[] = selected.map((f) => ({
@@ -163,6 +165,8 @@ export default function PageImportPlanPanel() {
       await refreshPages();
       if (res.status === "completed" && res.first_page_id) {
         openPage(res.first_page_id, { source: "module-create" });
+      } else if (res.status === "completed" && res.first_database_id) {
+        router.push(`/database/${res.first_database_id}`);
       }
     } catch (err) {
       console.error("[Zhinote] import execution error:", err);
@@ -191,12 +195,12 @@ export default function PageImportPlanPanel() {
             批量导入计划
           </p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
-            文件 → 页面 导入预览
+            文件 → 页面 / 数据库 导入预览
           </h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
             选择一批文件，先生成只读的导入计划：每个文件去哪个模块、变成页面还是
             本地留存、是否需要确认，并附带失败回退步骤。这一步只读取文件名、类型和
-            大小，不读取文件内容、不创建页面、不上传、不调用 AI。
+            大小，不读取文件内容、不创建页面或数据库、不上传、不调用 AI。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -348,10 +352,11 @@ export default function PageImportPlanPanel() {
               确认后执行导入
             </p>
             <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-              本次会创建 {executableCount} 个本地页面或文件页。Markdown / 纯文本 / RTF / EPUB / Notebook / DOCX / ODT / PPTX / ODP 会转为可编辑正文；
+              本次会创建 {executableCount} 个本地页面、文件页或数据库。Markdown / 纯文本 / RTF / EPUB / Notebook / DOCX / ODT / PPTX / ODP 会转为可编辑正文；
+              CSV / Excel / ODS 会创建本地数据库并写入前 500 行、最多 50 列；
               HTML、PDF、旧版 Office、媒体和 iWork 会先创建本地文件页用于预览或复核；
-              表格走数据库模块列映射确认，未知格式需单独复核，本步骤会跳过。中途任何一步失败会自动回退本次已创建的页面。
-              导入只在本地进行，不上传、不调用 AI；页面记录是否同步云端继续跟随账号同步设置。
+              未知格式需单独复核，本步骤会跳过。中途任何一步失败会自动回退本次已创建的页面和数据库。
+              导入只在本地进行，不上传、不调用 AI；页面和数据库记录是否同步云端继续跟随账号同步设置。
             </p>
             <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-200">
               <input
@@ -360,7 +365,7 @@ export default function PageImportPlanPanel() {
                 onChange={(e) => setConfirmed(e.target.checked)}
                 className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
               />
-              我已查看导入计划，确认创建这些本地页面
+              我已查看导入计划，确认创建这些本地页面和数据库
             </label>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
@@ -369,7 +374,7 @@ export default function PageImportPlanPanel() {
                 disabled={!confirmed || importing || executableCount === 0}
                 className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {importing ? "导入中..." : `确认并导入 ${executableCount} 个页面`}
+                {importing ? "导入中..." : `确认并导入 ${executableCount} 个对象`}
               </button>
               {executableCount === 0 && (
                 <span className="text-xs text-zinc-400">
@@ -390,15 +395,16 @@ export default function PageImportPlanPanel() {
             >
               {result.status === "completed" ? (
                 <p>
-                  导入完成：创建页面 {result.created_pages} 个、文件页{" "}
-                  {result.retained_file_pages} 个；跳过数据库候选{" "}
-                  {result.skipped_database} 个、待复核 {result.skipped_blocked} 个。
+                  导入完成：创建页面 {result.created_pages} 个、数据库{" "}
+                  {result.created_databases} 个、文件页 {result.retained_file_pages}{" "}
+                  个；跳过异常表格 {result.skipped_database} 个、待复核{" "}
+                  {result.skipped_blocked} 个。
                   文件没有上传或调用 AI。
                 </p>
               ) : (
                 <p>
                   导入中途失败，已回退本次创建的 {result.rolled_back_pages}{" "}
-                  个页面，工作区恢复到导入前状态。文件没有上传或外发。
+                  个页面、{result.rolled_back_databases} 个数据库，工作区恢复到导入前状态。文件没有上传或外发。
                 </p>
               )}
             </div>

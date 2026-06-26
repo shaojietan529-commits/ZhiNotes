@@ -129,8 +129,9 @@ check(
 check(source.includes("rollback_plan"), "缺少 rollback_plan 字段");
 check(
   source.includes("soft-delete-page") &&
+    source.includes("soft-delete-database") &&
     source.includes("soft-delete-database-row"),
-  "回退动作必须覆盖软删除页面和数据库行"
+  "回退动作必须覆盖软删除页面、数据库和数据库行"
 );
 check(
   source.includes("buildRollbackPlan"),
@@ -215,8 +216,10 @@ check(
   executorSource.includes("uploads_data: false") &&
     executorSource.includes("uploads_file_bytes: false") &&
     executorSource.includes("syncs_page_records_to_account_cloud: true") &&
+    executorSource.includes("syncs_database_records_to_account_cloud: true") &&
+    executorSource.includes("creates_databases_now: true") &&
     executorSource.includes("enables_ai: false"),
-  "执行器必须声明不上传原始文件、不调用 AI，并明确页面记录跟随账号同步"
+  "执行器必须声明不上传原始文件、不调用 AI，并明确页面/数据库记录跟随账号同步"
 );
 check(
   executorSource.includes("convertNotebookToHtml") &&
@@ -249,11 +252,28 @@ check(
     executorSource.includes("PowerPoint/ODP 已本地转换为可编辑页面"),
   "执行器必须把新版 PowerPoint/ODP 本地转换为可编辑页面"
 );
-// Spreadsheets and unknown formats must be skipped (not created) in this stage.
+// Spreadsheets become real local databases; unknown formats stay skipped.
 check(
-  executorSource.includes("skippedDatabase") &&
-    executorSource.includes("skippedBlocked"),
-  "执行器必须跳过数据库候选和待复核文件"
+  executorSource.includes("importSpreadsheetAsDatabase") &&
+    executorSource.includes('stored.kind !== "spreadsheet"') &&
+    executorSource.includes("created_databases") &&
+    executorSource.includes("first_database_id") &&
+    executorSource.includes("表格已本地导入为数据库"),
+  "执行器必须把表格本地导入为数据库并返回数据库入口"
+);
+check(
+  executorSource.includes("rollbackSpreadsheetDatabase") &&
+    executorSource.includes("rolled_back_databases"),
+  "执行器必须能在失败时回退本次创建的数据库"
+);
+check(
+  executorSource.includes('item.lane === "database-import"') &&
+    executorSource.includes('item.lane === "local-retain"'),
+  "countExecutableItems 必须把数据库导入纳入确认执行数量"
+);
+check(
+  executorSource.includes("skippedBlocked"),
+  "执行器必须跳过待复核文件"
 );
 
 if (errors.length > 0) {
@@ -275,6 +295,7 @@ console.log(
       redacts_file_names_in_export: true,
       raw_file_bytes_local_only: true,
       page_records_follow_account_sync: true,
+      database_records_follow_account_sync: true,
     },
     null,
     2
