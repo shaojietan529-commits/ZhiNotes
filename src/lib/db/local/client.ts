@@ -17,8 +17,11 @@ export const LOCAL_CACHE_RECOVERY_SIGNAL_KEY =
 const LOCAL_CACHE_BYPASS_MS = 10 * 60 * 1000;
 const LOCAL_CACHE_RECOVERY_SIGNAL_TTL_MS = 5 * 60 * 1000;
 export const LOCAL_CACHE_RECOVERY_EVENT = "zhinote:local-cache-recovery";
-const CREATE_TABLES_WITHOUT_DAILY_DATE_INDEX = CREATE_TABLES_SQL.replace(
+const CREATE_TABLES_WITHOUT_LATE_MIGRATION_INDEXES = CREATE_TABLES_SQL.replace(
   /\s*CREATE INDEX IF NOT EXISTS idx_pages_daily_date ON pages\(daily_date_key, updated_at DESC\);\s*/,
+  "\n"
+).replace(
+  /\s*CREATE INDEX IF NOT EXISTS idx_synclog_retry ON sync_log\(synced, status, next_retry_at, timestamp\);\s*/,
   "\n"
 );
 
@@ -143,7 +146,7 @@ function wrapRawDb(rawDb: any): SqliteDb {
 
 function installLocalSchema(db: SqliteDb) {
   // Create all tables
-  db.run(CREATE_TABLES_WITHOUT_DAILY_DATE_INDEX);
+  db.run(CREATE_TABLES_WITHOUT_LATE_MIGRATION_INDEXES);
 
   // Additive, non-destructive migrations for databases created before a column
   // existed. Each step only ADDs a nullable column if it is missing, so no data

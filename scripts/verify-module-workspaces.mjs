@@ -420,7 +420,7 @@ for (const token of [
   "installLocalSchema(db)",
   "Local SQLite cache schema failed",
   "using rebuildable in-memory cache",
-  "CREATE_TABLES_WITHOUT_DAILY_DATE_INDEX",
+  "CREATE_TABLES_WITHOUT_LATE_MIGRATION_INDEXES",
   "resetPersistentLocalCache",
   "LOCAL_CACHE_BYPASS_KEY",
   "LOCAL_CACHE_RECOVERY_EVENT",

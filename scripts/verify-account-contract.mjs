@@ -1048,6 +1048,15 @@ check(
   "本地缓存迁移只能给 sync_log 补列/补索引，不能要求用户清空旧缓存"
 );
 check(
+  localClient.includes("CREATE_TABLES_WITHOUT_LATE_MIGRATION_INDEXES") &&
+    localClient.includes("idx_synclog_retry") &&
+    localClient.indexOf("CREATE_TABLES_WITHOUT_LATE_MIGRATION_INDEXES") <
+      localClient.indexOf("ensureColumn(db, \"sync_log\", \"status\"") &&
+    localClient.indexOf("ensureColumn(db, \"sync_log\", \"status\"") <
+      localClient.indexOf("ensureIndex(\n    db,\n    \"idx_synclog_retry\""),
+  "旧本地缓存缺少 sync_log.status 时，初始化必须先跳过依赖补列的索引，补列后再创建索引，避免整库重置"
+);
+check(
   localQueries.includes("buildSyncChangePayloadHash") &&
     localQueries.includes("status, attempt_count, payload_hash, source") &&
     localQueries.includes("markDatabaseSyncLogEntriesAttempted") &&
