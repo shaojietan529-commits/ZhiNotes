@@ -575,6 +575,7 @@ export default function DailyNotesShell() {
 
   const primeDailyNoteOpen = useCallback(
     (note: DailyNote, source: "daily-create" | "daily-open" = "daily-open") => {
+      warmPageRoute();
       upsertPages([note]);
       rememberPendingPageDraft(note);
       rememberPageRouteHandoff(note, source);
@@ -585,7 +586,7 @@ export default function DailyNotesShell() {
         // the metadata needed for immediate first paint.
       }
     },
-    [router, upsertPages]
+    [router, upsertPages, warmPageRoute]
   );
 
   const openDailyNoteFullPage = useCallback(
@@ -759,6 +760,7 @@ export default function DailyNotesShell() {
               type="button"
               disabled={creatingDateKey !== null}
               onPointerEnter={warmPageRoute}
+              onPointerDown={warmPageRoute}
               onFocus={warmPageRoute}
               onClick={() => void addNote(todayKey)}
               className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
@@ -828,6 +830,7 @@ export default function DailyNotesShell() {
               return (
                 <div
                   key={key}
+                  data-testid={`daily-calendar-day-${key}`}
                   className={`group relative z-0 flex min-h-40 flex-col border-b border-r border-zinc-100 p-1.5 hover:z-20 dark:border-zinc-800/70 ${
                     cell.inMonth ? "" : "bg-zinc-50/50 dark:bg-zinc-900/40"
                   } ${
@@ -835,6 +838,7 @@ export default function DailyNotesShell() {
                       ? "rounded-md ring-2 ring-inset ring-blue-400 bg-blue-50/60 dark:bg-blue-950/30"
                       : ""
                   }`}
+                  onPointerEnter={warmPageRoute}
                   onDragOver={(e) => {
                     if (!draggedNoteId) return;
                     e.preventDefault();
@@ -866,6 +870,7 @@ export default function DailyNotesShell() {
                       data-testid={`daily-add-note-${key}`}
                       disabled={creatingDateKey !== null}
                       onPointerEnter={warmPageRoute}
+                      onPointerDown={warmPageRoute}
                       onFocus={warmPageRoute}
                       onClick={() => void addNote(key)}
                       className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
@@ -900,6 +905,8 @@ export default function DailyNotesShell() {
                           setDraggedNoteId(null);
                           setDragOverDateKey(null);
                         }}
+                        onPointerEnter={warmPageRoute}
+                        onFocus={warmPageRoute}
                         onClick={() => openNotePage(note)}
                         onContextMenu={(e) => {
                           e.preventDefault();
@@ -973,6 +980,8 @@ export default function DailyNotesShell() {
                         setDraggedNoteId(null);
                         setDragOverDateKey(null);
                       }}
+                      onPointerEnter={warmPageRoute}
+                      onFocus={warmPageRoute}
                       onClick={() => openNotePage(note)}
                       onContextMenu={(e) => {
                         e.preventDefault();

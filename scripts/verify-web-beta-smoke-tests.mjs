@@ -2101,8 +2101,26 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "onPointerDown={warmPageRoute}",
+    "Daily calendar + creation controls must warm the page shell even on fast clicks."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "onFocus={warmPageRoute}",
     "Daily calendar + controls must warm the page shell on keyboard focus before navigation."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "data-testid={`daily-calendar-day-${key}`}",
+    "Daily calendar day cells must expose stable targets for hover-to-create checks."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "warmPageRoute();\n      upsertPages([note]);",
+    "Daily full-page opening must warm the page shell before handing metadata to the route."
   );
   assertIncludes(
     files.dailyNotesShell,
