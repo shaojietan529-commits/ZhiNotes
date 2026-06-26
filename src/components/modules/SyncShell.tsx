@@ -443,6 +443,8 @@ type PendingDomainRow = {
   label: string;
   detail: string;
   pending: number;
+  failed: number;
+  inFlight: number;
   total: number;
   lastChangeAt: string | null;
   tableNames: string[];
@@ -8635,6 +8637,13 @@ function SyncDashboard() {
                         <div className="text-[11px] text-zinc-400">
                           pending / {row.total} total
                         </div>
+                        {(row.failed > 0 || row.inFlight > 0) && (
+                          <div className="mt-1 text-[11px] text-amber-500 dark:text-amber-300">
+                            {row.failed > 0 ? `${row.failed} 失败` : ""}
+                            {row.failed > 0 && row.inFlight > 0 ? " · " : ""}
+                            {row.inFlight > 0 ? `${row.inFlight} 进行中` : ""}
+                          </div>
+                        )}
                         <div className="mt-1 text-[11px] text-zinc-400">
                           {row.lastChangeAt
                             ? formatDate(row.lastChangeAt)
@@ -8670,6 +8679,13 @@ function SyncDashboard() {
                       </div>
                       <div className="text-right text-zinc-500 dark:text-zinc-400">
                         <div>{table.pending} 待处理</div>
+                        {(table.failed > 0 || table.inFlight > 0) && (
+                          <div className="text-amber-500 dark:text-amber-300">
+                            {table.failed > 0 ? `${table.failed} 失败` : ""}
+                            {table.failed > 0 && table.inFlight > 0 ? " · " : ""}
+                            {table.inFlight > 0 ? `${table.inFlight} 进行中` : ""}
+                          </div>
+                        )}
                         <div>{table.total} 总计</div>
                       </div>
                     </div>
@@ -16563,6 +16579,16 @@ function SyncEntryRow({ entry }: { entry: SyncLogEntry }) {
             </span>
           </div>
           <div className="mt-1 truncate text-zinc-400">{entry.rowId}</div>
+          <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-zinc-400">
+            <span>状态：{formatSyncLogStatus(entry.status)}</span>
+            {entry.attemptCount > 0 && <span>尝试 {entry.attemptCount} 次</span>}
+            {entry.nextRetryAt && <span>下次重试 {formatDate(entry.nextRetryAt)}</span>}
+          </div>
+          {entry.lastError && (
+            <div className="mt-1 line-clamp-2 text-[11px] text-amber-500 dark:text-amber-300">
+              {entry.lastError}
+            </div>
+          )}
           {entry.changedCols.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {entry.changedCols.slice(0, 5).map((column) => (
@@ -16607,6 +16633,8 @@ function buildPendingDomainRows(
         label: definition.label,
         detail: definition.detail,
         pending: sumPendingTables(matchingTables, "pending"),
+        failed: sumPendingTables(matchingTables, "failed"),
+        inFlight: sumPendingTables(matchingTables, "inFlight"),
         total: sumPendingTables(matchingTables, "total"),
         lastChangeAt: latestPendingDomainChange(matchingTables),
         tableNames: matchingTables.map((table) => table.tableName),
@@ -16623,6 +16651,8 @@ function buildPendingDomainRows(
       label: "其他本地表",
       detail: "尚未归入固定数据域的 pending 变更，用来发现新的上云范围。",
       pending: sumPendingTables(unmatchedTables, "pending"),
+      failed: sumPendingTables(unmatchedTables, "failed"),
+      inFlight: sumPendingTables(unmatchedTables, "inFlight"),
       total: sumPendingTables(unmatchedTables, "total"),
       lastChangeAt: latestPendingDomainChange(unmatchedTables),
       tableNames: unmatchedTables.map((table) => table.tableName),
@@ -16652,9 +16682,16 @@ function isPendingDomainTable(
 
 function sumPendingTables(
   tables: SyncLogSummary["tables"],
-  key: "pending" | "total"
+  key: "pending" | "failed" | "inFlight" | "total"
 ) {
   return tables.reduce((total, table) => total + table[key], 0);
+}
+
+function formatSyncLogStatus(status: string) {
+  if (status === "synced") return "已同步";
+  if (status === "in_flight") return "上传中";
+  if (status === "failed") return "失败待重试";
+  return "待上传";
 }
 
 function latestPendingDomainChange(tables: SyncLogSummary["tables"]) {

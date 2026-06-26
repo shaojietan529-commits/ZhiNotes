@@ -167,10 +167,18 @@ export const CREATE_TABLES_SQL = `
     operation     TEXT NOT NULL,
     changed_cols  TEXT,
     timestamp     TEXT NOT NULL,
-    synced        INTEGER NOT NULL DEFAULT 0
+    synced        INTEGER NOT NULL DEFAULT 0,
+    status        TEXT NOT NULL DEFAULT 'pending',
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    last_attempt_at TEXT,
+    next_retry_at TEXT,
+    last_error    TEXT,
+    payload_hash  TEXT,
+    source        TEXT NOT NULL DEFAULT 'local'
   );
 
   CREATE INDEX IF NOT EXISTS idx_synclog_pending ON sync_log(synced, timestamp);
+  CREATE INDEX IF NOT EXISTS idx_synclog_retry ON sync_log(synced, status, next_retry_at, timestamp);
   CREATE INDEX IF NOT EXISTS idx_workspace_settings_updated ON workspace_settings(updated_at DESC);
 
   CREATE TABLE IF NOT EXISTS hot_cache_entries (

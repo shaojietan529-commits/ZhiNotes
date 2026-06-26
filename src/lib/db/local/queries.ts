@@ -6,11 +6,15 @@ import type { BlockComment, Page, PageComment, PageVersion } from "@/lib/utils/t
 export interface SyncLogSummary {
   total: number;
   pending: number;
+  failed: number;
+  inFlight: number;
   lastChangeAt: string | null;
   tables: Array<{
     tableName: string;
     total: number;
     pending: number;
+    failed: number;
+    inFlight: number;
     lastChangeAt: string | null;
   }>;
 }
@@ -23,6 +27,13 @@ export interface SyncLogEntry {
   changedCols: string[];
   timestamp: string;
   synced: number;
+  status: string;
+  attemptCount: number;
+  lastAttemptAt: string | null;
+  nextRetryAt: string | null;
+  lastError: string | null;
+  payloadHash: string | null;
+  source: string;
 }
 
 export interface WorkspaceSettingRecord {
@@ -240,11 +251,44 @@ function recordSyncChange(
   changedCols: string[],
   timestamp: string = nowISO()
 ) {
+  const changedColsJson = JSON.stringify(changedCols);
   db.run(
-    `INSERT INTO sync_log (table_name, row_id, operation, changed_cols, timestamp, synced)
-     VALUES (?, ?, ?, ?, ?, 0)`,
-    [tableName, rowId, operation, JSON.stringify(changedCols), timestamp]
+    `INSERT INTO sync_log (
+       table_name, row_id, operation, changed_cols, timestamp, synced,
+       status, attempt_count, payload_hash, source
+     )
+     VALUES (?, ?, ?, ?, ?, 0, 'pending', 0, ?, 'local')`,
+    [
+      tableName,
+      rowId,
+      operation,
+      changedColsJson,
+      timestamp,
+      buildSyncChangePayloadHash(
+        tableName,
+        rowId,
+        operation,
+        changedColsJson,
+        timestamp
+      ),
+    ]
   );
+}
+
+function buildSyncChangePayloadHash(
+  tableName: string,
+  rowId: string,
+  operation: SyncOperation,
+  changedColsJson: string,
+  timestamp: string
+): string {
+  const input = `${tableName}\u0000${rowId}\u0000${operation}\u0000${changedColsJson}\u0000${timestamp}`;
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `fnv1a32:${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }
 
 // ─── Workspace Settings ─────────────────────────────────────
@@ -2753,14 +2797,17 @@ export async function getPendingDatabaseSyncRecords(
 ): Promise<PendingDatabaseSyncRecords> {
   const db = await getDb();
   const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 1000);
+  const now = nowISO();
   const rows = db.query(
     `SELECT id, table_name as tableName, row_id as rowId
      FROM sync_log
      WHERE synced = 0
+       AND status != 'synced'
+       AND (next_retry_at IS NULL OR next_retry_at <= ?)
        AND table_name IN ('databases', 'database_fields', 'database_rows', 'database_views')
      ORDER BY timestamp ASC, id ASC
      LIMIT ?`,
-    [safeLimit]
+    [now, safeLimit]
   ) as unknown as Array<{
     id: number;
     tableName: string;
@@ -2801,13 +2848,31 @@ export async function markDatabaseSyncLogEntriesSynced(
     const placeholders = chunk.map(() => "?").join(", ");
     db.run(
       `UPDATE sync_log
-       SET synced = 1
+       SET synced = 1,
+           status = 'synced',
+           last_attempt_at = COALESCE(last_attempt_at, ?),
+           next_retry_at = NULL,
+           last_error = NULL
        WHERE id IN (${placeholders})`,
-      chunk
+      [nowISO(), ...chunk]
     );
     marked += chunk.length;
   }
   return marked;
+}
+
+export async function markDatabaseSyncLogEntriesAttempted(
+  ids: number[]
+): Promise<number> {
+  return markSyncLogEntriesAttempted(ids);
+}
+
+export async function markDatabaseSyncLogEntriesFailed(
+  ids: number[],
+  error: string,
+  retryDelayMs = 60_000
+): Promise<number> {
+  return markSyncLogEntriesFailed(ids, error, retryDelayMs);
 }
 
 export async function markWorkspaceSettingSyncLogEntriesSynced(
@@ -2834,11 +2899,15 @@ export async function markWorkspaceSettingSyncLogEntriesSynced(
     );
     db.run(
       `UPDATE sync_log
-       SET synced = 1
+       SET synced = 1,
+           status = 'synced',
+           last_attempt_at = COALESCE(last_attempt_at, ?),
+           next_retry_at = NULL,
+           last_error = NULL
        WHERE table_name = 'workspace_settings'
          AND row_id IN (${placeholders})
          AND synced = 0`,
-      chunk
+      [nowISO(), ...chunk]
     );
     marked += Number(beforeRows[0]?.count ?? 0);
   }
@@ -3177,17 +3246,89 @@ function upsertRemoteDatabaseRow(db: SqliteDb, record: RemoteDatabaseRecord) {
 
 // ─── Sync Readiness ───────────────────────────────────────────
 
+async function markSyncLogEntriesAttempted(ids: number[]): Promise<number> {
+  const db = await getDb();
+  const uniqueIds = normalizeSyncLogIds(ids);
+  if (uniqueIds.length === 0) return 0;
+  let marked = 0;
+  const now = nowISO();
+  const chunkSize = 200;
+  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+    const chunk = uniqueIds.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    db.run(
+      `UPDATE sync_log
+       SET status = 'in_flight',
+           attempt_count = attempt_count + 1,
+           last_attempt_at = ?,
+           next_retry_at = NULL,
+           last_error = NULL
+       WHERE id IN (${placeholders})
+         AND synced = 0`,
+      [now, ...chunk]
+    );
+    marked += chunk.length;
+  }
+  return marked;
+}
+
+async function markSyncLogEntriesFailed(
+  ids: number[],
+  error: string,
+  retryDelayMs = 60_000
+): Promise<number> {
+  const db = await getDb();
+  const uniqueIds = normalizeSyncLogIds(ids);
+  if (uniqueIds.length === 0) return 0;
+  let marked = 0;
+  const now = new Date();
+  const retryAt = new Date(
+    now.getTime() + Math.max(5_000, Math.floor(retryDelayMs))
+  ).toISOString();
+  const safeError = error.trim().slice(0, 500) || "sync failed";
+  const chunkSize = 200;
+  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+    const chunk = uniqueIds.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    db.run(
+      `UPDATE sync_log
+       SET status = 'failed',
+           next_retry_at = ?,
+           last_error = ?
+       WHERE id IN (${placeholders})
+         AND synced = 0`,
+      [retryAt, safeError, ...chunk]
+    );
+    marked += chunk.length;
+  }
+  return marked;
+}
+
+function normalizeSyncLogIds(ids: number[]): number[] {
+  return Array.from(
+    new Set(
+      ids
+        .map((id) => Math.floor(id))
+        .filter((id) => Number.isInteger(id) && id > 0)
+    )
+  );
+}
+
 export async function getSyncLogSummary(): Promise<SyncLogSummary> {
   const db = await getDb();
   const summaryRows = db.query(
     `SELECT
        COUNT(*) as total,
        SUM(CASE WHEN synced = 0 THEN 1 ELSE 0 END) as pending,
+       SUM(CASE WHEN synced = 0 AND status = 'failed' THEN 1 ELSE 0 END) as failed,
+       SUM(CASE WHEN synced = 0 AND status = 'in_flight' THEN 1 ELSE 0 END) as inFlight,
        MAX(timestamp) as lastChangeAt
      FROM sync_log`
   ) as unknown as Array<{
     total: number | null;
     pending: number | null;
+    failed: number | null;
+    inFlight: number | null;
     lastChangeAt: string | null;
   }>;
   const tableRows = db.query(
@@ -3195,6 +3336,8 @@ export async function getSyncLogSummary(): Promise<SyncLogSummary> {
        table_name as tableName,
        COUNT(*) as total,
        SUM(CASE WHEN synced = 0 THEN 1 ELSE 0 END) as pending,
+       SUM(CASE WHEN synced = 0 AND status = 'failed' THEN 1 ELSE 0 END) as failed,
+       SUM(CASE WHEN synced = 0 AND status = 'in_flight' THEN 1 ELSE 0 END) as inFlight,
        MAX(timestamp) as lastChangeAt
      FROM sync_log
      GROUP BY table_name
@@ -3203,6 +3346,8 @@ export async function getSyncLogSummary(): Promise<SyncLogSummary> {
     tableName: string;
     total: number | null;
     pending: number | null;
+    failed: number | null;
+    inFlight: number | null;
     lastChangeAt: string | null;
   }>;
   const summary = summaryRows[0];
@@ -3210,11 +3355,15 @@ export async function getSyncLogSummary(): Promise<SyncLogSummary> {
   return {
     total: Number(summary?.total ?? 0),
     pending: Number(summary?.pending ?? 0),
+    failed: Number(summary?.failed ?? 0),
+    inFlight: Number(summary?.inFlight ?? 0),
     lastChangeAt: summary?.lastChangeAt ?? null,
     tables: tableRows.map((row) => ({
       tableName: row.tableName,
       total: Number(row.total ?? 0),
       pending: Number(row.pending ?? 0),
+      failed: Number(row.failed ?? 0),
+      inFlight: Number(row.inFlight ?? 0),
       lastChangeAt: row.lastChangeAt ?? null,
     })),
   };
@@ -3233,7 +3382,14 @@ export async function getPendingSyncLogEntries(
        operation,
        changed_cols as changedCols,
        timestamp,
-       synced
+       synced,
+       status,
+       attempt_count as attemptCount,
+       last_attempt_at as lastAttemptAt,
+       next_retry_at as nextRetryAt,
+       last_error as lastError,
+       payload_hash as payloadHash,
+       source
      FROM sync_log
      WHERE synced = 0
      ORDER BY timestamp DESC, id DESC
@@ -3247,6 +3403,13 @@ export async function getPendingSyncLogEntries(
     changedCols: string | null;
     timestamp: string;
     synced: number;
+    status: string;
+    attemptCount: number | null;
+    lastAttemptAt: string | null;
+    nextRetryAt: string | null;
+    lastError: string | null;
+    payloadHash: string | null;
+    source: string | null;
   }>;
 
   return rows.map((row) => ({
@@ -3257,6 +3420,13 @@ export async function getPendingSyncLogEntries(
     changedCols: parseChangedCols(row.changedCols),
     timestamp: row.timestamp,
     synced: Number(row.synced),
+    status: row.status || "pending",
+    attemptCount: Number(row.attemptCount ?? 0),
+    lastAttemptAt: row.lastAttemptAt ?? null,
+    nextRetryAt: row.nextRetryAt ?? null,
+    lastError: row.lastError ?? null,
+    payloadHash: row.payloadHash ?? null,
+    source: row.source ?? "local",
   }));
 }
 

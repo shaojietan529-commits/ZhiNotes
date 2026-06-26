@@ -151,10 +151,22 @@ function installLocalSchema(db: SqliteDb) {
   ensureColumn(db, "pages", "properties", "TEXT");
   ensureColumn(db, "pages", "daily_date_key", "TEXT");
   ensureColumn(db, "page_versions", "deleted_at", "TEXT");
+  ensureColumn(db, "sync_log", "status", "TEXT NOT NULL DEFAULT 'pending'");
+  ensureColumn(db, "sync_log", "attempt_count", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(db, "sync_log", "last_attempt_at", "TEXT");
+  ensureColumn(db, "sync_log", "next_retry_at", "TEXT");
+  ensureColumn(db, "sync_log", "last_error", "TEXT");
+  ensureColumn(db, "sync_log", "payload_hash", "TEXT");
+  ensureColumn(db, "sync_log", "source", "TEXT NOT NULL DEFAULT 'local'");
   ensureIndex(
     db,
     "idx_pages_daily_date",
     "pages(daily_date_key, updated_at DESC)"
+  );
+  ensureIndex(
+    db,
+    "idx_synclog_retry",
+    "sync_log(synced, status, next_retry_at, timestamp)"
   );
 
   // Ensure the default solo user exists

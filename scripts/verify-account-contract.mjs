@@ -946,6 +946,8 @@ check(
 );
 
 const localQueries = read("src/lib/db/local/queries.ts");
+const localSchema = read("src/lib/db/local/schema.ts");
+const localClient = read("src/lib/db/local/client.ts");
 const localPageSyncSummaryBody = localQueries.slice(
   localQueries.indexOf("export async function getLocalPageSyncSummary"),
   localQueries.indexOf("export async function clearLocalPageCacheForIds")
@@ -982,6 +984,53 @@ check(
   localQueries.includes("content_yjs = NULL") &&
     localQueries.includes("content_text = NULL"),
   "本机页面缓存清理应同时清理编辑器正文缓存"
+);
+check(
+  localSchema.includes("status        TEXT NOT NULL DEFAULT 'pending'") &&
+    localSchema.includes("attempt_count INTEGER NOT NULL DEFAULT 0") &&
+    localSchema.includes("next_retry_at TEXT") &&
+    localSchema.includes("last_error    TEXT") &&
+    localSchema.includes("payload_hash  TEXT") &&
+    localSchema.includes("idx_synclog_retry"),
+  "sync_log schema 应记录 pending 状态、尝试次数、错误、下次重试时间和 payload 指纹，支持可追踪/可重试同步"
+);
+check(
+  localClient.includes("ensureColumn(db, \"sync_log\", \"status\"") &&
+    localClient.includes("ensureColumn(db, \"sync_log\", \"attempt_count\"") &&
+    localClient.includes("ensureColumn(db, \"sync_log\", \"next_retry_at\"") &&
+    localClient.includes("ensureColumn(db, \"sync_log\", \"last_error\"") &&
+    localClient.includes("ensureColumn(db, \"sync_log\", \"payload_hash\"") &&
+    localClient.includes("idx_synclog_retry"),
+  "本地缓存迁移只能给 sync_log 补列/补索引，不能要求用户清空旧缓存"
+);
+check(
+  localQueries.includes("buildSyncChangePayloadHash") &&
+    localQueries.includes("status, attempt_count, payload_hash, source") &&
+    localQueries.includes("markDatabaseSyncLogEntriesAttempted") &&
+    localQueries.includes("markDatabaseSyncLogEntriesFailed") &&
+    localQueries.includes("status = 'failed'") &&
+    localQueries.includes("next_retry_at = ?") &&
+    localQueries.includes("WHERE synced = 0") &&
+    localQueries.includes("status != 'synced'") &&
+    localQueries.includes("last_error as lastError"),
+  "sync_log queries 应以 metadata-only 方式支持 attempt/failed/retry，不存正文 payload 且不重试已 synced 行"
+);
+check(
+  databaseSyncClient.includes("markDatabaseSyncLogEntriesAttempted") &&
+    databaseSyncClient.includes("markDatabaseSyncLogEntriesFailed") &&
+    databaseSyncClient.includes("pendingLogIds") &&
+    databaseSyncClient.includes("result.message ?? result.status"),
+  "数据库 pending 上传失败时应保留 sync_log 并记录失败原因，成功后才标记 synced"
+);
+check(
+  syncDashboardShell.includes("formatSyncLogStatus") &&
+    syncDashboardShell.includes("失败待重试") &&
+    syncDashboardShell.includes("下次重试") &&
+    syncDashboardShell.includes("row.failed") &&
+    syncDashboardShell.includes("row.inFlight") &&
+    syncDashboardShell.includes("table.failed") &&
+    syncDashboardShell.includes("table.inFlight"),
+  "同步页应展示全域 pending 的失败/上传中状态，方便定位多端同步卡顿"
 );
 check(
   localQueries.includes("export async function getBacklinks") &&

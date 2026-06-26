@@ -13,6 +13,8 @@ import {
   getLocalDatabaseSyncSummary,
   getPendingDatabaseSyncRecords,
   getRemoteDatabaseRecordKey,
+  markDatabaseSyncLogEntriesAttempted,
+  markDatabaseSyncLogEntriesFailed,
   markDatabaseSyncLogEntriesSynced,
   type RemoteDatabaseRecord,
 } from "@/lib/db/local/queries";
@@ -1178,8 +1180,16 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
   if (pending.entries.length === 0 || pending.records.length === 0) {
     return { status: "ok", pushed: 0, skipped: 0, total: pending.entries.length };
   }
+  const pendingLogIds = pending.entries.map((entry) => entry.logId);
+  await markDatabaseSyncLogEntriesAttempted(pendingLogIds);
   const result = await pushCloudDatabaseRecordsInBatches(pending.records);
-  if (result.status !== "ok") return result;
+  if (result.status !== "ok") {
+    await markDatabaseSyncLogEntriesFailed(
+      pendingLogIds,
+      result.message ?? result.status
+    );
+    return result;
+  }
   const acknowledged = new Set([
     ...(result.acceptedKeys ?? []),
     ...(result.skippedKeys ?? []),
