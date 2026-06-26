@@ -8,6 +8,7 @@ import { usePageRevision } from "@/hooks/usePageRevision";
 import {
   applyRemotePages,
   applyRemotePageMetadata,
+  getWorkspaceSetting,
   getPage,
   listDailyPageMetadataForCalendar,
   rebuildPageDateKeyIndex,
@@ -46,6 +47,12 @@ import {
   writeDailyHotCacheSnapshot,
   type DailyHotCacheSnapshot,
 } from "@/lib/sync/dailyHotCacheSnapshot";
+import {
+  DEFAULT_HOT_CACHE_PREFERENCES,
+  HOT_CACHE_PREFERENCES_SETTING_KEY,
+  metadataRecentLimitForHotCachePreferences,
+  parseHotCachePreferences,
+} from "@/lib/sync/hotCacheSelectionSettings";
 import { useCalendarViewMonthPreference } from "@/hooks/useCalendarViewMonthPreference";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import PageContextMenu from "@/components/page/PageContextMenu";
@@ -103,6 +110,13 @@ export default function DailyNotesShell() {
   const observedPageRevisionRef = useRef<string | null>(null);
   const { viewMonth, setViewMonth } =
     useCalendarViewMonthPreference("daily");
+  const [hotCachePreferences, setHotCachePreferences] = useState(
+    DEFAULT_HOT_CACHE_PREFERENCES
+  );
+  const recentMetadataLimit = useMemo(
+    () => metadataRecentLimitForHotCachePreferences(hotCachePreferences),
+    [hotCachePreferences]
+  );
 
   useEffect(() => {
     try {
@@ -124,6 +138,20 @@ export default function DailyNotesShell() {
       cancelEditorPreload();
     };
   }, []);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    let cancelled = false;
+    void getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)
+      .then((setting) => {
+        if (cancelled) return;
+        setHotCachePreferences(parseHotCachePreferences(setting));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [dbReady]);
 
   const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
     const includeCloud = opts?.includeCloud !== false;
@@ -147,7 +175,7 @@ export default function DailyNotesShell() {
       ? fetchDailyCloudMetadata({
           startDate,
           endDate,
-          recentLimit: 12,
+          recentLimit: recentMetadataLimit,
         }).catch((error): DailyCloudMetadataResult => {
           const message =
             error instanceof Error ? error.message : "云端每日纪要索引读取失败。";
@@ -253,7 +281,7 @@ export default function DailyNotesShell() {
             rootId: confirmedRootId,
             startDate,
             endDate,
-            recentLimit: 12,
+            recentLimit: recentMetadataLimit,
           });
           const nextById = new Map(byId);
           for (const note of collectDailyNotes(confirmedMetadata, confirmedRootId)) {
@@ -267,7 +295,7 @@ export default function DailyNotesShell() {
       rootId: dailyRootId,
       startDate,
       endDate,
-      recentLimit: 12,
+      recentLimit: recentMetadataLimit,
     });
     const dailyNotes = collectDailyNotes(localMetadata, dailyRootId);
     localNoteCount = dailyNotes.length;
@@ -293,7 +321,7 @@ export default function DailyNotesShell() {
             rootId: dailyRootId,
             startDate,
             endDate,
-            recentLimit: 12,
+            recentLimit: recentMetadataLimit,
           });
           const nextById = new Map(byId);
           for (const note of collectDailyNotes(refreshed, dailyRootId)) {
@@ -364,7 +392,7 @@ export default function DailyNotesShell() {
         if (loadRequestRef.current === requestId) setCloudLoading(false);
       }
     }
-  }, [upsertPages, viewMonth]);
+  }, [recentMetadataLimit, upsertPages, viewMonth]);
 
   useEffect(() => {
     if (!dbReady) return;

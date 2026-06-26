@@ -62,6 +62,13 @@ export const DEFAULT_HOT_CACHE_PREFERENCES: HotCachePreferences = {
   keepCurrentProjects: false,
 };
 
+export function metadataRecentLimitForHotCachePreferences(
+  preferences: HotCachePreferences
+): number {
+  // This is a bounded metadata window, not a promise to cache full content.
+  return preferences.recentDays === 90 ? 72 : 24;
+}
+
 export function parseHotCachePreferences(
   setting: WorkspaceSettingRecord | null
 ): HotCachePreferences {

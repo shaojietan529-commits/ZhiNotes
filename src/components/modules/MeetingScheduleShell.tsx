@@ -13,6 +13,7 @@ import {
   deletePage,
   getDeletedPages,
   getPage,
+  getWorkspaceSetting,
   listMeetingPageMetadataForCalendar,
   listPageMetadata,
   restorePage,
@@ -45,6 +46,12 @@ import {
   readMeetingHotCacheSnapshot,
   writeMeetingHotCacheSnapshot,
 } from "@/lib/sync/meetingHotCacheSnapshot";
+import {
+  DEFAULT_HOT_CACHE_PREFERENCES,
+  HOT_CACHE_PREFERENCES_SETTING_KEY,
+  metadataRecentLimitForHotCachePreferences,
+  parseHotCachePreferences,
+} from "@/lib/sync/hotCacheSelectionSettings";
 import {
   createPageProperty,
   parsePageProperties,
@@ -267,10 +274,31 @@ export default function MeetingScheduleShell() {
   const loadRequestRef = useRef(0);
   const meetingsRef = useRef<Page[]>([]);
   const observedPageRevisionRef = useRef<string | null>(null);
+  const [hotCachePreferences, setHotCachePreferences] = useState(
+    DEFAULT_HOT_CACHE_PREFERENCES
+  );
+  const recentMetadataLimit = useMemo(
+    () => metadataRecentLimitForHotCachePreferences(hotCachePreferences),
+    [hotCachePreferences]
+  );
 
   useEffect(() => {
     meetingsRef.current = meetings;
   }, [meetings]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    let cancelled = false;
+    void getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)
+      .then((setting) => {
+        if (cancelled) return;
+        setHotCachePreferences(parseHotCachePreferences(setting));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [dbReady]);
 
   useEffect(() => {
     try {
@@ -414,7 +442,7 @@ export default function MeetingScheduleShell() {
       ? loadMeetingCloudMetadata({
           startDate,
           endDate,
-          recentLimit: 12,
+          recentLimit: recentMetadataLimit,
         }).catch(() => emptyMeetingCloudMetadata(false))
       : null;
 
@@ -430,7 +458,7 @@ export default function MeetingScheduleShell() {
         rootId: id,
         startDate,
         endDate,
-        recentLimit: 12,
+        recentLimit: recentMetadataLimit,
       });
       publishMeetings(
         localPagesForMerge,
@@ -486,6 +514,7 @@ export default function MeetingScheduleShell() {
     deletionTombstonesLoaded,
     deletedTombstoneRef,
     scheduleMetadataCacheWarmup,
+    recentMetadataLimit,
     upsertPages,
     viewMonth,
   ]);

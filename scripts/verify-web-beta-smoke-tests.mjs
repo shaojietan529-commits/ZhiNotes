@@ -1466,6 +1466,24 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "HOT_CACHE_PREFERENCES_SETTING_KEY",
+    "Daily notes must read the user hot-cache preference setting."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "metadataRecentLimitForHotCachePreferences",
+    "Daily notes must translate hot-cache preference into a bounded recent metadata window."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "recentLimit: recentMetadataLimit",
+    "Daily notes must use preference-aware recent metadata limits instead of a fixed window."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "writeOptimisticDailyHotCache",
     "Daily + creation must update the local hot cache before background persistence."
   );
@@ -1522,6 +1540,24 @@ function run() {
     meetingScheduleShell,
     "writeMeetingHotCacheSnapshot",
     "Meeting schedule must refresh the local hot cache snapshot after metadata loads."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "HOT_CACHE_PREFERENCES_SETTING_KEY",
+    "Meeting schedule must read the user hot-cache preference setting."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "metadataRecentLimitForHotCachePreferences",
+    "Meeting schedule must translate hot-cache preference into a bounded recent metadata window."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "recentLimit: recentMetadataLimit",
+    "Meeting schedule must use preference-aware recent metadata limits instead of a fixed window."
   );
   assertIncludes(
     files.meetingScheduleShell,
@@ -1811,6 +1847,18 @@ function run() {
     hotCacheSelectionSettings,
     "ordinary_sync_pending_only: true",
     "Smoke verifier must keep hot cache selection pending-only."
+  );
+  assertIncludes(
+    files.hotCacheSelectionSettings,
+    hotCacheSelectionSettings,
+    "metadataRecentLimitForHotCachePreferences",
+    "Smoke verifier must keep the bounded recent metadata limit helper."
+  );
+  assertIncludes(
+    files.hotCacheSelectionSettings,
+    hotCacheSelectionSettings,
+    "preferences.recentDays === 90 ? 72 : 24",
+    "Smoke verifier must keep recent metadata windows bounded."
   );
   assertIncludes(
     files.hotCacheSettingsCloud,

@@ -564,10 +564,13 @@ check(
     dailyNotesShell.includes("void ensureDailyDateIndexBackfilled()") &&
     !dailyNotesShell.includes("await ensureDailyDateIndexBackfilled()") &&
     dailyNotesShell.includes("fetchDailyCloudMetadata({") &&
-    dailyNotesShell.includes("recentLimit: 12") &&
+    dailyNotesShell.includes("HOT_CACHE_PREFERENCES_SETTING_KEY") &&
+    dailyNotesShell.includes("parseHotCachePreferences") &&
+    dailyNotesShell.includes("metadataRecentLimitForHotCachePreferences") &&
+    dailyNotesShell.includes("recentLimit: recentMetadataLimit") &&
     dailyNotesShell.includes("rebuildPageDateKeyIndex") &&
     !dailyNotesShell.includes("getAllPageMetadata"),
-  "DailyNotesShell 首屏应本地/缓存优先，云端请求可提前并行但只能后台补齐；回退本机时只能走日期索引，不能扫描本机全量页面"
+  "DailyNotesShell 首屏应本地/缓存优先，recent metadata 窗口按热缓存偏好有界扩大；回退本机时只能走日期索引，不能扫描本机全量页面"
 );
 check(
   dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
@@ -630,10 +633,13 @@ check(
     !meetingScheduleShell.includes("syncCloudPageMetadataDelta({ force: true })") &&
     !meetingScheduleShell.includes("reconcilePageSync") &&
     meetingScheduleShell.includes("loadMeetingCloudMetadata({") &&
-    meetingScheduleShell.includes("recentLimit: 12") &&
+    meetingScheduleShell.includes("HOT_CACHE_PREFERENCES_SETTING_KEY") &&
+    meetingScheduleShell.includes("parseHotCachePreferences") &&
+    meetingScheduleShell.includes("metadataRecentLimitForHotCachePreferences") &&
+    meetingScheduleShell.includes("recentLimit: recentMetadataLimit") &&
     meetingScheduleShell.indexOf("mergeMeetingPages([], cloud.pages") <
       meetingScheduleShell.indexOf("getModuleRootId(\"meeting-schedule\")"),
-  "MeetingScheduleShell 首屏应先读云端当前日历窗口，再回退本机缓存；全局 metadata 同步只能空闲后台预热"
+  "MeetingScheduleShell 首屏应先读云端当前日历窗口，再回退本机缓存；recent metadata 窗口按热缓存偏好有界扩大，全局 metadata 同步只能空闲后台预热"
 );
 check(
   meetingScheduleShell.includes("MEETING_CLOUD_CACHE_PREFIX") &&

@@ -1420,6 +1420,18 @@ function run() {
       "Daily notes must refresh the local hot cache snapshot after metadata loads.",
     ],
     [
+      "HOT_CACHE_PREFERENCES_SETTING_KEY",
+      "Daily notes must read the user hot-cache preference setting.",
+    ],
+    [
+      "metadataRecentLimitForHotCachePreferences",
+      "Daily notes must translate hot-cache preference into a bounded recent metadata window.",
+    ],
+    [
+      "recentLimit: recentMetadataLimit",
+      "Daily notes must use preference-aware recent metadata limits instead of a fixed window.",
+    ],
+    [
       "writeOptimisticDailyHotCache",
       "Daily + creation must update the local hot cache before background persistence.",
     ],
@@ -1572,6 +1584,18 @@ function run() {
     [
       "writeMeetingHotCacheSnapshot",
       "Meeting schedule must refresh the local hot cache snapshot after metadata loads.",
+    ],
+    [
+      "HOT_CACHE_PREFERENCES_SETTING_KEY",
+      "Meeting schedule must read the user hot-cache preference setting.",
+    ],
+    [
+      "metadataRecentLimitForHotCachePreferences",
+      "Meeting schedule must translate hot-cache preference into a bounded recent metadata window.",
+    ],
+    [
+      "recentLimit: recentMetadataLimit",
+      "Meeting schedule must use preference-aware recent metadata limits instead of a fixed window.",
     ],
     [
       "writeOptimisticMeetingHotCache",
@@ -2404,6 +2428,14 @@ function run() {
     [
       "keepFavoritePages",
       "Hot cache selection must include favorite pages preference.",
+    ],
+    [
+      "metadataRecentLimitForHotCachePreferences",
+      "Hot cache selection must expose a bounded recent metadata limit helper.",
+    ],
+    [
+      "preferences.recentDays === 90 ? 72 : 24",
+      "Hot cache preference helper must keep recent metadata windows bounded.",
     ],
   ]) {
     assertSourceIncludes(
@@ -10279,8 +10311,8 @@ function run() {
   assertSourceIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "recentLimit: 12",
-    "Meeting calendar local hot-cache render must keep a small recent window without full-root scans."
+    "recentLimit: recentMetadataLimit",
+    "Meeting calendar local hot-cache render must keep a preference-aware bounded recent window without full-root scans."
   );
   assertSourceExcludes(
     files.meetingScheduleShell,
