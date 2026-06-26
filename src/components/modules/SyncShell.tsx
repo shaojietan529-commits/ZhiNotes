@@ -21,7 +21,9 @@ import {
   getLocalMeetingSyncSummary,
   getLocalPageSyncSummary,
   applyRemoteAccountModuleSettings,
+  applyRemoteWorkspaceSettings,
   getPendingAccountModuleSettingSyncLogEntries,
+  getPendingWorkspaceSettingSyncLogEntries,
   listAccountSettings,
   listModuleSettings,
   getPageModuleCounts,
@@ -34,7 +36,6 @@ import {
   markModuleSettingSyncLogEntriesAttempted,
   markModuleSettingSyncLogEntriesFailed,
   markModuleSettingSyncLogEntriesSynced,
-  hasPendingWorkspaceSettingSyncLogEntry,
   listWorkspaceSettings,
   buildModuleSettingSyncRowId,
   markWorkspaceSettingSyncLogEntriesAttempted,
@@ -312,8 +313,10 @@ import {
 } from "@/lib/sync/hotCacheSelectionSettings";
 import {
   buildWorkspaceSettingCloudPayload,
+  buildWorkspaceSettingsCloudRestorePlan,
   buildWorkspaceSettingsPendingSyncPlan,
   type SupportedWorkspaceSettingSyncKey,
+  type WorkspaceSettingsCloudRestorePlan,
 } from "@/lib/sync/workspaceSettingsPendingSync";
 import {
   buildAccountModuleSettingCloudPayload,
@@ -854,6 +857,8 @@ function SyncDashboard() {
   const [hotCacheSaveMessage, setHotCacheSaveMessage] = useState<string | null>(
     null
   );
+  const [workspaceSettingsRestorePlan, setWorkspaceSettingsRestorePlan] =
+    useState<WorkspaceSettingsCloudRestorePlan | null>(null);
   const [
     accountModuleSettingsSyncMessage,
     setAccountModuleSettingsSyncMessage,
@@ -3107,7 +3112,7 @@ function SyncDashboard() {
         clearCloudSession();
         setCloudSession(null);
       }
-      setHotCacheSaveMessage("需要先完成云端登录，再从云端恢复热缓存偏好。");
+      setHotCacheSaveMessage("需要先完成云端登录，再从云端恢复工作区设置。");
       return;
     }
 
@@ -3118,19 +3123,28 @@ function SyncDashboard() {
     }
 
     setBusyCloudAction("hot-cache-settings-pull");
-    setHotCacheSaveMessage("正在检查本地是否还有未上传的热缓存偏好...");
+    setHotCacheSaveMessage("正在检查本地 workspace_settings 是否还有未上传改动...");
     try {
-      const hasLocalPending = await hasPendingWorkspaceSettingSyncLogEntry(
-        HOT_CACHE_PREFERENCES_SETTING_KEY
-      );
-      if (hasLocalPending) {
+      const pendingEntries = await getPendingWorkspaceSettingSyncLogEntries();
+      if (pendingEntries.length > 0) {
+        const blockedPlan = buildWorkspaceSettingsCloudRestorePlan({
+          cloudReadBody: null,
+          pendingEntries,
+        });
+        setWorkspaceSettingsRestorePlan(blockedPlan);
+        const preview = pendingEntries
+          .slice(0, 3)
+          .map((entry) => entry.rowId)
+          .join("、");
         setHotCacheSaveMessage(
-          "本地还有未上传的热缓存偏好。请先同步到云端，或确认放弃本地改动后再从云端恢复。"
+          `本地还有 ${pendingEntries.length} 条 workspace_settings 未上传，暂不允许从云端覆盖本地缓存${
+            preview ? `：${preview}` : ""
+          }。请先同步到云端，或以后增加“放弃本地改动”确认流程后再恢复。`
         );
         return;
       }
 
-      setHotCacheSaveMessage("正在从云端读取热缓存偏好...");
+      setHotCacheSaveMessage("正在从云端读取工作区设置元数据...");
       const response = await fetch(
         `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
         {
@@ -3151,59 +3165,58 @@ function SyncDashboard() {
         return;
       }
 
-      if (!getRecordBoolean(body, "setting_found")) {
+      const restorePlan = buildWorkspaceSettingsCloudRestorePlan({
+        cloudReadBody: body,
+        pendingEntries,
+      });
+      setWorkspaceSettingsRestorePlan(restorePlan);
+
+      if (!restorePlan.restore_allowed) {
         setHotCacheSaveMessage(
-          "云端还没有热缓存偏好。当前本地偏好保持不变。"
+          restorePlan.blocked_reason === "invalid-cloud-summary"
+            ? "云端工作区设置格式不符合当前合同，已保留本地缓存。"
+            : restorePlan.blocked_reason === "missing-cloud-summary"
+              ? "云端响应没有返回工作区设置摘要，已保留本地缓存。"
+              : "本地还有未上传工作区设置，已保留本地缓存。"
         );
         return;
       }
 
-      if (!getRecordBoolean(body, "cloud_value_valid")) {
+      if (restorePlan.summary.total_restore_rows === 0) {
         setHotCacheSaveMessage(
-          "云端热缓存偏好格式不符合当前合同，已保留本地设置。"
+          "云端还没有可恢复的工作区设置。本地缓存保持不变。"
         );
         return;
       }
 
-      const preferencesRecord = getRecordValue(body, "preferences");
-      if (!preferencesRecord) {
-        setHotCacheSaveMessage(
-          "云端响应没有返回可用偏好，已保留本地设置。"
-        );
-        return;
-      }
-
-      const normalized = normalizeHotCachePreferences(
-        preferencesRecord as Partial<HotCachePreferences>
-      );
-      const saved = await upsertWorkspaceSetting(
-        HOT_CACHE_PREFERENCES_SETTING_KEY,
-        normalized,
-        "cloud-hot-cache-settings-pull"
-      );
-      const marked = await markWorkspaceSettingSyncLogEntriesSynced([
-        HOT_CACHE_PREFERENCES_SETTING_KEY,
-      ]);
-      const [nextSyncSummary, nextSyncEntries] = await Promise.all([
+      const receipt = await applyRemoteWorkspaceSettings({
+        settings: restorePlan.settings_to_restore,
+      });
+      const [
+        refreshedWorkspaceSettings,
+        refreshedHotCacheSetting,
+        nextSyncSummary,
+        nextSyncEntries,
+      ] = await Promise.all([
+        listWorkspaceSettings(),
+        getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY),
         getSyncLogSummary(),
         getPendingSyncLogEntries(25),
       ]);
-      setHotCachePreferences(normalized);
-      setHotCacheSetting(saved);
+      setWorkspaceSettings(refreshedWorkspaceSettings);
+      setHotCacheSetting(refreshedHotCacheSetting);
+      setHotCachePreferences(parseHotCachePreferences(refreshedHotCacheSetting));
       setSyncSummary(nextSyncSummary);
       setSyncEntries(nextSyncEntries);
-      const savedAt = getRecordString(body, "saved_at");
       setHotCacheSaveMessage(
-        `已从云端恢复热缓存偏好，本地缓存设置已重建并确认 ${marked} 条 pending${
-          savedAt ? `，云端保存时间 ${formatDate(savedAt)}` : ""
-        }。`
+        `已从云端恢复 ${receipt.workspaceSettingsApplied} 项工作区设置到本地缓存；此操作没有写入 sync_log，也没有上传本地数据。`
       );
     } catch (err) {
-      console.error("[Zhinote] Failed to pull hot cache preferences:", err);
+      console.error("[Zhinote] Failed to pull workspace settings:", err);
       setHotCacheSaveMessage(
         err instanceof Error
-          ? `云端读取失败：${err.message}`
-          : "云端读取失败：未知错误。"
+          ? `工作区设置云端恢复失败：${err.message}`
+          : "工作区设置云端恢复失败：未知错误。"
       );
     } finally {
       setBusyCloudAction(null);
@@ -4661,6 +4674,7 @@ function SyncDashboard() {
         <HotCacheSelectionPanel
           contract={hotCacheSelectionContract}
           preferences={hotCachePreferences}
+          restorePlan={workspaceSettingsRestorePlan}
           saveMessage={hotCacheSaveMessage}
           cloudSyncBusy={busyCloudAction === "workspace-settings"}
           cloudPullBusy={busyCloudAction === "hot-cache-settings-pull"}
@@ -15323,6 +15337,7 @@ function LocalPerformancePanel({
 function HotCacheSelectionPanel({
   contract,
   preferences,
+  restorePlan,
   saveMessage,
   cloudSyncBusy,
   cloudPullBusy,
@@ -15335,6 +15350,7 @@ function HotCacheSelectionPanel({
 }: {
   contract: HotCacheSelectionContract;
   preferences: HotCachePreferences;
+  restorePlan: WorkspaceSettingsCloudRestorePlan | null;
   saveMessage: string | null;
   cloudSyncBusy: boolean;
   cloudPullBusy: boolean;
@@ -15388,7 +15404,7 @@ function HotCacheSelectionPanel({
             disabled={cloudSyncDisabled || cloudSyncBusy || cloudPullBusy}
             className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
-            {cloudPullBusy ? "正在读取..." : "从云端恢复偏好"}
+            {cloudPullBusy ? "正在读取..." : "从云端恢复工作区设置"}
           </button>
           <button
             type="button"
@@ -15460,6 +15476,26 @@ function HotCacheSelectionPanel({
               <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
                 {saveMessage}
               </p>
+            ) : null}
+            {restorePlan ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <HotCacheContractFact
+                  label="恢复状态"
+                  value={restorePlan.restore_allowed ? "可恢复" : "已阻塞"}
+                />
+                <HotCacheContractFact
+                  label="云端设置"
+                  value={`${restorePlan.summary.cloud_settings} 项`}
+                />
+                <HotCacheContractFact
+                  label="本地 pending"
+                  value={`${restorePlan.summary.local_pending_rows} 行`}
+                />
+                <HotCacheContractFact
+                  label="无效设置"
+                  value={`${restorePlan.summary.invalid_setting_keys} 项`}
+                />
+              </div>
             ) : null}
           </div>
         </ContractPanel>

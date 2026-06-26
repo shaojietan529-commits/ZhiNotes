@@ -1739,6 +1739,24 @@ function run() {
     "Smoke verifier must keep workspace setting acknowledgement available."
   );
   assertIncludes(
+    files.localQueries,
+    localQueries,
+    "applyRemoteWorkspaceSettings",
+    "Smoke verifier must keep workspace setting cloud restore writing local cache rows."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "Cannot restore cloud workspace settings while local workspace setting changes are still pending.",
+    "Smoke verifier must keep workspace setting cloud restore blocked by local pending rows."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "getPendingWorkspaceSettingSyncLogEntries",
+    "Smoke verifier must keep workspace setting pending rows readable before cloud restore."
+  );
+  assertIncludes(
     files.hotCacheSelectionSettings,
     hotCacheSelectionSettings,
     'format: "zhinote-hot-cache-selection-contract"',
@@ -1785,6 +1803,30 @@ function run() {
     workspaceSettingsPendingSync,
     'format: "zhinote-workspace-settings-pending-sync-plan"',
     "Smoke verifier must keep workspace settings pending sync plan format."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    'format: "zhinote-workspace-settings-cloud-restore-plan"',
+    "Smoke verifier must keep workspace settings cloud restore plan format."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    'architecture_target: "cloud-master-local-cache-rebuild"',
+    "Smoke verifier must keep workspace settings restore aligned to local cache rebuild."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "local_pending_must_be_empty: true",
+    "Smoke verifier must keep workspace settings restore blocked unless local pending is empty."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "writes_sync_log: false",
+    "Smoke verifier must keep workspace settings cloud restore out of sync_log."
   );
   assertIncludes(
     files.workspaceSettingsPendingSync,
@@ -2525,14 +2567,20 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
-    "从云端恢复偏好",
-    "Sync UI must expose the hot cache cloud restore button."
+    "从云端恢复工作区设置",
+    "Sync UI must expose the workspace settings cloud restore button."
   );
   assertIncludes(
     files.syncShell,
     syncShell,
-    "hasPendingWorkspaceSettingSyncLogEntry",
-    "Sync UI must protect local pending hot cache settings before restore."
+    "getPendingWorkspaceSettingSyncLogEntries",
+    "Sync UI must protect local pending workspace settings before restore."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "applyRemoteWorkspaceSettings",
+    "Sync UI must apply workspace settings cloud restore without creating sync_log rows."
   );
   assertIncludes(
     files.syncShell,

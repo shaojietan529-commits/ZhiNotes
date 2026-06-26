@@ -1,4 +1,5 @@
 import type {
+  RemoteWorkspaceSettingCacheRecord,
   SyncLogEntry,
   WorkspaceSettingRecord,
 } from "@/lib/db/local/queries";
@@ -67,6 +68,49 @@ export interface WorkspaceSettingPendingSyncPlan {
     uploadable_settings: number;
     skipped_pending_settings: number;
     missing_local_settings: number;
+  };
+  privacy_boundary: string;
+}
+
+export interface WorkspaceSettingsCloudRestorePlan {
+  format: "zhinote-workspace-settings-cloud-restore-plan";
+  format_version: 1;
+  architecture_target: "cloud-master-local-cache-rebuild";
+  direction: "cloud-to-local-cache";
+  restore_allowed: boolean;
+  blocked_reason:
+    | null
+    | "local-pending-settings"
+    | "missing-cloud-summary"
+    | "invalid-cloud-summary";
+  local_pending_must_be_empty: true;
+  cloud_value_valid: boolean;
+  cloud_settings_found: boolean;
+  pending_rows: Array<{
+    table_name: "workspace_settings";
+    row_id: string;
+    status: string;
+  }>;
+  settings_to_restore: RemoteWorkspaceSettingCacheRecord[];
+  invalid_setting_keys: string[];
+  summary: {
+    local_pending_rows: number;
+    cloud_settings: number;
+    total_restore_rows: number;
+    invalid_setting_keys: number;
+  };
+  boundary: {
+    reads_workspace_settings: true;
+    writes_local_cache_records: true;
+    writes_sync_log: false;
+    uploads_workspace_content: false;
+    reads_page_body_text: false;
+    reads_page_titles: false;
+    reads_meeting_titles: false;
+    reads_database_row_values: false;
+    reads_comment_bodies: false;
+    reads_file_bytes: false;
+    reads_secret_values: false;
   };
   privacy_boundary: string;
 }
@@ -169,6 +213,66 @@ export function buildWorkspaceSettingsPendingSyncPlan(input: {
     },
     privacy_boundary:
       "Only explicit workspace_settings rows that also have unsynced sync_log entries are uploaded. Page bodies, database row values, comments, files, tokens, and raw local cache dumps are never included.",
+  };
+}
+
+export function buildWorkspaceSettingsCloudRestorePlan(input: {
+  cloudReadBody: unknown;
+  pendingEntries: SyncLogEntry[];
+}): WorkspaceSettingsCloudRestorePlan {
+  const pendingRows = input.pendingEntries
+    .filter((entry) => entry.tableName === "workspace_settings")
+    .map((entry) => ({
+      table_name: "workspace_settings" as const,
+      row_id: entry.rowId,
+      status: entry.status,
+    }));
+  const parsed = parseWorkspaceSettingsCloudRestoreRecords(
+    input.cloudReadBody
+  );
+  const blockedReason =
+    pendingRows.length > 0
+      ? "local-pending-settings"
+      : !isPlainRecord(input.cloudReadBody)
+        ? "missing-cloud-summary"
+        : !parsed.cloudValueValid
+          ? "invalid-cloud-summary"
+          : null;
+
+  return {
+    format: "zhinote-workspace-settings-cloud-restore-plan",
+    format_version: 1,
+    architecture_target: "cloud-master-local-cache-rebuild",
+    direction: "cloud-to-local-cache",
+    restore_allowed: blockedReason === null,
+    blocked_reason: blockedReason,
+    local_pending_must_be_empty: true,
+    cloud_value_valid: parsed.cloudValueValid,
+    cloud_settings_found: parsed.settings.length > 0,
+    pending_rows: pendingRows,
+    settings_to_restore: parsed.settings,
+    invalid_setting_keys: parsed.invalidSettingKeys,
+    summary: {
+      local_pending_rows: pendingRows.length,
+      cloud_settings: parsed.settings.length,
+      total_restore_rows: parsed.settings.length,
+      invalid_setting_keys: parsed.invalidSettingKeys.length,
+    },
+    boundary: {
+      reads_workspace_settings: true,
+      writes_local_cache_records: true,
+      writes_sync_log: false,
+      uploads_workspace_content: false,
+      reads_page_body_text: false,
+      reads_page_titles: false,
+      reads_meeting_titles: false,
+      reads_database_row_values: false,
+      reads_comment_bodies: false,
+      reads_file_bytes: false,
+      reads_secret_values: false,
+    },
+    privacy_boundary:
+      "Cloud restore reads only workspace settings metadata from the workspace settings response and rebuilds local cache rows. It never uploads local data, writes sync_log, reads page bodies, page titles, meeting titles, database values, comments, files, secrets, or raw local cache dumps.",
   };
 }
 
@@ -291,6 +395,170 @@ function uniquePendingWorkspaceSettingKeys(entries: SyncLogEntry[]): string[] {
     keys.add(entry.rowId.trim());
   }
   return [...keys];
+}
+
+function parseWorkspaceSettingsCloudRestoreRecords(value: unknown): {
+  cloudValueValid: boolean;
+  settings: RemoteWorkspaceSettingCacheRecord[];
+  invalidSettingKeys: string[];
+} {
+  if (!isPlainRecord(value)) {
+    return {
+      cloudValueValid: false,
+      settings: [],
+      invalidSettingKeys: [],
+    };
+  }
+
+  let valid = true;
+  let summarySeen = false;
+  const settings: RemoteWorkspaceSettingCacheRecord[] = [];
+  const invalidSettingKeys: string[] = [];
+  const markInvalid = (key: string) => {
+    valid = false;
+    invalidSettingKeys.push(key);
+  };
+  const addSetting = (
+    key: SupportedWorkspaceSettingSyncKey,
+    summary: Record<string, unknown> | null,
+    valueBuilder: (summary: Record<string, unknown>) => Record<string, unknown>
+  ) => {
+    if (!summary) return;
+    summarySeen = true;
+    if (summary.setting_found !== true) {
+      if (summary.cloud_value_valid === false) markInvalid(key);
+      return;
+    }
+    if (summary.cloud_value_valid !== true) {
+      markInvalid(key);
+      return;
+    }
+    settings.push({
+      key,
+      value: valueBuilder(summary),
+      savedAt: typeof summary.saved_at === "string" ? summary.saved_at : null,
+    });
+  };
+
+  const hotCacheSummary =
+    "setting_found" in value ||
+    "cloud_value_valid" in value ||
+    "preferences" in value
+      ? value
+      : null;
+  addSetting(
+    HOT_CACHE_PREFERENCES_SETTING_KEY,
+    hotCacheSummary,
+    (summary) =>
+      normalizeHotCachePreferences(
+        isPlainRecord(summary.preferences) ? summary.preferences : {}
+      ) as unknown as Record<string, unknown>
+  );
+
+  const sidebarSettings = readRecord(value.sidebar_settings);
+  if (sidebarSettings) {
+    addSetting(
+      SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
+      readRecord(sidebarSettings.order),
+      (summary) => ({
+        schema_version: 1,
+        order: normalizeSidebarPrimaryOrder(summary.order),
+        cloud_target: "workspaces.settings.sidebar_primary_order",
+        ordinary_sync_pending_only: true,
+      })
+    );
+    addSetting(
+      SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
+      readRecord(sidebarSettings.customizations),
+      (summary) => ({
+        schema_version: 1,
+        customizations: normalizeSidebarPrimaryCustomizations(
+          summary.customizations
+        ),
+        cloud_target: "workspaces.settings.sidebar_primary_customization",
+        ordinary_sync_pending_only: true,
+      })
+    );
+  } else if (value.sidebar_settings !== undefined && value.sidebar_settings !== null) {
+    markInvalid("sidebar_settings");
+  }
+
+  addSetting(
+    PAGE_FAVORITES_SETTING_KEY,
+    readRecord(value.page_favorites),
+    (summary) => ({
+      favorite_page_ids:
+        parsePageFavoritesWorkspaceSettingValue(summary).favorite_page_ids,
+    })
+  );
+  addSetting(
+    PAGE_VIEW_PREFERENCES_SETTING_KEY,
+    readRecord(value.page_view_preferences),
+    (summary) => ({
+      ...parsePageViewPreferencesWorkspaceSettingValue(summary),
+    })
+  );
+  addSetting(
+    QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
+    readRecord(value.quick_search_saved_searches),
+    (summary) => ({
+      saved_searches:
+        parseQuickSearchSavedSearchesWorkspaceSettingValue(summary)
+          .saved_searches,
+    })
+  );
+  addSetting(
+    CALENDAR_VIEW_STATE_SETTING_KEY,
+    readRecord(value.calendar_view_state),
+    (summary) => {
+      const parsed = parseCalendarViewStateWorkspaceSettingValue(summary);
+      return {
+        schema_version: 1,
+        daily_view_month: parsed.daily_view_month,
+        meeting_view_month: parsed.meeting_view_month,
+        cloud_target: "workspaces.settings.calendar_view_state",
+        ordinary_sync_pending_only: true,
+      };
+    }
+  );
+  addSetting(
+    MEETING_REVIEW_STATE_SETTING_KEY,
+    readRecord(value.meeting_review_state),
+    (summary) => {
+      const parsed = parseMeetingReviewStateWorkspaceSettingValue(summary);
+      return {
+        schema_version: 1,
+        seen_meeting_page_ids: parsed.seen_meeting_page_ids,
+        dismissed_trace_page_ids: parsed.dismissed_trace_page_ids,
+        cloud_target: "workspaces.settings.meeting_review_state",
+        ordinary_sync_pending_only: true,
+      };
+    }
+  );
+  addSetting(
+    MEETING_DELETION_TOMBSTONES_SETTING_KEY,
+    readRecord(value.meeting_deletion_tombstones),
+    (summary) => {
+      const parsed =
+        parseMeetingDeletionTombstonesWorkspaceSettingValue(summary);
+      return {
+        schema_version: 1,
+        deleted_meeting_page_ids: parsed.deleted_meeting_page_ids,
+        cloud_target: "workspaces.settings.meeting_deletion_tombstones",
+        ordinary_sync_pending_only: true,
+      };
+    }
+  );
+
+  return {
+    cloudValueValid: summarySeen && valid,
+    settings: valid ? settings : [],
+    invalidSettingKeys,
+  };
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return isPlainRecord(value) ? value : null;
 }
 
 function readSettingPayloadValue(value: unknown, field: string): unknown {

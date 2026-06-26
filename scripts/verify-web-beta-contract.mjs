@@ -2208,8 +2208,16 @@ function run() {
       "Workspace settings must support local pending acknowledgement after cloud receipt.",
     ],
     [
-      "hasPendingWorkspaceSettingSyncLogEntry",
-      "Workspace settings must expose pending checks before cloud-to-local rebuilds.",
+      "getPendingWorkspaceSettingSyncLogEntries",
+      "Workspace settings must expose all pending rows before cloud-to-local rebuilds.",
+    ],
+    [
+      "applyRemoteWorkspaceSettings",
+      "Workspace settings must support rebuilding local cache rows from cloud metadata.",
+    ],
+    [
+      "Cannot restore cloud workspace settings while local workspace setting changes are still pending.",
+      "Workspace settings cloud restore must refuse to overwrite unsynced local settings.",
     ],
     [
       "WHERE table_name = 'workspace_settings'",
@@ -2475,6 +2483,22 @@ function run() {
     [
       'format: "zhinote-workspace-settings-pending-sync-plan"',
       "Workspace settings pending sync must expose a stable plan format.",
+    ],
+    [
+      'format: "zhinote-workspace-settings-cloud-restore-plan"',
+      "Workspace settings cloud restore must expose a stable restore plan.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-cache-rebuild"',
+      "Workspace settings cloud restore must rebuild local cache from the cloud master.",
+    ],
+    [
+      "local_pending_must_be_empty: true",
+      "Workspace settings cloud restore must require local pending rows to be empty.",
+    ],
+    [
+      "writes_sync_log: false",
+      "Workspace settings cloud restore must not create echo-loop sync_log rows.",
     ],
     [
       "SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS",
@@ -3471,12 +3495,16 @@ function run() {
       "Sync UI must acknowledge local pending settings after cloud success.",
     ],
     [
-      "hasPendingWorkspaceSettingSyncLogEntry",
-      "Sync UI must block cloud preference pulls when local settings are still pending.",
+      "getPendingWorkspaceSettingSyncLogEntries",
+      "Sync UI must block workspace settings cloud restore when local pending rows exist.",
+    ],
+    [
+      "applyRemoteWorkspaceSettings",
+      "Sync UI must rebuild workspace setting local cache from validated cloud metadata.",
     ],
     [
       "handleHotCachePreferencesCloudPull",
-      "Sync UI must expose an explicit hot-cache preferences cloud pull action.",
+      "Sync UI must expose an explicit workspace settings cloud pull action.",
     ],
     [
       "同步待上传设置",
@@ -3539,8 +3567,8 @@ function run() {
       "Sync UI must render the account/module settings cloud restore button.",
     ],
     [
-      "从云端恢复偏好",
-      "Sync UI must render the hot-cache cloud restore button.",
+      "从云端恢复工作区设置",
+      "Sync UI must render the workspace settings cloud restore button.",
     ],
     [
       "页面 pending 上传队列",
