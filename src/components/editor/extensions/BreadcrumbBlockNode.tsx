@@ -3,17 +3,44 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
-import { useEffect } from "react";
-import { usePages } from "@/hooks/usePages";
+import { useEffect, useState } from "react";
+import { getPageMetadata } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
+const BREADCRUMB_PARENT_LOOKUP_GUARD = 32;
+
 function BreadcrumbBlockComponent({ node, updateAttributes }: NodeViewProps) {
-  const { pages } = usePages();
   const currentPageId = useWorkspaceStore((state) => state.currentPageId);
   const pageId = String(node.attrs.pageId || currentPageId || "");
-  const path = getPagePath(pageId, pages);
+  const [path, setPath] = useState<string[]>(() =>
+    parseStoredPath(String(node.attrs.path || ""))
+  );
   const pathLabel = path.join(" / ");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!pageId) {
+      queueMicrotask(() => {
+        if (!cancelled) setPath([]);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    queueMicrotask(() => {
+      void getPagePath(pageId).then((nextPath) => {
+        if (cancelled || nextPath.length === 0) return;
+        setPath(nextPath);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pageId]);
 
   useEffect(() => {
     const nextAttrs: { pageId?: string; path?: string } = {};
@@ -50,15 +77,28 @@ function BreadcrumbBlockComponent({ node, updateAttributes }: NodeViewProps) {
   );
 }
 
-function getPagePath(pageId: string, pages: Page[]) {
-  const pagesById = new Map(pages.map((page) => [page.id, page]));
+function parseStoredPath(path: string): string[] {
+  return path
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+async function getPagePath(pageId: string) {
   const path: string[] = [];
   const seen = new Set<string>();
+  const memoryPages = useWorkspaceStore.getState().pages;
   let cursor: string | null = pageId;
 
-  while (cursor && !seen.has(cursor)) {
+  while (
+    cursor &&
+    !seen.has(cursor) &&
+    seen.size < BREADCRUMB_PARENT_LOOKUP_GUARD
+  ) {
     seen.add(cursor);
-    const page = pagesById.get(cursor);
+    const page: Page | null =
+      memoryPages.find((item) => item.id === cursor) ??
+      (await getPageMetadata(cursor).catch(() => null));
     if (!page) break;
     path.unshift(page.title || "未命名页面");
     cursor = page.parent_id;

@@ -971,6 +971,30 @@ function run() {
     );
   }
   for (const snippet of [
+    "getPageMetadata(cursor)",
+    "BREADCRUMB_PARENT_LOOKUP_GUARD",
+    "parseStoredPath",
+  ]) {
+    assertIncludes(
+      files.breadcrumbBlock,
+      breadcrumbBlock,
+      snippet,
+      "Breadcrumb editor block must resolve parent paths through bounded page metadata reads."
+    );
+  }
+  for (const snippet of [
+    'from "@/hooks/usePages"',
+    "usePages()",
+    "usePages({",
+  ]) {
+    assertNotIncludes(
+      files.breadcrumbBlock,
+      breadcrumbBlock,
+      snippet,
+      "Breadcrumb editor block must not load the global page list just to render one page path."
+    );
+  }
+  for (const snippet of [
     "Wiki 引用：",
     "未解析的 Wiki 引用",
     "未命名页面",

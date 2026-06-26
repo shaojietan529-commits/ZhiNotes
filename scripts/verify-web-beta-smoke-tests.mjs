@@ -60,6 +60,8 @@ const files = {
   databaseShell: "src/components/database/DatabaseShell.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
+  breadcrumbBlockNode:
+    "src/components/editor/extensions/BreadcrumbBlockNode.tsx",
   compareShell: "src/components/comparison/CompareShell.tsx",
   pageProperties: "src/components/page/PageProperties.tsx",
   breadcrumb: "src/components/shared/Breadcrumb.tsx",
@@ -346,6 +348,7 @@ function run() {
   const databaseShell = readProjectFile(files.databaseShell);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
+  const breadcrumbBlockNode = readProjectFile(files.breadcrumbBlockNode);
   const compareShell = readProjectFile(files.compareShell);
   const pageProperties = readProjectFile(files.pageProperties);
   const breadcrumb = readProjectFile(files.breadcrumb);
@@ -4282,6 +4285,24 @@ function run() {
   ]) {
     assertIncludes(sourceLabel, source, sourceName, message);
   }
+  assertIncludes(
+    files.breadcrumbBlockNode,
+    breadcrumbBlockNode,
+    "getPageMetadata(cursor)",
+    "Breadcrumb editor block must resolve page paths through bounded metadata reads."
+  );
+  assertIncludes(
+    files.breadcrumbBlockNode,
+    breadcrumbBlockNode,
+    "BREADCRUMB_PARENT_LOOKUP_GUARD",
+    "Breadcrumb editor block must guard parent traversal depth."
+  );
+  assertExcludes(
+    files.breadcrumbBlockNode,
+    breadcrumbBlockNode,
+    'from "@/hooks/usePages"',
+    "Breadcrumb editor block must not import usePages for global metadata scans."
+  );
   for (const [sourceLabel, source, requiredSources] of [
     [files.inlineDatabaseNode, inlineDatabaseNode, ['source: "inline-database-open"']],
     [files.compareShell, compareShell, ['source: "compare-return"']],

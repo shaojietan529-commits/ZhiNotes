@@ -128,6 +128,8 @@ const files = {
   databaseShell: "src/components/database/DatabaseShell.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
+  breadcrumbBlockNode:
+    "src/components/editor/extensions/BreadcrumbBlockNode.tsx",
   compareShell: "src/components/comparison/CompareShell.tsx",
   pageProperties: "src/components/page/PageProperties.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
@@ -488,6 +490,7 @@ function run() {
   const databaseShell = readProjectFile(files.databaseShell);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
+  const breadcrumbBlockNode = readProjectFile(files.breadcrumbBlockNode);
   const compareShell = readProjectFile(files.compareShell);
   const pageProperties = readProjectFile(files.pageProperties);
   const pageShell = readProjectFile(files.pageShell);
@@ -11722,6 +11725,24 @@ function run() {
     notesShell,
     "await refresh()",
     "Notes module create/open flow must not wait for a full page-list refresh."
+  );
+  assertSourceIncludes(
+    files.breadcrumbBlockNode,
+    breadcrumbBlockNode,
+    "getPageMetadata(cursor)",
+    "Breadcrumb editor blocks must resolve page paths through bounded metadata reads."
+  );
+  assertSourceIncludes(
+    files.breadcrumbBlockNode,
+    breadcrumbBlockNode,
+    "BREADCRUMB_PARENT_LOOKUP_GUARD",
+    "Breadcrumb editor blocks must guard parent traversal depth."
+  );
+  assertSourceExcludes(
+    files.breadcrumbBlockNode,
+    breadcrumbBlockNode,
+    'from "@/hooks/usePages"',
+    "Breadcrumb editor blocks must not import usePages because page open should not trigger global metadata scans."
   );
   for (const [sourceLabel, source, requiredSources] of [
     [files.inlineDatabaseNode, inlineDatabaseNode, ['source: "inline-database-open"']],
