@@ -4042,6 +4042,18 @@ function run() {
       "Sync UI must render metadata-only page pending sample ids.",
     ],
     [
+      'data-testid="page-pending-queue-details"',
+      "Sync UI must expose a stable page pending queue details test hook.",
+    ],
+    [
+      'data-testid="page-pending-sample-id"',
+      "Sync UI must expose stable metadata-only page id sample test hooks.",
+    ],
+    [
+      "补传按钮才会尝试上传 pending",
+      "Sync UI must clarify that reading queue details does not trigger upload.",
+    ],
+    [
       "数据库 pending 上传队列",
       "Sync UI must render database pending upload queue status.",
     ],

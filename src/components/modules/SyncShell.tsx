@@ -9445,58 +9445,7 @@ function SyncDashboard() {
                     : "补传页面队列"}
                 </button>
               </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                  <div className="text-[11px] uppercase text-zinc-400">
-                    待上传页面
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                    {pagePendingStatus.pending}
-                  </div>
-                </div>
-                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                  <div className="text-[11px] uppercase text-zinc-400">
-                    内存批次
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                    {pagePendingStatus.queued}
-                  </div>
-                </div>
-                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                  <div className="text-[11px] uppercase text-zinc-400">
-                    最早排队
-                  </div>
-                  <div className="mt-1 text-xs font-medium text-zinc-700 dark:text-zinc-200">
-                    {pagePendingStatus.oldestPendingQueuedAt
-                      ? formatDate(pagePendingStatus.oldestPendingQueuedAt)
-                      : "暂无 pending"}
-                  </div>
-                </div>
-                <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                  <div className="text-[11px] uppercase text-zinc-400">
-                    最后同步
-                  </div>
-                  <div className="mt-1 text-xs font-medium text-zinc-700 dark:text-zinc-200">
-                    {pagePendingStatus.lastSyncAt
-                      ? formatDate(pagePendingStatus.lastSyncAt)
-                      : "暂无记录"}
-                  </div>
-                </div>
-              </div>
-              <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                页面同步当前{pagePendingStatus.enabled ? "已开启" : "已关闭"}。
-                普通同步只会补传 pending queue 里的页面，不会把本地缓存全量上传。
-              </p>
-              {pagePendingStatus.pendingSampleIds.length > 0 && (
-                <p className="mt-2 break-all text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  样本 page id：
-                  {pagePendingStatus.pendingSampleIds.join(", ")}
-                  {pagePendingStatus.pending >
-                  pagePendingStatus.pendingSampleIds.length
-                    ? " ..."
-                    : ""}
-                </p>
-              )}
+              <PagePendingQueueDetails status={pagePendingStatus} />
               {pagePendingMessage && (
                 <p className="mt-2 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                   {pagePendingMessage}
@@ -15709,6 +15658,120 @@ function BetaStatusPill({ status }: { status: WebBetaReadinessStatus }) {
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[status]}
     </span>
+  );
+}
+
+function PagePendingQueueDetails({
+  status,
+}: {
+  status: PendingCloudPageSyncStatus;
+}) {
+  const totalWaiting = status.pending + status.queued;
+  const stateLabel =
+    totalWaiting > 0 ? "待补传" : status.enabled ? "队列清空" : "同步关闭";
+  const stateClass =
+    totalWaiting > 0
+      ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+      : status.enabled
+        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
+  const queueFacts = [
+    {
+      label: "待上传页面",
+      value: String(status.pending),
+      detail: "已写入本地 pending queue 的 page id。",
+    },
+    {
+      label: "内存批次",
+      value: String(status.queued),
+      detail: "当前浏览器会话内等待合并的页面。",
+    },
+    {
+      label: "最早排队",
+      value: status.oldestPendingQueuedAt
+        ? formatDate(status.oldestPendingQueuedAt)
+        : "暂无 pending",
+      detail: "用于判断是否有长时间未补传页面。",
+    },
+    {
+      label: "最后同步",
+      value: status.lastSyncAt ? formatDate(status.lastSyncAt) : "暂无记录",
+      detail: status.enabled ? "最近一次页面云同步时间。" : "页面同步当前关闭。",
+    },
+  ];
+
+  return (
+    <div
+      data-testid="page-pending-queue-details"
+      className="mt-3 space-y-3"
+    >
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {queueFacts.map((fact) => (
+          <div
+            key={fact.label}
+            className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
+          >
+            <div className="text-[11px] uppercase text-zinc-400">
+              {fact.label}
+            </div>
+            <div className="mt-1 break-words text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {fact.value}
+            </div>
+            <p className="mt-1 text-[11px] leading-4 text-zinc-400">
+              {fact.detail}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h4 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+              页面待上传样本
+            </h4>
+            <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              只显示页面 id 和排队时间，不读取正文；补传按钮才会尝试上传 pending
+              queue。只保存 page id 和排队时间，不保存页面正文。
+            </p>
+          </div>
+          <span
+            className={`w-fit rounded-md px-2 py-1 text-[10px] ${stateClass}`}
+          >
+            {stateLabel}
+          </span>
+        </div>
+
+        {status.pendingSampleIds.length > 0 ? (
+          <ul className="mt-3 space-y-1">
+            {status.pendingSampleIds.map((pageId, index) => (
+              <li
+                key={`${pageId}-${index}`}
+                data-testid="page-pending-sample-id"
+                className="rounded bg-zinc-50 px-2 py-1 font-mono text-[11px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-300"
+              >
+                {pageId}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 rounded bg-zinc-50 px-2 py-1 text-xs text-zinc-400 dark:bg-zinc-900">
+            暂无待上传 page id。
+          </p>
+        )}
+        {status.pending > status.pendingSampleIds.length ? (
+          <p className="mt-2 text-[11px] leading-5 text-zinc-400">
+            还有 {status.pending - status.pendingSampleIds.length} 个页面未展开显示；
+            为保护隐私，这里只展示少量样本 page id。
+          </p>
+        ) : null}
+      </div>
+
+      <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+        页面同步当前{status.enabled ? "已开启" : "已关闭"}。
+        普通同步只会补传 pending queue 里的页面，不会把本地缓存全量上传。
+      </p>
+    </div>
   );
 }
 

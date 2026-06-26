@@ -3273,6 +3273,24 @@ function run() {
     "Sync UI must expose metadata-only page pending sample ids."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid="page-pending-queue-details"',
+    "Sync UI must expose a stable test hook for the page pending queue details panel."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid="page-pending-sample-id"',
+    "Sync UI must expose stable test hooks for metadata-only page id samples."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "补传按钮才会尝试上传 pending",
+    "Sync UI must clarify that reading queue details does not trigger upload."
+  );
+  assertIncludes(
     files.accountDatabaseSync,
     accountDatabaseSync,
     "export async function getPendingCloudDatabaseSyncStatus",
