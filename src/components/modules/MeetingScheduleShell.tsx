@@ -279,6 +279,7 @@ export default function MeetingScheduleShell() {
   const loadRequestRef = useRef(0);
   const meetingsRef = useRef<Page[]>([]);
   const observedPageRevisionRef = useRef<string | null>(null);
+  const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
   const [hotCachePreferences, setHotCachePreferences] = useState(
     DEFAULT_HOT_CACHE_PREFERENCES
   );
@@ -338,13 +339,29 @@ export default function MeetingScheduleShell() {
     };
   }, [dbReady]);
 
-  useEffect(() => {
+  const warmMeetingPageRoute = useCallback(() => {
     try {
       router.prefetch("/page/zhinote-route-prefetch");
     } catch {
       // Best-effort route warmup; meeting creation still works without it.
     }
+    if (!pageShellWarmupRef.current) {
+      pageShellWarmupRef.current = import("@/components/providers/PageShell").catch(
+        () => {
+          pageShellWarmupRef.current = null;
+        }
+      );
+    }
   }, [router]);
+
+  useEffect(() => {
+    const cancelPageShellPreload = scheduleMeetingIdleTask(() => {
+      warmMeetingPageRoute();
+    }, 700);
+    return () => {
+      cancelPageShellPreload();
+    };
+  }, [warmMeetingPageRoute]);
 
   const scheduleMetadataCacheWarmup = useCallback(() => {
     if (metadataWarmupScheduledRef.current) return;
@@ -1118,6 +1135,7 @@ export default function MeetingScheduleShell() {
 
   const openCreatedMeetingPage = useCallback(
     (page: Page) => {
+      warmMeetingPageRoute();
       const pageRoute = `/page/${page.id}`;
       try {
         router.prefetch(pageRoute);
@@ -1126,7 +1144,7 @@ export default function MeetingScheduleShell() {
       }
       router.push(pageRoute);
     },
-    [router]
+    [router, warmMeetingPageRoute]
   );
 
   const handleCreate = useCallback(async () => {
@@ -1409,6 +1427,7 @@ export default function MeetingScheduleShell() {
 
   const primeMeetingPageOpen = useCallback(
     (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
+      warmMeetingPageRoute();
       upsertPages([page]);
       rememberPendingPageDraft(page);
       rememberPageRouteHandoff(page, source);
@@ -1419,7 +1438,7 @@ export default function MeetingScheduleShell() {
         // the first paint when the browser cache or cloud is slow.
       }
     },
-    [router, upsertPages]
+    [router, upsertPages, warmMeetingPageRoute]
   );
 
   const openMeetingFullPage = useCallback(
@@ -1510,6 +1529,9 @@ export default function MeetingScheduleShell() {
             <button
               type="button"
               disabled={creatingMeetingDateKey !== null}
+              onPointerEnter={warmMeetingPageRoute}
+              onPointerDown={warmMeetingPageRoute}
+              onFocus={warmMeetingPageRoute}
               onClick={() => openForm(toDateKey(new Date()))}
               className="shrink-0 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
@@ -1534,6 +1556,9 @@ export default function MeetingScheduleShell() {
                   type="button"
                   data-testid="meeting-intake-import-button"
                   aria-label="导入会议信息到日历"
+                  onPointerEnter={warmMeetingPageRoute}
+                  onPointerDown={warmMeetingPageRoute}
+                  onFocus={warmMeetingPageRoute}
                   onClick={() => void handleImportInvite()}
                   disabled={intakeLoading || !intakeText.trim()}
                   className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
@@ -1668,6 +1693,8 @@ export default function MeetingScheduleShell() {
                           });
                         }}
                         className="flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                        onPointerEnter={warmMeetingPageRoute}
+                        onFocus={warmMeetingPageRoute}
                       >
                         <MeetingStatusBar entry={entry} size="list" />
                         <div className="min-w-0 flex-1">
@@ -1960,6 +1987,9 @@ export default function MeetingScheduleShell() {
                       data-testid={`meeting-add-${key}`}
                       aria-label={`创建 ${key} 的会议页面`}
                       disabled={creatingMeetingDateKey !== null}
+                      onPointerEnter={warmMeetingPageRoute}
+                      onPointerDown={warmMeetingPageRoute}
+                      onFocus={warmMeetingPageRoute}
                       onClick={() => void quickCreateMeetingForDate(key)}
                       className="text-zinc-300 opacity-0 transition-opacity hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:text-zinc-200"
                       title="在这天加会议"
@@ -1973,6 +2003,8 @@ export default function MeetingScheduleShell() {
                         key={entry.page.id}
                         type="button"
                         data-testid={`meeting-calendar-entry-${entry.page.id}`}
+                        onPointerEnter={warmMeetingPageRoute}
+                        onFocus={warmMeetingPageRoute}
                         onClick={() => setSelectedMeeting(entry)}
                         onContextMenu={(e) => {
                           e.preventDefault();
@@ -2035,6 +2067,8 @@ export default function MeetingScheduleShell() {
                   <li key={entry.page.id}>
                     <button
                       type="button"
+                      onPointerEnter={warmMeetingPageRoute}
+                      onFocus={warmMeetingPageRoute}
                       onClick={() => setSelectedMeeting(entry)}
                       onContextMenu={(e) => {
                         e.preventDefault();

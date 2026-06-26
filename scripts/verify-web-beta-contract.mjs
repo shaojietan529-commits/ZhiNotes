@@ -2150,6 +2150,30 @@ function run() {
       "Meeting manual create and invite import must share the same local-first page opening path.",
     ],
     [
+      "pageShellWarmupRef",
+      "Meeting schedule must warm the full-page shell once instead of loading it only after a meeting opens.",
+    ],
+    [
+      "warmMeetingPageRoute",
+      "Meeting schedule must expose a reusable page-route warmup path for create, import, and open actions.",
+    ],
+    [
+      'import("@/components/providers/PageShell")',
+      "Meeting schedule must preload the page shell without importing the heavy editor bundle during first paint.",
+    ],
+    [
+      "onPointerEnter={warmMeetingPageRoute}",
+      "Meeting schedule controls must warm the page shell on pointer intent before navigation.",
+    ],
+    [
+      "onPointerDown={warmMeetingPageRoute}",
+      "Meeting schedule creation/import controls must warm the page shell even on fast clicks.",
+    ],
+    [
+      "onFocus={warmMeetingPageRoute}",
+      "Meeting schedule controls must warm the page shell for keyboard users before navigation.",
+    ],
+    [
       "openCreatedMeetingPage(result.page)",
       "Meeting invite imports must open the newly created page immediately after the optimistic local create.",
     ],

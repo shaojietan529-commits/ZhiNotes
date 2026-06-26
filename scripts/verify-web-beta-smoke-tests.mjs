@@ -2285,6 +2285,24 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "pageShellWarmupRef",
+    "Meeting schedule must warm the full-page shell once before meeting page navigation."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "warmMeetingPageRoute",
+    "Meeting schedule must reuse a page-route warmup path for create, import, and open actions."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "onPointerDown={warmMeetingPageRoute}",
+    "Meeting create/import controls must warm the page shell even on fast clicks."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "openCreatedMeetingPage(result.page)",
     "Meeting invite imports must open the newly created page immediately after optimistic local create."
   );
