@@ -947,6 +947,34 @@ function run() {
       "Sync UI must expose structured core manifest comparison summary counts.",
     ],
     [
+      "countDelta",
+      "Core manifest comparison must expose count deltas for mismatch triage.",
+    ],
+    [
+      "deletedDelta",
+      "Core manifest comparison must expose deleted-count deltas for mismatch triage.",
+    ],
+    [
+      "watermarkMatches",
+      "Core manifest comparison must expose watermark equality for mismatch triage.",
+    ],
+    [
+      "diffReasons",
+      "Core manifest comparison must explain why each domain is blocked or mismatched.",
+    ],
+    [
+      "reviewChecklist",
+      "Core manifest comparison must expose an owner review checklist per domain.",
+    ],
+    [
+      "absoluteCountDelta",
+      "Core manifest comparison summary must aggregate absolute count deltas.",
+    ],
+    [
+      "domainsWithWatermarkMismatch",
+      "Core manifest comparison summary must count watermark mismatches.",
+    ],
+    [
       "rebuildGate",
       "Core manifest comparison must expose per-domain rebuild gates.",
     ],

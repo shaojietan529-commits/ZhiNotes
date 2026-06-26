@@ -510,6 +510,11 @@ type CoreManifestDomainCompare = {
   pending: number;
   status: CoreManifestCompareStatus;
   note: string;
+  countDelta: number | null;
+  deletedDelta: number | null;
+  watermarkMatches: boolean | null;
+  diffReasons: string[];
+  reviewChecklist: string[];
   rebuildGate: CoreManifestRebuildGate;
   canRebuildFromCloudManifest: boolean;
   ownerReviewRequired: boolean;
@@ -527,6 +532,9 @@ type CoreManifestCompareReport = {
     rebuildReady: number;
     ownerReviewRequired: number;
     pendingRows: number;
+    absoluteCountDelta: number;
+    absoluteDeletedDelta: number;
+    domainsWithWatermarkMismatch: number;
   };
   domains: CoreManifestDomainCompare[];
   privacyNote: string;
@@ -702,6 +710,16 @@ function buildCoreManifestDomainCompare(input: {
       title: input.title,
       pending: input.pending,
     });
+    const diffEvidence = buildCoreManifestDiffEvidence({
+      localCount: input.localSummary.count,
+      cloudCount: null,
+      localDeleted: input.localSummary.deleted,
+      cloudDeleted: null,
+      localWatermark: input.localSummary.watermark,
+      cloudWatermark: null,
+      pending: input.pending,
+      status: "blocked",
+    });
     return {
       id: input.id,
       title: input.title,
@@ -716,6 +734,7 @@ function buildCoreManifestDomainCompare(input: {
       note:
         input.cloudResult.message ??
         `云端 ${input.title} manifest summary 暂不可读：${input.cloudResult.status}`,
+      ...diffEvidence,
       ...action,
     };
   }
@@ -730,6 +749,16 @@ function buildCoreManifestDomainCompare(input: {
     status,
     title: input.title,
     pending: input.pending,
+  });
+  const diffEvidence = buildCoreManifestDiffEvidence({
+    localCount: input.localSummary.count,
+    cloudCount: cloud.count,
+    localDeleted: input.localSummary.deleted,
+    cloudDeleted: cloud.deleted,
+    localWatermark: input.localSummary.watermark,
+    cloudWatermark: cloud.watermark,
+    pending: input.pending,
+    status,
   });
 
   return {
@@ -749,7 +778,93 @@ function buildCoreManifestDomainCompare(input: {
         : status === "needs-sync"
           ? "本地还有 pending 变更，先补传再判断是否需要重建缓存。"
           : "本地热缓存和云端 manifest 的 count 或 watermark 不一致，需要同步、拉取或重建缓存。",
+    ...diffEvidence,
     ...action,
+  };
+}
+
+function buildCoreManifestDiffEvidence(input: {
+  localCount: number;
+  cloudCount: number | null;
+  localDeleted: number;
+  cloudDeleted: number | null;
+  localWatermark: string;
+  cloudWatermark: string | null;
+  pending: number;
+  status: CoreManifestCompareStatus;
+}): Pick<
+  CoreManifestDomainCompare,
+  | "countDelta"
+  | "deletedDelta"
+  | "watermarkMatches"
+  | "diffReasons"
+  | "reviewChecklist"
+> {
+  const countDelta =
+    input.cloudCount === null ? null : input.localCount - input.cloudCount;
+  const deletedDelta =
+    input.cloudDeleted === null ? null : input.localDeleted - input.cloudDeleted;
+  const watermarkMatches =
+    input.cloudWatermark === null
+      ? null
+      : input.localWatermark === input.cloudWatermark;
+  const diffReasons: string[] = [];
+  if (input.status === "blocked") {
+    diffReasons.push("云端 manifest 暂不可读，无法证明云端主库完整。");
+  }
+  if (input.pending > 0) {
+    diffReasons.push(
+      `本地还有 ${input.pending} 条 pending 变更，必须先补传或冻结。`
+    );
+  }
+  if (countDelta !== null && countDelta !== 0) {
+    diffReasons.push(
+      countDelta > 0
+        ? `本地比云端多 ${countDelta} 条 metadata。`
+        : `本地比云端少 ${Math.abs(countDelta)} 条 metadata。`
+    );
+  }
+  if (deletedDelta !== null && deletedDelta !== 0) {
+    diffReasons.push(
+      deletedDelta > 0
+        ? `本地删除标记比云端多 ${deletedDelta} 条。`
+        : `本地删除标记比云端少 ${Math.abs(deletedDelta)} 条。`
+    );
+  }
+  if (watermarkMatches === false) {
+    diffReasons.push("本地和云端 watermark 不一致，说明更新时间游标不同。");
+  }
+  if (diffReasons.length === 0) {
+    diffReasons.push("count、deleted 和 watermark 均已对齐。");
+  }
+
+  const reviewChecklist =
+    input.status === "matched"
+      ? ["缓存可按云端 manifest 重建；无需上传本地缓存。"]
+      : input.status === "needs-sync"
+        ? [
+            "先补传 pending queue 中的本地修改。",
+            "补传后重新运行只读检查。",
+            "确认本地未上传编辑没有被云端旧值覆盖。",
+          ]
+        : input.status === "mismatch"
+          ? [
+              "导出本地/云端 manifest 差异。",
+              "确认差异来自新增、删除、导入重复还是旧缓存。",
+              "人工确认后才允许从云端重建本地缓存。",
+            ]
+          : [
+              "先恢复登录、环境变量或云端 manifest API。",
+              "确认没有读取正文、文件字节或数据库值。",
+              "云端可读后重新运行只读检查。",
+            ];
+
+  return {
+    countDelta,
+    deletedDelta,
+    watermarkMatches,
+    diffReasons,
+    reviewChecklist,
   };
 }
 
@@ -829,6 +944,17 @@ function buildCoreManifestCompareSummary(
     ownerReviewRequired: domains.filter((domain) => domain.ownerReviewRequired)
       .length,
     pendingRows: domains.reduce((total, domain) => total + domain.pending, 0),
+    absoluteCountDelta: domains.reduce(
+      (total, domain) => total + Math.abs(domain.countDelta ?? 0),
+      0
+    ),
+    absoluteDeletedDelta: domains.reduce(
+      (total, domain) => total + Math.abs(domain.deletedDelta ?? 0),
+      0
+    ),
+    domainsWithWatermarkMismatch: domains.filter(
+      (domain) => domain.watermarkMatches === false
+    ).length,
   };
 }
 
@@ -16838,7 +16964,7 @@ function CoreManifestComparePanel({
               {report.message}
             </p>
           ) : null}
-          <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-7">
+          <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-10">
             <LocalMetadataManifestMiniStat
               label="已对齐"
               value={report.summary.matched}
@@ -16866,6 +16992,18 @@ function CoreManifestComparePanel({
             <LocalMetadataManifestMiniStat
               label="Pending rows"
               value={report.summary.pendingRows}
+            />
+            <LocalMetadataManifestMiniStat
+              label="Count diff"
+              value={report.summary.absoluteCountDelta}
+            />
+            <LocalMetadataManifestMiniStat
+              label="Deleted diff"
+              value={report.summary.absoluteDeletedDelta}
+            />
+            <LocalMetadataManifestMiniStat
+              label="Watermark diff"
+              value={report.summary.domainsWithWatermarkMismatch}
             />
           </div>
           <div className="grid gap-3 md:grid-cols-2">
@@ -16948,6 +17086,48 @@ function CoreManifestDomainRow({
           label="Owner review"
           value={domain.ownerReviewRequired ? "需要" : "不需要"}
         />
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <LocalMetadataManifestMiniStat
+          label="Count delta"
+          value={domain.countDelta ?? "不可算"}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Deleted delta"
+          value={domain.deletedDelta ?? "不可算"}
+        />
+        <LocalMetadataManifestMiniStat
+          label="Watermark"
+          value={
+            domain.watermarkMatches === null
+              ? "不可算"
+              : domain.watermarkMatches
+                ? "一致"
+                : "不一致"
+          }
+        />
+      </div>
+      <div className="mt-3 grid gap-2 lg:grid-cols-2">
+        <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+          <div className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+            差异原因
+          </div>
+          <ul className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {domain.diffReasons.map((reason) => (
+              <li key={reason}>- {reason}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+          <div className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+            复核清单
+          </div>
+          <ul className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {domain.reviewChecklist.map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
       </div>
       <p className="mt-3 border-t border-zinc-100 pt-2 leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
         {domain.note}

@@ -1288,6 +1288,36 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "countDelta",
+    "Core manifest compare must expose count deltas for mismatch triage."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "deletedDelta",
+    "Core manifest compare must expose deleted-count deltas for mismatch triage."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "watermarkMatches",
+    "Core manifest compare must expose watermark equality for mismatch triage."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "diffReasons",
+    "Core manifest compare must explain why each domain is blocked or mismatched."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "reviewChecklist",
+    "Core manifest compare must expose an owner review checklist per domain."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "云端 manifest 是重建来源；本地缓存只是复印件，不能反向覆盖云端。",
     "Core manifest compare must keep the cloud manifest as the cache rebuild source of truth."
   );
