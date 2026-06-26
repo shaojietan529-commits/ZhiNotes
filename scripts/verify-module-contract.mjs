@@ -729,6 +729,23 @@ function run() {
     );
   }
   for (const snippet of [
+    "upsertPages([createdPage])",
+    "upsertPages([result.page])",
+  ]) {
+    assertIncludes(
+      files.projectsShell,
+      projectsShell,
+      snippet,
+      "Projects module must optimistically add newly created project pages instead of refreshing the full page list."
+    );
+  }
+  assertExcludes(
+    files.projectsShell,
+    projectsShell,
+    "await refreshPages()",
+    "Projects module create/intake flows must not wait for a full page-list refresh."
+  );
+  for (const snippet of [
     "buildProjectProgressSnapshot",
     "ProjectProgressSnapshotPanel",
     "module-progress-snapshot",

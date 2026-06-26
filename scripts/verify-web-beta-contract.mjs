@@ -11768,6 +11768,24 @@ function run() {
       "Content-heavy research module create/import flows must not wait for a full page-list refresh."
     );
   }
+  assertSourceIncludes(
+    files.projectsShell,
+    projectsShell,
+    "upsertPages([createdPage])",
+    "Projects module must optimistically merge newly created project pages instead of waiting on global page refresh."
+  );
+  assertSourceIncludes(
+    files.projectsShell,
+    projectsShell,
+    "upsertPages([result.page])",
+    "Projects module starter page creates must optimistically merge the page before opening it."
+  );
+  assertSourceExcludes(
+    files.projectsShell,
+    projectsShell,
+    "await refreshPages()",
+    "Projects module create/intake flows must not wait for a full page-list refresh."
+  );
   assertSourceExcludes(
     files.notesShell,
     notesShell,

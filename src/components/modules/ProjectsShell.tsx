@@ -67,7 +67,7 @@ function ProjectsContent() {
 function ProjectsDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
-  const { pages, refresh: refreshPages } = usePages();
+  const { pages, upsertPages } = usePages();
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [topic, setTopic] = useState("");
@@ -144,8 +144,9 @@ function ProjectsDashboard() {
       const updatedPage = await updatePageWithCloud(page.id, {
         content_text: buildResearchProjectBriefPageHtml(projectBrief),
       });
-      await refreshPages();
-      openPage(updatedPage ?? page, { source: "module-create" });
+      const createdPage = updatedPage ?? page;
+      upsertPages([createdPage]);
+      openPage(createdPage, { source: "module-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to create project page:", err);
       window.alert("投研项目页创建失败，请查看控制台。");
@@ -179,9 +180,11 @@ function ProjectsDashboard() {
         title: buildResearchProjectPageTitle(projectBrief),
         icon: "PRJ",
       });
-      await updatePageWithCloud(page.id, {
+      const updatedPage = await updatePageWithCloud(page.id, {
         content_text: buildResearchProjectBriefPageHtml(projectBrief),
       });
+      const createdPage = updatedPage ?? page;
+      upsertPages([createdPage]);
       const trackerRows = await getRows(tracker.id);
       const existingRow = findExistingResearchProjectTrackerRow(
         trackerRows,
@@ -192,7 +195,6 @@ function ProjectsDashboard() {
         setTrackerIntakeMessage(
           `已存在跟踪表行：${existingRow.row_title}。已打开项目跟踪表继续补关系。`
         );
-        await refreshPages();
         router.push(
           `/database/${tracker.id}?q=${encodeURIComponent(page.title)}&focus=${
             page.id
@@ -217,7 +219,6 @@ function ProjectsDashboard() {
       setTrackerIntakeMessage(
         `已创建项目页和跟踪表行：${draft.row_title}。已打开项目跟踪表继续补关系。`
       );
-      await refreshPages();
       router.push(
         `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
           page.id
@@ -236,9 +237,11 @@ function ProjectsDashboard() {
     setTrackerIntakeMessage(null);
     try {
       const result = await executeModuleStarter(starter);
-      await refreshDatabases();
-      await refreshPages();
+      if (result.database) {
+        await refreshDatabases();
+      }
       if (result.page) {
+        upsertPages([result.page]);
         openPage(result.page, { source: "module-create" });
       } else {
         router.push(result.route);
