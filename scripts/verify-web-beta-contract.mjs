@@ -3354,6 +3354,22 @@ function run() {
       "legacy-quick-search-saved-searches-localStorage",
       "Quick search UI must migrate legacy saved searches into workspace_settings.",
     ],
+    [
+      "searchPageMetadata(pages, trimmedValue)",
+      "Quick search UI must return metadata matches before scanning page body text.",
+    ],
+    [
+      "QUICK_SEARCH_FULL_TEXT_DELAY_MS",
+      "Quick search UI must defer full-text body scans behind a short timer.",
+    ],
+    [
+      "deferredFullTextSearchTimerRef",
+      "Quick search UI must cancel stale deferred full-text searches.",
+    ],
+    [
+      "mergeSearchResults(currentResults, fullTextResults)",
+      "Quick search UI must merge deferred body matches into metadata-first results.",
+    ],
   ]) {
     assertSourceIncludes(files.quickSearch, quickSearch, snippet, message);
   }
@@ -11311,6 +11327,7 @@ function run() {
     web_beta_owner_review_packet_checks: 40,
     meeting_cloud_metadata_hot_cache_checks: 8,
     database_local_first_cloud_hydration_checks: 4,
+    metadata_first_quick_search_checks: 4,
     warnings: warnings.length,
   };
 

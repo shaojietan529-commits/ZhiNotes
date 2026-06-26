@@ -2649,6 +2649,30 @@ function run() {
     "Smoke verifier must keep legacy saved search migration."
   );
   assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "searchPageMetadata(pages, trimmedValue)",
+    "Smoke verifier must keep quick search returning page metadata matches before full-text scans."
+  );
+  assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "QUICK_SEARCH_FULL_TEXT_DELAY_MS",
+    "Smoke verifier must keep quick search full-text scans deferred behind a short delay."
+  );
+  assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "deferredFullTextSearchTimerRef",
+    "Smoke verifier must keep stale quick search full-text timers cancellable."
+  );
+  assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "mergeSearchResults(currentResults, fullTextResults)",
+    "Smoke verifier must keep deferred full-text results merging into metadata-first results."
+  );
+  assertIncludes(
     files.calendarViewStateWorkspaceSettings,
     calendarViewStateWorkspaceSettings,
     'format: "zhinote-calendar-view-state-settings-cloud-receipt"',
@@ -3759,6 +3783,7 @@ function run() {
     hot_data_plan_checks: 10,
     file_metadata_first_paint_checks: 4,
     deferred_page_content_checks: 9,
+    metadata_first_quick_search_checks: 4,
   };
 
   if (failures.length > 0) {

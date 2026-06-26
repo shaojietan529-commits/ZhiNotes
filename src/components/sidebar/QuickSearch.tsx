@@ -39,6 +39,8 @@ import type { Database, Page } from "@/lib/utils/types";
 
 const SAVED_SEARCHES_KEY = "zhinote:saved-searches";
 const MAX_SAVED_SEARCHES = 10;
+const QUICK_SEARCH_RESULT_LIMIT = 20;
+const QUICK_SEARCH_FULL_TEXT_DELAY_MS = 180;
 
 type CommandCategory = "Page" | "Editor" | "Database" | "Workspace";
 
@@ -98,6 +100,7 @@ export default function QuickSearch() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRequestRef = useRef(0);
+  const deferredFullTextSearchTimerRef = useRef<number | null>(null);
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
   const pages = useWorkspaceStore((s) => s.pages);
@@ -114,6 +117,12 @@ export default function QuickSearch() {
   const searchIsSaved = savedSearches.some(
     (savedSearch) => savedSearch.toLowerCase() === trimmedQuery.toLowerCase()
   );
+
+  const clearDeferredFullTextSearch = useCallback(() => {
+    if (deferredFullTextSearchTimerRef.current === null) return;
+    window.clearTimeout(deferredFullTextSearchTimerRef.current);
+    deferredFullTextSearchTimerRef.current = null;
+  }, []);
 
   // Cmd+K / Ctrl+K to open
   useEffect(() => {
@@ -152,6 +161,18 @@ export default function QuickSearch() {
   }, [open, pages.length, refresh]);
 
   useEffect(() => {
+    if (open) return;
+    searchRequestRef.current += 1;
+    clearDeferredFullTextSearch();
+  }, [open, clearDeferredFullTextSearch]);
+
+  useEffect(() => {
+    return () => {
+      clearDeferredFullTextSearch();
+    };
+  }, [clearDeferredFullTextSearch]);
+
+  useEffect(() => {
     let cancelled = false;
     const localCache = readSavedSearchesLocalCache();
 
@@ -188,19 +209,38 @@ export default function QuickSearch() {
     };
   }, []);
 
-  const handleSearch = useCallback(async (value: string) => {
-    const requestId = searchRequestRef.current + 1;
-    searchRequestRef.current = requestId;
-    setQuery(value);
-    setSelectedIndex(0);
-    if (value.trim().length === 0) {
-      setResults([]);
-      return;
-    }
-    const found = await searchPages(value.trim());
-    if (requestId !== searchRequestRef.current) return;
-    setResults(found);
-  }, []);
+  const handleSearch = useCallback(
+    (value: string) => {
+      const requestId = searchRequestRef.current + 1;
+      const trimmedValue = value.trim();
+      searchRequestRef.current = requestId;
+      clearDeferredFullTextSearch();
+      setQuery(value);
+      setSelectedIndex(0);
+      if (trimmedValue.length === 0) {
+        setResults([]);
+        return;
+      }
+
+      const metadataResults = searchPageMetadata(pages, trimmedValue);
+      setResults(metadataResults);
+
+      deferredFullTextSearchTimerRef.current = window.setTimeout(() => {
+        deferredFullTextSearchTimerRef.current = null;
+        void searchPages(trimmedValue)
+          .then((fullTextResults) => {
+            if (requestId !== searchRequestRef.current) return;
+            setResults((currentResults) =>
+              mergeSearchResults(currentResults, fullTextResults)
+            );
+          })
+          .catch((error) => {
+            console.error("[Zhinote] Failed to run full-text search:", error);
+          });
+      }, QUICK_SEARCH_FULL_TEXT_DELAY_MS);
+    },
+    [clearDeferredFullTextSearch, pages]
+  );
 
   const handleSaveSearch = () => {
     const nextSavedSearches = saveSearchQuery(trimmedQuery, savedSearches);
@@ -1798,6 +1838,79 @@ function getFilterEmptyLabel(filter: ResultFilter) {
   if (filter === "databases") return "数据库";
   if (filter === "actions") return "动作";
   return "结果";
+}
+
+function searchPageMetadata(pages: Page[], query: string) {
+  const normalizedQuery = normalizeSearchQuery(query);
+  if (!normalizedQuery) return [];
+
+  return pages
+    .filter((page) => !page.deleted_at)
+    .map((page) => ({
+      page,
+      score: scorePageMetadata(page, normalizedQuery),
+    }))
+    .filter((result) => result.score > 0)
+    .sort((a, b) => {
+      if (a.score !== b.score) return b.score - a.score;
+      return (
+        new Date(b.page.updated_at).getTime() -
+        new Date(a.page.updated_at).getTime()
+      );
+    })
+    .slice(0, QUICK_SEARCH_RESULT_LIMIT)
+    .map((result) => result.page);
+}
+
+function scorePageMetadata(page: Page, query: string) {
+  const title = normalizeSearchQuery(page.title || "未命名页面");
+  const properties = normalizeSearchQuery(page.properties);
+  const icon = normalizeSearchQuery(page.icon);
+  const tokens = getSearchQueryTokens(query);
+  let score = 0;
+
+  if (title === query) score += 100;
+  if (title.startsWith(query)) score += 70;
+  if (title.includes(query)) score += 50;
+  if (tokens.length > 1 && tokens.every((token) => title.includes(token))) {
+    score += 35;
+  }
+  if (properties.includes(query)) score += 18;
+  if (
+    tokens.length > 1 &&
+    tokens.every((token) => properties.includes(token))
+  ) {
+    score += 12;
+  }
+  if (icon && icon.includes(query)) score += 3;
+
+  return score;
+}
+
+function mergeSearchResults(
+  metadataResults: Page[],
+  fullTextResults: Page[],
+  limit = QUICK_SEARCH_RESULT_LIMIT
+) {
+  const merged = new Map<string, Page>();
+  for (const page of [...metadataResults, ...fullTextResults]) {
+    if (!merged.has(page.id)) {
+      merged.set(page.id, page);
+    }
+  }
+  return [...merged.values()].slice(0, limit);
+}
+
+function normalizeSearchQuery(value: string | null | undefined) {
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getSearchQueryTokens(query: string) {
+  return normalizeSearchQuery(query).split(" ").filter(Boolean);
 }
 
 function readSavedSearchesLocalCache() {
