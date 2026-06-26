@@ -160,6 +160,8 @@ function renderFilePreview(
 
   if (kind === "image") {
     return (
+      // Local file embeds use data URLs; next/image does not add value here.
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={dataUrl}
         alt={fileName}

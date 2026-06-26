@@ -570,7 +570,7 @@ export default function DailyNotesShell() {
         }
       })();
     },
-    [creatingDateKey, notes, rootId, router, upsertPages, viewMonth]
+    [creatingDateKey, notes, rootId, router, upsertPages, viewMonth, warmPageRoute]
   );
 
   const primeDailyNoteOpen = useCallback(
