@@ -2379,6 +2379,18 @@ function run() {
       "onReady?.(pageId)",
       "PagePeekModal must notify when the local page shell is ready.",
     ],
+    [
+      "const initialPeekPage = getInitialPeekPage(pageId, initialPage)",
+      "PagePeekModal must seed title and properties from initial metadata before first paint.",
+    ],
+    [
+      "useState(() => initialPeekPage?.title ?? \"\")",
+      "PagePeekModal title must not render blank when initial metadata is available.",
+    ],
+    [
+      "applyPeekMetadataSnapshot",
+      "PagePeekModal must keep fallback metadata, title, and properties in sync.",
+    ],
   ]) {
     assertSourceIncludes(files.pagePeekModal, pagePeekModal, snippet, message);
   }

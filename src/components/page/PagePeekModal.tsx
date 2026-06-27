@@ -43,6 +43,17 @@ function getInitialPeekPage(pageId: string, initialPage?: Page | null): Page | n
   return useWorkspaceStore.getState().getPageById(pageId) ?? null;
 }
 
+function applyPeekMetadataSnapshot(
+  page: Page | null,
+  setFallbackPage: (page: Page | null) => void,
+  setTitle: (title: string) => void,
+  setProperties: (properties: PageProperty[]) => void
+) {
+  setFallbackPage(page);
+  setTitle(page?.title ?? "");
+  setProperties(page ? parsePageProperties(page.properties) : []);
+}
+
 // A center modal that shows a page (title + properties + body) fully editable,
 // without leaving the current view — Notion's "peek" behaviour.
 export default function PagePeekModal({
@@ -54,18 +65,21 @@ export default function PagePeekModal({
   onChanged,
 }: PagePeekModalProps) {
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
+  const initialPeekPage = getInitialPeekPage(pageId, initialPage);
   const [fallbackPage, setFallbackPage] = useState<Page | null>(
-    () => getInitialPeekPage(pageId, initialPage)
+    () => initialPeekPage
   );
   const [metadataLoading, setMetadataLoading] = useState(
-    () => !getInitialPeekPage(pageId, initialPage)
+    () => !initialPeekPage
   );
   const [editorLoadRequested, setEditorLoadRequested] = useState(false);
   const { page, loading, update } = usePage(pageId, {
     enabled: editorLoadRequested,
   });
-  const [title, setTitle] = useState("");
-  const [properties, setProperties] = useState<PageProperty[]>([]);
+  const [title, setTitle] = useState(() => initialPeekPage?.title ?? "");
+  const [properties, setProperties] = useState<PageProperty[]>(() =>
+    initialPeekPage ? parsePageProperties(initialPeekPage.properties) : []
+  );
   const previousPageIdRef = useRef(pageId);
   const peekOpenStartedAtRef = useRef(getLocalPerformanceNow());
   const peekOpenStartedAtIsoRef = useRef(new Date().toISOString());
@@ -105,7 +119,12 @@ export default function PagePeekModal({
     readyNotifiedPageIdRef.current = null;
     queueMicrotask(() => {
       const nextInitial = getInitialPeekPage(pageId, initialPage);
-      setFallbackPage(nextInitial);
+      applyPeekMetadataSnapshot(
+        nextInitial,
+        setFallbackPage,
+        setTitle,
+        setProperties
+      );
       setMetadataLoading(!nextInitial);
       setEditorLoadRequested(false);
       setMountedEditorPageId(null);
@@ -117,7 +136,12 @@ export default function PagePeekModal({
     const nextInitial = getInitialPeekPage(pageId, initialPage);
     if (!nextInitial) return;
     queueMicrotask(() => {
-      setFallbackPage(nextInitial);
+      applyPeekMetadataSnapshot(
+        nextInitial,
+        setFallbackPage,
+        setTitle,
+        setProperties
+      );
       setMetadataLoading(false);
     });
   }, [initialPage, pageId]);
@@ -132,7 +156,12 @@ export default function PagePeekModal({
       .then((metadata) => {
         if (cancelled) return;
         if (metadata) {
-          setFallbackPage(metadata);
+          applyPeekMetadataSnapshot(
+            metadata,
+            setFallbackPage,
+            setTitle,
+            setProperties
+          );
           upsertPages([metadata]);
         } else {
           setEditorLoadRequested(true);
@@ -152,7 +181,7 @@ export default function PagePeekModal({
   useEffect(() => {
     if (!page) return;
     queueMicrotask(() => {
-      setFallbackPage(page);
+      applyPeekMetadataSnapshot(page, setFallbackPage, setTitle, setProperties);
     });
   }, [page]);
 

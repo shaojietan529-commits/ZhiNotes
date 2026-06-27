@@ -422,6 +422,9 @@ check(
 check(
   pagePeekModal.includes("getPageMetadata") &&
     pagePeekModal.includes("getInitialPeekPage") &&
+    pagePeekModal.includes("const initialPeekPage = getInitialPeekPage(pageId, initialPage)") &&
+    pagePeekModal.includes("useState(() => initialPeekPage?.title ?? \"\")") &&
+    pagePeekModal.includes("applyPeekMetadataSnapshot") &&
     pagePeekModal.includes("useWorkspaceStore.getState().getPageById(pageId)") &&
     pagePeekModal.includes("editorLoadRequested") &&
     pagePeekModal.includes("schedulePeekContentLoad") &&

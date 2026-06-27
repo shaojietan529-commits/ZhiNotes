@@ -1098,6 +1098,9 @@ check(
     pagePeekModal.includes("schedulePeekIdleTask(callback, 40)") &&
     pagePeekModal.includes("schedulePeekIdleTask(callback, 60)") &&
     pagePeekModal.includes("schedulePeekIdleTask") &&
+    pagePeekModal.includes("const initialPeekPage = getInitialPeekPage(pageId, initialPage)") &&
+    pagePeekModal.includes("useState(() => initialPeekPage?.title ?? \"\")") &&
+    pagePeekModal.includes("applyPeekMetadataSnapshot") &&
     pagePeekModal.includes("isOptimisticDraft") &&
     pagePeekModal.includes("setMountedEditorPageId(pageId)") &&
     pagePeekModal.includes("childPagesEnabled") &&
