@@ -3423,6 +3423,19 @@ function run() {
     "Smoke verifier must keep quick search deferred full-text results bounded."
   );
   for (const snippet of [
+    "QUICK_SEARCH_ACTIVITY_LIMIT",
+    "const suggestedPages = useMemo(() => {",
+    "if (!open || hasQuery) return [];",
+    "getTopPagesByTimestamp(",
+  ]) {
+    assertIncludes(
+      files.quickSearch,
+      quickSearch,
+      snippet,
+      "Quick search default activity pages must stay bounded and memoized for large imported workspaces."
+    );
+  }
+  for (const snippet of [
     "route?: string;",
     "const handleEntryPrewarm = (entry: SearchEntry)",
     "warmModuleRoute(entry.command.route)",

@@ -3888,6 +3888,22 @@ function run() {
       "searchPages(trimmedValue, QUICK_SEARCH_RESULT_LIMIT)",
       "Quick search deferred full-text search must keep a bounded result limit.",
     ],
+    [
+      "QUICK_SEARCH_ACTIVITY_LIMIT",
+      "Quick search default activity pages must stay capped for large imported workspaces.",
+    ],
+    [
+      "const suggestedPages = useMemo(() => {",
+      "Quick search must memoize default activity pages instead of recalculating them on every render.",
+    ],
+    [
+      "if (!open || hasQuery) return [];",
+      "Quick search must skip default activity page calculation while closed or while showing query results.",
+    ],
+    [
+      "getTopPagesByTimestamp(",
+      "Quick search default activity pages must use bounded top-page selection instead of full-list sorting.",
+    ],
   ]) {
     assertSourceIncludes(files.quickSearch, quickSearch, snippet, message);
   }

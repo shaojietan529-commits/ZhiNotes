@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useCallback, useEffect, useRef } from "react";
+import { Fragment, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstModuleNavigation } from "@/hooks/useLocalFirstModuleNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
@@ -41,6 +41,7 @@ import type { Database, Page } from "@/lib/utils/types";
 const SAVED_SEARCHES_KEY = "zhinote:saved-searches";
 const MAX_SAVED_SEARCHES = 10;
 const QUICK_SEARCH_RESULT_LIMIT = 20;
+const QUICK_SEARCH_ACTIVITY_LIMIT = 8;
 const QUICK_SEARCH_FULL_TEXT_DELAY_MS = 180;
 const QUICK_SEARCH_DATABASE_REFRESH_TTL_MS = 30_000;
 
@@ -115,11 +116,11 @@ export default function QuickSearch() {
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
 
   const trimmedQuery = query.trim();
-  const suggestedPages = getPagesForActivity(
-    pages,
-    favoriteIds,
-    pageActivityFilter
-  );
+  const hasQuery = trimmedQuery.length > 0;
+  const suggestedPages = useMemo(() => {
+    if (!open || hasQuery) return [];
+    return getPagesForActivity(pages, favoriteIds, pageActivityFilter);
+  }, [favoriteIds, hasQuery, open, pageActivityFilter, pages]);
   const searchIsSaved = savedSearches.some(
     (savedSearch) => savedSearch.toLowerCase() === trimmedQuery.toLowerCase()
   );
@@ -1798,39 +1799,59 @@ function getPagesForActivity(
   filter: PageActivityFilter
 ) {
   if (filter === "updated") {
-    return [...pages]
-      .sort(
-        (a, b) =>
-          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      )
-      .slice(0, 8);
+    return getTopPagesByTimestamp(pages, "updated_at", QUICK_SEARCH_ACTIVITY_LIMIT);
   }
 
   if (filter === "created") {
-    return [...pages]
-      .sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-      .slice(0, 8);
+    return getTopPagesByTimestamp(pages, "created_at", QUICK_SEARCH_ACTIVITY_LIMIT);
   }
 
   const pagesById = new Map(pages.map((page) => [page.id, page]));
   const favorites = favoriteIds
     .map((id) => pagesById.get(id))
     .filter((page): page is Page => Boolean(page));
-  if (filter === "favorites") return favorites.slice(0, 8);
+  if (filter === "favorites") return favorites.slice(0, QUICK_SEARCH_ACTIVITY_LIMIT);
 
   const favoriteIdSet = new Set(favorites.map((page) => page.id));
-  const recentPages = pages
-    .filter((page) => !favoriteIdSet.has(page.id))
-    .sort(
-      (a, b) =>
-        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-    )
-    .slice(0, Math.max(0, 8 - favorites.length));
+  const recentPages = getTopPagesByTimestamp(
+    pages,
+    "updated_at",
+    Math.max(0, QUICK_SEARCH_ACTIVITY_LIMIT - favorites.length),
+    favoriteIdSet
+  );
 
-  return [...favorites, ...recentPages].slice(0, 8);
+  return [...favorites, ...recentPages].slice(0, QUICK_SEARCH_ACTIVITY_LIMIT);
+}
+
+function getTopPagesByTimestamp(
+  pages: Page[],
+  timestampField: "created_at" | "updated_at",
+  limit: number,
+  excludedIds: Set<string> = new Set()
+) {
+  if (limit <= 0) return [];
+  const topPages: Page[] = [];
+
+  for (const page of pages) {
+    if (page.deleted_at || excludedIds.has(page.id)) continue;
+    const pageTime = new Date(page[timestampField]).getTime();
+    let insertAt = topPages.length;
+
+    while (
+      insertAt > 0 &&
+      pageTime > new Date(topPages[insertAt - 1][timestampField]).getTime()
+    ) {
+      insertAt -= 1;
+    }
+
+    if (insertAt >= limit) continue;
+    topPages.splice(insertAt, 0, page);
+    if (topPages.length > limit) {
+      topPages.pop();
+    }
+  }
+
+  return topPages;
 }
 
 function getPageActivityLabel(filter: PageActivityFilter) {
