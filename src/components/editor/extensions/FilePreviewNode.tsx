@@ -115,6 +115,8 @@ function FilePreviewComponent({
   const [convertedPreview, setConvertedPreview] = useState<ConvertedPreview>({
     status: "idle",
   });
+  const [convertedPreviewRequested, setConvertedPreviewRequested] =
+    useState(false);
   const capability = useMemo(
     () => getFilePreviewCapabilityByKind(attrs.kind),
     [attrs.kind]
@@ -126,6 +128,9 @@ function FilePreviewComponent({
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setConvertedPreview({ status: "idle" });
+    setConvertedPreviewRequested(false);
 
     getStoredPageFile(attrs.fileId)
       .then((stored) => {
@@ -179,6 +184,10 @@ function FilePreviewComponent({
     ) {
       return;
     }
+    if (isOnDemandConvertedPreviewKind(file.kind) && !convertedPreviewRequested) {
+      setConvertedPreview({ status: "idle" });
+      return;
+    }
 
     let active = true;
 
@@ -230,7 +239,7 @@ function FilePreviewComponent({
     return () => {
       active = false;
     };
-  }, [file]);
+  }, [convertedPreviewRequested, file]);
 
   const canExpand =
     file?.kind === "html" ||
@@ -568,6 +577,19 @@ function FilePreviewComponent({
     router.push("/modules/files#files-preview-routing");
   };
 
+  const handleRequestConvertedPreview = () => {
+    setConvertedPreviewRequested(true);
+    setExpanded(true);
+  };
+
+  const handleToggleExpanded = () => {
+    const nextExpanded = !expanded;
+    setExpanded(nextExpanded);
+    if (nextExpanded && file && isOnDemandConvertedPreviewKind(file.kind)) {
+      setConvertedPreviewRequested(true);
+    }
+  };
+
   const handleExportLastActionReceipt = () => {
     if (!lastActionReceipt) return;
     setExportingActionReceipt(true);
@@ -765,7 +787,7 @@ function FilePreviewComponent({
           {canExpand && (
             <button
               type="button"
-              onClick={() => setExpanded((value) => !value)}
+              onClick={handleToggleExpanded}
               className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             >
               {expanded ? "收起" : "展开"}
@@ -932,6 +954,7 @@ function FilePreviewComponent({
             srcDoc={srcDoc}
             convertedPreview={convertedPreview}
             heightClass={heightClass}
+            onRequestConvertedPreview={handleRequestConvertedPreview}
           />
         )}
       </div>
@@ -1231,6 +1254,16 @@ function supportsEditableConvertedImport(file: StoredPageFile) {
   return !isLegacyOfficeFile(file);
 }
 
+function isOnDemandConvertedPreviewKind(kind: PageFileKind) {
+  return (
+    kind === "spreadsheet" ||
+    kind === "word" ||
+    kind === "presentation" ||
+    kind === "epub" ||
+    kind === "archive"
+  );
+}
+
 function shouldShowDownloadRetainReceiptAction(
   file: StoredPageFile,
   supportLevel: FilePreviewSupportLevel
@@ -1302,11 +1335,13 @@ function FilePreviewBody({
   srcDoc,
   convertedPreview,
   heightClass,
+  onRequestConvertedPreview,
 }: {
   file: StoredPageFile;
   srcDoc: string;
   convertedPreview: ConvertedPreview;
   heightClass: string;
+  onRequestConvertedPreview: () => void;
 }) {
   if (
     file.kind === "html" ||
@@ -1379,7 +1414,34 @@ function FilePreviewBody({
     file.kind === "epub" ||
     file.kind === "archive"
   ) {
-    if (convertedPreview.status === "loading" || convertedPreview.status === "idle") {
+    if (isLegacyOfficeFile(file)) {
+      return (
+        <div className="p-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+          {file.kind === "word"
+            ? "旧版 .doc 文件已保存在本地，但暂不支持本地转换预览。请下载后转为 .docx 再导入。"
+            : "旧版 .ppt 文件已保存在本地，但暂不支持本地转换预览。请下载后转为 .pptx 再导入。"}
+        </div>
+      );
+    }
+
+    if (convertedPreview.status === "idle") {
+      return (
+        <div className="flex min-h-32 flex-col items-center justify-center gap-3 bg-zinc-50 p-5 text-center text-sm text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          <p>
+            {getFileKindLabel(file.kind)} 预览尚未生成。为避免打开页面时同时转换大量附件，请按需要生成这个文件的本地预览。
+          </p>
+          <button
+            type="button"
+            onClick={onRequestConvertedPreview}
+            className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            生成预览
+          </button>
+        </div>
+      );
+    }
+
+    if (convertedPreview.status === "loading") {
       return (
         <div className="flex h-32 items-center justify-center text-sm text-zinc-400">
           正在生成预览...

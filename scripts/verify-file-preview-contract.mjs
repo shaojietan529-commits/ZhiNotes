@@ -439,12 +439,32 @@ function run() {
     "handleOpenFileRouteHub",
     "/modules/files#files-preview-routing",
     "查看文件路线",
+    "convertedPreviewRequested",
+    "isOnDemandConvertedPreviewKind",
+    "handleRequestConvertedPreview",
+    "handleToggleExpanded",
+    "生成预览",
+    "为避免打开页面时同时转换大量附件",
   ]) {
     assertIncludes(
       files.previewNode,
       previewNode,
       snippet,
       "Preview node must expose the same local capability route shown in the Reports module."
+    );
+  }
+  for (const snippet of [
+    "按需转换为表格 HTML 预览",
+    "按需转换预览；DOCX 使用 mammoth",
+    "按需转换预览；PPTX/ODP",
+    "按需读取 EPUB spine",
+    "按需列出压缩包内容",
+  ]) {
+    assertIncludes(
+      files.capabilities,
+      capabilities,
+      snippet,
+      "Converted/heavy file formats must document on-demand local preview generation."
     );
   }
   assertIncludes(
