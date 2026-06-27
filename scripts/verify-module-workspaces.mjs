@@ -234,10 +234,14 @@ check(
 check(
   pageShell.includes("collectMovedPageSnapshots(pages, moved)") &&
     pageShell.includes("upsertPages([child])") &&
-    pageShell.includes("upsertPages([updatedDuplicate ?? duplicate])") &&
+    pageShell.includes("const optimisticDuplicate =") &&
+    pageShell.includes("upsertPages([optimisticDuplicate])") &&
+    pageShell.includes('openPage(optimisticDuplicate, { source: "duplicate-page-create" })') &&
+    pageShell.indexOf('openPage(optimisticDuplicate, { source: "duplicate-page-create" })') <
+      pageShell.indexOf("await updateWikiLinks(duplicate.id") &&
     !pageShell.includes("const { refresh } = usePages({ autoLoad: false })") &&
     !pageShell.includes("await refresh()"),
-  "PageShell 页面粘贴/移动/创建子页面/复制后必须局部 upsert，不能触发全量页面 metadata 刷新"
+  "PageShell 页面粘贴/移动/创建子页面/复制后必须局部 upsert；复制页应先打开乐观副本，再后台写正文链接，不能触发全量 metadata 刷新"
 );
 check(
   accountPageSync.includes('export const PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status"') &&

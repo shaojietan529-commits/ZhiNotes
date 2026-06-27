@@ -1021,11 +1021,18 @@ const pageStructureMutationBody = pageShell.slice(
 check(
   pageStructureMutationBody.includes("collectMovedPageSnapshots(pages, moved)") &&
     pageStructureMutationBody.includes("upsertPages([child])") &&
-    pageStructureMutationBody.includes("upsertPages([updatedDuplicate ?? duplicate])") &&
+    pageStructureMutationBody.includes("const optimisticDuplicate =") &&
+    pageStructureMutationBody.includes("upsertPages([optimisticDuplicate])") &&
+    pageStructureMutationBody.includes(
+      'openPage(optimisticDuplicate, { source: "duplicate-page-create" })'
+    ) &&
+    pageStructureMutationBody.indexOf(
+      'openPage(optimisticDuplicate, { source: "duplicate-page-create" })'
+    ) < pageStructureMutationBody.indexOf("await updateWikiLinks(duplicate.id") &&
     pageStructureMutationBody.includes("await remove()") &&
     !pageStructureMutationBody.includes("await refresh()") &&
     !pageShell.includes("const { refresh } = usePages({ autoLoad: false })"),
-  "PageShell 粘贴/移动/删除/创建子页面/复制页面必须局部 upsert，不能在大批量页面后触发全量 metadata 刷新"
+  "PageShell 粘贴/移动/删除/创建子页面/复制页面必须局部 upsert；复制页面应先打开乐观副本，再后台写正文链接，不能在大批量页面后触发全量 metadata 刷新"
 );
 check(
   pageShell.includes("useVersions(pageId, {") &&

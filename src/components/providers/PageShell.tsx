@@ -571,13 +571,26 @@ function PageContent({ pageId }: { pageId: string }) {
       parentId: page.parent_id,
       icon: page.icon ?? undefined,
     });
-    const updatedDuplicate = await updatePageWithCloud(duplicate.id, {
-      cover_url: page.cover_url ?? "",
+    const optimisticDuplicate = {
+      ...duplicate,
+      cover_url: page.cover_url,
       content_text: html,
-    });
-    await updateWikiLinks(duplicate.id, extractLinkedPageIdsFromHtml(html));
-    upsertPages([updatedDuplicate ?? duplicate]);
-    openPage(updatedDuplicate ?? duplicate, { source: "duplicate-page-create" });
+      updated_at: new Date().toISOString(),
+    };
+    upsertPages([optimisticDuplicate]);
+    openPage(optimisticDuplicate, { source: "duplicate-page-create" });
+    void (async () => {
+      try {
+        const updatedDuplicate = await updatePageWithCloud(duplicate.id, {
+          cover_url: page.cover_url ?? "",
+          content_text: html,
+        });
+        await updateWikiLinks(duplicate.id, extractLinkedPageIdsFromHtml(html));
+        if (updatedDuplicate) upsertPages([updatedDuplicate]);
+      } catch (err) {
+        console.error("[Zhinote] Failed to finalize duplicated page:", err);
+      }
+    })();
   }, [openPage, page, title, upsertPages]);
 
   const pageStructure = useMemo(() => {
