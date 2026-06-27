@@ -976,8 +976,10 @@ const pageRoute = read("src/app/(workspace)/page/[pageId]/page.tsx");
 const pageRouteLoading = read("src/app/(workspace)/page/[pageId]/loading.tsx");
 const pageRouteSkeleton = read("src/components/page/PageRouteSkeleton.tsx");
 check(
-  pageShell.includes("usePages({ autoLoad: false })"),
-  "PageShell 打开完整页面时不能为了 refresh 方法自动读取全量页面 metadata"
+  !pageShell.includes('from "@/hooks/usePages"') &&
+    !pageShell.includes("usePages({") &&
+    pageShell.includes("const upsertPages = useWorkspaceStore((s) => s.upsertPages)"),
+  "PageShell 打开完整页面时不能挂 usePages 或订阅全量 pages；局部 upsert 应直接读取 workspace store action"
 );
 check(
   pageRoute.includes("PageRouteSkeleton") &&
@@ -1019,7 +1021,9 @@ const pageStructureMutationBody = pageShell.slice(
   pageShell.indexOf("const pageStructure")
 );
 check(
-  pageStructureMutationBody.includes("collectMovedPageSnapshots(pages, moved)") &&
+  pageStructureMutationBody.includes(
+    "collectMovedPageSnapshots(useWorkspaceStore.getState().pages, moved)"
+  ) &&
     pageStructureMutationBody.includes("upsertPages([child])") &&
     pageStructureMutationBody.includes("const optimisticDuplicate =") &&
     pageStructureMutationBody.includes("upsertPages([optimisticDuplicate])") &&
@@ -1033,6 +1037,15 @@ check(
     !pageStructureMutationBody.includes("await refresh()") &&
     !pageShell.includes("const { refresh } = usePages({ autoLoad: false })"),
   "PageShell 粘贴/移动/删除/创建子页面/复制页面必须局部 upsert；复制页面应先打开乐观副本，再后台写正文链接，不能在大批量页面后触发全量 metadata 刷新"
+);
+check(
+  !pageShell.includes("const pages = useWorkspaceStore((s) => s.pages)") &&
+    !pageShell.includes('from "@/hooks/usePages"') &&
+    !pageShell.includes("usePages({") &&
+    pageShell.includes(
+      "collectMovedPageSnapshots(useWorkspaceStore.getState().pages, moved)"
+    ),
+  "PageShell 打开完整页面时不应订阅全量 pages；只有剪切/移动时才临时读取当前页面快照，避免大批量导入或云端 metadata 更新拖慢当前页"
 );
 check(
   pageShell.includes("useVersions(pageId, {") &&

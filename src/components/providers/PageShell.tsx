@@ -27,7 +27,6 @@ import {
 } from "@/lib/pages/pageProperties";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePage } from "@/hooks/usePage";
-import { usePages } from "@/hooks/usePages";
 import { useVersions } from "@/hooks/useVersions";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useRouter } from "next/navigation";
@@ -116,8 +115,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const copyNoticeTimeoutRef = useRef<number | null>(null);
   const { page, loading, update, remove } = usePage(pageId);
-  const { upsertPages } = usePages({ autoLoad: false });
-  const pages = useWorkspaceStore((s) => s.pages);
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const setCurrentPageId = useWorkspaceStore((s) => s.setCurrentPageId);
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<PageProperty[]>([]);
@@ -515,7 +513,11 @@ function PageContent({ pageId }: { pageId: string }) {
     if (pageClipboard.mode === "cut") {
       const pos = await getNextPosition(pageId);
       const moved = await movePageWithCloud(pageClipboard.pageId, pageId, pos);
-      if (moved) upsertPages(collectMovedPageSnapshots(pages, moved));
+      if (moved) {
+        upsertPages(
+          collectMovedPageSnapshots(useWorkspaceStore.getState().pages, moved)
+        );
+      }
       setPageClipboard(null);
     } else {
       const duplicate = await duplicatePageDeepWithCloud(
@@ -524,16 +526,20 @@ function PageContent({ pageId }: { pageId: string }) {
       );
       if (duplicate) upsertPages([duplicate]);
     }
-  }, [pageClipboard, pageId, pages, setPageClipboard, upsertPages]);
+  }, [pageClipboard, pageId, setPageClipboard, upsertPages]);
 
   const handleMoveTo = useCallback(
     async (targetId: string | null) => {
       const pos = await getNextPosition(targetId);
       const moved = await movePageWithCloud(pageId, targetId, pos);
-      if (moved) upsertPages(collectMovedPageSnapshots(pages, moved));
+      if (moved) {
+        upsertPages(
+          collectMovedPageSnapshots(useWorkspaceStore.getState().pages, moved)
+        );
+      }
       setShowMoveDialog(false);
     },
-    [pageId, pages, upsertPages]
+    [pageId, upsertPages]
   );
 
   const handleDelete = useCallback(async () => {

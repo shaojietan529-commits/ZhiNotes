@@ -228,11 +228,15 @@ check(
     !pageShell.includes("import Editor from \"@/components/editor/Editor\"") &&
     pageShell.includes("return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);") &&
     pageShell.includes("requestIdleCallback(callback, { timeout: 300 })") &&
-    pageShell.includes("usePages({ autoLoad: false })"),
+    !pageShell.includes('from "@/hooks/usePages"') &&
+    !pageShell.includes("usePages({") &&
+    pageShell.includes("const upsertPages = useWorkspaceStore((s) => s.upsertPages)"),
   "PageShell 必须动态加载并在页面首屏后空闲预热编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
 );
 check(
-  pageShell.includes("collectMovedPageSnapshots(pages, moved)") &&
+  pageShell.includes(
+    "collectMovedPageSnapshots(useWorkspaceStore.getState().pages, moved)"
+  ) &&
     pageShell.includes("upsertPages([child])") &&
     pageShell.includes("const optimisticDuplicate =") &&
     pageShell.includes("upsertPages([optimisticDuplicate])") &&
@@ -242,6 +246,15 @@ check(
     !pageShell.includes("const { refresh } = usePages({ autoLoad: false })") &&
     !pageShell.includes("await refresh()"),
   "PageShell 页面粘贴/移动/创建子页面/复制后必须局部 upsert；复制页应先打开乐观副本，再后台写正文链接，不能触发全量 metadata 刷新"
+);
+check(
+  !pageShell.includes("const pages = useWorkspaceStore((s) => s.pages)") &&
+    !pageShell.includes('from "@/hooks/usePages"') &&
+    !pageShell.includes("usePages({") &&
+    pageShell.includes(
+      "collectMovedPageSnapshots(useWorkspaceStore.getState().pages, moved)"
+    ),
+  "PageShell 完整页首屏不应订阅全量 pages；移动/剪切时再读取当前快照即可"
 );
 check(
   accountPageSync.includes('export const PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status"') &&
