@@ -4984,6 +4984,12 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "if (acknowledgedIds.length > 0) setLastPageSyncAtNow();",
+    "Page push ACKs must refresh the last cloud sync timestamp immediately."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "authRetryStatus: authRetry.status",
     "Smoke verifier must keep page auth retry status visible in pending metadata."
   );

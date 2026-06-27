@@ -385,9 +385,7 @@ export async function pullCloudPagesByIds(
     : [];
   if (pages.length > 0) {
     await applyRemotePages(pages);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
-    }
+    setLastPageSyncAtNow();
     emitPagesUpdated("cloud-pull", pages.length, toPageUpdatePayloads(pages));
   }
   return { status: "ok", pulled: pages.length };
@@ -985,7 +983,9 @@ export async function pushCloudPages(
   const skipped = Array.isArray(res.json.skipped)
     ? (res.json.skipped as string[])
     : [];
-  clearPendingCloudPushIds([...accepted, ...skipped]);
+  const acknowledgedIds = [...accepted, ...skipped];
+  clearPendingCloudPushIds(acknowledgedIds);
+  if (acknowledgedIds.length > 0) setLastPageSyncAtNow();
   return {
     status: "ok",
     accepted,
@@ -1105,9 +1105,7 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
     }
   }
 
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
-  }
+  setLastPageSyncAtNow();
   if (pulled > 0) {
     emitPagesUpdated("cloud-pull", pulled, toPageUpdatePayloads(pulledPages));
   }
@@ -2257,9 +2255,7 @@ export async function reconcilePageSync(
           hasMore = result.hasMore;
           batches += 1;
         } while (hasMore && batches < QUICK_INCREMENTAL_BATCH_LIMIT);
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
-        }
+        setLastPageSyncAtNow();
         return {
           status: "ok",
           pulled,
@@ -2373,9 +2369,7 @@ export async function reconcilePageSync(
       };
     }
 
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
-    }
+    setLastPageSyncAtNow();
     if (pulled > 0 || repaired > 0) {
       emitPagesUpdated(
         "cloud-pull",

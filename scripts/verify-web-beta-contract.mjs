@@ -12561,6 +12561,12 @@ function run() {
     [
       files.accountPageSync,
       accountPageSync,
+      "if (acknowledgedIds.length > 0) setLastPageSyncAtNow();",
+      "Account page sync push ACKs must refresh the last cloud sync timestamp immediately.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
       "authRetryStatus: authRetry.status",
       "Account page sync pending status must expose auth retry status metadata.",
     ],
