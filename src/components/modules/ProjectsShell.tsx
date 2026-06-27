@@ -39,6 +39,8 @@ import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database } from "@/lib/utils/types";
 
+const PROJECT_DATABASE_STATUS_LIMIT = 12;
+
 export default function ProjectsShell() {
   return (
     <DatabaseProvider>
@@ -526,6 +528,15 @@ function ProjectTrackerPanel({
   onRunStarter: (starter: ModuleStarter) => Promise<void>;
   onOpenDatabase: (databaseId: string) => void;
 }) {
+  const visibleDatabases = useMemo(
+    () => databases.slice(0, PROJECT_DATABASE_STATUS_LIMIT),
+    [databases]
+  );
+  const hiddenDatabaseCount = Math.max(
+    databases.length - visibleDatabases.length,
+    0
+  );
+
   return (
     <section
       id="project-tracker-panel"
@@ -583,30 +594,37 @@ function ProjectTrackerPanel({
           还没有识别到项目跟踪表。创建后可以在数据库里手动把项目页关联到公司、报告、会议和组合研究。
         </p>
       ) : (
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
-          {databases.map((database) => (
-            <article
-              key={database.id}
-              className="flex items-center justify-between gap-3 rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800"
-            >
-              <div className="min-w-0">
-                <h3 className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                  {database.title || "未命名项目跟踪表"}
-                </h3>
-                <p className="mt-1 text-zinc-400">
-                  {database.description || "本地项目 tracker"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onOpenDatabase(database.id)}
-                className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        <>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {visibleDatabases.map((database) => (
+              <article
+                key={database.id}
+                className="flex items-center justify-between gap-3 rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800"
               >
-                打开
-              </button>
-            </article>
-          ))}
-        </div>
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    {database.title || "未命名项目跟踪表"}
+                  </h3>
+                  <p className="mt-1 text-zinc-400">
+                    {database.description || "本地项目 tracker"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenDatabase(database.id)}
+                  className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  打开
+                </button>
+              </article>
+            ))}
+          </div>
+          {hiddenDatabaseCount > 0 && (
+            <p className="mt-2 text-xs text-zinc-400">
+              另有 {hiddenDatabaseCount} 个项目跟踪表未在首屏检查，打开数据库模块查看全部。
+            </p>
+          )}
+        </>
       )}
     </section>
   );
@@ -674,8 +692,10 @@ function fileSafeTimestamp() {
 }
 
 function loadResearchDatabaseSnapshots(databases: Database[]) {
+  const visibleDatabases = databases.slice(0, PROJECT_DATABASE_STATUS_LIMIT);
+
   return Promise.all(
-    databases.map(async (database) => ({
+    visibleDatabases.map(async (database) => ({
       database,
       fields: await getFields(database.id),
       rows: await getRows(database.id),

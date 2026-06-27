@@ -4808,6 +4808,26 @@ function run() {
     "Projects module create/intake flows must not wait for a full page-list refresh."
   );
   for (const snippet of [
+    "PROJECT_DATABASE_STATUS_LIMIT = 12",
+    "databases.slice(0, PROJECT_DATABASE_STATUS_LIMIT)",
+    "visibleDatabases.map(async (database)",
+    "visibleDatabases.map((database)",
+    "hiddenDatabaseCount",
+  ]) {
+    assertIncludes(
+      files.projectsShell,
+      projectsShell,
+      snippet,
+      "Projects module must keep database status scans and tracker rendering bounded for large workspaces."
+    );
+  }
+  assertExcludes(
+    files.projectsShell,
+    projectsShell,
+    "databases.map(async (database)",
+    "Projects module must not scan every database when loading project graph snapshots."
+  );
+  for (const snippet of [
     "const [contentScanEnabled, setContentScanEnabled] = useState(false)",
     "includeContent: contentScanEnabled",
     "setContentScanEnabled(true)",
