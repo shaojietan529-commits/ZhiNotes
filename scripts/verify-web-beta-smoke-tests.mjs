@@ -2249,6 +2249,24 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "notesRenderFingerprintRef",
+    "Daily calendar must remember the last rendered metadata subset to avoid duplicate hot-cache/local/cloud repaints."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "dailyNotesRenderFingerprint(renderableNotes)",
+    "Daily calendar publishes must fingerprint the bounded rendered subset before calling setNotes."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "notesRenderFingerprintRef.current === nextFingerprint",
+    "Daily calendar must skip identical rendered note lists during staged local/cloud hydration."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "DAILY_RECENT_VISIBLE_LIMIT",
     "Daily recent-note list must keep a small visible cap for large imported workspaces."
   );

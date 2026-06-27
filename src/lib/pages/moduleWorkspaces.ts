@@ -6,6 +6,7 @@ import {
   updatePage,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
+import { checkAccountCloudSyncGate } from "@/lib/account/accountCloudSyncGate";
 
 // The top-level module surfaces are each backed by a singleton page. Their
 // descendant pages provide all the content, so every node stays a real page.
@@ -202,6 +203,10 @@ async function fetchCloudModuleRoots(): Promise<
 > {
   if (typeof window === "undefined") return new Map();
   if (window.localStorage.getItem(PAGE_SYNC_ENABLED_KEY) === "false") {
+    return new Map();
+  }
+  const accountGate = await checkAccountCloudSyncGate();
+  if (accountGate.status !== "ready") {
     return new Map();
   }
   if (

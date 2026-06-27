@@ -2780,6 +2780,18 @@ function run() {
       "Daily calendar bulk metadata publishes must stay low-priority and render-bounded so clicks and typing remain responsive.",
     ],
     [
+      "notesRenderFingerprintRef",
+      "Daily calendar must remember the last rendered metadata subset to avoid duplicate hot-cache/local/cloud repaints.",
+    ],
+    [
+      "dailyNotesRenderFingerprint(renderableNotes)",
+      "Daily calendar publishes must fingerprint the bounded rendered subset before calling setNotes.",
+    ],
+    [
+      "notesRenderFingerprintRef.current === nextFingerprint",
+      "Daily calendar must skip identical rendered note lists during staged local/cloud hydration.",
+    ],
+    [
       "const inCalendarNote = notesById.get(pageId)",
       "Daily note full-page opening must use the visible-month note id index before checking the global workspace.",
     ],

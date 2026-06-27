@@ -639,6 +639,9 @@ check(
     dailyNotesShell.includes("const notesById = calendarIndexes.notesById") &&
     dailyNotesShell.includes("selectDailyNotesForCalendarRender(") &&
     dailyNotesShell.includes("DAILY_RENDER_RECENT_BUFFER_LIMIT") &&
+    dailyNotesShell.includes("notesRenderFingerprintRef") &&
+    dailyNotesShell.includes("dailyNotesRenderFingerprint(renderableNotes)") &&
+    dailyNotesShell.includes("notesRenderFingerprintRef.current === nextFingerprint") &&
     dailyNotesShell.includes("setNotes(renderableNotes)") &&
     dailyNotesShell.includes("const deferredRecentNotes = useDeferredValue(calendarIndexes.recentNotes)") &&
     dailyNotesShell.includes("deferredRecentNotes.slice(0, DAILY_RECENT_VISIBLE_LIMIT)") &&

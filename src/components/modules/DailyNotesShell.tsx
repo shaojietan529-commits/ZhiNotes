@@ -148,6 +148,7 @@ export default function DailyNotesShell() {
   >(() => new Map());
   const loadRequestRef = useRef(0);
   const hotCacheBootstrapKeyRef = useRef("");
+  const notesRenderFingerprintRef = useRef("");
   const observedPageRevisionRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
   const dailyNoteContentWarmupIdsRef = useRef<Set<string>>(new Set());
@@ -372,6 +373,9 @@ export default function DailyNotesShell() {
     const publishNotes = (nextNotes: DailyNote[]) => {
       if (loadRequestRef.current !== requestId) return;
       const renderableNotes = selectRenderableNotes(nextNotes);
+      const nextFingerprint = dailyNotesRenderFingerprint(renderableNotes);
+      if (notesRenderFingerprintRef.current === nextFingerprint) return;
+      notesRenderFingerprintRef.current = nextFingerprint;
       if (firstVisibleMs === null && renderableNotes.length > 0) {
         firstVisibleMs = getLocalPerformanceNow() - performanceStart;
         firstVisibleCount = renderableNotes.length;
@@ -1500,6 +1504,22 @@ function selectDailyNotesForCalendarRender(
   }
 
   return visibleNotes;
+}
+
+function dailyNotesRenderFingerprint(notes: DailyNote[]): string {
+  return notes
+    .map((note) =>
+      [
+        note.id,
+        note.updated_at,
+        note.title,
+        dailyNoteDateKey(note),
+        note.content_text == null ? "metadata" : "body",
+        note.cloudOnly ? "cloud" : "",
+        note.hotCacheOnly ? "hot" : "",
+      ].join(":")
+    )
+    .join("|");
 }
 
 function addRecentDailyNoteCandidate(

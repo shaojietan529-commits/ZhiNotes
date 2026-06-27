@@ -152,6 +152,9 @@ for (const token of [
   "const deferredRecentNotes = useDeferredValue(calendarIndexes.recentNotes)",
   "deferredRecentNotes.slice(0, DAILY_RECENT_VISIBLE_LIMIT)",
   "function addRecentDailyNoteCandidate(",
+  "notesRenderFingerprintRef",
+  "dailyNotesRenderFingerprint(renderableNotes)",
+  "notesRenderFingerprintRef.current === nextFingerprint",
   "startTransition(() =>",
   "setNotes(renderableNotes)",
   "includeUnindexedFallback: false",
@@ -209,9 +212,11 @@ check(
 check(
   helper.includes("cloudModuleRootLookupInFlight") &&
     helper.includes("cloudModuleRootLookupCache") &&
+    helper.includes("checkAccountCloudSyncGate") &&
+    helper.includes('accountGate.status !== "ready"') &&
     helper.includes("Date.now() - cloudModuleRootLookupCache.cachedAt") &&
     helper.includes('window.localStorage.getItem(PAGE_SYNC_ENABLED_KEY) === "false"'),
-  "moduleWorkspaces 云端 root 认领必须共享 in-flight 请求并尊重页面同步本地关闭开关"
+  "moduleWorkspaces 云端 root 认领必须共享 in-flight 请求，先过账号 gate，并尊重页面同步本地关闭开关"
 );
 check(
   helper.includes("window.dispatchEvent(new CustomEvent(MODULE_ROOT_IDS_EVENT))"),
