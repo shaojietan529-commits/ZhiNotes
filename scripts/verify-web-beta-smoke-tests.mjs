@@ -2030,6 +2030,28 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "let cloudMetadataPromise: Promise<DailyCloudMetadataResult> | null = null;",
+    "Daily notes must keep cloud metadata fetch lazy so local metadata can paint first."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "const startDailyCloudMetadataFetch = () => {",
+    "Daily notes must start cloud metadata fetch only after local-first metadata work begins."
+  );
+  if (
+    dailyNotesShell.indexOf(
+      "const localMetadata = await listDailyPageMetadataForCalendar"
+    ) >=
+    dailyNotesShell.indexOf("const cloudMetadata = startDailyCloudMetadataFetch()")
+  ) {
+    failures.push(
+      `${files.dailyNotesShell} must query local metadata before starting the cloud metadata request.`
+    );
+  }
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "includeUnindexedFallback: false",
     "Daily first-paint local metadata query must skip expensive unindexed Notion-import fallback."
   );

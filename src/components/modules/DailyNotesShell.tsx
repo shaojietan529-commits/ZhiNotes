@@ -250,8 +250,11 @@ export default function DailyNotesShell() {
     const cachedCloud = includeCloud
       ? readCachedDailyCloudMetadata(startDate, endDate)
       : null;
-    const cloudMetadataPromise = includeCloud
-      ? fetchDailyCloudMetadata({
+    let cloudMetadataPromise: Promise<DailyCloudMetadataResult> | null = null;
+    const startDailyCloudMetadataFetch = () => {
+      if (!includeCloud) return null;
+      if (!cloudMetadataPromise) {
+        cloudMetadataPromise = fetchDailyCloudMetadata({
           startDate,
           endDate,
           recentLimit: recentMetadataLimit,
@@ -264,8 +267,10 @@ export default function DailyNotesShell() {
             total: 0,
             message,
           };
-        })
-      : null;
+        });
+      }
+      return cloudMetadataPromise;
+    };
 
     const publishNotes = (nextNotes: DailyNote[]) => {
       if (loadRequestRef.current !== requestId) return;
@@ -461,8 +466,9 @@ export default function DailyNotesShell() {
       }
 
       try {
-        if (!cloudMetadataPromise) return;
-        const cloud = await cloudMetadataPromise;
+        const cloudMetadata = startDailyCloudMetadataFetch();
+        if (!cloudMetadata) return;
+        const cloud = await cloudMetadata;
         if (cloud.status === "ok" && cloud.rootId) {
           rememberModuleRootId("daily", cloud.rootId);
           publishRootId(cloud.rootId);

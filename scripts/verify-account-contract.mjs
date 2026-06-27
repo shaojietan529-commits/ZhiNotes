@@ -559,11 +559,14 @@ const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
 check(
   dailyNotesShell.includes("const storedDailyRootId = getModuleRootIdSync(\"daily\")") &&
     dailyNotesShell.includes("const cachedCloud = includeCloud") &&
-    dailyNotesShell.includes("const cloudMetadataPromise = includeCloud") &&
+    dailyNotesShell.includes("let cloudMetadataPromise: Promise<DailyCloudMetadataResult> | null = null;") &&
+    dailyNotesShell.includes("const startDailyCloudMetadataFetch = () => {") &&
     dailyNotesShell.indexOf("readCachedDailyCloudMetadata(startDate, endDate)") <
       dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") &&
     dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") <
-      dailyNotesShell.indexOf("const cloud = await cloudMetadataPromise") &&
+      dailyNotesShell.indexOf("const cloudMetadata = startDailyCloudMetadataFetch()") &&
+    dailyNotesShell.indexOf("publishNotes(Array.from(byId.values()))") <
+      dailyNotesShell.indexOf("const cloudMetadata = startDailyCloudMetadataFetch()") &&
     dailyNotesShell.includes("publishNotes(Array.from(byId.values()))") &&
     dailyNotesShell.includes("void ensureDailyDateIndexBackfilled()") &&
     dailyNotesShell.includes("fetchDailyCloudMetadata({") &&

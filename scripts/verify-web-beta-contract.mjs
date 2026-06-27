@@ -1753,6 +1753,18 @@ function run() {
       "Daily notes must use preference-aware recent metadata limits instead of a fixed window.",
     ],
     [
+      "let cloudMetadataPromise: Promise<DailyCloudMetadataResult> | null = null;",
+      "Daily notes must keep cloud metadata fetch lazy so local metadata can paint first.",
+    ],
+    [
+      "const startDailyCloudMetadataFetch = () => {",
+      "Daily notes must start cloud metadata fetch only after local-first metadata work begins.",
+    ],
+    [
+      "const cloudMetadata = startDailyCloudMetadataFetch()",
+      "Daily notes must start cloud metadata fetch from the background cloud section, not before first paint.",
+    ],
+    [
       "writeOptimisticDailyHotCache",
       "Daily + creation must update the local hot cache before background persistence.",
     ],
