@@ -493,6 +493,47 @@ function run() {
     );
   }
 
+  for (const [snippet, message] of [
+    [
+      "useLocalFirstPageNavigation",
+      "Daily notes must use the shared local-first page navigation hook.",
+    ],
+    [
+      "const openPage = useLocalFirstPageNavigation();",
+      "Daily notes must keep a local-first opener ready before create/open actions.",
+    ],
+    [
+      'openPage(optimisticNote, { source: "daily-create" });',
+      "Daily note creation must open the optimistic page immediately, before cloud persistence finishes.",
+    ],
+    [
+      "openPage(note, { source });",
+      "Existing daily notes must open through local-first route handoff.",
+    ],
+    [
+      'openPage(pageId, { source: "daily-open" });',
+      "Daily note fallback opens must still use the local-first route handoff.",
+    ],
+  ]) {
+    assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "router.push(pageRoute);",
+      "Daily note creation must not wait on a page route push path after optimistic create.",
+    ],
+    [
+      "router.push(`/page/${note.id}`);",
+      "Daily note full-page opens must not bypass the local-first route handoff.",
+    ],
+    [
+      "router.push(`/page/${pageId}`);",
+      "Daily note fallback opens must not bypass the local-first route handoff.",
+    ],
+  ]) {
+    assertExcludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
+
   for (const [sourceLabel, source] of [
     [files.pageDetailRoute, pageDetailRoute],
     [files.pageDetailRouteLoading, pageDetailRouteLoading],
