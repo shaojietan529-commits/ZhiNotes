@@ -2440,6 +2440,18 @@ function run() {
   assertIncludes(
     files.usePage,
     usePage,
+    "const [page, setPage] = useState<Page | null>(() => {",
+    "Page opening must seed the page state before the first client render when route metadata exists."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "const [loading, setLoading] = useState(() => {",
+    "Page opening must seed the loading state before the first client render when route metadata exists."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
     "if (!dbReady)",
     "Page opening must keep local-first route seeds visible while IndexedDB is still starting."
   );

@@ -2082,6 +2082,14 @@ function run() {
       "usePage must read local-first route seeds before waiting on IndexedDB readiness.",
     ],
     [
+      "const [page, setPage] = useState<Page | null>(() => {",
+      "usePage must seed the page state before the first client render when route metadata exists.",
+    ],
+    [
+      "const [loading, setLoading] = useState(() => {",
+      "usePage must seed the loading state before the first client render when route metadata exists.",
+    ],
+    [
       "if (!dbReady)",
       "usePage must keep local-first route seeds visible while IndexedDB is still starting.",
     ],

@@ -750,6 +750,10 @@ check(
 );
 check(
   usePageHook.includes("setPage(localPage)") &&
+    usePageHook.includes("const [page, setPage] = useState<Page | null>(() => {") &&
+    usePageHook.includes("const [loading, setLoading] = useState(() => {") &&
+    usePageHook.indexOf("return readLocalFirstPageSeed(pageId);") <
+      usePageHook.indexOf("const load = useCallback(async () => {") &&
     usePageHook.includes("} else {\n      setPage(null);\n    }") &&
     usePageHook.includes("readLocalFirstPageSeed") &&
     usePageHook.includes("if (!dbReady)") &&

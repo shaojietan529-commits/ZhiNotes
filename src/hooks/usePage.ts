@@ -55,8 +55,14 @@ export function usePage(
   options: UsePageOptions = {}
 ) {
   const enabled = options.enabled ?? true;
-  const [page, setPage] = useState<Page | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState<Page | null>(() => {
+    if (!enabled || !pageId) return null;
+    return readLocalFirstPageSeed(pageId);
+  });
+  const [loading, setLoading] = useState(() => {
+    if (!enabled || !pageId) return false;
+    return !readLocalFirstPageSeed(pageId);
+  });
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const pageRevision = usePageRecordRevision(pageId);
