@@ -11839,6 +11839,30 @@ function run() {
       "Quick search page opens must use the workspace page id index as the global fallback.",
     ],
     [
+      files.knowledgeBaseShell,
+      knowledgeBaseShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+      "Knowledge base page opens must reuse the workspace page id index for large libraries.",
+    ],
+    [
+      files.industryChainShell,
+      industryChainShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+      "Industry chain page opens must reuse the workspace page id index for large libraries.",
+    ],
+    [
+      files.researchGraphShell,
+      researchGraphShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+      "Research graph page opens must reuse the workspace page id index for large libraries.",
+    ],
+    [
+      files.researchConnectionsPanel,
+      researchConnectionsPanel,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+      "Research connection page opens must reuse the workspace page id index for large libraries.",
+    ],
+    [
       files.usePages,
       usePages,
       "syncCloudPageMetadataDelta",

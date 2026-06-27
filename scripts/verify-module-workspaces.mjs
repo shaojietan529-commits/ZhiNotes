@@ -385,8 +385,10 @@ check(
   usePageHook.includes("useWorkspaceStore.getState().getPageById(pageId)") &&
     pageTreeSource.includes("const pagesById = useWorkspaceStore((s) => s.pagesById)") &&
     favoritePagesSource.includes("const pagesById = useWorkspaceStore((s) => s.pagesById)") &&
-    quickSearchSource.includes("getPageById(pageId)"),
-  "页面打开、左侧页面树、收藏和快速搜索必须复用 workspace page id 索引，保持大库交互流畅"
+    quickSearchSource.includes("getPageById(pageId)") &&
+    shells.knowledge.includes("const pagesById = useWorkspaceStore((s) => s.pagesById)") &&
+    shells.chain.includes("const pagesById = useWorkspaceStore((s) => s.pagesById)"),
+  "页面打开、左侧页面树、收藏、快速搜索、知识库和产业链必须复用 workspace page id 索引，保持大库交互流畅"
 );
 check(
   pageUpdateBus.includes("PageUpdatePayload") &&

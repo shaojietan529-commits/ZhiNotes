@@ -4606,6 +4606,26 @@ function run() {
       "const pagesById = useWorkspaceStore((s) => s.pagesById)",
     ],
     [files.quickSearch, quickSearch, "getPageById(pageId)"],
+    [
+      files.knowledgeBaseShell,
+      knowledgeBaseShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+    ],
+    [
+      files.industryChainShell,
+      industryChainShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+    ],
+    [
+      files.researchGraphShell,
+      researchGraphShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+    ],
+    [
+      files.researchConnectionsPanel,
+      researchConnectionsPanel,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+    ],
   ]) {
     assertIncludes(
       file,

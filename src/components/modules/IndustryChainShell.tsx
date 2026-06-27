@@ -80,6 +80,7 @@ export default function IndustryChainShell() {
   const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertWorkspacePages = useWorkspaceStore((s) => s.upsertPages);
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const [pages, setPages] = useState<Page[]>([]);
   const [rootId, setRootId] = useState<string | null>(null);
   const [knowledgeRootId, setKnowledgeRootId] = useState<string | null>(null);
@@ -162,9 +163,9 @@ export default function IndustryChainShell() {
   const companyLinkParent = useMemo(
     () =>
       companyLinkParentId
-        ? pages.find((page) => page.id === companyLinkParentId) ?? null
+        ? pagesById.get(companyLinkParentId) ?? null
         : null,
-    [pages, companyLinkParentId]
+    [companyLinkParentId, pagesById]
   );
 
   const addChild = useCallback(
@@ -190,7 +191,7 @@ export default function IndustryChainShell() {
   const linkCompanyToParent = useCallback(
     async (companyPageId: string) => {
       if (!companyLinkParentId) return;
-      const companyPage = pages.find((page) => page.id === companyPageId);
+      const companyPage = pagesById.get(companyPageId);
       if (!companyPage) return;
 
       const existing = pages.find(
@@ -221,21 +222,21 @@ export default function IndustryChainShell() {
       setLinkNotice(`已把「${displayPageTitle(companyPage.title)}」链接到产业链层级。`);
       window.setTimeout(() => setLinkNotice(null), 2600);
     },
-    [companyLinkParentId, mergeScopedPages, pages]
+    [companyLinkParentId, mergeScopedPages, pages, pagesById]
   );
 
   const openIndustryNode = useCallback(
     (id: string) => {
-      const page = pages.find((candidate) => candidate.id === id);
+      const page = pagesById.get(id);
       const targetId = page
         ? resolveIndustryNodeTargetPageId(page, pages)
         : id;
       openPage(
-        pages.find((candidate) => candidate.id === targetId) ?? targetId,
+        pagesById.get(targetId) ?? targetId,
         { source: "module-open" }
       );
     },
-    [openPage, pages]
+    [openPage, pages, pagesById]
   );
 
   return (

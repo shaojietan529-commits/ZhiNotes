@@ -86,6 +86,7 @@ export default function KnowledgeBaseShell() {
   const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertWorkspacePages = useWorkspaceStore((s) => s.upsertPages);
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const [pages, setPages] = useState<Page[]>([]);
   const [rootId, setRootId] = useState<string | null>(null);
   const [industryRootId, setIndustryRootId] = useState<string | null>(null);
@@ -172,18 +173,15 @@ export default function KnowledgeBaseShell() {
   const industryLinkCard = useMemo(
     () =>
       industryLinkCardId
-        ? pages.find((page) => page.id === industryLinkCardId) ?? null
+        ? pagesById.get(industryLinkCardId) ?? null
         : null,
-    [pages, industryLinkCardId]
+    [industryLinkCardId, pagesById]
   );
   const peekPage = useMemo(
     () =>
-      peekPageId ? pages.find((page) => page.id === peekPageId) ?? null : null,
-    [pages, peekPageId]
+      peekPageId ? pagesById.get(peekPageId) ?? null : null,
+    [pagesById, peekPageId]
   );
-  const pagesById = useMemo(() => new Map(pages.map((page) => [page.id, page])), [
-    pages,
-  ]);
   const openKnowledgePage = useCallback(
     (id: string) => {
       openPage(pagesById.get(id) ?? id, { source: "module-open" });

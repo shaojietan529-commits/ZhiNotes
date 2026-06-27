@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import {
   buildResearchGraph,
@@ -33,6 +34,7 @@ export default function ResearchConnectionsPanel({
 }: ResearchConnectionsPanelProps) {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [exportingGraphReport, setExportingGraphReport] = useState(false);
 
@@ -99,9 +101,6 @@ export default function ResearchConnectionsPanel({
         .slice(0, 4),
     [focusKind, graphReport.relation_handoff_packets]
   );
-  const pagesById = useMemo(() => new Map(pages.map((page) => [page.id, page])), [
-    pages,
-  ]);
   const primaryCompletionTarget = completionTargets[0] ?? null;
   const relationCount = graph.relationLinks.length;
   const connectedAssetCount = new Set(

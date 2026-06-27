@@ -86,6 +86,7 @@ function ResearchGraphContent() {
 function ResearchGraphDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
@@ -155,9 +156,6 @@ function ResearchGraphDashboard() {
       }),
     [graphReport, projectHorizon, projectMode, projectTopic, workbenchPacket]
   );
-  const pagesById = useMemo(() => new Map(pages.map((page) => [page.id, page])), [
-    pages,
-  ]);
   const openGraphPage = (pageId: string) => {
     openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" });
   };
