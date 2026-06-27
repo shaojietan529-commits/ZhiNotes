@@ -3441,6 +3441,28 @@ function run() {
     );
   }
   for (const snippet of [
+    "QUICK_SEARCH_DATABASE_REFRESH_TTL_MS",
+    "databaseRefreshInFlightRef",
+    "lastDatabaseRefreshAtRef",
+    "const refreshDatabasesForPalette = useCallback",
+    "if (databaseRefreshInFlightRef.current) return;",
+    "lastDatabaseRefreshAtRef.current = now;",
+    "refreshDatabasesForPalette();",
+  ]) {
+    assertIncludes(
+      files.quickSearch,
+      quickSearch,
+      snippet,
+      "Quick search must throttle database refreshes on open so Cmd+K stays metadata-first and responsive."
+    );
+  }
+  assertExcludes(
+    files.quickSearch,
+    quickSearch,
+    "void refreshDatabases({ broadcast: false });",
+    "Quick search must not refresh databases unconditionally every time the palette opens."
+  );
+  for (const snippet of [
     "export async function searchPages(query: string, limit = 20)",
     "content_text LIKE ?",
     "const candidateLimit = Math.max(limit * 8, limit)",

@@ -42,6 +42,7 @@ const SAVED_SEARCHES_KEY = "zhinote:saved-searches";
 const MAX_SAVED_SEARCHES = 10;
 const QUICK_SEARCH_RESULT_LIMIT = 20;
 const QUICK_SEARCH_FULL_TEXT_DELAY_MS = 180;
+const QUICK_SEARCH_DATABASE_REFRESH_TTL_MS = 30_000;
 
 type CommandCategory = "Page" | "Editor" | "Database" | "Workspace";
 
@@ -103,6 +104,8 @@ export default function QuickSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRequestRef = useRef(0);
   const deferredFullTextSearchTimerRef = useRef<number | null>(null);
+  const databaseRefreshInFlightRef = useRef<Promise<Database[]> | null>(null);
+  const lastDatabaseRefreshAtRef = useRef(0);
   const openDatabase = useLocalFirstDatabaseNavigation();
   const { openModuleRoute, warmModuleRoute } = useLocalFirstModuleNavigation();
   const openPage = useLocalFirstPageNavigation();
@@ -126,6 +129,30 @@ export default function QuickSearch() {
     window.clearTimeout(deferredFullTextSearchTimerRef.current);
     deferredFullTextSearchTimerRef.current = null;
   }, []);
+
+  const refreshDatabasesForPalette = useCallback(() => {
+    const now = Date.now();
+    if (databaseRefreshInFlightRef.current) return;
+    if (
+      now - lastDatabaseRefreshAtRef.current <
+      QUICK_SEARCH_DATABASE_REFRESH_TTL_MS
+    ) {
+      return;
+    }
+
+    lastDatabaseRefreshAtRef.current = now;
+    const promise = refreshDatabases({ broadcast: false })
+      .catch((error) => {
+        console.error("[Zhinote] Failed to refresh quick search databases:", error);
+        return [] as Database[];
+      })
+      .finally(() => {
+        if (databaseRefreshInFlightRef.current === promise) {
+          databaseRefreshInFlightRef.current = null;
+        }
+      });
+    databaseRefreshInFlightRef.current = promise;
+  }, [refreshDatabases]);
 
   // Cmd+K / Ctrl+K to open
   useEffect(() => {
@@ -154,9 +181,9 @@ export default function QuickSearch() {
         setPageActivityFilter("suggested");
         setSelectedIndex(0);
       }, 50);
-      void refreshDatabases({ broadcast: false });
+      refreshDatabasesForPalette();
     }
-  }, [open, refreshDatabases]);
+  }, [open, refreshDatabasesForPalette]);
 
   useEffect(() => {
     if (!open || pages.length > 0) return;
