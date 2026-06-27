@@ -1029,10 +1029,34 @@ function run() {
     "Page performance snapshots must not include the raw page id."
   );
   assertIncludes(
+    files.localPerformance,
+    localPerformance,
+    '"page-peek"',
+    "Local performance snapshots must accept page peek timing records."
+  );
+  assertIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    'kind: "page-peek"',
+    "Page peek modal must record metadata-only local performance snapshots."
+  );
+  assertIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    'route: "/page/[pageId]#peek"',
+    "Page peek performance snapshots must not include the raw page id."
+  );
+  assertIncludes(
     files.syncShell,
     syncShell,
     "本地流畅度快照",
     "Sync UI must show local performance snapshots for fluency debugging."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "页面预览平均",
+    "Sync UI must show page peek performance averages."
   );
   assertIncludes(
     files.syncShell,

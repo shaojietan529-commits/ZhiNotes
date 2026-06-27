@@ -17,6 +17,10 @@ import {
   pageToRemoteRecord,
   queueCloudPagePush,
 } from "@/lib/pages/accountPageSync";
+import {
+  getLocalPerformanceNow,
+  recordLocalPerformanceSnapshot,
+} from "@/lib/performance/localPerformance";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
@@ -63,6 +67,9 @@ export default function PagePeekModal({
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<PageProperty[]>([]);
   const previousPageIdRef = useRef(pageId);
+  const peekOpenStartedAtRef = useRef(getLocalPerformanceNow());
+  const peekOpenStartedAtIsoRef = useRef(new Date().toISOString());
+  const recordedPeekPerformancePageIdRef = useRef<string | null>(null);
   const hasInitialEditableBody =
     initialPage?.id === pageId && initialPage.content_text != null;
   const isOptimisticDraft =
@@ -91,6 +98,9 @@ export default function PagePeekModal({
   useEffect(() => {
     if (previousPageIdRef.current === pageId) return;
     previousPageIdRef.current = pageId;
+    peekOpenStartedAtRef.current = getLocalPerformanceNow();
+    peekOpenStartedAtIsoRef.current = new Date().toISOString();
+    recordedPeekPerformancePageIdRef.current = null;
     queueMicrotask(() => {
       const nextInitial = getInitialPeekPage(pageId, initialPage);
       setFallbackPage(nextInitial);
@@ -151,6 +161,35 @@ export default function PagePeekModal({
       setProperties(parsePageProperties(effectivePage.properties));
     });
   }, [effectivePage]);
+
+  useEffect(() => {
+    if (!effectivePage || metadataLoading) return;
+    if (recordedPeekPerformancePageIdRef.current === pageId) return;
+    recordedPeekPerformancePageIdRef.current = pageId;
+    const durationMs = getLocalPerformanceNow() - peekOpenStartedAtRef.current;
+    recordLocalPerformanceSnapshot({
+      kind: "page-peek",
+      label: "页面预览",
+      route: "/page/[pageId]#peek",
+      status:
+        effectivePage.content_text == null ? "metadata-ready" : "content-ready",
+      startedAt: peekOpenStartedAtIsoRef.current,
+      durationMs,
+      localFirstMs: durationMs,
+      backgroundMs: 0,
+      counts: {
+        metadata_only: effectivePage.content_text == null ? 1 : 0,
+        has_content_html:
+          typeof effectivePage.content_text === "string" &&
+          effectivePage.content_text.length > 0
+            ? 1
+            : 0,
+        has_cover: effectivePage.cover_url ? 1 : 0,
+        optimistic_draft: isOptimisticDraft ? 1 : 0,
+        property_count: parsePageProperties(effectivePage.properties).length,
+      },
+    });
+  }, [effectivePage, isOptimisticDraft, metadataLoading, pageId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

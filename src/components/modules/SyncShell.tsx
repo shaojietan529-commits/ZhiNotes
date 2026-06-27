@@ -16053,6 +16053,7 @@ function LocalPerformancePanel({
   const latest = snapshots[0] ?? null;
   const dailyAverage = averagePerformanceMs(snapshots, "daily-calendar");
   const pageAverage = averagePerformanceMs(snapshots, "page-open");
+  const peekAverage = averagePerformanceMs(snapshots, "page-peek");
   const recentSnapshots = snapshots.slice(0, 6);
 
   return (
@@ -16083,7 +16084,7 @@ function LocalPerformancePanel({
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
         <CacheRebuildFact
           label="最近一次"
           value={latest ? formatPerformanceMs(latest.duration_ms) : "暂无"}
@@ -16102,6 +16103,11 @@ function LocalPerformancePanel({
           label="页面打开平均"
           value={formatPerformanceMs(pageAverage)}
           detail="不包含页面标题、正文或原始页面 ID"
+        />
+        <CacheRebuildFact
+          label="页面预览平均"
+          value={formatPerformanceMs(peekAverage)}
+          detail="包含每日纪要/知识库 peek 弹窗首屏"
         />
       </div>
 
