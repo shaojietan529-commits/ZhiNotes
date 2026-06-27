@@ -138,6 +138,8 @@ for (const token of [
   "DAILY_CALENDAR_EXPAND_BATCH",
   "visibleNoteLimitByDate",
   "showMoreNotesForDate",
+  "const notesById = useMemo(() =>",
+  "const inCalendarNote = notesById.get(pageId)",
 ]) {
   check(shells.daily.includes(token), `DailyNotesShell 缺少每日纪要性能护栏 ${token}`);
 }

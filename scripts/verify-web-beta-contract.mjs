@@ -2264,8 +2264,12 @@ function run() {
       "Daily fallback page-id opens must still use local-first navigation when a metadata seed is available.",
     ],
     [
-      "const inCalendarNote = notes.find((item) => item.id === pageId)",
-      "Daily note full-page opening must check the small visible calendar list before scanning the whole workspace.",
+      "const notesById = useMemo(() =>",
+      "Daily calendar must build a lightweight visible-month note id index for large imported workspaces.",
+    ],
+    [
+      "const inCalendarNote = notesById.get(pageId)",
+      "Daily note full-page opening must use the visible-month note id index before checking the global workspace.",
     ],
     [
       "rememberPendingPageDraft(note)",

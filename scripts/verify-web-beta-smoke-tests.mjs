@@ -2571,8 +2571,14 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "const inCalendarNote = notes.find((item) => item.id === pageId)",
-    "Daily note full-page opening must check the small visible calendar list before scanning the whole workspace."
+    "const notesById = useMemo(() =>",
+    "Daily calendar must build a lightweight visible-month note id index."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "const inCalendarNote = notesById.get(pageId)",
+    "Daily note full-page opening must use the visible-month note id index before scanning the whole workspace."
   );
   assertIncludes(
     files.dailyNotesShell,

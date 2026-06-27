@@ -506,6 +506,12 @@ export default function DailyNotesShell() {
     return indexed;
   }, [notes]);
 
+  const notesById = useMemo(() => {
+    const map = new Map<string, DailyNote>();
+    for (const note of notes) map.set(note.id, note);
+    return map;
+  }, [notes]);
+
   // Each day can hold multiple note pages (Notion-style), grouped by 日期.
   const notesByDate = useMemo(() => {
     const map = new Map<string, DailyNote[]>();
@@ -661,7 +667,7 @@ export default function DailyNotesShell() {
 
   const openDailyNoteFullPageById = useCallback(
     (pageId: string) => {
-      const inCalendarNote = notes.find((item) => item.id === pageId);
+      const inCalendarNote = notesById.get(pageId);
       const note =
         inCalendarNote ??
         (peekInitialPage?.id === pageId ? peekInitialPage : null);
@@ -682,7 +688,7 @@ export default function DailyNotesShell() {
       }
       openPage(pageId, { source: "daily-open" });
     },
-    [notes, openDailyNoteFullPage, openPage, peekInitialPage]
+    [notesById, openDailyNoteFullPage, openPage, peekInitialPage]
   );
 
   const openNotePage = useCallback((note: DailyNote) => {
@@ -744,7 +750,7 @@ export default function DailyNotesShell() {
   // title too when the note is still date-titled) so it moves on the calendar.
   const moveNoteToDate = useCallback(
     async (noteId: string, dateKey: string) => {
-      const note = notes.find((item) => item.id === noteId);
+      const note = notesById.get(noteId);
       if (!note || dailyNoteDateKey(note) === dateKey) return;
       const props = parsePageProperties(note.properties);
       const dateProp = props.find((property) => property.name === "日期");
@@ -775,7 +781,7 @@ export default function DailyNotesShell() {
         );
       }
     },
-    [notes, upsertPages]
+    [notesById, upsertPages]
   );
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
