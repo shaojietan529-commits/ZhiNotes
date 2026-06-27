@@ -2596,8 +2596,20 @@ function run() {
   assertIncludes(
     files.usePage,
     usePage,
-    "schedulePageCloudHydration(\n        pageId,\n        localPage,\n        setPageForCurrentLoad,\n        upsertPages\n      )",
-    "Page opening must defer cloud body hydration until after a local page has painted."
+    "schedulePageCloudHydration(\n        pageId,\n        () =>",
+    "Page opening must defer cloud body hydration until after a local page has painted through a latest-page reader."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "const latestLocalPage = getLocalPage();",
+    "Page cloud hydration must compare against the latest visible local page instead of the stale opening snapshot."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)",
+    "Page cloud hydration must pass the latest local page into cloud conflict comparison."
   );
   assertIncludes(
     files.usePage,

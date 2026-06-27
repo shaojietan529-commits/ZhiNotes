@@ -2164,8 +2164,16 @@ function run() {
       "usePage must clear route handoffs after durable local or cloud hydration.",
     ],
     [
-      "schedulePageCloudHydration(\n        pageId,\n        localPage,\n        setPageForCurrentLoad,\n        upsertPages\n      )",
-      "usePage must defer cloud body hydration until after a local page has painted.",
+      "schedulePageCloudHydration(\n        pageId,\n        () =>",
+      "usePage must defer cloud body hydration until after a local page has painted through a latest-page reader.",
+    ],
+    [
+      "const latestLocalPage = getLocalPage();",
+      "usePage cloud hydration must compare against the latest visible local page instead of the stale opening snapshot.",
+    ],
+    [
+      "applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)",
+      "usePage cloud hydration must pass the latest local page into cloud conflict comparison.",
     ],
     [
       "requestIdleCallback(run",

@@ -798,12 +798,15 @@ check(
     usePageHook.includes("if (!dbReady)") &&
     usePageHook.includes("setLoadingForCurrentLoad(!localPage)") &&
     usePageHook.includes("setLoadingForCurrentLoad(false)") &&
-    usePageHook.includes("schedulePageCloudHydration(\n        pageId,\n        localPage,\n        setPageForCurrentLoad,\n        upsertPages\n      )") &&
+    usePageHook.includes("schedulePageCloudHydration(\n        pageId,\n        () =>") &&
+    usePageHook.includes("visiblePageRef.current?.id === pageId") &&
+    usePageHook.includes("const latestLocalPage = getLocalPage();") &&
+    usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)") &&
     usePageHook.includes("requestIdleCallback(run") &&
     usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
     !usePageHook.includes("cloudPagePromise") &&
     usePageHook.includes("queueCloudPagePush(localPage)"),
-  "usePage 应先显示当前页本地缓存；云端正文只做 idle 后台回填，没有当前页元数据时才等云端查找，并在发现本地较新时补发云端上传"
+  "usePage 应先显示当前页本地缓存；云端正文只做 idle 后台回填，回填前必须用当前可见页面快照比较，避免覆盖刚输入的本地内容"
 );
 check(
   usePageHook.includes("pageToRemoteRecord(optimistic)") &&

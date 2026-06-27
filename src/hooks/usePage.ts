@@ -136,7 +136,10 @@ export function usePage(
       setLoadingForCurrentLoad(false);
       schedulePageCloudHydration(
         pageId,
-        localPage,
+        () =>
+          visiblePageRef.current?.id === pageId
+            ? visiblePageRef.current
+            : localPage,
         setPageForCurrentLoad,
         upsertPages
       );
@@ -360,13 +363,14 @@ async function drainOptimisticPageLocalCachePersistQueue(
 
 async function refreshPageFromCloud(
   pageId: string,
-  localPage: Page,
+  getLocalPage: () => Page | null,
   setPage: (page: Page | null) => void,
   upsertPages: (pages: Page[]) => void
 ): Promise<void> {
   try {
     const cloud = await fetchCloudPageById(pageId);
-    await applyCloudPageLookup(cloud, localPage, setPage, upsertPages);
+    const latestLocalPage = getLocalPage();
+    await applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages);
   } catch {
     // Local content is already visible; a cloud refresh failure should not
     // block reading or editing.
@@ -375,12 +379,12 @@ async function refreshPageFromCloud(
 
 function schedulePageCloudHydration(
   pageId: string,
-  localPage: Page,
+  getLocalPage: () => Page | null,
   setPage: (page: Page | null) => void,
   upsertPages: (pages: Page[]) => void
 ): void {
   const run = () => {
-    void refreshPageFromCloud(pageId, localPage, setPage, upsertPages);
+    void refreshPageFromCloud(pageId, getLocalPage, setPage, upsertPages);
   };
   if (typeof window === "undefined") {
     run();

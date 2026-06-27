@@ -232,11 +232,14 @@ check(
     usePageHook.includes("if (!dbReady)") &&
     usePageHook.includes("setLoadingForCurrentLoad(!localPage)") &&
     usePageHook.includes("setLoadingForCurrentLoad(false);") &&
-    usePageHook.includes("schedulePageCloudHydration(\n        pageId,\n        localPage,\n        setPageForCurrentLoad,\n        upsertPages\n      )") &&
+    usePageHook.includes("schedulePageCloudHydration(\n        pageId,\n        () =>") &&
+    usePageHook.includes("visiblePageRef.current?.id === pageId") &&
+    usePageHook.includes("const latestLocalPage = getLocalPage();") &&
+    usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)") &&
     usePageHook.includes("requestIdleCallback(run") &&
     usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
     !usePageHook.includes("cloudPagePromise"),
-  "usePage 必须把 metadata/handoff 当作可首屏打开状态，云端正文 idle 后台补齐，不能抢在本地首屏前发云端正文查询"
+  "usePage 必须把 metadata/handoff 当作可首屏打开状态，云端正文 idle 后台补齐，且用最新可见页面快照比较后再回填"
 );
 check(
   usePageHook.includes("options: UsePageOptions") &&
