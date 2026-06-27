@@ -270,7 +270,7 @@ function PageTreeItem({
 
 export default function PageTree() {
   const openPage = useLocalFirstPageNavigation();
-  const { pages, refresh, upsertPages } = usePages();
+  const { pages, upsertPages } = usePages();
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
@@ -500,7 +500,6 @@ export default function PageTree() {
             setContextMenu(null);
             handleNavigate(id);
           }}
-          onChanged={() => refresh()}
         />
       )}
     </>

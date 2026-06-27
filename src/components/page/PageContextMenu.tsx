@@ -14,6 +14,7 @@ import {
   movePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
 import { queueCloudPageDelete } from "@/lib/pages/accountPageSync";
+import { usePages } from "@/hooks/usePages";
 import type { Page } from "@/lib/utils/types";
 
 interface PageContextMenuProps {
@@ -37,6 +38,8 @@ export default function PageContextMenu({
 }: PageContextMenuProps) {
   const pageClipboard = useWorkspaceStore((s) => s.pageClipboard);
   const setPageClipboard = useWorkspaceStore((s) => s.setPageClipboard);
+  const pages = useWorkspaceStore((s) => s.pages);
+  const { upsertPages } = usePages({ autoLoad: false });
   const [moveMode, setMoveMode] = useState(false);
   const [moveQuery, setMoveQuery] = useState("");
   const [moveTargets, setMoveTargets] = useState<Page[]>([]);
@@ -101,7 +104,8 @@ export default function PageContextMenu({
   };
 
   const duplicate = async () => {
-    await duplicatePageDeepWithCloud(pageId, null);
+    const duplicate = await duplicatePageDeepWithCloud(pageId, null);
+    if (duplicate) upsertPages([duplicate]);
     onChanged?.();
   };
 
@@ -117,10 +121,15 @@ export default function PageContextMenu({
     if (!pageClipboard) return;
     if (pageClipboard.mode === "cut") {
       const pos = await getNextPosition(pageId);
-      await movePageWithCloud(pageClipboard.pageId, pageId, pos);
+      const moved = await movePageWithCloud(pageClipboard.pageId, pageId, pos);
+      if (moved) upsertPages(collectMovedPageSnapshots(pages, moved));
       setPageClipboard(null);
     } else {
-      await duplicatePageDeepWithCloud(pageClipboard.pageId, pageId);
+      const duplicate = await duplicatePageDeepWithCloud(
+        pageClipboard.pageId,
+        pageId
+      );
+      if (duplicate) upsertPages([duplicate]);
     }
     onChanged?.();
   };
@@ -134,13 +143,23 @@ export default function PageContextMenu({
       await deletePage(pageId);
     } finally {
       if (snapshot) queueCloudPageDelete(snapshot, deletedAt);
+      if (snapshot) {
+        upsertPages([
+          {
+            ...snapshot,
+            deleted_at: deletedAt,
+            updated_at: deletedAt,
+          },
+        ]);
+      }
     }
     onChanged?.();
   };
 
   const handleMoveTo = async (targetId: string | null) => {
     const pos = await getNextPosition(targetId);
-    await movePageWithCloud(pageId, targetId, pos);
+    const moved = await movePageWithCloud(pageId, targetId, pos);
+    if (moved) upsertPages(collectMovedPageSnapshots(pages, moved));
     setMoveMode(false);
     onChanged?.();
     onClose();
@@ -287,4 +306,31 @@ function Item({
 
 function Divider() {
   return <div className="my-1 h-px bg-zinc-100 dark:bg-zinc-800" />;
+}
+
+function collectMovedPageSnapshots(allPages: Page[], movedPage: Page): Page[] {
+  const childrenByParent = new Map<string, Page[]>();
+  for (const page of allPages) {
+    if (!page.parent_id) continue;
+    const children = childrenByParent.get(page.parent_id) ?? [];
+    children.push(page);
+    childrenByParent.set(page.parent_id, children);
+  }
+
+  const snapshots: Page[] = [movedPage];
+  const stack = [movedPage];
+  while (stack.length > 0) {
+    const parent = stack.pop();
+    if (!parent) continue;
+    for (const child of childrenByParent.get(parent.id) ?? []) {
+      const nextChild = {
+        ...child,
+        depth: parent.depth + 1,
+        updated_at: movedPage.updated_at,
+      };
+      snapshots.push(nextChild);
+      stack.push(nextChild);
+    }
+  }
+  return snapshots;
 }

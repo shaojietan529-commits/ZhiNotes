@@ -49,7 +49,7 @@ import {
   type PendingCloudPageSyncStatus,
 } from "@/lib/pages/accountPageSync";
 import { maybeSnapshot, manualSnapshot } from "@/lib/comparison/versioning";
-import type { PageVersion } from "@/lib/utils/types";
+import type { Page, PageVersion } from "@/lib/utils/types";
 import {
   buildPageHtmlDocument,
   buildPageMarkdownDocument,
@@ -114,7 +114,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const copyNoticeTimeoutRef = useRef<number | null>(null);
   const { page, loading, update, remove } = usePage(pageId);
-  const { refresh } = usePages({ autoLoad: false });
+  const { upsertPages } = usePages({ autoLoad: false });
+  const pages = useWorkspaceStore((s) => s.pages);
   const setCurrentPageId = useWorkspaceStore((s) => s.setCurrentPageId);
   const [title, setTitle] = useState("");
   const [properties, setProperties] = useState<PageProperty[]>([]);
@@ -507,22 +508,26 @@ function PageContent({ pageId }: { pageId: string }) {
     if (!pageClipboard) return;
     if (pageClipboard.mode === "cut") {
       const pos = await getNextPosition(pageId);
-      await movePageWithCloud(pageClipboard.pageId, pageId, pos);
+      const moved = await movePageWithCloud(pageClipboard.pageId, pageId, pos);
+      if (moved) upsertPages(collectMovedPageSnapshots(pages, moved));
       setPageClipboard(null);
     } else {
-      await duplicatePageDeepWithCloud(pageClipboard.pageId, pageId);
+      const duplicate = await duplicatePageDeepWithCloud(
+        pageClipboard.pageId,
+        pageId
+      );
+      if (duplicate) upsertPages([duplicate]);
     }
-    await refresh();
-  }, [pageClipboard, pageId, setPageClipboard, refresh]);
+  }, [pageClipboard, pageId, pages, setPageClipboard, upsertPages]);
 
   const handleMoveTo = useCallback(
     async (targetId: string | null) => {
       const pos = await getNextPosition(targetId);
-      await movePageWithCloud(pageId, targetId, pos);
+      const moved = await movePageWithCloud(pageId, targetId, pos);
+      if (moved) upsertPages(collectMovedPageSnapshots(pages, moved));
       setShowMoveDialog(false);
-      await refresh();
     },
-    [pageId, refresh]
+    [pageId, pages, upsertPages]
   );
 
   const handleDelete = useCallback(async () => {
@@ -532,15 +537,14 @@ function PageContent({ pageId }: { pageId: string }) {
     );
     if (!ok) return;
     await remove();
-    await refresh();
     router.push("/");
-  }, [locked, page, remove, refresh, router, title]);
+  }, [locked, page, remove, router, title]);
 
   const handleAddSubPage = useCallback(async () => {
     if (locked) return;
     try {
       const child = await createPageWithCloud({ parentId: pageId });
-      await refresh();
+      upsertPages([child]);
       // Insert a link to the sub-page in the parent editor
       const html = editorRef.current?.insertSubPageLink(child.id, child.title);
       // Save immediately before navigating away (don't wait for debounce)
@@ -551,7 +555,7 @@ function PageContent({ pageId }: { pageId: string }) {
     } catch (err) {
       console.error("[Zhinote] Failed to create sub-page:", err);
     }
-  }, [locked, openPage, pageId, refresh, update]);
+  }, [locked, openPage, pageId, update, upsertPages]);
 
   const handleDuplicatePage = useCallback(async () => {
     if (!page) return;
@@ -566,9 +570,9 @@ function PageContent({ pageId }: { pageId: string }) {
       content_text: html,
     });
     await updateWikiLinks(duplicate.id, extractLinkedPageIdsFromHtml(html));
-    await refresh();
+    upsertPages([updatedDuplicate ?? duplicate]);
     openPage(updatedDuplicate ?? duplicate, { source: "duplicate-page-create" });
-  }, [openPage, page, refresh, title]);
+  }, [openPage, page, title, upsertPages]);
 
   const pageStructure = useMemo(() => {
     if (!showInfo || !page) return null;
@@ -1454,6 +1458,33 @@ function downloadJsonFile(fileName: string, value: unknown) {
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function collectMovedPageSnapshots(allPages: Page[], movedPage: Page): Page[] {
+  const childrenByParent = new Map<string, Page[]>();
+  for (const page of allPages) {
+    if (!page.parent_id) continue;
+    const children = childrenByParent.get(page.parent_id) ?? [];
+    children.push(page);
+    childrenByParent.set(page.parent_id, children);
+  }
+
+  const snapshots: Page[] = [movedPage];
+  const stack = [movedPage];
+  while (stack.length > 0) {
+    const parent = stack.pop();
+    if (!parent) continue;
+    for (const child of childrenByParent.get(parent.id) ?? []) {
+      const nextChild = {
+        ...child,
+        depth: parent.depth + 1,
+        updated_at: movedPage.updated_at,
+      };
+      snapshots.push(nextChild);
+      stack.push(nextChild);
+    }
+  }
+  return snapshots;
 }
 
 function fileSafeTimestamp() {

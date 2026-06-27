@@ -967,6 +967,19 @@ check(
     !pageVisualUpdateBody.includes("refresh()"),
   "PageShell 标题/属性/正文/图标/封面更新应依赖 usePage 的单页 upsert，不能触发全量页面 metadata 刷新"
 );
+const pageStructureMutationBody = pageShell.slice(
+  pageShell.indexOf("const handlePastePage"),
+  pageShell.indexOf("const pageStructure")
+);
+check(
+  pageStructureMutationBody.includes("collectMovedPageSnapshots(pages, moved)") &&
+    pageStructureMutationBody.includes("upsertPages([child])") &&
+    pageStructureMutationBody.includes("upsertPages([updatedDuplicate ?? duplicate])") &&
+    pageStructureMutationBody.includes("await remove()") &&
+    !pageStructureMutationBody.includes("await refresh()") &&
+    !pageShell.includes("const { refresh } = usePages({ autoLoad: false })"),
+  "PageShell 粘贴/移动/删除/创建子页面/复制页面必须局部 upsert，不能在大批量页面后触发全量 metadata 刷新"
+);
 check(
   pageShell.includes("useVersions(pageId, {") &&
     pageShell.includes("enabled: shouldLoadVersions") &&

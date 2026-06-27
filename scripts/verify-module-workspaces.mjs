@@ -80,6 +80,7 @@ const favoritePagesSource = read("src/components/sidebar/FavoritePages.tsx");
 const trashPagesSource = read("src/components/sidebar/TrashPages.tsx");
 const moduleDashboardSource = read("src/components/modules/ModuleDashboard.tsx");
 const pageTreeSource = read("src/components/sidebar/PageTree.tsx");
+const pageContextMenuSource = read("src/components/page/PageContextMenu.tsx");
 const pageUpdateBus = read("src/lib/pages/pageUpdateBus.ts");
 const accountPageSync = read("src/lib/pages/accountPageSync.ts");
 const scopedPageMetadata = read("src/lib/pages/scopedPageMetadata.ts");
@@ -222,6 +223,14 @@ check(
   "PageShell 必须动态加载并在页面首屏后空闲预热编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
 );
 check(
+  pageShell.includes("collectMovedPageSnapshots(pages, moved)") &&
+    pageShell.includes("upsertPages([child])") &&
+    pageShell.includes("upsertPages([updatedDuplicate ?? duplicate])") &&
+    !pageShell.includes("const { refresh } = usePages({ autoLoad: false })") &&
+    !pageShell.includes("await refresh()"),
+  "PageShell 页面粘贴/移动/创建子页面/复制后必须局部 upsert，不能触发全量页面 metadata 刷新"
+);
+check(
   accountPageSync.includes('export const PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status"') &&
     accountPageSync.includes("getPendingCloudPageSyncStatus") &&
     accountPageSync.includes("emitPageSyncStatusChanged();") &&
@@ -243,8 +252,17 @@ check(
     pageTreeSource.includes("onPageMutated([child])") &&
     pageTreeSource.includes("collectMovedPageSnapshots(pages, movedPage)") &&
     pageTreeSource.includes("onPageMutated={upsertPages}") &&
+    !pageTreeSource.includes("onChanged={() => refresh()}") &&
     !pageTreeSource.includes("await refresh()"),
   "Sidebar PageTree 必须用 parent 索引、根页面渲染上限和局部 upsert，避免 Notion 批量导入后拖慢全站"
+);
+check(
+  pageContextMenuSource.includes("usePages({ autoLoad: false })") &&
+    pageContextMenuSource.includes("upsertPages([duplicate])") &&
+    pageContextMenuSource.includes("upsertPages(collectMovedPageSnapshots(pages, moved))") &&
+    pageContextMenuSource.includes("deleted_at: deletedAt") &&
+    !pageContextMenuSource.includes("await refresh()"),
+  "PageContextMenu 复制/粘贴/移动/删除必须局部 upsert，不能依赖调用方全量刷新"
 );
 check(
   !sidebarSource.includes("usePages") &&

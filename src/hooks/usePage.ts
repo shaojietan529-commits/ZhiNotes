@@ -159,7 +159,7 @@ export function usePage(
   );
 
   const remove = useCallback(async () => {
-    if (!pageId) return;
+    if (!pageId) return null;
     let snapshot = page;
     if (!snapshot) {
       try {
@@ -173,9 +173,25 @@ export function usePage(
       await deletePage(pageId);
     } finally {
       if (snapshot) queueCloudPageDelete(snapshot, deletedAt);
+      if (snapshot) {
+        upsertPages([
+          {
+            ...snapshot,
+            deleted_at: deletedAt,
+            updated_at: deletedAt,
+          },
+        ]);
+      }
       setPage(null);
     }
-  }, [pageId, page]);
+    return snapshot
+      ? {
+          ...snapshot,
+          deleted_at: deletedAt,
+          updated_at: deletedAt,
+        }
+      : null;
+  }, [pageId, page, upsertPages]);
 
   return { page, loading, reload: load, update, remove };
 }
