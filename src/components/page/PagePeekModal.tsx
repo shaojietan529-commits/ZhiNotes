@@ -29,6 +29,9 @@ const Editor = dynamic(() => import("@/components/editor/Editor"), {
   loading: () => <PeekEditorSkeleton label="正在载入编辑器…" />,
 });
 
+const PEEK_METADATA_ONLY_CONTENT_DELAY_MS = 260;
+const PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS = 700;
+
 interface PagePeekModalProps {
   pageId: string;
   initialPage?: Page | null;
@@ -94,6 +97,10 @@ export default function PagePeekModal({
   const currentInitialPage = initialPage?.id === pageId ? initialPage : null;
   const effectivePage =
     currentLoadedPage ?? currentFallbackPage ?? currentInitialPage ?? null;
+  const isMetadataOnlyPeek =
+    Boolean(effectivePage) &&
+    effectivePage?.content_text == null &&
+    !isOptimisticDraft;
   const bodyLoading =
     editorLoadRequested &&
     loading &&
@@ -258,7 +265,7 @@ export default function PagePeekModal({
     if (!editorLoadRequested) {
       return schedulePeekContentLoad(() => {
         setEditorLoadRequested(true);
-      });
+      }, isMetadataOnlyPeek);
     }
   }, [
     editorLoadRequested,
@@ -266,6 +273,7 @@ export default function PagePeekModal({
     effectivePage?.content_text,
     hasEffectivePage,
     isOptimisticDraft,
+    isMetadataOnlyPeek,
     loading,
     pageId,
   ]);
@@ -410,7 +418,9 @@ export default function PagePeekModal({
 
               {bodyLoading ? (
                 <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 px-4 py-6 text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/40">
-                  正在按需加载正文…
+                  {isMetadataOnlyPeek
+                    ? "标题和属性已先显示，正在从本地缓存补齐正文…"
+                    : "正在按需加载正文…"}
                 </div>
               ) : editorMounted ? (
                 <Editor
@@ -420,7 +430,13 @@ export default function PagePeekModal({
                   onUpdate={handleContentUpdate}
                 />
               ) : (
-                <PeekEditorSkeleton label="正在准备编辑器…" />
+                <PeekEditorSkeleton
+                  label={
+                    isMetadataOnlyPeek
+                      ? "标题和属性已先显示，正在排队补齐正文和编辑器…"
+                      : "正在准备编辑器…"
+                  }
+                />
               )}
 
               <PeekChildPages
@@ -440,13 +456,22 @@ function schedulePeekEditorMount(callback: () => void): () => void {
   return schedulePeekIdleTask(callback, 40);
 }
 
-function schedulePeekContentLoad(callback: () => void): () => void {
-  return schedulePeekIdleTask(callback, 60);
+function schedulePeekContentLoad(
+  callback: () => void,
+  metadataOnly = false
+): () => void {
+  if (!metadataOnly) return schedulePeekIdleTask(callback, 60);
+  return schedulePeekIdleTask(
+    callback,
+    PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS,
+    { delay: PEEK_METADATA_ONLY_CONTENT_DELAY_MS }
+  );
 }
 
 function schedulePeekIdleTask(
   callback: () => void,
-  timeout = 350
+  timeout = 350,
+  options: { delay?: number } = {}
 ): () => void {
   const maybeWindow = window as Window & {
     requestIdleCallback?: (
@@ -455,12 +480,28 @@ function schedulePeekIdleTask(
     ) => number;
     cancelIdleCallback?: (id: number) => void;
   };
-  if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
-    const idleId = maybeWindow.requestIdleCallback(callback, { timeout });
-    return () => maybeWindow.cancelIdleCallback?.(idleId);
+  const delay = Math.max(0, options.delay ?? 0);
+  let timer: number | null = null;
+  let idleId: number | null = null;
+  const requestTask = () => {
+    if (maybeWindow.requestIdleCallback) {
+      idleId = maybeWindow.requestIdleCallback(callback, { timeout });
+      return;
+    }
+    timer = window.setTimeout(callback, Math.min(timeout, 120));
+  };
+  if (delay > 0) {
+    timer = window.setTimeout(() => {
+      timer = null;
+      requestTask();
+    }, delay);
+  } else {
+    requestTask();
   }
-  const timer = window.setTimeout(callback, Math.min(timeout, 120));
-  return () => window.clearTimeout(timer);
+  return () => {
+    if (idleId !== null) maybeWindow.cancelIdleCallback?.(idleId);
+    if (timer !== null) window.clearTimeout(timer);
+  };
 }
 
 function PeekEditorSkeleton({ label }: { label: string }) {

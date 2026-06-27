@@ -2336,6 +2336,34 @@ function run() {
     "applyPeekMetadataSnapshot",
     "PagePeekModal must keep fallback metadata, title, and properties in sync."
   );
+  for (const [snippet, message] of [
+    [
+      "PEEK_METADATA_ONLY_CONTENT_DELAY_MS = 260",
+      "PagePeekModal must briefly defer metadata-only body loading so the peek title/properties can paint first.",
+    ],
+    [
+      "PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS = 700",
+      "PagePeekModal metadata-only body loading must stay bounded so content still arrives quickly.",
+    ],
+    [
+      "const isMetadataOnlyPeek =",
+      "PagePeekModal must explicitly distinguish metadata-only previews from optimistic empty drafts.",
+    ],
+    [
+      "schedulePeekContentLoad(() => {\n        setEditorLoadRequested(true);\n      }, isMetadataOnlyPeek)",
+      "PagePeekModal must use the metadata-only delay only when the preview has no body yet.",
+    ],
+    [
+      "标题和属性已先显示，正在从本地缓存补齐正文",
+      "PagePeekModal must communicate that metadata is already visible while body hydration continues.",
+    ],
+    [
+      "标题和属性已先显示，正在排队补齐正文和编辑器",
+      "PagePeekModal skeleton must keep a clear metadata-first loading state before editor hydration.",
+    ],
+  ]) {
+    assertIncludes(files.pagePeekModal, pagePeekModal, snippet, message);
+  }
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,

@@ -476,6 +476,12 @@ check(
     pagePeekModal.includes("useWorkspaceStore.getState().getPageById(pageId)") &&
     pagePeekModal.includes("editorLoadRequested") &&
     pagePeekModal.includes("schedulePeekContentLoad") &&
+    pagePeekModal.includes("PEEK_METADATA_ONLY_CONTENT_DELAY_MS = 260") &&
+    pagePeekModal.includes("PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS = 700") &&
+    pagePeekModal.includes("const isMetadataOnlyPeek =") &&
+    pagePeekModal.includes("schedulePeekContentLoad(() => {\n        setEditorLoadRequested(true);\n      }, isMetadataOnlyPeek)") &&
+    pagePeekModal.includes("标题和属性已先显示，正在从本地缓存补齐正文") &&
+    pagePeekModal.includes("标题和属性已先显示，正在排队补齐正文和编辑器") &&
     pagePeekModal.includes("enabled: editorLoadRequested") &&
     shells.knowledge.includes("const peekPage = useMemo") &&
     shells.knowledge.includes("initialPage={peekPage}"),
