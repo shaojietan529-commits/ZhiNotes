@@ -1357,11 +1357,13 @@ export async function listDailyPageMetadataForCalendar({
   startDate,
   endDate,
   recentLimit = 8,
+  includeUnindexedFallback = true,
 }: {
   rootId: string;
   startDate: string;
   endDate: string;
   recentLimit?: number;
+  includeUnindexedFallback?: boolean;
 }): Promise<Page[]> {
   const db = await getDb();
   const byId = new Map<string, Page>();
@@ -1437,27 +1439,51 @@ export async function listDailyPageMetadataForCalendar({
     }
   }
 
-  const targetedTokens = buildDailyRangeSearchTokens(startDate, endDate);
-  if (targetedTokens.length > 0) {
-    const tokenWhere = targetedTokens
-      .map(() => "(p.title LIKE ? OR p.properties LIKE ?)")
-      .join(" OR ");
-    const tokenBinds = targetedTokens.flatMap((token) => [
-      `%${token}%`,
-      `%${token}%`,
-    ]);
-    const targetedFallbackRows = readRows(
+  if (includeUnindexedFallback) {
+    const targetedTokens = buildDailyRangeSearchTokens(startDate, endDate);
+    if (targetedTokens.length > 0) {
+      const tokenWhere = targetedTokens
+        .map(() => "(p.title LIKE ? OR p.properties LIKE ?)")
+        .join(" OR ");
+      const tokenBinds = targetedTokens.flatMap((token) => [
+        `%${token}%`,
+        `%${token}%`,
+      ]);
+      const targetedFallbackRows = readRows(
+        `SELECT ${PAGE_METADATA_SELECT}
+         FROM pages p
+         WHERE p.deleted_at IS NULL
+           AND p.daily_date_key IS NULL
+           AND ${dailyDateCandidateWhere("p")}
+           AND (${tokenWhere})
+         ORDER BY p.updated_at DESC
+         LIMIT ?`,
+        [...tokenBinds, DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT]
+      );
+      for (const row of targetedFallbackRows) {
+        const dateKey = inferDailyDateKeyInRange(
+          row.title,
+          row.properties,
+          startDate,
+          endDate
+        );
+        if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
+        addIfDailyScope(row);
+      }
+    }
+
+    const fallbackRows = readRows(
       `SELECT ${PAGE_METADATA_SELECT}
        FROM pages p
        WHERE p.deleted_at IS NULL
          AND p.daily_date_key IS NULL
          AND ${dailyDateCandidateWhere("p")}
-         AND (${tokenWhere})
        ORDER BY p.updated_at DESC
        LIMIT ?`,
-      [...tokenBinds, DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT]
+      [DAILY_CALENDAR_FALLBACK_SCAN_LIMIT]
     );
-    for (const row of targetedFallbackRows) {
+    for (const row of fallbackRows) {
+      if (!isDailyScopePage(row)) continue;
       const dateKey = inferDailyDateKeyInRange(
         row.title,
         row.properties,
@@ -1465,31 +1491,9 @@ export async function listDailyPageMetadataForCalendar({
         endDate
       );
       if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
-      addIfDailyScope(row);
+      byId.set(row.id, row);
+      dateParentIdsForChildren.add(row.id);
     }
-  }
-
-  const fallbackRows = readRows(
-    `SELECT ${PAGE_METADATA_SELECT}
-     FROM pages p
-     WHERE p.deleted_at IS NULL
-       AND p.daily_date_key IS NULL
-       AND ${dailyDateCandidateWhere("p")}
-     ORDER BY p.updated_at DESC
-     LIMIT ?`,
-    [DAILY_CALENDAR_FALLBACK_SCAN_LIMIT]
-  );
-  for (const row of fallbackRows) {
-    if (!isDailyScopePage(row)) continue;
-    const dateKey = inferDailyDateKeyInRange(
-      row.title,
-      row.properties,
-      startDate,
-      endDate
-    );
-    if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
-    byId.set(row.id, row);
-    dateParentIdsForChildren.add(row.id);
   }
 
   const childParentIds = Array.from(dateParentIdsForChildren).filter(

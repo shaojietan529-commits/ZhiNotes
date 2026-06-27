@@ -141,6 +141,9 @@ for (const token of [
   "showMoreNotesForDate",
   "const notesById = useMemo(() =>",
   "const inCalendarNote = notesById.get(pageId)",
+  "includeUnindexedFallback: false",
+  "includeUnindexedFallback: true",
+  'source: "local-fallback-metadata"',
 ]) {
   check(shells.daily.includes(token), `DailyNotesShell 缺少每日纪要性能护栏 ${token}`);
 }
@@ -158,6 +161,15 @@ check(
 check(
   shells.daily.includes("void ensureDailyDateIndexBackfilled()"),
   "DailyNotesShell 日期索引重建必须后台运行，不能阻塞首屏"
+);
+check(
+  shells.daily.indexOf("includeUnindexedFallback: false") <
+    shells.daily.indexOf("const fallbackMetadata = await listDailyPageMetadataForCalendar") &&
+    shells.daily.indexOf("const fallbackMetadata = await listDailyPageMetadataForCalendar") <
+      shells.daily.indexOf("includeUnindexedFallback: true") &&
+    shells.daily.indexOf("includeUnindexedFallback: true") <
+      shells.daily.indexOf("await ensureDailyDateIndexBackfilled()"),
+  "DailyNotesShell 首屏必须跳过未索引导入 fallback，并在后台空闲时先补齐 fallback 再重建日期索引"
 );
 check(
   shells.daily.includes("rebuildPageDateKeyIndex({") &&
@@ -582,6 +594,8 @@ for (const token of [
   "resolveMonthDayInRange",
   "ENGLISH_MONTH_INDEX",
   "DAILY_RANGE_SEARCH_TOKEN_LIMIT",
+  "includeUnindexedFallback?: boolean",
+  "if (includeUnindexedFallback)",
   "daily_date_key IS NULL",
 ]) {
   check(

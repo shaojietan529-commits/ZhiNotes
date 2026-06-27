@@ -2030,6 +2030,24 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "includeUnindexedFallback: false",
+    "Daily first-paint local metadata query must skip expensive unindexed Notion-import fallback."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "includeUnindexedFallback: true",
+    "Daily background refresh must still recover unindexed Notion-import metadata."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'source: "local-fallback-metadata"',
+    "Daily background fallback metadata must refresh the hot cache after first paint."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "const indexedNotes = useMemo",
     "Daily notes must index derived date keys once per notes list to keep large imports responsive."
   );
@@ -2170,6 +2188,18 @@ function run() {
     localQueries,
     "tokens.add(`${longMonthTitle} ${currentDay}`)",
     "Daily targeted fallback must include English no-year day tokens."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "includeUnindexedFallback?: boolean",
+    "Daily local metadata query must expose a switch so first paint can skip expensive unindexed import fallback."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "if (includeUnindexedFallback)",
+    "Daily unindexed import fallback must be explicitly gated away from first-paint queries."
   );
   assertIncludes(
     files.localQueries,

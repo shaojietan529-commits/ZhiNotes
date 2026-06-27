@@ -28,7 +28,11 @@ export interface DailyHotCacheSnapshot {
   format_version: 1;
   route_target: "/daily";
   architecture_target: "cloud-master-local-hot-cache";
-  source: "local-metadata" | "cloud-metadata" | "optimistic-local";
+  source:
+    | "local-metadata"
+    | "local-fallback-metadata"
+    | "cloud-metadata"
+    | "optimistic-local";
   root_id: string | null;
   start_date: string;
   end_date: string;

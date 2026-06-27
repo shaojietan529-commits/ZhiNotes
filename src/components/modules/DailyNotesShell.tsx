@@ -378,6 +378,7 @@ export default function DailyNotesShell() {
       startDate,
       endDate,
       recentLimit: recentMetadataLimit,
+      includeUnindexedFallback: false,
     });
     const dailyNotes = collectDailyNotes(localMetadata, dailyRootId);
     localNoteCount = dailyNotes.length;
@@ -396,23 +397,47 @@ export default function DailyNotesShell() {
       });
     }
     scheduleDailyIdleTask(() => {
-      void ensureDailyDateIndexBackfilled()
-        .then(async () => {
-          if (loadRequestRef.current !== requestId) return;
-          const refreshed = await listDailyPageMetadataForCalendar({
-            rootId: dailyRootId,
-            startDate,
-            endDate,
-            recentLimit: recentMetadataLimit,
-          });
-          const nextById = new Map(byId);
-          for (const note of collectDailyNotes(refreshed, dailyRootId)) {
-            nextById.set(note.id, note);
-          }
-          publishNotes(Array.from(nextById.values()));
-        })
+      void (async () => {
+        const fallbackMetadata = await listDailyPageMetadataForCalendar({
+          rootId: dailyRootId,
+          startDate,
+          endDate,
+          recentLimit: recentMetadataLimit,
+          includeUnindexedFallback: true,
+        });
+        if (loadRequestRef.current !== requestId) return;
+        const fallbackById = new Map(byId);
+        for (const note of collectDailyNotes(fallbackMetadata, dailyRootId)) {
+          fallbackById.set(note.id, note);
+          byId.set(note.id, note);
+        }
+        publishNotes(Array.from(fallbackById.values()));
+        writeDailyHotCacheSnapshot({
+          startDate,
+          endDate,
+          rootId: dailyRootId,
+          pages: Array.from(fallbackById.values()),
+          source: "local-fallback-metadata",
+        });
+
+        await ensureDailyDateIndexBackfilled();
+        if (loadRequestRef.current !== requestId) return;
+        const refreshed = await listDailyPageMetadataForCalendar({
+          rootId: dailyRootId,
+          startDate,
+          endDate,
+          recentLimit: recentMetadataLimit,
+          includeUnindexedFallback: false,
+        });
+        if (loadRequestRef.current !== requestId) return;
+        const nextById = new Map(byId);
+        for (const note of collectDailyNotes(refreshed, dailyRootId)) {
+          nextById.set(note.id, note);
+        }
+        publishNotes(Array.from(nextById.values()));
+      })()
         .catch(() => undefined);
-    }, 1200);
+    }, 450);
 
     if (includeCloud) {
       setCloudLoading(true);

@@ -566,15 +566,23 @@ check(
       dailyNotesShell.indexOf("const cloud = await cloudMetadataPromise") &&
     dailyNotesShell.includes("publishNotes(Array.from(byId.values()))") &&
     dailyNotesShell.includes("void ensureDailyDateIndexBackfilled()") &&
-    !dailyNotesShell.includes("await ensureDailyDateIndexBackfilled()") &&
     dailyNotesShell.includes("fetchDailyCloudMetadata({") &&
     dailyNotesShell.includes("HOT_CACHE_PREFERENCES_SETTING_KEY") &&
     dailyNotesShell.includes("parseHotCachePreferences") &&
     dailyNotesShell.includes("metadataRecentLimitForHotCachePreferences") &&
     dailyNotesShell.includes("recentLimit: recentMetadataLimit") &&
     dailyNotesShell.includes("rebuildPageDateKeyIndex") &&
+    dailyNotesShell.includes("includeUnindexedFallback: false") &&
+    dailyNotesShell.includes("includeUnindexedFallback: true") &&
+    dailyNotesShell.includes('source: "local-fallback-metadata"') &&
+    dailyNotesShell.indexOf("includeUnindexedFallback: false") <
+      dailyNotesShell.indexOf("const fallbackMetadata = await listDailyPageMetadataForCalendar") &&
+    dailyNotesShell.indexOf("const fallbackMetadata = await listDailyPageMetadataForCalendar") <
+      dailyNotesShell.indexOf("includeUnindexedFallback: true") &&
+    dailyNotesShell.indexOf("includeUnindexedFallback: true") <
+      dailyNotesShell.indexOf("await ensureDailyDateIndexBackfilled()") &&
     !dailyNotesShell.includes("getAllPageMetadata"),
-  "DailyNotesShell 首屏应本地/缓存优先，recent metadata 窗口按热缓存偏好有界扩大；回退本机时只能走日期索引，不能扫描本机全量页面"
+  "DailyNotesShell 首屏应本地/缓存优先，recent metadata 窗口按热缓存偏好有界扩大；首屏只能走日期索引，未索引 Notion 导入 fallback 必须后台补齐"
 );
 check(
   dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <

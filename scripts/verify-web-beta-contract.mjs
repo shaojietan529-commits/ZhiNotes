@@ -1805,6 +1805,14 @@ function run() {
       "Daily local metadata query must include bounded child metadata for date parent pages.",
     ],
     [
+      "includeUnindexedFallback?: boolean",
+      "Daily local metadata query must expose a switch so first paint can skip expensive unindexed import fallback.",
+    ],
+    [
+      "if (includeUnindexedFallback)",
+      "Daily unindexed import fallback must be explicitly gated away from first-paint queries.",
+    ],
+    [
       "DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT",
       "Daily visible-month fallback must stay bounded.",
     ],
@@ -2290,6 +2298,18 @@ function run() {
     [
       "getRecentIndexedDailyNotes(indexedNotes, DAILY_RECENT_VISIBLE_LIMIT)",
       "Daily recent-note list must use bounded top-note selection instead of full-list sorting.",
+    ],
+    [
+      "includeUnindexedFallback: false",
+      "Daily first-paint local metadata query must skip expensive unindexed Notion-import fallback.",
+    ],
+    [
+      "includeUnindexedFallback: true",
+      "Daily background refresh must still recover unindexed Notion-import metadata.",
+    ],
+    [
+      'source: "local-fallback-metadata"',
+      "Daily background fallback metadata must refresh the hot cache after first paint.",
     ],
     [
       "function getRecentIndexedDailyNotes(",
