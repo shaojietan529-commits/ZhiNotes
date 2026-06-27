@@ -71,6 +71,9 @@ const localClient = read("src/lib/db/local/client.ts");
 const usePageHook = read("src/hooks/usePage.ts");
 const usePagesHook = read("src/hooks/usePages.ts");
 const workspaceStore = read("src/stores/workspaceStore.ts");
+const pageBodyHydrationStatus = read(
+  "src/lib/pages/pageBodyHydrationStatus.ts"
+);
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
@@ -238,8 +241,20 @@ check(
     usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)") &&
     usePageHook.includes("requestIdleCallback(run") &&
     usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
+    usePageHook.includes("publishPageBodyHydrationStatus") &&
+    usePageHook.includes('phase: "local-body-requested"') &&
+    usePageHook.includes('phase: "cloud-body-requested"') &&
+    usePageHook.includes('"cloud-body-ready"') &&
     !usePageHook.includes("cloudPagePromise"),
-  "usePage 必须把 metadata/handoff 当作可首屏打开状态，云端正文 idle 后台补齐，且用最新可见页面快照比较后再回填"
+  "usePage 必须把 metadata/handoff 当作可首屏打开状态，云端正文 idle 后台补齐，用最新可见页面快照比较后再回填，并发布本地正文补齐状态"
+);
+check(
+  pageBodyHydrationStatus.includes("local_browser_memory_only: true") &&
+    pageBodyHydrationStatus.includes("stores_page_body_text: false") &&
+    pageBodyHydrationStatus.includes("uploads_workspace_data: false") &&
+    pageBodyHydrationStatus.includes("subscribePageBodyHydrationStatus") &&
+    pageBodyHydrationStatus.includes("describePageBodyHydrationStatus"),
+  "pageBodyHydrationStatus 必须只在当前浏览器内发布正文补齐状态，不存正文、不上传数据，并提供页面级订阅与统一文案"
 );
 check(
   usePageHook.includes("options: UsePageOptions") &&
@@ -275,6 +290,9 @@ check(
     pageShell.includes("if (editorMounted && mountedEditorPageIdRef.current === pageId) return") &&
     pageShell.includes("delay: metadataOnly ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS : 0") &&
     pageShell.includes("标题和属性已先显示，正在从本地缓存补齐正文和编辑器") &&
+    pageShell.includes('data-testid="page-body-hydration-status"') &&
+    pageShell.includes("subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)") &&
+    pageShell.includes("describePageBodyHydrationStatus(bodyHydrationStatus)") &&
     pageShell.includes("PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700") &&
     pageShell.includes("PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200") &&
     pageShell.includes("PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800") &&
@@ -483,6 +501,9 @@ check(
     pagePeekModal.includes("标题和属性已先显示，正在从本地缓存补齐正文") &&
     pagePeekModal.includes("标题和属性已先显示，正在排队补齐正文和编辑器") &&
     pagePeekModal.includes("enabled: editorLoadRequested") &&
+    pagePeekModal.includes('surface: "peek"') &&
+    pagePeekModal.includes("subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)") &&
+    pagePeekModal.includes("bodyHydrationLabel ??") &&
     shells.knowledge.includes("const peekPage = useMemo") &&
     shells.knowledge.includes("initialPage={peekPage}"),
   "PagePeekModal 必须优先显示已有页面元数据，再按需加载正文和编辑器"

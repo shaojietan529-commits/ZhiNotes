@@ -21,6 +21,12 @@ import {
   getLocalPerformanceNow,
   recordLocalPerformanceSnapshot,
 } from "@/lib/performance/localPerformance";
+import {
+  describePageBodyHydrationStatus,
+  getPageBodyHydrationStatus,
+  publishPageBodyHydrationStatus,
+  subscribePageBodyHydrationStatus,
+} from "@/lib/pages/pageBodyHydrationStatus";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
@@ -78,10 +84,14 @@ export default function PagePeekModal({
   const [editorLoadRequested, setEditorLoadRequested] = useState(false);
   const { page, loading, update } = usePage(pageId, {
     enabled: editorLoadRequested,
+    surface: "peek",
   });
   const [title, setTitle] = useState(() => initialPeekPage?.title ?? "");
   const [properties, setProperties] = useState<PageProperty[]>(() =>
     initialPeekPage ? parsePageProperties(initialPeekPage.properties) : []
+  );
+  const [bodyHydrationStatus, setBodyHydrationStatus] = useState(() =>
+    getPageBodyHydrationStatus(pageId)
   );
   const previousPageIdRef = useRef(pageId);
   const peekOpenStartedAtRef = useRef(getLocalPerformanceNow());
@@ -116,6 +126,8 @@ export default function PagePeekModal({
   >(null);
   const editorMounted = mountedEditorPageId === pageId;
   const childPagesEnabled = editorMounted && childPagesReadyPageId === pageId;
+  const bodyHydrationLabel =
+    describePageBodyHydrationStatus(bodyHydrationStatus);
 
   useEffect(() => {
     if (previousPageIdRef.current === pageId) return;
@@ -152,6 +164,20 @@ export default function PagePeekModal({
       setMetadataLoading(false);
     });
   }, [initialPage, pageId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setBodyHydrationStatus(getPageBodyHydrationStatus(pageId));
+      }
+    });
+    const unsubscribe = subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [pageId]);
 
   useEffect(() => {
     if (initialPage?.id === pageId || fallbackPage?.id === pageId) return;
@@ -194,11 +220,18 @@ export default function PagePeekModal({
 
   useEffect(() => {
     if (!effectivePage) return;
+    publishPageBodyHydrationStatus({
+      pageId,
+      phase:
+        effectivePage.content_text == null ? "metadata-ready" : "local-body-ready",
+      surface: "peek",
+      metadataOnly: effectivePage.content_text == null,
+    });
     queueMicrotask(() => {
       setTitle(effectivePage.title);
       setProperties(parsePageProperties(effectivePage.properties));
     });
-  }, [effectivePage]);
+  }, [effectivePage, pageId]);
 
   useEffect(() => {
     if (!effectivePage || metadataLoading) return;
@@ -418,9 +451,10 @@ export default function PagePeekModal({
 
               {bodyLoading ? (
                 <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 px-4 py-6 text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/40">
-                  {isMetadataOnlyPeek
-                    ? "标题和属性已先显示，正在从本地缓存补齐正文…"
-                    : "正在按需加载正文…"}
+                  {bodyHydrationLabel ??
+                    (isMetadataOnlyPeek
+                      ? "标题和属性已先显示，正在从本地缓存补齐正文…"
+                      : "正在按需加载正文…")}
                 </div>
               ) : editorMounted ? (
                 <Editor
@@ -433,7 +467,8 @@ export default function PagePeekModal({
                 <PeekEditorSkeleton
                   label={
                     isMetadataOnlyPeek
-                      ? "标题和属性已先显示，正在排队补齐正文和编辑器…"
+                      ? bodyHydrationLabel ??
+                        "标题和属性已先显示，正在排队补齐正文和编辑器…"
                       : "正在准备编辑器…"
                   }
                 />

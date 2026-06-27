@@ -70,6 +70,11 @@ import {
   type PageResearchStructureSignal,
   type PageResearchStructureStatus,
 } from "@/lib/pages/pageResearchStructure";
+import {
+  describePageBodyHydrationStatus,
+  getPageBodyHydrationStatus,
+  subscribePageBodyHydrationStatus,
+} from "@/lib/pages/pageBodyHydrationStatus";
 import { collectMovedPageSnapshots } from "@/lib/pages/pageSnapshotUpdates";
 import {
   getLocalPerformanceNow,
@@ -152,6 +157,9 @@ function PageContent({ pageId }: { pageId: string }) {
   const [currentPagePendingSync, setCurrentPagePendingSync] = useState(() =>
     isCloudPagePendingSync(pageId)
   );
+  const [bodyHydrationStatus, setBodyHydrationStatus] = useState(() =>
+    getPageBodyHydrationStatus(pageId)
+  );
   const shouldLoadVersions = showHistory || showInfo;
   const { versions, refresh: refreshVersions } = useVersions(pageId, {
     enabled: shouldLoadVersions,
@@ -202,6 +210,20 @@ function PageContent({ pageId }: { pageId: string }) {
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, refreshStatus);
       window.removeEventListener("storage", refreshStatus);
       window.clearInterval(timer);
+    };
+  }, [pageId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setBodyHydrationStatus(getPageBodyHydrationStatus(pageId));
+      }
+    });
+    const unsubscribe = subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus);
+    return () => {
+      cancelled = true;
+      unsubscribe();
     };
   }, [pageId]);
 
@@ -734,6 +756,14 @@ function PageContent({ pageId }: { pageId: string }) {
     () => (pageStructure ? getPageInfoStats(pageStructure) : null),
     [pageStructure]
   );
+  const bodyHydrationLabel =
+    describePageBodyHydrationStatus(bodyHydrationStatus);
+  const showBodyHydrationHint = Boolean(
+    page &&
+      page.content_text == null &&
+      bodyHydrationLabel &&
+      bodyHydrationStatus?.phase !== "empty-ready"
+  );
 
   if (loading && !page) {
     return <PageRouteSkeleton message="正在从本地缓存打开页面，云端回填会在后台继续。" />;
@@ -1058,6 +1088,16 @@ function PageContent({ pageId }: { pageId: string }) {
 
           <div className="my-4 border-t border-zinc-100 dark:border-zinc-800" />
 
+          {showBodyHydrationHint && (
+            <p
+              data-testid="page-body-hydration-status"
+              aria-live="polite"
+              className="mb-3 text-xs text-zinc-400"
+            >
+              {bodyHydrationLabel}
+            </p>
+          )}
+
           {/* Editor - now loads/saves HTML */}
           {editorMounted ? (
             <Editor
@@ -1068,7 +1108,10 @@ function PageContent({ pageId }: { pageId: string }) {
               onUpdate={handleContentUpdate}
             />
           ) : (
-            <PageBodySkeleton metadataOnly={page.content_text == null} />
+            <PageBodySkeleton
+              metadataOnly={page.content_text == null}
+              statusLabel={bodyHydrationLabel}
+            />
           )}
 
           {/* When the comment panel is open, text comments live there instead
@@ -1220,7 +1263,13 @@ function scheduleDeferredMount(callback: () => void, timeout = 450): () => void 
   return () => window.clearTimeout(timer);
 }
 
-function PageBodySkeleton({ metadataOnly = false }: { metadataOnly?: boolean }) {
+function PageBodySkeleton({
+  metadataOnly = false,
+  statusLabel,
+}: {
+  metadataOnly?: boolean;
+  statusLabel?: string | null;
+}) {
   return (
     <div className="min-h-[220px] rounded-md border border-zinc-100 bg-zinc-50/60 px-4 py-5 dark:border-zinc-800 dark:bg-zinc-900/30">
       <div className="mb-4 h-3 w-40 rounded bg-zinc-200/80 dark:bg-zinc-800" />
@@ -1231,7 +1280,7 @@ function PageBodySkeleton({ metadataOnly = false }: { metadataOnly?: boolean }) 
       </div>
       <p className="mt-5 text-xs text-zinc-400">
         {metadataOnly
-          ? "标题和属性已先显示，正在从本地缓存补齐正文和编辑器…"
+          ? statusLabel ?? "标题和属性已先显示，正在从本地缓存补齐正文和编辑器…"
           : "正在准备编辑器…"}
       </p>
     </div>

@@ -802,11 +802,26 @@ check(
 
 const usePageHook = read("src/hooks/usePage.ts");
 const pendingPageDrafts = read("src/lib/pages/pendingPageDrafts.ts");
+const pageBodyHydrationStatus = read(
+  "src/lib/pages/pageBodyHydrationStatus.ts"
+);
 check(
   usePageHook.includes("const cloud = await fetchCloudPageById(pageId)") &&
     usePageHook.includes("remoteIsAtLeastAsFresh(remoteRecord, localPage)") &&
     usePageHook.includes("hydrateRemotePageIntoLocalCache(remoteRecord)"),
   "usePage 打开页面时应拉取云端正文快照，并在云端不旧于本地时回填本地缓存"
+);
+check(
+  usePageHook.includes("publishPageBodyHydrationStatus") &&
+    usePageHook.includes('phase: "local-body-requested"') &&
+    usePageHook.includes('phase: "cloud-body-requested"') &&
+    usePageHook.includes('"cloud-body-ready"') &&
+    pageBodyHydrationStatus.includes("local_browser_memory_only: true") &&
+    pageBodyHydrationStatus.includes("stores_page_body_text: false") &&
+    pageBodyHydrationStatus.includes("uploads_workspace_data: false") &&
+    pageBodyHydrationStatus.includes("subscribePageBodyHydrationStatus") &&
+    pageBodyHydrationStatus.includes("describePageBodyHydrationStatus"),
+  "页面正文补齐状态必须只作为本地浏览器反馈存在，不能存正文、不能上传数据，并且 usePage 应发布本地/云端补齐进度"
 );
 check(
   usePageHook.includes("setPageForCurrentLoad(localPage)") &&
@@ -1185,8 +1200,11 @@ check(
     pageShell.includes("if (editorMounted && mountedEditorPageIdRef.current === pageId) return") &&
     pageShell.includes("delay: metadataOnly ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS : 0") &&
     pageShell.includes("metadataOnly\n        ? PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS\n        : PAGE_EDITOR_IDLE_TIMEOUT_MS") &&
-    pageShell.includes("标题和属性已先显示，正在从本地缓存补齐正文和编辑器"),
-  "PageShell 通过 metadata route handoff 打开页面时应先显示标题属性，延后重编辑器，并避免正文回填时重挂载当前编辑器"
+    pageShell.includes("标题和属性已先显示，正在从本地缓存补齐正文和编辑器") &&
+    pageShell.includes('data-testid="page-body-hydration-status"') &&
+    pageShell.includes("subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)") &&
+    pageShell.includes("describePageBodyHydrationStatus(bodyHydrationStatus)"),
+  "PageShell 通过 metadata route handoff 打开页面时应先显示标题属性，延后重编辑器，显示正文补齐状态，并避免正文回填时重挂载当前编辑器"
 );
 check(
   pageShell.includes("PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500") &&
@@ -1225,6 +1243,9 @@ check(
     pagePeekModal.includes("schedulePeekContentLoad(() => {\n        setEditorLoadRequested(true);\n      }, isMetadataOnlyPeek)") &&
     pagePeekModal.includes("标题和属性已先显示，正在从本地缓存补齐正文") &&
     pagePeekModal.includes("标题和属性已先显示，正在排队补齐正文和编辑器") &&
+    pagePeekModal.includes('surface: "peek"') &&
+    pagePeekModal.includes("subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)") &&
+    pagePeekModal.includes("bodyHydrationLabel ??") &&
     pagePeekModal.includes("setMountedEditorPageId(pageId)") &&
     pagePeekModal.includes("childPagesEnabled") &&
     pagePeekModal.includes("PeekEditorSkeleton"),

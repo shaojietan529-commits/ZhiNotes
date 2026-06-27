@@ -111,6 +111,7 @@ const files = {
     "src/lib/sync/accountModuleSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
   pendingPageDrafts: "src/lib/pages/pendingPageDrafts.ts",
   pageUpdateBus: "src/lib/pages/pageUpdateBus.ts",
@@ -481,6 +482,9 @@ function run() {
   );
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const pageBodyHydrationStatus = readProjectFile(
+    files.pageBodyHydrationStatus
+  );
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
   const pendingPageDrafts = readProjectFile(files.pendingPageDrafts);
   const pageUpdateBus = readProjectFile(files.pageUpdateBus);
@@ -2235,6 +2239,22 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      "publishPageBodyHydrationStatus",
+      "usePage must publish local-only body hydration progress for metadata-first opens.",
+    ],
+    [
+      'phase: "local-body-requested"',
+      "usePage must expose when it is checking local cache for the page body.",
+    ],
+    [
+      'phase: "cloud-body-requested"',
+      "usePage must expose when it is checking cloud body hydration in the background.",
+    ],
+    [
+      '"cloud-body-ready"',
+      "usePage must expose when cloud body hydration has completed.",
+    ],
+    [
       "readPageRouteHandoff",
       "usePage must read a route handoff before slower local DB or cloud checks.",
     ],
@@ -2325,6 +2345,39 @@ function run() {
     "cloudPagePromise",
     "usePage must not start a cloud body lookup before IndexedDB has had a chance to provide the local page."
   );
+  for (const [snippet, message] of [
+    [
+      'PAGE_BODY_HYDRATION_STATUS_EVENT =\n  "zhinote:page-body-hydration-status"',
+      "Page body hydration status must use a stable browser-local event name.",
+    ],
+    [
+      "local_browser_memory_only: true",
+      "Page body hydration status must be memory-only and not persisted.",
+    ],
+    [
+      "stores_page_body_text: false",
+      "Page body hydration status must not store page bodies.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Page body hydration status must not upload workspace data.",
+    ],
+    [
+      "export function subscribePageBodyHydrationStatus",
+      "Page body hydration status must expose a read-only page-scoped subscription.",
+    ],
+    [
+      "export function describePageBodyHydrationStatus",
+      "Page body hydration status must expose shared Chinese labels for page surfaces.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.pageBodyHydrationStatus,
+      pageBodyHydrationStatus,
+      snippet,
+      message
+    );
+  }
   assertSourceIncludes(
     files.pageShell,
     pageShell,
@@ -2375,6 +2428,18 @@ function run() {
     [
       "标题和属性已先显示，正在从本地缓存补齐正文和编辑器",
       "Page shell metadata-only skeleton must explain that the title/properties are already visible while body hydration continues.",
+    ],
+    [
+      'data-testid="page-body-hydration-status"',
+      "Page shell must render a stable body hydration feedback label for metadata-first opens.",
+    ],
+    [
+      "subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)",
+      "Page shell must subscribe to page-scoped body hydration status without polling all pages.",
+    ],
+    [
+      "describePageBodyHydrationStatus(bodyHydrationStatus)",
+      "Page shell must use the shared status labels instead of duplicating hydration wording.",
     ],
   ]) {
     assertSourceIncludes(files.pageShell, pageShell, snippet, message);
@@ -2763,6 +2828,18 @@ function run() {
     [
       "标题和属性已先显示，正在排队补齐正文和编辑器",
       "PagePeekModal skeleton must keep a clear metadata-first loading state before editor hydration.",
+    ],
+    [
+      'surface: "peek"',
+      "PagePeekModal must tag its body hydration status as a peek surface.",
+    ],
+    [
+      "subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)",
+      "PagePeekModal must subscribe to page-scoped body hydration status for shared feedback.",
+    ],
+    [
+      "bodyHydrationLabel ??",
+      "PagePeekModal must prefer shared body hydration labels when available.",
     ],
   ]) {
     assertSourceIncludes(files.pagePeekModal, pagePeekModal, snippet, message);

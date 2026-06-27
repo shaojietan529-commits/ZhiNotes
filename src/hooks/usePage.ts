@@ -24,6 +24,11 @@ import {
   clearPageRouteHandoff,
   readPageRouteHandoff,
 } from "@/lib/pages/pageRouteHandoff";
+import {
+  publishPageBodyHydrationStatus,
+  type PageBodyHydrationPhase,
+  type PageBodyHydrationSurface,
+} from "@/lib/pages/pageBodyHydrationStatus";
 import { emitPageSnapshotsUpdated } from "@/lib/pages/pageUpdateBus";
 import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -58,6 +63,7 @@ type PageUpdates = Partial<
 
 interface UsePageOptions {
   enabled?: boolean;
+  surface?: PageBodyHydrationSurface;
 }
 
 export function usePage(
@@ -65,6 +71,7 @@ export function usePage(
   options: UsePageOptions = {}
 ) {
   const enabled = options.enabled ?? true;
+  const surface = options.surface ?? "full-page";
   const [initialLocalFirstPageSeed] = useState<Page | null>(() => {
     if (!enabled || !pageId) return null;
     return readLocalFirstPageSeed(pageId);
@@ -108,6 +115,11 @@ export function usePage(
       upsertPages([localPage]);
       setPageForCurrentLoad(localPage);
       setLoadingForCurrentLoad(false);
+      publishPageBodyHydrationForSnapshot(
+        localPage,
+        localPage.content_text == null ? "metadata-ready" : "local-body-ready",
+        surface
+      );
     } else {
       setPageForCurrentLoad(null);
       setLoadingForCurrentLoad(true);
@@ -119,12 +131,25 @@ export function usePage(
     }
 
     try {
+      if (localPage?.content_text == null) {
+        publishPageBodyHydrationStatus({
+          pageId,
+          phase: "local-body-requested",
+          surface,
+          metadataOnly: true,
+        });
+      }
       const storedPage = await getPage(pageId);
       if (!isCurrentLoad()) return;
       if (storedPage) {
         localPage = storedPage;
         clearPendingPageDraft(pageId);
         clearPageRouteHandoff(pageId);
+        publishPageBodyHydrationForSnapshot(
+          storedPage,
+          storedPage.content_text == null ? "metadata-ready" : "local-body-ready",
+          surface
+        );
       }
     } catch {
       // Keep the in-memory page if IndexedDB is slow or temporarily failing.
@@ -141,12 +166,19 @@ export function usePage(
             ? visiblePageRef.current
             : localPage,
         setPageForCurrentLoad,
-        upsertPages
+        upsertPages,
+        surface
       );
       return;
     }
 
     try {
+      publishPageBodyHydrationStatus({
+        pageId,
+        phase: "cloud-body-requested",
+        surface,
+        metadataOnly: true,
+      });
       const cloud = await fetchCloudPageById(pageId);
       if (!isCurrentLoad()) return;
       const cloudApplied = await applyCloudPageLookup(
@@ -159,15 +191,38 @@ export function usePage(
       if (cloudApplied) {
         clearPendingPageDraft(pageId);
         clearPageRouteHandoff(pageId);
+        const latest =
+          visiblePageRef.current?.id === pageId ? visiblePageRef.current : null;
+        if (latest) {
+          publishPageBodyHydrationForSnapshot(
+            latest,
+            latest.content_text == null ? "empty-ready" : "cloud-body-ready",
+            surface
+          );
+        }
       } else if (!localPage) {
         setPageForCurrentLoad(null);
+        publishPageBodyHydrationStatus({
+          pageId,
+          phase: "unavailable",
+          surface,
+          metadataOnly: true,
+        });
       }
     } catch {
-      if (!localPage) setPageForCurrentLoad(null);
+      if (!localPage) {
+        setPageForCurrentLoad(null);
+        publishPageBodyHydrationStatus({
+          pageId,
+          phase: "unavailable",
+          surface,
+          metadataOnly: true,
+        });
+      }
     } finally {
       setLoadingForCurrentLoad(false);
     }
-  }, [enabled, pageId, dbReady, upsertPages]);
+  }, [enabled, pageId, dbReady, upsertPages, surface]);
 
   useEffect(() => {
     let cancelled = false;
@@ -205,12 +260,19 @@ export function usePage(
       upsertPages([optimistic]);
       emitPageSnapshotsUpdated("cloud-push", [optimistic]);
       rememberPendingPageDraft(optimistic);
+      if (Object.prototype.hasOwnProperty.call(updates, "content_text")) {
+        publishPageBodyHydrationForSnapshot(
+          optimistic,
+          optimistic.content_text == null ? "empty-ready" : "local-body-ready",
+          surface
+        );
+      }
 
       queueCloudPagePush(record);
       queueOptimisticPageLocalCachePersist(record, upsertPages);
       return optimistic;
     },
-    [pageId, page, upsertPages]
+    [pageId, page, upsertPages, surface]
   );
 
   const remove = useCallback(async () => {
@@ -365,15 +427,45 @@ async function refreshPageFromCloud(
   pageId: string,
   getLocalPage: () => Page | null,
   setPage: (page: Page | null) => void,
-  upsertPages: (pages: Page[]) => void
+  upsertPages: (pages: Page[]) => void,
+  surface: PageBodyHydrationSurface
 ): Promise<void> {
+  publishPageBodyHydrationStatus({
+    pageId,
+    phase: "cloud-body-requested",
+    surface,
+    metadataOnly: getLocalPage()?.content_text == null,
+  });
   try {
     const cloud = await fetchCloudPageById(pageId);
     const latestLocalPage = getLocalPage();
-    await applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages);
+    const cloudApplied = await applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages);
+    const latest = getLocalPage();
+    if (cloudApplied && latest) {
+      publishPageBodyHydrationForSnapshot(
+        latest,
+        latest.content_text == null ? "empty-ready" : "cloud-body-ready",
+        surface
+      );
+    } else if (!cloudApplied && latest?.content_text == null) {
+      publishPageBodyHydrationStatus({
+        pageId,
+        phase: "unavailable",
+        surface,
+        metadataOnly: true,
+      });
+    }
   } catch {
     // Local content is already visible; a cloud refresh failure should not
     // block reading or editing.
+    if (getLocalPage()?.content_text == null) {
+      publishPageBodyHydrationStatus({
+        pageId,
+        phase: "unavailable",
+        surface,
+        metadataOnly: true,
+      });
+    }
   }
 }
 
@@ -381,10 +473,17 @@ function schedulePageCloudHydration(
   pageId: string,
   getLocalPage: () => Page | null,
   setPage: (page: Page | null) => void,
-  upsertPages: (pages: Page[]) => void
+  upsertPages: (pages: Page[]) => void,
+  surface: PageBodyHydrationSurface
 ): void {
   const run = () => {
-    void refreshPageFromCloud(pageId, getLocalPage, setPage, upsertPages);
+    void refreshPageFromCloud(
+      pageId,
+      getLocalPage,
+      setPage,
+      upsertPages,
+      surface
+    );
   };
   if (typeof window === "undefined") {
     run();
@@ -403,6 +502,19 @@ function schedulePageCloudHydration(
     return;
   }
   window.setTimeout(run, Math.min(PAGE_CLOUD_HYDRATION_IDLE_MS, 160));
+}
+
+function publishPageBodyHydrationForSnapshot(
+  page: Page,
+  phase: PageBodyHydrationPhase,
+  surface: PageBodyHydrationSurface
+): void {
+  publishPageBodyHydrationStatus({
+    pageId: page.id,
+    phase,
+    surface,
+    metadataOnly: page.content_text == null,
+  });
 }
 
 async function applyCloudPageLookup(

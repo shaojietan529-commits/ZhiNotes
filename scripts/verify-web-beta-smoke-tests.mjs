@@ -42,6 +42,7 @@ const files = {
     "src/lib/sync/accountModuleSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
   pendingPageDrafts: "src/lib/pages/pendingPageDrafts.ts",
   pageUpdateBus: "src/lib/pages/pageUpdateBus.ts",
@@ -374,6 +375,9 @@ function run() {
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
   const workspaceStore = readProjectFile(files.workspaceStore);
+  const pageBodyHydrationStatus = readProjectFile(
+    files.pageBodyHydrationStatus
+  );
   const pagePeekModal = readProjectFile(files.pagePeekModal);
   const usePageFavorites = readProjectFile(files.usePageFavorites);
   const usePageViewPreferences = readProjectFile(files.usePageViewPreferences);
@@ -2361,6 +2365,18 @@ function run() {
       "标题和属性已先显示，正在排队补齐正文和编辑器",
       "PagePeekModal skeleton must keep a clear metadata-first loading state before editor hydration.",
     ],
+    [
+      'surface: "peek"',
+      "PagePeekModal must tag body hydration as the peek surface.",
+    ],
+    [
+      "subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)",
+      "PagePeekModal must subscribe to page-scoped body hydration status.",
+    ],
+    [
+      "bodyHydrationLabel ??",
+      "PagePeekModal must prefer shared body hydration labels when present.",
+    ],
   ]) {
     assertIncludes(files.pagePeekModal, pagePeekModal, snippet, message);
   }
@@ -2674,6 +2690,71 @@ function run() {
     "readPageRouteHandoff",
     "Page opening must read route handoff before slower local DB or cloud checks."
   );
+  for (const [snippet, message] of [
+    [
+      "publishPageBodyHydrationStatus",
+      "Page opening must publish local-only body hydration progress.",
+    ],
+    [
+      'phase: "local-body-requested"',
+      "Page opening must expose local body hydration checks.",
+    ],
+    [
+      'phase: "cloud-body-requested"',
+      "Page opening must expose cloud body hydration checks.",
+    ],
+    [
+      '"cloud-body-ready"',
+      "Page opening must expose cloud body hydration completion.",
+    ],
+  ]) {
+    assertIncludes(files.usePage, usePage, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "local_browser_memory_only: true",
+      "Page body hydration status must stay in local browser memory.",
+    ],
+    [
+      "stores_page_body_text: false",
+      "Page body hydration status must not store page body text.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Page body hydration status must not upload workspace data.",
+    ],
+    [
+      "subscribePageBodyHydrationStatus",
+      "Page body hydration status must be subscribable by page id.",
+    ],
+    [
+      "describePageBodyHydrationStatus",
+      "Page body hydration status must share one set of user-facing labels.",
+    ],
+  ]) {
+    assertIncludes(
+      files.pageBodyHydrationStatus,
+      pageBodyHydrationStatus,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      'data-testid="page-body-hydration-status"',
+      "Page shell must render stable body hydration status feedback.",
+    ],
+    [
+      "subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)",
+      "Page shell must subscribe to body hydration status by page id.",
+    ],
+    [
+      "describePageBodyHydrationStatus(bodyHydrationStatus)",
+      "Page shell must use the shared body hydration status wording.",
+    ],
+  ]) {
+    assertIncludes(files.pageShell, pageShell, snippet, message);
+  }
   assertIncludes(
     files.usePage,
     usePage,
