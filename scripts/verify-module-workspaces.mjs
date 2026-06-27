@@ -122,7 +122,8 @@ for (const token of [
   'router.prefetch("/page/zhinote-route-prefetch")',
   "const pageRoute = `/page/${optimisticNote.id}`",
   "router.prefetch(pageRoute)",
-  'openPage(optimisticNote, { source: "daily-create" })',
+  "setPeekInitialPage(optimisticNote)",
+  "setPeekPageId(optimisticNote.id)",
   "<PagePeekModal",
   "rememberPendingPageDraft(optimisticNote)",
   "openNotePage",
@@ -391,7 +392,8 @@ for (const token of [
   "onPointerEnter={warmPageRoute}",
   "onFocus={warmPageRoute}",
   'import("@/components/providers/PageShell")',
-  'openPage(optimisticNote, { source: "daily-create" })',
+  "setPeekInitialPage(optimisticNote)",
+  "setPeekPageId(optimisticNote.id)",
   "openPage(note, { source })",
   'openPage(pageId, { source: "daily-open" })',
   "rememberPendingPageDraft(optimisticNote)",
@@ -403,7 +405,7 @@ for (const token of [
 ]) {
   check(
     shells.daily.includes(token),
-    `DailyNotesShell 新建纪要应直接进入完整页面，已有纪要仍可轻量预览，缺少 ${token}`
+    `DailyNotesShell 新建纪要应直接弹出编辑页面，已有纪要仍可轻量预览，缺少 ${token}`
   );
 }
 check(
@@ -414,16 +416,14 @@ check(
     shells.daily.indexOf("writeOptimisticDailyHotCache") <
       shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
-      shells.daily.indexOf(
-        'openPage(optimisticNote, { source: "daily-create" })'
-      ) &&
+      shells.daily.indexOf("setPeekInitialPage(optimisticNote)") &&
+    shells.daily.indexOf("setPeekInitialPage(optimisticNote)") <
+      shells.daily.indexOf("setPeekPageId(optimisticNote.id)") &&
     shells.daily.includes("window.setTimeout(() =>") &&
     shells.daily.includes("current === dateKey ? null : current") &&
-    shells.daily.indexOf(
-      'openPage(optimisticNote, { source: "daily-create" })'
-    ) <
+    shells.daily.indexOf("setPeekPageId(optimisticNote.id)") <
       shells.daily.indexOf("persistOptimisticDailyNote"),
-  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再直接进入完整页面，快速释放 + 按钮并后台持久化"
+  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再直接弹出编辑页面，快速释放 + 按钮并后台持久化"
 );
 check(
   shells.daily.includes("await applyRemotePages(records)") &&

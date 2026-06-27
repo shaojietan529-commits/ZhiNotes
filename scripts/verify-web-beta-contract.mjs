@@ -2115,7 +2115,7 @@ function run() {
     ],
     [
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
-      "Daily + creation must hand off the optimistic page before full navigation.",
+      "Daily + creation must hand off the optimistic page before peek or full-page opening.",
     ],
     [
       "rememberPageRouteHandoff(note, source)",
@@ -2126,8 +2126,16 @@ function run() {
       "Daily full-page openings must use the shared local-first page navigation path.",
     ],
     [
-      'openPage(optimisticNote, { source: "daily-create" })',
-      "Daily + creation must open through local-first navigation after handing off the optimistic page.",
+      "setPeekInitialPage(optimisticNote)",
+      "Daily + creation must seed the peek modal with the optimistic page for instant editing.",
+    ],
+    [
+      "setPeekPageId(optimisticNote.id)",
+      "Daily + creation must open the page peek modal immediately instead of waiting for local DB or cloud.",
+    ],
+    [
+      "每日纪要已弹出",
+      "Daily + creation must tell the user that the new page has opened in the current calendar view.",
     ],
     [
       "openPage(note, { source })",
@@ -2156,6 +2164,12 @@ function run() {
   ]) {
     assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }
+  assertSourceExcludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'openPage(optimisticNote, { source: "daily-create" })',
+    "Daily + creation must not navigate away from the calendar before the peek modal can show the new page."
+  );
   assertSourceExcludes(
     files.dailyNotesShell,
     dailyNotesShell,

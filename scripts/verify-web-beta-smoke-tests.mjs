@@ -2307,7 +2307,6 @@ function run() {
   );
   for (const snippet of [
     "useLocalFirstPageNavigation",
-    'openPage(optimisticNote, { source: "daily-create" })',
     "openPage(note, { source })",
     'openPage(pageId, { source: "daily-open" })',
   ]) {
@@ -2318,11 +2317,29 @@ function run() {
       "Daily full-page openings must use the shared local-first page navigation path."
     );
   }
+  for (const snippet of [
+    "setPeekInitialPage(optimisticNote)",
+    "setPeekPageId(optimisticNote.id)",
+    "每日纪要已弹出",
+  ]) {
+    assertIncludes(
+      files.dailyNotesShell,
+      dailyNotesShell,
+      snippet,
+      "Daily + creation must open an editable peek modal immediately."
+    );
+  }
+  assertExcludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'openPage(optimisticNote, { source: "daily-create" })',
+    "Daily + creation must not navigate away before the peek modal can render."
+  );
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
     "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
-    "Daily + creation must hand off the optimistic page before full page navigation."
+    "Daily + creation must hand off the optimistic page before peek or full-page opening."
   );
   assertIncludes(
     files.dailyNotesShell,
