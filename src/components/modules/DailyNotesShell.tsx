@@ -91,6 +91,7 @@ const MONTH_LABELS = [
   "7 月", "8 月", "9 月", "10 月", "11 月", "12 月",
 ];
 const DAILY_CALENDAR_VISIBLE_LIMIT = 8;
+const DAILY_RECENT_VISIBLE_LIMIT = 8;
 const DAILY_CALENDAR_EXPAND_BATCH = 24;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
 const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
@@ -660,20 +661,25 @@ export default function DailyNotesShell() {
 
   const openDailyNoteFullPageById = useCallback(
     (pageId: string) => {
+      const inCalendarNote = notes.find((item) => item.id === pageId);
+      const note =
+        inCalendarNote ??
+        (peekInitialPage?.id === pageId ? peekInitialPage : null);
+      if (note) {
+        openDailyNoteFullPage(note, "daily-open");
+        return;
+      }
       const storePage =
         useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
         null;
-      const note =
-        notes.find((item) => item.id === pageId) ??
-        (peekInitialPage?.id === pageId ? peekInitialPage : null) ??
-        (storePage
-          ? {
-              ...storePage,
-              dailyDateKey: readDailyNoteDateKey(storePage),
-            }
-          : null);
-      if (note) {
-        openDailyNoteFullPage(note, "daily-open");
+      if (storePage) {
+        openDailyNoteFullPage(
+          {
+            ...storePage,
+            dailyDateKey: readDailyNoteDateKey(storePage),
+          },
+          "daily-open"
+        );
         return;
       }
       openPage(pageId, { source: "daily-open" });
@@ -778,10 +784,7 @@ export default function DailyNotesShell() {
   const todayKey = toDateKey(new Date());
 
   const recent = useMemo(
-    () =>
-      [...indexedNotes]
-        .sort((a, b) => b.dateKey.localeCompare(a.dateKey))
-        .slice(0, 8),
+    () => getRecentIndexedDailyNotes(indexedNotes, DAILY_RECENT_VISIBLE_LIMIT),
     [indexedNotes]
   );
 
@@ -1250,6 +1253,29 @@ function collectDailyNotes(
   }
 
   return dailyNotes;
+}
+
+function getRecentIndexedDailyNotes(
+  notes: IndexedDailyNote[],
+  limit: number
+): IndexedDailyNote[] {
+  if (limit <= 0) return [];
+  const recent: IndexedDailyNote[] = [];
+
+  for (const note of notes) {
+    let insertAt = recent.length;
+    while (insertAt > 0 && note.dateKey > recent[insertAt - 1].dateKey) {
+      insertAt -= 1;
+    }
+
+    if (insertAt >= limit) continue;
+    recent.splice(insertAt, 0, note);
+    if (recent.length > limit) {
+      recent.pop();
+    }
+  }
+
+  return recent;
 }
 
 function mergeCloudDailyNotes(

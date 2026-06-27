@@ -2262,6 +2262,10 @@ function run() {
       "Daily fallback page-id opens must still use local-first navigation when a metadata seed is available.",
     ],
     [
+      "const inCalendarNote = notes.find((item) => item.id === pageId)",
+      "Daily note full-page opening must check the small visible calendar list before scanning the whole workspace.",
+    ],
+    [
       "rememberPendingPageDraft(note)",
       "Daily note opening must keep an in-memory draft for immediate full-page first paint.",
     ],
@@ -2272,6 +2276,18 @@ function run() {
     [
       "data-testid={`daily-add-note-${key}`}",
       "Daily calendar + buttons must expose stable test targets.",
+    ],
+    [
+      "DAILY_RECENT_VISIBLE_LIMIT",
+      "Daily recent-note list must keep a small visible cap for large imported workspaces.",
+    ],
+    [
+      "getRecentIndexedDailyNotes(indexedNotes, DAILY_RECENT_VISIBLE_LIMIT)",
+      "Daily recent-note list must use bounded top-note selection instead of full-list sorting.",
+    ],
+    [
+      "function getRecentIndexedDailyNotes(",
+      "Daily recent-note bounded selection helper must stay explicit and reviewable.",
     ],
     [
       "queueCloudPagePush(record)",

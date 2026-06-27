@@ -2034,8 +2034,20 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "b.dateKey.localeCompare(a.dateKey)",
-    "Daily recent-note sorting must reuse indexed date keys instead of reparsing every render."
+    "DAILY_RECENT_VISIBLE_LIMIT",
+    "Daily recent-note list must keep a small visible cap for large imported workspaces."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "getRecentIndexedDailyNotes(indexedNotes, DAILY_RECENT_VISIBLE_LIMIT)",
+    "Daily recent-note list must use bounded top-note selection instead of full-list sorting."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "function getRecentIndexedDailyNotes(",
+    "Daily recent-note bounded selection helper must stay explicit and reviewable."
   );
   assertIncludes(
     files.dailyNotesShell,
@@ -2553,6 +2565,12 @@ function run() {
     dailyNotesShell,
     "openDailyNoteFullPageById",
     "Daily note context menu and peek modal must use the local-first full-page opening path."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "const inCalendarNote = notes.find((item) => item.id === pageId)",
+    "Daily note full-page opening must check the small visible calendar list before scanning the whole workspace."
   );
   assertIncludes(
     files.dailyNotesShell,
