@@ -1087,7 +1087,9 @@ check(
     dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
     dailyNotesShell.includes("openDailyNoteFullPageById") &&
     dailyNotesShell.includes("openDailyNoteFullPage(note, \"daily-open\")") &&
-    knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal'),
+    knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal') &&
+    knowledgeBaseShell.includes("warmPagePeekModal();") &&
+    knowledgeBaseShell.includes("onPrimeOpen={warmPagePeekModal}"),
   "每日纪要 + 应直接进入新页面并快速释放按钮；已有纪要仍可直接加载页面弹窗壳预览；知识库仍可懒加载弹窗"
 );
 

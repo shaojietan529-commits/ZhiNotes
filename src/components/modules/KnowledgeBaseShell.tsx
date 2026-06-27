@@ -34,7 +34,9 @@ import {
   buildFileLibraryPageTitle,
 } from "@/lib/files/filePage";
 import PageContextMenu from "@/components/page/PageContextMenu";
-import PagePeekModal from "@/components/page/LazyPagePeekModal";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import {
   listScopedPageMetadata,
   mergePageMetadata,
@@ -188,6 +190,10 @@ export default function KnowledgeBaseShell() {
     },
     [openPage, pagesById]
   );
+  const openKnowledgePeek = useCallback((id: string) => {
+    warmPagePeekModal();
+    setPeekPageId(id);
+  }, []);
 
   // New cards start untitled and icon-less (Notion-style); the title input
   // in the peek modal shows a 新页面 placeholder to type straight into.
@@ -195,6 +201,7 @@ export default function KnowledgeBaseShell() {
     if (!rootId) return;
     const page = await createPageWithCloud({ parentId: rootId });
     mergeScopedPages([page]);
+    warmPagePeekModal();
     setPeekPageId(page.id);
   }, [mergeScopedPages, rootId]);
 
@@ -471,8 +478,9 @@ export default function KnowledgeBaseShell() {
                   dragged={draggedId === card.id}
                   dropSpot={dropSpot?.pageId === card.id ? dropSpot : null}
                   anyDragging={draggedId !== null}
-                  onOpen={(id) => setPeekPageId(id)}
+                  onOpen={openKnowledgePeek}
                   onOpenFull={openKnowledgePage}
+                  onPrimeOpen={warmPagePeekModal}
                   onRename={(id, title) => void renameCard(id, title)}
                   onImport={(id) => pickFilesFor(id)}
                   onLinkIndustry={(id) => setIndustryLinkCardId(id)}
@@ -511,7 +519,7 @@ export default function KnowledgeBaseShell() {
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
-          onOpen={(id) => setPeekPageId(id)}
+          onOpen={openKnowledgePeek}
           onOpenFull={openKnowledgePage}
           onChanged={() => void loadScopedPages()}
         />
@@ -683,6 +691,7 @@ function KnowledgeCard({
   anyDragging,
   onOpen,
   onOpenFull,
+  onPrimeOpen,
   onRename,
   onImport,
   onLinkIndustry,
@@ -698,6 +707,7 @@ function KnowledgeCard({
   anyDragging: boolean;
   onOpen: (id: string) => void;
   onOpenFull: (id: string) => void;
+  onPrimeOpen: () => void;
   onRename: (id: string, title: string) => void;
   onImport: (id: string) => void;
   onLinkIndustry: (id: string) => void;
@@ -777,6 +787,7 @@ function KnowledgeCard({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={(e) => e.preventDefault()}
+        onPointerEnter={onPrimeOpen}
         onContextMenu={(e) => {
           e.preventDefault();
           onContextMenu(card.id, e.clientX, e.clientY);
@@ -810,6 +821,8 @@ function KnowledgeCard({
           ) : (
             <button
               type="button"
+              onPointerEnter={onPrimeOpen}
+              onFocus={onPrimeOpen}
               onClick={() => {
                 if (clickTimerRef.current !== null) {
                   window.clearTimeout(clickTimerRef.current);
@@ -847,6 +860,8 @@ function KnowledgeCard({
             <button
               key={child.id}
               type="button"
+              onPointerEnter={onPrimeOpen}
+              onFocus={onPrimeOpen}
               onClick={() => onOpen(child.id)}
               onContextMenu={(e) => {
                 e.preventDefault();

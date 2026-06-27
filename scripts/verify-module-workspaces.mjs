@@ -392,6 +392,14 @@ check(
   "KnowledgeBaseShell 必须按知识库/产业链 root 读取 scoped metadata，并在新建/链接/移动后本地合并，不能触发全局页面刷新"
 );
 check(
+  shells.knowledge.includes("@/components/page/LazyPagePeekModal") &&
+    shells.knowledge.includes("warmPagePeekModal();") &&
+    shells.knowledge.includes("onPrimeOpen={warmPagePeekModal}") &&
+    shells.knowledge.includes("onPointerEnter={onPrimeOpen}") &&
+    shells.knowledge.includes("onFocus={onPrimeOpen}"),
+  "KnowledgeBaseShell 公司页卡片必须预热 lazy peek 弹窗，让知识库/产业链引用页面点击更快打开"
+);
+check(
   shells.chain.includes("listScopedPageMetadata") &&
     shells.chain.includes("mergeScopedPages") &&
     shells.chain.includes("upsertWorkspacePages(incoming)") &&
