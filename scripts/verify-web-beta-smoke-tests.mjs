@@ -1092,10 +1092,22 @@ function run() {
     "Daily calendar loads must record metadata-only local performance snapshots."
   );
   assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'kind: "meeting-calendar"',
+    "Meeting calendar loads must record metadata-only local performance snapshots."
+  );
+  assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
     'route: "/daily"',
     "Daily performance snapshots must not include a raw page id."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'route: "/schedule"',
+    "Meeting calendar performance snapshots must not include a raw page id."
   );
   assertIncludes(
     files.pageShell,
@@ -1108,6 +1120,12 @@ function run() {
     pageShell,
     'route: "/page/[pageId]"',
     "Page performance snapshots must not include the raw page id."
+  );
+  assertIncludes(
+    files.localPerformance,
+    localPerformance,
+    '"meeting-calendar"',
+    "Local performance snapshots must accept meeting calendar timing records."
   );
   assertIncludes(
     files.localPerformance,
@@ -1132,6 +1150,12 @@ function run() {
     syncShell,
     "本地流畅度快照",
     "Sync UI must show local performance snapshots for fluency debugging."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "会议日历平均",
+    "Sync UI must show meeting calendar performance averages."
   );
   assertIncludes(
     files.syncShell,

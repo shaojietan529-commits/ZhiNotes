@@ -742,7 +742,8 @@ check(
     meetingScheduleShell.includes("const includeCloud = opts?.includeCloud !== false") &&
     meetingScheduleShell.includes("const cachedCloud = includeCloud") &&
     meetingScheduleShell.includes("const cloudPromise = includeCloud") &&
-    meetingScheduleShell.includes("if (!cloudPromise) return") &&
+    meetingScheduleShell.includes("if (!cloudPromise) {") &&
+    meetingScheduleShell.includes('recordMeetingPerformance(\n        localLoadFailed ? "local-refresh-error" : "local-refresh"') &&
     meetingScheduleShell.includes("scheduleMetadataCacheWarmup") &&
     meetingScheduleShell.includes("requestIdleCallback") &&
     meetingScheduleShell.includes("syncCloudPageMetadataDelta().catch") &&
@@ -753,9 +754,9 @@ check(
     meetingScheduleShell.includes("parseHotCachePreferences") &&
     meetingScheduleShell.includes("metadataRecentLimitForHotCachePreferences") &&
     meetingScheduleShell.includes("recentLimit: recentMetadataLimit") &&
-    meetingScheduleShell.indexOf("mergeMeetingPages([], cloud.pages") <
+    meetingScheduleShell.indexOf("publishMeetings([], cachedCloud.pages)") <
       meetingScheduleShell.indexOf("getModuleRootId(\"meeting-schedule\")"),
-  "MeetingScheduleShell 首屏应先读云端当前日历窗口，再回退本机缓存；recent metadata 窗口按热缓存偏好有界扩大，全局 metadata 同步只能空闲后台预热"
+  "MeetingScheduleShell 首屏应先读云端当前日历窗口，再回退本机缓存；recent metadata 窗口按热缓存偏好有界扩大，全局 metadata 同步只能空闲后台预热；本地刷新也应记录流畅度快照"
 );
 check(
   meetingScheduleShell.includes("MEETING_CLOUD_CACHE_PREFIX") &&

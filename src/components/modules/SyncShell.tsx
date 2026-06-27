@@ -16270,6 +16270,7 @@ function LocalPerformancePanel({
 }) {
   const latest = snapshots[0] ?? null;
   const dailyAverage = averagePerformanceMs(snapshots, "daily-calendar");
+  const meetingAverage = averagePerformanceMs(snapshots, "meeting-calendar");
   const pageAverage = averagePerformanceMs(snapshots, "page-open");
   const peekAverage = averagePerformanceMs(snapshots, "page-peek");
   const recentSnapshots = snapshots.slice(0, 6);
@@ -16302,7 +16303,7 @@ function LocalPerformancePanel({
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-4">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <CacheRebuildFact
           label="最近一次"
           value={latest ? formatPerformanceMs(latest.duration_ms) : "暂无"}
@@ -16316,6 +16317,11 @@ function LocalPerformancePanel({
           label="每日纪要平均"
           value={formatPerformanceMs(dailyAverage)}
           detail="包含第一次显示和后台云端补齐的总耗时"
+        />
+        <CacheRebuildFact
+          label="会议日历平均"
+          value={formatPerformanceMs(meetingAverage)}
+          detail="包含热缓存、本地索引和云端 metadata 校正"
         />
         <CacheRebuildFact
           label="页面打开平均"

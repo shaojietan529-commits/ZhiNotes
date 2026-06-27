@@ -4,7 +4,11 @@ export const LOCAL_PERFORMANCE_STORAGE_KEY =
 
 const MAX_LOCAL_PERFORMANCE_SNAPSHOTS = 24;
 
-export type LocalPerformanceKind = "daily-calendar" | "page-open" | "page-peek";
+export type LocalPerformanceKind =
+  | "daily-calendar"
+  | "meeting-calendar"
+  | "page-open"
+  | "page-peek";
 
 export interface LocalPerformanceBoundary {
   reads_page_body_text: false;
@@ -159,6 +163,7 @@ function isLocalPerformanceSnapshot(
     record.format === "zhinote-local-performance-snapshot" &&
     record.format_version === 1 &&
     (record.kind === "daily-calendar" ||
+      record.kind === "meeting-calendar" ||
       record.kind === "page-open" ||
       record.kind === "page-peek") &&
     typeof record.label === "string" &&

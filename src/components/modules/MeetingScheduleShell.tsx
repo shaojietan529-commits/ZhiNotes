@@ -39,6 +39,10 @@ import {
 } from "@/lib/pages/accountPageSync";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import {
+  getLocalPerformanceNow,
+  recordLocalPerformanceSnapshot,
+} from "@/lib/performance/localPerformance";
 import { useCalendarViewMonthPreference } from "@/hooks/useCalendarViewMonthPreference";
 import { useMeetingDeletionTombstonesPreference } from "@/hooks/useMeetingDeletionTombstonesPreference";
 import { useMeetingReviewStatePreference } from "@/hooks/useMeetingReviewStatePreference";
@@ -604,11 +608,19 @@ export default function MeetingScheduleShell() {
     const includeCloud = opts?.includeCloud !== false;
     const requestId = loadRequestRef.current + 1;
     loadRequestRef.current = requestId;
+    const performanceStartedAt = new Date().toISOString();
+    const performanceStart = getLocalPerformanceNow();
+    let firstVisibleMs: number | null = null;
+    let firstVisibleCount = 0;
+    let renderedMeetingCount = 0;
+    let totalMeetingCount = 0;
+    let localMeetingCount = 0;
     const visibleRange = buildMonthGrid(viewMonth);
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
     let localPagesForMerge: Page[] = [];
     const cachedHotSnapshot = readMeetingHotCacheSnapshot(startDate, endDate);
+    const cachedHotCount = cachedHotSnapshot?.pages.length ?? 0;
 
     const publishRootId = (nextRootId: string | null) => {
       if (loadRequestRef.current !== requestId) return;
@@ -635,10 +647,45 @@ export default function MeetingScheduleShell() {
         startDate,
         endDate
       );
+      renderedMeetingCount = selection.pages.length;
+      totalMeetingCount = sumMeetingDateCounts(selection.countsByDate);
+      if (firstVisibleMs === null && selection.pages.length > 0) {
+        firstVisibleMs = getLocalPerformanceNow() - performanceStart;
+        firstVisibleCount = selection.pages.length;
+      }
       startTransition(() => {
         if (loadRequestRef.current !== requestId) return;
         setMeetings(selection.pages);
         setMeetingCountByDate(selection.countsByDate);
+      });
+    };
+
+    const recordMeetingPerformance = (
+      status: string,
+      counts?: Record<string, number | null | undefined>
+    ) => {
+      if (loadRequestRef.current !== requestId) return;
+      const durationMs = getLocalPerformanceNow() - performanceStart;
+      recordLocalPerformanceSnapshot({
+        kind: "meeting-calendar",
+        label: "ZhiHui 会议日历加载",
+        route: "/schedule",
+        status,
+        startedAt: performanceStartedAt,
+        durationMs,
+        localFirstMs: firstVisibleMs,
+        backgroundMs:
+          firstVisibleMs === null ? null : durationMs - firstVisibleMs,
+        counts: {
+          month_cells: visibleRange.length,
+          rendered_meetings: renderedMeetingCount,
+          range_meetings: totalMeetingCount,
+          local_meetings: localMeetingCount,
+          first_visible_meetings: firstVisibleCount,
+          hot_cache_pages: cachedHotCount,
+          cloud_enabled: includeCloud ? 1 : 0,
+          ...counts,
+        },
       });
     };
 
@@ -686,6 +733,7 @@ export default function MeetingScheduleShell() {
         endDate,
         recentLimit: recentMetadataLimit,
       });
+      localMeetingCount = localPagesForMerge.length;
       publishMeetings(
         localPagesForMerge,
         cachedCloud?.ok ? cachedCloud.pages : []
@@ -720,7 +768,15 @@ export default function MeetingScheduleShell() {
     const nextRootId = id ?? (localLoadFailed ? generateId() : null);
     if (nextRootId) publishRootId(nextRootId);
 
-    if (!cloudPromise) return;
+    if (!cloudPromise) {
+      recordMeetingPerformance(
+        localLoadFailed ? "local-refresh-error" : "local-refresh",
+        {
+          local_pages: localPagesForMerge.length,
+        }
+      );
+      return;
+    }
     const cloud = await cloudPromise;
     if (cloud.ok && cloud.rootId) {
       publishRootId(cloud.rootId);
@@ -742,7 +798,20 @@ export default function MeetingScheduleShell() {
         source: "cloud-metadata",
       });
       void persistMeetingCloudMetadata(cloud, upsertPages);
+      recordMeetingPerformance("cloud-ok", {
+        cloud_pages: cloud.pages.length,
+        cloud_range: cloud.rangeCount ?? 0,
+        cloud_total: cloud.count ?? 0,
+      });
+      return;
     }
+    recordMeetingPerformance(
+      cloud.status ? `cloud-${cloud.status}` : "cloud-unavailable",
+      {
+        cloud_pages: cloud.pages.length,
+        cloud_total: cloud.count ?? 0,
+      }
+    );
 
   }, [
     deletionTombstonesLoaded,
@@ -2652,6 +2721,12 @@ function selectMeetingPagesForCalendarRender(
   }
 
   return { pages: selectedPages, countsByDate };
+}
+
+function sumMeetingDateCounts(countsByDate: Map<string, number>): number {
+  let total = 0;
+  for (const count of countsByDate.values()) total += count;
+  return total;
 }
 
 async function seedMeetingPageForImmediateOpen(page: Page): Promise<void> {
