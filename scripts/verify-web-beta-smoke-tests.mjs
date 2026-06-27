@@ -4395,6 +4395,8 @@ function run() {
     "SIDEBAR_PAGE_TREE_CHILD_LIMIT",
     "visibleChildren.map((child)",
     "getCurrentPagePathIds",
+    "currentPathIds.has(page.id)",
+    "page.id === currentPageId",
     "已折叠 {hiddenChildCount} 个子页面",
   ]) {
     assertIncludes(

@@ -173,6 +173,13 @@ function PageTreeItem({
     return () => window.clearTimeout(timer);
   }, [isDropInside, hasChildren, expanded]);
 
+  useEffect(() => {
+    if (!hasChildren || page.id === currentPageId || !currentPathIds.has(page.id)) {
+      return;
+    }
+    setExpanded(true);
+  }, [currentPageId, currentPathIds, hasChildren, page.id]);
+
   return (
     <li className="relative">
       {/* Drop indicator line — before */}

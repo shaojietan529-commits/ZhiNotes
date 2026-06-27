@@ -11825,6 +11825,18 @@ function run() {
     [
       files.pageTree,
       pageTree,
+      "currentPathIds.has(page.id)",
+      "Sidebar page tree must auto-expand the current page ancestry without rendering every child page.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "page.id === currentPageId",
+      "Sidebar page tree must avoid expanding the current page itself just to reveal descendants.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
       "已折叠 {hiddenChildCount} 个子页面",
       "Sidebar page tree must tell the owner when child pages are folded for performance.",
     ],
