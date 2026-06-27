@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  startTransition,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -314,7 +315,10 @@ export default function DailyNotesShell() {
         firstVisibleMs = getLocalPerformanceNow() - performanceStart;
         firstVisibleCount = nextNotes.length;
       }
-      setNotes(nextNotes);
+      startTransition(() => {
+        if (loadRequestRef.current !== requestId) return;
+        setNotes(nextNotes);
+      });
     };
 
     const recordDailyPerformance = (

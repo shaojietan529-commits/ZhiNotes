@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
@@ -573,13 +580,15 @@ export default function MeetingScheduleShell() {
               !localPageIds.has(page.id) &&
               !deletedTombstoneRef.current.has(page.id)
           );
-      setMeetings(
-        mergeMeetingPages(
-          localPages,
-          [...retainedCloudPages, ...cloudPages],
-          deletedTombstoneRef.current
-        )
+      const nextMeetings = mergeMeetingPages(
+        localPages,
+        [...retainedCloudPages, ...cloudPages],
+        deletedTombstoneRef.current
       );
+      startTransition(() => {
+        if (loadRequestRef.current !== requestId) return;
+        setMeetings(nextMeetings);
+      });
     };
 
     if (cachedHotSnapshot) {

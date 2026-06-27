@@ -144,6 +144,8 @@ for (const token of [
   "function buildDailyCalendarIndexes(",
   "const notesById = calendarIndexes.notesById",
   "const inCalendarNote = notesById.get(pageId)",
+  "startTransition(() =>",
+  "setNotes(nextNotes)",
   "includeUnindexedFallback: false",
   "includeUnindexedFallback: true",
   'source: "local-fallback-metadata"',
@@ -586,6 +588,9 @@ check(
     shells.schedule.includes("revealMeetingOnCalendar") &&
     shells.schedule.includes("pendingCalendarFocusDateKeyRef") &&
     shells.schedule.includes("requestAnimationFrame") &&
+    shells.schedule.includes("const nextMeetings = mergeMeetingPages(") &&
+    shells.schedule.includes("startTransition(() =>") &&
+    shells.schedule.includes("setMeetings(nextMeetings)") &&
     shells.schedule.includes("setExpandedMeetingDateKeys((current) =>") &&
     shells.schedule.includes("setVisibleMeetingLimitByDate((limits) =>") &&
     shells.schedule.includes("revealMeetingOnCalendar(optimisticPage)") &&

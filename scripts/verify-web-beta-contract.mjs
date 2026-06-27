@@ -2364,6 +2364,10 @@ function run() {
       "Daily recent-note list must defer secondary ranking behind the calendar.",
     ],
     [
+      "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setNotes(nextNotes);",
+      "Daily calendar bulk metadata publishes must stay low-priority so clicks and typing remain responsive.",
+    ],
+    [
       "const inCalendarNote = notesById.get(pageId)",
       "Daily note full-page opening must use the visible-month note id index before checking the global workspace.",
     ],
@@ -11655,6 +11659,18 @@ function run() {
       meetingScheduleShell,
       "publishMeetings(localPagesForMerge, cloud.pages)",
       "Meeting calendar cloud hydration must merge with local hot-cache pages instead of replacing them.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "const nextMeetings = mergeMeetingPages(",
+      "Meeting calendar must prepare merged metadata before the low-priority render publish.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setMeetings(nextMeetings);",
+      "Meeting calendar bulk metadata publishes must stay low-priority so create/import clicks remain responsive.",
     ],
     [
       files.meetingScheduleShell,

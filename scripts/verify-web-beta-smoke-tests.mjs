@@ -2130,6 +2130,12 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setNotes(nextNotes);",
+    "Daily calendar bulk metadata publishes must stay low-priority so clicks and typing remain responsive."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "DAILY_RECENT_VISIBLE_LIMIT",
     "Daily recent-note list must keep a small visible cap for large imported workspaces."
   );
@@ -2366,6 +2372,18 @@ function run() {
     meetingScheduleShell,
     "writeOptimisticMeetingHotCache",
     "Meeting schedule must update the hot cache as soon as a local meeting draft is created."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "const nextMeetings = mergeMeetingPages(",
+    "Meeting schedule must prepare merged metadata before the low-priority render publish."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setMeetings(nextMeetings);",
+    "Meeting calendar bulk metadata publishes must stay low-priority so create/import clicks remain responsive."
   );
   assertIncludes(
     files.meetingScheduleShell,
