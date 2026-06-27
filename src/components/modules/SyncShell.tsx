@@ -1325,6 +1325,8 @@ function SyncDashboard() {
       syncLogPending: 0,
       oldestPendingQueuedAt: null,
       pendingSampleKeys: [],
+      authRetryStatus: null,
+      authRetryUntil: null,
       lastSyncAt: null,
     }));
   const [databasePendingMessage, setDatabasePendingMessage] = useState<
@@ -15731,6 +15733,15 @@ function PagePendingQueueDetails({
       value: status.lastSyncAt ? formatDate(status.lastSyncAt) : "暂无记录",
       detail: status.enabled ? "最近一次页面云同步时间。" : "页面同步当前关闭。",
     },
+    {
+      label: "认证退避",
+      value: status.authRetryStatus
+        ? formatPageSyncStatus(status.authRetryStatus)
+        : "未退避",
+      detail: status.authRetryUntil
+        ? `下次自动重试 ${formatDate(status.authRetryUntil)}。`
+        : "没有未登录/未配置退避。",
+    },
   ];
 
   return (
@@ -15738,7 +15749,7 @@ function PagePendingQueueDetails({
       data-testid="page-pending-queue-details"
       className="mt-3 space-y-3"
     >
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
         {queueFacts.map((fact) => (
           <div
             key={fact.label}
@@ -15850,6 +15861,15 @@ function DatabasePendingQueueDetails({
       value: status.lastSyncAt ? formatDate(status.lastSyncAt) : "暂无记录",
       detail: status.enabled ? "最近一次数据库云同步时间。" : "数据库同步当前关闭。",
     },
+    {
+      label: "认证退避",
+      value: status.authRetryStatus
+        ? formatDatabaseSyncStatus(status.authRetryStatus)
+        : "未退避",
+      detail: status.authRetryUntil
+        ? `下次自动重试 ${formatDate(status.authRetryUntil)}。`
+        : "没有未登录/未配置退避。",
+    },
   ];
 
   return (
@@ -15857,7 +15877,7 @@ function DatabasePendingQueueDetails({
       data-testid="database-pending-queue-details"
       className="mt-3 space-y-3"
     >
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
         {queueFacts.map((fact) => (
           <div
             key={fact.label}

@@ -49,6 +49,8 @@ const EMPTY_PAGE_PENDING_STATUS: PendingCloudPageSyncStatus = {
   queued: 0,
   oldestPendingQueuedAt: null,
   pendingSampleIds: [],
+  authRetryStatus: null,
+  authRetryUntil: null,
   lastSyncAt: null,
 };
 

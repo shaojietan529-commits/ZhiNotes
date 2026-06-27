@@ -4330,6 +4330,36 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "authRetryStatus: authRetry.status",
+    "Smoke verifier must keep page auth retry status visible in pending metadata."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "authRetryUntil: authRetry.until",
+    "Smoke verifier must keep page auth retry retry-at metadata visible."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "getAuthRetrySnapshot",
+    "Smoke verifier must keep page auth retry backoff readable without uploading content."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "认证退避",
+    "Sync UI must show auth retry backoff state instead of looking idle."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "下次自动重试",
+    "Sync UI must show when auth retry backoff will retry."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "export async function getCloudPageManifestSummary",
     "Smoke verifier must keep cloud page manifest summary available to the sync dashboard."
   );
@@ -4476,6 +4506,24 @@ function run() {
     accountDatabaseSync,
     "pendingSampleKeys",
     "Database pending status must expose metadata-only sample keys."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "authRetryStatus: authRetry.status",
+    "Database pending status must expose auth retry status metadata."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "authRetryUntil: authRetry.until",
+    "Database pending status must expose auth retry retry-at metadata."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "getAuthRetrySnapshot",
+    "Database pending status must read auth retry backoff without reading row values."
   );
   assertIncludes(
     files.accountDatabaseSync,

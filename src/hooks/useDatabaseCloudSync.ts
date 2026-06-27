@@ -47,6 +47,8 @@ const EMPTY_DATABASE_PENDING_STATUS: PendingCloudDatabaseSyncStatus = {
   syncLogPending: 0,
   oldestPendingQueuedAt: null,
   pendingSampleKeys: [],
+  authRetryStatus: null,
+  authRetryUntil: null,
   lastSyncAt: null,
 };
 

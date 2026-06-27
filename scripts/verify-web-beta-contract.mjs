@@ -4840,6 +4840,14 @@ function run() {
       "Sync UI must render the oldest page pending queued timestamp.",
     ],
     [
+      "认证退避",
+      "Sync UI must render auth retry backoff status.",
+    ],
+    [
+      "下次自动重试",
+      "Sync UI must render the auth retry-at time.",
+    ],
+    [
       "样本 page id",
       "Sync UI must render metadata-only page pending sample ids.",
     ],
@@ -5027,6 +5035,18 @@ function run() {
     [
       "pendingSampleKeys: pendingKeys.slice(0, 5)",
       "Database pending status must expose metadata-only sample keys.",
+    ],
+    [
+      "authRetryStatus: authRetry.status",
+      "Database pending status must expose auth retry status metadata.",
+    ],
+    [
+      "authRetryUntil: authRetry.until",
+      "Database pending status must expose auth retry retry-at metadata.",
+    ],
+    [
+      "getAuthRetrySnapshot",
+      "Database pending status must read auth retry backoff without reading row values.",
     ],
     [
       "lastSyncAt: getLastDatabaseSyncAt()",
@@ -11702,6 +11722,24 @@ function run() {
       accountPageSync,
       "pendingSampleIds",
       "Account page sync pending status must expose a small metadata-only page id sample.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "authRetryStatus: authRetry.status",
+      "Account page sync pending status must expose auth retry status metadata.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "authRetryUntil: authRetry.until",
+      "Account page sync pending status must expose auth retry retry-at metadata.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "getAuthRetrySnapshot",
+      "Account page sync pending status must read auth retry backoff without reading page bodies.",
     ],
     [
       files.accountPageSync,

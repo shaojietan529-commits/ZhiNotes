@@ -128,6 +128,8 @@ export interface PendingCloudPageSyncStatus {
   queued: number;
   oldestPendingQueuedAt: string | null;
   pendingSampleIds: string[];
+  authRetryStatus: PageSyncStatus | null;
+  authRetryUntil: string | null;
   lastSyncAt: string | null;
 }
 
@@ -741,6 +743,8 @@ function setAuthRetryProbe(
 }
 
 function rememberAuthRetryStatus(status: PageSyncStatus): void {
+  const previousStatus = authRetryStatus;
+  const previousUntil = authRetryAfter;
   if (status === "unauthenticated" || status === "unconfigured") {
     authRetryStatus = status;
     authRetryAfter = Date.now() + AUTH_RETRY_BACKOFF_MS;
@@ -748,12 +752,18 @@ function rememberAuthRetryStatus(status: PageSyncStatus): void {
       AUTH_RETRY_KEY,
       JSON.stringify({ status, until: authRetryAfter })
     );
+    if (previousStatus !== authRetryStatus || previousUntil !== authRetryAfter) {
+      emitPageSyncStatusChanged();
+    }
     return;
   }
   if (status === "ok" || status === "disabled") {
     authRetryStatus = null;
     authRetryAfter = 0;
     removeSyncStorage(AUTH_RETRY_KEY);
+    if (previousStatus !== authRetryStatus || previousUntil !== authRetryAfter) {
+      emitPageSyncStatusChanged();
+    }
   }
 }
 
@@ -764,6 +774,8 @@ function readStoredAuthRetryStatus(): PageSyncStatus | null {
       until?: unknown;
     } | null;
     if (!parsed || typeof parsed.until !== "number" || parsed.until <= Date.now()) {
+      authRetryStatus = null;
+      authRetryAfter = 0;
       removeSyncStorage(AUTH_RETRY_KEY);
       return null;
     }
@@ -771,6 +783,8 @@ function readStoredAuthRetryStatus(): PageSyncStatus | null {
       parsed.status !== "unauthenticated" &&
       parsed.status !== "unconfigured"
     ) {
+      authRetryStatus = null;
+      authRetryAfter = 0;
       removeSyncStorage(AUTH_RETRY_KEY);
       return null;
     }
@@ -778,9 +792,32 @@ function readStoredAuthRetryStatus(): PageSyncStatus | null {
     authRetryAfter = parsed.until;
     return parsed.status;
   } catch {
+    authRetryStatus = null;
+    authRetryAfter = 0;
     removeSyncStorage(AUTH_RETRY_KEY);
     return null;
   }
+}
+
+function getAuthRetrySnapshot(): {
+  status: PageSyncStatus | null;
+  until: string | null;
+} {
+  const stored = readStoredAuthRetryStatus();
+  const activeStatus =
+    stored ??
+    (authRetryStatus !== null && Date.now() < authRetryAfter
+      ? authRetryStatus
+      : null);
+  if (!activeStatus) {
+    authRetryStatus = null;
+    authRetryAfter = 0;
+    return { status: null, until: null };
+  }
+  return {
+    status: activeStatus,
+    until: new Date(authRetryAfter).toISOString(),
+  };
 }
 
 async function runCloudPageMetadataDelta(
@@ -1638,6 +1675,7 @@ function clearPendingCloudPushIds(ids: string[]): void {
 export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
   const pendingIds = getPendingCloudPushIds();
   const pendingMeta = getPendingCloudPushMeta();
+  const authRetry = getAuthRetrySnapshot();
   const oldestPendingQueuedAt = pendingIds.reduce<string | null>((oldest, id) => {
     const queuedAt = pendingMeta[id]?.queuedAt ?? null;
     if (!queuedAt) return oldest;
@@ -1651,6 +1689,8 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
     queued: queuedCloudPush.size,
     oldestPendingQueuedAt,
     pendingSampleIds: pendingIds.slice(0, 5),
+    authRetryStatus: authRetry.status,
+    authRetryUntil: authRetry.until,
     lastSyncAt: getLastPageSyncAt(),
   };
 }

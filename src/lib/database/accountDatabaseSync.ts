@@ -157,6 +157,8 @@ export interface PendingCloudDatabaseSyncStatus {
   syncLogPending: number;
   oldestPendingQueuedAt: string | null;
   pendingSampleKeys: string[];
+  authRetryStatus: DatabaseSyncStatus | null;
+  authRetryUntil: string | null;
   lastSyncAt: string | null;
 }
 
@@ -1016,6 +1018,8 @@ function setAuthRetryProbe(
 }
 
 function rememberAuthRetryStatus(status: DatabaseSyncStatus): void {
+  const previousStatus = authRetryStatus;
+  const previousUntil = authRetryAfter;
   if (status === "unauthenticated" || status === "unconfigured") {
     authRetryStatus = status;
     authRetryAfter = Date.now() + AUTH_RETRY_BACKOFF_MS;
@@ -1023,12 +1027,18 @@ function rememberAuthRetryStatus(status: DatabaseSyncStatus): void {
       AUTH_RETRY_KEY,
       JSON.stringify({ status, until: authRetryAfter })
     );
+    if (previousStatus !== authRetryStatus || previousUntil !== authRetryAfter) {
+      emitDatabaseSyncStatusChanged();
+    }
     return;
   }
   if (status === "ok" || status === "disabled") {
     authRetryStatus = null;
     authRetryAfter = 0;
     removeSyncStorage(AUTH_RETRY_KEY);
+    if (previousStatus !== authRetryStatus || previousUntil !== authRetryAfter) {
+      emitDatabaseSyncStatusChanged();
+    }
   }
 }
 
@@ -1039,6 +1049,8 @@ function readStoredAuthRetryStatus(): DatabaseSyncStatus | null {
       until?: unknown;
     } | null;
     if (!parsed || typeof parsed.until !== "number" || parsed.until <= Date.now()) {
+      authRetryStatus = null;
+      authRetryAfter = 0;
       removeSyncStorage(AUTH_RETRY_KEY);
       return null;
     }
@@ -1046,6 +1058,8 @@ function readStoredAuthRetryStatus(): DatabaseSyncStatus | null {
       parsed.status !== "unauthenticated" &&
       parsed.status !== "unconfigured"
     ) {
+      authRetryStatus = null;
+      authRetryAfter = 0;
       removeSyncStorage(AUTH_RETRY_KEY);
       return null;
     }
@@ -1053,9 +1067,32 @@ function readStoredAuthRetryStatus(): DatabaseSyncStatus | null {
     authRetryAfter = parsed.until;
     return parsed.status;
   } catch {
+    authRetryStatus = null;
+    authRetryAfter = 0;
     removeSyncStorage(AUTH_RETRY_KEY);
     return null;
   }
+}
+
+function getAuthRetrySnapshot(): {
+  status: DatabaseSyncStatus | null;
+  until: string | null;
+} {
+  const stored = readStoredAuthRetryStatus();
+  const activeStatus =
+    stored ??
+    (authRetryStatus !== null && Date.now() < authRetryAfter
+      ? authRetryStatus
+      : null);
+  if (!activeStatus) {
+    authRetryStatus = null;
+    authRetryAfter = 0;
+    return { status: null, until: null };
+  }
+  return {
+    status: activeStatus,
+    until: new Date(authRetryAfter).toISOString(),
+  };
 }
 
 export function cloudDatabaseMetadataToDatabases(
@@ -1292,6 +1329,7 @@ export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudD
   }
   const pendingKeys = getPendingCloudDatabasePushKeys();
   const pendingMeta = getPendingCloudDatabasePushMeta();
+  const authRetry = getAuthRetrySnapshot();
   const oldestPendingQueuedAt = pendingKeys.reduce<string | null>(
     (oldest, key) => {
       const queuedAt = pendingMeta[key]?.queuedAt ?? null;
@@ -1308,6 +1346,8 @@ export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudD
     syncLogPending,
     oldestPendingQueuedAt,
     pendingSampleKeys: pendingKeys.slice(0, 5),
+    authRetryStatus: authRetry.status,
+    authRetryUntil: authRetry.until,
     lastSyncAt: getLastDatabaseSyncAt(),
   };
 }

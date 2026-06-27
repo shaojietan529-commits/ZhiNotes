@@ -393,6 +393,8 @@ check(
     pageSyncClient.includes("queued: queuedCloudPush.size") &&
     pageSyncClient.includes("oldestPendingQueuedAt") &&
     pageSyncClient.includes("pendingSampleIds: pendingIds.slice(0, 5)") &&
+    pageSyncClient.includes("authRetryStatus: authRetry.status") &&
+    pageSyncClient.includes("authRetryUntil: authRetry.until") &&
     pageSyncClient.includes("lastSyncAt: getLastPageSyncAt()") &&
     pageSyncClient.includes("export function isCloudPagePendingSync") &&
     pageSyncClient.includes("queuedCloudPush.has(pageId)") &&
@@ -403,6 +405,8 @@ check(
   syncDashboardShell.includes("页面 pending 上传队列") &&
     syncDashboardShell.includes("只保存 page id 和排队时间，不保存页面正文") &&
     syncDashboardShell.includes("最早排队") &&
+    syncDashboardShell.includes("认证退避") &&
+    syncDashboardShell.includes("下次自动重试") &&
     syncDashboardShell.includes("样本 page id") &&
     syncDashboardShell.includes("补传页面队列") &&
     syncDashboardShell.includes("reconcilePageSync({ quick: true })") &&
@@ -420,6 +424,8 @@ check(
     databaseSyncClient.includes("syncLogPending") &&
     databaseSyncClient.includes("oldestPendingQueuedAt") &&
     databaseSyncClient.includes("pendingSampleKeys: pendingKeys.slice(0, 5)") &&
+    databaseSyncClient.includes("authRetryStatus: authRetry.status") &&
+    databaseSyncClient.includes("authRetryUntil: authRetry.until") &&
     databaseSyncClient.includes("lastSyncAt: getLastDatabaseSyncAt()"),
   "数据库同步客户端应暴露只读 pending 上传状态、最早排队时间和样本 key，供同步页展示 cloud key、本地 sync_log 和内存批次"
 );
@@ -946,6 +952,7 @@ check(
     pageSyncClient.includes("startAuthRetryProbe") &&
     pageSyncClient.includes("shouldBackOffAuthRetry") &&
     pageSyncClient.includes("readStoredAuthRetryStatus") &&
+    pageSyncClient.includes("getAuthRetrySnapshot") &&
     pageSyncClient.includes("JSON.stringify({ status, until: authRetryAfter })") &&
     pageSyncClient.includes("removeSyncStorage(AUTH_RETRY_KEY)") &&
     pageSyncClient.includes("rememberAuthRetryStatus(result.status)") &&
@@ -963,6 +970,7 @@ check(
     databaseSyncClient.includes("startAuthRetryProbe") &&
     databaseSyncClient.includes("shouldBackOffAuthRetry") &&
     databaseSyncClient.includes("readStoredAuthRetryStatus") &&
+    databaseSyncClient.includes("getAuthRetrySnapshot") &&
     databaseSyncClient.includes("JSON.stringify({ status, until: authRetryAfter })") &&
     databaseSyncClient.includes("removeSyncStorage(AUTH_RETRY_KEY)"),
   "数据库同步在未登录/未配置时应跨刷新退避并合并并发探测，避免数据库 metadata 刷新反复请求云端"
