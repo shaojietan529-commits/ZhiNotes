@@ -17,6 +17,8 @@ export interface PageImportExecutionReceiptInput {
   plan: PageImportPlan;
   result: PageImportExecutionResult;
   confirmation_checked: boolean;
+  selected_retry_item_indexes?: number[];
+  selectable_retry_items?: number;
 }
 
 export interface PageImportExecutionReceiptItem {
@@ -73,6 +75,12 @@ export interface PageImportExecutionReceipt {
     };
     notes_count: number;
   };
+  retry_selection_summary: {
+    selectable_retry_items: number;
+    selected_retry_items: number;
+    selected_retry_item_indexes: number[];
+    includes_file_names: false;
+  };
   item_results: PageImportExecutionReceiptItem[];
   boundary: {
     local_receipt_only: true;
@@ -98,8 +106,13 @@ export function buildPageImportExecutionReceipt({
   plan,
   result,
   confirmation_checked,
+  selected_retry_item_indexes,
+  selectable_retry_items,
 }: PageImportExecutionReceiptInput): PageImportExecutionReceipt {
   const manifest = buildExportablePageImportManifest(plan);
+  const selectedRetryItemIndexes = selected_retry_item_indexes ?? [];
+  const selectableRetryItems =
+    selectable_retry_items ?? countSelectableRetryItems(result);
   return {
     format: "zhinote-page-import-execution-receipt",
     format_version: 1,
@@ -109,7 +122,7 @@ export function buildPageImportExecutionReceipt({
     action_status: result.status,
     failure_mode: result.failure_mode,
     privacy_note:
-      "批量导入后在本地生成。这个 receipt 只记录导入计划和执行结果的统计 metadata，不包含文件名、文件 bytes、文件文本、页面正文、表格单元格值、页面 id、数据库 id、token、credential、prompt、云端数据或 AI 输出。",
+      "批量导入后在本地生成。这个 receipt 只记录导入计划、执行结果和重试选择的统计 metadata；重试选择只保存项目序号，不包含文件名、文件 bytes、文件文本、页面正文、表格单元格值、页面 id、数据库 id、token、credential、prompt、云端数据或 AI 输出。",
     confirmation: {
       user_checked_import_plan: confirmation_checked,
       required_gates_reviewed: plan.required_gates.length,
@@ -134,6 +147,12 @@ export function buildPageImportExecutionReceipt({
       rolled_back_item_results: result.rolled_back_item_results,
       item_status_counts: countItemStatuses(result),
       notes_count: result.notes.length,
+    },
+    retry_selection_summary: {
+      selectable_retry_items: selectableRetryItems,
+      selected_retry_items: selectedRetryItemIndexes.length,
+      selected_retry_item_indexes: selectedRetryItemIndexes,
+      includes_file_names: false,
     },
     item_results: result.item_results.map((item) => ({
       index: item.index,
@@ -257,6 +276,16 @@ function countItemStatuses(result: PageImportExecutionResult) {
       not_run: 0,
     }
   );
+}
+
+function countSelectableRetryItems(result: PageImportExecutionResult) {
+  return result.item_results.filter(
+    (item) =>
+      item.retryable &&
+      (item.status === "failed" ||
+        item.status === "rolled-back" ||
+        item.status === "not-run")
+  ).length;
 }
 
 function isPageImportExecutionReceipt(

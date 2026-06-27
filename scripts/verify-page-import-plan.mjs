@@ -362,6 +362,10 @@ check(
     receiptSource.includes("includes_database_ids: false") &&
     receiptSource.includes("PageImportExecutionReceiptItem") &&
     receiptSource.includes("item_status_counts") &&
+    receiptSource.includes("retry_selection_summary") &&
+    receiptSource.includes("selected_retry_item_indexes") &&
+    receiptSource.includes("selectable_retry_items") &&
+    receiptSource.includes("includes_file_names: false") &&
     receiptSource.includes("failure_mode") &&
     receiptSource.includes("preserved_successful_items") &&
     receiptSource.includes("retryable_items") &&
@@ -372,6 +376,14 @@ check(
     receiptSource.includes("calls_external_service: false") &&
     receiptSource.includes("receipt_writes_workspace_data: false"),
   "批量导入 receipt 必须存在，并保持本地 metadata-only、脱敏、无上传边界"
+);
+check(
+  receiptSource.includes("countSelectableRetryItems") &&
+    receiptSource.includes('item.status === "failed"') &&
+    receiptSource.includes('item.status === "rolled-back"') &&
+    receiptSource.includes('item.status === "not-run"') &&
+    receiptSource.includes("重试选择只保存项目序号，不包含文件名"),
+  "批量导入 receipt 必须记录 metadata-only 重试选择摘要，并只覆盖失败/回退/未执行项"
 );
 check(
   panelSource.includes("buildPageImportExecutionReceipt") &&
@@ -397,8 +409,15 @@ check(
     panelSource.includes("失败即整批回退") &&
     panelSource.includes("handleRetryImport") &&
     panelSource.includes("isOneClickRetryableImportItem") &&
+    panelSource.includes("selectedRetryItemIndexes") &&
+    panelSource.includes("selectedRetryItemCount") &&
+    panelSource.includes("onToggleRetryItem") &&
+    panelSource.includes("失败项修复工作台") &&
+    panelSource.includes("全选可重试项") &&
+    panelSource.includes("清空选择") &&
+    panelSource.includes("重试已选择") &&
     panelSource.includes("只重试失败/未执行/已回退项"),
-  "PageImportPlanPanel 必须提供失败处理策略选择和单项重试入口"
+  "PageImportPlanPanel 必须提供失败处理策略、失败项筛选、勾选和局部重试入口"
 );
 check(
   panelSource.includes("ImportProgressState") &&
@@ -438,6 +457,8 @@ console.log(
       visible_batch_import_progress_queue: true,
       item_level_import_recovery_summary: true,
       retry_failed_items_without_reimporting_successes: true,
+      selectable_retry_workbench: true,
+      retry_selection_receipt_metadata_only: true,
     },
     null,
     2

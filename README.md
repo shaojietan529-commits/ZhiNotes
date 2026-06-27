@@ -936,6 +936,10 @@ Current local actions:
   and retry only failed / not-run / rolled-back items, or roll back the whole
   batch for stricter consistency. Retry receipts stay metadata-only and do not
   re-import already successful items.
+- The retry path includes a small failure repair workbench: failed, not-run, and
+  rolled-back items are filtered into a selectable list, default-selected for
+  convenience, and can be retried as a partial subset or all at once. The retry
+  selection receipt stores only item indexes and type metadata, not file names.
 
 The File Library module is a local routing and page-creation desk, not a cloud
 importer. It does not delete files, upload files, sync files, call AI, load HTML

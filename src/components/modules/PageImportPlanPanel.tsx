@@ -205,6 +205,9 @@ export default function PageImportPlanPanel() {
   const [importProgress, setImportProgress] = useState<ImportProgressState>(
     EMPTY_IMPORT_PROGRESS
   );
+  const [selectedRetryItemIndexes, setSelectedRetryItemIndexes] = useState<
+    number[]
+  >([]);
 
   const handleChoose = () => inputRef.current?.click();
 
@@ -226,6 +229,7 @@ export default function PageImportPlanPanel() {
     setLastReceipt(null);
     setActiveImportPlan(null);
     setImportProgress(EMPTY_IMPORT_PROGRESS);
+    setSelectedRetryItemIndexes([]);
   };
 
   const handleExportManifest = () => {
@@ -243,18 +247,25 @@ export default function PageImportPlanPanel() {
     setLastReceipt(null);
     setActiveImportPlan(null);
     setImportProgress(EMPTY_IMPORT_PROGRESS);
+    setSelectedRetryItemIndexes([]);
   };
 
   const runImportPlan = async (
     activePlan: PageImportPlan,
     mode: PageImportFailureMode,
-    opts?: { navigateOnFullSuccess?: boolean; retryRun?: boolean }
+    opts?: {
+      navigateOnFullSuccess?: boolean;
+      retryRun?: boolean;
+      selectedRetryItemIndexes?: number[];
+      selectableRetryItemCount?: number;
+    }
   ) => {
     if (!confirmed || importing) return;
     setImporting(true);
     setActiveImportPlan(activePlan);
     setResult(null);
     setLastReceipt(null);
+    setSelectedRetryItemIndexes([]);
     setImportProgress({
       done: 0,
       total: activePlan.items.length,
@@ -280,10 +291,13 @@ export default function PageImportPlanPanel() {
         plan: activePlan,
         result: res,
         confirmation_checked: confirmed,
+        selected_retry_item_indexes: opts?.selectedRetryItemIndexes,
+        selectable_retry_items: opts?.selectableRetryItemCount,
       });
       appendPageImportExecutionReceipt(receipt);
       setResult(res);
       setLastReceipt(receipt);
+      setSelectedRetryItemIndexes(getRetryableImportItemIndexes(res.item_results));
       setImportProgress({
         done: activePlan.items.length,
         total: activePlan.items.length,
@@ -317,6 +331,7 @@ export default function PageImportPlanPanel() {
     } catch (err) {
       console.error("[Zhinote] import execution error:", err);
       setResult(null);
+      setSelectedRetryItemIndexes([]);
       setImportProgress({
         done: 0,
         total: activePlan.items.length,
@@ -334,15 +349,23 @@ export default function PageImportPlanPanel() {
     await runImportPlan(plan, failureMode, { navigateOnFullSuccess: true });
   };
 
-  const handleRetryImport = async () => {
+  const handleRetryImport = async (retryIndexesOverride?: number[]) => {
     if (!plan || !result || !confirmed || importing) return;
-    const retryIndexes = result.item_results
-      .filter(isOneClickRetryableImportItem)
-      .map((item) => item.index);
+    const allowedRetryIndexes = getRetryableImportItemIndexes(result.item_results);
+    const requestedRetryIndexes = new Set(
+      retryIndexesOverride ?? selectedRetryItemIndexes
+    );
+    const retryIndexes = allowedRetryIndexes.filter((index) =>
+      requestedRetryIndexes.has(index)
+    );
     if (retryIndexes.length === 0) return;
     const retryPlan = buildPageImportRetryPlan(plan, retryIndexes);
     setPlan(retryPlan);
-    await runImportPlan(retryPlan, "keep-successful", { retryRun: true });
+    await runImportPlan(retryPlan, "keep-successful", {
+      retryRun: true,
+      selectedRetryItemIndexes: retryIndexes,
+      selectableRetryItemCount: allowedRetryIndexes.length,
+    });
   };
 
   const handleExportLastReceipt = () => {
@@ -374,10 +397,33 @@ export default function PageImportPlanPanel() {
     return progressPlan.items.slice(start, start + 5);
   }, [activeImportPlan, importProgress.done, importProgress.status, plan]);
 
-  const retryableImportItemCount = useMemo(
-    () => result?.item_results.filter(isOneClickRetryableImportItem).length ?? 0,
+  const retryableImportItems = useMemo(
+    () => result?.item_results.filter(isOneClickRetryableImportItem) ?? [],
     [result]
   );
+  const retryableImportItemCount = retryableImportItems.length;
+  const selectedRetryItemCount = useMemo(() => {
+    const retryableIndexSet = new Set(retryableImportItems.map((item) => item.index));
+    return selectedRetryItemIndexes.filter((index) =>
+      retryableIndexSet.has(index)
+    ).length;
+  }, [retryableImportItems, selectedRetryItemIndexes]);
+
+  const handleToggleRetryItem = (index: number) => {
+    setSelectedRetryItemIndexes((current) =>
+      current.includes(index)
+        ? current.filter((itemIndex) => itemIndex !== index)
+        : [...current, index].sort((a, b) => a - b)
+    );
+  };
+
+  const handleSelectAllRetryItems = () => {
+    setSelectedRetryItemIndexes(retryableImportItems.map((item) => item.index));
+  };
+
+  const handleClearRetryItems = () => {
+    setSelectedRetryItemIndexes([]);
+  };
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
@@ -753,10 +799,25 @@ export default function PageImportPlanPanel() {
               )}
               <ImportItemExecutionSummary
                 result={result}
-                onRetry={
-                  retryableImportItemCount > 0 ? handleRetryImport : undefined
+                onRetryAll={
+                  retryableImportItemCount > 0
+                    ? () =>
+                        void handleRetryImport(
+                          retryableImportItems.map((item) => item.index)
+                        )
+                    : undefined
                 }
+                onRetrySelected={
+                  selectedRetryItemCount > 0
+                    ? () => void handleRetryImport(selectedRetryItemIndexes)
+                    : undefined
+                }
+                selectedRetryItemIndexes={selectedRetryItemIndexes}
+                onToggleRetryItem={handleToggleRetryItem}
+                onSelectAllRetryItems={handleSelectAllRetryItems}
+                onClearRetryItems={handleClearRetryItems}
                 retryableImportItemCount={retryableImportItemCount}
+                selectedRetryItemCount={selectedRetryItemCount}
                 retrying={importing}
               />
             </div>
@@ -807,19 +868,35 @@ function Metric({
 
 function ImportItemExecutionSummary({
   result,
-  onRetry,
+  onRetryAll,
+  onRetrySelected,
+  selectedRetryItemIndexes,
+  onToggleRetryItem,
+  onSelectAllRetryItems,
+  onClearRetryItems,
   retryableImportItemCount,
+  selectedRetryItemCount,
   retrying,
 }: {
   result: PageImportExecutionResult;
-  onRetry?: () => void;
+  onRetryAll?: () => void;
+  onRetrySelected?: () => void;
+  selectedRetryItemIndexes: number[];
+  onToggleRetryItem: (index: number) => void;
+  onSelectAllRetryItems: () => void;
+  onClearRetryItems: () => void;
   retryableImportItemCount: number;
+  selectedRetryItemCount: number;
   retrying: boolean;
 }) {
   if (result.item_results.length === 0) return null;
 
   const visibleItems = result.item_results.slice(0, 8);
   const hiddenItems = result.item_results.length - visibleItems.length;
+  const retryableItems = result.item_results.filter(isOneClickRetryableImportItem);
+  const visibleRetryableItems = retryableItems.slice(0, 30);
+  const hiddenRetryableItems = retryableItems.length - visibleRetryableItems.length;
+  const selectedRetryItemIndexSet = new Set(selectedRetryItemIndexes);
 
   return (
     <div className="mt-3 rounded-md border border-current/20 bg-white/50 px-3 py-3 dark:bg-black/20">
@@ -880,20 +957,121 @@ function ImportItemExecutionSummary({
           还有 {hiddenItems} 项未展开；完整状态会写入本地 receipt，仍不包含文件名或正文。
         </p>
       )}
-      {onRetry && retryableImportItemCount > 0 && (
-        <button
-          type="button"
-          onClick={onRetry}
-          disabled={retrying}
-          className="mt-3 rounded-md border border-current/30 px-2 py-1 text-xs font-medium transition-colors hover:bg-current/10 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {retrying
-            ? "重试中..."
-            : `只重试失败/未执行/已回退项（${retryableImportItemCount}）`}
-        </button>
+      {retryableImportItemCount > 0 && (
+        <div className="mt-3 rounded-md border border-current/20 bg-white/70 px-3 py-3 dark:bg-black/20">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-medium">失败项修复工作台</p>
+              <p className="mt-0.5 text-xs leading-5 opacity-75">
+                筛选范围：失败 / 未执行 / 已回退。已选择{" "}
+                {selectedRetryItemCount} / {retryableImportItemCount} 项；receipt
+                只记录序号和类型，不含文件名。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onSelectAllRetryItems}
+                disabled={retrying}
+                className="rounded-md border border-current/30 px-2 py-1 text-xs font-medium transition-colors hover:bg-current/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                全选可重试项
+              </button>
+              <button
+                type="button"
+                onClick={onClearRetryItems}
+                disabled={retrying || selectedRetryItemCount === 0}
+                className="rounded-md border border-current/30 px-2 py-1 text-xs font-medium transition-colors hover:bg-current/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                清空选择
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[580px] text-left text-xs">
+              <thead className="opacity-70">
+                <tr>
+                  <th className="py-1 pr-3 font-medium">选择</th>
+                  <th className="py-1 pr-3 font-medium">#</th>
+                  <th className="py-1 pr-3 font-medium">类型</th>
+                  <th className="py-1 pr-3 font-medium">状态</th>
+                  <th className="py-1 pr-3 font-medium">动作</th>
+                  <th className="py-1 font-medium">说明</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-current/10">
+                {visibleRetryableItems.map((item) => {
+                  const statusBadge = ITEM_STATUS_BADGE[item.status];
+                  return (
+                    <tr key={`retry-workbench-${item.index}`}>
+                      <td className="py-1.5 pr-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedRetryItemIndexSet.has(item.index)}
+                          disabled={retrying}
+                          onChange={() => onToggleRetryItem(item.index)}
+                          aria-label={`选择第 ${item.index} 个导入项重试`}
+                          className="h-3.5 w-3.5 rounded border-current/30"
+                        />
+                      </td>
+                      <td className="py-1.5 pr-3 opacity-80">{item.index}</td>
+                      <td className="py-1.5 pr-3 opacity-80">
+                        {item.extension || "unknown"}
+                      </td>
+                      <td className="py-1.5 pr-3">
+                        <span
+                          className={`inline-block rounded px-1.5 py-0.5 font-medium ${statusBadge.className}`}
+                        >
+                          {statusBadge.label}
+                        </span>
+                      </td>
+                      <td className="py-1.5 pr-3 opacity-80">
+                        {ITEM_ACTION_LABEL[item.action]}
+                      </td>
+                      <td className="py-1.5 opacity-80">{item.note}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {hiddenRetryableItems > 0 && (
+            <p className="mt-2 text-xs opacity-70">
+              还有 {hiddenRetryableItems} 个可重试项未展开；可用“全选可重试项”一并纳入。
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onRetrySelected}
+              disabled={retrying || selectedRetryItemCount === 0}
+              className="rounded-md border border-current/30 px-2 py-1 text-xs font-medium transition-colors hover:bg-current/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {retrying
+                ? "重试中..."
+                : `重试已选择（${selectedRetryItemCount}）`}
+            </button>
+            {onRetryAll && (
+              <button
+                type="button"
+                onClick={onRetryAll}
+                disabled={retrying}
+                className="rounded-md border border-current/30 px-2 py-1 text-xs font-medium transition-colors hover:bg-current/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {retrying
+                  ? "重试中..."
+                  : `只重试失败/未执行/已回退项（${retryableImportItemCount}）`}
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
+}
+
+function getRetryableImportItemIndexes(items: PageImportItemExecutionResult[]) {
+  return items.filter(isOneClickRetryableImportItem).map((item) => item.index);
 }
 
 function isOneClickRetryableImportItem(item: PageImportItemExecutionResult) {
