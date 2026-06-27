@@ -1349,8 +1349,13 @@ function SyncDashboard() {
       pending: 0,
       queued: 0,
       syncLogPending: 0,
+      failed: 0,
       oldestPendingQueuedAt: null,
+      lastAttemptAt: null,
+      lastFailureAt: null,
+      lastFailureMessage: null,
       pendingSampleKeys: [],
+      failedSampleKeys: [],
       authRetryStatus: null,
       authRetryUntil: null,
       lastSyncAt: null,
@@ -15802,9 +15807,17 @@ function PagePendingQueueDetails({
 }) {
   const totalWaiting = status.pending + status.queued;
   const stateLabel =
-    totalWaiting > 0 ? "待补传" : status.enabled ? "队列清空" : "同步关闭";
+    status.failed > 0
+      ? "待重试"
+      : totalWaiting > 0
+        ? "待补传"
+        : status.enabled
+          ? "队列清空"
+          : "同步关闭";
   const stateClass =
-    totalWaiting > 0
+    status.failed > 0
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : totalWaiting > 0
       ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
       : status.enabled
         ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
@@ -15819,6 +15832,20 @@ function PagePendingQueueDetails({
       label: "内存批次",
       value: String(status.queued),
       detail: "当前浏览器会话内等待合并的页面。",
+    },
+    {
+      label: "失败回执",
+      value: status.failed > 0 ? `${status.failed} 条` : "无",
+      detail: status.lastFailureMessage
+        ? `最近失败：${status.lastFailureMessage}`
+        : "没有云端拒绝或网络失败记录。",
+    },
+    {
+      label: "最近尝试",
+      value: status.lastAttemptAt ? formatDate(status.lastAttemptAt) : "暂无尝试",
+      detail: status.lastFailureAt
+        ? `最近失败 ${formatDate(status.lastFailureAt)}。`
+        : "用于判断后台补传是否仍在自动重试。",
     },
     {
       label: "最早排队",
@@ -15848,7 +15875,7 @@ function PagePendingQueueDetails({
       data-testid="page-pending-queue-details"
       className="mt-3 space-y-3"
     >
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {queueFacts.map((fact) => (
           <div
             key={fact.label}
@@ -15908,6 +15935,24 @@ function PagePendingQueueDetails({
             为保护隐私，这里只展示少量样本 page id。
           </p>
         ) : null}
+        {status.failedSampleIds.length > 0 ? (
+          <div className="mt-3 rounded-md border border-red-100 bg-red-50 p-2 dark:border-red-950 dark:bg-red-950/30">
+            <div className="text-[11px] font-semibold text-red-700 dark:text-red-300">
+              最近失败样本
+            </div>
+            <ul className="mt-2 space-y-1">
+              {status.failedSampleIds.map((pageId, index) => (
+                <li
+                  key={`${pageId}-${index}`}
+                  data-testid="page-pending-failed-sample-id"
+                  className="rounded bg-white px-2 py-1 font-mono text-[11px] text-red-600 dark:bg-red-950 dark:text-red-300"
+                >
+                  {pageId}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
 
       <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
@@ -15925,9 +15970,17 @@ function DatabasePendingQueueDetails({
 }) {
   const totalWaiting = status.pending + status.queued + status.syncLogPending;
   const stateLabel =
-    totalWaiting > 0 ? "待补传" : status.enabled ? "队列清空" : "同步关闭";
+    status.failed > 0
+      ? "待重试"
+      : totalWaiting > 0
+        ? "待补传"
+        : status.enabled
+          ? "队列清空"
+          : "同步关闭";
   const stateClass =
-    totalWaiting > 0
+    status.failed > 0
+      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      : totalWaiting > 0
       ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
       : status.enabled
         ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
@@ -15947,6 +16000,20 @@ function DatabasePendingQueueDetails({
       label: "内存批次",
       value: String(status.queued),
       detail: "当前浏览器会话内等待合并的数据库记录。",
+    },
+    {
+      label: "失败回执",
+      value: status.failed > 0 ? `${status.failed} 条` : "无",
+      detail: status.lastFailureMessage
+        ? `最近失败：${status.lastFailureMessage}`
+        : "没有云端拒绝或网络失败记录。",
+    },
+    {
+      label: "最近尝试",
+      value: status.lastAttemptAt ? formatDate(status.lastAttemptAt) : "暂无尝试",
+      detail: status.lastFailureAt
+        ? `最近失败 ${formatDate(status.lastFailureAt)}。`
+        : "用于判断后台补传是否仍在自动重试。",
     },
     {
       label: "最早排队",
@@ -15976,7 +16043,7 @@ function DatabasePendingQueueDetails({
       data-testid="database-pending-queue-details"
       className="mt-3 space-y-3"
     >
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {queueFacts.map((fact) => (
           <div
             key={fact.label}
@@ -16036,6 +16103,24 @@ function DatabasePendingQueueDetails({
             还有 {status.pending - status.pendingSampleKeys.length} 个数据库 key 未展开显示；
             为保护隐私，这里只展示少量样本 key。
           </p>
+        ) : null}
+        {status.failedSampleKeys.length > 0 ? (
+          <div className="mt-3 rounded-md border border-red-100 bg-red-50 p-2 dark:border-red-950 dark:bg-red-950/30">
+            <div className="text-[11px] font-semibold text-red-700 dark:text-red-300">
+              最近失败样本
+            </div>
+            <ul className="mt-2 space-y-1">
+              {status.failedSampleKeys.map((key, index) => (
+                <li
+                  key={`${key}-${index}`}
+                  data-testid="database-pending-failed-sample-key"
+                  className="rounded bg-white px-2 py-1 font-mono text-[11px] text-red-600 dark:bg-red-950 dark:text-red-300"
+                >
+                  {key}
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
         <p className="mt-3 rounded bg-zinc-50 px-2 py-1 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-300">
           普通同步只会补传 pending queue 里的数据库变更，不会把本地数据库缓存全量上传。

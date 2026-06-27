@@ -5678,6 +5678,22 @@ function run() {
       "Database pending status must expose metadata-only sample keys.",
     ],
     [
+      "markPendingCloudDatabasePushAttemptRecords",
+      "Database pending queue must record upload attempts for ACK visibility.",
+    ],
+    [
+      "markPendingCloudDatabasePushFailedRecords",
+      "Database pending queue must preserve failed upload receipts for retry visibility.",
+    ],
+    [
+      "failedSampleKeys",
+      "Database pending status must expose metadata-only failed sample keys.",
+    ],
+    [
+      "lastFailureMessage",
+      "Database pending status must expose the latest failure reason without reading row values.",
+    ],
+    [
       "authRetryStatus: authRetry.status",
       "Database pending status must expose auth retry status metadata.",
     ],
@@ -12517,6 +12533,30 @@ function run() {
       accountPageSync,
       "pendingSampleIds",
       "Account page sync pending status must expose a small metadata-only page id sample.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "markPendingCloudPushAttemptRecords",
+      "Account page sync pending queue must record upload attempts for ACK visibility.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "markPendingCloudPushFailedRecords",
+      "Account page sync pending queue must preserve failed upload receipts for retry visibility.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "failedSampleIds",
+      "Account page sync pending status must expose metadata-only failed sample ids.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "lastFailureMessage",
+      "Account page sync pending status must expose the latest failure reason without reading page bodies.",
     ],
     [
       files.accountPageSync,

@@ -332,7 +332,9 @@ export default function Sidebar() {
     databaseSync.pendingStatus.queued +
     databaseSync.pendingStatus.syncLogPending;
   const pageSyncTitle =
-    pageSyncPendingTotal > 0
+    pageSync.pendingStatus.failed > 0
+      ? `页面同步：${pageSync.pendingStatus.failed} 个待重试；打开同步中心查看最近失败原因`
+      : pageSyncPendingTotal > 0
       ? `页面同步：${pageSyncPendingTotal} 个待上传；普通同步只补传 pending queue`
       : pageSync.state === "synced"
         ? `页面已同步${
@@ -346,7 +348,9 @@ export default function Sidebar() {
             ? "页面同步：未登录"
             : "页面同步出错";
   const databaseSyncTitle =
-    databaseSyncPendingTotal > 0
+    databaseSync.pendingStatus.failed > 0
+      ? `数据库同步：${databaseSync.pendingStatus.failed} 条待重试；打开同步中心查看最近失败原因`
+      : databaseSyncPendingTotal > 0
       ? `数据库同步：${databaseSyncPendingTotal} 条待上传；普通同步只补传 pending queue`
       : databaseSync.state === "synced"
         ? `数据库已同步${

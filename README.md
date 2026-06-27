@@ -1269,6 +1269,10 @@ Current local actions:
   does not read page bodies, database row values, comment bodies, file bytes,
   secrets, or remote data; it does not upload, clear cache, or write server
   data.
+- Inspect page/database pending queues with ACK-style retry visibility:
+  last upload attempt time, failed receipt count, latest failure reason, and a
+  small failed id/key sample. This is still metadata-only: it does not read page
+  bodies, database row values, comments, or files.
 - Review the owner-facing Web launch decision summary. It combines the Web
   launch workbench, Web Alpha launch decision receipt, and Web Beta owner
   review into a top-level go/no-go view: local build can continue, but preview

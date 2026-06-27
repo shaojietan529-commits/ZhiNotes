@@ -156,8 +156,13 @@ export interface PendingCloudDatabaseSyncStatus {
   pending: number;
   queued: number;
   syncLogPending: number;
+  failed: number;
   oldestPendingQueuedAt: string | null;
+  lastAttemptAt: string | null;
+  lastFailureAt: string | null;
+  lastFailureMessage: string | null;
   pendingSampleKeys: string[];
+  failedSampleKeys: string[];
   authRetryStatus: DatabaseSyncStatus | null;
   authRetryUntil: string | null;
   lastSyncAt: string | null;
@@ -165,6 +170,10 @@ export interface PendingCloudDatabaseSyncStatus {
 
 interface PendingCloudDatabasePushMetaEntry {
   queuedAt: string;
+  lastAttemptAt?: string;
+  lastFailureAt?: string;
+  lastError?: string;
+  failureCount?: number;
 }
 
 type PendingCloudDatabasePushMeta = Record<
@@ -461,11 +470,33 @@ function getPendingCloudDatabasePushMeta(): PendingCloudDatabasePushMeta {
         continue;
       }
       const queuedAt = (value as { queuedAt?: unknown }).queuedAt;
+      const lastAttemptAt = (value as { lastAttemptAt?: unknown })
+        .lastAttemptAt;
+      const lastFailureAt = (value as { lastFailureAt?: unknown })
+        .lastFailureAt;
+      const lastError = (value as { lastError?: unknown }).lastError;
+      const failureCount = (value as { failureCount?: unknown }).failureCount;
       if (
         typeof queuedAt === "string" &&
         !Number.isNaN(Date.parse(queuedAt))
       ) {
-        next[key] = { queuedAt };
+        next[key] = {
+          queuedAt,
+          ...(typeof lastAttemptAt === "string" &&
+          !Number.isNaN(Date.parse(lastAttemptAt))
+            ? { lastAttemptAt }
+            : {}),
+          ...(typeof lastFailureAt === "string" &&
+          !Number.isNaN(Date.parse(lastFailureAt))
+            ? { lastFailureAt }
+            : {}),
+          ...(typeof lastError === "string" && lastError.trim()
+            ? { lastError: lastError.slice(0, 220) }
+            : {}),
+          ...(typeof failureCount === "number" && failureCount > 0
+            ? { failureCount: Math.min(Math.floor(failureCount), 999) }
+            : {}),
+        };
       }
     }
     return next;
@@ -484,7 +515,13 @@ function setPendingCloudDatabasePushMeta(
       typeof value.queuedAt === "string" &&
       !Number.isNaN(Date.parse(value.queuedAt))
     ) {
-      next[key] = { queuedAt: value.queuedAt };
+      next[key] = {
+        queuedAt: value.queuedAt,
+        ...(value.lastAttemptAt ? { lastAttemptAt: value.lastAttemptAt } : {}),
+        ...(value.lastFailureAt ? { lastFailureAt: value.lastFailureAt } : {}),
+        ...(value.lastError ? { lastError: value.lastError.slice(0, 220) } : {}),
+        ...(value.failureCount ? { failureCount: value.failureCount } : {}),
+      };
     }
   }
   if (Object.keys(next).length === 0) {
@@ -1240,8 +1277,12 @@ export async function pushCloudDatabaseRecords(
   if (records.length === 0) {
     return { status: "ok", accepted: [], skipped: [] };
   }
+  markPendingCloudDatabasePushAttemptRecords(records);
+  emitDatabaseSyncStatusChanged();
   const res = await call({ action: "push", records });
   if (!res.ok) {
+    markPendingCloudDatabasePushFailedRecords(records, res.status, res.message);
+    emitDatabaseSyncStatusChanged();
     return {
       status: res.status,
       accepted: [],
@@ -1259,6 +1300,49 @@ export async function pushCloudDatabaseRecords(
   clearPendingCloudDatabasePushKeys(acknowledgedKeys);
   setLastDatabaseSyncAtNow();
   return { status: "ok", accepted, skipped };
+}
+
+function markPendingCloudDatabasePushAttemptRecords(
+  records: CloudDatabaseRecord[]
+): void {
+  const attemptedAt = new Date().toISOString();
+  const meta = getPendingCloudDatabasePushMeta();
+  const next: PendingCloudDatabasePushMeta = { ...meta };
+  for (const record of records) {
+    const key = getRemoteDatabaseRecordKey(record);
+    if (!meta[key] || !isValidRecordKey(key)) continue;
+    next[key] = {
+      ...meta[key],
+      queuedAt: meta[key].queuedAt,
+      lastAttemptAt: attemptedAt,
+    };
+  }
+  setPendingCloudDatabasePushMeta(next);
+}
+
+function markPendingCloudDatabasePushFailedRecords(
+  records: CloudDatabaseRecord[],
+  status: DatabaseSyncStatus,
+  message?: string
+): void {
+  const failedAt = new Date().toISOString();
+  const meta = getPendingCloudDatabasePushMeta();
+  const next: PendingCloudDatabasePushMeta = { ...meta };
+  const reason = normalizePendingCloudDatabasePushError(status, message);
+  for (const record of records) {
+    const key = getRemoteDatabaseRecordKey(record);
+    const previous = meta[key];
+    if (!previous || !isValidRecordKey(key)) continue;
+    next[key] = {
+      ...previous,
+      queuedAt: previous.queuedAt,
+      lastAttemptAt: failedAt,
+      lastFailureAt: failedAt,
+      lastError: reason,
+      failureCount: Math.min((previous.failureCount ?? 0) + 1, 999),
+    };
+  }
+  setPendingCloudDatabasePushMeta(next);
 }
 
 async function markAcknowledgedDatabaseSyncKeys(keys: string[]): Promise<void> {
@@ -1347,6 +1431,9 @@ export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudD
   const pendingKeys = getPendingCloudDatabasePushKeys();
   const pendingMeta = getPendingCloudDatabasePushMeta();
   const authRetry = getAuthRetrySnapshot();
+  const failedKeys = pendingKeys.filter((key) =>
+    Boolean(pendingMeta[key]?.lastError)
+  );
   const oldestPendingQueuedAt = pendingKeys.reduce<string | null>(
     (oldest, key) => {
       const queuedAt = pendingMeta[key]?.queuedAt ?? null;
@@ -1356,13 +1443,28 @@ export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudD
     },
     null
   );
+  const lastAttemptAt = newestIso(
+    pendingKeys.map((key) => pendingMeta[key]?.lastAttemptAt ?? null)
+  );
+  const latestFailedKey = failedKeys
+    .map((key) => ({ key, failedAt: pendingMeta[key]?.lastFailureAt ?? "" }))
+    .sort((left, right) => right.failedAt.localeCompare(left.failedAt))[0]?.key;
   return {
     enabled: isDatabaseSyncEnabled(),
     pending: pendingKeys.length,
     queued: queuedCloudDatabasePush.size,
     syncLogPending,
+    failed: failedKeys.length,
     oldestPendingQueuedAt,
+    lastAttemptAt,
+    lastFailureAt: latestFailedKey
+      ? pendingMeta[latestFailedKey]?.lastFailureAt ?? null
+      : null,
+    lastFailureMessage: latestFailedKey
+      ? pendingMeta[latestFailedKey]?.lastError ?? null
+      : null,
     pendingSampleKeys: pendingKeys.slice(0, 5),
+    failedSampleKeys: failedKeys.slice(0, 5),
     authRetryStatus: authRetry.status,
     authRetryUntil: authRetry.until,
     lastSyncAt: getLastDatabaseSyncAt(),
@@ -1719,4 +1821,22 @@ export async function rebuildDatabaseCacheFromCloud(): Promise<RebuildDatabaseCa
     pulled,
     total: keys.length,
   };
+}
+
+function normalizePendingCloudDatabasePushError(
+  status: DatabaseSyncStatus,
+  message?: string
+): string {
+  const detail = message?.trim();
+  const raw = detail ? `${status}: ${detail}` : status;
+  return raw.slice(0, 220);
+}
+
+function newestIso(values: Array<string | null | undefined>): string | null {
+  let newest: string | null = null;
+  for (const value of values) {
+    if (!value || Number.isNaN(Date.parse(value))) continue;
+    if (!newest || value > newest) newest = value;
+  }
+  return newest;
 }

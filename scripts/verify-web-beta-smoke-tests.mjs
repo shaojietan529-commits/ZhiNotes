@@ -4960,6 +4960,30 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "markPendingCloudPushAttemptRecords",
+    "Page pending queue must record upload attempts for ACK visibility."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "markPendingCloudPushFailedRecords",
+    "Page pending queue must preserve failed upload receipts for retry visibility."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "failedSampleIds",
+    "Page pending status must expose metadata-only failed sample ids."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "lastFailureMessage",
+    "Page pending status must expose the latest failure reason without reading page bodies."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "authRetryStatus: authRetry.status",
     "Smoke verifier must keep page auth retry status visible in pending metadata."
   );
@@ -4986,6 +5010,18 @@ function run() {
     syncShell,
     "下次自动重试",
     "Sync UI must show when auth retry backoff will retry."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "最近失败样本",
+    "Sync UI must show failed pending queue samples for retry diagnosis."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "最近尝试",
+    "Sync UI must show the latest pending upload attempt time."
   );
   assertIncludes(
     files.accountPageSync,
@@ -5136,6 +5172,30 @@ function run() {
     accountDatabaseSync,
     "pendingSampleKeys",
     "Database pending status must expose metadata-only sample keys."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "markPendingCloudDatabasePushAttemptRecords",
+    "Database pending queue must record upload attempts for ACK visibility."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "markPendingCloudDatabasePushFailedRecords",
+    "Database pending queue must preserve failed upload receipts for retry visibility."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "failedSampleKeys",
+    "Database pending status must expose metadata-only failed sample keys."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "lastFailureMessage",
+    "Database pending status must expose the latest failure reason without reading row values."
   );
   assertIncludes(
     files.accountDatabaseSync,

@@ -71,6 +71,8 @@ export interface CloudNativeFluidityReport {
     blockers: number;
     page_pending_rows: number;
     database_pending_rows: number;
+    page_failed_rows: number;
+    database_failed_rows: number;
     sync_log_pending_rows: number;
     hot_cache_ready_jobs: number;
     hot_cache_route_targets: number;
@@ -97,6 +99,7 @@ export function buildCloudNativeFluidityReport(
     input.databaseStatus.pending +
     input.databaseStatus.queued +
     input.databaseStatus.syncLogPending;
+  const failedRows = input.pageStatus.failed + input.databaseStatus.failed;
   const totalPendingRows =
     pagePendingRows + databasePendingRows + (input.syncSummary?.pending ?? 0);
   const hotCacheIndexRows = input.hotCacheLocalIndexSummary?.summary.rows ?? 0;
@@ -154,13 +157,17 @@ export function buildCloudNativeFluidityReport(
       title: "待上传队列可见且受保护",
       status: totalPendingRows === 0 ? "pass" : "warn",
       evidence:
-        totalPendingRows === 0
+        failedRows > 0
+          ? `当前共有 ${failedRows} 条待上传记录带失败回执；最近失败：${input.pageStatus.lastFailureMessage ?? input.databaseStatus.lastFailureMessage ?? "未记录原因"}。`
+          : totalPendingRows === 0
           ? "当前没有待上传队列，云端和本地更容易对齐。"
           : `当前共有 ${totalPendingRows} 条待上传/排队记录；这是本地级输入体验的缓冲区，不应被清理。`,
       target: "输入先写本地，再进入 pending queue，云端确认前不能丢。",
       next_action:
         totalPendingRows === 0
           ? "可以继续做云端 manifest 对账和缓存重建预检。"
+          : failedRows > 0
+            ? "先查看失败回执并等待后台重试；不要在失败 pending 未确认前重建缓存。"
           : "先让后台同步补传；pending 未清零前不要重建本地缓存。",
     },
     {
@@ -281,6 +288,8 @@ export function buildCloudNativeFluidityReport(
       blockers,
       page_pending_rows: pagePendingRows,
       database_pending_rows: databasePendingRows,
+      page_failed_rows: input.pageStatus.failed,
+      database_failed_rows: input.databaseStatus.failed,
       sync_log_pending_rows: input.syncSummary?.pending ?? 0,
       hot_cache_ready_jobs: hotCacheReadyJobs,
       hot_cache_route_targets: hotCacheRouteTargets,
@@ -293,6 +302,8 @@ export function buildCloudNativeFluidityReport(
     metrics: [
       metric("page-pending", "页面 pending", pagePendingRows, "rows", "0 条为最佳", pagePendingRows === 0 ? "pass" : "warn"),
       metric("database-pending", "数据库 pending", databasePendingRows, "rows", "0 条为最佳", databasePendingRows === 0 ? "pass" : "warn"),
+      metric("page-failed-ack", "页面失败回执", input.pageStatus.failed, "rows", "0 条为最佳", input.pageStatus.failed === 0 ? "pass" : "warn"),
+      metric("database-failed-ack", "数据库失败回执", input.databaseStatus.failed, "rows", "0 条为最佳", input.databaseStatus.failed === 0 ? "pass" : "warn"),
       metric("hot-cache-routes", "可预热入口", hotCacheRouteTargets, "routes", "大于 0 且已写索引", hotCacheIndexRows > 0 ? "pass" : "warn"),
       metric("hot-cache-index", "热缓存索引", hotCacheIndexRows, "routes", "运行预热后应大于 0", hotCacheIndexRows > 0 ? "pass" : "warn"),
       metric("performance-samples", "耗时样本", input.performanceSnapshots.length, "samples", `${MIN_PERFORMANCE_SAMPLES}+`, input.performanceSnapshots.length >= MIN_PERFORMANCE_SAMPLES ? "pass" : "warn"),

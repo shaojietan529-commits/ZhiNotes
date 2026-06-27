@@ -127,8 +127,13 @@ export interface PendingCloudPageSyncStatus {
   enabled: boolean;
   pending: number;
   queued: number;
+  failed: number;
   oldestPendingQueuedAt: string | null;
+  lastAttemptAt: string | null;
+  lastFailureAt: string | null;
+  lastFailureMessage: string | null;
   pendingSampleIds: string[];
+  failedSampleIds: string[];
   authRetryStatus: PageSyncStatus | null;
   authRetryUntil: string | null;
   lastSyncAt: string | null;
@@ -136,6 +141,10 @@ export interface PendingCloudPageSyncStatus {
 
 interface PendingCloudPushMetaEntry {
   queuedAt: string;
+  lastAttemptAt?: string;
+  lastFailureAt?: string;
+  lastError?: string;
+  failureCount?: number;
 }
 
 type PendingCloudPushMeta = Record<string, PendingCloudPushMetaEntry>;
@@ -954,12 +963,15 @@ export async function pushCloudPages(
   records: RemotePageRecord[]
 ): Promise<PushCloudPagesResult> {
   markPendingCloudPushRecords(records);
+  markPendingCloudPushAttemptRecords(records);
   emitPageSyncStatusChanged();
   if (!isPageSyncEnabled()) {
     return { status: "disabled", accepted: [], skipped: [] };
   }
   const res = await call({ action: "push", pages: records });
   if (!res.ok) {
+    markPendingCloudPushFailedRecords(records, res.status, res.message);
+    emitPageSyncStatusChanged();
     return {
       status: res.status,
       accepted: [],
@@ -1617,11 +1629,33 @@ function getPendingCloudPushMeta(): PendingCloudPushMeta {
         continue;
       }
       const queuedAt = (value as { queuedAt?: unknown }).queuedAt;
+      const lastAttemptAt = (value as { lastAttemptAt?: unknown })
+        .lastAttemptAt;
+      const lastFailureAt = (value as { lastFailureAt?: unknown })
+        .lastFailureAt;
+      const lastError = (value as { lastError?: unknown }).lastError;
+      const failureCount = (value as { failureCount?: unknown }).failureCount;
       if (
         typeof queuedAt === "string" &&
         !Number.isNaN(Date.parse(queuedAt))
       ) {
-        next[id] = { queuedAt };
+        next[id] = {
+          queuedAt,
+          ...(typeof lastAttemptAt === "string" &&
+          !Number.isNaN(Date.parse(lastAttemptAt))
+            ? { lastAttemptAt }
+            : {}),
+          ...(typeof lastFailureAt === "string" &&
+          !Number.isNaN(Date.parse(lastFailureAt))
+            ? { lastFailureAt }
+            : {}),
+          ...(typeof lastError === "string" && lastError.trim()
+            ? { lastError: lastError.slice(0, 220) }
+            : {}),
+          ...(typeof failureCount === "number" && failureCount > 0
+            ? { failureCount: Math.min(Math.floor(failureCount), 999) }
+            : {}),
+        };
       }
     }
     return next;
@@ -1638,7 +1672,13 @@ function setPendingCloudPushMeta(meta: PendingCloudPushMeta): void {
       typeof value.queuedAt === "string" &&
       !Number.isNaN(Date.parse(value.queuedAt))
     ) {
-      next[id] = { queuedAt: value.queuedAt };
+      next[id] = {
+        queuedAt: value.queuedAt,
+        ...(value.lastAttemptAt ? { lastAttemptAt: value.lastAttemptAt } : {}),
+        ...(value.lastFailureAt ? { lastFailureAt: value.lastFailureAt } : {}),
+        ...(value.lastError ? { lastError: value.lastError.slice(0, 220) } : {}),
+        ...(value.failureCount ? { failureCount: value.failureCount } : {}),
+      };
     }
   }
   if (Object.keys(next).length === 0) {
@@ -1679,6 +1719,46 @@ function markPendingCloudPushRecords(records: RemotePageRecord[]): void {
   }
 }
 
+function markPendingCloudPushAttemptRecords(records: RemotePageRecord[]): void {
+  const attemptedAt = new Date().toISOString();
+  const meta = getPendingCloudPushMeta();
+  const next: PendingCloudPushMeta = { ...meta };
+  for (const record of records) {
+    if (!isValidRemotePageId(record.id)) continue;
+    const previous = meta[record.id];
+    next[record.id] = {
+      ...previous,
+      queuedAt: previous?.queuedAt ?? attemptedAt,
+      lastAttemptAt: attemptedAt,
+    };
+  }
+  setPendingCloudPushMeta(next);
+}
+
+function markPendingCloudPushFailedRecords(
+  records: RemotePageRecord[],
+  status: PageSyncStatus,
+  message?: string
+): void {
+  const failedAt = new Date().toISOString();
+  const meta = getPendingCloudPushMeta();
+  const next: PendingCloudPushMeta = { ...meta };
+  const reason = normalizePendingCloudPushError(status, message);
+  for (const record of records) {
+    if (!isValidRemotePageId(record.id)) continue;
+    const previous = meta[record.id];
+    next[record.id] = {
+      ...previous,
+      queuedAt: previous?.queuedAt ?? failedAt,
+      lastAttemptAt: failedAt,
+      lastFailureAt: failedAt,
+      lastError: reason,
+      failureCount: Math.min((previous?.failureCount ?? 0) + 1, 999),
+    };
+  }
+  setPendingCloudPushMeta(next);
+}
+
 function clearPendingCloudPushIds(ids: string[]): void {
   if (ids.length === 0) return;
   const cleared = new Set(ids.filter(isValidRemotePageId));
@@ -1693,19 +1773,35 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
   const pendingIds = getPendingCloudPushIds();
   const pendingMeta = getPendingCloudPushMeta();
   const authRetry = getAuthRetrySnapshot();
+  const failedIds = pendingIds.filter((id) => Boolean(pendingMeta[id]?.lastError));
   const oldestPendingQueuedAt = pendingIds.reduce<string | null>((oldest, id) => {
     const queuedAt = pendingMeta[id]?.queuedAt ?? null;
     if (!queuedAt) return oldest;
     if (!oldest) return queuedAt;
     return Date.parse(queuedAt) < Date.parse(oldest) ? queuedAt : oldest;
   }, null);
+  const lastAttemptAt = newestIso(
+    pendingIds.map((id) => pendingMeta[id]?.lastAttemptAt ?? null)
+  );
+  const latestFailedId = failedIds
+    .map((id) => ({ id, failedAt: pendingMeta[id]?.lastFailureAt ?? "" }))
+    .sort((left, right) => right.failedAt.localeCompare(left.failedAt))[0]?.id;
 
   return {
     enabled: isPageSyncEnabled(),
     pending: pendingIds.length,
     queued: queuedCloudPush.size,
+    failed: failedIds.length,
     oldestPendingQueuedAt,
+    lastAttemptAt,
+    lastFailureAt: latestFailedId
+      ? pendingMeta[latestFailedId]?.lastFailureAt ?? null
+      : null,
+    lastFailureMessage: latestFailedId
+      ? pendingMeta[latestFailedId]?.lastError ?? null
+      : null,
     pendingSampleIds: pendingIds.slice(0, 5),
+    failedSampleIds: failedIds.slice(0, 5),
     authRetryStatus: authRetry.status,
     authRetryUntil: authRetry.until,
     lastSyncAt: getLastPageSyncAt(),
@@ -1724,6 +1820,24 @@ function emitPageSyncStatusChanged(): void {
       detail: getPendingCloudPageSyncStatus(),
     })
   );
+}
+
+function normalizePendingCloudPushError(
+  status: PageSyncStatus,
+  message?: string
+): string {
+  const detail = message?.trim();
+  const raw = detail ? `${status}: ${detail}` : status;
+  return raw.slice(0, 220);
+}
+
+function newestIso(values: Array<string | null | undefined>): string | null {
+  let newest: string | null = null;
+  for (const value of values) {
+    if (!value || Number.isNaN(Date.parse(value))) continue;
+    if (!newest || value > newest) newest = value;
+  }
+  return newest;
 }
 
 function clearAllPendingCloudPushesForCacheRebuild(): void {
