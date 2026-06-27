@@ -77,6 +77,7 @@ import {
 } from "@/lib/performance/localPerformance";
 
 const loadEditorModule = () => import("@/components/editor/Editor");
+const PAGE_EDITOR_IDLE_TIMEOUT_MS = 120;
 
 const Editor = dynamic(loadEditorModule, {
   ssr: false,
@@ -1062,10 +1063,12 @@ function scheduleEditorMount(callback: () => void): () => void {
   let idleId: number | null = null;
   const frame = window.requestAnimationFrame(() => {
     if (maybeWindow.requestIdleCallback) {
-      idleId = maybeWindow.requestIdleCallback(callback, { timeout: 300 });
+      idleId = maybeWindow.requestIdleCallback(callback, {
+        timeout: PAGE_EDITOR_IDLE_TIMEOUT_MS,
+      });
       return;
     }
-    timer = window.setTimeout(callback, 60);
+    timer = window.setTimeout(callback, 40);
   });
   return () => {
     window.cancelAnimationFrame(frame);

@@ -1094,7 +1094,7 @@ check(
   pageShell.includes("scheduleEditorMount") &&
     pageShell.includes("scheduleDeferredMount") &&
     pageShell.includes("return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);") &&
-    pageShell.includes("requestIdleCallback(callback, { timeout: 300 })") &&
+    pageShell.includes("PAGE_EDITOR_IDLE_TIMEOUT_MS = 120") &&
     pageShell.includes("if (loading && !page)") &&
     pageShell.includes("editorMounted ?") &&
     pageShell.includes("PageBodySkeleton"),

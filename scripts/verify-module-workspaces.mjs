@@ -254,7 +254,7 @@ check(
     pageShell.includes("loading: () => <PageBodySkeleton />") &&
     !pageShell.includes("import Editor from \"@/components/editor/Editor\"") &&
     pageShell.includes("return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);") &&
-    pageShell.includes("requestIdleCallback(callback, { timeout: 300 })") &&
+    pageShell.includes("PAGE_EDITOR_IDLE_TIMEOUT_MS = 120") &&
     !pageShell.includes('from "@/hooks/usePages"') &&
     !pageShell.includes("usePages({") &&
     pageShell.includes("const upsertPages = useWorkspaceStore((s) => s.upsertPages)"),

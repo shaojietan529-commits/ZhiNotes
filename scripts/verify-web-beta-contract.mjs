@@ -2191,8 +2191,8 @@ function run() {
   assertSourceIncludes(
     files.pageShell,
     pageShell,
-    "requestIdleCallback(callback, { timeout: 300 })",
-    "Page shell editor warmup must use an idle callback so it does not compete with the route first paint."
+    "PAGE_EDITOR_IDLE_TIMEOUT_MS = 120",
+    "Page shell editor warmup must use a bounded short idle timeout so it does not compete with route first paint."
   );
   assertSourceIncludes(
     files.accountPageSync,
