@@ -2610,6 +2610,8 @@ function run() {
     "openPage(page, { source })",
     'openMeetingFullPage(entry.page, "meeting-open")',
     'openPage(pageId, { source: "meeting-open" })',
+    "const entriesById = useMemo(() =>",
+    "entriesById.get(pageId)?.page",
   ]) {
     assertIncludes(
       files.meetingScheduleShell,

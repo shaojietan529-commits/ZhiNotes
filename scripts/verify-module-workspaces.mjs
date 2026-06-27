@@ -655,6 +655,8 @@ check(
     shells.schedule.includes('openPage(page, { source: "meeting-create" })') &&
     shells.schedule.includes("openPage(page, { source })") &&
     shells.schedule.includes('openPage(pageId, { source: "meeting-open" })') &&
+    shells.schedule.includes("const entriesById = useMemo(() =>") &&
+    shells.schedule.includes("entriesById.get(pageId)?.page") &&
     shells.schedule.includes("openCreatedMeetingPage(result.page)") &&
     shells.schedule.includes("): CreateMeetingResult =>") &&
     shells.schedule.includes("const result = createMeetingPage(form") &&

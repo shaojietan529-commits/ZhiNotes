@@ -726,6 +726,12 @@ export default function MeetingScheduleShell() {
     [meetings]
   );
 
+  const entriesById = useMemo(() => {
+    const map = new Map<string, MeetingEntry>();
+    for (const entry of entries) map.set(entry.page.id, entry);
+    return map;
+  }, [entries]);
+
   const entriesByDate = useMemo(() => {
     const map = new Map<string, MeetingEntry[]>();
     for (const entry of entries) {
@@ -1490,7 +1496,7 @@ export default function MeetingScheduleShell() {
   const openMeetingFullPageById = useCallback(
     (pageId: string) => {
       const page =
-        meetings.find((item) => item.id === pageId) ??
+        entriesById.get(pageId)?.page ??
         (selectedMeeting?.page.id === pageId ? selectedMeeting.page : null) ??
         useWorkspaceStore.getState().getPageById(pageId) ??
         null;
@@ -1500,7 +1506,7 @@ export default function MeetingScheduleShell() {
       }
       openPage(pageId, { source: "meeting-open" });
     },
-    [meetings, openMeetingFullPage, openPage, selectedMeeting]
+    [entriesById, openMeetingFullPage, openPage, selectedMeeting]
   );
 
   const quickCreateMeetingForDate = useCallback(

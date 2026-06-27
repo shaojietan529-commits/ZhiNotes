@@ -2368,6 +2368,14 @@ function run() {
       "Meeting fallback page-id opens must still use local-first navigation when a metadata seed is available.",
     ],
     [
+      "const entriesById = useMemo(() =>",
+      "Meeting calendar must build a lightweight visible-month meeting id index for large imported workspaces.",
+    ],
+    [
+      "entriesById.get(pageId)?.page",
+      "Meeting full-page opening must use the visible-month meeting id index before checking the global workspace.",
+    ],
+    [
       "pageShellWarmupRef",
       "Meeting schedule must warm the full-page shell once instead of loading it only after a meeting opens.",
     ],
