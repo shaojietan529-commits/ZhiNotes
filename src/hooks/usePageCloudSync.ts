@@ -38,6 +38,10 @@ const PENDING_STATUS_SYNC_DELAY_MS = 1200;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.pagesync.leaderLease.v1";
 const LEASE_TTL_MS = 18 * 1000;
+const PAGE_PENDING_STORAGE_KEYS = new Set([
+  "zhinote.pagesync.pendingPushIds",
+  "zhinote.pagesync.pendingPushMeta",
+]);
 
 const EMPTY_PAGE_PENDING_STATUS: PendingCloudPageSyncStatus = {
   enabled: false,
@@ -237,6 +241,9 @@ export function usePageCloudSync() {
       }
       if (event.key?.startsWith("zhinote.pagesync.")) {
         refreshPendingStatus();
+        if (PAGE_PENDING_STORAGE_KEYS.has(event.key ?? "")) {
+          schedulePendingStatusSync();
+        }
       }
     };
     const handleStatus = (event: Event) => {

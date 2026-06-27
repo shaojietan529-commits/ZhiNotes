@@ -875,7 +875,9 @@ check(
     pageCloudSyncHook.includes("CustomEvent<PendingCloudPageSyncStatus>") &&
     pageCloudSyncHook.includes("PENDING_STATUS_SYNC_DELAY_MS") &&
     pageCloudSyncHook.includes("schedulePendingStatusSync") &&
-    pageCloudSyncHook.includes("detail.pending + detail.queued"),
+    pageCloudSyncHook.includes("detail.pending + detail.queued") &&
+    pageCloudSyncHook.includes("PAGE_PENDING_STORAGE_KEYS") &&
+    pageCloudSyncHook.includes('PAGE_PENDING_STORAGE_KEYS.has(event.key ?? "")'),
   "页面云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync"
 );
 check(
@@ -907,7 +909,9 @@ check(
     databaseCloudSyncHook.includes("CustomEvent<PendingCloudDatabaseSyncStatus>") &&
     databaseCloudSyncHook.includes("PENDING_STATUS_SYNC_DELAY_MS") &&
     databaseCloudSyncHook.includes("scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS)") &&
-    databaseCloudSyncHook.includes("detail.pending + detail.queued + detail.syncLogPending"),
+    databaseCloudSyncHook.includes("detail.pending + detail.queued + detail.syncLogPending") &&
+    databaseCloudSyncHook.includes("DATABASE_PENDING_STORAGE_KEY") &&
+    databaseCloudSyncHook.includes("event.key === DATABASE_PENDING_STORAGE_KEY"),
   "数据库云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync"
 );
 check(

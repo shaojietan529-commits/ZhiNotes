@@ -2674,6 +2674,18 @@ function run() {
   assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
+    "PAGE_PENDING_STORAGE_KEYS",
+    "Page cloud sync must restrict cross-tab quick syncs to page pending storage keys."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'PAGE_PENDING_STORAGE_KEYS.has(event.key ?? "")',
+    "Page cross-tab pending storage changes must trigger low-latency quick sync."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
     "window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate)",
     "Page cloud sync must listen for same-tab local page updates."
   );
@@ -4434,6 +4446,18 @@ function run() {
     databaseCloudSync,
     "detail.pending + detail.queued + detail.syncLogPending",
     "Database pending status quick sync must include all local pending queue sources."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "DATABASE_PENDING_STORAGE_KEY",
+    "Database cloud sync must restrict cross-tab quick syncs to the pending storage key."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "event.key === DATABASE_PENDING_STORAGE_KEY",
+    "Database cross-tab pending storage changes must trigger low-latency quick sync."
   );
   assertIncludes(
     files.accountDatabaseSync,
