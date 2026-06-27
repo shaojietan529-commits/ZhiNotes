@@ -559,6 +559,7 @@ check(
   shells.schedule.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
     shells.schedule.includes("creatingMeetingDateKey") &&
     shells.schedule.includes("pageShellWarmupRef") &&
+    shells.schedule.includes("useLocalFirstPageNavigation") &&
     shells.schedule.includes("warmMeetingPageRoute") &&
     shells.schedule.includes('import("@/components/providers/PageShell")') &&
     shells.schedule.includes("onPointerDown={warmMeetingPageRoute}") &&
@@ -566,7 +567,9 @@ check(
     shells.schedule.includes("openCreatedMeetingPage") &&
     meetingScheduleOpensCreatedPageRoute &&
     shells.schedule.includes("router.prefetch(pageRoute)") &&
-    shells.schedule.includes("router.push(pageRoute)") &&
+    shells.schedule.includes('openPage(page, { source: "meeting-create" })') &&
+    shells.schedule.includes("openPage(page, { source })") &&
+    shells.schedule.includes('openPage(pageId, { source: "meeting-open" })') &&
     shells.schedule.includes("openCreatedMeetingPage(result.page)") &&
     shells.schedule.includes("): CreateMeetingResult =>") &&
     shells.schedule.includes("const result = createMeetingPage(form") &&

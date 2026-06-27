@@ -2344,6 +2344,19 @@ function run() {
     "openCreatedMeetingPage",
     "Meeting manual create and invite import must share the same local-first page opening path."
   );
+  for (const snippet of [
+    "useLocalFirstPageNavigation",
+    'openPage(page, { source: "meeting-create" })',
+    "openPage(page, { source })",
+    'openPage(pageId, { source: "meeting-open" })',
+  ]) {
+    assertIncludes(
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      snippet,
+      "Meeting full-page openings must use the shared local-first page navigation path."
+    );
+  }
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,

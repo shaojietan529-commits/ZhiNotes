@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/sidebar/Sidebar";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import {
@@ -220,6 +221,7 @@ const MEETING_CLOUD_CACHE_PREFIX = "zhinote.zhihui.cloudMetadata.";
 
 export default function MeetingScheduleShell() {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const pageRevision = usePageRevision();
@@ -1136,9 +1138,9 @@ export default function MeetingScheduleShell() {
       } catch {
         // The page draft handoff already carries the first paint if prefetch is unavailable.
       }
-      router.push(pageRoute);
+      openPage(page, { source: "meeting-create" });
     },
-    [router, warmMeetingPageRoute]
+    [openPage, router, warmMeetingPageRoute]
   );
 
   const handleCreate = useCallback(() => {
@@ -1459,10 +1461,9 @@ export default function MeetingScheduleShell() {
 
   const openMeetingFullPage = useCallback(
     (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
-      primeMeetingPageOpen(page, source);
-      router.push(`/page/${page.id}`);
+      openPage(page, { source });
     },
-    [primeMeetingPageOpen, router]
+    [openPage]
   );
 
   const openMeetingFullPageById = useCallback(
@@ -1476,9 +1477,9 @@ export default function MeetingScheduleShell() {
         openMeetingFullPage(page, "meeting-open");
         return;
       }
-      router.push(`/page/${pageId}`);
+      openPage(pageId, { source: "meeting-open" });
     },
-    [meetings, openMeetingFullPage, router, selectedMeeting]
+    [meetings, openMeetingFullPage, openPage, selectedMeeting]
   );
 
   const quickCreateMeetingForDate = useCallback(

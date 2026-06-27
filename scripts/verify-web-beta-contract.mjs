@@ -2191,6 +2191,22 @@ function run() {
       "Meeting manual create and invite import must share the same local-first page opening path.",
     ],
     [
+      "useLocalFirstPageNavigation",
+      "Meeting full-page openings must use the shared local-first page navigation path.",
+    ],
+    [
+      'openPage(page, { source: "meeting-create" })',
+      "Meeting creation must open through local-first navigation after handing off the optimistic page.",
+    ],
+    [
+      "openPage(page, { source })",
+      "Meeting full-page note opens must route through local-first navigation.",
+    ],
+    [
+      'openPage(pageId, { source: "meeting-open" })',
+      "Meeting fallback page-id opens must still use local-first navigation when a metadata seed is available.",
+    ],
+    [
       "pageShellWarmupRef",
       "Meeting schedule must warm the full-page shell once instead of loading it only after a meeting opens.",
     ],
