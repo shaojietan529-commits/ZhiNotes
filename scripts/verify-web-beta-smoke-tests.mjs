@@ -56,6 +56,7 @@ const files = {
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
+  workspaceStore: "src/stores/workspaceStore.ts",
   pagePeekModal: "src/components/page/PagePeekModal.tsx",
   usePageFavorites: "src/hooks/usePageFavorites.ts",
   usePageViewPreferences: "src/hooks/usePageViewPreferences.ts",
@@ -361,6 +362,7 @@ function run() {
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
+  const workspaceStore = readProjectFile(files.workspaceStore);
   const pagePeekModal = readProjectFile(files.pagePeekModal);
   const usePageFavorites = readProjectFile(files.usePageFavorites);
   const usePageViewPreferences = readProjectFile(files.usePageViewPreferences);
@@ -4570,6 +4572,19 @@ function run() {
     "useWorkspaceStore.getState().upsertPages(contentPages)",
     "Deferred page body hydration must merge content into the existing metadata store instead of replacing cloud metadata."
   );
+  for (const snippet of [
+    "canPatchPagesWithoutResort",
+    "patchPagesWithoutResort",
+    "hasWorkspaceOrderChange",
+    "if (pages.length === 0) return {};",
+  ]) {
+    assertIncludes(
+      files.workspaceStore,
+      workspaceStore,
+      snippet,
+      "Workspace page store must avoid full-list resorting for order-neutral upserts."
+    );
+  }
   assertIncludes(
     files.usePages,
     usePages,

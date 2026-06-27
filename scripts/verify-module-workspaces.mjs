@@ -70,6 +70,7 @@ const localSchema = read("src/lib/db/local/schema.ts");
 const localClient = read("src/lib/db/local/client.ts");
 const usePageHook = read("src/hooks/usePage.ts");
 const usePagesHook = read("src/hooks/usePages.ts");
+const workspaceStore = read("src/stores/workspaceStore.ts");
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
@@ -369,6 +370,13 @@ check(
     !usePagesHook.includes("applyRemotePageMetadata") &&
     usePagesHook.includes("autoLoad?: boolean"),
   "usePages 必须先显示本地热缓存，再用云端 metadata delta 校正；includeContent 模块只在本地缓存不可读时用云端 metadata 兜底"
+);
+check(
+  workspaceStore.includes("canPatchPagesWithoutResort") &&
+    workspaceStore.includes("patchPagesWithoutResort") &&
+    workspaceStore.includes("hasWorkspaceOrderChange") &&
+    workspaceStore.includes("if (pages.length === 0) return {};"),
+  "Workspace store 必须为正文补齐/云端字段回填保留 no-resort upsert 快路径，避免大批量导入后每次小更新都重排全量页面"
 );
 check(
   pageUpdateBus.includes("PageUpdatePayload") &&

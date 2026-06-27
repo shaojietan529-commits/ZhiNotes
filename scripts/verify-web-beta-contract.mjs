@@ -118,6 +118,7 @@ const files = {
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
+  workspaceStore: "src/stores/workspaceStore.ts",
   pagePeekModal: "src/components/page/PagePeekModal.tsx",
   usePageFavorites: "src/hooks/usePageFavorites.ts",
   usePageViewPreferences: "src/hooks/usePageViewPreferences.ts",
@@ -484,6 +485,7 @@ function run() {
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
+  const workspaceStore = readProjectFile(files.workspaceStore);
   const pagePeekModal = readProjectFile(files.pagePeekModal);
   const usePageFavorites = readProjectFile(files.usePageFavorites);
   const usePageViewPreferences = readProjectFile(files.usePageViewPreferences);
@@ -11763,6 +11765,30 @@ function run() {
       usePages,
       "useWorkspaceStore.getState().upsertPages(contentPages)",
       "Deferred page body hydration must merge content into the existing metadata store.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
+      "canPatchPagesWithoutResort",
+      "Workspace page upserts must preserve order without full sorting for content-only hydration.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
+      "patchPagesWithoutResort",
+      "Workspace page upserts must have an explicit no-resort patch path for large imported libraries.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
+      "hasWorkspaceOrderChange",
+      "Workspace page upserts must fall back to the sorted path when ordering-sensitive fields change.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
+      "if (pages.length === 0) return {};",
+      "Workspace page upserts must ignore empty batches without cloning the full page list.",
     ],
     [
       files.usePages,

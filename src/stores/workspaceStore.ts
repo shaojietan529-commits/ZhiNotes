@@ -57,6 +57,37 @@ function mergePageSnapshot(incoming: Page, existing?: Page): Page {
   };
 }
 
+function hasWorkspaceOrderChange(incoming: Page, existing?: Page): boolean {
+  if (!existing || incoming.deleted_at) return true;
+  return (
+    incoming.updated_at !== existing.updated_at ||
+    incoming.parent_id !== existing.parent_id ||
+    incoming.position !== existing.position ||
+    incoming.depth !== existing.depth
+  );
+}
+
+function canPatchPagesWithoutResort(
+  incomingPages: Page[],
+  currentById: Map<string, Page>
+): boolean {
+  if (incomingPages.length === 0) return true;
+  return incomingPages.every(
+    (page) => !hasWorkspaceOrderChange(page, currentById.get(page.id))
+  );
+}
+
+function patchPagesWithoutResort(
+  currentPages: Page[],
+  incomingPages: Page[]
+): Page[] {
+  const incomingById = new Map(incomingPages.map((page) => [page.id, page]));
+  return currentPages.map((page) => {
+    const incoming = incomingById.get(page.id);
+    return incoming ? mergePageSnapshot(incoming, page) : page;
+  });
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   pages: [],
   currentPageId: null,
@@ -75,7 +106,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }),
   upsertPages: (pages) =>
     set((s) => {
+      if (pages.length === 0) return {};
       const byId = new Map(s.pages.map((page) => [page.id, page]));
+      if (canPatchPagesWithoutResort(pages, byId)) {
+        return { pages: patchPagesWithoutResort(s.pages, pages) };
+      }
       for (const page of pages) {
         if (page.deleted_at) {
           byId.delete(page.id);
