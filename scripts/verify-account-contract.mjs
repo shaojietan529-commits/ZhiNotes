@@ -1372,6 +1372,14 @@ check(
 );
 
 const accountShell = read("src/components/modules/AccountShell.tsx");
+const pageCacheRebuildBody = accountShell.slice(
+  accountShell.indexOf("async function handlePageCacheRebuildRun"),
+  accountShell.indexOf("function handlePageSyncToggle")
+);
+const databaseCacheRebuildBody = accountShell.slice(
+  accountShell.indexOf("async function handleDatabaseCacheRebuildRun"),
+  accountShell.indexOf("function handleDatabaseSyncToggle")
+);
 check(
   accountShell.includes("window.confirm"),
   "开启页面云同步前必须有确认弹窗"
@@ -1396,6 +1404,16 @@ check(
   "AccountShell 应提供重建本机页面缓存按钮"
 );
 check(
+  accountShell.includes("getPendingCloudPageSyncStatus") &&
+    accountShell.includes("getPageCacheRebuildPendingBlocker") &&
+    accountShell.includes("pending queue，未上传输入清零前会被拦截") &&
+    pageCacheRebuildBody.includes("getPageCacheRebuildPendingBlocker()") &&
+    pageCacheRebuildBody.includes("setPageSyncNotice(pendingBlocker)") &&
+    pageCacheRebuildBody.indexOf("getPageCacheRebuildPendingBlocker()") <
+      pageCacheRebuildBody.indexOf("window.confirm"),
+  "AccountShell 重建本机页面缓存前必须先检查页面 pending queue；未上传输入清零前不能进入确认弹窗"
+);
+check(
   accountShell.includes("数据库云同步") &&
     accountShell.includes("setDatabaseSyncEnabled") &&
     accountShell.includes("上传待同步变更") &&
@@ -1407,6 +1425,19 @@ check(
   accountShell.includes("云端数据不会删除") &&
     accountShell.includes("数据库表格、本地文件、评论、版本历史不会上传或删除"),
   "重建本机页面缓存前必须解释云端数据和本地私有数据边界"
+);
+check(
+  accountShell.includes("getPendingCloudDatabaseSyncStatus") &&
+    accountShell.includes("getDatabaseCacheRebuildPendingBlocker") &&
+    accountShell.includes("database pending queue 和本地 sync_log") &&
+    databaseCacheRebuildBody.includes(
+      "await getDatabaseCacheRebuildPendingBlocker()"
+    ) &&
+    databaseCacheRebuildBody.includes("setDatabaseSyncNotice(pendingBlocker)") &&
+    databaseCacheRebuildBody.indexOf(
+      "await getDatabaseCacheRebuildPendingBlocker()"
+    ) < databaseCacheRebuildBody.indexOf("window.confirm"),
+  "AccountShell 重建本机数据库缓存前必须先检查 database pending queue 和本地 sync_log；未上传数据库变更清零前不能进入确认弹窗"
 );
 check(
   syncDashboardShell.includes("本机缓存重建入口") &&
