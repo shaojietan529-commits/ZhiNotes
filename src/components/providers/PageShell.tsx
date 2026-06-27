@@ -81,6 +81,7 @@ const PAGE_EDITOR_IDLE_TIMEOUT_MS = 120;
 const PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700;
 const PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200;
 const PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800;
+const PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500;
 
 const Editor = dynamic(loadEditorModule, {
   ssr: false,
@@ -161,6 +162,13 @@ function PageContent({ pageId }: { pageId: string }) {
   const pageOpenStartedAtRef = useRef(getLocalPerformanceNow());
   const pageOpenStartedAtIsoRef = useRef(new Date().toISOString());
   const reportedPageOpenRef = useRef<string | null>(null);
+  const editorSideEffectTimerRef = useRef<number | null>(null);
+  const editorSideEffectRunningRef = useRef(false);
+  const pendingEditorSideEffectsRef = useRef<{
+    html: string;
+    linkedPageIds: string[];
+    title: string;
+  } | null>(null);
 
   useEffect(() => {
     setCurrentPageId(pageId);
@@ -294,6 +302,63 @@ function PageContent({ pageId }: { pageId: string }) {
       window.removeEventListener(INLINE_COMMENT_SELECTED_EVENT, handleSelected);
   }, [setCommentsPanelOpen]);
 
+  const flushEditorSideEffects = useCallback(async () => {
+    if (editorSideEffectRunningRef.current) return;
+    const pending = pendingEditorSideEffectsRef.current;
+    if (!pending) return;
+
+    pendingEditorSideEffectsRef.current = null;
+    editorSideEffectRunningRef.current = true;
+    try {
+      await updateWikiLinks(pageId, pending.linkedPageIds);
+      const created = await maybeSnapshot(
+        pageId,
+        pending.title || "未命名页面",
+        pending.html
+      );
+      if (created) await refreshVersions();
+    } finally {
+      editorSideEffectRunningRef.current = false;
+      if (
+        pendingEditorSideEffectsRef.current &&
+        editorSideEffectTimerRef.current === null
+      ) {
+        editorSideEffectTimerRef.current = window.setTimeout(() => {
+          editorSideEffectTimerRef.current = null;
+          void flushEditorSideEffects();
+        }, PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS);
+      }
+    }
+  }, [pageId, refreshVersions]);
+
+  const scheduleEditorSideEffects = useCallback(() => {
+    if (editorSideEffectTimerRef.current !== null) {
+      window.clearTimeout(editorSideEffectTimerRef.current);
+    }
+    editorSideEffectTimerRef.current = window.setTimeout(() => {
+      editorSideEffectTimerRef.current = null;
+      void flushEditorSideEffects();
+    }, PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS);
+  }, [flushEditorSideEffects]);
+
+  const cancelEditorSideEffects = useCallback(() => {
+    if (editorSideEffectTimerRef.current !== null) {
+      window.clearTimeout(editorSideEffectTimerRef.current);
+      editorSideEffectTimerRef.current = null;
+    }
+    pendingEditorSideEffectsRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (editorSideEffectTimerRef.current !== null) {
+        window.clearTimeout(editorSideEffectTimerRef.current);
+        editorSideEffectTimerRef.current = null;
+      }
+      void flushEditorSideEffects();
+    };
+  }, [flushEditorSideEffects]);
+
   const handleTitleChange = useCallback(
     async (newTitle: string) => {
       if (locked) return;
@@ -315,13 +380,14 @@ function PageContent({ pageId }: { pageId: string }) {
   const handleContentUpdate = useCallback(
     async (html: string, text: string, linkedPageIds: string[]) => {
       await update({ content_text: html });
-      // Update wiki link relationships in the database
-      await updateWikiLinks(pageId, linkedPageIds);
-      // Capture an automatic version snapshot when changes are significant
-      const created = await maybeSnapshot(pageId, title || "未命名页面", html);
-      if (created) refreshVersions();
+      pendingEditorSideEffectsRef.current = {
+        html,
+        linkedPageIds: [...linkedPageIds],
+        title: title || "未命名页面",
+      };
+      scheduleEditorSideEffects();
     },
-    [update, refreshVersions, pageId, title]
+    [scheduleEditorSideEffects, update, title]
   );
 
   const handleSaveVersion = useCallback(async () => {
@@ -723,6 +789,7 @@ function PageContent({ pageId }: { pageId: string }) {
     try {
       const html = editorRef.current?.appendHtml(action.insert_html);
       if (!html) return;
+      cancelEditorSideEffects();
       await update({ content_text: html });
       await updateWikiLinks(pageId, extractLinkedPageIdsFromHtml(html));
       const created = await maybeSnapshot(

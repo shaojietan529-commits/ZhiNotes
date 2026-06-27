@@ -2687,6 +2687,30 @@ function run() {
     "pagePeripheralsMounted",
     "Page shell must not use one shared peripheral flag that mounts comments, child tree, and backlinks together."
   );
+  for (const [snippet, message] of [
+    [
+      "PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500",
+      "Page shell must debounce editor side effects separately from content persistence.",
+    ],
+    [
+      "pendingEditorSideEffectsRef",
+      "Page shell must keep only the latest pending editor side effect payload.",
+    ],
+    [
+      "scheduleEditorSideEffects();",
+      "Page shell must schedule wiki link and version work after the editor settles.",
+    ],
+    [
+      "await updateWikiLinks(pageId, pending.linkedPageIds)",
+      "Page shell must rebuild wiki links from the debounced pending payload.",
+    ],
+    [
+      "cancelEditorSideEffects();",
+      "Page shell must cancel stale pending editor side effects before explicit structural inserts.",
+    ],
+  ]) {
+    assertIncludes(files.pageShell, pageShell, snippet, message);
+  }
   assertIncludes(
     files.accountPageSync,
     accountPageSync,

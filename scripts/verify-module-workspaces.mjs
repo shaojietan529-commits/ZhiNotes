@@ -278,6 +278,16 @@ check(
   "PageShell 必须动态加载并在页面首屏后空闲预热编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
 );
 check(
+  pageShell.includes("PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500") &&
+    pageShell.includes("pendingEditorSideEffectsRef") &&
+    pageShell.includes("flushEditorSideEffects") &&
+    pageShell.includes("scheduleEditorSideEffects();") &&
+    pageShell.includes("await updateWikiLinks(pageId, pending.linkedPageIds)") &&
+    pageShell.includes("await maybeSnapshot(\n        pageId,\n        pending.title") &&
+    pageShell.includes("cancelEditorSideEffects();"),
+  "PageShell 正文输入应先保存正文，wiki 链接重建和自动版本快照应延迟到编辑停顿后执行"
+);
+check(
   pageShell.includes(
     "collectMovedPageSnapshots(useWorkspaceStore.getState().pages, moved)"
   ) &&

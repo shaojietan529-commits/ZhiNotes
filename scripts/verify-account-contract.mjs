@@ -1143,6 +1143,16 @@ check(
     pageShell.includes("PageBodySkeleton"),
   "PageShell 应快速挂载正文编辑器，同时延后评论、反链、子页面等周边重组件"
 );
+check(
+  pageShell.includes("PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500") &&
+    pageShell.includes("pendingEditorSideEffectsRef") &&
+    pageShell.includes("flushEditorSideEffects") &&
+    pageShell.includes("scheduleEditorSideEffects();") &&
+    pageShell.includes("await updateWikiLinks(pageId, pending.linkedPageIds)") &&
+    pageShell.includes("await maybeSnapshot(\n        pageId,\n        pending.title") &&
+    pageShell.includes("cancelEditorSideEffects();"),
+  "PageShell 正文保存后应延迟重建 wiki 链接和自动版本快照，避免编辑输入路径被关系索引和版本比较拖慢"
+);
 
 const useVersionsHook = read("src/hooks/useVersions.ts");
 check(
