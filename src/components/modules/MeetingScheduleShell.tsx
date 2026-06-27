@@ -288,6 +288,7 @@ export default function MeetingScheduleShell() {
   const metadataWarmupScheduledRef = useRef(false);
   const loadRequestRef = useRef(0);
   const meetingsRef = useRef<Page[]>([]);
+  const hotCacheBootstrapKeyRef = useRef("");
   const observedPageRevisionRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
   const meetingPageContentWarmupIdsRef = useRef<Set<string>>(new Set());
@@ -303,6 +304,34 @@ export default function MeetingScheduleShell() {
   useEffect(() => {
     meetingsRef.current = meetings;
   }, [meetings]);
+
+  useEffect(() => {
+    const visibleRange = buildMonthGrid(viewMonth);
+    const startDate = toDateKey(visibleRange[0].date);
+    const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
+    const bootstrapKey = `${startDate}:${endDate}`;
+    if (hotCacheBootstrapKeyRef.current === bootstrapKey) return;
+    hotCacheBootstrapKeyRef.current = bootstrapKey;
+
+    const cachedHotSnapshot = readMeetingHotCacheSnapshot(startDate, endDate);
+    if (!cachedHotSnapshot) return;
+    const cachedPages = cachedHotSnapshot.pages.map(
+      meetingHotCacheSnapshotPageToPage
+    );
+    const nextMeetings = mergeMeetingPages(
+      cachedPages,
+      [],
+      deletedTombstoneRef.current
+    );
+    if (nextMeetings.length === 0) return;
+
+    if (cachedHotSnapshot.root_id) {
+      setRootId(cachedHotSnapshot.root_id);
+    }
+    startTransition(() => {
+      setMeetings(nextMeetings);
+    });
+  }, [deletedTombstoneRef, viewMonth]);
 
   useEffect(() => {
     if (!dbReady) return;

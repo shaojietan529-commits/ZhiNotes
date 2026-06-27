@@ -1832,6 +1832,14 @@ function run() {
       "Daily notes must read the local hot cache snapshot before slower cache/cloud checks.",
     ],
     [
+      "hotCacheBootstrapKeyRef",
+      "Daily notes must bootstrap the visible month from browser hot cache before IndexedDB readiness.",
+    ],
+    [
+      "正在启动本地数据库和云端校正",
+      "Daily notes must tell the user that browser hot cache painted before local database/cloud correction.",
+    ],
+    [
       "cachedHotSnapshot,\n        startDate,\n        endDate",
       "Daily notes must filter even exact hot-cache snapshots to the visible calendar range.",
     ],
@@ -1889,6 +1897,18 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
+  if (
+    !(
+      dailyNotesShell.indexOf("const bootstrapKey = `${startDate}:${endDate}`") >=
+        0 &&
+      dailyNotesShell.indexOf("const bootstrapKey = `${startDate}:${endDate}`") <
+        dailyNotesShell.indexOf("if (!dbReady) return;")
+    )
+  ) {
+    fail(
+      "Daily notes must read browser hot cache before the first dbReady-gated effect."
+    );
   }
   for (const [snippet, message] of [
     [
@@ -2054,6 +2074,10 @@ function run() {
       "Meeting schedule must read the local hot cache snapshot before slower cache/cloud checks.",
     ],
     [
+      "hotCacheBootstrapKeyRef",
+      "Meeting schedule must bootstrap the visible month from browser hot cache before IndexedDB readiness.",
+    ],
+    [
       "meetingHotCacheSnapshotPageToPage",
       "Meeting schedule must convert the local hot cache snapshot back into metadata-only pages.",
     ],
@@ -2099,6 +2123,20 @@ function run() {
       meetingScheduleShell,
       snippet,
       message
+    );
+  }
+  if (
+    !(
+      meetingScheduleShell.indexOf(
+        "const bootstrapKey = `${startDate}:${endDate}`"
+      ) >= 0 &&
+      meetingScheduleShell.indexOf(
+        "const bootstrapKey = `${startDate}:${endDate}`"
+      ) < meetingScheduleShell.indexOf("if (!dbReady) return;")
+    )
+  ) {
+    fail(
+      "Meeting schedule must read browser hot cache before the first dbReady-gated effect."
     );
   }
   assertSourceExcludes(

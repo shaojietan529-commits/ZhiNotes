@@ -2051,6 +2051,30 @@ function run() {
     "Daily notes must read a local hot cache snapshot before slower cache/cloud checks."
   );
   assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "hotCacheBootstrapKeyRef",
+    "Daily notes must bootstrap visible-month hot cache before IndexedDB readiness."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "正在启动本地数据库和云端校正",
+    "Daily notes must label browser-hot-cache first paint while database/cloud correction continues."
+  );
+  if (
+    !(
+      dailyNotesShell.indexOf("const bootstrapKey = `${startDate}:${endDate}`") >=
+        0 &&
+      dailyNotesShell.indexOf("const bootstrapKey = `${startDate}:${endDate}`") <
+        dailyNotesShell.indexOf("if (!dbReady) return;")
+    )
+  ) {
+    failures.push(
+      "Daily notes must read browser hot cache before the first dbReady-gated effect."
+    );
+  }
+  assertIncludes(
     files.dailyHotCacheSnapshot,
     dailyHotCacheSnapshot,
     "readDailyHotCacheSnapshotsForRange",
@@ -2414,6 +2438,26 @@ function run() {
     "readMeetingHotCacheSnapshot",
     "Meeting schedule must read a local hot cache snapshot before slower cache/cloud checks."
   );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "hotCacheBootstrapKeyRef",
+    "Meeting schedule must bootstrap visible-month hot cache before IndexedDB readiness."
+  );
+  if (
+    !(
+      meetingScheduleShell.indexOf(
+        "const bootstrapKey = `${startDate}:${endDate}`"
+      ) >= 0 &&
+      meetingScheduleShell.indexOf(
+        "const bootstrapKey = `${startDate}:${endDate}`"
+      ) < meetingScheduleShell.indexOf("if (!dbReady) return;")
+    )
+  ) {
+    failures.push(
+      "Meeting schedule must read browser hot cache before the first dbReady-gated effect."
+    );
+  }
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,

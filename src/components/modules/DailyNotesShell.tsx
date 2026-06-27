@@ -147,6 +147,7 @@ export default function DailyNotesShell() {
     Map<string, number>
   >(() => new Map());
   const loadRequestRef = useRef(0);
+  const hotCacheBootstrapKeyRef = useRef("");
   const observedPageRevisionRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
   const dailyNoteContentWarmupIdsRef = useRef<Set<string>>(new Set());
@@ -159,6 +160,55 @@ export default function DailyNotesShell() {
     () => metadataRecentLimitForHotCachePreferences(hotCachePreferences),
     [hotCachePreferences]
   );
+
+  useEffect(() => {
+    const visibleRange = buildMonthGrid(viewMonth);
+    const startDate = toDateKey(visibleRange[0].date);
+    const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
+    const bootstrapKey = `${startDate}:${endDate}`;
+    if (hotCacheBootstrapKeyRef.current === bootstrapKey) return;
+    hotCacheBootstrapKeyRef.current = bootstrapKey;
+
+    const byId = new Map<string, DailyNote>();
+    const cachedHotSnapshot = readDailyHotCacheSnapshot(startDate, endDate);
+    const overlappingHotSnapshots = readDailyHotCacheSnapshotsForRange(
+      startDate,
+      endDate
+    );
+    let merged = 0;
+    let rootHint: string | null = cachedHotSnapshot?.root_id ?? null;
+
+    if (cachedHotSnapshot) {
+      merged += mergeDailyHotCacheSnapshot(
+        byId,
+        cachedHotSnapshot,
+        startDate,
+        endDate
+      );
+    }
+    for (const snapshot of overlappingHotSnapshots) {
+      if (!rootHint) rootHint = snapshot.root_id;
+      merged += mergeDailyHotCacheSnapshot(byId, snapshot, startDate, endDate);
+    }
+    if (merged === 0) return;
+
+    if (rootHint) {
+      rememberModuleRootId("daily", rootHint);
+      setRootId(rootHint);
+    }
+    const renderableNotes = selectDailyNotesForCalendarRender(
+      Array.from(byId.values()),
+      startDate,
+      endDate,
+      Math.max(DAILY_RECENT_VISIBLE_LIMIT, DAILY_RENDER_RECENT_BUFFER_LIMIT)
+    );
+    startTransition(() => {
+      setNotes(renderableNotes);
+    });
+    setCloudNotice(
+      `已先显示本机热缓存 ${renderableNotes.length} 条每日纪要 metadata，正在启动本地数据库和云端校正…`
+    );
+  }, [viewMonth]);
 
   const warmPageRoute = useCallback(() => {
     try {
