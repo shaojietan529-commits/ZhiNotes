@@ -689,7 +689,8 @@ for (const token of [
 }
 const meetingScheduleOpensCreatedPageRoute =
   shells.schedule.includes("const pageRoute = `/page/${page.id}`") ||
-  shells.schedule.includes("const pageRoute = `/page/${result.page.id}`");
+  shells.schedule.includes("const pageRoute = `/page/${result.page.id}`") ||
+  shells.schedule.includes("const pageRoute = `/page/${seededPage.id}`");
 check(
   shells.schedule.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
     shells.schedule.includes("creatingMeetingDateKey") &&
@@ -707,8 +708,12 @@ check(
     shells.schedule.includes("openPage(page, { source })") &&
     shells.schedule.includes("prepareMeetingPageOpen(page, source)") &&
     shells.schedule.includes('prepareMeetingPageOpen(page, "meeting-create")') &&
-    shells.schedule.includes("rememberPendingPageDraft(page)") &&
-    shells.schedule.includes("rememberPageRouteHandoff(page, source)") &&
+    shells.schedule.includes("const seededPage = getMeetingPageOpenSeed(page)") &&
+    shells.schedule.includes("rememberPendingPageDraft(seededPage)") &&
+    shells.schedule.includes("rememberPageRouteHandoff(seededPage, source)") &&
+    shells.schedule.includes("const warmMeetingPageContent = useCallback") &&
+    shells.schedule.includes("onMouseEnter={() => warmMeetingPageContent(entry.page)}") &&
+    shells.schedule.includes("const openMeetingDetail = useCallback") &&
     shells.schedule.includes('openPage(pageId, { source: "meeting-open" })') &&
     shells.schedule.includes("const entriesById = useMemo(() =>") &&
     shells.schedule.includes("entriesById.get(pageId)?.page") &&

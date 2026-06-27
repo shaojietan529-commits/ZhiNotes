@@ -2550,12 +2550,28 @@ function run() {
       "Newly created meeting page opens must prepare the local draft before navigation.",
     ],
     [
-      "rememberPendingPageDraft(page)",
-      "Meeting full-page opens must keep an in-memory draft for immediate first paint.",
+      "const seededPage = getMeetingPageOpenSeed(page)",
+      "Meeting full-page opens must prefer the fullest local seed before navigation.",
     ],
     [
-      "rememberPageRouteHandoff(page, source)",
-      "Meeting full-page opens must hand off metadata before slower local DB or cloud checks.",
+      "rememberPendingPageDraft(seededPage)",
+      "Meeting full-page opens must keep the best local draft for immediate first paint.",
+    ],
+    [
+      "rememberPageRouteHandoff(seededPage, source)",
+      "Meeting full-page opens must hand off the best local seed before slower local DB or cloud checks.",
+    ],
+    [
+      "const warmMeetingPageContent = useCallback",
+      "Meeting full-page opens must support local body warmup without cloud reads.",
+    ],
+    [
+      "onMouseEnter={() => warmMeetingPageContent(entry.page)}",
+      "Meeting hover intent must warm local body content before full-page opening.",
+    ],
+    [
+      "const openMeetingDetail = useCallback",
+      "Meeting detail opens must reuse the local body warmup path.",
     ],
     [
       'openMeetingFullPage(entry.page, "meeting-open")',

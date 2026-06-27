@@ -647,7 +647,8 @@ check(
 const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");
 const meetingScheduleOpensCreatedPageRoute =
   meetingScheduleShell.includes("const pageRoute = `/page/${result.page.id}`") ||
-  meetingScheduleShell.includes("const pageRoute = `/page/${page.id}`");
+  meetingScheduleShell.includes("const pageRoute = `/page/${page.id}`") ||
+  meetingScheduleShell.includes("const pageRoute = `/page/${seededPage.id}`");
 check(
   !meetingScheduleShell.includes('from "@/hooks/usePages"') &&
     !meetingScheduleShell.includes("usePages(") &&
@@ -720,8 +721,12 @@ check(
     meetingScheduleShell.includes('openPage(page, { source: "meeting-create" })') &&
     meetingScheduleShell.includes('prepareMeetingPageOpen(page, "meeting-create")') &&
     meetingScheduleShell.includes("prepareMeetingPageOpen(page, source)") &&
-    meetingScheduleShell.includes("rememberPendingPageDraft(page)") &&
-    meetingScheduleShell.includes("rememberPageRouteHandoff(page, source)") &&
+    meetingScheduleShell.includes("const seededPage = getMeetingPageOpenSeed(page)") &&
+    meetingScheduleShell.includes("rememberPendingPageDraft(seededPage)") &&
+    meetingScheduleShell.includes("rememberPageRouteHandoff(seededPage, source)") &&
+    meetingScheduleShell.includes("const warmMeetingPageContent = useCallback") &&
+    meetingScheduleShell.includes("onMouseEnter={() => warmMeetingPageContent(entry.page)}") &&
+    meetingScheduleShell.includes("const openMeetingDetail = useCallback") &&
     meetingScheduleShell.indexOf("const pageRoute = `/page/${") <
       meetingScheduleShell.indexOf(
         'openPage(page, { source: "meeting-create" })'

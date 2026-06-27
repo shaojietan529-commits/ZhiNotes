@@ -283,6 +283,7 @@ export default function MeetingScheduleShell() {
   const meetingsRef = useRef<Page[]>([]);
   const observedPageRevisionRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
+  const meetingPageContentWarmupIdsRef = useRef<Set<string>>(new Set());
   const completedMeetingDailyLinkKeyRef = useRef("");
   const [hotCachePreferences, setHotCachePreferences] = useState(
     DEFAULT_HOT_CACHE_PREFERENCES
@@ -357,6 +358,48 @@ export default function MeetingScheduleShell() {
       );
     }
   }, [router]);
+
+  const warmMeetingPageContent = useCallback(
+    (page: Page) => {
+      if (!dbReady || page.content_text != null) return;
+      if (meetingPageContentWarmupIdsRef.current.has(page.id)) return;
+      meetingPageContentWarmupIdsRef.current.add(page.id);
+
+      const seededPage = getMeetingPageOpenSeed(page);
+      if (seededPage.content_text != null) {
+        rememberPendingPageDraft(seededPage);
+        rememberPageRouteHandoff(seededPage, "meeting-open");
+        upsertPages([seededPage]);
+        return;
+      }
+
+      scheduleMeetingIdleTask(() => {
+        void getPage(page.id)
+          .then((storedPage) => {
+            if (!storedPage) {
+              meetingPageContentWarmupIdsRef.current.delete(page.id);
+              return;
+            }
+            const warmedPage = getMeetingPageOpenSeed(storedPage);
+            rememberPendingPageDraft(warmedPage);
+            rememberPageRouteHandoff(warmedPage, "meeting-open");
+            upsertPages([warmedPage]);
+            if (warmedPage.content_text == null) {
+              meetingPageContentWarmupIdsRef.current.delete(page.id);
+            }
+            setSelectedMeeting((current) =>
+              current?.page.id === warmedPage.id
+                ? toMeetingEntry(warmedPage)
+                : current
+            );
+          })
+          .catch(() => {
+            meetingPageContentWarmupIdsRef.current.delete(page.id);
+          });
+      }, 80);
+    },
+    [dbReady, upsertPages]
+  );
 
   useEffect(() => {
     const cancelPageShellPreload = scheduleMeetingIdleTask(() => {
@@ -1168,23 +1211,26 @@ export default function MeetingScheduleShell() {
 
   const prepareMeetingPageOpen = useCallback(
     (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
+      const seededPage = getMeetingPageOpenSeed(page);
       warmMeetingPageRoute();
-      upsertPages([page]);
-      rememberPendingPageDraft(page);
-      rememberPageRouteHandoff(page, source);
-      const pageRoute = `/page/${page.id}`;
+      upsertPages([seededPage]);
+      rememberPendingPageDraft(seededPage);
+      rememberPageRouteHandoff(seededPage, source);
+      warmMeetingPageContent(seededPage);
+      const pageRoute = `/page/${seededPage.id}`;
       try {
         router.prefetch(pageRoute);
       } catch {
         // The page draft handoff already carries the first paint if prefetch is unavailable.
       }
+      return seededPage;
     },
-    [router, upsertPages, warmMeetingPageRoute]
+    [router, upsertPages, warmMeetingPageContent, warmMeetingPageRoute]
   );
 
   const openCreatedMeetingPage = useCallback(
     (page: Page) => {
-      prepareMeetingPageOpen(page, "meeting-create");
+      page = prepareMeetingPageOpen(page, "meeting-create");
       openPage(page, { source: "meeting-create" });
     },
     [openPage, prepareMeetingPageOpen]
@@ -1492,10 +1538,19 @@ export default function MeetingScheduleShell() {
 
   const openMeetingFullPage = useCallback(
     (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
-      prepareMeetingPageOpen(page, source);
+      page = prepareMeetingPageOpen(page, source);
       openPage(page, { source });
     },
     [openPage, prepareMeetingPageOpen]
+  );
+
+  const openMeetingDetail = useCallback(
+    (entry: MeetingEntry) => {
+      warmMeetingPageRoute();
+      warmMeetingPageContent(entry.page);
+      setSelectedMeeting(entry);
+    },
+    [warmMeetingPageContent, warmMeetingPageRoute]
   );
 
   const openMeetingFullPageById = useCallback(
@@ -1732,7 +1787,7 @@ export default function MeetingScheduleShell() {
                     <li key={entry.page.id}>
                       <button
                         type="button"
-                        onClick={() => setSelectedMeeting(entry)}
+                        onClick={() => openMeetingDetail(entry)}
                         onContextMenu={(e) => {
                           e.preventDefault();
                           setContextMenu({
@@ -1743,7 +1798,11 @@ export default function MeetingScheduleShell() {
                         }}
                         className="flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                         onPointerEnter={warmMeetingPageRoute}
-                        onFocus={warmMeetingPageRoute}
+                        onMouseEnter={() => warmMeetingPageContent(entry.page)}
+                        onFocus={() => {
+                          warmMeetingPageRoute();
+                          warmMeetingPageContent(entry.page);
+                        }}
                       >
                         <MeetingStatusBar entry={entry} size="list" />
                         <div className="min-w-0 flex-1">
@@ -1794,8 +1853,10 @@ export default function MeetingScheduleShell() {
                       >
                         <button
                           type="button"
-                          onClick={() => setSelectedMeeting(entry)}
+                          onClick={() => openMeetingDetail(entry)}
                           className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-1 text-left"
+                          onMouseEnter={() => warmMeetingPageContent(entry.page)}
+                          onFocus={() => warmMeetingPageContent(entry.page)}
                         >
                           <MeetingStatusBar entry={entry} size="compact" />
                           <span className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">
@@ -1846,6 +1907,8 @@ export default function MeetingScheduleShell() {
                     <li key={entry.page.id}>
                       <a
                         href={`/page/${entry.page.id}`}
+                        onMouseEnter={() => warmMeetingPageContent(entry.page)}
+                        onFocus={() => warmMeetingPageContent(entry.page)}
                         onClick={(event) => {
                           markSeen(entry.page.id);
                           if (
@@ -2064,8 +2127,12 @@ export default function MeetingScheduleShell() {
                         type="button"
                         data-testid={`meeting-calendar-entry-${entry.page.id}`}
                         onPointerEnter={warmMeetingPageRoute}
-                        onFocus={warmMeetingPageRoute}
-                        onClick={() => setSelectedMeeting(entry)}
+                        onMouseEnter={() => warmMeetingPageContent(entry.page)}
+                        onFocus={() => {
+                          warmMeetingPageRoute();
+                          warmMeetingPageContent(entry.page);
+                        }}
+                        onClick={() => openMeetingDetail(entry)}
                         onContextMenu={(e) => {
                           e.preventDefault();
                           setContextMenu({
@@ -2128,8 +2195,12 @@ export default function MeetingScheduleShell() {
                     <button
                       type="button"
                       onPointerEnter={warmMeetingPageRoute}
-                      onFocus={warmMeetingPageRoute}
-                      onClick={() => setSelectedMeeting(entry)}
+                      onMouseEnter={() => warmMeetingPageContent(entry.page)}
+                      onFocus={() => {
+                        warmMeetingPageRoute();
+                        warmMeetingPageContent(entry.page);
+                      }}
+                      onClick={() => openMeetingDetail(entry)}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setContextMenu({
@@ -2480,6 +2551,18 @@ async function getLatestOpenedMeetingPage(page: Page): Promise<Page> {
   const localPage = await getPage(page.id).catch(() => null);
   if (localPage) return { ...page, ...localPage };
 
+  return page;
+}
+
+function getMeetingPageOpenSeed(page: Page): Page {
+  const memoryPage = useWorkspaceStore.getState().getPageById(page.id);
+  if (!memoryPage) return page;
+  if (
+    memoryPage.content_text != null ||
+    memoryPage.updated_at >= page.updated_at
+  ) {
+    return { ...page, ...memoryPage };
+  }
   return page;
 }
 
