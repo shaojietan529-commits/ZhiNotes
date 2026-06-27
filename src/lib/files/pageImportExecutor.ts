@@ -33,6 +33,37 @@ import { convertWordToHtml } from "@/lib/files/word";
 import type { PageImportPlan, PageImportPlanItem } from "./pageImportPlan";
 import type { Page } from "@/lib/utils/types";
 
+export type PageImportItemExecutionStatus =
+  | "completed"
+  | "skipped"
+  | "failed"
+  | "rolled-back"
+  | "not-run";
+
+export interface PageImportItemExecutionResult {
+  index: number;
+  extension: string;
+  lane: PageImportPlanItem["lane"];
+  target_kind: PageImportPlanItem["target_kind"];
+  preview_route: PageImportPlanItem["preview_route"];
+  status: PageImportItemExecutionStatus;
+  action:
+    | "created-editable-page"
+    | "created-html-preview-page"
+    | "created-local-preview-page"
+    | "created-database"
+    | "skipped-owner-review"
+    | "skipped-missing-file"
+    | "skipped-database-kind-mismatch"
+    | "failed-during-import"
+    | "not-run";
+  retryable: boolean;
+  created_workspace_data: boolean;
+  rolled_back: boolean;
+  file_name_included: false;
+  note: string;
+}
+
 export interface PageImportExecutionResult {
   status: "completed" | "rolled-back";
   created_pages: number;
@@ -50,6 +81,9 @@ export interface PageImportExecutionResult {
   first_page_id: string | null;
   first_database_id: string | null;
   created_page_metadata: Page[];
+  item_results: PageImportItemExecutionResult[];
+  retryable_items: number;
+  rolled_back_item_results: number;
   notes: string[];
   boundaries: {
     reads_file_bytes_now: true;
@@ -145,8 +179,42 @@ export async function executePageImportPlan(
   let retainedFilePages = 0;
   let skippedDatabase = 0;
   let skippedBlocked = 0;
+  let currentItem: PageImportPlanItem | null = null;
 
   const total = plan.items.length;
+  const itemResults: PageImportItemExecutionResult[] = plan.items.map((item) => ({
+    index: item.index,
+    extension: item.extension,
+    lane: item.lane,
+    target_kind: item.target_kind,
+    preview_route: item.preview_route,
+    status: "not-run",
+    action: "not-run",
+    retryable: false,
+    created_workspace_data: false,
+    rolled_back: false,
+    file_name_included: false,
+    note: "尚未执行。",
+  }));
+
+  const recordItem = (
+    item: PageImportPlanItem,
+    patch: Partial<
+      Omit<
+        PageImportItemExecutionResult,
+        | "index"
+        | "extension"
+        | "lane"
+        | "target_kind"
+        | "preview_route"
+        | "file_name_included"
+      >
+    >
+  ) => {
+    const result = itemResults.find((entry) => entry.index === item.index);
+    if (!result) return;
+    Object.assign(result, patch);
+  };
 
   const finish = (
     status: PageImportExecutionResult["status"],
@@ -171,6 +239,10 @@ export async function executePageImportPlan(
     first_database_id: createdDatabaseIds[0] ?? null,
     created_page_metadata:
       status === "completed" ? createdPageMetadata : [],
+    item_results: itemResults,
+    retryable_items: itemResults.filter((item) => item.retryable).length,
+    rolled_back_item_results: itemResults.filter((item) => item.rolled_back)
+      .length,
     notes,
     boundaries: {
       reads_file_bytes_now: true,
@@ -217,15 +289,28 @@ export async function executePageImportPlan(
   try {
     for (let i = 0; i < plan.items.length; i++) {
       const item = plan.items[i];
+      currentItem = item;
       const file = files[item.index - 1];
       opts?.onProgress?.(i, total);
 
       if (item.lane === "blocked-review") {
         skippedBlocked += 1;
+        recordItem(item, {
+          status: "skipped",
+          action: "skipped-owner-review",
+          retryable: true,
+          note: "需要人工复核后再导入。",
+        });
         continue;
       }
       if (!file) {
         notes.push(`第 ${item.index} 个文件缺失，已跳过。`);
+        recordItem(item, {
+          status: "skipped",
+          action: "skipped-missing-file",
+          retryable: true,
+          note: "本次选择里没有找到对应文件；可重新选择后重试。",
+        });
         continue;
       }
 
@@ -234,6 +319,12 @@ export async function executePageImportPlan(
       if (item.lane === "database-import") {
         if (stored.kind !== "spreadsheet") {
           skippedDatabase += 1;
+          recordItem(item, {
+            status: "skipped",
+            action: "skipped-database-kind-mismatch",
+            retryable: true,
+            note: "计划为数据库导入，但本地识别不是表格文件。",
+          });
           continue;
         }
         const result = await importSpreadsheetAsDatabase(stored);
@@ -242,6 +333,13 @@ export async function executePageImportPlan(
         notes.push(
           `表格已本地导入为数据库「${result.database_title}」：${result.rows_imported} 行、${result.columns_imported} 列；没有上传文件内容。`
         );
+        recordItem(item, {
+          status: "completed",
+          action: "created-database",
+          retryable: false,
+          created_workspace_data: true,
+          note: "已创建本地数据库。",
+        });
         if (result.truncated_rows) {
           notes.push(
             `表格 ${result.rows_available - result.rows_imported} 行未导入，保留在原始文件预览中以避免卡顿。`
@@ -265,6 +363,13 @@ export async function executePageImportPlan(
         editablePageImports += 1;
         markdownEditablePages += 1;
         notes.push("Markdown 已本地转换为可编辑页面；没有上传文件内容。");
+        recordItem(item, {
+          status: "completed",
+          action: "created-editable-page",
+          retryable: false,
+          created_workspace_data: true,
+          note: "已创建 Markdown 可编辑页面。",
+        });
         continue;
       }
 
@@ -281,6 +386,13 @@ export async function executePageImportPlan(
         rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
         editablePageImports += 1;
+        recordItem(item, {
+          status: "completed",
+          action: "created-editable-page",
+          retryable: false,
+          created_workspace_data: true,
+          note: "已创建文本可编辑页面。",
+        });
         continue;
       }
 
@@ -298,6 +410,13 @@ export async function executePageImportPlan(
         createdPages += 1;
         editablePageImports += 1;
         notes.push("RTF 已本地转换为可编辑页面；没有上传文件内容。");
+        recordItem(item, {
+          status: "completed",
+          action: "created-editable-page",
+          retryable: false,
+          created_workspace_data: true,
+          note: "已创建 RTF 可编辑页面。",
+        });
         continue;
       }
 
@@ -316,6 +435,13 @@ export async function executePageImportPlan(
         createdPages += 1;
         editablePageImports += 1;
         notes.push("EPUB 已本地解析为可编辑页面；没有加载远程资源或上传文件内容。");
+        recordItem(item, {
+          status: "completed",
+          action: "created-editable-page",
+          retryable: false,
+          created_workspace_data: true,
+          note: "已创建 EPUB 可编辑页面。",
+        });
         continue;
       }
 
@@ -332,6 +458,13 @@ export async function executePageImportPlan(
         createdPages += 1;
         editablePageImports += 1;
         notes.push("Word/ODT 已本地转换为可编辑页面；没有上传文件内容。");
+        recordItem(item, {
+          status: "completed",
+          action: "created-editable-page",
+          retryable: false,
+          created_workspace_data: true,
+          note: "已创建 Word/ODT 可编辑页面。",
+        });
         continue;
       }
 
@@ -348,6 +481,13 @@ export async function executePageImportPlan(
         createdPages += 1;
         editablePageImports += 1;
         notes.push("PowerPoint/ODP 已本地转换为可编辑页面；没有上传文件内容。");
+        recordItem(item, {
+          status: "completed",
+          action: "created-editable-page",
+          retryable: false,
+          created_workspace_data: true,
+          note: "已创建 PowerPoint/ODP 可编辑页面。",
+        });
         continue;
       }
 
@@ -365,6 +505,13 @@ export async function executePageImportPlan(
         createdPages += 1;
         editablePageImports += 1;
         notes.push("Notebook 已本地解析为可编辑页面；代码单元格只作为文本保留，未执行。");
+        recordItem(item, {
+          status: "completed",
+          action: "created-editable-page",
+          retryable: false,
+          created_workspace_data: true,
+          note: "已创建 Notebook 可编辑页面；代码未执行。",
+        });
         continue;
       }
 
@@ -382,8 +529,22 @@ export async function executePageImportPlan(
       if (item.lane === "page-import" && stored.kind === "html") {
         htmlNativePreviewPages += 1;
         notes.push("HTML 已创建为报告文件页；沙盒原生预览默认阻止外部资源。");
+        recordItem(item, {
+          status: "completed",
+          action: "created-html-preview-page",
+          retryable: false,
+          created_workspace_data: true,
+          note: "已创建 HTML 报告沙盒预览页。",
+        });
       } else {
         localPreviewPages += 1;
+        recordItem(item, {
+          status: "completed",
+          action: "created-local-preview-page",
+          retryable: false,
+          created_workspace_data: true,
+          note: "已创建本地文件预览页。",
+        });
       }
       retainedFilePages += 1;
     }
@@ -392,11 +553,35 @@ export async function executePageImportPlan(
     return finish("completed", 0, 0, 0);
   } catch (err) {
     console.error("[Zhinote] batch import failed; rolling back:", err);
+    if (currentItem) {
+      recordItem(currentItem, {
+        status: "failed",
+        action: "failed-during-import",
+        retryable: true,
+        note: "导入此项时发生异常；本次写入会整体回退。",
+      });
+    }
     const undone = await rollback();
+    for (const item of itemResults) {
+      if (item.status === "completed" && item.created_workspace_data) {
+        item.status = "rolled-back";
+        item.rolled_back = true;
+        item.retryable = true;
+        item.note = "此项本次已创建，但因后续异常已回退；可重试。";
+      } else if (item.status === "not-run") {
+        item.retryable = true;
+        item.note = "本次还没有执行到此项；处理异常后可重试。";
+      }
+    }
     notes.push(
       `导入中途失败，已回退 ${undone.rolledBackPages} 个本次创建的页面、${undone.rolledBackDatabases} 个数据库。文件没有上传或外发。`
     );
-    return finish("rolled-back", 1, undone.rolledBackPages, undone.rolledBackDatabases);
+    return finish(
+      "rolled-back",
+      1,
+      undone.rolledBackPages,
+      undone.rolledBackDatabases
+    );
   }
 }
 

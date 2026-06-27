@@ -304,6 +304,17 @@ check(
   "执行器必须跳过待复核文件"
 );
 check(
+  executorSource.includes("PageImportItemExecutionResult") &&
+    executorSource.includes("item_results") &&
+    executorSource.includes("retryable_items") &&
+    executorSource.includes("rolled_back_item_results") &&
+    executorSource.includes("file_name_included: false") &&
+    executorSource.includes("failed-during-import") &&
+    executorSource.includes("此项本次已创建，但因后续异常已回退") &&
+    executorSource.includes("本次还没有执行到此项"),
+  "执行器必须返回逐项导入状态，标出失败、回退、未执行和可重试项，且不包含文件名"
+);
+check(
   panelSource.includes("const { upsertPages } = usePages({ autoLoad: false })") &&
     panelSource.includes("upsertPages(res.created_page_metadata)") &&
     panelSource.includes('openPage(firstPage, { source: "module-create" })') &&
@@ -331,6 +342,12 @@ check(
     receiptSource.includes("includes_spreadsheet_cell_values: false") &&
     receiptSource.includes("includes_page_ids: false") &&
     receiptSource.includes("includes_database_ids: false") &&
+    receiptSource.includes("PageImportExecutionReceiptItem") &&
+    receiptSource.includes("item_status_counts") &&
+    receiptSource.includes("retryable_items") &&
+    receiptSource.includes("rolled_back_item_results") &&
+    receiptSource.includes("item_results: result.item_results.map") &&
+    receiptSource.includes("file_name_included: false") &&
     receiptSource.includes("uploads_data: false") &&
     receiptSource.includes("calls_external_service: false") &&
     receiptSource.includes("receipt_writes_workspace_data: false"),
@@ -342,6 +359,16 @@ check(
     panelSource.includes("导出批量导入 receipt") &&
     panelSource.includes("导出回退 receipt"),
   "PageImportPlanPanel 必须在执行后生成并导出批量导入 receipt"
+);
+check(
+  panelSource.includes("ImportItemExecutionSummary") &&
+    panelSource.includes("导入明细（不含文件名）") &&
+    panelSource.includes("result.item_results") &&
+    panelSource.includes("result.retryable_items") &&
+    panelSource.includes("result.rolled_back_item_results") &&
+    panelSource.includes("ITEM_STATUS_BADGE") &&
+    panelSource.includes("ITEM_ACTION_LABEL"),
+  "PageImportPlanPanel 必须展示逐项导入明细、可重试项和回退项，且提醒不含文件名"
 );
 check(
   panelSource.includes("ImportProgressState") &&
@@ -379,6 +406,7 @@ console.log(
       result_distinguishes_markdown_html_pages: true,
       local_batch_import_receipt: true,
       visible_batch_import_progress_queue: true,
+      item_level_import_recovery_summary: true,
     },
     null,
     2

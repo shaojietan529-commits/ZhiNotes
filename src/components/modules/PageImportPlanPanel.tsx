@@ -16,6 +16,8 @@ import {
   executePageImportPlan,
   countExecutableItems,
   type PageImportExecutionResult,
+  type PageImportItemExecutionResult,
+  type PageImportItemExecutionStatus,
 } from "@/lib/files/pageImportExecutor";
 import {
   appendPageImportExecutionReceipt,
@@ -84,6 +86,49 @@ const PREVIEW_ROUTE_BADGE: Record<
       "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
   },
 };
+
+const ITEM_STATUS_BADGE: Record<
+  PageImportItemExecutionStatus,
+  { label: string; className: string }
+> = {
+  completed: {
+    label: "完成",
+    className:
+      "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
+  },
+  skipped: {
+    label: "跳过",
+    className:
+      "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200",
+  },
+  failed: {
+    label: "失败",
+    className: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+  },
+  "rolled-back": {
+    label: "已回退",
+    className:
+      "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200",
+  },
+  "not-run": {
+    label: "未执行",
+    className:
+      "bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400",
+  },
+};
+
+const ITEM_ACTION_LABEL: Record<PageImportItemExecutionResult["action"], string> =
+  {
+    "created-editable-page": "创建可编辑页",
+    "created-html-preview-page": "创建 HTML 预览页",
+    "created-local-preview-page": "创建本地预览页",
+    "created-database": "创建数据库",
+    "skipped-owner-review": "等待人工复核",
+    "skipped-missing-file": "文件未找到",
+    "skipped-database-kind-mismatch": "数据库类型不匹配",
+    "failed-during-import": "导入时报错",
+    "not-run": "未执行",
+  };
 
 type ImportProgressStatus = "idle" | "running" | "completed" | "rolled-back";
 
@@ -585,6 +630,7 @@ export default function PageImportPlanPanel() {
                   )}
                 </div>
               )}
+              <ImportItemExecutionSummary result={result} />
             </div>
           )}
 
@@ -627,6 +673,79 @@ function Metric({
       >
         {value}
       </p>
+    </div>
+  );
+}
+
+function ImportItemExecutionSummary({
+  result,
+}: {
+  result: PageImportExecutionResult;
+}) {
+  if (result.item_results.length === 0) return null;
+
+  const visibleItems = result.item_results.slice(0, 8);
+  const hiddenItems = result.item_results.length - visibleItems.length;
+
+  return (
+    <div className="mt-3 rounded-md border border-current/20 bg-white/50 px-3 py-3 dark:bg-black/20">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium">导入明细（不含文件名）</p>
+        <p className="text-xs opacity-80">
+          可重试 {result.retryable_items} 项 · 已回退{" "}
+          {result.rolled_back_item_results} 项
+        </p>
+      </div>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[620px] text-left text-xs">
+          <thead className="opacity-70">
+            <tr>
+              <th className="py-1 pr-3 font-medium">#</th>
+              <th className="py-1 pr-3 font-medium">类型</th>
+              <th className="py-1 pr-3 font-medium">去向</th>
+              <th className="py-1 pr-3 font-medium">动作</th>
+              <th className="py-1 pr-3 font-medium">状态</th>
+              <th className="py-1 pr-3 font-medium">重试</th>
+              <th className="py-1 font-medium">说明</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-current/10">
+            {visibleItems.map((item) => {
+              const statusBadge = ITEM_STATUS_BADGE[item.status];
+              return (
+                <tr key={`execution-${item.index}`}>
+                  <td className="py-1.5 pr-3 opacity-80">{item.index}</td>
+                  <td className="py-1.5 pr-3 opacity-80">
+                    {item.extension || "unknown"}
+                  </td>
+                  <td className="py-1.5 pr-3 opacity-80">
+                    {LANE_BADGE[item.lane].label}
+                  </td>
+                  <td className="py-1.5 pr-3 opacity-80">
+                    {ITEM_ACTION_LABEL[item.action]}
+                  </td>
+                  <td className="py-1.5 pr-3">
+                    <span
+                      className={`inline-block rounded px-1.5 py-0.5 font-medium ${statusBadge.className}`}
+                    >
+                      {statusBadge.label}
+                    </span>
+                  </td>
+                  <td className="py-1.5 pr-3 opacity-80">
+                    {item.retryable ? "可重试" : "不用"}
+                  </td>
+                  <td className="py-1.5 opacity-80">{item.note}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {hiddenItems > 0 && (
+        <p className="mt-2 text-xs opacity-70">
+          还有 {hiddenItems} 项未展开；完整状态会写入本地 receipt，仍不包含文件名或正文。
+        </p>
+      )}
     </div>
   );
 }

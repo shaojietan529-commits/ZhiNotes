@@ -928,6 +928,10 @@ Current local actions:
 - Confirmed batch imports also show a local progress queue: processed/total
   count, percentage, current phase, and the nearby queued items. This keeps
   large imports visibly moving without reading or exporting extra file content.
+- Confirmed batch imports return an item-level recovery summary: each item gets
+  a status, action, retryable flag, and rollback flag. The UI and local receipt
+  can explain failed, skipped, rolled-back, and not-yet-run items without
+  including file names, file bytes, page bodies, page ids, or database ids.
 
 The File Library module is a local routing and page-creation desk, not a cloud
 importer. It does not delete files, upload files, sync files, call AI, load HTML

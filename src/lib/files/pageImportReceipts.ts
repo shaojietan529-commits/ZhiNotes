@@ -19,6 +19,20 @@ export interface PageImportExecutionReceiptInput {
   confirmation_checked: boolean;
 }
 
+export interface PageImportExecutionReceiptItem {
+  index: number;
+  extension: string;
+  lane: PageImportExecutionResult["item_results"][number]["lane"];
+  target_kind: PageImportExecutionResult["item_results"][number]["target_kind"];
+  preview_route: PageImportExecutionResult["item_results"][number]["preview_route"];
+  status: PageImportExecutionResult["item_results"][number]["status"];
+  action: PageImportExecutionResult["item_results"][number]["action"];
+  retryable: boolean;
+  created_workspace_data: boolean;
+  rolled_back: boolean;
+  file_name_included: false;
+}
+
 export interface PageImportExecutionReceipt {
   format: "zhinote-page-import-execution-receipt";
   format_version: 1;
@@ -46,8 +60,18 @@ export interface PageImportExecutionReceipt {
     failed: number;
     rolled_back_pages: number;
     rolled_back_databases: number;
+    retryable_items: number;
+    rolled_back_item_results: number;
+    item_status_counts: {
+      completed: number;
+      skipped: number;
+      failed: number;
+      rolled_back: number;
+      not_run: number;
+    };
     notes_count: number;
   };
+  item_results: PageImportExecutionReceiptItem[];
   boundary: {
     local_receipt_only: true;
     stored_in_browser_local_storage: true;
@@ -102,8 +126,24 @@ export function buildPageImportExecutionReceipt({
       failed: result.failed,
       rolled_back_pages: result.rolled_back_pages,
       rolled_back_databases: result.rolled_back_databases,
+      retryable_items: result.retryable_items,
+      rolled_back_item_results: result.rolled_back_item_results,
+      item_status_counts: countItemStatuses(result),
       notes_count: result.notes.length,
     },
+    item_results: result.item_results.map((item) => ({
+      index: item.index,
+      extension: item.extension,
+      lane: item.lane,
+      target_kind: item.target_kind,
+      preview_route: item.preview_route,
+      status: item.status,
+      action: item.action,
+      retryable: item.retryable,
+      created_workspace_data: item.created_workspace_data,
+      rolled_back: item.rolled_back,
+      file_name_included: false,
+    })),
     boundary: {
       local_receipt_only: true,
       stored_in_browser_local_storage: true,
@@ -156,6 +196,12 @@ export function listPageImportExecutionReceipts(): PageImportExecutionReceipt[] 
 
 function buildNextReview(result: PageImportExecutionResult) {
   const review: string[] = [];
+  if (result.retryable_items > 0) {
+    review.push("按导入明细处理可重试项；receipt 只记录序号和类型，不含文件名。");
+  }
+  if (result.rolled_back_item_results > 0) {
+    review.push("已回退项没有保留在工作区，可缩小批次后重新导入。");
+  }
   if (result.html_native_preview_pages > 0) {
     review.push("逐个复核 HTML 报告页，外部资源默认保持阻止。");
   }
@@ -172,6 +218,38 @@ function buildNextReview(result: PageImportExecutionResult) {
     review.push("把新页面关联到公司、会议、报告、组合或项目。");
   }
   return review;
+}
+
+function countItemStatuses(result: PageImportExecutionResult) {
+  return result.item_results.reduce(
+    (counts, item) => {
+      switch (item.status) {
+        case "completed":
+          counts.completed += 1;
+          break;
+        case "skipped":
+          counts.skipped += 1;
+          break;
+        case "failed":
+          counts.failed += 1;
+          break;
+        case "rolled-back":
+          counts.rolled_back += 1;
+          break;
+        case "not-run":
+          counts.not_run += 1;
+          break;
+      }
+      return counts;
+    },
+    {
+      completed: 0,
+      skipped: 0,
+      failed: 0,
+      rolled_back: 0,
+      not_run: 0,
+    }
+  );
 }
 
 function isPageImportExecutionReceipt(
