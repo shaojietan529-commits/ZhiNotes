@@ -506,6 +506,7 @@ for (const token of [
   'openPage(pageId, { source: "daily-open" })',
   "rememberPendingPageDraft(optimisticNote)",
   "upsertPages([optimisticNote])",
+  "cachedHotSnapshot,\n        startDate,\n        endDate",
   "writeOptimisticDailyHotCache",
   "applyRemotePages([pageToRemoteRecord(note)])",
   "queueCloudPagePush(record)",

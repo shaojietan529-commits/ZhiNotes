@@ -559,6 +559,7 @@ const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
 check(
   dailyNotesShell.includes("const storedDailyRootId = getModuleRootIdSync(\"daily\")") &&
     dailyNotesShell.includes("const cachedCloud = includeCloud") &&
+    dailyNotesShell.includes("cachedHotSnapshot,\n        startDate,\n        endDate") &&
     dailyNotesShell.includes("let cloudMetadataPromise: Promise<DailyCloudMetadataResult> | null = null;") &&
     dailyNotesShell.includes("const startDailyCloudMetadataFetch = () => {") &&
     dailyNotesShell.indexOf("readCachedDailyCloudMetadata(startDate, endDate)") <

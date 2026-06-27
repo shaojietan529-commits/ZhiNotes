@@ -319,7 +319,12 @@ export default function DailyNotesShell() {
     };
 
     if (cachedHotSnapshot) {
-      const merged = mergeDailyHotCacheSnapshot(byId, cachedHotSnapshot);
+      const merged = mergeDailyHotCacheSnapshot(
+        byId,
+        cachedHotSnapshot,
+        startDate,
+        endDate
+      );
       if (merged > 0) {
         publishNotes(Array.from(byId.values()));
         publishNotice(

@@ -1678,6 +1678,14 @@ function run() {
       "records_metadata_only: true",
       "Daily hot cache snapshot must remain metadata-only.",
     ],
+    [
+      "isDailyHotCacheSnapshotPageInRange(page, input.startDate, input.endDate)",
+      "Daily hot cache snapshot writes must keep only the requested calendar range.",
+    ],
+    [
+      "range_pages: snapshotPages.length",
+      "Daily hot cache snapshot summaries must prove all stored pages are in range.",
+    ],
   ]) {
     assertSourceIncludes(
       files.dailyHotCacheSnapshot,
@@ -1727,6 +1735,10 @@ function run() {
     [
       "readDailyHotCacheSnapshot",
       "Daily notes must read the local hot cache snapshot before slower cache/cloud checks.",
+    ],
+    [
+      "cachedHotSnapshot,\n        startDate,\n        endDate",
+      "Daily notes must filter even exact hot-cache snapshots to the visible calendar range.",
     ],
     [
       "writeDailyHotCacheSnapshot",

@@ -1980,10 +1980,28 @@ function run() {
     "Daily hot cache overlap reads must stay bounded to intersecting date ranges."
   );
   assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "isDailyHotCacheSnapshotPageInRange(page, input.startDate, input.endDate)",
+    "Daily hot cache snapshot writes must keep only the requested calendar range."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "range_pages: snapshotPages.length",
+    "Daily hot cache snapshot summaries must prove all stored pages are in range."
+  );
+  assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
     "readDailyHotCacheSnapshotsForRange",
     "Daily notes must read overlapping local hot cache snapshots before slower local/cloud checks."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "cachedHotSnapshot,\n        startDate,\n        endDate",
+    "Daily notes must filter even exact hot-cache snapshots to the visible calendar range."
   );
   assertIncludes(
     files.dailyNotesShell,

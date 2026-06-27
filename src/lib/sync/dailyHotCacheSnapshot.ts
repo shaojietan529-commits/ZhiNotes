@@ -123,6 +123,9 @@ export function writeDailyHotCacheSnapshot(input: {
   const snapshotPages = input.pages
     .map(toSnapshotPage)
     .filter((page): page is DailyHotCacheSnapshotPage => Boolean(page))
+    .filter((page) =>
+      isDailyHotCacheSnapshotPageInRange(page, input.startDate, input.endDate)
+    )
     .slice(0, DAILY_HOT_CACHE_MAX_PAGES);
   if (snapshotPages.length === 0) return null;
 
@@ -153,11 +156,7 @@ export function writeDailyHotCacheSnapshot(input: {
     },
     summary: {
       pages: snapshotPages.length,
-      range_pages: snapshotPages.filter(
-        (page) =>
-          page.daily_date_key >= input.startDate &&
-          page.daily_date_key <= input.endDate
-      ).length,
+      range_pages: snapshotPages.length,
     },
     pages: snapshotPages,
   };
@@ -219,6 +218,14 @@ function toSnapshotPage(
     updated_at: page.updated_at,
     deleted_at: page.deleted_at,
   };
+}
+
+function isDailyHotCacheSnapshotPageInRange(
+  page: DailyHotCacheSnapshotPage,
+  startDate: string,
+  endDate: string
+): boolean {
+  return page.daily_date_key >= startDate && page.daily_date_key <= endDate;
 }
 
 function readDateKeyFromProperties(properties: string | null): string {
