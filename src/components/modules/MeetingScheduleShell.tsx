@@ -107,6 +107,8 @@ const MEETING_UPCOMING_VISIBLE_LIMIT = 8;
 const MEETING_NOTES_VISIBLE_LIMIT = 20;
 const MEETING_CALENDAR_EXPAND_BATCH = 24;
 const MEETING_CALENDAR_REVEAL_BUFFER = 2;
+const MEETING_CALENDAR_RENDER_DAY_LIMIT =
+  MEETING_CALENDAR_VISIBLE_LIMIT + MEETING_CALENDAR_EXPAND_BATCH;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 interface MeetingEntry {
@@ -225,6 +227,11 @@ interface MeetingCloudMetadataOptions {
   recentLimit?: number;
 }
 
+interface MeetingCalendarRenderSelection {
+  pages: Page[];
+  countsByDate: Map<string, number>;
+}
+
 const MEETING_CLOUD_CACHE_PREFIX = "zhinote.zhihui.cloudMetadata.";
 
 export default function MeetingScheduleShell() {
@@ -235,6 +242,9 @@ export default function MeetingScheduleShell() {
   const pageRevision = usePageRevision();
   const [rootId, setRootId] = useState<string | null>(null);
   const [meetings, setMeetings] = useState<Page[]>([]);
+  const [meetingCountByDate, setMeetingCountByDate] = useState<
+    Map<string, number>
+  >(() => new Map());
   const [creatingMeetingDateKey, setCreatingMeetingDateKey] = useState<
     string | null
   >(null);
@@ -324,12 +334,18 @@ export default function MeetingScheduleShell() {
       deletedTombstoneRef.current
     );
     if (nextMeetings.length === 0) return;
+    const selection = selectMeetingPagesForCalendarRender(
+      nextMeetings,
+      startDate,
+      endDate
+    );
 
     if (cachedHotSnapshot.root_id) {
       setRootId(cachedHotSnapshot.root_id);
     }
     startTransition(() => {
-      setMeetings(nextMeetings);
+      setMeetings(selection.pages);
+      setMeetingCountByDate(selection.countsByDate);
     });
   }, [deletedTombstoneRef, viewMonth]);
 
@@ -614,9 +630,15 @@ export default function MeetingScheduleShell() {
         [...retainedCloudPages, ...cloudPages],
         deletedTombstoneRef.current
       );
+      const selection = selectMeetingPagesForCalendarRender(
+        nextMeetings,
+        startDate,
+        endDate
+      );
       startTransition(() => {
         if (loadRequestRef.current !== requestId) return;
-        setMeetings(nextMeetings);
+        setMeetings(selection.pages);
+        setMeetingCountByDate(selection.countsByDate);
       });
     };
 
@@ -672,11 +694,15 @@ export default function MeetingScheduleShell() {
         startDate,
         endDate,
         rootId: id,
-        pages: mergeMeetingPages(
-          localPagesForMerge,
-          cachedCloud?.ok ? cachedCloud.pages : [],
-          deletedTombstoneRef.current
-        ),
+        pages: selectMeetingPagesForCalendarRender(
+          mergeMeetingPages(
+            localPagesForMerge,
+            cachedCloud?.ok ? cachedCloud.pages : [],
+            deletedTombstoneRef.current
+          ),
+          startDate,
+          endDate
+        ).pages,
         source: "local-metadata",
       });
       if (deletionTombstonesLoaded) {
@@ -704,11 +730,15 @@ export default function MeetingScheduleShell() {
         startDate,
         endDate,
         rootId: cloud.rootId,
-        pages: mergeMeetingPages(
-          localPagesForMerge,
-          cloud.pages,
-          deletedTombstoneRef.current
-        ),
+        pages: selectMeetingPagesForCalendarRender(
+          mergeMeetingPages(
+            localPagesForMerge,
+            cloud.pages,
+            deletedTombstoneRef.current
+          ),
+          startDate,
+          endDate
+        ).pages,
         source: "cloud-metadata",
       });
       void persistMeetingCloudMetadata(cloud, upsertPages);
@@ -864,7 +894,8 @@ export default function MeetingScheduleShell() {
         startDate,
         endDate,
         rootId: rootHint,
-        pages,
+        pages: selectMeetingPagesForCalendarRender(pages, startDate, endDate)
+          .pages,
         source: "optimistic-local",
       });
     },
@@ -2103,14 +2134,24 @@ export default function MeetingScheduleShell() {
                   MEETING_CALENDAR_VISIBLE_LIMIT + MEETING_CALENDAR_EXPAND_BATCH)
                 : MEETING_CALENDAR_VISIBLE_LIMIT;
               const visibleMeetings = dayMeetings.slice(0, visibleLimit);
-              const hiddenCount = Math.max(
+              const dayTotalCount = Math.max(
+                meetingCountByDate.get(key) ?? 0,
+                dayMeetings.length
+              );
+              const loadedHiddenCount = Math.max(
                 0,
                 dayMeetings.length - visibleMeetings.length
               );
+              const hiddenCount = Math.max(
+                0,
+                dayTotalCount - visibleMeetings.length
+              );
               const nextBatchCount = Math.min(
                 MEETING_CALENDAR_EXPAND_BATCH,
-                hiddenCount
+                loadedHiddenCount
               );
+              const isRenderCapped =
+                dayTotalCount > dayMeetings.length && loadedHiddenCount === 0;
               const isToday = key === todayKey;
               const isHighlighted = key === highlightedDateKey;
               return (
@@ -2192,10 +2233,16 @@ export default function MeetingScheduleShell() {
                         <MeetingHoverCard entry={entry} />
                       </button>
                     ))}
-                    {dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT && (
+                    {dayTotalCount > MEETING_CALENDAR_VISIBLE_LIMIT && (
                       <button
                         type="button"
                         onClick={() => {
+                          if (isRenderCapped) {
+                            setIntakeMessage(
+                              `为保持日历流畅，${key} 当前先显示 ${visibleMeetings.length}/${dayTotalCount} 场会议；可用搜索打开其余会议。`
+                            );
+                            return;
+                          }
                           if (isExpanded && hiddenCount === 0) {
                             toggleMeetingDateExpansion(key);
                             return;
@@ -2210,7 +2257,9 @@ export default function MeetingScheduleShell() {
                         className="rounded bg-zinc-50 px-1.5 py-0.5 text-left text-xs text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                       >
                         {isExpanded
-                          ? hiddenCount > 0
+                          ? isRenderCapped
+                            ? `已显示 ${visibleMeetings.length}/${dayTotalCount} 场`
+                            : hiddenCount > 0
                             ? `再显示 ${nextBatchCount} 场（剩余 ${hiddenCount}）`
                             : `收起到 ${MEETING_CALENDAR_VISIBLE_LIMIT} 场`
                           : `+${hiddenCount} 场，点击展开`}
@@ -2571,6 +2620,38 @@ function mergeMeetingPages(
     }
   }
   return [...byId.values()];
+}
+
+function selectMeetingPagesForCalendarRender(
+  pages: Page[],
+  startDate: string,
+  endDate: string
+): MeetingCalendarRenderSelection {
+  const selectedPages: Page[] = [];
+  const countsByDate = new Map<string, number>();
+  const renderedByDate = new Map<string, number>();
+  const selectedIds = new Set<string>();
+
+  for (const page of pages) {
+    const dateKey = toMeetingEntry(page).dateKey;
+    if (!dateKey || dateKey < startDate || dateKey > endDate) {
+      if (!selectedIds.has(page.id)) {
+        selectedPages.push(page);
+        selectedIds.add(page.id);
+      }
+      continue;
+    }
+
+    countsByDate.set(dateKey, (countsByDate.get(dateKey) ?? 0) + 1);
+    const renderedCount = renderedByDate.get(dateKey) ?? 0;
+    if (renderedCount >= MEETING_CALENDAR_RENDER_DAY_LIMIT) continue;
+
+    selectedPages.push(page);
+    selectedIds.add(page.id);
+    renderedByDate.set(dateKey, renderedCount + 1);
+  }
+
+  return { pages: selectedPages, countsByDate };
 }
 
 async function seedMeetingPageForImmediateOpen(page: Page): Promise<void> {

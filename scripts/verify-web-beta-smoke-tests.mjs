@@ -2602,6 +2602,38 @@ function run() {
     "writeOptimisticMeetingHotCache",
     "Meeting schedule must update the hot cache as soon as a local meeting draft is created."
   );
+  for (const [snippet, message] of [
+    [
+      "MEETING_CALENDAR_RENDER_DAY_LIMIT",
+      "Meeting calendar must cap per-day rendered entries so high-volume imports do not block the UI.",
+    ],
+    [
+      "const [meetingCountByDate, setMeetingCountByDate]",
+      "Meeting calendar must keep total counts separately from the rendered entry list.",
+    ],
+    [
+      "function selectMeetingPagesForCalendarRender(",
+      "Meeting calendar must route merged metadata through a render selection step before publishing.",
+    ],
+    [
+      "setMeetingCountByDate(selection.countsByDate)",
+      "Meeting calendar must publish true per-day counts alongside the capped render list.",
+    ],
+    [
+      "dayTotalCount > MEETING_CALENDAR_VISIBLE_LIMIT",
+      "Meeting calendar expansion controls must use true per-day totals, not only the capped render list.",
+    ],
+    [
+      "已显示 ${visibleMeetings.length}/${dayTotalCount} 场",
+      "Meeting calendar must tell the user when a high-volume day has reached the render cap.",
+    ],
+    [
+      "为保持日历流畅",
+      "Meeting calendar must explain why additional high-volume entries are not rendered inline.",
+    ],
+  ]) {
+    assertIncludes(files.meetingScheduleShell, meetingScheduleShell, snippet, message);
+  }
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
@@ -2611,7 +2643,7 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setMeetings(nextMeetings);",
+    "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setMeetings(selection.pages);",
     "Meeting calendar bulk metadata publishes must stay low-priority so create/import clicks remain responsive."
   );
   assertIncludes(

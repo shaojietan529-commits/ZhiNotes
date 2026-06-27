@@ -816,6 +816,10 @@ check(
 check(
   meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
+    meetingScheduleShell.includes("MEETING_CALENDAR_RENDER_DAY_LIMIT") &&
+    meetingScheduleShell.includes("const [meetingCountByDate, setMeetingCountByDate]") &&
+    meetingScheduleShell.includes("function selectMeetingPagesForCalendarRender(") &&
+    meetingScheduleShell.includes("setMeetingCountByDate(selection.countsByDate)") &&
     meetingScheduleShell.includes("expandedMeetingDateKeys") &&
     meetingScheduleShell.includes("visibleMeetingLimitByDate") &&
     meetingScheduleShell.includes("toggleMeetingDateExpansion") &&
@@ -828,11 +832,16 @@ check(
     meetingScheduleShell.includes("revealMeetingOnCalendar(finalPage)") &&
     meetingScheduleShell.includes("const visibleLimit = isExpanded") &&
     meetingScheduleShell.includes("const visibleMeetings = dayMeetings.slice(0, visibleLimit)") &&
+    meetingScheduleShell.includes("const dayTotalCount = Math.max(") &&
+    meetingScheduleShell.includes("const loadedHiddenCount = Math.max(") &&
+    meetingScheduleShell.includes("const isRenderCapped =") &&
     meetingScheduleShell.includes("Math.min(totalCount, currentLimit + MEETING_CALENDAR_EXPAND_BATCH)") &&
     meetingScheduleShell.includes("再显示 ${nextBatchCount} 场") &&
-    meetingScheduleShell.includes("dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT") &&
+    meetingScheduleShell.includes("dayTotalCount > MEETING_CALENDAR_VISIBLE_LIMIT") &&
+    meetingScheduleShell.includes("已显示 ${visibleMeetings.length}/${dayTotalCount} 场") &&
+    meetingScheduleShell.includes("为保持日历流畅") &&
     !meetingScheduleShell.includes("{dayMeetings.map"),
-  "MeetingScheduleShell 月历单元格应只渲染可见会议，更多会议必须点击后分批展开"
+  "MeetingScheduleShell 月历单元格应只渲染可见会议，更多会议必须点击后分批展开；单日高 volume 会议应限量渲染并提示真实总数"
 );
 
 const usePageHook = read("src/hooks/usePage.ts");
