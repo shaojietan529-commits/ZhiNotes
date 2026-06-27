@@ -2530,6 +2530,12 @@ function run() {
   assertIncludes(
     files.usePage,
     usePage,
+    "const [initialLocalFirstPageSeed] = useState<Page | null>(() => {",
+    "Page opening must read the initial local-first seed once and reuse it for first render state."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
     "const [page, setPage] = useState<Page | null>(() => {",
     "Page opening must seed the page state before the first client render when route metadata exists."
   );
@@ -2538,6 +2544,18 @@ function run() {
     usePage,
     "const [loading, setLoading] = useState(() => {",
     "Page opening must seed the loading state before the first client render when route metadata exists."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "const visiblePageRef = useRef<Page | null>(initialLocalFirstPageSeed)",
+    "Page opening must keep the already-visible page snapshot available for the next load pass."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "visiblePageRef.current?.id === pageId",
+    "Page opening must reuse the visible page snapshot before rereading session storage or IndexedDB."
   );
   assertIncludes(
     files.usePage,

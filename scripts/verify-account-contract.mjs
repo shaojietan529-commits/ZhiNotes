@@ -782,9 +782,12 @@ check(
 );
 check(
   usePageHook.includes("setPageForCurrentLoad(localPage)") &&
+    usePageHook.includes("const [initialLocalFirstPageSeed] = useState<Page | null>(() => {") &&
     usePageHook.includes("const [page, setPage] = useState<Page | null>(() => {") &&
     usePageHook.includes("const [loading, setLoading] = useState(() => {") &&
     usePageHook.includes("const loadRequestRef = useRef(0);") &&
+    usePageHook.includes("const visiblePageRef = useRef<Page | null>(initialLocalFirstPageSeed)") &&
+    usePageHook.includes("visiblePageRef.current?.id === pageId") &&
     usePageHook.includes("const requestId = ++loadRequestRef.current;") &&
     usePageHook.includes("if (!isCurrentLoad()) return;") &&
     usePageHook.includes("loadRequestRef.current += 1;") &&

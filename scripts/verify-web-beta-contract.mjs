@@ -2116,12 +2116,24 @@ function run() {
       "usePage must read local-first route seeds before waiting on IndexedDB readiness.",
     ],
     [
+      "const [initialLocalFirstPageSeed] = useState<Page | null>(() => {",
+      "usePage must read the initial local-first seed once and reuse it for first render state.",
+    ],
+    [
       "const [page, setPage] = useState<Page | null>(() => {",
       "usePage must seed the page state before the first client render when route metadata exists.",
     ],
     [
       "const [loading, setLoading] = useState(() => {",
       "usePage must seed the loading state before the first client render when route metadata exists.",
+    ],
+    [
+      "const visiblePageRef = useRef<Page | null>(initialLocalFirstPageSeed)",
+      "usePage must keep the already-visible page snapshot available for the next load pass.",
+    ],
+    [
+      "visiblePageRef.current?.id === pageId",
+      "usePage must reuse the visible page snapshot before rereading session storage or IndexedDB.",
     ],
     [
       "const loadRequestRef = useRef(0);",

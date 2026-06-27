@@ -55,24 +55,31 @@ export function usePage(
   options: UsePageOptions = {}
 ) {
   const enabled = options.enabled ?? true;
-  const [page, setPage] = useState<Page | null>(() => {
+  const [initialLocalFirstPageSeed] = useState<Page | null>(() => {
     if (!enabled || !pageId) return null;
     return readLocalFirstPageSeed(pageId);
   });
+  const [page, setPage] = useState<Page | null>(() => {
+    return initialLocalFirstPageSeed;
+  });
   const [loading, setLoading] = useState(() => {
     if (!enabled || !pageId) return false;
-    return !readLocalFirstPageSeed(pageId);
+    return !initialLocalFirstPageSeed;
   });
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const pageRevision = usePageRecordRevision(pageId);
   const loadRequestRef = useRef(0);
+  const visiblePageRef = useRef<Page | null>(initialLocalFirstPageSeed);
 
   const load = useCallback(async () => {
     const requestId = ++loadRequestRef.current;
     const isCurrentLoad = () => loadRequestRef.current === requestId;
     const setPageForCurrentLoad = (next: Page | null) => {
-      if (isCurrentLoad()) setPage(next);
+      if (isCurrentLoad()) {
+        visiblePageRef.current = next;
+        setPage(next);
+      }
     };
     const setLoadingForCurrentLoad = (next: boolean) => {
       if (isCurrentLoad()) setLoading(next);
@@ -83,7 +90,10 @@ export function usePage(
       setLoadingForCurrentLoad(false);
       return;
     }
-    let localPage = readLocalFirstPageSeed(pageId);
+    let localPage =
+      visiblePageRef.current?.id === pageId
+        ? visiblePageRef.current
+        : readLocalFirstPageSeed(pageId);
     if (localPage) {
       upsertPages([localPage]);
       setPageForCurrentLoad(localPage);
@@ -177,6 +187,7 @@ export function usePage(
       };
       const record = pageToRemoteRecord(optimistic);
 
+      visiblePageRef.current = optimistic;
       setPage(optimistic);
       upsertPages([optimistic]);
       emitPageSnapshotsUpdated("cloud-push", [optimistic]);
@@ -213,6 +224,7 @@ export function usePage(
         upsertPages([deletedSnapshot]);
         emitPageSnapshotsUpdated("cloud-push", [deletedSnapshot]);
       }
+      visiblePageRef.current = null;
       setPage(null);
     }
     return snapshot
