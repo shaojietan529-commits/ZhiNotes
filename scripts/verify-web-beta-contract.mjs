@@ -2504,6 +2504,32 @@ function run() {
   ]) {
     assertSourceIncludes(files.pageShell, pageShell, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      "PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000",
+      "Page shell must keep pending page-sync feedback responsive while uploads are queued.",
+    ],
+    [
+      "PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000",
+      "Page shell must slow idle page-sync polling so background status checks do not drag page opens.",
+    ],
+    [
+      "scheduleStatusRefresh",
+      "Page shell sync status refresh must be scheduled adaptively instead of using a fixed interval.",
+    ],
+    [
+      "document.addEventListener(\"visibilitychange\", handleVisibleRefresh)",
+      "Page shell sync status must refresh when returning to a visible tab.",
+    ],
+  ]) {
+    assertSourceIncludes(files.pageShell, pageShell, snippet, message);
+  }
+  assertSourceExcludes(
+    files.pageShell,
+    pageShell,
+    "window.setInterval(refreshStatus, 5000)",
+    "Page shell must not poll page sync status every five seconds while idle."
+  );
   assertSourceIncludes(
     files.accountPageSync,
     accountPageSync,

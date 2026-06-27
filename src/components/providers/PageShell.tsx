@@ -89,6 +89,8 @@ const PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700;
 const PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200;
 const PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800;
 const PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500;
+const PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000;
+const PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000;
 
 const Editor = dynamic(loadEditorModule, {
   ssr: false,
@@ -194,22 +196,51 @@ function PageContent({ pageId }: { pageId: string }) {
   }, [pageId]);
 
   useEffect(() => {
+    let timer: number | null = null;
     const refreshStatus = (event?: Event) => {
       const next = (event as CustomEvent<PendingCloudPageSyncStatus> | undefined)
         ?.detail;
-      setPageSyncStatus(next ?? getPendingCloudPageSyncStatus());
-      setCurrentPagePendingSync(isCloudPagePendingSync(pageId));
+      const status = next ?? getPendingCloudPageSyncStatus();
+      setPageSyncStatus(status);
+      const pagePending = isCloudPagePendingSync(pageId);
+      setCurrentPagePendingSync(pagePending);
+      return { status, pagePending };
     };
-    refreshStatus();
-    window.addEventListener(PAGE_SYNC_STATUS_EVENT, refreshStatus);
-    window.addEventListener(PAGE_SYNC_CONFIG_EVENT, refreshStatus);
-    window.addEventListener("storage", refreshStatus);
-    const timer = window.setInterval(refreshStatus, 5000);
+    const scheduleStatusRefresh = (snapshot = refreshStatus()) => {
+      if (timer !== null) window.clearTimeout(timer);
+      const totalPending = snapshot.status.pending + snapshot.status.queued;
+      const delay =
+        snapshot.pagePending || totalPending > 0
+          ? PAGE_SYNC_STATUS_PENDING_REFRESH_MS
+          : PAGE_SYNC_STATUS_IDLE_REFRESH_MS;
+      timer = window.setTimeout(() => {
+        timer = null;
+        if (document.visibilityState !== "visible") {
+          scheduleStatusRefresh(snapshot);
+          return;
+        }
+        scheduleStatusRefresh(refreshStatus());
+      }, delay);
+    };
+    const handleStatusRefresh = (event?: Event) => {
+      scheduleStatusRefresh(refreshStatus(event));
+    };
+    const handleVisibleRefresh = () => {
+      if (document.visibilityState === "visible") {
+        handleStatusRefresh();
+      }
+    };
+    handleStatusRefresh();
+    window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleStatusRefresh);
+    window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleStatusRefresh);
+    window.addEventListener("storage", handleStatusRefresh);
+    document.addEventListener("visibilitychange", handleVisibleRefresh);
     return () => {
-      window.removeEventListener(PAGE_SYNC_STATUS_EVENT, refreshStatus);
-      window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, refreshStatus);
-      window.removeEventListener("storage", refreshStatus);
-      window.clearInterval(timer);
+      window.removeEventListener(PAGE_SYNC_STATUS_EVENT, handleStatusRefresh);
+      window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleStatusRefresh);
+      window.removeEventListener("storage", handleStatusRefresh);
+      document.removeEventListener("visibilitychange", handleVisibleRefresh);
+      if (timer !== null) window.clearTimeout(timer);
     };
   }, [pageId]);
 

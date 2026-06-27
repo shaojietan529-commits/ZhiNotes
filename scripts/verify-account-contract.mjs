@@ -1248,6 +1248,16 @@ check(
     pageShell.includes("cancelEditorSideEffects();"),
   "PageShell 正文保存后应延迟重建 wiki 链接和自动版本快照，避免编辑输入路径被关系索引和版本比较拖慢"
 );
+check(
+  pageShell.includes("PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000") &&
+    pageShell.includes("PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000") &&
+    pageShell.includes("scheduleStatusRefresh") &&
+    pageShell.includes(
+      'document.addEventListener("visibilitychange", handleVisibleRefresh)'
+    ) &&
+    !pageShell.includes("window.setInterval(refreshStatus, 5000)"),
+  "PageShell 同步状态应在 pending 时保持 5 秒反馈、空闲时降到 30 秒，并在标签页恢复可见时刷新，避免固定 5 秒轮询拖慢页面打开"
+);
 
 const useVersionsHook = read("src/hooks/useVersions.ts");
 check(
