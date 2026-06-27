@@ -399,13 +399,28 @@ export default function PageImportPlanPanel() {
               }`}
             >
               {result.status === "completed" ? (
-                <p>
-                  导入完成：创建页面 {result.created_pages} 个、数据库{" "}
-                  {result.created_databases} 个、文件页 {result.retained_file_pages}{" "}
-                  个；跳过异常表格 {result.skipped_database} 个、待复核{" "}
-                  {result.skipped_blocked} 个。
-                  文件没有上传或调用 AI。
-                </p>
+                <div className="space-y-2">
+                  <p>
+                    导入完成：创建页面 {result.created_pages} 个、数据库{" "}
+                    {result.created_databases} 个、文件页 {result.retained_file_pages}{" "}
+                    个；跳过异常表格 {result.skipped_database} 个、待复核{" "}
+                    {result.skipped_blocked} 个。
+                    文件没有上传或调用 AI。
+                  </p>
+                  <p className="text-xs leading-5">
+                    其中可编辑正文页 {result.editable_page_imports} 个，Markdown
+                    可编辑页 {result.markdown_editable_pages} 个，HTML 报告沙盒预览页{" "}
+                    {result.html_native_preview_pages} 个，其他本地预览页{" "}
+                    {result.local_preview_pages} 个。HTML 外部资源默认继续阻止。
+                  </p>
+                  {result.notes.length > 0 && (
+                    <ul className="list-disc space-y-1 pl-5 text-xs leading-5">
+                      {result.notes.slice(0, 5).map((note, index) => (
+                        <li key={`${index}-${note}`}>{note}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               ) : (
                 <p>
                   导入中途失败，已回退本次创建的 {result.rolled_back_pages}{" "}

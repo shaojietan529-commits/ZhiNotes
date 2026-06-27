@@ -36,6 +36,10 @@ import type { Page } from "@/lib/utils/types";
 export interface PageImportExecutionResult {
   status: "completed" | "rolled-back";
   created_pages: number;
+  editable_page_imports: number;
+  markdown_editable_pages: number;
+  html_native_preview_pages: number;
+  local_preview_pages: number;
   created_databases: number;
   retained_file_pages: number;
   skipped_database: number;
@@ -133,6 +137,10 @@ export async function executePageImportPlan(
   const createdDatabaseIds: string[] = [];
   const notes: string[] = [];
   let createdPages = 0;
+  let editablePageImports = 0;
+  let markdownEditablePages = 0;
+  let htmlNativePreviewPages = 0;
+  let localPreviewPages = 0;
   let createdDatabases = 0;
   let retainedFilePages = 0;
   let skippedDatabase = 0;
@@ -148,6 +156,10 @@ export async function executePageImportPlan(
   ): PageImportExecutionResult => ({
     status,
     created_pages: createdPages,
+    editable_page_imports: editablePageImports,
+    markdown_editable_pages: markdownEditablePages,
+    html_native_preview_pages: htmlNativePreviewPages,
+    local_preview_pages: localPreviewPages,
     created_databases: createdDatabases,
     retained_file_pages: retainedFilePages,
     skipped_database: skippedDatabase,
@@ -250,6 +262,9 @@ export async function executePageImportPlan(
         });
         rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
+        editablePageImports += 1;
+        markdownEditablePages += 1;
+        notes.push("Markdown 已本地转换为可编辑页面；没有上传文件内容。");
         continue;
       }
 
@@ -265,6 +280,7 @@ export async function executePageImportPlan(
         });
         rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
+        editablePageImports += 1;
         continue;
       }
 
@@ -280,6 +296,7 @@ export async function executePageImportPlan(
         });
         rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
+        editablePageImports += 1;
         notes.push("RTF 已本地转换为可编辑页面；没有上传文件内容。");
         continue;
       }
@@ -297,6 +314,7 @@ export async function executePageImportPlan(
         });
         rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
+        editablePageImports += 1;
         notes.push("EPUB 已本地解析为可编辑页面；没有加载远程资源或上传文件内容。");
         continue;
       }
@@ -312,6 +330,7 @@ export async function executePageImportPlan(
         });
         rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
+        editablePageImports += 1;
         notes.push("Word/ODT 已本地转换为可编辑页面；没有上传文件内容。");
         continue;
       }
@@ -327,6 +346,7 @@ export async function executePageImportPlan(
         });
         rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
+        editablePageImports += 1;
         notes.push("PowerPoint/ODP 已本地转换为可编辑页面；没有上传文件内容。");
         continue;
       }
@@ -343,6 +363,7 @@ export async function executePageImportPlan(
         });
         rememberCreatedPage(updatedPage ?? page);
         createdPages += 1;
+        editablePageImports += 1;
         notes.push("Notebook 已本地解析为可编辑页面；代码单元格只作为文本保留，未执行。");
         continue;
       }
@@ -358,6 +379,12 @@ export async function executePageImportPlan(
         content_text: buildFileLibraryPageContent(stored),
       });
       rememberCreatedPage(updatedPage ?? page);
+      if (item.lane === "page-import" && stored.kind === "html") {
+        htmlNativePreviewPages += 1;
+        notes.push("HTML 已创建为报告文件页；沙盒原生预览默认阻止外部资源。");
+      } else {
+        localPreviewPages += 1;
+      }
       retainedFilePages += 1;
     }
 

@@ -214,6 +214,15 @@ check(
     executorSource.includes("rememberCreatedPage"),
   "执行器必须返回不含正文的 created_page_metadata，供导入完成后乐观合并页面索引"
 );
+check(
+  executorSource.includes("editable_page_imports") &&
+    executorSource.includes("markdown_editable_pages") &&
+    executorSource.includes("html_native_preview_pages") &&
+    executorSource.includes("local_preview_pages") &&
+    executorSource.includes("Markdown 已本地转换为可编辑页面") &&
+    executorSource.includes("HTML 已创建为报告文件页"),
+  "执行器必须区分可编辑页面、Markdown 可编辑页、HTML 沙盒预览页和其他本地预览页"
+);
 // Rollback must exist and soft-delete created pages.
 check(
   executorSource.includes("rollback") && executorSource.includes("deletePage"),
@@ -295,6 +304,13 @@ check(
     !panelSource.includes("refreshPages()"),
   "PageImportPlanPanel 执行导入后必须乐观合并页面 metadata，不能刷新全局页面列表"
 );
+check(
+  panelSource.includes("result.editable_page_imports") &&
+    panelSource.includes("result.markdown_editable_pages") &&
+    panelSource.includes("result.html_native_preview_pages") &&
+    panelSource.includes("HTML 外部资源默认继续阻止"),
+  "PageImportPlanPanel 必须展示 Markdown/HTML 导入后的具体落地结果"
+);
 
 if (errors.length > 0) {
   console.error("Page import plan contract verification FAILED:");
@@ -316,6 +332,7 @@ console.log(
       raw_file_bytes_local_only: true,
       page_records_follow_account_sync: true,
       database_records_follow_account_sync: true,
+      result_distinguishes_markdown_html_pages: true,
     },
     null,
     2
