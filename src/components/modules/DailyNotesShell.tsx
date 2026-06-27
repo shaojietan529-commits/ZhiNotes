@@ -785,7 +785,9 @@ export default function DailyNotesShell() {
         viewMonth,
         rootId: initialRootId,
       });
-      void seedDailyNoteForImmediateOpen(optimisticNote);
+      scheduleDailyIdleTask(() => {
+        void seedDailyNoteForImmediateOpen(optimisticNote);
+      }, 320);
       window.setTimeout(() => {
         setCreatingDateKey((current) => (current === dateKey ? null : current));
       }, 250);
@@ -800,49 +802,53 @@ export default function DailyNotesShell() {
       }
       setCloudNotice(`${dateKey} 的每日纪要已打开，后台会加入账号云端上传队列…`);
       openPage(optimisticNote, { source: "daily-create" });
-      void (async () => {
-        try {
-          const dailyRootId = initialRootId ?? (await getModuleRootId("daily"));
-          if (!rootId) setRootId(dailyRootId);
-          const latestNote = await getLatestOpenedDailyNote(optimisticNote);
-          const noteForSave: DailyNote = {
-            ...latestNote,
-            parent_id: dailyRootId,
-            depth: 1,
-            dailyDateKey: dateKey,
-            updated_at:
-              latestNote.parent_id === dailyRootId
-                ? latestNote.updated_at
-                : new Date().toISOString(),
-          };
-          setNotes((current) =>
-            current.map((item) =>
-              item.id === noteForSave.id ? noteForSave : item
-            )
-          );
-          upsertPages([noteForSave]);
-          rememberPageRouteHandoff(noteForSave, "daily-create");
-          const persistStatus = await persistOptimisticDailyNote(
-            dailyRootId,
-            noteForSave,
-            upsertPages
-          );
-          setCloudNotice(
-            persistStatus === "queued"
-              ? `${dateKey} 的每日纪要已在本机保存，并加入云端后台上传队列。`
-              : `${dateKey} 的每日纪要已在本机保存；登录或配置账号云端后会自动同步。`
-          );
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : "账号云端保存失败";
-          setCloudNotice(`每日纪要已在当前页面打开，但后台保存失败：${message}`);
-        } finally {
-          setOpeningDraft((current) =>
-            current?.pageId === optimisticNote.id ? null : current
-          );
-          setCreatingDateKey((current) => (current === dateKey ? null : current));
-        }
-      })();
+      scheduleDailyIdleTask(() => {
+        void (async () => {
+          try {
+            const dailyRootId = initialRootId ?? (await getModuleRootId("daily"));
+            if (!rootId) setRootId(dailyRootId);
+            const latestNote = await getLatestOpenedDailyNote(optimisticNote);
+            const noteForSave: DailyNote = {
+              ...latestNote,
+              parent_id: dailyRootId,
+              depth: 1,
+              dailyDateKey: dateKey,
+              updated_at:
+                latestNote.parent_id === dailyRootId
+                  ? latestNote.updated_at
+                  : new Date().toISOString(),
+            };
+            setNotes((current) =>
+              current.map((item) =>
+                item.id === noteForSave.id ? noteForSave : item
+              )
+            );
+            upsertPages([noteForSave]);
+            rememberPageRouteHandoff(noteForSave, "daily-create");
+            const persistStatus = await persistOptimisticDailyNote(
+              dailyRootId,
+              noteForSave,
+              upsertPages
+            );
+            setCloudNotice(
+              persistStatus === "queued"
+                ? `${dateKey} 的每日纪要已在本机保存，并加入云端后台上传队列。`
+                : `${dateKey} 的每日纪要已在本机保存；登录或配置账号云端后会自动同步。`
+            );
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : "账号云端保存失败";
+            setCloudNotice(`每日纪要已在当前页面打开，但后台保存失败：${message}`);
+          } finally {
+            setOpeningDraft((current) =>
+              current?.pageId === optimisticNote.id ? null : current
+            );
+            setCreatingDateKey((current) =>
+              current === dateKey ? null : current
+            );
+          }
+        })();
+      }, 420);
     },
     [
       creatingDateKey,

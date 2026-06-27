@@ -771,7 +771,8 @@ check(
 check(
   meetingScheduleShell.includes("upsertMeetingInView(finalPage)") &&
     (meetingScheduleShell.includes("persistOptimisticMeetingPage(rootId, finalPage, upsertPages)") ||
-      meetingScheduleShell.includes("resolvedRootId,\n            finalPage,\n            upsertPages")) &&
+      meetingScheduleShell.includes("resolvedRootId,\n            finalPage,\n            upsertPages") ||
+      meetingScheduleShell.includes("resolvedRootId,\n              finalPage,\n              upsertPages")) &&
     meetingScheduleShell.includes("observedPageRevisionRef") &&
     meetingScheduleShell.includes("void load({ includeCloud: true })") &&
     meetingScheduleShell.includes("void load({ includeCloud: false })") &&

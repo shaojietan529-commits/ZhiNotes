@@ -1302,73 +1302,28 @@ export default function MeetingScheduleShell() {
       rememberPageRouteHandoff(optimisticPage, "meeting-create");
       writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);
       revealMeetingOnCalendar(optimisticPage);
-      void seedMeetingPageForImmediateOpen(optimisticPage);
+      scheduleMeetingIdleTask(() => {
+        void seedMeetingPageForImmediateOpen(optimisticPage);
+      }, 320);
 
-      void (async () => {
-        let finalPage = optimisticPage;
-        try {
-          const resolvedRootId =
-            rootId ??
-            getModuleRootIdSync("meeting-schedule") ??
-            (await getModuleRootId("meeting-schedule"));
-          if (!rootId) setRootId(resolvedRootId);
-          const latestPage = await getLatestOpenedMeetingPage(optimisticPage);
-          finalPage = {
-            ...latestPage,
-            parent_id: resolvedRootId,
-            depth: 1,
-            updated_at:
-              latestPage.parent_id === resolvedRootId
-                ? latestPage.updated_at
-                : new Date().toISOString(),
-          };
-          upsertMeetingInView(finalPage);
-          upsertPages([finalPage]);
-          rememberPendingPageDraft(finalPage);
-          rememberPageRouteHandoff(finalPage, "meeting-create");
-          writeOptimisticMeetingHotCache(finalPage, resolvedRootId);
-          revealMeetingOnCalendar(finalPage);
-          await persistOptimisticMeetingPage(
-            resolvedRootId,
-            finalPage,
-            upsertPages
-          );
-
-          if (options.enqueueRecording) {
-            const actualQueueResult = await enqueueMeetingRecordingRequest(
-              toMeetingEntry(finalPage),
-              false
-            );
-            const queueProps = parsePageProperties(finalPage.properties);
-            upsertPageProperty(
-              queueProps,
-              "录制任务",
-              actualQueueResult.ok ? "已入队" : "入队失败",
-              {
-                type: "select",
-                options: ["未入队", "已入队", "入队失败"],
-              }
-            );
-            upsertPageProperty(
-              queueProps,
-              "录制任务ID",
-              actualQueueResult.jobId ?? "",
-              {
-                type: "text",
-              }
-            );
-            upsertPageProperty(
-              queueProps,
-              "录制任务错误",
-              actualQueueResult.ok ? "" : actualQueueResult.message,
-              {
-                type: "text",
-              }
-            );
+      scheduleMeetingIdleTask(() => {
+        void (async () => {
+          let finalPage = optimisticPage;
+          try {
+            const resolvedRootId =
+              rootId ??
+              getModuleRootIdSync("meeting-schedule") ??
+              (await getModuleRootId("meeting-schedule"));
+            if (!rootId) setRootId(resolvedRootId);
+            const latestPage = await getLatestOpenedMeetingPage(optimisticPage);
             finalPage = {
-              ...finalPage,
-              properties: stringifyPageProperties(queueProps),
-              updated_at: new Date().toISOString(),
+              ...latestPage,
+              parent_id: resolvedRootId,
+              depth: 1,
+              updated_at:
+                latestPage.parent_id === resolvedRootId
+                  ? latestPage.updated_at
+                  : new Date().toISOString(),
             };
             upsertMeetingInView(finalPage);
             upsertPages([finalPage]);
@@ -1381,13 +1336,61 @@ export default function MeetingScheduleShell() {
               finalPage,
               upsertPages
             );
-          }
 
-        } catch (error) {
-          console.warn("Meeting background persistence failed", error);
-          queueCloudPagePush(pageToRemoteRecord(finalPage));
-        }
-      })();
+            if (options.enqueueRecording) {
+              const actualQueueResult = await enqueueMeetingRecordingRequest(
+                toMeetingEntry(finalPage),
+                false
+              );
+              const queueProps = parsePageProperties(finalPage.properties);
+              upsertPageProperty(
+                queueProps,
+                "录制任务",
+                actualQueueResult.ok ? "已入队" : "入队失败",
+                {
+                  type: "select",
+                  options: ["未入队", "已入队", "入队失败"],
+                }
+              );
+              upsertPageProperty(
+                queueProps,
+                "录制任务ID",
+                actualQueueResult.jobId ?? "",
+                {
+                  type: "text",
+                }
+              );
+              upsertPageProperty(
+                queueProps,
+                "录制任务错误",
+                actualQueueResult.ok ? "" : actualQueueResult.message,
+                {
+                  type: "text",
+                }
+              );
+              finalPage = {
+                ...finalPage,
+                properties: stringifyPageProperties(queueProps),
+                updated_at: new Date().toISOString(),
+              };
+              upsertMeetingInView(finalPage);
+              upsertPages([finalPage]);
+              rememberPendingPageDraft(finalPage);
+              rememberPageRouteHandoff(finalPage, "meeting-create");
+              writeOptimisticMeetingHotCache(finalPage, resolvedRootId);
+              revealMeetingOnCalendar(finalPage);
+              await persistOptimisticMeetingPage(
+                resolvedRootId,
+                finalPage,
+                upsertPages
+              );
+            }
+          } catch (error) {
+            console.warn("Meeting background persistence failed", error);
+            queueCloudPagePush(pageToRemoteRecord(finalPage));
+          }
+        })();
+      }, 420);
 
       return { page: optimisticPage, queueResult };
     },

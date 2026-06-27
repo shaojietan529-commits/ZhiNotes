@@ -1285,6 +1285,8 @@ Current local actions:
   into BroadcastChannel or localStorage fallback messages.
 - 每日纪要和 ZhiHui 会议日历也会监听同一套轻量页面更新广播，但只接受属于各自模块根目录或当前已显示条目的 metadata。
   它们会先做一次本地低延迟刷新，再用本机热缓存校正；广播不携带正文、会议链接、会议号、密码、评论或文件内容。
+- 每日纪要和 ZhiHui 日历里的 `+` 创建流程采用 optimistic local-first 打开：点击后先把新页面草稿放进内存/session
+  handoff 并立即进入完整页面，本地 cache 写入、root id 校正、云端上传队列和会议录制入队都放到 idle 后台继续执行。
 - Review the owner-facing Web launch decision summary. It combines the Web
   launch workbench, Web Alpha launch decision receipt, and Web Beta owner
   review into a top-level go/no-go view: local build can continue, but preview

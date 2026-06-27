@@ -3517,6 +3517,18 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
+    "Daily + creation must defer local cache persistence until after the page is already opening."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "scheduleDailyIdleTask(() => {\n        void (async () => {",
+    "Daily + creation must defer root resolution and cloud queue persistence behind the immediate navigation path."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
     "Daily + creation must hand off the optimistic page before peek or full-page opening."
   );
@@ -3669,6 +3681,18 @@ function run() {
     meetingScheduleShell,
     "rememberPendingPageDraft(optimisticPage)",
     "Meeting creation must keep an in-memory draft for immediate page opening."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "scheduleMeetingIdleTask(() => {\n        void seedMeetingPageForImmediateOpen(optimisticPage);",
+    "Meeting creation must defer local cache persistence until after the page is already opening."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "scheduleMeetingIdleTask(() => {\n        void (async () => {",
+    "Meeting creation must defer root resolution, cloud queue persistence, and recording enqueue behind the immediate navigation path."
   );
   assertIncludes(
     files.meetingScheduleShell,

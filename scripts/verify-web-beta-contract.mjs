@@ -2860,6 +2860,14 @@ function run() {
       "Daily + creation must route directly into the full page after seeding local-first metadata.",
     ],
     [
+      "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
+      "Daily + creation must defer local cache persistence until after the page is already opening.",
+    ],
+    [
+      "scheduleDailyIdleTask(() => {\n        void (async () => {",
+      "Daily + creation must defer root resolution and cloud queue persistence behind the immediate navigation path.",
+    ],
+    [
       "每日纪要已打开",
       "Daily + creation must tell the user that the new page opened and will sync in the background.",
     ],
@@ -3284,6 +3292,14 @@ function run() {
     [
       "rememberPendingPageDraft(optimisticPage)",
       "Meeting creation must keep an in-memory draft for immediate page opening.",
+    ],
+    [
+      "scheduleMeetingIdleTask(() => {\n        void seedMeetingPageForImmediateOpen(optimisticPage);",
+      "Meeting creation must defer local cache persistence until after the page is already opening.",
+    ],
+    [
+      "scheduleMeetingIdleTask(() => {\n        void (async () => {",
+      "Meeting creation must defer root resolution, cloud queue persistence, and recording enqueue behind the immediate navigation path.",
     ],
     [
       "persistOptimisticMeetingPage",
