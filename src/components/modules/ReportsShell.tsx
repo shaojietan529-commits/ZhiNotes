@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -179,6 +180,7 @@ function ReportsContent() {
 function ReportsDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
@@ -207,6 +209,13 @@ function ReportsDashboard() {
   >([]);
   const [trackerIntakeBusyId, setTrackerIntakeBusyId] = useState<string | null>(
     null
+  );
+
+  const openModulePage = useCallback(
+    (pageId: string) => {
+      openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" });
+    },
+    [openPage, pagesById]
   );
   const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
     null
@@ -947,9 +956,7 @@ function ReportsDashboard() {
                     <ReportReviewQueueItemCard
                       key={item.id}
                       item={item}
-                      onOpen={() =>
-                        openPage(item.page_id, { source: "module-open" })
-                      }
+                      onOpen={() => openModulePage(item.page_id)}
                     />
                   ))}
                 </div>
@@ -1149,7 +1156,7 @@ function ReportsDashboard() {
                 <ReportIntakeItemCard
                   key={item.id}
                   item={item}
-                  onOpen={() => openPage(item.page_id, { source: "module-open" })}
+                  onOpen={() => openModulePage(item.page_id)}
                 />
               ))}
             </div>
@@ -1236,11 +1243,7 @@ function ReportsDashboard() {
                     <ReportConnectionSuggestionCard
                       key={suggestion.id}
                       suggestion={suggestion}
-                      onOpenReport={() =>
-                        openPage(suggestion.report_page_id, {
-                          source: "module-open",
-                        })
-                      }
+                      onOpenReport={() => openModulePage(suggestion.report_page_id)}
                       onOpenRoute={(route) => router.push(route)}
                     />
                   ))}
@@ -1332,7 +1335,7 @@ function ReportsDashboard() {
                   trackerReady={reportTrackers.length > 0}
                   busy={trackerIntakeBusyId === item.id}
                   onCreate={() => void handleCreateTrackerRow(item)}
-                  onOpen={() => openPage(item.page_id, { source: "module-open" })}
+                  onOpen={() => openModulePage(item.page_id)}
                 />
               ))}
             </div>

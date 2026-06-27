@@ -4704,6 +4704,36 @@ function run() {
       researchConnectionsPanel,
       "const pagesById = useWorkspaceStore((s) => s.pagesById)",
     ],
+    [
+      files.reportsShell,
+      reportsShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+    ],
+    [
+      files.reportsShell,
+      reportsShell,
+      'openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" })',
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      'openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" })',
+    ],
+    [
+      files.portfolioShell,
+      portfolioShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+    ],
+    [
+      files.portfolioShell,
+      portfolioShell,
+      'openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" })',
+    ],
   ]) {
     assertIncludes(
       file,
@@ -4778,7 +4808,8 @@ function run() {
     "Projects module create/intake flows must not wait for a full page-list refresh."
   );
   for (const snippet of [
-    "includeContent: false",
+    "const [contentScanEnabled, setContentScanEnabled] = useState(false)",
+    "includeContent: contentScanEnabled",
     "setContentScanEnabled(true)",
     "hydrateContentInBackground();",
     "{ bodyScanEnabled: contentScanEnabled }",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -88,6 +88,7 @@ function PortfolioContent() {
 function PortfolioDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
@@ -101,6 +102,13 @@ function PortfolioDashboard() {
   );
   const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
     null
+  );
+
+  const openModulePage = useCallback(
+    (pageId: string) => {
+      openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" });
+    },
+    [openPage, pagesById]
   );
 
   const portfolioTrackers = useMemo(
@@ -498,7 +506,7 @@ function PortfolioDashboard() {
                   trackerReady={portfolioTrackers.length > 0}
                   busy={trackerIntakeBusyId === item.page_id}
                   onCreate={() => void handleCreateTrackerRow(item)}
-                  onOpen={() => openPage(item.page_id, { source: "module-open" })}
+                  onOpen={() => openModulePage(item.page_id)}
                 />
               ))}
             </div>

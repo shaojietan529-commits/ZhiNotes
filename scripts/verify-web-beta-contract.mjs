@@ -11959,6 +11959,42 @@ function run() {
       "Research connection page opens must reuse the workspace page id index for large libraries.",
     ],
     [
+      files.reportsShell,
+      reportsShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+      "Reports workbench page opens must reuse the workspace page id index for large libraries.",
+    ],
+    [
+      files.reportsShell,
+      reportsShell,
+      'openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" })',
+      "Reports workbench page-id cards must pass a local page object when available.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+      "Company research page opens must reuse the workspace page id index for large libraries.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      'openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" })',
+      "Company research page-id cards must pass a local page object when available.",
+    ],
+    [
+      files.portfolioShell,
+      portfolioShell,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+      "Portfolio page opens must reuse the workspace page id index for large libraries.",
+    ],
+    [
+      files.portfolioShell,
+      portfolioShell,
+      'openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" })',
+      "Portfolio page-id cards must pass a local page object when available.",
+    ],
+    [
       files.usePages,
       usePages,
       "syncCloudPageMetadataDelta",
@@ -11979,8 +12015,14 @@ function run() {
     [
       files.notesShell,
       notesShell,
-      "includeContent: false",
-      "Notes module dashboard must keep page loading metadata-only even after large imports.",
+      "const [contentScanEnabled, setContentScanEnabled] = useState(false)",
+      "Notes module dashboard must default content scanning off after large imports.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "includeContent: contentScanEnabled",
+      "Notes module dashboard must keep page loading metadata-only until an explicit content scan.",
     ],
     [
       files.notesShell,

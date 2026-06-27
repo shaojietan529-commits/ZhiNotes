@@ -176,7 +176,7 @@ function NotesDashboard() {
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const [contentScanEnabled, setContentScanEnabled] = useState(false);
   const { pages, hydrateContentInBackground } = usePages({
-    includeContent: false,
+    includeContent: contentScanEnabled,
     deferContent: true,
   });
   const { favoriteIds } = usePageFavorites();

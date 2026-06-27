@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -118,6 +118,7 @@ function CompanyResearchContent() {
 function CompanyResearchDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
@@ -133,6 +134,13 @@ function CompanyResearchDashboard() {
   );
   const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
     null
+  );
+
+  const openModulePage = useCallback(
+    (pageId: string) => {
+      openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" });
+    },
+    [openPage, pagesById]
   );
 
   const companyTrackers = useMemo(
@@ -727,7 +735,7 @@ function CompanyResearchDashboard() {
                   trackerReady={companyTrackers.length > 0}
                   busy={trackerIntakeBusyId === item.page_id}
                   onCreate={() => void handleCreateTrackerRow(item)}
-                  onOpen={() => openPage(item.page_id, { source: "module-open" })}
+                  onOpen={() => openModulePage(item.page_id)}
                 />
               ))}
             </div>
