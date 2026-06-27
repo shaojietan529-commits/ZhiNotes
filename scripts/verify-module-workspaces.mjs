@@ -316,10 +316,16 @@ check(
     !quickSearchSource.includes("await refresh()") &&
     !favoritePagesSource.includes("usePages") &&
     favoritePagesSource.includes("useWorkspaceStore((s) => s.pages)") &&
+    favoritePagesSource.includes("SIDEBAR_FAVORITE_VISIBLE_LIMIT") &&
+    favoritePagesSource.includes("visibleFavoritePages.map((page)") &&
+    favoritePagesSource.includes("已折叠 {hiddenFavoriteCount} 个收藏页面") &&
     !trashPagesSource.includes("usePages") &&
     trashPagesSource.includes("activePageCount") &&
-    trashPagesSource.includes("upsertPages([restored])"),
-  "Sidebar/QuickSearch/FavoritePages/TrashPages 不应各自挂 usePages 或在创建页面后阻塞全量 metadata 刷新"
+    trashPagesSource.includes("upsertPages([restored])") &&
+    trashPagesSource.includes("SIDEBAR_TRASH_VISIBLE_LIMIT") &&
+    trashPagesSource.includes("visibleTrashPages.map((page)") &&
+    trashPagesSource.includes("已折叠 {hiddenTrashCount} 个回收站页面"),
+  "Sidebar/QuickSearch/FavoritePages/TrashPages 不应各自挂 usePages 或在创建页面后阻塞全量 metadata 刷新，收藏和回收站也必须限制一次性渲染数量"
 );
 check(
   moduleDashboardSource.includes("countActivePages") &&

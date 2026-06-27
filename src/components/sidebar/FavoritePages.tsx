@@ -1,9 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
+
+const SIDEBAR_FAVORITE_VISIBLE_LIMIT = 24;
 
 export default function FavoritePages() {
   const openPage = useLocalFirstPageNavigation();
@@ -11,10 +14,34 @@ export default function FavoritePages() {
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
   const { favoriteIds, setFavorite } = usePageFavorites();
 
-  const pagesById = new Map(pages.map((page) => [page.id, page]));
-  const favoritePages = favoriteIds
-    .map((id) => pagesById.get(id))
-    .filter((page): page is Page => Boolean(page));
+  const pagesById = useMemo(
+    () => new Map(pages.map((page) => [page.id, page])),
+    [pages]
+  );
+  const favoritePages = useMemo(
+    () =>
+      favoriteIds
+        .map((id) => pagesById.get(id))
+        .filter((page): page is Page => Boolean(page)),
+    [favoriteIds, pagesById]
+  );
+  const visibleFavoritePages = useMemo(() => {
+    const visible = favoritePages.slice(0, SIDEBAR_FAVORITE_VISIBLE_LIMIT);
+    const currentFavorite = currentPageId
+      ? favoritePages.find((page) => page.id === currentPageId)
+      : null;
+    if (
+      currentFavorite &&
+      !visible.some((page) => page.id === currentFavorite.id)
+    ) {
+      visible.splice(SIDEBAR_FAVORITE_VISIBLE_LIMIT - 1, 1, currentFavorite);
+    }
+    return visible;
+  }, [currentPageId, favoritePages]);
+  const hiddenFavoriteCount = Math.max(
+    0,
+    favoritePages.length - visibleFavoritePages.length
+  );
 
   if (favoritePages.length === 0) return null;
 
@@ -24,7 +51,7 @@ export default function FavoritePages() {
         收藏
       </p>
       <ul className="space-y-0.5">
-        {favoritePages.map((page) => (
+        {visibleFavoritePages.map((page) => (
           <li key={page.id}>
             <div
               className={`group flex items-center gap-1 rounded-md transition-colors ${
@@ -69,6 +96,11 @@ export default function FavoritePages() {
           </li>
         ))}
       </ul>
+      {hiddenFavoriteCount > 0 && (
+        <p className="px-3 py-1 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+          已折叠 {hiddenFavoriteCount} 个收藏页面；用搜索快速打开。
+        </p>
+      )}
     </div>
   );
 }

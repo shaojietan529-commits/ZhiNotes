@@ -12017,10 +12017,46 @@ function run() {
       "Favorite page opens must use local-first route handoff metadata.",
     ],
     [
+      files.favoritePages,
+      favoritePages,
+      "SIDEBAR_FAVORITE_VISIBLE_LIMIT",
+      "Sidebar favorite pages must cap rendered rows for large imported workspaces.",
+    ],
+    [
+      files.favoritePages,
+      favoritePages,
+      "visibleFavoritePages.map((page)",
+      "Sidebar favorite pages must render the capped favorite subset.",
+    ],
+    [
+      files.favoritePages,
+      favoritePages,
+      "已折叠 {hiddenFavoriteCount} 个收藏页面",
+      "Sidebar favorite pages must tell the owner when favorites are folded for performance.",
+    ],
+    [
       files.trashPages,
       trashPages,
       'source: "trash-restore-open"',
       "Restored pages must open through local-first route handoff metadata.",
+    ],
+    [
+      files.trashPages,
+      trashPages,
+      "SIDEBAR_TRASH_VISIBLE_LIMIT",
+      "Sidebar trash pages must cap rendered rows for large deleted-page sets.",
+    ],
+    [
+      files.trashPages,
+      trashPages,
+      "visibleTrashPages.map((page)",
+      "Sidebar trash pages must render the capped trash subset.",
+    ],
+    [
+      files.trashPages,
+      trashPages,
+      "已折叠 {hiddenTrashCount} 个回收站页面",
+      "Sidebar trash pages must tell the owner when trash rows are folded for performance.",
     ],
     [
       files.quickSearch,

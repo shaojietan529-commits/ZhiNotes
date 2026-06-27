@@ -4844,12 +4844,36 @@ function run() {
     'source: "favorite-open"',
     "Favorite page opens must use local-first page navigation."
   );
+  for (const snippet of [
+    "SIDEBAR_FAVORITE_VISIBLE_LIMIT",
+    "visibleFavoritePages.map((page)",
+    "已折叠 {hiddenFavoriteCount} 个收藏页面",
+  ]) {
+    assertIncludes(
+      files.favoritePages,
+      favoritePages,
+      snippet,
+      "Sidebar favorite pages must cap rendered rows while preserving local-first opens."
+    );
+  }
   assertIncludes(
     files.trashPages,
     trashPages,
     'source: "trash-restore-open"',
     "Restored pages must use local-first page navigation."
   );
+  for (const snippet of [
+    "SIDEBAR_TRASH_VISIBLE_LIMIT",
+    "visibleTrashPages.map((page)",
+    "已折叠 {hiddenTrashCount} 个回收站页面",
+  ]) {
+    assertIncludes(
+      files.trashPages,
+      trashPages,
+      snippet,
+      "Sidebar trash pages must cap rendered rows while preserving restore opens."
+    );
+  }
   assertIncludes(
     files.quickSearch,
     quickSearch,

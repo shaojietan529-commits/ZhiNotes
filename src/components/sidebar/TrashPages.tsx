@@ -7,6 +7,8 @@ import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
+const SIDEBAR_TRASH_VISIBLE_LIMIT = 40;
+
 export default function TrashPages() {
   const openPage = useLocalFirstPageNavigation();
   const activePageCount = useWorkspaceStore((s) => s.pages.length);
@@ -39,6 +41,10 @@ export default function TrashPages() {
   );
 
   if (loading || pages.length === 0) return null;
+  const visibleTrashPages = open
+    ? pages.slice(0, SIDEBAR_TRASH_VISIBLE_LIMIT)
+    : [];
+  const hiddenTrashCount = Math.max(0, pages.length - visibleTrashPages.length);
 
   return (
     <div className="mt-3 border-t border-zinc-200 pt-2 dark:border-zinc-800">
@@ -55,7 +61,7 @@ export default function TrashPages() {
 
       {open && (
         <ul className="mt-1 space-y-0.5">
-          {pages.map((page) => (
+          {visibleTrashPages.map((page) => (
             <li key={page.id} className="px-2">
               <div className="rounded-md px-2 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 <div className="flex items-center gap-2">
@@ -79,6 +85,11 @@ export default function TrashPages() {
               </div>
             </li>
           ))}
+          {hiddenTrashCount > 0 && (
+            <li className="px-3 py-1.5 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+              已折叠 {hiddenTrashCount} 个回收站页面；需要时可用搜索或同步中心定位。
+            </li>
+          )}
         </ul>
       )}
     </div>
