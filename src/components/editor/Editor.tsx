@@ -91,6 +91,7 @@ import {
   forwardRef,
   useCallback,
   useState,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 
 type OpenPage = ReturnType<typeof useLocalFirstPageNavigation>;
@@ -467,6 +468,39 @@ const Editor = forwardRef<EditorRef, EditorProps>(
       });
     }, [openPage]);
 
+    const handleInternalPageLinkClick = useCallback(
+      (event: ReactMouseEvent<HTMLDivElement>) => {
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
+          return;
+        }
+        const target = event.target instanceof Element ? event.target : null;
+        const link = target?.closest<HTMLAnchorElement>(
+          'a[data-type="mention"][data-id], a[href^="/page/"]'
+        );
+        if (!link) return;
+        const pageId =
+          link.dataset.id ??
+          link.getAttribute("href")?.match(/^\/page\/([^/?#]+)/)?.[1] ??
+          "";
+        if (!pageId) return;
+        event.preventDefault();
+        event.stopPropagation();
+        void getPageMetadata(pageId)
+          .catch(() => null)
+          .then((page) => {
+            openPage(page ?? pageId, { source: "child-page-open" });
+          });
+      },
+      [openPage]
+    );
+
     useEffect(() => {
       if (!editor) return;
       const editorDom = editor.view.dom;
@@ -626,6 +660,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
           className="zhinote-editor-surface"
           data-editable={editable ? "true" : "false"}
           data-code-languages={CODE_BLOCK_LANGUAGE_VALUES}
+          onClickCapture={handleInternalPageLinkClick}
         >
           <BlockDragHandleLayer editor={editor} editable={editable} />
           <CodeBlockCopyLayer editor={editor} />

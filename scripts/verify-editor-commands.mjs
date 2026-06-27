@@ -404,6 +404,20 @@ function run() {
       "/page child creation must not scan full page bodies after large imports."
     );
   }
+  for (const snippet of [
+    "handleInternalPageLinkClick",
+    'a[data-type="mention"][data-id], a[href^="/page/"]',
+    "getPageMetadata(pageId)",
+    'openPage(page ?? pageId, { source: "child-page-open" })',
+    "onClickCapture={handleInternalPageLinkClick}",
+  ]) {
+    assertIncludes(
+      files.editor,
+      editor,
+      snippet,
+      "Editor-rendered page links must use local-first navigation instead of browser hard reloads."
+    );
+  }
   assertIncludes(
     files.wikiSuggestion,
     wikiSuggestion,
