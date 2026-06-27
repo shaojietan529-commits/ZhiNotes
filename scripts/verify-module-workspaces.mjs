@@ -658,6 +658,7 @@ check(
     shells.schedule.includes("pageShellWarmupRef") &&
     shells.schedule.includes("useLocalFirstPageNavigation") &&
     shells.schedule.includes("warmMeetingPageRoute") &&
+    shells.schedule.includes("prepareMeetingPageOpen") &&
     shells.schedule.includes('import("@/components/providers/PageShell")') &&
     shells.schedule.includes("onPointerDown={warmMeetingPageRoute}") &&
     shells.schedule.includes('importSource: "手动创建"') &&
@@ -666,6 +667,10 @@ check(
     shells.schedule.includes("router.prefetch(pageRoute)") &&
     shells.schedule.includes('openPage(page, { source: "meeting-create" })') &&
     shells.schedule.includes("openPage(page, { source })") &&
+    shells.schedule.includes("prepareMeetingPageOpen(page, source)") &&
+    shells.schedule.includes('prepareMeetingPageOpen(page, "meeting-create")') &&
+    shells.schedule.includes("rememberPendingPageDraft(page)") &&
+    shells.schedule.includes("rememberPageRouteHandoff(page, source)") &&
     shells.schedule.includes('openPage(pageId, { source: "meeting-open" })') &&
     shells.schedule.includes("const entriesById = useMemo(() =>") &&
     shells.schedule.includes("entriesById.get(pageId)?.page") &&

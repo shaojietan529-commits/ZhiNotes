@@ -2658,10 +2658,20 @@ function run() {
     "openCreatedMeetingPage",
     "Meeting manual create and invite import must share the same local-first page opening path."
   );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "prepareMeetingPageOpen",
+    "Meeting page opens must share a pre-navigation local cache handoff."
+  );
   for (const snippet of [
     "useLocalFirstPageNavigation",
     'openPage(page, { source: "meeting-create" })',
     "openPage(page, { source })",
+    "prepareMeetingPageOpen(page, source)",
+    'prepareMeetingPageOpen(page, "meeting-create")',
+    "rememberPendingPageDraft(page)",
+    "rememberPageRouteHandoff(page, source)",
     'openMeetingFullPage(entry.page, "meeting-open")',
     'openPage(pageId, { source: "meeting-open" })',
     "const entriesById = useMemo(() =>",

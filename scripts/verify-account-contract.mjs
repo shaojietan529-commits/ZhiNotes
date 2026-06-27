@@ -697,7 +697,12 @@ check(
     meetingScheduleOpensCreatedPageRoute &&
     meetingScheduleShell.includes("router.prefetch(pageRoute)") &&
     meetingScheduleShell.includes("useLocalFirstPageNavigation") &&
+    meetingScheduleShell.includes("prepareMeetingPageOpen") &&
     meetingScheduleShell.includes('openPage(page, { source: "meeting-create" })') &&
+    meetingScheduleShell.includes('prepareMeetingPageOpen(page, "meeting-create")') &&
+    meetingScheduleShell.includes("prepareMeetingPageOpen(page, source)") &&
+    meetingScheduleShell.includes("rememberPendingPageDraft(page)") &&
+    meetingScheduleShell.includes("rememberPageRouteHandoff(page, source)") &&
     meetingScheduleShell.indexOf("const pageRoute = `/page/${") <
       meetingScheduleShell.indexOf(
         'openPage(page, { source: "meeting-create" })'

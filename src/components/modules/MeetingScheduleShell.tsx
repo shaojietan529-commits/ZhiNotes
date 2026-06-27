@@ -1166,18 +1166,28 @@ export default function MeetingScheduleShell() {
     ]
   );
 
-  const openCreatedMeetingPage = useCallback(
-    (page: Page) => {
+  const prepareMeetingPageOpen = useCallback(
+    (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
       warmMeetingPageRoute();
+      upsertPages([page]);
+      rememberPendingPageDraft(page);
+      rememberPageRouteHandoff(page, source);
       const pageRoute = `/page/${page.id}`;
       try {
         router.prefetch(pageRoute);
       } catch {
         // The page draft handoff already carries the first paint if prefetch is unavailable.
       }
+    },
+    [router, upsertPages, warmMeetingPageRoute]
+  );
+
+  const openCreatedMeetingPage = useCallback(
+    (page: Page) => {
+      prepareMeetingPageOpen(page, "meeting-create");
       openPage(page, { source: "meeting-create" });
     },
-    [openPage, router, warmMeetingPageRoute]
+    [openPage, prepareMeetingPageOpen]
   );
 
   const handleCreate = useCallback(() => {
@@ -1482,9 +1492,10 @@ export default function MeetingScheduleShell() {
 
   const openMeetingFullPage = useCallback(
     (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
+      prepareMeetingPageOpen(page, source);
       openPage(page, { source });
     },
-    [openPage]
+    [openPage, prepareMeetingPageOpen]
   );
 
   const openMeetingFullPageById = useCallback(

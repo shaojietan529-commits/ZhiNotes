@@ -2388,6 +2388,10 @@ function run() {
       "Meeting manual create and invite import must share the same local-first page opening path.",
     ],
     [
+      "prepareMeetingPageOpen",
+      "Meeting page opens must share a pre-navigation local cache handoff.",
+    ],
+    [
       "useLocalFirstPageNavigation",
       "Meeting full-page openings must use the shared local-first page navigation path.",
     ],
@@ -2398,6 +2402,22 @@ function run() {
     [
       "openPage(page, { source })",
       "Meeting full-page note opens must route through local-first navigation.",
+    ],
+    [
+      "prepareMeetingPageOpen(page, source)",
+      "Existing meeting page opens must prepare the local draft before navigation.",
+    ],
+    [
+      'prepareMeetingPageOpen(page, "meeting-create")',
+      "Newly created meeting page opens must prepare the local draft before navigation.",
+    ],
+    [
+      "rememberPendingPageDraft(page)",
+      "Meeting full-page opens must keep an in-memory draft for immediate first paint.",
+    ],
+    [
+      "rememberPageRouteHandoff(page, source)",
+      "Meeting full-page opens must hand off metadata before slower local DB or cloud checks.",
     ],
     [
       'openMeetingFullPage(entry.page, "meeting-open")',
