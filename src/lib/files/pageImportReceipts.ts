@@ -40,6 +40,7 @@ export interface PageImportExecutionReceipt {
   receipt_status: "local-batch-import-metadata-only";
   created_at: string;
   action_status: PageImportExecutionResult["status"];
+  failure_mode: PageImportExecutionResult["failure_mode"];
   privacy_note: string;
   confirmation: {
     user_checked_import_plan: boolean;
@@ -60,6 +61,7 @@ export interface PageImportExecutionReceipt {
     failed: number;
     rolled_back_pages: number;
     rolled_back_databases: number;
+    preserved_successful_items: number;
     retryable_items: number;
     rolled_back_item_results: number;
     item_status_counts: {
@@ -105,6 +107,7 @@ export function buildPageImportExecutionReceipt({
     receipt_status: "local-batch-import-metadata-only",
     created_at: new Date().toISOString(),
     action_status: result.status,
+    failure_mode: result.failure_mode,
     privacy_note:
       "批量导入后在本地生成。这个 receipt 只记录导入计划和执行结果的统计 metadata，不包含文件名、文件 bytes、文件文本、页面正文、表格单元格值、页面 id、数据库 id、token、credential、prompt、云端数据或 AI 输出。",
     confirmation: {
@@ -126,6 +129,7 @@ export function buildPageImportExecutionReceipt({
       failed: result.failed,
       rolled_back_pages: result.rolled_back_pages,
       rolled_back_databases: result.rolled_back_databases,
+      preserved_successful_items: result.preserved_successful_items,
       retryable_items: result.retryable_items,
       rolled_back_item_results: result.rolled_back_item_results,
       item_status_counts: countItemStatuses(result),
@@ -198,6 +202,9 @@ function buildNextReview(result: PageImportExecutionResult) {
   const review: string[] = [];
   if (result.retryable_items > 0) {
     review.push("按导入明细处理可重试项；receipt 只记录序号和类型，不含文件名。");
+  }
+  if (result.status === "partially-completed") {
+    review.push("成功项已保留在工作区；可以只重试失败、未执行或已回退的项目。");
   }
   if (result.rolled_back_item_results > 0) {
     review.push("已回退项没有保留在工作区，可缩小批次后重新导入。");

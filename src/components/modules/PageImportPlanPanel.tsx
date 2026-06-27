@@ -7,6 +7,7 @@ import { usePages } from "@/hooks/usePages";
 import {
   buildPageImportPlan,
   buildExportablePageImportManifest,
+  buildPageImportRetryPlan,
   type PageImportLaneId,
   type PageImportPlan,
   type PageImportPreviewRoute,
@@ -16,6 +17,7 @@ import {
   executePageImportPlan,
   countExecutableItems,
   type PageImportExecutionResult,
+  type PageImportFailureMode,
   type PageImportItemExecutionResult,
   type PageImportItemExecutionStatus,
 } from "@/lib/files/pageImportExecutor";
@@ -130,7 +132,12 @@ const ITEM_ACTION_LABEL: Record<PageImportItemExecutionResult["action"], string>
     "not-run": "未执行",
   };
 
-type ImportProgressStatus = "idle" | "running" | "completed" | "rolled-back";
+type ImportProgressStatus =
+  | "idle"
+  | "running"
+  | "completed"
+  | "partially-completed"
+  | "rolled-back";
 
 interface ImportProgressState {
   done: number;
@@ -184,8 +191,13 @@ export default function PageImportPlanPanel() {
   const { upsertPages } = usePages({ autoLoad: false });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [plan, setPlan] = useState<PageImportPlan | null>(null);
+  const [activeImportPlan, setActiveImportPlan] = useState<PageImportPlan | null>(
+    null
+  );
   const [files, setFiles] = useState<File[]>([]);
   const [confirmed, setConfirmed] = useState(false);
+  const [failureMode, setFailureMode] =
+    useState<PageImportFailureMode>("keep-successful");
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<PageImportExecutionResult | null>(null);
   const [lastReceipt, setLastReceipt] =
@@ -212,6 +224,7 @@ export default function PageImportPlanPanel() {
     setConfirmed(false);
     setResult(null);
     setLastReceipt(null);
+    setActiveImportPlan(null);
     setImportProgress(EMPTY_IMPORT_PROGRESS);
   };
 
@@ -228,22 +241,29 @@ export default function PageImportPlanPanel() {
     setConfirmed(false);
     setResult(null);
     setLastReceipt(null);
+    setActiveImportPlan(null);
     setImportProgress(EMPTY_IMPORT_PROGRESS);
   };
 
-  const handleConfirmImport = async () => {
-    if (!plan || !confirmed || importing) return;
+  const runImportPlan = async (
+    activePlan: PageImportPlan,
+    mode: PageImportFailureMode,
+    opts?: { navigateOnFullSuccess?: boolean; retryRun?: boolean }
+  ) => {
+    if (!confirmed || importing) return;
     setImporting(true);
+    setActiveImportPlan(activePlan);
     setResult(null);
     setLastReceipt(null);
     setImportProgress({
       done: 0,
-      total: plan.items.length,
+      total: activePlan.items.length,
       status: "running",
-      message: "准备导入队列...",
+      message: opts?.retryRun ? "准备重试队列..." : "准备导入队列...",
     });
     try {
-      const res = await executePageImportPlan(files, plan, {
+      const res = await executePageImportPlan(files, activePlan, {
+        failureMode: mode,
         onProgress: (done, total) => {
           setImportProgress({
             done,
@@ -257,7 +277,7 @@ export default function PageImportPlanPanel() {
         },
       });
       const receipt = buildPageImportExecutionReceipt({
-        plan,
+        plan: activePlan,
         result: res,
         confirmation_checked: confirmed,
       });
@@ -265,23 +285,33 @@ export default function PageImportPlanPanel() {
       setResult(res);
       setLastReceipt(receipt);
       setImportProgress({
-        done: plan.items.length,
-        total: plan.items.length,
-        status: res.status === "completed" ? "completed" : "rolled-back",
+        done: activePlan.items.length,
+        total: activePlan.items.length,
+        status: res.status,
         message:
           res.status === "completed"
             ? "导入完成，已生成本地 receipt。"
-            : "导入失败，已按回退计划处理并生成本地 receipt。",
+            : res.status === "partially-completed"
+              ? "导入部分完成，成功项已保留，可重试失败项。"
+              : "导入失败，已按回退计划处理并生成本地 receipt。",
       });
-      if (res.status === "completed" && res.created_page_metadata.length > 0) {
+      if (res.status !== "rolled-back" && res.created_page_metadata.length > 0) {
         upsertPages(res.created_page_metadata);
       }
       const firstPage = res.created_page_metadata[0] ?? null;
-      if (res.status === "completed" && firstPage) {
+      if (opts?.navigateOnFullSuccess && res.status === "completed" && firstPage) {
         openPage(firstPage, { source: "module-create" });
-      } else if (res.status === "completed" && res.first_page_id) {
+      } else if (
+        opts?.navigateOnFullSuccess &&
+        res.status === "completed" &&
+        res.first_page_id
+      ) {
         openPage(res.first_page_id, { source: "module-create" });
-      } else if (res.status === "completed" && res.first_database_id) {
+      } else if (
+        opts?.navigateOnFullSuccess &&
+        res.status === "completed" &&
+        res.first_database_id
+      ) {
         openDatabase(res.first_database_id);
       }
     } catch (err) {
@@ -289,7 +319,7 @@ export default function PageImportPlanPanel() {
       setResult(null);
       setImportProgress({
         done: 0,
-        total: plan.items.length,
+        total: activePlan.items.length,
         status: "rolled-back",
         message: "导入异常，未上传或外发文件；请检查浏览器本地存储。",
       });
@@ -297,6 +327,22 @@ export default function PageImportPlanPanel() {
     } finally {
       setImporting(false);
     }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!plan || !confirmed || importing) return;
+    await runImportPlan(plan, failureMode, { navigateOnFullSuccess: true });
+  };
+
+  const handleRetryImport = async () => {
+    if (!plan || !result || !confirmed || importing) return;
+    const retryIndexes = result.item_results
+      .filter(isOneClickRetryableImportItem)
+      .map((item) => item.index);
+    if (retryIndexes.length === 0) return;
+    const retryPlan = buildPageImportRetryPlan(plan, retryIndexes);
+    setPlan(retryPlan);
+    await runImportPlan(retryPlan, "keep-successful", { retryRun: true });
   };
 
   const handleExportLastReceipt = () => {
@@ -319,10 +365,19 @@ export default function PageImportPlanPanel() {
       ? Math.min(100, Math.round((importProgress.done / importProgress.total) * 100))
       : 0;
   const visibleProgressItems = useMemo(() => {
-    if (!plan || importProgress.status === "idle") return [];
-    const start = Math.max(0, Math.min(importProgress.done, plan.items.length - 1) - 1);
-    return plan.items.slice(start, start + 5);
-  }, [importProgress.done, importProgress.status, plan]);
+    const progressPlan = activeImportPlan ?? plan;
+    if (!progressPlan || importProgress.status === "idle") return [];
+    const start = Math.max(
+      0,
+      Math.min(importProgress.done, progressPlan.items.length - 1) - 1
+    );
+    return progressPlan.items.slice(start, start + 5);
+  }, [activeImportPlan, importProgress.done, importProgress.status, plan]);
+
+  const retryableImportItemCount = useMemo(
+    () => result?.item_results.filter(isOneClickRetryableImportItem).length ?? 0,
+    [result]
+  );
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
@@ -492,9 +547,54 @@ export default function PageImportPlanPanel() {
               本次会创建 {executableCount} 个本地页面、文件页或数据库。Markdown / 纯文本 / RTF / EPUB / Notebook / DOCX / ODT / PPTX / ODP 会转为可编辑正文；
               CSV / Excel / ODS 会创建本地数据库并写入前 500 行、最多 50 列；
               HTML、PDF、旧版 Office、媒体和 iWork 会先创建本地文件页用于预览或复核；
-              未知格式需单独复核，本步骤会跳过。中途任何一步失败会自动回退本次已创建的页面和数据库。
+              未知格式需单独复核，本步骤会跳过。中途任何一步失败时，会按下面选择的策略处理。
               导入只在本地进行，不上传、不调用 AI；页面和数据库记录是否同步云端继续跟随账号同步设置。
             </p>
+            <fieldset className="mt-3 grid gap-2 sm:grid-cols-2">
+              <legend className="sr-only">失败处理策略</legend>
+              <label
+                className={`rounded-md border px-3 py-2 text-xs leading-5 transition-colors ${
+                  failureMode === "keep-successful"
+                    ? "border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200"
+                    : "border-zinc-200 bg-white text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="page-import-failure-mode"
+                  value="keep-successful"
+                  checked={failureMode === "keep-successful"}
+                  disabled={importing}
+                  onChange={() => setFailureMode("keep-successful")}
+                  className="mr-2 align-middle"
+                />
+                <span className="font-medium">保留成功项</span>
+                <span className="ml-1 opacity-80">
+                  推荐大批量导入；失败项可单独重试。
+                </span>
+              </label>
+              <label
+                className={`rounded-md border px-3 py-2 text-xs leading-5 transition-colors ${
+                  failureMode === "rollback-all"
+                    ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                    : "border-zinc-200 bg-white text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="page-import-failure-mode"
+                  value="rollback-all"
+                  checked={failureMode === "rollback-all"}
+                  disabled={importing}
+                  onChange={() => setFailureMode("rollback-all")}
+                  className="mr-2 align-middle"
+                />
+                <span className="font-medium">失败即整批回退</span>
+                <span className="ml-1 opacity-80">
+                  更保守；适合需要整批一致性的导入。
+                </span>
+              </label>
+            </fieldset>
             <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-200">
               <input
                 type="checkbox"
@@ -613,6 +713,27 @@ export default function PageImportPlanPanel() {
                     </button>
                   )}
                 </div>
+              ) : result.status === "partially-completed" ? (
+                <div className="space-y-2">
+                  <p>
+                    导入部分完成：已保留成功创建的{" "}
+                    {result.preserved_successful_items} 个对象；失败{" "}
+                    {result.failed} 个，可重试 {result.retryable_items} 个。
+                    文件没有上传或外发。
+                  </p>
+                  <p className="text-xs leading-5">
+                    当前策略是保留成功项；你可以只重试失败、未执行或已回退项目，不会重复导入已经完成的项目。
+                  </p>
+                  {lastReceipt && (
+                    <button
+                      type="button"
+                      onClick={handleExportLastReceipt}
+                      className="rounded-md border border-amber-300 px-2 py-1 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                    >
+                      导出部分完成 receipt
+                    </button>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-2">
                   <p>
@@ -630,7 +751,14 @@ export default function PageImportPlanPanel() {
                   )}
                 </div>
               )}
-              <ImportItemExecutionSummary result={result} />
+              <ImportItemExecutionSummary
+                result={result}
+                onRetry={
+                  retryableImportItemCount > 0 ? handleRetryImport : undefined
+                }
+                retryableImportItemCount={retryableImportItemCount}
+                retrying={importing}
+              />
             </div>
           )}
 
@@ -679,8 +807,14 @@ function Metric({
 
 function ImportItemExecutionSummary({
   result,
+  onRetry,
+  retryableImportItemCount,
+  retrying,
 }: {
   result: PageImportExecutionResult;
+  onRetry?: () => void;
+  retryableImportItemCount: number;
+  retrying: boolean;
 }) {
   if (result.item_results.length === 0) return null;
 
@@ -746,6 +880,27 @@ function ImportItemExecutionSummary({
           还有 {hiddenItems} 项未展开；完整状态会写入本地 receipt，仍不包含文件名或正文。
         </p>
       )}
+      {onRetry && retryableImportItemCount > 0 && (
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={retrying}
+          className="mt-3 rounded-md border border-current/30 px-2 py-1 text-xs font-medium transition-colors hover:bg-current/10 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {retrying
+            ? "重试中..."
+            : `只重试失败/未执行/已回退项（${retryableImportItemCount}）`}
+        </button>
+      )}
     </div>
+  );
+}
+
+function isOneClickRetryableImportItem(item: PageImportItemExecutionResult) {
+  return (
+    item.retryable &&
+    (item.status === "failed" ||
+      item.status === "rolled-back" ||
+      item.status === "not-run")
   );
 }

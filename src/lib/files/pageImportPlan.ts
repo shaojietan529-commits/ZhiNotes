@@ -557,6 +557,38 @@ export function buildPageImportPlan(
   files: PageImportSourceFile[]
 ): PageImportPlan {
   const items = files.map((file, i) => classifyImportFile(file, i + 1));
+  return buildPageImportPlanFromItems(items, {
+    privacy_note:
+      "导入计划只读取文件名、扩展名和大小用于本地复核；不读取文件内容字节，不创建页面，不上传，不调用 AI。",
+    next_steps: [
+      "在 UI 中展示每个文件的目标模块、目标类型和是否需要转换。",
+      "用户确认后再执行批量创建，并在每一步后记录可回退句柄。",
+      "任意一步失败时按所选失败处理策略保留成功项或回退已创建内容。",
+    ],
+  });
+}
+
+export function buildPageImportRetryPlan(
+  plan: PageImportPlan,
+  itemIndexes: number[]
+): PageImportPlan {
+  const retrySet = new Set(itemIndexes);
+  const items = plan.items.filter((item) => retrySet.has(item.index));
+  return buildPageImportPlanFromItems(items, {
+    privacy_note:
+      "重试计划只复用原导入计划里的序号、扩展名、大小和路线；不读取文件内容字节，不创建页面，不上传，不调用 AI。",
+    next_steps: [
+      "只重试上次失败、已回退或未执行的项目。",
+      "成功项会继续保留；失败项仍会写入本地 metadata-only receipt。",
+      "如果重试仍失败，可缩小批次或切换为失败即整批回退。",
+    ],
+  });
+}
+
+function buildPageImportPlanFromItems(
+  items: PageImportPlanItem[],
+  copy: { privacy_note: string; next_steps: string[] }
+): PageImportPlan {
   const rollbackPlan = buildRollbackPlan(items);
   const lanes = buildLaneSummaries(items);
 
@@ -589,13 +621,8 @@ export function buildPageImportPlan(
     lanes,
     rollback_plan: rollbackPlan,
     required_gates: REQUIRED_GATES,
-    privacy_note:
-      "导入计划只读取文件名、扩展名和大小用于本地复核；不读取文件内容字节，不创建页面，不上传，不调用 AI。",
-    next_steps: [
-      "在 UI 中展示每个文件的目标模块、目标类型和是否需要转换。",
-      "用户确认后再执行批量创建，并在每一步后记录可回退句柄。",
-      "任意一步失败时按 rollback_plan 逆序撤销已创建内容。",
-    ],
+    privacy_note: copy.privacy_note,
+    next_steps: copy.next_steps,
   };
 }
 

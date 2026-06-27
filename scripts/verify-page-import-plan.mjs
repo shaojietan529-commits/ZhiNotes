@@ -28,6 +28,7 @@ const source = existsSync(fullPath) ? readFileSync(fullPath, "utf8") : "";
 // ── Required exported API ────────────────────────────────────
 const requiredExports = [
   "buildPageImportPlan",
+  "buildPageImportRetryPlan",
   "buildExportablePageImportManifest",
   "classifyImportFile",
   "getFileExtension",
@@ -137,6 +138,13 @@ check(
   source.includes("buildRollbackPlan"),
   "缺少 buildRollbackPlan 内部构建逻辑"
 );
+check(
+  source.includes("export function buildPageImportRetryPlan") &&
+    source.includes("buildPageImportPlanFromItems") &&
+    source.includes("只重试上次失败、已回退或未执行的项目") &&
+    source.includes("重试计划只复用原导入计划里的序号、扩展名、大小和路线"),
+  "导入计划必须能从原计划派生 metadata-only 重试子计划"
+);
 
 // ── Required gates ───────────────────────────────────────────
 const requiredGates = [
@@ -237,6 +245,16 @@ check(
 check(
   executorSource.includes('"rolled-back"'),
   "执行器必须能返回 rolled-back 状态"
+);
+check(
+  executorSource.includes("PageImportFailureMode") &&
+    executorSource.includes('"keep-successful"') &&
+    executorSource.includes('"rollback-all"') &&
+    executorSource.includes('"partially-completed"') &&
+    executorSource.includes("preserved_successful_items") &&
+    executorSource.includes("已保留") &&
+    executorSource.includes("failure_mode"),
+  "执行器必须支持保留成功项和失败即整批回退两种失败处理策略"
 );
 // Executor must not upload raw files or call AI; created page records follow
 // the account page-sync setting when the user is signed in and sync is enabled.
@@ -344,6 +362,8 @@ check(
     receiptSource.includes("includes_database_ids: false") &&
     receiptSource.includes("PageImportExecutionReceiptItem") &&
     receiptSource.includes("item_status_counts") &&
+    receiptSource.includes("failure_mode") &&
+    receiptSource.includes("preserved_successful_items") &&
     receiptSource.includes("retryable_items") &&
     receiptSource.includes("rolled_back_item_results") &&
     receiptSource.includes("item_results: result.item_results.map") &&
@@ -369,6 +389,16 @@ check(
     panelSource.includes("ITEM_STATUS_BADGE") &&
     panelSource.includes("ITEM_ACTION_LABEL"),
   "PageImportPlanPanel 必须展示逐项导入明细、可重试项和回退项，且提醒不含文件名"
+);
+check(
+  panelSource.includes("buildPageImportRetryPlan") &&
+    panelSource.includes("failureMode") &&
+    panelSource.includes("保留成功项") &&
+    panelSource.includes("失败即整批回退") &&
+    panelSource.includes("handleRetryImport") &&
+    panelSource.includes("isOneClickRetryableImportItem") &&
+    panelSource.includes("只重试失败/未执行/已回退项"),
+  "PageImportPlanPanel 必须提供失败处理策略选择和单项重试入口"
 );
 check(
   panelSource.includes("ImportProgressState") &&
@@ -407,6 +437,7 @@ console.log(
       local_batch_import_receipt: true,
       visible_batch_import_progress_queue: true,
       item_level_import_recovery_summary: true,
+      retry_failed_items_without_reimporting_successes: true,
     },
     null,
     2

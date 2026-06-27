@@ -932,6 +932,10 @@ Current local actions:
   a status, action, retryable flag, and rollback flag. The UI and local receipt
   can explain failed, skipped, rolled-back, and not-yet-run items without
   including file names, file bytes, page bodies, page ids, or database ids.
+- Confirmed batch imports now support two failure modes: keep successful items
+  and retry only failed / not-run / rolled-back items, or roll back the whole
+  batch for stricter consistency. Retry receipts stay metadata-only and do not
+  re-import already successful items.
 
 The File Library module is a local routing and page-creation desk, not a cloud
 importer. It does not delete files, upload files, sync files, call AI, load HTML

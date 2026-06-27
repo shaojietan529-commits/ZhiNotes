@@ -40,6 +40,8 @@ export type PageImportItemExecutionStatus =
   | "rolled-back"
   | "not-run";
 
+export type PageImportFailureMode = "rollback-all" | "keep-successful";
+
 export interface PageImportItemExecutionResult {
   index: number;
   extension: string;
@@ -65,7 +67,8 @@ export interface PageImportItemExecutionResult {
 }
 
 export interface PageImportExecutionResult {
-  status: "completed" | "rolled-back";
+  status: "completed" | "partially-completed" | "rolled-back";
+  failure_mode: PageImportFailureMode;
   created_pages: number;
   editable_page_imports: number;
   markdown_editable_pages: number;
@@ -78,6 +81,7 @@ export interface PageImportExecutionResult {
   failed: number;
   rolled_back_pages: number;
   rolled_back_databases: number;
+  preserved_successful_items: number;
   first_page_id: string | null;
   first_database_id: string | null;
   created_page_metadata: Page[];
@@ -157,14 +161,17 @@ function textToParagraphs(text: string): string {
 }
 
 /**
- * Execute a confirmed batch import. Pages created during the run are tracked so
- * that, if any item throws, every page already created in this run is rolled
- * back (soft-deleted) before returning a rolled-back result.
+ * Execute a confirmed batch import. Pages and databases created during the run
+ * are tracked so failures can either roll back the whole batch or keep the
+ * successful items and leave failed/not-run items retryable.
  */
 export async function executePageImportPlan(
   files: File[],
   plan: PageImportPlan,
-  opts?: { onProgress?: (done: number, total: number) => void }
+  opts?: {
+    failureMode?: PageImportFailureMode;
+    onProgress?: (done: number, total: number) => void;
+  }
 ): Promise<PageImportExecutionResult> {
   const createdPageIds: string[] = [];
   const createdPageMetadata: Page[] = [];
@@ -180,6 +187,7 @@ export async function executePageImportPlan(
   let skippedDatabase = 0;
   let skippedBlocked = 0;
   let currentItem: PageImportPlanItem | null = null;
+  const failureMode = opts?.failureMode ?? "rollback-all";
 
   const total = plan.items.length;
   const itemResults: PageImportItemExecutionResult[] = plan.items.map((item) => ({
@@ -223,6 +231,7 @@ export async function executePageImportPlan(
     rolledBackDatabases: number
   ): PageImportExecutionResult => ({
     status,
+    failure_mode: failureMode,
     created_pages: createdPages,
     editable_page_imports: editablePageImports,
     markdown_editable_pages: markdownEditablePages,
@@ -235,10 +244,16 @@ export async function executePageImportPlan(
     failed,
     rolled_back_pages: rolledBackPages,
     rolled_back_databases: rolledBackDatabases,
+    preserved_successful_items:
+      status === "partially-completed"
+        ? itemResults.filter(
+            (item) => item.status === "completed" && item.created_workspace_data
+          ).length
+        : 0,
     first_page_id: createdPageIds[0] ?? null,
     first_database_id: createdDatabaseIds[0] ?? null,
     created_page_metadata:
-      status === "completed" ? createdPageMetadata : [],
+      status === "rolled-back" ? [] : createdPageMetadata,
     item_results: itemResults,
     retryable_items: itemResults.filter((item) => item.retryable).length,
     rolled_back_item_results: itemResults.filter((item) => item.rolled_back)
@@ -552,18 +567,28 @@ export async function executePageImportPlan(
     opts?.onProgress?.(total, total);
     return finish("completed", 0, 0, 0);
   } catch (err) {
-    console.error("[Zhinote] batch import failed; rolling back:", err);
+    console.error("[Zhinote] batch import failed:", err);
     if (currentItem) {
       recordItem(currentItem, {
         status: "failed",
         action: "failed-during-import",
         retryable: true,
-        note: "导入此项时发生异常；本次写入会整体回退。",
+        note:
+          failureMode === "rollback-all"
+            ? "导入此项时发生异常；本次写入会整体回退。"
+            : "导入此项时发生异常；已成功的项目会保留，可稍后只重试失败项。",
       });
     }
-    const undone = await rollback();
+    let undone = { rolledBackPages: 0, rolledBackDatabases: 0 };
+    if (failureMode === "rollback-all") {
+      undone = await rollback();
+    }
     for (const item of itemResults) {
-      if (item.status === "completed" && item.created_workspace_data) {
+      if (
+        failureMode === "rollback-all" &&
+        item.status === "completed" &&
+        item.created_workspace_data
+      ) {
         item.status = "rolled-back";
         item.rolled_back = true;
         item.retryable = true;
@@ -573,11 +598,20 @@ export async function executePageImportPlan(
         item.note = "本次还没有执行到此项；处理异常后可重试。";
       }
     }
-    notes.push(
-      `导入中途失败，已回退 ${undone.rolledBackPages} 个本次创建的页面、${undone.rolledBackDatabases} 个数据库。文件没有上传或外发。`
-    );
+    if (failureMode === "rollback-all") {
+      notes.push(
+        `导入中途失败，已回退 ${undone.rolledBackPages} 个本次创建的页面、${undone.rolledBackDatabases} 个数据库。文件没有上传或外发。`
+      );
+    } else {
+      const preserved = itemResults.filter(
+        (item) => item.status === "completed" && item.created_workspace_data
+      ).length;
+      notes.push(
+        `导入中途失败，已保留 ${preserved} 个成功创建的对象；失败和未执行项目可单独重试。文件没有上传或外发。`
+      );
+    }
     return finish(
-      "rolled-back",
+      failureMode === "rollback-all" ? "rolled-back" : "partially-completed",
       1,
       undone.rolledBackPages,
       undone.rolledBackDatabases
