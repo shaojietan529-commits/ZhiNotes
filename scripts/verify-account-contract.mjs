@@ -571,6 +571,10 @@ check(
     dailyNotesShell.includes("parseHotCachePreferences") &&
     dailyNotesShell.includes("metadataRecentLimitForHotCachePreferences") &&
     dailyNotesShell.includes("recentLimit: recentMetadataLimit") &&
+    dailyNotesShell.includes("const calendarIndexes = useMemo(") &&
+    dailyNotesShell.includes("buildDailyCalendarIndexes(notes, calendarDateKeys)") &&
+    dailyNotesShell.includes("function buildDailyCalendarIndexes(") &&
+    dailyNotesShell.includes("const notesById = calendarIndexes.notesById") &&
     dailyNotesShell.includes("rebuildPageDateKeyIndex") &&
     dailyNotesShell.includes("includeUnindexedFallback: false") &&
     dailyNotesShell.includes("includeUnindexedFallback: true") &&

@@ -87,6 +87,12 @@ type IndexedDailyNote = {
   dateKey: string;
 };
 
+type DailyCalendarIndexes = {
+  indexedNotes: IndexedDailyNote[];
+  notesByDate: Map<string, DailyNote[]>;
+  notesById: Map<string, DailyNote>;
+};
+
 type OpeningDailyDraft = {
   pageId: string;
   dateKey: string;
@@ -535,34 +541,15 @@ export default function DailyNotesShell() {
     [grid]
   );
 
-  const indexedNotes = useMemo<IndexedDailyNote[]>(() => {
-    const indexed: IndexedDailyNote[] = [];
-    for (const note of notes) {
-      const dateKey = dailyNoteDateKey(note);
-      if (!dateKey) continue;
-      indexed.push({ note, dateKey });
-    }
-    return indexed;
-  }, [notes]);
+  const calendarIndexes = useMemo(
+    () => buildDailyCalendarIndexes(notes, calendarDateKeys),
+    [calendarDateKeys, notes]
+  );
+  const indexedNotes = calendarIndexes.indexedNotes;
   const deferredIndexedNotes = useDeferredValue(indexedNotes);
-
-  const notesById = useMemo(() => {
-    const map = new Map<string, DailyNote>();
-    for (const note of notes) map.set(note.id, note);
-    return map;
-  }, [notes]);
-
+  const notesById = calendarIndexes.notesById;
   // Each day can hold multiple note pages (Notion-style), grouped by 日期.
-  const notesByDate = useMemo(() => {
-    const map = new Map<string, DailyNote[]>();
-    for (const { note, dateKey } of indexedNotes) {
-      if (!calendarDateKeys.has(dateKey)) continue;
-      const list = map.get(dateKey) ?? [];
-      list.push(note);
-      map.set(dateKey, list);
-    }
-    return map;
-  }, [calendarDateKeys, indexedNotes]);
+  const notesByDate = calendarIndexes.notesByDate;
 
   // Add a new note page on the given day, then open it for editing.
   const addNote = useCallback(
@@ -1345,6 +1332,28 @@ function collectDailyNotes(
   }
 
   return dailyNotes;
+}
+
+function buildDailyCalendarIndexes(
+  notes: DailyNote[],
+  calendarDateKeys: Set<string>
+): DailyCalendarIndexes {
+  const indexedNotes: IndexedDailyNote[] = [];
+  const notesByDate = new Map<string, DailyNote[]>();
+  const notesById = new Map<string, DailyNote>();
+
+  for (const note of notes) {
+    notesById.set(note.id, note);
+    const dateKey = dailyNoteDateKey(note);
+    if (!dateKey) continue;
+    indexedNotes.push({ note, dateKey });
+    if (!calendarDateKeys.has(dateKey)) continue;
+    const list = notesByDate.get(dateKey) ?? [];
+    list.push(note);
+    notesByDate.set(dateKey, list);
+  }
+
+  return { indexedNotes, notesByDate, notesById };
 }
 
 function getRecentIndexedDailyNotes(

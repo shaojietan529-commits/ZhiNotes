@@ -2304,8 +2304,20 @@ function run() {
       "Daily fallback page-id opens must still use local-first navigation when a metadata seed is available.",
     ],
     [
-      "const notesById = useMemo(() =>",
-      "Daily calendar must build a lightweight visible-month note id index for large imported workspaces.",
+      "const calendarIndexes = useMemo(",
+      "Daily calendar must build all first-paint note indexes in one memoized pass for large imported workspaces.",
+    ],
+    [
+      "buildDailyCalendarIndexes(notes, calendarDateKeys)",
+      "Daily calendar must share one visible-month index builder instead of repeating full-list passes.",
+    ],
+    [
+      "function buildDailyCalendarIndexes(",
+      "Daily calendar single-pass index helper must stay explicit and reviewable.",
+    ],
+    [
+      "const notesById = calendarIndexes.notesById",
+      "Daily calendar must reuse the single-pass id index for note opening and dragging.",
     ],
     [
       "const calendarDateKeys = useMemo",

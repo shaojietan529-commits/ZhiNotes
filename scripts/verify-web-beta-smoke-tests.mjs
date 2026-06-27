@@ -2048,8 +2048,20 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "const indexedNotes = useMemo",
-    "Daily notes must index derived date keys once per notes list to keep large imports responsive."
+    "const calendarIndexes = useMemo(",
+    "Daily notes must build calendar indexes in one memoized pass to keep large imports responsive."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "buildDailyCalendarIndexes(notes, calendarDateKeys)",
+    "Daily notes must share one visible-month index builder instead of repeating full-list passes."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "function buildDailyCalendarIndexes(",
+    "Daily calendar single-pass index helper must stay explicit and reviewable."
   );
   assertIncludes(
     files.dailyNotesShell,
@@ -2745,8 +2757,8 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "const notesById = useMemo(() =>",
-    "Daily calendar must build a lightweight visible-month note id index."
+    "const notesById = calendarIndexes.notesById",
+    "Daily calendar must reuse the single-pass note id index."
   );
   assertIncludes(
     files.dailyNotesShell,
