@@ -701,14 +701,18 @@ export default function DailyNotesShell() {
     }, 80);
   }, [primeDailyNoteOpen]);
 
+  const handlePeekReady = useCallback((pageId: string) => {
+    setOpeningNoteId((current) => (current === pageId ? null : current));
+  }, []);
+
   useEffect(() => {
-    if (!openingNoteId || peekPageId !== openingNoteId) return;
-    const timer = window.setTimeout(() => {
+    if (peekPageId) return;
+    if (!openingNoteId) return;
+    queueMicrotask(() => {
       setOpeningNoteId((current) =>
         current === openingNoteId ? null : current
       );
-    }, 700);
-    return () => window.clearTimeout(timer);
+    });
   }, [openingNoteId, peekPageId]);
 
   const toggleDateExpansion = useCallback((dateKey: string) => {
@@ -1161,6 +1165,7 @@ export default function DailyNotesShell() {
             setPeekInitialPage(null);
             openDailyNoteFullPageById(id);
           }}
+          onReady={handlePeekReady}
           onChanged={() => void load({ includeCloud: false })}
         />
       )}

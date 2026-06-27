@@ -1105,6 +1105,11 @@ check(
     dailyNotesShell.includes("setOpeningNoteId(note.id);") &&
     dailyNotesShell.includes("openingNoteId === note.id") &&
     dailyNotesShell.includes("正在打开纪要…") &&
+    dailyNotesShell.includes("const handlePeekReady = useCallback") &&
+    dailyNotesShell.includes("onReady={handlePeekReady}") &&
+    pagePeekModal.includes("onReady?: (pageId: string) => void") &&
+    pagePeekModal.includes("readyNotifiedPageIdRef") &&
+    pagePeekModal.includes("onReady?.(pageId)") &&
     dailyNotesShell.includes("window.setTimeout(() =>") &&
     dailyNotesShell.includes("current === dateKey ? null : current") &&
     !dailyNotesShell.includes("fetchCloudPageById") &&

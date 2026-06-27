@@ -125,6 +125,7 @@ for (const token of [
   "router.prefetch(pageRoute)",
   'openPage(optimisticNote, { source: "daily-create" })',
   "<PagePeekModal",
+  "onReady={handlePeekReady}",
   "rememberPendingPageDraft(optimisticNote)",
   "openNotePage",
   "DAILY_DATE_INDEX_BACKFILL_KEY",
@@ -517,6 +518,10 @@ check(
     lazyPagePeekModal.includes("export function warmPagePeekModal()") &&
     lazyPagePeekModal.includes('import("@/components/page/PagePeekModal")') &&
     lazyPagePeekModal.includes("dynamic(loadPagePeekModal") &&
+    pagePeekModal.includes("onReady?: (pageId: string) => void") &&
+    pagePeekModal.includes("onReady?.(pageId)") &&
+    shells.daily.includes("const handlePeekReady = useCallback") &&
+    shells.daily.includes("onReady={handlePeekReady}") &&
     shells.daily.includes("warmPagePeekModal();") &&
     lazyPagePeekModal.includes("正在打开页面…") &&
     !shells.daily.includes("fetchCloudPageById") &&

@@ -2312,11 +2312,35 @@ function run() {
       "Daily note chips must show a local opening label during peek modal load.",
     ],
     [
+      "const handlePeekReady = useCallback",
+      "Daily existing-note opening state must clear from the peek modal ready signal.",
+    ],
+    [
+      "onReady={handlePeekReady}",
+      "Daily page peek must wire its ready signal back to the opening-state UI.",
+    ],
+    [
       "queueCloudPagePush(record)",
       "Daily + creation must enqueue account-cloud upload instead of waiting on direct push.",
     ],
   ]) {
     assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "onReady?: (pageId: string) => void",
+      "PagePeekModal must expose a ready callback for local-first parent shells.",
+    ],
+    [
+      "readyNotifiedPageIdRef",
+      "PagePeekModal must de-duplicate ready notifications per page.",
+    ],
+    [
+      "onReady?.(pageId)",
+      "PagePeekModal must notify when the local page shell is ready.",
+    ],
+  ]) {
+    assertSourceIncludes(files.pagePeekModal, pagePeekModal, snippet, message);
   }
   assertSourceIncludes(
     files.dailyNotesShell,

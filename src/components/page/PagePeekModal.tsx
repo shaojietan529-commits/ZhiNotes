@@ -34,6 +34,7 @@ interface PagePeekModalProps {
   initialPage?: Page | null;
   onClose: () => void;
   onOpenFull: (pageId: string) => void;
+  onReady?: (pageId: string) => void;
   onChanged?: () => void;
 }
 
@@ -49,6 +50,7 @@ export default function PagePeekModal({
   initialPage,
   onClose,
   onOpenFull,
+  onReady,
   onChanged,
 }: PagePeekModalProps) {
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
@@ -68,6 +70,7 @@ export default function PagePeekModal({
   const peekOpenStartedAtRef = useRef(getLocalPerformanceNow());
   const peekOpenStartedAtIsoRef = useRef(new Date().toISOString());
   const recordedPeekPerformancePageIdRef = useRef<string | null>(null);
+  const readyNotifiedPageIdRef = useRef<string | null>(null);
   const hasInitialEditableBody =
     initialPage?.id === pageId && initialPage.content_text != null;
   const isOptimisticDraft =
@@ -99,6 +102,7 @@ export default function PagePeekModal({
     peekOpenStartedAtRef.current = getLocalPerformanceNow();
     peekOpenStartedAtIsoRef.current = new Date().toISOString();
     recordedPeekPerformancePageIdRef.current = null;
+    readyNotifiedPageIdRef.current = null;
     queueMicrotask(() => {
       const nextInitial = getInitialPeekPage(pageId, initialPage);
       setFallbackPage(nextInitial);
@@ -162,6 +166,10 @@ export default function PagePeekModal({
 
   useEffect(() => {
     if (!effectivePage || metadataLoading) return;
+    if (readyNotifiedPageIdRef.current !== pageId) {
+      readyNotifiedPageIdRef.current = pageId;
+      onReady?.(pageId);
+    }
     if (recordedPeekPerformancePageIdRef.current === pageId) return;
     recordedPeekPerformancePageIdRef.current = pageId;
     const durationMs = getLocalPerformanceNow() - peekOpenStartedAtRef.current;
@@ -187,7 +195,7 @@ export default function PagePeekModal({
         property_count: parsePageProperties(effectivePage.properties).length,
       },
     });
-  }, [effectivePage, isOptimisticDraft, metadataLoading, pageId]);
+  }, [effectivePage, isOptimisticDraft, metadataLoading, onReady, pageId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

@@ -2078,6 +2078,36 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "const handlePeekReady = useCallback",
+    "Daily existing-note opening state must clear from the peek modal ready signal."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "onReady={handlePeekReady}",
+    "Daily page peek must wire its ready signal back to the opening-state UI."
+  );
+  assertIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    "onReady?: (pageId: string) => void",
+    "PagePeekModal must expose a ready callback for local-first parent shells."
+  );
+  assertIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    "readyNotifiedPageIdRef",
+    "PagePeekModal must de-duplicate ready notifications per page."
+  );
+  assertIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    "onReady?.(pageId)",
+    "PagePeekModal must notify when the local page shell is ready."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "writeOptimisticDailyHotCache",
     "Daily + creation must update the local hot cache before background persistence."
   );
