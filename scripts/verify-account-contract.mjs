@@ -1178,6 +1178,17 @@ check(
   "PageShell 应快速挂载正文编辑器，同时延后评论、反链、子页面等周边重组件"
 );
 check(
+  pageShell.includes("PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420") &&
+    pageShell.includes("PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS = 900") &&
+    pageShell.includes("const hasContentForEditor = page?.content_text != null") &&
+    pageShell.includes("mountedEditorPageIdRef.current = pageId") &&
+    pageShell.includes("if (editorMounted && mountedEditorPageIdRef.current === pageId) return") &&
+    pageShell.includes("delay: metadataOnly ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS : 0") &&
+    pageShell.includes("metadataOnly\n        ? PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS\n        : PAGE_EDITOR_IDLE_TIMEOUT_MS") &&
+    pageShell.includes("标题和属性已先显示，正在从本地缓存补齐正文和编辑器"),
+  "PageShell 通过 metadata route handoff 打开页面时应先显示标题属性，延后重编辑器，并避免正文回填时重挂载当前编辑器"
+);
+check(
   pageShell.includes("PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500") &&
     pageShell.includes("pendingEditorSideEffectsRef") &&
     pageShell.includes("flushEditorSideEffects") &&

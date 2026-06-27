@@ -268,6 +268,13 @@ check(
     !pageShell.includes("import Editor from \"@/components/editor/Editor\"") &&
     pageShell.includes("return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);") &&
     pageShell.includes("PAGE_EDITOR_IDLE_TIMEOUT_MS = 120") &&
+    pageShell.includes("PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420") &&
+    pageShell.includes("PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS = 900") &&
+    pageShell.includes("const hasContentForEditor = page?.content_text != null") &&
+    pageShell.includes("mountedEditorPageIdRef.current = pageId") &&
+    pageShell.includes("if (editorMounted && mountedEditorPageIdRef.current === pageId) return") &&
+    pageShell.includes("delay: metadataOnly ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS : 0") &&
+    pageShell.includes("标题和属性已先显示，正在从本地缓存补齐正文和编辑器") &&
     pageShell.includes("PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700") &&
     pageShell.includes("PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200") &&
     pageShell.includes("PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800") &&

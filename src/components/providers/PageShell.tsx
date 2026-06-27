@@ -78,6 +78,8 @@ import {
 
 const loadEditorModule = () => import("@/components/editor/Editor");
 const PAGE_EDITOR_IDLE_TIMEOUT_MS = 120;
+const PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420;
+const PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS = 900;
 const PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700;
 const PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200;
 const PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800;
@@ -159,6 +161,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const [childTreeMounted, setChildTreeMounted] = useState(false);
   const [pageReferencesMounted, setPageReferencesMounted] = useState(false);
   const hasPage = Boolean(page);
+  const hasContentForEditor = page?.content_text != null;
+  const mountedEditorPageIdRef = useRef<string | null>(null);
   const pageOpenStartedAtRef = useRef(getLocalPerformanceNow());
   const pageOpenStartedAtIsoRef = useRef(new Date().toISOString());
   const reportedPageOpenRef = useRef<string | null>(null);
@@ -226,13 +230,25 @@ function PageContent({ pageId }: { pageId: string }) {
   }, [loading, locked, page, pageId, widePage]);
 
   useEffect(() => {
-    setEditorMounted(false);
-    if (!hasPage) return;
+    if (!hasPage) {
+      mountedEditorPageIdRef.current = null;
+      setEditorMounted(false);
+      return;
+    }
+    if (editorMounted && mountedEditorPageIdRef.current === pageId) return;
+    if (mountedEditorPageIdRef.current !== pageId) setEditorMounted(false);
+    const metadataOnly = !hasContentForEditor;
     return scheduleEditorMount(() => {
       void loadEditorModule();
       setEditorMounted(true);
+      mountedEditorPageIdRef.current = pageId;
+    }, {
+      delay: metadataOnly ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS : 0,
+      timeout: metadataOnly
+        ? PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS
+        : PAGE_EDITOR_IDLE_TIMEOUT_MS,
     });
-  }, [pageId, hasPage]);
+  }, [pageId, hasPage, hasContentForEditor, editorMounted]);
 
   useEffect(() => {
     setPageCommentsMounted(false);
@@ -1052,7 +1068,7 @@ function PageContent({ pageId }: { pageId: string }) {
               onUpdate={handleContentUpdate}
             />
           ) : (
-            <PageBodySkeleton />
+            <PageBodySkeleton metadataOnly={page.content_text == null} />
           )}
 
           {/* When the comment panel is open, text comments live there instead
@@ -1143,7 +1159,10 @@ function PageSyncStatusBadge({
   );
 }
 
-function scheduleEditorMount(callback: () => void): () => void {
+function scheduleEditorMount(
+  callback: () => void,
+  options: { delay?: number; timeout?: number } = {}
+): () => void {
   if (typeof window === "undefined") return () => undefined;
   const maybeWindow = window as Window & {
     requestIdleCallback?: (
@@ -1152,19 +1171,33 @@ function scheduleEditorMount(callback: () => void): () => void {
     ) => number;
     cancelIdleCallback?: (id: number) => void;
   };
+  const delay = Math.max(0, options.delay ?? 0);
+  const timeout = Math.max(1, options.timeout ?? PAGE_EDITOR_IDLE_TIMEOUT_MS);
   let timer: number | null = null;
   let idleId: number | null = null;
-  const frame = window.requestAnimationFrame(() => {
+  let frame: number | null = null;
+  const requestMount = () => {
     if (maybeWindow.requestIdleCallback) {
       idleId = maybeWindow.requestIdleCallback(callback, {
-        timeout: PAGE_EDITOR_IDLE_TIMEOUT_MS,
+        timeout,
       });
       return;
     }
-    timer = window.setTimeout(callback, 40);
-  });
+    timer = window.setTimeout(callback, Math.min(timeout, 160));
+  };
+  const start = () => {
+    frame = window.requestAnimationFrame(requestMount);
+  };
+  if (delay > 0) {
+    timer = window.setTimeout(() => {
+      timer = null;
+      start();
+    }, delay);
+  } else {
+    start();
+  }
   return () => {
-    window.cancelAnimationFrame(frame);
+    if (frame !== null) window.cancelAnimationFrame(frame);
     if (idleId !== null) maybeWindow.cancelIdleCallback?.(idleId);
     if (timer !== null) window.clearTimeout(timer);
   };
@@ -1187,7 +1220,7 @@ function scheduleDeferredMount(callback: () => void, timeout = 450): () => void 
   return () => window.clearTimeout(timer);
 }
 
-function PageBodySkeleton() {
+function PageBodySkeleton({ metadataOnly = false }: { metadataOnly?: boolean }) {
   return (
     <div className="min-h-[220px] rounded-md border border-zinc-100 bg-zinc-50/60 px-4 py-5 dark:border-zinc-800 dark:bg-zinc-900/30">
       <div className="mb-4 h-3 w-40 rounded bg-zinc-200/80 dark:bg-zinc-800" />
@@ -1196,7 +1229,11 @@ function PageBodySkeleton() {
         <div className="h-3 w-11/12 max-w-2xl rounded bg-zinc-200/60 dark:bg-zinc-800/70" />
         <div className="h-3 w-4/5 max-w-2xl rounded bg-zinc-200/50 dark:bg-zinc-800/60" />
       </div>
-      <p className="mt-5 text-xs text-zinc-400">正在准备编辑器…</p>
+      <p className="mt-5 text-xs text-zinc-400">
+        {metadataOnly
+          ? "标题和属性已先显示，正在从本地缓存补齐正文和编辑器…"
+          : "正在准备编辑器…"}
+      </p>
     </div>
   );
 }

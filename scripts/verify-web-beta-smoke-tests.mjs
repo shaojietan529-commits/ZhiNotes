@@ -2792,6 +2792,42 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      "PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420",
+      "Page shell must briefly hold editor mounting for metadata-only page opens so local body hydration can win first.",
+    ],
+    [
+      "PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS = 900",
+      "Page shell metadata-only editor fallback must stay bounded so an empty page still becomes editable.",
+    ],
+    [
+      "const hasContentForEditor = page?.content_text != null",
+      "Page shell must distinguish metadata-only route handoff records from content-ready pages.",
+    ],
+    [
+      "mountedEditorPageIdRef.current = pageId",
+      "Page shell must remember which page already owns the mounted editor.",
+    ],
+    [
+      "if (editorMounted && mountedEditorPageIdRef.current === pageId) return",
+      "Page shell must not remount the editor when late body hydration reaches an already mounted page.",
+    ],
+    [
+      "delay: metadataOnly ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS : 0",
+      "Page shell must delay heavy editor mounting only for metadata-only opens.",
+    ],
+    [
+      "metadataOnly\n        ? PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS\n        : PAGE_EDITOR_IDLE_TIMEOUT_MS",
+      "Page shell must use a longer bounded idle fallback only for metadata-only opens.",
+    ],
+    [
+      "标题和属性已先显示，正在从本地缓存补齐正文和编辑器",
+      "Page shell metadata-only skeleton must explain that the title/properties are already visible while body hydration continues.",
+    ],
+  ]) {
+    assertIncludes(files.pageShell, pageShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700",
       "Page shell comments must mount after the editor instead of competing with first paint.",
     ],
