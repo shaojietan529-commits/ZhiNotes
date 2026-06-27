@@ -17,6 +17,11 @@ import {
   countExecutableItems,
   type PageImportExecutionResult,
 } from "@/lib/files/pageImportExecutor";
+import {
+  appendPageImportExecutionReceipt,
+  buildPageImportExecutionReceipt,
+  type PageImportExecutionReceipt,
+} from "@/lib/files/pageImportReceipts";
 
 const LANE_BADGE: Record<
   PageImportLaneId,
@@ -122,6 +127,8 @@ export default function PageImportPlanPanel() {
   const [confirmed, setConfirmed] = useState(false);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<PageImportExecutionResult | null>(null);
+  const [lastReceipt, setLastReceipt] =
+    useState<PageImportExecutionReceipt | null>(null);
 
   const handleChoose = () => inputRef.current?.click();
 
@@ -140,6 +147,7 @@ export default function PageImportPlanPanel() {
     setPlan(buildPageImportPlan(sources));
     setConfirmed(false);
     setResult(null);
+    setLastReceipt(null);
   };
 
   const handleExportManifest = () => {
@@ -154,6 +162,7 @@ export default function PageImportPlanPanel() {
     setFiles([]);
     setConfirmed(false);
     setResult(null);
+    setLastReceipt(null);
   };
 
   const handleConfirmImport = async () => {
@@ -161,7 +170,14 @@ export default function PageImportPlanPanel() {
     setImporting(true);
     try {
       const res = await executePageImportPlan(files, plan);
+      const receipt = buildPageImportExecutionReceipt({
+        plan,
+        result: res,
+        confirmation_checked: confirmed,
+      });
+      appendPageImportExecutionReceipt(receipt);
       setResult(res);
+      setLastReceipt(receipt);
       if (res.status === "completed" && res.created_page_metadata.length > 0) {
         upsertPages(res.created_page_metadata);
       }
@@ -180,6 +196,12 @@ export default function PageImportPlanPanel() {
     } finally {
       setImporting(false);
     }
+  };
+
+  const handleExportLastReceipt = () => {
+    if (!lastReceipt) return;
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    downloadJson(`zhinote-page-import-receipt-${stamp}.json`, lastReceipt);
   };
 
   const executableCount = useMemo(
@@ -420,12 +442,32 @@ export default function PageImportPlanPanel() {
                       ))}
                     </ul>
                   )}
+                  {lastReceipt && (
+                    <button
+                      type="button"
+                      onClick={handleExportLastReceipt}
+                      className="rounded-md border border-green-300 px-2 py-1 text-xs font-medium text-green-800 transition-colors hover:bg-green-100 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-900/40"
+                    >
+                      导出批量导入 receipt
+                    </button>
+                  )}
                 </div>
               ) : (
-                <p>
-                  导入中途失败，已回退本次创建的 {result.rolled_back_pages}{" "}
-                  个页面、{result.rolled_back_databases} 个数据库，工作区恢复到导入前状态。文件没有上传或外发。
-                </p>
+                <div className="space-y-2">
+                  <p>
+                    导入中途失败，已回退本次创建的 {result.rolled_back_pages}{" "}
+                    个页面、{result.rolled_back_databases} 个数据库，工作区恢复到导入前状态。文件没有上传或外发。
+                  </p>
+                  {lastReceipt && (
+                    <button
+                      type="button"
+                      onClick={handleExportLastReceipt}
+                      className="rounded-md border border-amber-300 px-2 py-1 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                    >
+                      导出回退 receipt
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}

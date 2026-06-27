@@ -91,12 +91,12 @@ ZhiNotes 当前已有：
   但还没有把多文件确认后拆成 pages/databases。
 - DOCX/PDF 还没有本地文本抽取后转成可编辑 page 的稳定路径。
 - HTML 还没有“同目录 assets/ZIP assets”保真导入路线。
-- 文件导入还缺统一进度队列、部分成功报告和批量导入 receipt；确认后执行器已有失败自动回退。
+- 文件导入还缺统一进度队列和部分成功恢复；确认后执行器已有失败自动回退，并会生成本地 metadata-only 批量导入 receipt。
 
 建议下一步：
 
 - Markdown/HTML 已支持用户确认后的批量 page 创建：Markdown 进入可编辑正文，HTML 进入报告文件页并用沙盒原生预览，外部资源默认阻止。
-- 下一步补 HTML 同目录 assets/ZIP assets 保真导入、批量 receipt 和更细的部分成功恢复体验。
+- 下一步补 HTML 同目录 assets/ZIP assets 保真导入、统一进度队列和更细的部分成功恢复体验。
 
 ### Database 视图体验
 

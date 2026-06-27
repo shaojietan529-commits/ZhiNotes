@@ -920,6 +920,11 @@ Current local actions:
 - Export a metadata-only file workbench. The export excludes file names, file
   bytes, file text, page body text, spreadsheet values, cloud data, AI prompts,
   tokens, and credentials.
+- Confirmed batch page/database imports generate a local metadata-only receipt.
+  The receipt records extension groups, route counts, created/rolled-back
+  object counts, and follow-up review steps, but excludes file names, file
+  bytes, file text, page body text, spreadsheet values, page ids, database ids,
+  tokens, credentials, cloud data, and AI output.
 
 The File Library module is a local routing and page-creation desk, not a cloud
 importer. It does not delete files, upload files, sync files, call AI, load HTML

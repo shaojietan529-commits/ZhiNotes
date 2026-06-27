@@ -198,6 +198,12 @@ check(existsSync(panelPath), `${panelFile} 不存在`);
 const panelSource = existsSync(panelPath)
   ? readFileSync(panelPath, "utf8")
   : "";
+const receiptFile = "src/lib/files/pageImportReceipts.ts";
+const receiptPath = path.join(root, receiptFile);
+check(existsSync(receiptPath), `${receiptFile} 不存在`);
+const receiptSource = existsSync(receiptPath)
+  ? readFileSync(receiptPath, "utf8")
+  : "";
 
 check(
   executorSource.includes("export async function executePageImportPlan"),
@@ -311,6 +317,32 @@ check(
     panelSource.includes("HTML 外部资源默认继续阻止"),
   "PageImportPlanPanel 必须展示 Markdown/HTML 导入后的具体落地结果"
 );
+check(
+  receiptSource.includes('format: "zhinote-page-import-execution-receipt"') &&
+    receiptSource.includes('receipt_status: "local-batch-import-metadata-only"') &&
+    receiptSource.includes("buildPageImportExecutionReceipt") &&
+    receiptSource.includes("appendPageImportExecutionReceipt") &&
+    receiptSource.includes("listPageImportExecutionReceipts") &&
+    receiptSource.includes("buildExportablePageImportManifest") &&
+    receiptSource.includes("includes_file_names: false") &&
+    receiptSource.includes("includes_file_bytes: false") &&
+    receiptSource.includes("includes_file_text: false") &&
+    receiptSource.includes("includes_page_body_text: false") &&
+    receiptSource.includes("includes_spreadsheet_cell_values: false") &&
+    receiptSource.includes("includes_page_ids: false") &&
+    receiptSource.includes("includes_database_ids: false") &&
+    receiptSource.includes("uploads_data: false") &&
+    receiptSource.includes("calls_external_service: false") &&
+    receiptSource.includes("receipt_writes_workspace_data: false"),
+  "批量导入 receipt 必须存在，并保持本地 metadata-only、脱敏、无上传边界"
+);
+check(
+  panelSource.includes("buildPageImportExecutionReceipt") &&
+    panelSource.includes("appendPageImportExecutionReceipt") &&
+    panelSource.includes("导出批量导入 receipt") &&
+    panelSource.includes("导出回退 receipt"),
+  "PageImportPlanPanel 必须在执行后生成并导出批量导入 receipt"
+);
 
 if (errors.length > 0) {
   console.error("Page import plan contract verification FAILED:");
@@ -333,6 +365,7 @@ console.log(
       page_records_follow_account_sync: true,
       database_records_follow_account_sync: true,
       result_distinguishes_markdown_html_pages: true,
+      local_batch_import_receipt: true,
     },
     null,
     2
