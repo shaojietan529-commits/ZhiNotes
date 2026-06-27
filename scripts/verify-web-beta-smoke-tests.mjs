@@ -2288,6 +2288,38 @@ function run() {
     "function selectDailyNotesForCalendarRender(",
     "Daily calendar render state must keep current-grid notes plus bounded recent notes instead of every imported record."
   );
+  for (const [snippet, message] of [
+    [
+      "DAILY_CALENDAR_RENDER_DAY_LIMIT",
+      "Daily calendar render state must cap each visible day before publishing React state.",
+    ],
+    [
+      "const [dailyNoteCountByDate, setDailyNoteCountByDate]",
+      "Daily calendar must keep date-level totals separately from the capped render list.",
+    ],
+    [
+      "setDailyNoteCountByDate(selection.countsByDate)",
+      "Daily calendar publishes must update date totals with each staged metadata result.",
+    ],
+    [
+      "dailyNoteCountsFingerprint(selection.countsByDate)",
+      "Daily calendar fingerprints must include date totals so count-only updates repaint correctly.",
+    ],
+    [
+      "const dayTotalCount =",
+      "Daily calendar cells must render hidden counts from date totals, not only loaded chips.",
+    ],
+    [
+      "const isRenderCapped =",
+      "Daily calendar cells must detect when a high-volume day hit the render cap.",
+    ],
+    [
+      "为保持日历流畅",
+      "Daily calendar must explain capped high-volume day rendering to the user.",
+    ],
+  ]) {
+    assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,

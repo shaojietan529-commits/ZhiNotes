@@ -94,6 +94,11 @@ type DailyCalendarIndexes = {
   notesById: Map<string, DailyNote>;
 };
 
+type DailyCalendarRenderSelection = {
+  notes: DailyNote[];
+  countsByDate: Map<string, number>;
+};
+
 type OpeningDailyDraft = {
   pageId: string;
   dateKey: string;
@@ -109,6 +114,8 @@ const DAILY_RECENT_VISIBLE_LIMIT = 8;
 const DAILY_RECENT_INDEX_CANDIDATE_LIMIT = 80;
 const DAILY_RENDER_RECENT_BUFFER_LIMIT = 80;
 const DAILY_CALENDAR_EXPAND_BATCH = 24;
+const DAILY_CALENDAR_RENDER_DAY_LIMIT =
+  DAILY_CALENDAR_VISIBLE_LIMIT + DAILY_CALENDAR_EXPAND_BATCH;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
 const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
 const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
@@ -124,6 +131,9 @@ export default function DailyNotesShell() {
   const pageRevision = usePageRevision();
   const [rootId, setRootId] = useState<string | null>(null);
   const [notes, setNotes] = useState<DailyNote[]>([]);
+  const [dailyNoteCountByDate, setDailyNoteCountByDate] = useState<
+    Map<string, number>
+  >(() => new Map());
   const [cloudNotice, setCloudNotice] = useState<string | null>(null);
   const [cloudLoading, setCloudLoading] = useState(false);
   const [creatingDateKey, setCreatingDateKey] = useState<string | null>(null);
@@ -197,14 +207,16 @@ export default function DailyNotesShell() {
       rememberModuleRootId("daily", rootHint);
       setRootId(rootHint);
     }
-    const renderableNotes = selectDailyNotesForCalendarRender(
+    const selection = selectDailyNotesForCalendarRender(
       Array.from(byId.values()),
       startDate,
       endDate,
       Math.max(DAILY_RECENT_VISIBLE_LIMIT, DAILY_RENDER_RECENT_BUFFER_LIMIT)
     );
+    const renderableNotes = selection.notes;
     startTransition(() => {
       setNotes(renderableNotes);
+      setDailyNoteCountByDate(selection.countsByDate);
     });
     setCloudNotice(
       `已先显示本机热缓存 ${renderableNotes.length} 条每日纪要 metadata，正在启动本地数据库和云端校正…`
@@ -372,8 +384,12 @@ export default function DailyNotesShell() {
 
     const publishNotes = (nextNotes: DailyNote[]) => {
       if (loadRequestRef.current !== requestId) return;
-      const renderableNotes = selectRenderableNotes(nextNotes);
-      const nextFingerprint = dailyNotesRenderFingerprint(renderableNotes);
+      const selection = selectRenderableNotes(nextNotes);
+      const renderableNotes = selection.notes;
+      const nextFingerprint = [
+        dailyNotesRenderFingerprint(renderableNotes),
+        dailyNoteCountsFingerprint(selection.countsByDate),
+      ].join("#");
       if (notesRenderFingerprintRef.current === nextFingerprint) return;
       notesRenderFingerprintRef.current = nextFingerprint;
       if (firstVisibleMs === null && renderableNotes.length > 0) {
@@ -383,6 +399,7 @@ export default function DailyNotesShell() {
       startTransition(() => {
         if (loadRequestRef.current !== requestId) return;
         setNotes(renderableNotes);
+        setDailyNoteCountByDate(selection.countsByDate);
       });
     };
 
@@ -516,7 +533,7 @@ export default function DailyNotesShell() {
       startDate,
       endDate,
       rootId: dailyRootId,
-      pages: Array.from(byId.values()),
+      pages: selectRenderableNotes(Array.from(byId.values())).notes,
       source: "local-metadata",
     });
     if (!includeCloud) {
@@ -544,7 +561,7 @@ export default function DailyNotesShell() {
           startDate,
           endDate,
           rootId: dailyRootId,
-          pages: Array.from(fallbackById.values()),
+          pages: selectRenderableNotes(Array.from(fallbackById.values())).notes,
           source: "local-fallback-metadata",
         });
 
@@ -589,7 +606,7 @@ export default function DailyNotesShell() {
             startDate,
             endDate,
             rootId: cloud.rootId,
-            pages: Array.from(byId.values()),
+            pages: selectRenderableNotes(Array.from(byId.values())).notes,
             source: "cloud-metadata",
           });
           void persistDailyCloudMetadata(cloud, upsertPages);
@@ -1039,20 +1056,28 @@ export default function DailyNotesShell() {
             {grid.map((cell) => {
               const key = toDateKey(cell.date);
               const dayNotes = notesByDate.get(key) ?? [];
+              const dayTotalCount =
+                dailyNoteCountByDate.get(key) ?? dayNotes.length;
               const isExpanded = expandedDateKeys.has(key);
               const visibleLimit = isExpanded
                 ? (visibleNoteLimitByDate.get(key) ??
                   DAILY_CALENDAR_VISIBLE_LIMIT + DAILY_CALENDAR_EXPAND_BATCH)
                 : DAILY_CALENDAR_VISIBLE_LIMIT;
               const visibleNotes = dayNotes.slice(0, visibleLimit);
-              const hiddenCount = Math.max(
+              const loadedHiddenCount = Math.max(
                 0,
                 dayNotes.length - visibleNotes.length
               );
+              const hiddenCount = Math.max(
+                0,
+                dayTotalCount - visibleNotes.length
+              );
               const nextBatchCount = Math.min(
                 DAILY_CALENDAR_EXPAND_BATCH,
-                hiddenCount
+                loadedHiddenCount
               );
+              const isRenderCapped =
+                dayTotalCount > dayNotes.length && loadedHiddenCount === 0;
               const isToday = key === todayKey;
               const isDropTarget = draggedNoteId !== null && dragOverDateKey === key;
               const isOpeningDraft = openingDraft?.dateKey === key;
@@ -1188,11 +1213,17 @@ export default function DailyNotesShell() {
                         </span>
                       </button>
                     ))}
-                    {dayNotes.length > DAILY_CALENDAR_VISIBLE_LIMIT && (
+                    {dayTotalCount > DAILY_CALENDAR_VISIBLE_LIMIT && (
                       <button
                         type="button"
                         onClick={() => {
-                          if (isExpanded && hiddenCount === 0) {
+                          if (isRenderCapped) {
+                            setCloudNotice(
+                              `为保持日历流畅，${key} 当前先显示 ${visibleNotes.length}/${dayTotalCount} 条纪要；可用搜索打开其余纪要。`
+                            );
+                            return;
+                          }
+                          if (isExpanded && loadedHiddenCount === 0) {
                             toggleDateExpansion(key);
                             return;
                           }
@@ -1206,8 +1237,10 @@ export default function DailyNotesShell() {
                         className="rounded-md px-2 py-1 text-left text-xs leading-4 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                       >
                         {isExpanded
-                          ? hiddenCount > 0
+                          ? loadedHiddenCount > 0
                             ? `再显示 ${nextBatchCount} 条（剩余 ${hiddenCount}）`
+                            : isRenderCapped
+                              ? `已显示 ${visibleNotes.length}/${dayTotalCount} 条`
                             : `收起到 ${DAILY_CALENDAR_VISIBLE_LIMIT} 条`
                           : `+${hiddenCount} 条，点击展开`}
                       </button>
@@ -1481,17 +1514,24 @@ function selectDailyNotesForCalendarRender(
   startDate: string,
   endDate: string,
   limit: number
-): DailyNote[] {
+): DailyCalendarRenderSelection {
   const visibleNotes: DailyNote[] = [];
   const recent: IndexedDailyNote[] = [];
   const visibleIds = new Set<string>();
+  const countsByDate = new Map<string, number>();
+  const renderedByDate = new Map<string, number>();
 
   for (const note of notes) {
     const dateKey = dailyNoteDateKey(note);
     if (!dateKey) continue;
     if (dateKey >= startDate && dateKey <= endDate) {
-      visibleNotes.push(note);
-      visibleIds.add(note.id);
+      countsByDate.set(dateKey, (countsByDate.get(dateKey) ?? 0) + 1);
+      const renderedForDate = renderedByDate.get(dateKey) ?? 0;
+      if (renderedForDate < DAILY_CALENDAR_RENDER_DAY_LIMIT) {
+        visibleNotes.push(note);
+        visibleIds.add(note.id);
+        renderedByDate.set(dateKey, renderedForDate + 1);
+      }
       continue;
     }
     addRecentDailyNoteCandidate(recent, { note, dateKey }, limit);
@@ -1503,7 +1543,7 @@ function selectDailyNotesForCalendarRender(
     }
   }
 
-  return visibleNotes;
+  return { notes: visibleNotes, countsByDate };
 }
 
 function dailyNotesRenderFingerprint(notes: DailyNote[]): string {
@@ -1519,6 +1559,13 @@ function dailyNotesRenderFingerprint(notes: DailyNote[]): string {
         note.hotCacheOnly ? "hot" : "",
       ].join(":")
     )
+    .join("|");
+}
+
+function dailyNoteCountsFingerprint(countsByDate: Map<string, number>): string {
+  return Array.from(countsByDate.entries())
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+    .map(([dateKey, count]) => `${dateKey}:${count}`)
     .join("|");
 }
 

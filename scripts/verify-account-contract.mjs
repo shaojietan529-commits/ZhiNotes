@@ -638,11 +638,17 @@ check(
     dailyNotesShell.includes("function buildDailyCalendarIndexes(") &&
     dailyNotesShell.includes("const notesById = calendarIndexes.notesById") &&
     dailyNotesShell.includes("selectDailyNotesForCalendarRender(") &&
+    dailyNotesShell.includes("DAILY_CALENDAR_RENDER_DAY_LIMIT") &&
+    dailyNotesShell.includes(
+      "const [dailyNoteCountByDate, setDailyNoteCountByDate]"
+    ) &&
     dailyNotesShell.includes("DAILY_RENDER_RECENT_BUFFER_LIMIT") &&
     dailyNotesShell.includes("notesRenderFingerprintRef") &&
     dailyNotesShell.includes("dailyNotesRenderFingerprint(renderableNotes)") &&
+    dailyNotesShell.includes("dailyNoteCountsFingerprint(selection.countsByDate)") &&
     dailyNotesShell.includes("notesRenderFingerprintRef.current === nextFingerprint") &&
     dailyNotesShell.includes("setNotes(renderableNotes)") &&
+    dailyNotesShell.includes("setDailyNoteCountByDate(selection.countsByDate)") &&
     dailyNotesShell.includes("const deferredRecentNotes = useDeferredValue(calendarIndexes.recentNotes)") &&
     dailyNotesShell.includes("deferredRecentNotes.slice(0, DAILY_RECENT_VISIBLE_LIMIT)") &&
     dailyNotesShell.includes("function addRecentDailyNoteCandidate(") &&
@@ -702,13 +708,19 @@ check(
     dailyNotesShell.includes("toggleDateExpansion") &&
     dailyNotesShell.includes("showMoreNotesForDate") &&
     dailyNotesShell.includes("DAILY_CALENDAR_EXPAND_BATCH") &&
+    dailyNotesShell.includes("DAILY_CALENDAR_RENDER_DAY_LIMIT") &&
+    dailyNotesShell.includes("const dayTotalCount =") &&
+    dailyNotesShell.includes("const loadedHiddenCount = Math.max(") &&
+    dailyNotesShell.includes("const isRenderCapped =") &&
     dailyNotesShell.includes("const visibleLimit = isExpanded") &&
     dailyNotesShell.includes("const visibleNotes = dayNotes.slice(0, visibleLimit)") &&
     dailyNotesShell.includes("Math.min(totalCount, currentLimit + DAILY_CALENDAR_EXPAND_BATCH)") &&
     dailyNotesShell.includes("再显示 ${nextBatchCount} 条") &&
-    dailyNotesShell.includes("dayNotes.length > DAILY_CALENDAR_VISIBLE_LIMIT") &&
+    dailyNotesShell.includes("dayTotalCount > DAILY_CALENDAR_VISIBLE_LIMIT") &&
+    dailyNotesShell.includes("已显示 ${visibleNotes.length}/${dayTotalCount} 条") &&
+    dailyNotesShell.includes("为保持日历流畅") &&
     !dailyNotesShell.includes("hiddenNotes.map"),
-  "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开"
+  "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开；超大单日导入只能保留渲染上限和总数提示，不能把全部 metadata 塞进 DOM"
 );
 
 const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");
