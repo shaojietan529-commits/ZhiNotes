@@ -31,6 +31,7 @@ import {
 const SYNC_INTERVAL_MS = 10 * 1000;
 const INITIAL_SYNC_DELAY_MS = 800;
 const EDIT_DEBOUNCE_MS = 4 * 1000;
+const PENDING_STATUS_SYNC_DELAY_MS = 1200;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.databasesync.leaderLease.v1";
 const LEASE_TTL_MS = 22 * 1000;
@@ -196,7 +197,13 @@ export function useDatabaseCloudSync() {
 
   useEffect(() => {
     if (!dbReady) return;
-    let editSyncTimer: number | undefined;
+    let quickSyncTimer: number | undefined;
+    const scheduleQuickSync = (delayMs: number) => {
+      if (quickSyncTimer !== undefined) window.clearTimeout(quickSyncTimer);
+      quickSyncTimer = window.setTimeout(() => {
+        void runSync({ quick: true });
+      }, delayMs);
+    };
     void refreshPendingStatus();
     const initialSyncTimer = window.setTimeout(() => {
       void runSync({ quick: true });
@@ -224,16 +231,18 @@ export function useDatabaseCloudSync() {
     const handleLocalDatabaseUpdate = (event: Event) => {
       const message = (event as CustomEvent<DatabaseUpdateMessage>).detail;
       if (message?.reason !== "local-refresh") return;
-      if (editSyncTimer !== undefined) window.clearTimeout(editSyncTimer);
-      editSyncTimer = window.setTimeout(() => {
-        void runSync({ quick: true });
-      }, EDIT_DEBOUNCE_MS);
+      scheduleQuickSync(EDIT_DEBOUNCE_MS);
     };
     const handleStatus = (event: Event) => {
       const detail = (event as CustomEvent<PendingCloudDatabaseSyncStatus>)
         .detail;
       if (detail) {
         setPendingStatus(detail);
+        const totalPending =
+          detail.pending + detail.queued + detail.syncLogPending;
+        if (detail.enabled && totalPending > 0) {
+          scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS);
+        }
       } else {
         void refreshPendingStatus();
       }
@@ -250,7 +259,7 @@ export function useDatabaseCloudSync() {
     window.addEventListener("online", handleForeground);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
-      if (editSyncTimer !== undefined) window.clearTimeout(editSyncTimer);
+      if (quickSyncTimer !== undefined) window.clearTimeout(quickSyncTimer);
       window.clearTimeout(initialSyncTimer);
       window.clearInterval(interval);
       window.removeEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);

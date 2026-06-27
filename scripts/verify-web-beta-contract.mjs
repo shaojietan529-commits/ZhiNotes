@@ -113,6 +113,7 @@ const files = {
   pageUpdateBus: "src/lib/pages/pageUpdateBus.ts",
   scopedPageMetadata: "src/lib/pages/scopedPageMetadata.ts",
   pageCloudSync: "src/hooks/usePageCloudSync.ts",
+  databaseCloudSync: "src/hooks/useDatabaseCloudSync.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
@@ -476,6 +477,7 @@ function run() {
   const pageUpdateBus = readProjectFile(files.pageUpdateBus);
   const scopedPageMetadata = readProjectFile(files.scopedPageMetadata);
   const pageCloudSync = readProjectFile(files.pageCloudSync);
+  const databaseCloudSync = readProjectFile(files.databaseCloudSync);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
   );
@@ -4992,6 +4994,31 @@ function run() {
     assertSourceIncludes(
       files.accountDatabaseSync,
       accountDatabaseSync,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "PENDING_STATUS_SYNC_DELAY_MS",
+      "Database cloud sync hook must define a short pending-status quick sync delay.",
+    ],
+    [
+      "scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS)",
+      "Database pending queue status events must trigger quick sync without waiting for the normal poll.",
+    ],
+    [
+      "detail.pending + detail.queued + detail.syncLogPending",
+      "Database pending status quick sync must include cloud key, memory, and sync_log queues.",
+    ],
+    [
+      "window.clearTimeout(quickSyncTimer)",
+      "Database pending-status quick sync timers must be cleaned up on unmount.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.databaseCloudSync,
+      databaseCloudSync,
       snippet,
       message
     );

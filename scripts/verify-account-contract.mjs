@@ -901,8 +901,11 @@ check(
     databaseCloudSyncHook.includes("window.addEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus)") &&
     databaseCloudSyncHook.includes("window.removeEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus)") &&
     databaseCloudSyncHook.includes('event.key?.startsWith("zhinote.databasesync.")') &&
-    databaseCloudSyncHook.includes("CustomEvent<PendingCloudDatabaseSyncStatus>"),
-  "数据库云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，避免数据库本地变更进入上传队列后 UI 等轮询才更新"
+    databaseCloudSyncHook.includes("CustomEvent<PendingCloudDatabaseSyncStatus>") &&
+    databaseCloudSyncHook.includes("PENDING_STATUS_SYNC_DELAY_MS") &&
+    databaseCloudSyncHook.includes("scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS)") &&
+    databaseCloudSyncHook.includes("detail.pending + detail.queued + detail.syncLogPending"),
+  "数据库云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync"
 );
 check(
   pageCloudSyncHook.includes("LOCAL_CACHE_RECOVERY_EVENT") &&

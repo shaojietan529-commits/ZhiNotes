@@ -44,6 +44,7 @@ const files = {
   pageUpdateBus: "src/lib/pages/pageUpdateBus.ts",
   scopedPageMetadata: "src/lib/pages/scopedPageMetadata.ts",
   pageCloudSync: "src/hooks/usePageCloudSync.ts",
+  databaseCloudSync: "src/hooks/useDatabaseCloudSync.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
   localFirstDatabaseNavigation:
@@ -341,6 +342,7 @@ function run() {
   const pageUpdateBus = readProjectFile(files.pageUpdateBus);
   const scopedPageMetadata = readProjectFile(files.scopedPageMetadata);
   const pageCloudSync = readProjectFile(files.pageCloudSync);
+  const databaseCloudSync = readProjectFile(files.databaseCloudSync);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
   );
@@ -4396,6 +4398,24 @@ function run() {
     accountDatabaseSync,
     'DATABASE_SYNC_STATUS_EVENT = "zhinote:databasesync-status"',
     "Smoke verifier must keep database pending queue status events available."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "PENDING_STATUS_SYNC_DELAY_MS",
+    "Database cloud sync hook must schedule low-latency quick syncs from pending status events."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS)",
+    "Database pending queue status must trigger quick sync without waiting for the normal poll."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "detail.pending + detail.queued + detail.syncLogPending",
+    "Database pending status quick sync must include all local pending queue sources."
   );
   assertIncludes(
     files.accountDatabaseSync,
