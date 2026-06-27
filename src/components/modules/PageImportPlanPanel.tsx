@@ -85,6 +85,22 @@ const PREVIEW_ROUTE_BADGE: Record<
   },
 };
 
+type ImportProgressStatus = "idle" | "running" | "completed" | "rolled-back";
+
+interface ImportProgressState {
+  done: number;
+  total: number;
+  status: ImportProgressStatus;
+  message: string;
+}
+
+const EMPTY_IMPORT_PROGRESS: ImportProgressState = {
+  done: 0,
+  total: 0,
+  status: "idle",
+  message: "",
+};
+
 function formatBytes(bytes: number): string {
   if (bytes <= 0) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
@@ -129,6 +145,9 @@ export default function PageImportPlanPanel() {
   const [result, setResult] = useState<PageImportExecutionResult | null>(null);
   const [lastReceipt, setLastReceipt] =
     useState<PageImportExecutionReceipt | null>(null);
+  const [importProgress, setImportProgress] = useState<ImportProgressState>(
+    EMPTY_IMPORT_PROGRESS
+  );
 
   const handleChoose = () => inputRef.current?.click();
 
@@ -148,6 +167,7 @@ export default function PageImportPlanPanel() {
     setConfirmed(false);
     setResult(null);
     setLastReceipt(null);
+    setImportProgress(EMPTY_IMPORT_PROGRESS);
   };
 
   const handleExportManifest = () => {
@@ -163,13 +183,34 @@ export default function PageImportPlanPanel() {
     setConfirmed(false);
     setResult(null);
     setLastReceipt(null);
+    setImportProgress(EMPTY_IMPORT_PROGRESS);
   };
 
   const handleConfirmImport = async () => {
     if (!plan || !confirmed || importing) return;
     setImporting(true);
+    setResult(null);
+    setLastReceipt(null);
+    setImportProgress({
+      done: 0,
+      total: plan.items.length,
+      status: "running",
+      message: "准备导入队列...",
+    });
     try {
-      const res = await executePageImportPlan(files, plan);
+      const res = await executePageImportPlan(files, plan, {
+        onProgress: (done, total) => {
+          setImportProgress({
+            done,
+            total,
+            status: "running",
+            message:
+              done >= total
+                ? "正在收尾并生成本地 receipt..."
+                : `正在处理第 ${Math.min(done + 1, total)} / ${total} 个对象...`,
+          });
+        },
+      });
       const receipt = buildPageImportExecutionReceipt({
         plan,
         result: res,
@@ -178,6 +219,15 @@ export default function PageImportPlanPanel() {
       appendPageImportExecutionReceipt(receipt);
       setResult(res);
       setLastReceipt(receipt);
+      setImportProgress({
+        done: plan.items.length,
+        total: plan.items.length,
+        status: res.status === "completed" ? "completed" : "rolled-back",
+        message:
+          res.status === "completed"
+            ? "导入完成，已生成本地 receipt。"
+            : "导入失败，已按回退计划处理并生成本地 receipt。",
+      });
       if (res.status === "completed" && res.created_page_metadata.length > 0) {
         upsertPages(res.created_page_metadata);
       }
@@ -192,6 +242,12 @@ export default function PageImportPlanPanel() {
     } catch (err) {
       console.error("[Zhinote] import execution error:", err);
       setResult(null);
+      setImportProgress({
+        done: 0,
+        total: plan.items.length,
+        status: "rolled-back",
+        message: "导入异常，未上传或外发文件；请检查浏览器本地存储。",
+      });
       window.alert("批量导入失败。文件没有上传或外发；请检查浏览器是否允许本地存储。");
     } finally {
       setImporting(false);
@@ -213,6 +269,15 @@ export default function PageImportPlanPanel() {
     () => (plan ? buildExportablePageImportManifest(plan) : null),
     [plan]
   );
+  const importProgressPercent =
+    importProgress.total > 0
+      ? Math.min(100, Math.round((importProgress.done / importProgress.total) * 100))
+      : 0;
+  const visibleProgressItems = useMemo(() => {
+    if (!plan || importProgress.status === "idle") return [];
+    const start = Math.max(0, Math.min(importProgress.done, plan.items.length - 1) - 1);
+    return plan.items.slice(start, start + 5);
+  }, [importProgress.done, importProgress.status, plan]);
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
@@ -409,6 +474,57 @@ export default function PageImportPlanPanel() {
                 </span>
               )}
             </div>
+            {importProgress.status !== "idle" && (
+              <div className="mt-4 rounded-lg border border-zinc-200 bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-200">
+                    导入进度队列
+                  </span>
+                  <span>
+                    {importProgress.done} / {importProgress.total} ·{" "}
+                    {importProgressPercent}%
+                  </span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      importProgress.status === "rolled-back"
+                        ? "bg-amber-500"
+                        : "bg-blue-600"
+                    }`}
+                    style={{ width: `${importProgressPercent}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  {importProgress.message}
+                </p>
+                {visibleProgressItems.length > 0 && (
+                  <ol className="mt-2 space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {visibleProgressItems.map((item) => {
+                      const state =
+                        item.index <= importProgress.done
+                          ? "已处理"
+                          : item.index === importProgress.done + 1 &&
+                              importProgress.status === "running"
+                            ? "处理中"
+                            : "等待";
+                      return (
+                        <li
+                          key={`progress-${item.index}`}
+                          className="flex items-center justify-between gap-3 rounded border border-zinc-100 px-2 py-1 dark:border-zinc-800"
+                        >
+                          <span className="truncate">
+                            #{item.index} · {item.extension || "unknown"} ·{" "}
+                            {LANE_BADGE[item.lane].label}
+                          </span>
+                          <span className="shrink-0">{state}</span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Result */}

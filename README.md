@@ -925,6 +925,9 @@ Current local actions:
   object counts, and follow-up review steps, but excludes file names, file
   bytes, file text, page body text, spreadsheet values, page ids, database ids,
   tokens, credentials, cloud data, and AI output.
+- Confirmed batch imports also show a local progress queue: processed/total
+  count, percentage, current phase, and the nearby queued items. This keeps
+  large imports visibly moving without reading or exporting extra file content.
 
 The File Library module is a local routing and page-creation desk, not a cloud
 importer. It does not delete files, upload files, sync files, call AI, load HTML

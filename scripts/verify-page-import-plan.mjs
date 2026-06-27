@@ -343,6 +343,18 @@ check(
     panelSource.includes("导出回退 receipt"),
   "PageImportPlanPanel 必须在执行后生成并导出批量导入 receipt"
 );
+check(
+  panelSource.includes("ImportProgressState") &&
+    panelSource.includes("EMPTY_IMPORT_PROGRESS") &&
+    panelSource.includes("setImportProgress") &&
+    panelSource.includes("onProgress: (done, total)") &&
+    panelSource.includes("导入进度队列") &&
+    panelSource.includes("visibleProgressItems") &&
+    panelSource.includes("正在处理第") &&
+    panelSource.includes("正在收尾并生成本地 receipt") &&
+    panelSource.includes("导入完成，已生成本地 receipt"),
+  "PageImportPlanPanel 必须把执行器 onProgress 接成用户可见的批量导入进度队列"
+);
 
 if (errors.length > 0) {
   console.error("Page import plan contract verification FAILED:");
@@ -366,6 +378,7 @@ console.log(
       database_records_follow_account_sync: true,
       result_distinguishes_markdown_html_pages: true,
       local_batch_import_receipt: true,
+      visible_batch_import_progress_queue: true,
     },
     null,
     2
