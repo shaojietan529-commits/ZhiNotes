@@ -2208,6 +2208,40 @@ function run() {
     "PAGE_EDITOR_IDLE_TIMEOUT_MS = 120",
     "Page shell editor warmup must use a bounded short idle timeout so it does not compete with route first paint."
   );
+  for (const [snippet, message] of [
+    [
+      "PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700",
+      "Page shell comments must mount after the editor instead of competing with first paint.",
+    ],
+    [
+      "PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200",
+      "Page shell child tree must mount in a later idle stage after editing is available.",
+    ],
+    [
+      "PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800",
+      "Page shell backlinks must mount last so relationship queries do not slow page opening.",
+    ],
+    [
+      "pageCommentsMounted",
+      "Page shell must track comment surfaces separately from slower relationship panels.",
+    ],
+    [
+      "childTreeMounted",
+      "Page shell must track child tree mounting separately from comments and backlinks.",
+    ],
+    [
+      "pageReferencesMounted",
+      "Page shell must track backlinks mounting separately from comments and child pages.",
+    ],
+  ]) {
+    assertSourceIncludes(files.pageShell, pageShell, snippet, message);
+  }
+  assertSourceExcludes(
+    files.pageShell,
+    pageShell,
+    "pagePeripheralsMounted",
+    "Page shell must not use one shared peripheral flag that mounts comments, child tree, and backlinks together."
+  );
   assertSourceIncludes(
     files.accountPageSync,
     accountPageSync,

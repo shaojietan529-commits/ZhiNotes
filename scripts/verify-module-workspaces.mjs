@@ -265,6 +265,13 @@ check(
     !pageShell.includes("import Editor from \"@/components/editor/Editor\"") &&
     pageShell.includes("return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);") &&
     pageShell.includes("PAGE_EDITOR_IDLE_TIMEOUT_MS = 120") &&
+    pageShell.includes("PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700") &&
+    pageShell.includes("PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200") &&
+    pageShell.includes("PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800") &&
+    pageShell.includes("pageCommentsMounted") &&
+    pageShell.includes("childTreeMounted") &&
+    pageShell.includes("pageReferencesMounted") &&
+    !pageShell.includes("pagePeripheralsMounted") &&
     !pageShell.includes('from "@/hooks/usePages"') &&
     !pageShell.includes("usePages({") &&
     pageShell.includes("const upsertPages = useWorkspaceStore((s) => s.upsertPages)"),

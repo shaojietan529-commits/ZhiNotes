@@ -78,6 +78,9 @@ import {
 
 const loadEditorModule = () => import("@/components/editor/Editor");
 const PAGE_EDITOR_IDLE_TIMEOUT_MS = 120;
+const PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700;
+const PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200;
+const PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800;
 
 const Editor = dynamic(loadEditorModule, {
   ssr: false,
@@ -151,7 +154,9 @@ function PageContent({ pageId }: { pageId: string }) {
     enabled: shouldLoadVersions,
   });
   const [editorMounted, setEditorMounted] = useState(false);
-  const [pagePeripheralsMounted, setPagePeripheralsMounted] = useState(false);
+  const [pageCommentsMounted, setPageCommentsMounted] = useState(false);
+  const [childTreeMounted, setChildTreeMounted] = useState(false);
+  const [pageReferencesMounted, setPageReferencesMounted] = useState(false);
   const hasPage = Boolean(page);
   const pageOpenStartedAtRef = useRef(getLocalPerformanceNow());
   const pageOpenStartedAtIsoRef = useRef(new Date().toISOString());
@@ -222,12 +227,33 @@ function PageContent({ pageId }: { pageId: string }) {
   }, [pageId, hasPage]);
 
   useEffect(() => {
-    setPagePeripheralsMounted(false);
-    if (!hasPage || !editorMounted) return;
+    setPageCommentsMounted(false);
+    setChildTreeMounted(false);
+    setPageReferencesMounted(false);
+  }, [pageId, hasPage]);
+
+  useEffect(() => {
+    if (!hasPage || !editorMounted || pageCommentsMounted) return;
     return scheduleDeferredMount(() => {
-      setPagePeripheralsMounted(true);
-    }, 900);
-  }, [pageId, hasPage, editorMounted]);
+      setPageCommentsMounted(true);
+    }, showComments
+      ? PAGE_EDITOR_IDLE_TIMEOUT_MS
+      : PAGE_COMMENTS_IDLE_TIMEOUT_MS);
+  }, [editorMounted, hasPage, pageCommentsMounted, pageId, showComments]);
+
+  useEffect(() => {
+    if (!hasPage || !editorMounted || childTreeMounted) return;
+    return scheduleDeferredMount(() => {
+      setChildTreeMounted(true);
+    }, PAGE_CHILD_TREE_IDLE_TIMEOUT_MS);
+  }, [childTreeMounted, editorMounted, hasPage, pageId]);
+
+  useEffect(() => {
+    if (!hasPage || !editorMounted || pageReferencesMounted) return;
+    return scheduleDeferredMount(() => {
+      setPageReferencesMounted(true);
+    }, PAGE_REFERENCES_IDLE_TIMEOUT_MS);
+  }, [editorMounted, hasPage, pageId, pageReferencesMounted]);
 
   useEffect(() => {
     if (!page) return;
@@ -243,7 +269,7 @@ function PageContent({ pageId }: { pageId: string }) {
 
   // Keep a live count of text comments so the toolbar button can show a badge.
   useEffect(() => {
-    if (!pagePeripheralsMounted) return;
+    if (!pageCommentsMounted) return;
     let cancelled = false;
     const refreshCount = async () => {
       const rows = await getBlockComments(pageId);
@@ -256,7 +282,7 @@ function PageContent({ pageId }: { pageId: string }) {
       cancelled = true;
       window.removeEventListener(BLOCK_COMMENTS_CHANGED_EVENT, handleChanged);
     };
-  }, [pageId, pagePeripheralsMounted]);
+  }, [pageId, pageCommentsMounted]);
 
   // Clicking commented text should reveal the panel so the comment is visible.
   useEffect(() => {
@@ -940,12 +966,12 @@ function PageContent({ pageId }: { pageId: string }) {
           )}
 
           {/* Page-level comments sit between properties and the body */}
-          {pagePeripheralsMounted && (
+          {pageCommentsMounted && (
             <PageComments pageId={pageId} disabled={locked} />
           )}
 
           {/* Industry-chain pages show their sub-page hierarchy up front */}
-          {pagePeripheralsMounted && <ChildPageTree pageId={pageId} />}
+          {childTreeMounted && <ChildPageTree pageId={pageId} />}
 
           <div className="my-4 border-t border-zinc-100 dark:border-zinc-800" />
 
@@ -964,12 +990,12 @@ function PageContent({ pageId }: { pageId: string }) {
 
           {/* When the comment panel is open, text comments live there instead
               of stacking at the bottom — avoids showing them twice. */}
-          {!showComments && pagePeripheralsMounted && (
+          {!showComments && pageCommentsMounted && (
             <BlockComments pageId={pageId} disabled={locked} />
           )}
 
           {/* Backlinks - pages that link to this page */}
-          {pagePeripheralsMounted && <Backlinks pageId={pageId} />}
+          {pageReferencesMounted && <Backlinks pageId={pageId} />}
         </div>
 
         {showMoveDialog && (
@@ -981,7 +1007,7 @@ function PageContent({ pageId }: { pageId: string }) {
         )}
       </main>
 
-      {showComments && pagePeripheralsMounted && (
+      {showComments && pageCommentsMounted && (
         <CommentSidePanel
           pageId={pageId}
           disabled={locked}
