@@ -76,6 +76,7 @@ check(
 // 3. Login page: unconfigured state, no auto-send
 const shell = read("src/components/modules/AccountShell.tsx");
 const accountClientSession = read("src/lib/account/clientSession.ts");
+const accountCloudSyncGate = read("src/lib/account/accountCloudSyncGate.ts");
 check(shell.includes("unconfigured"), "AccountShell 缺少未配置状态");
 const effectBodies = shell.match(/useEffect\(\(\) => \{[\s\S]*?\}, \[/g) ?? [];
 check(effectBodies.length > 0, "AccountShell 缺少会话检查 useEffect");
@@ -97,6 +98,16 @@ check(
     accountClientSession.includes("ACCOUNT_SESSION_RETRY_BACKOFF_MS") &&
     accountClientSession.includes("clearAccountSessionCache"),
   "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重和未配置退避"
+);
+check(
+  accountCloudSyncGate.includes("fetchAccountSession") &&
+    accountCloudSyncGate.includes("account-unconfigured") &&
+    accountCloudSyncGate.includes("reads_page_body_text: false") &&
+    accountCloudSyncGate.includes("reads_database_row_values: false") &&
+    accountCloudSyncGate.includes("uploads_workspace_data: false") &&
+    accountCloudSyncGate.includes("mutates_workspace_data: false") &&
+    accountCloudSyncGate.includes("stores_account_email: false"),
+  "账号云同步 gate 必须复用账号会话检查，并声明不读取/上传/修改 workspace 数据"
 );
 const page = read("src/app/(workspace)/account/page.tsx");
 check(page.includes("AccountShell"), "/account 路由缺少 AccountShell");
@@ -239,6 +250,15 @@ check(
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
 const databaseSyncClient = read("src/lib/database/accountDatabaseSync.ts");
 const syncDashboardShell = read("src/components/modules/SyncShell.tsx");
+check(
+  pageSyncClient.includes("checkAccountCloudSyncGate") &&
+    pageSyncClient.includes('accountGate.status === "unconfigured"') &&
+    pageSyncClient.includes('accountGate.status === "signed-out"') &&
+    databaseSyncClient.includes("checkAccountCloudSyncGate") &&
+    databaseSyncClient.includes('accountGate.status === "unconfigured"') &&
+    databaseSyncClient.includes('accountGate.status === "signed-out"'),
+  "页面/数据库同步底层客户端应先共享账号 gate，再访问具体 account-sync 路由"
+);
 const coreManifestCompareReceipt = read(
   "src/lib/sync/coreManifestCompareReceipt.ts"
 );
@@ -892,6 +912,15 @@ check(
 
 const pageCloudSyncHook = read("src/hooks/usePageCloudSync.ts");
 const databaseCloudSyncHook = read("src/hooks/useDatabaseCloudSync.ts");
+check(
+  pageCloudSyncHook.includes("checkAccountCloudSyncGate") &&
+    pageCloudSyncHook.includes("gateAccountSync") &&
+    pageCloudSyncHook.includes("const accountReady = await gateAccountSync(Boolean(options.forceLease))") &&
+    databaseCloudSyncHook.includes("checkAccountCloudSyncGate") &&
+    databaseCloudSyncHook.includes("gateAccountSync") &&
+    databaseCloudSyncHook.includes("const accountReady = await gateAccountSync(Boolean(options.forceLease))"),
+  "页面/数据库后台云同步应先共享账号 gate，再访问具体 account-sync 接口，避免未配置或未登录时重复空转"
+);
 check(
   (pageCloudSyncHook.match(/runSync\(\{ quick: true \}/g) ?? []).length >= 4,
   "页面云同步 hook 的加载、轮询、前台恢复和编辑后同步应默认走 quick 增量"

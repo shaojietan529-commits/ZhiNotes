@@ -41,6 +41,7 @@ const files = {
   accountModuleSettingsPendingSync:
     "src/lib/sync/accountModuleSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
+  accountCloudSyncGate: "src/lib/account/accountCloudSyncGate.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
@@ -346,6 +347,7 @@ function run() {
     files.accountModuleSettingsPendingSync
   );
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
+  const accountCloudSyncGate = readProjectFile(files.accountCloudSyncGate);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
   const pendingPageDrafts = readProjectFile(files.pendingPageDrafts);
@@ -2998,6 +3000,78 @@ function run() {
     accountPageSync,
     'PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status"',
     "Page sync queue changes must emit a local status event for visible save/upload feedback."
+  );
+  assertIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
+    "fetchAccountSession",
+    "Account cloud sync gate must reuse the shared account session check before any page/database sync route."
+  );
+  assertIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
+    "account-unconfigured",
+    "Account cloud sync gate must recognize unconfigured account backends without probing every sync domain."
+  );
+  assertIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
+    "reads_page_body_text: false",
+    "Account cloud sync gate must not inspect page body text."
+  );
+  assertIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
+    "reads_database_row_values: false",
+    "Account cloud sync gate must not inspect database row values."
+  );
+  assertIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
+    "uploads_workspace_data: false",
+    "Account cloud sync gate must not upload workspace data."
+  );
+  assertIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
+    "stores_account_email: false",
+    "Account cloud sync gate must not persist account emails."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "checkAccountCloudSyncGate",
+    "Page cloud sync must pass the shared account gate before hitting pages account-sync."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "checkAccountCloudSyncGate",
+    "Page account-sync client must pass the shared account gate before all direct page pulls or summaries."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "gateAccountSync",
+    "Page cloud sync must centralize account gate handling for initial, foreground, and recovery syncs."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "checkAccountCloudSyncGate",
+    "Database cloud sync must pass the shared account gate before hitting databases account-sync."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "checkAccountCloudSyncGate",
+    "Database account-sync client must pass the shared account gate before direct summaries or deltas."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "gateAccountSync",
+    "Database cloud sync must centralize account gate handling for initial, foreground, and recovery syncs."
   );
   assertIncludes(
     files.pageUpdateBus,

@@ -5,6 +5,7 @@
 // by cursor, and lets only one visible tab hold the polling lease.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { checkAccountCloudSyncGate } from "@/lib/account/accountCloudSyncGate";
 import {
   getLocalCacheRecoverySignal,
   LOCAL_CACHE_RECOVERY_EVENT,
@@ -111,6 +112,18 @@ export function useDatabaseCloudSync() {
     setPendingStatus(await getPendingCloudDatabaseSyncStatus());
   }, []);
 
+  const gateAccountSync = useCallback(async (force = false) => {
+    const accountGate = await checkAccountCloudSyncGate({ force });
+    if (accountGate.status === "ready") {
+      authRetryAfterRef.current = 0;
+      return true;
+    }
+    authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+    setState(accountGate.status === "error" ? "error" : "signed-out");
+    void refreshPendingStatus();
+    return false;
+  }, [refreshPendingStatus]);
+
   const runSync = useCallback(
     async (options: { forceLease?: boolean; quick?: boolean } = {}) => {
       if (!isDatabaseSyncEnabled()) {
@@ -123,6 +136,8 @@ export function useDatabaseCloudSync() {
         void refreshPendingStatus();
         return;
       }
+      const accountReady = await gateAccountSync(Boolean(options.forceLease));
+      if (!accountReady) return;
       if (!claimSyncLease(options.forceLease)) {
         const last = getLastDatabaseSyncAt();
         if (last) {
@@ -169,7 +184,7 @@ export function useDatabaseCloudSync() {
         void refreshPendingStatus();
       }
     },
-    [refreshPendingStatus]
+    [gateAccountSync, refreshPendingStatus]
   );
 
   const recoverLocalCacheFromCloud = useCallback(async () => {
@@ -179,6 +194,8 @@ export function useDatabaseCloudSync() {
     }
     seenLocalCacheRecoverySignalRef.current = signal.id;
     if (!isDatabaseSyncEnabled()) return;
+    const accountReady = await gateAccountSync(true);
+    if (!accountReady) return;
     const result = await syncCloudDatabaseMetadataDelta({
       fullRefresh: true,
     });
@@ -201,7 +218,7 @@ export function useDatabaseCloudSync() {
       setState("error");
     }
     void refreshPendingStatus();
-  }, [refreshPendingStatus, runSync]);
+  }, [gateAccountSync, refreshPendingStatus, runSync]);
 
   useEffect(() => {
     if (!dbReady) return;

@@ -28,6 +28,7 @@ const files = {
   databaseCloudMutations: "src/lib/database/cloudDatabaseMutations.ts",
   useDatabases: "src/hooks/useDatabases.ts",
   databaseCloudSyncHook: "src/hooks/useDatabaseCloudSync.ts",
+  accountCloudSyncGate: "src/lib/account/accountCloudSyncGate.ts",
   databaseUpdateBus: "src/lib/database/databaseUpdateBus.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
@@ -183,6 +184,7 @@ function run() {
   const databaseCloudMutations = readProjectFile(files.databaseCloudMutations);
   const useDatabases = readProjectFile(files.useDatabases);
   const databaseCloudSyncHook = readProjectFile(files.databaseCloudSyncHook);
+  const accountCloudSyncGate = readProjectFile(files.accountCloudSyncGate);
   const databaseUpdateBus = readProjectFile(files.databaseUpdateBus);
   const accountShell = readProjectFile(files.accountShell);
   const sidebar = readProjectFile(files.sidebar);
@@ -272,6 +274,9 @@ function run() {
   for (const snippet of [
     'const ENABLED_KEY = "zhinote.databasesync.enabled"',
     'readSyncStorage(ENABLED_KEY) !== "false"',
+    "checkAccountCloudSyncGate",
+    'accountGate.status === "unconfigured"',
+    'accountGate.status === "signed-out"',
     "setDatabaseSyncEnabled",
     "DATABASE_SYNC_CONFIG_EVENT",
     'fetch("/api/databases/account-sync"',
@@ -760,6 +765,9 @@ function run() {
   }
   for (const snippet of [
     "useDatabaseCloudSync",
+    "checkAccountCloudSyncGate",
+    "gateAccountSync",
+    "const accountReady = await gateAccountSync(Boolean(options.forceLease))",
     "SYNC_INTERVAL_MS",
     "INITIAL_SYNC_DELAY_MS",
     "EDIT_DEBOUNCE_MS",
@@ -809,6 +817,20 @@ function run() {
       databaseCloudSyncHook,
       snippet,
       "Database cloud sync hook must poll cheaply, avoid duplicate tab leaders, and broadcast cloud pulls."
+    );
+  }
+  for (const snippet of [
+    "fetchAccountSession",
+    "account-unconfigured",
+    "reads_database_row_values: false",
+    "uploads_workspace_data: false",
+    "mutates_workspace_data: false",
+  ]) {
+    assertIncludes(
+      files.accountCloudSyncGate,
+      accountCloudSyncGate,
+      snippet,
+      "Account cloud sync gate must avoid domain sync route probes and never inspect database row values."
     );
   }
   for (const snippet of [

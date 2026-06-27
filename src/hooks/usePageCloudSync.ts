@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { checkAccountCloudSyncGate } from "@/lib/account/accountCloudSyncGate";
 import {
   getLocalCacheRecoverySignal,
   LOCAL_CACHE_RECOVERY_EVENT,
@@ -112,6 +113,18 @@ export function usePageCloudSync() {
     setPendingStatus(getPendingCloudPageSyncStatus());
   }, []);
 
+  const gateAccountSync = useCallback(async (force = false) => {
+    const accountGate = await checkAccountCloudSyncGate({ force });
+    if (accountGate.status === "ready") {
+      authRetryAfterRef.current = 0;
+      return true;
+    }
+    authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+    setState(accountGate.status === "error" ? "error" : "signed-out");
+    refreshPendingStatus();
+    return false;
+  }, [refreshPendingStatus]);
+
   const runSync = useCallback(async (options: { quick?: boolean; forceLease?: boolean } = {}) => {
     if (!isPageSyncEnabled()) {
       setState("disabled");
@@ -123,6 +136,8 @@ export function usePageCloudSync() {
       refreshPendingStatus();
       return;
     }
+    const accountReady = await gateAccountSync(Boolean(options.forceLease));
+    if (!accountReady) return;
     if (!claimSyncLease(options.forceLease)) {
       const last = getLastPageSyncAt();
       if (last) {
@@ -159,7 +174,7 @@ export function usePageCloudSync() {
       runningRef.current = false;
       refreshPendingStatus();
     }
-  }, [refreshPendingStatus]);
+  }, [gateAccountSync, refreshPendingStatus]);
 
   const recoverLocalCacheFromCloud = useCallback(async () => {
     const signal = getLocalCacheRecoverySignal();
@@ -168,6 +183,8 @@ export function usePageCloudSync() {
     }
     seenLocalCacheRecoverySignalRef.current = signal.id;
     if (!isPageSyncEnabled()) return;
+    const accountReady = await gateAccountSync(true);
+    if (!accountReady) return;
     const result = await syncCloudPageMetadataDelta({
       force: true,
       fullRefresh: true,
@@ -188,7 +205,7 @@ export function usePageCloudSync() {
       setState("error");
     }
     refreshPendingStatus();
-  }, [refreshPendingStatus, runSync]);
+  }, [gateAccountSync, refreshPendingStatus, runSync]);
 
   useEffect(() => {
     if (!dbReady) return;

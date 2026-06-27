@@ -22,6 +22,7 @@ import {
   emitDatabasesUpdated,
   type DatabaseUpdatePayload,
 } from "@/lib/database/databaseUpdateBus";
+import { checkAccountCloudSyncGate } from "@/lib/account/accountCloudSyncGate";
 import type { Database } from "@/lib/utils/types";
 
 const ENABLED_KEY = "zhinote.databasesync.enabled";
@@ -594,6 +595,22 @@ async function call(body: Record<string, unknown>): Promise<
     return {
       ok: false,
       status: authRetryStatus ?? "unauthenticated",
+    };
+  }
+  const accountGate = await checkAccountCloudSyncGate();
+  if (accountGate.status === "unconfigured") {
+    rememberAuthRetryStatus("unconfigured");
+    return { ok: false, status: "unconfigured" };
+  }
+  if (accountGate.status === "signed-out") {
+    rememberAuthRetryStatus("unauthenticated");
+    return { ok: false, status: "unauthenticated" };
+  }
+  if (accountGate.status === "error") {
+    return {
+      ok: false,
+      status: "error",
+      message: "account session check failed",
     };
   }
   const probedStatus = await waitForAuthRetryProbe();
