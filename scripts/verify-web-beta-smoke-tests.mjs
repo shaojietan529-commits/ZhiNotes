@@ -4825,6 +4825,9 @@ function run() {
     "currentPathIds.has(page.id)",
     "page.id === currentPageId",
     "已折叠 {hiddenChildCount} 个子页面",
+    "collectHiddenModuleSubtreeIds",
+    "hiddenModuleSubtreeIds.has(page.id)",
+    "visiting.has(page.id)",
   ]) {
     assertIncludes(
       files.pageTree,

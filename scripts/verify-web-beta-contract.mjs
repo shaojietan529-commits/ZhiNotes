@@ -12011,6 +12011,24 @@ function run() {
       "Sidebar page tree must tell the owner when child pages are folded for performance.",
     ],
     [
+      files.pageTree,
+      pageTree,
+      "collectHiddenModuleSubtreeIds",
+      "Sidebar page tree must skip hidden module subtrees before grouping and sorting pages.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "hiddenModuleSubtreeIds.has(page.id)",
+      "Sidebar page tree must exclude hidden module descendants from the parent index.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "visiting.has(page.id)",
+      "Sidebar hidden module subtree detection must guard against cyclic parent chains.",
+    ],
+    [
       files.favoritePages,
       favoritePages,
       'source: "favorite-open"',

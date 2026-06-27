@@ -29,6 +29,59 @@ const SIDEBAR_PAGE_TREE_ROOT_LIMIT = 80;
 const SIDEBAR_PAGE_TREE_CHILD_LIMIT = 40;
 const EMPTY_PAGE_TREE_CHILDREN: Page[] = [];
 
+function isInHiddenModuleSubtree(
+  page: Page,
+  pagesById: Map<string, Page>,
+  moduleRootIds: Set<string>,
+  cache: Map<string, boolean>,
+  visiting: Set<string> = new Set()
+): boolean {
+  const cached = cache.get(page.id);
+  if (cached !== undefined) return cached;
+  if (visiting.has(page.id)) {
+    cache.set(page.id, false);
+    return false;
+  }
+  if (moduleRootIds.has(page.id)) {
+    cache.set(page.id, true);
+    return true;
+  }
+  if (!page.parent_id) {
+    cache.set(page.id, false);
+    return false;
+  }
+
+  const parent = pagesById.get(page.parent_id);
+  const nextVisiting = new Set(visiting);
+  nextVisiting.add(page.id);
+  const hidden = parent
+    ? isInHiddenModuleSubtree(
+        parent,
+        pagesById,
+        moduleRootIds,
+        cache,
+        nextVisiting
+      )
+    : false;
+  cache.set(page.id, hidden);
+  return hidden;
+}
+
+function collectHiddenModuleSubtreeIds(
+  pages: Page[],
+  pagesById: Map<string, Page>,
+  moduleRootIds: Set<string>
+): Set<string> {
+  const cache = new Map<string, boolean>();
+  const hiddenIds = new Set<string>();
+  for (const page of pages) {
+    if (isInHiddenModuleSubtree(page, pagesById, moduleRootIds, cache)) {
+      hiddenIds.add(page.id);
+    }
+  }
+  return hiddenIds;
+}
+
 function isDescendant(
   pageId: string,
   ancestorId: string,
@@ -341,9 +394,14 @@ export default function PageTree() {
     () => new Map(pages.map((page) => [page.id, page])),
     [pages]
   );
+  const hiddenModuleSubtreeIds = useMemo(
+    () => collectHiddenModuleSubtreeIds(pages, pagesById, moduleRootIds),
+    [moduleRootIds, pages, pagesById]
+  );
   const childrenByParent = useMemo(() => {
     const grouped = new Map<string | null, Page[]>();
     for (const page of pages) {
+      if (hiddenModuleSubtreeIds.has(page.id)) continue;
       const list = grouped.get(page.parent_id) ?? [];
       list.push(page);
       grouped.set(page.parent_id, list);
@@ -352,7 +410,7 @@ export default function PageTree() {
       list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     }
     return grouped;
-  }, [pages]);
+  }, [hiddenModuleSubtreeIds, pages]);
   const rootPages = useMemo(
     () =>
       (childrenByParent.get(null) ?? []).filter(

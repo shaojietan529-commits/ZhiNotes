@@ -289,6 +289,10 @@ check(
     pageTreeSource.includes("children.slice(0, SIDEBAR_PAGE_TREE_CHILD_LIMIT)") &&
     pageTreeSource.includes("visibleChildren.map((child)") &&
     pageTreeSource.includes("已折叠 {hiddenChildCount} 个子页面") &&
+    pageTreeSource.includes("isInHiddenModuleSubtree") &&
+    pageTreeSource.includes("collectHiddenModuleSubtreeIds") &&
+    pageTreeSource.includes("hiddenModuleSubtreeIds.has(page.id)") &&
+    pageTreeSource.includes("visiting.has(page.id)") &&
     pageTreeSource.includes("onPageMutated([child])") &&
     pageTreeSource.includes("collectMovedPageSnapshots(pages, movedPage)") &&
     pageTreeSource.includes("onPageMutated={upsertPages}") &&
@@ -706,8 +710,10 @@ check(
     pageTree.includes("MODULE_ROOT_IDS_EVENT") &&
     pageTree.includes("setModuleRootIds(new Set(getModuleRootIdsSync()))") &&
     pageTree.includes('event.key?.startsWith("zhinote.moduleRoot.")') &&
+    pageTree.includes("collectHiddenModuleSubtreeIds") &&
+    pageTree.includes("hiddenModuleSubtreeIds.has(page.id)") &&
     !pageTree.includes("useMemo(() => new Set(getModuleRootIdsSync()), [])"),
-  "PageTree 必须隐藏模块根页面，并在云端认领 root id 后无需刷新即可更新"
+  "PageTree 必须隐藏模块根页面及其子树，并在云端认领 root id 后无需刷新即可更新"
 );
 
 if (errors.length > 0) {
