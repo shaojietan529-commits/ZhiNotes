@@ -2310,6 +2310,14 @@ function run() {
       "Meeting import/create must reveal the optimistic meeting in the calendar immediately.",
     ],
     [
+      "pendingCalendarFocusDateKeyRef",
+      "Meeting import/create must keep a pending focus target until the date cell is mounted.",
+    ],
+    [
+      "requestAnimationFrame",
+      "Meeting calendar reveal must scroll after the rendered cell is ready instead of racing a fixed timeout.",
+    ],
+    [
       "MEETING_CALENDAR_REVEAL_BUFFER",
       "Meeting calendar must expand a crowded date enough to show a newly imported meeting.",
     ],

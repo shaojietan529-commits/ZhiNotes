@@ -274,6 +274,7 @@ export default function MeetingScheduleShell() {
   >(() => new Map());
   const initialCloudPullAttemptedRef = useRef(false);
   const calendarCellRefs = useRef(new Map<string, HTMLDivElement>());
+  const pendingCalendarFocusDateKeyRef = useRef<string | null>(null);
   const highlightTimerRef = useRef<number | null>(null);
   const metadataWarmupScheduledRef = useRef(false);
   const loadRequestRef = useRef(0);
@@ -398,15 +399,9 @@ export default function MeetingScheduleShell() {
       const date = parseDateKeyToLocalDate(dateKey);
       if (!date) return;
 
+      pendingCalendarFocusDateKeyRef.current = dateKey;
       setViewMonth(new Date(date.getFullYear(), date.getMonth(), 1));
       setHighlightedDateKey(dateKey);
-
-      window.setTimeout(() => {
-        calendarCellRefs.current.get(dateKey)?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }, 80);
 
       if (highlightTimerRef.current) {
         window.clearTimeout(highlightTimerRef.current);
@@ -420,6 +415,31 @@ export default function MeetingScheduleShell() {
     },
     [setViewMonth]
   );
+
+  useEffect(() => {
+    const dateKey = pendingCalendarFocusDateKeyRef.current;
+    if (!dateKey) return;
+
+    const node = calendarCellRefs.current.get(dateKey);
+    if (!node) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (pendingCalendarFocusDateKeyRef.current !== dateKey) return;
+      calendarCellRefs.current.get(dateKey)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      pendingCalendarFocusDateKeyRef.current = null;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    highlightedDateKey,
+    meetings,
+    expandedMeetingDateKeys,
+    visibleMeetingLimitByDate,
+    viewMonth,
+  ]);
 
   const revealMeetingOnCalendar = useCallback(
     (page: Page) => {

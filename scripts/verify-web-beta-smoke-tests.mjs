@@ -2514,6 +2514,18 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "pendingCalendarFocusDateKeyRef",
+    "Meeting import/create must keep a pending focus target until the date cell is mounted."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "requestAnimationFrame",
+    "Meeting calendar reveal must scroll after the rendered cell is ready instead of racing a fixed timeout."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "MEETING_CALENDAR_REVEAL_BUFFER",
     "Meeting calendar must expand a crowded date enough to show a newly imported meeting."
   );

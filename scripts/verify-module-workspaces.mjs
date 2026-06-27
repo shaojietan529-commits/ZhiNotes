@@ -455,6 +455,8 @@ check(
     shells.schedule.includes("visibleMeetingLimitByDate") &&
     shells.schedule.includes("showMoreMeetingsForDate") &&
     shells.schedule.includes("revealMeetingOnCalendar") &&
+    shells.schedule.includes("pendingCalendarFocusDateKeyRef") &&
+    shells.schedule.includes("requestAnimationFrame") &&
     shells.schedule.includes("setExpandedMeetingDateKeys((current) =>") &&
     shells.schedule.includes("setVisibleMeetingLimitByDate((limits) =>") &&
     shells.schedule.includes("revealMeetingOnCalendar(optimisticPage)") &&

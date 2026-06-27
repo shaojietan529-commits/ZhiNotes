@@ -713,6 +713,8 @@ check(
     meetingScheduleShell.includes("toggleMeetingDateExpansion") &&
     meetingScheduleShell.includes("showMoreMeetingsForDate") &&
     meetingScheduleShell.includes("revealMeetingOnCalendar") &&
+    meetingScheduleShell.includes("pendingCalendarFocusDateKeyRef") &&
+    meetingScheduleShell.includes("requestAnimationFrame") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_REVEAL_BUFFER") &&
     meetingScheduleShell.includes("revealMeetingOnCalendar(optimisticPage)") &&
     meetingScheduleShell.includes("revealMeetingOnCalendar(finalPage)") &&
