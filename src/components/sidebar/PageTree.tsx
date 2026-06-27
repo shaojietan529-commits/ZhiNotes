@@ -27,6 +27,7 @@ type DropTarget = {
 
 const SIDEBAR_PAGE_TREE_ROOT_LIMIT = 80;
 const SIDEBAR_PAGE_TREE_CHILD_LIMIT = 40;
+const EMPTY_PAGE_TREE_CHILDREN: Page[] = [];
 
 function isDescendant(
   pageId: string,
@@ -85,7 +86,7 @@ function PageTreeItem({
   const [showActions, setShowActions] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
-  const children = childrenByParent.get(page.id) ?? [];
+  const children = childrenByParent.get(page.id) ?? EMPTY_PAGE_TREE_CHILDREN;
   const hasChildren = children.length > 0;
   const visibleChildren = useMemo(() => {
     if (children.length <= SIDEBAR_PAGE_TREE_CHILD_LIMIT) return children;

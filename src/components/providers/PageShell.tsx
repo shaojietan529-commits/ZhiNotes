@@ -50,7 +50,7 @@ import {
   type PendingCloudPageSyncStatus,
 } from "@/lib/pages/accountPageSync";
 import { maybeSnapshot, manualSnapshot } from "@/lib/comparison/versioning";
-import type { Page, PageVersion } from "@/lib/utils/types";
+import type { PageVersion } from "@/lib/utils/types";
 import {
   buildPageHtmlDocument,
   buildPageMarkdownDocument,
