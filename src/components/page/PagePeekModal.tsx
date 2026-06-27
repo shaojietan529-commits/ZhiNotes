@@ -39,9 +39,7 @@ interface PagePeekModalProps {
 
 function getInitialPeekPage(pageId: string, initialPage?: Page | null): Page | null {
   if (initialPage?.id === pageId) return initialPage;
-  return (
-    useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ?? null
-  );
+  return useWorkspaceStore.getState().getPageById(pageId) ?? null;
 }
 
 // A center modal that shows a page (title + properties + body) fully editable,

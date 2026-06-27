@@ -17,6 +17,7 @@ export interface PageMoveRecord {
 
 interface WorkspaceState {
   pages: Page[];
+  pagesById: Map<string, Page>;
   currentPageId: string | null;
   sidebarOpen: boolean;
   dbReady: boolean;
@@ -24,6 +25,7 @@ interface WorkspaceState {
   pageMoveHistory: PageMoveRecord[];
   setPages: (pages: Page[]) => void;
   upsertPages: (pages: Page[]) => void;
+  getPageById: (id: string) => Page | undefined;
   setCurrentPageId: (id: string | null) => void;
   toggleSidebar: () => void;
   setDbReady: (ready: boolean) => void;
@@ -40,6 +42,10 @@ function sortPagesForWorkspace(pages: Page[]): Page[] {
     if (updated !== 0) return updated;
     return a.id.localeCompare(b.id);
   });
+}
+
+function indexPagesById(pages: Page[]): Map<string, Page> {
+  return new Map(pages.map((page) => [page.id, page]));
 }
 
 function mergePageSnapshot(incoming: Page, existing?: Page): Page {
@@ -79,17 +85,24 @@ function canPatchPagesWithoutResort(
 
 function patchPagesWithoutResort(
   currentPages: Page[],
-  incomingPages: Page[]
-): Page[] {
+  incomingPages: Page[],
+  currentById: Map<string, Page>
+): { pages: Page[]; pagesById: Map<string, Page> } {
   const incomingById = new Map(incomingPages.map((page) => [page.id, page]));
-  return currentPages.map((page) => {
+  const pagesById = new Map(currentById);
+  const pages = currentPages.map((page) => {
     const incoming = incomingById.get(page.id);
-    return incoming ? mergePageSnapshot(incoming, page) : page;
+    if (!incoming) return page;
+    const merged = mergePageSnapshot(incoming, page);
+    pagesById.set(merged.id, merged);
+    return merged;
   });
+  return { pages, pagesById };
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   pages: [],
+  pagesById: new Map(),
   currentPageId: null,
   sidebarOpen: true,
   dbReady: false,
@@ -97,19 +110,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   pageMoveHistory: [],
   setPages: (pages) =>
     set((s) => {
-      const previous = new Map(s.pages.map((page) => [page.id, page]));
+      const previous = s.pagesById;
+      const nextPages = sortPagesForWorkspace(
+        pages.map((page) => mergePageSnapshot(page, previous.get(page.id)))
+      );
       return {
-        pages: sortPagesForWorkspace(
-          pages.map((page) => mergePageSnapshot(page, previous.get(page.id)))
-        ),
+        pages: nextPages,
+        pagesById: indexPagesById(nextPages),
       };
     }),
   upsertPages: (pages) =>
     set((s) => {
       if (pages.length === 0) return {};
-      const byId = new Map(s.pages.map((page) => [page.id, page]));
+      const byId = new Map(s.pagesById);
       if (canPatchPagesWithoutResort(pages, byId)) {
-        return { pages: patchPagesWithoutResort(s.pages, pages) };
+        return patchPagesWithoutResort(s.pages, pages, byId);
       }
       for (const page of pages) {
         if (page.deleted_at) {
@@ -118,8 +133,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           byId.set(page.id, mergePageSnapshot(page, byId.get(page.id)));
         }
       }
-      return { pages: sortPagesForWorkspace([...byId.values()]) };
+      const nextPages = sortPagesForWorkspace([...byId.values()]);
+      return { pages: nextPages, pagesById: indexPagesById(nextPages) };
     }),
+  getPageById: (id) => get().pagesById.get(id),
   setCurrentPageId: (id) => set({ currentPageId: id }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setDbReady: (ready) => set({ dbReady: ready }),

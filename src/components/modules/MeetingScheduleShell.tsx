@@ -1492,7 +1492,7 @@ export default function MeetingScheduleShell() {
       const page =
         meetings.find((item) => item.id === pageId) ??
         (selectedMeeting?.page.id === pageId ? selectedMeeting.page : null) ??
-        useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
+        useWorkspaceStore.getState().getPageById(pageId) ??
         null;
       if (page) {
         openMeetingFullPage(page, "meeting-open");
@@ -2463,9 +2463,7 @@ async function seedMeetingPageForImmediateOpen(page: Page): Promise<void> {
 }
 
 async function getLatestOpenedMeetingPage(page: Page): Promise<Page> {
-  const memoryPage = useWorkspaceStore
-    .getState()
-    .pages.find((item) => item.id === page.id);
+  const memoryPage = useWorkspaceStore.getState().getPageById(page.id);
   if (memoryPage) return { ...page, ...memoryPage };
 
   const localPage = await getPage(page.id).catch(() => null);

@@ -728,8 +728,7 @@ function collectInlineRelationPageIds(
 }
 
 async function loadInlineRelationPages(pageIds: string[]) {
-  const cachedPages = useWorkspaceStore.getState().pages;
-  const pagesById = new Map(cachedPages.map((page) => [page.id, page]));
+  const pagesById = useWorkspaceStore.getState().pagesById;
   const missingPageIds = pageIds.filter((pageId) => !pagesById.has(pageId));
   const loadedPages = await Promise.all(
     missingPageIds.map(async (pageId) => {

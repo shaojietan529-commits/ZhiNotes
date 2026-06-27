@@ -22,9 +22,7 @@ export function useLocalFirstPageNavigation() {
       const pageId = typeof target === "string" ? target : target.id;
       const page =
         typeof target === "string"
-          ? useWorkspaceStore
-              .getState()
-              .pages.find((candidate) => candidate.id === target) ?? null
+          ? useWorkspaceStore.getState().getPageById(target) ?? null
           : target;
 
       if (page) {

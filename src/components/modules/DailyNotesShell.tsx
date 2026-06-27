@@ -669,9 +669,7 @@ export default function DailyNotesShell() {
         openDailyNoteFullPage(note, "daily-open");
         return;
       }
-      const storePage =
-        useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
-        null;
+      const storePage = useWorkspaceStore.getState().getPageById(pageId) ?? null;
       if (storePage) {
         openDailyNoteFullPage(
           {
@@ -1422,9 +1420,7 @@ function makeDailyRootMetadataRecord(
 }
 
 async function getLatestOpenedDailyNote(note: DailyNote): Promise<DailyNote> {
-  const memoryPage = useWorkspaceStore
-    .getState()
-    .pages.find((page) => page.id === note.id);
+  const memoryPage = useWorkspaceStore.getState().getPageById(note.id);
   if (memoryPage) {
     return {
       ...note,

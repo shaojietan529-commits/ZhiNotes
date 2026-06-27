@@ -4577,12 +4577,41 @@ function run() {
     "patchPagesWithoutResort",
     "hasWorkspaceOrderChange",
     "if (pages.length === 0) return {};",
+    "pagesById: Map<string, Page>;",
+    "pagesById: indexPagesById(nextPages)",
+    "getPageById: (id) => get().pagesById.get(id)",
   ]) {
     assertIncludes(
       files.workspaceStore,
       workspaceStore,
       snippet,
       "Workspace page store must avoid full-list resorting for order-neutral upserts."
+    );
+  }
+  for (const [file, source, snippet] of [
+    [files.usePage, usePage, "useWorkspaceStore.getState().getPageById(pageId)"],
+    [
+      files.localFirstPageNavigation,
+      localFirstPageNavigation,
+      "useWorkspaceStore.getState().getPageById(target)",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+    ],
+    [
+      files.favoritePages,
+      favoritePages,
+      "const pagesById = useWorkspaceStore((s) => s.pagesById)",
+    ],
+    [files.quickSearch, quickSearch, "getPageById(pageId)"],
+  ]) {
+    assertIncludes(
+      file,
+      source,
+      snippet,
+      "Hot page-opening paths must reuse the workspace page id index."
     );
   }
   assertIncludes(

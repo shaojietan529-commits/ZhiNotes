@@ -10,14 +10,10 @@ const SIDEBAR_FAVORITE_VISIBLE_LIMIT = 24;
 
 export default function FavoritePages() {
   const openPage = useLocalFirstPageNavigation();
-  const pages = useWorkspaceStore((s) => s.pages);
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
   const { favoriteIds, setFavorite } = usePageFavorites();
 
-  const pagesById = useMemo(
-    () => new Map(pages.map((page) => [page.id, page])),
-    [pages]
-  );
   const favoritePages = useMemo(
     () =>
       favoriteIds

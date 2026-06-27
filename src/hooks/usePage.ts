@@ -202,7 +202,7 @@ function readLocalFirstPageSeed(pageId: string): Page | null {
   return (
     readPendingPageDraft(pageId) ??
     readPageRouteHandoff(pageId) ??
-    useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
+    useWorkspaceStore.getState().getPageById(pageId) ??
     null
   );
 }

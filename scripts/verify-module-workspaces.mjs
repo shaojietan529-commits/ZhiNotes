@@ -210,7 +210,7 @@ check(
 check(
   usePageHook.includes("readPendingPageDraft(pageId)") &&
     usePageHook.indexOf("readPendingPageDraft(pageId)") <
-      usePageHook.indexOf("useWorkspaceStore.getState().pages.find") &&
+      usePageHook.indexOf("useWorkspaceStore.getState().getPageById(pageId)") &&
     pendingPageDrafts.includes("PENDING_PAGE_DRAFT_TTL_MS") &&
     pendingPageDrafts.includes("PENDING_PAGE_DRAFT_MAX_CHARS") &&
     pendingPageDrafts.includes("window.sessionStorage.setItem") &&
@@ -320,7 +320,7 @@ check(
     quickSearchSource.includes("upsertPages([result.page])") &&
     !quickSearchSource.includes("await refresh()") &&
     !favoritePagesSource.includes("usePages") &&
-    favoritePagesSource.includes("useWorkspaceStore((s) => s.pages)") &&
+    favoritePagesSource.includes("useWorkspaceStore((s) => s.pagesById)") &&
     favoritePagesSource.includes("SIDEBAR_FAVORITE_VISIBLE_LIMIT") &&
     favoritePagesSource.includes("visibleFavoritePages.map((page)") &&
     favoritePagesSource.includes("已折叠 {hiddenFavoriteCount} 个收藏页面") &&
@@ -375,8 +375,18 @@ check(
   workspaceStore.includes("canPatchPagesWithoutResort") &&
     workspaceStore.includes("patchPagesWithoutResort") &&
     workspaceStore.includes("hasWorkspaceOrderChange") &&
-    workspaceStore.includes("if (pages.length === 0) return {};"),
-  "Workspace store 必须为正文补齐/云端字段回填保留 no-resort upsert 快路径，避免大批量导入后每次小更新都重排全量页面"
+    workspaceStore.includes("if (pages.length === 0) return {};") &&
+    workspaceStore.includes("pagesById: Map<string, Page>;") &&
+    workspaceStore.includes("pagesById: indexPagesById(nextPages)") &&
+    workspaceStore.includes("getPageById: (id) => get().pagesById.get(id)"),
+  "Workspace store 必须为正文补齐/云端字段回填保留 no-resort upsert 快路径，并维护全局 page id 索引，避免大批量导入后每次小更新/打开都扫描全量页面"
+);
+check(
+  usePageHook.includes("useWorkspaceStore.getState().getPageById(pageId)") &&
+    pageTreeSource.includes("const pagesById = useWorkspaceStore((s) => s.pagesById)") &&
+    favoritePagesSource.includes("const pagesById = useWorkspaceStore((s) => s.pagesById)") &&
+    quickSearchSource.includes("getPageById(pageId)"),
+  "页面打开、左侧页面树、收藏和快速搜索必须复用 workspace page id 索引，保持大库交互流畅"
 );
 check(
   pageUpdateBus.includes("PageUpdatePayload") &&
@@ -395,7 +405,7 @@ check(
 check(
   pagePeekModal.includes("getPageMetadata") &&
     pagePeekModal.includes("getInitialPeekPage") &&
-    pagePeekModal.includes("useWorkspaceStore.getState().pages.find") &&
+    pagePeekModal.includes("useWorkspaceStore.getState().getPageById(pageId)") &&
     pagePeekModal.includes("editorLoadRequested") &&
     pagePeekModal.includes("schedulePeekContentLoad") &&
     pagePeekModal.includes("enabled: editorLoadRequested") &&

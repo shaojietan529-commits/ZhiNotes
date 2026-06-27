@@ -361,6 +361,7 @@ export default function PageTree() {
   const openPage = useLocalFirstPageNavigation();
   const { pages, upsertPages } = usePages();
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [contextMenu, setContextMenu] = useState<{
@@ -390,10 +391,6 @@ export default function PageTree() {
     };
   }, []);
 
-  const pagesById = useMemo(
-    () => new Map(pages.map((page) => [page.id, page])),
-    [pages]
-  );
   const hiddenModuleSubtreeIds = useMemo(
     () => collectHiddenModuleSubtreeIds(pages, pagesById, moduleRootIds),
     [moduleRootIds, pages, pagesById]
@@ -456,7 +453,7 @@ export default function PageTree() {
       return;
     }
 
-    const targetPage = pages.find((p) => p.id === dropTarget.pageId);
+    const targetPage = pagesById.get(dropTarget.pageId);
     if (!targetPage) {
       setDraggedId(null);
       setDropTarget(null);
@@ -503,7 +500,7 @@ export default function PageTree() {
 
     setDraggedId(null);
     setDropTarget(null);
-  }, [draggedId, dropTarget, pages, upsertPages]);
+  }, [draggedId, dropTarget, pages, pagesById, upsertPages]);
 
   const handleRootDragOver = useCallback(
     (e: React.DragEvent) => {

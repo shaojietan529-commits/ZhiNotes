@@ -111,6 +111,7 @@ export default function QuickSearch() {
   const { openModuleRoute, warmModuleRoute } = useLocalFirstModuleNavigation();
   const openPage = useLocalFirstPageNavigation();
   const pages = useWorkspaceStore((s) => s.pages);
+  const getPageById = useWorkspaceStore((s) => s.getPageById);
   const { refresh, upsertPages } = usePages({ autoLoad: false });
   const { favoriteIds } = usePageFavorites();
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
@@ -119,8 +120,8 @@ export default function QuickSearch() {
   const hasQuery = trimmedQuery.length > 0;
   const suggestedPages = useMemo(() => {
     if (!open || hasQuery) return [];
-    return getPagesForActivity(pages, favoriteIds, pageActivityFilter);
-  }, [favoriteIds, hasQuery, open, pageActivityFilter, pages]);
+    return getPagesForActivity(pages, favoriteIds, pageActivityFilter, getPageById);
+  }, [favoriteIds, getPageById, hasQuery, open, pageActivityFilter, pages]);
   const searchIsSaved = savedSearches.some(
     (savedSearch) => savedSearch.toLowerCase() === trimmedQuery.toLowerCase()
   );
@@ -305,7 +306,7 @@ export default function QuickSearch() {
     openPage(
       page ??
         results.find((candidate) => candidate.id === pageId) ??
-        pages.find((candidate) => candidate.id === pageId) ??
+        getPageById(pageId) ??
         pageId,
       { source: "quick-search-open" }
     );
@@ -1796,7 +1797,8 @@ function CommandActionButton({
 function getPagesForActivity(
   pages: Page[],
   favoriteIds: string[],
-  filter: PageActivityFilter
+  filter: PageActivityFilter,
+  getPageById: (id: string) => Page | undefined
 ) {
   if (filter === "updated") {
     return getTopPagesByTimestamp(pages, "updated_at", QUICK_SEARCH_ACTIVITY_LIMIT);
@@ -1806,9 +1808,8 @@ function getPagesForActivity(
     return getTopPagesByTimestamp(pages, "created_at", QUICK_SEARCH_ACTIVITY_LIMIT);
   }
 
-  const pagesById = new Map(pages.map((page) => [page.id, page]));
   const favorites = favoriteIds
-    .map((id) => pagesById.get(id))
+    .map((id) => getPageById(id))
     .filter((page): page is Page => Boolean(page));
   if (filter === "favorites") return favorites.slice(0, QUICK_SEARCH_ACTIVITY_LIMIT);
 

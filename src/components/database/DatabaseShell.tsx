@@ -590,7 +590,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       }
       const page =
         workspacePages.find((item) => item.id === pageId) ??
-        useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
+        useWorkspaceStore.getState().getPageById(pageId) ??
         null;
       if (page) {
         openPage(page, { source: "database-row-open" });

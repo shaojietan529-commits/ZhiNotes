@@ -51,6 +51,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
   const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const workspacePages = useWorkspaceStore((s) => s.pages);
+  const getPageById = useWorkspaceStore((s) => s.getPageById);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const [scopedPages, setScopedPages] = useState<Page[]>([]);
   const [chainRootId, setChainRootId] = useState<string | null>(null);
@@ -187,11 +188,11 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
 
   const handleOpenChild = useCallback(
     (id: string) => {
-      openPage(pages.find((page) => page.id === id) ?? id, {
+      openPage(pages.find((page) => page.id === id) ?? getPageById(id) ?? id, {
         source: "child-page-open",
       });
     },
-    [openPage, pages]
+    [getPageById, openPage, pages]
   );
 
   if (children.length === 0) return null;

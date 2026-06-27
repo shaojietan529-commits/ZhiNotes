@@ -15,7 +15,7 @@ export function usePageRevision(): string {
 export function usePageRecordRevision(pageId: string | null): string {
   return useWorkspaceStore((s) => {
     if (!pageId) return "";
-    const page = s.pages.find((candidate) => candidate.id === pageId);
+    const page = s.pagesById.get(pageId);
     if (!page) return "missing";
     return `${page.updated_at}:${page.deleted_at ?? ""}`;
   });

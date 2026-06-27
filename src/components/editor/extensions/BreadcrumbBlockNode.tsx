@@ -87,7 +87,7 @@ function parseStoredPath(path: string): string[] {
 async function getPagePath(pageId: string) {
   const path: string[] = [];
   const seen = new Set<string>();
-  const memoryPages = useWorkspaceStore.getState().pages;
+  const getPageById = useWorkspaceStore.getState().getPageById;
   let cursor: string | null = pageId;
 
   while (
@@ -97,7 +97,7 @@ async function getPagePath(pageId: string) {
   ) {
     seen.add(cursor);
     const page: Page | null =
-      memoryPages.find((item) => item.id === cursor) ??
+      getPageById(cursor) ??
       (await getPageMetadata(cursor).catch(() => null));
     if (!page) break;
     path.unshift(page.title || "未命名页面");
