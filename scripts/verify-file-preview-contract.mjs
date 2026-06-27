@@ -422,8 +422,10 @@ function run() {
   );
   for (const snippet of [
     "getFilePreviewCapabilityByKind",
+    "getStoredPageFileMetadata",
     "FilePreviewCapabilityStrip",
     "FilePreviewSupportPill",
+    "FilePreviewLoadPrompt",
     "buildFilePreviewStructure",
     "FilePreviewStructureStrip",
     "FilePreviewStructureRequestStrip",
@@ -440,6 +442,14 @@ function run() {
     "handleOpenFileRouteHub",
     "/modules/files#files-preview-routing",
     "查看文件路线",
+    "AUTO_LOAD_TEXT_PREVIEW_BYTES",
+    "AUTO_LOAD_NATIVE_PREVIEW_BYTES",
+    "shouldAutoLoadFileContent",
+    "fileMetadata",
+    "fileLoadFailed",
+    "加载预览/文件",
+    "文件已显示 metadata",
+    "避免打开页面时读取大文件本体",
     "convertedPreviewRequested",
     "isOnDemandConvertedPreviewKind",
     "handleRequestConvertedPreview",
@@ -471,6 +481,12 @@ function run() {
       "Preview node must expose the same local capability route shown in the Reports module."
     );
   }
+  assertIncludes(
+    files.localStore,
+    localStore,
+    "getStoredPageFileMetadata",
+    "File preview blocks must be able to read lightweight file metadata before loading file bytes."
+  );
   for (const snippet of [
     "按需转换为表格 HTML 预览",
     "按需转换预览；DOCX 使用 mammoth",

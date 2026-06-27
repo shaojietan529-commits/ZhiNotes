@@ -8,8 +8,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   formatFileSize,
   getStoredPageFile,
+  getStoredPageFileMetadata,
   type PageFileKind,
   type StoredPageFile,
+  type StoredPageFileMetadata,
 } from "@/lib/files/localStore";
 import {
   getFilePreviewCapabilityByKind,
@@ -67,6 +69,8 @@ const PREVIEW_CSP =
   "default-src 'none'; img-src data: blob:; media-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; frame-src data: blob:; child-src data: blob:; connect-src 'none';";
 const CONVERTED_PREVIEW_CACHE_VERSION = "v1";
 const CONVERTED_PREVIEW_CACHE_LIMIT = 12;
+const AUTO_LOAD_TEXT_PREVIEW_BYTES = 256 * 1024;
+const AUTO_LOAD_NATIVE_PREVIEW_BYTES = 512 * 1024;
 const convertedPreviewCache = new Map<string, CachedConvertedPreview>();
 const convertedPreviewWorkCache = new Map<
   string,
@@ -109,7 +113,10 @@ function FilePreviewComponent({
   const attrs = node.attrs as FilePreviewAttrs;
   const allowExternalResources = Boolean(attrs.allowExternalResources);
   const [file, setFile] = useState<StoredPageFile | null>(null);
+  const [fileMetadata, setFileMetadata] =
+    useState<StoredPageFileMetadata | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fileLoadFailed, setFileLoadFailed] = useState(false);
   const [expanded, setExpanded] = useState(attrs.kind === "html");
   const [importing, setImporting] = useState(false);
   const [databaseImporting, setDatabaseImporting] = useState(false);
@@ -136,31 +143,68 @@ function FilePreviewComponent({
     () => getEffectivePreviewSupportLevel(attrs.kind, attrs.fileName, capability),
     [attrs.fileName, attrs.kind, capability]
   );
+  const previewKind = file?.kind ?? fileMetadata?.kind ?? attrs.kind;
+
+  const loadStoredFileContent = async () => {
+    if (file || loading) return;
+    setLoading(true);
+    setFileLoadFailed(false);
+    try {
+      const stored = await getStoredPageFile(attrs.fileId);
+      setFile(stored);
+      setFileLoadFailed(!stored);
+    } catch (err) {
+      console.error("[Zhinote] Failed to load file preview:", err);
+      setFile(null);
+      setFileLoadFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    const shouldAutoLoad = shouldAutoLoadFileContent(attrs.kind, attrs.size);
+    setFile(null);
+    setFileMetadata(null);
+    setLoading(shouldAutoLoad);
+    setFileLoadFailed(false);
     setConvertedPreview({ status: "idle" });
     setConvertedPreviewRequested(false);
     setFileStructureRequested(false);
 
-    getStoredPageFile(attrs.fileId)
-      .then((stored) => {
+    getStoredPageFileMetadata(attrs.fileId)
+      .then((metadata) => {
         if (!active) return;
-        setFile(stored);
+        setFileMetadata(metadata);
       })
       .catch((err) => {
-        console.error("[Zhinote] Failed to load file preview:", err);
-        if (active) setFile(null);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        console.error("[Zhinote] Failed to load file metadata:", err);
       });
+
+    if (shouldAutoLoad) {
+      getStoredPageFile(attrs.fileId)
+        .then((stored) => {
+          if (!active) return;
+          setFile(stored);
+          setFileLoadFailed(!stored);
+        })
+        .catch((err) => {
+          console.error("[Zhinote] Failed to load file preview:", err);
+          if (active) {
+            setFile(null);
+            setFileLoadFailed(true);
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }
 
     return () => {
       active = false;
     };
-  }, [attrs.fileId]);
+  }, [attrs.fileId, attrs.kind, attrs.size]);
 
   const srcDoc = useMemo(() => {
     if (!file) return "";
@@ -236,16 +280,16 @@ function FilePreviewComponent({
   }, [convertedPreviewRequested, file]);
 
   const canExpand =
-    file?.kind === "html" ||
-    file?.kind === "markdown" ||
-    file?.kind === "opml" ||
-    file?.kind === "rtf" ||
-    file?.kind === "notebook" ||
-    file?.kind === "spreadsheet" ||
-    file?.kind === "word" ||
-    file?.kind === "presentation" ||
-    file?.kind === "epub" ||
-    file?.kind === "archive";
+    previewKind === "html" ||
+    previewKind === "markdown" ||
+    previewKind === "opml" ||
+    previewKind === "rtf" ||
+    previewKind === "notebook" ||
+    previewKind === "spreadsheet" ||
+    previewKind === "word" ||
+    previewKind === "presentation" ||
+    previewKind === "epub" ||
+    previewKind === "archive";
   const heightClass = expanded ? "h-[720px]" : "h-[360px]";
   const externalResourceReceipt = useMemo(
     () =>
@@ -591,11 +635,19 @@ function FilePreviewComponent({
   };
 
   const handleRequestConvertedPreview = () => {
+    if (!file) {
+      void loadStoredFileContent();
+    }
     setConvertedPreviewRequested(true);
     setExpanded(true);
   };
 
   const handleToggleExpanded = () => {
+    if (!file) {
+      setExpanded(true);
+      void loadStoredFileContent();
+      return;
+    }
     const nextExpanded = !expanded;
     setExpanded(nextExpanded);
     if (nextExpanded && file && isOnDemandConvertedPreviewKind(file.kind)) {
@@ -605,6 +657,10 @@ function FilePreviewComponent({
 
   const handleRequestFileStructure = () => {
     setFileStructureRequested(true);
+    if (!file) {
+      void loadStoredFileContent();
+      return;
+    }
     if (file && isOnDemandConvertedPreviewKind(file.kind) && !isLegacyOfficeFile(file)) {
       setConvertedPreviewRequested(true);
       setExpanded(true);
@@ -797,6 +853,15 @@ function FilePreviewComponent({
               记录留存 receipt
             </button>
           )}
+          {!file && !loading && !fileLoadFailed && (
+            <button
+              type="button"
+              onClick={() => void loadStoredFileContent()}
+              className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            >
+              加载预览/文件
+            </button>
+          )}
           <button
             type="button"
             onClick={handleOpenFileRouteHub}
@@ -972,9 +1037,12 @@ function FilePreviewComponent({
         )}
 
         {!loading && !file && (
-          <div className="p-4 text-sm text-zinc-500 dark:text-zinc-400">
-            文件内容不在本地存储中。请重新上传文件以恢复这个预览。
-          </div>
+          <FilePreviewLoadPrompt
+            failed={fileLoadFailed}
+            kind={previewKind}
+            size={attrs.size}
+            onLoad={() => void loadStoredFileContent()}
+          />
         )}
 
         {!loading && file && (
@@ -1321,6 +1389,25 @@ function supportsEditableConvertedImport(file: StoredPageFile) {
   return !isLegacyOfficeFile(file);
 }
 
+function shouldAutoLoadFileContent(kind: PageFileKind, size: number) {
+  if (
+    kind === "html" ||
+    kind === "markdown" ||
+    kind === "opml" ||
+    kind === "rtf" ||
+    kind === "notebook" ||
+    kind === "text"
+  ) {
+    return size <= AUTO_LOAD_TEXT_PREVIEW_BYTES;
+  }
+
+  if (kind === "pdf" || kind === "image") {
+    return size <= AUTO_LOAD_NATIVE_PREVIEW_BYTES;
+  }
+
+  return false;
+}
+
 function getConvertedPreviewCacheKey(file: StoredPageFile) {
   return [
     CONVERTED_PREVIEW_CACHE_VERSION,
@@ -1621,6 +1708,44 @@ function FilePreviewBody({
     <div className="p-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
       {file.kind === "unknown" &&
         "这个文件已保存在本地，但 ZhiNotes 暂时还没有对应的原生渲染器。"}
+    </div>
+  );
+}
+
+function FilePreviewLoadPrompt({
+  failed,
+  kind,
+  size,
+  onLoad,
+}: {
+  failed: boolean;
+  kind: PageFileKind;
+  size: number;
+  onLoad: () => void;
+}) {
+  if (failed) {
+    return (
+      <div className="p-4 text-sm text-zinc-500 dark:text-zinc-400">
+        文件内容不在本地存储中。请重新上传文件以恢复这个预览。
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-32 flex-col items-center justify-center gap-3 bg-zinc-50 p-5 text-center text-sm text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+      <p>
+        {getFileKindLabel(kind)} 文件已显示 metadata。为避免打开页面时读取大文件本体，请按需要加载预览或下载入口。
+      </p>
+      <p className="max-w-xl text-xs leading-5 text-zinc-400">
+        文件大小 {formatFileSize(size)}。加载只读取浏览器本地 IndexedDB，不上传、不调用云服务或 AI。
+      </p>
+      <button
+        type="button"
+        onClick={onLoad}
+        className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+      >
+        加载预览/文件
+      </button>
     </div>
   );
 }

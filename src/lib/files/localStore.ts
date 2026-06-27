@@ -445,6 +445,29 @@ export async function getStoredPageFile(
   });
 }
 
+export async function getStoredPageFileMetadata(
+  id: string
+): Promise<StoredPageFileMetadata | null> {
+  const db = await openFilesDb();
+
+  const metadata = await new Promise<StoredPageFileMetadata | null>(
+    (resolve, reject) => {
+      const tx = db.transaction(METADATA_STORE_NAME, "readonly");
+      const request = tx.objectStore(METADATA_STORE_NAME).get(id);
+      request.onsuccess = () =>
+        resolve((request.result as StoredPageFileMetadata | undefined) ?? null);
+      request.onerror = () => reject(request.error);
+    }
+  );
+  if (metadata) return metadata;
+
+  const legacyFile = await getStoredPageFile(id);
+  if (!legacyFile) return null;
+  const legacyMetadata = toStoredPageFileMetadata(legacyFile);
+  await writeStoredPageFileMetadata([legacyMetadata]);
+  return legacyMetadata;
+}
+
 export async function listStoredPageFiles(): Promise<StoredPageFile[]> {
   const db = await openFilesDb();
 
