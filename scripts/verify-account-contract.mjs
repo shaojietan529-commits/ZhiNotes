@@ -1116,6 +1116,11 @@ check(
     dailyNotesShell.includes("setPeekPageId(note.id)") &&
     dailyNotesShell.includes("const [openingNoteId, setOpeningNoteId]") &&
     dailyNotesShell.includes("setOpeningNoteId(note.id);") &&
+    dailyNotesShell.indexOf('primeDailyNoteOpen(note, "daily-open");') <
+      dailyNotesShell.indexOf("setOpeningNoteId(note.id);") &&
+    dailyNotesShell.includes('onPointerDown={() =>') &&
+    dailyNotesShell.includes('primeDailyNoteOpen(note, "daily-open")') &&
+    dailyNotesShell.includes('onFocus={() => primeDailyNoteOpen(note, "daily-open")}') &&
     dailyNotesShell.includes("openingNoteId === note.id") &&
     dailyNotesShell.includes("正在打开纪要…") &&
     dailyNotesShell.includes("const handlePeekReady = useCallback") &&

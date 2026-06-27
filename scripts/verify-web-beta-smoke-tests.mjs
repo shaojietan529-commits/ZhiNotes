@@ -2569,6 +2569,18 @@ function run() {
     "warmPagePeekModal();",
     "Daily calendar must prewarm the lazy peek modal on pointer/open intent."
   );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'primeDailyNoteOpen(note, "daily-open");',
+    "Daily existing-note opens must prime route handoff before showing the peek shell."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'primeDailyNoteOpen(note, "daily-open")',
+    "Daily existing-note hover, pointer, and focus intents must reuse the same local-first priming path."
+  );
   assertExcludes(
     files.dailyNotesShell,
     dailyNotesShell,
@@ -2598,6 +2610,12 @@ function run() {
     dailyNotesShell,
     "onFocus={warmPageRoute}",
     "Daily calendar + controls must warm the page shell on keyboard focus before navigation."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'onFocus={() => primeDailyNoteOpen(note, "daily-open")}',
+    "Daily existing-note focus must prime the local-first page shell before opening."
   );
   assertIncludes(
     files.dailyNotesShell,

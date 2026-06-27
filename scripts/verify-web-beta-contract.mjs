@@ -2252,6 +2252,14 @@ function run() {
       "Daily note opening must hand off metadata before opening a page.",
     ],
     [
+      'primeDailyNoteOpen(note, "daily-open");',
+      "Daily existing-note opens must prime route handoff before showing the peek shell.",
+    ],
+    [
+      'onFocus={() => primeDailyNoteOpen(note, "daily-open")}',
+      "Daily existing-note focus must prime the local-first page shell before opening.",
+    ],
+    [
       "useLocalFirstPageNavigation",
       "Daily full-page openings must use the shared local-first page navigation path.",
     ],

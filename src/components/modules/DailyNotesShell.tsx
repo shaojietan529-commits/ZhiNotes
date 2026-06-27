@@ -718,12 +718,10 @@ export default function DailyNotesShell() {
   );
 
   const openNotePage = useCallback((note: DailyNote) => {
+    primeDailyNoteOpen(note, "daily-open");
     setOpeningNoteId(note.id);
     setPeekPageId(note.id);
     setPeekInitialPage(note);
-    scheduleDailyIdleTask(() => {
-      primeDailyNoteOpen(note, "daily-open");
-    }, 80);
   }, [primeDailyNoteOpen]);
 
   const handlePeekReady = useCallback((pageId: string) => {
@@ -1036,7 +1034,10 @@ export default function DailyNotesShell() {
                           setDragOverDateKey(null);
                         }}
                         onPointerEnter={warmPageRoute}
-                        onFocus={warmPageRoute}
+                        onPointerDown={() =>
+                          primeDailyNoteOpen(note, "daily-open")
+                        }
+                        onFocus={() => primeDailyNoteOpen(note, "daily-open")}
                         onClick={() => openNotePage(note)}
                         onContextMenu={(e) => {
                           e.preventDefault();
@@ -1119,7 +1120,10 @@ export default function DailyNotesShell() {
                         setDragOverDateKey(null);
                       }}
                       onPointerEnter={warmPageRoute}
-                      onFocus={warmPageRoute}
+                      onPointerDown={() =>
+                        primeDailyNoteOpen(note, "daily-open")
+                      }
+                      onFocus={() => primeDailyNoteOpen(note, "daily-open")}
                       onClick={() => openNotePage(note)}
                       onContextMenu={(e) => {
                         e.preventDefault();

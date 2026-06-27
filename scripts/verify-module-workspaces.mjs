@@ -535,6 +535,11 @@ check(
     shells.daily.includes("const handlePeekReady = useCallback") &&
     shells.daily.includes("onReady={handlePeekReady}") &&
     shells.daily.includes("warmPagePeekModal();") &&
+    shells.daily.indexOf('primeDailyNoteOpen(note, "daily-open");') <
+      shells.daily.indexOf("setOpeningNoteId(note.id);") &&
+    shells.daily.includes('onPointerDown={() =>') &&
+    shells.daily.includes('primeDailyNoteOpen(note, "daily-open")') &&
+    shells.daily.includes('onFocus={() => primeDailyNoteOpen(note, "daily-open")}') &&
     lazyPagePeekModal.includes("正在打开页面…") &&
     !shells.daily.includes("fetchCloudPageById") &&
     !shells.daily.includes("scheduleDailyPeekPreload") &&
