@@ -104,7 +104,7 @@ export default function QuickSearch() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
   const pages = useWorkspaceStore((s) => s.pages);
-  const { refresh } = usePages({ autoLoad: false });
+  const { refresh, upsertPages } = usePages({ autoLoad: false });
   const { favoriteIds } = usePageFavorites();
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
 
@@ -285,14 +285,14 @@ export default function QuickSearch() {
     const page = await createPageWithCloud({
       title: trimmedQuery || "未命名",
     });
-    await refresh();
+    upsertPages([page]);
     openPage(page, { source: "quick-search-create" });
     resetPalette();
   };
 
   const handleCreateBlankPage = async () => {
     const page = await createPageWithCloud();
-    await refresh();
+    upsertPages([page]);
     openPage(page, { source: "quick-search-create" });
     resetPalette();
   };
@@ -396,7 +396,9 @@ export default function QuickSearch() {
       if (result.database) {
         await refreshDatabases();
       }
-      await refresh();
+      if (result.page) {
+        upsertPages([result.page]);
+      }
       setOpen(false);
       setQuery("");
       setResults([]);

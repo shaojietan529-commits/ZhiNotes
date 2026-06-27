@@ -53,7 +53,7 @@ interface PageTreeItemProps {
   level: number;
   currentPageId: string | null;
   onNavigate: (id: string, page?: Page) => void;
-  onRefresh: () => void;
+  onPageMutated: (pages: Page[]) => void;
   draggedId: string | null;
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
@@ -69,7 +69,7 @@ function PageTreeItem({
   level,
   currentPageId,
   onNavigate,
-  onRefresh,
+  onPageMutated,
   draggedId,
   onDragStart,
   onDragEnd,
@@ -93,7 +93,7 @@ function PageTreeItem({
   const handleAddChild = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const child = await createPageWithCloud({ parentId: page.id });
-    onRefresh();
+    onPageMutated([child]);
     setExpanded(true);
     onNavigate(child.id, child);
   };
@@ -253,7 +253,7 @@ function PageTreeItem({
               level={level + 1}
               currentPageId={currentPageId}
               onNavigate={onNavigate}
-              onRefresh={onRefresh}
+              onPageMutated={onPageMutated}
               draggedId={draggedId}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
@@ -270,7 +270,7 @@ function PageTreeItem({
 
 export default function PageTree() {
   const openPage = useLocalFirstPageNavigation();
-  const { pages, refresh } = usePages();
+  const { pages, refresh, upsertPages } = usePages();
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
@@ -372,9 +372,10 @@ export default function PageTree() {
     }
 
     try {
+      let movedPage: Page | null = null;
       if (dropTarget.position === "inside") {
         const pos = await getNextPosition(targetPage.id);
-        await movePageWithCloud(draggedId, targetPage.id, pos);
+        movedPage = await movePageWithCloud(draggedId, targetPage.id, pos);
       } else {
         const parentId = targetPage.parent_id;
         const siblings = getSiblings(parentId, pages);
@@ -393,16 +394,18 @@ export default function PageTree() {
         const newPosition =
           insertIndex === 0 ? prevPos - 1 : (prevPos + nextPos) / 2;
 
-        await movePageWithCloud(draggedId, parentId, newPosition);
+        movedPage = await movePageWithCloud(draggedId, parentId, newPosition);
       }
-      await refresh();
+      if (movedPage) {
+        upsertPages(collectMovedPageSnapshots(pages, movedPage));
+      }
     } catch (err) {
       console.error("[ZhiNote] Failed to move page:", err);
     }
 
     setDraggedId(null);
     setDropTarget(null);
-  }, [draggedId, dropTarget, pages, refresh]);
+  }, [draggedId, dropTarget, pages, upsertPages]);
 
   const handleRootDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -421,8 +424,10 @@ export default function PageTree() {
 
       try {
         const pos = await getNextPosition(null);
-        await movePageWithCloud(draggedId, null, pos);
-        await refresh();
+        const movedPage = await movePageWithCloud(draggedId, null, pos);
+        if (movedPage) {
+          upsertPages(collectMovedPageSnapshots(pages, movedPage));
+        }
       } catch (err) {
         console.error("[ZhiNote] Failed to move page to root:", err);
       }
@@ -430,7 +435,7 @@ export default function PageTree() {
       setDraggedId(null);
       setDropTarget(null);
     },
-    [draggedId, refresh]
+    [draggedId, pages, upsertPages]
   );
 
   const handleContextMenu = useCallback(
@@ -464,7 +469,7 @@ export default function PageTree() {
             level={0}
             currentPageId={currentPageId}
             onNavigate={handleNavigate}
-            onRefresh={refresh}
+            onPageMutated={upsertPages}
             draggedId={draggedId}
             onDragStart={setDraggedId}
             onDragEnd={handleDragEnd}
@@ -513,4 +518,31 @@ function getTopLevelPageId(
     if (current) topLevel = current;
   }
   return topLevel?.parent_id === null ? topLevel.id : null;
+}
+
+function collectMovedPageSnapshots(allPages: Page[], movedPage: Page): Page[] {
+  const childrenByParent = new Map<string, Page[]>();
+  for (const page of allPages) {
+    if (!page.parent_id) continue;
+    const children = childrenByParent.get(page.parent_id) ?? [];
+    children.push(page);
+    childrenByParent.set(page.parent_id, children);
+  }
+
+  const snapshots: Page[] = [movedPage];
+  const stack = [movedPage];
+  while (stack.length > 0) {
+    const parent = stack.pop();
+    if (!parent) continue;
+    for (const child of childrenByParent.get(parent.id) ?? []) {
+      const nextChild = {
+        ...child,
+        depth: parent.depth + 1,
+        updated_at: movedPage.updated_at,
+      };
+      snapshots.push(nextChild);
+      stack.push(nextChild);
+    }
+  }
+  return snapshots;
 }

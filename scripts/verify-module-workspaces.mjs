@@ -239,8 +239,12 @@ check(
     pageTreeSource.includes("childrenByParent") &&
     pageTreeSource.includes("visibleRootPages") &&
     pageTreeSource.includes("hiddenRootCount") &&
-    pageTreeSource.includes("getTopLevelPageId"),
-  "Sidebar PageTree 必须用 parent 索引和根页面渲染上限，避免 Notion 批量导入后拖慢全站"
+    pageTreeSource.includes("getTopLevelPageId") &&
+    pageTreeSource.includes("onPageMutated([child])") &&
+    pageTreeSource.includes("collectMovedPageSnapshots(pages, movedPage)") &&
+    pageTreeSource.includes("onPageMutated={upsertPages}") &&
+    !pageTreeSource.includes("await refresh()"),
+  "Sidebar PageTree 必须用 parent 索引、根页面渲染上限和局部 upsert，避免 Notion 批量导入后拖慢全站"
 );
 check(
   !sidebarSource.includes("usePages") &&
@@ -248,12 +252,15 @@ check(
     !quickSearchSource.includes("const { pages, refresh } = usePages()") &&
     quickSearchSource.includes("const pages = useWorkspaceStore((s) => s.pages)") &&
     quickSearchSource.includes("usePages({ autoLoad: false })") &&
+    quickSearchSource.includes("upsertPages([page])") &&
+    quickSearchSource.includes("upsertPages([result.page])") &&
+    !quickSearchSource.includes("await refresh()") &&
     !favoritePagesSource.includes("usePages") &&
     favoritePagesSource.includes("useWorkspaceStore((s) => s.pages)") &&
     !trashPagesSource.includes("usePages") &&
     trashPagesSource.includes("activePageCount") &&
     trashPagesSource.includes("upsertPages([restored])"),
-  "Sidebar/QuickSearch/FavoritePages/TrashPages 不应各自挂 usePages 触发重复全量页面 metadata 刷新"
+  "Sidebar/QuickSearch/FavoritePages/TrashPages 不应各自挂 usePages 或在创建页面后阻塞全量 metadata 刷新"
 );
 check(
   moduleDashboardSource.includes("countActivePages") &&
