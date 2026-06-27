@@ -2367,6 +2367,12 @@ function run() {
     "@/components/page/LazyPagePeekModal",
     "Daily calendar must lazy-load the heavy page peek modal instead of bundling it into first paint."
   );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "warmPagePeekModal();",
+    "Daily calendar must prewarm the lazy peek modal on pointer/open intent."
+  );
   assertExcludes(
     files.dailyNotesShell,
     dailyNotesShell,

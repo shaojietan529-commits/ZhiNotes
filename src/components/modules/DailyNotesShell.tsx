@@ -62,7 +62,9 @@ import {
 import { useCalendarViewMonthPreference } from "@/hooks/useCalendarViewMonthPreference";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import PageContextMenu from "@/components/page/PageContextMenu";
-import PagePeekModal from "@/components/page/LazyPagePeekModal";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import type { Page } from "@/lib/utils/types";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -140,6 +142,7 @@ export default function DailyNotesShell() {
     } catch {
       // Prefetch only improves perceived speed; it should never block the page.
     }
+    warmPagePeekModal();
     if (!pageShellWarmupRef.current) {
       pageShellWarmupRef.current = import("@/components/providers/PageShell").catch(
         () => {
@@ -621,6 +624,7 @@ export default function DailyNotesShell() {
   const primeDailyNoteOpen = useCallback(
     (note: DailyNote, source: "daily-create" | "daily-open" = "daily-open") => {
       warmPageRoute();
+      warmPagePeekModal();
       upsertPages([note]);
       rememberPendingPageDraft(note);
       rememberPageRouteHandoff(note, source);

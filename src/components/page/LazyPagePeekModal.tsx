@@ -2,7 +2,27 @@
 
 import dynamic from "next/dynamic";
 
-const LazyPagePeekModal = dynamic(() => import("@/components/page/PagePeekModal"), {
+let pagePeekModalPromise:
+  | Promise<typeof import("@/components/page/PagePeekModal")>
+  | null = null;
+
+function loadPagePeekModal() {
+  if (!pagePeekModalPromise) {
+    pagePeekModalPromise = import("@/components/page/PagePeekModal").catch(
+      (error) => {
+        pagePeekModalPromise = null;
+        throw error;
+      }
+    );
+  }
+  return pagePeekModalPromise;
+}
+
+export function warmPagePeekModal() {
+  void loadPagePeekModal().catch(() => undefined);
+}
+
+const LazyPagePeekModal = dynamic(loadPagePeekModal, {
   ssr: false,
   loading: () => (
     <div

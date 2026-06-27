@@ -1074,8 +1074,12 @@ check(
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");
 check(
-    lazyPagePeekModal.includes('dynamic(() => import("@/components/page/PagePeekModal")') &&
+    lazyPagePeekModal.includes("function loadPagePeekModal()") &&
+    lazyPagePeekModal.includes("export function warmPagePeekModal()") &&
+    lazyPagePeekModal.includes('import("@/components/page/PagePeekModal")') &&
+    lazyPagePeekModal.includes("dynamic(loadPagePeekModal") &&
     dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
+    dailyNotesShell.includes("warmPagePeekModal();") &&
     dailyNotesShell.includes("setPeekPageId(note.id)") &&
     dailyNotesShell.includes("window.setTimeout(() =>") &&
     dailyNotesShell.includes("current === dateKey ? null : current") &&

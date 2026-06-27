@@ -456,7 +456,11 @@ check(
 );
 check(
   shells.daily.includes("@/components/page/LazyPagePeekModal") &&
-    lazyPagePeekModal.includes("dynamic(() => import(\"@/components/page/PagePeekModal\")") &&
+    lazyPagePeekModal.includes("function loadPagePeekModal()") &&
+    lazyPagePeekModal.includes("export function warmPagePeekModal()") &&
+    lazyPagePeekModal.includes('import("@/components/page/PagePeekModal")') &&
+    lazyPagePeekModal.includes("dynamic(loadPagePeekModal") &&
+    shells.daily.includes("warmPagePeekModal();") &&
     lazyPagePeekModal.includes("正在打开页面…") &&
     !shells.daily.includes("fetchCloudPageById") &&
     !shells.daily.includes("scheduleDailyPeekPreload") &&

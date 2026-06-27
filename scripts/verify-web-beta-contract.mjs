@@ -2230,6 +2230,10 @@ function run() {
       "Daily calendar must lazy-load the heavy page peek modal instead of bundling it into first paint.",
     ],
     [
+      "warmPagePeekModal();",
+      "Daily calendar must prewarm the lazy peek modal on pointer/open intent so imported notes open faster.",
+    ],
+    [
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
       "Daily + creation must hand off the optimistic page before peek or full-page opening.",
     ],
