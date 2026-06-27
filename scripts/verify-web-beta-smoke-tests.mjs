@@ -1966,6 +1966,18 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "const indexedNotes = useMemo",
+    "Daily notes must index derived date keys once per notes list to keep large imports responsive."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "b.dateKey.localeCompare(a.dateKey)",
+    "Daily recent-note sorting must reuse indexed date keys instead of reparsing every render."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "writeOptimisticDailyHotCache",
     "Daily + creation must update the local hot cache before background persistence."
   );

@@ -75,6 +75,11 @@ type DailyNote = Page & {
   hotCacheOnly?: boolean;
 };
 
+type IndexedDailyNote = {
+  note: DailyNote;
+  dateKey: string;
+};
+
 type OpeningDailyDraft = {
   pageId: string;
   dateKey: string;
@@ -490,18 +495,26 @@ export default function DailyNotesShell() {
     return () => window.clearTimeout(timer);
   }, [dbReady, pageRevision, load]);
 
+  const indexedNotes = useMemo<IndexedDailyNote[]>(() => {
+    const indexed: IndexedDailyNote[] = [];
+    for (const note of notes) {
+      const dateKey = dailyNoteDateKey(note);
+      if (!dateKey) continue;
+      indexed.push({ note, dateKey });
+    }
+    return indexed;
+  }, [notes]);
+
   // Each day can hold multiple note pages (Notion-style), grouped by 日期.
   const notesByDate = useMemo(() => {
     const map = new Map<string, DailyNote[]>();
-    for (const note of notes) {
-      const key = dailyNoteDateKey(note);
-      if (!key) continue;
-      const list = map.get(key) ?? [];
+    for (const { note, dateKey } of indexedNotes) {
+      const list = map.get(dateKey) ?? [];
       list.push(note);
-      map.set(key, list);
+      map.set(dateKey, list);
     }
     return map;
-  }, [notes]);
+  }, [indexedNotes]);
 
   // Add a new note page on the given day, then open it for editing.
   const addNote = useCallback(
@@ -766,10 +779,10 @@ export default function DailyNotesShell() {
 
   const recent = useMemo(
     () =>
-      [...notes]
-        .sort((a, b) => dailyNoteDateKey(b).localeCompare(dailyNoteDateKey(a)))
+      [...indexedNotes]
+        .sort((a, b) => b.dateKey.localeCompare(a.dateKey))
         .slice(0, 8),
-    [notes]
+    [indexedNotes]
   );
 
   const goPrev = () =>
@@ -1033,7 +1046,7 @@ export default function DailyNotesShell() {
                 最近的纪要
               </h3>
               <ul className="divide-y divide-zinc-100 rounded-md border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-                {recent.map((note) => (
+                {recent.map(({ note, dateKey }) => (
                   <li key={note.id}>
                     <button
                       type="button"
@@ -1061,7 +1074,7 @@ export default function DailyNotesShell() {
                       className="flex w-full cursor-grab items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-50 active:cursor-grabbing dark:hover:bg-zinc-800/50"
                     >
                       <span className="w-24 shrink-0 text-xs text-zinc-400">
-                        {dailyNoteDateKey(note)}
+                        {dateKey}
                       </span>
                       <span className="flex items-center gap-1.5 truncate text-zinc-700 dark:text-zinc-200">
                         {note.icon && <span>{note.icon}</span>}
