@@ -299,6 +299,12 @@ import {
   type CacheRebuildPreflightStatus,
 } from "@/lib/sync/cacheRebuildPreflightReceipt";
 import {
+  buildCloudNativeFluidityReport,
+  type CloudNativeFluidityGateStatus,
+  type CloudNativeFluidityReport,
+  type CloudNativeFluidityVerdict,
+} from "@/lib/sync/cloudNativeFluidityReport";
+import {
   buildLocalMetadataManifest,
   type LocalMetadataManifestDomain,
   type LocalMetadataManifestDomainStatus,
@@ -1749,6 +1755,29 @@ function SyncDashboard() {
       syncSummary,
     ]
   );
+  const cloudNativeFluidityReport = useMemo(
+    () =>
+      buildCloudNativeFluidityReport({
+        pageStatus: pagePendingStatus,
+        databaseStatus: databasePendingStatus,
+        syncSummary,
+        cloudMasterReconcile,
+        hotCacheWarmupPlan,
+        hotCacheLocalIndexSummary,
+        performanceSnapshots,
+        cacheRebuildPreflightReceipt,
+      }),
+    [
+      cacheRebuildPreflightReceipt,
+      cloudMasterReconcile,
+      databasePendingStatus,
+      hotCacheLocalIndexSummary,
+      hotCacheWarmupPlan,
+      pagePendingStatus,
+      performanceSnapshots,
+      syncSummary,
+    ]
+  );
   const syncPayloadPreview = useMemo(
     () =>
       buildSyncPayloadPreview({
@@ -3012,6 +3041,16 @@ function SyncDashboard() {
       `zhinote-cloud-master-reconcile-${fileSafeTimestamp()}.json`,
       {
         ...cloudMasterReconcile,
+        exported_at: new Date().toISOString(),
+      }
+    );
+  };
+
+  const handleExportCloudNativeFluidityReport = () => {
+    downloadJsonFile(
+      `zhinote-cloud-native-fluidity-report-${fileSafeTimestamp()}.json`,
+      {
+        ...cloudNativeFluidityReport,
         exported_at: new Date().toISOString(),
       }
     );
@@ -5280,6 +5319,13 @@ function SyncDashboard() {
         <CloudMasterReconcilePanel
           report={cloudMasterReconcile}
           onExport={handleExportCloudMasterReconcile}
+        />
+
+        <CloudNativeFluidityPanel
+          report={cloudNativeFluidityReport}
+          onExport={handleExportCloudNativeFluidityReport}
+          onRunWarmup={() => void handleRunHotCacheWarmup()}
+          onOpenAccount={() => router.push("/account")}
         />
 
         <AccountModuleSettingsPendingPanel
@@ -16259,6 +16305,234 @@ function CacheRebuildFact({
       <p className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</p>
     </div>
   );
+}
+
+function CloudNativeFluidityPanel({
+  report,
+  onExport,
+  onRunWarmup,
+  onOpenAccount,
+}: {
+  report: CloudNativeFluidityReport;
+  onExport: () => void;
+  onRunWarmup: () => void;
+  onOpenAccount: () => void;
+}) {
+  const primaryBlocker = report.gates.find((gate) => gate.status === "block");
+  const primaryWarning = report.gates.find((gate) => gate.status === "warn");
+  const primaryGate = primaryBlocker ?? primaryWarning ?? report.gates[0] ?? null;
+
+  return (
+    <section
+      id="cloud-native-fluidity-report"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Cloud Native Fluidity
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              云原生流畅度健康检查
+            </h2>
+            <CloudNativeFluidityVerdictPill verdict={report.verdict} />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            目标是云端做主库，本地只做热缓存和待上传缓冲区：输入先本地响应，
+            后台上传；刷新后先显示 metadata，再补齐正文。这个报告只读状态、
+            计数和本机耗时，不读取正文、文件或数据库行值。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onRunWarmup}
+            className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+          >
+            预热本机入口
+          </button>
+          <button
+            type="button"
+            onClick={onOpenAccount}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            打开账号页
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            导出健康报告
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <CacheRebuildFact
+          label="结论"
+          value={formatCloudNativeVerdict(report.verdict)}
+          detail={report.next_action}
+        />
+        <CacheRebuildFact
+          label="Gates"
+          value={`${report.summary.passed}/${report.summary.gates}`}
+          detail={`${report.summary.blockers} 阻断 · ${report.summary.warnings} 提醒`}
+        />
+        <CacheRebuildFact
+          label="Pending"
+          value={String(
+            report.summary.page_pending_rows +
+              report.summary.database_pending_rows +
+              report.summary.sync_log_pending_rows
+          )}
+          detail="云端确认前必须保留本地队列"
+        />
+        <CacheRebuildFact
+          label="Hot cache"
+          value={`${report.summary.hot_cache_index_rows}`}
+          detail={`${report.summary.hot_cache_route_targets} 个可预热入口`}
+        />
+        <CacheRebuildFact
+          label="Samples"
+          value={String(report.summary.performance_samples)}
+          detail={`首屏 ${formatPerformanceMs(report.summary.average_local_first_ms)}`}
+        />
+      </div>
+
+      {primaryGate ? (
+        <div className="mt-4 rounded-md border border-zinc-200 px-3 py-3 text-xs dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+              当前最该处理：{primaryGate.title}
+            </div>
+            <CloudNativeFluidityStatusPill status={primaryGate.status} />
+          </div>
+          <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+            {primaryGate.evidence}
+          </p>
+          <p className="mt-1 leading-5 text-zinc-400">
+            目标：{primaryGate.target}
+          </p>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            下一步：{primaryGate.next_action}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        {report.metrics.map((metric) => (
+          <article
+            key={metric.id}
+            className="rounded-md border border-zinc-200 px-3 py-2 text-xs dark:border-zinc-800"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                  {metric.title}
+                </div>
+                <div className="mt-1 font-mono text-sm text-zinc-700 dark:text-zinc-200">
+                  {formatCloudNativeMetricValue(metric.value, metric.unit)}
+                </div>
+              </div>
+              <CloudNativeFluidityStatusPill status={metric.status} />
+            </div>
+            <p className="mt-2 leading-5 text-zinc-400">目标：{metric.target}</p>
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-2 lg:grid-cols-2">
+        {report.gates.map((gate) => (
+          <article
+            key={gate.id}
+            className="rounded-md border border-zinc-200 px-3 py-2 text-xs dark:border-zinc-800"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                {gate.title}
+              </div>
+              <CloudNativeFluidityStatusPill status={gate.status} />
+            </div>
+            <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+              {gate.evidence}
+            </p>
+            <p className="mt-1 leading-5 text-zinc-400">
+              下一步：{gate.next_action}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+        边界：{report.privacy_boundary}
+      </p>
+    </section>
+  );
+}
+
+function CloudNativeFluidityVerdictPill({
+  verdict,
+}: {
+  verdict: CloudNativeFluidityVerdict;
+}) {
+  const labels: Record<CloudNativeFluidityVerdict, string> = {
+    ready: "达标",
+    partial: "部分达标",
+    blocked: "阻断",
+  };
+  const className =
+    verdict === "ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : verdict === "partial"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[verdict]}
+    </span>
+  );
+}
+
+function CloudNativeFluidityStatusPill({
+  status,
+}: {
+  status: CloudNativeFluidityGateStatus;
+}) {
+  const labels: Record<CloudNativeFluidityGateStatus, string> = {
+    pass: "通过",
+    warn: "提醒",
+    block: "阻断",
+  };
+  return (
+    <span
+      className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${cacheRebuildGateStatusClass(
+        status
+      )}`}
+    >
+      {labels[status]}
+    </span>
+  );
+}
+
+function formatCloudNativeVerdict(verdict: CloudNativeFluidityVerdict) {
+  if (verdict === "ready") return "达标";
+  if (verdict === "partial") return "部分达标";
+  return "阻断";
+}
+
+function formatCloudNativeMetricValue(
+  value: number | null,
+  unit: "ms" | "rows" | "routes" | "samples" | "jobs"
+) {
+  if (value === null) return "暂无";
+  if (unit === "ms") return formatPerformanceMs(value);
+  if (unit === "rows") return `${value} rows`;
+  if (unit === "routes") return `${value} routes`;
+  if (unit === "samples") return `${value} samples`;
+  return `${value} jobs`;
 }
 
 function LocalPerformancePanel({

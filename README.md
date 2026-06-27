@@ -59,7 +59,8 @@ Current module foundation:
   runbooks, and privacy gates.
 - Web Sync and Permissions: planned web-beta readiness module at `/modules/sync`
   for local backup exports, sync queue visibility, restore planning, permission
-  checklist, and privacy boundaries.
+  checklist, cloud-native fluidity health checks, hot-cache status, and privacy
+  boundaries.
 
 ## Module Architecture
 
@@ -1261,6 +1262,13 @@ Current local actions:
   they do not upload local pages, files, databases, backups, or sync queue rows.
 - Inspect local counts for active pages, trash pages, databases, uploaded files,
   and pending sync log rows.
+- Review and export the cloud-native fluidity health report. It combines page
+  sync, database sync, pending queues, hot-cache warmup/index coverage, and
+  local timing snapshots into a single view for the target architecture:
+  cloud as source of truth, local as hot cache. The report is metadata-only and
+  does not read page bodies, database row values, comment bodies, file bytes,
+  secrets, or remote data; it does not upload, clear cache, or write server
+  data.
 - Review the owner-facing Web launch decision summary. It combines the Web
   launch workbench, Web Alpha launch decision receipt, and Web Beta owner
   review into a top-level go/no-go view: local build can continue, but preview

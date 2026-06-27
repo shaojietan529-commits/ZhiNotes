@@ -75,6 +75,7 @@ const files = {
   webLaunchWorkbench: "src/lib/sync/webLaunchWorkbench.ts",
   webBetaAutonomyQueue: "src/lib/sync/webBetaAutonomyQueue.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
+  cloudNativeFluidityReport: "src/lib/sync/cloudNativeFluidityReport.ts",
   commentVersionCloudReplayContract:
     "src/lib/sync/commentVersionCloudReplayContract.ts",
   commentVersionReplayReceipt:
@@ -426,6 +427,9 @@ function run() {
   const webLaunchWorkbench = readProjectFile(files.webLaunchWorkbench);
   const webBetaAutonomyQueue = readProjectFile(files.webBetaAutonomyQueue);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
+  const cloudNativeFluidityReport = readProjectFile(
+    files.cloudNativeFluidityReport
+  );
   const commentVersionCloudReplayContract = readProjectFile(
     files.commentVersionCloudReplayContract
   );
@@ -5943,6 +5947,140 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-cloud-native-fluidity-report"',
+      "Cloud-native fluidity report must expose a stable export format.",
+    ],
+    [
+      'report_status: "metadata-only-local-health-check"',
+      "Cloud-native fluidity report must stay metadata-only.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Cloud-native fluidity report must align to cloud master plus local hot cache.",
+    ],
+    [
+      "local_health_check_only: true",
+      "Cloud-native fluidity report must be a local health check only.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Cloud-native fluidity report must not send network requests.",
+    ],
+    [
+      "writes_server_data: false",
+      "Cloud-native fluidity report must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cloud-native fluidity report must not upload workspace data.",
+    ],
+    [
+      "mutates_local_cache_records: false",
+      "Cloud-native fluidity report must not mutate local cache records.",
+    ],
+    [
+      "clears_local_cache: false",
+      "Cloud-native fluidity report must not clear local cache.",
+    ],
+    [
+      "includes_raw_workspace_content: false",
+      "Cloud-native fluidity report must not include raw workspace content.",
+    ],
+    [
+      "LOCAL_FIRST_TARGET_MS",
+      "Cloud-native fluidity report must define a local-first timing target.",
+    ],
+    [
+      "PAGE_OPEN_TARGET_MS",
+      "Cloud-native fluidity report must define a page-open timing target.",
+    ],
+    [
+      "hot_cache_index_rows",
+      "Cloud-native fluidity report must include hot cache index evidence.",
+    ],
+    [
+      "performance_samples",
+      "Cloud-native fluidity report must include local performance sample evidence.",
+    ],
+    [
+      "pending-queue-visible",
+      "Cloud-native fluidity report must check pending queue visibility.",
+    ],
+    [
+      "本地只是热缓存",
+      "Cloud-native fluidity report must state that local data is a hot cache.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.cloudNativeFluidityReport,
+      cloudNativeFluidityReport,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Cloud-native fluidity report must not access page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Cloud-native fluidity report must not access page Yjs content.",
+    ],
+    [
+      "database.description",
+      "Cloud-native fluidity report must not access database descriptions.",
+    ],
+    [
+      "field_values",
+      "Cloud-native fluidity report must not access database row values.",
+    ],
+    [
+      "comment.body",
+      "Cloud-native fluidity report must not access comment bodies.",
+    ],
+    [
+      "file.dataUrl",
+      "Cloud-native fluidity report must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Cloud-native fluidity report must not access file text.",
+    ],
+    [
+      "fetch(",
+      "Cloud-native fluidity report must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Cloud-native fluidity report must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Cloud-native fluidity report must not mutate the local database.",
+    ],
+    [
+      "INSERT INTO",
+      "Cloud-native fluidity report must not insert rows.",
+    ],
+    [
+      "UPDATE ",
+      "Cloud-native fluidity report must not update rows.",
+    ],
+    [
+      "DELETE FROM",
+      "Cloud-native fluidity report must not delete rows.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.cloudNativeFluidityReport,
+      cloudNativeFluidityReport,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildCloudMasterReconcileReport",
       "Sync UI must build the cloud master reconcile report.",
     ],
@@ -5977,6 +6115,26 @@ function run() {
     [
       "isDatabaseSyncEnabled()",
       "Sync UI must report database cloud-primary status.",
+    ],
+    [
+      "buildCloudNativeFluidityReport",
+      "Sync UI must build the cloud-native fluidity health report.",
+    ],
+    [
+      "CloudNativeFluidityPanel",
+      "Sync UI must render the cloud-native fluidity panel.",
+    ],
+    [
+      "云原生流畅度健康检查",
+      "Sync UI must expose the cloud-native fluidity health section.",
+    ],
+    [
+      "handleExportCloudNativeFluidityReport",
+      "Sync UI must export the cloud-native fluidity report.",
+    ],
+    [
+      "预热本机入口",
+      "Sync UI must let the user run metadata-only route warmup from the fluidity panel.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
