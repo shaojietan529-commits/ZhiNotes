@@ -2054,13 +2054,31 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "const calendarDateKeys = useMemo",
+    "Daily calendar grouping must be scoped to the visible month grid."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "if (!calendarDateKeys.has(dateKey)) continue;",
+    "Daily calendar must avoid grouping recent notes outside the visible grid during first paint."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "const deferredIndexedNotes = useDeferredValue(indexedNotes)",
+    "Daily recent-note list must defer secondary ranking behind the calendar."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "DAILY_RECENT_VISIBLE_LIMIT",
     "Daily recent-note list must keep a small visible cap for large imported workspaces."
   );
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "getRecentIndexedDailyNotes(indexedNotes, DAILY_RECENT_VISIBLE_LIMIT)",
+    "getRecentIndexedDailyNotes(\n        deferredIndexedNotes,\n        DAILY_RECENT_VISIBLE_LIMIT",
     "Daily recent-note list must use bounded top-note selection instead of full-list sorting."
   );
   assertIncludes(

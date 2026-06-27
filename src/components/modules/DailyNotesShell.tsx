@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
@@ -522,6 +529,12 @@ export default function DailyNotesShell() {
     return () => window.clearTimeout(timer);
   }, [dbReady, pageRevision, load]);
 
+  const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
+  const calendarDateKeys = useMemo(
+    () => new Set(grid.map((cell) => toDateKey(cell.date))),
+    [grid]
+  );
+
   const indexedNotes = useMemo<IndexedDailyNote[]>(() => {
     const indexed: IndexedDailyNote[] = [];
     for (const note of notes) {
@@ -531,6 +544,7 @@ export default function DailyNotesShell() {
     }
     return indexed;
   }, [notes]);
+  const deferredIndexedNotes = useDeferredValue(indexedNotes);
 
   const notesById = useMemo(() => {
     const map = new Map<string, DailyNote>();
@@ -542,12 +556,13 @@ export default function DailyNotesShell() {
   const notesByDate = useMemo(() => {
     const map = new Map<string, DailyNote[]>();
     for (const { note, dateKey } of indexedNotes) {
+      if (!calendarDateKeys.has(dateKey)) continue;
       const list = map.get(dateKey) ?? [];
       list.push(note);
       map.set(dateKey, list);
     }
     return map;
-  }, [indexedNotes]);
+  }, [calendarDateKeys, indexedNotes]);
 
   // Add a new note page on the given day, then open it for editing.
   const addNote = useCallback(
@@ -825,12 +840,15 @@ export default function DailyNotesShell() {
     [notesById, upsertPages]
   );
 
-  const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
   const todayKey = toDateKey(new Date());
 
   const recent = useMemo(
-    () => getRecentIndexedDailyNotes(indexedNotes, DAILY_RECENT_VISIBLE_LIMIT),
-    [indexedNotes]
+    () =>
+      getRecentIndexedDailyNotes(
+        deferredIndexedNotes,
+        DAILY_RECENT_VISIBLE_LIMIT
+      ),
+    [deferredIndexedNotes]
   );
 
   const goPrev = () =>

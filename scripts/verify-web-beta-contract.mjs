@@ -2284,6 +2284,18 @@ function run() {
       "Daily calendar must build a lightweight visible-month note id index for large imported workspaces.",
     ],
     [
+      "const calendarDateKeys = useMemo",
+      "Daily calendar grouping must be scoped to the visible month grid.",
+    ],
+    [
+      "if (!calendarDateKeys.has(dateKey)) continue;",
+      "Daily calendar must avoid grouping recent notes outside the visible grid during first paint.",
+    ],
+    [
+      "const deferredIndexedNotes = useDeferredValue(indexedNotes)",
+      "Daily recent-note list must defer secondary ranking behind the calendar.",
+    ],
+    [
       "const inCalendarNote = notesById.get(pageId)",
       "Daily note full-page opening must use the visible-month note id index before checking the global workspace.",
     ],
@@ -2304,7 +2316,7 @@ function run() {
       "Daily recent-note list must keep a small visible cap for large imported workspaces.",
     ],
     [
-      "getRecentIndexedDailyNotes(indexedNotes, DAILY_RECENT_VISIBLE_LIMIT)",
+      "getRecentIndexedDailyNotes(\n        deferredIndexedNotes,\n        DAILY_RECENT_VISIBLE_LIMIT",
       "Daily recent-note list must use bounded top-note selection instead of full-list sorting.",
     ],
     [
