@@ -590,9 +590,12 @@ check(
   shells.schedule.includes("listDailyPageMetadataForCalendar({") &&
     shells.schedule.includes("startDate: dateKeys[0]") &&
     shells.schedule.includes("endDate: dateKeys[dateKeys.length - 1]") &&
+    shells.schedule.includes("completedMeetingDailyLinkKeyRef") &&
+    shells.schedule.includes("scheduleMeetingIdleTask(() =>") &&
+    shells.schedule.includes("linkCompletedMeetingsToDaily(notesToLink)") &&
     !shells.schedule.includes("const dailyPages = await listPages(dailyRootId)") &&
     !shells.schedule.includes("const dailyPages = await listPageMetadata(dailyRootId)"),
-  "MeetingScheduleShell 关联每日纪要时应按日期范围读 metadata，不能扫描完整每日根或读取所有正文"
+  "MeetingScheduleShell 关联每日纪要时应按日期范围读 metadata，并在浏览器空闲时去重执行，不能扫描完整每日根或读取所有正文"
 );
 check(
   shells.schedule.includes("localPagesForMerge = await listMeetingPageMetadataForCalendar({") &&

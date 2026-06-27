@@ -280,6 +280,7 @@ export default function MeetingScheduleShell() {
   const meetingsRef = useRef<Page[]>([]);
   const observedPageRevisionRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
+  const completedMeetingDailyLinkKeyRef = useRef("");
   const [hotCachePreferences, setHotCachePreferences] = useState(
     DEFAULT_HOT_CACHE_PREFERENCES
   );
@@ -782,7 +783,24 @@ export default function MeetingScheduleShell() {
   // Auto-link completed meeting notes into the corresponding 每日纪要 page.
   useEffect(() => {
     if (!meetingNotes.length) return;
-    void linkCompletedMeetingsToDaily(meetingNotes);
+    const linkKey = meetingNotes
+      .map(
+        (entry) =>
+          `${entry.page.id}:${entry.page.updated_at}:${entry.dateKey}:${entry.recordingStatus}:${entry.traceStatus}`
+      )
+      .sort()
+      .join("|");
+    if (completedMeetingDailyLinkKeyRef.current === linkKey) return;
+    completedMeetingDailyLinkKeyRef.current = linkKey;
+    const notesToLink = meetingNotes;
+    return scheduleMeetingIdleTask(() => {
+      void linkCompletedMeetingsToDaily(notesToLink).catch((error) => {
+        if (completedMeetingDailyLinkKeyRef.current === linkKey) {
+          completedMeetingDailyLinkKeyRef.current = "";
+        }
+        console.warn("Meeting daily-note autolink failed", error);
+      });
+    }, 1600);
   }, [meetingNotes]);
 
   const openForm = (dateKey: string) => {

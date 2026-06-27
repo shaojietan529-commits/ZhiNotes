@@ -11303,6 +11303,18 @@ function run() {
     "listDailyPageMetadataForCalendar({",
     "Meeting calendar must link completed meetings to daily notes through bounded daily metadata reads."
   );
+  for (const snippet of [
+    "completedMeetingDailyLinkKeyRef",
+    "scheduleMeetingIdleTask(() =>",
+    "linkCompletedMeetingsToDaily(notesToLink)",
+  ]) {
+    assertSourceIncludes(
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      snippet,
+      "Meeting calendar must defer completed-meeting daily-note autolinking and skip duplicate batches so first paint stays responsive."
+    );
+  }
   assertSourceExcludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
