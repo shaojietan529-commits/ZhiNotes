@@ -127,6 +127,7 @@ function FilePreviewComponent({
   });
   const [convertedPreviewRequested, setConvertedPreviewRequested] =
     useState(false);
+  const [fileStructureRequested, setFileStructureRequested] = useState(false);
   const capability = useMemo(
     () => getFilePreviewCapabilityByKind(attrs.kind),
     [attrs.kind]
@@ -141,6 +142,7 @@ function FilePreviewComponent({
     setLoading(true);
     setConvertedPreview({ status: "idle" });
     setConvertedPreviewRequested(false);
+    setFileStructureRequested(false);
 
     getStoredPageFile(attrs.fileId)
       .then((stored) => {
@@ -279,13 +281,28 @@ function FilePreviewComponent({
       }),
     [attrs.size, bulkImportPhrase]
   );
+  const waitingForConvertedStructure = Boolean(
+    file &&
+      fileStructureRequested &&
+      isOnDemandConvertedPreviewKind(file.kind) &&
+      !isLegacyOfficeFile(file) &&
+      (convertedPreview.status === "idle" || convertedPreview.status === "loading")
+  );
   const fileStructure = useMemo(() => {
-    if (!file) return null;
+    if (!file || !fileStructureRequested || waitingForConvertedStructure) {
+      return null;
+    }
     return buildFilePreviewStructure({
       file,
       previewHtml: getStructurePreviewHtml(file, srcDoc, convertedPreview),
     });
-  }, [convertedPreview, file, srcDoc]);
+  }, [
+    convertedPreview,
+    file,
+    fileStructureRequested,
+    srcDoc,
+    waitingForConvertedStructure,
+  ]);
 
   const recordActionReceipt = (
     actionKind: FilePreviewActionKind,
@@ -586,6 +603,14 @@ function FilePreviewComponent({
     }
   };
 
+  const handleRequestFileStructure = () => {
+    setFileStructureRequested(true);
+    if (file && isOnDemandConvertedPreviewKind(file.kind) && !isLegacyOfficeFile(file)) {
+      setConvertedPreviewRequested(true);
+      setExpanded(true);
+    }
+  };
+
   const handleExportLastActionReceipt = () => {
     if (!lastActionReceipt) return;
     setExportingActionReceipt(true);
@@ -808,8 +833,16 @@ function FilePreviewComponent({
           supportLevel={supportLevel}
         />
 
-        {fileStructure && (
+        {fileStructure ? (
           <FilePreviewStructureStrip structure={fileStructure} />
+        ) : (
+          file && (
+            <FilePreviewStructureRequestStrip
+              waiting={waitingForConvertedStructure}
+              requested={fileStructureRequested}
+              onRequest={handleRequestFileStructure}
+            />
+          )
         )}
 
         {attrs.kind === "spreadsheet" && (
@@ -1015,6 +1048,44 @@ function CapabilityRouteItem({
           {suffix}
         </span>
       )}
+    </div>
+  );
+}
+
+function FilePreviewStructureRequestStrip({
+  waiting,
+  requested,
+  onRequest,
+}: {
+  waiting: boolean;
+  requested: boolean;
+  onRequest: () => void;
+}) {
+  return (
+    <div className="border-b border-zinc-100 bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+            文档结构
+          </div>
+          <p className="mt-1 text-[11px] leading-5 text-zinc-400">
+            {waiting
+              ? "正在先生成本地预览，完成后会自动分析标题、表格和链接。"
+              : "按需分析标题、表格、链接和媒体分布，避免打开页面时解析大报告。"}
+          </p>
+          <p className="mt-1 text-[11px] leading-5 text-zinc-400">
+            结构分析只读取当前预览内容，不读取文件 bytes，不上传，不调用云服务或 AI，不写入 workspace。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRequest}
+          disabled={waiting}
+          className="w-fit rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {waiting ? "等待预览" : requested ? "重新分析" : "分析结构"}
+        </button>
+      </div>
     </div>
   );
 }
