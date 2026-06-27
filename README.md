@@ -1268,7 +1268,11 @@ Current local actions:
   cloud as source of truth, local as hot cache. The report is metadata-only and
   does not read page bodies, database row values, comment bodies, file bytes,
   secrets, or remote data; it does not upload, clear cache, or write server
-  data.
+  data. The same report now includes a Web Beta sync fluidity gate: it checks
+  whether page/database failures, pending ACKs, hot-cache evidence, timing
+  samples, and cache rebuild blockers are clean enough to enter owner review,
+  while keeping real cloud source-of-truth enablement disabled until explicit
+  owner confirmation.
 - Inspect page/database pending queues with ACK-style retry visibility:
   last upload attempt time, failed receipt count, latest failure reason, and a
   small failed id/key sample. This is still metadata-only: it does not read page

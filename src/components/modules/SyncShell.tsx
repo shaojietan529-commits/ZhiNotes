@@ -16406,6 +16406,7 @@ function CloudNativeFluidityPanel({
   const primaryBlocker = report.gates.find((gate) => gate.status === "block");
   const primaryWarning = report.gates.find((gate) => gate.status === "warn");
   const primaryGate = primaryBlocker ?? primaryWarning ?? report.gates[0] ?? null;
+  const webBetaSyncGate = report.web_beta_sync_gate;
 
   return (
     <section
@@ -16454,7 +16455,7 @@ function CloudNativeFluidityPanel({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <CacheRebuildFact
           label="结论"
           value={formatCloudNativeVerdict(report.verdict)}
@@ -16484,6 +16485,53 @@ function CloudNativeFluidityPanel({
           value={String(report.summary.performance_samples)}
           detail={`首屏 ${formatPerformanceMs(report.summary.average_local_first_ms)}`}
         />
+        <CacheRebuildFact
+          label="Beta gate"
+          value={formatCloudNativeGateStatus(webBetaSyncGate.status)}
+          detail={
+            webBetaSyncGate.can_request_owner_review_now
+              ? "可进入 owner review"
+              : `${webBetaSyncGate.blocking_reasons.length} 阻断 · ${webBetaSyncGate.warning_reasons.length} 提醒`
+          }
+        />
+      </div>
+
+      <div className="mt-4 rounded-md border border-zinc-200 px-3 py-3 text-xs dark:border-zinc-800">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+              Web Beta 同步门禁
+            </div>
+            <p className="mt-1 leading-5 text-zinc-400">
+              真实云端主库启用：仍关闭，等待 owner 明确确认
+            </p>
+          </div>
+          <CloudNativeFluidityStatusPill status={webBetaSyncGate.status} />
+        </div>
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <div>
+            <p className="font-medium text-zinc-700 dark:text-zinc-200">
+              当前证据
+            </p>
+            <ul className="mt-2 space-y-1 text-zinc-500 dark:text-zinc-400">
+              {webBetaSyncGate.evidence.map((item) => (
+                <li key={item}>- {item}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="font-medium text-zinc-700 dark:text-zinc-200">
+              下一步
+            </p>
+            <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+              {webBetaSyncGate.next_action}
+            </p>
+            <p className="mt-2 leading-5 text-zinc-400">
+              Owner review 前需要：
+              {webBetaSyncGate.required_before_owner_review[0]}
+            </p>
+          </div>
+        </div>
       </div>
 
       {primaryGate ? (
@@ -16605,6 +16653,12 @@ function CloudNativeFluidityStatusPill({
 function formatCloudNativeVerdict(verdict: CloudNativeFluidityVerdict) {
   if (verdict === "ready") return "达标";
   if (verdict === "partial") return "部分达标";
+  return "阻断";
+}
+
+function formatCloudNativeGateStatus(status: CloudNativeFluidityGateStatus) {
+  if (status === "pass") return "通过";
+  if (status === "warn") return "提醒";
   return "阻断";
 }
 

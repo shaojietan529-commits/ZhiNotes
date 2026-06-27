@@ -6023,6 +6023,26 @@ function run() {
       "Cloud-native fluidity report must check pending queue visibility.",
     ],
     [
+      "web_beta_sync_gate",
+      "Cloud-native fluidity report must expose a Web Beta sync gate.",
+    ],
+    [
+      "can_request_owner_review_now",
+      "Cloud-native fluidity report must say whether sync can enter owner review.",
+    ],
+    [
+      "can_enable_cloud_source_of_truth_now: false",
+      "Cloud-native fluidity report must keep real cloud source-of-truth enablement disabled.",
+    ],
+    [
+      "blocking_reasons",
+      "Cloud-native fluidity report must explain Web Beta sync blockers.",
+    ],
+    [
+      "required_before_owner_review",
+      "Cloud-native fluidity report must list owner-review prerequisites.",
+    ],
+    [
       "本地只是热缓存",
       "Cloud-native fluidity report must state that local data is a hot cache.",
     ],
@@ -6151,6 +6171,14 @@ function run() {
     [
       "预热本机入口",
       "Sync UI must let the user run metadata-only route warmup from the fluidity panel.",
+    ],
+    [
+      "Web Beta 同步门禁",
+      "Sync UI must render the Web Beta sync fluidity gate.",
+    ],
+    [
+      "真实云端主库启用：仍关闭",
+      "Sync UI must keep real cloud source-of-truth enablement visibly disabled.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);

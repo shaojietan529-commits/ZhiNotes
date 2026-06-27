@@ -12,6 +12,7 @@ const files = {
   hotDataPlan: "src/lib/sync/webBetaHotDataPlan.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
+  cloudNativeFluidityReport: "src/lib/sync/cloudNativeFluidityReport.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
@@ -300,6 +301,9 @@ function run() {
   const hotDataPlan = readProjectFile(files.hotDataPlan);
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
+  const cloudNativeFluidityReport = readProjectFile(
+    files.cloudNativeFluidityReport
+  );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
     files.coreManifestCompareReceipt
@@ -1437,6 +1441,36 @@ function run() {
     syncShell,
     "迁移 dry-run 明细",
     "Sync UI must render per-domain migration dry-run checks."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    "web_beta_sync_gate",
+    "Smoke verifier must keep the Web Beta sync fluidity gate in the cloud-native report."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    "can_enable_cloud_source_of_truth_now: false",
+    "Web Beta sync gate must keep real cloud source-of-truth enablement disabled."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    "blocking_reasons",
+    "Web Beta sync gate must explain blocking reasons."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "Web Beta 同步门禁",
+    "Sync UI must render the Web Beta sync fluidity gate."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "真实云端主库启用：仍关闭",
+    "Sync UI must keep real cloud source-of-truth enablement visibly disabled."
   );
   assertIncludes(
     files.localMetadataManifest,

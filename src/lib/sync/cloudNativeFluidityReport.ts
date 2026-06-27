@@ -40,6 +40,19 @@ export interface CloudNativeFluidityMetric {
   status: CloudNativeFluidityGateStatus;
 }
 
+export interface CloudNativeFluidityWebBetaSyncGate {
+  id: "web-beta-sync-fluidity-gate";
+  title: string;
+  status: CloudNativeFluidityGateStatus;
+  can_request_owner_review_now: boolean;
+  can_enable_cloud_source_of_truth_now: false;
+  blocking_reasons: string[];
+  warning_reasons: string[];
+  evidence: string[];
+  required_before_owner_review: string[];
+  next_action: string;
+}
+
 export interface CloudNativeFluidityReport {
   format: "zhinote-cloud-native-fluidity-report";
   format_version: 1;
@@ -80,9 +93,14 @@ export interface CloudNativeFluidityReport {
     performance_samples: number;
     average_local_first_ms: number | null;
     average_page_open_ms: number | null;
+    web_beta_sync_gate_status: CloudNativeFluidityGateStatus;
+    web_beta_sync_blockers: number;
+    web_beta_sync_warnings: number;
+    can_request_owner_review_now: boolean;
   };
   gates: CloudNativeFluidityGate[];
   metrics: CloudNativeFluidityMetric[];
+  web_beta_sync_gate: CloudNativeFluidityWebBetaSyncGate;
   next_action: string;
 }
 
@@ -255,6 +273,20 @@ export function buildCloudNativeFluidityReport(
   const warnings = gates.filter((gate) => gate.status === "warn").length;
   const verdict: CloudNativeFluidityVerdict =
     blockers > 0 ? "blocked" : warnings > 0 ? "partial" : "ready";
+  const webBetaSyncGate = buildWebBetaSyncGate({
+    gates,
+    pagePendingRows,
+    databasePendingRows,
+    syncLogPendingRows: input.syncSummary?.pending ?? 0,
+    pageFailedRows: input.pageStatus.failed,
+    databaseFailedRows: input.databaseStatus.failed,
+    hotCacheIndexRows,
+    hotCacheRouteTargets,
+    performanceSamples: input.performanceSnapshots.length,
+    averageLocalFirstMs: localFirstAverageMs,
+    averagePageOpenMs,
+    cacheRebuildBlockers: input.cacheRebuildPreflightReceipt.summary.blockers,
+  });
 
   return {
     format: "zhinote-cloud-native-fluidity-report",
@@ -297,6 +329,11 @@ export function buildCloudNativeFluidityReport(
       performance_samples: input.performanceSnapshots.length,
       average_local_first_ms: roundMetric(localFirstAverageMs),
       average_page_open_ms: roundMetric(averagePageOpenMs),
+      web_beta_sync_gate_status: webBetaSyncGate.status,
+      web_beta_sync_blockers: webBetaSyncGate.blocking_reasons.length,
+      web_beta_sync_warnings: webBetaSyncGate.warning_reasons.length,
+      can_request_owner_review_now:
+        webBetaSyncGate.can_request_owner_review_now,
     },
     gates,
     metrics: [
@@ -318,7 +355,90 @@ export function buildCloudNativeFluidityReport(
       metric("page-open", "页面打开", roundMetric(averagePageOpenMs), "ms", `<=${PAGE_OPEN_TARGET_MS}ms`, getTimingGateStatus(averagePageOpenMs, PAGE_OPEN_TARGET_MS)),
       metric("ready-jobs", "Ready jobs", hotCacheReadyJobs, "jobs", "越多代表可预热范围越明确", hotCacheReadyJobs > 0 ? "pass" : "warn"),
     ],
+    web_beta_sync_gate: webBetaSyncGate,
     next_action: getNextAction(verdict, gates),
+  };
+}
+
+function buildWebBetaSyncGate(input: {
+  gates: CloudNativeFluidityGate[];
+  pagePendingRows: number;
+  databasePendingRows: number;
+  syncLogPendingRows: number;
+  pageFailedRows: number;
+  databaseFailedRows: number;
+  hotCacheIndexRows: number;
+  hotCacheRouteTargets: number;
+  performanceSamples: number;
+  averageLocalFirstMs: number | null;
+  averagePageOpenMs: number | null;
+  cacheRebuildBlockers: number;
+}): CloudNativeFluidityWebBetaSyncGate {
+  const failedRows = input.pageFailedRows + input.databaseFailedRows;
+  const pendingRows =
+    input.pagePendingRows + input.databasePendingRows + input.syncLogPendingRows;
+  const gateBlockers = input.gates
+    .filter((gate) => gate.status === "block")
+    .map((gate) => `${gate.title}: ${gate.next_action}`);
+  const gateWarnings = input.gates
+    .filter((gate) => gate.status === "warn")
+    .map((gate) => `${gate.title}: ${gate.next_action}`);
+  const blockingReasons = unique([
+    ...gateBlockers,
+    ...(failedRows > 0
+      ? [
+          `仍有 ${failedRows} 条页面/数据库失败回执，真实云端主库启用前必须先确认重试或人工处理。`,
+        ]
+      : []),
+    ...(input.cacheRebuildBlockers > 0
+      ? [
+          `缓存重建预检仍有 ${input.cacheRebuildBlockers} 个 blocker，不能把本地缓存当作可安全重建。`,
+        ]
+      : []),
+  ]);
+  const warningReasons = unique([
+    ...gateWarnings,
+    ...(pendingRows > 0
+      ? [
+          `还有 ${pendingRows} 条 pending/queued 本地变更；这不是数据丢失，但 Web Beta 前需要看到稳定 ACK。`,
+        ]
+      : []),
+  ]).filter((reason) => !blockingReasons.includes(reason));
+  const status: CloudNativeFluidityGateStatus =
+    blockingReasons.length > 0
+      ? "block"
+      : warningReasons.length > 0
+        ? "warn"
+        : "pass";
+
+  return {
+    id: "web-beta-sync-fluidity-gate",
+    title: "Web Beta 同步流畅度门禁",
+    status,
+    can_request_owner_review_now: status === "pass",
+    can_enable_cloud_source_of_truth_now: false,
+    blocking_reasons: blockingReasons,
+    warning_reasons: warningReasons,
+    evidence: [
+      `页面 pending ${input.pagePendingRows} / failed ${input.pageFailedRows}`,
+      `数据库 pending ${input.databasePendingRows} / failed ${input.databaseFailedRows}`,
+      `sync_log pending ${input.syncLogPendingRows}`,
+      `热缓存索引 ${input.hotCacheIndexRows} 行 / ${input.hotCacheRouteTargets} 个可预热入口`,
+      `本机耗时样本 ${input.performanceSamples} 条，首屏 ${formatGateMs(input.averageLocalFirstMs)}，页面打开 ${formatGateMs(input.averagePageOpenMs)}`,
+    ],
+    required_before_owner_review: [
+      "云 workspace 已绑定，页面和数据库同步都开启。",
+      "页面/数据库失败回执为 0，pending 队列能稳定收到 ACK。",
+      "常用入口热缓存索引已建立，刷新后先显示 metadata。",
+      "本机首屏和页面打开耗时达到目标，或有清楚的优化剩余项。",
+      "缓存重建预检没有 blocker，真实启用仍需 owner 二次确认。",
+    ],
+    next_action:
+      status === "block"
+        ? blockingReasons[0] ?? "先处理同步阻断项。"
+        : status === "warn"
+          ? warningReasons[0] ?? "继续收集本机样本并观察 ACK。"
+          : "同步流畅度可以进入 owner review；真实云端主库启用仍保持关闭，等待 owner 明确确认。",
   };
 }
 
@@ -370,6 +490,14 @@ function average(values: number[]): number | null {
 function roundMetric(value: number | null): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return Math.round(value);
+}
+
+function formatGateMs(value: number | null): string {
+  return value === null ? "暂无" : `${Math.round(value)}ms`;
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values)];
 }
 
 function getNextAction(
