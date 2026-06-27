@@ -728,6 +728,7 @@ check(
 );
 
 const usePageHook = read("src/hooks/usePage.ts");
+const pendingPageDrafts = read("src/lib/pages/pendingPageDrafts.ts");
 check(
   usePageHook.includes("const cloud = await fetchCloudPageById(pageId)") &&
     usePageHook.includes("remoteIsAtLeastAsFresh(remoteRecord, localPage)") &&
@@ -759,6 +760,23 @@ check(
     usePageHook.includes("hydrateRemotePageIntoLocalCache(record)") &&
     !usePageHook.includes("await pushCloudPages([record])"),
   "usePage 编辑保存应先更新本机热缓存和临时草稿并登记 pending 队列；云端上传和本地 SQLite 回填都不能阻塞输入"
+);
+check(
+  pendingPageDrafts.includes("window.sessionStorage.setItem") &&
+    pendingPageDrafts.includes("window.sessionStorage.removeItem") &&
+    pendingPageDrafts.includes("session_storage_only: true") &&
+    pendingPageDrafts.includes("stores_page_body_html: true") &&
+    pendingPageDrafts.includes("stores_page_yjs: false") &&
+    pendingPageDrafts.includes("uploads_workspace_data: false") &&
+    pendingPageDrafts.includes("writes_server_data: false") &&
+    pendingPageDrafts.includes("enters_sync_log: false") &&
+    pendingPageDrafts.includes("stores_source_of_truth: false") &&
+    pendingPageDrafts.includes("PENDING_PAGE_DRAFT_MAX_CHARS") &&
+    !pendingPageDrafts.includes("window.localStorage") &&
+    !pendingPageDrafts.includes("recordSyncChange") &&
+    !pendingPageDrafts.includes("queueCloudPagePush") &&
+    !pendingPageDrafts.includes("pushCloudPages"),
+  "pending page draft 必须只是同标签页短时恢复层：可存正文 HTML，但不能存 Yjs、不能写云端/同步日志/localStorage"
 );
 check(
   !usePageHook.includes("updatePage(pageId, updates)") &&

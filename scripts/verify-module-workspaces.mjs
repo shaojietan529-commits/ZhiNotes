@@ -210,8 +210,16 @@ check(
   usePageHook.includes("readPendingPageDraft(pageId)") &&
     usePageHook.indexOf("readPendingPageDraft(pageId)") <
       usePageHook.indexOf("useWorkspaceStore.getState().pages.find") &&
-    pendingPageDrafts.includes("PENDING_PAGE_DRAFT_TTL_MS"),
-  "usePage 必须优先读取新建页面的内存草稿，让每日纪要 + 点击后无需等待本地缓存写入"
+    pendingPageDrafts.includes("PENDING_PAGE_DRAFT_TTL_MS") &&
+    pendingPageDrafts.includes("PENDING_PAGE_DRAFT_MAX_CHARS") &&
+    pendingPageDrafts.includes("window.sessionStorage.setItem") &&
+    pendingPageDrafts.includes("window.sessionStorage.removeItem") &&
+    pendingPageDrafts.includes("session_storage_only: true") &&
+    pendingPageDrafts.includes("stores_page_body_html: true") &&
+    pendingPageDrafts.includes("uploads_workspace_data: false") &&
+    pendingPageDrafts.includes("enters_sync_log: false") &&
+    !pendingPageDrafts.includes("window.localStorage"),
+  "usePage 必须优先读取新建页面的内存/同标签页短时恢复草稿；草稿不得写入 localStorage、云端或同步日志"
 );
 check(
   pageShell.includes("const loadEditorModule = () => import(\"@/components/editor/Editor\")") &&

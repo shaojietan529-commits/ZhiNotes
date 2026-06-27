@@ -109,6 +109,7 @@ const files = {
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
+  pendingPageDrafts: "src/lib/pages/pendingPageDrafts.ts",
   scopedPageMetadata: "src/lib/pages/scopedPageMetadata.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
@@ -468,6 +469,7 @@ function run() {
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
+  const pendingPageDrafts = readProjectFile(files.pendingPageDrafts);
   const scopedPageMetadata = readProjectFile(files.scopedPageMetadata);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
@@ -2031,6 +2033,30 @@ function run() {
     ],
   ]) {
     assertSourceExcludes(files.pageRouteHandoff, pageRouteHandoff, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "window.localStorage",
+      "Pending page drafts must not persist page body recovery data across browser sessions.",
+    ],
+    [
+      "recordSyncChange",
+      "Pending page drafts must not create upload log rows.",
+    ],
+    [
+      "INSERT INTO sync_log",
+      "Pending page drafts must not write pending upload rows.",
+    ],
+    [
+      "queueCloudPagePush",
+      "Pending page drafts must not enqueue cloud uploads.",
+    ],
+    [
+      "pushCloudPages",
+      "Pending page drafts must not call cloud push.",
+    ],
+  ]) {
+    assertSourceExcludes(files.pendingPageDrafts, pendingPageDrafts, snippet, message);
   }
   for (const [snippet, message] of [
     [
@@ -11769,6 +11795,54 @@ function run() {
       usePage,
       "clearPendingPageDraft(record.id)",
       "Page edit drafts must clear after the local cache write catches up.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "window.sessionStorage.setItem",
+      "Pending page drafts must survive same-tab refresh without waiting for local cache writes.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "window.sessionStorage.removeItem",
+      "Pending page drafts must clear from same-tab recovery storage after local cache catches up.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "session_storage_only: true",
+      "Pending page drafts must declare that recovery storage is session-only.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "stores_page_body_html: true",
+      "Pending page drafts may store page body HTML only for short-lived refresh recovery.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "stores_page_yjs: false",
+      "Pending page drafts must not store Yjs editor state.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "uploads_workspace_data: false",
+      "Pending page drafts must not upload workspace data.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "enters_sync_log: false",
+      "Pending page drafts must stay out of the sync log.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "PENDING_PAGE_DRAFT_MAX_CHARS",
+      "Pending page drafts must stay bounded so large imported notes do not bloat session storage.",
     ],
     [
       files.localFirstPageNavigationUtil,

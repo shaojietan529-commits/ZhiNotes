@@ -40,6 +40,7 @@ const files = {
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
+  pendingPageDrafts: "src/lib/pages/pendingPageDrafts.ts",
   scopedPageMetadata: "src/lib/pages/scopedPageMetadata.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
@@ -325,6 +326,7 @@ function run() {
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
+  const pendingPageDrafts = readProjectFile(files.pendingPageDrafts);
   const scopedPageMetadata = readProjectFile(files.scopedPageMetadata);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
@@ -2171,6 +2173,19 @@ function run() {
     if (pageRouteHandoff.includes(forbiddenPageRouteHandoffSnippet)) {
       failures.push(
         `${files.pageRouteHandoff} must not include ${forbiddenPageRouteHandoffSnippet}: route handoff must stay local-only and out of sync.`
+      );
+    }
+  }
+  for (const forbiddenPendingDraftSnippet of [
+    "window.localStorage",
+    "recordSyncChange",
+    "INSERT INTO sync_log",
+    "queueCloudPagePush",
+    "pushCloudPages",
+  ]) {
+    if (pendingPageDrafts.includes(forbiddenPendingDraftSnippet)) {
+      failures.push(
+        `${files.pendingPageDrafts} must not include ${forbiddenPendingDraftSnippet}: pending drafts must stay session-only and out of sync.`
       );
     }
   }
@@ -4330,6 +4345,54 @@ function run() {
     usePage,
     "clearPendingPageDraft(record.id)",
     "Page editing must clear the immediate draft after local cache persistence catches up."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "window.sessionStorage.setItem",
+    "Pending page drafts must survive same-tab refresh while local cache persistence catches up."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "window.sessionStorage.removeItem",
+    "Pending page drafts must clear same-tab recovery storage after local cache persistence catches up."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "session_storage_only: true",
+    "Pending page drafts must declare session-only recovery storage."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "stores_page_body_html: true",
+    "Pending page drafts may store page body HTML only for short-lived refresh recovery."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "stores_page_yjs: false",
+    "Pending page drafts must not store Yjs editor state."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "uploads_workspace_data: false",
+    "Pending page drafts must not upload workspace data."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "enters_sync_log: false",
+    "Pending page drafts must stay out of the sync log."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "PENDING_PAGE_DRAFT_MAX_CHARS",
+    "Pending page drafts must stay bounded for large imported notes."
   );
   assertIncludes(
     files.localFirstPageNavigationUtil,
