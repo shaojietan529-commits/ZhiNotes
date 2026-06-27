@@ -749,17 +749,21 @@ check(
   "usePage 打开页面时应拉取云端正文快照，并在云端不旧于本地时回填本地缓存"
 );
 check(
-  usePageHook.includes("setPage(localPage)") &&
+  usePageHook.includes("setPageForCurrentLoad(localPage)") &&
     usePageHook.includes("const [page, setPage] = useState<Page | null>(() => {") &&
     usePageHook.includes("const [loading, setLoading] = useState(() => {") &&
+    usePageHook.includes("const loadRequestRef = useRef(0);") &&
+    usePageHook.includes("const requestId = ++loadRequestRef.current;") &&
+    usePageHook.includes("if (!isCurrentLoad()) return;") &&
+    usePageHook.includes("loadRequestRef.current += 1;") &&
     usePageHook.indexOf("return readLocalFirstPageSeed(pageId);") <
       usePageHook.indexOf("const load = useCallback(async () => {") &&
-    usePageHook.includes("} else {\n      setPage(null);\n    }") &&
+    usePageHook.includes("} else {\n      setPageForCurrentLoad(null);\n      setLoadingForCurrentLoad(true);\n    }") &&
     usePageHook.includes("readLocalFirstPageSeed") &&
     usePageHook.includes("if (!dbReady)") &&
-    usePageHook.includes("setLoading(!localPage)") &&
-    usePageHook.includes("setLoading(false)") &&
-    usePageHook.includes("schedulePageCloudHydration(pageId, localPage, setPage, upsertPages)") &&
+    usePageHook.includes("setLoadingForCurrentLoad(!localPage)") &&
+    usePageHook.includes("setLoadingForCurrentLoad(false)") &&
+    usePageHook.includes("schedulePageCloudHydration(\n        pageId,\n        localPage,\n        setPageForCurrentLoad,\n        upsertPages\n      )") &&
     usePageHook.includes("requestIdleCallback(run") &&
     usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
     !usePageHook.includes("cloudPagePromise") &&

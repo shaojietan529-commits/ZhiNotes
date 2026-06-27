@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   applyRemotePages,
   getPage,
@@ -66,30 +66,41 @@ export function usePage(
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const pageRevision = usePageRecordRevision(pageId);
+  const loadRequestRef = useRef(0);
 
   const load = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
+    const isCurrentLoad = () => loadRequestRef.current === requestId;
+    const setPageForCurrentLoad = (next: Page | null) => {
+      if (isCurrentLoad()) setPage(next);
+    };
+    const setLoadingForCurrentLoad = (next: boolean) => {
+      if (isCurrentLoad()) setLoading(next);
+    };
+
     if (!enabled || !pageId) {
-      setPage(null);
-      setLoading(false);
+      setPageForCurrentLoad(null);
+      setLoadingForCurrentLoad(false);
       return;
     }
-    setLoading(true);
     let localPage = readLocalFirstPageSeed(pageId);
     if (localPage) {
       upsertPages([localPage]);
-      setPage(localPage);
-      setLoading(false);
+      setPageForCurrentLoad(localPage);
+      setLoadingForCurrentLoad(false);
     } else {
-      setPage(null);
+      setPageForCurrentLoad(null);
+      setLoadingForCurrentLoad(true);
     }
 
     if (!dbReady) {
-      setLoading(!localPage);
+      setLoadingForCurrentLoad(!localPage);
       return;
     }
 
     try {
       const storedPage = await getPage(pageId);
+      if (!isCurrentLoad()) return;
       if (storedPage) {
         localPage = storedPage;
         clearPendingPageDraft(pageId);
@@ -101,37 +112,49 @@ export function usePage(
 
     if (localPage) {
       upsertPages([localPage]);
-      setPage(localPage);
-      setLoading(false);
-      schedulePageCloudHydration(pageId, localPage, setPage, upsertPages);
+      setPageForCurrentLoad(localPage);
+      setLoadingForCurrentLoad(false);
+      schedulePageCloudHydration(
+        pageId,
+        localPage,
+        setPageForCurrentLoad,
+        upsertPages
+      );
       return;
     }
 
     try {
       const cloud = await fetchCloudPageById(pageId);
+      if (!isCurrentLoad()) return;
       const cloudApplied = await applyCloudPageLookup(
         cloud,
         localPage,
-        setPage,
+        setPageForCurrentLoad,
         upsertPages
       );
+      if (!isCurrentLoad()) return;
       if (cloudApplied) {
         clearPendingPageDraft(pageId);
         clearPageRouteHandoff(pageId);
       } else if (!localPage) {
-        setPage(null);
+        setPageForCurrentLoad(null);
       }
     } catch {
-      if (!localPage) setPage(null);
+      if (!localPage) setPageForCurrentLoad(null);
     } finally {
-      setLoading(false);
+      setLoadingForCurrentLoad(false);
     }
   }, [enabled, pageId, dbReady, upsertPages]);
 
   useEffect(() => {
+    let cancelled = false;
     queueMicrotask(() => {
-      load();
+      if (!cancelled) void load();
     });
+    return () => {
+      cancelled = true;
+      loadRequestRef.current += 1;
+    };
   }, [load, pageRevision]);
 
   const update = useCallback(

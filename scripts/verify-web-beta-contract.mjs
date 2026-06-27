@@ -2090,11 +2090,27 @@ function run() {
       "usePage must seed the loading state before the first client render when route metadata exists.",
     ],
     [
+      "const loadRequestRef = useRef(0);",
+      "usePage must track the latest load request so stale page hydration cannot overwrite the current route.",
+    ],
+    [
+      "const requestId = ++loadRequestRef.current;",
+      "usePage must give each load attempt a monotonic request id.",
+    ],
+    [
+      "if (!isCurrentLoad()) return;",
+      "usePage must ignore stale async local or cloud hydration results.",
+    ],
+    [
+      "loadRequestRef.current += 1;",
+      "usePage must invalidate queued or in-flight loads when the route changes.",
+    ],
+    [
       "if (!dbReady)",
       "usePage must keep local-first route seeds visible while IndexedDB is still starting.",
     ],
     [
-      "setLoading(!localPage)",
+      "setLoadingForCurrentLoad(!localPage)",
       "usePage must avoid showing not-found when a local-first route seed exists before IndexedDB readiness.",
     ],
     [
@@ -2102,7 +2118,7 @@ function run() {
       "usePage must clear route handoffs after durable local or cloud hydration.",
     ],
     [
-      "schedulePageCloudHydration(pageId, localPage, setPage, upsertPages)",
+      "schedulePageCloudHydration(\n        pageId,\n        localPage,\n        setPageForCurrentLoad,\n        upsertPages\n      )",
       "usePage must defer cloud body hydration until after a local page has painted.",
     ],
     [

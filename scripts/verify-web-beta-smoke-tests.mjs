@@ -2452,19 +2452,43 @@ function run() {
   assertIncludes(
     files.usePage,
     usePage,
+    "const loadRequestRef = useRef(0);",
+    "Page opening must track the latest load request so stale page hydration cannot overwrite the current route."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "const requestId = ++loadRequestRef.current;",
+    "Page opening must give each load attempt a monotonic request id."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "if (!isCurrentLoad()) return;",
+    "Page opening must ignore stale async local or cloud hydration results."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "loadRequestRef.current += 1;",
+    "Page opening must invalidate queued or in-flight loads when the route changes."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
     "if (!dbReady)",
     "Page opening must keep local-first route seeds visible while IndexedDB is still starting."
   );
   assertIncludes(
     files.usePage,
     usePage,
-    "setLoading(!localPage)",
+    "setLoadingForCurrentLoad(!localPage)",
     "Page opening must avoid showing not-found when a local-first route seed exists before IndexedDB readiness."
   );
   assertIncludes(
     files.usePage,
     usePage,
-    "schedulePageCloudHydration(pageId, localPage, setPage, upsertPages)",
+    "schedulePageCloudHydration(\n        pageId,\n        localPage,\n        setPageForCurrentLoad,\n        upsertPages\n      )",
     "Page opening must defer cloud body hydration until after a local page has painted."
   );
   assertIncludes(
