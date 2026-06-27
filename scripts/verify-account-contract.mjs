@@ -1143,6 +1143,9 @@ check(
     dailyNotesShell.includes('onPointerDown={() =>') &&
     dailyNotesShell.includes('primeDailyNoteOpen(note, "daily-open")') &&
     dailyNotesShell.includes('onFocus={() => primeDailyNoteOpen(note, "daily-open")}') &&
+    dailyNotesShell.includes("const warmDailyNoteContent = useCallback") &&
+    dailyNotesShell.includes("onMouseEnter={() => warmDailyNoteContent(note)}") &&
+    dailyNotesShell.includes("setPeekInitialPage(toDailyNoteSeed(seededNote, note));") &&
     dailyNotesShell.includes("openingNoteId === note.id") &&
     dailyNotesShell.includes("正在打开纪要…") &&
     dailyNotesShell.includes("const handlePeekReady = useCallback") &&

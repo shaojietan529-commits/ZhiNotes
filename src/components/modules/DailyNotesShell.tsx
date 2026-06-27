@@ -146,6 +146,7 @@ export default function DailyNotesShell() {
   const loadRequestRef = useRef(0);
   const observedPageRevisionRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
+  const dailyNoteContentWarmupIdsRef = useRef<Set<string>>(new Set());
   const { viewMonth, setViewMonth } =
     useCalendarViewMonthPreference("daily");
   const [hotCachePreferences, setHotCachePreferences] = useState(
@@ -171,6 +172,41 @@ export default function DailyNotesShell() {
       );
     }
   }, [router]);
+
+  const warmDailyNoteContent = useCallback(
+    (note: DailyNote) => {
+      if (!dbReady || note.content_text != null) return;
+      if (dailyNoteContentWarmupIdsRef.current.has(note.id)) return;
+      dailyNoteContentWarmupIdsRef.current.add(note.id);
+
+      const existing = useWorkspaceStore.getState().getPageById(note.id);
+      if (existing?.content_text != null) {
+        const warmedNote = toDailyNoteSeed(existing, note);
+        rememberPendingPageDraft(warmedNote);
+        rememberPageRouteHandoff(warmedNote, "daily-open");
+        upsertPages([warmedNote]);
+        return;
+      }
+
+      scheduleDailyIdleTask(() => {
+        void getPage(note.id)
+          .then((storedPage) => {
+            if (!storedPage) return;
+            const warmedNote = toDailyNoteSeed(storedPage, note);
+            rememberPendingPageDraft(warmedNote);
+            rememberPageRouteHandoff(warmedNote, "daily-open");
+            upsertPages([warmedNote]);
+            setPeekInitialPage((current) =>
+              current?.id === warmedNote.id ? warmedNote : current
+            );
+          })
+          .catch(() => {
+            dailyNoteContentWarmupIdsRef.current.delete(note.id);
+          });
+      }, 80);
+    },
+    [dbReady, upsertPages]
+  );
 
   useEffect(() => {
     const cancelPageShellPreload = scheduleDailyIdleTask(() => {
@@ -687,6 +723,7 @@ export default function DailyNotesShell() {
       upsertPages([note]);
       rememberPendingPageDraft(note);
       rememberPageRouteHandoff(note, source);
+      warmDailyNoteContent(note);
       try {
         router.prefetch(`/page/${note.id}`);
       } catch {
@@ -694,7 +731,7 @@ export default function DailyNotesShell() {
         // the metadata needed for immediate first paint.
       }
     },
-    [router, upsertPages, warmPageRoute]
+    [router, upsertPages, warmDailyNoteContent, warmPageRoute]
   );
 
   const openDailyNoteFullPage = useCallback(
@@ -732,9 +769,11 @@ export default function DailyNotesShell() {
 
   const openNotePage = useCallback((note: DailyNote) => {
     primeDailyNoteOpen(note, "daily-open");
+    const seededNote =
+      useWorkspaceStore.getState().getPageById(note.id) ?? note;
+    setPeekInitialPage(toDailyNoteSeed(seededNote, note));
     setOpeningNoteId(note.id);
     setPeekPageId(note.id);
-    setPeekInitialPage(note);
   }, [primeDailyNoteOpen]);
 
   const handlePeekReady = useCallback((pageId: string) => {
@@ -1050,6 +1089,7 @@ export default function DailyNotesShell() {
                           setDragOverDateKey(null);
                         }}
                         onPointerEnter={warmPageRoute}
+                        onMouseEnter={() => warmDailyNoteContent(note)}
                         onPointerDown={() =>
                           primeDailyNoteOpen(note, "daily-open")
                         }
@@ -1136,6 +1176,7 @@ export default function DailyNotesShell() {
                         setDragOverDateKey(null);
                       }}
                       onPointerEnter={warmPageRoute}
+                      onMouseEnter={() => warmDailyNoteContent(note)}
                       onPointerDown={() =>
                         primeDailyNoteOpen(note, "daily-open")
                       }
@@ -1670,6 +1711,16 @@ function writeOptimisticDailyHotCache({
     ],
     source: "optimistic-local",
   });
+}
+
+function toDailyNoteSeed(page: Page, fallback: DailyNote): DailyNote {
+  const dateKey = fallback.dailyDateKey || readDailyNoteDateKey(page);
+  return {
+    ...page,
+    dailyDateKey: dateKey,
+    cloudOnly: fallback.cloudOnly,
+    hotCacheOnly: fallback.hotCacheOnly,
+  };
 }
 
 function pageToRemoteRecord(page: Page): RemotePageRecord {

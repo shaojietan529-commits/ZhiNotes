@@ -2756,6 +2756,24 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "const warmDailyNoteContent = useCallback",
+    "Daily existing-note intent must be able to warm local body content without cloud reads."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "onMouseEnter={() => warmDailyNoteContent(note)}",
+    "Daily existing-note hover must warm local body content before the peek modal asks for it."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "setPeekInitialPage(toDailyNoteSeed(seededNote, note));",
+    "Daily existing-note opens must seed the peek modal before showing it."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "data-testid={`daily-calendar-day-${key}`}",
     "Daily calendar day cells must expose stable targets for hover-to-create checks."
   );
