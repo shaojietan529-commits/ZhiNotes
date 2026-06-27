@@ -82,6 +82,7 @@ const files = {
   commentVersionReplayAckGate:
     "src/lib/sync/commentVersionReplayAckGate.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
+  coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
@@ -431,6 +432,9 @@ function run() {
     files.commentVersionReplayAckGate
   );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
+  const coreManifestCompareReceipt = readProjectFile(
+    files.coreManifestCompareReceipt
+  );
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
@@ -619,6 +623,7 @@ function run() {
     [files.commentVersionReplayReceipt, commentVersionReplayReceipt],
     [files.commentVersionReplayAckGate, commentVersionReplayAckGate],
     [files.localMetadataManifest, localMetadataManifest],
+    [files.coreManifestCompareReceipt, coreManifestCompareReceipt],
     [files.hotCachePolicyPlan, hotCachePolicyPlan],
     [files.hotCacheWarmupReceipt, hotCacheWarmupReceipt],
     [files.hotCacheSelectionSettings, hotCacheSelectionSettings],
@@ -1003,6 +1008,26 @@ function run() {
       "Sync UI must expose structured core manifest comparison summary counts.",
     ],
     [
+      "buildCoreManifestCompareReceipt",
+      "Sync UI must build a metadata-only receipt for the core manifest comparison.",
+    ],
+    [
+      "withCoreManifestCompareReceipt",
+      "Sync UI must attach a receipt to both successful and failed core manifest comparison reports.",
+    ],
+    [
+      "导出对账收据",
+      "Sync UI must expose the core manifest compare receipt export.",
+    ],
+    [
+      "zhinote-core-manifest-compare-receipt",
+      "Sync UI must export core manifest compare receipts with a stable receipt filename.",
+    ],
+    [
+      "收据 ID",
+      "Sync UI must show the core manifest compare receipt id for audit traceability.",
+    ],
+    [
       "countDelta",
       "Core manifest comparison must expose count deltas for mismatch triage.",
     ],
@@ -1128,6 +1153,64 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-core-manifest-compare-receipt"',
+      "Core manifest compare receipt must declare a stable receipt format.",
+    ],
+    [
+      'receipt_status: "metadata-only-local-receipt"',
+      "Core manifest compare receipt must stay local and metadata-only.",
+    ],
+    [
+      "includes_only_counts_watermarks_and_gates: true",
+      "Core manifest compare receipt must explicitly limit itself to counts, watermarks, and gates.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Core manifest compare receipt must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Core manifest compare receipt must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Core manifest compare receipt must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Core manifest compare receipt must not read file bytes.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Core manifest compare receipt must not upload workspace data.",
+    ],
+    [
+      "overwrites_local_cache: false",
+      "Core manifest compare receipt must not overwrite local cache.",
+    ],
+    [
+      "receipt_hash",
+      "Core manifest compare receipt must include a stable hash for audit traceability.",
+    ],
+    [
+      "owner_review",
+      "Core manifest compare receipt must preserve owner review requirements.",
+    ],
+    [
+      "stableStringify",
+      "Core manifest compare receipt must use stable hashing input ordering.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.coreManifestCompareReceipt,
+      coreManifestCompareReceipt,
+      snippet,
+      message
+    );
   }
 
   for (const [snippet, message] of [

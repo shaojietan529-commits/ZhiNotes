@@ -239,6 +239,9 @@ check(
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
 const databaseSyncClient = read("src/lib/database/accountDatabaseSync.ts");
 const syncDashboardShell = read("src/components/modules/SyncShell.tsx");
+const coreManifestCompareReceipt = read(
+  "src/lib/sync/coreManifestCompareReceipt.ts"
+);
 const reconcilePageSyncBody = pageSyncClient.slice(
   pageSyncClient.indexOf("export async function reconcilePageSync")
 );
@@ -467,8 +470,30 @@ check(
     syncDashboardShell.includes("getCloudDatabaseManifestSummary") &&
     syncDashboardShell.includes("页面、每日纪要、会议和数据库这四个") &&
     syncDashboardShell.includes("不读取页面正文、数据库值、评论正文或文件字节") &&
-    syncDashboardShell.includes("不会上传或清理本机缓存"),
-  "同步页应提供页面、每日纪要、会议和数据库的核心域云端 manifest metadata-only 对账，只读 count/watermark/pending，不读取正文或上传/清缓存"
+    syncDashboardShell.includes("不会上传或清理本机缓存") &&
+    syncDashboardShell.includes("buildCoreManifestCompareReceipt") &&
+    syncDashboardShell.includes("withCoreManifestCompareReceipt") &&
+    syncDashboardShell.includes("导出对账收据") &&
+    syncDashboardShell.includes("zhinote-core-manifest-compare-receipt") &&
+    syncDashboardShell.includes("收据 ID") &&
+    coreManifestCompareReceipt.includes(
+      'format: "zhinote-core-manifest-compare-receipt"'
+    ) &&
+    coreManifestCompareReceipt.includes(
+      'receipt_status: "metadata-only-local-receipt"'
+    ) &&
+    coreManifestCompareReceipt.includes("reads_page_body_text: false") &&
+    coreManifestCompareReceipt.includes("reads_database_row_values: false") &&
+    coreManifestCompareReceipt.includes("reads_comment_bodies: false") &&
+    coreManifestCompareReceipt.includes("reads_file_bytes: false") &&
+    coreManifestCompareReceipt.includes("uploads_workspace_data: false") &&
+    coreManifestCompareReceipt.includes("overwrites_local_cache: false") &&
+    coreManifestCompareReceipt.includes(
+      "includes_only_counts_watermarks_and_gates: true"
+    ) &&
+    coreManifestCompareReceipt.includes("buildCoreManifestCompareReceipt") &&
+    coreManifestCompareReceipt.includes("receipt_hash"),
+  "同步页应提供页面、每日纪要、会议和数据库的核心域云端 manifest metadata-only 对账和本地收据，只读 count/watermark/pending，不读取正文或上传/清缓存"
 );
 check(
   pageSyncClient.includes("fetchCloudPageMetadata") &&

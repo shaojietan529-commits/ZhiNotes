@@ -13,6 +13,7 @@ const files = {
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
+  coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
@@ -296,6 +297,9 @@ function run() {
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
+  const coreManifestCompareReceipt = readProjectFile(
+    files.coreManifestCompareReceipt
+  );
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
@@ -1476,6 +1480,78 @@ function run() {
     syncShell,
     "buildCoreManifestCompareSummary",
     "Core manifest compare must expose a structured summary for rebuild readiness."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildCoreManifestCompareReceipt",
+    "Core manifest compare must build a metadata-only local receipt."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出对账收据",
+    "Core manifest compare must expose receipt export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "zhinote-core-manifest-compare-receipt",
+    "Core manifest compare receipt export must use the receipt format in its filename."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "收据 ID",
+    "Core manifest compare must show the receipt id."
+  );
+  assertIncludes(
+    files.coreManifestCompareReceipt,
+    coreManifestCompareReceipt,
+    'format: "zhinote-core-manifest-compare-receipt"',
+    "Core manifest compare receipt must declare its stable format."
+  );
+  assertIncludes(
+    files.coreManifestCompareReceipt,
+    coreManifestCompareReceipt,
+    'receipt_status: "metadata-only-local-receipt"',
+    "Core manifest compare receipt must remain a local metadata-only receipt."
+  );
+  assertIncludes(
+    files.coreManifestCompareReceipt,
+    coreManifestCompareReceipt,
+    "includes_only_counts_watermarks_and_gates: true",
+    "Core manifest compare receipt must only include counts, watermarks, and gates."
+  );
+  assertIncludes(
+    files.coreManifestCompareReceipt,
+    coreManifestCompareReceipt,
+    "reads_page_body_text: false",
+    "Core manifest compare receipt must not read page body text."
+  );
+  assertIncludes(
+    files.coreManifestCompareReceipt,
+    coreManifestCompareReceipt,
+    "reads_database_row_values: false",
+    "Core manifest compare receipt must not read database row values."
+  );
+  assertIncludes(
+    files.coreManifestCompareReceipt,
+    coreManifestCompareReceipt,
+    "uploads_workspace_data: false",
+    "Core manifest compare receipt must not upload workspace data."
+  );
+  assertIncludes(
+    files.coreManifestCompareReceipt,
+    coreManifestCompareReceipt,
+    "overwrites_local_cache: false",
+    "Core manifest compare receipt must not overwrite local cache."
+  );
+  assertIncludes(
+    files.coreManifestCompareReceipt,
+    coreManifestCompareReceipt,
+    "buildCoreManifestCompareReceipt",
+    "Core manifest compare receipt builder must be exported for Sync UI."
   );
   assertIncludes(
     files.syncShell,

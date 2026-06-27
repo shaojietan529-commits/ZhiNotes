@@ -289,6 +289,10 @@ import {
   type CloudMasterReconcileReport,
 } from "@/lib/sync/cloudMasterReconcile";
 import {
+  buildCoreManifestCompareReceipt,
+  type CoreManifestCompareReceipt,
+} from "@/lib/sync/coreManifestCompareReceipt";
+import {
   buildLocalMetadataManifest,
   type LocalMetadataManifestDomain,
   type LocalMetadataManifestDomainStatus,
@@ -580,6 +584,7 @@ type CoreManifestCompareReport = {
   };
   domains: CoreManifestDomainCompare[];
   dateDiffReport: CoreDateManifestDiffReport;
+  receipt: CoreManifestCompareReceipt;
   privacyNote: string;
   message?: string;
 };
@@ -1152,6 +1157,15 @@ function buildCoreManifestCompareSummary(
     dateBucketsCompared: dateDiffReport.comparedDates,
     dateBucketsWithDiff: dateDiffReport.datesWithDiff,
     dateDiffRowsShown: dateDiffReport.rowsShown,
+  };
+}
+
+function withCoreManifestCompareReceipt(
+  report: Omit<CoreManifestCompareReport, "receipt">
+): CoreManifestCompareReport {
+  return {
+    ...report,
+    receipt: buildCoreManifestCompareReceipt(report),
   };
 }
 
@@ -3937,19 +3951,21 @@ function SyncDashboard() {
         },
       });
 
-      setCoreManifestCompareReport({
-        checkedAt: new Date().toISOString(),
+      const checkedAt = new Date().toISOString();
+      setCoreManifestCompareReport(withCoreManifestCompareReceipt({
+        checkedAt,
         status: getCoreManifestOverallStatus(domains),
         summary: buildCoreManifestCompareSummary(domains, dateDiffReport),
         domains,
         dateDiffReport,
         privacyNote:
           "核心域云端 manifest 对账只读取页面、每日纪要、会议和数据库的本地/云端 metadata summary 的 count、deleted、watermark、日期桶数量和 pending 数，不读取页面正文、数据库值、评论正文、会议链接、会议号、密码或文件字节；不会上传或清理本机缓存。",
-      });
+      }));
     } catch (err) {
       console.error("[Zhinote] Failed to compare core manifests:", err);
-      setCoreManifestCompareReport({
-        checkedAt: new Date().toISOString(),
+      const checkedAt = new Date().toISOString();
+      setCoreManifestCompareReport(withCoreManifestCompareReceipt({
+        checkedAt,
         status: "blocked",
         summary: buildCoreManifestCompareSummary([]),
         domains: [],
@@ -3960,7 +3976,7 @@ function SyncDashboard() {
           err instanceof Error
             ? `核心域云端 manifest 对账失败：${err.message}`
             : "核心域云端 manifest 对账失败：未知错误。",
-      });
+      }));
     } finally {
       setCoreManifestCompareBusy(false);
     }
@@ -17436,14 +17452,33 @@ function CoreManifestComparePanel({
             pending 队列判断是否已对齐。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onRun}
-          disabled={busy}
-          className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
-        >
-          {busy ? "检查中..." : "只读检查核心域"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onRun}
+            disabled={busy}
+            className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+          >
+            {busy ? "检查中..." : "只读检查核心域"}
+          </button>
+          {report ? (
+            <button
+              type="button"
+              onClick={() =>
+                downloadJsonFile(
+                  `zhinote-core-manifest-compare-receipt-${fileSafeTimestamp()}.json`,
+                  {
+                    ...report.receipt,
+                    exported_at: new Date().toISOString(),
+                  }
+                )
+              }
+              className="w-fit rounded-md border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
+            >
+              导出对账收据
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {report ? (
@@ -17515,6 +17550,8 @@ function CoreManifestComparePanel({
           <CoreDateManifestDiffPanel report={report.dateDiffReport} />
           <p className="rounded-md bg-zinc-50 px-3 py-2 text-[11px] leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
             {report.privacyNote} 检查时间：{formatDate(report.checkedAt)}
+            <br />
+            收据 ID：{report.receipt.receipt_id}
           </p>
         </div>
       ) : (
