@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -1443,22 +1442,6 @@ export default function MeetingScheduleShell() {
     ]
   );
 
-  const primeMeetingPageOpen = useCallback(
-    (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
-      warmMeetingPageRoute();
-      upsertPages([page]);
-      rememberPendingPageDraft(page);
-      rememberPageRouteHandoff(page, source);
-      try {
-        router.prefetch(`/page/${page.id}`);
-      } catch {
-        // Prefetch is a speed hint. The handoff and pending draft already cover
-        // the first paint when the browser cache or cloud is slow.
-      }
-    },
-    [router, upsertPages, warmMeetingPageRoute]
-  );
-
   const openMeetingFullPage = useCallback(
     (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
       openPage(page, { source });
@@ -1812,11 +1795,22 @@ export default function MeetingScheduleShell() {
                   const unseen = !seenIds.has(entry.page.id);
                   return (
                     <li key={entry.page.id}>
-                      <Link
+                      <a
                         href={`/page/${entry.page.id}`}
-                        onClick={() => {
+                        onClick={(event) => {
                           markSeen(entry.page.id);
-                          primeMeetingPageOpen(entry.page, "meeting-open");
+                          if (
+                            event.defaultPrevented ||
+                            event.button !== 0 ||
+                            event.metaKey ||
+                            event.ctrlKey ||
+                            event.shiftKey ||
+                            event.altKey
+                          ) {
+                            return;
+                          }
+                          event.preventDefault();
+                          openMeetingFullPage(entry.page, "meeting-open");
                         }}
                         className="flex w-full items-center gap-3 px-2 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                       >
@@ -1837,7 +1831,7 @@ export default function MeetingScheduleShell() {
                             {entry.platform}
                           </span>
                         )}
-                      </Link>
+                      </a>
                     </li>
                   );
                 })}

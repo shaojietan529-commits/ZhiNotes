@@ -2208,6 +2208,10 @@ function run() {
       "Meeting full-page note opens must route through local-first navigation.",
     ],
     [
+      'openMeetingFullPage(entry.page, "meeting-open")',
+      "Meeting note list clicks must use local-first navigation instead of a legacy Link-only handoff.",
+    ],
+    [
       'openPage(pageId, { source: "meeting-open" })',
       "Meeting fallback page-id opens must still use local-first navigation when a metadata seed is available.",
     ],
@@ -2308,6 +2312,12 @@ function run() {
     meetingScheduleShell,
     "const result = await pushCloudPages(records)",
     "Meeting creation persistence must not wait on a direct pushCloudPages call."
+  );
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "primeMeetingPageOpen",
+    "Meeting schedule must not keep the old meeting page prime helper after moving note links to local-first navigation."
   );
   for (const [snippet, message] of [
     [

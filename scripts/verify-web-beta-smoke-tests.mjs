@@ -2352,6 +2352,7 @@ function run() {
     "useLocalFirstPageNavigation",
     'openPage(page, { source: "meeting-create" })',
     "openPage(page, { source })",
+    'openMeetingFullPage(entry.page, "meeting-open")',
     'openPage(pageId, { source: "meeting-open" })',
   ]) {
     assertIncludes(
@@ -2361,6 +2362,12 @@ function run() {
       "Meeting full-page openings must use the shared local-first page navigation path."
     );
   }
+  assertExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "primeMeetingPageOpen",
+    "Meeting schedule must not keep the old meeting page prime helper after moving note links to local-first navigation."
+  );
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
