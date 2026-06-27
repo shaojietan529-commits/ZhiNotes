@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import {
   countActiveDatabases,
@@ -62,6 +63,7 @@ const STATUS_ORDER: ModuleStatus[] = ["active", "beta", "planned"];
 
 export default function ModuleDashboard() {
   const router = useRouter();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
@@ -148,7 +150,7 @@ export default function ModuleDashboard() {
   const handleNewDatabase = async () => {
     const database = await createDatabase({ title: "未命名投研数据库" });
     setDatabaseCount((count) => count + 1);
-    router.push(`/database/${database.id}`);
+    openDatabase(database.id);
   };
 
   const handleStartModule = async (module: PlatformModule) => {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import {
   getAllDatabases,
   getDatabaseRowCount,
@@ -95,6 +96,7 @@ function DatabasesContent() {
 
 function DatabasesDashboard() {
   const router = useRouter();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const [snapshots, setSnapshots] = useState<DatabaseModuleSnapshot[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingDashboard, setExportingDashboard] = useState(false);
@@ -268,7 +270,7 @@ function DatabasesDashboard() {
         icon: "DB",
       });
       await loadDashboard();
-      router.push(`/database/${database.id}`);
+      openDatabase(database.id);
     } catch (err) {
       console.error("[Zhinote] Failed to create database:", err);
       window.alert("数据库创建失败，请查看控制台。");
@@ -527,7 +529,7 @@ function DatabasesDashboard() {
             report={templateRowReadiness}
             exporting={exportingTemplateReadiness}
             onExport={handleExportTemplateReadiness}
-            onOpen={(databaseId) => router.push(`/database/${databaseId}`)}
+            onOpen={(databaseId) => openDatabase(databaseId)}
           />
         </div>
 
@@ -543,7 +545,7 @@ function DatabasesDashboard() {
             report={importExportReadiness}
             exporting={exportingImportExportReadiness}
             onExport={handleExportImportExportReadiness}
-            onOpen={(databaseId) => router.push(`/database/${databaseId}`)}
+            onOpen={(databaseId) => openDatabase(databaseId)}
           />
         </div>
 
@@ -724,7 +726,7 @@ function DatabasesDashboard() {
                     <ViewReadinessDatabaseCard
                       key={item.database_id}
                       item={item}
-                      onOpen={() => router.push(`/database/${item.database_id}`)}
+                      onOpen={() => openDatabase(item.database_id)}
                     />
                   ))}
                 </div>
@@ -751,7 +753,7 @@ function DatabasesDashboard() {
                   <DatabaseCard
                     key={item.database_id}
                     item={item}
-                    onOpen={() => router.push(`/database/${item.database_id}`)}
+                    onOpen={() => openDatabase(item.database_id)}
                   />
                 ))}
               </div>

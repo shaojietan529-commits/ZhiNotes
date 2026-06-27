@@ -2,6 +2,7 @@
 
 import { Fragment, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import {
   getWorkspaceSetting,
@@ -102,6 +103,7 @@ export default function QuickSearch() {
   const searchRequestRef = useRef(0);
   const deferredFullTextSearchTimerRef = useRef<number | null>(null);
   const router = useRouter();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const openPage = useLocalFirstPageNavigation();
   const pages = useWorkspaceStore((s) => s.pages);
   const { refresh, upsertPages } = usePages({ autoLoad: false });
@@ -303,7 +305,7 @@ export default function QuickSearch() {
     setOpen(false);
     setQuery("");
     setResults([]);
-    router.push(`/database/${database.id}`);
+    openDatabase(database.id);
   };
 
   const handleOpenModuleHub = () => {
@@ -1007,10 +1009,10 @@ export default function QuickSearch() {
       return;
     }
     if (entry.type === "database") {
-      router.push(`/database/${entry.database.id}`);
       setOpen(false);
       setQuery("");
       setResults([]);
+      openDatabase(entry.database.id);
       return;
     }
     handleSelect(entry.page.id, entry.page);

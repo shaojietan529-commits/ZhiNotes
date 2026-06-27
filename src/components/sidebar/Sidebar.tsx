@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
@@ -301,6 +302,7 @@ export default function Sidebar() {
   const sidebarOpen = useWorkspaceStore((s) => s.sidebarOpen);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
   const openPage = useLocalFirstPageNavigation();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const [backupRunning, setBackupRunning] = useState(false);
   const [markdownExportRunning, setMarkdownExportRunning] = useState(false);
   const [zipExportRunning, setZipExportRunning] = useState(false);
@@ -465,7 +467,7 @@ export default function Sidebar() {
     try {
       const db = await createDatabase({ title: "未命名数据库" });
       await refreshDatabases();
-      router.push(`/database/${db.id}`);
+      openDatabase(db.id);
     } catch (err) {
       console.error("[Zhinote] Failed to create database:", err);
     }
@@ -874,7 +876,7 @@ export default function Sidebar() {
               {databases.map((db) => (
                 <li key={db.id}>
                   <button
-                    onClick={() => router.push(`/database/${db.id}`)}
+                    onClick={() => openDatabase(db.id)}
                     className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-left text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                   >
                     <span className="shrink-0">{db.icon || "🗄️"}</span>

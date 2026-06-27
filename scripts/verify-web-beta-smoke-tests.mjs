@@ -46,6 +46,10 @@ const files = {
   pageCloudSync: "src/hooks/usePageCloudSync.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
+  localFirstDatabaseNavigation:
+    "src/hooks/useLocalFirstDatabaseNavigation.ts",
+  localFirstDatabaseNavigationUtil:
+    "src/lib/database/localFirstDatabaseNavigation.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
@@ -83,6 +87,7 @@ const files = {
   pageShell: "src/components/providers/PageShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   notesShell: "src/components/modules/NotesShell.tsx",
+  databasesShell: "src/components/modules/DatabasesShell.tsx",
   filesShell: "src/components/modules/FilesShell.tsx",
   meetingsShell: "src/components/modules/MeetingsShell.tsx",
   reportsShell: "src/components/modules/ReportsShell.tsx",
@@ -338,6 +343,12 @@ function run() {
   const localFirstPageNavigationUtil = readProjectFile(
     files.localFirstPageNavigationUtil
   );
+  const localFirstDatabaseNavigation = readProjectFile(
+    files.localFirstDatabaseNavigation
+  );
+  const localFirstDatabaseNavigationUtil = readProjectFile(
+    files.localFirstDatabaseNavigationUtil
+  );
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
@@ -377,6 +388,7 @@ function run() {
   const pageShell = readProjectFile(files.pageShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const notesShell = readProjectFile(files.notesShell);
+  const databasesShell = readProjectFile(files.databasesShell);
   const filesShell = readProjectFile(files.filesShell);
   const meetingsShell = readProjectFile(files.meetingsShell);
   const reportsShell = readProjectFile(files.reportsShell);
@@ -4217,6 +4229,72 @@ function run() {
     'openPage(pageId, { source: "database-row-open" })',
     "Database row page-id fallback must still use local-first navigation without a metadata seed."
   );
+  assertIncludes(
+    files.localFirstDatabaseNavigation,
+    localFirstDatabaseNavigation,
+    "warmDatabaseShellModule();",
+    "Shared database navigation must warm the database shell before route navigation."
+  );
+  assertIncludes(
+    files.localFirstDatabaseNavigation,
+    localFirstDatabaseNavigation,
+    "router.prefetch(href)",
+    "Shared database navigation must prefetch database detail routes as a speed hint."
+  );
+  assertIncludes(
+    files.localFirstDatabaseNavigationUtil,
+    localFirstDatabaseNavigationUtil,
+    "@/components/providers/DatabasePageShell",
+    "Shared database navigation must preload the database page shell without reading database rows."
+  );
+  for (const [sourceLabel, source, snippets] of [
+    [
+      files.sidebar,
+      sidebar,
+      ["useLocalFirstDatabaseNavigation", "openDatabase(db.id)"],
+    ],
+    [
+      files.quickSearch,
+      quickSearch,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "openDatabase(database.id)",
+        "openDatabase(entry.database.id)",
+      ],
+    ],
+    [
+      files.databasesShell,
+      databasesShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "openDatabase(database.id)",
+        "openDatabase(databaseId)",
+        "openDatabase(item.database_id)",
+      ],
+    ],
+    [
+      files.moduleDashboard,
+      moduleDashboard,
+      ["useLocalFirstDatabaseNavigation", "openDatabase(database.id)"],
+    ],
+    [
+      files.pageImportPlanPanel,
+      pageImportPlanPanel,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "openDatabase(res.first_database_id)",
+      ],
+    ],
+  ]) {
+    for (const snippet of snippets) {
+      assertIncludes(
+        sourceLabel,
+        source,
+        snippet,
+        "Common database opens must warm and prefetch the database route through the shared local-first database navigation helper."
+      );
+    }
+  }
   assertIncludes(
     files.databaseShell,
     databaseShell,
