@@ -872,8 +872,11 @@ check(
     pageCloudSyncHook.includes("window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus)") &&
     pageCloudSyncHook.includes("window.removeEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus)") &&
     pageCloudSyncHook.includes('event.key?.startsWith("zhinote.pagesync.")') &&
-    pageCloudSyncHook.includes("CustomEvent<PendingCloudPageSyncStatus>"),
-  "页面云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，避免本地输入进入上传队列后 UI 等轮询才更新"
+    pageCloudSyncHook.includes("CustomEvent<PendingCloudPageSyncStatus>") &&
+    pageCloudSyncHook.includes("PENDING_STATUS_SYNC_DELAY_MS") &&
+    pageCloudSyncHook.includes("schedulePendingStatusSync") &&
+    pageCloudSyncHook.includes("detail.pending + detail.queued"),
+  "页面云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync"
 );
 check(
   pageCloudSyncHook.includes("PAGE_LOCAL_UPDATE_EVENT") &&

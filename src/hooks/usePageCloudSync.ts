@@ -34,6 +34,7 @@ import {
 const SYNC_INTERVAL_MS = 8 * 1000;
 const INITIAL_SYNC_DELAY_MS = 800;
 const EDIT_DEBOUNCE_MS = 4 * 1000;
+const PENDING_STATUS_SYNC_DELAY_MS = 1200;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.pagesync.leaderLease.v1";
 const LEASE_TTL_MS = 18 * 1000;
@@ -186,6 +187,15 @@ export function usePageCloudSync() {
   useEffect(() => {
     if (!dbReady) return;
     let editSyncTimer: number | undefined;
+    let pendingStatusSyncTimer: number | undefined;
+    const schedulePendingStatusSync = () => {
+      if (pendingStatusSyncTimer !== undefined) {
+        window.clearTimeout(pendingStatusSyncTimer);
+      }
+      pendingStatusSyncTimer = window.setTimeout(() => {
+        void runSync({ quick: true });
+      }, PENDING_STATUS_SYNC_DELAY_MS);
+    };
     refreshPendingStatus();
     const initialSyncTimer = window.setTimeout(() => {
       void runSync({ quick: true });
@@ -233,6 +243,10 @@ export function usePageCloudSync() {
       const detail = (event as CustomEvent<PendingCloudPageSyncStatus>).detail;
       if (detail) {
         setPendingStatus(detail);
+        const totalPending = detail.pending + detail.queued;
+        if (detail.enabled && totalPending > 0) {
+          schedulePendingStatusSync();
+        }
       } else {
         refreshPendingStatus();
       }
@@ -247,6 +261,9 @@ export function usePageCloudSync() {
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
       if (editSyncTimer !== undefined) window.clearTimeout(editSyncTimer);
+      if (pendingStatusSyncTimer !== undefined) {
+        window.clearTimeout(pendingStatusSyncTimer);
+      }
       window.clearTimeout(initialSyncTimer);
       window.clearInterval(interval);
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);

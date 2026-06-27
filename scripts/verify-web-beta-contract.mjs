@@ -2223,6 +2223,24 @@ function run() {
   assertSourceIncludes(
     files.pageCloudSync,
     pageCloudSync,
+    "PENDING_STATUS_SYNC_DELAY_MS",
+    "Page cloud sync must define a short pending-status quick sync delay."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "schedulePendingStatusSync",
+    "Page pending queue status events must trigger quick sync without waiting for the normal poll."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "detail.pending + detail.queued",
+    "Page pending status quick sync must include durable and in-memory page queues."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
     "window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate)",
     "Page cloud sync must listen for same-tab local page updates."
   );
