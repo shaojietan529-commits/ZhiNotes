@@ -83,6 +83,8 @@ const files = {
     "src/lib/sync/commentVersionReplayAckGate.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
+  cacheRebuildPreflightReceipt:
+    "src/lib/sync/cacheRebuildPreflightReceipt.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
@@ -435,6 +437,9 @@ function run() {
   const coreManifestCompareReceipt = readProjectFile(
     files.coreManifestCompareReceipt
   );
+  const cacheRebuildPreflightReceipt = readProjectFile(
+    files.cacheRebuildPreflightReceipt
+  );
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
@@ -624,6 +629,7 @@ function run() {
     [files.commentVersionReplayAckGate, commentVersionReplayAckGate],
     [files.localMetadataManifest, localMetadataManifest],
     [files.coreManifestCompareReceipt, coreManifestCompareReceipt],
+    [files.cacheRebuildPreflightReceipt, cacheRebuildPreflightReceipt],
     [files.hotCachePolicyPlan, hotCachePolicyPlan],
     [files.hotCacheWarmupReceipt, hotCacheWarmupReceipt],
     [files.hotCacheSelectionSettings, hotCacheSelectionSettings],
@@ -5129,6 +5135,26 @@ function run() {
       "Cache rebuild entrypoint must warn before rebuilding with local pending edits.",
     ],
     [
+      "buildCacheRebuildPreflightReceipt",
+      "Cache rebuild entrypoint must generate a metadata-only dry-run preflight receipt.",
+    ],
+    [
+      "导出重建预检收据",
+      "Cache rebuild entrypoint must expose dry-run preflight receipt export.",
+    ],
+    [
+      "重建 dry-run 预检",
+      "Cache rebuild entrypoint must render dry-run preflight gates.",
+    ],
+    [
+      "zhinote-cache-rebuild-preflight-receipt",
+      "Cache rebuild preflight export must use a stable receipt filename.",
+    ],
+    [
+      "收据 ID",
+      "Cache rebuild preflight panel must show a receipt id for traceability.",
+    ],
+    [
       "前往账号页重建缓存",
       "Cache rebuild entrypoint must hand off to the confirmed account-page rebuild action.",
     ],
@@ -5139,6 +5165,109 @@ function run() {
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-cache-rebuild-preflight-receipt"',
+      "Cache rebuild preflight receipt must declare a stable export format.",
+    ],
+    [
+      'receipt_status: "metadata-only-dry-run"',
+      "Cache rebuild preflight receipt must stay a metadata-only dry run.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Cache rebuild preflight receipt must target cloud master plus local hot cache.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cache rebuild preflight receipt must not read page body text.",
+    ],
+    [
+      "reads_page_yjs: false",
+      "Cache rebuild preflight receipt must not read page Yjs payloads.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cache rebuild preflight receipt must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Cache rebuild preflight receipt must not read comments.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cache rebuild preflight receipt must not read file bytes.",
+    ],
+    [
+      "writes_server_data: false",
+      "Cache rebuild preflight receipt must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cache rebuild preflight receipt must not upload workspace data.",
+    ],
+    [
+      "clears_local_cache: false",
+      "Cache rebuild preflight receipt must not clear local cache.",
+    ],
+    [
+      "mutates_local_cache_records: false",
+      "Cache rebuild preflight receipt must not mutate local cache records.",
+    ],
+    [
+      "exports_raw_workspace_ids: false",
+      "Cache rebuild preflight receipt must not export raw workspace ids.",
+    ],
+    [
+      "includes_only_counts_watermarks_hashes_and_gates: true",
+      "Cache rebuild preflight receipt must only include counts, watermarks, hashes, and gates.",
+    ],
+    [
+      "requires_account_page_confirmation: true",
+      "Cache rebuild preflight receipt must require account-page confirmation.",
+    ],
+    [
+      "sync_page_must_not_directly_rebuild_cache: true",
+      "Cache rebuild preflight receipt must keep Sync page from directly rebuilding cache.",
+    ],
+    [
+      "ready_preflight_required_before_rebuild: true",
+      "Cache rebuild preflight receipt must require ready preflight before rebuild.",
+    ],
+    [
+      "cloud_manifest_is_source_of_truth: true",
+      "Cache rebuild preflight receipt must preserve cloud manifest source-of-truth policy.",
+    ],
+    [
+      "local_pending_edits_block_rebuild: true",
+      "Cache rebuild preflight receipt must block rebuild while local pending edits exist.",
+    ],
+    [
+      "blocked-pending",
+      "Cache rebuild preflight receipt must expose a blocked-pending status.",
+    ],
+    [
+      "blocked-manifest-mismatch",
+      "Cache rebuild preflight receipt must expose a blocked-manifest-mismatch status.",
+    ],
+    [
+      "needs-manifest-check",
+      "Cache rebuild preflight receipt must expose a needs-manifest-check status.",
+    ],
+    [
+      "stableStringify",
+      "Cache rebuild preflight receipt must use stable hash input ordering.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.cacheRebuildPreflightReceipt,
+      cacheRebuildPreflightReceipt,
+      snippet,
+      message
+    );
+  }
+
   for (const [snippet, message] of [
     [
       "export async function getCloudPageManifestSummary",

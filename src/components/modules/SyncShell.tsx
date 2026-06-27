@@ -293,6 +293,12 @@ import {
   type CoreManifestCompareReceipt,
 } from "@/lib/sync/coreManifestCompareReceipt";
 import {
+  buildCacheRebuildPreflightReceipt,
+  type CacheRebuildPreflightReceipt,
+  type CacheRebuildPreflightGateStatus,
+  type CacheRebuildPreflightStatus,
+} from "@/lib/sync/cacheRebuildPreflightReceipt";
+import {
   buildLocalMetadataManifest,
   type LocalMetadataManifestDomain,
   type LocalMetadataManifestDomainStatus,
@@ -1676,6 +1682,25 @@ function SyncDashboard() {
       workspaceIdentity,
     ]
   );
+  const cacheRebuildPreflightReceipt = useMemo(
+    () =>
+      buildCacheRebuildPreflightReceipt({
+        pageStatus: pagePendingStatus,
+        databaseStatus: databasePendingStatus,
+        totalSyncPending: syncSummary?.pending ?? 0,
+        cloudMasterReconcile,
+        localMetadataManifest,
+        coreManifestReceipt: coreManifestCompareReport?.receipt ?? null,
+      }),
+    [
+      cloudMasterReconcile,
+      coreManifestCompareReport,
+      databasePendingStatus,
+      localMetadataManifest,
+      pagePendingStatus,
+      syncSummary?.pending,
+    ]
+  );
   const hotCachePolicyPlan = useMemo(
     () =>
       buildHotCachePolicyPlan({
@@ -3035,6 +3060,16 @@ function SyncDashboard() {
       `zhinote-hot-cache-warmup-receipt-${fileSafeTimestamp()}.json`,
       {
         ...hotCacheWarmupReceipt,
+        exported_at: new Date().toISOString(),
+      }
+    );
+  };
+
+  const handleExportCacheRebuildPreflightReceipt = () => {
+    downloadJsonFile(
+      `zhinote-cache-rebuild-preflight-receipt-${fileSafeTimestamp()}.json`,
+      {
+        ...cacheRebuildPreflightReceipt,
         exported_at: new Date().toISOString(),
       }
     );
@@ -5313,6 +5348,8 @@ function SyncDashboard() {
           pageStatus={pagePendingStatus}
           databaseStatus={databasePendingStatus}
           totalSyncPending={syncSummary?.pending ?? 0}
+          receipt={cacheRebuildPreflightReceipt}
+          onExportReceipt={handleExportCacheRebuildPreflightReceipt}
           onOpenAccount={() => router.push("/account")}
         />
 
@@ -15971,11 +16008,15 @@ function CacheRebuildSafetyPanel({
   pageStatus,
   databaseStatus,
   totalSyncPending,
+  receipt,
+  onExportReceipt,
   onOpenAccount,
 }: {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
   totalSyncPending: number;
+  receipt: CacheRebuildPreflightReceipt;
+  onExportReceipt: () => void;
   onOpenAccount: () => void;
 }) {
   const pagePending = pageStatus.pending + pageStatus.queued;
@@ -15998,6 +16039,9 @@ function CacheRebuildSafetyPanel({
     : disabledDomains.length > 0
       ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300"
       : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  const preflightLabel = formatCacheRebuildPreflightStatus(receipt.status);
+  const preflightClass = cacheRebuildPreflightStatusClass(receipt.status);
+  const visibleGates = receipt.gates.slice(0, 4);
 
   return (
     <section
@@ -16022,16 +16066,25 @@ function CacheRebuildSafetyPanel({
             这里不执行清缓存动作，只做重建前安全判断，并跳转到账号页的确认弹窗。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onOpenAccount}
-          className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
-        >
-          前往账号页重建缓存
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onExportReceipt}
+            className="w-fit rounded-md border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
+          >
+            导出重建预检收据
+          </button>
+          <button
+            type="button"
+            onClick={onOpenAccount}
+            className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+          >
+            前往账号页重建缓存
+          </button>
+        </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
         <CacheRebuildFact
           label="页面 pending"
           value={`${pagePending} 条`}
@@ -16059,6 +16112,11 @@ function CacheRebuildSafetyPanel({
           value={`${totalSyncPending} 条`}
           detail="普通同步只补传明确排队的本地修改"
         />
+        <CacheRebuildFact
+          label="预检状态"
+          value={preflightLabel}
+          detail={`阻断 ${receipt.summary.blockers} 项；提醒 ${receipt.summary.warnings} 项`}
+        />
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -16080,6 +16138,50 @@ function CacheRebuildSafetyPanel({
         </div>
       </div>
 
+      <div className="mt-4 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+              重建 dry-run 预检
+            </p>
+            <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              这张收据只记录 counts、watermark/hash、gate 状态和核心 manifest
+              收据 ID；不会读取正文、数据库行值、评论正文、文件字节或清理本机缓存。
+            </p>
+          </div>
+          <span className={`w-fit rounded-md px-2 py-1 text-[10px] ${preflightClass}`}>
+            {preflightLabel}
+          </span>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          {visibleGates.map((gate) => (
+            <div
+              key={gate.id}
+              className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 dark:bg-zinc-900"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-zinc-800 dark:text-zinc-100">
+                  {gate.title}
+                </span>
+                <span
+                  className={`rounded px-2 py-0.5 text-[10px] ${cacheRebuildGateStatusClass(gate.status)}`}
+                >
+                  {formatCacheRebuildGateStatus(gate.status)}
+                </span>
+              </div>
+              <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+                {gate.evidence}
+              </p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 rounded bg-zinc-50 px-2 py-1 text-[11px] leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-300">
+          下一步：{receipt.next_action}
+          <br />
+          收据 ID：{receipt.receipt_id}
+        </p>
+      </div>
+
       {disabledDomains.length > 0 ? (
         <p className="mt-3 text-[11px] leading-5 text-zinc-400">
           需要先处理：{disabledDomains.join("、")}。
@@ -16087,6 +16189,54 @@ function CacheRebuildSafetyPanel({
       ) : null}
     </section>
   );
+}
+
+function formatCacheRebuildPreflightStatus(
+  status: CacheRebuildPreflightStatus
+): string {
+  const labels: Record<CacheRebuildPreflightStatus, string> = {
+    ready: "Ready",
+    "needs-manifest-check": "需对账",
+    "blocked-cloud-workspace": "未连云端",
+    "blocked-disabled": "同步关闭",
+    "blocked-pending": "有 pending",
+    "blocked-manifest-mismatch": "对账不一致",
+  };
+  return labels[status];
+}
+
+function cacheRebuildPreflightStatusClass(
+  status: CacheRebuildPreflightStatus
+): string {
+  if (status === "ready") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  }
+  if (status === "needs-manifest-check") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  }
+  return "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+}
+
+function formatCacheRebuildGateStatus(
+  status: CacheRebuildPreflightGateStatus
+): string {
+  const labels: Record<CacheRebuildPreflightGateStatus, string> = {
+    pass: "通过",
+    warn: "提醒",
+    block: "阻断",
+  };
+  return labels[status];
+}
+
+function cacheRebuildGateStatusClass(
+  status: CacheRebuildPreflightGateStatus
+): string {
+  const classes: Record<CacheRebuildPreflightGateStatus, string> = {
+    pass: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    warn: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    block: "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+  };
+  return classes[status];
 }
 
 function CacheRebuildFact({

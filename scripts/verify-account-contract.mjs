@@ -242,6 +242,9 @@ const syncDashboardShell = read("src/components/modules/SyncShell.tsx");
 const coreManifestCompareReceipt = read(
   "src/lib/sync/coreManifestCompareReceipt.ts"
 );
+const cacheRebuildPreflightReceipt = read(
+  "src/lib/sync/cacheRebuildPreflightReceipt.ts"
+);
 const reconcilePageSyncBody = pageSyncClient.slice(
   pageSyncClient.indexOf("export async function reconcilePageSync")
 );
@@ -1410,9 +1413,26 @@ check(
     syncDashboardShell.includes("云端 manifest 是重建来源") &&
     syncDashboardShell.includes("不会把本地缓存全量上传") &&
     syncDashboardShell.includes("本地 pending 变更未清空前不建议重建") &&
+    syncDashboardShell.includes("buildCacheRebuildPreflightReceipt") &&
+    syncDashboardShell.includes("导出重建预检收据") &&
+    syncDashboardShell.includes("重建 dry-run 预检") &&
+    syncDashboardShell.includes("zhinote-cache-rebuild-preflight-receipt") &&
     syncDashboardShell.includes("保留本地数据库私有页面") &&
-    syncDashboardShell.includes("router.push(\"/account\")"),
-  "同步页应提供缓存重建安全入口：先展示 pending 风险，再跳转账号页确认重建，不能在同步页直接清缓存"
+    syncDashboardShell.includes("router.push(\"/account\")") &&
+    cacheRebuildPreflightReceipt.includes(
+      'format: "zhinote-cache-rebuild-preflight-receipt"'
+    ) &&
+    cacheRebuildPreflightReceipt.includes(
+      'receipt_status: "metadata-only-dry-run"'
+    ) &&
+    cacheRebuildPreflightReceipt.includes("cloud_manifest_is_source_of_truth") &&
+    cacheRebuildPreflightReceipt.includes("local_pending_edits_block_rebuild") &&
+    cacheRebuildPreflightReceipt.includes("clears_local_cache: false") &&
+    cacheRebuildPreflightReceipt.includes("uploads_workspace_data: false") &&
+    cacheRebuildPreflightReceipt.includes(
+      "includes_only_counts_watermarks_hashes_and_gates: true"
+    ),
+  "同步页应提供缓存重建安全入口和 metadata-only dry-run 预检收据：先展示 pending/manifest 风险，再跳转账号页确认重建，不能在同步页直接清缓存"
 );
 
 const sidebar = read("src/components/sidebar/Sidebar.tsx");

@@ -14,6 +14,8 @@ const files = {
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
+  cacheRebuildPreflightReceipt:
+    "src/lib/sync/cacheRebuildPreflightReceipt.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
@@ -299,6 +301,9 @@ function run() {
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
     files.coreManifestCompareReceipt
+  );
+  const cacheRebuildPreflightReceipt = readProjectFile(
+    files.cacheRebuildPreflightReceipt
   );
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
@@ -4466,6 +4471,66 @@ function run() {
     syncShell,
     "本地 pending 变更未清空前不建议重建",
     "Sync UI must warn before rebuilding cache with local pending edits."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildCacheRebuildPreflightReceipt",
+    "Sync UI must build cache rebuild preflight receipts."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出重建预检收据",
+    "Sync UI must expose cache rebuild preflight receipt export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "重建 dry-run 预检",
+    "Sync UI must render cache rebuild dry-run preflight gates."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "zhinote-cache-rebuild-preflight-receipt",
+    "Sync UI must export cache rebuild preflight receipts with a stable filename."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    'format: "zhinote-cache-rebuild-preflight-receipt"',
+    "Cache rebuild preflight receipt must declare its export format."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    'receipt_status: "metadata-only-dry-run"',
+    "Cache rebuild preflight receipt must remain a metadata-only dry run."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    "clears_local_cache: false",
+    "Cache rebuild preflight receipt must not clear local cache."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    "uploads_workspace_data: false",
+    "Cache rebuild preflight receipt must not upload workspace data."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    "includes_only_counts_watermarks_hashes_and_gates: true",
+    "Cache rebuild preflight receipt must stay counts/hash/gates only."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    "local_pending_edits_block_rebuild: true",
+    "Cache rebuild preflight receipt must block rebuild while local pending edits exist."
   );
   assertIncludes(
     files.syncShell,
