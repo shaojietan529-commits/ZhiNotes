@@ -3970,20 +3970,20 @@ function run() {
   assertIncludes(
     files.databaseShell,
     databaseShell,
-    "primeDatabaseRowPageOpen",
-    "Database row full-page opens must prime the page route with local metadata before navigation."
+    "useLocalFirstPageNavigation",
+    "Database row full-page opens must use the shared local-first page navigation path."
   );
   assertIncludes(
     files.databaseShell,
     databaseShell,
-    "rememberPendingPageDraft(page)",
-    "Database row full-page opens must keep an in-memory page draft for immediate first paint."
+    "openPage(row.page, { source })",
+    "Database row full-page opens must hand row metadata to local-first navigation."
   );
   assertIncludes(
     files.databaseShell,
     databaseShell,
-    "rememberPageRouteHandoff(page, source)",
-    "Database row full-page opens must hand off metadata before slower local DB or cloud checks."
+    'openPage(pageId, { source: "database-row-open" })',
+    "Database row page-id fallback must still use local-first navigation without a metadata seed."
   );
   assertIncludes(
     files.databaseShell,

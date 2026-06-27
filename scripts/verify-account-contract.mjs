@@ -583,9 +583,14 @@ check(
     dailyNotesShell.indexOf("writeOptimisticDailyHotCache") <
       dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
-      dailyNotesShell.indexOf("router.push(pageRoute)") &&
-    dailyNotesShell.indexOf("router.push(pageRoute)") <
+      dailyNotesShell.indexOf(
+        'openPage(optimisticNote, { source: "daily-create" })'
+      ) &&
+    dailyNotesShell.indexOf(
+      'openPage(optimisticNote, { source: "daily-create" })'
+    ) <
       dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
+    dailyNotesShell.includes("useLocalFirstPageNavigation") &&
     dailyNotesShell.includes("const pageRoute = `/page/${optimisticNote.id}`") &&
     dailyNotesShell.includes("router.prefetch(pageRoute)") &&
     dailyNotesShell.includes("setOpeningDraft({ pageId: optimisticNote.id, dateKey })") &&
@@ -691,9 +696,12 @@ check(
     meetingScheduleShell.includes('importSource: "手动创建"') &&
     meetingScheduleOpensCreatedPageRoute &&
     meetingScheduleShell.includes("router.prefetch(pageRoute)") &&
-    meetingScheduleShell.includes("router.push(pageRoute)") &&
+    meetingScheduleShell.includes("useLocalFirstPageNavigation") &&
+    meetingScheduleShell.includes('openPage(page, { source: "meeting-create" })') &&
     meetingScheduleShell.indexOf("const pageRoute = `/page/${") <
-      meetingScheduleShell.indexOf("router.push(pageRoute)") &&
+      meetingScheduleShell.indexOf(
+        'openPage(page, { source: "meeting-create" })'
+      ) &&
     meetingScheduleShell.includes("后台会继续保存到账号云端"),
   "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后直接进入完整会议页面并后台同步"
 );
@@ -1033,7 +1041,7 @@ check(
     dailyNotesShell.includes("window.setTimeout(() =>") &&
     dailyNotesShell.includes("current === dateKey ? null : current") &&
     !dailyNotesShell.includes("fetchCloudPageById") &&
-    dailyNotesShell.includes("router.push(pageRoute)") &&
+    dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
     dailyNotesShell.includes("openDailyNoteFullPageById") &&
     dailyNotesShell.includes("openDailyNoteFullPage(note, \"daily-open\")") &&
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal'),

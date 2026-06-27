@@ -11334,20 +11334,26 @@ function run() {
     [
       files.databaseShell,
       databaseShell,
-      "primeDatabaseRowPageOpen",
-      "Database row full-page opens must prime the page route with local metadata before navigation.",
+      "useLocalFirstPageNavigation",
+      "Database row full-page opens must use the shared local-first page navigation path.",
     ],
     [
       files.databaseShell,
       databaseShell,
-      "rememberPendingPageDraft(page)",
-      "Database row full-page opens must keep an in-memory page draft for immediate first paint.",
+      "openPage(row.page, { source })",
+      "Database row full-page opens must hand row metadata to local-first navigation.",
     ],
     [
       files.databaseShell,
       databaseShell,
-      "rememberPageRouteHandoff(page, source)",
-      "Database row full-page opens must hand off metadata before slower local DB or cloud checks.",
+      'openPage(page, { source: "database-row-open" })',
+      "Database row page-id fallback must use local-first navigation when page metadata is available.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      'openPage(pageId, { source: "database-row-open" })',
+      "Database row page-id fallback must still use local-first navigation without a metadata seed.",
     ],
     [
       files.pageRouteHandoff,

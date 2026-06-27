@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePage } from "@/hooks/usePage";
 import { usePages } from "@/hooks/usePages";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -169,8 +170,6 @@ import {
 } from "@/lib/database/databaseTemplateRows";
 import { subscribeDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
-import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
-import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 
 interface DatabaseShellProps {
   databaseId: string;
@@ -251,9 +250,9 @@ interface DatabaseViewConfig {
 
 export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const searchParams = useSearchParams();
   const { pages: workspacePages } = usePages();
-  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const initialRowSearch = searchParams.get("q") ?? "";
   const initialViewId = searchParams.get("view") ?? "";
   const focusPageId = searchParams.get("focus") ?? "";
@@ -572,33 +571,14 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [reload]
   );
 
-  const primeDatabaseRowPageOpen = useCallback(
-    (
-      page: Page,
-      source: "database-row-create" | "database-row-open" = "database-row-open"
-    ) => {
-      upsertPages([page]);
-      rememberPendingPageDraft(page);
-      rememberPageRouteHandoff(page, source);
-      try {
-        router.prefetch(`/page/${page.id}`);
-      } catch {
-        // Prefetch is only a speed hint. The draft + route handoff already
-        // gives the full page enough metadata for an immediate first paint.
-      }
-    },
-    [router, upsertPages]
-  );
-
   const openDatabaseRowFullPage = useCallback(
     (
       row: RowWithPage,
       source: "database-row-create" | "database-row-open" = "database-row-open"
     ) => {
-      primeDatabaseRowPageOpen(row.page, source);
-      router.push(`/page/${row.page_id}`);
+      openPage(row.page, { source });
     },
-    [primeDatabaseRowPageOpen, router]
+    [openPage]
   );
 
   const openDatabaseRowFullPageById = useCallback(
@@ -613,14 +593,14 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         useWorkspaceStore.getState().pages.find((item) => item.id === pageId) ??
         null;
       if (page) {
-        primeDatabaseRowPageOpen(page, "database-row-open");
+        openPage(page, { source: "database-row-open" });
+        return;
       }
-      router.push(`/page/${pageId}`);
+      openPage(pageId, { source: "database-row-open" });
     },
     [
       openDatabaseRowFullPage,
-      primeDatabaseRowPageOpen,
-      router,
+      openPage,
       rows,
       workspacePages,
     ]

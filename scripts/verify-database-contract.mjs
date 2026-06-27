@@ -583,7 +583,6 @@ function run() {
   const primaryDatabaseListSurfaces = [
     [files.sidebar, sidebar],
     [files.quickSearch, quickSearch],
-    [files.moduleDashboard, moduleDashboard],
     [files.companyResearchShell, companyResearchShell],
     [files.meetingsShell, meetingsShell],
     [files.portfolioShell, portfolioShell],
@@ -601,10 +600,7 @@ function run() {
     );
   }
   for (const [sourceLabel, source] of primaryDatabaseListSurfaces.filter(
-    ([sourceLabel]) =>
-      ![files.sidebar, files.quickSearch, files.moduleDashboard].includes(
-        sourceLabel
-      )
+    ([sourceLabel]) => ![files.sidebar, files.quickSearch].includes(sourceLabel)
   )) {
     if (source.includes("getAllDatabases")) {
       failures.push(
@@ -612,6 +608,32 @@ function run() {
       );
     }
   }
+  for (const snippet of [
+    "countActiveDatabases",
+    "refreshWorkspaceCounts",
+    "subscribeDatabasesUpdated",
+    "scheduleCountRefresh",
+    "setDatabaseCount((count) => count + 1)",
+  ]) {
+    assertIncludes(
+      files.moduleDashboard,
+      moduleDashboard,
+      snippet,
+      "Module center should keep first paint lightweight with database counts instead of loading database lists."
+    );
+  }
+  assertNotIncludes(
+    files.moduleDashboard,
+    moduleDashboard,
+    'from "@/hooks/useDatabases"',
+    "Module center must not auto-load database lists just to render counts or create starters."
+  );
+  assertNotIncludes(
+    files.moduleDashboard,
+    moduleDashboard,
+    "await refreshDatabases()",
+    "Module center must not block starter flows on full database list refreshes."
+  );
   for (const snippet of [
     "syncCloudDatabaseMetadataDelta",
     "cloudDatabaseMetadataToDatabases",
