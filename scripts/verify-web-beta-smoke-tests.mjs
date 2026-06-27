@@ -2612,6 +2612,9 @@ function run() {
     'openPage(pageId, { source: "meeting-open" })',
     "const entriesById = useMemo(() =>",
     "entriesById.get(pageId)?.page",
+    "MEETING_UPCOMING_VISIBLE_LIMIT",
+    "return getUpcomingMeetingEntries(",
+    "function getUpcomingMeetingEntries(",
   ]) {
     assertIncludes(
       files.meetingScheduleShell,

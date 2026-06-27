@@ -96,6 +96,7 @@ const MEETING_PRIORITY_OPTIONS = [
 ];
 const DEFAULT_MEETING_PRIORITY = "default";
 const MEETING_CALENDAR_VISIBLE_LIMIT = 6;
+const MEETING_UPCOMING_VISIBLE_LIMIT = 8;
 const MEETING_CALENDAR_EXPAND_BATCH = 24;
 const MEETING_CALENDAR_REVEAL_BUFFER = 2;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -752,10 +753,11 @@ export default function MeetingScheduleShell() {
 
   const upcoming = useMemo(() => {
     const todayKey = toDateKey(new Date());
-    return entries
-      .filter((entry) => entry.dateKey && entry.dateKey >= todayKey)
-      .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
-      .slice(0, 8);
+    return getUpcomingMeetingEntries(
+      entries,
+      todayKey,
+      MEETING_UPCOMING_VISIBLE_LIMIT
+    );
   }, [entries]);
 
   const markSeen = useCallback((id: string) => {
@@ -2616,6 +2618,40 @@ function toMeetingEntry(page: Page): MeetingEntry {
     importedAt: read("导入时间"),
     traceNote: read("留痕说明"),
   };
+}
+
+function getUpcomingMeetingEntries(
+  entries: MeetingEntry[],
+  todayKey: string,
+  limit: number
+): MeetingEntry[] {
+  if (limit <= 0) return [];
+  const upcoming: MeetingEntry[] = [];
+
+  for (const entry of entries) {
+    if (!entry.dateKey || entry.dateKey < todayKey) continue;
+    let insertAt = upcoming.length;
+    while (
+      insertAt > 0 &&
+      compareUpcomingMeetingEntries(entry, upcoming[insertAt - 1]) < 0
+    ) {
+      insertAt -= 1;
+    }
+
+    if (insertAt >= limit) continue;
+    upcoming.splice(insertAt, 0, entry);
+    if (upcoming.length > limit) upcoming.pop();
+  }
+
+  return upcoming;
+}
+
+function compareUpcomingMeetingEntries(a: MeetingEntry, b: MeetingEntry) {
+  const dateOrder = a.dateKey.localeCompare(b.dateKey);
+  if (dateOrder !== 0) return dateOrder;
+  const timeOrder = (a.time || "").localeCompare(b.time || "");
+  if (timeOrder !== 0) return timeOrder;
+  return (b.page.updated_at || "").localeCompare(a.page.updated_at || "");
 }
 
 const inputClass =

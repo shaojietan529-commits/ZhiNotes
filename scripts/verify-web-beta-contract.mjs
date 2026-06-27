@@ -2376,6 +2376,18 @@ function run() {
       "Meeting full-page opening must use the visible-month meeting id index before checking the global workspace.",
     ],
     [
+      "MEETING_UPCOMING_VISIBLE_LIMIT",
+      "Meeting schedule must keep a visible cap for the upcoming-meeting list.",
+    ],
+    [
+      "return getUpcomingMeetingEntries(",
+      "Meeting upcoming list must use bounded top-N selection instead of full-list sorting.",
+    ],
+    [
+      "function getUpcomingMeetingEntries(",
+      "Meeting upcoming bounded selection helper must stay explicit and reviewable.",
+    ],
+    [
       "pageShellWarmupRef",
       "Meeting schedule must warm the full-page shell once instead of loading it only after a meeting opens.",
     ],
