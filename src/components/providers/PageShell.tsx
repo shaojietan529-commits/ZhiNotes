@@ -44,6 +44,7 @@ import {
 } from "@/lib/pages/cloudPageMutations";
 import {
   getPendingCloudPageSyncStatus,
+  isCloudPagePendingSync,
   PAGE_SYNC_CONFIG_EVENT,
   PAGE_SYNC_STATUS_EVENT,
   type PendingCloudPageSyncStatus,
@@ -143,6 +144,9 @@ function PageContent({ pageId }: { pageId: string }) {
     useState<string | null>(null);
   const [pageSyncStatus, setPageSyncStatus] =
     useState<PendingCloudPageSyncStatus>(() => getPendingCloudPageSyncStatus());
+  const [currentPagePendingSync, setCurrentPagePendingSync] = useState(() =>
+    isCloudPagePendingSync(pageId)
+  );
   const shouldLoadVersions = showHistory || showInfo;
   const { versions, refresh: refreshVersions } = useVersions(pageId, {
     enabled: shouldLoadVersions,
@@ -170,6 +174,7 @@ function PageContent({ pageId }: { pageId: string }) {
       const next = (event as CustomEvent<PendingCloudPageSyncStatus> | undefined)
         ?.detail;
       setPageSyncStatus(next ?? getPendingCloudPageSyncStatus());
+      setCurrentPagePendingSync(isCloudPagePendingSync(pageId));
     };
     refreshStatus();
     window.addEventListener(PAGE_SYNC_STATUS_EVENT, refreshStatus);
@@ -182,7 +187,7 @@ function PageContent({ pageId }: { pageId: string }) {
       window.removeEventListener("storage", refreshStatus);
       window.clearInterval(timer);
     };
-  }, []);
+  }, [pageId]);
 
   useEffect(() => {
     if (!page || loading || reportedPageOpenRef.current === pageId) return;
@@ -765,6 +770,7 @@ function PageContent({ pageId }: { pageId: string }) {
             </div>
             <div className="flex items-center gap-1">
               <PageSyncStatusBadge
+                currentPagePending={currentPagePendingSync}
                 status={pageSyncStatus}
                 onOpenSync={() => router.push("/modules/sync")}
               />
@@ -967,9 +973,11 @@ function PageContent({ pageId }: { pageId: string }) {
 }
 
 function PageSyncStatusBadge({
+  currentPagePending,
   onOpenSync,
   status,
 }: {
+  currentPagePending: boolean;
   onOpenSync: () => void;
   status: PendingCloudPageSyncStatus;
 }) {
@@ -990,11 +998,17 @@ function PageSyncStatusBadge({
   if (!status.enabled) {
     label = "本地已保存";
     title = "页面同步已关闭；点击打开同步中心查看设置。";
+  } else if (currentPagePending) {
+    label = "当前页待云同步";
+    tone =
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300";
+    title =
+      "当前页面已经在本机保存，并进入云端待上传队列；点击打开同步中心查看补传状态。";
   } else if (totalPending > 0) {
     label = status.queued > 0 ? `同步排队 ${totalPending}` : `等待云同步 ${totalPending}`;
     tone =
       "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300";
-    title = `已有 ${totalPending} 个页面变更进入本地待上传队列；点击打开同步中心处理补传。`;
+    title = `已有 ${totalPending} 个其他页面变更进入本地待上传队列；点击打开同步中心处理补传。`;
   } else if (syncedAtLabel) {
     label = `云端已同步 ${syncedAtLabel}`;
     tone =

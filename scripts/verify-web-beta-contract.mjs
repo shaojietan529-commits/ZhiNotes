@@ -2111,6 +2111,24 @@ function run() {
     "Page shell must read the local page sync queue status without triggering upload."
   );
   assertSourceIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "export function isCloudPagePendingSync",
+    "Page sync client must expose a read-only current-page pending check without reading page bodies."
+  );
+  assertSourceIncludes(
+    files.pageShell,
+    pageShell,
+    "isCloudPagePendingSync(pageId)",
+    "Page shell sync badge must distinguish the currently open page from unrelated pending uploads."
+  );
+  assertSourceIncludes(
+    files.pageShell,
+    pageShell,
+    "当前页待云同步",
+    "Page shell sync badge must tell the owner when the current page is waiting for cloud upload."
+  );
+  assertSourceIncludes(
     files.pageShell,
     pageShell,
     'data-testid="page-sync-status-badge"',

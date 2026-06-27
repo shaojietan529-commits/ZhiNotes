@@ -1655,6 +1655,11 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
   };
 }
 
+export function isCloudPagePendingSync(pageId: string): boolean {
+  if (!isValidRemotePageId(pageId)) return false;
+  return queuedCloudPush.has(pageId) || getPendingCloudPushIds().includes(pageId);
+}
+
 function emitPageSyncStatusChanged(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(

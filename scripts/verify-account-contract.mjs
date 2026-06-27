@@ -393,8 +393,11 @@ check(
     pageSyncClient.includes("queued: queuedCloudPush.size") &&
     pageSyncClient.includes("oldestPendingQueuedAt") &&
     pageSyncClient.includes("pendingSampleIds: pendingIds.slice(0, 5)") &&
-    pageSyncClient.includes("lastSyncAt: getLastPageSyncAt()"),
-  "页面同步客户端应暴露只读 pending 上传状态、最早排队时间和样本 id，供同步页展示和补传前后对账"
+    pageSyncClient.includes("lastSyncAt: getLastPageSyncAt()") &&
+    pageSyncClient.includes("export function isCloudPagePendingSync") &&
+    pageSyncClient.includes("queuedCloudPush.has(pageId)") &&
+    pageSyncClient.includes("getPendingCloudPushIds().includes(pageId)"),
+  "页面同步客户端应暴露只读 pending 上传状态、最早排队时间、样本 id 和当前页 pending 判断，供同步页/页面壳展示和补传前后对账"
 );
 check(
   syncDashboardShell.includes("页面 pending 上传队列") &&
