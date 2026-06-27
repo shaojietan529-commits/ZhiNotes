@@ -7,6 +7,7 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import SideBySideDiff from "./SideBySideDiff";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePage } from "@/hooks/usePage";
+import { usePages } from "@/hooks/usePages";
 import { useVersions } from "@/hooks/useVersions";
 import { updatePageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { manualSnapshot } from "@/lib/comparison/versioning";
@@ -27,6 +28,7 @@ function CompareContent({ pageId }: { pageId: string }) {
   const openPage = useLocalFirstPageNavigation();
   const searchParams = useSearchParams();
   const { page, loading } = usePage(pageId);
+  const { upsertPages } = usePages({ autoLoad: false });
   const { versions, loading: versionsLoading, refresh } = useVersions(pageId);
 
   const [fromId, setFromId] = useState<string | null>(null);
@@ -81,9 +83,12 @@ function CompareContent({ pageId }: { pageId: string }) {
         page.content_text || "",
         "恢复前"
       );
-      await updatePageWithCloud(pageId, {
+      const restoredPage = await updatePageWithCloud(pageId, {
         content_text: version.content_text || "",
       });
+      if (restoredPage) {
+        upsertPages([restoredPage]);
+      }
       await manualSnapshot(
         pageId,
         page.title,
@@ -91,9 +96,9 @@ function CompareContent({ pageId }: { pageId: string }) {
         `从 v${version.version_num} 恢复`
       );
       await refresh();
-      openPage(page ?? pageId, { source: "compare-return" });
+      openPage(restoredPage ?? page ?? pageId, { source: "compare-return" });
     },
-    [openPage, page, pageId, refresh]
+    [openPage, page, pageId, refresh, upsertPages]
   );
 
   const fromVersion = useMemo(

@@ -14,6 +14,7 @@ import {
   movePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
 import { queueCloudPageDelete } from "@/lib/pages/accountPageSync";
+import { collectMovedPageSnapshots } from "@/lib/pages/pageSnapshotUpdates";
 import { usePages } from "@/hooks/usePages";
 import type { Page } from "@/lib/utils/types";
 
@@ -306,31 +307,4 @@ function Item({
 
 function Divider() {
   return <div className="my-1 h-px bg-zinc-100 dark:bg-zinc-800" />;
-}
-
-function collectMovedPageSnapshots(allPages: Page[], movedPage: Page): Page[] {
-  const childrenByParent = new Map<string, Page[]>();
-  for (const page of allPages) {
-    if (!page.parent_id) continue;
-    const children = childrenByParent.get(page.parent_id) ?? [];
-    children.push(page);
-    childrenByParent.set(page.parent_id, children);
-  }
-
-  const snapshots: Page[] = [movedPage];
-  const stack = [movedPage];
-  while (stack.length > 0) {
-    const parent = stack.pop();
-    if (!parent) continue;
-    for (const child of childrenByParent.get(parent.id) ?? []) {
-      const nextChild = {
-        ...child,
-        depth: parent.depth + 1,
-        updated_at: movedPage.updated_at,
-      };
-      snapshots.push(nextChild);
-      stack.push(nextChild);
-    }
-  }
-  return snapshots;
 }

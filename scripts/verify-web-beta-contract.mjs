@@ -11841,6 +11841,18 @@ function run() {
     "export async function searchPageMetadata",
     "Relation field search must have a bounded metadata query for local-first UX."
   );
+  for (const snippet of [
+    "usePages({ autoLoad: false })",
+    "upsertPages([restoredPage])",
+    "openPage(restoredPage ?? page ?? pageId",
+  ]) {
+    assertSourceIncludes(
+      files.compareShell,
+      compareShell,
+      snippet,
+      "Version restore must upsert the restored page before local-first navigation so the page does not flash stale content."
+    );
+  }
   for (const [sourceLabel, source, requiredSources] of [
     [files.inlineDatabaseNode, inlineDatabaseNode, ['source: "inline-database-open"']],
     [files.compareShell, compareShell, ['source: "compare-return"']],
