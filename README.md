@@ -899,6 +899,15 @@ Current local actions:
 - Review and export the ZIP import preflight contract. It defines how future ZIP
   imports should map page formats, database formats, local-retain formats, and
   blocked formats before any real ZIP is read or extracted.
+- Review and export an HTML assets preflight contract. It defines how AI-generated
+  HTML reports can later keep same-folder assets or ZIP assets with high visual
+  fidelity while keeping remote resources blocked by default.
+- Select an HTML file plus optional same-folder assets for a metadata-only
+  reference preview. The preview reads the selected HTML text and asset file
+  names only to count resource classes, local matches, missing local assets,
+  remote references, inline data, and asset extension groups. It does not return
+  resource URLs or asset file names, does not read asset bytes, does not rewrite
+  HTML, does not create pages, and does not upload or call AI.
 - Route HTML reports, Markdown notes, PDFs, Office files, notebooks, archives,
   spreadsheets, media, and unknown files into native preview, editable import,
   database import, metadata review, local retain, or cloud/AI boundary lanes.

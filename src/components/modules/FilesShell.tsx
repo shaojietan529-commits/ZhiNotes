@@ -56,6 +56,11 @@ import {
   getFileLibraryReceiptActionKind,
 } from "@/lib/files/filePage";
 import {
+  buildHtmlAssetPreflightContract,
+  buildHtmlAssetReferencePreview,
+  type HtmlAssetReferencePreview,
+} from "@/lib/files/htmlAssetPreflight";
+import {
   buildZipCentralDirectoryPreview,
   buildZipImportPreflightContract,
   type ZipCentralDirectoryPreview,
@@ -99,12 +104,21 @@ function FilesDashboard() {
   const openPage = useLocalFirstPageNavigation();
   const { upsertPages } = usePages({ autoLoad: false });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const htmlAssetPreviewInputRef = useRef<HTMLInputElement | null>(null);
   const zipPreviewInputRef = useRef<HTMLInputElement | null>(null);
   const [storedFiles, setStoredFiles] = useState<StoredPageFileMetadata[]>([]);
   const [fileFilterId, setFileFilterId] = useState<FileLibraryFilterId>("all");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exportingWorkbench, setExportingWorkbench] = useState(false);
   const [exportingPreviewRouting, setExportingPreviewRouting] = useState(false);
+  const [exportingHtmlAssetPreflight, setExportingHtmlAssetPreflight] =
+    useState(false);
+  const [readingHtmlAssetPreview, setReadingHtmlAssetPreview] = useState(false);
+  const [htmlAssetReferencePreview, setHtmlAssetReferencePreview] =
+    useState<HtmlAssetReferencePreview | null>(null);
+  const [htmlAssetPreviewError, setHtmlAssetPreviewError] = useState<
+    string | null
+  >(null);
   const [exportingZipPreflight, setExportingZipPreflight] = useState(false);
   const [readingZipPreview, setReadingZipPreview] = useState(false);
   const [zipDirectoryPreview, setZipDirectoryPreview] =
@@ -166,6 +180,10 @@ function FilesDashboard() {
         reviewQueue: reportReviewQueue,
       }),
     [filePreviewReadiness, reportFormatCoverage, reportReviewQueue]
+  );
+  const htmlAssetPreflight = useMemo(
+    () => buildHtmlAssetPreflightContract(),
+    []
   );
   const zipImportPreflight = useMemo(() => buildZipImportPreflightContract(), []);
 
@@ -235,6 +253,43 @@ function FilesDashboard() {
     }
   };
 
+  const handleExportHtmlAssetPreflight = () => {
+    setExportingHtmlAssetPreflight(true);
+    try {
+      downloadJsonFile(
+        `zhinote-html-assets-preflight-${fileSafeTimestamp()}.json`,
+        {
+          ...htmlAssetPreflight,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export HTML assets preflight:", err);
+      window.alert("HTML assets 预检合同导出失败，请查看控制台。");
+    } finally {
+      setExportingHtmlAssetPreflight(false);
+    }
+  };
+
+  const handleExportHtmlAssetReferencePreview = () => {
+    if (!htmlAssetReferencePreview) return;
+    try {
+      downloadJsonFile(
+        `zhinote-html-assets-reference-preview-${fileSafeTimestamp()}.json`,
+        {
+          ...htmlAssetReferencePreview,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export HTML assets reference preview:",
+        err
+      );
+      window.alert("HTML assets 引用预览导出失败，请查看控制台。");
+    }
+  };
+
   const handleExportZipDirectoryPreview = () => {
     if (!zipDirectoryPreview) return;
     try {
@@ -255,8 +310,47 @@ function FilesDashboard() {
     fileInputRef.current?.click();
   };
 
+  const handleChooseHtmlAssetPreview = () => {
+    htmlAssetPreviewInputRef.current?.click();
+  };
+
   const handleChooseZipPreview = () => {
     zipPreviewInputRef.current?.click();
+  };
+
+  const handleHtmlAssetPreviewSelected = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (selectedFiles.length === 0) return;
+
+    const htmlFile = selectedFiles.find((file) => isHtmlPreviewFile(file));
+    if (!htmlFile) {
+      setHtmlAssetPreviewError(
+        "请选择至少一个 HTML/HTM/XHTML 主文件。没有保存文件、没有创建页面。"
+      );
+      setHtmlAssetReferencePreview(null);
+      return;
+    }
+
+    setReadingHtmlAssetPreview(true);
+    setHtmlAssetPreviewError(null);
+    setHtmlAssetReferencePreview(null);
+    try {
+      const preview = buildHtmlAssetReferencePreview({
+        htmlText: await htmlFile.text(),
+        files: selectedFiles.map(toHtmlAssetSourceFile),
+      });
+      setHtmlAssetReferencePreview(preview);
+    } catch (err) {
+      console.error("[Zhinote] Failed to preview HTML assets:", err);
+      setHtmlAssetPreviewError(
+        "无法读取这个 HTML 的资源引用。没有保存文件、没有加载外部资源、没有创建页面。"
+      );
+    } finally {
+      setReadingHtmlAssetPreview(false);
+    }
   };
 
   const handleZipPreviewSelected = async (
@@ -462,6 +556,14 @@ function FilesDashboard() {
                 onChange={(event) => void handleFilesSelected(event)}
               />
               <input
+                ref={htmlAssetPreviewInputRef}
+                type="file"
+                multiple
+                accept=".html,.htm,.xhtml,text/html,application/xhtml+xml"
+                className="hidden"
+                onChange={(event) => void handleHtmlAssetPreviewSelected(event)}
+              />
+              <input
                 ref={zipPreviewInputRef}
                 type="file"
                 accept=".zip,application/zip,application/x-zip-compressed"
@@ -526,6 +628,17 @@ function FilesDashboard() {
           onExportPreviewRouting={handleExportPreviewRouting}
           onOpenReviewStep={handlePreviewRoutingStepOpen}
           onOpenRoute={handlePreviewRoutingRouteOpen}
+        />
+
+        <HtmlAssetPreflightPanel
+          contract={htmlAssetPreflight}
+          exporting={exportingHtmlAssetPreflight}
+          readingPreview={readingHtmlAssetPreview}
+          preview={htmlAssetReferencePreview}
+          previewError={htmlAssetPreviewError}
+          onExport={handleExportHtmlAssetPreflight}
+          onExportPreview={handleExportHtmlAssetReferencePreview}
+          onChoosePreview={handleChooseHtmlAssetPreview}
         />
 
         <ZipImportPreflightPanel
@@ -819,6 +932,266 @@ function FilesDashboard() {
             ))}
           </div>
         </section>
+      </div>
+    </div>
+  );
+}
+
+function HtmlAssetPreflightPanel({
+  contract,
+  exporting,
+  readingPreview,
+  preview,
+  previewError,
+  onExport,
+  onExportPreview,
+  onChoosePreview,
+}: {
+  contract: ReturnType<typeof buildHtmlAssetPreflightContract>;
+  exporting: boolean;
+  readingPreview: boolean;
+  preview: HtmlAssetReferencePreview | null;
+  previewError: string | null;
+  onExport: () => void;
+  onExportPreview: () => void;
+  onChoosePreview: () => void;
+}) {
+  return (
+    <section
+      id="files-html-assets-preflight"
+      className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            HTML assets 保真预检
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            先匹配本地资源，不加载外部资源
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            面向 AI 生成的 HTML 可视化报告。你可以一次选择 HTML 主文件和同目录
+            assets，ZhiNotes 只统计资源类别、本地匹配数量和扩展名分布；
+            不返回资源 URL 或 assets 文件名，不读取图片/脚本 bytes，不改写 HTML，
+            不创建页面、不上传、不调用 AI。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onChoosePreview}
+            disabled={readingPreview}
+            className="w-fit rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+          >
+            {readingPreview ? "读取中..." : "选择 HTML + assets 只读预检"}
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={exporting}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exporting ? "导出中..." : "导出 HTML assets 预检合同"}
+          </button>
+        </div>
+      </div>
+
+      {previewError && (
+        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          {previewError}
+        </div>
+      )}
+
+      {preview && (
+        <HtmlAssetReferencePreviewPanel
+          preview={preview}
+          onExportPreview={onExportPreview}
+        />
+      )}
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <Metric label="资源类型" value={contract.summary.resource_classes} />
+        <Metric
+          label="支持来源"
+          value={contract.summary.supported_bundle_sources}
+        />
+        <Metric label="必需 gate" value={contract.summary.required_gates} />
+        <Metric
+          label="阻塞复核"
+          value={contract.summary.blocked_until_owner_review}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-2 md:grid-cols-2">
+          {contract.bundle_sources.map((source) => (
+            <article
+              key={source.id}
+              className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    {source.label}
+                  </h3>
+                  <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                    {source.review_note}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-1 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                  {getHtmlAssetSourceStatusLabel(source.status)}
+                </span>
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+            必需 gate
+          </div>
+          {contract.required_gates.map((gate) => (
+            <article
+              key={gate.id}
+              className="rounded-md bg-zinc-50 p-3 text-xs dark:bg-zinc-950"
+            >
+              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                {gate.label}
+              </h3>
+              <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                {gate.required_before}
+              </p>
+              <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+                {gate.reason}
+              </p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HtmlAssetReferencePreviewPanel({
+  preview,
+  onExportPreview,
+}: {
+  preview: HtmlAssetReferencePreview;
+  onExportPreview: () => void;
+}) {
+  return (
+    <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/40">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+            HTML assets 只读引用预览
+          </p>
+          <h3 className="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+            只显示资源统计，不展示 URL 或文件名
+          </h3>
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-emerald-900/80 dark:text-emerald-100/80">
+            {preview.privacy_note}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="w-fit rounded-full bg-white px-2 py-1 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200">
+            {preview.preview_status}
+          </span>
+          <button
+            type="button"
+            onClick={onExportPreview}
+            className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900"
+          >
+            导出 HTML assets 引用预览
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <Metric label="选中文件" value={preview.summary.selected_files} />
+        <Metric label="候选 assets" value={preview.summary.candidate_asset_files} />
+        <Metric
+          label="资源引用"
+          value={preview.summary.html_resource_references}
+        />
+        <Metric
+          label="本地引用"
+          value={preview.summary.local_relative_resources}
+        />
+        <Metric label="已匹配" value={preview.summary.matched_local_assets} />
+        <Metric label="缺失" value={preview.summary.missing_local_assets} />
+        <Metric label="远程" value={preview.summary.remote_resources} />
+        <Metric
+          label="assets 大小"
+          value={formatFileSize(preview.summary.total_asset_size_bytes)}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {preview.resource_groups.map((group) => (
+          <article
+            key={group.kind}
+            className="rounded-md border border-emerald-100 bg-white p-3 text-xs dark:border-emerald-900 dark:bg-zinc-950"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h4 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {group.label}
+                </h4>
+                <p className="mt-1 text-zinc-400">
+                  共 {group.total} 个引用 · 本地 {group.local_relative} · 远程{" "}
+                  {group.remote}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200">
+                匹配 {group.matched_local_assets}
+              </span>
+            </div>
+            <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+              缺失 {group.missing_local_assets} · 内联{" "}
+              {group.inline_data} · 特殊协议 {group.blocked_protocol}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      {preview.asset_extension_groups.length > 0 && (
+        <div className="mt-4 rounded-md bg-white/80 p-3 text-xs dark:bg-emerald-950">
+          <h4 className="font-semibold text-emerald-900 dark:text-emerald-100">
+            assets 扩展名分布
+          </h4>
+          <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            {preview.asset_extension_groups.map((group) => (
+              <div
+                key={group.extension}
+                className="rounded border border-emerald-100 bg-white px-2 py-1.5 dark:border-emerald-900 dark:bg-zinc-950"
+              >
+                <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                  {group.extension}
+                </p>
+                <p className="mt-0.5 text-zinc-500 dark:text-zinc-400">
+                  {group.files} 个文件 · {formatFileSize(group.total_size_bytes)}
+                  · 匹配 {group.referenced_matches}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 rounded-md bg-white/80 p-3 text-xs dark:bg-emerald-950">
+        <h4 className="font-semibold text-emerald-900 dark:text-emerald-100">
+          预览后的确认队列
+        </h4>
+        <ul className="mt-2 space-y-1 leading-5 text-emerald-900 dark:text-emerald-100">
+          {preview.next_steps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-4 rounded-md bg-white/80 px-3 py-2 text-xs leading-5 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+        边界：读取 HTML 文本和 assets 文件名用于本地匹配；不读取 asset bytes、
+        不返回 URL 或文件名、不改写 HTML、不创建 page、不上传、不调用 AI。
       </div>
     </div>
   );
@@ -1739,6 +2112,30 @@ function getZipDestinationModuleLabel(
     files: "文件",
   };
   return labels[module];
+}
+
+function isHtmlPreviewFile(file: File) {
+  return /\.(html|htm|xhtml)$/i.test(file.name);
+}
+
+function toHtmlAssetSourceFile(file: File) {
+  const withPath = file as File & { webkitRelativePath?: string };
+  return {
+    name: file.name,
+    size_bytes: file.size,
+    webkit_relative_path: withPath.webkitRelativePath || undefined,
+  };
+}
+
+function getHtmlAssetSourceStatusLabel(
+  status: "supported" | "planned" | "blocked"
+) {
+  const labels: Record<typeof status, string> = {
+    supported: "可预检",
+    planned: "规划中",
+    blocked: "阻塞",
+  };
+  return labels[status];
 }
 
 function getFileLaneTargetSectionId(laneId: FileLibraryLane["id"]) {

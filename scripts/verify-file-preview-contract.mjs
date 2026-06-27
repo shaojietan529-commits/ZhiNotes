@@ -18,6 +18,7 @@ const files = {
   routing: "src/lib/files/filePreviewRouting.ts",
   preflight: "src/lib/files/fileUploadPreflight.ts",
   filePage: "src/lib/files/filePage.ts",
+  htmlAssetPreflight: "src/lib/files/htmlAssetPreflight.ts",
   zipImportPreflight: "src/lib/files/zipImportPreflight.ts",
   structure: "src/lib/files/filePreviewStructure.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
@@ -221,6 +222,7 @@ function run() {
   const routing = readProjectFile(files.routing);
   const preflight = readProjectFile(files.preflight);
   const filePage = readProjectFile(files.filePage);
+  const htmlAssetPreflight = readProjectFile(files.htmlAssetPreflight);
   const zipImportPreflight = readProjectFile(files.zipImportPreflight);
   const structure = readProjectFile(files.structure);
   const actionReceipts = readProjectFile(files.actionReceipts);
@@ -1449,6 +1451,47 @@ function run() {
     );
   }
   for (const snippet of [
+    'format: "zhinote-html-assets-preflight-contract"',
+    'report_status: "metadata-contract-only"',
+    "reads_html_file_now: false",
+    "reads_asset_file_names_now: false",
+    "reads_asset_bytes_now: false",
+    "returns_resource_urls: false",
+    "returns_asset_file_names: false",
+    "rewrites_html_now: false",
+    "creates_pages_now: false",
+    "loads_external_resources: false",
+    "uploads_data: false",
+    "enables_ai: false",
+    "same-folder-html-assets",
+    "zip-html-assets",
+    "remote-html-assets",
+    "html-document-selection",
+    "local-asset-match-preview",
+    "external-resource-allowlist",
+    "sandbox-render-confirmation",
+    "html-assets-import-receipt",
+    "buildHtmlAssetPreflightContract",
+    'format: "zhinote-html-assets-reference-preview"',
+    'preview_status: "metadata-only"',
+    "buildHtmlAssetReferencePreview",
+    "reads_html_text_now: true",
+    "reads_asset_file_names_now: true",
+    "reads_asset_bytes_now: false",
+    "returns_html_text: false",
+    "returns_resource_urls: false",
+    "returns_asset_file_names: false",
+    "resource_groups",
+    "asset_extension_groups",
+  ]) {
+    assertIncludes(
+      files.htmlAssetPreflight,
+      htmlAssetPreflight,
+      snippet,
+      "HTML assets preflight must stay metadata-only and block external resources until owner review."
+    );
+  }
+  for (const snippet of [
     'format: "zhinote-zip-import-preflight-contract"',
     'report_status: "metadata-contract-only"',
     "reads_zip_file_now: false",
@@ -1484,9 +1527,24 @@ function run() {
   for (const snippet of [
     "buildFileLibraryWorkbenchReport",
     "buildFilePreviewRoutingPacket",
+    "buildHtmlAssetPreflightContract",
+    "buildHtmlAssetReferencePreview",
     "buildZipImportPreflightContract",
     "filePreviewRouting",
+    "htmlAssetPreflight",
     "zipImportPreflight",
+    "handleExportHtmlAssetPreflight",
+    "handleChooseHtmlAssetPreview",
+    "handleHtmlAssetPreviewSelected",
+    "handleExportHtmlAssetReferencePreview",
+    "HtmlAssetPreflightPanel",
+    "HtmlAssetReferencePreviewPanel",
+    "HTML assets 保真预检",
+    "选择 HTML + assets 只读预检",
+    "导出 HTML assets 预检合同",
+    "导出 HTML assets 引用预览",
+    "不返回资源 URL 或 assets 文件名",
+    "不读取 asset bytes",
     "handleExportZipPreflight",
     "handleChooseZipPreview",
     "handleZipPreviewSelected",

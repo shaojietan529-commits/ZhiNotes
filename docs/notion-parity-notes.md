@@ -90,7 +90,10 @@ ZhiNotes 当前已有：
 - ZIP/folder 已有 metadata-only 预检合同、central directory 预览 builder 和 Files UI 入口，
   但还没有把多文件确认后拆成 pages/databases。
 - DOCX/PDF 还没有本地文本抽取后转成可编辑 page 的稳定路径。
-- HTML 还没有“同目录 assets/ZIP assets”保真导入路线。
+- HTML 已有同目录 assets 的 metadata-only 保真预检：用户选择 HTML 和可选 assets 后，
+  只统计资源类别、本地匹配、缺失、远程引用、内联 data 和扩展名分布，不返回 URL 或
+  assets 文件名，不读取 asset bytes，不加载外部资源。还没有把 assets 真正保留、
+  改写 HTML 引用或从 ZIP assets 生成保真 page。
 - 文件导入已有可见进度队列、本地 metadata-only receipt、逐项失败/回退/可重试摘要，
   并可选择“保留成功项后只重试失败/未执行/已回退项”或“失败即整批回退”。
 - 文件导入失败后已有基础修复工作台：自动筛选失败、未执行、已回退项，默认全选，
@@ -100,7 +103,8 @@ ZhiNotes 当前已有：
 建议下一步：
 
 - Markdown/HTML 已支持用户确认后的批量 page 创建：Markdown 进入可编辑正文，HTML 进入报告文件页并用沙盒原生预览，外部资源默认阻止。
-- 下一步补 HTML 同目录 assets/ZIP assets 保真导入，以及按错误原因分组的格式修复建议。
+- 下一步补 HTML 同目录 assets/ZIP assets 的确认后本地保留、引用改写和保真 page
+  preview receipt，以及按错误原因分组的格式修复建议。
 
 ### Database 视图体验
 
