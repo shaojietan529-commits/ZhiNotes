@@ -2343,22 +2343,21 @@ function run() {
     );
   }
   for (const snippet of [
-    "setPeekInitialPage(optimisticNote)",
-    "setPeekPageId(optimisticNote.id)",
-    "每日纪要已弹出",
+    'openPage(optimisticNote, { source: "daily-create" })',
+    "每日纪要已打开",
   ]) {
     assertIncludes(
       files.dailyNotesShell,
       dailyNotesShell,
       snippet,
-      "Daily + creation must open an editable peek modal immediately."
+      "Daily + creation must enter the full page immediately after optimistic local seeding."
     );
   }
-  assertExcludes(
+  assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
     'openPage(optimisticNote, { source: "daily-create" })',
-    "Daily + creation must not navigate away before the peek modal can render."
+    "Daily + creation must route directly into the new page."
   );
   assertIncludes(
     files.dailyNotesShell,

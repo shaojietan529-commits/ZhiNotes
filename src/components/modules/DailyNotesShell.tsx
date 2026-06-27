@@ -551,18 +551,17 @@ export default function DailyNotesShell() {
       window.setTimeout(() => {
         setCreatingDateKey((current) => (current === dateKey ? null : current));
       }, 250);
-      setPeekInitialPage(optimisticNote);
-      setPeekPageId(optimisticNote.id);
-      setCloudNotice(`${dateKey} 的每日纪要已弹出，后台会加入账号云端上传队列…`);
 
       const pageRoute = `/page/${optimisticNote.id}`;
       warmPageRoute();
       try {
         router.prefetch(pageRoute);
       } catch {
-        // Route prefetch is best-effort. The modal opens from the optimistic
-        // page immediately, and full-page navigation remains available there.
+        // Route prefetch is best-effort. The local draft and route handoff
+        // already give the full page enough metadata for immediate first paint.
       }
+      setCloudNotice(`${dateKey} 的每日纪要已打开，后台会加入账号云端上传队列…`);
+      openPage(optimisticNote, { source: "daily-create" });
       void (async () => {
         try {
           const dailyRootId = initialRootId ?? (await getModuleRootId("daily"));
@@ -611,6 +610,7 @@ export default function DailyNotesShell() {
       creatingDateKey,
       notes,
       rootId,
+      openPage,
       router,
       upsertPages,
       viewMonth,

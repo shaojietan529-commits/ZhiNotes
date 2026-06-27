@@ -583,16 +583,13 @@ check(
     dailyNotesShell.indexOf("writeOptimisticDailyHotCache") <
       dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
-      dailyNotesShell.indexOf("setPeekInitialPage(optimisticNote)") &&
-    dailyNotesShell.indexOf("setPeekInitialPage(optimisticNote)") <
-      dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id)") &&
-    dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id)") <
+      dailyNotesShell.indexOf('openPage(optimisticNote, { source: "daily-create" })') &&
+    dailyNotesShell.indexOf('openPage(optimisticNote, { source: "daily-create" })') <
       dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
     dailyNotesShell.includes("useLocalFirstPageNavigation") &&
     dailyNotesShell.includes("const pageRoute = `/page/${optimisticNote.id}`") &&
     dailyNotesShell.includes("router.prefetch(pageRoute)") &&
-    dailyNotesShell.includes("setPeekInitialPage(optimisticNote)") &&
-    dailyNotesShell.includes("setPeekPageId(optimisticNote.id)") &&
+    dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
     dailyNotesShell.includes("setOpeningDraft({ pageId: optimisticNote.id, dateKey })") &&
     dailyNotesShell.includes("data-testid={`daily-opening-note-${key}`}") &&
     dailyNotesShell.includes("title: dateKey") &&
@@ -608,7 +605,7 @@ check(
     dailyNotesShell.includes("return queueDailyCloudRecords(records)") &&
     dailyNotesShell.includes("queueCloudPagePush(record)") &&
     !dailyNotesShell.includes("createPageWithCloud"),
-  "DailyNotesShell 点击 + 应立即弹出乐观草稿页面，后台加入云端上传队列；已有纪要仍可用 peek 预览，完整页打开仍走本地优先"
+  "DailyNotesShell 点击 + 应立即进入乐观草稿完整页面，后台加入云端上传队列；已有纪要仍可用 peek 预览，完整页打开仍走本地优先"
 );
 check(
   dailyNotesShell.includes("expandedDateKeys") &&
@@ -1042,19 +1039,17 @@ check(
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");
 check(
-  lazyPagePeekModal.includes('dynamic(() => import("@/components/page/PagePeekModal")') &&
+    lazyPagePeekModal.includes('dynamic(() => import("@/components/page/PagePeekModal")') &&
     dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
     dailyNotesShell.includes("setPeekPageId(note.id)") &&
     dailyNotesShell.includes("window.setTimeout(() =>") &&
     dailyNotesShell.includes("current === dateKey ? null : current") &&
     !dailyNotesShell.includes("fetchCloudPageById") &&
-    dailyNotesShell.includes("setPeekInitialPage(optimisticNote)") &&
-    dailyNotesShell.includes("setPeekPageId(optimisticNote.id)") &&
-    !dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
+    dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
     dailyNotesShell.includes("openDailyNoteFullPageById") &&
     dailyNotesShell.includes("openDailyNoteFullPage(note, \"daily-open\")") &&
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal'),
-  "每日纪要 + 应直接弹出新页面并快速释放按钮；已有纪要仍可直接加载页面弹窗壳预览；知识库仍可懒加载弹窗"
+  "每日纪要 + 应直接进入新页面并快速释放按钮；已有纪要仍可直接加载页面弹窗壳预览；知识库仍可懒加载弹窗"
 );
 
 const localQueries = read("src/lib/db/local/queries.ts");

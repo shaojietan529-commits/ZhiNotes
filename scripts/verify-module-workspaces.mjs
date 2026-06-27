@@ -122,8 +122,7 @@ for (const token of [
   'router.prefetch("/page/zhinote-route-prefetch")',
   "const pageRoute = `/page/${optimisticNote.id}`",
   "router.prefetch(pageRoute)",
-  "setPeekInitialPage(optimisticNote)",
-  "setPeekPageId(optimisticNote.id)",
+  'openPage(optimisticNote, { source: "daily-create" })',
   "<PagePeekModal",
   "rememberPendingPageDraft(optimisticNote)",
   "openNotePage",
@@ -403,8 +402,8 @@ for (const token of [
   "onPointerEnter={warmPageRoute}",
   "onFocus={warmPageRoute}",
   'import("@/components/providers/PageShell")',
-  "setPeekInitialPage(optimisticNote)",
-  "setPeekPageId(optimisticNote.id)",
+  'openPage(optimisticNote, { source: "daily-create" })',
+  "每日纪要已打开",
   "openPage(note, { source })",
   'openPage(pageId, { source: "daily-open" })',
   "rememberPendingPageDraft(optimisticNote)",
@@ -427,14 +426,12 @@ check(
     shells.daily.indexOf("writeOptimisticDailyHotCache") <
       shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
-      shells.daily.indexOf("setPeekInitialPage(optimisticNote)") &&
-    shells.daily.indexOf("setPeekInitialPage(optimisticNote)") <
-      shells.daily.indexOf("setPeekPageId(optimisticNote.id)") &&
+      shells.daily.indexOf('openPage(optimisticNote, { source: "daily-create" })') &&
     shells.daily.includes("window.setTimeout(() =>") &&
     shells.daily.includes("current === dateKey ? null : current") &&
-    shells.daily.indexOf("setPeekPageId(optimisticNote.id)") <
+    shells.daily.indexOf('openPage(optimisticNote, { source: "daily-create" })') <
       shells.daily.indexOf("persistOptimisticDailyNote"),
-  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再直接弹出编辑页面，快速释放 + 按钮并后台持久化"
+  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再直接进入完整页面，快速释放 + 按钮并后台持久化"
 );
 check(
   shells.daily.includes("await applyRemotePages(records)") &&
@@ -450,7 +447,7 @@ check(
     !shells.daily.includes("fetchCloudPageById") &&
     !shells.daily.includes("scheduleDailyPeekPreload") &&
     !shells.daily.includes('import("@/components/editor/Editor")'),
-  "DailyNotesShell 应懒加载 peek 弹窗并提供本地壳，保证日历首屏不捆绑重编辑器，也不在日历打开路径预拉正文"
+  "DailyNotesShell 应懒加载已有纪要 peek 弹窗并提供本地壳，保证日历首屏不捆绑重编辑器，也不在日历打开路径预拉正文"
 );
 check(
   shells.daily.includes("const visibleLimit = isExpanded") &&
