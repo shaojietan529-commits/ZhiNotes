@@ -1988,6 +1988,12 @@ function run() {
   assertIncludes(
     files.dailyHotCacheSnapshot,
     dailyHotCacheSnapshot,
+    "isDailyHotCacheInputPagePossiblyInRange(",
+    "Daily hot cache snapshot writes must skip out-of-range dailyDateKey inputs before parsing properties."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
     "range_pages: snapshotPages.length",
     "Daily hot cache snapshot summaries must prove all stored pages are in range."
   );
@@ -2216,6 +2222,12 @@ function run() {
     dailyNotesShell,
     "writeOptimisticDailyHotCache",
     "Daily + creation must update the local hot cache before background persistence."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "currentNotes: collectVisibleDailyNotesForHotCache(notesByDate)",
+    "Daily + creation must not pass the full imported note set into optimistic hot-cache writes."
   );
   assertIncludes(
     files.dailyNotesShell,

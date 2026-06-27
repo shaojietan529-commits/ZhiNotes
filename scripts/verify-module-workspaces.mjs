@@ -507,6 +507,7 @@ for (const token of [
   "rememberPendingPageDraft(optimisticNote)",
   "upsertPages([optimisticNote])",
   "cachedHotSnapshot,\n        startDate,\n        endDate",
+  "currentNotes: collectVisibleDailyNotesForHotCache(notesByDate)",
   "writeOptimisticDailyHotCache",
   "applyRemotePages([pageToRemoteRecord(note)])",
   "queueCloudPagePush(record)",

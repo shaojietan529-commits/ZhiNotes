@@ -121,6 +121,13 @@ export function writeDailyHotCacheSnapshot(input: {
 }): DailyHotCacheSnapshot | null {
   if (typeof window === "undefined") return null;
   const snapshotPages = input.pages
+    .filter((page) =>
+      isDailyHotCacheInputPagePossiblyInRange(
+        page,
+        input.startDate,
+        input.endDate
+      )
+    )
     .map(toSnapshotPage)
     .filter((page): page is DailyHotCacheSnapshotPage => Boolean(page))
     .filter((page) =>
@@ -226,6 +233,15 @@ function isDailyHotCacheSnapshotPageInRange(
   endDate: string
 ): boolean {
   return page.daily_date_key >= startDate && page.daily_date_key <= endDate;
+}
+
+function isDailyHotCacheInputPagePossiblyInRange(
+  page: DailyHotCacheSnapshotInputPage,
+  startDate: string,
+  endDate: string
+): boolean {
+  if (!page.dailyDateKey) return true;
+  return page.dailyDateKey >= startDate && page.dailyDateKey <= endDate;
 }
 
 function readDateKeyFromProperties(properties: string | null): string {

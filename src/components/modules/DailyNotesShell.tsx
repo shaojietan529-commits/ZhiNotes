@@ -605,7 +605,7 @@ export default function DailyNotesShell() {
       upsertPages([optimisticNote]);
       writeOptimisticDailyHotCache({
         note: optimisticNote,
-        currentNotes: notes,
+        currentNotes: collectVisibleDailyNotesForHotCache(notesByDate),
         viewMonth,
         rootId: initialRootId,
       });
@@ -670,7 +670,7 @@ export default function DailyNotesShell() {
     },
     [
       creatingDateKey,
-      notes,
+      notesByDate,
       rootId,
       openPage,
       router,
@@ -1388,6 +1388,16 @@ function getRecentIndexedDailyNotes(
   }
 
   return recent;
+}
+
+function collectVisibleDailyNotesForHotCache(
+  notesByDate: Map<string, DailyNote[]>
+): DailyNote[] {
+  const visibleNotes: DailyNote[] = [];
+  for (const dayNotes of notesByDate.values()) {
+    visibleNotes.push(...dayNotes);
+  }
+  return visibleNotes;
 }
 
 function mergeCloudDailyNotes(

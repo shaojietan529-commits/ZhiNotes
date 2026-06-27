@@ -599,6 +599,9 @@ check(
       dailyNotesShell.indexOf("upsertPages([optimisticNote])") &&
     dailyNotesShell.indexOf("upsertPages([optimisticNote])") <
       dailyNotesShell.indexOf("writeOptimisticDailyHotCache") &&
+    dailyNotesShell.includes(
+      "currentNotes: collectVisibleDailyNotesForHotCache(notesByDate)"
+    ) &&
     dailyNotesShell.indexOf("writeOptimisticDailyHotCache") <
       dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <

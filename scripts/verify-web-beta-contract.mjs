@@ -1683,6 +1683,10 @@ function run() {
       "Daily hot cache snapshot writes must keep only the requested calendar range.",
     ],
     [
+      "isDailyHotCacheInputPagePossiblyInRange(",
+      "Daily hot cache snapshot writes must skip out-of-range dailyDateKey inputs before parsing properties.",
+    ],
+    [
       "range_pages: snapshotPages.length",
       "Daily hot cache snapshot summaries must prove all stored pages are in range.",
     ],
@@ -1779,6 +1783,10 @@ function run() {
     [
       "writeOptimisticDailyHotCache",
       "Daily + creation must update the local hot cache before background persistence.",
+    ],
+    [
+      "currentNotes: collectVisibleDailyNotesForHotCache(notesByDate)",
+      "Daily + creation must not pass the full imported note set into optimistic hot-cache writes.",
     ],
     [
       "source: \"optimistic-local\"",
