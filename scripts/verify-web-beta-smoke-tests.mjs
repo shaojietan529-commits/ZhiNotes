@@ -4115,6 +4115,29 @@ function run() {
     "scheduleDeferredContentHydration",
     "Content-heavy modules must hydrate full page bodies in a background idle task."
   );
+  for (const snippet of [
+    "hydrateDeferredPageContentBatches",
+    "DEFERRED_CONTENT_HYDRATION_BATCH_SIZE",
+    "await waitForIdle(1400)",
+  ]) {
+    assertIncludes(
+      files.usePages,
+      usePages,
+      snippet,
+      "Deferred page body hydration must run in bounded idle batches."
+    );
+  }
+  for (const snippet of [
+    "export async function listPagesForContentHydration",
+    "LIMIT ? OFFSET ?",
+  ]) {
+    assertIncludes(
+      files.localQueries,
+      localQueries,
+      snippet,
+      "Local page content hydration must expose a bounded batch query."
+    );
+  }
   assertIncludes(
     files.usePages,
     usePages,

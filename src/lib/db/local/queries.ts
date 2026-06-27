@@ -1080,6 +1080,26 @@ export async function getAllPages(): Promise<Page[]> {
   ) as unknown as Page[];
 }
 
+export async function listPagesForContentHydration({
+  limit = 80,
+  offset = 0,
+}: {
+  limit?: number;
+  offset?: number;
+} = {}): Promise<Page[]> {
+  const db = await getDb();
+  const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
+  const safeOffset = Math.max(0, Math.floor(offset));
+  return db.query(
+    `SELECT *
+     FROM pages
+     WHERE deleted_at IS NULL
+     ORDER BY updated_at DESC
+     LIMIT ? OFFSET ?`,
+    [safeLimit, safeOffset]
+  ) as unknown as Page[];
+}
+
 export async function getAllPageMetadata(): Promise<Page[]> {
   const db = await getDb();
   return db.query(

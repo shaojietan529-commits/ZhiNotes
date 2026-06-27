@@ -11561,6 +11561,36 @@ function run() {
     [
       files.usePages,
       usePages,
+      "hydrateDeferredPageContentBatches",
+      "Deferred page body hydration must run in batches so large imports do not monopolize the main thread.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "DEFERRED_CONTENT_HYDRATION_BATCH_SIZE",
+      "Deferred page body hydration must keep an explicit bounded batch size.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "await waitForIdle(1400)",
+      "Deferred page body hydration must yield between batches.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "export async function listPagesForContentHydration",
+      "Local page content hydration must expose a bounded batch query instead of requiring getAllPages for deferred background scans.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "LIMIT ? OFFSET ?",
+      "Local page content hydration batches must be limit/offset bounded.",
+    ],
+    [
+      files.usePages,
+      usePages,
       "useWorkspaceStore.getState().upsertPages(contentPages)",
       "Deferred page body hydration must merge content into the existing metadata store.",
     ],

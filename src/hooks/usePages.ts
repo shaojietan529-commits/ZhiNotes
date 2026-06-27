@@ -4,6 +4,7 @@ import { useEffect, useCallback } from "react";
 import {
   getAllPageMetadata,
   getAllPages,
+  listPagesForContentHydration,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
 import { syncCloudPageMetadataDelta } from "@/lib/pages/accountPageSync";
@@ -33,6 +34,7 @@ let metadataSnapshotInFlight: Promise<Page[]> | null = null;
 let contentSnapshotInFlight: Promise<Page[]> | null = null;
 let deferredContentHydrationScheduled = false;
 let deferredContentHydrationInFlight: Promise<void> | null = null;
+const DEFERRED_CONTENT_HYDRATION_BATCH_SIZE = 80;
 
 function remoteMetadataToPage(record: RemotePageRecord): Page {
   return {
@@ -94,6 +96,28 @@ function scheduleIdleTask(callback: () => void, timeout = 1200): void {
   window.setTimeout(callback, Math.min(timeout, 500));
 }
 
+function waitForIdle(timeout = 1200): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  return new Promise((resolve) => {
+    scheduleIdleTask(() => resolve(), timeout);
+  });
+}
+
+async function hydrateDeferredPageContentBatches(): Promise<void> {
+  let offset = 0;
+  while (true) {
+    const contentPages = await listPagesForContentHydration({
+      limit: DEFERRED_CONTENT_HYDRATION_BATCH_SIZE,
+      offset,
+    });
+    if (contentPages.length === 0) return;
+    useWorkspaceStore.getState().upsertPages(contentPages);
+    if (contentPages.length < DEFERRED_CONTENT_HYDRATION_BATCH_SIZE) return;
+    offset += contentPages.length;
+    await waitForIdle(1400);
+  }
+}
+
 function scheduleDeferredContentHydration(): void {
   if (
     deferredContentHydrationScheduled ||
@@ -105,10 +129,7 @@ function scheduleDeferredContentHydration(): void {
   deferredContentHydrationScheduled = true;
   scheduleIdleTask(() => {
     deferredContentHydrationScheduled = false;
-    deferredContentHydrationInFlight = loadPagesSnapshot(true)
-      .then((contentPages) => {
-        useWorkspaceStore.getState().upsertPages(contentPages);
-      })
+    deferredContentHydrationInFlight = hydrateDeferredPageContentBatches()
       .catch(() => {
         // Full page bodies are a background enhancement. Metadata already
         // rendered, so a transient local-cache miss should not block modules.
