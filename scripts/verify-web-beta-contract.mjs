@@ -111,6 +111,7 @@ const files = {
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
   scopedPageMetadata: "src/lib/pages/scopedPageMetadata.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
+  localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
@@ -471,6 +472,9 @@ function run() {
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
   );
+  const localFirstPageNavigationUtil = readProjectFile(
+    files.localFirstPageNavigationUtil
+  );
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
@@ -646,6 +650,7 @@ function run() {
     [files.databaseRouteSkeleton, databaseRouteSkeleton],
     [files.childPageTree, childPageTree],
     [files.localFirstPageNavigation, localFirstPageNavigation],
+    [files.localFirstPageNavigationUtil, localFirstPageNavigationUtil],
     [files.pageTree, pageTree],
     [files.favoritePages, favoritePages],
     [files.trashPages, trashPages],
@@ -11646,15 +11651,15 @@ function run() {
       "Page edit drafts must clear after the local cache write catches up.",
     ],
     [
-      files.localFirstPageNavigation,
-      localFirstPageNavigation,
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
       "rememberPendingPageDraft(page)",
       "Shared page navigation must keep an in-memory draft before opening the page route.",
     ],
     [
-      files.localFirstPageNavigation,
-      localFirstPageNavigation,
-      'rememberPageRouteHandoff(page, options.source ?? "page-open")',
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
+      "rememberPageRouteHandoff(page, source)",
       "Shared page navigation must hand off metadata before slower local DB or cloud checks.",
     ],
     [
@@ -11666,18 +11671,18 @@ function run() {
     [
       files.localFirstPageNavigation,
       localFirstPageNavigation,
-      "pageShellWarmupRef",
+      "warmPageShellModule();",
       "Shared page navigation must warm the page shell once for module, sidebar, and search opens.",
     ],
     [
-      files.localFirstPageNavigation,
-      localFirstPageNavigation,
-      "warmPageShell();",
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
+      "pageShellWarmupPromise",
       "Shared page navigation must start page shell warmup before route navigation.",
     ],
     [
-      files.localFirstPageNavigation,
-      localFirstPageNavigation,
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
       'import("@/components/providers/PageShell")',
       "Shared page navigation must preload the page shell without reading page bodies.",
     ],
@@ -11953,12 +11958,17 @@ function run() {
     "content_yjs",
     'import("@/components/editor/Editor")',
   ]) {
-    assertSourceExcludes(
-      files.localFirstPageNavigation,
-      localFirstPageNavigation,
-      forbiddenLocalFirstNavigationSnippet,
-      "Shared page navigation must stay a metadata-only route hint, not a cloud sync or content cache."
-    );
+    for (const [sourceLabel, source] of [
+      [files.localFirstPageNavigation, localFirstPageNavigation],
+      [files.localFirstPageNavigationUtil, localFirstPageNavigationUtil],
+    ]) {
+      assertSourceExcludes(
+        sourceLabel,
+        source,
+        forbiddenLocalFirstNavigationSnippet,
+        "Shared page navigation must stay a metadata-only route hint, not a cloud sync or content cache."
+      );
+    }
   }
   assertSourceExcludes(
     files.usePage,

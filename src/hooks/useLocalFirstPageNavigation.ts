@@ -1,41 +1,24 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import {
-  rememberPageRouteHandoff,
-  type PageRouteHandoffSource,
-} from "@/lib/pages/pageRouteHandoff";
+  prepareLocalFirstPageNavigation,
+  warmPageShellModule,
+  type LocalFirstPageNavigationOptions,
+} from "@/lib/pages/localFirstPageNavigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
-interface LocalFirstPageNavigationOptions {
-  source?: PageRouteHandoffSource;
-  replace?: boolean;
-}
-
 export function useLocalFirstPageNavigation() {
   const router = useRouter();
-  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
-  const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
-
-  const warmPageShell = useCallback(() => {
-    if (!pageShellWarmupRef.current) {
-      pageShellWarmupRef.current = import("@/components/providers/PageShell").catch(
-        () => {
-          pageShellWarmupRef.current = null;
-        }
-      );
-    }
-  }, []);
 
   return useCallback(
     (
       target: Page | string,
       options: LocalFirstPageNavigationOptions = {}
     ) => {
-      warmPageShell();
+      warmPageShellModule();
       const pageId = typeof target === "string" ? target : target.id;
       const page =
         typeof target === "string"
@@ -45,9 +28,7 @@ export function useLocalFirstPageNavigation() {
           : target;
 
       if (page) {
-        upsertPages([page]);
-        rememberPendingPageDraft(page);
-        rememberPageRouteHandoff(page, options.source ?? "page-open");
+        prepareLocalFirstPageNavigation(page, options.source ?? "page-open");
         try {
           router.prefetch(`/page/${page.id}`);
         } catch {
@@ -63,6 +44,6 @@ export function useLocalFirstPageNavigation() {
         router.push(href);
       }
     },
-    [router, upsertPages, warmPageShell]
+    [router]
   );
 }

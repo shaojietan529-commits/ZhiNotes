@@ -72,6 +72,11 @@ import { PasteLinkOnSelection } from "./extensions/PasteLinkOnSelection";
 import { PastePageLink } from "./extensions/PastePageLink";
 import { buildChildPageInitialHtml } from "@/lib/pages/childPageSeed";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
+import {
+  dispatchLocalFirstPageNavigation,
+  subscribeLocalFirstPageNavigation,
+} from "@/lib/pages/localFirstPageNavigation";
 import { BlockDragHandleLayer } from "./BlockDragHandleLayer";
 import EditorBubbleMenu from "./EditorBubbleMenu";
 import {
@@ -87,6 +92,8 @@ import {
   useCallback,
   useState,
 } from "react";
+
+type OpenPage = ReturnType<typeof useLocalFirstPageNavigation>;
 
 interface EditorProps {
   pageId: string;
@@ -132,6 +139,7 @@ export interface EditorRef {
 
 const Editor = forwardRef<EditorRef, EditorProps>(
   ({ pageId, initialContent, editable = true, onUpdate }, ref) => {
+    const openPage = useLocalFirstPageNavigation();
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pendingSaveRef = useRef<{
       html: string;
@@ -431,7 +439,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         }
 
         void Promise.resolve(
-          runEditorLocalCommand(editor, command, pageId, persistEditorNow)
+          runEditorLocalCommand(editor, command, pageId, persistEditorNow, openPage)
         )
           .then((changed) => {
             if (changed) persistEditorNow(editor);
@@ -451,7 +459,13 @@ const Editor = forwardRef<EditorRef, EditorProps>(
           EDITOR_LOCAL_COMMAND_EVENT,
           handleEditorLocalCommand
         );
-    }, [editor, pageId, persistEditorNow]);
+    }, [editor, openPage, pageId, persistEditorNow]);
+
+    useEffect(() => {
+      return subscribeLocalFirstPageNavigation((target, options) => {
+        openPage(target, options);
+      });
+    }, [openPage]);
 
     useEffect(() => {
       if (!editor) return;
@@ -630,7 +644,8 @@ function runEditorLocalCommand(
   editor: TiptapEditor,
   command: EditorLocalCommand,
   pageId: string,
-  onPersistContent?: (editor: TiptapEditor) => void
+  onPersistContent?: (editor: TiptapEditor) => void,
+  openPage?: OpenPage
 ): boolean | Promise<boolean> {
   const chain = editor.chain().focus();
 
@@ -651,7 +666,7 @@ function runEditorLocalCommand(
         onPersistContent ?? (() => undefined)
       ).then(() => false);
     case "child-page":
-      return createChildPageFromEditorCommand(editor, pageId);
+      return createChildPageFromEditorCommand(editor, pageId, openPage);
     case "bold":
       return chain.toggleBold().run();
     case "italic":
@@ -716,7 +731,8 @@ function runEditorLocalCommand(
 
 async function createChildPageFromEditorCommand(
   editor: TiptapEditor,
-  parentPageId: string
+  parentPageId: string,
+  openPage?: OpenPage
 ) {
   const page = await createPageWithCloud({
     parentId: parentPageId,
@@ -728,7 +744,8 @@ async function createChildPageFromEditorCommand(
       parentTitle: parentPage?.title ?? null,
     }),
   });
-  useWorkspaceStore.getState().upsertPages([updatedPage ?? page]);
+  const pageToOpen = updatedPage ?? page;
+  useWorkspaceStore.getState().upsertPages([pageToOpen]);
 
   editor
     .chain()
@@ -748,7 +765,14 @@ async function createChildPageFromEditorCommand(
   await updatePageWithCloud(parentPageId, { content_text: editor.getHTML() });
   await updateWikiLinks(parentPageId, getLinkedPageIds(editor));
 
-  window.location.href = `/page/${page.id}`;
+  if (openPage) {
+    openPage(pageToOpen, { source: "child-page-create" });
+  } else {
+    const handled = dispatchLocalFirstPageNavigation(pageToOpen, {
+      source: "child-page-create",
+    });
+    if (!handled) window.location.href = `/page/${page.id}`;
+  }
   return false;
 }
 

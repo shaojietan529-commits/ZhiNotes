@@ -42,6 +42,7 @@ const files = {
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
   scopedPageMetadata: "src/lib/pages/scopedPageMetadata.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
+  localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
@@ -327,6 +328,9 @@ function run() {
   const scopedPageMetadata = readProjectFile(files.scopedPageMetadata);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
+  );
+  const localFirstPageNavigationUtil = readProjectFile(
+    files.localFirstPageNavigationUtil
   );
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
@@ -4215,15 +4219,15 @@ function run() {
     "Page editing must clear the immediate draft after local cache persistence catches up."
   );
   assertIncludes(
-    files.localFirstPageNavigation,
-    localFirstPageNavigation,
+    files.localFirstPageNavigationUtil,
+    localFirstPageNavigationUtil,
     "rememberPendingPageDraft(page)",
     "Shared page navigation must keep an immediate draft before opening page routes."
   );
   assertIncludes(
-    files.localFirstPageNavigation,
-    localFirstPageNavigation,
-    'rememberPageRouteHandoff(page, options.source ?? "page-open")',
+    files.localFirstPageNavigationUtil,
+    localFirstPageNavigationUtil,
+    "rememberPageRouteHandoff(page, source)",
     "Shared page navigation must hand off page metadata before slower local or cloud checks."
   );
   assertIncludes(
@@ -4235,27 +4239,32 @@ function run() {
   assertIncludes(
     files.localFirstPageNavigation,
     localFirstPageNavigation,
-    "pageShellWarmupRef",
+    "warmPageShellModule();",
     "Shared page navigation must warm the page shell once for module, sidebar, and search opens."
   );
   assertIncludes(
-    files.localFirstPageNavigation,
-    localFirstPageNavigation,
-    "warmPageShell();",
+    files.localFirstPageNavigationUtil,
+    localFirstPageNavigationUtil,
+    "pageShellWarmupPromise",
     "Shared page navigation must start page shell warmup before route navigation."
   );
   assertIncludes(
-    files.localFirstPageNavigation,
-    localFirstPageNavigation,
+    files.localFirstPageNavigationUtil,
+    localFirstPageNavigationUtil,
     'import("@/components/providers/PageShell")',
     "Shared page navigation must preload the page shell without reading page bodies."
   );
-  assertExcludes(
-    files.localFirstPageNavigation,
-    localFirstPageNavigation,
-    'import("@/components/editor/Editor")',
-    "Shared page navigation must not preload the heavy editor bundle before metadata first paint."
-  );
+  for (const [sourceLabel, source] of [
+    [files.localFirstPageNavigation, localFirstPageNavigation],
+    [files.localFirstPageNavigationUtil, localFirstPageNavigationUtil],
+  ]) {
+    assertExcludes(
+      sourceLabel,
+      source,
+      'import("@/components/editor/Editor")',
+      "Shared page navigation must not preload the heavy editor bundle before metadata first paint."
+    );
+  }
   for (const forbiddenLocalFirstNavigationSnippet of [
     "queueCloudPagePush",
     "pushCloudPages",
@@ -4263,10 +4272,15 @@ function run() {
     "content_text",
     "content_yjs",
   ]) {
-    if (localFirstPageNavigation.includes(forbiddenLocalFirstNavigationSnippet)) {
-      failures.push(
-        `${files.localFirstPageNavigation} must not include ${forbiddenLocalFirstNavigationSnippet}: shared page navigation must stay metadata-only.`
-      );
+    for (const [sourceLabel, source] of [
+      [files.localFirstPageNavigation, localFirstPageNavigation],
+      [files.localFirstPageNavigationUtil, localFirstPageNavigationUtil],
+    ]) {
+      if (source.includes(forbiddenLocalFirstNavigationSnippet)) {
+        failures.push(
+          `${sourceLabel} must not include ${forbiddenLocalFirstNavigationSnippet}: shared page navigation must stay metadata-only.`
+        );
+      }
     }
   }
   assertIncludes(

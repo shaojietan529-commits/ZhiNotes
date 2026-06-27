@@ -27,6 +27,11 @@ import { NOTE_TEMPLATES } from "@/lib/templates/noteTemplates";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { buildChildPageInitialHtml } from "@/lib/pages/childPageSeed";
 import { dispatchEditorLocalCommand } from "@/lib/editorLocalCommands";
+import {
+  dispatchLocalFirstPageNavigation,
+  prepareLocalFirstPageNavigation,
+  warmPageShellModule,
+} from "@/lib/pages/localFirstPageNavigation";
 
 function getSlashCommands(): SlashCommandItem[] {
   const templateCommands: SlashCommandItem[] = NOTE_TEMPLATES.map((template) => ({
@@ -120,7 +125,9 @@ function getSlashCommands(): SlashCommandItem[] {
             parentTitle: parentPage?.title ?? null,
           }),
         });
-        useWorkspaceStore.getState().upsertPages([updatedPage ?? page]);
+        const pageToOpen = updatedPage ?? page;
+        prepareLocalFirstPageNavigation(pageToOpen, "child-page-create");
+        warmPageShellModule();
 
         editor
           .chain()
@@ -145,7 +152,10 @@ function getSlashCommands(): SlashCommandItem[] {
           await updateWikiLinks(currentPageId, getLinkedPageIds(editor));
         }
 
-        window.location.href = `/page/${page.id}`;
+        const handled = dispatchLocalFirstPageNavigation(pageToOpen, {
+          source: "child-page-create",
+        });
+        if (!handled) window.location.href = `/page/${page.id}`;
       },
     },
     // ── Lists ──

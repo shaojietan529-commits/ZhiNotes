@@ -223,11 +223,13 @@ function run() {
     "\"create page\"",
     "\"new\"",
     "\"新页面\"",
-    "window.location.href = `/page/${page.id}`",
+    "prepareLocalFirstPageNavigation(pageToOpen, \"child-page-create\")",
+    "warmPageShellModule()",
+    "dispatchLocalFirstPageNavigation(pageToOpen",
+    "source: \"child-page-create\"",
     "buildChildPageInitialHtml",
     "updatePageWithCloud(page.id",
     "getPageMetadata(parentPageId)",
-    "upsertPages([updatedPage ?? page])",
     "updateWikiLinks",
   ]) {
     assertIncludes(
@@ -384,8 +386,10 @@ function run() {
     assertIncludes(
       sourceLabel,
       source,
-      "upsertPages([updatedPage ?? page])",
-      "/page child creation must merge the new page into the store without replacing the whole page list."
+      sourceLabel === files.editor
+        ? 'openPage(pageToOpen, { source: "child-page-create" })'
+        : 'prepareLocalFirstPageNavigation(pageToOpen, "child-page-create")',
+      "/page child creation must merge the new page into the local-first navigation store without replacing the whole page list."
     );
     assertNotIncludes(
       sourceLabel,
@@ -617,7 +621,8 @@ function run() {
     "copyCurrentBlockHtml(editor)",
     "copyCurrentBlockMarkdown(editor)",
     "copyCurrentBlockLink(",
-    "runEditorLocalCommand(editor, command, pageId, persistEditorNow)",
+    "runEditorLocalCommand(editor, command, pageId, persistEditorNow, openPage)",
+    "subscribeLocalFirstPageNavigation",
     "id: \"editor-block-comment\"",
     "id: \"editor-copy-block-link\"",
     "id: \"editor-copy-block-markdown\"",
