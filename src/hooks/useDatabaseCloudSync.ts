@@ -35,13 +35,18 @@ const PENDING_STATUS_SYNC_DELAY_MS = 1200;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.databasesync.leaderLease.v1";
 const LEASE_TTL_MS = 22 * 1000;
-const DATABASE_PENDING_STORAGE_KEY = "zhinote.databasesync.pendingPushKeys";
+const DATABASE_PENDING_STORAGE_KEYS = new Set([
+  "zhinote.databasesync.pendingPushKeys",
+  "zhinote.databasesync.pendingPushMeta",
+]);
 
 const EMPTY_DATABASE_PENDING_STATUS: PendingCloudDatabaseSyncStatus = {
   enabled: false,
   pending: 0,
   queued: 0,
   syncLogPending: 0,
+  oldestPendingQueuedAt: null,
+  pendingSampleKeys: [],
   lastSyncAt: null,
 };
 
@@ -227,7 +232,7 @@ export function useDatabaseCloudSync() {
       }
       if (event.key?.startsWith("zhinote.databasesync.")) {
         void refreshPendingStatus();
-        if (event.key === DATABASE_PENDING_STORAGE_KEY) {
+        if (DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")) {
           scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS);
         }
       }

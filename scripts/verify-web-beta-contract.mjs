@@ -4880,12 +4880,20 @@ function run() {
       "Sync UI must expose stable database pending queue fact test hooks.",
     ],
     [
-      "数据库待上传队列详情",
-      "Sync UI must render database pending queue details in reader-facing language.",
+      "数据库待上传样本",
+      "Sync UI must render database pending sample keys in reader-facing language.",
     ],
     [
       "这里只显示数据库队列数量",
       "Database pending details must clarify the panel is metadata-only.",
+    ],
+    [
+      'data-testid="database-pending-sample-key"',
+      "Sync UI must expose stable metadata-only database key sample test hooks.",
+    ],
+    [
+      "database/field/row/view key",
+      "Database pending details must show key-only samples instead of row values.",
     ],
     [
       "不读取 row",
@@ -5001,12 +5009,24 @@ function run() {
       "Database pending status must read the local sync_log pending queue.",
     ],
     [
-      "pending: getPendingCloudDatabasePushKeys().length",
+      "pending: pendingKeys.length",
       "Database pending status must expose the cloud key retry queue.",
     ],
     [
       "queued: queuedCloudDatabasePush.size",
       "Database pending status must expose the in-memory debounce queue.",
+    ],
+    [
+      "PENDING_PUSH_META_KEY",
+      "Database pending status must store metadata separately from database row values.",
+    ],
+    [
+      "oldestPendingQueuedAt",
+      "Database pending status must expose the oldest pending queued timestamp.",
+    ],
+    [
+      "pendingSampleKeys: pendingKeys.slice(0, 5)",
+      "Database pending status must expose metadata-only sample keys.",
     ],
     [
       "lastSyncAt: getLastDatabaseSyncAt()",
@@ -5042,11 +5062,11 @@ function run() {
       "Database pending status quick sync must include cloud key, memory, and sync_log queues.",
     ],
     [
-      "DATABASE_PENDING_STORAGE_KEY",
-      "Database cloud sync must restrict cross-tab quick syncs to the pending storage key.",
+      "DATABASE_PENDING_STORAGE_KEYS",
+      "Database cloud sync must restrict cross-tab quick syncs to database pending storage keys.",
     ],
     [
-      "event.key === DATABASE_PENDING_STORAGE_KEY",
+      'DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")',
       "Database cross-tab pending storage changes must trigger quick sync without waiting for the normal poll.",
     ],
     [

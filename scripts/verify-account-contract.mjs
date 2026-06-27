@@ -412,12 +412,16 @@ check(
 check(
   databaseSyncClient.includes("export interface PendingCloudDatabaseSyncStatus") &&
     databaseSyncClient.includes("export async function getPendingCloudDatabaseSyncStatus") &&
+    databaseSyncClient.includes("PENDING_PUSH_META_KEY") &&
+    databaseSyncClient.includes("getPendingCloudDatabasePushMeta") &&
     databaseSyncClient.includes("const pending = await getPendingDatabaseSyncRecords(1000)") &&
-    databaseSyncClient.includes("pending: getPendingCloudDatabasePushKeys().length") &&
+    databaseSyncClient.includes("pending: pendingKeys.length") &&
     databaseSyncClient.includes("queued: queuedCloudDatabasePush.size") &&
     databaseSyncClient.includes("syncLogPending") &&
+    databaseSyncClient.includes("oldestPendingQueuedAt") &&
+    databaseSyncClient.includes("pendingSampleKeys: pendingKeys.slice(0, 5)") &&
     databaseSyncClient.includes("lastSyncAt: getLastDatabaseSyncAt()"),
-  "数据库同步客户端应暴露只读 pending 上传状态，供同步页展示 cloud key、本地 sync_log 和内存批次"
+  "数据库同步客户端应暴露只读 pending 上传状态、最早排队时间和样本 key，供同步页展示 cloud key、本地 sync_log 和内存批次"
 );
 check(
   syncDashboardShell.includes("数据库 pending 上传队列") &&
@@ -910,8 +914,8 @@ check(
     databaseCloudSyncHook.includes("PENDING_STATUS_SYNC_DELAY_MS") &&
     databaseCloudSyncHook.includes("scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS)") &&
     databaseCloudSyncHook.includes("detail.pending + detail.queued + detail.syncLogPending") &&
-    databaseCloudSyncHook.includes("DATABASE_PENDING_STORAGE_KEY") &&
-    databaseCloudSyncHook.includes("event.key === DATABASE_PENDING_STORAGE_KEY"),
+    databaseCloudSyncHook.includes("DATABASE_PENDING_STORAGE_KEYS") &&
+    databaseCloudSyncHook.includes('DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")'),
   "数据库云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync"
 );
 check(

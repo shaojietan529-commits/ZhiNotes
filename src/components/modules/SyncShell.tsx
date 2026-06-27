@@ -1323,6 +1323,8 @@ function SyncDashboard() {
       pending: 0,
       queued: 0,
       syncLogPending: 0,
+      oldestPendingQueuedAt: null,
+      pendingSampleKeys: [],
       lastSyncAt: null,
     }));
   const [databasePendingMessage, setDatabasePendingMessage] = useState<
@@ -15837,6 +15839,13 @@ function DatabasePendingQueueDetails({
       detail: "当前浏览器会话内等待合并的数据库记录。",
     },
     {
+      label: "最早排队",
+      value: status.oldestPendingQueuedAt
+        ? formatDate(status.oldestPendingQueuedAt)
+        : "暂无 pending",
+      detail: "用于判断是否有长时间未补传数据库变更。",
+    },
+    {
       label: "最后同步",
       value: status.lastSyncAt ? formatDate(status.lastSyncAt) : "暂无记录",
       detail: status.enabled ? "最近一次数据库云同步时间。" : "数据库同步当前关闭。",
@@ -15848,7 +15857,7 @@ function DatabasePendingQueueDetails({
       data-testid="database-pending-queue-details"
       className="mt-3 space-y-3"
     >
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
         {queueFacts.map((fact) => (
           <div
             key={fact.label}
@@ -15872,11 +15881,11 @@ function DatabasePendingQueueDetails({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h4 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
-              数据库待上传队列详情
+              数据库待上传样本
             </h4>
             <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-              这里只显示数据库队列数量、同步日志数量和同步时间，不读取 row
-              value；补传按钮才会尝试上传 pending queue。
+              这里只显示数据库队列数量、同步日志数量、同步时间和少量
+              database/field/row/view key，不读取 row value；补传按钮才会尝试上传 pending queue。
               不展示或导出数据库行值。
             </p>
           </div>
@@ -15886,6 +15895,29 @@ function DatabasePendingQueueDetails({
             {stateLabel}
           </span>
         </div>
+        {status.pendingSampleKeys.length > 0 ? (
+          <ul className="mt-3 space-y-1">
+            {status.pendingSampleKeys.map((key, index) => (
+              <li
+                key={`${key}-${index}`}
+                data-testid="database-pending-sample-key"
+                className="rounded bg-zinc-50 px-2 py-1 font-mono text-[11px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-300"
+              >
+                {key}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 rounded bg-zinc-50 px-2 py-1 text-xs text-zinc-400 dark:bg-zinc-900">
+            暂无待上传 database/field/row/view key。
+          </p>
+        )}
+        {status.pending > status.pendingSampleKeys.length ? (
+          <p className="mt-2 text-[11px] leading-5 text-zinc-400">
+            还有 {status.pending - status.pendingSampleKeys.length} 个数据库 key 未展开显示；
+            为保护隐私，这里只展示少量样本 key。
+          </p>
+        ) : null}
         <p className="mt-3 rounded bg-zinc-50 px-2 py-1 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-300">
           普通同步只会补传 pending queue 里的数据库变更，不会把本地数据库缓存全量上传。
         </p>

@@ -28,6 +28,7 @@ const ENABLED_KEY = "zhinote.databasesync.enabled";
 const LAST_SYNC_KEY = "zhinote.databasesync.lastSyncAt";
 const REMOTE_CURSOR_KEY = "zhinote.databasesync.remoteCursor";
 const PENDING_PUSH_KEYS_KEY = "zhinote.databasesync.pendingPushKeys";
+const PENDING_PUSH_META_KEY = "zhinote.databasesync.pendingPushMeta";
 const AUTH_RETRY_KEY = "zhinote.databasesync.authRetry.v1";
 const INCREMENTAL_PULL_LIMIT = 100;
 const QUICK_INCREMENTAL_BATCH_LIMIT = 3;
@@ -154,8 +155,19 @@ export interface PendingCloudDatabaseSyncStatus {
   pending: number;
   queued: number;
   syncLogPending: number;
+  oldestPendingQueuedAt: string | null;
+  pendingSampleKeys: string[];
   lastSyncAt: string | null;
 }
+
+interface PendingCloudDatabasePushMetaEntry {
+  queuedAt: string;
+}
+
+type PendingCloudDatabasePushMeta = Record<
+  string,
+  PendingCloudDatabasePushMetaEntry
+>;
 
 export interface DatabaseReconcileResult {
   status: DatabaseSyncStatus;
@@ -420,16 +432,90 @@ function setPendingCloudDatabasePushKeys(keys: string[]): void {
   const uniqueKeys = Array.from(new Set(keys.filter(isValidRecordKey)));
   if (uniqueKeys.length === 0) {
     removeSyncStorage(PENDING_PUSH_KEYS_KEY);
+    removeSyncStorage(PENDING_PUSH_META_KEY);
     emitDatabaseSyncStatusChanged();
     return;
   }
   writeSyncStorage(PENDING_PUSH_KEYS_KEY, JSON.stringify(uniqueKeys));
+  prunePendingCloudDatabasePushMetaToKeys(uniqueKeys);
   emitDatabaseSyncStatusChanged();
+}
+
+function getPendingCloudDatabasePushMeta(): PendingCloudDatabasePushMeta {
+  try {
+    const parsed = JSON.parse(readSyncStorage(PENDING_PUSH_META_KEY) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    const next: PendingCloudDatabasePushMeta = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (
+        !isValidRecordKey(key) ||
+        !value ||
+        typeof value !== "object" ||
+        Array.isArray(value)
+      ) {
+        continue;
+      }
+      const queuedAt = (value as { queuedAt?: unknown }).queuedAt;
+      if (
+        typeof queuedAt === "string" &&
+        !Number.isNaN(Date.parse(queuedAt))
+      ) {
+        next[key] = { queuedAt };
+      }
+    }
+    return next;
+  } catch {
+    return {};
+  }
+}
+
+function setPendingCloudDatabasePushMeta(
+  meta: PendingCloudDatabasePushMeta
+): void {
+  const next: PendingCloudDatabasePushMeta = {};
+  for (const [key, value] of Object.entries(meta)) {
+    if (
+      isValidRecordKey(key) &&
+      typeof value.queuedAt === "string" &&
+      !Number.isNaN(Date.parse(value.queuedAt))
+    ) {
+      next[key] = { queuedAt: value.queuedAt };
+    }
+  }
+  if (Object.keys(next).length === 0) {
+    removeSyncStorage(PENDING_PUSH_META_KEY);
+    return;
+  }
+  writeSyncStorage(PENDING_PUSH_META_KEY, JSON.stringify(next));
+}
+
+function prunePendingCloudDatabasePushMetaToKeys(keys: string[]): void {
+  const allowedKeys = new Set(keys.filter(isValidRecordKey));
+  if (allowedKeys.size === 0) {
+    removeSyncStorage(PENDING_PUSH_META_KEY);
+    return;
+  }
+  const next: PendingCloudDatabasePushMeta = {};
+  for (const [key, value] of Object.entries(getPendingCloudDatabasePushMeta())) {
+    if (allowedKeys.has(key)) next[key] = value;
+  }
+  setPendingCloudDatabasePushMeta(next);
 }
 
 function markPendingCloudDatabasePushKey(key: string): void {
   if (!isValidRecordKey(key)) return;
-  setPendingCloudDatabasePushKeys([...getPendingCloudDatabasePushKeys(), key]);
+  const nextKeys = [...getPendingCloudDatabasePushKeys(), key];
+  setPendingCloudDatabasePushKeys(nextKeys);
+  const pendingMeta = getPendingCloudDatabasePushMeta();
+  if (!pendingMeta[key]) {
+    setPendingCloudDatabasePushMeta({
+      ...pendingMeta,
+      [key]: { queuedAt: new Date().toISOString() },
+    });
+    emitDatabaseSyncStatusChanged();
+  }
 }
 
 function clearPendingCloudDatabasePushKeys(keys: string[]): void {
@@ -1204,11 +1290,24 @@ export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudD
   } catch {
     syncLogPending = 0;
   }
+  const pendingKeys = getPendingCloudDatabasePushKeys();
+  const pendingMeta = getPendingCloudDatabasePushMeta();
+  const oldestPendingQueuedAt = pendingKeys.reduce<string | null>(
+    (oldest, key) => {
+      const queuedAt = pendingMeta[key]?.queuedAt ?? null;
+      if (!queuedAt) return oldest;
+      if (!oldest) return queuedAt;
+      return Date.parse(queuedAt) < Date.parse(oldest) ? queuedAt : oldest;
+    },
+    null
+  );
   return {
     enabled: isDatabaseSyncEnabled(),
-    pending: getPendingCloudDatabasePushKeys().length,
+    pending: pendingKeys.length,
     queued: queuedCloudDatabasePush.size,
     syncLogPending,
+    oldestPendingQueuedAt,
+    pendingSampleKeys: pendingKeys.slice(0, 5),
     lastSyncAt: getLastDatabaseSyncAt(),
   };
 }

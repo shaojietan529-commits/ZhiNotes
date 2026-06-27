@@ -4450,14 +4450,32 @@ function run() {
   assertIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
-    "DATABASE_PENDING_STORAGE_KEY",
-    "Database cloud sync must restrict cross-tab quick syncs to the pending storage key."
+    "DATABASE_PENDING_STORAGE_KEYS",
+    "Database cloud sync must restrict cross-tab quick syncs to database pending storage keys."
   );
   assertIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
-    "event.key === DATABASE_PENDING_STORAGE_KEY",
+    'DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")',
     "Database cross-tab pending storage changes must trigger low-latency quick sync."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "PENDING_PUSH_META_KEY",
+    "Database pending queue must store metadata separately from database row values."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "oldestPendingQueuedAt",
+    "Database pending status must expose the oldest queued timestamp."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "pendingSampleKeys",
+    "Database pending status must expose metadata-only sample keys."
   );
   assertIncludes(
     files.accountDatabaseSync,
@@ -4504,14 +4522,26 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
-    "数据库待上传队列详情",
-    "Sync UI must render database pending queue details in reader-facing language."
+    "数据库待上传样本",
+    "Sync UI must render database pending sample keys in reader-facing language."
   );
   assertIncludes(
     files.syncShell,
     syncShell,
     "这里只显示数据库队列数量",
     "Sync UI database pending details must clarify the panel is metadata-only."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid="database-pending-sample-key"',
+    "Sync UI must expose stable test hooks for metadata-only database key samples."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "database/field/row/view key",
+    "Sync UI database pending details must show key-only samples instead of row values."
   );
   assertIncludes(
     files.syncShell,
