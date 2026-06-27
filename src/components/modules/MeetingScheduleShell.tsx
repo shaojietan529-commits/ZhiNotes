@@ -97,6 +97,7 @@ const MEETING_PRIORITY_OPTIONS = [
 const DEFAULT_MEETING_PRIORITY = "default";
 const MEETING_CALENDAR_VISIBLE_LIMIT = 6;
 const MEETING_UPCOMING_VISIBLE_LIMIT = 8;
+const MEETING_NOTES_VISIBLE_LIMIT = 20;
 const MEETING_CALENDAR_EXPAND_BATCH = 24;
 const MEETING_CALENDAR_REVEAL_BUFFER = 2;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -795,16 +796,7 @@ export default function MeetingScheduleShell() {
   // live on the calendar and in 今日会议 until they finish.
   const meetingNotes = useMemo(
     () =>
-      entries
-        .filter(
-          (e) =>
-            !e.page.deleted_at &&
-            (e.recordingStatus === "录制成功" || e.traceStatus === "已完成")
-        )
-        .sort((a, b) =>
-          (b.page.updated_at || "").localeCompare(a.page.updated_at || "")
-        )
-        .slice(0, 20),
+      getRecentCompletedMeetingEntries(entries, MEETING_NOTES_VISIBLE_LIMIT),
     [entries]
   );
 
@@ -2652,6 +2644,45 @@ function compareUpcomingMeetingEntries(a: MeetingEntry, b: MeetingEntry) {
   const timeOrder = (a.time || "").localeCompare(b.time || "");
   if (timeOrder !== 0) return timeOrder;
   return (b.page.updated_at || "").localeCompare(a.page.updated_at || "");
+}
+
+function getRecentCompletedMeetingEntries(
+  entries: MeetingEntry[],
+  limit: number
+): MeetingEntry[] {
+  if (limit <= 0) return [];
+  const recent: MeetingEntry[] = [];
+
+  for (const entry of entries) {
+    if (
+      entry.page.deleted_at ||
+      (entry.recordingStatus !== "录制成功" && entry.traceStatus !== "已完成")
+    ) {
+      continue;
+    }
+
+    let insertAt = recent.length;
+    while (
+      insertAt > 0 &&
+      compareRecentMeetingNoteEntries(entry, recent[insertAt - 1]) < 0
+    ) {
+      insertAt -= 1;
+    }
+
+    if (insertAt >= limit) continue;
+    recent.splice(insertAt, 0, entry);
+    if (recent.length > limit) recent.pop();
+  }
+
+  return recent;
+}
+
+function compareRecentMeetingNoteEntries(a: MeetingEntry, b: MeetingEntry) {
+  const updatedOrder = (b.page.updated_at || "").localeCompare(
+    a.page.updated_at || ""
+  );
+  if (updatedOrder !== 0) return updatedOrder;
+  return a.page.id.localeCompare(b.page.id);
 }
 
 const inputClass =

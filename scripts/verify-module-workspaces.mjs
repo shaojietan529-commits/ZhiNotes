@@ -535,7 +535,10 @@ check(
 check(
   shells.schedule.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
     shells.schedule.includes("MEETING_UPCOMING_VISIBLE_LIMIT") &&
+    shells.schedule.includes("MEETING_NOTES_VISIBLE_LIMIT") &&
     shells.schedule.includes("getUpcomingMeetingEntries(") &&
+    shells.schedule.includes("getRecentCompletedMeetingEntries(") &&
+    shells.schedule.includes("function getRecentCompletedMeetingEntries(") &&
     shells.schedule.includes("MEETING_CALENDAR_REVEAL_BUFFER") &&
     shells.schedule.includes("visibleMeetingLimitByDate") &&
     shells.schedule.includes("showMoreMeetingsForDate") &&
@@ -552,6 +555,7 @@ check(
     shells.schedule.includes("再显示 ${nextBatchCount} 场") &&
     shells.schedule.includes("dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT") &&
     !shells.schedule.includes(".sort((a, b) => a.dateKey.localeCompare(b.dateKey))\n      .slice(0, 8)") &&
+    !shells.schedule.includes(".sort((a, b) =>\n          (b.page.updated_at || \"\").localeCompare(a.page.updated_at || \"\")\n        )\n        .slice(0, 20)") &&
     !shells.schedule.includes("? dayMeetings\n                : dayMeetings.slice"),
   "MeetingScheduleShell 展开某一天时也必须分批渲染，不能一次性把大批量导入会议全部挂到 DOM"
 );

@@ -2613,8 +2613,11 @@ function run() {
     "const entriesById = useMemo(() =>",
     "entriesById.get(pageId)?.page",
     "MEETING_UPCOMING_VISIBLE_LIMIT",
+    "MEETING_NOTES_VISIBLE_LIMIT",
     "return getUpcomingMeetingEntries(",
     "function getUpcomingMeetingEntries(",
+    "getRecentCompletedMeetingEntries(",
+    "function getRecentCompletedMeetingEntries(",
   ]) {
     assertIncludes(
       files.meetingScheduleShell,

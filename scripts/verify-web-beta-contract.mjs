@@ -2380,12 +2380,24 @@ function run() {
       "Meeting schedule must keep a visible cap for the upcoming-meeting list.",
     ],
     [
+      "MEETING_NOTES_VISIBLE_LIMIT",
+      "Meeting schedule must keep a visible cap for the completed meeting notes list.",
+    ],
+    [
       "return getUpcomingMeetingEntries(",
       "Meeting upcoming list must use bounded top-N selection instead of full-list sorting.",
     ],
     [
       "function getUpcomingMeetingEntries(",
       "Meeting upcoming bounded selection helper must stay explicit and reviewable.",
+    ],
+    [
+      "getRecentCompletedMeetingEntries(",
+      "Meeting notes list must use bounded top-N selection instead of full-list sorting.",
+    ],
+    [
+      "function getRecentCompletedMeetingEntries(",
+      "Meeting notes bounded selection helper must stay explicit and reviewable.",
     ],
     [
       "pageShellWarmupRef",
