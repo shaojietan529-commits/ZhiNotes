@@ -2707,6 +2707,30 @@ function run() {
     "Page edits must broadcast lightweight metadata immediately after local optimistic updates."
   );
   assertSourceIncludes(
+    files.usePage,
+    usePage,
+    "subscribePagesUpdated",
+    "Page detail hook must listen for cross-tab page update broadcasts."
+  );
+  assertSourceIncludes(
+    files.usePage,
+    usePage,
+    "applyCrossTabPageMetadata",
+    "Page detail hook must apply cross-tab page metadata immediately."
+  );
+  assertSourceIncludes(
+    files.usePage,
+    usePage,
+    "content_text: current?.content_text ?? null",
+    "Cross-tab page metadata must preserve current page body instead of broadcasting body text."
+  );
+  assertSourceIncludes(
+    files.usePage,
+    usePage,
+    "fallbackReloadTimer = window.setTimeout",
+    "Page detail hook must retry local hot-cache reload after cross-tab updates."
+  );
+  assertSourceIncludes(
     files.pageShell,
     pageShell,
     "getPendingCloudPageSyncStatus",

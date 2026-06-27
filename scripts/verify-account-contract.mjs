@@ -381,7 +381,9 @@ check(
     pushCloudPagesBody.includes("if (!isPageSyncEnabled())") &&
     pushCloudPagesBody.indexOf("markPendingCloudPushRecords(records);") <
       pushCloudPagesBody.indexOf("if (!isPageSyncEnabled())") &&
-    pushCloudPagesBody.includes("clearPendingCloudPushIds([...accepted, ...skipped])"),
+    pushCloudPagesBody.includes("const acknowledgedIds = [...accepted, ...skipped]") &&
+    pushCloudPagesBody.includes("clearPendingCloudPushIds(acknowledgedIds)") &&
+    pushCloudPagesBody.includes("if (acknowledgedIds.length > 0) setLastPageSyncAtNow();"),
   "直接 pushCloudPages 必须先登记 pending id，再尝试云端上传；成功或被远端跳过后才清理 pending"
 );
 check(
@@ -933,6 +935,19 @@ check(
   !usePageHook.includes("updatePage(pageId, updates)") &&
     !usePageHook.includes("Parameters<typeof updatePage>"),
   "usePage 编辑保存不能回退到本地数据库优先"
+);
+check(
+  usePageHook.includes("subscribePagesUpdated") &&
+    usePageHook.includes("applyCrossTabPageMetadata") &&
+    usePageHook.includes("pageUpdatePayloadToPage") &&
+    usePageHook.includes("content_text: current?.content_text ?? null") &&
+    usePageHook.includes("content_yjs: current?.content_yjs ?? null") &&
+    usePageHook.includes("localReloadTimer = window.setTimeout(() => {") &&
+    usePageHook.includes("fallbackReloadTimer = window.setTimeout(() => {") &&
+    usePageHook.includes("void load();") &&
+    usePageHook.includes("matchedPayload = message.pages?.find") &&
+    usePageHook.includes("!message.pages || message.pages.length === 0"),
+  "usePage 应监听跨标签页轻量页面更新，先刷新 metadata，再从本地热缓存重读正文；广播 payload 不能携带正文/Yjs"
 );
 
 const pageCloudSyncHook = read("src/hooks/usePageCloudSync.ts");

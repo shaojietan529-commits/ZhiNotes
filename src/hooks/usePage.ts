@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type MutableRefObject,
+} from "react";
 import {
   applyRemotePages,
   getPage,
@@ -29,7 +35,11 @@ import {
   type PageBodyHydrationPhase,
   type PageBodyHydrationSurface,
 } from "@/lib/pages/pageBodyHydrationStatus";
-import { emitPageSnapshotsUpdated } from "@/lib/pages/pageUpdateBus";
+import {
+  emitPageSnapshotsUpdated,
+  subscribePagesUpdated,
+  type PageUpdatePayload,
+} from "@/lib/pages/pageUpdateBus";
 import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRecordRevision } from "@/hooks/usePageRevision";
@@ -235,6 +245,43 @@ export function usePage(
     };
   }, [load, pageRevision]);
 
+  useEffect(() => {
+    if (!enabled || !pageId || !dbReady) return;
+    let localReloadTimer: number | null = null;
+    let fallbackReloadTimer: number | null = null;
+    const scheduleLocalReload = () => {
+      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
+      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      localReloadTimer = window.setTimeout(() => {
+        void load();
+      }, 120);
+      fallbackReloadTimer = window.setTimeout(() => {
+        void load();
+      }, 900);
+    };
+    const unsubscribe = subscribePagesUpdated((message) => {
+      const matchedPayload = message.pages?.find((item) => item.id === pageId);
+      if (matchedPayload) {
+        applyCrossTabPageMetadata(
+          matchedPayload,
+          visiblePageRef,
+          setPage,
+          upsertPages
+        );
+        scheduleLocalReload();
+        return;
+      }
+      if (!message.pages || message.pages.length === 0) {
+        scheduleLocalReload();
+      }
+    });
+    return () => {
+      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
+      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      unsubscribe();
+    };
+  }, [enabled, pageId, dbReady, load, upsertPages]);
+
   const update = useCallback(
     async (updates: PageUpdates) => {
       if (!pageId) return null;
@@ -359,6 +406,49 @@ function remoteRecordToPage(record: RemotePageRecord): Page {
     deleted_at: record.deleted_at,
     sync_version: 1,
   };
+}
+
+function pageUpdatePayloadToPage(
+  payload: PageUpdatePayload,
+  current: Page | null
+): Page {
+  return {
+    id: payload.id,
+    owner_id: current?.owner_id ?? DEFAULT_OWNER_ID,
+    parent_id: payload.parent_id,
+    database_id: current?.database_id ?? null,
+    title: payload.title,
+    icon: payload.icon,
+    cover_url: payload.cover_url,
+    content_yjs: current?.content_yjs ?? null,
+    content_text: current?.content_text ?? null,
+    properties: payload.properties,
+    position: payload.position,
+    depth: payload.depth,
+    created_at: payload.created_at,
+    updated_at: payload.updated_at,
+    deleted_at: payload.deleted_at,
+    sync_version: current?.sync_version ?? 1,
+  };
+}
+
+function applyCrossTabPageMetadata(
+  payload: PageUpdatePayload,
+  visiblePageRef: MutableRefObject<Page | null>,
+  setPage: (page: Page | null) => void,
+  upsertPages: (pages: Page[]) => void
+): void {
+  const current = visiblePageRef.current;
+  if (payload.deleted_at) {
+    visiblePageRef.current = null;
+    setPage(null);
+    upsertPages([pageUpdatePayloadToPage(payload, current)]);
+    return;
+  }
+  const nextPage = pageUpdatePayloadToPage(payload, current);
+  visiblePageRef.current = nextPage;
+  setPage(nextPage);
+  upsertPages([nextPage]);
 }
 
 async function hydrateRemotePageIntoLocalCache(

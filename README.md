@@ -1278,6 +1278,11 @@ Current local actions:
   small failed id/key sample. This is still metadata-only: it does not read page
   bodies, database row values, comments, or files. Page and database cloud ACKs
   refresh the visible last-sync timestamp as soon as the server confirms them.
+- Page detail views listen for cross-tab page update broadcasts. The broadcast
+  payload stays metadata-only (id/title/icon/position/timestamps); the open page
+  preserves its current body in memory and then re-reads the body from the local
+  hot cache, so another browser tab can feel live without putting note content
+  into BroadcastChannel or localStorage fallback messages.
 - Review the owner-facing Web launch decision summary. It combines the Web
   launch workbench, Web Alpha launch decision receipt, and Web Beta owner
   review into a top-level go/no-go view: local build can continue, but preview

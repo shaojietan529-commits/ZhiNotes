@@ -3252,6 +3252,24 @@ function run() {
     "Page update bus same-tab event must carry the lightweight page update message."
   );
   assertIncludes(
+    files.usePage,
+    usePage,
+    "subscribePagesUpdated",
+    "Page detail hook must listen for cross-tab page update broadcasts."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "content_text: current?.content_text ?? null",
+    "Cross-tab page metadata must preserve the current page body instead of broadcasting body text."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "fallbackReloadTimer = window.setTimeout",
+    "Page detail hook must retry local hot-cache reload after cross-tab updates."
+  );
+  assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
     "EDIT_DEBOUNCE_MS = 4 * 1000",
