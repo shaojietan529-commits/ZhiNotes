@@ -182,6 +182,11 @@ export function usePages(options: UsePagesOptions = {}) {
     [upsertPages]
   );
 
+  const hydrateContentInBackground = useCallback(() => {
+    if (!dbReady) return;
+    scheduleDeferredContentHydration();
+  }, [dbReady]);
+
   const refresh = useCallback(async (options: RefreshOptions = {}) => {
     if (!dbReady) return;
     let all: Page[] = [];
@@ -309,5 +314,10 @@ export function usePages(options: UsePagesOptions = {}) {
     };
   }, [autoLoad, dbReady, includeContent, refresh, upsertPages]);
 
-  return { pages, refresh, upsertPages: upsertPageSnapshots };
+  return {
+    pages,
+    refresh,
+    hydrateContentInBackground,
+    upsertPages: upsertPageSnapshots,
+  };
 }

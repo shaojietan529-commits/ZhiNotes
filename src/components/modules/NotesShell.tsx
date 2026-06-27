@@ -175,8 +175,8 @@ function NotesDashboard() {
   const openPage = useLocalFirstPageNavigation();
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const [contentScanEnabled, setContentScanEnabled] = useState(false);
-  const { pages, refresh } = usePages({
-    includeContent: contentScanEnabled,
+  const { pages, hydrateContentInBackground } = usePages({
+    includeContent: false,
     deferContent: true,
   });
   const { favoriteIds } = usePageFavorites();
@@ -277,11 +277,8 @@ function NotesDashboard() {
   );
 
   const handleStartContentScan = () => {
-    if (!contentScanEnabled) {
-      setContentScanEnabled(true);
-      return;
-    }
-    void refresh();
+    setContentScanEnabled(true);
+    hydrateContentInBackground();
   };
 
   const handleCreateBlankPage = async () => {

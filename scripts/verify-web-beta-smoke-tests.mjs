@@ -4336,8 +4336,9 @@ function run() {
     "Projects module create/intake flows must not wait for a full page-list refresh."
   );
   for (const snippet of [
-    "includeContent: contentScanEnabled",
+    "includeContent: false",
     "setContentScanEnabled(true)",
+    "hydrateContentInBackground();",
     "{ bodyScanEnabled: contentScanEnabled }",
     "scanEnabled: contentScanEnabled",
     "upsertPages([page])",
@@ -4361,6 +4362,12 @@ function run() {
     notesShell,
     "await refresh()",
     "Notes module create/open flow must not wait for a full page-list refresh."
+  );
+  assertExcludes(
+    files.notesShell,
+    notesShell,
+    "void refresh()",
+    "Notes module repeated content scans must not fire a global page refresh after large imports."
   );
   assertIncludes(
     files.usePage,

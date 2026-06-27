@@ -11749,14 +11749,20 @@ function run() {
     [
       files.notesShell,
       notesShell,
-      "includeContent: contentScanEnabled",
-      "Notes module must not load every imported page body until the user explicitly starts a content scan.",
+      "includeContent: false",
+      "Notes module dashboard must keep page loading metadata-only even after large imports.",
     ],
     [
       files.notesShell,
       notesShell,
       "setContentScanEnabled(true)",
       "Notes module must expose an explicit local content scan action instead of scanning page bodies on first paint.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "hydrateContentInBackground();",
+      "Notes module content scans must hydrate bodies in background batches instead of refreshing the full page list.",
     ],
     [
       files.notesShell,
@@ -12116,6 +12122,12 @@ function run() {
     notesShell,
     "await refresh()",
     "Notes module create/open flow must not wait for a full page-list refresh."
+  );
+  assertSourceExcludes(
+    files.notesShell,
+    notesShell,
+    "void refresh()",
+    "Notes module repeated content scans must not fire a global page refresh after large imports."
   );
   assertSourceIncludes(
     files.breadcrumbBlockNode,
