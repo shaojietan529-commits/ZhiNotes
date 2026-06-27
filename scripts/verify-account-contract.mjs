@@ -950,12 +950,17 @@ check(
 check(
   pageRoute.includes("PageRouteSkeleton") &&
     pageRouteLoading.includes("PageRouteSkeleton") &&
-    pageShell.includes("PageRouteSkeleton"),
-  "页面动态路由、动态组件 fallback、单页缓存读取等待态都必须显示同一个页面骨架，避免点击后空白或只转圈"
+    pageShell.includes("PageRouteSkeleton") &&
+    pageRoute.includes("readPageRouteHandoff") &&
+    pageRoute.includes("PageRouteLoadingSkeleton") &&
+    pageRouteSkeleton.includes("preview?:") &&
+    pageRouteSkeleton.includes('data-testid="page-route-preview-title"'),
+  "页面动态路由、动态组件 fallback、单页缓存读取等待态都必须显示同一个页面骨架，并在完整页面加载前显示本地交接的标题/图标，避免点击后空白或只转圈"
 );
 check(
   pageRouteSkeleton.includes("本地缓存会先加载") &&
     pageRouteSkeleton.includes("云端同步在后台继续") &&
+    pageRouteSkeleton.includes("已接收页面，正在加载编辑器") &&
     pageRouteSkeleton.includes("animate-pulse"),
   "页面打开骨架必须说明本地缓存优先、云端后台同步，并保持轻量骨架反馈"
 );

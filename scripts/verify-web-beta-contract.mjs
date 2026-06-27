@@ -696,6 +696,26 @@ function run() {
       "Page detail routes must keep an immediate shell while route segments or client chunks load."
     );
   }
+  for (const [snippet, message] of [
+    [
+      "readPageRouteHandoff",
+      "The page detail route dynamic fallback must read local route handoff metadata before the full page shell hydrates.",
+    ],
+    [
+      "PageRouteLoadingSkeleton",
+      "The page detail route must keep a dedicated loading component that can show local-first page metadata.",
+    ],
+    [
+      "previewPage.title",
+      "The page detail route loading shell must pass the handed-off page title into the skeleton.",
+    ],
+    [
+      "previewPage.icon",
+      "The page detail route loading shell must pass the handed-off page icon into the skeleton.",
+    ],
+  ]) {
+    assertSourceIncludes(files.pageDetailRoute, pageDetailRoute, snippet, message);
+  }
   for (const [sourceLabel, source] of [
     [files.databaseDetailRoute, databaseDetailRoute],
     [files.databaseDetailRouteLoading, databaseDetailRouteLoading],
@@ -736,6 +756,18 @@ function run() {
     [
       "aria-live",
       "The page route skeleton must announce loading progress accessibly.",
+    ],
+    [
+      "preview?:",
+      "The page route skeleton must accept metadata-only route handoff previews.",
+    ],
+    [
+      'data-testid="page-route-preview-title"',
+      "The page route skeleton must render the handed-off title while the full page shell loads.",
+    ],
+    [
+      "已接收页面，正在加载编辑器",
+      "The page route skeleton must tell the owner that the target page has already been received locally.",
     ],
   ]) {
     assertSourceIncludes(files.pageRouteSkeleton, pageRouteSkeleton, snippet, message);

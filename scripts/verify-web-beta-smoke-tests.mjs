@@ -498,6 +498,31 @@ function run() {
       "Page detail route must show an immediate loading shell before client hydration completes."
     );
   }
+  for (const snippet of [
+    "readPageRouteHandoff",
+    "PageRouteLoadingSkeleton",
+    "previewPage.title",
+    "previewPage.icon",
+  ]) {
+    assertIncludes(
+      files.pageDetailRoute,
+      pageDetailRoute,
+      snippet,
+      "Page route dynamic fallback must show handed-off metadata before the full page shell hydrates."
+    );
+  }
+  for (const snippet of [
+    "preview?:",
+    'data-testid="page-route-preview-title"',
+    "已接收页面，正在加载编辑器",
+  ]) {
+    assertIncludes(
+      files.pageRouteSkeleton,
+      pageRouteSkeleton,
+      snippet,
+      "Page route skeleton must render local-first handoff metadata during chunk loading."
+    );
+  }
   for (const [sourceLabel, source] of [
     [files.databaseDetailRoute, databaseDetailRoute],
     [files.databaseDetailRouteLoading, databaseDetailRouteLoading],
