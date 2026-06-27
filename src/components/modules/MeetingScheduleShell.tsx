@@ -40,6 +40,10 @@ import {
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
+  subscribePagesUpdated,
+  type PageUpdatePayload,
+} from "@/lib/pages/pageUpdateBus";
+import {
   getLocalPerformanceNow,
   recordLocalPerformanceSnapshot,
 } from "@/lib/performance/localPerformance";
@@ -875,6 +879,55 @@ export default function MeetingScheduleShell() {
     }, 120);
     return () => window.clearTimeout(timer);
   }, [dbReady, pageRevision, load]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    let localReloadTimer: number | null = null;
+    let fallbackReloadTimer: number | null = null;
+
+    const scheduleLocalMetadataRefresh = () => {
+      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
+      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      localReloadTimer = window.setTimeout(() => {
+        void load({ includeCloud: false });
+      }, 120);
+      fallbackReloadTimer = window.setTimeout(() => {
+        void load({ includeCloud: false });
+      }, 900);
+    };
+
+    const unsubscribe = subscribePagesUpdated((message) => {
+      const pages = message.pages;
+      if (!pages || pages.length === 0) {
+        scheduleLocalMetadataRefresh();
+        return;
+      }
+
+      const meetingRootId = rootId ?? getModuleRootIdSync("meeting-schedule");
+      const knownMeetingIds = new Set(
+        meetingsRef.current.map((meeting) => meeting.id)
+      );
+      const meetingPayloads = pages.filter((payload) =>
+        isMeetingCalendarPageUpdate(payload, meetingRootId, knownMeetingIds)
+      );
+      if (meetingPayloads.length === 0) return;
+
+      applyMeetingPageUpdatePayloads(
+        meetingPayloads,
+        setMeetings,
+        meetingsRef,
+        viewMonth,
+        deletedTombstoneRef.current
+      );
+      scheduleLocalMetadataRefresh();
+    });
+
+    return () => {
+      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
+      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      unsubscribe();
+    };
+  }, [dbReady, deletedTombstoneRef, load, rootId, viewMonth]);
 
   // Receive meeting text captured by the ZhiNote Chrome extension. The
   // extension's content script grabs the text on a logged-in meeting page
@@ -2673,6 +2726,106 @@ function cloudRecordToPage(record: RemotePageRecord): Page {
     deleted_at: record.deleted_at ?? null,
     sync_version: 1,
   };
+}
+
+function isMeetingCalendarPageUpdate(
+  payload: PageUpdatePayload,
+  meetingRootId: string | null,
+  knownMeetingIds: Set<string>
+): boolean {
+  if (knownMeetingIds.has(payload.id)) return true;
+  if (!meetingRootId) return false;
+  return payload.id === meetingRootId || payload.parent_id === meetingRootId;
+}
+
+function applyMeetingPageUpdatePayloads(
+  payloads: PageUpdatePayload[],
+  setMeetings: (updater: (current: Page[]) => Page[]) => void,
+  meetingsRef: { current: Page[] },
+  viewMonth: Date,
+  tombstone: Set<string>
+): void {
+  const visibleRange = buildMonthGrid(viewMonth);
+  const startDate = toDateKey(visibleRange[0].date);
+  const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
+
+  startTransition(() => {
+    setMeetings((current) => {
+      const byId = new Map(current.map((page) => [page.id, page]));
+      let changed = false;
+
+      for (const payload of payloads) {
+        const existing = byId.get(payload.id);
+        if (payload.deleted_at || tombstone.has(payload.id)) {
+          if (byId.delete(payload.id)) changed = true;
+          continue;
+        }
+
+        const metadataPage = pageUpdatePayloadToPage(payload);
+        if (!existing && !toMeetingEntry(metadataPage).dateKey) continue;
+
+        const nextPage: Page = {
+          ...(existing ?? metadataPage),
+          ...metadataPage,
+          content_text: existing?.content_text ?? null,
+          content_yjs: existing?.content_yjs ?? null,
+        };
+        const previousFingerprint = existing
+          ? meetingPageMetadataFingerprint(existing)
+          : "";
+        if (previousFingerprint === meetingPageMetadataFingerprint(nextPage)) {
+          continue;
+        }
+        byId.set(payload.id, nextPage);
+        changed = true;
+      }
+
+      if (!changed) return current;
+      const selection = selectMeetingPagesForCalendarRender(
+        Array.from(byId.values()),
+        startDate,
+        endDate
+      );
+      meetingsRef.current = selection.pages;
+      return selection.pages;
+    });
+  });
+}
+
+function pageUpdatePayloadToPage(payload: PageUpdatePayload): Page {
+  return {
+    id: payload.id,
+    owner_id: DEFAULT_OWNER_ID,
+    parent_id: payload.parent_id,
+    database_id: null,
+    title: payload.title,
+    icon: payload.icon,
+    cover_url: payload.cover_url,
+    content_yjs: null,
+    content_text: null,
+    properties: payload.properties,
+    position: payload.position,
+    depth: payload.depth,
+    created_at: payload.created_at,
+    updated_at: payload.updated_at,
+    deleted_at: payload.deleted_at,
+    sync_version: 1,
+  };
+}
+
+function meetingPageMetadataFingerprint(page: Page): string {
+  return [
+    page.id,
+    page.parent_id ?? "",
+    page.title,
+    page.icon ?? "",
+    page.cover_url ?? "",
+    page.properties ?? "",
+    page.position,
+    page.depth,
+    page.updated_at,
+    page.deleted_at ?? "",
+  ].join(":");
 }
 
 function mergeMeetingPages(

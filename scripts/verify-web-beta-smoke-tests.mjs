@@ -3270,6 +3270,42 @@ function run() {
     "Page detail hook must retry local hot-cache reload after cross-tab updates."
   );
   assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "subscribePagesUpdated((message) => {",
+    "Daily calendar must listen for cross-tab page update broadcasts."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "isDailyCalendarPageUpdate(payload, dailyRootId, knownDailyIds)",
+    "Daily calendar must filter cross-tab updates to its own daily workspace root or visible notes."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "applyDailyPageUpdatePayloads(",
+    "Daily calendar must apply lightweight metadata immediately after relevant cross-tab updates."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "subscribePagesUpdated((message) => {",
+    "Meeting calendar must listen for cross-tab page update broadcasts."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "isMeetingCalendarPageUpdate(payload, meetingRootId, knownMeetingIds)",
+    "Meeting calendar must filter cross-tab updates to its own ZhiHui workspace root or visible meetings."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "applyMeetingPageUpdatePayloads(",
+    "Meeting calendar must apply lightweight metadata immediately after relevant cross-tab updates."
+  );
+  assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
     "EDIT_DEBOUNCE_MS = 4 * 1000",

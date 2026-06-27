@@ -1283,6 +1283,8 @@ Current local actions:
   preserves its current body in memory and then re-reads the body from the local
   hot cache, so another browser tab can feel live without putting note content
   into BroadcastChannel or localStorage fallback messages.
+- 每日纪要和 ZhiHui 会议日历也会监听同一套轻量页面更新广播，但只接受属于各自模块根目录或当前已显示条目的 metadata。
+  它们会先做一次本地低延迟刷新，再用本机热缓存校正；广播不携带正文、会议链接、会议号、密码、评论或文件内容。
 - Review the owner-facing Web launch decision summary. It combines the Web
   launch workbench, Web Alpha launch decision receipt, and Web Beta owner
   review into a top-level go/no-go view: local build can continue, but preview

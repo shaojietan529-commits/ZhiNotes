@@ -47,6 +47,10 @@ import {
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
+  subscribePagesUpdated,
+  type PageUpdatePayload,
+} from "@/lib/pages/pageUpdateBus";
+import {
   getLocalPerformanceNow,
   recordLocalPerformanceSnapshot,
 } from "@/lib/performance/localPerformance";
@@ -159,6 +163,7 @@ export default function DailyNotesShell() {
   const loadRequestRef = useRef(0);
   const hotCacheBootstrapKeyRef = useRef("");
   const notesRenderFingerprintRef = useRef("");
+  const notesRef = useRef<DailyNote[]>([]);
   const observedPageRevisionRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
   const dailyNoteContentWarmupIdsRef = useRef<Set<string>>(new Set());
@@ -171,6 +176,10 @@ export default function DailyNotesShell() {
     () => metadataRecentLimitForHotCachePreferences(hotCachePreferences),
     [hotCachePreferences]
   );
+
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
 
   useEffect(() => {
     const visibleRange = buildMonthGrid(viewMonth);
@@ -667,6 +676,52 @@ export default function DailyNotesShell() {
     }, 120);
     return () => window.clearTimeout(timer);
   }, [dbReady, pageRevision, load]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    let localReloadTimer: number | null = null;
+    let fallbackReloadTimer: number | null = null;
+
+    const scheduleLocalMetadataRefresh = () => {
+      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
+      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      localReloadTimer = window.setTimeout(() => {
+        void load({ includeCloud: false });
+      }, 120);
+      fallbackReloadTimer = window.setTimeout(() => {
+        void load({ includeCloud: false });
+      }, 900);
+    };
+
+    const unsubscribe = subscribePagesUpdated((message) => {
+      const pages = message.pages;
+      if (!pages || pages.length === 0) {
+        scheduleLocalMetadataRefresh();
+        return;
+      }
+
+      const dailyRootId = rootId ?? getModuleRootIdSync("daily");
+      const knownDailyIds = new Set(notesRef.current.map((note) => note.id));
+      const dailyPayloads = pages.filter((payload) =>
+        isDailyCalendarPageUpdate(payload, dailyRootId, knownDailyIds)
+      );
+      if (dailyPayloads.length === 0) return;
+
+      applyDailyPageUpdatePayloads(
+        dailyPayloads,
+        setNotes,
+        notesRef,
+        viewMonth
+      );
+      scheduleLocalMetadataRefresh();
+    });
+
+    return () => {
+      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
+      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      unsubscribe();
+    };
+  }, [dbReady, load, rootId, viewMonth]);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
   const calendarDateKeys = useMemo(
@@ -1481,6 +1536,98 @@ function collectDailyNotes(
   }
 
   return dailyNotes;
+}
+
+function isDailyCalendarPageUpdate(
+  payload: PageUpdatePayload,
+  dailyRootId: string | null,
+  knownDailyIds: Set<string>
+): boolean {
+  if (knownDailyIds.has(payload.id)) return true;
+  if (!dailyRootId) return false;
+  return payload.id === dailyRootId || payload.parent_id === dailyRootId;
+}
+
+function applyDailyPageUpdatePayloads(
+  payloads: PageUpdatePayload[],
+  setNotes: (updater: (current: DailyNote[]) => DailyNote[]) => void,
+  notesRef: { current: DailyNote[] },
+  viewMonth: Date
+): void {
+  const visibleRange = buildMonthGrid(viewMonth);
+  const startDate = toDateKey(visibleRange[0].date);
+  const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
+
+  startTransition(() => {
+    setNotes((current) => {
+      const byId = new Map(current.map((note) => [note.id, note]));
+      let changed = false;
+
+      for (const payload of payloads) {
+        const existing = byId.get(payload.id);
+        if (payload.deleted_at) {
+          if (byId.delete(payload.id)) changed = true;
+          continue;
+        }
+
+        const metadataPage = pageUpdatePayloadToPage(payload);
+        const dateKey =
+          readDailyNoteDateKey(metadataPage) || existing?.dailyDateKey || "";
+        if (!dateKey && !existing) continue;
+
+        const nextNote: DailyNote = {
+          ...(existing ?? metadataPage),
+          ...metadataPage,
+          content_text: existing?.content_text ?? null,
+          content_yjs: existing?.content_yjs ?? null,
+          dailyDateKey: dateKey,
+          cloudOnly: existing?.cloudOnly,
+          hotCacheOnly: existing?.hotCacheOnly,
+        };
+
+        if (
+          existing &&
+          dailyNotesRenderFingerprint([existing]) ===
+            dailyNotesRenderFingerprint([nextNote])
+        ) {
+          continue;
+        }
+        byId.set(payload.id, nextNote);
+        changed = true;
+      }
+
+      if (!changed) return current;
+      const selection = selectDailyNotesForCalendarRender(
+        Array.from(byId.values()),
+        startDate,
+        endDate,
+        Math.max(DAILY_RECENT_VISIBLE_LIMIT, DAILY_RENDER_RECENT_BUFFER_LIMIT)
+      );
+      notesRef.current = selection.notes;
+      return selection.notes;
+    });
+  });
+}
+
+function pageUpdatePayloadToPage(payload: PageUpdatePayload): Page {
+  return {
+    id: payload.id,
+    owner_id: DEFAULT_OWNER_ID,
+    parent_id: payload.parent_id,
+    database_id: null,
+    title: payload.title,
+    icon: payload.icon,
+    cover_url: payload.cover_url,
+    content_yjs: null,
+    content_text: null,
+    properties: payload.properties,
+    position: payload.position,
+    depth: payload.depth,
+    created_at: payload.created_at,
+    updated_at: payload.updated_at,
+    deleted_at: payload.deleted_at,
+    sync_version: 1,
+  };
 }
 
 function buildDailyCalendarIndexes(

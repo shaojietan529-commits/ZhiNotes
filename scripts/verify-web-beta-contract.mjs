@@ -2731,6 +2731,48 @@ function run() {
     "Page detail hook must retry local hot-cache reload after cross-tab updates."
   );
   assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "subscribePagesUpdated((message) => {",
+    "Daily calendar must listen for cross-tab page update broadcasts instead of waiting for a broad reload."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "isDailyCalendarPageUpdate(payload, dailyRootId, knownDailyIds)",
+    "Daily calendar cross-tab refresh must filter updates to the daily workspace root or already visible daily notes."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "applyDailyPageUpdatePayloads(",
+    "Daily calendar must apply lightweight page metadata before its local hot-cache retry completes."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "content_text: existing?.content_text ?? null",
+    "Daily calendar cross-tab metadata must preserve any existing page body in memory."
+  );
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "subscribePagesUpdated((message) => {",
+    "Meeting calendar must listen for cross-tab page update broadcasts instead of waiting for a broad reload."
+  );
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "isMeetingCalendarPageUpdate(payload, meetingRootId, knownMeetingIds)",
+    "Meeting calendar cross-tab refresh must filter updates to the ZhiHui workspace root or already visible meetings."
+  );
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "applyMeetingPageUpdatePayloads(",
+    "Meeting calendar must apply lightweight page metadata before its local hot-cache retry completes."
+  );
+  assertSourceIncludes(
     files.pageShell,
     pageShell,
     "getPendingCloudPageSyncStatus",
