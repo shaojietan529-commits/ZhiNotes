@@ -812,11 +812,14 @@ check(
     usePageHook.includes('emitPageSnapshotsUpdated("cloud-push", [optimistic])') &&
     usePageHook.includes("rememberPendingPageDraft(optimistic)") &&
     usePageHook.includes("queueCloudPagePush(record)") &&
-    usePageHook.includes("void persistOptimisticPageToLocalCache(record, upsertPages)") &&
+    usePageHook.includes("queueOptimisticPageLocalCachePersist(record, upsertPages)") &&
+    usePageHook.includes("optimisticPageLocalCachePersistQueue") &&
+    usePageHook.includes("drainOptimisticPageLocalCachePersistQueue") &&
+    usePageHook.includes("if (queued.latest !== record) continue;") &&
     usePageHook.includes("clearPendingPageDraft(record.id)") &&
     usePageHook.includes("hydrateRemotePageIntoLocalCache(record)") &&
     !usePageHook.includes("await pushCloudPages([record])"),
-  "usePage 编辑保存应先更新本机热缓存和临时草稿并登记 pending 队列；云端上传和本地 SQLite 回填都不能阻塞输入"
+  "usePage 编辑保存应先更新本机热缓存和临时草稿并登记 pending 队列；云端上传和本地 SQLite 回填都不能阻塞输入，且连续输入时本地缓存只落最新正文"
 );
 check(
   pendingPageDrafts.includes("window.sessionStorage.setItem") &&

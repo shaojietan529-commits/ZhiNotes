@@ -32,6 +32,16 @@ import type { Page } from "@/lib/utils/types";
 
 const PAGE_CLOUD_HYDRATION_IDLE_MS = 700;
 
+interface OptimisticPageLocalCachePersistState {
+  latest: RemotePageRecord;
+  running: boolean;
+}
+
+const optimisticPageLocalCachePersistQueue = new Map<
+  string,
+  OptimisticPageLocalCachePersistState
+>();
+
 type PageUpdates = Partial<
   Pick<
     Page,
@@ -194,7 +204,7 @@ export function usePage(
       rememberPendingPageDraft(optimistic);
 
       queueCloudPagePush(record);
-      void persistOptimisticPageToLocalCache(record, upsertPages);
+      queueOptimisticPageLocalCachePersist(record, upsertPages);
       return optimistic;
     },
     [pageId, page, upsertPages]
@@ -300,14 +310,51 @@ async function hydrateRemotePageIntoLocalCache(
   }
 }
 
-async function persistOptimisticPageToLocalCache(
+function queueOptimisticPageLocalCachePersist(
   record: RemotePageRecord,
   upsertPages: (pages: Page[]) => void
+): void {
+  const queued = optimisticPageLocalCachePersistQueue.get(record.id);
+  if (queued) {
+    queued.latest = record;
+    return;
+  }
+  optimisticPageLocalCachePersistQueue.set(record.id, {
+    latest: record,
+    running: false,
+  });
+  void drainOptimisticPageLocalCachePersistQueue(record.id, upsertPages);
+}
+
+async function drainOptimisticPageLocalCachePersistQueue(
+  pageId: string,
+  upsertPages: (pages: Page[]) => void
 ): Promise<void> {
-  const hydrated = await hydrateRemotePageIntoLocalCache(record);
-  if (hydrated) {
-    clearPendingPageDraft(record.id);
-    upsertPages([hydrated]);
+  const queued = optimisticPageLocalCachePersistQueue.get(pageId);
+  if (!queued || queued.running) return;
+
+  queued.running = true;
+  try {
+    while (optimisticPageLocalCachePersistQueue.get(pageId) === queued) {
+      const record = queued.latest;
+      const hydrated = await hydrateRemotePageIntoLocalCache(record);
+      const stillQueued = optimisticPageLocalCachePersistQueue.get(pageId);
+      if (stillQueued !== queued) return;
+      if (queued.latest !== record) continue;
+
+      if (hydrated) {
+        clearPendingPageDraft(record.id);
+        upsertPages([hydrated]);
+      }
+      optimisticPageLocalCachePersistQueue.delete(pageId);
+      return;
+    }
+  } finally {
+    const current = optimisticPageLocalCachePersistQueue.get(pageId);
+    if (current) {
+      current.running = false;
+      void drainOptimisticPageLocalCachePersistQueue(pageId, upsertPages);
+    }
   }
 }
 

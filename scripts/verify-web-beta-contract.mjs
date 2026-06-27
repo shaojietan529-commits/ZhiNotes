@@ -12502,8 +12502,26 @@ function run() {
     [
       files.usePage,
       usePage,
-      "void persistOptimisticPageToLocalCache(record, upsertPages)",
+      "queueOptimisticPageLocalCachePersist(record, upsertPages)",
       "Page edits must persist the rebuildable local cache in the background.",
+    ],
+    [
+      files.usePage,
+      usePage,
+      "optimisticPageLocalCachePersistQueue",
+      "Page edits must collapse overlapping local cache writes by page.",
+    ],
+    [
+      files.usePage,
+      usePage,
+      "drainOptimisticPageLocalCachePersistQueue",
+      "Page edits must drain local cache writes from a latest-only queue.",
+    ],
+    [
+      files.usePage,
+      usePage,
+      "if (queued.latest !== record) continue;",
+      "Page edits must skip stale local cache write completions when newer content exists.",
     ],
     [
       files.usePage,

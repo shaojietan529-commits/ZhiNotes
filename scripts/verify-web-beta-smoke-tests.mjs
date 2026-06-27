@@ -5341,9 +5341,25 @@ function run() {
   assertIncludes(
     files.usePage,
     usePage,
-    "void persistOptimisticPageToLocalCache(record, upsertPages)",
+    "queueOptimisticPageLocalCachePersist(record, upsertPages)",
     "Page editing must persist the local hot cache in the background."
   );
+  for (const [snippet, message] of [
+    [
+      "optimisticPageLocalCachePersistQueue",
+      "Page editing must collapse overlapping local cache writes by page.",
+    ],
+    [
+      "drainOptimisticPageLocalCachePersistQueue",
+      "Page editing must drain local cache writes from a latest-only queue.",
+    ],
+    [
+      "if (queued.latest !== record) continue;",
+      "Page editing must skip stale local cache write completions when newer content exists.",
+    ],
+  ]) {
+    assertIncludes(files.usePage, usePage, snippet, message);
+  }
   assertIncludes(
     files.usePage,
     usePage,
