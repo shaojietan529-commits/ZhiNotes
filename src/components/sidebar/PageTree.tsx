@@ -26,6 +26,7 @@ type DropTarget = {
 };
 
 const SIDEBAR_PAGE_TREE_ROOT_LIMIT = 80;
+const SIDEBAR_PAGE_TREE_CHILD_LIMIT = 40;
 
 function isDescendant(
   pageId: string,
@@ -53,6 +54,7 @@ interface PageTreeItemProps {
   childrenByParent: Map<string | null, Page[]>;
   level: number;
   currentPageId: string | null;
+  currentPathIds: Set<string>;
   onNavigate: (id: string, page?: Page) => void;
   onPageMutated: (pages: Page[]) => void;
   draggedId: string | null;
@@ -69,6 +71,7 @@ function PageTreeItem({
   childrenByParent,
   level,
   currentPageId,
+  currentPathIds,
   onNavigate,
   onPageMutated,
   draggedId,
@@ -84,6 +87,21 @@ function PageTreeItem({
 
   const children = childrenByParent.get(page.id) ?? [];
   const hasChildren = children.length > 0;
+  const visibleChildren = useMemo(() => {
+    if (children.length <= SIDEBAR_PAGE_TREE_CHILD_LIMIT) return children;
+    const visible = children.slice(0, SIDEBAR_PAGE_TREE_CHILD_LIMIT);
+    const childOnCurrentPath = children.find((child) =>
+      currentPathIds.has(child.id)
+    );
+    if (
+      childOnCurrentPath &&
+      !visible.some((child) => child.id === childOnCurrentPath.id)
+    ) {
+      visible.splice(SIDEBAR_PAGE_TREE_CHILD_LIMIT - 1, 1, childOnCurrentPath);
+    }
+    return visible;
+  }, [children, currentPathIds]);
+  const hiddenChildCount = Math.max(0, children.length - visibleChildren.length);
   const title = displayPageTitle(page.title);
 
   const isDragged = draggedId === page.id;
@@ -245,7 +263,7 @@ function PageTreeItem({
       {/* Children */}
       {expanded && hasChildren && (
         <ul>
-          {children.map((child) => (
+          {visibleChildren.map((child) => (
             <PageTreeItem
               key={child.id}
               page={child}
@@ -253,6 +271,7 @@ function PageTreeItem({
               childrenByParent={childrenByParent}
               level={level + 1}
               currentPageId={currentPageId}
+              currentPathIds={currentPathIds}
               onNavigate={onNavigate}
               onPageMutated={onPageMutated}
               draggedId={draggedId}
@@ -263,6 +282,14 @@ function PageTreeItem({
               onContextMenu={onContextMenu}
             />
           ))}
+          {hiddenChildCount > 0 && (
+            <li
+              className="px-2 py-1 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500"
+              style={{ paddingLeft: `${(level + 1) * 16 + 32}px` }}
+            >
+              已折叠 {hiddenChildCount} 个子页面；用搜索或对应模块打开。
+            </li>
+          )}
         </ul>
       )}
     </li>
@@ -344,6 +371,10 @@ export default function PageTree() {
     return visible;
   }, [currentPageId, pagesById, rootPages]);
   const hiddenRootCount = Math.max(0, rootPages.length - visibleRootPages.length);
+  const currentPathIds = useMemo(
+    () => getCurrentPagePathIds(currentPageId, pagesById),
+    [currentPageId, pagesById]
+  );
 
   const handleNavigate = useCallback(
     (id: string, page?: Page) => {
@@ -469,6 +500,7 @@ export default function PageTree() {
             childrenByParent={childrenByParent}
             level={0}
             currentPageId={currentPageId}
+            currentPathIds={currentPathIds}
             onNavigate={handleNavigate}
             onPageMutated={upsertPages}
             draggedId={draggedId}
@@ -505,6 +537,19 @@ export default function PageTree() {
       )}
     </>
   );
+}
+
+function getCurrentPagePathIds(
+  pageId: string | null,
+  pagesById: Map<string, Page>
+): Set<string> {
+  const path = new Set<string>();
+  let current = pageId ? pagesById.get(pageId) ?? null : null;
+  while (current) {
+    path.add(current.id);
+    current = current.parent_id ? pagesById.get(current.parent_id) ?? null : null;
+  }
+  return path;
 }
 
 function getTopLevelPageId(

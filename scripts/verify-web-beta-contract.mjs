@@ -11805,6 +11805,30 @@ function run() {
       "Sidebar page tree opens must use local-first route handoff metadata.",
     ],
     [
+      files.pageTree,
+      pageTree,
+      "SIDEBAR_PAGE_TREE_CHILD_LIMIT",
+      "Sidebar page tree must cap rendered child pages per expanded parent.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "visibleChildren.map((child)",
+      "Sidebar page tree must render the capped child subset instead of every child page.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "getCurrentPagePathIds",
+      "Sidebar page tree must keep the current page path visible even when siblings are capped.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "已折叠 {hiddenChildCount} 个子页面",
+      "Sidebar page tree must tell the owner when child pages are folded for performance.",
+    ],
+    [
       files.favoritePages,
       favoritePages,
       'source: "favorite-open"',
@@ -11897,6 +11921,12 @@ function run() {
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
+  assertSourceExcludes(
+    files.pageTree,
+    pageTree,
+    "{children.map((child)",
+    "Sidebar page tree must not render every child page in a large expanded parent."
+  );
   for (const [sourceLabel, source] of [
     [files.companyResearchShell, companyResearchShell],
     [files.meetingsShell, meetingsShell],

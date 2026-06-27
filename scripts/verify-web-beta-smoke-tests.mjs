@@ -4391,6 +4391,24 @@ function run() {
     'source: "sidebar-open"',
     "Sidebar page tree opens must use local-first page navigation."
   );
+  for (const snippet of [
+    "SIDEBAR_PAGE_TREE_CHILD_LIMIT",
+    "visibleChildren.map((child)",
+    "getCurrentPagePathIds",
+    "已折叠 {hiddenChildCount} 个子页面",
+  ]) {
+    assertIncludes(
+      files.pageTree,
+      pageTree,
+      snippet,
+      "Sidebar page tree must cap child rendering while keeping the current path visible."
+    );
+  }
+  if (pageTree.includes("{children.map((child)")) {
+    failures.push(
+      `${files.pageTree} must not render every child page in a large expanded parent.`
+    );
+  }
   assertIncludes(
     files.favoritePages,
     favoritePages,
