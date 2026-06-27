@@ -346,6 +346,8 @@ check(
 check(
   pageUpdateBus.includes("PageUpdatePayload") &&
     pageUpdateBus.includes("emitPageSnapshotsUpdated") &&
+    pageUpdateBus.includes('PAGE_LOCAL_UPDATE_EVENT = "zhinote:pages-local-updated"') &&
+    pageUpdateBus.includes("new CustomEvent<PageUpdateMessage>(PAGE_LOCAL_UPDATE_EVENT") &&
     accountPageSync.includes("toPageUpdatePayloads") &&
     accountPageSync.includes("toPageUpdatePayloads(pulledPages)") &&
     usePagesHook.includes("message.pages?.length") &&
@@ -353,7 +355,7 @@ check(
     usePagesHook.includes("emitPageSnapshotsUpdated(reason, incomingPages)") &&
     usePagesHook.includes("upsertPages(message.pages.map(remoteMetadataToPage))") &&
     !usePagesHook.includes("!includeContent &&\n        message.reason === \"cloud-pull\""),
-  "页面多端同步事件必须携带轻量 metadata payload；任何带 payload 的页面事件都应直接合并，includeContent 模块不能全量重读正文"
+  "页面多端同步事件必须携带轻量 metadata payload；当前标签页也要收到本地事件用于防抖同步，includeContent 模块不能全量重读正文"
 );
 check(
   pagePeekModal.includes("getPageMetadata") &&

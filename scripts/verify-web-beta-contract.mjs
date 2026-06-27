@@ -110,7 +110,9 @@ const files = {
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
   pendingPageDrafts: "src/lib/pages/pendingPageDrafts.ts",
+  pageUpdateBus: "src/lib/pages/pageUpdateBus.ts",
   scopedPageMetadata: "src/lib/pages/scopedPageMetadata.ts",
+  pageCloudSync: "src/hooks/usePageCloudSync.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
@@ -470,7 +472,9 @@ function run() {
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
   const pendingPageDrafts = readProjectFile(files.pendingPageDrafts);
+  const pageUpdateBus = readProjectFile(files.pageUpdateBus);
   const scopedPageMetadata = readProjectFile(files.scopedPageMetadata);
+  const pageCloudSync = readProjectFile(files.pageCloudSync);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
   );
@@ -2129,6 +2133,42 @@ function run() {
     accountPageSync,
     'PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status"',
     "Page sync queue changes must emit a local status event for visible save/upload feedback."
+  );
+  assertSourceIncludes(
+    files.pageUpdateBus,
+    pageUpdateBus,
+    'PAGE_LOCAL_UPDATE_EVENT = "zhinote:pages-local-updated"',
+    "Page update bus must emit a same-tab event so local edits can trigger background quick sync."
+  );
+  assertSourceIncludes(
+    files.pageUpdateBus,
+    pageUpdateBus,
+    "new CustomEvent<PageUpdateMessage>(PAGE_LOCAL_UPDATE_EVENT",
+    "Page update bus same-tab event must carry the lightweight page update message."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "EDIT_DEBOUNCE_MS = 4 * 1000",
+    "Page cloud sync must debounce local edit-triggered quick syncs."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate)",
+    "Page cloud sync must listen for same-tab local page updates."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "window.removeEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate)",
+    "Page cloud sync must clean up the same-tab local page update listener."
+  );
+  assertSourceIncludes(
+    files.usePage,
+    usePage,
+    'emitPageSnapshotsUpdated("cloud-push", [optimistic])',
+    "Page edits must broadcast lightweight metadata immediately after local optimistic updates."
   );
   assertSourceIncludes(
     files.pageShell,

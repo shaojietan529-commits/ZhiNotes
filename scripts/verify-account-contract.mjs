@@ -753,6 +753,7 @@ check(
   usePageHook.includes("pageToRemoteRecord(optimistic)") &&
     usePageHook.includes("setPage(optimistic)") &&
     usePageHook.includes("upsertPages([optimistic])") &&
+    usePageHook.includes('emitPageSnapshotsUpdated("cloud-push", [optimistic])') &&
     usePageHook.includes("rememberPendingPageDraft(optimistic)") &&
     usePageHook.includes("queueCloudPagePush(record)") &&
     usePageHook.includes("void persistOptimisticPageToLocalCache(record, upsertPages)") &&
@@ -836,6 +837,19 @@ check(
     pageCloudSyncHook.includes('event.key?.startsWith("zhinote.pagesync.")') &&
     pageCloudSyncHook.includes("CustomEvent<PendingCloudPageSyncStatus>"),
   "页面云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，避免本地输入进入上传队列后 UI 等轮询才更新"
+);
+check(
+  pageCloudSyncHook.includes("PAGE_LOCAL_UPDATE_EVENT") &&
+    pageCloudSyncHook.includes("type PageUpdateMessage") &&
+    pageCloudSyncHook.includes("EDIT_DEBOUNCE_MS") &&
+    pageCloudSyncHook.includes("handleLocalPageUpdate") &&
+    pageCloudSyncHook.includes('message?.reason !== "local-refresh"') &&
+    pageCloudSyncHook.includes('message?.reason !== "cloud-push"') &&
+    pageCloudSyncHook.includes("window.setTimeout(() => {\n        void runSync({ quick: true });") &&
+    pageCloudSyncHook.includes("window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate)") &&
+    pageCloudSyncHook.includes("window.removeEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate)") &&
+    pageCloudSyncHook.includes("window.clearTimeout(editSyncTimer)"),
+  "页面本地编辑/新建应通知当前标签页后台同步，并用 4 秒防抖 quick sync 补传云端，避免等下一轮轮询"
 );
 check(
   databaseCloudSyncHook.includes("getPendingCloudDatabaseSyncStatus") &&

@@ -46,6 +46,7 @@ interface PageUpdateSnapshot {
 
 const CHANNEL_NAME = "zhinote:pages-updated:v1";
 const STORAGE_KEY = "zhinote.pages.updated.broadcast.v1";
+export const PAGE_LOCAL_UPDATE_EVENT = "zhinote:pages-local-updated";
 
 let clientId: string | null = null;
 let channel: BroadcastChannel | null | undefined;
@@ -82,6 +83,11 @@ export function emitPagesUpdated(
     count,
     pages,
   };
+  window.dispatchEvent(
+    new CustomEvent<PageUpdateMessage>(PAGE_LOCAL_UPDATE_EVENT, {
+      detail: message,
+    })
+  );
   getChannel()?.postMessage(message);
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(message));

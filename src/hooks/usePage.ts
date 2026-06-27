@@ -24,6 +24,7 @@ import {
   clearPageRouteHandoff,
   readPageRouteHandoff,
 } from "@/lib/pages/pageRouteHandoff";
+import { emitPageSnapshotsUpdated } from "@/lib/pages/pageUpdateBus";
 import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRecordRevision } from "@/hooks/usePageRevision";
@@ -149,6 +150,7 @@ export function usePage(
 
       setPage(optimistic);
       upsertPages([optimistic]);
+      emitPageSnapshotsUpdated("cloud-push", [optimistic]);
       rememberPendingPageDraft(optimistic);
 
       queueCloudPagePush(record);
@@ -174,13 +176,13 @@ export function usePage(
     } finally {
       if (snapshot) queueCloudPageDelete(snapshot, deletedAt);
       if (snapshot) {
-        upsertPages([
-          {
-            ...snapshot,
-            deleted_at: deletedAt,
-            updated_at: deletedAt,
-          },
-        ]);
+        const deletedSnapshot = {
+          ...snapshot,
+          deleted_at: deletedAt,
+          updated_at: deletedAt,
+        };
+        upsertPages([deletedSnapshot]);
+        emitPageSnapshotsUpdated("cloud-push", [deletedSnapshot]);
       }
       setPage(null);
     }

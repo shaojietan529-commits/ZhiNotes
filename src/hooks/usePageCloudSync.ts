@@ -23,12 +23,17 @@ import {
   syncCloudPageMetadataDelta,
   type PendingCloudPageSyncStatus,
 } from "@/lib/pages/accountPageSync";
-import { getPageUpdateClientId } from "@/lib/pages/pageUpdateBus";
+import {
+  getPageUpdateClientId,
+  PAGE_LOCAL_UPDATE_EVENT,
+  type PageUpdateMessage,
+} from "@/lib/pages/pageUpdateBus";
 
 // Background heartbeat. Short enough to feel live, long enough to stay well
 // within KV rate limits because only one visible tab holds the sync lease.
 const SYNC_INTERVAL_MS = 8 * 1000;
 const INITIAL_SYNC_DELAY_MS = 800;
+const EDIT_DEBOUNCE_MS = 4 * 1000;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const LEASE_KEY = "zhinote.pagesync.leaderLease.v1";
 const LEASE_TTL_MS = 18 * 1000;
@@ -180,6 +185,7 @@ export function usePageCloudSync() {
 
   useEffect(() => {
     if (!dbReady) return;
+    let editSyncTimer: number | undefined;
     refreshPendingStatus();
     const initialSyncTimer = window.setTimeout(() => {
       void runSync({ quick: true });
@@ -201,6 +207,19 @@ export function usePageCloudSync() {
       }
     };
     const handleForeground = () => void runSync({ quick: true });
+    const handleLocalPageUpdate = (event: Event) => {
+      const message = (event as CustomEvent<PageUpdateMessage>).detail;
+      if (
+        message?.reason !== "local-refresh" &&
+        message?.reason !== "cloud-push"
+      ) {
+        return;
+      }
+      if (editSyncTimer !== undefined) window.clearTimeout(editSyncTimer);
+      editSyncTimer = window.setTimeout(() => {
+        void runSync({ quick: true });
+      }, EDIT_DEBOUNCE_MS);
+    };
     const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
     const handleLocalCacheRecoveryStorage = (event: StorageEvent) => {
       if (event.key === LOCAL_CACHE_RECOVERY_SIGNAL_KEY && event.newValue) {
@@ -220,16 +239,19 @@ export function usePageCloudSync() {
     };
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
     window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus);
+    window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate);
     window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT, handleLocalCacheRecovery);
     window.addEventListener("storage", handleLocalCacheRecoveryStorage);
     window.addEventListener("focus", handleForeground);
     window.addEventListener("online", handleForeground);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
+      if (editSyncTimer !== undefined) window.clearTimeout(editSyncTimer);
       window.clearTimeout(initialSyncTimer);
       window.clearInterval(interval);
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
       window.removeEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus);
+      window.removeEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate);
       window.removeEventListener(
         LOCAL_CACHE_RECOVERY_EVENT,
         handleLocalCacheRecovery
