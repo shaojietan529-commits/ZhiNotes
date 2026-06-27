@@ -589,6 +589,12 @@ check(
     dailyNotesShell.includes("buildDailyCalendarIndexes(notes, calendarDateKeys)") &&
     dailyNotesShell.includes("function buildDailyCalendarIndexes(") &&
     dailyNotesShell.includes("const notesById = calendarIndexes.notesById") &&
+    dailyNotesShell.includes("selectDailyNotesForCalendarRender(") &&
+    dailyNotesShell.includes("DAILY_RENDER_RECENT_BUFFER_LIMIT") &&
+    dailyNotesShell.includes("setNotes(renderableNotes)") &&
+    dailyNotesShell.includes("const deferredRecentNotes = useDeferredValue(calendarIndexes.recentNotes)") &&
+    dailyNotesShell.includes("deferredRecentNotes.slice(0, DAILY_RECENT_VISIBLE_LIMIT)") &&
+    dailyNotesShell.includes("function addRecentDailyNoteCandidate(") &&
     dailyNotesShell.includes("rebuildPageDateKeyIndex") &&
     dailyNotesShell.includes("includeUnindexedFallback: false") &&
     dailyNotesShell.includes("includeUnindexedFallback: true") &&

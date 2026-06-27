@@ -2126,14 +2126,14 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "const deferredIndexedNotes = useDeferredValue(indexedNotes)",
-    "Daily recent-note list must defer secondary ranking behind the calendar."
+    "const deferredRecentNotes = useDeferredValue(calendarIndexes.recentNotes)",
+    "Daily recent-note list must defer bounded recent candidates behind the calendar."
   );
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setNotes(nextNotes);",
-    "Daily calendar bulk metadata publishes must stay low-priority so clicks and typing remain responsive."
+    "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setNotes(renderableNotes);",
+    "Daily calendar bulk metadata publishes must stay low-priority and render-bounded so clicks and typing remain responsive."
   );
   assertIncludes(
     files.dailyNotesShell,
@@ -2144,14 +2144,20 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "getRecentIndexedDailyNotes(\n        deferredIndexedNotes,\n        DAILY_RECENT_VISIBLE_LIMIT",
-    "Daily recent-note list must use bounded top-note selection instead of full-list sorting."
+    "deferredRecentNotes.slice(0, DAILY_RECENT_VISIBLE_LIMIT)",
+    "Daily recent-note list must render from bounded top-note candidates instead of full-list sorting."
   );
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "function getRecentIndexedDailyNotes(",
-    "Daily recent-note bounded selection helper must stay explicit and reviewable."
+    "function addRecentDailyNoteCandidate(",
+    "Daily recent-note bounded candidate helper must stay explicit and reviewable."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "function selectDailyNotesForCalendarRender(",
+    "Daily calendar render state must keep current-grid notes plus bounded recent notes instead of every imported record."
   );
   assertIncludes(
     files.dailyNotesShell,

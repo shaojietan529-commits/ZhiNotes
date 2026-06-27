@@ -2392,12 +2392,12 @@ function run() {
       "Daily calendar must avoid grouping recent notes outside the visible grid during first paint.",
     ],
     [
-      "const deferredIndexedNotes = useDeferredValue(indexedNotes)",
-      "Daily recent-note list must defer secondary ranking behind the calendar.",
+      "const deferredRecentNotes = useDeferredValue(calendarIndexes.recentNotes)",
+      "Daily recent-note list must defer bounded recent candidates behind the calendar.",
     ],
     [
-      "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setNotes(nextNotes);",
-      "Daily calendar bulk metadata publishes must stay low-priority so clicks and typing remain responsive.",
+      "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setNotes(renderableNotes);",
+      "Daily calendar bulk metadata publishes must stay low-priority and render-bounded so clicks and typing remain responsive.",
     ],
     [
       "const inCalendarNote = notesById.get(pageId)",
@@ -2420,8 +2420,12 @@ function run() {
       "Daily recent-note list must keep a small visible cap for large imported workspaces.",
     ],
     [
-      "getRecentIndexedDailyNotes(\n        deferredIndexedNotes,\n        DAILY_RECENT_VISIBLE_LIMIT",
-      "Daily recent-note list must use bounded top-note selection instead of full-list sorting.",
+      "deferredRecentNotes.slice(0, DAILY_RECENT_VISIBLE_LIMIT)",
+      "Daily recent-note list must render from bounded top-note candidates instead of full-list sorting.",
+    ],
+    [
+      "function selectDailyNotesForCalendarRender(",
+      "Daily calendar render state must keep current-grid notes plus bounded recent notes instead of every imported record.",
     ],
     [
       "includeUnindexedFallback: false",
@@ -2436,8 +2440,8 @@ function run() {
       "Daily background fallback metadata must refresh the hot cache after first paint.",
     ],
     [
-      "function getRecentIndexedDailyNotes(",
-      "Daily recent-note bounded selection helper must stay explicit and reviewable.",
+      "function addRecentDailyNoteCandidate(",
+      "Daily recent-note bounded candidate helper must stay explicit and reviewable.",
     ],
     [
       "const [openingNoteId, setOpeningNoteId]",

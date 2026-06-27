@@ -89,7 +89,7 @@ type IndexedDailyNote = {
 };
 
 type DailyCalendarIndexes = {
-  indexedNotes: IndexedDailyNote[];
+  recentNotes: IndexedDailyNote[];
   notesByDate: Map<string, DailyNote[]>;
   notesById: Map<string, DailyNote>;
 };
@@ -106,6 +106,8 @@ const MONTH_LABELS = [
 ];
 const DAILY_CALENDAR_VISIBLE_LIMIT = 8;
 const DAILY_RECENT_VISIBLE_LIMIT = 8;
+const DAILY_RECENT_INDEX_CANDIDATE_LIMIT = 80;
+const DAILY_RENDER_RECENT_BUFFER_LIMIT = 80;
 const DAILY_CALENDAR_EXPAND_BATCH = 24;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
 const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
@@ -309,15 +311,24 @@ export default function DailyNotesShell() {
       return cloudMetadataPromise;
     };
 
+    const selectRenderableNotes = (nextNotes: DailyNote[]) =>
+      selectDailyNotesForCalendarRender(
+        nextNotes,
+        startDate,
+        endDate,
+        Math.max(DAILY_RECENT_VISIBLE_LIMIT, DAILY_RENDER_RECENT_BUFFER_LIMIT)
+      );
+
     const publishNotes = (nextNotes: DailyNote[]) => {
       if (loadRequestRef.current !== requestId) return;
-      if (firstVisibleMs === null && nextNotes.length > 0) {
+      const renderableNotes = selectRenderableNotes(nextNotes);
+      if (firstVisibleMs === null && renderableNotes.length > 0) {
         firstVisibleMs = getLocalPerformanceNow() - performanceStart;
-        firstVisibleCount = nextNotes.length;
+        firstVisibleCount = renderableNotes.length;
       }
       startTransition(() => {
         if (loadRequestRef.current !== requestId) return;
-        setNotes(nextNotes);
+        setNotes(renderableNotes);
       });
     };
 
@@ -596,8 +607,7 @@ export default function DailyNotesShell() {
     () => buildDailyCalendarIndexes(notes, calendarDateKeys),
     [calendarDateKeys, notes]
   );
-  const indexedNotes = calendarIndexes.indexedNotes;
-  const deferredIndexedNotes = useDeferredValue(indexedNotes);
+  const deferredRecentNotes = useDeferredValue(calendarIndexes.recentNotes);
   const notesById = calendarIndexes.notesById;
   // Each day can hold multiple note pages (Notion-style), grouped by 日期.
   const notesByDate = calendarIndexes.notesByDate;
@@ -884,12 +894,8 @@ export default function DailyNotesShell() {
   const todayKey = toDateKey(new Date());
 
   const recent = useMemo(
-    () =>
-      getRecentIndexedDailyNotes(
-        deferredIndexedNotes,
-        DAILY_RECENT_VISIBLE_LIMIT
-      ),
-    [deferredIndexedNotes]
+    () => deferredRecentNotes.slice(0, DAILY_RECENT_VISIBLE_LIMIT),
+    [deferredRecentNotes]
   );
 
   const goPrev = () =>
@@ -1394,7 +1400,7 @@ function buildDailyCalendarIndexes(
   notes: DailyNote[],
   calendarDateKeys: Set<string>
 ): DailyCalendarIndexes {
-  const indexedNotes: IndexedDailyNote[] = [];
+  const recentNotes: IndexedDailyNote[] = [];
   const notesByDate = new Map<string, DailyNote[]>();
   const notesById = new Map<string, DailyNote>();
 
@@ -1402,37 +1408,67 @@ function buildDailyCalendarIndexes(
     notesById.set(note.id, note);
     const dateKey = dailyNoteDateKey(note);
     if (!dateKey) continue;
-    indexedNotes.push({ note, dateKey });
+    addRecentDailyNoteCandidate(
+      recentNotes,
+      { note, dateKey },
+      DAILY_RECENT_INDEX_CANDIDATE_LIMIT
+    );
     if (!calendarDateKeys.has(dateKey)) continue;
     const list = notesByDate.get(dateKey) ?? [];
     list.push(note);
     notesByDate.set(dateKey, list);
   }
 
-  return { indexedNotes, notesByDate, notesById };
+  return { recentNotes, notesByDate, notesById };
 }
 
-function getRecentIndexedDailyNotes(
-  notes: IndexedDailyNote[],
+function selectDailyNotesForCalendarRender(
+  notes: DailyNote[],
+  startDate: string,
+  endDate: string,
   limit: number
-): IndexedDailyNote[] {
-  if (limit <= 0) return [];
+): DailyNote[] {
+  const visibleNotes: DailyNote[] = [];
   const recent: IndexedDailyNote[] = [];
+  const visibleIds = new Set<string>();
 
   for (const note of notes) {
-    let insertAt = recent.length;
-    while (insertAt > 0 && note.dateKey > recent[insertAt - 1].dateKey) {
-      insertAt -= 1;
+    const dateKey = dailyNoteDateKey(note);
+    if (!dateKey) continue;
+    if (dateKey >= startDate && dateKey <= endDate) {
+      visibleNotes.push(note);
+      visibleIds.add(note.id);
+      continue;
     }
+    addRecentDailyNoteCandidate(recent, { note, dateKey }, limit);
+  }
 
-    if (insertAt >= limit) continue;
-    recent.splice(insertAt, 0, note);
-    if (recent.length > limit) {
-      recent.pop();
+  for (const { note } of recent) {
+    if (!visibleIds.has(note.id)) {
+      visibleNotes.push(note);
     }
   }
 
-  return recent;
+  return visibleNotes;
+}
+
+function addRecentDailyNoteCandidate(
+  recent: IndexedDailyNote[],
+  candidate: IndexedDailyNote,
+  limit: number
+): void {
+  if (limit <= 0) return;
+
+  let insertAt = recent.length;
+  while (insertAt > 0 && candidate.dateKey > recent[insertAt - 1].dateKey) {
+    insertAt -= 1;
+  }
+
+  if (insertAt >= limit) return;
+  recent.splice(insertAt, 0, candidate);
+  if (recent.length > limit) {
+    recent.pop();
+  }
 }
 
 function collectVisibleDailyNotesForHotCache(
