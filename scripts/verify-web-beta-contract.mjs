@@ -2296,6 +2296,22 @@ function run() {
       "Daily recent-note bounded selection helper must stay explicit and reviewable.",
     ],
     [
+      "const [openingNoteId, setOpeningNoteId]",
+      "Daily existing-note opens must track an immediate opening state for click feedback.",
+    ],
+    [
+      "setOpeningNoteId(note.id);",
+      "Daily existing-note opens must mark the clicked note before deferred warmup work runs.",
+    ],
+    [
+      "openingNoteId === note.id",
+      "Daily note chips must render an immediate opening affordance while the peek modal loads.",
+    ],
+    [
+      "正在打开纪要…",
+      "Daily note chips must show a local opening label during peek modal load.",
+    ],
+    [
       "queueCloudPagePush(record)",
       "Daily + creation must enqueue account-cloud upload instead of waiting on direct push.",
     ],

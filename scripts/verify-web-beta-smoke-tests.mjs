@@ -2054,6 +2054,30 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "const [openingNoteId, setOpeningNoteId]",
+    "Daily existing-note opens must track an immediate opening state for click feedback."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "setOpeningNoteId(note.id);",
+    "Daily existing-note opens must mark the clicked note before deferred warmup work runs."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "openingNoteId === note.id",
+    "Daily note chips must render an immediate opening affordance while the peek modal loads."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "正在打开纪要…",
+    "Daily note chips must show a local opening label during peek modal load."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "writeOptimisticDailyHotCache",
     "Daily + creation must update the local hot cache before background persistence."
   );

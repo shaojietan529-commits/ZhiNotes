@@ -121,6 +121,7 @@ export default function DailyNotesShell() {
   } | null>(null);
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
   const [peekInitialPage, setPeekInitialPage] = useState<DailyNote | null>(null);
+  const [openingNoteId, setOpeningNoteId] = useState<string | null>(null);
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [dragOverDateKey, setDragOverDateKey] = useState<string | null>(null);
   const [expandedDateKeys, setExpandedDateKeys] = useState<Set<string>>(
@@ -692,10 +693,23 @@ export default function DailyNotesShell() {
   );
 
   const openNotePage = useCallback((note: DailyNote) => {
-    primeDailyNoteOpen(note, "daily-open");
+    setOpeningNoteId(note.id);
     setPeekPageId(note.id);
     setPeekInitialPage(note);
+    scheduleDailyIdleTask(() => {
+      primeDailyNoteOpen(note, "daily-open");
+    }, 80);
   }, [primeDailyNoteOpen]);
+
+  useEffect(() => {
+    if (!openingNoteId || peekPageId !== openingNoteId) return;
+    const timer = window.setTimeout(() => {
+      setOpeningNoteId((current) =>
+        current === openingNoteId ? null : current
+      );
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [openingNoteId, peekPageId]);
 
   const toggleDateExpansion = useCallback((dateKey: string) => {
     setExpandedDateKeys((current) => {
@@ -1005,14 +1019,22 @@ export default function DailyNotesShell() {
                         }}
                         className={`flex cursor-grab items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-left text-xs leading-4 text-zinc-700 transition-colors hover:bg-zinc-200 active:cursor-grabbing dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 ${
                           draggedNoteId === note.id ? "opacity-40" : ""
+                        } ${
+                          openingNoteId === note.id
+                            ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900/60"
+                            : ""
                         }`}
                         title={displayPageTitle(note.title)}
                       >
-                        {note.icon && (
+                        {openingNoteId === note.id ? (
+                          <span className="shrink-0 leading-4">↗</span>
+                        ) : note.icon ? (
                           <span className="shrink-0 leading-4">{note.icon}</span>
-                        )}
+                        ) : null}
                         <span className="min-w-0 flex-1 truncate">
-                          {displayPageTitle(note.title)}
+                          {openingNoteId === note.id
+                            ? "正在打开纪要…"
+                            : displayPageTitle(note.title)}
                         </span>
                       </button>
                     ))}
@@ -1083,10 +1105,22 @@ export default function DailyNotesShell() {
                       <span className="w-24 shrink-0 text-xs text-zinc-400">
                         {dateKey}
                       </span>
-                      <span className="flex items-center gap-1.5 truncate text-zinc-700 dark:text-zinc-200">
-                        {note.icon && <span>{note.icon}</span>}
+                      <span
+                        className={`flex items-center gap-1.5 truncate ${
+                          openingNoteId === note.id
+                            ? "text-amber-700 dark:text-amber-300"
+                            : "text-zinc-700 dark:text-zinc-200"
+                        }`}
+                      >
+                        {openingNoteId === note.id ? (
+                          <span>↗</span>
+                        ) : (
+                          note.icon && <span>{note.icon}</span>
+                        )}
                         <span className="truncate">
-                          {displayPageTitle(note.title)}
+                          {openingNoteId === note.id
+                            ? "正在打开纪要…"
+                            : displayPageTitle(note.title)}
                         </span>
                       </span>
                     </button>
@@ -1117,10 +1151,12 @@ export default function DailyNotesShell() {
           pageId={peekPageId}
           initialPage={peekInitialPage}
           onClose={() => {
+            setOpeningNoteId(null);
             setPeekPageId(null);
             setPeekInitialPage(null);
           }}
           onOpenFull={(id) => {
+            setOpeningNoteId(null);
             setPeekPageId(null);
             setPeekInitialPage(null);
             openDailyNoteFullPageById(id);

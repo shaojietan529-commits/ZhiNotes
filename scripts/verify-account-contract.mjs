@@ -1101,6 +1101,10 @@ check(
     dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
     dailyNotesShell.includes("warmPagePeekModal();") &&
     dailyNotesShell.includes("setPeekPageId(note.id)") &&
+    dailyNotesShell.includes("const [openingNoteId, setOpeningNoteId]") &&
+    dailyNotesShell.includes("setOpeningNoteId(note.id);") &&
+    dailyNotesShell.includes("openingNoteId === note.id") &&
+    dailyNotesShell.includes("正在打开纪要…") &&
     dailyNotesShell.includes("window.setTimeout(() =>") &&
     dailyNotesShell.includes("current === dateKey ? null : current") &&
     !dailyNotesShell.includes("fetchCloudPageById") &&
