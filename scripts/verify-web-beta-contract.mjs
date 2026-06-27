@@ -2117,6 +2117,22 @@ function run() {
       "Daily note opening must hand off metadata before opening a page.",
     ],
     [
+      "useLocalFirstPageNavigation",
+      "Daily full-page openings must use the shared local-first page navigation path.",
+    ],
+    [
+      'openPage(optimisticNote, { source: "daily-create" })',
+      "Daily + creation must open through local-first navigation after handing off the optimistic page.",
+    ],
+    [
+      "openPage(note, { source })",
+      "Daily full-page note opens must route through local-first navigation.",
+    ],
+    [
+      'openPage(pageId, { source: "daily-open" })',
+      "Daily fallback page-id opens must still use local-first navigation when a metadata seed is available.",
+    ],
+    [
       "rememberPendingPageDraft(note)",
       "Daily note opening must keep an in-memory draft for immediate full-page first paint.",
     ],

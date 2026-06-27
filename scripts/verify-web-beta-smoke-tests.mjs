@@ -2289,12 +2289,19 @@ function run() {
     "data-testid={`daily-calendar-day-${key}`}",
     "Daily calendar day cells must expose stable targets for hover-to-create checks."
   );
-  assertIncludes(
-    files.dailyNotesShell,
-    dailyNotesShell,
-    "warmPageRoute();\n      upsertPages([note]);",
-    "Daily full-page opening must warm the page shell before handing metadata to the route."
-  );
+  for (const snippet of [
+    "useLocalFirstPageNavigation",
+    'openPage(optimisticNote, { source: "daily-create" })',
+    "openPage(note, { source })",
+    'openPage(pageId, { source: "daily-open" })',
+  ]) {
+    assertIncludes(
+      files.dailyNotesShell,
+      dailyNotesShell,
+      snippet,
+      "Daily full-page openings must use the shared local-first page navigation path."
+    );
+  }
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,

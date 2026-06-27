@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
+import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import {
@@ -93,6 +94,7 @@ let dailyDateIndexBackfillDoneInMemory = false;
 
 export default function DailyNotesShell() {
   const router = useRouter();
+  const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const pageRevision = usePageRevision();
@@ -558,7 +560,7 @@ export default function DailyNotesShell() {
       } catch {
         // Route prefetch is best-effort; navigation still happens immediately.
       }
-      router.push(pageRoute);
+      openPage(optimisticNote, { source: "daily-create" });
       void (async () => {
         try {
           const dailyRootId = initialRootId ?? (await getModuleRootId("daily"));
@@ -603,7 +605,16 @@ export default function DailyNotesShell() {
         }
       })();
     },
-    [creatingDateKey, notes, rootId, router, upsertPages, viewMonth, warmPageRoute]
+    [
+      creatingDateKey,
+      notes,
+      openPage,
+      rootId,
+      router,
+      upsertPages,
+      viewMonth,
+      warmPageRoute,
+    ]
   );
 
   const primeDailyNoteOpen = useCallback(
@@ -624,10 +635,9 @@ export default function DailyNotesShell() {
 
   const openDailyNoteFullPage = useCallback(
     (note: DailyNote, source: "daily-create" | "daily-open" = "daily-open") => {
-      primeDailyNoteOpen(note, source);
-      router.push(`/page/${note.id}`);
+      openPage(note, { source });
     },
-    [primeDailyNoteOpen, router]
+    [openPage]
   );
 
   const openDailyNoteFullPageById = useCallback(
@@ -648,9 +658,9 @@ export default function DailyNotesShell() {
         openDailyNoteFullPage(note, "daily-open");
         return;
       }
-      router.push(`/page/${pageId}`);
+      openPage(pageId, { source: "daily-open" });
     },
-    [notes, openDailyNoteFullPage, peekInitialPage, router]
+    [notes, openDailyNoteFullPage, openPage, peekInitialPage]
   );
 
   const openNotePage = useCallback((note: DailyNote) => {
@@ -931,7 +941,7 @@ export default function DailyNotesShell() {
                         data-testid={`daily-opening-note-${key}`}
                         onClick={() => {
                           if (openingDraft) {
-                            router.push(`/page/${openingDraft.pageId}`);
+                            openDailyNoteFullPageById(openingDraft.pageId);
                           }
                         }}
                         className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-left text-xs leading-4 text-amber-700 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"

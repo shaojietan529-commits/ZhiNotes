@@ -118,10 +118,11 @@ for (const token of [
   "listDailyPageMetadataForCalendar",
   "rebuildPageDateKeyIndex",
   "seedDailyNoteForImmediateOpen",
+  "useLocalFirstPageNavigation",
   'router.prefetch("/page/zhinote-route-prefetch")',
   "const pageRoute = `/page/${optimisticNote.id}`",
   "router.prefetch(pageRoute)",
-  "router.push(pageRoute)",
+  'openPage(optimisticNote, { source: "daily-create" })',
   "<PagePeekModal",
   "rememberPendingPageDraft(optimisticNote)",
   "openNotePage",
@@ -390,7 +391,9 @@ for (const token of [
   "onPointerEnter={warmPageRoute}",
   "onFocus={warmPageRoute}",
   'import("@/components/providers/PageShell")',
-  "router.push(pageRoute)",
+  'openPage(optimisticNote, { source: "daily-create" })',
+  "openPage(note, { source })",
+  'openPage(pageId, { source: "daily-open" })',
   "rememberPendingPageDraft(optimisticNote)",
   "upsertPages([optimisticNote])",
   "writeOptimisticDailyHotCache",
@@ -411,10 +414,14 @@ check(
     shells.daily.indexOf("writeOptimisticDailyHotCache") <
       shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
-      shells.daily.indexOf("router.push(pageRoute)") &&
+      shells.daily.indexOf(
+        'openPage(optimisticNote, { source: "daily-create" })'
+      ) &&
     shells.daily.includes("window.setTimeout(() =>") &&
     shells.daily.includes("current === dateKey ? null : current") &&
-    shells.daily.indexOf("router.push(pageRoute)") <
+    shells.daily.indexOf(
+      'openPage(optimisticNote, { source: "daily-create" })'
+    ) <
       shells.daily.indexOf("persistOptimisticDailyNote"),
   "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再直接进入完整页面，快速释放 + 按钮并后台持久化"
 );
