@@ -52,6 +52,7 @@ interface CommandPaletteAction {
   icon: string;
   category: CommandCategory;
   aliases: string[];
+  route?: string;
   run: () => void;
 }
 
@@ -103,7 +104,7 @@ export default function QuickSearch() {
   const searchRequestRef = useRef(0);
   const deferredFullTextSearchTimerRef = useRef<number | null>(null);
   const openDatabase = useLocalFirstDatabaseNavigation();
-  const { openModuleRoute } = useLocalFirstModuleNavigation();
+  const { openModuleRoute, warmModuleRoute } = useLocalFirstModuleNavigation();
   const openPage = useLocalFirstPageNavigation();
   const pages = useWorkspaceStore((s) => s.pages);
   const { refresh, upsertPages } = usePages({ autoLoad: false });
@@ -515,6 +516,7 @@ export default function QuickSearch() {
       icon: "MOD",
       category: "Workspace",
       aliases: ["module", "modules", "platform", "research platform", "模块"],
+      route: "/modules",
       run: handleOpenModuleHub,
     },
     {
@@ -524,6 +526,7 @@ export default function QuickSearch() {
       icon: "NOTE",
       category: "Workspace",
       aliases: ["notes", "pages", "notion", "workspace", "笔记", "页面"],
+      route: "/modules/notes",
       run: handleOpenNotes,
     },
     {
@@ -533,6 +536,7 @@ export default function QuickSearch() {
       icon: "CO",
       category: "Workspace",
       aliases: ["company", "companies", "coverage", "research module", "公司"],
+      route: "/modules/company-research",
       run: handleOpenCompanyResearch,
     },
     {
@@ -550,6 +554,7 @@ export default function QuickSearch() {
         "投研项目",
         "专题",
       ],
+      route: "/modules/projects",
       run: handleOpenProjects,
     },
     ...templateQuickActions,
@@ -586,6 +591,7 @@ export default function QuickSearch() {
       icon: "PF",
       category: "Workspace",
       aliases: ["portfolio", "watchlist", "position", "positions", "sizing", "组合", "观察名单"],
+      route: "/modules/portfolio",
       run: handleOpenPortfolio,
     },
     {
@@ -613,6 +619,7 @@ export default function QuickSearch() {
       icon: "MTG",
       category: "Workspace",
       aliases: ["meeting", "meetings", "call", "calls", "transcript", "会议", "电话会"],
+      route: "/modules/meetings",
       run: handleOpenMeetings,
     },
     {
@@ -631,6 +638,7 @@ export default function QuickSearch() {
       icon: "RPT",
       category: "Workspace",
       aliases: ["report", "reports", "html report", "pdf", "file", "报告"],
+      route: "/modules/reports",
       run: handleOpenReports,
     },
     {
@@ -648,6 +656,7 @@ export default function QuickSearch() {
         "格式入口",
         "Markdown 笔记",
       ],
+      route: "/modules/reports",
       run: handleOpenReports,
     },
     {
@@ -664,6 +673,7 @@ export default function QuickSearch() {
         "格式入口",
         "HTML 报告",
       ],
+      route: "/modules/reports",
       run: handleOpenReports,
     },
     {
@@ -688,6 +698,7 @@ export default function QuickSearch() {
         "文件",
         "附件",
       ],
+      route: "/modules/files",
       run: handleOpenFiles,
     },
     {
@@ -705,6 +716,7 @@ export default function QuickSearch() {
         "document",
         "文件入口",
       ],
+      route: "/modules/files",
       run: handleOpenFiles,
     },
     {
@@ -722,6 +734,7 @@ export default function QuickSearch() {
         "表格导入",
         "Excel 导入",
       ],
+      route: "/modules/databases",
       run: handleOpenDatabases,
     },
     {
@@ -750,6 +763,7 @@ export default function QuickSearch() {
         "关系",
         "关联",
       ],
+      route: "/modules/research-graph",
       run: handleOpenResearchGraph,
     },
     {
@@ -770,6 +784,7 @@ export default function QuickSearch() {
         "总结",
         "问答",
       ],
+      route: "/modules/ai",
       run: handleOpenAiWorkbench,
     },
     {
@@ -789,6 +804,7 @@ export default function QuickSearch() {
         "同步",
         "权限",
       ],
+      route: "/modules/sync",
       run: handleOpenSync,
     },
     ...getEditorCommandActions(handleEditorLocalCommand),
@@ -995,6 +1011,12 @@ export default function QuickSearch() {
     handleSelect(entry.page.id, entry.page);
   };
 
+  const handleEntryPrewarm = (entry: SearchEntry) => {
+    if (entry.type === "command" && entry.command.route) {
+      warmModuleRoute(entry.command.route);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -1127,6 +1149,7 @@ export default function QuickSearch() {
                             entry={entry}
                             query={trimmedQuery}
                             selected={index === selectedIndex}
+                            onPrewarm={() => handleEntryPrewarm(entry)}
                             onSelect={() => handleEntrySelect(entry)}
                           />
                         </li>
@@ -1616,11 +1639,13 @@ function SearchEntryButton({
   entry,
   query,
   selected,
+  onPrewarm,
   onSelect,
 }: {
   entry: SearchEntry;
   query: string;
   selected: boolean;
+  onPrewarm: () => void;
   onSelect: () => void;
 }) {
   const isCommand = entry.type === "command";
@@ -1645,6 +1670,8 @@ function SearchEntryButton({
 
   return (
     <button
+      onPointerEnter={onPrewarm}
+      onFocus={onPrewarm}
       onClick={onSelect}
       className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors ${
         selected

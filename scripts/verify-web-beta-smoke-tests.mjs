@@ -3423,6 +3423,24 @@ function run() {
     "Smoke verifier must keep quick search deferred full-text results bounded."
   );
   for (const snippet of [
+    "route?: string;",
+    "const handleEntryPrewarm = (entry: SearchEntry)",
+    "warmModuleRoute(entry.command.route)",
+    "onPrewarm={() => handleEntryPrewarm(entry)}",
+    "onPointerEnter={onPrewarm}",
+    "onFocus={onPrewarm}",
+    'route: "/modules/reports"',
+    'route: "/modules/databases"',
+    'route: "/modules/sync"',
+  ]) {
+    assertIncludes(
+      files.quickSearch,
+      quickSearch,
+      snippet,
+      "Quick search module command results must warm their route on hover/focus before navigation."
+    );
+  }
+  for (const snippet of [
     "export async function searchPages(query: string, limit = 20)",
     "content_text LIKE ?",
     "const candidateLimit = Math.max(limit * 8, limit)",
@@ -4347,6 +4365,7 @@ function run() {
       [
         "useLocalFirstModuleNavigation",
         "const handleOpenModuleRoute = (route: string)",
+        "warmModuleRoute(entry.command.route)",
         "openModuleRoute(route)",
         'openPage(result.page, { source: "quick-search-create" })',
         "openDatabase(result.database.id)",
