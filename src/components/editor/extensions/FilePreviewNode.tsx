@@ -57,11 +57,21 @@ export interface FilePreviewAttrs {
 
 type ConvertedPreview =
   | { status: "idle" | "loading" }
-  | { status: "ready"; srcDoc: string }
+  | { status: "ready"; srcDoc: string; editableHtml: string }
+  | { status: "error"; message: string };
+type CachedConvertedPreview =
+  | { status: "ready"; srcDoc: string; editableHtml: string }
   | { status: "error"; message: string };
 
 const PREVIEW_CSP =
   "default-src 'none'; img-src data: blob:; media-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; frame-src data: blob:; child-src data: blob:; connect-src 'none';";
+const CONVERTED_PREVIEW_CACHE_VERSION = "v1";
+const CONVERTED_PREVIEW_CACHE_LIMIT = 12;
+const convertedPreviewCache = new Map<string, CachedConvertedPreview>();
+const convertedPreviewWorkCache = new Map<
+  string,
+  Promise<CachedConvertedPreview>
+>();
 const BULK_IMPORT_CONFIRMATION_PHRASE =
   getHighRiskRequiredPhrase("bulk-import");
 const EXTERNAL_RESOURCE_CONFIRMATION_PHRASE = getHighRiskRequiredPhrase(
@@ -206,34 +216,16 @@ function FilePreviewComponent({
         return;
       }
 
-      setConvertedPreview({ status: "loading" });
-
-      try {
-        const body =
-          file.kind === "spreadsheet"
-            ? await convertSpreadsheetToHtml(file)
-            : file.kind === "word"
-              ? await convertWordToHtml(file)
-              : file.kind === "presentation"
-                ? await convertPresentationToHtml(file)
-                : file.kind === "epub"
-                  ? await convertEpubToHtml(await dataUrlToArrayBuffer(file.dataUrl))
-                  : convertZipToHtml(await dataUrlToArrayBuffer(file.dataUrl));
-        if (!active) return;
-        setConvertedPreview({
-          status: "ready",
-          srcDoc: createPreviewDocument(body),
-        });
-      } catch (err) {
-        if (!active) return;
-        setConvertedPreview({
-          status: "error",
-          message:
-            err instanceof Error
-              ? err.message
-              : "这个文件无法生成预览。",
-        });
+      const cachedPreview = getCachedConvertedPreview(file);
+      if (cachedPreview) {
+        setConvertedPreview(cachedPreview);
+        return;
       }
+
+      setConvertedPreview({ status: "loading" });
+      const nextPreview = await getOrCreateConvertedPreview(file);
+      if (!active) return;
+      setConvertedPreview(nextPreview);
     })();
 
     return () => {
@@ -454,15 +446,19 @@ function FilePreviewComponent({
 
     setImporting(true);
     try {
-      const html =
-        file.kind === "spreadsheet"
-          ? await convertSpreadsheetToHtml(file)
-          : file.kind === "word"
-            ? await convertWordToHtml(file)
-            : file.kind === "presentation"
-              ? await convertPresentationToHtml(file)
-              : await convertEpubToHtml(await dataUrlToArrayBuffer(file.dataUrl));
-      editor.chain().focus().insertContentAt(pos + node.nodeSize, html).run();
+      const preview =
+        convertedPreview.status === "ready"
+          ? convertedPreview
+          : await getOrCreateConvertedPreview(file);
+      setConvertedPreview(preview);
+      if (preview.status === "error") {
+        throw new Error(preview.message);
+      }
+      editor
+        .chain()
+        .focus()
+        .insertContentAt(pos + node.nodeSize, preview.editableHtml)
+        .run();
       recordActionReceipt("editable-import", {
         writes_page_content: true,
         confirmation_required: true,
@@ -1254,6 +1250,84 @@ function supportsEditableConvertedImport(file: StoredPageFile) {
   return !isLegacyOfficeFile(file);
 }
 
+function getConvertedPreviewCacheKey(file: StoredPageFile) {
+  return [
+    CONVERTED_PREVIEW_CACHE_VERSION,
+    file.id,
+    file.size,
+    file.createdAt,
+  ].join(":");
+}
+
+function getCachedConvertedPreview(file: StoredPageFile) {
+  const key = getConvertedPreviewCacheKey(file);
+  const cached = convertedPreviewCache.get(key);
+  if (!cached) return null;
+  convertedPreviewCache.delete(key);
+  convertedPreviewCache.set(key, cached);
+  return cached;
+}
+
+function setCachedConvertedPreview(
+  file: StoredPageFile,
+  preview: CachedConvertedPreview
+) {
+  const key = getConvertedPreviewCacheKey(file);
+  convertedPreviewCache.set(key, preview);
+  while (convertedPreviewCache.size > CONVERTED_PREVIEW_CACHE_LIMIT) {
+    const oldestKey = convertedPreviewCache.keys().next().value;
+    if (!oldestKey) break;
+    convertedPreviewCache.delete(oldestKey);
+  }
+}
+
+function getOrCreateConvertedPreview(file: StoredPageFile) {
+  const cached = getCachedConvertedPreview(file);
+  if (cached) return Promise.resolve(cached);
+
+  const key = getConvertedPreviewCacheKey(file);
+  const existingWork = convertedPreviewWorkCache.get(key);
+  if (existingWork) return existingWork;
+
+  const work = buildConvertedPreview(file)
+    .then((preview) => {
+      setCachedConvertedPreview(file, preview);
+      return preview;
+    })
+    .finally(() => {
+      convertedPreviewWorkCache.delete(key);
+    });
+  convertedPreviewWorkCache.set(key, work);
+  return work;
+}
+
+async function buildConvertedPreview(
+  file: StoredPageFile
+): Promise<CachedConvertedPreview> {
+  try {
+    const editableHtml =
+      file.kind === "spreadsheet"
+        ? await convertSpreadsheetToHtml(file)
+        : file.kind === "word"
+          ? await convertWordToHtml(file)
+          : file.kind === "presentation"
+            ? await convertPresentationToHtml(file)
+            : file.kind === "epub"
+              ? await convertEpubToHtml(await dataUrlToArrayBuffer(file.dataUrl))
+              : convertZipToHtml(await dataUrlToArrayBuffer(file.dataUrl));
+    return {
+      status: "ready",
+      editableHtml,
+      srcDoc: createPreviewDocument(editableHtml),
+    };
+  } catch (err) {
+    return {
+      status: "error",
+      message: err instanceof Error ? err.message : "这个文件无法生成预览。",
+    };
+  }
+}
+
 function isOnDemandConvertedPreviewKind(kind: PageFileKind) {
   return (
     kind === "spreadsheet" ||
@@ -1429,6 +1503,9 @@ function FilePreviewBody({
         <div className="flex min-h-32 flex-col items-center justify-center gap-3 bg-zinc-50 p-5 text-center text-sm text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
           <p>
             {getFileKindLabel(file.kind)} 预览尚未生成。为避免打开页面时同时转换大量附件，请按需要生成这个文件的本地预览。
+          </p>
+          <p className="max-w-xl text-xs leading-5 text-zinc-400">
+            生成后会在当前浏览器会话复用本地内存缓存；缓存不包含文件名，不上传，不调用云服务或 AI。
           </p>
           <button
             type="button"

@@ -445,6 +445,17 @@ function run() {
     "handleToggleExpanded",
     "生成预览",
     "为避免打开页面时同时转换大量附件",
+    "CONVERTED_PREVIEW_CACHE_LIMIT",
+    "convertedPreviewCache",
+    "convertedPreviewWorkCache",
+    "getConvertedPreviewCacheKey",
+    "getCachedConvertedPreview",
+    "setCachedConvertedPreview",
+    "getOrCreateConvertedPreview",
+    "buildConvertedPreview",
+    "editableHtml",
+    "当前浏览器会话复用本地内存缓存",
+    "缓存不包含文件名，不上传，不调用云服务或 AI",
   ]) {
     assertIncludes(
       files.previewNode,
