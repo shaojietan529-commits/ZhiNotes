@@ -50,6 +50,9 @@ const files = {
     "src/hooks/useLocalFirstDatabaseNavigation.ts",
   localFirstDatabaseNavigationUtil:
     "src/lib/database/localFirstDatabaseNavigation.ts",
+  localFirstModuleNavigation: "src/hooks/useLocalFirstModuleNavigation.ts",
+  localFirstModuleNavigationUtil:
+    "src/lib/modules/localFirstModuleNavigation.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
@@ -348,6 +351,12 @@ function run() {
   );
   const localFirstDatabaseNavigationUtil = readProjectFile(
     files.localFirstDatabaseNavigationUtil
+  );
+  const localFirstModuleNavigation = readProjectFile(
+    files.localFirstModuleNavigation
+  );
+  const localFirstModuleNavigationUtil = readProjectFile(
+    files.localFirstModuleNavigationUtil
   );
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
@@ -4292,6 +4301,64 @@ function run() {
         source,
         snippet,
         "Common database opens must warm and prefetch the database route through the shared local-first database navigation helper."
+      );
+    }
+  }
+  assertIncludes(
+    files.localFirstModuleNavigation,
+    localFirstModuleNavigation,
+    "warmModuleRoute(route);",
+    "Shared module navigation must warm the module shell before route navigation."
+  );
+  assertIncludes(
+    files.localFirstModuleNavigation,
+    localFirstModuleNavigation,
+    "router.prefetch(route);",
+    "Shared module navigation must prefetch module routes as a speed hint."
+  );
+  for (const snippet of [
+    "@/components/modules/DailyNotesShell",
+    "@/components/modules/MeetingScheduleShell",
+    "@/components/modules/DatabasesShell",
+    "@/components/modules/ReportsShell",
+    "@/components/modules/SyncShell",
+  ]) {
+    assertIncludes(
+      files.localFirstModuleNavigationUtil,
+      localFirstModuleNavigationUtil,
+      snippet,
+      "Module route warmup must preload high-frequency module shells without reading content rows."
+    );
+  }
+  for (const [sourceLabel, source, snippets] of [
+    [
+      files.sidebar,
+      sidebar,
+      [
+        "useLocalFirstModuleNavigation",
+        'warmModuleRoute(item.href)',
+        'warmModuleRoute(module.route || "/modules")',
+        'openModuleRoute("/modules")',
+      ],
+    ],
+    [
+      files.quickSearch,
+      quickSearch,
+      [
+        "useLocalFirstModuleNavigation",
+        "const handleOpenModuleRoute = (route: string)",
+        "openModuleRoute(route)",
+        'openPage(result.page, { source: "quick-search-create" })',
+        "openDatabase(result.database.id)",
+      ],
+    ],
+  ]) {
+    for (const snippet of snippets) {
+      assertIncludes(
+        sourceLabel,
+        source,
+        snippet,
+        "Common module opens must warm and prefetch module shells through the shared local-first module navigation helper."
       );
     }
   }

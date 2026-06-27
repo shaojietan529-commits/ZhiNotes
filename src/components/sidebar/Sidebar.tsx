@@ -8,9 +8,9 @@ import {
   type PointerEvent,
   type MouseEvent,
 } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
+import { useLocalFirstModuleNavigation } from "@/hooks/useLocalFirstModuleNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
@@ -297,12 +297,12 @@ async function persistSidebarPrimaryCustomizations(
 }
 
 export default function Sidebar() {
-  const router = useRouter();
   const { databases, refresh: refreshDatabases } = useDatabases();
   const sidebarOpen = useWorkspaceStore((s) => s.sidebarOpen);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
   const openPage = useLocalFirstPageNavigation();
   const openDatabase = useLocalFirstDatabaseNavigation();
+  const { openModuleRoute, warmModuleRoute } = useLocalFirstModuleNavigation();
   const [backupRunning, setBackupRunning] = useState(false);
   const [markdownExportRunning, setMarkdownExportRunning] = useState(false);
   const [zipExportRunning, setZipExportRunning] = useState(false);
@@ -652,7 +652,9 @@ export default function Sidebar() {
       <div className="flex items-center justify-between border-b border-zinc-200 px-3 py-2.5 dark:border-zinc-800">
         <button
           type="button"
-          onClick={() => router.push("/modules")}
+          onPointerEnter={() => warmModuleRoute("/modules")}
+          onFocus={() => warmModuleRoute("/modules")}
+          onClick={() => openModuleRoute("/modules")}
           className="rounded-md p-1 transition-colors hover:bg-white/5"
           title="打开模块中心"
         >
@@ -715,6 +717,8 @@ export default function Sidebar() {
                 href={item.href}
                 prefetch
                 draggable={false}
+                onPointerEnter={() => warmModuleRoute(item.href)}
+                onFocus={() => warmModuleRoute(item.href)}
                 onClick={handlePrimaryClick}
                 className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-2"
               >
@@ -841,6 +845,8 @@ export default function Sidebar() {
           <div className="mt-1">
             <Link
               href="/modules"
+              onPointerEnter={() => warmModuleRoute("/modules")}
+              onFocus={() => warmModuleRoute("/modules")}
               className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
             >
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-200 text-[9px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
@@ -852,6 +858,8 @@ export default function Sidebar() {
               <Link
                 key={module.id}
                 href={module.route || "/modules"}
+                onPointerEnter={() => warmModuleRoute(module.route || "/modules")}
+                onFocus={() => warmModuleRoute(module.route || "/modules")}
                 className="mt-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               >
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-200 text-[9px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">

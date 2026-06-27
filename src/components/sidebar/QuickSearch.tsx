@@ -1,8 +1,8 @@
 "use client";
 
 import { Fragment, useState, useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
+import { useLocalFirstModuleNavigation } from "@/hooks/useLocalFirstModuleNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import {
   getWorkspaceSetting,
@@ -102,8 +102,8 @@ export default function QuickSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRequestRef = useRef(0);
   const deferredFullTextSearchTimerRef = useRef<number | null>(null);
-  const router = useRouter();
   const openDatabase = useLocalFirstDatabaseNavigation();
+  const { openModuleRoute } = useLocalFirstModuleNavigation();
   const openPage = useLocalFirstPageNavigation();
   const pages = useWorkspaceStore((s) => s.pages);
   const { refresh, upsertPages } = usePages({ autoLoad: false });
@@ -308,88 +308,59 @@ export default function QuickSearch() {
     openDatabase(database.id);
   };
 
-  const handleOpenModuleHub = () => {
+  const handleOpenModuleRoute = (route: string) => {
     setOpen(false);
     setQuery("");
     setResults([]);
-    router.push("/modules");
+    openModuleRoute(route);
+  };
+
+  const handleOpenModuleHub = () => {
+    handleOpenModuleRoute("/modules");
   };
 
   const handleOpenNotes = () => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    router.push("/modules/notes");
+    handleOpenModuleRoute("/modules/notes");
   };
 
   const handleOpenDatabases = () => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    router.push("/modules/databases");
+    handleOpenModuleRoute("/modules/databases");
   };
 
   const handleOpenCompanyResearch = () => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    router.push("/modules/company-research");
+    handleOpenModuleRoute("/modules/company-research");
   };
 
   const handleOpenProjects = () => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    router.push("/modules/projects");
+    handleOpenModuleRoute("/modules/projects");
   };
 
   const handleOpenPortfolio = () => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    router.push("/modules/portfolio");
+    handleOpenModuleRoute("/modules/portfolio");
   };
 
   const handleOpenMeetings = () => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    router.push("/modules/meetings");
+    handleOpenModuleRoute("/modules/meetings");
   };
 
   const handleOpenReports = () => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    router.push("/modules/reports");
+    handleOpenModuleRoute("/modules/reports");
   };
 
   const handleOpenFiles = () => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    router.push("/modules/files");
+    handleOpenModuleRoute("/modules/files");
   };
 
   const handleOpenResearchGraph = () => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    router.push("/modules/research-graph");
+    handleOpenModuleRoute("/modules/research-graph");
   };
 
   const handleOpenAiWorkbench = () => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    router.push("/modules/ai");
+    handleOpenModuleRoute("/modules/ai");
   };
 
   const handleOpenSync = () => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    router.push("/modules/sync");
+    handleOpenModuleRoute("/modules/sync");
   };
 
   const handleModuleStarter = async (starter: ModuleStarter) => {
@@ -404,7 +375,13 @@ export default function QuickSearch() {
       setOpen(false);
       setQuery("");
       setResults([]);
-      router.push(result.route);
+      if (result.page) {
+        openPage(result.page, { source: "quick-search-create" });
+      } else if (result.database) {
+        openDatabase(result.database.id);
+      } else {
+        openModuleRoute(result.route);
+      }
     } catch (err) {
       console.error("[Zhinote] Failed to run module starter:", err);
       window.alert("模块动作失败，请查看控制台详情。");
