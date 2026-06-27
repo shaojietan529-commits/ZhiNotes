@@ -14,6 +14,8 @@ import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation
 import { usePage } from "@/hooks/usePage";
 import { usePages } from "@/hooks/usePages";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import {
   getDatabase,
@@ -202,6 +204,7 @@ type ReloadDatabaseOptions = {
 type SortDirection = "asc" | "desc";
 type DatabaseRowOpenMode = "side-peek" | "center-peek" | "full-page";
 type DatabaseRowPeekMode = Exclude<DatabaseRowOpenMode, "full-page">;
+type DatabaseRowOpenSource = "database-row-create" | "database-row-open";
 type DatabaseFilterMatchMode = "all" | "any";
 type DatabaseFilterOperator =
   | "contains"
@@ -253,6 +256,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const openPage = useLocalFirstPageNavigation();
   const searchParams = useSearchParams();
   const { pages: workspacePages } = usePages();
+  const upsertPages = useWorkspaceStore((state) => state.upsertPages);
   const initialRowSearch = searchParams.get("q") ?? "";
   const initialViewId = searchParams.get("view") ?? "";
   const focusPageId = searchParams.get("focus") ?? "";
@@ -300,6 +304,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const databaseImportInputRef = useRef<HTMLInputElement | null>(null);
   const initialCloudHydrateRef = useRef<string | null>(null);
   const optimisticDatabaseMutationBlockUntilRef = useRef(0);
+  const databaseRowPageWarmupIdsRef = useRef<Set<string>>(new Set());
   const cloudFallbackSnapshotRef = useRef<{
     databaseId: string;
     snapshot: DatabaseSnapshot;
@@ -571,14 +576,66 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [reload]
   );
 
+  const warmDatabaseRowPageContent = useCallback(
+    (page: Page) => {
+      if (page.content_text != null) return;
+      if (databaseRowPageWarmupIdsRef.current.has(page.id)) return;
+      databaseRowPageWarmupIdsRef.current.add(page.id);
+
+      const seededPage = getDatabaseRowPageOpenSeed(page);
+      if (seededPage.content_text != null) {
+        rememberPendingPageDraft(seededPage);
+        rememberPageRouteHandoff(seededPage, "database-row-open");
+        upsertPages([seededPage]);
+        setRows((current) => upsertRowPageSeed(current, seededPage));
+        return;
+      }
+
+      scheduleDatabaseIdleTask(() => {
+        void getPage(page.id)
+          .then((storedPage) => {
+            if (!storedPage) {
+              databaseRowPageWarmupIdsRef.current.delete(page.id);
+              return;
+            }
+            const warmedPage = getDatabaseRowPageOpenSeed(storedPage);
+            rememberPendingPageDraft(warmedPage);
+            rememberPageRouteHandoff(warmedPage, "database-row-open");
+            upsertPages([warmedPage]);
+            setRows((current) => upsertRowPageSeed(current, warmedPage));
+            if (warmedPage.content_text == null) {
+              databaseRowPageWarmupIdsRef.current.delete(page.id);
+            }
+          })
+          .catch(() => {
+            databaseRowPageWarmupIdsRef.current.delete(page.id);
+          });
+      }, 80);
+    },
+    [upsertPages]
+  );
+
+  const prepareDatabaseRowPageOpen = useCallback(
+    (page: Page, source: DatabaseRowOpenSource = "database-row-open") => {
+      const seededPage = getDatabaseRowPageOpenSeed(page);
+      upsertPages([seededPage]);
+      rememberPendingPageDraft(seededPage);
+      rememberPageRouteHandoff(seededPage, source);
+      warmDatabaseRowPageContent(seededPage);
+      return seededPage;
+    },
+    [upsertPages, warmDatabaseRowPageContent]
+  );
+
   const openDatabaseRowFullPage = useCallback(
     (
       row: RowWithPage,
-      source: "database-row-create" | "database-row-open" = "database-row-open"
+      source: DatabaseRowOpenSource = "database-row-open"
     ) => {
-      openPage(row.page, { source });
+      const page = prepareDatabaseRowPageOpen(row.page, source);
+      openPage(page, { source });
     },
-    [openPage]
+    [openPage, prepareDatabaseRowPageOpen]
   );
 
   const openDatabaseRowFullPageById = useCallback(
@@ -593,7 +650,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         useWorkspaceStore.getState().getPageById(pageId) ??
         null;
       if (page) {
-        openPage(page, { source: "database-row-open" });
+        const seededPage = prepareDatabaseRowPageOpen(page, "database-row-open");
+        openPage(seededPage, { source: "database-row-open" });
         return;
       }
       openPage(pageId, { source: "database-row-open" });
@@ -601,6 +659,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [
       openDatabaseRowFullPage,
       openPage,
+      prepareDatabaseRowPageOpen,
       rows,
       workspacePages,
     ]
@@ -4216,6 +4275,48 @@ async function attachLocalPageToRow(row: DatabaseRow): Promise<RowWithPage> {
     ...row,
     page: page ?? makeFallbackRowPage(row),
   };
+}
+
+function getDatabaseRowPageOpenSeed(page: Page): Page {
+  const memoryPage = useWorkspaceStore.getState().getPageById(page.id);
+  if (!memoryPage) return page;
+  if (
+    memoryPage.content_text != null ||
+    memoryPage.updated_at >= page.updated_at
+  ) {
+    return { ...page, ...memoryPage };
+  }
+  return page;
+}
+
+function upsertRowPageSeed(rows: RowWithPage[], page: Page): RowWithPage[] {
+  let changed = false;
+  const nextRows = rows.map((row) => {
+    if (row.page_id !== page.id) return row;
+    changed = true;
+    return { ...row, page };
+  });
+  return changed ? nextRows : rows;
+}
+
+function scheduleDatabaseIdleTask(
+  callback: () => void,
+  timeout = 500
+): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
+    const idleId = maybeWindow.requestIdleCallback(callback, { timeout });
+    return () => maybeWindow.cancelIdleCallback?.(idleId);
+  }
+  const timer = window.setTimeout(callback, Math.min(timeout, 160));
+  return () => window.clearTimeout(timer);
 }
 
 function makeFallbackRowPage(row: DatabaseRow): Page {

@@ -4586,8 +4586,32 @@ function run() {
   assertIncludes(
     files.databaseShell,
     databaseShell,
-    "openPage(row.page, { source })",
-    "Database row full-page opens must hand row metadata to local-first navigation."
+    "const prepareDatabaseRowPageOpen = useCallback",
+    "Database row full-page opens must prepare a local-first page seed before navigation."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "rememberPendingPageDraft(seededPage)",
+    "Database row full-page opens must seed pending page drafts for instant editor mount."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "rememberPageRouteHandoff(seededPage, source)",
+    "Database row full-page opens must hand page metadata through the route handoff cache."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "const page = prepareDatabaseRowPageOpen(row.page, source)",
+    "Database row full-page opens must hand a prepared page to local-first navigation."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "openPage(page, { source })",
+    "Database row full-page opens must navigate with the prepared local-first page seed."
   );
   assertIncludes(
     files.databaseShell,
