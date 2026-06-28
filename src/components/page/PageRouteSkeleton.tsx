@@ -1,8 +1,16 @@
+import {
+  getPagePropertyTypeIcon,
+  parsePageProperties,
+  parseTagsValue,
+  type PageProperty,
+} from "@/lib/pages/pageProperties";
+
 type PageRouteSkeletonProps = {
   message?: string;
   preview?: {
     title?: string;
     icon?: string | null;
+    properties?: string | null;
   };
 };
 
@@ -12,6 +20,7 @@ export default function PageRouteSkeleton({
 }: PageRouteSkeletonProps) {
   const previewTitle = preview?.title?.trim();
   const previewIcon = preview?.icon?.trim() || "📄";
+  const previewProperties = getPreviewProperties(preview?.properties);
 
   return (
     <div className="flex min-h-screen bg-white text-zinc-950 dark:bg-[#050505] dark:text-zinc-100">
@@ -36,21 +45,52 @@ export default function PageRouteSkeleton({
             {message}
           </p>
           {previewTitle ? (
-            <div className="mb-5 flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-zinc-100 text-xl dark:bg-zinc-900">
-                {previewIcon}
+            <div className="mb-5">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-zinc-100 text-xl dark:bg-zinc-900">
+                  {previewIcon}
+                </div>
+                <div className="min-w-0">
+                  <p className="mb-1 text-xs text-zinc-400 dark:text-zinc-500">
+                    已接收页面，正在加载编辑器
+                  </p>
+                  <h1
+                    data-testid="page-route-preview-title"
+                    className="truncate text-2xl font-semibold text-zinc-900 dark:text-zinc-50"
+                  >
+                    {previewTitle}
+                  </h1>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="mb-1 text-xs text-zinc-400 dark:text-zinc-500">
-                  已接收页面，正在加载编辑器
-                </p>
-                <h1
-                  data-testid="page-route-preview-title"
-                  className="truncate text-2xl font-semibold text-zinc-900 dark:text-zinc-50"
+              {previewProperties.length > 0 && (
+                <div
+                  data-testid="page-route-preview-properties"
+                  className="mt-4 grid gap-2 sm:grid-cols-2"
                 >
-                  {previewTitle}
-                </h1>
-              </div>
+                  {previewProperties.map((property) => (
+                    <div
+                      key={property.id}
+                      className="flex min-w-0 items-center gap-2 rounded border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-900/60"
+                    >
+                      <span className="text-zinc-400" aria-hidden="true">
+                        {property.icon}
+                      </span>
+                      <span className="shrink-0 text-zinc-500 dark:text-zinc-400">
+                        {property.name}
+                      </span>
+                      <span className="truncate font-medium text-zinc-700 dark:text-zinc-200">
+                        {property.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {previewProperties.length === 0 && (
+                <div className="mt-4 grid animate-pulse gap-3 sm:grid-cols-2">
+                  <div className="h-8 rounded bg-zinc-100 dark:bg-zinc-900" />
+                  <div className="h-8 rounded bg-zinc-100 dark:bg-zinc-900" />
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -59,12 +99,12 @@ export default function PageRouteSkeleton({
                 <div className="h-9 w-9 rounded bg-zinc-200 dark:bg-zinc-800" />
                 <div className="h-9 w-72 max-w-full rounded bg-zinc-200 dark:bg-zinc-800" />
               </div>
+              <div className="mb-7 grid animate-pulse gap-3 sm:grid-cols-2">
+                <div className="h-8 rounded bg-zinc-100 dark:bg-zinc-900" />
+                <div className="h-8 rounded bg-zinc-100 dark:bg-zinc-900" />
+              </div>
             </>
           )}
-          <div className="mb-7 grid animate-pulse gap-3 sm:grid-cols-2">
-            <div className="h-8 rounded bg-zinc-100 dark:bg-zinc-900" />
-            <div className="h-8 rounded bg-zinc-100 dark:bg-zinc-900" />
-          </div>
           <div className="min-h-[260px] animate-pulse rounded-md border border-zinc-100 bg-zinc-50/60 px-4 py-5 dark:border-zinc-800 dark:bg-zinc-900/30">
             <div className="mb-4 h-3 w-40 rounded bg-zinc-200/80 dark:bg-zinc-800" />
             <div className="space-y-3">
@@ -78,4 +118,26 @@ export default function PageRouteSkeleton({
       </main>
     </div>
   );
+}
+
+function getPreviewProperties(raw: string | null | undefined) {
+  return parsePageProperties(raw)
+    .map((property) => ({
+      id: property.id,
+      name: property.name.trim() || "属性",
+      icon: getPagePropertyTypeIcon(property.type),
+      value: formatPreviewPropertyValue(property),
+    }))
+    .filter((property) => property.value.length > 0)
+    .slice(0, 2);
+}
+
+function formatPreviewPropertyValue(property: PageProperty): string {
+  if (property.type === "checkbox") {
+    return property.value === "true" ? "已勾选" : "未勾选";
+  }
+  if (property.type === "tags") {
+    return parseTagsValue(property.value).slice(0, 3).join("、");
+  }
+  return property.value.trim();
 }

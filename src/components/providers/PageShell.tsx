@@ -977,6 +977,7 @@ function PageContent({ pageId }: { pageId: string }) {
             ? {
                 title: routePreviewPage.title,
                 icon: routePreviewPage.icon,
+                properties: routePreviewPage.properties,
               }
             : undefined
         }

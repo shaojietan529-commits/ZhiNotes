@@ -644,6 +644,7 @@ function run() {
     "PageRouteLoadingSkeleton",
     "previewPage.title",
     "previewPage.icon",
+    "previewPage.properties",
   ]) {
     assertIncludes(
       files.pageDetailRoute,
@@ -656,6 +657,7 @@ function run() {
     "routePreviewPage",
     "readPageShellRoutePreviewSeed(pageId)",
     "preview={",
+    "properties: routePreviewPage.properties",
   ]) {
     assertIncludes(
       files.pageShell,
@@ -698,7 +700,12 @@ function run() {
   }
   for (const snippet of [
     "preview?:",
+    "properties?: string | null;",
     'data-testid="page-route-preview-title"',
+    'data-testid="page-route-preview-properties"',
+    "getPreviewProperties(preview?.properties)",
+    "parsePageProperties(raw)",
+    "slice(0, 2)",
     "已接收页面，正在加载编辑器",
   ]) {
     assertIncludes(

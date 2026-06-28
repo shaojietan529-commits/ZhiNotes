@@ -30,6 +30,7 @@ function PageRouteLoadingSkeleton() {
           ? {
               title: previewPage.title,
               icon: previewPage.icon,
+              properties: previewPage.properties,
             }
           : undefined
       }

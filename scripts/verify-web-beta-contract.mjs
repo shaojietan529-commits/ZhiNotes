@@ -799,6 +799,10 @@ function run() {
       "previewPage.icon",
       "The page detail route loading shell must pass the handed-off page icon into the skeleton.",
     ],
+    [
+      "previewPage.properties",
+      "The page detail route loading shell must pass handed-off page properties into the skeleton.",
+    ],
   ]) {
     assertSourceIncludes(files.pageDetailRoute, pageDetailRoute, snippet, message);
   }
@@ -814,6 +818,10 @@ function run() {
     [
       "preview={",
       "The full page shell loading fallback must pass local metadata into PageRouteSkeleton.",
+    ],
+    [
+      "properties: routePreviewPage.properties",
+      "The full page shell loading fallback must pass local properties into PageRouteSkeleton.",
     ],
   ]) {
     assertSourceIncludes(files.pageShell, pageShell, snippet, message);
@@ -849,6 +857,30 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.pageShell, pageShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "properties?: string | null;",
+      "Page route skeleton preview props must accept metadata-only page properties.",
+    ],
+    [
+      'data-testid="page-route-preview-properties"',
+      "Page route skeleton must render known local properties during chunk loading.",
+    ],
+    [
+      "getPreviewProperties(preview?.properties)",
+      "Page route skeleton must derive property previews from the local metadata payload.",
+    ],
+    [
+      "parsePageProperties(raw)",
+      "Page route skeleton must parse metadata-only page properties without loading page body.",
+    ],
+    [
+      "slice(0, 2)",
+      "Page route skeleton property preview must stay bounded for fast first paint.",
+    ],
+  ]) {
+    assertSourceIncludes(files.pageRouteSkeleton, pageRouteSkeleton, snippet, message);
   }
   for (const [sourceLabel, source] of [
     [files.databaseDetailRoute, databaseDetailRoute],
