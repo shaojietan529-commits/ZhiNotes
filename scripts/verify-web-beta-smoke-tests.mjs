@@ -6816,6 +6816,92 @@ function run() {
     'openPage(child, { source: "module-create" })',
     "Industry chain-created pages must open in peek immediately, not force a full page route."
   );
+  for (const [snippet, message] of [
+    [
+      "@/components/page/LazyPagePeekModal",
+      "Module dashboard must lazy-load the page peek editor instead of adding it to first paint.",
+    ],
+    [
+      "warmPagePeekModal();",
+      "Module dashboard create actions must warm the peek editor while creating local module pages.",
+    ],
+    [
+      "const [peekPageId, setPeekPageId] = useState<string | null>(null);",
+      "Module dashboard must hold a page peek target for same-view editing.",
+    ],
+    [
+      "const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);",
+      "Module dashboard must seed newly created pages into the peek before slower hydration.",
+    ],
+    [
+      "openCreatedModulePage(page);",
+      "Module dashboard new notes must open in peek immediately.",
+    ],
+    [
+      "openCreatedModulePage(result.page);",
+      "Module dashboard starter-created pages must open in peek immediately.",
+    ],
+    [
+      "<PagePeekModal",
+      "Module dashboard must render the page peek modal for created pages.",
+    ],
+  ]) {
+    assertIncludes(files.moduleDashboard, moduleDashboard, snippet, message);
+  }
+  for (const snippet of [
+    'openPage(page, { source: "module-create" })',
+    'openPage(result.page, { source: "module-create" })',
+  ]) {
+    assertExcludes(
+      files.moduleDashboard,
+      moduleDashboard,
+      snippet,
+      "Module dashboard-created pages must open in peek immediately, not force a full page route."
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "@/components/page/LazyPagePeekModal",
+      "Page import plan panel must lazy-load the page peek editor instead of adding it to first paint.",
+    ],
+    [
+      "warmPagePeekModal();",
+      "Page import plan panel must warm the peek editor before opening imported pages.",
+    ],
+    [
+      "const [peekPageId, setPeekPageId] = useState<string | null>(null);",
+      "Page import plan panel must hold a page peek target for same-view editing.",
+    ],
+    [
+      "const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);",
+      "Page import plan panel must seed imported page metadata into the peek before slower hydration.",
+    ],
+    [
+      "openImportedPageInPeek(firstPage);",
+      "Page import plan panel must open imported first pages in peek immediately.",
+    ],
+    [
+      "openImportedPageIdInPeek(res.first_page_id);",
+      "Page import plan panel must open imported page ids in peek instead of forcing a full route.",
+    ],
+    [
+      "<PagePeekModal",
+      "Page import plan panel must render the page peek modal for imported pages.",
+    ],
+  ]) {
+    assertIncludes(files.pageImportPlanPanel, pageImportPlanPanel, snippet, message);
+  }
+  for (const snippet of [
+    'openPage(firstPage, { source: "module-create" })',
+    'openPage(res.first_page_id, { source: "module-create" })',
+  ]) {
+    assertExcludes(
+      files.pageImportPlanPanel,
+      pageImportPlanPanel,
+      snippet,
+      "Page import-created pages must open in peek immediately, not force a full page route."
+    );
+  }
   assertIncludes(
     files.projectsShell,
     projectsShell,
@@ -7288,7 +7374,7 @@ function run() {
     [files.meetingsShell, meetingsShell, ['"module-create"', 'source: "module-open"']],
     [files.reportsShell, reportsShell, ['"module-create"', 'source: "module-open"']],
     [files.projectsShell, projectsShell, ['"module-create"', 'source: "module-open"']],
-    [files.moduleDashboard, moduleDashboard, ['source: "module-create"']],
+    [files.moduleDashboard, moduleDashboard, ['"module-create"', 'source: "module-open"']],
     [files.companyResearchShell, companyResearchShell, ['"module-create"', 'source: "module-open"']],
     [files.portfolioShell, portfolioShell, ['"module-create"', 'source: "module-open"']],
     [files.researchConnectionsPanel, researchConnectionsPanel, ['source: "module-open"']],
@@ -7296,7 +7382,7 @@ function run() {
     [files.industryChainShell, industryChainShell, ['"module-create"', 'source: "module-open"']],
     [files.knowledgeBaseShell, knowledgeBaseShell, ['source: "module-open"']],
     [files.aiWorkbenchShell, aiWorkbenchShell, ['source: "module-open"']],
-    [files.pageImportPlanPanel, pageImportPlanPanel, ['source: "module-create"']],
+    [files.pageImportPlanPanel, pageImportPlanPanel, ['"module-create"', 'source: "module-open"']],
   ]) {
     assertIncludes(
       sourceLabel,

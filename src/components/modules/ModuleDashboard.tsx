@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
@@ -51,6 +54,8 @@ import {
   type ProjectProgressStatus,
 } from "@/lib/modules/projectProgressSnapshot";
 import { executeModuleStarter } from "@/lib/modules/actions";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { subscribePagesUpdated } from "@/lib/pages/pageUpdateBus";
 import {
   DEFAULT_APP_LANGUAGE_LABEL,
@@ -58,6 +63,7 @@ import {
 } from "@/lib/i18n/platformLanguage";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { ZhiNoteLogo } from "@/components/brand/ZhiNoteLogo";
+import type { Page } from "@/lib/utils/types";
 
 const STATUS_ORDER: ModuleStatus[] = ["active", "beta", "planned"];
 
@@ -75,6 +81,8 @@ export default function ModuleDashboard() {
   const [exportingHealth, setExportingHealth] = useState(false);
   const [exportingRoadmap, setExportingRoadmap] = useState(false);
   const [exportingProgress, setExportingProgress] = useState(false);
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
   const activeModules = useMemo(() => getModulesByStatus("active"), []);
   const betaModules = useMemo(() => getModulesByStatus("beta"), []);
   const plannedModules = useMemo(() => getModulesByStatus("planned"), []);
@@ -140,11 +148,31 @@ export default function ModuleDashboard() {
     };
   }, [dbReady, refreshWorkspaceCounts]);
 
+  const openCreatedModulePage = useCallback((page: Page) => {
+    rememberPendingPageDraft(page);
+    rememberPageRouteHandoff(page, "module-create");
+    warmPagePeekModal();
+    setPeekInitialPage(page);
+    setPeekPageId(page.id);
+  }, []);
+
+  const openModuleFullPageById = useCallback(
+    (pageId: string) => {
+      if (peekInitialPage?.id === pageId) {
+        openPage(peekInitialPage, { source: "module-open" });
+        return;
+      }
+      openPage(pageId, { source: "module-open" });
+    },
+    [openPage, peekInitialPage]
+  );
+
   const handleNewPage = async () => {
+    warmPagePeekModal();
     const page = await createPageWithCloud({ title: "未命名研究笔记" });
     upsertPages([page]);
     setPageCount((count) => count + 1);
-    openPage(page, { source: "module-create" });
+    openCreatedModulePage(page);
   };
 
   const handleNewDatabase = async () => {
@@ -156,6 +184,7 @@ export default function ModuleDashboard() {
   const handleStartModule = async (module: PlatformModule) => {
     const starter = module.starter;
     if (!starter) return;
+    warmPagePeekModal();
     const result = await executeModuleStarter(starter);
     if (result.database) {
       setDatabaseCount((count) => count + 1);
@@ -163,7 +192,7 @@ export default function ModuleDashboard() {
     if (result.page) {
       upsertPages([result.page]);
       setPageCount((count) => count + 1);
-      openPage(result.page, { source: "module-create" });
+      openCreatedModulePage(result.page);
     } else {
       router.push(result.route);
     }
@@ -277,7 +306,8 @@ export default function ModuleDashboard() {
   };
 
   return (
-    <div className="w-full px-6 py-6 lg:px-10">
+    <>
+      <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="border-b border-zinc-200 pb-5 dark:border-zinc-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -810,7 +840,23 @@ export default function ModuleDashboard() {
           </div>
         </section>
       </div>
-    </div>
+      </div>
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            openModuleFullPageById(id);
+          }}
+        />
+      )}
+    </>
   );
 }
 

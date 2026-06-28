@@ -14840,7 +14840,7 @@ function run() {
     [files.meetingsShell, meetingsShell, ['"module-create"', 'source: "module-open"']],
     [files.reportsShell, reportsShell, ['"module-create"', 'source: "module-open"']],
     [files.projectsShell, projectsShell, ['"module-create"', 'source: "module-open"']],
-    [files.moduleDashboard, moduleDashboard, ['source: "module-create"']],
+    [files.moduleDashboard, moduleDashboard, ['"module-create"', 'source: "module-open"']],
     [files.companyResearchShell, companyResearchShell, ['"module-create"', 'source: "module-open"']],
     [files.portfolioShell, portfolioShell, ['"module-create"', 'source: "module-open"']],
     [files.researchConnectionsPanel, researchConnectionsPanel, ['source: "module-open"']],
@@ -14848,7 +14848,7 @@ function run() {
     [files.industryChainShell, industryChainShell, ['"module-create"', 'source: "module-open"']],
     [files.knowledgeBaseShell, knowledgeBaseShell, ['source: "module-open"']],
     [files.aiWorkbenchShell, aiWorkbenchShell, ['source: "module-open"']],
-    [files.pageImportPlanPanel, pageImportPlanPanel, ['source: "module-create"']],
+    [files.pageImportPlanPanel, pageImportPlanPanel, ['"module-create"', 'source: "module-open"']],
   ]) {
     assertSourceIncludes(
       sourceLabel,
@@ -14955,6 +14955,18 @@ function run() {
   );
   for (const [sourceLabel, source, blockedSnippet, message] of [
     [
+      files.moduleDashboard,
+      moduleDashboard,
+      'openPage(page, { source: "module-create" })',
+      "Module dashboard new notes must open in peek immediately, not force a full page route.",
+    ],
+    [
+      files.moduleDashboard,
+      moduleDashboard,
+      'openPage(result.page, { source: "module-create" })',
+      "Module dashboard starter-created pages must open in peek immediately, not force a full page route.",
+    ],
+    [
       files.researchGraphShell,
       researchGraphShell,
       'openPage(createdPage, { source: "module-create" })',
@@ -14966,19 +14978,31 @@ function run() {
       'openPage(child, { source: "module-create" })',
       "Industry chain-created pages must open in peek immediately, not force a full page route.",
     ],
+    [
+      files.pageImportPlanPanel,
+      pageImportPlanPanel,
+      'openPage(firstPage, { source: "module-create" })',
+      "Page import first pages must open in peek immediately, not force a full page route.",
+    ],
+    [
+      files.pageImportPlanPanel,
+      pageImportPlanPanel,
+      'openPage(res.first_page_id, { source: "module-create" })',
+      "Page import first page ids must open in peek immediately, not force a full page route.",
+    ],
   ]) {
     assertSourceExcludes(sourceLabel, source, blockedSnippet, message);
     assertSourceIncludes(
       sourceLabel,
       source,
       "@/components/page/LazyPagePeekModal",
-      "Research workflow modules must lazy-load the peek editor for created pages."
+      "Module-created pages must lazy-load the peek editor for same-view opening."
     );
     assertSourceIncludes(
       sourceLabel,
       source,
       "<PagePeekModal",
-      "Research workflow modules must render the page peek modal for created pages."
+      "Module-created pages must render the page peek modal for same-view opening."
     );
   }
   assertSourceExcludes(

@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
@@ -26,6 +29,9 @@ import {
   buildPageImportExecutionReceipt,
   type PageImportExecutionReceipt,
 } from "@/lib/files/pageImportReceipts";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import type { Page } from "@/lib/utils/types";
 
 const LANE_BADGE: Record<
   PageImportLaneId,
@@ -208,6 +214,8 @@ export default function PageImportPlanPanel() {
   const [selectedRetryItemIndexes, setSelectedRetryItemIndexes] = useState<
     number[]
   >([]);
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
 
   const handleChoose = () => inputRef.current?.click();
 
@@ -250,6 +258,28 @@ export default function PageImportPlanPanel() {
     setSelectedRetryItemIndexes([]);
   };
 
+  const openImportedPageInPeek = (page: Page) => {
+    rememberPendingPageDraft(page);
+    rememberPageRouteHandoff(page, "module-create");
+    warmPagePeekModal();
+    setPeekInitialPage(page);
+    setPeekPageId(page.id);
+  };
+
+  const openImportedPageIdInPeek = (pageId: string) => {
+    warmPagePeekModal();
+    setPeekInitialPage(null);
+    setPeekPageId(pageId);
+  };
+
+  const openImportFullPageById = (pageId: string) => {
+    if (peekInitialPage?.id === pageId) {
+      openPage(peekInitialPage, { source: "module-open" });
+      return;
+    }
+    openPage(pageId, { source: "module-open" });
+  };
+
   const runImportPlan = async (
     activePlan: PageImportPlan,
     mode: PageImportFailureMode,
@@ -272,6 +302,7 @@ export default function PageImportPlanPanel() {
       status: "running",
       message: opts?.retryRun ? "准备重试队列..." : "准备导入队列...",
     });
+    if (opts?.navigateOnFullSuccess) warmPagePeekModal();
     try {
       const res = await executePageImportPlan(files, activePlan, {
         failureMode: mode,
@@ -314,13 +345,13 @@ export default function PageImportPlanPanel() {
       }
       const firstPage = res.created_page_metadata[0] ?? null;
       if (opts?.navigateOnFullSuccess && res.status === "completed" && firstPage) {
-        openPage(firstPage, { source: "module-create" });
+        openImportedPageInPeek(firstPage);
       } else if (
         opts?.navigateOnFullSuccess &&
         res.status === "completed" &&
         res.first_page_id
       ) {
-        openPage(res.first_page_id, { source: "module-create" });
+        openImportedPageIdInPeek(res.first_page_id);
       } else if (
         opts?.navigateOnFullSuccess &&
         res.status === "completed" &&
@@ -426,7 +457,8 @@ export default function PageImportPlanPanel() {
   };
 
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+    <>
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
@@ -831,7 +863,23 @@ export default function PageImportPlanPanel() {
           </p>
         </div>
       )}
-    </section>
+      </section>
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            openImportFullPageById(id);
+          }}
+        />
+      )}
+    </>
   );
 }
 
