@@ -2559,8 +2559,24 @@ function run() {
       "Page shell metadata-only editor fallback must stay bounded so an empty page still becomes editable.",
     ],
     [
+      "PAGE_LARGE_BODY_HTML_CHARS = 180 * 1024",
+      "Page shell must define an explicit large-body threshold before deferring expensive editor parsing.",
+    ],
+    [
+      "PAGE_LARGE_BODY_EDITOR_DELAY_MS = 260",
+      "Page shell must briefly delay editor mounting for large imported notes so metadata first paint stays responsive.",
+    ],
+    [
+      "PAGE_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600",
+      "Page shell large-body editor fallback must stay bounded so long pages still become editable.",
+    ],
+    [
       "const hasContentForEditor = page?.content_text != null",
       "Page shell must distinguish metadata-only route handoff records from content-ready pages.",
+    ],
+    [
+      "const hasLargeBodyForEditor = isLargePageBodyForEditor(page?.content_text)",
+      "Page shell must distinguish ordinary pages from large HTML bodies before mounting the editor.",
     ],
     [
       "mountedEditorPageIdRef.current = pageId",
@@ -2571,12 +2587,28 @@ function run() {
       "Page shell must not remount the editor when late body hydration reaches an already mounted page.",
     ],
     [
-      "delay: metadataOnly ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS : 0",
-      "Page shell must delay heavy editor mounting only for metadata-only opens.",
+      "hasLargeBodyForEditor\n        ? PAGE_LARGE_BODY_EDITOR_DELAY_MS",
+      "Page shell must also delay heavy editor mounting for large imported page bodies.",
     ],
     [
-      "metadataOnly\n        ? PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS\n        : PAGE_EDITOR_IDLE_TIMEOUT_MS",
-      "Page shell must use a longer bounded idle fallback only for metadata-only opens.",
+      "hasLargeBodyForEditor\n        ? PAGE_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS",
+      "Page shell must use a longer bounded idle fallback for large imported page bodies.",
+    ],
+    [
+      "delay,\n      timeout,",
+      "Page shell must pass computed delay and timeout into the editor mount scheduler.",
+    ],
+    [
+      "largeBody={hasLargeBodyForEditor}",
+      "Page shell loading skeleton must identify long body editor preparation separately from metadata-only hydration.",
+    ],
+    [
+      "正文较长（约 ${formatApproxBodySize(contentLength)}）",
+      "Page shell long-body skeleton must explain that metadata is already visible while the editor is prepared.",
+    ],
+    [
+      "isLargePageBodyForEditor(content",
+      "Page shell must keep long-body detection centralized.",
     ],
     [
       "标题和属性已先显示，正在从本地缓存补齐正文和编辑器",

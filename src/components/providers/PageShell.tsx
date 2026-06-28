@@ -78,6 +78,9 @@ const PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status";
 const PAGE_EDITOR_IDLE_TIMEOUT_MS = 120;
 const PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420;
 const PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS = 900;
+const PAGE_LARGE_BODY_HTML_CHARS = 180 * 1024;
+const PAGE_LARGE_BODY_EDITOR_DELAY_MS = 260;
+const PAGE_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600;
 const PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700;
 const PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200;
 const PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800;
@@ -213,6 +216,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const [pageReferencesMounted, setPageReferencesMounted] = useState(false);
   const hasPage = Boolean(page);
   const hasContentForEditor = page?.content_text != null;
+  const pageBodyHtmlLength = page?.content_text?.length ?? 0;
+  const hasLargeBodyForEditor = isLargePageBodyForEditor(page?.content_text);
   const mountedEditorPageIdRef = useRef<string | null>(null);
   const pageOpenStartedAtRef = useRef(getLocalPerformanceNow());
   const pageOpenStartedAtIsoRef = useRef(new Date().toISOString());
@@ -334,6 +339,10 @@ function PageContent({ pageId }: { pageId: string }) {
       backgroundMs: 0,
       counts: {
         has_content_html: page.content_text ? 1 : 0,
+        body_html_chars: page.content_text?.length ?? 0,
+        large_body_editor_deferred: isLargePageBodyForEditor(page.content_text)
+          ? 1
+          : 0,
         has_cover: page.cover_url ? 1 : 0,
         property_count: propertyCount,
         locked: locked ? 1 : 0,
@@ -351,17 +360,31 @@ function PageContent({ pageId }: { pageId: string }) {
     if (editorMounted && mountedEditorPageIdRef.current === pageId) return;
     if (mountedEditorPageIdRef.current !== pageId) setEditorMounted(false);
     const metadataOnly = !hasContentForEditor;
+    const delay = metadataOnly
+      ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS
+      : hasLargeBodyForEditor
+        ? PAGE_LARGE_BODY_EDITOR_DELAY_MS
+        : 0;
+    const timeout = metadataOnly
+      ? PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS
+      : hasLargeBodyForEditor
+        ? PAGE_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS
+        : PAGE_EDITOR_IDLE_TIMEOUT_MS;
     return scheduleEditorMount(() => {
       void loadEditorModule();
       setEditorMounted(true);
       mountedEditorPageIdRef.current = pageId;
     }, {
-      delay: metadataOnly ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS : 0,
-      timeout: metadataOnly
-        ? PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS
-        : PAGE_EDITOR_IDLE_TIMEOUT_MS,
+      delay,
+      timeout,
     });
-  }, [pageId, hasPage, hasContentForEditor, editorMounted]);
+  }, [
+    pageId,
+    hasPage,
+    hasContentForEditor,
+    hasLargeBodyForEditor,
+    editorMounted,
+  ]);
 
   useEffect(() => {
     setPageCommentsMounted(false);
@@ -1251,6 +1274,8 @@ function PageContent({ pageId }: { pageId: string }) {
           ) : (
             <PageBodySkeleton
               metadataOnly={page.content_text == null}
+              largeBody={hasLargeBodyForEditor}
+              contentLength={pageBodyHtmlLength}
               statusLabel={bodyHydrationLabel}
             />
           )}
@@ -1406,11 +1431,21 @@ function scheduleDeferredMount(callback: () => void, timeout = 450): () => void 
 
 function PageBodySkeleton({
   metadataOnly = false,
+  largeBody = false,
+  contentLength = 0,
   statusLabel,
 }: {
   metadataOnly?: boolean;
+  largeBody?: boolean;
+  contentLength?: number;
   statusLabel?: string | null;
 }) {
+  const loadingMessage = largeBody
+    ? `正文较长（约 ${formatApproxBodySize(contentLength)}），标题和属性已先显示，编辑器正在空闲时段准备…`
+    : metadataOnly
+      ? statusLabel ?? "标题和属性已先显示，正在从本地缓存补齐正文和编辑器…"
+      : "正在准备编辑器…";
+
   return (
     <div className="min-h-[220px] rounded-md border border-zinc-100 bg-zinc-50/60 px-4 py-5 dark:border-zinc-800 dark:bg-zinc-900/30">
       <div className="mb-4 h-3 w-40 rounded bg-zinc-200/80 dark:bg-zinc-800" />
@@ -1420,12 +1455,21 @@ function PageBodySkeleton({
         <div className="h-3 w-4/5 max-w-2xl rounded bg-zinc-200/50 dark:bg-zinc-800/60" />
       </div>
       <p className="mt-5 text-xs text-zinc-400">
-        {metadataOnly
-          ? statusLabel ?? "标题和属性已先显示，正在从本地缓存补齐正文和编辑器…"
-          : "正在准备编辑器…"}
+        {loadingMessage}
       </p>
     </div>
   );
+}
+
+function isLargePageBodyForEditor(content: string | null | undefined): boolean {
+  return (content?.length ?? 0) > PAGE_LARGE_BODY_HTML_CHARS;
+}
+
+function formatApproxBodySize(length: number): string {
+  if (length <= 0) return "0 KB";
+  const kilobytes = Math.max(1, Math.round(length / 1024));
+  if (kilobytes < 1024) return `${kilobytes} KB`;
+  return `${(kilobytes / 1024).toFixed(1)} MB`;
 }
 
 function PageIconPickerSkeleton() {
