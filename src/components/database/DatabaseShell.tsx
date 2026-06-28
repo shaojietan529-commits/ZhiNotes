@@ -225,6 +225,7 @@ interface DatabaseSortRule {
 interface DatabaseRowGroup {
   id: string;
   label: string;
+  totalCount: number;
   rows: RowWithPage[];
 }
 interface DatabaseViewConfig {
@@ -1068,6 +1069,13 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       sortRules,
     ]
   );
+  const usesGroupedRows =
+    Boolean(groupField) &&
+    Boolean(activeView) &&
+    isGroupedViewType(activeView?.view_type);
+  const isRenderCappedView = isDatabaseRenderCappedViewType(
+    activeView?.view_type
+  );
   const rowGroups = useMemo(
     () =>
       groupField
@@ -1076,16 +1084,21 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
             fields,
             field: groupField,
             relationPages: workspacePages,
+            renderLimit:
+              usesGroupedRows && isRenderCappedView
+                ? databaseViewRowRenderLimit
+                : Number.POSITIVE_INFINITY,
           })
         : [],
-    [fields, groupField, visibleRows, workspacePages]
-  );
-  const usesGroupedRows =
-    Boolean(groupField) &&
-    Boolean(activeView) &&
-    isGroupedViewType(activeView?.view_type);
-  const isRenderCappedView = isDatabaseRenderCappedViewType(
-    activeView?.view_type
+    [
+      databaseViewRowRenderLimit,
+      fields,
+      groupField,
+      isRenderCappedView,
+      usesGroupedRows,
+      visibleRows,
+      workspacePages,
+    ]
   );
   const renderedVisibleRows = useMemo(
     () =>
@@ -1095,27 +1108,10 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [databaseViewRowRenderLimit, isRenderCappedView, visibleRows]
   );
   const renderedRowGroups = useMemo(() => {
-    if (!usesGroupedRows) {
-      return rowGroups.map((group) => ({ group, rows: group.rows }));
-    }
-    if (!isRenderCappedView) {
-      return rowGroups.map((group) => ({ group, rows: group.rows }));
-    }
-
-    let remaining = databaseViewRowRenderLimit;
     return rowGroups
-      .map((group) => {
-        const rowsForGroup = group.rows.slice(0, Math.max(remaining, 0));
-        remaining -= rowsForGroup.length;
-        return { group, rows: rowsForGroup };
-      })
-      .filter((entry) => entry.rows.length > 0);
-  }, [
-    databaseViewRowRenderLimit,
-    isRenderCappedView,
-    rowGroups,
-    usesGroupedRows,
-  ]);
+      .map((group) => ({ group, rows: group.rows }))
+      .filter((entry) => !usesGroupedRows || entry.rows.length > 0);
+  }, [rowGroups, usesGroupedRows]);
   const renderedDatabaseRowCount = usesGroupedRows
     ? renderedRowGroups.reduce((total, entry) => total + entry.rows.length, 0)
     : renderedVisibleRows.length;
@@ -1626,9 +1622,9 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
                     {group.label}
                   </h3>
                   <span className="shrink-0 rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
-                    {groupRenderedRows.length === group.rows.length
-                      ? `${group.rows.length} 行`
-                      : `${groupRenderedRows.length} / ${group.rows.length} 行`}
+                    {groupRenderedRows.length === group.totalCount
+                      ? `${group.totalCount} 行`
+                      : `${groupRenderedRows.length} / ${group.totalCount} 行`}
                   </span>
                 </div>
                 {activeView?.view_type === "table" && (
@@ -4502,21 +4498,28 @@ function buildDatabaseRowGroups({
   fields,
   field,
   relationPages,
+  renderLimit,
 }: {
   rows: RowWithPage[];
   fields: DatabaseField[];
   field: DatabaseField;
   relationPages: Page[];
+  renderLimit: number;
 }): DatabaseRowGroup[] {
   const groups = new Map<string, DatabaseRowGroup>();
+  let renderedRowCount = 0;
 
   for (const row of rows) {
     const labels = getDatabaseRowGroupLabels(row, field, fields, relationPages);
     for (const label of labels) {
       const groupId = `${field.id}:${label}`;
       const group: DatabaseRowGroup =
-        groups.get(groupId) ?? { id: groupId, label, rows: [] };
-      group.rows.push(row);
+        groups.get(groupId) ?? { id: groupId, label, totalCount: 0, rows: [] };
+      group.totalCount += 1;
+      if (renderedRowCount < renderLimit) {
+        group.rows.push(row);
+        renderedRowCount += 1;
+      }
       groups.set(groupId, group);
     }
   }

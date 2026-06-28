@@ -14694,6 +14694,30 @@ function run() {
     [
       files.databaseShell,
       databaseShell,
+      "totalCount: number;",
+      "Grouped database views must preserve true group counts separately from rendered row samples.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "renderLimit:",
+      "Grouped database views must pass the render cap into group construction instead of slicing after full grouping.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "renderedRowCount < renderLimit",
+      "Grouped database views must stop retaining grouped row samples once the render cap is reached.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "group.totalCount",
+      "Grouped database view headers must show true group totals even when rows are render capped.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
       "DatabaseViewShowMoreRows",
       "Database views must expose a load-more control when rows are withheld from the first paint.",
     ],
