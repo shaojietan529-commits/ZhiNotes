@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstModuleNavigation } from "@/hooks/useLocalFirstModuleNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
@@ -27,6 +28,10 @@ import {
   normalizeQuickSearchSavedSearches,
   parseQuickSearchSavedSearchesWorkspaceSetting,
 } from "@/lib/sync/quickSearchWorkspaceSettings";
+import {
+  prepareLocalFirstPageNavigation,
+  warmPageShellModule,
+} from "@/lib/pages/localFirstPageNavigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -88,6 +93,7 @@ const COMMAND_CATEGORY_LABELS: Record<CommandCategory, string> = {
 };
 
 export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(initialOpen);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Page[]>([]);
@@ -104,6 +110,7 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
   const deferredFullTextSearchTimerRef = useRef<number | null>(null);
   const databaseRefreshInFlightRef = useRef<Promise<Database[]> | null>(null);
   const lastDatabaseRefreshAtRef = useRef(0);
+  const lastPrewarmedEntryRef = useRef("");
   const openDatabase = useLocalFirstDatabaseNavigation();
   const { openModuleRoute, warmModuleRoute } = useLocalFirstModuleNavigation();
   const openPage = useLocalFirstPageNavigation();
@@ -309,6 +316,20 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
     );
     resetPalette();
   };
+
+  const primeQuickSearchPageOpen = useCallback(
+    (page: Page) => {
+      warmPageShellModule();
+      prepareLocalFirstPageNavigation(page, "quick-search-open");
+      try {
+        router.prefetch(`/page/${page.id}`);
+      } catch {
+        // Search result hover/focus is only a speed hint. The local route
+        // handoff still gives the page route enough metadata for first paint.
+      }
+    },
+    [router]
+  );
 
   const handleCreatePage = async () => {
     const { createPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
@@ -1050,11 +1071,24 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
     handleSelect(entry.page.id, entry.page);
   };
 
-  const handleEntryPrewarm = (entry: SearchEntry) => {
+  const handleEntryPrewarm = useCallback((entry: SearchEntry) => {
     if (entry.type === "command" && entry.command.route) {
       warmModuleRoute(entry.command.route);
+      return;
     }
-  };
+    if (entry.type === "page") {
+      primeQuickSearchPageOpen(entry.page);
+    }
+  }, [primeQuickSearchPageOpen, warmModuleRoute]);
+
+  useEffect(() => {
+    if (!open) return;
+    const selectedEntry = visibleEntries[selectedIndex];
+    if (!selectedEntry) return;
+    if (lastPrewarmedEntryRef.current === selectedEntry.id) return;
+    lastPrewarmedEntryRef.current = selectedEntry.id;
+    handleEntryPrewarm(selectedEntry);
+  }, [handleEntryPrewarm, open, selectedIndex, visibleEntries]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
@@ -1710,6 +1744,7 @@ function SearchEntryButton({
   return (
     <button
       onPointerEnter={onPrewarm}
+      onPointerDown={onPrewarm}
       onFocus={onPrewarm}
       onClick={onSelect}
       className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors ${

@@ -5525,6 +5525,34 @@ function run() {
       "getTopPagesByTimestamp(",
       "Quick search default activity pages must use bounded top-page selection instead of full-list sorting.",
     ],
+    [
+      "const primeQuickSearchPageOpen = useCallback",
+      "Quick search page results must expose a reusable local-first prewarm helper.",
+    ],
+    [
+      "prepareLocalFirstPageNavigation(page, \"quick-search-open\")",
+      "Quick search page result prewarm must seed local-first route handoff before click navigation.",
+    ],
+    [
+      "router.prefetch(`/page/${page.id}`)",
+      "Quick search page result prewarm must prefetch the target page route.",
+    ],
+    [
+      "primeQuickSearchPageOpen(entry.page)",
+      "Quick search page results must warm page opens from the shared entry prewarm path.",
+    ],
+    [
+      "lastPrewarmedEntryRef",
+      "Quick search keyboard selection prewarm must dedupe repeated selected-entry warms.",
+    ],
+    [
+      "handleEntryPrewarm(selectedEntry)",
+      "Quick search keyboard navigation must prewarm the selected result before Enter.",
+    ],
+    [
+      "onPointerDown={onPrewarm}",
+      "Quick search result fast-clicks must prewarm before selection.",
+    ],
   ]) {
     assertSourceIncludes(files.quickSearch, quickSearch, snippet, message);
   }

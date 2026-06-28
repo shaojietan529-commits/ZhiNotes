@@ -595,6 +595,12 @@ check(
     quickSearchSource.includes("usePages({ autoLoad: false })") &&
     quickSearchSource.includes("upsertPages([page])") &&
     quickSearchSource.includes("upsertPages([result.page])") &&
+    quickSearchSource.includes("const primeQuickSearchPageOpen = useCallback") &&
+    quickSearchSource.includes('prepareLocalFirstPageNavigation(page, "quick-search-open")') &&
+    quickSearchSource.includes("router.prefetch(`/page/${page.id}`)") &&
+    quickSearchSource.includes("primeQuickSearchPageOpen(entry.page)") &&
+    quickSearchSource.includes("handleEntryPrewarm(selectedEntry)") &&
+    quickSearchSource.includes("onPointerDown={onPrewarm}") &&
     !quickSearchSource.includes("await refresh()") &&
     !favoritePagesSource.includes("usePages") &&
     favoritePagesSource.includes("useWorkspaceStore((s) => s.pagesById)") &&

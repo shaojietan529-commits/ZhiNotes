@@ -5796,10 +5796,17 @@ function run() {
   }
   for (const snippet of [
     "route?: string;",
-    "const handleEntryPrewarm = (entry: SearchEntry)",
+    "const handleEntryPrewarm = useCallback((entry: SearchEntry)",
     "warmModuleRoute(entry.command.route)",
+    "const primeQuickSearchPageOpen = useCallback",
+    "prepareLocalFirstPageNavigation(page, \"quick-search-open\")",
+    "router.prefetch(`/page/${page.id}`)",
+    "primeQuickSearchPageOpen(entry.page)",
+    "lastPrewarmedEntryRef",
+    "handleEntryPrewarm(selectedEntry)",
     "onPrewarm={() => handleEntryPrewarm(entry)}",
     "onPointerEnter={onPrewarm}",
+    "onPointerDown={onPrewarm}",
     "onFocus={onPrewarm}",
     'route: "/modules/reports"',
     'route: "/modules/databases"',
