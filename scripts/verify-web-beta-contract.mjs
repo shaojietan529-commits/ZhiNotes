@@ -3174,6 +3174,30 @@ function run() {
       "bodyHydrationLabel ??",
       "PagePeekModal must prefer shared body hydration labels when available.",
     ],
+    [
+      "dynamic<IconPickerProps>(",
+      "PagePeekModal must lazy-load the icon picker so the peek shell can paint before the icon catalog loads.",
+    ],
+    [
+      '() => import("@/components/shared/IconPicker")',
+      "PagePeekModal icon picker must live in its own async chunk.",
+    ],
+    [
+      "dynamic<PagePropertiesProps>(",
+      "PagePeekModal must lazy-load the property editor so page metadata can paint before heavier controls load.",
+    ],
+    [
+      '() => import("@/components/page/PageProperties")',
+      "PagePeekModal property editor must live in its own async chunk.",
+    ],
+    [
+      "PeekIconPickerSkeleton",
+      "PagePeekModal must keep a stable lightweight icon placeholder while the picker chunk loads.",
+    ],
+    [
+      "PeekPropertiesSkeleton",
+      "PagePeekModal must keep a stable lightweight properties placeholder while the editor chunk loads.",
+    ],
   ]) {
     assertSourceIncludes(files.pagePeekModal, pagePeekModal, snippet, message);
   }

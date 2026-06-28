@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import IconPicker from "@/components/shared/IconPicker";
-import PageProperties from "@/components/page/PageProperties";
+import type { IconPickerProps } from "@/components/shared/IconPicker";
+import type { PagePropertiesProps } from "@/components/page/PageProperties";
 import { usePage } from "@/hooks/usePage";
 import { usePageRevision } from "@/hooks/usePageRevision";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
@@ -36,6 +36,20 @@ const Editor = dynamic(() => import("@/components/editor/Editor"), {
   ssr: false,
   loading: () => <PeekEditorSkeleton label="正在载入编辑器…" />,
 });
+const IconPicker = dynamic<IconPickerProps>(
+  () => import("@/components/shared/IconPicker"),
+  {
+    ssr: false,
+    loading: () => <PeekIconPickerSkeleton />,
+  }
+);
+const PageProperties = dynamic<PagePropertiesProps>(
+  () => import("@/components/page/PageProperties"),
+  {
+    ssr: false,
+    loading: () => <PeekPropertiesSkeleton />,
+  }
+);
 
 const PEEK_METADATA_ONLY_CONTENT_DELAY_MS = 260;
 const PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS = 700;
@@ -563,6 +577,34 @@ function PeekEditorSkeleton({ label }: { label: string }) {
         <div className="h-3 w-7/12 max-w-2xl rounded bg-zinc-200/50 dark:bg-zinc-800/60" />
       </div>
       <p className="mt-5 text-xs text-zinc-400">{label}</p>
+    </div>
+  );
+}
+
+function PeekIconPickerSkeleton() {
+  return (
+    <div
+      className="mt-1 h-8 w-20 shrink-0 rounded-md bg-zinc-100 dark:bg-zinc-800"
+      aria-hidden="true"
+    />
+  );
+}
+
+function PeekPropertiesSkeleton() {
+  return (
+    <div
+      className="mb-6 space-y-2"
+      aria-label="属性面板加载中"
+      role="status"
+    >
+      <div className="flex items-center gap-2">
+        <div className="h-4 w-28 rounded bg-zinc-100 dark:bg-zinc-800" />
+        <div className="h-4 w-48 rounded bg-zinc-100 dark:bg-zinc-800" />
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="h-4 w-28 rounded bg-zinc-100 dark:bg-zinc-800" />
+        <div className="h-4 w-36 rounded bg-zinc-100 dark:bg-zinc-800" />
+      </div>
     </div>
   );
 }

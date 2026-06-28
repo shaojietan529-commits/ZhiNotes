@@ -534,6 +534,12 @@ check(
     pagePeekModal.includes('surface: "peek"') &&
     pagePeekModal.includes("subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)") &&
     pagePeekModal.includes("bodyHydrationLabel ??") &&
+    pagePeekModal.includes("dynamic<IconPickerProps>(") &&
+    pagePeekModal.includes('() => import("@/components/shared/IconPicker")') &&
+    pagePeekModal.includes("dynamic<PagePropertiesProps>(") &&
+    pagePeekModal.includes('() => import("@/components/page/PageProperties")') &&
+    pagePeekModal.includes("PeekIconPickerSkeleton") &&
+    pagePeekModal.includes("PeekPropertiesSkeleton") &&
     shells.knowledge.includes("const peekPage = useMemo") &&
     shells.knowledge.includes("initialPage={peekPage}"),
   "PagePeekModal 必须优先显示已有页面元数据，再按需加载正文和编辑器"

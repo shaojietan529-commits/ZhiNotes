@@ -17,7 +17,7 @@ import {
 import { getPage } from "@/lib/db/local/queries";
 import { findIndustryChainPageId } from "@/lib/pages/industryChainSearch";
 
-interface PagePropertiesProps {
+export interface PagePropertiesProps {
   properties: PageProperty[];
   disabled?: boolean;
   pageId?: string;

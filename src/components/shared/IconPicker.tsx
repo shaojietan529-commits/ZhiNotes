@@ -6,7 +6,7 @@ import {
   searchIcons,
 } from "@/lib/icons/iconCatalog";
 
-interface IconPickerProps {
+export interface IconPickerProps {
   currentIcon: string | null;
   onSelect: (icon: string) => void;
   // Optional: clears the icon back to none (Notion-style "Remove" action).

@@ -1352,8 +1352,14 @@ check(
     pagePeekModal.includes("bodyHydrationLabel ??") &&
     pagePeekModal.includes("setMountedEditorPageId(pageId)") &&
     pagePeekModal.includes("childPagesEnabled") &&
+    pagePeekModal.includes("dynamic<IconPickerProps>(") &&
+    pagePeekModal.includes('() => import("@/components/shared/IconPicker")') &&
+    pagePeekModal.includes("dynamic<PagePropertiesProps>(") &&
+    pagePeekModal.includes('() => import("@/components/page/PageProperties")') &&
+    pagePeekModal.includes("PeekIconPickerSkeleton") &&
+    pagePeekModal.includes("PeekPropertiesSkeleton") &&
     pagePeekModal.includes("PeekEditorSkeleton"),
-  "PagePeekModal 应让新建空白草稿即时进入编辑器，并推迟子页面查询，避免点击 + 时被编辑器初始化或本地索引查询阻塞"
+  "PagePeekModal 应让新建空白草稿即时进入编辑器，并推迟子页面查询、图标选择器和属性编辑器，避免点击 + 时被编辑器初始化或本地索引查询阻塞"
 );
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");
