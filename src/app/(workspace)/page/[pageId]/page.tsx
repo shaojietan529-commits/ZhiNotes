@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import PageRouteSkeleton from "@/components/page/PageRouteSkeleton";
 import { readPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import { readPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 const PageView = dynamic(() => import("@/components/providers/PageShell"), {
   ssr: false,
@@ -19,7 +21,7 @@ export default function PageRoute() {
 function PageRouteLoadingSkeleton() {
   const params = useParams();
   const pageId = params.pageId as string;
-  const previewPage = pageId ? readPageRouteHandoff(pageId) : null;
+  const previewPage = pageId ? readLocalFirstPageRouteSeed(pageId) : null;
 
   return (
     <PageRouteSkeleton
@@ -32,5 +34,14 @@ function PageRouteLoadingSkeleton() {
           : undefined
       }
     />
+  );
+}
+
+function readLocalFirstPageRouteSeed(pageId: string) {
+  return (
+    readPendingPageDraft(pageId) ??
+    readPageRouteHandoff(pageId) ??
+    useWorkspaceStore.getState().getPageById(pageId) ??
+    null
   );
 }

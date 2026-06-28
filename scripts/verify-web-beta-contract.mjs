@@ -758,6 +758,18 @@ function run() {
       "The page detail route dynamic fallback must read local route handoff metadata before the full page shell hydrates.",
     ],
     [
+      "readPendingPageDraft",
+      "The page detail route dynamic fallback must reuse optimistic drafts before the full page shell hydrates.",
+    ],
+    [
+      "useWorkspaceStore.getState().getPageById",
+      "The page detail route dynamic fallback must reuse already-visible workspace metadata before the full page shell hydrates.",
+    ],
+    [
+      "readLocalFirstPageRouteSeed",
+      "The page detail route dynamic fallback must use a single local-first seed order for drafts, handoff, and workspace metadata.",
+    ],
+    [
       "PageRouteLoadingSkeleton",
       "The page detail route must keep a dedicated loading component that can show local-first page metadata.",
     ],
@@ -771,6 +783,22 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.pageDetailRoute, pageDetailRoute, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "routePreviewPage",
+      "The full page shell loading fallback must keep local metadata visible after the client shell starts.",
+    ],
+    [
+      "readPageShellRoutePreviewSeed(pageId)",
+      "The full page shell loading fallback must reuse a local-first route preview seed.",
+    ],
+    [
+      "preview={",
+      "The full page shell loading fallback must pass local metadata into PageRouteSkeleton.",
+    ],
+  ]) {
+    assertSourceIncludes(files.pageShell, pageShell, snippet, message);
   }
   for (const [sourceLabel, source] of [
     [files.databaseDetailRoute, databaseDetailRoute],

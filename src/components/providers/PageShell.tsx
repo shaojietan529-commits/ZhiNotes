@@ -26,6 +26,8 @@ import {
   stringifyPageProperties,
   type PageProperty,
 } from "@/lib/pages/pageProperties";
+import { readPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import { readPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePage } from "@/hooks/usePage";
 import { useVersions } from "@/hooks/useVersions";
@@ -37,7 +39,7 @@ import {
   getBlockComments,
 } from "@/lib/db/local/queries";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
-import type { PageVersion } from "@/lib/utils/types";
+import type { Page, PageVersion } from "@/lib/utils/types";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
 import { usePageViewPreferences } from "@/hooks/usePageViewPreferences";
 import {
@@ -886,9 +888,25 @@ function PageContent({ pageId }: { pageId: string }) {
       bodyHydrationLabel &&
       bodyHydrationStatus?.phase !== "empty-ready"
   );
+  const routePreviewPage = useMemo(
+    () => page ?? readPageShellRoutePreviewSeed(pageId),
+    [page, pageId]
+  );
 
   if (loading && !page) {
-    return <PageRouteSkeleton message="正在从本地缓存打开页面，云端回填会在后台继续。" />;
+    return (
+      <PageRouteSkeleton
+        message="正在从本地缓存打开页面，云端回填会在后台继续。"
+        preview={
+          routePreviewPage
+            ? {
+                title: routePreviewPage.title,
+                icon: routePreviewPage.icon,
+              }
+            : undefined
+        }
+      />
+    );
   }
 
   if (!page) {
@@ -1797,6 +1815,15 @@ function PageResearchStructureGateRow({
         </p>
       </div>
     </div>
+  );
+}
+
+function readPageShellRoutePreviewSeed(pageId: string): Page | null {
+  return (
+    readPendingPageDraft(pageId) ??
+    readPageRouteHandoff(pageId) ??
+    useWorkspaceStore.getState().getPageById(pageId) ??
+    null
   );
 }
 

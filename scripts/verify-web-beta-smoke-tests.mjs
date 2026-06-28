@@ -622,6 +622,9 @@ function run() {
   }
   for (const snippet of [
     "readPageRouteHandoff",
+    "readPendingPageDraft",
+    "useWorkspaceStore.getState().getPageById",
+    "readLocalFirstPageRouteSeed",
     "PageRouteLoadingSkeleton",
     "previewPage.title",
     "previewPage.icon",
@@ -631,6 +634,18 @@ function run() {
       pageDetailRoute,
       snippet,
       "Page route dynamic fallback must show handed-off metadata before the full page shell hydrates."
+    );
+  }
+  for (const snippet of [
+    "routePreviewPage",
+    "readPageShellRoutePreviewSeed(pageId)",
+    "preview={",
+  ]) {
+    assertIncludes(
+      files.pageShell,
+      pageShell,
+      snippet,
+      "PageShell loading fallback must preserve local-first page metadata after the client shell starts."
     );
   }
   for (const snippet of [
