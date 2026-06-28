@@ -92,6 +92,8 @@ const PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800;
 const PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500;
 const PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000;
 const PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000;
+const PAGE_SYNC_STATUS_FIRST_REFRESH_DELAY_MS = 900;
+const PAGE_SYNC_STATUS_FIRST_REFRESH_IDLE_TIMEOUT_MS = 2500;
 const EMPTY_PAGE_SYNC_STATUS: PendingCloudPageSyncStatus = {
   enabled: true,
   pending: 0,
@@ -254,8 +256,15 @@ function PageContent({ pageId }: { pageId: string }) {
   }, [pageId]);
 
   useEffect(() => {
+    setPageSyncStatus(EMPTY_PAGE_SYNC_STATUS);
+    setCurrentPagePendingSync(false);
+  }, [pageId]);
+
+  useEffect(() => {
+    if (!hasPage) return;
     let timer: number | null = null;
     let cancelled = false;
+    let cancelInitialRefresh: () => void = () => undefined;
     const refreshStatus = async (event?: Event) => {
       const next = (event as CustomEvent<PendingCloudPageSyncStatus> | undefined)
         ?.detail;
@@ -288,6 +297,8 @@ function PageContent({ pageId }: { pageId: string }) {
       }, delay);
     };
     const handleStatusRefresh = (event?: Event) => {
+      cancelInitialRefresh();
+      cancelInitialRefresh = () => undefined;
       void refreshStatus(event)
         .then((snapshot) => {
           if (snapshot && !cancelled) scheduleStatusRefresh(snapshot);
@@ -306,7 +317,8 @@ function PageContent({ pageId }: { pageId: string }) {
         handleStatusRefresh();
       }
     };
-    handleStatusRefresh();
+    cancelInitialRefresh =
+      schedulePageSyncStatusInitialRefresh(handleStatusRefresh);
     window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleStatusRefresh);
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleStatusRefresh);
     window.addEventListener("storage", handleStatusRefresh);
@@ -317,9 +329,10 @@ function PageContent({ pageId }: { pageId: string }) {
       window.removeEventListener("storage", handleStatusRefresh);
       document.removeEventListener("visibilitychange", handleVisibleRefresh);
       cancelled = true;
+      cancelInitialRefresh();
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [pageId]);
+  }, [hasPage, pageId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1398,6 +1411,35 @@ function PageSyncStatusBadge({
       {label}
     </button>
   );
+}
+
+function schedulePageSyncStatusInitialRefresh(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  let timer: number | null = null;
+  let idleId: number | null = null;
+  let fallbackTimer: number | null = null;
+  timer = window.setTimeout(() => {
+    timer = null;
+    if (typeof maybeWindow.requestIdleCallback === "function") {
+      idleId = maybeWindow.requestIdleCallback(callback, {
+        timeout: PAGE_SYNC_STATUS_FIRST_REFRESH_IDLE_TIMEOUT_MS,
+      });
+      return;
+    }
+    fallbackTimer = window.setTimeout(callback, 80);
+  }, PAGE_SYNC_STATUS_FIRST_REFRESH_DELAY_MS);
+  return () => {
+    if (timer !== null) window.clearTimeout(timer);
+    if (idleId !== null) maybeWindow.cancelIdleCallback?.(idleId);
+    if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
+  };
 }
 
 function scheduleEditorMount(

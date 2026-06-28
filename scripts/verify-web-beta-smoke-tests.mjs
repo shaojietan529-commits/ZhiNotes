@@ -3494,6 +3494,38 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      "PAGE_SYNC_STATUS_FIRST_REFRESH_DELAY_MS = 900",
+      "Page shell must keep the first sync-status refresh out of the immediate page-open critical path.",
+    ],
+    [
+      "PAGE_SYNC_STATUS_FIRST_REFRESH_IDLE_TIMEOUT_MS = 2500",
+      "Page shell deferred sync-status refresh must have a bounded idle fallback.",
+    ],
+    [
+      "setPageSyncStatus(EMPTY_PAGE_SYNC_STATUS);\n    setCurrentPagePendingSync(false);",
+      "Page shell must clear stale sync badges immediately when switching pages.",
+    ],
+    [
+      "if (!hasPage) return;",
+      "Page shell must avoid loading account sync status while the route is still showing the local-first skeleton.",
+    ],
+    [
+      "schedulePageSyncStatusInitialRefresh(handleStatusRefresh)",
+      "Page shell must defer the initial account sync status module load until after page metadata can paint.",
+    ],
+    [
+      "cancelInitialRefresh();\n      cancelInitialRefresh = () => undefined;",
+      "Page shell must cancel the deferred first sync-status refresh once a live status event refreshes it.",
+    ],
+    [
+      "function schedulePageSyncStatusInitialRefresh",
+      "Page shell must centralize deferred sync-status scheduling so quick page switches can cancel it.",
+    ],
+  ]) {
+    assertIncludes(files.pageShell, pageShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420",
       "Page shell must briefly hold editor mounting for metadata-only page opens so local body hydration can win first.",
     ],
