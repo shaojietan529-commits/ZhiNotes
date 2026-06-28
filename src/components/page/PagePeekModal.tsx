@@ -278,8 +278,7 @@ export default function PagePeekModal({
       kind: "page-peek",
       label: "页面预览",
       route: "/page/[pageId]#peek",
-      status:
-        effectivePage.content_text == null ? "metadata-ready" : "content-ready",
+      status: getPeekOpenPerformanceStatus(effectivePage),
       startedAt: peekOpenStartedAtIsoRef.current,
       durationMs,
       localFirstMs: durationMs,
@@ -600,6 +599,14 @@ function PeekEditorSkeleton({ label }: { label: string }) {
 
 function isLargePeekBodyForEditor(content: string | null | undefined): boolean {
   return (content?.length ?? 0) > PEEK_LARGE_BODY_HTML_CHARS;
+}
+
+function getPeekOpenPerformanceStatus(
+  page: Page
+): "local-draft-ready" | "metadata-ready" | "content-ready" {
+  if (page.content_text === "") return "local-draft-ready";
+  if (page.content_text == null) return "metadata-ready";
+  return "content-ready";
 }
 
 function formatApproxPeekBodySize(length: number): string {

@@ -216,6 +216,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const [pageReferencesMounted, setPageReferencesMounted] = useState(false);
   const hasPage = Boolean(page);
   const hasContentForEditor = page?.content_text != null;
+  const isOptimisticPageDraft = page?.content_text === "";
   const pageBodyHtmlLength = page?.content_text?.length ?? 0;
   const hasLargeBodyForEditor = isLargePageBodyForEditor(page?.content_text);
   const mountedEditorPageIdRef = useRef<string | null>(null);
@@ -332,7 +333,7 @@ function PageContent({ pageId }: { pageId: string }) {
       kind: "page-open",
       label: "页面打开",
       route: "/page/[pageId]",
-      status: page.content_text == null ? "metadata-ready" : "content-ready",
+      status: getPageOpenPerformanceStatus(page),
       startedAt: pageOpenStartedAtIsoRef.current,
       durationMs,
       localFirstMs: durationMs,
@@ -340,6 +341,8 @@ function PageContent({ pageId }: { pageId: string }) {
       counts: {
         has_content_html: page.content_text ? 1 : 0,
         body_html_chars: page.content_text?.length ?? 0,
+        optimistic_draft: page.content_text === "" ? 1 : 0,
+        metadata_only: page.content_text == null ? 1 : 0,
         large_body_editor_deferred: isLargePageBodyForEditor(page.content_text)
           ? 1
           : 0,
@@ -359,6 +362,18 @@ function PageContent({ pageId }: { pageId: string }) {
     }
     if (editorMounted && mountedEditorPageIdRef.current === pageId) return;
     if (mountedEditorPageIdRef.current !== pageId) setEditorMounted(false);
+    if (isOptimisticPageDraft) {
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (cancelled) return;
+        void loadEditorModule();
+        setEditorMounted(true);
+        mountedEditorPageIdRef.current = pageId;
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
     const metadataOnly = !hasContentForEditor;
     const delay = metadataOnly
       ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS
@@ -383,6 +398,7 @@ function PageContent({ pageId }: { pageId: string }) {
     hasPage,
     hasContentForEditor,
     hasLargeBodyForEditor,
+    isOptimisticPageDraft,
     editorMounted,
   ]);
 
@@ -1274,6 +1290,7 @@ function PageContent({ pageId }: { pageId: string }) {
           ) : (
             <PageBodySkeleton
               metadataOnly={page.content_text == null}
+              optimisticDraft={isOptimisticPageDraft}
               largeBody={hasLargeBodyForEditor}
               contentLength={pageBodyHtmlLength}
               statusLabel={bodyHydrationLabel}
@@ -1431,16 +1448,20 @@ function scheduleDeferredMount(callback: () => void, timeout = 450): () => void 
 
 function PageBodySkeleton({
   metadataOnly = false,
+  optimisticDraft = false,
   largeBody = false,
   contentLength = 0,
   statusLabel,
 }: {
   metadataOnly?: boolean;
+  optimisticDraft?: boolean;
   largeBody?: boolean;
   contentLength?: number;
   statusLabel?: string | null;
 }) {
-  const loadingMessage = largeBody
+  const loadingMessage = optimisticDraft
+    ? "新页面已在本机创建，标题和属性可以先确认，编辑器正在准备…"
+    : largeBody
     ? `正文较长（约 ${formatApproxBodySize(contentLength)}），标题和属性已先显示，编辑器正在空闲时段准备…`
     : metadataOnly
       ? statusLabel ?? "标题和属性已先显示，正在从本地缓存补齐正文和编辑器…"
@@ -1463,6 +1484,14 @@ function PageBodySkeleton({
 
 function isLargePageBodyForEditor(content: string | null | undefined): boolean {
   return (content?.length ?? 0) > PAGE_LARGE_BODY_HTML_CHARS;
+}
+
+function getPageOpenPerformanceStatus(
+  page: Page
+): "local-draft-ready" | "metadata-ready" | "content-ready" {
+  if (page.content_text === "") return "local-draft-ready";
+  if (page.content_text == null) return "metadata-ready";
+  return "content-ready";
 }
 
 function formatApproxBodySize(length: number): string {

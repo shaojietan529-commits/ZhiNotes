@@ -2603,6 +2603,10 @@ function run() {
       "Page shell must distinguish metadata-only route handoff records from content-ready pages.",
     ],
     [
+      'const isOptimisticPageDraft = page?.content_text === "";',
+      "Page shell must distinguish a new empty local draft from a metadata-only handoff.",
+    ],
+    [
       "const hasLargeBodyForEditor = isLargePageBodyForEditor(page?.content_text)",
       "Page shell must distinguish ordinary pages from large HTML bodies before mounting the editor.",
     ],
@@ -2613,6 +2617,14 @@ function run() {
     [
       "if (editorMounted && mountedEditorPageIdRef.current === pageId) return",
       "Page shell must not remount the editor when late body hydration reaches an already mounted page.",
+    ],
+    [
+      "if (isOptimisticPageDraft) {",
+      "Page shell must mount the editor immediately for a newly-created empty draft instead of waiting for body hydration.",
+    ],
+    [
+      '"local-draft-ready"',
+      "Page shell performance snapshots must identify when a newly-created local draft is ready.",
     ],
     [
       "hasLargeBodyForEditor\n        ? PAGE_LARGE_BODY_EDITOR_DELAY_MS",
@@ -2631,12 +2643,24 @@ function run() {
       "Page shell loading skeleton must identify long body editor preparation separately from metadata-only hydration.",
     ],
     [
+      "optimisticDraft={isOptimisticPageDraft}",
+      "Page shell body skeleton must show a local-draft state while the editor chunk is loading.",
+    ],
+    [
+      "新页面已在本机创建，标题和属性可以先确认，编辑器正在准备",
+      "Page shell local-draft skeleton must tell the user the page exists locally before the editor finishes loading.",
+    ],
+    [
       "正文较长（约 ${formatApproxBodySize(contentLength)}）",
       "Page shell long-body skeleton must explain that metadata is already visible while the editor is prepared.",
     ],
     [
       "isLargePageBodyForEditor(content",
       "Page shell must keep long-body detection centralized.",
+    ],
+    [
+      "getPageOpenPerformanceStatus(",
+      "Page shell must centralize page-open performance status classification.",
     ],
     [
       "标题和属性已先显示，正在从本地缓存补齐正文和编辑器",
@@ -3454,6 +3478,10 @@ function run() {
     [
       "onReady?.(pageId)",
       "PagePeekModal must notify when the local page shell is ready.",
+    ],
+    [
+      '"local-draft-ready"',
+      "PagePeekModal metrics must distinguish local empty drafts from metadata-only pages.",
     ],
     [
       "const initialPeekPage = getInitialPeekPage(pageId, initialPage)",

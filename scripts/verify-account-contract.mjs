@@ -1364,9 +1364,15 @@ check(
     pageShell.includes("PAGE_LARGE_BODY_EDITOR_DELAY_MS = 260") &&
     pageShell.includes("PAGE_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600") &&
     pageShell.includes("const hasContentForEditor = page?.content_text != null") &&
+    pageShell.includes('const isOptimisticPageDraft = page?.content_text === "";') &&
     pageShell.includes("const hasLargeBodyForEditor = isLargePageBodyForEditor(page?.content_text)") &&
     pageShell.includes("mountedEditorPageIdRef.current = pageId") &&
     pageShell.includes("if (editorMounted && mountedEditorPageIdRef.current === pageId) return") &&
+    pageShell.includes("if (isOptimisticPageDraft) {") &&
+    pageShell.includes("optimisticDraft={isOptimisticPageDraft}") &&
+    pageShell.includes("getPageOpenPerformanceStatus(") &&
+    pageShell.includes('"local-draft-ready"') &&
+    pageShell.includes("新页面已在本机创建，标题和属性可以先确认，编辑器正在准备") &&
     pageShell.includes("hasLargeBodyForEditor\n        ? PAGE_LARGE_BODY_EDITOR_DELAY_MS") &&
     pageShell.includes("hasLargeBodyForEditor\n        ? PAGE_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS") &&
     pageShell.includes("delay,\n      timeout,") &&
@@ -1428,6 +1434,8 @@ check(
     pagePeekModal.includes("useState(() => initialPeekPage?.title ?? \"\")") &&
     pagePeekModal.includes("applyPeekMetadataSnapshot") &&
     pagePeekModal.includes("isOptimisticDraft") &&
+    pagePeekModal.includes("getPeekOpenPerformanceStatus(") &&
+    pagePeekModal.includes('"local-draft-ready"') &&
     pagePeekModal.includes("PEEK_METADATA_ONLY_CONTENT_DELAY_MS = 260") &&
     pagePeekModal.includes("PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS = 700") &&
     pagePeekModal.includes("const isMetadataOnlyPeek =") &&
