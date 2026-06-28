@@ -596,6 +596,14 @@ function run() {
       "Daily note creation must open the optimistic page in the same-page peek modal immediately.",
     ],
     [
+      "revealDailyNoteOnCalendar(optimisticNote);",
+      "Daily note creation must immediately reveal and highlight the target calendar day after + is clicked.",
+    ],
+    [
+      "focusDailyCalendarDate(dateKey);",
+      "Daily calendar must focus the target day so + clicks give visible feedback in large imported months.",
+    ],
+    [
       "openPage(note, { source });",
       "Existing daily notes must open through local-first route handoff.",
     ],
@@ -4603,6 +4611,18 @@ function run() {
     dailyNotesShell,
     "data-testid={`daily-opening-note-${key}`}",
     "Daily calendar must show an immediate opening chip after + is clicked."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "highlightedDailyDateKey === key",
+    "Daily calendar must visibly highlight the target day after create, move, or reveal actions."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "dailyCalendarCellRefs.current.set(key, node)",
+    "Daily calendar must keep date-cell refs so create actions can scroll the target day into view."
   );
   assertIncludes(
     files.meetingScheduleShell,

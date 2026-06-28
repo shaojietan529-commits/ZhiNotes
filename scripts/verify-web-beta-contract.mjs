@@ -3670,6 +3670,22 @@ function run() {
       "Daily calendar + buttons must expose stable test targets.",
     ],
     [
+      "revealDailyNoteOnCalendar(optimisticNote);",
+      "Daily note creation must reveal and highlight the target day before background persistence completes.",
+    ],
+    [
+      "focusDailyCalendarDate(dateKey);",
+      "Daily calendar must focus the target date so + actions stay visible in large imported months.",
+    ],
+    [
+      "highlightedDailyDateKey === key",
+      "Daily calendar must render a stable highlighted-day state after create, move, or reveal actions.",
+    ],
+    [
+      "dailyCalendarCellRefs.current.set(key, node)",
+      "Daily calendar must retain date-cell refs so created notes can scroll into view.",
+    ],
+    [
       "DAILY_RECENT_VISIBLE_LIMIT",
       "Daily recent-note list must keep a small visible cap for large imported workspaces.",
     ],

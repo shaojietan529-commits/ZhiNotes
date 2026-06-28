@@ -114,6 +114,7 @@ const DAILY_RECENT_VISIBLE_LIMIT = 8;
 const DAILY_RECENT_INDEX_CANDIDATE_LIMIT = 80;
 const DAILY_RENDER_RECENT_BUFFER_LIMIT = 80;
 const DAILY_CALENDAR_EXPAND_BATCH = 24;
+const DAILY_CALENDAR_REVEAL_BUFFER = 2;
 const DAILY_CALENDAR_RENDER_DAY_LIMIT =
   DAILY_CALENDAR_VISIBLE_LIMIT + DAILY_CALENDAR_EXPAND_BATCH;
 const DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT = 160;
@@ -167,6 +168,7 @@ export default function DailyNotesShell() {
   );
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [dragOverDateKey, setDragOverDateKey] = useState<string | null>(null);
+  const [highlightedDailyDateKey, setHighlightedDailyDateKey] = useState("");
   const [expandedDateKeys, setExpandedDateKeys] = useState<Set<string>>(
     () => new Set()
   );
@@ -180,6 +182,9 @@ export default function DailyNotesShell() {
   const hotCacheBootstrapKeyRef = useRef("");
   const notesRenderFingerprintRef = useRef("");
   const notesRef = useRef<DailyNote[]>([]);
+  const dailyCalendarCellRefs = useRef(new Map<string, HTMLDivElement>());
+  const pendingDailyCalendarFocusDateKeyRef = useRef<string | null>(null);
+  const dailyHighlightTimerRef = useRef<number | null>(null);
   const observedPageRevisionRef = useRef<string | null>(null);
   const creatingDateKeyRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
@@ -768,6 +773,97 @@ export default function DailyNotesShell() {
     });
   }, []);
 
+  const focusDailyCalendarDate = useCallback(
+    (dateKey: string) => {
+      const date = parseDateKeyToLocalDate(dateKey);
+      if (!date) return;
+
+      pendingDailyCalendarFocusDateKeyRef.current = dateKey;
+      setViewMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+      setHighlightedDailyDateKey(dateKey);
+      hydrateDailyDateKey(dateKey);
+
+      if (dailyHighlightTimerRef.current) {
+        window.clearTimeout(dailyHighlightTimerRef.current);
+      }
+      dailyHighlightTimerRef.current = window.setTimeout(() => {
+        setHighlightedDailyDateKey((current) =>
+          current === dateKey ? "" : current
+        );
+        dailyHighlightTimerRef.current = null;
+      }, 7000);
+    },
+    [hydrateDailyDateKey, setViewMonth]
+  );
+
+  useEffect(() => {
+    const dateKey = pendingDailyCalendarFocusDateKeyRef.current;
+    if (!dateKey) return;
+
+    const node = dailyCalendarCellRefs.current.get(dateKey);
+    if (!node) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (pendingDailyCalendarFocusDateKeyRef.current !== dateKey) return;
+      dailyCalendarCellRefs.current.get(dateKey)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      pendingDailyCalendarFocusDateKeyRef.current = null;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    expandedDateKeys,
+    highlightedDailyDateKey,
+    notes,
+    visibleNoteLimitByDate,
+    viewMonth,
+  ]);
+
+  const revealDailyNoteOnCalendar = useCallback(
+    (note: DailyNote) => {
+      const dateKey = dailyNoteDateKey(note);
+      if (!dateKey) return;
+
+      const currentDayNotes = [
+        note,
+        ...notesRef.current.filter((item) => item.id !== note.id),
+      ].filter((item) => dailyNoteDateKey(item) === dateKey);
+      const nextIndex = currentDayNotes.findIndex(
+        (item) => item.id === note.id
+      );
+      const requiredLimit =
+        nextIndex >= 0 ? nextIndex + 1 : DAILY_CALENDAR_VISIBLE_LIMIT;
+
+      if (requiredLimit > DAILY_CALENDAR_VISIBLE_LIMIT) {
+        setExpandedDateKeys((current) => {
+          if (current.has(dateKey)) return current;
+          const next = new Set(current);
+          next.add(dateKey);
+          return next;
+        });
+        setVisibleNoteLimitByDate((limits) => {
+          const currentLimit =
+            limits.get(dateKey) ?? DAILY_CALENDAR_VISIBLE_LIMIT;
+          if (currentLimit >= requiredLimit) return limits;
+          const next = new Map(limits);
+          next.set(
+            dateKey,
+            Math.min(
+              currentDayNotes.length,
+              requiredLimit + DAILY_CALENDAR_REVEAL_BUFFER
+            )
+          );
+          return next;
+        });
+      }
+
+      focusDailyCalendarDate(dateKey);
+    },
+    [focusDailyCalendarDate]
+  );
+
   useEffect(() => {
     let cancelled = false;
     let cancelScheduledBatch: (() => void) | null = null;
@@ -808,6 +904,15 @@ export default function DailyNotesShell() {
       cancelScheduledBatch?.();
     };
   }, [grid, todayKey]);
+
+  useEffect(
+    () => () => {
+      if (dailyHighlightTimerRef.current) {
+        window.clearTimeout(dailyHighlightTimerRef.current);
+      }
+    },
+    []
+  );
 
   const calendarIndexes = useMemo(
     () => buildDailyCalendarIndexes(notes, calendarDateKeys),
@@ -908,6 +1013,7 @@ export default function DailyNotesShell() {
       setPeekInitialPage(optimisticNote);
       setOpeningNoteId(optimisticNote.id);
       setPeekPageId(optimisticNote.id);
+      revealDailyNoteOnCalendar(optimisticNote);
       scheduleDailyIdleTask(() => {
         writeOptimisticDailyHotCache({
           note: optimisticNote,
@@ -955,6 +1061,7 @@ export default function DailyNotesShell() {
             );
             upsertPages([noteForSave]);
             rememberPageRouteHandoff(noteForSave, "daily-create");
+            revealDailyNoteOnCalendar(noteForSave);
             const persistStatus = await persistOptimisticDailyNote(
               dailyRootId,
               noteForSave,
@@ -983,6 +1090,7 @@ export default function DailyNotesShell() {
       rootId,
       router,
       upsertPages,
+      revealDailyNoteOnCalendar,
       viewMonth,
       warmDailyPeekOpen,
     ]
@@ -1260,9 +1368,10 @@ export default function DailyNotesShell() {
         setNotes((current) =>
           current.map((item) => (item.id === noteId ? nextNote : item))
         );
+        revealDailyNoteOnCalendar(nextNote);
       }
     },
-    [notesById, upsertPages]
+    [notesById, revealDailyNoteOnCalendar, upsertPages]
   );
 
   const recent = useMemo(
@@ -1382,6 +1491,7 @@ export default function DailyNotesShell() {
                 dayTotalCount > dayNotes.length && loadedHiddenCount === 0;
               const isToday = key === todayKey;
               const isDropTarget = draggedNoteId !== null && dragOverDateKey === key;
+              const isHighlighted = highlightedDailyDateKey === key;
               const isOpeningDraft = openingDraft?.dateKey === key;
               const isLoadingMore = loadingMoreDateKey === key;
               const isDateHydrated =
@@ -1392,9 +1502,20 @@ export default function DailyNotesShell() {
               return (
                 <div
                   key={key}
+                  ref={(node) => {
+                    if (node) {
+                      dailyCalendarCellRefs.current.set(key, node);
+                    } else {
+                      dailyCalendarCellRefs.current.delete(key);
+                    }
+                  }}
                   data-testid={`daily-calendar-day-${key}`}
-                  className={`group relative z-0 flex min-h-40 flex-col border-b border-r border-zinc-100 p-1.5 hover:z-20 dark:border-zinc-800/70 ${
-                    cell.inMonth ? "" : "bg-zinc-50/50 dark:bg-zinc-900/40"
+                  className={`group relative z-0 flex min-h-40 scroll-mt-24 flex-col border-b border-r border-zinc-100 p-1.5 transition-colors hover:z-20 dark:border-zinc-800/70 ${
+                    isHighlighted
+                      ? "rounded-md bg-amber-50/80 ring-2 ring-inset ring-amber-300 dark:bg-amber-950/20 dark:ring-amber-500"
+                      : cell.inMonth
+                        ? ""
+                        : "bg-zinc-50/50 dark:bg-zinc-900/40"
                   } ${
                     isDropTarget
                       ? "rounded-md ring-2 ring-inset ring-blue-400 bg-blue-50/60 dark:bg-blue-950/30"
@@ -2449,6 +2570,16 @@ function formatInferredDate(
     return null;
   }
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function parseDateKeyToLocalDate(dateKey: string) {
+  const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return new Date(year, month - 1, day);
 }
 
 function remoteRecordToPage(record: RemotePageRecord): Page {
