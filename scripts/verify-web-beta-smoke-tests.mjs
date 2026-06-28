@@ -6522,6 +6522,65 @@ function run() {
       "Reports-created pages must open in peek immediately, not force a full page route."
     );
   }
+  for (const [snippet, message] of [
+    [
+      "@/components/page/LazyPagePeekModal",
+      "Files module must lazy-load the page peek editor instead of adding it to first paint.",
+    ],
+    [
+      "warmPagePeekModal();",
+      "Files module must warm the peek editor while creating local file pages.",
+    ],
+    [
+      "const [peekPageId, setPeekPageId] = useState<string | null>(null);",
+      "Files module must hold a page peek target for same-view editing.",
+    ],
+    [
+      "const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);",
+      "Files module must seed newly created file pages into the peek before slower hydration.",
+    ],
+    [
+      "rememberPendingPageDraft(page);",
+      "Files created pages must keep a short-lived local draft before opening.",
+    ],
+    [
+      'rememberPageRouteHandoff(page, "module-create");',
+      "Files created pages must hand off local-first metadata with a module-create source.",
+    ],
+    [
+      "setPeekInitialPage(page);",
+      "Files created pages must seed peek metadata before first paint.",
+    ],
+    [
+      "setPeekPageId(page.id);",
+      "Files created pages must open in the current-view peek instead of forcing a full route.",
+    ],
+    [
+      "openCreatedFilePage(createdPages[0]);",
+      "Single imported file pages must open in peek immediately.",
+    ],
+    [
+      "openCreatedFilePage(page);",
+      "Existing local files converted to pages must open in peek immediately.",
+    ],
+    [
+      "<PagePeekModal",
+      "Files module must render the page peek modal for created file pages.",
+    ],
+  ]) {
+    assertIncludes(files.filesShell, filesShell, snippet, message);
+  }
+  for (const snippet of [
+    'openPage(createdPages[0], { source: "module-create" })',
+    'openPage(page, { source: "module-create" })',
+  ]) {
+    assertExcludes(
+      files.filesShell,
+      filesShell,
+      snippet,
+      "Files-created pages must open in peek immediately, not force a full page route."
+    );
+  }
   assertIncludes(
     files.projectsShell,
     projectsShell,
@@ -6981,7 +7040,7 @@ function run() {
   }
   for (const [sourceLabel, source, requiredSources] of [
     [files.notesShell, notesShell, ['source: "module-create"', 'source: "module-open"']],
-    [files.filesShell, filesShell, ['source: "module-create"']],
+    [files.filesShell, filesShell, ['"module-create"', 'source: "module-open"']],
     [files.meetingsShell, meetingsShell, ['source: "module-create"', 'source: "module-open"']],
     [files.reportsShell, reportsShell, ['"module-create"', 'source: "module-open"']],
     [files.projectsShell, projectsShell, ['source: "module-create"']],

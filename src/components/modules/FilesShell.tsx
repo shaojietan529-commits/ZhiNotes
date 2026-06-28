@@ -9,6 +9,9 @@ import {
   type ChangeEvent,
 } from "react";
 import { useRouter } from "next/navigation";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import PageImportPlanPanel from "@/components/modules/PageImportPlanPanel";
@@ -65,6 +68,8 @@ import {
   buildZipImportPreflightContract,
   type ZipCentralDirectoryPreview,
 } from "@/lib/files/zipImportPreflight";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { buildReportFormatCoverageReport } from "@/lib/reports/reportFormatCoverage";
 import {
   REPORT_INTAKE_LANES,
@@ -102,6 +107,7 @@ function FilesContent() {
 function FilesDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { upsertPages } = usePages({ autoLoad: false });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const htmlAssetPreviewInputRef = useRef<HTMLInputElement | null>(null);
@@ -133,6 +139,8 @@ function FilesDashboard() {
     failed: number;
     total: number;
   } | null>(null);
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
 
   const loadStoredFiles = useCallback(async () => {
     try {
@@ -318,6 +326,28 @@ function FilesDashboard() {
     zipPreviewInputRef.current?.click();
   };
 
+  const openCreatedFilePage = useCallback((page: Page) => {
+    rememberPendingPageDraft(page);
+    rememberPageRouteHandoff(page, "module-create");
+    warmPagePeekModal();
+    setPeekInitialPage(page);
+    setPeekPageId(page.id);
+  }, []);
+
+  const openFileFullPageById = useCallback(
+    (pageId: string) => {
+      const page =
+        (peekInitialPage?.id === pageId ? peekInitialPage : null) ??
+        pagesById.get(pageId);
+      if (page) {
+        openPage(page, { source: "module-open" });
+        return;
+      }
+      openPage(pageId, { source: "module-open" });
+    },
+    [openPage, pagesById, peekInitialPage]
+  );
+
   const handleHtmlAssetPreviewSelected = async (
     event: ChangeEvent<HTMLInputElement>
   ) => {
@@ -382,6 +412,7 @@ function FilesDashboard() {
     if (selectedFiles.length === 0) return;
 
     setCreatingFilePages(true);
+    if (selectedFiles.length === 1) warmPagePeekModal();
     setFilePageBatchMessage(null);
     try {
       const createdPages: Page[] = [];
@@ -401,7 +432,7 @@ function FilesDashboard() {
       upsertPages(createdPages);
       await loadStoredFiles();
       if (selectedFiles.length === 1 && createdPages[0]) {
-        openPage(createdPages[0], { source: "module-create" });
+        openCreatedFilePage(createdPages[0]);
         return;
       }
 
@@ -454,6 +485,7 @@ function FilesDashboard() {
 
   const handleCreatePageForStoredFile = async (fileId: string) => {
     setCreatingExistingFilePageId(fileId);
+    warmPagePeekModal();
     setFilePageBatchMessage(null);
     try {
       const storedFile = await getStoredPageFile(fileId);
@@ -465,7 +497,7 @@ function FilesDashboard() {
       }
       const page = await createFileLibraryPageFromStoredFile(storedFile);
       upsertPages([page]);
-      openPage(page, { source: "module-create" });
+      openCreatedFilePage(page);
     } catch (err) {
       console.error("[Zhinote] Failed to create page for stored file:", err);
       window.alert(
@@ -530,8 +562,9 @@ function FilesDashboard() {
   };
 
   return (
-    <div className="w-full px-6 py-6 lg:px-10">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <>
+      <div className="w-full px-6 py-6 lg:px-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="border-b border-zinc-200 pb-5 dark:border-zinc-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -932,8 +965,24 @@ function FilesDashboard() {
             ))}
           </div>
         </section>
+        </div>
       </div>
-    </div>
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            openFileFullPageById(id);
+          }}
+        />
+      )}
+    </>
   );
 }
 
