@@ -1350,6 +1350,11 @@ function SyncDashboard() {
       queued: 0,
       syncLogPending: 0,
       failed: 0,
+      failureCountTotal: 0,
+      maxFailureCount: 0,
+      manualReviewCount: 0,
+      manualReviewFailureThreshold: 3,
+      manualReviewSampleKeys: [],
       oldestPendingQueuedAt: null,
       lastAttemptAt: null,
       lastFailureAt: null,
@@ -15814,6 +15819,7 @@ type SyncUploadSafetyVerdict =
   | "ready"
   | "pending"
   | "stale"
+  | "manual"
   | "retry"
   | "disabled";
 
@@ -15822,6 +15828,7 @@ type SyncQueueHealthLevel =
   | "queued"
   | "watch"
   | "stale"
+  | "manual"
   | "failed"
   | "disabled";
 
@@ -15842,12 +15849,16 @@ function getSyncQueueHealth({
   enabled,
   waiting,
   failed,
+  manualReviewCount,
+  manualReviewFailureThreshold,
   oldestPendingQueuedAt,
 }: {
   domain: string;
   enabled: boolean;
   waiting: number;
   failed: number;
+  manualReviewCount: number;
+  manualReviewFailureThreshold: number;
   oldestPendingQueuedAt: string | null;
 }): SyncQueueHealth {
   const ageMs = getQueuePendingAgeMs(oldestPendingQueuedAt);
@@ -15858,6 +15869,16 @@ function getSyncQueueHealth({
       level: "disabled",
       label: "同步关闭",
       detail: `${domain}同步未开启，这一类内容不会自动上传。`,
+      ageMs,
+      ageLabel,
+    };
+  }
+  if (manualReviewCount > 0) {
+    return {
+      domain,
+      level: "manual",
+      label: "需人工处理",
+      detail: `${domain}有 ${manualReviewCount} 条记录已连续失败 ${manualReviewFailureThreshold} 次以上，建议查看样本 id/key 和最近失败原因。`,
       ageMs,
       ageLabel,
     };
@@ -15941,7 +15962,7 @@ function getLongestWaitingQueue(queues: SyncQueueHealth[]) {
 }
 
 function syncQueueHealthClass(level: SyncQueueHealthLevel) {
-  if (level === "failed" || level === "stale") {
+  if (level === "failed" || level === "stale" || level === "manual") {
     return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
   }
   if (level === "watch" || level === "queued") {
@@ -15974,11 +15995,15 @@ function SyncUploadSafetyPanel({
     databaseStatus.queued +
     databaseStatus.syncLogPending;
   const failed = pageStatus.failed + databaseStatus.failed;
+  const manualReviewCount =
+    pageStatus.manualReviewCount + databaseStatus.manualReviewCount;
   const pageHealth = getSyncQueueHealth({
     domain: "页面",
     enabled: pageStatus.enabled,
     waiting: pageWaiting,
     failed: pageStatus.failed,
+    manualReviewCount: pageStatus.manualReviewCount,
+    manualReviewFailureThreshold: pageStatus.manualReviewFailureThreshold,
     oldestPendingQueuedAt: pageStatus.oldestPendingQueuedAt,
   });
   const databaseHealth = getSyncQueueHealth({
@@ -15986,6 +16011,8 @@ function SyncUploadSafetyPanel({
     enabled: databaseStatus.enabled,
     waiting: databaseWaiting,
     failed: databaseStatus.failed,
+    manualReviewCount: databaseStatus.manualReviewCount,
+    manualReviewFailureThreshold: databaseStatus.manualReviewFailureThreshold,
     oldestPendingQueuedAt: databaseStatus.oldestPendingQueuedAt,
   });
   const longestWaitingQueue = getLongestWaitingQueue([pageHealth, databaseHealth]);
@@ -15997,7 +16024,9 @@ function SyncUploadSafetyPanel({
     databaseStatus.enabled ? null : "数据库",
   ].filter(Boolean) as string[];
   const verdict: SyncUploadSafetyVerdict =
-    failed > 0
+    manualReviewCount > 0
+      ? "manual"
+      : failed > 0
       ? "retry"
       : hasStaleQueue
         ? "stale"
@@ -16010,6 +16039,7 @@ function SyncUploadSafetyPanel({
     ready: "队列清空",
     pending: "待补传",
     stale: "滞留风险",
+    manual: "需人工处理",
     retry: "需处理失败",
     disabled: "同步未全开",
   };
@@ -16020,11 +16050,14 @@ function SyncUploadSafetyPanel({
       "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
     stale:
       "bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+    manual: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
     retry: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
     disabled: "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300",
   };
   const nextAction =
-    verdict === "retry"
+    verdict === "manual"
+      ? "先查看反复失败样本 id/key 和最近失败原因；同一条内容连续失败 3 次以上时，不要继续盲目重试或重建缓存。"
+      : verdict === "retry"
       ? "先补传失败队列；如果仍失败，查看最近失败原因，避免本地输入长期停在待上传状态。"
       : verdict === "stale"
         ? "先补传页面和数据库 pending queue；如果同一批内容仍显示长时间未上传，保留样本 id/key 和最近失败原因进入人工排查，不要重建缓存。"
@@ -16066,6 +16099,11 @@ function SyncUploadSafetyPanel({
         pageStatus.lastFailureMessage ||
         databaseStatus.lastFailureMessage ||
         "暂无最近失败原因",
+    },
+    {
+      label: "人工处理",
+      value: `${manualReviewCount} 条`,
+      detail: `页面最高失败 ${pageStatus.maxFailureCount} 次，数据库最高失败 ${databaseStatus.maxFailureCount} 次。`,
     },
     {
       label: "队列健康",
@@ -16146,6 +16184,17 @@ function SyncUploadSafetyPanel({
         ))}
       </div>
 
+      {manualReviewCount > 0 ? (
+        <div
+          data-testid="sync-upload-manual-review-warning"
+          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+        >
+          <span className="font-semibold">需人工处理：</span>
+          {pageHealth.detail} {databaseHealth.detail} 这里只展示 page id 和
+          database/field/row/view key，不读取页面正文或 row value。
+        </div>
+      ) : null}
+
       {hasStaleQueue ? (
         <div
           data-testid="sync-upload-stale-queue-warning"
@@ -16175,6 +16224,8 @@ function PagePendingQueueDetails({
     enabled: status.enabled,
     waiting: totalWaiting,
     failed: status.failed,
+    manualReviewCount: status.manualReviewCount,
+    manualReviewFailureThreshold: status.manualReviewFailureThreshold,
     oldestPendingQueuedAt: status.oldestPendingQueuedAt,
   });
   const stateLabel =
@@ -16197,6 +16248,11 @@ function PagePendingQueueDetails({
       detail: status.lastFailureMessage
         ? `最近失败：${status.lastFailureMessage}`
         : "没有云端拒绝或网络失败记录。",
+    },
+    {
+      label: "反复失败",
+      value: `${status.manualReviewCount} 条`,
+      detail: `累计失败 ${status.failureCountTotal} 次，最高单项失败 ${status.maxFailureCount} 次；${status.manualReviewFailureThreshold} 次以上进入人工处理。`,
     },
     {
       label: "最近尝试",
@@ -16256,6 +16312,18 @@ function PagePendingQueueDetails({
           </div>
         ))}
       </div>
+
+      {queueHealth.level === "manual" ? (
+        <div
+          data-testid="page-pending-manual-review-warning"
+          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+        >
+          <span className="font-semibold">页面需人工处理：</span>
+          有 {status.manualReviewCount} 个 page id 已连续失败{" "}
+          {status.manualReviewFailureThreshold} 次以上。这里仅展示 id 和失败原因，
+          不读取页面正文；处理前不要重建本地缓存。
+        </div>
+      ) : null}
 
       {["watch", "stale"].includes(queueHealth.level) ? (
         <p
@@ -16326,6 +16394,24 @@ function PagePendingQueueDetails({
             </ul>
           </div>
         ) : null}
+        {status.manualReviewSampleIds.length > 0 ? (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-2 dark:border-red-900 dark:bg-red-950/40">
+            <div className="text-[11px] font-semibold text-red-800 dark:text-red-200">
+              人工处理样本
+            </div>
+            <ul className="mt-2 space-y-1">
+              {status.manualReviewSampleIds.map((pageId, index) => (
+                <li
+                  key={`${pageId}-${index}`}
+                  data-testid="page-pending-manual-review-sample-id"
+                  className="rounded bg-white px-2 py-1 font-mono text-[11px] text-red-700 dark:bg-red-950 dark:text-red-200"
+                >
+                  {pageId}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
 
       <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
@@ -16347,6 +16433,8 @@ function DatabasePendingQueueDetails({
     enabled: status.enabled,
     waiting: totalWaiting,
     failed: status.failed,
+    manualReviewCount: status.manualReviewCount,
+    manualReviewFailureThreshold: status.manualReviewFailureThreshold,
     oldestPendingQueuedAt: status.oldestPendingQueuedAt,
   });
   const stateLabel =
@@ -16374,6 +16462,11 @@ function DatabasePendingQueueDetails({
       detail: status.lastFailureMessage
         ? `最近失败：${status.lastFailureMessage}`
         : "没有云端拒绝或网络失败记录。",
+    },
+    {
+      label: "反复失败",
+      value: `${status.manualReviewCount} 条`,
+      detail: `累计失败 ${status.failureCountTotal} 次，最高单项失败 ${status.maxFailureCount} 次；${status.manualReviewFailureThreshold} 次以上进入人工处理。`,
     },
     {
       label: "最近尝试",
@@ -16434,6 +16527,18 @@ function DatabasePendingQueueDetails({
           </div>
         ))}
       </div>
+
+      {queueHealth.level === "manual" ? (
+        <div
+          data-testid="database-pending-manual-review-warning"
+          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+        >
+          <span className="font-semibold">数据库需人工处理：</span>
+          有 {status.manualReviewCount} 个 database/field/row/view key
+          已连续失败 {status.manualReviewFailureThreshold} 次以上。这里仅展示
+          key 和失败原因，不读取 row value；处理前不要重建本地缓存。
+        </div>
+      ) : null}
 
       {["watch", "stale"].includes(queueHealth.level) ? (
         <p
@@ -16498,6 +16603,24 @@ function DatabasePendingQueueDetails({
                   key={`${key}-${index}`}
                   data-testid="database-pending-failed-sample-key"
                   className="rounded bg-white px-2 py-1 font-mono text-[11px] text-red-600 dark:bg-red-950 dark:text-red-300"
+                >
+                  {key}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {status.manualReviewSampleKeys.length > 0 ? (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-2 dark:border-red-900 dark:bg-red-950/40">
+            <div className="text-[11px] font-semibold text-red-800 dark:text-red-200">
+              人工处理样本
+            </div>
+            <ul className="mt-2 space-y-1">
+              {status.manualReviewSampleKeys.map((key, index) => (
+                <li
+                  key={`${key}-${index}`}
+                  data-testid="database-pending-manual-review-sample-key"
+                  className="rounded bg-white px-2 py-1 font-mono text-[11px] text-red-700 dark:bg-red-950 dark:text-red-200"
                 >
                   {key}
                 </li>

@@ -5452,6 +5452,18 @@ function run() {
       "Upload safety overview must surface failed page or database uploads.",
     ],
     [
+      "需人工处理",
+      "Upload safety overview must escalate repeated failures into an owner action state.",
+    ],
+    [
+      "manualReviewCount",
+      "Upload safety overview must use repeated failure counts from pending queue metadata.",
+    ],
+    [
+      'data-testid="sync-upload-manual-review-warning"',
+      "Upload safety overview must expose a stable repeated-failure warning hook.",
+    ],
+    [
       "队列清空",
       "Upload safety overview must tell the owner when queues are empty.",
     ],
@@ -5514,6 +5526,22 @@ function run() {
     [
       "只保存 page id 和排队时间，不保存页面正文",
       "Sync UI must document that page pending upload status contains metadata only.",
+    ],
+    [
+      "反复失败",
+      "Sync UI must show repeated pending upload failures as a separate fact.",
+    ],
+    [
+      "人工处理样本",
+      "Sync UI must show manual review samples without reading private content.",
+    ],
+    [
+      'data-testid="page-pending-manual-review-sample-id"',
+      "Sync UI must expose stable metadata-only page id hooks for manual review.",
+    ],
+    [
+      'data-testid="database-pending-manual-review-sample-key"',
+      "Sync UI must expose stable metadata-only database key hooks for manual review.",
     ],
     [
       "最早排队",
@@ -5850,6 +5878,18 @@ function run() {
     [
       "failedSampleKeys",
       "Database pending status must expose metadata-only failed sample keys.",
+    ],
+    [
+      "PENDING_CLOUD_DATABASE_MANUAL_REVIEW_FAILURE_COUNT",
+      "Database pending status must define the repeated-failure threshold for owner review.",
+    ],
+    [
+      "failureCountTotal",
+      "Database pending status must expose aggregate failure counts without reading row values.",
+    ],
+    [
+      "manualReviewSampleKeys",
+      "Database pending status must expose metadata-only database keys for owner review.",
     ],
     [
       "lastFailureMessage",
@@ -12793,6 +12833,24 @@ function run() {
       accountPageSync,
       "failedSampleIds",
       "Account page sync pending status must expose metadata-only failed sample ids.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "PENDING_CLOUD_PAGE_MANUAL_REVIEW_FAILURE_COUNT",
+      "Account page sync pending status must define the repeated-failure threshold for owner review.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "failureCountTotal",
+      "Account page sync pending status must expose aggregate failure counts without reading page bodies.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "manualReviewSampleIds",
+      "Account page sync pending status must expose metadata-only page ids for owner review.",
     ],
     [
       files.accountPageSync,

@@ -5210,6 +5210,24 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "PENDING_CLOUD_PAGE_MANUAL_REVIEW_FAILURE_COUNT",
+    "Page pending status must define a repeated-failure threshold before asking the owner to intervene."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "failureCountTotal",
+    "Page pending status must expose aggregate retry failure counts as metadata."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "manualReviewSampleIds",
+    "Page pending status must expose metadata-only page ids that need manual review."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "lastFailureMessage",
     "Page pending status must expose the latest failure reason without reading page bodies."
   );
@@ -5254,6 +5272,30 @@ function run() {
     syncShell,
     "最近失败样本",
     "Sync UI must show failed pending queue samples for retry diagnosis."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "反复失败",
+    "Sync UI must show repeated failure counts separately from first-time failures."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "需人工处理",
+    "Sync UI must escalate repeated upload failures into an owner action state."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid="sync-upload-manual-review-warning"',
+    "Sync UI must expose a stable manual review warning hook."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid="page-pending-manual-review-sample-id"',
+    "Sync UI must expose metadata-only page ids for manual review."
   );
   assertIncludes(
     files.syncShell,
@@ -5356,6 +5398,24 @@ function run() {
     accountDatabaseSync,
     "export async function getPendingCloudDatabaseSyncStatus",
     "Smoke verifier must keep database pending upload status visible to the sync dashboard."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "PENDING_CLOUD_DATABASE_MANUAL_REVIEW_FAILURE_COUNT",
+    "Database pending status must define a repeated-failure threshold before asking the owner to intervene."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "failureCountTotal",
+    "Database pending status must expose aggregate retry failure counts as metadata."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "manualReviewSampleKeys",
+    "Database pending status must expose metadata-only keys that need manual review."
   );
   assertIncludes(
     files.accountDatabaseSync,
@@ -5512,6 +5572,18 @@ function run() {
     syncShell,
     'data-testid="database-pending-sample-key"',
     "Sync UI must expose stable test hooks for metadata-only database key samples."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid="database-pending-manual-review-sample-key"',
+    "Sync UI must expose metadata-only database keys for manual review."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "数据库需人工处理",
+    "Sync UI must show repeated database upload failures as an owner action state."
   );
   assertIncludes(
     files.syncShell,

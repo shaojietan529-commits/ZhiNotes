@@ -128,6 +128,11 @@ export interface PendingCloudPageSyncStatus {
   pending: number;
   queued: number;
   failed: number;
+  failureCountTotal: number;
+  maxFailureCount: number;
+  manualReviewCount: number;
+  manualReviewFailureThreshold: number;
+  manualReviewSampleIds: string[];
   oldestPendingQueuedAt: string | null;
   lastAttemptAt: string | null;
   lastFailureAt: string | null;
@@ -148,6 +153,7 @@ interface PendingCloudPushMetaEntry {
 }
 
 type PendingCloudPushMeta = Record<string, PendingCloudPushMetaEntry>;
+const PENDING_CLOUD_PAGE_MANUAL_REVIEW_FAILURE_COUNT = 3;
 type AuthRetryProbeStatus = PageSyncStatus | "ok";
 type AuthRetryProbeWindow = Window & {
   [AUTH_RETRY_PROBE_WINDOW_KEY]?: Promise<AuthRetryProbeStatus>;
@@ -1772,6 +1778,18 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
   const pendingMeta = getPendingCloudPushMeta();
   const authRetry = getAuthRetrySnapshot();
   const failedIds = pendingIds.filter((id) => Boolean(pendingMeta[id]?.lastError));
+  const failureCounts = pendingIds.map(
+    (id) => pendingMeta[id]?.failureCount ?? 0
+  );
+  const failureCountTotal = failureCounts.reduce((sum, count) => sum + count, 0);
+  const maxFailureCount =
+    failureCounts.length > 0 ? Math.max(...failureCounts) : 0;
+  const manualReviewIds = failedIds.filter(
+    (id) =>
+      (pendingMeta[id]?.failureCount ?? 0) >=
+      PENDING_CLOUD_PAGE_MANUAL_REVIEW_FAILURE_COUNT
+  );
+  const manualReviewSampleIds = manualReviewIds.slice(0, 5);
   const oldestPendingQueuedAt = pendingIds.reduce<string | null>((oldest, id) => {
     const queuedAt = pendingMeta[id]?.queuedAt ?? null;
     if (!queuedAt) return oldest;
@@ -1790,6 +1808,12 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
     pending: pendingIds.length,
     queued: queuedCloudPush.size,
     failed: failedIds.length,
+    failureCountTotal,
+    maxFailureCount,
+    manualReviewCount: manualReviewIds.length,
+    manualReviewFailureThreshold:
+      PENDING_CLOUD_PAGE_MANUAL_REVIEW_FAILURE_COUNT,
+    manualReviewSampleIds,
     oldestPendingQueuedAt,
     lastAttemptAt,
     lastFailureAt: latestFailedId

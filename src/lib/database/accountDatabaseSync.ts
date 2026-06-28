@@ -157,6 +157,11 @@ export interface PendingCloudDatabaseSyncStatus {
   queued: number;
   syncLogPending: number;
   failed: number;
+  failureCountTotal: number;
+  maxFailureCount: number;
+  manualReviewCount: number;
+  manualReviewFailureThreshold: number;
+  manualReviewSampleKeys: string[];
   oldestPendingQueuedAt: string | null;
   lastAttemptAt: string | null;
   lastFailureAt: string | null;
@@ -180,6 +185,7 @@ type PendingCloudDatabasePushMeta = Record<
   string,
   PendingCloudDatabasePushMetaEntry
 >;
+const PENDING_CLOUD_DATABASE_MANUAL_REVIEW_FAILURE_COUNT = 3;
 
 export interface DatabaseReconcileResult {
   status: DatabaseSyncStatus;
@@ -1434,6 +1440,18 @@ export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudD
   const failedKeys = pendingKeys.filter((key) =>
     Boolean(pendingMeta[key]?.lastError)
   );
+  const failureCounts = pendingKeys.map(
+    (key) => pendingMeta[key]?.failureCount ?? 0
+  );
+  const failureCountTotal = failureCounts.reduce((sum, count) => sum + count, 0);
+  const maxFailureCount =
+    failureCounts.length > 0 ? Math.max(...failureCounts) : 0;
+  const manualReviewKeys = failedKeys.filter(
+    (key) =>
+      (pendingMeta[key]?.failureCount ?? 0) >=
+      PENDING_CLOUD_DATABASE_MANUAL_REVIEW_FAILURE_COUNT
+  );
+  const manualReviewSampleKeys = manualReviewKeys.slice(0, 5);
   const oldestPendingQueuedAt = pendingKeys.reduce<string | null>(
     (oldest, key) => {
       const queuedAt = pendingMeta[key]?.queuedAt ?? null;
@@ -1455,6 +1473,12 @@ export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudD
     queued: queuedCloudDatabasePush.size,
     syncLogPending,
     failed: failedKeys.length,
+    failureCountTotal,
+    maxFailureCount,
+    manualReviewCount: manualReviewKeys.length,
+    manualReviewFailureThreshold:
+      PENDING_CLOUD_DATABASE_MANUAL_REVIEW_FAILURE_COUNT,
+    manualReviewSampleKeys,
     oldestPendingQueuedAt,
     lastAttemptAt,
     lastFailureAt: latestFailedKey
