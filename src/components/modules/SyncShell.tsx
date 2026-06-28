@@ -298,6 +298,7 @@ import {
   type CacheRebuildPreflightGateStatus,
   type CacheRebuildPreflightStatus,
 } from "@/lib/sync/cacheRebuildPreflightReceipt";
+import { buildSyncManualReviewPacket } from "@/lib/sync/syncManualReviewPacket";
 import {
   buildCloudNativeFluidityReport,
   type CloudNativeFluidityGateStatus,
@@ -460,6 +461,7 @@ import type { Database, Page } from "@/lib/utils/types";
 type ExportAction = "backup" | "zip" | "markdown";
 type SyncQueueAction =
   | "queue"
+  | "manual-review-packet"
   | "page-pending"
   | "database-pending"
   | "payload-preview"
@@ -3857,6 +3859,27 @@ function SyncDashboard() {
     } catch (err) {
       console.error("[Zhinote] Failed to export sync queue snapshot:", err);
       window.alert("Sync queue export failed. Please check the console.");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportSyncManualReviewPacket = () => {
+    setBusyQueueAction("manual-review-packet");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-manual-review-packet-${fileSafeTimestamp()}.json`,
+        buildSyncManualReviewPacket({
+          pageStatus: pagePendingStatus,
+          databaseStatus: databasePendingStatus,
+          totalSyncPending: syncSummary?.pending ?? 0,
+        })
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export sync manual review packet:", err);
+      window.alert(
+        "Sync manual review packet export failed. Please check the console."
+      );
     } finally {
       setBusyQueueAction(null);
     }
@@ -9614,6 +9637,7 @@ function SyncDashboard() {
                 databaseStatus={databasePendingStatus}
                 totalSyncPending={syncSummary?.pending ?? 0}
                 busyQueueAction={busyQueueAction}
+                onExportManualReview={handleExportSyncManualReviewPacket}
                 onRetryPage={() => void handleRetryPagePendingPush()}
                 onRetryDatabase={() => void handleRetryDatabasePendingPush()}
               />
@@ -15979,6 +16003,7 @@ function SyncUploadSafetyPanel({
   databaseStatus,
   totalSyncPending,
   busyQueueAction,
+  onExportManualReview,
   onRetryPage,
   onRetryDatabase,
 }: {
@@ -15986,6 +16011,7 @@ function SyncUploadSafetyPanel({
   databaseStatus: PendingCloudDatabaseSyncStatus;
   totalSyncPending: number;
   busyQueueAction: SyncQueueAction | null;
+  onExportManualReview: () => void;
   onRetryPage: () => void;
   onRetryDatabase: () => void;
 }) {
@@ -16145,6 +16171,16 @@ function SyncUploadSafetyPanel({
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onExportManualReview}
+            disabled={busyQueueAction === "manual-review-packet"}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {busyQueueAction === "manual-review-packet"
+              ? "导出中..."
+              : "导出处理包"}
+          </button>
           <button
             type="button"
             onClick={onRetryPage}

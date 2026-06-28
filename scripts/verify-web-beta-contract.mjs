@@ -17,6 +17,7 @@ const files = {
   webAlphaLaunchDecisionReceipt:
     "src/lib/sync/webAlphaLaunchDecisionReceipt.ts",
   webBetaOwnerReviewPacket: "src/lib/sync/webBetaOwnerReviewPacket.ts",
+  syncManualReviewPacket: "src/lib/sync/syncManualReviewPacket.ts",
   privateFileStoragePolicy: "src/lib/sync/privateFileStoragePolicy.ts",
   filePresignApiStub: "src/lib/sync/filePresignApiStub.ts",
   filePresignRoute: "src/app/api/files/presign/route.ts",
@@ -342,6 +343,7 @@ function run() {
   const webBetaOwnerReviewPacket = readProjectFile(
     files.webBetaOwnerReviewPacket
   );
+  const syncManualReviewPacket = readProjectFile(files.syncManualReviewPacket);
   const privateFileStoragePolicy = readProjectFile(files.privateFileStoragePolicy);
   const filePresignApiStub = readProjectFile(files.filePresignApiStub);
   const filePresignRoute = readProjectFile(files.filePresignRoute);
@@ -586,6 +588,7 @@ function run() {
     [files.smokeTestVerifier, smokeTestVerifier],
     [files.webAlphaLaunchDecisionReceipt, webAlphaLaunchDecisionReceipt],
     [files.webBetaOwnerReviewPacket, webBetaOwnerReviewPacket],
+    [files.syncManualReviewPacket, syncManualReviewPacket],
     [files.replayHarnessVerifier, replayHarnessVerifier],
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
@@ -5699,8 +5702,154 @@ function run() {
       "router.push(\"/account\")",
       "Cache rebuild entrypoint must navigate to the account page instead of directly clearing cache.",
     ],
+    [
+      "handleExportSyncManualReviewPacket",
+      "Sync UI must expose a local manual review packet export handler.",
+    ],
+    [
+      "buildSyncManualReviewPacket",
+      "Sync UI must build manual review packets from queue metadata.",
+    ],
+    [
+      "manual-review-packet",
+      "Sync UI must track manual review packet export as its own busy state.",
+    ],
+    [
+      "zhinote-sync-manual-review-packet",
+      "Sync UI must download the manual review packet under a stable filename.",
+    ],
+    [
+      "导出处理包",
+      "Sync UI must render the manual review packet export action.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-sync-manual-review-packet"',
+      "Manual review packet must declare a stable export format.",
+    ],
+    [
+      'packet_status: "metadata-only-local-review"',
+      "Manual review packet must stay local and metadata-only.",
+    ],
+    [
+      "buildSyncManualReviewPacket",
+      "Manual review packet must have a single builder entrypoint.",
+    ],
+    [
+      "local_packet_only: true",
+      "Manual review packet must declare it is local only.",
+    ],
+    [
+      "reads_queue_counts: true",
+      "Manual review packet may read queue counts.",
+    ],
+    [
+      "reads_page_ids: true",
+      "Manual review packet may read page ids for diagnosis.",
+    ],
+    [
+      "reads_database_keys: true",
+      "Manual review packet may read database keys for diagnosis.",
+    ],
+    [
+      "reads_failure_counts: true",
+      "Manual review packet may read failure counts.",
+    ],
+    [
+      "reads_failure_messages: true",
+      "Manual review packet may read failure messages.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Manual review packet must not read page body text.",
+    ],
+    [
+      "reads_page_yjs: false",
+      "Manual review packet must not read page Yjs payloads.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Manual review packet must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Manual review packet must not read comment bodies.",
+    ],
+    [
+      "reads_file_names: false",
+      "Manual review packet must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Manual review packet must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Manual review packet must not read secret values.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Manual review packet must not send network requests.",
+    ],
+    [
+      "writes_server_data: false",
+      "Manual review packet must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Manual review packet must not upload workspace data.",
+    ],
+    [
+      "clears_local_cache: false",
+      "Manual review packet must not clear local cache.",
+    ],
+    [
+      "mutates_local_cache_records: false",
+      "Manual review packet must not mutate local cache records.",
+    ],
+    [
+      "enables_sync: false",
+      "Manual review packet must not enable sync.",
+    ],
+    [
+      "enables_ai: false",
+      "Manual review packet must not enable AI.",
+    ],
+    [
+      "includes_only_counts_ids_keys_timestamps_and_error_messages: true",
+      "Manual review packet must only include counts, ids, keys, timestamps, and failure messages.",
+    ],
+    [
+      "manual_review_sample_ids_or_keys",
+      "Manual review packet must surface metadata-only repeated failure samples.",
+    ],
+    [
+      "can_retry_before_owner_review",
+      "Manual review packet must tell whether retry is safe before owner review.",
+    ],
+    [
+      "cache_rebuild_should_wait",
+      "Manual review packet must warn when cache rebuild should wait.",
+    ],
+    [
+      "owner_actions",
+      "Manual review packet must include owner-facing next actions.",
+    ],
+    [
+      "excluded_payload_classes",
+      "Manual review packet must document payload classes it excludes.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.syncManualReviewPacket,
+      syncManualReviewPacket,
+      snippet,
+      message
+    );
   }
 
   for (const [snippet, message] of [

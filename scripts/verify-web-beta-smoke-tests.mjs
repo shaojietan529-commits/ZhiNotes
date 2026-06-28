@@ -17,6 +17,7 @@ const files = {
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
     "src/lib/sync/cacheRebuildPreflightReceipt.ts",
+  syncManualReviewPacket: "src/lib/sync/syncManualReviewPacket.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
@@ -311,6 +312,7 @@ function run() {
   const cacheRebuildPreflightReceipt = readProjectFile(
     files.cacheRebuildPreflightReceipt
   );
+  const syncManualReviewPacket = readProjectFile(files.syncManualReviewPacket);
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
@@ -5296,6 +5298,102 @@ function run() {
     syncShell,
     'data-testid="page-pending-manual-review-sample-id"',
     "Sync UI must expose metadata-only page ids for manual review."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportSyncManualReviewPacket",
+    "Sync UI must expose a local manual review packet export handler."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildSyncManualReviewPacket",
+    "Sync UI must build manual review packets from queue metadata."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "manual-review-packet",
+    "Sync UI must track manual review packet export as its own busy state."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "zhinote-sync-manual-review-packet",
+    "Sync UI must download the manual review packet under a stable filename."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出处理包",
+    "Sync UI must render the manual review packet export action."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    'format: "zhinote-sync-manual-review-packet"',
+    "Manual review packet must declare a stable export format."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    'packet_status: "metadata-only-local-review"',
+    "Manual review packet must stay local and metadata-only."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "includes_only_counts_ids_keys_timestamps_and_error_messages: true",
+    "Manual review packet must only include counts, ids, keys, timestamps, and failure messages."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "reads_page_body_text: false",
+    "Manual review packet must not read page body text."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "reads_database_row_values: false",
+    "Manual review packet must not read database row values."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "sends_network_requests: false",
+    "Manual review packet must not send network requests."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "uploads_workspace_data: false",
+    "Manual review packet must not upload workspace data."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "clears_local_cache: false",
+    "Manual review packet must not clear local cache."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "manual_review_sample_ids_or_keys",
+    "Manual review packet must surface metadata-only repeated failure samples."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "owner_actions",
+    "Manual review packet must include owner-facing next actions."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "excluded_payload_classes",
+    "Manual review packet must document payload classes it excludes."
   );
   assertIncludes(
     files.syncShell,
