@@ -4,6 +4,8 @@ import type { ClientAccountInfo } from "@/lib/account/clientProfile";
 
 const ACCOUNT_SESSION_CACHE_MS = 10 * 1000;
 const ACCOUNT_SESSION_RETRY_BACKOFF_MS = 2 * 60 * 1000;
+const ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY =
+  "zhinote:account-session-unconfigured:v1";
 
 export type AccountSessionStatus = "ok" | "unconfigured" | "error";
 
@@ -24,6 +26,7 @@ export function clearAccountSessionCache(): void {
   cachedAccountSession = null;
   cachedAccountSessionAt = 0;
   accountSessionRetryAfter = 0;
+  clearStoredUnconfiguredAccountSession();
 }
 
 export async function fetchAccountSession(
@@ -42,6 +45,15 @@ export async function fetchAccountSession(
       return cachedAccountSession;
     }
   }
+  if (!options.force) {
+    const storedUnconfigured = readStoredUnconfiguredAccountSession(now);
+    if (storedUnconfigured) {
+      cachedAccountSession = storedUnconfigured;
+      cachedAccountSessionAt = now;
+      accountSessionRetryAfter = now + ACCOUNT_SESSION_RETRY_BACKOFF_MS;
+      return storedUnconfigured;
+    }
+  }
   if (accountSessionInFlight) {
     return accountSessionInFlight;
   }
@@ -56,6 +68,11 @@ export async function fetchAccountSession(
     result.status === "unconfigured" || result.status === "error"
       ? Date.now() + ACCOUNT_SESSION_RETRY_BACKOFF_MS
       : 0;
+  if (result.status === "unconfigured") {
+    storeUnconfiguredAccountSession(Date.now());
+  } else if (result.status === "ok") {
+    clearStoredUnconfiguredAccountSession();
+  }
   return result;
 }
 
@@ -94,5 +111,54 @@ async function runFetchAccountSession(): Promise<AccountSessionResult> {
       account: null,
       error: "network error",
     };
+  }
+}
+
+function readStoredUnconfiguredAccountSession(
+  now: number
+): AccountSessionResult | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(
+      ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY
+    );
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as { status?: string; cachedAt?: unknown };
+    if (cached.status !== "unconfigured" || typeof cached.cachedAt !== "number") {
+      return null;
+    }
+    if (now - cached.cachedAt > ACCOUNT_SESSION_RETRY_BACKOFF_MS) {
+      window.sessionStorage.removeItem(ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY);
+      return null;
+    }
+    return {
+      status: "unconfigured",
+      authenticated: false,
+      account: null,
+      error: "account system not configured",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function storeUnconfiguredAccountSession(now: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(
+      ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY,
+      JSON.stringify({ status: "unconfigured", cachedAt: now })
+    );
+  } catch {
+    // Session storage is optional; memory caching still protects this tab.
+  }
+}
+
+function clearStoredUnconfiguredAccountSession(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY);
+  } catch {
+    // Ignore storage failures; account checks can still use the network path.
   }
 }

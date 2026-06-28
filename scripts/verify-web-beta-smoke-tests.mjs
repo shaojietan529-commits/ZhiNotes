@@ -46,6 +46,7 @@ const files = {
     "src/lib/sync/accountModuleSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountCloudSyncGate: "src/lib/account/accountCloudSyncGate.ts",
+  accountClientSession: "src/lib/account/clientSession.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
@@ -375,6 +376,7 @@ function run() {
   );
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountCloudSyncGate = readProjectFile(files.accountCloudSyncGate);
+  const accountClientSession = readProjectFile(files.accountClientSession);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
   const pendingPageDrafts = readProjectFile(files.pendingPageDrafts);
@@ -3889,6 +3891,30 @@ function run() {
     "stores_account_email: false",
     "Account cloud sync gate must not persist account emails."
   );
+  for (const [snippet, message] of [
+    [
+      "ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY",
+      "Account session checks must persist a short unconfigured-backend cache per browser tab.",
+    ],
+    [
+      "readStoredUnconfiguredAccountSession(now)",
+      "Account session checks must consult the tab cache before retrying a disabled account backend.",
+    ],
+    [
+      "storeUnconfiguredAccountSession(Date.now())",
+      "Account session checks must remember 501 account backend responses without storing account identity.",
+    ],
+    [
+      "clearStoredUnconfiguredAccountSession()",
+      "Account session cache clearing must remove the tab-level unconfigured marker.",
+    ],
+    [
+      "window.sessionStorage.setItem",
+      "Account session unconfigured caching must stay tab-scoped instead of localStorage-persistent.",
+    ],
+  ]) {
+    assertIncludes(files.accountClientSession, accountClientSession, snippet, message);
+  }
   assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
