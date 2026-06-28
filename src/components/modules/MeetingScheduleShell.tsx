@@ -76,7 +76,7 @@ import {
   stringifyPageProperties,
   type PageProperty,
 } from "@/lib/pages/pageProperties";
-import PageContextMenu from "@/components/page/PageContextMenu";
+import PageContextMenu from "@/components/page/LazyPageContextMenu";
 import PagePeekModal, {
   warmPagePeekModal,
 } from "@/components/page/LazyPagePeekModal";

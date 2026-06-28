@@ -18,7 +18,7 @@ import {
 import { collectMovedPageSnapshots } from "@/lib/pages/pageSnapshotUpdates";
 import { usePages } from "@/hooks/usePages";
 import type { Page } from "@/lib/utils/types";
-import PageContextMenu from "@/components/page/PageContextMenu";
+import PageContextMenu from "@/components/page/LazyPageContextMenu";
 
 type DropTarget = {
   pageId: string;

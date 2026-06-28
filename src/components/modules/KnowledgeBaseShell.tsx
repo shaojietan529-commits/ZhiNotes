@@ -33,7 +33,7 @@ import {
   buildFileLibraryPageContent,
   buildFileLibraryPageTitle,
 } from "@/lib/files/filePage";
-import PageContextMenu from "@/components/page/PageContextMenu";
+import PageContextMenu from "@/components/page/LazyPageContextMenu";
 import PagePeekModal, {
   warmPagePeekModal,
 } from "@/components/page/LazyPagePeekModal";

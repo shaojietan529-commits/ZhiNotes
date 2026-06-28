@@ -84,6 +84,9 @@ const trashPagesSource = read("src/components/sidebar/TrashPages.tsx");
 const moduleDashboardSource = read("src/components/modules/ModuleDashboard.tsx");
 const pageTreeSource = read("src/components/sidebar/PageTree.tsx");
 const pageContextMenuSource = read("src/components/page/PageContextMenu.tsx");
+const lazyPageContextMenuSource = read(
+  "src/components/page/LazyPageContextMenu.tsx"
+);
 const pageUpdateBus = read("src/lib/pages/pageUpdateBus.ts");
 const accountPageSync = read("src/lib/pages/accountPageSync.ts");
 const scopedPageMetadata = read("src/lib/pages/scopedPageMetadata.ts");
@@ -397,6 +400,24 @@ check(
     pageContextMenuSource.includes("deleted_at: deletedAt") &&
     !pageContextMenuSource.includes("await refresh()"),
   "PageContextMenu 复制/粘贴/移动/删除必须局部 upsert，不能依赖调用方全量刷新"
+);
+check(
+  pageContextMenuSource.includes("export interface PageContextMenuProps") &&
+    lazyPageContextMenuSource.includes("function loadPageContextMenu()") &&
+    lazyPageContextMenuSource.includes("export function warmPageContextMenu()") &&
+    lazyPageContextMenuSource.includes('import("@/components/page/PageContextMenu")') &&
+    lazyPageContextMenuSource.includes("dynamic<PageContextMenuProps>(loadPageContextMenu") &&
+    pageTreeSource.includes("@/components/page/LazyPageContextMenu") &&
+    shells.daily.includes("@/components/page/LazyPageContextMenu") &&
+    shells.schedule.includes("@/components/page/LazyPageContextMenu") &&
+    shells.knowledge.includes("@/components/page/LazyPageContextMenu") &&
+    shells.chain.includes("@/components/page/LazyPageContextMenu") &&
+    !pageTreeSource.includes("@/components/page/PageContextMenu") &&
+    !shells.daily.includes("@/components/page/PageContextMenu") &&
+    !shells.schedule.includes("@/components/page/PageContextMenu") &&
+    !shells.knowledge.includes("@/components/page/PageContextMenu") &&
+    !shells.chain.includes("@/components/page/PageContextMenu"),
+  "PageContextMenu 必须通过 LazyPageContextMenu 按右键意图加载，不能拖慢侧边栏、每日、会议、知识库、产业链首屏"
 );
 check(
   !sidebarSource.includes("usePages") &&

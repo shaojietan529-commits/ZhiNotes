@@ -24,7 +24,7 @@ import {
   isKnowledgeCompanyLinkPage,
   resolveIndustryNodeTargetPageId,
 } from "@/lib/pages/industryChainCompanyLinks";
-import PageContextMenu from "@/components/page/PageContextMenu";
+import PageContextMenu from "@/components/page/LazyPageContextMenu";
 import {
   listScopedPageMetadata,
   mergePageMetadata,

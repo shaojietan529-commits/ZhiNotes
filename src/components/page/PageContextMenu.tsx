@@ -18,7 +18,7 @@ import { collectMovedPageSnapshots } from "@/lib/pages/pageSnapshotUpdates";
 import { usePages } from "@/hooks/usePages";
 import type { Page } from "@/lib/utils/types";
 
-interface PageContextMenuProps {
+export interface PageContextMenuProps {
   pageId: string;
   x: number;
   y: number;

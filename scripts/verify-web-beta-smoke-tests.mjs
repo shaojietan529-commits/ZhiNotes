@@ -68,6 +68,8 @@ const files = {
   usePages: "src/hooks/usePages.ts",
   workspaceStore: "src/stores/workspaceStore.ts",
   pagePeekModal: "src/components/page/PagePeekModal.tsx",
+  pageContextMenu: "src/components/page/PageContextMenu.tsx",
+  lazyPageContextMenu: "src/components/page/LazyPageContextMenu.tsx",
   usePageFavorites: "src/hooks/usePageFavorites.ts",
   usePageViewPreferences: "src/hooks/usePageViewPreferences.ts",
   useCalendarViewMonthPreference:
@@ -392,6 +394,8 @@ function run() {
     files.pageBodyHydrationStatus
   );
   const pagePeekModal = readProjectFile(files.pagePeekModal);
+  const pageContextMenu = readProjectFile(files.pageContextMenu);
+  const lazyPageContextMenu = readProjectFile(files.lazyPageContextMenu);
   const usePageFavorites = readProjectFile(files.usePageFavorites);
   const usePageViewPreferences = readProjectFile(files.usePageViewPreferences);
   const useCalendarViewMonthPreference = readProjectFile(
@@ -1164,6 +1168,38 @@ function run() {
     'route: "/page/[pageId]#peek"',
     "Page peek performance snapshots must not include the raw page id."
   );
+  assertIncludes(
+    files.pageContextMenu,
+    pageContextMenu,
+    "usePages({ autoLoad: false })",
+    "Page context menu must keep move/copy/delete operations local and avoid full page-list loading."
+  );
+  assertIncludes(
+    files.lazyPageContextMenu,
+    lazyPageContextMenu,
+    "dynamic<PageContextMenuProps>(loadPageContextMenu",
+    "Page context menu must be lazy-loaded so right-click actions do not slow common first paint."
+  );
+  for (const [sourceLabel, source] of [
+    [files.pageTree, pageTree],
+    [files.dailyNotesShell, dailyNotesShell],
+    [files.meetingScheduleShell, meetingScheduleShell],
+    [files.knowledgeBaseShell, knowledgeBaseShell],
+    [files.industryChainShell, industryChainShell],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "@/components/page/LazyPageContextMenu",
+      "Sidebar and research calendar/workspace shells must lazy-load the page context menu."
+    );
+    assertExcludes(
+      sourceLabel,
+      source,
+      "@/components/page/PageContextMenu",
+      "Sidebar and research calendar/workspace shells must not direct-import the heavy page context menu."
+    );
+  }
   assertIncludes(
     files.syncShell,
     syncShell,

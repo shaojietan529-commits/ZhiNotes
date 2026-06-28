@@ -73,7 +73,7 @@ import {
 } from "@/lib/sync/hotCacheSelectionSettings";
 import { useCalendarViewMonthPreference } from "@/hooks/useCalendarViewMonthPreference";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
-import PageContextMenu from "@/components/page/PageContextMenu";
+import PageContextMenu from "@/components/page/LazyPageContextMenu";
 import PagePeekModal, {
   warmPagePeekModal,
 } from "@/components/page/LazyPagePeekModal";
