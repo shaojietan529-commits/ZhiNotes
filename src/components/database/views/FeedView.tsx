@@ -23,6 +23,7 @@ interface FeedViewProps {
   onDeleteRow: (rowId: string) => void;
   onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
+  onPrimeRow?: (pageId: string) => void;
   onOpenPage: (pageId: string) => void;
   relationPages: Page[];
   showAddRow?: boolean;
@@ -36,6 +37,7 @@ export default function FeedView({
   onDeleteRow,
   onDuplicateRow,
   onOpenRow,
+  onPrimeRow,
   onOpenPage,
   relationPages,
   showAddRow = true,
@@ -59,6 +61,7 @@ export default function FeedView({
               fields={fields}
               relationPages={relationPages}
               onOpenRow={onOpenRow}
+              onPrimeRow={onPrimeRow}
               onOpenPage={onOpenPage}
               onDeleteRow={onDeleteRow}
               onDuplicateRow={onDuplicateRow}
@@ -95,6 +98,7 @@ function FeedCard({
   fields,
   relationPages,
   onOpenRow,
+  onPrimeRow,
   onOpenPage,
   onDeleteRow,
   onDuplicateRow,
@@ -104,6 +108,7 @@ function FeedCard({
   fields: DatabaseField[];
   relationPages: Page[];
   onOpenRow: (pageId: string) => void;
+  onPrimeRow?: (pageId: string) => void;
   onOpenPage: (pageId: string) => void;
   onDeleteRow: (rowId: string) => void;
   onDuplicateRow: (rowId: string) => void;
@@ -130,6 +135,9 @@ function FeedCard({
       <div className="flex items-start justify-between gap-3">
         <button
           type="button"
+          onPointerEnter={() => onPrimeRow?.(row.page_id)}
+          onPointerDown={() => onPrimeRow?.(row.page_id)}
+          onFocus={() => onPrimeRow?.(row.page_id)}
           onClick={() => onOpenRow(row.page_id)}
           className="min-w-0 flex-1 text-left"
         >

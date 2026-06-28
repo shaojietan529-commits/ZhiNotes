@@ -168,6 +168,7 @@ const DATABASE_IMPORT_CONFIRMATION_PHRASE =
   getHighRiskRequiredPhrase("bulk-import");
 const DATABASE_TABLE_FROZEN_FIELD_LIMIT = 3;
 const DATABASE_VIEW_INITIAL_RENDER_LIMIT = 80;
+const DATABASE_ROW_PAGE_PRIME_DEDUPE_MS = 2500;
 const DATABASE_VIEW_RENDER_BATCH = 80;
 const DATABASE_VIEW_RENDER_CAPPED_TYPES = new Set([
   "table",
@@ -296,6 +297,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const databaseImportInputRef = useRef<HTMLInputElement | null>(null);
   const initialCloudHydrateRef = useRef<string | null>(null);
   const optimisticDatabaseMutationBlockUntilRef = useRef(0);
+  const databaseRowPagePrimeIdsRef = useRef<Set<string>>(new Set());
   const databaseRowPageWarmupIdsRef = useRef<Set<string>>(new Set());
   const cloudFallbackSnapshotRef = useRef<{
     databaseId: string;
@@ -664,6 +666,36 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     ]
   );
 
+  const primeDatabaseRowPageOpen = useCallback(
+    (page: Page) => {
+      if (databaseRowPagePrimeIdsRef.current.has(page.id)) return;
+      databaseRowPagePrimeIdsRef.current.add(page.id);
+      prepareDatabaseRowPageOpen(page, "database-row-open");
+      scheduleDatabaseIdleTask(() => {
+        databaseRowPagePrimeIdsRef.current.delete(page.id);
+      }, DATABASE_ROW_PAGE_PRIME_DEDUPE_MS);
+    },
+    [prepareDatabaseRowPageOpen]
+  );
+
+  const primeDatabaseRowPageOpenById = useCallback(
+    (pageId: string) => {
+      const row = rows.find((item) => item.page_id === pageId) ?? null;
+      if (row) {
+        primeDatabaseRowPageOpen(row.page);
+        return;
+      }
+      const page =
+        workspacePages.find((item) => item.id === pageId) ??
+        useWorkspaceStore.getState().getPageById(pageId) ??
+        null;
+      if (page) {
+        primeDatabaseRowPageOpen(page);
+      }
+    },
+    [primeDatabaseRowPageOpen, rows, workspacePages]
+  );
+
   const handleAddRow = useCallback(async () => {
     try {
       const { addRow } = await loadDatabaseMutationModule();
@@ -944,6 +976,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
   const handleOpenRow = useCallback(
     (pageId: string) => {
+      primeDatabaseRowPageOpenById(pageId);
       const view = views.find((item) => item.id === activeViewId) ?? views[0];
       const openMode = view
         ? parseDatabaseViewConfig(view.config).openMode
@@ -955,14 +988,15 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       setRowPeekMode(openMode);
       setSidePeekPageId(pageId);
     },
-    [activeViewId, openDatabaseRowFullPageById, views]
+    [activeViewId, openDatabaseRowFullPageById, primeDatabaseRowPageOpenById, views]
   );
 
   const handleOpenPage = useCallback(
     (pageId: string) => {
+      primeDatabaseRowPageOpenById(pageId);
       openDatabaseRowFullPageById(pageId);
     },
-    [openDatabaseRowFullPageById]
+    [openDatabaseRowFullPageById, primeDatabaseRowPageOpenById]
   );
 
   const handleClearRelationHandoff = useCallback(() => {
@@ -1277,6 +1311,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     canMoveRows: isDefaultSortRules(sortRules),
     onOpenRow: handleOpenRow,
     onOpenPage: handleOpenPage,
+    onPrimeRow: primeDatabaseRowPageOpenById,
     relationPages: workspacePages,
     focusPageId,
     focusPage,
@@ -1568,6 +1603,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           busyId={relationCompletionBusyId}
           onAddRelation={(row, field) => void handleAddFocusRelation(row, field)}
           onOpenRow={openDatabaseRowFullPageById}
+          onPrimeRow={primeDatabaseRowPageOpenById}
         />
       )}
 
@@ -1664,6 +1700,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
               chartGroupFieldId={chartGroupFieldId}
               relationPages={workspacePages}
               onOpenRow={handleOpenRow}
+              onPrimeRow={primeDatabaseRowPageOpenById}
             />
           )}
           {activeView?.view_type === "form" && (
@@ -1701,6 +1738,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
             setSidePeekPageId(null);
             openDatabaseRowFullPageById(pageId);
           }}
+          onPrimeOpen={() => primeDatabaseRowPageOpenById(sidePeekRow.page_id)}
         />
       )}
     </div>
@@ -1746,6 +1784,7 @@ function DatabaseRowSidePeekPanel({
   relationPages,
   onClose,
   onOpenFullPage,
+  onPrimeOpen,
 }: {
   database: Database;
   row: RowWithPage;
@@ -1754,6 +1793,7 @@ function DatabaseRowSidePeekPanel({
   relationPages: Page[];
   onClose: () => void;
   onOpenFullPage: (pageId: string) => void;
+  onPrimeOpen: () => void;
 }) {
   const isCenterPeek = mode === "center-peek";
   const { page: hydratedPage, loading: pagePreviewLoading } = usePage(
@@ -1875,6 +1915,9 @@ function DatabaseRowSidePeekPanel({
           </p>
           <button
             type="button"
+            onPointerEnter={onPrimeOpen}
+            onPointerDown={onPrimeOpen}
+            onFocus={onPrimeOpen}
             onClick={() => onOpenFullPage(row.page_id)}
             className="rounded bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >
@@ -2650,6 +2693,7 @@ function RelationCompletionAssistant({
   busyId,
   onAddRelation,
   onOpenRow,
+  onPrimeRow,
 }: {
   focusPage: Page;
   rows: RowWithPage[];
@@ -2657,6 +2701,7 @@ function RelationCompletionAssistant({
   busyId: string | null;
   onAddRelation: (row: RowWithPage, field: DatabaseField) => void;
   onOpenRow: (pageId: string) => void;
+  onPrimeRow: (pageId: string) => void;
 }) {
   const focusKind = classifyResearchPage(focusPage);
 
@@ -2698,6 +2743,7 @@ function RelationCompletionAssistant({
               busyId={busyId}
               onAddRelation={onAddRelation}
               onOpenRow={onOpenRow}
+              onPrimeRow={onPrimeRow}
             />
           ))}
         </div>
@@ -2916,6 +2962,7 @@ function RelationCompletionRow({
   busyId,
   onAddRelation,
   onOpenRow,
+  onPrimeRow,
 }: {
   row: RowWithPage;
   fields: DatabaseField[];
@@ -2923,6 +2970,7 @@ function RelationCompletionRow({
   busyId: string | null;
   onAddRelation: (row: RowWithPage, field: DatabaseField) => void;
   onOpenRow: (pageId: string) => void;
+  onPrimeRow: (pageId: string) => void;
 }) {
   const fieldValues = parseFieldValues(row.field_values);
 
@@ -2939,6 +2987,9 @@ function RelationCompletionRow({
         </div>
         <button
           type="button"
+          onPointerEnter={() => onPrimeRow(row.page_id)}
+          onPointerDown={() => onPrimeRow(row.page_id)}
+          onFocus={() => onPrimeRow(row.page_id)}
           onClick={() => onOpenRow(row.page_id)}
           className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
         >

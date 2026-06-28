@@ -17,6 +17,7 @@ interface CalendarViewProps {
   onDeleteRow: (rowId: string) => void;
   onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
+  onPrimeRow?: (pageId: string) => void;
   dateFieldId?: string;
 }
 
@@ -26,6 +27,7 @@ export default function CalendarView({
   onDeleteRow,
   onDuplicateRow,
   onOpenRow,
+  onPrimeRow,
   dateFieldId = "",
 }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -176,6 +178,9 @@ export default function CalendarView({
                     >
                       <button
                         type="button"
+                        onPointerEnter={() => onPrimeRow?.(row.page_id)}
+                        onPointerDown={() => onPrimeRow?.(row.page_id)}
+                        onFocus={() => onPrimeRow?.(row.page_id)}
                         onClick={() => onOpenRow(row.page_id)}
                         className="min-w-0 flex-1 truncate text-left text-[10px] hover:text-blue-800 dark:hover:text-blue-200"
                       >
@@ -215,6 +220,9 @@ export default function CalendarView({
               >
                 <button
                   type="button"
+                  onPointerEnter={() => onPrimeRow?.(row.page_id)}
+                  onPointerDown={() => onPrimeRow?.(row.page_id)}
+                  onFocus={() => onPrimeRow?.(row.page_id)}
                   onClick={() => onOpenRow(row.page_id)}
                   className="min-w-0 truncate text-left hover:text-blue-600 dark:hover:text-blue-300"
                 >

@@ -22,6 +22,7 @@ interface GalleryViewProps {
   onDuplicateRow: (rowId: string) => void;
   onMoveRow: (rowId: string, direction: "up" | "down") => void;
   onOpenRow: (pageId: string) => void;
+  onPrimeRow?: (pageId: string) => void;
   relationPages: Page[];
   showAddRow?: boolean;
   canMoveRows?: boolean;
@@ -35,6 +36,7 @@ export default function GalleryView({
   onDuplicateRow,
   onMoveRow,
   onOpenRow,
+  onPrimeRow,
   relationPages,
   showAddRow = true,
   canMoveRows = true,
@@ -76,6 +78,9 @@ export default function GalleryView({
               >
                 <button
                   type="button"
+                  onPointerEnter={() => onPrimeRow?.(row.page_id)}
+                  onPointerDown={() => onPrimeRow?.(row.page_id)}
+                  onFocus={() => onPrimeRow?.(row.page_id)}
                   onClick={() => onOpenRow(row.page_id)}
                   className="block w-full text-left"
                 >

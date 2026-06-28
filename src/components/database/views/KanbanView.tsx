@@ -24,6 +24,7 @@ interface KanbanViewProps {
   onDeleteRow: (rowId: string) => void;
   onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
+  onPrimeRow?: (pageId: string) => void;
   relationPages: Page[];
   groupFieldId?: string;
 }
@@ -34,6 +35,7 @@ export default function KanbanView({
   onDeleteRow,
   onDuplicateRow,
   onOpenRow,
+  onPrimeRow,
   relationPages,
   groupFieldId = "",
 }: KanbanViewProps) {
@@ -125,6 +127,10 @@ export default function KanbanView({
                   className="bg-white dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 p-3 hover:shadow-sm transition-shadow group"
                 >
                   <button
+                    type="button"
+                    onPointerEnter={() => onPrimeRow?.(row.page_id)}
+                    onPointerDown={() => onPrimeRow?.(row.page_id)}
+                    onFocus={() => onPrimeRow?.(row.page_id)}
                     onClick={() => onOpenRow(row.page_id)}
                     className="text-sm font-medium text-zinc-900 dark:text-zinc-100 text-left w-full hover:text-blue-600 dark:hover:text-blue-400"
                   >

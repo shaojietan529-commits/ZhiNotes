@@ -23,6 +23,7 @@ interface TimelineViewProps {
   onDeleteRow: (rowId: string) => void;
   onDuplicateRow: (rowId: string) => void;
   onOpenRow: (pageId: string) => void;
+  onPrimeRow?: (pageId: string) => void;
   relationPages: Page[];
   dateFieldId?: string;
 }
@@ -40,6 +41,7 @@ export default function TimelineView({
   onDeleteRow,
   onDuplicateRow,
   onOpenRow,
+  onPrimeRow,
   relationPages,
   dateFieldId = "",
 }: TimelineViewProps) {
@@ -115,6 +117,9 @@ export default function TimelineView({
                   <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
                     <button
                       type="button"
+                      onPointerEnter={() => onPrimeRow?.(row.page_id)}
+                      onPointerDown={() => onPrimeRow?.(row.page_id)}
+                      onFocus={() => onPrimeRow?.(row.page_id)}
                       onClick={() => onOpenRow(row.page_id)}
                       className="min-w-0 truncate text-left text-sm font-medium text-zinc-900 hover:text-blue-600 dark:text-zinc-100 dark:hover:text-blue-400"
                     >

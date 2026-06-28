@@ -83,6 +83,14 @@ const files = {
   localQueries: "src/lib/db/local/queries.ts",
   fileLocalStore: "src/lib/files/localStore.ts",
   databaseShell: "src/components/database/DatabaseShell.tsx",
+  databaseTableView: "src/components/database/views/TableView.tsx",
+  databaseListView: "src/components/database/views/ListView.tsx",
+  databaseKanbanView: "src/components/database/views/KanbanView.tsx",
+  databaseCalendarView: "src/components/database/views/CalendarView.tsx",
+  databaseGalleryView: "src/components/database/views/GalleryView.tsx",
+  databaseTimelineView: "src/components/database/views/TimelineView.tsx",
+  databaseChartView: "src/components/database/views/ChartView.tsx",
+  databaseFeedView: "src/components/database/views/FeedView.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
   filePreviewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
@@ -418,6 +426,14 @@ function run() {
   const localQueries = readProjectFile(files.localQueries);
   const fileLocalStore = readProjectFile(files.fileLocalStore);
   const databaseShell = readProjectFile(files.databaseShell);
+  const databaseTableView = readProjectFile(files.databaseTableView);
+  const databaseListView = readProjectFile(files.databaseListView);
+  const databaseKanbanView = readProjectFile(files.databaseKanbanView);
+  const databaseCalendarView = readProjectFile(files.databaseCalendarView);
+  const databaseGalleryView = readProjectFile(files.databaseGalleryView);
+  const databaseTimelineView = readProjectFile(files.databaseTimelineView);
+  const databaseChartView = readProjectFile(files.databaseChartView);
+  const databaseFeedView = readProjectFile(files.databaseFeedView);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
   const filePreviewNode = readProjectFile(files.filePreviewNode);
@@ -7208,6 +7224,88 @@ function run() {
     databaseShell,
     'openPage(pageId, { source: "database-row-open" })',
     "Database row page-id fallback must still use local-first navigation without a metadata seed."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "const primeDatabaseRowPageOpen = useCallback",
+    "Database row full-page opens must expose an early page-open prewarm hook."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "const primeDatabaseRowPageOpenById = useCallback",
+    "Database row full-page opens must prewarm row pages from view-level page ids."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "onPrimeRow: primeDatabaseRowPageOpenById",
+    "Database row views must receive the shared page-open prewarm hook."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "onPrimeOpen={() => primeDatabaseRowPageOpenById(sidePeekRow.page_id)}",
+    "Database side peek full-page opens must prewarm the target page before navigation."
+  );
+  for (const [sourceLabel, source] of [
+    [files.databaseListView, databaseListView],
+    [files.databaseKanbanView, databaseKanbanView],
+    [files.databaseCalendarView, databaseCalendarView],
+    [files.databaseGalleryView, databaseGalleryView],
+    [files.databaseTimelineView, databaseTimelineView],
+    [files.databaseChartView, databaseChartView],
+    [files.databaseFeedView, databaseFeedView],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "onPrimeRow?: (pageId: string) => void;",
+      "Database row views must accept a non-blocking page-open prewarm callback."
+    );
+    assertIncludes(
+      sourceLabel,
+      source,
+      "onPointerEnter={() => onPrimeRow?.(row.page_id)}",
+      "Database row views must prewarm page opens on hover."
+    );
+    assertIncludes(
+      sourceLabel,
+      source,
+      "onPointerDown={() => onPrimeRow?.(row.page_id)}",
+      "Database row views must prewarm page opens before click navigation."
+    );
+    assertIncludes(
+      sourceLabel,
+      source,
+      "onFocus={() => onPrimeRow?.(row.page_id)}",
+      "Database row views must prewarm page opens for keyboard users."
+    );
+  }
+  assertIncludes(
+    files.databaseTableView,
+    databaseTableView,
+    "onPrimeOpen={() => onPrimeRow?.(row.page_id)}",
+    "Database table rows must pass the row page prewarm callback into the title cell."
+  );
+  assertIncludes(
+    files.databaseTableView,
+    databaseTableView,
+    "onPointerEnter={onPrimeOpen}",
+    "Database table title cells must prewarm page opens on hover."
+  );
+  assertIncludes(
+    files.databaseTableView,
+    databaseTableView,
+    "onPointerDown={onPrimeOpen}",
+    "Database table title cells must prewarm page opens before click navigation."
+  );
+  assertIncludes(
+    files.databaseTableView,
+    databaseTableView,
+    "onFocus={onPrimeOpen}",
+    "Database table title cells must prewarm page opens for keyboard users."
   );
   assertIncludes(
     files.localFirstDatabaseNavigation,

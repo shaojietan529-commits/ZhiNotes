@@ -41,6 +41,7 @@ interface TableViewProps {
   onMoveRow: (rowId: string, direction: "up" | "down") => void;
   onOpenRow: (pageId: string) => void;
   onOpenPage: (pageId: string) => void;
+  onPrimeRow?: (pageId: string) => void;
   relationPages: Page[];
   focusPageId?: string;
   focusPage?: Page | null;
@@ -74,6 +75,7 @@ export default function TableView({
   onMoveRow,
   onOpenRow,
   onOpenPage,
+  onPrimeRow,
   relationPages,
   focusPageId,
   focusPage,
@@ -142,6 +144,7 @@ export default function TableView({
               onMoveDown={() => onMoveRow(row.id, "down")}
               canMoveUp={canMoveRows && index > 0}
               canMoveDown={canMoveRows && index < rows.length - 1}
+              onPrimeOpen={() => onPrimeRow?.(row.page_id)}
               onOpen={() => onOpenRow(row.page_id)}
               onOpenPage={onOpenPage}
               relationPages={relationPages}
@@ -245,6 +248,7 @@ function TableRow({
   onMoveDown,
   canMoveUp,
   canMoveDown,
+  onPrimeOpen,
   onOpen,
   onOpenPage,
   relationPages,
@@ -262,6 +266,7 @@ function TableRow({
   onMoveDown: () => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  onPrimeOpen: () => void;
   onOpen: () => void;
   onOpenPage: (pageId: string) => void;
   relationPages: Page[];
@@ -309,6 +314,10 @@ function TableRow({
             {i === 0 ? (
               // First field (Name) — clickable to open page
               <button
+                type="button"
+                onPointerEnter={onPrimeOpen}
+                onPointerDown={onPrimeOpen}
+                onFocus={onPrimeOpen}
                 onClick={onOpen}
                 className="block max-w-full truncate text-left font-medium text-blue-600 hover:underline dark:text-blue-400"
               >

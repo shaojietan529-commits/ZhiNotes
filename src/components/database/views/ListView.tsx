@@ -23,6 +23,7 @@ interface ListViewProps {
   onDuplicateRow: (rowId: string) => void;
   onMoveRow: (rowId: string, direction: "up" | "down") => void;
   onOpenRow: (pageId: string) => void;
+  onPrimeRow?: (pageId: string) => void;
   relationPages: Page[];
   showAddRow?: boolean;
   canMoveRows?: boolean;
@@ -36,6 +37,7 @@ export default function ListView({
   onDuplicateRow,
   onMoveRow,
   onOpenRow,
+  onPrimeRow,
   relationPages,
   showAddRow = true,
   canMoveRows = true,
@@ -63,6 +65,10 @@ export default function ListView({
                 className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900 group transition-colors"
               >
                 <button
+                  type="button"
+                  onPointerEnter={() => onPrimeRow?.(row.page_id)}
+                  onPointerDown={() => onPrimeRow?.(row.page_id)}
+                  onFocus={() => onPrimeRow?.(row.page_id)}
                   onClick={() => onOpenRow(row.page_id)}
                   className="flex-1 flex items-center gap-2 text-left"
                 >

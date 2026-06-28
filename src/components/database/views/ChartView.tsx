@@ -21,6 +21,7 @@ interface ChartViewProps {
   chartGroupFieldId?: string;
   relationPages: Page[];
   onOpenRow: (pageId: string) => void;
+  onPrimeRow?: (pageId: string) => void;
 }
 
 interface ChartBucket {
@@ -36,6 +37,7 @@ export default function ChartView({
   chartGroupFieldId,
   relationPages,
   onOpenRow,
+  onPrimeRow,
 }: ChartViewProps) {
   const groupField = useMemo(
     () => pickChartGroupField(fields, chartGroupFieldId),
@@ -117,6 +119,9 @@ export default function ChartView({
                   <button
                     key={row.id}
                     type="button"
+                    onPointerEnter={() => onPrimeRow?.(row.page_id)}
+                    onPointerDown={() => onPrimeRow?.(row.page_id)}
+                    onFocus={() => onPrimeRow?.(row.page_id)}
                     onClick={() => onOpenRow(row.page_id)}
                     className="max-w-[180px] truncate rounded border border-zinc-200 px-2 py-0.5 text-[11px] text-zinc-500 hover:border-zinc-300 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:text-zinc-100"
                   >
