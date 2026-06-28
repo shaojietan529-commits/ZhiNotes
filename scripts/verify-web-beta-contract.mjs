@@ -2253,6 +2253,18 @@ function run() {
       "Meeting calendar must cap per-day rendered entries so high-volume imports do not block the UI.",
     ],
     [
+      "MEETING_CALENDAR_HYDRATION_BATCH",
+      "Meeting calendar must hydrate date cells in idle batches instead of rendering every meeting chip at first paint.",
+    ],
+    [
+      "hydratedMeetingDateKeys",
+      "Meeting calendar must track which date cells are hydrated for chip rendering.",
+    ],
+    [
+      "buildInitialMeetingCalendarHydrationKeys",
+      "Meeting calendar must choose a small initial visible date window before idle hydration.",
+    ],
+    [
       "const [meetingCountByDate, setMeetingCountByDate]",
       "Meeting calendar must keep total counts separately from the rendered entry list.",
     ],
@@ -2271,6 +2283,18 @@ function run() {
     [
       "已显示 ${visibleMeetings.length}/${dayTotalCount} 场",
       "Meeting calendar must tell the user when a high-volume day has reached the render cap.",
+    ],
+    [
+      "场会议，点开查看",
+      "Meeting calendar must show count-only placeholders before a deferred date cell is hydrated.",
+    ],
+    [
+      "isMeetingDateHydrated && visibleMeetings.map",
+      "Meeting calendar must render meeting chips only for hydrated date cells.",
+    ],
+    [
+      "cancelScheduledBatch = scheduleMeetingIdleTask(",
+      "Meeting calendar idle hydration must use the shared idle scheduler instead of fixed synchronous rendering.",
     ],
     [
       "为保持日历流畅",
@@ -3362,6 +3386,10 @@ function run() {
     [
       "DAILY_CALENDAR_RENDER_DAY_LIMIT",
       "Daily calendar render state must cap each visible day before publishing React state.",
+    ],
+    [
+      "cancelScheduledBatch = scheduleDailyIdleTask(",
+      "Daily calendar automatic date hydration must run through idle scheduling instead of fixed timer pressure.",
     ],
     [
       "const [dailyNoteCountByDate, setDailyNoteCountByDate]",

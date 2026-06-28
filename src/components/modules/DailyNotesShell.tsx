@@ -767,7 +767,7 @@ export default function DailyNotesShell() {
 
   useEffect(() => {
     let cancelled = false;
-    let timer: number | null = null;
+    let cancelScheduledBatch: (() => void) | null = null;
     const allDateKeys = grid.map((cell) => toDateKey(cell.date));
     const initialDateKeys = buildInitialDailyCalendarHydrationKeys(
       grid,
@@ -779,6 +779,7 @@ export default function DailyNotesShell() {
     setHydratedDateKeys(initialDateKeys);
 
     const revealNextBatch = () => {
+      cancelScheduledBatch = null;
       if (cancelled || remainingDateKeys.length === 0) return;
       const nextBatch = remainingDateKeys.splice(
         0,
@@ -789,19 +790,19 @@ export default function DailyNotesShell() {
         for (const dateKey of nextBatch) next.add(dateKey);
         return next;
       });
-      timer = window.setTimeout(
+      cancelScheduledBatch = scheduleDailyIdleTask(
         revealNextBatch,
         DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS
       );
     };
 
-    timer = window.setTimeout(
+    cancelScheduledBatch = scheduleDailyIdleTask(
       revealNextBatch,
       DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS
     );
     return () => {
       cancelled = true;
-      if (timer !== null) window.clearTimeout(timer);
+      cancelScheduledBatch?.();
     };
   }, [grid, todayKey]);
 

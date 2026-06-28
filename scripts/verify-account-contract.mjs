@@ -762,8 +762,9 @@ check(
     dailyNotesShell.includes("dayTotalCount > DAILY_CALENDAR_VISIBLE_LIMIT") &&
     dailyNotesShell.includes("已显示 ${visibleNotes.length}/${dayTotalCount} 条") &&
     dailyNotesShell.includes("为保持日历流畅") &&
+    dailyNotesShell.includes("cancelScheduledBatch = scheduleDailyIdleTask(") &&
     !dailyNotesShell.includes("hiddenNotes.map"),
-  "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开；超大单日导入只能按当天补齐 metadata，不能把全部 metadata 塞进 DOM"
+  "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开；超大单日导入只能按当天补齐 metadata，自动 hydration 必须走空闲调度，不能把全部 metadata 塞进 DOM"
 );
 
 const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");
@@ -879,9 +880,12 @@ check(
   "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后弹出同页会议页面并后台同步；完整页入口仍走本地优先"
 );
 check(
-  meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&
+    meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_RENDER_DAY_LIMIT") &&
+    meetingScheduleShell.includes("MEETING_CALENDAR_HYDRATION_BATCH") &&
+    meetingScheduleShell.includes("hydratedMeetingDateKeys") &&
+    meetingScheduleShell.includes("buildInitialMeetingCalendarHydrationKeys") &&
     meetingScheduleShell.includes("const [meetingCountByDate, setMeetingCountByDate]") &&
     meetingScheduleShell.includes("function selectMeetingPagesForCalendarRender(") &&
     meetingScheduleShell.includes("setMeetingCountByDate(selection.countsByDate)") &&
@@ -904,9 +908,12 @@ check(
     meetingScheduleShell.includes("再显示 ${nextBatchCount} 场") &&
     meetingScheduleShell.includes("dayTotalCount > MEETING_CALENDAR_VISIBLE_LIMIT") &&
     meetingScheduleShell.includes("已显示 ${visibleMeetings.length}/${dayTotalCount} 场") &&
+    meetingScheduleShell.includes("场会议，点开查看") &&
+    meetingScheduleShell.includes("isMeetingDateHydrated && visibleMeetings.map") &&
+    meetingScheduleShell.includes("cancelScheduledBatch = scheduleMeetingIdleTask(") &&
     meetingScheduleShell.includes("为保持日历流畅") &&
     !meetingScheduleShell.includes("{dayMeetings.map"),
-  "MeetingScheduleShell 月历单元格应只渲染可见会议，更多会议必须点击后分批展开；单日高 volume 会议应限量渲染并提示真实总数"
+  "MeetingScheduleShell 月历单元格应按日期空闲 hydration，只渲染用户已关注日期的可见会议，更多会议必须点击后分批展开；单日高 volume 会议应限量渲染并提示真实总数"
 );
 
 const usePageHook = read("src/hooks/usePage.ts");

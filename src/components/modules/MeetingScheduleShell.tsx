@@ -108,6 +108,9 @@ const MEETING_CALENDAR_EXPAND_BATCH = 24;
 const MEETING_CALENDAR_REVEAL_BUFFER = 2;
 const MEETING_CALENDAR_RENDER_DAY_LIMIT =
   MEETING_CALENDAR_VISIBLE_LIMIT + MEETING_CALENDAR_EXPAND_BATCH;
+const MEETING_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT = 14;
+const MEETING_CALENDAR_HYDRATION_BATCH = 7;
+const MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS = 32;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
@@ -294,6 +297,9 @@ export default function MeetingScheduleShell() {
   const [visibleMeetingLimitByDate, setVisibleMeetingLimitByDate] = useState<
     Map<string, number>
   >(() => new Map());
+  const [hydratedMeetingDateKeys, setHydratedMeetingDateKeys] = useState<
+    Set<string>
+  >(() => new Set());
   const initialCloudPullAttemptedRef = useRef(false);
   const calendarCellRefs = useRef(new Map<string, HTMLDivElement>());
   const pendingCalendarFocusDateKeyRef = useRef<string | null>(null);
@@ -494,6 +500,15 @@ export default function MeetingScheduleShell() {
     window.setTimeout(run, 1500);
   }, []);
 
+  const hydrateMeetingDateKey = useCallback((dateKey: string) => {
+    setHydratedMeetingDateKeys((current) => {
+      if (current.has(dateKey)) return current;
+      const next = new Set(current);
+      next.add(dateKey);
+      return next;
+    });
+  }, []);
+
   const upsertMeetingInView = useCallback((page: Page) => {
     setMeetings((prev) => {
       const existingIndex = prev.findIndex((item) => item.id === page.id);
@@ -512,6 +527,7 @@ export default function MeetingScheduleShell() {
       pendingCalendarFocusDateKeyRef.current = dateKey;
       setViewMonth(new Date(date.getFullYear(), date.getMonth(), 1));
       setHighlightedDateKey(dateKey);
+      hydrateMeetingDateKey(dateKey);
 
       if (highlightTimerRef.current) {
         window.clearTimeout(highlightTimerRef.current);
@@ -523,7 +539,7 @@ export default function MeetingScheduleShell() {
         highlightTimerRef.current = null;
       }, 7000);
     },
-    [setViewMonth]
+    [hydrateMeetingDateKey, setViewMonth]
   );
 
   useEffect(() => {
@@ -1677,6 +1693,48 @@ export default function MeetingScheduleShell() {
   ]);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let cancelScheduledBatch: (() => void) | null = null;
+    const allDateKeys = grid.map((cell) => toDateKey(cell.date));
+    const initialDateKeys = buildInitialMeetingCalendarHydrationKeys(
+      grid,
+      todayKey
+    );
+    const remainingDateKeys = allDateKeys.filter(
+      (dateKey) => !initialDateKeys.has(dateKey)
+    );
+    setHydratedMeetingDateKeys(initialDateKeys);
+
+    const revealNextBatch = () => {
+      cancelScheduledBatch = null;
+      if (cancelled || remainingDateKeys.length === 0) return;
+      const nextBatch = remainingDateKeys.splice(
+        0,
+        MEETING_CALENDAR_HYDRATION_BATCH
+      );
+      setHydratedMeetingDateKeys((current) => {
+        const next = new Set(current);
+        for (const dateKey of nextBatch) next.add(dateKey);
+        return next;
+      });
+      cancelScheduledBatch = scheduleMeetingIdleTask(
+        revealNextBatch,
+        MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS
+      );
+    };
+
+    cancelScheduledBatch = scheduleMeetingIdleTask(
+      revealNextBatch,
+      MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS
+    );
+    return () => {
+      cancelled = true;
+      cancelScheduledBatch?.();
+    };
+  }, [grid, todayKey]);
+
   const traceReviewEntries = useMemo(
     () =>
       entries
@@ -2295,6 +2353,11 @@ export default function MeetingScheduleShell() {
                 dayTotalCount > dayMeetings.length && loadedHiddenCount === 0;
               const isToday = key === todayKey;
               const isHighlighted = key === highlightedDateKey;
+              const isMeetingDateHydrated =
+                hydratedMeetingDateKeys.has(key) ||
+                isExpanded ||
+                isHighlighted ||
+                creatingMeetingDateKey === key;
               return (
                 <div
                   key={key}
@@ -2312,6 +2375,10 @@ export default function MeetingScheduleShell() {
                         ? ""
                         : "bg-zinc-50/50 dark:bg-zinc-900/40"
                   }`}
+                  onPointerEnter={() => {
+                    hydrateMeetingDateKey(key);
+                    warmMeetingPageRoute();
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <span
@@ -2341,7 +2408,18 @@ export default function MeetingScheduleShell() {
                     </button>
                   </div>
                   <div className="mt-0.5 flex flex-col gap-0.5 overflow-visible">
-                    {visibleMeetings.map((entry) => (
+                    {!isMeetingDateHydrated && dayTotalCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => hydrateMeetingDateKey(key)}
+                        onPointerEnter={() => hydrateMeetingDateKey(key)}
+                        className="rounded bg-zinc-100/70 px-1.5 py-0.5 text-left text-xs text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+                        title={`${key} 有 ${dayTotalCount} 场会议`}
+                      >
+                        {dayTotalCount} 场会议，点开查看
+                      </button>
+                    )}
+                    {isMeetingDateHydrated && visibleMeetings.map((entry) => (
                       <button
                         key={entry.page.id}
                         type="button"
@@ -2374,7 +2452,8 @@ export default function MeetingScheduleShell() {
                         <MeetingHoverCard entry={entry} />
                       </button>
                     ))}
-                    {(dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT ||
+                    {isMeetingDateHydrated &&
+                      (dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT ||
                       dayTotalCount > MEETING_CALENDAR_VISIBLE_LIMIT) && (
                       <button
                         type="button"
@@ -3760,6 +3839,32 @@ function buildMonthGrid(monthStart: Date): MonthCell[] {
     cells.push({ date, inMonth: date.getMonth() === month });
   }
   return cells;
+}
+
+function buildInitialMeetingCalendarHydrationKeys(
+  grid: MonthCell[],
+  todayKey: string
+): Set<string> {
+  const initialKeys = new Set<string>();
+  const todayIndex = grid.findIndex((cell) => toDateKey(cell.date) === todayKey);
+  const firstInMonthIndex = grid.findIndex((cell) => cell.inMonth);
+  const anchorIndex =
+    todayIndex >= 0 ? todayIndex : Math.max(0, firstInMonthIndex);
+  const rowStart = Math.max(0, Math.floor(anchorIndex / 7) * 7);
+  const rowEnd = Math.min(
+    grid.length,
+    rowStart + MEETING_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT
+  );
+
+  for (let index = rowStart; index < rowEnd; index += 1) {
+    initialKeys.add(toDateKey(grid[index].date));
+  }
+
+  if (todayIndex >= 0) {
+    initialKeys.add(toDateKey(grid[todayIndex].date));
+  }
+
+  return initialKeys;
 }
 
 function scheduleMeetingIdleTask(
