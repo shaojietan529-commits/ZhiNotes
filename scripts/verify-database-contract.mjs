@@ -729,6 +729,23 @@ function run() {
   for (const snippet of [
     'const loadDatabaseMutationModule = () =>',
     'import("@/lib/database/cloudDatabaseMutations")',
+  ]) {
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline database blocks must lazy-load database mutation code only after inline edit intent."
+    );
+  }
+  assertNotIncludes(
+    files.inlineDatabaseNode,
+    inlineDatabaseNode,
+    'from "@/lib/database/cloudDatabaseMutations"',
+    "Inline database blocks must keep database mutation code out of the editor first paint bundle."
+  );
+  for (const snippet of [
+    'const loadDatabaseMutationModule = () =>',
+    'import("@/lib/database/cloudDatabaseMutations")',
     'const loadAccountDatabaseSyncModule = () =>',
     'import("@/lib/database/accountDatabaseSync")',
     'const loadDatabaseImportModule = () =>',

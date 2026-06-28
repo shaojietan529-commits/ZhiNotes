@@ -14,16 +14,6 @@ import {
   getViews,
 } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import {
-  addField,
-  addRow,
-  addView,
-  deleteField,
-  deleteRow,
-  updateField,
-  updateDatabase,
-  updateRow,
-} from "@/lib/database/cloudDatabaseMutations";
 import type {
   Database,
   DatabaseField,
@@ -71,6 +61,9 @@ import {
   buildDatabaseTemplateRowDraft,
   buildDatabaseTemplateRowReceipt,
 } from "@/lib/database/databaseTemplateRows";
+
+const loadDatabaseMutationModule = () =>
+  import("@/lib/database/cloudDatabaseMutations");
 
 // ─── React Component rendered inside the editor ─────────────
 
@@ -162,6 +155,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
   const handleTitleChange = useCallback(
     async (newTitle: string) => {
       setTitle(newTitle);
+      const { updateDatabase } = await loadDatabaseMutationModule();
       await updateDatabase(databaseId, { title: newTitle });
     },
     [databaseId]
@@ -169,6 +163,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
 
   const handleAddField = useCallback(
     async (name: string, fieldType: string, config?: string) => {
+      const { addField } = await loadDatabaseMutationModule();
       await addField(databaseId, { name, fieldType, config });
       reload();
     },
@@ -183,6 +178,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
         `要删除字段「${fieldName}」吗？这会从当前数据库视图中移除字段配置，但不会删除页面正文、文件、云端数据或 AI 内容。`
       );
       if (!ok) return;
+      const { deleteField } = await loadDatabaseMutationModule();
       await deleteField(fieldId);
       reload();
     },
@@ -191,6 +187,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
 
   const handleDuplicateField = useCallback(
     async (field: DatabaseField) => {
+      const { addField } = await loadDatabaseMutationModule();
       await addField(databaseId, {
         name: `${getDatabaseFieldDisplayName(field)} 副本`,
         fieldType: field.field_type,
@@ -208,6 +205,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
         Pick<DatabaseField, "name" | "field_type" | "config">
       >
     ) => {
+      const { updateField } = await loadDatabaseMutationModule();
       await updateField(fieldId, updates);
       reload();
     },
@@ -229,6 +227,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
       const targetField = orderedFields[targetIndex];
       if (!currentField || !targetField || targetField.position === 0) return;
 
+      const { updateField } = await loadDatabaseMutationModule();
       await Promise.all([
         updateField(currentField.id, { position: targetField.position }),
         updateField(targetField.id, { position: currentField.position }),
@@ -239,12 +238,14 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
   );
 
   const handleAddRow = useCallback(async () => {
+    const { addRow } = await loadDatabaseMutationModule();
     await addRow(databaseId);
     reload();
   }, [databaseId, reload]);
 
   const handleCreateRow = useCallback(
     async (rowTitle: string, fieldValues: Record<string, unknown>) => {
+      const { addRow } = await loadDatabaseMutationModule();
       await addRow(databaseId, {
         title: rowTitle,
         fieldValues,
@@ -257,6 +258,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
   const handleAddTemplateRow = useCallback(
     async (template: NoteTemplate) => {
       const draft = buildDatabaseTemplateRowDraft(template, fields);
+      const { addRow } = await loadDatabaseMutationModule();
       const row = await addRow(databaseId, {
         title: template.title,
         fieldValues: draft.field_values,
@@ -277,6 +279,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
 
   const handleUpdateRow = useCallback(
     async (rowId: string, fieldValues: Record<string, unknown>) => {
+      const { updateRow } = await loadDatabaseMutationModule();
       await updateRow(rowId, { fieldValues });
       reload();
     },
@@ -291,6 +294,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
         `要删除记录「${rowTitle}」吗？这会把当前数据库行和它的本地页面一起软删除，不会上传或外发任何内容。`
       );
       if (!ok) return;
+      const { deleteRow } = await loadDatabaseMutationModule();
       await deleteRow(rowId);
       reload();
     },
@@ -309,6 +313,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
       const targetRow = orderedRows[targetIndex];
       if (!currentRow || !targetRow) return;
 
+      const { updateRow } = await loadDatabaseMutationModule();
       await Promise.all([
         updateRow(currentRow.id, { position: targetRow.position }),
         updateRow(targetRow.id, { position: currentRow.position }),
@@ -323,6 +328,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
       const sourceRow = rows.find((row) => row.id === rowId);
       if (!sourceRow) return;
       const fieldValues = parseFieldValues(sourceRow.field_values);
+      const { addRow } = await loadDatabaseMutationModule();
       await addRow(databaseId, {
         title: `${sourceRow.page?.title || "未命名页面"} 副本`,
         fieldValues,
@@ -334,6 +340,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
 
   const handleAddView = useCallback(
     async (name: string, viewType: DatabaseView["view_type"]) => {
+      const { addView } = await loadDatabaseMutationModule();
       const view = await addView(databaseId, { name, viewType });
       setActiveViewId(view.id);
       reload();

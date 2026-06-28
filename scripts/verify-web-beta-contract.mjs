@@ -14235,6 +14235,18 @@ function run() {
       "Database detail page spreadsheet import must lazy-load the import engine after file intent.",
     ],
     [
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      "const loadDatabaseMutationModule = () =>",
+      "Inline database blocks must lazy-load database mutation code only after inline edit intent.",
+    ],
+    [
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      'import("@/lib/database/cloudDatabaseMutations")',
+      "Inline database blocks must keep database mutation code out of editor first paint.",
+    ],
+    [
       files.meetingScheduleShell,
       meetingScheduleShell,
       'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
@@ -15335,6 +15347,12 @@ function run() {
       databaseShell,
       "applyDatabaseImportPreview,\n  buildDatabaseImportPreview",
       "Database detail import engine must stay out of the database first paint bundle.",
+    ],
+    [
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      'from "@/lib/database/cloudDatabaseMutations"',
+      "Inline database mutation code must stay out of the editor first paint bundle.",
     ],
     [
       files.meetingScheduleShell,

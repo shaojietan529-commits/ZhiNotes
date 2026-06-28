@@ -142,6 +142,28 @@ function run() {
   );
   for (const snippet of [
     'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+    'const loadPageExportModule = () => import("@/lib/export/pageExport")',
+  ]) {
+    assertIncludes(
+      files.editor,
+      editor,
+      snippet,
+      "Editor must lazy-load page mutations and Markdown export helpers only after explicit commands."
+    );
+  }
+  for (const snippet of [
+    'from "@/lib/pages/cloudPageMutations"',
+    'from "@/lib/export/pageExport"',
+  ]) {
+    assertNotIncludes(
+      files.editor,
+      editor,
+      snippet,
+      "Editor must keep page mutation and Markdown export helpers out of the first paint bundle."
+    );
+  }
+  for (const snippet of [
+    'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
     "const loadDatabaseMutationModule = () =>",
     'import("@/lib/database/cloudDatabaseMutations")',
   ]) {

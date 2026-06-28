@@ -13,15 +13,10 @@ import {
   updateWikiLinks,
 } from "@/lib/db/local/queries";
 import {
-  createPageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
-import {
   BLOCK_COMMENTS_CHANGED_EVENT,
   INLINE_COMMENT_DELETED_EVENT,
   INLINE_COMMENT_SELECTED_EVENT,
 } from "@/components/shared/blockCommentEvents";
-import { htmlToMarkdown } from "@/lib/export/pageExport";
 import {
   EDITOR_BLOCK_MENU_EVENT,
   EDITOR_LOCAL_COMMAND_EVENT,
@@ -129,6 +124,9 @@ const CODE_BLOCK_LANGUAGE_OPTIONS = [
 const CODE_BLOCK_LANGUAGE_VALUES = CODE_BLOCK_LANGUAGE_OPTIONS.map(
   (option) => option.value
 ).join(",");
+
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
+const loadPageExportModule = () => import("@/lib/export/pageExport");
 
 export interface EditorRef {
   insertSubPageLink: (childId: string, childTitle: string) => string | undefined;
@@ -769,6 +767,8 @@ async function createChildPageFromEditorCommand(
   parentPageId: string,
   openPage?: OpenPage
 ) {
+  const { createPageWithCloud, updatePageWithCloud } =
+    await loadPageMutationModule();
   const page = await createPageWithCloud({
     parentId: parentPageId,
   });
@@ -889,6 +889,7 @@ async function copyCurrentBlockMarkdown(editor: TiptapEditor) {
   const block = getSelectedTopLevelBlocksMeta(editor) ?? getCurrentBlockMeta(editor);
   if (!block?.html) return;
 
+  const { htmlToMarkdown } = await loadPageExportModule();
   const markdown = htmlToMarkdown(block.html);
   try {
     await window.navigator.clipboard.writeText(markdown);
