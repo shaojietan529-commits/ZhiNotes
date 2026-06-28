@@ -632,6 +632,11 @@ check(
       dailyNotesShell.indexOf("const cloudMetadata = startDailyCloudMetadataFetch()") &&
     dailyNotesShell.includes("publishNotes(Array.from(byId.values()))") &&
     dailyNotesShell.includes("void ensureDailyDateIndexBackfilled()") &&
+    dailyNotesShell.includes(
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+    ) &&
+    dailyNotesShell.includes(".then(({ fetchDailyCloudMetadata }) =>") &&
+    !dailyNotesShell.includes("import {\n  fetchDailyCloudMetadata") &&
     dailyNotesShell.includes("fetchDailyCloudMetadata({") &&
     dailyNotesShell.includes("HOT_CACHE_PREFERENCES_SETTING_KEY") &&
     dailyNotesShell.includes("parseHotCachePreferences") &&
@@ -713,6 +718,7 @@ check(
     dailyNotesShell.includes("后台会加入账号云端上传队列") &&
     dailyNotesShell.includes("applyRemotePages(records)") &&
     dailyNotesShell.includes("return queueDailyCloudRecords(records)") &&
+    dailyNotesShell.includes(".then(({ queueCloudPagePush }) =>") &&
     dailyNotesShell.includes("queueCloudPagePush(record)") &&
     !dailyNotesShell.includes("createPageWithCloud"),
   "DailyNotesShell 点击 + 应立即弹出乐观草稿 peek 页面，后台加入云端上传队列；已有纪要仍可用 peek 预览，完整页打开仍走本地优先"

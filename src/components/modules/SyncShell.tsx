@@ -76,11 +76,6 @@ import {
   type PendingCloudPageSyncStatus,
 } from "@/lib/pages/accountPageSync";
 import {
-  exportWorkspaceBackup,
-  exportWorkspaceMarkdown,
-  exportWorkspaceZip,
-} from "@/lib/export/workspaceBackup";
-import {
   analyzeWorkspaceBackupJson,
   type WorkspaceRestorePreview,
 } from "@/lib/export/workspaceRestore";
@@ -460,6 +455,8 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
 type ExportAction = "backup" | "zip" | "markdown";
+
+const loadWorkspaceBackupModule = () => import("@/lib/export/workspaceBackup");
 type SyncQueueAction =
   | "queue"
   | "handoff-readiness"
@@ -3035,6 +3032,11 @@ function SyncDashboard() {
   const runExport = async (action: ExportAction) => {
     setBusyAction(action);
     try {
+      const {
+        exportWorkspaceBackup,
+        exportWorkspaceMarkdown,
+        exportWorkspaceZip,
+      } = await loadWorkspaceBackupModule();
       if (action === "backup") {
         await exportWorkspaceBackup();
       } else if (action === "zip") {

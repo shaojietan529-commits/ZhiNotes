@@ -36,11 +36,7 @@ import {
   stringifyPageProperties,
 } from "@/lib/pages/pageProperties";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
-import {
-  fetchDailyCloudMetadata,
-  queueCloudPagePush,
-  type DailyCloudMetadataResult,
-} from "@/lib/pages/accountPageSync";
+import type { DailyCloudMetadataResult } from "@/lib/pages/accountPageSync";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
@@ -75,6 +71,8 @@ import PagePeekModal, {
   warmPagePeekModal,
 } from "@/components/page/LazyPagePeekModal";
 import type { Page } from "@/lib/utils/types";
+
+const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -366,20 +364,24 @@ export default function DailyNotesShell() {
     const startDailyCloudMetadataFetch = () => {
       if (!includeCloud) return null;
       if (!cloudMetadataPromise) {
-        cloudMetadataPromise = fetchDailyCloudMetadata({
-          startDate,
-          endDate,
-          recentLimit: recentMetadataLimit,
-        }).catch((error): DailyCloudMetadataResult => {
-          const message =
-            error instanceof Error ? error.message : "云端每日纪要索引读取失败。";
-          return {
-            status: "error",
-            pages: [],
-            total: 0,
-            message,
-          };
-        });
+        cloudMetadataPromise = loadPageAccountSyncModule()
+          .then(({ fetchDailyCloudMetadata }) =>
+            fetchDailyCloudMetadata({
+              startDate,
+              endDate,
+              recentLimit: recentMetadataLimit,
+            })
+          )
+          .catch((error): DailyCloudMetadataResult => {
+            const message =
+              error instanceof Error ? error.message : "云端每日纪要索引读取失败。";
+            return {
+              status: "error",
+              pages: [],
+              total: 0,
+              message,
+            };
+          });
       }
       return cloudMetadataPromise;
     };
@@ -1997,9 +1999,13 @@ function queueDailyCloudRecords(
   records: RemotePageRecord[]
 ): "queued" | "local-only" {
   if (typeof window === "undefined") return "local-only";
-  for (const record of records) {
-    queueCloudPagePush(record);
-  }
+  void loadPageAccountSyncModule()
+    .then(({ queueCloudPagePush }) => {
+      for (const record of records) {
+        queueCloudPagePush(record);
+      }
+    })
+    .catch(() => undefined);
   return "queued";
 }
 

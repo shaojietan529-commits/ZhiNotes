@@ -1933,6 +1933,18 @@ function run() {
       "Daily notes must start cloud metadata fetch only after local-first metadata work begins.",
     ],
     [
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")',
+      "Daily notes cloud metadata and upload queue helpers must lazy-load after local/hot-cache first paint.",
+    ],
+    [
+      ".then(({ fetchDailyCloudMetadata }) =>",
+      "Daily notes cloud metadata fetch must go through the lazy account-sync module.",
+    ],
+    [
+      ".then(({ queueCloudPagePush }) =>",
+      "Daily notes cloud queueing must go through the lazy account-sync module.",
+    ],
+    [
       "const cloudMetadata = startDailyCloudMetadataFetch()",
       "Daily notes must start cloud metadata fetch from the background cloud section, not before first paint.",
     ],
@@ -1959,6 +1971,12 @@ function run() {
   ]) {
     assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }
+  assertSourceExcludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "import {\n  fetchDailyCloudMetadata",
+    "Daily notes must not static-import runtime account sync helpers during first paint."
+  );
   if (
     !(
       dailyNotesShell.indexOf("const bootstrapKey = `${startDate}:${endDate}`") >=
@@ -14151,6 +14169,12 @@ function run() {
       "Quick search export commands must lazy-load workspace export code only after command intent.",
     ],
     [
+      files.syncShell,
+      syncShell,
+      'const loadWorkspaceBackupModule = () => import("@/lib/export/workspaceBackup")',
+      "Sync shell export actions must lazy-load workspace backup code only after export intent.",
+    ],
+    [
       files.sidebar,
       sidebar,
       'await import("@/lib/pages/cloudPageMutations")',
@@ -15224,6 +15248,7 @@ function run() {
   for (const [sourceLabel, source] of [
     [files.sidebar, sidebar],
     [files.quickSearch, quickSearch],
+    [files.syncShell, syncShell],
   ]) {
     assertSourceExcludes(
       sourceLabel,

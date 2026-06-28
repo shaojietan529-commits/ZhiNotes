@@ -2677,6 +2677,30 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")',
+    "Daily notes cloud metadata and upload queue helpers must lazy-load after local/hot-cache first paint."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    ".then(({ fetchDailyCloudMetadata }) =>",
+    "Daily notes cloud metadata fetch must go through the lazy account-sync module."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    ".then(({ queueCloudPagePush }) =>",
+    "Daily notes cloud queueing must go through the lazy account-sync module."
+  );
+  assertExcludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "import {\n  fetchDailyCloudMetadata",
+    "Daily notes must not static-import runtime account sync helpers during first paint."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "currentNotes: collectVisibleDailyNotesForHotCache(notesByDate)",
     "Daily + creation must not pass the full imported note set into optimistic hot-cache writes."
   );
@@ -4911,6 +4935,12 @@ function run() {
       "Quick search export commands must lazy-load workspace export code only after command intent.",
     ],
     [
+      files.syncShell,
+      syncShell,
+      'const loadWorkspaceBackupModule = () => import("@/lib/export/workspaceBackup")',
+      "Sync shell export actions must lazy-load workspace backup code only after export intent.",
+    ],
+    [
       files.sidebar,
       sidebar,
       'await import("@/lib/pages/cloudPageMutations")',
@@ -5084,6 +5114,7 @@ function run() {
   for (const [sourceLabel, source] of [
     [files.sidebar, sidebar],
     [files.quickSearch, quickSearch],
+    [files.syncShell, syncShell],
   ]) {
     assertExcludes(
       sourceLabel,
