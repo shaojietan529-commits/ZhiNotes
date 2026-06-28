@@ -13940,6 +13940,60 @@ function run() {
       "Notes module must optimistically add newly created template notes instead of refreshing the full page list.",
     ],
     [
+      files.notesShell,
+      notesShell,
+      "@/components/page/LazyPagePeekModal",
+      "Notes module must lazy-load the page peek editor instead of adding it to first paint.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "warmPagePeekModal();",
+      "Notes module create actions must warm the peek editor while creating local note pages.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "const [peekPageId, setPeekPageId] = useState<string | null>(null);",
+      "Notes module must hold a page peek target for same-view editing.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);",
+      "Notes module must seed newly created note pages into the peek before slower hydration.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "rememberPendingPageDraft(page);",
+      "Notes created pages must keep a short-lived local draft before opening.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      'rememberPageRouteHandoff(page, "module-create");',
+      "Notes created pages must hand off local-first metadata with a module-create source.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "openCreatedNotePage(page);",
+      "Blank notes must open in peek immediately.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "openCreatedNotePage(result.page);",
+      "Template notes must open in peek immediately.",
+    ],
+    [
+      files.notesShell,
+      notesShell,
+      "<PagePeekModal",
+      "Notes module must render the page peek modal for created note pages.",
+    ],
+    [
       files.companyResearchShell,
       companyResearchShell,
       "deferContent: true",
@@ -14004,6 +14058,60 @@ function run() {
       meetingsShell,
       "deferContent: true",
       "Meetings module must render page metadata before deferred body hydration.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      "@/components/page/LazyPagePeekModal",
+      "Meetings module must lazy-load the page peek editor instead of adding it to first paint.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      "warmPagePeekModal();",
+      "Meetings module create actions must warm the peek editor while creating local meeting pages.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      "const [peekPageId, setPeekPageId] = useState<string | null>(null);",
+      "Meetings module must hold a page peek target for same-view editing.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      "const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);",
+      "Meetings module must seed newly created meeting pages into the peek before slower hydration.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      "rememberPendingPageDraft(page);",
+      "Meetings created pages must keep a short-lived local draft before opening.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      'rememberPageRouteHandoff(page, "module-create");',
+      "Meetings created pages must hand off local-first metadata with a module-create source.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      "openCreatedMeetingModulePage(result.page);",
+      "Meeting template pages must open in peek immediately.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      "openCreatedMeetingModulePage(createdPages[0]);",
+      "Single imported meeting transcript pages must open in peek immediately.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      "<PagePeekModal",
+      "Meetings module must render the page peek modal for created meeting pages.",
     ],
     [
       files.reportsShell,
@@ -14625,9 +14733,9 @@ function run() {
     }
   }
   for (const [sourceLabel, source, requiredSources] of [
-    [files.notesShell, notesShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.notesShell, notesShell, ['"module-create"', 'source: "module-open"']],
     [files.filesShell, filesShell, ['"module-create"', 'source: "module-open"']],
-    [files.meetingsShell, meetingsShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.meetingsShell, meetingsShell, ['"module-create"', 'source: "module-open"']],
     [files.reportsShell, reportsShell, ['"module-create"', 'source: "module-open"']],
     [files.projectsShell, projectsShell, ['source: "module-create"']],
     [files.moduleDashboard, moduleDashboard, ['source: "module-create"']],
@@ -14702,6 +14810,28 @@ function run() {
       filesShell,
       snippet,
       "Files-created pages must open in peek immediately, not force a full page route."
+    );
+  }
+  for (const snippet of [
+    'openPage(page, { source: "module-create" })',
+    'openPage(result.page, { source: "module-create" })',
+  ]) {
+    assertSourceExcludes(
+      files.notesShell,
+      notesShell,
+      snippet,
+      "Notes-created pages must open in peek immediately, not force a full page route."
+    );
+  }
+  for (const snippet of [
+    'openPage(result.page, { source: "module-create" })',
+    'openPage(createdPages[0], { source: "module-create" })',
+  ]) {
+    assertSourceExcludes(
+      files.meetingsShell,
+      meetingsShell,
+      snippet,
+      "Meetings-created pages must open in peek immediately, not force a full page route."
     );
   }
   assertSourceExcludes(

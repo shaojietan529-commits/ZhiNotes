@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
@@ -19,6 +22,8 @@ import {
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { executeModuleStarter } from "@/lib/modules/actions";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
   buildNotesModuleWorkbenchReport,
   type NotesModuleActionStatus,
@@ -33,6 +38,7 @@ import {
 } from "@/lib/pages/syncedBlockRegistry";
 import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import type { Page } from "@/lib/utils/types";
 
 const NOTE_TEMPLATE_STARTERS = getResearchTemplateStarters("notes");
 const NOTES_FORMAT_ENTRIES: NotesFormatEntry[] = [
@@ -174,6 +180,7 @@ function NotesDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const [contentScanEnabled, setContentScanEnabled] = useState(false);
   const { pages, hydrateContentInBackground } = usePages({
     includeContent: contentScanEnabled,
@@ -188,6 +195,8 @@ function NotesDashboard() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [exportingWorkbench, setExportingWorkbench] = useState(false);
   const [exportingSyncedRegistry, setExportingSyncedRegistry] = useState(false);
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
 
   const loadCounts = useCallback(async () => {
     try {
@@ -281,8 +290,31 @@ function NotesDashboard() {
     hydrateContentInBackground();
   };
 
+  const openCreatedNotePage = useCallback((page: Page) => {
+    rememberPendingPageDraft(page);
+    rememberPageRouteHandoff(page, "module-create");
+    warmPagePeekModal();
+    setPeekInitialPage(page);
+    setPeekPageId(page.id);
+  }, []);
+
+  const openNoteFullPageById = useCallback(
+    (pageId: string) => {
+      const page =
+        (peekInitialPage?.id === pageId ? peekInitialPage : null) ??
+        pagesById.get(pageId);
+      if (page) {
+        openPage(page, { source: "module-open" });
+        return;
+      }
+      openPage(pageId, { source: "module-open" });
+    },
+    [openPage, pagesById, peekInitialPage]
+  );
+
   const handleCreateBlankPage = async () => {
     setBusyAction("blank-page");
+    warmPagePeekModal();
     try {
       const page = await createPageWithCloud({
         title: "未命名研究笔记",
@@ -290,7 +322,7 @@ function NotesDashboard() {
       });
       upsertPages([page]);
       void loadCounts();
-      openPage(page, { source: "module-create" });
+      openCreatedNotePage(page);
     } catch (err) {
       console.error("[Zhinote] Failed to create note page:", err);
       window.alert("笔记创建失败，请查看控制台。");
@@ -303,6 +335,7 @@ function NotesDashboard() {
     starter: (typeof NOTE_TEMPLATE_STARTERS)[number]
   ) => {
     setBusyAction(starter.label);
+    warmPagePeekModal();
     try {
       const result = await executeModuleStarter({
         type: "page",
@@ -314,7 +347,7 @@ function NotesDashboard() {
       if (result.page) {
         upsertPages([result.page]);
         void loadCounts();
-        openPage(result.page, { source: "module-create" });
+        openCreatedNotePage(result.page);
       } else {
         router.push(result.route);
       }
@@ -386,8 +419,9 @@ function NotesDashboard() {
   };
 
   return (
-    <div className="w-full px-6 py-6 lg:px-10">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <>
+      <div className="w-full px-6 py-6 lg:px-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="border-b border-zinc-200 pb-5 dark:border-zinc-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -514,8 +548,24 @@ function NotesDashboard() {
           onOpenRoute={(route) => router.push(route)}
           onReviewStepOpen={handleReviewStepNavigate}
         />
+        </div>
       </div>
-    </div>
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            openNoteFullPageById(id);
+          }}
+        />
+      )}
+    </>
   );
 }
 

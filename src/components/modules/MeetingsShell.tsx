@@ -1,12 +1,16 @@
 "use client";
 
 import {
+  useCallback,
   useMemo,
   useRef,
   useState,
   type ChangeEvent,
 } from "react";
 import { useRouter } from "next/navigation";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
@@ -81,6 +85,8 @@ import {
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
 
@@ -142,6 +148,7 @@ function MeetingsContent() {
 function MeetingsDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
@@ -167,6 +174,8 @@ function MeetingsDashboard() {
     failed: number;
     total: number;
   } | null>(null);
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
 
   const meetingPages = useMemo(() => getMeetingPages(pages), [pages]);
   const transcriptPages = useMemo(() => getTranscriptPages(pages), [pages]);
@@ -214,6 +223,28 @@ function MeetingsDashboard() {
   const meetingsModule = PLATFORM_MODULES.find((module) => module.id === "meetings");
   const trackerStarter = meetingsModule?.starter ?? null;
 
+  const openCreatedMeetingModulePage = useCallback((page: Page) => {
+    rememberPendingPageDraft(page);
+    rememberPageRouteHandoff(page, "module-create");
+    warmPagePeekModal();
+    setPeekInitialPage(page);
+    setPeekPageId(page.id);
+  }, []);
+
+  const openMeetingModuleFullPageById = useCallback(
+    (pageId: string) => {
+      const page =
+        (peekInitialPage?.id === pageId ? peekInitialPage : null) ??
+        pagesById.get(pageId);
+      if (page) {
+        openPage(page, { source: "module-open" });
+        return;
+      }
+      openPage(pageId, { source: "module-open" });
+    },
+    [openPage, pagesById, peekInitialPage]
+  );
+
   const handleReviewStepNavigate = (
     step: MeetingWorkbenchPacket["review_sequence"][number]
   ) => {
@@ -242,6 +273,7 @@ function MeetingsDashboard() {
 
   const runStarter = async (starter: ModuleStarter) => {
     setBusyAction(starter.label);
+    warmPagePeekModal();
     try {
       const result = await executeModuleStarter(starter);
       if (result.page) {
@@ -251,7 +283,7 @@ function MeetingsDashboard() {
         await refreshDatabases();
       }
       if (result.page) {
-        openPage(result.page, { source: "module-create" });
+        openCreatedMeetingModulePage(result.page);
       } else {
         router.push(result.route);
       }
@@ -275,6 +307,7 @@ function MeetingsDashboard() {
     if (selectedFiles.length === 0) return;
 
     setBusyAction(MEETING_TRANSCRIPT_FILE_ACTION_LABEL);
+    if (selectedFiles.length === 1) warmPagePeekModal();
     setTranscriptFileBatchMessage(null);
     try {
       const createdPages: Page[] = [];
@@ -296,7 +329,7 @@ function MeetingsDashboard() {
 
       upsertPages(createdPages);
       if (selectedFiles.length === 1 && createdPages[0]) {
-        openPage(createdPages[0], { source: "module-create" });
+        openCreatedMeetingModulePage(createdPages[0]);
         return;
       }
 
@@ -517,8 +550,9 @@ function MeetingsDashboard() {
   };
 
   return (
-    <div className="w-full px-6 py-6 lg:px-10">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <>
+      <div className="w-full px-6 py-6 lg:px-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="border-b border-zinc-200 pb-5 dark:border-zinc-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -1348,8 +1382,24 @@ function MeetingsDashboard() {
             }))}
           />
         </section>
+        </div>
       </div>
-    </div>
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            openMeetingModuleFullPageById(id);
+          }}
+        />
+      )}
+    </>
   );
 }
 
