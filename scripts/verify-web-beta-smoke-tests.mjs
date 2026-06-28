@@ -7660,8 +7660,16 @@ function run() {
       "Database views must declare which row-heavy views are render capped.",
     ],
     [
+      '"timeline"',
+      "Database timeline view must be included in the render-capped heavy view set.",
+    ],
+    [
       "visibleRows.slice(0, databaseViewRowRenderLimit)",
       "Database row-heavy views must render a capped subset instead of every visible row.",
+    ],
+    [
+      "<TimelineView {...renderCappedAllFieldViewProps} />",
+      "Database timeline view must receive capped rows before it parses and sorts entries.",
     ],
     [
       "renderedRowGroups",

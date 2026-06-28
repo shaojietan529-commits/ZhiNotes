@@ -14604,8 +14604,20 @@ function run() {
     [
       files.databaseShell,
       databaseShell,
+      '"timeline"',
+      "Database timeline view must be included in the render-capped heavy view set.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
       "visibleRows.slice(0, databaseViewRowRenderLimit)",
       "Database row-heavy views must render a capped subset instead of every visible row.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "<TimelineView {...renderCappedAllFieldViewProps} />",
+      "Database timeline view must receive capped rows before it parses and sorts entries.",
     ],
     [
       files.databaseShell,

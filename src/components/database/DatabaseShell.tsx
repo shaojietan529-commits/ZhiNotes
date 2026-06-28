@@ -174,6 +174,7 @@ const DATABASE_VIEW_RENDER_CAPPED_TYPES = new Set([
   "table",
   "list",
   "gallery",
+  "timeline",
   "feed",
 ]);
 
@@ -1692,7 +1693,9 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           {activeView?.view_type === "gallery" && (
             <GalleryView {...renderCappedVisibleFieldViewProps} />
           )}
-          {activeView?.view_type === "timeline" && <TimelineView {...allFieldViewProps} />}
+          {activeView?.view_type === "timeline" && (
+            <TimelineView {...renderCappedAllFieldViewProps} />
+          )}
           {activeView?.view_type === "chart" && (
             <ChartView
               fields={fields}
