@@ -2,10 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
-import {
-  createPageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
 import { listPageMetadata } from "@/lib/db/local/queries";
 import { usePageViewPreferences } from "@/hooks/usePageViewPreferences";
 import { getModuleRootId, toDateKey } from "@/lib/pages/moduleWorkspaces";
@@ -44,6 +40,7 @@ const MONTH_LABELS = [
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const CHILD_TREE_MEMORY_DESCENDANT_LIMIT = 600;
 const CHILD_TREE_PREFETCH_CHILD_LIMIT = 80;
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 
 type ViewMode = "list" | "calendar";
 
@@ -126,6 +123,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
 
   const addChild = useCallback(
     async (parentId: string) => {
+      const { createPageWithCloud } = await loadPageMutationModule();
       const child = await createPageWithCloud({ parentId });
       upsertPages([child]);
       setScopedPages((current) => mergePageLists(current, [child]));
@@ -136,6 +134,8 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
 
   const addNoteOnDate = useCallback(
     async (dateKey: string) => {
+      const { createPageWithCloud, updatePageWithCloud } =
+        await loadPageMutationModule();
       const child = await createPageWithCloud({ parentId: pageId });
       const props = [
         { ...createPageProperty("date", "日期"), value: dateKey },
@@ -177,6 +177,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       if (DATE_KEY_PATTERN.test((note.title || "").trim())) {
         updates.title = dateKey;
       }
+      const { updatePageWithCloud } = await loadPageMutationModule();
       const updatedNote = await updatePageWithCloud(noteId, updates);
       if (updatedNote) {
         upsertPages([updatedNote]);

@@ -9,12 +9,12 @@ import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation
 import { usePage } from "@/hooks/usePage";
 import { usePages } from "@/hooks/usePages";
 import { useVersions } from "@/hooks/useVersions";
-import { updatePageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { manualSnapshot } from "@/lib/comparison/versioning";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import type { PageVersion } from "@/lib/utils/types";
 
 const CURRENT = "current";
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 
 export default function CompareShell({ pageId }: { pageId: string }) {
   return (
@@ -83,6 +83,7 @@ function CompareContent({ pageId }: { pageId: string }) {
         page.content_text || "",
         "恢复前"
       );
+      const { updatePageWithCloud } = await loadPageMutationModule();
       const restoredPage = await updatePageWithCloud(pageId, {
         content_text: version.content_text || "",
       });

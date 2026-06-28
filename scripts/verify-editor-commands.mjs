@@ -374,6 +374,18 @@ function run() {
     "query: moveQuery",
     "PageContextMenu move target search must pass the typed query to the bounded lookup."
   );
+  assertIncludes(
+    files.pageContextMenu,
+    pageContextMenu,
+    'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+    "PageContextMenu must lazy-load page mutation code only after duplicate, paste, or move intent."
+  );
+  assertNotIncludes(
+    files.pageContextMenu,
+    pageContextMenu,
+    'from "@/lib/pages/cloudPageMutations"',
+    "PageContextMenu must keep page mutation code out of the context menu first paint bundle."
+  );
   assertNotIncludes(
     files.pageContextMenu,
     pageContextMenu,
@@ -500,6 +512,7 @@ function run() {
   for (const snippet of [
     "const upsertPages = useWorkspaceStore((s) => s.upsertPages)",
     "const workspacePages = useWorkspaceStore((s) => s.pages)",
+    'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
     "listPageMetadata(pageId)",
     "upsertPages([child])",
     "upsertPages([pageToOpen])",
@@ -516,6 +529,7 @@ function run() {
     );
   }
   for (const snippet of [
+    'from "@/lib/pages/cloudPageMutations"',
     "await refresh()",
     "usePages()",
     "usePages({",
@@ -922,6 +936,18 @@ function run() {
       "Version compare page must keep the default notes UI in Chinese."
     );
   }
+  assertIncludes(
+    files.compareShell,
+    compareShell,
+    'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+    "Version compare restore must lazy-load page mutation code only after restore intent."
+  );
+  assertNotIncludes(
+    files.compareShell,
+    compareShell,
+    'from "@/lib/pages/cloudPageMutations"',
+    "Version compare must keep page mutation code out of first paint."
+  );
   for (const snippet of ["新增", "删除", "没有文本差异"]) {
     assertIncludes(
       files.sideBySideDiff,

@@ -9,10 +9,6 @@ import {
 } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
-import {
-  duplicatePageDeepWithCloud,
-  movePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
 import { collectMovedPageSnapshots } from "@/lib/pages/pageSnapshotUpdates";
 import { usePages } from "@/hooks/usePages";
 import type { Page } from "@/lib/utils/types";
@@ -28,6 +24,7 @@ export interface PageContextMenuProps {
 }
 
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 
 export default function PageContextMenu({
   pageId,
@@ -106,6 +103,7 @@ export default function PageContextMenu({
   };
 
   const duplicate = async () => {
+    const { duplicatePageDeepWithCloud } = await loadPageMutationModule();
     const duplicate = await duplicatePageDeepWithCloud(pageId, null);
     if (duplicate) upsertPages([duplicate]);
     onChanged?.();
@@ -121,6 +119,8 @@ export default function PageContextMenu({
 
   const pastePage = async () => {
     if (!pageClipboard) return;
+    const { duplicatePageDeepWithCloud, movePageWithCloud } =
+      await loadPageMutationModule();
     if (pageClipboard.mode === "cut") {
       const pos = await getNextPosition(pageId);
       const moved = await movePageWithCloud(pageClipboard.pageId, pageId, pos);
@@ -164,6 +164,7 @@ export default function PageContextMenu({
 
   const handleMoveTo = async (targetId: string | null) => {
     const pos = await getNextPosition(targetId);
+    const { movePageWithCloud } = await loadPageMutationModule();
     const moved = await movePageWithCloud(pageId, targetId, pos);
     if (moved) upsertPages(collectMovedPageSnapshots(pages, moved));
     setMoveMode(false);
