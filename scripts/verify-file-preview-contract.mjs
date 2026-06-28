@@ -1657,10 +1657,44 @@ function run() {
     'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
     "Files module must lazy-load page mutation code only after local-file page creation intent."
   );
-  if (filesShell.includes('from "@/lib/pages/cloudPageMutations"')) {
-    fail(
-      `${files.filesShell} must not include static cloudPageMutations imports: Files module page mutation code must stay out of the file workbench first paint bundle.`
+  for (const [sourceLabel, source, surfaceLabel] of [
+    [files.filesShell, filesShell, "Files"],
+    [files.reportsShell, reportsShell, "Reports"],
+    [files.meetingsShell, meetingsShell, "Meetings"],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+      `${surfaceLabel} module must lazy-load page mutation code only after local file/page creation intent.`
     );
+    if (source.includes('from "@/lib/pages/cloudPageMutations"')) {
+      fail(
+        `${sourceLabel} must not include static cloudPageMutations imports: ${surfaceLabel} module page mutation code must stay out of first paint.`
+      );
+    }
+  }
+  for (const [sourceLabel, source, surfaceLabel] of [
+    [files.reportsShell, reportsShell, "Reports"],
+    [files.meetingsShell, meetingsShell, "Meetings"],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "const loadDatabaseMutationModule = () =>",
+      `${surfaceLabel} module must lazy-load database mutation code only after tracker-intake intent.`
+    );
+    assertIncludes(
+      sourceLabel,
+      source,
+      'import("@/lib/database/cloudDatabaseMutations")',
+      `${surfaceLabel} module must keep tracker database mutation code out of first paint.`
+    );
+    if (source.includes('from "@/lib/database/cloudDatabaseMutations"')) {
+      fail(
+        `${sourceLabel} must not include static cloudDatabaseMutations imports: ${surfaceLabel} module tracker writes must stay out of first paint.`
+      );
+    }
   }
   assertIncludes(
     files.fileLibrary,

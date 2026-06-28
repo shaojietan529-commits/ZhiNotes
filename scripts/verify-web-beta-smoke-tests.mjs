@@ -4976,6 +4976,42 @@ function run() {
       'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
       "Industry chain page mutations must lazy-load after tree create/link intent.",
     ],
+    [
+      files.reportsShell,
+      reportsShell,
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+      "Reports module page mutations must lazy-load after file/template creation intent.",
+    ],
+    [
+      files.reportsShell,
+      reportsShell,
+      "const loadDatabaseMutationModule = () =>",
+      "Reports module tracker writes must lazy-load database mutations after tracker-intake intent.",
+    ],
+    [
+      files.reportsShell,
+      reportsShell,
+      'import("@/lib/database/cloudDatabaseMutations")',
+      "Reports module tracker writes must keep database mutation code out of first paint.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+      "Meetings module page mutations must lazy-load after transcript/template creation intent.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      "const loadDatabaseMutationModule = () =>",
+      "Meetings module tracker writes must lazy-load database mutations after tracker-intake intent.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      'import("@/lib/database/cloudDatabaseMutations")',
+      "Meetings module tracker writes must keep database mutation code out of first paint.",
+    ],
   ]) {
     assertIncludes(sourceLabel, source, snippet, message);
   }
@@ -5062,6 +5098,30 @@ function run() {
       industryChainShell,
       'from "@/lib/pages/cloudPageMutations"',
       "Industry chain page mutation code must stay out of the tree first paint bundle.",
+    ],
+    [
+      files.reportsShell,
+      reportsShell,
+      'from "@/lib/pages/cloudPageMutations"',
+      "Reports page mutation code must stay out of the reports workbench first paint bundle.",
+    ],
+    [
+      files.reportsShell,
+      reportsShell,
+      'from "@/lib/database/cloudDatabaseMutations"',
+      "Reports database mutation code must stay out of the reports workbench first paint bundle.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      'from "@/lib/pages/cloudPageMutations"',
+      "Meetings page mutation code must stay out of the meetings workbench first paint bundle.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      'from "@/lib/database/cloudDatabaseMutations"',
+      "Meetings database mutation code must stay out of the meetings workbench first paint bundle.",
     ],
   ]) {
     assertExcludes(sourceLabel, source, forbiddenSnippet, message);

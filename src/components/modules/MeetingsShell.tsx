@@ -19,11 +19,6 @@ import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
-import { addRow } from "@/lib/database/cloudDatabaseMutations";
-import {
-  createPageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
 import {
   appendFilePreviewActionReceipt,
   buildFilePreviewActionReceipt,
@@ -89,6 +84,10 @@ import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
+
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
+const loadDatabaseMutationModule = () =>
+  import("@/lib/database/cloudDatabaseMutations");
 
 const MEETING_TEMPLATE_STARTERS = getResearchTemplateStarters("meeting");
 
@@ -358,6 +357,8 @@ function MeetingsDashboard() {
   const createMeetingTranscriptPageFromStoredFile = async (
     storedFile: StoredPageFile
   ) => {
+    const { createPageWithCloud, updatePageWithCloud } =
+      await loadPageMutationModule();
     const page = await createPageWithCloud({
       title: buildMeetingTranscriptPageTitle(storedFile),
       icon: "TRN",
@@ -529,6 +530,7 @@ function MeetingsDashboard() {
         return;
       }
 
+      const { addRow } = await loadDatabaseMutationModule();
       await addRow(tracker.id, {
         title: draft.row_title,
         fieldValues: draft.field_values,

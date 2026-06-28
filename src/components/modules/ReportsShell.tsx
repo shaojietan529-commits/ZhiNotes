@@ -24,11 +24,6 @@ import {
   getRows,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
-import { addRow } from "@/lib/database/cloudDatabaseMutations";
-import {
-  createPageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
@@ -114,6 +109,10 @@ import {
 } from "@/lib/reports/reportConnectionPlan";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
+
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
+const loadDatabaseMutationModule = () =>
+  import("@/lib/database/cloudDatabaseMutations");
 
 const REPORT_FILE_ACTION_LABEL = "上传报告文件";
 const MARKDOWN_EDITABLE_IMPORT_LABEL = "导入 Markdown 笔记";
@@ -457,6 +456,8 @@ function ReportsDashboard() {
   };
 
   const createReportPageFromStoredFile = async (storedFile: StoredPageFile) => {
+    const { createPageWithCloud, updatePageWithCloud } =
+      await loadPageMutationModule();
     const page = await createPageWithCloud({
       title: reportPageTitleFromStoredFile(storedFile),
       icon: "RPT",
@@ -499,6 +500,8 @@ function ReportsDashboard() {
         return;
       }
 
+      const { createPageWithCloud, updatePageWithCloud } =
+        await loadPageMutationModule();
       const page = await createPageWithCloud({
         title: markdownPageTitleFromFile(
           storedFile.name,
@@ -775,6 +778,7 @@ function ReportsDashboard() {
         return;
       }
 
+      const { addRow } = await loadDatabaseMutationModule();
       await addRow(tracker.id, {
         title: draft.row_title,
         fieldValues: draft.field_values,
