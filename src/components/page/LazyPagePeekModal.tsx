@@ -5,6 +5,9 @@ import dynamic from "next/dynamic";
 let pagePeekModalPromise:
   | Promise<typeof import("@/components/page/PagePeekModal")>
   | null = null;
+let pagePeekEditorPromise:
+  | Promise<typeof import("@/components/editor/Editor")>
+  | null = null;
 
 function loadPagePeekModal() {
   if (!pagePeekModalPromise) {
@@ -18,8 +21,21 @@ function loadPagePeekModal() {
   return pagePeekModalPromise;
 }
 
+function warmPagePeekEditor() {
+  if (!pagePeekEditorPromise) {
+    pagePeekEditorPromise = import("@/components/editor/Editor").catch(
+      (error) => {
+        pagePeekEditorPromise = null;
+        throw error;
+      }
+    );
+  }
+  void pagePeekEditorPromise.catch(() => undefined);
+}
+
 export function warmPagePeekModal() {
   void loadPagePeekModal().catch(() => undefined);
+  warmPagePeekEditor();
 }
 
 const LazyPagePeekModal = dynamic(loadPagePeekModal, {

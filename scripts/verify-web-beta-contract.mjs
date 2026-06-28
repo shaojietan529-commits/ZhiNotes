@@ -130,6 +130,7 @@ const files = {
   usePages: "src/hooks/usePages.ts",
   workspaceStore: "src/stores/workspaceStore.ts",
   pagePeekModal: "src/components/page/PagePeekModal.tsx",
+  lazyPagePeekModal: "src/components/page/LazyPagePeekModal.tsx",
   pageContextMenu: "src/components/page/PageContextMenu.tsx",
   lazyPageContextMenu: "src/components/page/LazyPageContextMenu.tsx",
   usePageFavorites: "src/hooks/usePageFavorites.ts",
@@ -522,6 +523,7 @@ function run() {
   const usePages = readProjectFile(files.usePages);
   const workspaceStore = readProjectFile(files.workspaceStore);
   const pagePeekModal = readProjectFile(files.pagePeekModal);
+  const lazyPagePeekModal = readProjectFile(files.lazyPagePeekModal);
   const pageContextMenu = readProjectFile(files.pageContextMenu);
   const lazyPageContextMenu = readProjectFile(files.lazyPageContextMenu);
   const usePageFavorites = readProjectFile(files.usePageFavorites);
@@ -3411,6 +3413,24 @@ function run() {
     "Daily calendar must not preload the heavy editor bundle during first-paint metadata loading."
   );
   assertSourceIncludes(
+    files.lazyPagePeekModal,
+    lazyPagePeekModal,
+    "function warmPagePeekEditor()",
+    "Lazy peek warmup must prefetch the editor chunk before a + click opens a draft."
+  );
+  assertSourceIncludes(
+    files.lazyPagePeekModal,
+    lazyPagePeekModal,
+    'import("@/components/editor/Editor")',
+    "Lazy peek warmup must keep editor preloading inside the lazy wrapper, not the calendar shell."
+  );
+  assertSourceIncludes(
+    files.lazyPagePeekModal,
+    lazyPagePeekModal,
+    "warmPagePeekEditor();",
+    "warmPagePeekModal must also warm the editor chunk for immediate draft editing."
+  );
+  assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
     "pageShellWarmupRef",
@@ -3427,6 +3447,30 @@ function run() {
     dailyNotesShell,
     "onPointerEnter={warmDailyPeekOpen}",
     "Daily calendar + controls must warm the lazy peek modal on pointer intent before opening."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "const creatingDateKeyRef = useRef<string | null>(null)",
+    "Daily + creation must use a synchronous ref lock for duplicate mouse-down/click paths."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "const addNoteOnMouseDown = useCallback",
+    "Daily + creation must begin on mouse-down for immediate visible feedback."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "onMouseDown={(event) => addNoteOnMouseDown(event, todayKey)}",
+    "The today + control must start draft creation on mouse-down."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "onMouseDown={(event) => addNoteOnMouseDown(event, key)}",
+    "Each calendar-cell + control must start draft creation on mouse-down."
   );
   assertSourceIncludes(
     files.dailyNotesShell,

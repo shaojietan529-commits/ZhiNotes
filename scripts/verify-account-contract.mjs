@@ -1426,6 +1426,9 @@ const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx")
 check(
     lazyPagePeekModal.includes("function loadPagePeekModal()") &&
     lazyPagePeekModal.includes("export function warmPagePeekModal()") &&
+    lazyPagePeekModal.includes("function warmPagePeekEditor()") &&
+    lazyPagePeekModal.includes('import("@/components/editor/Editor")') &&
+    lazyPagePeekModal.includes("warmPagePeekEditor();") &&
     lazyPagePeekModal.includes('import("@/components/page/PagePeekModal")') &&
     lazyPagePeekModal.includes("dynamic(loadPagePeekModal") &&
     dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
@@ -1439,6 +1442,10 @@ check(
     dailyNotesShell.includes("setOpeningNoteId(note.id);") &&
     dailyNotesShell.indexOf('primeDailyNoteOpen(note, "daily-open");') <
       dailyNotesShell.indexOf("setOpeningNoteId(note.id);") &&
+    dailyNotesShell.includes("const creatingDateKeyRef = useRef<string | null>(null)") &&
+    dailyNotesShell.includes("const addNoteOnMouseDown = useCallback") &&
+    dailyNotesShell.includes("onMouseDown={(event) => addNoteOnMouseDown(event, todayKey)}") &&
+    dailyNotesShell.includes("onMouseDown={(event) => addNoteOnMouseDown(event, key)}") &&
     dailyNotesShell.includes('onPointerDown={() =>') &&
     dailyNotesShell.includes('primeDailyNoteOpen(note, "daily-open")') &&
     dailyNotesShell.includes('onFocus={() => primeDailyNoteOpen(note, "daily-open")}') &&

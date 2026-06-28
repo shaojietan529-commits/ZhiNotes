@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent,
 } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -160,6 +161,7 @@ export default function DailyNotesShell() {
   const notesRenderFingerprintRef = useRef("");
   const notesRef = useRef<DailyNote[]>([]);
   const observedPageRevisionRef = useRef<string | null>(null);
+  const creatingDateKeyRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
   const dailyNoteContentWarmupIdsRef = useRef<Set<string>>(new Set());
   const { viewMonth, setViewMonth } =
@@ -744,9 +746,18 @@ export default function DailyNotesShell() {
   // Add a new note page on the given day, then open it for editing.
   const addNote = useCallback(
     async (dateKey: string) => {
-      if (creatingDateKey) return;
+      if (creatingDateKeyRef.current) return;
       loadRequestRef.current += 1;
+      creatingDateKeyRef.current = dateKey;
       setCreatingDateKey(dateKey);
+      const releaseCreatingDate = () => {
+        if (creatingDateKeyRef.current === dateKey) {
+          creatingDateKeyRef.current = null;
+        }
+        setCreatingDateKey((current) =>
+          current === dateKey ? null : current
+        );
+      };
       const props = [
         { ...createPageProperty("date", "日期"), value: dateKey },
         createPageProperty("text", "要点"),
@@ -797,7 +808,7 @@ export default function DailyNotesShell() {
         void seedDailyNoteForImmediateOpen(optimisticNote);
       }, 320);
       window.setTimeout(() => {
-        setCreatingDateKey((current) => (current === dateKey ? null : current));
+        releaseCreatingDate();
       }, 250);
 
       const pageRoute = `/page/${optimisticNote.id}`;
@@ -850,15 +861,12 @@ export default function DailyNotesShell() {
             setOpeningDraft((current) =>
               current?.pageId === optimisticNote.id ? null : current
             );
-            setCreatingDateKey((current) =>
-              current === dateKey ? null : current
-            );
+            releaseCreatingDate();
           }
         })();
       }, 420);
     },
     [
-      creatingDateKey,
       notesByDate,
       rootId,
       router,
@@ -866,6 +874,16 @@ export default function DailyNotesShell() {
       viewMonth,
       warmDailyPeekOpen,
     ]
+  );
+
+  const addNoteOnMouseDown = useCallback(
+    (event: MouseEvent<HTMLButtonElement>, dateKey: string) => {
+      if (event.button !== 0) return;
+      if (creatingDateKeyRef.current) return;
+      event.preventDefault();
+      void addNote(dateKey);
+    },
+    [addNote]
   );
 
   const primeDailyNoteOpen = useCallback(
@@ -1075,6 +1093,7 @@ export default function DailyNotesShell() {
               disabled={creatingDateKey !== null}
               onPointerEnter={warmDailyPeekOpen}
               onPointerDown={warmDailyPeekOpen}
+              onMouseDown={(event) => addNoteOnMouseDown(event, todayKey)}
               onFocus={warmDailyPeekOpen}
               onClick={() => void addNote(todayKey)}
               className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
@@ -1194,6 +1213,7 @@ export default function DailyNotesShell() {
                       disabled={creatingDateKey !== null}
                       onPointerEnter={warmDailyPeekOpen}
                       onPointerDown={warmDailyPeekOpen}
+                      onMouseDown={(event) => addNoteOnMouseDown(event, key)}
                       onFocus={warmDailyPeekOpen}
                       onClick={() => void addNote(key)}
                       className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"

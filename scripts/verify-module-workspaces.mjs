@@ -75,6 +75,7 @@ const pageBodyHydrationStatus = read(
   "src/lib/pages/pageBodyHydrationStatus.ts"
 );
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
+const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
 const editorSource = read("src/components/editor/Editor.tsx");
 const blockCommentsSource = read("src/components/shared/BlockComments.tsx");
@@ -816,10 +817,17 @@ check(
     pagePeekModal.includes("readPendingPageDraft(pageId)") &&
     pagePeekModal.includes("readPageRouteHandoff(pageId)") &&
     pagePeekModal.includes("PEEK_METADATA_ONLY_CONTENT_DELAY_MS") &&
+    lazyPagePeekModal.includes("function warmPagePeekEditor()") &&
+    lazyPagePeekModal.includes('import("@/components/editor/Editor")') &&
+    lazyPagePeekModal.includes("warmPagePeekEditor();") &&
     pagePeekModal.includes("onReady?: (pageId: string) => void") &&
     pagePeekModal.includes("onReady?.(pageId)") &&
     shells.daily.includes("const handlePeekReady = useCallback") &&
     shells.daily.includes("onReady={handlePeekReady}") &&
+    shells.daily.includes("const creatingDateKeyRef = useRef<string | null>(null)") &&
+    shells.daily.includes("const addNoteOnMouseDown = useCallback") &&
+    shells.daily.includes("onMouseDown={(event) => addNoteOnMouseDown(event, todayKey)}") &&
+    shells.daily.includes("onMouseDown={(event) => addNoteOnMouseDown(event, key)}") &&
     shells.daily.indexOf('primeDailyNoteOpen(note, "daily-open");') <
       shells.daily.indexOf("setOpeningNoteId(note.id);") &&
     shells.daily.includes('onPointerDown={() =>') &&
