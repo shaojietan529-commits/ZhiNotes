@@ -2381,6 +2381,24 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "readCachedDailyCloudMetadata(startDate, endDate)",
+    "Daily notes must also use cached cloud directory metadata before IndexedDB readiness."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "cachedCloudMerged = mergeCloudDailyNotes(byId, cachedCloud)",
+    "Daily notes must merge cached cloud directory metadata into first paint."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "已先显示浏览器缓存的云端每日纪要目录",
+    "Daily notes must surface when cached cloud directory metadata supplied first paint."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "正在启动本地数据库和云端校正",
     "Daily notes must label browser-hot-cache first paint while database/cloud correction continues."
   );

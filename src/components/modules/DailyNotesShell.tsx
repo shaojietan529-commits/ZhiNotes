@@ -217,8 +217,10 @@ export default function DailyNotesShell() {
       startDate,
       endDate
     );
+    const cachedCloud = readCachedDailyCloudMetadata(startDate, endDate);
     let merged = 0;
     let rootHint: string | null = cachedHotSnapshot?.root_id ?? null;
+    let cachedCloudMerged = 0;
 
     if (cachedHotSnapshot) {
       merged += mergeDailyHotCacheSnapshot(
@@ -231,6 +233,11 @@ export default function DailyNotesShell() {
     for (const snapshot of overlappingHotSnapshots) {
       if (!rootHint) rootHint = snapshot.root_id;
       merged += mergeDailyHotCacheSnapshot(byId, snapshot, startDate, endDate);
+    }
+    if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
+      rootHint = rootHint ?? cachedCloud.rootId;
+      cachedCloudMerged = mergeCloudDailyNotes(byId, cachedCloud);
+      merged += cachedCloudMerged;
     }
     if (merged === 0) return;
 
@@ -249,8 +256,19 @@ export default function DailyNotesShell() {
       setNotes(renderableNotes);
       setDailyNoteCountByDate(selection.countsByDate);
     });
+    if (cachedCloudMerged > 0) {
+      writeDailyHotCacheSnapshot({
+        startDate,
+        endDate,
+        rootId: cachedCloud?.rootId ?? rootHint,
+        pages: renderableNotes,
+        source: "cloud-metadata",
+      });
+    }
     setCloudNotice(
-      `已先显示本机热缓存 ${renderableNotes.length} 条每日纪要 metadata，正在启动本地数据库和云端校正…`
+      cachedCloudMerged > 0
+        ? `已先显示浏览器缓存的云端每日纪要目录 ${renderableNotes.length} 条，正在启动本地数据库和云端校正…`
+        : `已先显示本机热缓存 ${renderableNotes.length} 条每日纪要 metadata，正在启动本地数据库和云端校正…`
     );
   }, [viewMonth]);
 
