@@ -1907,6 +1907,10 @@ function run() {
       "Daily + creation must update the local hot cache before background persistence.",
     ],
     [
+      "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({",
+      "Daily + creation must defer hot-cache writes so the click can paint the new page immediately.",
+    ],
+    [
       "currentNotes: collectVisibleDailyNotesForHotCache(notesByDate)",
       "Daily + creation must not pass the full imported note set into optimistic hot-cache writes.",
     ],
@@ -2933,6 +2937,10 @@ function run() {
     [
       "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
       "Daily + creation must defer local cache persistence until after the page is already opening.",
+    ],
+    [
+      "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({",
+      "Daily + creation must defer hot-cache writes behind the immediate peek open path.",
     ],
     [
       "scheduleDailyIdleTask(() => {\n        void (async () => {",

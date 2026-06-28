@@ -688,6 +688,9 @@ check(
     dailyNotesShell.includes("useLocalFirstPageNavigation") &&
     dailyNotesShell.includes("const pageRoute = `/page/${optimisticNote.id}`") &&
     dailyNotesShell.includes("router.prefetch(pageRoute)") &&
+    dailyNotesShell.includes(
+      "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({"
+    ) &&
     dailyNotesShell.includes("setPeekInitialPage(optimisticNote);") &&
     dailyNotesShell.includes("setPeekPageId(optimisticNote.id);") &&
     !dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&

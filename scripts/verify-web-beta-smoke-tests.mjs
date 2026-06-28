@@ -3725,6 +3725,12 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({",
+    "Daily + creation must defer hot-cache writes so the click can paint the new page immediately."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "scheduleDailyIdleTask(() => {\n        void (async () => {",
     "Daily + creation must defer root resolution and cloud queue persistence behind the immediate navigation path."
   );

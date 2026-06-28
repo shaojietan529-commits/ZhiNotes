@@ -786,12 +786,14 @@ export default function DailyNotesShell() {
       setPeekInitialPage(optimisticNote);
       setOpeningNoteId(optimisticNote.id);
       setPeekPageId(optimisticNote.id);
-      writeOptimisticDailyHotCache({
-        note: optimisticNote,
-        currentNotes: collectVisibleDailyNotesForHotCache(notesByDate),
-        viewMonth,
-        rootId: initialRootId,
-      });
+      scheduleDailyIdleTask(() => {
+        writeOptimisticDailyHotCache({
+          note: optimisticNote,
+          currentNotes: collectVisibleDailyNotesForHotCache(notesByDate),
+          viewMonth,
+          rootId: initialRootId,
+        });
+      }, 220);
       scheduleDailyIdleTask(() => {
         void seedDailyNoteForImmediateOpen(optimisticNote);
       }, 320);

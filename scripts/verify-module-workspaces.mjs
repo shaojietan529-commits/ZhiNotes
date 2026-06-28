@@ -607,6 +607,7 @@ for (const token of [
   'openPage(pageId, { source: "daily-open" })',
   "rememberPendingPageDraft(optimisticNote)",
   "upsertPages([optimisticNote])",
+  "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({",
   "cachedHotSnapshot,\n        startDate,\n        endDate",
   "currentNotes: collectVisibleDailyNotesForHotCache(notesByDate)",
   "writeOptimisticDailyHotCache",
