@@ -2956,6 +2956,18 @@ function run() {
       "pageReferencesMounted",
       "Page shell must track backlinks mounting separately from comments and child pages.",
     ],
+    [
+      "const pageRelationshipSurfacesReady =",
+      "Page shell must centralize when comments, child pages, and backlinks are allowed to mount.",
+    ],
+    [
+      "editorMounted || (hasContentForEditor && hasLargeBodyForEditor)",
+      "Large page previews must allow comments, child pages, and backlinks without forcing full editor mount.",
+    ],
+    [
+      "!pageRelationshipSurfacesReady",
+      "Page relationship surfaces must wait for either the editor or the large-body preview before mounting.",
+    ],
   ]) {
     assertSourceIncludes(files.pageShell, pageShell, snippet, message);
   }

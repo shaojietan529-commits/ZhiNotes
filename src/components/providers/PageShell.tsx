@@ -238,6 +238,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const isOptimisticPageDraft = page?.content_text === "";
   const pageBodyHtmlLength = page?.content_text?.length ?? 0;
   const hasLargeBodyForEditor = isLargePageBodyForEditor(page?.content_text);
+  const pageRelationshipSurfacesReady =
+    editorMounted || (hasContentForEditor && hasLargeBodyForEditor);
   const mountedEditorPageIdRef = useRef<string | null>(null);
   const pageOpenStartedAtRef = useRef(getLocalPerformanceNow());
   const pageOpenStartedAtIsoRef = useRef(new Date().toISOString());
@@ -466,27 +468,35 @@ function PageContent({ pageId }: { pageId: string }) {
   }, [pageId, hasPage]);
 
   useEffect(() => {
-    if (!hasPage || !editorMounted || pageCommentsMounted) return;
+    if (!hasPage || !pageRelationshipSurfacesReady || pageCommentsMounted)
+      return;
     return scheduleDeferredMount(() => {
       setPageCommentsMounted(true);
     }, showComments
       ? PAGE_EDITOR_IDLE_TIMEOUT_MS
       : PAGE_COMMENTS_IDLE_TIMEOUT_MS);
-  }, [editorMounted, hasPage, pageCommentsMounted, pageId, showComments]);
+  }, [
+    hasPage,
+    pageCommentsMounted,
+    pageId,
+    pageRelationshipSurfacesReady,
+    showComments,
+  ]);
 
   useEffect(() => {
-    if (!hasPage || !editorMounted || childTreeMounted) return;
+    if (!hasPage || !pageRelationshipSurfacesReady || childTreeMounted) return;
     return scheduleDeferredMount(() => {
       setChildTreeMounted(true);
     }, PAGE_CHILD_TREE_IDLE_TIMEOUT_MS);
-  }, [childTreeMounted, editorMounted, hasPage, pageId]);
+  }, [childTreeMounted, hasPage, pageId, pageRelationshipSurfacesReady]);
 
   useEffect(() => {
-    if (!hasPage || !editorMounted || pageReferencesMounted) return;
+    if (!hasPage || !pageRelationshipSurfacesReady || pageReferencesMounted)
+      return;
     return scheduleDeferredMount(() => {
       setPageReferencesMounted(true);
     }, PAGE_REFERENCES_IDLE_TIMEOUT_MS);
-  }, [editorMounted, hasPage, pageId, pageReferencesMounted]);
+  }, [hasPage, pageId, pageReferencesMounted, pageRelationshipSurfacesReady]);
 
   useLayoutEffect(() => {
     const editableHeaderPage = page ?? readPageShellRoutePreviewSeed(pageId);
