@@ -2556,6 +2556,10 @@ function run() {
       "usePage must read a route handoff before slower local DB or cloud checks.",
     ],
     [
+      "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
+      "usePage must prefer metadata-only route handoff over heavier pending body drafts for first paint.",
+    ],
+    [
       "readLocalFirstPageSeed",
       "usePage must read local-first route seeds before waiting on IndexedDB readiness.",
     ],
@@ -2602,6 +2606,22 @@ function run() {
     [
       "setLoadingForCurrentLoad(!localPage)",
       "usePage must avoid showing not-found when a local-first route seed exists before IndexedDB readiness.",
+    ],
+    [
+      "getPageMetadata(pageId)",
+      "usePage must read local page metadata before requesting the full page body.",
+    ],
+    [
+      "schedulePageLocalBodyHydration",
+      "usePage must defer local full-body reads until after metadata first paint.",
+    ],
+    [
+      "refreshPageBodyFromLocalCache",
+      "usePage must hydrate the full local page body through a separate background path.",
+    ],
+    [
+      "PAGE_LOCAL_BODY_HYDRATION_IDLE_MS",
+      "usePage must keep the local body hydration idle timeout explicit and bounded.",
     ],
     [
       "clearPageRouteHandoff",

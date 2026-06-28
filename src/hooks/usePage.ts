@@ -10,6 +10,7 @@ import {
 import {
   applyRemotePages,
   getPage,
+  getPageMetadata,
   createPage,
   deletePage,
   type RemotePageRecord,
@@ -40,6 +41,7 @@ import { usePageRecordRevision } from "@/hooks/usePageRevision";
 import type { Page } from "@/lib/utils/types";
 
 const PAGE_CLOUD_HYDRATION_IDLE_MS = 700;
+const PAGE_LOCAL_BODY_HYDRATION_IDLE_MS = 220;
 const MAX_REMOTE_COVER_CHARS = 300 * 1024;
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
@@ -136,35 +138,40 @@ export function usePage(
       return;
     }
 
-    try {
-      if (localPage?.content_text == null) {
-        publishPageBodyHydrationStatus({
-          pageId,
-          phase: "local-body-requested",
-          surface,
-          metadataOnly: true,
-        });
+    if (!localPage) {
+      try {
+        localPage = await getPageMetadata(pageId);
+        if (!isCurrentLoad()) return;
+        if (localPage) {
+          upsertPages([localPage]);
+          setPageForCurrentLoad(localPage);
+          setLoadingForCurrentLoad(false);
+          publishPageBodyHydrationForSnapshot(
+            localPage,
+            "metadata-ready",
+            surface
+          );
+        }
+      } catch {
+        // Keep the route skeleton visible while cloud lookup gets a chance.
       }
-      const storedPage = await getPage(pageId);
-      if (!isCurrentLoad()) return;
-      if (storedPage) {
-        localPage = storedPage;
-        clearPendingPageDraft(pageId);
-        clearPageRouteHandoff(pageId);
-        publishPageBodyHydrationForSnapshot(
-          storedPage,
-          storedPage.content_text == null ? "metadata-ready" : "local-body-ready",
-          surface
-        );
-      }
-    } catch {
-      // Keep the in-memory page if IndexedDB is slow or temporarily failing.
     }
 
     if (localPage) {
-      upsertPages([localPage]);
-      setPageForCurrentLoad(localPage);
-      setLoadingForCurrentLoad(false);
+      if (localPage.content_text == null) {
+        schedulePageLocalBodyHydration(
+          pageId,
+          isCurrentLoad,
+          () =>
+            visiblePageRef.current?.id === pageId
+              ? visiblePageRef.current
+              : localPage,
+          setPageForCurrentLoad,
+          upsertPages,
+          surface
+        );
+        return;
+      }
       schedulePageCloudHydration(
         pageId,
         () =>
@@ -359,8 +366,8 @@ export function usePage(
 
 function readLocalFirstPageSeed(pageId: string): Page | null {
   return (
-    readPendingPageDraft(pageId) ??
     readPageRouteHandoff(pageId) ??
+    readPendingPageDraft(pageId) ??
     useWorkspaceStore.getState().getPageById(pageId) ??
     null
   );
@@ -553,6 +560,92 @@ async function refreshPageFromCloud(
       });
     }
   }
+}
+
+function schedulePageLocalBodyHydration(
+  pageId: string,
+  isCurrentLoad: () => boolean,
+  getLocalPage: () => Page | null,
+  setPage: (page: Page | null) => void,
+  upsertPages: (pages: Page[]) => void,
+  surface: PageBodyHydrationSurface
+): void {
+  const run = () => {
+    void refreshPageBodyFromLocalCache(
+      pageId,
+      isCurrentLoad,
+      getLocalPage,
+      setPage,
+      upsertPages,
+      surface
+    );
+  };
+  if (typeof window === "undefined") {
+    run();
+    return;
+  }
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      callback: () => void,
+      options?: { timeout?: number }
+    ) => number;
+  };
+  if (maybeWindow.requestIdleCallback) {
+    maybeWindow.requestIdleCallback(run, {
+      timeout: PAGE_LOCAL_BODY_HYDRATION_IDLE_MS,
+    });
+    return;
+  }
+  window.setTimeout(run, Math.min(PAGE_LOCAL_BODY_HYDRATION_IDLE_MS, 80));
+}
+
+async function refreshPageBodyFromLocalCache(
+  pageId: string,
+  isCurrentLoad: () => boolean,
+  getLocalPage: () => Page | null,
+  setPage: (page: Page | null) => void,
+  upsertPages: (pages: Page[]) => void,
+  surface: PageBodyHydrationSurface
+): Promise<void> {
+  publishPageBodyHydrationStatus({
+    pageId,
+    phase: "local-body-requested",
+    surface,
+    metadataOnly: true,
+  });
+  try {
+    const storedPage = await getPage(pageId);
+    if (!isCurrentLoad()) return;
+    if (storedPage) {
+      clearPendingPageDraft(pageId);
+      clearPageRouteHandoff(pageId);
+      upsertPages([storedPage]);
+      setPage(storedPage);
+      publishPageBodyHydrationForSnapshot(
+        storedPage,
+        storedPage.content_text == null ? "metadata-ready" : "local-body-ready",
+        surface
+      );
+      schedulePageCloudHydration(
+        pageId,
+        getLocalPage,
+        setPage,
+        upsertPages,
+        surface
+      );
+      return;
+    }
+  } catch {
+    // Local body hydration is a speed path. Cloud fallback still runs below.
+  }
+  if (!isCurrentLoad()) return;
+  schedulePageCloudHydration(
+    pageId,
+    getLocalPage,
+    setPage,
+    upsertPages,
+    surface
+  );
 }
 
 function schedulePageCloudHydration(

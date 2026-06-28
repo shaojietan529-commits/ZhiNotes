@@ -3313,6 +3313,12 @@ function run() {
     "readPageRouteHandoff",
     "Page opening must read route handoff before slower local DB or cloud checks."
   );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
+    "Page opening must prefer metadata-only route handoff over heavier pending body drafts for first paint."
+  );
   for (const [snippet, message] of [
     [
       "publishPageBodyHydrationStatus",
@@ -3450,6 +3456,26 @@ function run() {
     "setLoadingForCurrentLoad(!localPage)",
     "Page opening must avoid showing not-found when a local-first route seed exists before IndexedDB readiness."
   );
+  for (const [snippet, message] of [
+    [
+      "getPageMetadata(pageId)",
+      "Page opening must read local page metadata before requesting the full page body.",
+    ],
+    [
+      "schedulePageLocalBodyHydration",
+      "Page opening must defer local full-body reads until after metadata first paint.",
+    ],
+    [
+      "refreshPageBodyFromLocalCache",
+      "Page opening must hydrate the full local page body through a separate background path.",
+    ],
+    [
+      "PAGE_LOCAL_BODY_HYDRATION_IDLE_MS",
+      "Page opening must keep the local body hydration idle timeout explicit and bounded.",
+    ],
+  ]) {
+    assertIncludes(files.usePage, usePage, snippet, message);
+  }
   assertIncludes(
     files.usePage,
     usePage,
