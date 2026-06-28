@@ -470,6 +470,16 @@ check(
     quickSearchSource.includes('await import(\n        "@/lib/export/workspaceBackup"') &&
     !sidebarSource.includes('from "@/lib/export/workspaceBackup"') &&
     !quickSearchSource.includes('from "@/lib/export/workspaceBackup"') &&
+    sidebarSource.includes('await import("@/lib/pages/cloudPageMutations")') &&
+    sidebarSource.includes('await import("@/lib/database/cloudDatabaseMutations")') &&
+    quickSearchSource.includes('await import("@/lib/pages/cloudPageMutations")') &&
+    quickSearchSource.includes('await import("@/lib/database/cloudDatabaseMutations")') &&
+    pageTreeSource.includes('await import("@/lib/pages/cloudPageMutations")') &&
+    !sidebarSource.includes('from "@/lib/pages/cloudPageMutations"') &&
+    !sidebarSource.includes('from "@/lib/database/cloudDatabaseMutations"') &&
+    !quickSearchSource.includes('from "@/lib/pages/cloudPageMutations"') &&
+    !quickSearchSource.includes('from "@/lib/database/cloudDatabaseMutations"') &&
+    !pageTreeSource.includes('from "@/lib/pages/cloudPageMutations"') &&
     sidebarSource.includes('openPage(page, { source: "sidebar-create" })') &&
     !quickSearchSource.includes("const { pages, refresh } = usePages()") &&
     quickSearchSource.includes("const pages = useWorkspaceStore((s) => s.pages)") &&

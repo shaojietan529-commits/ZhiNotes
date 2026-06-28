@@ -12,8 +12,6 @@ import Link from "next/link";
 import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstModuleNavigation } from "@/hooks/useLocalFirstModuleNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
-import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
-import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useDatabases } from "@/hooks/useDatabases";
 import LazyQuickSearch from "./LazyQuickSearch";
@@ -455,6 +453,7 @@ export default function Sidebar() {
 
   const handleNewPage = async () => {
     try {
+      const { createPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
       const page = await createPageWithCloud();
       openPage(page, { source: "sidebar-create" });
     } catch (err) {
@@ -464,6 +463,7 @@ export default function Sidebar() {
 
   const handleNewDatabase = async () => {
     try {
+      const { createDatabase } = await import("@/lib/database/cloudDatabaseMutations");
       const db = await createDatabase({ title: "未命名数据库" });
       await refreshDatabases();
       openDatabase(db.id);

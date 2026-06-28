@@ -9,8 +9,6 @@ import {
   searchPages,
   upsertWorkspaceSetting,
 } from "@/lib/db/local/queries";
-import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
-import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useDatabases } from "@/hooks/useDatabases";
 import { usePages } from "@/hooks/usePages";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
@@ -313,6 +311,7 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
   };
 
   const handleCreatePage = async () => {
+    const { createPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
     const page = await createPageWithCloud({
       title: trimmedQuery || "未命名",
     });
@@ -322,6 +321,7 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
   };
 
   const handleCreateBlankPage = async () => {
+    const { createPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
     const page = await createPageWithCloud();
     upsertPages([page]);
     openPage(page, { source: "quick-search-create" });
@@ -329,6 +329,7 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
   };
 
   const handleCreateDatabase = async () => {
+    const { createDatabase } = await import("@/lib/database/cloudDatabaseMutations");
     const database = await createDatabase({ title: "未命名数据库" });
     await refreshDatabases();
     setOpen(false);

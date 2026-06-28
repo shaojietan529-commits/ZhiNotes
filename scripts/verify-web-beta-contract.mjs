@@ -14077,6 +14077,36 @@ function run() {
       "Quick search export commands must lazy-load workspace export code only after command intent.",
     ],
     [
+      files.sidebar,
+      sidebar,
+      'await import("@/lib/pages/cloudPageMutations")',
+      "Sidebar page creation must lazy-load page mutation code only after create intent.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'await import("@/lib/database/cloudDatabaseMutations")',
+      "Sidebar database creation must lazy-load database mutation code only after create intent.",
+    ],
+    [
+      files.quickSearch,
+      quickSearch,
+      'await import("@/lib/pages/cloudPageMutations")',
+      "Quick search page creation must lazy-load page mutation code only after command intent.",
+    ],
+    [
+      files.quickSearch,
+      quickSearch,
+      'await import("@/lib/database/cloudDatabaseMutations")',
+      "Quick search database creation must lazy-load database mutation code only after command intent.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      'await import("@/lib/pages/cloudPageMutations")',
+      "Sidebar page tree create/move actions must lazy-load page mutation code only after tree intent.",
+    ],
+    [
       files.knowledgeBaseShell,
       knowledgeBaseShell,
       "const pagesById = useWorkspaceStore((s) => s.pagesById)",
@@ -14983,6 +15013,40 @@ function run() {
       'from "@/lib/export/workspaceBackup"',
       "Workspace export/backup code must not be part of sidebar/search first paint bundles."
     );
+  }
+  for (const [sourceLabel, source, forbiddenSnippet, message] of [
+    [
+      files.sidebar,
+      sidebar,
+      'from "@/lib/pages/cloudPageMutations"',
+      "Sidebar page creation code must stay out of the first paint bundle.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'from "@/lib/database/cloudDatabaseMutations"',
+      "Sidebar database creation code must stay out of the first paint bundle.",
+    ],
+    [
+      files.quickSearch,
+      quickSearch,
+      'from "@/lib/pages/cloudPageMutations"',
+      "Quick search page mutation code must load only after the palette is active and a command runs.",
+    ],
+    [
+      files.quickSearch,
+      quickSearch,
+      'from "@/lib/database/cloudDatabaseMutations"',
+      "Quick search database mutation code must load only after the palette is active and a command runs.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      'from "@/lib/pages/cloudPageMutations"',
+      "Sidebar page tree mutation code must load only after add-child or drag/drop intent.",
+    ],
+  ]) {
+    assertSourceExcludes(sourceLabel, source, forbiddenSnippet, message);
   }
   assertSourceExcludes(
     files.pageTree,

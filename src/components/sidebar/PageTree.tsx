@@ -6,10 +6,6 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   getNextPosition,
 } from "@/lib/db/local/queries";
-import {
-  createPageWithCloud,
-  movePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
   getModuleRootIdsSync,
@@ -165,6 +161,7 @@ function PageTreeItem({
 
   const handleAddChild = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    const { createPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
     const child = await createPageWithCloud({ parentId: page.id });
     onPageMutated([child]);
     setExpanded(true);
@@ -467,6 +464,7 @@ export default function PageTree() {
     }
 
     try {
+      const { movePageWithCloud } = await import("@/lib/pages/cloudPageMutations");
       let movedPage: Page | null = null;
       if (dropTarget.position === "inside") {
         const pos = await getNextPosition(targetPage.id);
@@ -518,6 +516,7 @@ export default function PageTree() {
       if (!draggedId) return;
 
       try {
+        const { movePageWithCloud } = await import("@/lib/pages/cloudPageMutations");
         const pos = await getNextPosition(null);
         const movedPage = await movePageWithCloud(draggedId, null, pos);
         if (movedPage) {
