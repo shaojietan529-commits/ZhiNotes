@@ -13788,6 +13788,18 @@ function run() {
     [
       files.accountPageSync,
       accountPageSync,
+      "if (pendingChanged || !wasQueued) emitPageSyncStatusChanged();",
+      "Account page sync must avoid rewriting pending metadata and rebroadcasting status on every keystroke for an already queued page.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "if (wasPending && meta[id]) return false;",
+      "Account page sync must no-op repeated pending marks when the same page id is already safely queued.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
       "oldestPendingQueuedAt",
       "Account page sync pending status must expose the oldest pending queued timestamp.",
     ],

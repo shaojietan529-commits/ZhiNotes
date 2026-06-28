@@ -1245,9 +1245,10 @@ export function queueCloudPagePush(
   delayMs = CLOUD_PUSH_DEBOUNCE_MS
 ): void {
   const record = "owner_id" in page ? pageToRemoteRecord(page) : page;
-  markPendingCloudPush(record.id);
+  const wasQueued = queuedCloudPush.has(record.id);
+  const pendingChanged = markPendingCloudPush(record.id);
   queuedCloudPush.set(record.id, record);
-  emitPageSyncStatusChanged();
+  if (pendingChanged || !wasQueued) emitPageSyncStatusChanged();
   if (queuedCloudPushTimer) clearTimeout(queuedCloudPushTimer);
   queuedCloudPushTimer = setTimeout(() => {
     const batch = [...queuedCloudPush.values()];
@@ -1705,16 +1706,23 @@ function prunePendingCloudPushMetaToIds(ids: string[]): void {
   setPendingCloudPushMeta(next);
 }
 
-function markPendingCloudPush(id: string): void {
-  if (!isValidRemotePageId(id)) return;
-  setPendingCloudPushIds([...getPendingCloudPushIds(), id]);
+function markPendingCloudPush(id: string): boolean {
+  if (!isValidRemotePageId(id)) return false;
+  const pendingIds = getPendingCloudPushIds();
+  const wasPending = pendingIds.includes(id);
+  if (!wasPending) {
+    setPendingCloudPushIds([...pendingIds, id]);
+  }
   const meta = getPendingCloudPushMeta();
+  if (wasPending && meta[id]) return false;
   if (!meta[id]) {
     setPendingCloudPushMeta({
       ...meta,
       [id]: { queuedAt: new Date().toISOString() },
     });
+    return true;
   }
+  return !wasPending;
 }
 
 function markPendingCloudPushRecords(records: RemotePageRecord[]): void {

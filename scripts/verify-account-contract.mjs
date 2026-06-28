@@ -372,6 +372,13 @@ check(
     pageSyncClient.includes("flushPendingCloudPushes"),
   "页面同步客户端应维护只含 page id 的待上传队列，用于失败后重试云端写回"
 );
+check(
+  pageSyncClient.includes("const wasQueued = queuedCloudPush.has(record.id)") &&
+    pageSyncClient.includes("const pendingChanged = markPendingCloudPush(record.id)") &&
+    pageSyncClient.includes("if (pendingChanged || !wasQueued) emitPageSyncStatusChanged();") &&
+    pageSyncClient.includes("if (wasPending && meta[id]) return false;"),
+  "页面同步高频排队应复用同一 page 的 pending 记录，避免每次输入都重写 localStorage 或重复广播状态"
+);
 const pushCloudPagesBody = pageSyncClient.slice(
   pageSyncClient.indexOf("export async function pushCloudPages"),
   pageSyncClient.indexOf("async function pushCloudRecordsInBatches")

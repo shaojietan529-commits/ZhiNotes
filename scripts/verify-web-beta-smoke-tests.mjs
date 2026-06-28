@@ -6297,6 +6297,18 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "if (pendingChanged || !wasQueued) emitPageSyncStatusChanged();",
+    "Smoke verifier must keep repeated same-page page sync queueing cheap during typing."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "if (wasPending && meta[id]) return false;",
+    "Smoke verifier must keep repeated pending marks from rewriting localStorage when the page is already queued."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "oldestPendingQueuedAt",
     "Smoke verifier must keep the oldest page pending timestamp visible."
   );
