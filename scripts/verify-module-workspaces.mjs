@@ -448,13 +448,21 @@ check(
     pageTreeSource.includes("collectHiddenModuleSubtreeIds") &&
     pageTreeSource.includes("hiddenModuleSubtreeIds.has(page.id)") &&
     pageTreeSource.includes("visiting.has(page.id)") &&
+    pageTreeSource.includes("useDeferredValue(pages)") &&
+    pageTreeSource.includes("childVisibleLimit") &&
+    pageTreeSource.includes("setRootVisibleLimit") &&
+    pageTreeSource.includes("显示更多") &&
+    pageTreeSource.includes("isDescendant(page.id, draggedId, pagesById)") &&
     pageTreeSource.includes("onPageMutated([child])") &&
     pageTreeSource.includes("collectMovedPageSnapshots(pages, movedPage)") &&
     pageTreeSource.includes("onPageMutated={upsertPages}") &&
     !pageTreeSource.includes("{children.map((child)") &&
+    !pageTreeSource.includes("new Map(allPages.map") &&
+    !pageTreeSource.includes("allPages={pages}") &&
+    !pageTreeSource.includes("function getSiblings") &&
     !pageTreeSource.includes("onChanged={() => refresh()}") &&
     !pageTreeSource.includes("await refresh()"),
-  "Sidebar PageTree 必须用 parent 索引、根/子页面渲染上限、当前路径保留/自动展开和局部 upsert，避免 Notion 批量导入后拖慢全站"
+  "Sidebar PageTree 必须用 parent 索引、根/子页面渲染上限、按需显示更多、当前路径保留/自动展开和局部 upsert，避免 Notion 批量导入后拖慢全站"
 );
 check(
   pageContextMenuSource.includes("usePages({ autoLoad: false })") &&

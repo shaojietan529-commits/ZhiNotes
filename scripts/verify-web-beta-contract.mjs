@@ -15259,6 +15259,36 @@ function run() {
       "Sidebar hidden module subtree detection must guard against cyclic parent chains.",
     ],
     [
+      files.pageTree,
+      pageTree,
+      "useDeferredValue(pages)",
+      "Sidebar page tree must defer large imported page-list rendering so route navigation remains responsive.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "childVisibleLimit",
+      "Sidebar page tree must let owners reveal folded child pages on demand without rendering every child upfront.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "setRootVisibleLimit",
+      "Sidebar page tree must let owners reveal folded root pages on demand without rendering every root upfront.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "显示更多",
+      "Sidebar page tree must expose an on-demand reveal control for folded page groups.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "isDescendant(page.id, draggedId, pagesById)",
+      "Sidebar page tree drag hover must reuse the workspace page index instead of rebuilding a full-page map.",
+    ],
+    [
       files.favoritePages,
       favoritePages,
       'source: "favorite-open"',
@@ -15625,6 +15655,18 @@ function run() {
     "{children.map((child)",
     "Sidebar page tree must not render every child page in a large expanded parent."
   );
+  for (const forbiddenPageTreeSnippet of [
+    "new Map(allPages.map",
+    "allPages={pages}",
+    "function getSiblings",
+  ]) {
+    assertSourceExcludes(
+      files.pageTree,
+      pageTree,
+      forbiddenPageTreeSnippet,
+      "Sidebar page tree drag/drop must reuse existing page indexes instead of rebuilding full-page scans."
+    );
+  }
   for (const [sourceLabel, source] of [
     [files.companyResearchShell, companyResearchShell],
     [files.meetingsShell, meetingsShell],

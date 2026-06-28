@@ -8213,6 +8213,11 @@ function run() {
     "collectHiddenModuleSubtreeIds",
     "hiddenModuleSubtreeIds.has(page.id)",
     "visiting.has(page.id)",
+    "useDeferredValue(pages)",
+    "childVisibleLimit",
+    "setRootVisibleLimit",
+    "显示更多",
+    "isDescendant(page.id, draggedId, pagesById)",
   ]) {
     assertIncludes(
       files.pageTree,
@@ -8225,6 +8230,17 @@ function run() {
     failures.push(
       `${files.pageTree} must not render every child page in a large expanded parent.`
     );
+  }
+  for (const forbiddenPageTreeSnippet of [
+    "new Map(allPages.map",
+    "allPages={pages}",
+    "function getSiblings",
+  ]) {
+    if (pageTree.includes(forbiddenPageTreeSnippet)) {
+      failures.push(
+        `${files.pageTree} must not include ${forbiddenPageTreeSnippet}: sidebar tree drag/drop should reuse existing page indexes instead of rebuilding full-page scans.`
+      );
+    }
   }
   assertIncludes(
     files.favoritePages,

@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+  useDeferredValue,
+} from "react";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
@@ -81,26 +88,19 @@ function collectHiddenModuleSubtreeIds(
 function isDescendant(
   pageId: string,
   ancestorId: string,
-  allPages: Page[]
+  pagesById: Map<string, Page>
 ): boolean {
-  const byId = new Map(allPages.map((p) => [p.id, p]));
-  let current = byId.get(pageId);
+  let current = pagesById.get(pageId);
   while (current) {
     if (current.id === ancestorId) return true;
-    current = current.parent_id ? byId.get(current.parent_id) : undefined;
+    current = current.parent_id ? pagesById.get(current.parent_id) : undefined;
   }
   return false;
 }
 
-function getSiblings(parentId: string | null, allPages: Page[]): Page[] {
-  return allPages
-    .filter((p) => p.parent_id === parentId)
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-}
-
 interface PageTreeItemProps {
   page: Page;
-  allPages: Page[];
+  pagesById: Map<string, Page>;
   childrenByParent: Map<string | null, Page[]>;
   level: number;
   currentPageId: string | null;
@@ -117,7 +117,7 @@ interface PageTreeItemProps {
 
 function PageTreeItem({
   page,
-  allPages,
+  pagesById,
   childrenByParent,
   level,
   currentPageId,
@@ -133,13 +133,20 @@ function PageTreeItem({
 }: PageTreeItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [childVisibleLimit, setChildVisibleLimit] = useState(
+    SIDEBAR_PAGE_TREE_CHILD_LIMIT
+  );
   const rowRef = useRef<HTMLDivElement>(null);
 
   const children = childrenByParent.get(page.id) ?? EMPTY_PAGE_TREE_CHILDREN;
   const hasChildren = children.length > 0;
   const visibleChildren = useMemo(() => {
-    if (children.length <= SIDEBAR_PAGE_TREE_CHILD_LIMIT) return children;
-    const visible = children.slice(0, SIDEBAR_PAGE_TREE_CHILD_LIMIT);
+    if (children.length <= childVisibleLimit) return children;
+    const firstVisibleChildren = children.slice(0, SIDEBAR_PAGE_TREE_CHILD_LIMIT);
+    const visible =
+      childVisibleLimit <= SIDEBAR_PAGE_TREE_CHILD_LIMIT
+        ? firstVisibleChildren
+        : children.slice(0, childVisibleLimit);
     const childOnCurrentPath = children.find((child) =>
       currentPathIds.has(child.id)
     );
@@ -150,7 +157,7 @@ function PageTreeItem({
       visible.splice(SIDEBAR_PAGE_TREE_CHILD_LIMIT - 1, 1, childOnCurrentPath);
     }
     return visible;
-  }, [children, currentPathIds]);
+  }, [childVisibleLimit, children, currentPathIds]);
   const hiddenChildCount = Math.max(0, children.length - visibleChildren.length);
   const title = displayPageTitle(page.title);
 
@@ -183,7 +190,7 @@ function PageTreeItem({
     e.preventDefault();
     e.stopPropagation();
     if (!draggedId || draggedId === page.id) return;
-    if (isDescendant(page.id, draggedId, allPages)) return;
+    if (isDescendant(page.id, draggedId, pagesById)) return;
 
     const rect = rowRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -325,7 +332,7 @@ function PageTreeItem({
             <PageTreeItem
               key={child.id}
               page={child}
-              allPages={allPages}
+              pagesById={pagesById}
               childrenByParent={childrenByParent}
               level={level + 1}
               currentPageId={currentPageId}
@@ -342,10 +349,27 @@ function PageTreeItem({
           ))}
           {hiddenChildCount > 0 && (
             <li
-              className="px-2 py-1 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500"
+              className="flex items-center justify-between gap-2 px-2 py-1 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500"
               style={{ paddingLeft: `${(level + 1) * 16 + 32}px` }}
             >
-              已折叠 {hiddenChildCount} 个子页面；用搜索或对应模块打开。
+              <span className="min-w-0 truncate">
+                已折叠 {hiddenChildCount} 个子页面
+              </span>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setChildVisibleLimit((limit) =>
+                    Math.min(
+                      children.length,
+                      limit + SIDEBAR_PAGE_TREE_CHILD_LIMIT
+                    )
+                  );
+                }}
+                className="shrink-0 rounded px-1.5 py-0.5 text-[10px] text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              >
+                显示更多
+              </button>
             </li>
           )}
         </ul>
@@ -357,8 +381,12 @@ function PageTreeItem({
 export default function PageTree() {
   const openPage = useLocalFirstPageNavigation();
   const { pages, upsertPages } = usePages();
+  const treePages = useDeferredValue(pages);
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
   const pagesById = useWorkspaceStore((s) => s.pagesById);
+  const [rootVisibleLimit, setRootVisibleLimit] = useState(
+    SIDEBAR_PAGE_TREE_ROOT_LIMIT
+  );
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [contextMenu, setContextMenu] = useState<{
@@ -389,12 +417,12 @@ export default function PageTree() {
   }, []);
 
   const hiddenModuleSubtreeIds = useMemo(
-    () => collectHiddenModuleSubtreeIds(pages, pagesById, moduleRootIds),
-    [moduleRootIds, pages, pagesById]
+    () => collectHiddenModuleSubtreeIds(treePages, pagesById, moduleRootIds),
+    [moduleRootIds, pagesById, treePages]
   );
   const childrenByParent = useMemo(() => {
     const grouped = new Map<string | null, Page[]>();
-    for (const page of pages) {
+    for (const page of treePages) {
       if (hiddenModuleSubtreeIds.has(page.id)) continue;
       const list = grouped.get(page.parent_id) ?? [];
       list.push(page);
@@ -404,7 +432,7 @@ export default function PageTree() {
       list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     }
     return grouped;
-  }, [hiddenModuleSubtreeIds, pages]);
+  }, [hiddenModuleSubtreeIds, treePages]);
   const rootPages = useMemo(
     () =>
       (childrenByParent.get(null) ?? []).filter(
@@ -413,7 +441,7 @@ export default function PageTree() {
     [childrenByParent, moduleRootIds]
   );
   const visibleRootPages = useMemo(() => {
-    const visible = rootPages.slice(0, SIDEBAR_PAGE_TREE_ROOT_LIMIT);
+    const visible = rootPages.slice(0, rootVisibleLimit);
     const currentRootId = currentPageId
       ? getTopLevelPageId(currentPageId, pagesById)
       : null;
@@ -425,11 +453,11 @@ export default function PageTree() {
       const currentRoot = pagesById.get(currentRootId);
       if (currentRoot) {
         visible.unshift(currentRoot);
-        visible.splice(SIDEBAR_PAGE_TREE_ROOT_LIMIT);
+        visible.splice(rootVisibleLimit);
       }
     }
     return visible;
-  }, [currentPageId, pagesById, rootPages]);
+  }, [currentPageId, pagesById, rootPages, rootVisibleLimit]);
   const hiddenRootCount = Math.max(0, rootPages.length - visibleRootPages.length);
   const currentPathIds = useMemo(
     () => getCurrentPagePathIds(currentPageId, pagesById),
@@ -457,7 +485,7 @@ export default function PageTree() {
       return;
     }
 
-    if (isDescendant(targetPage.id, draggedId, pages)) {
+    if (isDescendant(targetPage.id, draggedId, pagesById)) {
       setDraggedId(null);
       setDropTarget(null);
       return;
@@ -471,7 +499,8 @@ export default function PageTree() {
         movedPage = await movePageWithCloud(draggedId, targetPage.id, pos);
       } else {
         const parentId = targetPage.parent_id;
-        const siblings = getSiblings(parentId, pages);
+        const siblings =
+          childrenByParent.get(parentId) ?? EMPTY_PAGE_TREE_CHILDREN;
         const targetIndex = siblings.findIndex(
           (p) => p.id === targetPage.id
         );
@@ -498,7 +527,7 @@ export default function PageTree() {
 
     setDraggedId(null);
     setDropTarget(null);
-  }, [draggedId, dropTarget, pages, pagesById, upsertPages]);
+  }, [childrenByParent, draggedId, dropTarget, pages, pagesById, upsertPages]);
 
   const handleRootDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -558,7 +587,7 @@ export default function PageTree() {
           <PageTreeItem
             key={page.id}
             page={page}
-            allPages={pages}
+            pagesById={pagesById}
             childrenByParent={childrenByParent}
             level={0}
             currentPageId={currentPageId}
@@ -576,9 +605,22 @@ export default function PageTree() {
       </ul>
 
       {hiddenRootCount > 0 && (
-        <p className="px-3 py-2 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
-          已折叠 {hiddenRootCount} 个旧页面；用搜索或对应模块打开。
-        </p>
+        <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+          <span className="min-w-0 truncate">
+            已折叠 {hiddenRootCount} 个旧页面
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              setRootVisibleLimit((limit) =>
+                Math.min(rootPages.length, limit + SIDEBAR_PAGE_TREE_ROOT_LIMIT)
+              )
+            }
+            className="shrink-0 rounded px-1.5 py-0.5 text-[10px] text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          >
+            显示更多
+          </button>
+        </div>
       )}
 
       {contextMenu && (
