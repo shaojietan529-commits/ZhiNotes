@@ -605,6 +605,11 @@ check(
     pagePeekModal.includes('() => import("@/components/page/PageProperties")') &&
     pagePeekModal.includes("PeekIconPickerSkeleton") &&
     pagePeekModal.includes("PeekPropertiesSkeleton") &&
+    pagePeekModal.includes(
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+    ) &&
+    pagePeekModal.includes("void pushPeekCloudPage(nextPage).catch(() => undefined)") &&
+    pagePeekModal.includes("{childPagesEnabled ? (") &&
     shells.knowledge.includes("const peekPage = useMemo") &&
     shells.knowledge.includes("initialPage={peekPage}"),
   "PagePeekModal 必须优先显示已有页面元数据，再按需加载正文和编辑器"

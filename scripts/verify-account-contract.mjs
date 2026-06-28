@@ -1374,6 +1374,11 @@ check(
     pagePeekModal.includes('() => import("@/components/page/PageProperties")') &&
     pagePeekModal.includes("PeekIconPickerSkeleton") &&
     pagePeekModal.includes("PeekPropertiesSkeleton") &&
+    pagePeekModal.includes(
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+    ) &&
+    pagePeekModal.includes("void pushPeekCloudPage(nextPage).catch(() => undefined)") &&
+    pagePeekModal.includes("{childPagesEnabled ? (") &&
     pagePeekModal.includes("PeekEditorSkeleton"),
   "PagePeekModal 应让新建空白草稿即时进入编辑器，并推迟子页面查询、图标选择器和属性编辑器，避免点击 + 时被编辑器初始化或本地索引查询阻塞"
 );

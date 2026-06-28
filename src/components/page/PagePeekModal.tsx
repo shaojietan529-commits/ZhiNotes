@@ -14,10 +14,6 @@ import {
   type PageProperty,
 } from "@/lib/pages/pageProperties";
 import {
-  pageToRemoteRecord,
-  queueCloudPagePush,
-} from "@/lib/pages/accountPageSync";
-import {
   getLocalPerformanceNow,
   recordLocalPerformanceSnapshot,
 } from "@/lib/performance/localPerformance";
@@ -53,6 +49,7 @@ const PageProperties = dynamic<PagePropertiesProps>(
 
 const PEEK_METADATA_ONLY_CONTENT_DELAY_MS = 260;
 const PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS = 700;
+const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
 interface PagePeekModalProps {
   pageId: string;
@@ -502,11 +499,9 @@ export default function PagePeekModal({
                 />
               )}
 
-              <PeekChildPages
-                pageId={pageId}
-                enabled={childPagesEnabled}
-                onOpen={onOpenFull}
-              />
+              {childPagesEnabled ? (
+                <PeekChildPages pageId={pageId} onOpen={onOpenFull} />
+              ) : null}
             </div>
           )}
         </div>
@@ -647,26 +642,23 @@ async function persistPeekUpdate({
   };
   setFallbackPage(nextPage);
   upsertPages([nextPage]);
-  try {
-    pushPeekCloudPage(nextPage);
-  } catch {
-    // Queueing is best-effort; the local editor state remains visible and the
-    // next page-sync cycle can still pick up pending changes.
-  }
+  // Queueing is best-effort; the local editor state remains visible and the
+  // next page-sync cycle can still pick up pending changes.
+  void pushPeekCloudPage(nextPage).catch(() => undefined);
   return nextPage;
 }
 
-function pushPeekCloudPage(page: Page) {
+async function pushPeekCloudPage(page: Page) {
+  const { pageToRemoteRecord, queueCloudPagePush } =
+    await loadPageAccountSyncModule();
   queueCloudPagePush(pageToRemoteRecord(page));
 }
 
 function PeekChildPages({
   pageId,
-  enabled,
   onOpen,
 }: {
   pageId: string;
-  enabled: boolean;
   onOpen: (id: string) => void;
 }) {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
@@ -674,7 +666,7 @@ function PeekChildPages({
   const [children, setChildren] = useState<Page[]>([]);
 
   useEffect(() => {
-    if (!enabled || !dbReady) {
+    if (!dbReady) {
       queueMicrotask(() => setChildren([]));
       return;
     }
@@ -689,7 +681,7 @@ function PeekChildPages({
     return () => {
       cancelled = true;
     };
-  }, [dbReady, enabled, pageId, pageRevision]);
+  }, [dbReady, pageId, pageRevision]);
 
   if (children.length === 0) return null;
   return (

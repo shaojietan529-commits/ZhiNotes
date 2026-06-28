@@ -3339,6 +3339,18 @@ function run() {
       "PeekPropertiesSkeleton",
       "PagePeekModal must keep a stable lightweight properties placeholder while the editor chunk loads.",
     ],
+    [
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")',
+      "PagePeekModal must load account-cloud queue helpers only when fallback persistence needs them.",
+    ],
+    [
+      "void pushPeekCloudPage(nextPage).catch(() => undefined)",
+      "PagePeekModal fallback cloud queueing must remain fire-and-forget so editing never waits on sync code.",
+    ],
+    [
+      "{childPagesEnabled ? (",
+      "PagePeekModal must mount child-page lookup only after the peek editor has already opened.",
+    ],
   ]) {
     assertSourceIncludes(files.pagePeekModal, pagePeekModal, snippet, message);
   }
