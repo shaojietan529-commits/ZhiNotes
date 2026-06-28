@@ -116,6 +116,9 @@ const DAILY_RENDER_RECENT_BUFFER_LIMIT = 80;
 const DAILY_CALENDAR_EXPAND_BATCH = 24;
 const DAILY_CALENDAR_RENDER_DAY_LIMIT =
   DAILY_CALENDAR_VISIBLE_LIMIT + DAILY_CALENDAR_EXPAND_BATCH;
+const DAILY_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT = 14;
+const DAILY_CALENDAR_HYDRATION_BATCH = 7;
+const DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS = 24;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
 const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
 const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
@@ -156,6 +159,9 @@ export default function DailyNotesShell() {
   const [visibleNoteLimitByDate, setVisibleNoteLimitByDate] = useState<
     Map<string, number>
   >(() => new Map());
+  const [hydratedDateKeys, setHydratedDateKeys] = useState<Set<string>>(
+    () => new Set()
+  );
   const loadRequestRef = useRef(0);
   const hotCacheBootstrapKeyRef = useRef("");
   const notesRenderFingerprintRef = useRef("");
@@ -729,10 +735,59 @@ export default function DailyNotesShell() {
   }, [dbReady, load, rootId, viewMonth]);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
+  const todayKey = toDateKey(new Date());
   const calendarDateKeys = useMemo(
     () => new Set(grid.map((cell) => toDateKey(cell.date))),
     [grid]
   );
+  const hydrateDailyDateKey = useCallback((dateKey: string) => {
+    setHydratedDateKeys((current) => {
+      if (current.has(dateKey)) return current;
+      const next = new Set(current);
+      next.add(dateKey);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: number | null = null;
+    const allDateKeys = grid.map((cell) => toDateKey(cell.date));
+    const initialDateKeys = buildInitialDailyCalendarHydrationKeys(
+      grid,
+      todayKey
+    );
+    const remainingDateKeys = allDateKeys.filter(
+      (dateKey) => !initialDateKeys.has(dateKey)
+    );
+    setHydratedDateKeys(initialDateKeys);
+
+    const revealNextBatch = () => {
+      if (cancelled || remainingDateKeys.length === 0) return;
+      const nextBatch = remainingDateKeys.splice(
+        0,
+        DAILY_CALENDAR_HYDRATION_BATCH
+      );
+      setHydratedDateKeys((current) => {
+        const next = new Set(current);
+        for (const dateKey of nextBatch) next.add(dateKey);
+        return next;
+      });
+      timer = window.setTimeout(
+        revealNextBatch,
+        DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS
+      );
+    };
+
+    timer = window.setTimeout(
+      revealNextBatch,
+      DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS
+    );
+    return () => {
+      cancelled = true;
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [grid, todayKey]);
 
   const calendarIndexes = useMemo(
     () => buildDailyCalendarIndexes(notes, calendarDateKeys),
@@ -1049,8 +1104,6 @@ export default function DailyNotesShell() {
     [notesById, upsertPages]
   );
 
-  const todayKey = toDateKey(new Date());
-
   const recent = useMemo(
     () => deferredRecentNotes.slice(0, DAILY_RECENT_VISIBLE_LIMIT),
     [deferredRecentNotes]
@@ -1169,6 +1222,11 @@ export default function DailyNotesShell() {
               const isToday = key === todayKey;
               const isDropTarget = draggedNoteId !== null && dragOverDateKey === key;
               const isOpeningDraft = openingDraft?.dateKey === key;
+              const isDateHydrated =
+                hydratedDateKeys.has(key) ||
+                isExpanded ||
+                isDropTarget ||
+                isOpeningDraft;
               return (
                 <div
                   key={key}
@@ -1180,7 +1238,10 @@ export default function DailyNotesShell() {
                       ? "rounded-md ring-2 ring-inset ring-blue-400 bg-blue-50/60 dark:bg-blue-950/30"
                       : ""
                   }`}
-                  onPointerEnter={warmPageRoute}
+                  onPointerEnter={() => {
+                    hydrateDailyDateKey(key);
+                    warmPageRoute();
+                  }}
                   onDragOver={(e) => {
                     if (!draggedNoteId) return;
                     e.preventDefault();
@@ -1252,7 +1313,18 @@ export default function DailyNotesShell() {
                         </span>
                       </button>
                     )}
-                    {visibleNotes.map((note) => (
+                    {!isDateHydrated && dayTotalCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => hydrateDailyDateKey(key)}
+                        onPointerEnter={() => hydrateDailyDateKey(key)}
+                        className="rounded-md bg-zinc-100/70 px-2 py-1 text-left text-xs leading-4 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+                        title={`${key} 有 ${dayTotalCount} 条纪要`}
+                      >
+                        {dayTotalCount} 条纪要，点开查看
+                      </button>
+                    )}
+                    {isDateHydrated && visibleNotes.map((note) => (
                       <button
                         key={note.id}
                         type="button"
@@ -1302,7 +1374,7 @@ export default function DailyNotesShell() {
                         </span>
                       </button>
                     ))}
-                    {dayTotalCount > DAILY_CALENDAR_VISIBLE_LIMIT && (
+                    {isDateHydrated && dayTotalCount > DAILY_CALENDAR_VISIBLE_LIMIT && (
                       <button
                         type="button"
                         onClick={() => {
@@ -1777,6 +1849,32 @@ function collectVisibleDailyNotesForHotCache(
     visibleNotes.push(...dayNotes);
   }
   return visibleNotes;
+}
+
+function buildInitialDailyCalendarHydrationKeys(
+  grid: MonthCell[],
+  todayKey: string
+): Set<string> {
+  const initialKeys = new Set<string>();
+  const todayIndex = grid.findIndex((cell) => toDateKey(cell.date) === todayKey);
+  const firstInMonthIndex = grid.findIndex((cell) => cell.inMonth);
+  const anchorIndex =
+    todayIndex >= 0 ? todayIndex : Math.max(0, firstInMonthIndex);
+  const rowStart = Math.max(0, Math.floor(anchorIndex / 7) * 7);
+  const rowEnd = Math.min(
+    grid.length,
+    rowStart + DAILY_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT
+  );
+
+  for (let index = rowStart; index < rowEnd; index += 1) {
+    initialKeys.add(toDateKey(grid[index].date));
+  }
+
+  if (todayIndex >= 0) {
+    initialKeys.add(toDateKey(grid[todayIndex].date));
+  }
+
+  return initialKeys;
 }
 
 function mergeCloudDailyNotes(

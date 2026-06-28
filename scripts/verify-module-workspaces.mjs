@@ -765,7 +765,7 @@ for (const token of [
   "setOpeningDraft({ pageId: optimisticNote.id, dateKey })",
   "title: dateKey",
   "data-testid={`daily-opening-note-${key}`}",
-  "onPointerEnter={warmPageRoute}",
+  "hydrateDailyDateKey(key);\n                    warmPageRoute();",
   "const warmDailyPeekOpen = useCallback",
   "onPointerEnter={warmDailyPeekOpen}",
   "onPointerDown={warmDailyPeekOpen}",
@@ -865,6 +865,20 @@ check(
     shells.daily.includes("再显示 ${nextBatchCount} 条") &&
     !shells.daily.includes("? dayNotes\n                : dayNotes.slice"),
   "DailyNotesShell 展开某一天时也必须分批渲染，不能一次性把大批量导入纪要全部挂到 DOM"
+);
+check(
+  shells.daily.includes("DAILY_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT") &&
+    shells.daily.includes("DAILY_CALENDAR_HYDRATION_BATCH") &&
+    shells.daily.includes("const [hydratedDateKeys, setHydratedDateKeys]") &&
+    shells.daily.includes("buildInitialDailyCalendarHydrationKeys(") &&
+    shells.daily.includes("const remainingDateKeys = allDateKeys.filter") &&
+    shells.daily.includes("const revealNextBatch = () =>") &&
+    shells.daily.includes("!isDateHydrated && dayTotalCount > 0") &&
+    shells.daily.includes("点开查看") &&
+    shells.daily.includes("hydrateDailyDateKey(key);") &&
+    shells.daily.includes("isDateHydrated && visibleNotes.map") &&
+    shells.daily.includes("isDateHydrated && dayTotalCount > DAILY_CALENDAR_VISIBLE_LIMIT"),
+  "DailyNotesShell 大批量每日纪要必须先渲染轻量日期摘要，再按小批次激活详情，避免首屏一次性挂载大量按钮"
 );
 check(
   shells.schedule.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
