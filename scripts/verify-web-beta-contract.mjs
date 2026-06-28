@@ -6146,6 +6146,58 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      "local-performance-diagnosis",
+      "Sync UI must render a stable local fluency diagnosis panel.",
+    ],
+    [
+      "LOCAL_PERFORMANCE_DIAGNOSIS_TARGETS",
+      "Sync UI must keep explicit local fluency targets beside the panel.",
+    ],
+    [
+      'kind: "daily-calendar"',
+      "Sync local fluency diagnosis must cover the daily notes calendar.",
+    ],
+    [
+      'kind: "meeting-calendar"',
+      "Sync local fluency diagnosis must cover the ZhiHui meeting calendar.",
+    ],
+    [
+      'kind: "page-open"',
+      "Sync local fluency diagnosis must cover page opening.",
+    ],
+    [
+      'kind: "page-peek"',
+      "Sync local fluency diagnosis must cover page peek previews.",
+    ],
+    [
+      "buildLocalPerformanceDiagnosis",
+      "Sync UI must turn local performance snapshots into a diagnosis.",
+    ],
+    [
+      "LocalPerformanceDiagnosisPill",
+      "Sync UI must expose clear pass/warn/needs-data status labels.",
+    ],
+    [
+      "样本不足",
+      "Sync UI must treat insufficient samples as unknown, not as success.",
+    ],
+    [
+      "需优化",
+      "Sync UI must surface slow local-first paths as follow-up work.",
+    ],
+    [
+      "下一步：{diagnosis.nextAction}",
+      "Sync UI must give the owner the next optimization target.",
+    ],
+    [
+      "不读取页面正文、数据库值、评论正文或文件字节",
+      "Sync UI must explain the privacy boundary for local fluency snapshots.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "page.content_text",
       "Cloud-native fluidity report must not access page content text.",
     ],

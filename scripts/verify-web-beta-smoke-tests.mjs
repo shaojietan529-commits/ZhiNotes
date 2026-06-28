@@ -1176,6 +1176,42 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "local-performance-diagnosis",
+    "Sync UI must provide a stable local fluency diagnosis panel anchor."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "LOCAL_PERFORMANCE_DIAGNOSIS_TARGETS",
+    "Sync UI must define local fluency targets for daily, meeting, page, and peek paths."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildLocalPerformanceDiagnosis",
+    "Sync UI must turn local performance snapshots into an actionable diagnosis."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "样本不足",
+    "Sync UI must distinguish insufficient fluency samples from real pass/fail signals."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "需优化",
+    "Sync UI must flag slow local-first paths for follow-up optimization."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "下一步：{diagnosis.nextAction}",
+    "Sync UI must tell the owner which slow path to optimize next."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "readLocalPerformanceSnapshots",
     "Sync UI must read local-only performance snapshots without cloud upload."
   );

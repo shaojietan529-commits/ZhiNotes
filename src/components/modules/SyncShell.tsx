@@ -16674,6 +16674,62 @@ function formatCloudNativeMetricValue(
   return `${value} jobs`;
 }
 
+const LOCAL_PERFORMANCE_DIAGNOSIS_TARGETS: Array<{
+  kind: LocalPerformanceSnapshot["kind"];
+  label: string;
+  targetMs: number;
+  slowNextAction: string;
+}> = [
+  {
+    kind: "daily-calendar",
+    label: "每日纪要",
+    targetMs: 800,
+    slowNextAction:
+      "优先检查每日纪要当前月热缓存和 date index，避免刷新时扫描整棵页面树。",
+  },
+  {
+    kind: "meeting-calendar",
+    label: "会议日历",
+    targetMs: 900,
+    slowNextAction:
+      "优先检查 ZhiHui 当前月 metadata 热缓存和单日分批渲染，避免大批量会议一次挂载。",
+  },
+  {
+    kind: "page-open",
+    label: "页面打开",
+    targetMs: 1200,
+    slowNextAction:
+      "优先检查页面 route handoff、本地草稿和正文 hydration，确保云端补齐不阻塞首屏。",
+  },
+  {
+    kind: "page-peek",
+    label: "页面预览",
+    targetMs: 700,
+    slowNextAction:
+      "优先检查 peek 弹窗是否先吃到本地草稿或 route handoff，再后台补齐正文。",
+  },
+];
+
+type LocalPerformanceDiagnosisStatus = "pass" | "warn" | "needs-data";
+
+interface LocalPerformanceDiagnosisMetric {
+  kind: LocalPerformanceSnapshot["kind"];
+  label: string;
+  averageMs: number | null;
+  targetMs: number;
+  passed: boolean;
+}
+
+interface LocalPerformanceDiagnosis {
+  status: LocalPerformanceDiagnosisStatus;
+  detail: string;
+  nextAction: string;
+  sampleCount: number;
+  slowestLabel: string;
+  slowestAverageMs: number | null;
+  metrics: LocalPerformanceDiagnosisMetric[];
+}
+
 function LocalPerformancePanel({
   snapshots,
   onClear,
@@ -16686,6 +16742,7 @@ function LocalPerformancePanel({
   const meetingAverage = averagePerformanceMs(snapshots, "meeting-calendar");
   const pageAverage = averagePerformanceMs(snapshots, "page-open");
   const peekAverage = averagePerformanceMs(snapshots, "page-peek");
+  const diagnosis = buildLocalPerformanceDiagnosis(snapshots);
   const recentSnapshots = snapshots.slice(0, 6);
 
   return (
@@ -16748,6 +16805,87 @@ function LocalPerformancePanel({
         />
       </div>
 
+      <div
+        data-testid="local-performance-diagnosis"
+        className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-800 dark:bg-zinc-900/40"
+      >
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <LocalPerformanceDiagnosisPill status={diagnosis.status} />
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                流畅度诊断
+              </h3>
+            </div>
+            <p className="mt-2 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              {diagnosis.detail}
+            </p>
+          </div>
+          <div className="grid gap-2 text-xs text-zinc-500 dark:text-zinc-400 sm:grid-cols-3 lg:min-w-[460px]">
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-zinc-400">
+                样本
+              </p>
+              <p className="mt-1 font-mono text-zinc-700 dark:text-zinc-200">
+                {diagnosis.sampleCount}/3
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-zinc-400">
+                最慢环节
+              </p>
+              <p className="mt-1 font-medium text-zinc-700 dark:text-zinc-200">
+                {diagnosis.slowestLabel}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-zinc-400">
+                平均耗时
+              </p>
+              <p className="mt-1 font-mono text-zinc-700 dark:text-zinc-200">
+                {formatPerformanceMs(diagnosis.slowestAverageMs)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          {diagnosis.metrics.map((metric) => (
+            <div
+              key={metric.kind}
+              className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-zinc-700 dark:text-zinc-200">
+                  {metric.label}
+                </span>
+                <span className="font-mono text-[11px] text-zinc-400">
+                  &lt;= {formatPerformanceMs(metric.targetMs)}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <span className="font-mono text-zinc-600 dark:text-zinc-300">
+                  {formatPerformanceMs(metric.averageMs)}
+                </span>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] ${
+                    metric.passed
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                      : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                  }`}
+                >
+                  {metric.passed ? "达标" : "待优化"}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+          下一步：{diagnosis.nextAction}
+        </p>
+      </div>
+
       {recentSnapshots.length > 0 ? (
         <div className="mt-4 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
           <table className="w-full text-left text-xs">
@@ -16802,6 +16940,103 @@ function LocalPerformancePanel({
       </p>
     </section>
   );
+}
+
+function LocalPerformanceDiagnosisPill({
+  status,
+}: {
+  status: LocalPerformanceDiagnosisStatus;
+}) {
+  const labels: Record<LocalPerformanceDiagnosisStatus, string> = {
+    pass: "达标",
+    warn: "需优化",
+    "needs-data": "样本不足",
+  };
+  const className =
+    status === "pass"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "warn"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300";
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function buildLocalPerformanceDiagnosis(
+  snapshots: LocalPerformanceSnapshot[]
+): LocalPerformanceDiagnosis {
+  const metrics = LOCAL_PERFORMANCE_DIAGNOSIS_TARGETS.map((target) => {
+    const averageMs = averagePerformanceMs(snapshots, target.kind);
+    return {
+      kind: target.kind,
+      label: target.label,
+      averageMs,
+      targetMs: target.targetMs,
+      passed: averageMs === null || averageMs <= target.targetMs,
+    };
+  });
+  const measured = metrics.filter((metric) => metric.averageMs !== null);
+  const slowest =
+    measured
+      .map((metric) => ({
+        ...metric,
+        pressure:
+          metric.averageMs === null ? 0 : metric.averageMs / metric.targetMs,
+      }))
+      .sort((left, right) => right.pressure - left.pressure)[0] ?? null;
+  const slowTarget = slowest
+    ? LOCAL_PERFORMANCE_DIAGNOSIS_TARGETS.find(
+        (target) => target.kind === slowest.kind
+      )
+    : null;
+  const failingMetrics = measured.filter(
+    (metric) => metric.averageMs !== null && metric.averageMs > metric.targetMs
+  );
+
+  if (snapshots.length < 3 || measured.length === 0) {
+    return {
+      status: "needs-data",
+      detail:
+        "还没有足够样本判断体感卡顿。打开几次每日纪要、ZhiHui 日历、页面和 peek 弹窗后，这里会自动给出最慢环节。",
+      nextAction:
+        "先用真实工作流打开常用入口，收集至少 3 条本机耗时样本。",
+      sampleCount: snapshots.length,
+      slowestLabel: slowest?.label ?? "暂无",
+      slowestAverageMs: slowest?.averageMs ?? null,
+      metrics,
+    };
+  }
+
+  if (failingMetrics.length === 0) {
+    return {
+      status: "pass",
+      detail:
+        "最近样本都在本地级目标以内。当前更适合继续推进云端主库、选择性本地缓存和冲突处理。",
+      nextAction:
+        "继续保留本地热缓存策略，同时扩大页面和数据库云同步的覆盖面。",
+      sampleCount: snapshots.length,
+      slowestLabel: slowest?.label ?? "暂无",
+      slowestAverageMs: slowest?.averageMs ?? null,
+      metrics,
+    };
+  }
+
+  return {
+    status: "warn",
+    detail: `${failingMetrics.length} 个环节超过本地级目标，最慢的是 ${
+      slowest?.label ?? "未知环节"
+    }。`,
+    nextAction:
+      slowTarget?.slowNextAction ??
+      "优先检查最慢入口的本地 metadata 首屏、正文 hydration 和云端补齐顺序。",
+    sampleCount: snapshots.length,
+    slowestLabel: slowest?.label ?? "暂无",
+    slowestAverageMs: slowest?.averageMs ?? null,
+    metrics,
+  };
 }
 
 function HotCacheSelectionPanel({
