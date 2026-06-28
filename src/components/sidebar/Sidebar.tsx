@@ -16,7 +16,7 @@ import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useDatabases } from "@/hooks/useDatabases";
-import QuickSearch from "./QuickSearch";
+import LazyQuickSearch from "./LazyQuickSearch";
 import PageTree from "./PageTree";
 import TrashPages from "./TrashPages";
 import FavoritePages from "./FavoritePages";
@@ -677,7 +677,7 @@ export default function Sidebar() {
 
       {/* Search */}
       <div className="px-3 py-2">
-        <QuickSearch />
+        <LazyQuickSearch />
       </div>
 
       {/* New page + New database buttons */}

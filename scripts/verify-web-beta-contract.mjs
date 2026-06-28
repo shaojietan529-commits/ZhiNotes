@@ -161,6 +161,7 @@ const files = {
   favoritePages: "src/components/sidebar/FavoritePages.tsx",
   trashPages: "src/components/sidebar/TrashPages.tsx",
   subPageTree: "src/components/shared/SubPageTree.tsx",
+  lazyQuickSearch: "src/components/sidebar/LazyQuickSearch.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   wikiSuggestion: "src/components/editor/extensions/WikiLinkSuggestion.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
@@ -553,6 +554,7 @@ function run() {
   const favoritePages = readProjectFile(files.favoritePages);
   const trashPages = readProjectFile(files.trashPages);
   const subPageTree = readProjectFile(files.subPageTree);
+  const lazyQuickSearch = readProjectFile(files.lazyQuickSearch);
   const quickSearch = readProjectFile(files.quickSearch);
   const wikiSuggestion = readProjectFile(files.wikiSuggestion);
   const syncShell = readProjectFile(files.syncShell);
@@ -14003,6 +14005,66 @@ function run() {
       "Quick search page opens must use the workspace page id index as the global fallback.",
     ],
     [
+      files.sidebar,
+      sidebar,
+      'import LazyQuickSearch from "./LazyQuickSearch"',
+      "Sidebar must keep the large search palette behind a lightweight lazy wrapper.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "<LazyQuickSearch />",
+      "Sidebar must render the lightweight quick-search trigger on first paint.",
+    ],
+    [
+      files.lazyQuickSearch,
+      lazyQuickSearch,
+      "dynamic<QuickSearchProps>",
+      "Lazy quick search must split the large command palette into its own async chunk.",
+    ],
+    [
+      files.lazyQuickSearch,
+      lazyQuickSearch,
+      '() => import("./QuickSearch")',
+      "Lazy quick search must import the heavy search palette only after intent.",
+    ],
+    [
+      files.lazyQuickSearch,
+      lazyQuickSearch,
+      "preloadQuickSearch",
+      "Lazy quick search should warm the chunk on hover/focus without mounting it.",
+    ],
+    [
+      files.lazyQuickSearch,
+      lazyQuickSearch,
+      "loadQuickSearch(true)",
+      "Lazy quick search must open immediately after click or Cmd+K loads the chunk.",
+    ],
+    [
+      files.lazyQuickSearch,
+      lazyQuickSearch,
+      'event.key.toLowerCase() !== "k"',
+      "Lazy quick search must preserve the Cmd+K shortcut before the heavy palette is mounted.",
+    ],
+    [
+      files.lazyQuickSearch,
+      lazyQuickSearch,
+      "isEditorTarget(event.target)",
+      "Lazy quick search must not steal Cmd+K from the editor.",
+    ],
+    [
+      files.quickSearch,
+      quickSearch,
+      "export interface QuickSearchProps",
+      "Quick search must accept lazy-wrapper props without forcing the sidebar to import its runtime.",
+    ],
+    [
+      files.quickSearch,
+      quickSearch,
+      "initialOpen = false",
+      "Quick search must support opening immediately when loaded through Cmd+K or the trigger.",
+    ],
+    [
       files.knowledgeBaseShell,
       knowledgeBaseShell,
       "const pagesById = useWorkspaceStore((s) => s.pagesById)",
@@ -14893,6 +14955,12 @@ function run() {
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
+  assertSourceExcludes(
+    files.sidebar,
+    sidebar,
+    'import QuickSearch from "./QuickSearch"',
+    "Sidebar must not direct-import the heavy quick search bundle during first paint."
+  );
   assertSourceExcludes(
     files.pageTree,
     pageTree,

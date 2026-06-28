@@ -66,6 +66,10 @@ type SearchEntry =
 type ResultFilter = "all" | "pages" | "databases" | "actions";
 type PageActivityFilter = "suggested" | "updated" | "created" | "favorites";
 
+export interface QuickSearchProps {
+  initialOpen?: boolean;
+}
+
 const RESULT_FILTERS: Array<{ label: string; value: ResultFilter }> = [
   { label: "全部", value: "all" },
   { label: "页面", value: "pages" },
@@ -90,8 +94,8 @@ const COMMAND_CATEGORY_LABELS: Record<CommandCategory, string> = {
   Workspace: "工作区",
 };
 
-export default function QuickSearch() {
-  const [open, setOpen] = useState(false);
+export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
+  const [open, setOpen] = useState(initialOpen);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Page[]>([]);
   const { databases, refresh: refreshDatabases } = useDatabases();

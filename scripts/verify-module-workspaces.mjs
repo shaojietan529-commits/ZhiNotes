@@ -86,6 +86,7 @@ const blockCommentEventsSource = read(
 );
 const pendingPageDrafts = read("src/lib/pages/pendingPageDrafts.ts");
 const sidebarSource = read("src/components/sidebar/Sidebar.tsx");
+const lazyQuickSearchSource = read("src/components/sidebar/LazyQuickSearch.tsx");
 const quickSearchSource = read("src/components/sidebar/QuickSearch.tsx");
 const favoritePagesSource = read("src/components/sidebar/FavoritePages.tsx");
 const trashPagesSource = read("src/components/sidebar/TrashPages.tsx");
@@ -455,9 +456,21 @@ check(
 );
 check(
   !sidebarSource.includes("usePages") &&
+    sidebarSource.includes('import LazyQuickSearch from "./LazyQuickSearch"') &&
+    sidebarSource.includes("<LazyQuickSearch />") &&
+    !sidebarSource.includes('import QuickSearch from "./QuickSearch"') &&
+    lazyQuickSearchSource.includes("dynamic<QuickSearchProps>") &&
+    lazyQuickSearchSource.includes('() => import("./QuickSearch")') &&
+    lazyQuickSearchSource.includes("preloadQuickSearch") &&
+    lazyQuickSearchSource.includes("loadQuickSearch(true)") &&
+    lazyQuickSearchSource.includes('event.key.toLowerCase() !== "k"') &&
+    lazyQuickSearchSource.includes("isEditorTarget(event.target)") &&
+    lazyQuickSearchSource.includes("initialOpen={initialOpen}") &&
     sidebarSource.includes('openPage(page, { source: "sidebar-create" })') &&
     !quickSearchSource.includes("const { pages, refresh } = usePages()") &&
     quickSearchSource.includes("const pages = useWorkspaceStore((s) => s.pages)") &&
+    quickSearchSource.includes("export interface QuickSearchProps") &&
+    quickSearchSource.includes("initialOpen = false") &&
     quickSearchSource.includes("usePages({ autoLoad: false })") &&
     quickSearchSource.includes("upsertPages([page])") &&
     quickSearchSource.includes("upsertPages([result.page])") &&
