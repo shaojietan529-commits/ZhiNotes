@@ -6736,6 +6736,86 @@ function run() {
     'openPage(result.page, { source: "module-create" })',
     "Portfolio-created pages must open in peek immediately, not force a full page route."
   );
+  for (const [snippet, message] of [
+    [
+      "@/components/page/LazyPagePeekModal",
+      "Research graph module must lazy-load the page peek editor instead of adding it to first paint.",
+    ],
+    [
+      "warmPagePeekModal();",
+      "Research graph create actions must warm the peek editor while creating local research pages.",
+    ],
+    [
+      "const [peekPageId, setPeekPageId] = useState<string | null>(null);",
+      "Research graph module must hold a page peek target for same-view editing.",
+    ],
+    [
+      "const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);",
+      "Research graph module must seed newly created research pages into the peek before slower hydration.",
+    ],
+    [
+      "rememberPendingPageDraft(page);",
+      "Research graph created pages must keep a short-lived local draft before opening.",
+    ],
+    [
+      'rememberPageRouteHandoff(page, "module-create");',
+      "Research graph created pages must hand off local-first metadata with a module-create source.",
+    ],
+    [
+      "openCreatedResearchPage(createdPage);",
+      "Research graph project pages must open in peek immediately.",
+    ],
+    [
+      "<PagePeekModal",
+      "Research graph module must render the page peek modal for created research pages.",
+    ],
+  ]) {
+    assertIncludes(files.researchGraphShell, researchGraphShell, snippet, message);
+  }
+  assertExcludes(
+    files.researchGraphShell,
+    researchGraphShell,
+    'openPage(createdPage, { source: "module-create" })',
+    "Research graph-created pages must open in peek immediately, not force a full page route."
+  );
+  for (const [snippet, message] of [
+    [
+      "@/components/page/LazyPagePeekModal",
+      "Industry chain module must lazy-load the page peek editor instead of adding it to first paint.",
+    ],
+    [
+      "warmPagePeekModal();",
+      "Industry chain create actions must warm the peek editor while creating local industry pages.",
+    ],
+    [
+      "const [peekPageId, setPeekPageId] = useState<string | null>(null);",
+      "Industry chain module must hold a page peek target for same-view editing.",
+    ],
+    [
+      "const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);",
+      "Industry chain module must seed newly created industry pages into the peek before slower hydration.",
+    ],
+    [
+      "rememberPendingPageDraft(child);",
+      "Industry chain created pages must keep a short-lived local draft before opening.",
+    ],
+    [
+      'rememberPageRouteHandoff(child, "module-create");',
+      "Industry chain created pages must hand off local-first metadata with a module-create source.",
+    ],
+    [
+      "<PagePeekModal",
+      "Industry chain module must render the page peek modal for created industry pages.",
+    ],
+  ]) {
+    assertIncludes(files.industryChainShell, industryChainShell, snippet, message);
+  }
+  assertExcludes(
+    files.industryChainShell,
+    industryChainShell,
+    'openPage(child, { source: "module-create" })',
+    "Industry chain-created pages must open in peek immediately, not force a full page route."
+  );
   assertIncludes(
     files.projectsShell,
     projectsShell,
@@ -7212,8 +7292,8 @@ function run() {
     [files.companyResearchShell, companyResearchShell, ['"module-create"', 'source: "module-open"']],
     [files.portfolioShell, portfolioShell, ['"module-create"', 'source: "module-open"']],
     [files.researchConnectionsPanel, researchConnectionsPanel, ['source: "module-open"']],
-    [files.researchGraphShell, researchGraphShell, ['source: "module-create"', 'source: "module-open"']],
-    [files.industryChainShell, industryChainShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.researchGraphShell, researchGraphShell, ['"module-create"', 'source: "module-open"']],
+    [files.industryChainShell, industryChainShell, ['"module-create"', 'source: "module-open"']],
     [files.knowledgeBaseShell, knowledgeBaseShell, ['source: "module-open"']],
     [files.aiWorkbenchShell, aiWorkbenchShell, ['source: "module-open"']],
     [files.pageImportPlanPanel, pageImportPlanPanel, ['source: "module-create"']],

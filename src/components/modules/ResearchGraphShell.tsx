@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useDatabases } from "@/hooks/useDatabases";
@@ -45,8 +48,10 @@ import {
   type ResearchProjectMode,
 } from "@/lib/modules/researchProjectBrief";
 import { getResearchModuleRoute } from "@/lib/modules/researchWorkflow";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import type { Database } from "@/lib/utils/types";
+import type { Database, Page } from "@/lib/utils/types";
 
 interface SchemaFieldCreationResult {
   id: string;
@@ -105,6 +110,8 @@ function ResearchGraphDashboard() {
   const [schemaGapBusyId, setSchemaGapBusyId] = useState<string | null>(null);
   const [schemaFieldCreationResult, setSchemaFieldCreationResult] =
     useState<SchemaFieldCreationResult | null>(null);
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
 
   const researchDatabases = useMemo(
     () => databases.filter((database) => classifyResearchDatabase(database)),
@@ -156,9 +163,29 @@ function ResearchGraphDashboard() {
       }),
     [graphReport, projectHorizon, projectMode, projectTopic, workbenchPacket]
   );
-  const openGraphPage = (pageId: string) => {
+  const openGraphPage = useCallback((pageId: string) => {
     openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" });
-  };
+  }, [openPage, pagesById]);
+  const openCreatedResearchPage = useCallback((page: Page) => {
+    rememberPendingPageDraft(page);
+    rememberPageRouteHandoff(page, "module-create");
+    warmPagePeekModal();
+    setPeekInitialPage(page);
+    setPeekPageId(page.id);
+  }, []);
+  const openResearchFullPageById = useCallback(
+    (pageId: string) => {
+      const page =
+        (peekInitialPage?.id === pageId ? peekInitialPage : null) ??
+        pagesById.get(pageId);
+      if (page) {
+        openPage(page, { source: "module-open" });
+        return;
+      }
+      openPage(pageId, { source: "module-open" });
+    },
+    [openPage, pagesById, peekInitialPage]
+  );
   const recentLinks = graph.relationLinks.slice(0, 12);
   const unlinkedAssets = graph.unlinkedAssets.slice(0, 12);
   const completionActions = graphReport.completion_plan.actions.slice(0, 10);
@@ -247,6 +274,7 @@ function ResearchGraphDashboard() {
 
   const handleCreateProjectPage = async () => {
     setCreatingProjectPage(true);
+    warmPagePeekModal();
     try {
       const page = await createPageWithCloud({
         title: buildResearchProjectPageTitle(projectBrief),
@@ -257,7 +285,7 @@ function ResearchGraphDashboard() {
       });
       const createdPage = updatedPage ?? page;
       upsertPages([createdPage]);
-      openPage(createdPage, { source: "module-create" });
+      openCreatedResearchPage(createdPage);
     } catch (err) {
       console.error("[Zhinote] Failed to create research project page:", err);
       window.alert("研究项目页创建失败，请查看控制台。");
@@ -322,7 +350,8 @@ function ResearchGraphDashboard() {
   };
 
   return (
-    <div className="w-full px-6 py-6 lg:px-10">
+    <>
+      <div className="w-full px-6 py-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="border-b border-zinc-200 pb-5 dark:border-zinc-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -478,7 +507,23 @@ function ResearchGraphDashboard() {
           onOpenDatabase={(databaseId) => router.push(`/database/${databaseId}`)}
         />
       </div>
-    </div>
+      </div>
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            openResearchFullPageById(id);
+          }}
+        />
+      )}
+    </>
   );
 }
 

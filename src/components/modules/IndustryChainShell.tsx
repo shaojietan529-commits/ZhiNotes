@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
@@ -11,6 +14,8 @@ import {
 } from "@/lib/pages/cloudPageMutations";
 import { getModuleRootId } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
   buildIndustryCompanyLinkContent,
   buildIndustryCompanyLinkProperties,
@@ -93,6 +98,8 @@ export default function IndustryChainShell() {
     null
   );
   const [linkNotice, setLinkNotice] = useState<string | null>(null);
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
   const mergeScopedPages = useCallback(
     (incoming: Page[]) => {
       setPages((current) => mergePageMetadata(current, incoming));
@@ -170,14 +177,21 @@ export default function IndustryChainShell() {
 
   const addChild = useCallback(
     async (parentId: string, navigate: boolean) => {
+      if (navigate) warmPagePeekModal();
       const child = await createPageWithCloud({
         parentId,
         title: "未命名分类",
       });
       mergeScopedPages([child]);
-      if (navigate) openPage(child, { source: "module-create" });
+      if (navigate) {
+        rememberPendingPageDraft(child);
+        rememberPageRouteHandoff(child, "module-create");
+        warmPagePeekModal();
+        setPeekInitialPage(child);
+        setPeekPageId(child.id);
+      }
     },
-    [mergeScopedPages, openPage]
+    [mergeScopedPages]
   );
 
   const renameNode = useCallback(
@@ -237,6 +251,20 @@ export default function IndustryChainShell() {
       );
     },
     [openPage, pages, pagesById]
+  );
+
+  const openIndustryFullPageById = useCallback(
+    (pageId: string) => {
+      const page =
+        (peekInitialPage?.id === pageId ? peekInitialPage : null) ??
+        pagesById.get(pageId);
+      if (page) {
+        openPage(page, { source: "module-open" });
+        return;
+      }
+      openPage(pageId, { source: "module-open" });
+    },
+    [openPage, pagesById, peekInitialPage]
   );
 
   return (
@@ -335,6 +363,22 @@ export default function IndustryChainShell() {
           allPages={pages}
           onChoose={(companyPageId) => void linkCompanyToParent(companyPageId)}
           onClose={() => setCompanyLinkParentId(null)}
+        />
+      )}
+
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            openIndustryFullPageById(id);
+          }}
         />
       )}
     </div>

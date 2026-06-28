@@ -14844,8 +14844,8 @@ function run() {
     [files.companyResearchShell, companyResearchShell, ['"module-create"', 'source: "module-open"']],
     [files.portfolioShell, portfolioShell, ['"module-create"', 'source: "module-open"']],
     [files.researchConnectionsPanel, researchConnectionsPanel, ['source: "module-open"']],
-    [files.researchGraphShell, researchGraphShell, ['source: "module-create"', 'source: "module-open"']],
-    [files.industryChainShell, industryChainShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.researchGraphShell, researchGraphShell, ['"module-create"', 'source: "module-open"']],
+    [files.industryChainShell, industryChainShell, ['"module-create"', 'source: "module-open"']],
     [files.knowledgeBaseShell, knowledgeBaseShell, ['source: "module-open"']],
     [files.aiWorkbenchShell, aiWorkbenchShell, ['source: "module-open"']],
     [files.pageImportPlanPanel, pageImportPlanPanel, ['source: "module-create"']],
@@ -14953,6 +14953,34 @@ function run() {
     'openPage(result.page, { source: "module-create" })',
     "Portfolio-created pages must open in peek immediately, not force a full page route."
   );
+  for (const [sourceLabel, source, blockedSnippet, message] of [
+    [
+      files.researchGraphShell,
+      researchGraphShell,
+      'openPage(createdPage, { source: "module-create" })',
+      "Research graph-created pages must open in peek immediately, not force a full page route.",
+    ],
+    [
+      files.industryChainShell,
+      industryChainShell,
+      'openPage(child, { source: "module-create" })',
+      "Industry chain-created pages must open in peek immediately, not force a full page route.",
+    ],
+  ]) {
+    assertSourceExcludes(sourceLabel, source, blockedSnippet, message);
+    assertSourceIncludes(
+      sourceLabel,
+      source,
+      "@/components/page/LazyPagePeekModal",
+      "Research workflow modules must lazy-load the peek editor for created pages."
+    );
+    assertSourceIncludes(
+      sourceLabel,
+      source,
+      "<PagePeekModal",
+      "Research workflow modules must render the page peek modal for created pages."
+    );
+  }
   assertSourceExcludes(
     files.usePage,
     usePage,
