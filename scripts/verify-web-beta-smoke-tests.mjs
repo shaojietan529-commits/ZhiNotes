@@ -3620,6 +3620,18 @@ function run() {
       "Page shell large-body editor fallback must stay bounded so long pages still become editable.",
     ],
     [
+      "PAGE_LARGE_BODY_PREVIEW_HTML_CHARS = 120 * 1024",
+      "Page shell must cap the HTML scanned for large-body previews.",
+    ],
+    [
+      "PAGE_LARGE_BODY_PREVIEW_TEXT_CHARS = 6000",
+      "Page shell must cap the text shown in large-body previews.",
+    ],
+    [
+      "PAGE_LARGE_BODY_EDITOR_WARMUP_DELAY_MS = 900",
+      "Page shell must warm the large-body editor chunk without mounting it immediately.",
+    ],
+    [
       "const hasContentForEditor = page?.content_text != null",
       "Page shell must distinguish metadata-only route handoff records from content-ready pages.",
     ],
@@ -3634,6 +3646,30 @@ function run() {
     [
       "if (editorMounted && mountedEditorPageIdRef.current === pageId) return",
       "Page shell must not remount the editor when late body hydration reaches an already mounted page.",
+    ],
+    [
+      "if (hasLargeBodyForEditor && !largeBodyEditorRequested)",
+      "Page shell must keep large page bodies in preview mode until the user requests the full editor.",
+    ],
+    [
+      "setLargeBodyEditorRequested(true)",
+      "Page shell must let users explicitly request the full editor for a long page body.",
+    ],
+    [
+      'data-testid="large-page-body-preview"',
+      "Page shell must expose a stable large-body preview surface.",
+    ],
+    [
+      "buildLargePageBodyPreview",
+      "Page shell must build a lightweight text preview for large page bodies.",
+    ],
+    [
+      "script, style, iframe, object, embed, svg, canvas",
+      "Large page previews must remove active or heavyweight embed nodes before extracting text.",
+    ],
+    [
+      "完整编辑器会在你需要编辑或查看复杂块时再加载",
+      "Large page preview copy must explain that the full editor loads on demand.",
     ],
     [
       "hasLargeBodyForEditor\n        ? PAGE_LARGE_BODY_EDITOR_DELAY_MS",
@@ -3666,6 +3702,12 @@ function run() {
   ]) {
     assertIncludes(files.pageShell, pageShell, snippet, message);
   }
+  assertExcludes(
+    files.pageShell,
+    pageShell,
+    "dangerouslySetInnerHTML",
+    "Page shell large-body preview must not render raw page HTML directly."
+  );
   for (const [snippet, message] of [
     [
       "PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700",

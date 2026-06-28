@@ -87,6 +87,11 @@ const PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS = 900;
 const PAGE_LARGE_BODY_HTML_CHARS = 180 * 1024;
 const PAGE_LARGE_BODY_EDITOR_DELAY_MS = 260;
 const PAGE_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600;
+const PAGE_LARGE_BODY_PREVIEW_HTML_CHARS = 120 * 1024;
+const PAGE_LARGE_BODY_PREVIEW_TEXT_CHARS = 6000;
+const PAGE_LARGE_BODY_PREVIEW_BLOCKS = 18;
+const PAGE_LARGE_BODY_EDITOR_WARMUP_DELAY_MS = 900;
+const PAGE_LARGE_BODY_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2600;
 const PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700;
 const PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200;
 const PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800;
@@ -223,6 +228,8 @@ function PageContent({ pageId }: { pageId: string }) {
     enabled: shouldLoadVersions,
   });
   const [editorMounted, setEditorMounted] = useState(false);
+  const [largeBodyEditorRequested, setLargeBodyEditorRequested] =
+    useState(false);
   const [pageCommentsMounted, setPageCommentsMounted] = useState(false);
   const [childTreeMounted, setChildTreeMounted] = useState(false);
   const [pageReferencesMounted, setPageReferencesMounted] = useState(false);
@@ -258,6 +265,7 @@ function PageContent({ pageId }: { pageId: string }) {
     pageOpenStartedAtRef.current = getLocalPerformanceNow();
     pageOpenStartedAtIsoRef.current = new Date().toISOString();
     reportedPageOpenRef.current = null;
+    setLargeBodyEditorRequested(false);
   }, [pageId]);
 
   useEffect(() => {
@@ -407,6 +415,14 @@ function PageContent({ pageId }: { pageId: string }) {
         cancelled = true;
       };
     }
+    if (hasLargeBodyForEditor && !largeBodyEditorRequested) {
+      return scheduleEditorMount(() => {
+        void loadEditorModule();
+      }, {
+        delay: PAGE_LARGE_BODY_EDITOR_WARMUP_DELAY_MS,
+        timeout: PAGE_LARGE_BODY_EDITOR_WARMUP_IDLE_TIMEOUT_MS,
+      });
+    }
     const metadataOnly = !hasContentForEditor;
     const delay = metadataOnly
       ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS
@@ -431,9 +447,17 @@ function PageContent({ pageId }: { pageId: string }) {
     hasPage,
     hasContentForEditor,
     hasLargeBodyForEditor,
+    largeBodyEditorRequested,
     isOptimisticPageDraft,
     editorMounted,
   ]);
+
+  const handleOpenLargeBodyEditor = useCallback(() => {
+    setLargeBodyEditorRequested(true);
+    void loadEditorModule();
+    setEditorMounted(true);
+    mountedEditorPageIdRef.current = pageId;
+  }, [pageId]);
 
   useEffect(() => {
     setPageCommentsMounted(false);
@@ -1324,6 +1348,13 @@ function PageContent({ pageId }: { pageId: string }) {
               editable={!locked}
               onUpdate={handleContentUpdate}
             />
+          ) : hasLargeBodyForEditor && page.content_text != null ? (
+            <LargePageBodyPreview
+              contentLength={pageBodyHtmlLength}
+              html={page.content_text}
+              locked={locked}
+              onOpenEditor={handleOpenLargeBodyEditor}
+            />
           ) : (
             <PageBodySkeleton
               metadataOnly={page.content_text == null}
@@ -1512,6 +1543,61 @@ function scheduleDeferredMount(callback: () => void, timeout = 450): () => void 
   return () => window.clearTimeout(timer);
 }
 
+function LargePageBodyPreview({
+  contentLength,
+  html,
+  locked,
+  onOpenEditor,
+}: {
+  contentLength: number;
+  html: string;
+  locked: boolean;
+  onOpenEditor: () => void;
+}) {
+  const preview = useMemo(() => buildLargePageBodyPreview(html), [html]);
+  const buttonLabel = locked ? "打开完整正文" : "打开完整编辑器";
+  return (
+    <div
+      data-testid="large-page-body-preview"
+      className="rounded-md border border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="mb-4 flex flex-col gap-3 border-b border-zinc-100 pb-4 dark:border-zinc-800 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+            正文较长，已先显示轻量预览
+          </p>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            约 {formatApproxBodySize(contentLength)}。完整编辑器会在你需要编辑或查看复杂块时再加载。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenEditor}
+          className="h-8 shrink-0 rounded-md border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {buttonLabel}
+        </button>
+      </div>
+      {preview.blocks.length > 0 ? (
+        <div className="space-y-3 text-sm leading-7 text-zinc-700 dark:text-zinc-200">
+          {preview.blocks.map((block, index) => (
+            <p key={`${index}-${block.slice(0, 16)}`}>{block}</p>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          预览暂时没有可显示的纯文本内容，请打开完整编辑器查看页面。
+        </p>
+      )}
+      {preview.truncated && (
+        <p className="mt-4 text-xs text-zinc-400">
+          这里只显示前 {formatApproxBodySize(PAGE_LARGE_BODY_PREVIEW_HTML_CHARS)} 的安全文本预览。
+        </p>
+      )}
+    </div>
+  );
+}
+
 function PageBodySkeleton({
   metadataOnly = false,
   optimisticDraft = false,
@@ -1546,6 +1632,76 @@ function PageBodySkeleton({
       </p>
     </div>
   );
+}
+
+function buildLargePageBodyPreview(html: string): {
+  blocks: string[];
+  truncated: boolean;
+} {
+  const slicedHtml = html.slice(0, PAGE_LARGE_BODY_PREVIEW_HTML_CHARS);
+  if (typeof DOMParser === "undefined") {
+    const text = normalizePreviewText(slicedHtml.replace(/<[^>]*>/g, " "));
+    return {
+      blocks: splitPreviewText(text),
+      truncated:
+        html.length > slicedHtml.length ||
+        text.length > PAGE_LARGE_BODY_PREVIEW_TEXT_CHARS,
+    };
+  }
+
+  const doc = new DOMParser().parseFromString(slicedHtml, "text/html");
+  doc
+    .querySelectorAll("script, style, iframe, object, embed, svg, canvas")
+    .forEach((element) => element.remove());
+  const blockElements = Array.from(
+    doc.body.querySelectorAll(
+      "h1,h2,h3,h4,p,li,blockquote,pre,td,th,figcaption"
+    )
+  );
+  const rawBlocks =
+    blockElements.length > 0
+      ? blockElements.map((element) =>
+          normalizePreviewText(element.textContent ?? "")
+        )
+      : splitPreviewText(normalizePreviewText(doc.body.textContent ?? ""));
+
+  const blocks: string[] = [];
+  let usedChars = 0;
+  for (const block of rawBlocks) {
+    if (!block || blocks.includes(block)) continue;
+    const remaining = PAGE_LARGE_BODY_PREVIEW_TEXT_CHARS - usedChars;
+    if (remaining <= 0 || blocks.length >= PAGE_LARGE_BODY_PREVIEW_BLOCKS) {
+      break;
+    }
+    const clipped =
+      block.length > remaining
+        ? `${block.slice(0, remaining).trim()}...`
+        : block;
+    blocks.push(clipped);
+    usedChars += clipped.length;
+  }
+
+  return {
+    blocks,
+    truncated:
+      html.length > slicedHtml.length ||
+      rawBlocks.length > blocks.length ||
+      usedChars >= PAGE_LARGE_BODY_PREVIEW_TEXT_CHARS,
+  };
+}
+
+function splitPreviewText(text: string): string[] {
+  if (!text) return [];
+  return text
+    .replace(/([。！？])\s+/g, "$1\n")
+    .split(/\n{2,}/)
+    .map(normalizePreviewText)
+    .filter(Boolean)
+    .slice(0, PAGE_LARGE_BODY_PREVIEW_BLOCKS);
+}
+
+function normalizePreviewText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function isLargePageBodyForEditor(content: string | null | undefined): boolean {
