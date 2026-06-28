@@ -559,8 +559,23 @@ check(
     moduleDashboardSource.includes("upsertPages([page])") &&
     moduleDashboardSource.includes("setPageCount((count) => count + 1)") &&
     moduleDashboardSource.includes("setDatabaseCount((count) => count + 1)") &&
+    moduleDashboardSource.includes("const loadPageMutationModule = () =>") &&
+    moduleDashboardSource.includes(
+      'import("@/lib/pages/cloudPageMutations")'
+    ) &&
+    moduleDashboardSource.includes("const loadDatabaseMutationModule = () =>") &&
+    moduleDashboardSource.includes(
+      'import("@/lib/database/cloudDatabaseMutations")'
+    ) &&
+    moduleDashboardSource.includes("const loadModuleStarterActions = () =>") &&
+    moduleDashboardSource.includes('import("@/lib/modules/actions")') &&
     !moduleDashboardSource.includes('from "@/hooks/usePages"') &&
     !moduleDashboardSource.includes('from "@/hooks/useDatabases"') &&
+    !moduleDashboardSource.includes('from "@/lib/pages/cloudPageMutations"') &&
+    !moduleDashboardSource.includes(
+      'from "@/lib/database/cloudDatabaseMutations"'
+    ) &&
+    !moduleDashboardSource.includes('from "@/lib/modules/actions"') &&
     !moduleDashboardSource.includes("await refresh()") &&
     !moduleDashboardSource.includes("await refreshDatabases()"),
   "ModuleDashboard 只应读取轻量页面/数据库数量，创建后本地乐观更新，不能为了模块中心首屏或 starter 扫全量页面/数据库列表"

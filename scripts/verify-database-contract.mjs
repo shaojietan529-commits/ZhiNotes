@@ -644,6 +644,24 @@ function run() {
     'from "@/hooks/useDatabases"',
     "Module center must not auto-load database lists just to render counts or create starters."
   );
+  assertIncludes(
+    files.moduleDashboard,
+    moduleDashboard,
+    'import("@/lib/database/cloudDatabaseMutations")',
+    "Module center must lazy-load database creation code only after create-database intent."
+  );
+  assertNotIncludes(
+    files.moduleDashboard,
+    moduleDashboard,
+    'from "@/lib/database/cloudDatabaseMutations"',
+    "Module center must keep database creation code out of the first paint bundle."
+  );
+  assertNotIncludes(
+    files.moduleDashboard,
+    moduleDashboard,
+    'from "@/lib/modules/actions"',
+    "Module center must keep starter database mutation actions out of the first paint bundle."
+  );
   assertNotIncludes(
     files.moduleDashboard,
     moduleDashboard,

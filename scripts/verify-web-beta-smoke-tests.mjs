@@ -7304,6 +7304,38 @@ function run() {
       "Module dashboard-created pages must open in peek immediately, not force a full page route."
     );
   }
+  for (const [blockedSnippet, message] of [
+    [
+      'from "@/lib/pages/cloudPageMutations"',
+      "Module dashboard page creation code must stay out of the module center first paint bundle.",
+    ],
+    [
+      'from "@/lib/database/cloudDatabaseMutations"',
+      "Module dashboard database creation code must stay out of the module center first paint bundle.",
+    ],
+    [
+      'from "@/lib/modules/actions"',
+      "Module dashboard starter actions must load only after a starter is clicked.",
+    ],
+  ]) {
+    assertExcludes(files.moduleDashboard, moduleDashboard, blockedSnippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'import("@/lib/pages/cloudPageMutations")',
+      "Module dashboard must lazy-load page mutations after create-page intent.",
+    ],
+    [
+      'import("@/lib/database/cloudDatabaseMutations")',
+      "Module dashboard must lazy-load database mutations after create-database intent.",
+    ],
+    [
+      'import("@/lib/modules/actions")',
+      "Module dashboard must lazy-load module starter actions after starter intent.",
+    ],
+  ]) {
+    assertIncludes(files.moduleDashboard, moduleDashboard, snippet, message);
+  }
   for (const [snippet, message] of [
     [
       "@/components/page/LazyPagePeekModal",

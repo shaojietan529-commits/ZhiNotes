@@ -15477,6 +15477,43 @@ function run() {
       "Module-created pages must render the page peek modal for same-view opening."
     );
   }
+  for (const [blockedSnippet, message] of [
+    [
+      'from "@/lib/pages/cloudPageMutations"',
+      "Module dashboard page creation code must stay out of the module center first paint bundle.",
+    ],
+    [
+      'from "@/lib/database/cloudDatabaseMutations"',
+      "Module dashboard database creation code must stay out of the module center first paint bundle.",
+    ],
+    [
+      'from "@/lib/modules/actions"',
+      "Module dashboard starter actions must load only after a starter is clicked.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.moduleDashboard,
+      moduleDashboard,
+      blockedSnippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      'import("@/lib/pages/cloudPageMutations")',
+      "Module dashboard must lazy-load page mutations after create-page intent.",
+    ],
+    [
+      'import("@/lib/database/cloudDatabaseMutations")',
+      "Module dashboard must lazy-load database mutations after create-database intent.",
+    ],
+    [
+      'import("@/lib/modules/actions")',
+      "Module dashboard must lazy-load module starter actions after starter intent.",
+    ],
+  ]) {
+    assertSourceIncludes(files.moduleDashboard, moduleDashboard, snippet, message);
+  }
   assertSourceExcludes(
     files.usePage,
     usePage,

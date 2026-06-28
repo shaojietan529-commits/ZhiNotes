@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import PagePeekModal, {
   warmPagePeekModal,
 } from "@/components/page/LazyPagePeekModal";
-import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
-import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import {
@@ -53,7 +51,6 @@ import {
   type ProjectProgressSnapshot,
   type ProjectProgressStatus,
 } from "@/lib/modules/projectProgressSnapshot";
-import { executeModuleStarter } from "@/lib/modules/actions";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { subscribePagesUpdated } from "@/lib/pages/pageUpdateBus";
@@ -66,6 +63,12 @@ import { ZhiNoteLogo } from "@/components/brand/ZhiNoteLogo";
 import type { Page } from "@/lib/utils/types";
 
 const STATUS_ORDER: ModuleStatus[] = ["active", "beta", "planned"];
+
+const loadPageMutationModule = () =>
+  import("@/lib/pages/cloudPageMutations");
+const loadDatabaseMutationModule = () =>
+  import("@/lib/database/cloudDatabaseMutations");
+const loadModuleStarterActions = () => import("@/lib/modules/actions");
 
 export default function ModuleDashboard() {
   const router = useRouter();
@@ -169,6 +172,7 @@ export default function ModuleDashboard() {
 
   const handleNewPage = async () => {
     warmPagePeekModal();
+    const { createPageWithCloud } = await loadPageMutationModule();
     const page = await createPageWithCloud({ title: "未命名研究笔记" });
     upsertPages([page]);
     setPageCount((count) => count + 1);
@@ -176,6 +180,7 @@ export default function ModuleDashboard() {
   };
 
   const handleNewDatabase = async () => {
+    const { createDatabase } = await loadDatabaseMutationModule();
     const database = await createDatabase({ title: "未命名投研数据库" });
     setDatabaseCount((count) => count + 1);
     openDatabase(database.id);
@@ -185,6 +190,7 @@ export default function ModuleDashboard() {
     const starter = module.starter;
     if (!starter) return;
     warmPagePeekModal();
+    const { executeModuleStarter } = await loadModuleStarterActions();
     const result = await executeModuleStarter(starter);
     if (result.database) {
       setDatabaseCount((count) => count + 1);
