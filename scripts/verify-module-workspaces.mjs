@@ -307,8 +307,15 @@ check(
   "usePage 必须优先读取新建页面的内存/同标签页短时恢复草稿；草稿不得写入 localStorage、云端或同步日志"
 );
 check(
-  pageShell.includes("const loadEditorModule = () => import(\"@/components/editor/Editor\")") &&
+    pageShell.includes("const loadEditorModule = () => import(\"@/components/editor/Editor\")") &&
     pageShell.includes("const loadPageMutationModule = () =>\n  import(\"@/lib/pages/cloudPageMutations\")") &&
+    pageShell.includes('const loadPageVersioningModule = () => import("@/lib/comparison/versioning")') &&
+    pageShell.includes('const loadPageExportModule = () => import("@/lib/export/pageExport")') &&
+    pageShell.includes("const loadPageResearchStructureModule = () =>") &&
+    pageShell.includes("const loadPageSnapshotUpdatesModule = () =>") &&
+    !pageShell.includes('from "@/lib/comparison/versioning"') &&
+    !pageShell.includes('from "@/lib/export/pageExport"') &&
+    !pageShell.includes('from "@/lib/pages/pageSnapshotUpdates"') &&
     pageShell.includes("const Editor = dynamic(loadEditorModule") &&
     pageShell.includes("loading: () => <PageBodySkeleton />") &&
     !pageShell.includes("import Editor from \"@/components/editor/Editor\"") &&

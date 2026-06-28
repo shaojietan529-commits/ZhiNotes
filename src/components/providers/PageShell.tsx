@@ -37,14 +37,7 @@ import {
   getBlockComments,
 } from "@/lib/db/local/queries";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
-import { maybeSnapshot, manualSnapshot } from "@/lib/comparison/versioning";
 import type { PageVersion } from "@/lib/utils/types";
-import {
-  buildPageHtmlDocument,
-  buildPageMarkdownDocument,
-  exportPageAsHtml,
-  exportPageAsMarkdown,
-} from "@/lib/export/pageExport";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
 import { usePageViewPreferences } from "@/hooks/usePageViewPreferences";
 import {
@@ -52,7 +45,6 @@ import {
   type PageLocalCommand,
 } from "@/lib/pageLocalCommands";
 import {
-  buildPageResearchStructureReport,
   type PageResearchStructureAction,
   type PageResearchStructureGate,
   type PageResearchStructureReport,
@@ -64,7 +56,6 @@ import {
   getPageBodyHydrationStatus,
   subscribePageBodyHydrationStatus,
 } from "@/lib/pages/pageBodyHydrationStatus";
-import { collectMovedPageSnapshots } from "@/lib/pages/pageSnapshotUpdates";
 import {
   getLocalPerformanceNow,
   recordLocalPerformanceSnapshot,
@@ -74,6 +65,12 @@ const loadEditorModule = () => import("@/components/editor/Editor");
 const loadPageMutationModule = () =>
   import("@/lib/pages/cloudPageMutations");
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
+const loadPageVersioningModule = () => import("@/lib/comparison/versioning");
+const loadPageExportModule = () => import("@/lib/export/pageExport");
+const loadPageResearchStructureModule = () =>
+  import("@/lib/pages/pageResearchStructure");
+const loadPageSnapshotUpdatesModule = () =>
+  import("@/lib/pages/pageSnapshotUpdates");
 const PAGE_SYNC_CONFIG_EVENT = "zhinote:pagesync-config";
 const PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status";
 const PAGE_EDITOR_IDLE_TIMEOUT_MS = 120;
@@ -189,6 +186,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const favorite = isFavorite(pageId);
   const [showInfo, setShowInfo] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
+  const [pageStructure, setPageStructure] =
+    useState<PageResearchStructureReport | null>(null);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
   const pageClipboard = useWorkspaceStore((s) => s.pageClipboard);
   const setPageClipboard = useWorkspaceStore((s) => s.setPageClipboard);
@@ -439,6 +438,7 @@ function PageContent({ pageId }: { pageId: string }) {
     editorSideEffectRunningRef.current = true;
     try {
       await updateWikiLinks(pageId, pending.linkedPageIds);
+      const { maybeSnapshot } = await loadPageVersioningModule();
       const created = await maybeSnapshot(
         pageId,
         pending.title || "未命名页面",
@@ -525,18 +525,21 @@ function PageContent({ pageId }: { pageId: string }) {
     );
     // A null return means the user cancelled the prompt
     if (label === null) return;
+    const { manualSnapshot } = await loadPageVersioningModule();
     await manualSnapshot(pageId, title || "未命名页面", html, label);
     await refreshVersions({ force: true });
     setShowHistory(true);
   }, [pageId, title, page, refreshVersions]);
 
-  const handleExportHtml = useCallback(() => {
+  const handleExportHtml = useCallback(async () => {
     const html = editorRef.current?.getHTML() ?? page?.content_text ?? "";
+    const { exportPageAsHtml } = await loadPageExportModule();
     exportPageAsHtml(title || "未命名页面", html);
   }, [page, title]);
 
-  const handleExportMarkdown = useCallback(() => {
+  const handleExportMarkdown = useCallback(async () => {
     const html = editorRef.current?.getHTML() ?? page?.content_text ?? "";
+    const { exportPageAsMarkdown } = await loadPageExportModule();
     exportPageAsMarkdown(title || "未命名页面", html);
   }, [page, title]);
 
@@ -561,6 +564,7 @@ function PageContent({ pageId }: { pageId: string }) {
 
   const handleCopyPageMarkdown = useCallback(async () => {
     const html = editorRef.current?.getHTML() ?? page?.content_text ?? "";
+    const { buildPageMarkdownDocument } = await loadPageExportModule();
     const markdown = buildPageMarkdownDocument(title || "未命名页面", html);
     const copied = await copyTextToClipboard(markdown, "复制页面 Markdown：");
     showCopyNotice(copied ? "已复制 Markdown" : "请在弹窗中手动复制 Markdown");
@@ -568,6 +572,7 @@ function PageContent({ pageId }: { pageId: string }) {
 
   const handleCopyPageHtml = useCallback(async () => {
     const html = editorRef.current?.getHTML() ?? page?.content_text ?? "";
+    const { buildPageHtmlDocument } = await loadPageExportModule();
     const exportedHtml = buildPageHtmlDocument(title || "未命名页面", html);
     const copied = await copyTextToClipboard(exportedHtml, "复制页面 HTML：");
     showCopyNotice(copied ? "已复制 HTML" : "请在弹窗中手动复制 HTML");
@@ -602,11 +607,11 @@ function PageContent({ pageId }: { pageId: string }) {
         return;
       }
       if (command === "export-html") {
-        handleExportHtml();
+        void handleExportHtml();
         return;
       }
       if (command === "export-markdown") {
-        handleExportMarkdown();
+        void handleExportMarkdown();
         return;
       }
       if (command === "copy-link") {
@@ -652,6 +657,7 @@ function PageContent({ pageId }: { pageId: string }) {
       );
       if (!ok) return;
       const currentHtml = editorRef.current?.getHTML() ?? page?.content_text ?? "";
+      const { manualSnapshot } = await loadPageVersioningModule();
       await manualSnapshot(pageId, title || "未命名页面", currentHtml, "恢复前");
       const restored = version.content_text || "";
       await update({ content_text: restored });
@@ -736,6 +742,8 @@ function PageContent({ pageId }: { pageId: string }) {
       const { movePageWithCloud } = await loadPageMutationModule();
       const moved = await movePageWithCloud(pageClipboard.pageId, pageId, pos);
       if (moved) {
+        const { collectMovedPageSnapshots } =
+          await loadPageSnapshotUpdatesModule();
         upsertPages(
           collectMovedPageSnapshots(useWorkspaceStore.getState().pages, moved)
         );
@@ -757,6 +765,8 @@ function PageContent({ pageId }: { pageId: string }) {
       const { movePageWithCloud } = await loadPageMutationModule();
       const moved = await movePageWithCloud(pageId, targetId, pos);
       if (moved) {
+        const { collectMovedPageSnapshots } =
+          await loadPageSnapshotUpdatesModule();
         upsertPages(
           collectMovedPageSnapshots(useWorkspaceStore.getState().pages, moved)
         );
@@ -826,19 +836,35 @@ function PageContent({ pageId }: { pageId: string }) {
     })();
   }, [openPage, page, title, upsertPages]);
 
-  const pageStructure = useMemo(() => {
-    if (!showInfo || !page) return null;
-    return buildPageResearchStructureReport({
-      html: page.content_text ?? "",
-      title: title || page.title || "未命名页面",
-      metadata: {
-        favorite,
-        hasCover: Boolean(page.cover_url),
-        locked,
-        versionsCount: versions.length,
-        widePage,
-      },
-    });
+  useEffect(() => {
+    if (!showInfo || !page) {
+      setPageStructure(null);
+      return;
+    }
+    let cancelled = false;
+    void loadPageResearchStructureModule()
+      .then(({ buildPageResearchStructureReport }) => {
+        if (cancelled) return;
+        setPageStructure(
+          buildPageResearchStructureReport({
+            html: page.content_text ?? "",
+            title: title || page.title || "未命名页面",
+            metadata: {
+              favorite,
+              hasCover: Boolean(page.cover_url),
+              locked,
+              versionsCount: versions.length,
+              widePage,
+            },
+          })
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setPageStructure(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [
     favorite,
     locked,
@@ -934,6 +960,7 @@ function PageContent({ pageId }: { pageId: string }) {
       cancelEditorSideEffects();
       await update({ content_text: html });
       await updateWikiLinks(pageId, extractLinkedPageIdsFromHtml(html));
+      const { maybeSnapshot } = await loadPageVersioningModule();
       const created = await maybeSnapshot(
         pageId,
         title || page.title || "未命名页面",

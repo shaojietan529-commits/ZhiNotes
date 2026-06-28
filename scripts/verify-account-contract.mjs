@@ -1260,7 +1260,7 @@ check(
 );
 const pageStructureMutationBody = pageShell.slice(
   pageShell.indexOf("const handlePastePage"),
-  pageShell.indexOf("const pageStructure")
+  pageShell.indexOf("useEffect(() => {\n    if (!showInfo || !page)")
 );
 check(
   pageStructureMutationBody.includes(
@@ -1296,7 +1296,9 @@ check(
   "PageShell 不应在打开页面时默认加载全部版本正文，历史/信息面板应按需加载"
 );
 check(
-  pageShell.includes("if (!showInfo || !page) return null") &&
+  pageShell.includes("if (!showInfo || !page) {\n      setPageStructure(null)") &&
+    pageShell.includes("void loadPageResearchStructureModule()") &&
+    pageShell.includes(".then(({ buildPageResearchStructureReport }) =>") &&
     pageShell.includes("showInfo && pageStructure && pageInfo"),
   "PageShell 不应在打开页面首屏默认解析完整正文生成投研结构"
 );
@@ -1304,6 +1306,13 @@ check(
   pageShell.includes("scheduleEditorMount") &&
     pageShell.includes("scheduleDeferredMount") &&
     pageShell.includes("return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);") &&
+    pageShell.includes('const loadPageVersioningModule = () => import("@/lib/comparison/versioning")') &&
+    pageShell.includes('const loadPageExportModule = () => import("@/lib/export/pageExport")') &&
+    pageShell.includes("const loadPageResearchStructureModule = () =>") &&
+    pageShell.includes("const loadPageSnapshotUpdatesModule = () =>") &&
+    !pageShell.includes('from "@/lib/comparison/versioning"') &&
+    !pageShell.includes('from "@/lib/export/pageExport"') &&
+    !pageShell.includes('from "@/lib/pages/pageSnapshotUpdates"') &&
     pageShell.includes("PAGE_EDITOR_IDLE_TIMEOUT_MS = 120") &&
     pageShell.includes("PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700") &&
     pageShell.includes("PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200") &&

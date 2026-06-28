@@ -3456,6 +3456,42 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'const loadPageVersioningModule = () => import("@/lib/comparison/versioning")',
+      "Page shell must lazy-load version snapshot helpers instead of shipping them in the first page bundle.",
+    ],
+    [
+      'const loadPageExportModule = () => import("@/lib/export/pageExport")',
+      "Page shell must lazy-load page export helpers until the user exports or copies formatted content.",
+    ],
+    [
+      "const loadPageResearchStructureModule = () =>",
+      "Page shell must lazy-load the research-structure analyzer until the info panel is opened.",
+    ],
+    [
+      "const loadPageSnapshotUpdatesModule = () =>",
+      "Page shell must lazy-load moved-page snapshot expansion until a move/paste action needs it.",
+    ],
+  ]) {
+    assertIncludes(files.pageShell, pageShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'from "@/lib/comparison/versioning"',
+      "Page shell first paint must not statically import version snapshot helpers.",
+    ],
+    [
+      'from "@/lib/export/pageExport"',
+      "Page shell first paint must not statically import page export helpers.",
+    ],
+    [
+      'from "@/lib/pages/pageSnapshotUpdates"',
+      "Page shell first paint must not statically import moved-page snapshot helpers.",
+    ],
+  ]) {
+    assertExcludes(files.pageShell, pageShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000",
       "Page shell must keep pending page-sync feedback responsive while uploads are queued.",
     ],
