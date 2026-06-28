@@ -664,6 +664,38 @@ function run() {
       "PageShell loading fallback must preserve local-first page metadata after the client shell starts."
     );
   }
+  for (const [snippet, message] of [
+    [
+      "useLayoutEffect,",
+      "PageShell editable header sync must run before browser paint so local-first titles do not flash blank.",
+    ],
+    [
+      "readPageShellEditableHeaderSeed(pageId).title",
+      "PageShell title state must initialize from local-first route metadata.",
+    ],
+    [
+      "readPageShellEditableHeaderSeed(pageId).properties",
+      "PageShell properties state must initialize from local-first route metadata.",
+    ],
+    [
+      "const editableHeaderPage = page ?? readPageShellRoutePreviewSeed(pageId);",
+      "PageShell must reuse the route preview seed when synchronizing editable title/properties.",
+    ],
+    [
+      "setTitle(editableHeaderPage.title);",
+      "PageShell must synchronize the editable title from the first available page snapshot before paint.",
+    ],
+    [
+      "setProperties(parsePageProperties(editableHeaderPage.properties));",
+      "PageShell must synchronize editable properties from the first available page snapshot before paint.",
+    ],
+    [
+      "function readPageShellEditableHeaderSeed",
+      "PageShell editable title/properties initialization must share the local-first seed order.",
+    ],
+  ]) {
+    assertIncludes(files.pageShell, pageShell, snippet, message);
+  }
   for (const snippet of [
     "preview?:",
     'data-testid="page-route-preview-title"',

@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -182,8 +183,12 @@ function PageContent({ pageId }: { pageId: string }) {
   const { page, loading, update, remove } = usePage(pageId);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const setCurrentPageId = useWorkspaceStore((s) => s.setCurrentPageId);
-  const [title, setTitle] = useState("");
-  const [properties, setProperties] = useState<PageProperty[]>([]);
+  const [title, setTitle] = useState(
+    () => readPageShellEditableHeaderSeed(pageId).title
+  );
+  const [properties, setProperties] = useState<PageProperty[]>(
+    () => readPageShellEditableHeaderSeed(pageId).properties
+  );
   const [showHistory, setShowHistory] = useState(false);
   const { isFavorite, toggleFavorite } = usePageFavorites();
   const {
@@ -459,13 +464,16 @@ function PageContent({ pageId }: { pageId: string }) {
     }, PAGE_REFERENCES_IDLE_TIMEOUT_MS);
   }, [editorMounted, hasPage, pageId, pageReferencesMounted]);
 
-  useEffect(() => {
-    if (!page) return;
-    queueMicrotask(() => {
-      setTitle(page.title);
-      setProperties(parsePageProperties(page.properties));
-    });
-  }, [page]);
+  useLayoutEffect(() => {
+    const editableHeaderPage = page ?? readPageShellRoutePreviewSeed(pageId);
+    if (!editableHeaderPage) {
+      setTitle("");
+      setProperties([]);
+      return;
+    }
+    setTitle(editableHeaderPage.title);
+    setProperties(parsePageProperties(editableHeaderPage.properties));
+  }, [page, pageId]);
 
   const handleToggleComments = useCallback(() => {
     toggleCommentsPanelOpen();
@@ -1969,6 +1977,17 @@ function readPageShellRoutePreviewSeed(pageId: string): Page | null {
     useWorkspaceStore.getState().getPageById(pageId) ??
     null
   );
+}
+
+function readPageShellEditableHeaderSeed(pageId: string): {
+  title: string;
+  properties: PageProperty[];
+} {
+  const page = readPageShellRoutePreviewSeed(pageId);
+  return {
+    title: page?.title ?? "",
+    properties: page ? parsePageProperties(page.properties) : [],
+  };
 }
 
 function getPageInfoStats(
