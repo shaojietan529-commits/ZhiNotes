@@ -9,6 +9,9 @@ import {
   isDatabaseSystemTimeField,
 } from "@/lib/database/systemFields";
 
+const DATABASE_CALENDAR_RENDER_DAY_LIMIT = 8;
+const DATABASE_CALENDAR_UNDATED_RENDER_LIMIT = 32;
+
 interface CalendarViewProps {
   fields: DatabaseField[];
   rows: (DatabaseRow & { page: Page })[];
@@ -46,6 +49,15 @@ export default function CalendarView({
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const calendarDateKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      keys.add(
+        `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+      );
+    }
+    return keys;
+  }, [daysInMonth, month, year]);
 
   const dayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
   const monthNames = [
@@ -53,24 +65,12 @@ export default function CalendarView({
     "七月", "八月", "九月", "十月", "十一月", "十二月",
   ];
 
-  // Map rows to dates
-  const rowsByDate = useMemo(() => {
-    const map: Record<string, (DatabaseRow & { page: Page })[]> = {};
-    if (!dateField) return map;
-
-    for (const row of rows) {
-      const dateVal = getCalendarRowDateValue(row, dateField);
-      if (dateVal) {
-        if (!map[dateVal]) map[dateVal] = [];
-        map[dateVal].push(row);
-      }
-    }
-    return map;
-  }, [rows, dateField]);
-  const rowsWithoutDate = useMemo(() => {
-    if (!dateField) return [];
-    return rows.filter((row) => !getCalendarRowDateValue(row, dateField));
-  }, [rows, dateField]);
+  const calendarIndexes = useMemo(
+    () => buildDatabaseCalendarIndexes(rows, dateField, calendarDateKeys),
+    [calendarDateKeys, dateField, rows]
+  );
+  const { rowCountByDate, rowsByDate, rowsWithoutDate, rowsWithoutDateTotal } =
+    calendarIndexes;
 
   const prevMonth = () =>
     setCurrentDate(new Date(year, month - 1, 1));
@@ -149,6 +149,10 @@ export default function CalendarView({
             ? `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
             : null;
           const dayRows = dateStr ? rowsByDate[dateStr] || [] : [];
+          const dayTotalCount = dateStr
+            ? rowCountByDate[dateStr] ?? dayRows.length
+            : 0;
+          const hiddenDayRowCount = Math.max(dayTotalCount - dayRows.length, 0);
           const isToday =
             day !== null &&
             new Date().toISOString().slice(0, 10) === dateStr;
@@ -196,6 +200,11 @@ export default function CalendarView({
                       </button>
                     </div>
                   ))}
+                  {hiddenDayRowCount > 0 && (
+                    <div className="mt-1 rounded border border-dashed border-blue-200/70 px-1 py-0.5 text-[10px] text-blue-500 dark:border-blue-800/70 dark:text-blue-300">
+                      为保持日历流畅，已折叠 {hiddenDayRowCount} 行；切换到表格视图查看全部。
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -209,9 +218,15 @@ export default function CalendarView({
               无日期
             </h4>
             <span className="text-[11px] text-zinc-400">
-              {rowsWithoutDate.length} 行
+              {rowsWithoutDateTotal} 行
             </span>
           </div>
+          {rowsWithoutDateTotal > rowsWithoutDate.length && (
+            <p className="mb-2 text-[11px] text-zinc-400">
+              为保持日历流畅，先显示 {rowsWithoutDate.length}/
+              {rowsWithoutDateTotal} 行；切换到表格视图查看全部。
+            </p>
+          )}
           <div className="flex flex-wrap gap-1.5">
             {rowsWithoutDate.map((row) => (
               <span
@@ -251,6 +266,41 @@ export default function CalendarView({
       )}
     </div>
   );
+}
+
+function buildDatabaseCalendarIndexes(
+  rows: (DatabaseRow & { page: Page })[],
+  dateField: DatabaseField | undefined,
+  calendarDateKeys: Set<string>
+) {
+  const rowsByDate: Record<string, (DatabaseRow & { page: Page })[]> = {};
+  const rowCountByDate: Record<string, number> = {};
+  const rowsWithoutDate: (DatabaseRow & { page: Page })[] = [];
+  let rowsWithoutDateTotal = 0;
+
+  if (!dateField) {
+    return { rowsByDate, rowCountByDate, rowsWithoutDate, rowsWithoutDateTotal };
+  }
+
+  for (const row of rows) {
+    const dateVal = getCalendarRowDateValue(row, dateField);
+    if (dateVal) {
+      if (!calendarDateKeys.has(dateVal)) continue;
+      rowCountByDate[dateVal] = (rowCountByDate[dateVal] ?? 0) + 1;
+      if (!rowsByDate[dateVal]) rowsByDate[dateVal] = [];
+      if (rowsByDate[dateVal].length < DATABASE_CALENDAR_RENDER_DAY_LIMIT) {
+        rowsByDate[dateVal].push(row);
+      }
+      continue;
+    }
+
+    rowsWithoutDateTotal += 1;
+    if (rowsWithoutDate.length < DATABASE_CALENDAR_UNDATED_RENDER_LIMIT) {
+      rowsWithoutDate.push(row);
+    }
+  }
+
+  return { rowsByDate, rowCountByDate, rowsWithoutDate, rowsWithoutDateTotal };
 }
 
 function getCalendarRowDateValue(

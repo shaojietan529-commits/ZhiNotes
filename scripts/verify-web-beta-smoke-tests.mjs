@@ -7415,6 +7415,30 @@ function run() {
       "Database row views must prewarm page opens for keyboard users."
     );
   }
+  for (const [snippet, message] of [
+    [
+      "DATABASE_CALENDAR_RENDER_DAY_LIMIT",
+      "Database calendar view must cap per-day rendered rows for large imports.",
+    ],
+    [
+      "DATABASE_CALENDAR_UNDATED_RENDER_LIMIT",
+      "Database calendar view must cap undated rows instead of rendering every undated record.",
+    ],
+    [
+      "buildDatabaseCalendarIndexes(rows, dateField, calendarDateKeys)",
+      "Database calendar view must build one bounded visible-month index.",
+    ],
+    [
+      "if (!calendarDateKeys.has(dateVal)) continue;",
+      "Database calendar view must skip rows outside the visible month before grouping.",
+    ],
+    [
+      "为保持日历流畅",
+      "Database calendar view must explain capped high-volume rendering to the user.",
+    ],
+  ]) {
+    assertIncludes(files.databaseCalendarView, databaseCalendarView, snippet, message);
+  }
   assertIncludes(
     files.databaseTableView,
     databaseTableView,
