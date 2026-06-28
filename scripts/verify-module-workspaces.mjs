@@ -303,6 +303,13 @@ check(
       usePageHook.indexOf("useWorkspaceStore.getState().getPageById(pageId)") &&
     pendingPageDrafts.includes("PENDING_PAGE_DRAFT_TTL_MS") &&
     pendingPageDrafts.includes("PENDING_PAGE_DRAFT_MAX_CHARS") &&
+    pendingPageDrafts.includes("PENDING_PAGE_DRAFT_DEBOUNCE_CHARS") &&
+    pendingPageDrafts.includes("PENDING_PAGE_DRAFT_STORAGE_WRITE_DELAY_MS") &&
+    pendingPageDrafts.includes("pendingPageDraftSessionWrites") &&
+    pendingPageDrafts.includes("rememberPendingPageDraftInSessionStorageSoon") &&
+    pendingPageDrafts.includes("flushPendingPageDraftSessionStorageWrites") &&
+    pendingPageDrafts.includes('window.addEventListener("pagehide"') &&
+    pendingPageDrafts.includes('document.addEventListener("visibilitychange"') &&
     pendingPageDrafts.includes("window.sessionStorage.setItem") &&
     pendingPageDrafts.includes("window.sessionStorage.removeItem") &&
     pendingPageDrafts.includes("session_storage_only: true") &&

@@ -8295,6 +8295,42 @@ function run() {
     "Pending page drafts must stay bounded for large imported notes."
   );
   assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "PENDING_PAGE_DRAFT_DEBOUNCE_CHARS",
+    "Pending page drafts must debounce sessionStorage writes for large page bodies."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "PENDING_PAGE_DRAFT_STORAGE_WRITE_DELAY_MS",
+    "Pending page draft sessionStorage writes must be short-delay buffered instead of per-keystroke for large bodies."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "pendingPageDraftSessionWrites",
+    "Pending page drafts must coalesce large body recovery writes by page id."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "flushPendingPageDraftSessionStorageWrites",
+    "Pending page drafts must flush buffered recovery writes before the tab is hidden or closed."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    'window.addEventListener("pagehide"',
+    "Pending page drafts must flush buffered recovery writes on pagehide."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    'document.addEventListener("visibilitychange"',
+    "Pending page drafts must flush buffered recovery writes when the document becomes hidden."
+  );
+  assertIncludes(
     files.localFirstPageNavigationUtil,
     localFirstPageNavigationUtil,
     "rememberPendingPageDraft(page)",

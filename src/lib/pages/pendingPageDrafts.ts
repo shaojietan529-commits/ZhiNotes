@@ -4,11 +4,19 @@ const PENDING_PAGE_DRAFT_PREFIX = "zhinote.page.pendingDraft.";
 const PENDING_PAGE_DRAFT_TTL_MS = 2 * 60 * 1000;
 const PENDING_PAGE_DRAFT_MAX_ITEMS = 12;
 const PENDING_PAGE_DRAFT_MAX_CHARS = 900 * 1024;
+const PENDING_PAGE_DRAFT_DEBOUNCE_CHARS = 32 * 1024;
+const PENDING_PAGE_DRAFT_STORAGE_WRITE_DELAY_MS = 360;
 
 const pendingPageDrafts = new Map<
   string,
   { page: Page; expiresAt: number }
 >();
+const pendingPageDraftSessionWrites = new Map<
+  string,
+  { page: Page; expiresAt: number }
+>();
+let pendingPageDraftSessionWriteTimer: number | null = null;
+let pendingPageDraftFlushListenersAttached = false;
 
 type PendingPageDraftRecordPage = Omit<Page, "content_yjs"> & {
   content_yjs: null;
@@ -39,7 +47,7 @@ export function rememberPendingPageDraft(page: Page): void {
     page,
     expiresAt,
   });
-  rememberPendingPageDraftInSessionStorage(page, expiresAt);
+  rememberPendingPageDraftInSessionStorageSoon(page, expiresAt);
 }
 
 export function readPendingPageDraft(pageId: string): Page | null {
@@ -60,6 +68,7 @@ export function readPendingPageDraft(pageId: string): Page | null {
 
 export function clearPendingPageDraft(pageId: string): void {
   pendingPageDrafts.delete(pageId);
+  pendingPageDraftSessionWrites.delete(pageId);
   clearPendingPageDraftFromSessionStorage(pageId);
 }
 
@@ -69,6 +78,60 @@ function prunePendingPageDrafts(): void {
     if (draft.expiresAt < now) pendingPageDrafts.delete(pageId);
   }
   prunePendingPageDraftSessionStorage(now);
+}
+
+function rememberPendingPageDraftInSessionStorageSoon(
+  page: Page,
+  expiresAt: number
+): void {
+  if (typeof window === "undefined") return;
+  if (!shouldDebouncePendingPageDraftStorageWrite(page)) {
+    pendingPageDraftSessionWrites.delete(page.id);
+    rememberPendingPageDraftInSessionStorage(page, expiresAt);
+    return;
+  }
+
+  pendingPageDraftSessionWrites.set(page.id, { page, expiresAt });
+  ensurePendingPageDraftFlushListeners();
+  if (pendingPageDraftSessionWriteTimer !== null) {
+    window.clearTimeout(pendingPageDraftSessionWriteTimer);
+  }
+  pendingPageDraftSessionWriteTimer = window.setTimeout(() => {
+    pendingPageDraftSessionWriteTimer = null;
+    flushPendingPageDraftSessionStorageWrites();
+  }, PENDING_PAGE_DRAFT_STORAGE_WRITE_DELAY_MS);
+}
+
+function shouldDebouncePendingPageDraftStorageWrite(page: Page): boolean {
+  return (page.content_text?.length ?? 0) > PENDING_PAGE_DRAFT_DEBOUNCE_CHARS;
+}
+
+function ensurePendingPageDraftFlushListeners(): void {
+  if (typeof window === "undefined" || pendingPageDraftFlushListenersAttached) {
+    return;
+  }
+  pendingPageDraftFlushListenersAttached = true;
+  window.addEventListener("pagehide", flushPendingPageDraftSessionStorageWrites);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      flushPendingPageDraftSessionStorageWrites();
+    }
+  });
+}
+
+function flushPendingPageDraftSessionStorageWrites(): void {
+  if (typeof window === "undefined" || pendingPageDraftSessionWrites.size === 0) {
+    return;
+  }
+  if (pendingPageDraftSessionWriteTimer !== null) {
+    window.clearTimeout(pendingPageDraftSessionWriteTimer);
+    pendingPageDraftSessionWriteTimer = null;
+  }
+  const writes = [...pendingPageDraftSessionWrites.values()];
+  pendingPageDraftSessionWrites.clear();
+  for (const write of writes) {
+    rememberPendingPageDraftInSessionStorage(write.page, write.expiresAt);
+  }
 }
 
 function rememberPendingPageDraftInSessionStorage(

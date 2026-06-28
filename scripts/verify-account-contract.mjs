@@ -996,11 +996,19 @@ check(
     pendingPageDrafts.includes("enters_sync_log: false") &&
     pendingPageDrafts.includes("stores_source_of_truth: false") &&
     pendingPageDrafts.includes("PENDING_PAGE_DRAFT_MAX_CHARS") &&
+    pendingPageDrafts.includes("PENDING_PAGE_DRAFT_DEBOUNCE_CHARS") &&
+    pendingPageDrafts.includes("PENDING_PAGE_DRAFT_STORAGE_WRITE_DELAY_MS") &&
+    pendingPageDrafts.includes("pendingPageDraftSessionWrites") &&
+    pendingPageDrafts.includes("rememberPendingPageDraftInSessionStorageSoon") &&
+    pendingPageDrafts.includes("shouldDebouncePendingPageDraftStorageWrite") &&
+    pendingPageDrafts.includes("flushPendingPageDraftSessionStorageWrites") &&
+    pendingPageDrafts.includes('window.addEventListener("pagehide"') &&
+    pendingPageDrafts.includes('document.addEventListener("visibilitychange"') &&
     !pendingPageDrafts.includes("window.localStorage") &&
     !pendingPageDrafts.includes("recordSyncChange") &&
     !pendingPageDrafts.includes("queueCloudPagePush") &&
     !pendingPageDrafts.includes("pushCloudPages"),
-  "pending page draft 必须只是同标签页短时恢复层：可存正文 HTML，但不能存 Yjs、不能写云端/同步日志/localStorage"
+  "pending page draft 必须只是同标签页短时恢复层：可存正文 HTML，但大正文写入 sessionStorage 必须防抖合并，不能存 Yjs、不能写云端/同步日志/localStorage"
 );
 check(
   !usePageHook.includes("updatePage(pageId, updates)") &&

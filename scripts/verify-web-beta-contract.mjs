@@ -15382,6 +15382,48 @@ function run() {
       "Pending page drafts must stay bounded so large imported notes do not bloat session storage.",
     ],
     [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "PENDING_PAGE_DRAFT_DEBOUNCE_CHARS",
+      "Pending page drafts must debounce sessionStorage writes for large page bodies.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "PENDING_PAGE_DRAFT_STORAGE_WRITE_DELAY_MS",
+      "Pending page draft sessionStorage writes must be short-delay buffered instead of per-keystroke for large bodies.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "pendingPageDraftSessionWrites",
+      "Pending page drafts must coalesce large body recovery writes by page id.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "rememberPendingPageDraftInSessionStorageSoon",
+      "Pending page drafts must route session recovery writes through the debounced writer.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "flushPendingPageDraftSessionStorageWrites",
+      "Pending page drafts must flush buffered recovery writes before the tab is hidden or closed.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      'window.addEventListener("pagehide"',
+      "Pending page drafts must flush buffered recovery writes on pagehide.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      'document.addEventListener("visibilitychange"',
+      "Pending page drafts must flush buffered recovery writes when the document becomes hidden.",
+    ],
+    [
       files.localFirstPageNavigationUtil,
       localFirstPageNavigationUtil,
       "rememberPendingPageDraft(page)",
