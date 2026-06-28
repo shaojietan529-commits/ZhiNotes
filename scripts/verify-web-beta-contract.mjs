@@ -150,6 +150,9 @@ const files = {
   compareShell: "src/components/comparison/CompareShell.tsx",
   pageProperties: "src/components/page/PageProperties.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
+  blockComments: "src/components/shared/BlockComments.tsx",
+  commentSidePanel: "src/components/shared/CommentSidePanel.tsx",
+  blockCommentEvents: "src/components/shared/blockCommentEvents.ts",
   breadcrumb: "src/components/shared/Breadcrumb.tsx",
   backlinks: "src/components/shared/Backlinks.tsx",
   childPageTree: "src/components/page/ChildPageTree.tsx",
@@ -539,6 +542,9 @@ function run() {
   const compareShell = readProjectFile(files.compareShell);
   const pageProperties = readProjectFile(files.pageProperties);
   const pageShell = readProjectFile(files.pageShell);
+  const blockComments = readProjectFile(files.blockComments);
+  const commentSidePanel = readProjectFile(files.commentSidePanel);
+  const blockCommentEvents = readProjectFile(files.blockCommentEvents);
   const breadcrumb = readProjectFile(files.breadcrumb);
   const backlinks = readProjectFile(files.backlinks);
   const childPageTree = readProjectFile(files.childPageTree);
@@ -2528,6 +2534,95 @@ function run() {
     pageShell,
     "pagePeripheralsMounted",
     "Page shell must not use one shared peripheral flag that mounts comments, child tree, and backlinks together."
+  );
+  for (const [snippet, message] of [
+    [
+      "dynamic<IconPickerProps>(",
+      "Page shell must lazy-load the icon picker so the full page title can paint before the icon catalog loads.",
+    ],
+    [
+      '() => import("@/components/shared/IconPicker")',
+      "Page shell icon picker must live in its own async chunk.",
+    ],
+    [
+      "PageIconPickerSkeleton",
+      "Page shell must keep a stable lightweight icon placeholder while the picker chunk loads.",
+    ],
+    [
+      "dynamic<PagePropertiesProps>(",
+      "Page shell must lazy-load the property editor so metadata can paint before heavier controls load.",
+    ],
+    [
+      '() => import("@/components/page/PageProperties")',
+      "Page shell property editor must live in its own async chunk.",
+    ],
+    [
+      "PagePropertiesSkeleton",
+      "Page shell must keep a stable properties placeholder while the property editor chunk loads.",
+    ],
+    [
+      "dynamic<PageActionsMenuProps>(",
+      "Page shell must lazy-load page actions so export/history menus do not block page opening.",
+    ],
+    [
+      '() => import("@/components/page/PageActionsMenu")',
+      "Page shell actions menu must live in its own async chunk.",
+    ],
+    [
+      "PageActionsMenuSkeleton",
+      "Page shell must keep a stable actions placeholder while the actions chunk loads.",
+    ],
+    [
+      "dynamic<BlockCommentsProps>(",
+      "Page shell must lazy-load block comments instead of including comment UI in the first page bundle.",
+    ],
+    [
+      '() => import("@/components/shared/BlockComments")',
+      "Page shell block comments must live in their own async chunk.",
+    ],
+    [
+      "@/components/shared/blockCommentEvents",
+      "Page shell must import comment event names from a lightweight constants module.",
+    ],
+  ]) {
+    assertSourceIncludes(files.pageShell, pageShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'import IconPicker from "@/components/shared/IconPicker"',
+      "Page shell must not directly import the full icon picker into the first page bundle.",
+    ],
+    [
+      'import PageProperties from "@/components/page/PageProperties"',
+      "Page shell must not directly import the full property editor into the first page bundle.",
+    ],
+    [
+      'import PageActionsMenu from "@/components/page/PageActionsMenu"',
+      "Page shell must not directly import the full actions menu into the first page bundle.",
+    ],
+    [
+      'import BlockComments from "@/components/shared/BlockComments"',
+      "Page shell must not directly import the block comments UI into the first page bundle.",
+    ],
+  ]) {
+    assertSourceExcludes(files.pageShell, pageShell, snippet, message);
+  }
+  for (const [sourceLabel, source] of [
+    [files.blockComments, blockComments],
+    [files.commentSidePanel, commentSidePanel],
+  ]) {
+    assertSourceIncludes(
+      sourceLabel,
+      source,
+      "@/components/shared/blockCommentEvents",
+      "Comment surfaces must share lightweight event constants instead of importing the block comments component for event names."
+    );
+  }
+  assertSourceIncludes(
+    files.blockCommentEvents,
+    blockCommentEvents,
+    "INLINE_COMMENT_SELECTED_EVENT",
+    "The lightweight comment event constants module must expose inline comment selection events."
   );
   for (const [snippet, message] of [
     [

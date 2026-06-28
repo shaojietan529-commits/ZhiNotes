@@ -20,7 +20,7 @@ import {
   BLOCK_COMMENTS_CHANGED_EVENT,
   INLINE_COMMENT_DELETED_EVENT,
   INLINE_COMMENT_SELECTED_EVENT,
-} from "@/components/shared/BlockComments";
+} from "@/components/shared/blockCommentEvents";
 import { htmlToMarkdown } from "@/lib/export/pageExport";
 import {
   EDITOR_BLOCK_MENU_EVENT,

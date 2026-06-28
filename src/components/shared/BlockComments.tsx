@@ -6,14 +6,15 @@ import {
   getBlockComments,
   updateBlockComment,
 } from "@/lib/db/local/queries";
+import {
+  BLOCK_COMMENTS_CHANGED_EVENT,
+  INLINE_COMMENT_DELETED_EVENT,
+  INLINE_COMMENT_SELECTED_EVENT,
+} from "@/components/shared/blockCommentEvents";
 import type { BlockComment } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 
-export const BLOCK_COMMENTS_CHANGED_EVENT = "zhinote:block-comments-changed";
-export const INLINE_COMMENT_DELETED_EVENT = "zhinote:inline-comment-deleted";
-export const INLINE_COMMENT_SELECTED_EVENT = "zhinote:inline-comment-selected";
-
-interface BlockCommentsProps {
+export interface BlockCommentsProps {
   pageId: string;
   disabled?: boolean;
 }

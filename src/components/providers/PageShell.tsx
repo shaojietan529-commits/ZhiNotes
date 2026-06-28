@@ -12,13 +12,14 @@ import dynamic from "next/dynamic";
 import Sidebar from "@/components/sidebar/Sidebar";
 import type { EditorRef } from "@/components/editor/Editor";
 import Breadcrumb from "@/components/shared/Breadcrumb";
-import IconPicker from "@/components/shared/IconPicker";
-import BlockComments, {
+import type { IconPickerProps } from "@/components/shared/IconPicker";
+import type { BlockCommentsProps } from "@/components/shared/BlockComments";
+import {
   BLOCK_COMMENTS_CHANGED_EVENT,
   INLINE_COMMENT_SELECTED_EVENT,
-} from "@/components/shared/BlockComments";
-import PageProperties from "@/components/page/PageProperties";
-import PageActionsMenu from "@/components/page/PageActionsMenu";
+} from "@/components/shared/blockCommentEvents";
+import type { PagePropertiesProps } from "@/components/page/PageProperties";
+import type { PageActionsMenuProps } from "@/components/page/PageActionsMenu";
 import PageRouteSkeleton from "@/components/page/PageRouteSkeleton";
 import {
   parsePageProperties,
@@ -96,6 +97,34 @@ const Editor = dynamic(loadEditorModule, {
   ssr: false,
   loading: () => <PageBodySkeleton />,
 });
+const IconPicker = dynamic<IconPickerProps>(
+  () => import("@/components/shared/IconPicker"),
+  {
+    ssr: false,
+    loading: () => <PageIconPickerSkeleton />,
+  }
+);
+const PageProperties = dynamic<PagePropertiesProps>(
+  () => import("@/components/page/PageProperties"),
+  {
+    ssr: false,
+    loading: () => <PagePropertiesSkeleton />,
+  }
+);
+const PageActionsMenu = dynamic<PageActionsMenuProps>(
+  () => import("@/components/page/PageActionsMenu"),
+  {
+    ssr: false,
+    loading: () => <PageActionsMenuSkeleton />,
+  }
+);
+const BlockComments = dynamic<BlockCommentsProps>(
+  () => import("@/components/shared/BlockComments"),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+);
 const Backlinks = dynamic(() => import("@/components/shared/Backlinks"), {
   ssr: false,
 });
@@ -1315,6 +1344,43 @@ function PageBodySkeleton({
           : "正在准备编辑器…"}
       </p>
     </div>
+  );
+}
+
+function PageIconPickerSkeleton() {
+  return (
+    <div
+      className="mt-1 h-8 w-20 shrink-0 rounded-md bg-zinc-100 dark:bg-zinc-800"
+      aria-hidden="true"
+    />
+  );
+}
+
+function PagePropertiesSkeleton() {
+  return (
+    <div
+      className="mb-6 space-y-2"
+      aria-label="页面属性加载中"
+      role="status"
+    >
+      <div className="flex items-center gap-2">
+        <div className="h-4 w-28 rounded bg-zinc-100 dark:bg-zinc-800" />
+        <div className="h-4 w-48 rounded bg-zinc-100 dark:bg-zinc-800" />
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="h-4 w-28 rounded bg-zinc-100 dark:bg-zinc-800" />
+        <div className="h-4 w-36 rounded bg-zinc-100 dark:bg-zinc-800" />
+      </div>
+    </div>
+  );
+}
+
+function PageActionsMenuSkeleton() {
+  return (
+    <div
+      className="h-7 w-7 rounded-md bg-zinc-100 dark:bg-zinc-800"
+      aria-hidden="true"
+    />
   );
 }
 

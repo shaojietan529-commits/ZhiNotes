@@ -1281,10 +1281,26 @@ check(
     pageShell.includes("childTreeMounted") &&
     pageShell.includes("pageReferencesMounted") &&
     !pageShell.includes("pagePeripheralsMounted") &&
+    pageShell.includes("dynamic<IconPickerProps>(") &&
+    pageShell.includes('() => import("@/components/shared/IconPicker")') &&
+    pageShell.includes("PageIconPickerSkeleton") &&
+    pageShell.includes("dynamic<PagePropertiesProps>(") &&
+    pageShell.includes('() => import("@/components/page/PageProperties")') &&
+    pageShell.includes("PagePropertiesSkeleton") &&
+    pageShell.includes("dynamic<PageActionsMenuProps>(") &&
+    pageShell.includes('() => import("@/components/page/PageActionsMenu")') &&
+    pageShell.includes("PageActionsMenuSkeleton") &&
+    pageShell.includes("dynamic<BlockCommentsProps>(") &&
+    pageShell.includes('() => import("@/components/shared/BlockComments")') &&
+    pageShell.includes("@/components/shared/blockCommentEvents") &&
+    !pageShell.includes('import IconPicker from "@/components/shared/IconPicker"') &&
+    !pageShell.includes('import PageProperties from "@/components/page/PageProperties"') &&
+    !pageShell.includes('import PageActionsMenu from "@/components/page/PageActionsMenu"') &&
+    !pageShell.includes('import BlockComments from "@/components/shared/BlockComments"') &&
     pageShell.includes("if (loading && !page)") &&
     pageShell.includes("editorMounted ?") &&
     pageShell.includes("PageBodySkeleton"),
-  "PageShell 应快速挂载正文编辑器，同时延后评论、反链、子页面等周边重组件"
+  "PageShell 应快速挂载正文编辑器，同时延后评论、反链、子页面、图标/属性/菜单等周边重组件"
 );
 check(
   pageShell.includes("PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420") &&

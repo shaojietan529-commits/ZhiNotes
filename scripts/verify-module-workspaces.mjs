@@ -76,6 +76,14 @@ const pageBodyHydrationStatus = read(
 );
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
+const editorSource = read("src/components/editor/Editor.tsx");
+const blockCommentsSource = read("src/components/shared/BlockComments.tsx");
+const commentSidePanelSource = read(
+  "src/components/shared/CommentSidePanel.tsx"
+);
+const blockCommentEventsSource = read(
+  "src/components/shared/blockCommentEvents.ts"
+);
 const pendingPageDrafts = read("src/lib/pages/pendingPageDrafts.ts");
 const sidebarSource = read("src/components/sidebar/Sidebar.tsx");
 const quickSearchSource = read("src/components/sidebar/QuickSearch.tsx");
@@ -310,10 +318,36 @@ check(
     pageShell.includes("childTreeMounted") &&
     pageShell.includes("pageReferencesMounted") &&
     !pageShell.includes("pagePeripheralsMounted") &&
+    pageShell.includes("dynamic<IconPickerProps>(") &&
+    pageShell.includes('() => import("@/components/shared/IconPicker")') &&
+    pageShell.includes("PageIconPickerSkeleton") &&
+    pageShell.includes("dynamic<PagePropertiesProps>(") &&
+    pageShell.includes('() => import("@/components/page/PageProperties")') &&
+    pageShell.includes("PagePropertiesSkeleton") &&
+    pageShell.includes("dynamic<PageActionsMenuProps>(") &&
+    pageShell.includes('() => import("@/components/page/PageActionsMenu")') &&
+    pageShell.includes("PageActionsMenuSkeleton") &&
+    pageShell.includes("dynamic<BlockCommentsProps>(") &&
+    pageShell.includes('() => import("@/components/shared/BlockComments")') &&
+    pageShell.includes("@/components/shared/blockCommentEvents") &&
+    !pageShell.includes('import IconPicker from "@/components/shared/IconPicker"') &&
+    !pageShell.includes('import PageProperties from "@/components/page/PageProperties"') &&
+    !pageShell.includes('import PageActionsMenu from "@/components/page/PageActionsMenu"') &&
+    !pageShell.includes('import BlockComments from "@/components/shared/BlockComments"') &&
     !pageShell.includes('from "@/hooks/usePages"') &&
     !pageShell.includes("usePages({") &&
     pageShell.includes("const upsertPages = useWorkspaceStore((s) => s.upsertPages)"),
   "PageShell 必须动态加载并在页面首屏后空闲预热编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
+);
+check(
+  blockCommentEventsSource.includes("BLOCK_COMMENTS_CHANGED_EVENT") &&
+    blockCommentEventsSource.includes("INLINE_COMMENT_DELETED_EVENT") &&
+    blockCommentEventsSource.includes("INLINE_COMMENT_SELECTED_EVENT") &&
+    blockCommentsSource.includes("export interface BlockCommentsProps") &&
+    blockCommentsSource.includes("@/components/shared/blockCommentEvents") &&
+    commentSidePanelSource.includes("@/components/shared/blockCommentEvents") &&
+    editorSource.includes("@/components/shared/blockCommentEvents"),
+  "块评论事件常量必须从轻量文件导入，完整页面和编辑器不应为了事件名提前加载 BlockComments 重组件"
 );
 check(
   pageShell.includes("PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500") &&

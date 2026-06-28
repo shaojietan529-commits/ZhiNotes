@@ -18,6 +18,8 @@ const files = {
   filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
   blockDragHandle: "src/components/editor/BlockDragHandleLayer.tsx",
   blockComments: "src/components/shared/BlockComments.tsx",
+  commentSidePanel: "src/components/shared/CommentSidePanel.tsx",
+  blockCommentEvents: "src/components/shared/blockCommentEvents.ts",
   backlinks: "src/components/shared/Backlinks.tsx",
   breadcrumb: "src/components/shared/Breadcrumb.tsx",
   breadcrumbBlock: "src/components/editor/extensions/BreadcrumbBlockNode.tsx",
@@ -89,6 +91,8 @@ function run() {
   const filePreviewUpload = readProjectFile(files.filePreviewUpload);
   const blockDragHandle = readProjectFile(files.blockDragHandle);
   const blockComments = readProjectFile(files.blockComments);
+  const commentSidePanel = readProjectFile(files.commentSidePanel);
+  const blockCommentEvents = readProjectFile(files.blockCommentEvents);
   const backlinks = readProjectFile(files.backlinks);
   const breadcrumb = readProjectFile(files.breadcrumb);
   const breadcrumbBlock = readProjectFile(files.breadcrumbBlock);
@@ -938,6 +942,51 @@ function run() {
       blockComments,
       snippet,
       "Block comments must keep the default notes UI in Chinese."
+    );
+  }
+  for (const [sourceLabel, source] of [
+    [files.blockComments, blockComments],
+    [files.commentSidePanel, commentSidePanel],
+    [files.editor, editor],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "@/components/shared/blockCommentEvents",
+      "Editor/comment surfaces must import comment event names from the lightweight constants module."
+    );
+  }
+  for (const snippet of [
+    "BLOCK_COMMENTS_CHANGED_EVENT",
+    "INLINE_COMMENT_DELETED_EVENT",
+    "INLINE_COMMENT_SELECTED_EVENT",
+  ]) {
+    assertIncludes(
+      files.blockCommentEvents,
+      blockCommentEvents,
+      snippet,
+      "The lightweight comment event constants module must keep all editor comment events available."
+    );
+  }
+  assertNotIncludes(
+    files.editor,
+    editor,
+    "@/components/shared/BlockComments",
+    "Editor must not import the block comments UI just to use comment event names."
+  );
+  for (const snippet of [
+    "dynamic<PageActionsMenuProps>(",
+    '() => import("@/components/page/PageActionsMenu")',
+    "dynamic<PagePropertiesProps>(",
+    '() => import("@/components/page/PageProperties")',
+    "dynamic<BlockCommentsProps>(",
+    '() => import("@/components/shared/BlockComments")',
+  ]) {
+    assertIncludes(
+      files.pageShell,
+      pageShell,
+      snippet,
+      "Page shell must keep heavier page controls behind dynamic imports."
     );
   }
   for (const snippet of ["刚刚", "分钟前", "小时前", "天前", "zh-CN"]) {
