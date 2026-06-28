@@ -655,7 +655,8 @@ check(
     shells.schedule.includes("revealMeetingOnCalendar") &&
     shells.schedule.includes("pendingCalendarFocusDateKeyRef") &&
     shells.schedule.includes("requestAnimationFrame") &&
-    shells.schedule.includes("const nextMeetings = mergeMeetingPages(") &&
+    shells.schedule.includes("const mergedMeetings = mergeMeetingPages(") &&
+    shells.schedule.includes("const nextMeetings = selection.pages") &&
     shells.schedule.includes("startTransition(() =>") &&
     shells.schedule.includes("setMeetings(nextMeetings)") &&
     shells.schedule.includes("setExpandedMeetingDateKeys((current) =>") &&

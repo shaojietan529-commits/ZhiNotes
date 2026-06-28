@@ -27,6 +27,8 @@ import {
   publishPageBodyHydrationStatus,
   subscribePageBodyHydrationStatus,
 } from "@/lib/pages/pageBodyHydrationStatus";
+import { readPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import { readPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
@@ -47,9 +49,21 @@ interface PagePeekModalProps {
   onChanged?: () => void;
 }
 
-function getInitialPeekPage(pageId: string, initialPage?: Page | null): Page | null {
+function getInitialPeekPage(
+  pageId: string,
+  initialPage?: Page | null
+): Page | null {
   if (initialPage?.id === pageId) return initialPage;
-  return useWorkspaceStore.getState().getPageById(pageId) ?? null;
+  return readLocalFirstPeekSeed(pageId);
+}
+
+function readLocalFirstPeekSeed(pageId: string): Page | null {
+  return (
+    readPendingPageDraft(pageId) ??
+    readPageRouteHandoff(pageId) ??
+    useWorkspaceStore.getState().getPageById(pageId) ??
+    null
+  );
 }
 
 function applyPeekMetadataSnapshot(

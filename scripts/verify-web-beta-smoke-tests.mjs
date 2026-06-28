@@ -2441,6 +2441,18 @@ function run() {
   assertIncludes(
     files.pagePeekModal,
     pagePeekModal,
+    "readPendingPageDraft(pageId) ??",
+    "PagePeekModal must reuse same-tab pending page drafts before waiting on IndexedDB metadata."
+  );
+  assertIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    "readPageRouteHandoff(pageId) ??",
+    "PagePeekModal must reuse local-first route handoff metadata before waiting on IndexedDB metadata."
+  );
+  assertIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
     "useState(() => initialPeekPage?.title ?? \"\")",
     "PagePeekModal title must not render blank when initial metadata is available."
   );
@@ -2695,14 +2707,20 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "const nextMeetings = mergeMeetingPages(",
-    "Meeting schedule must prepare merged metadata before the low-priority render publish."
+    "const mergedMeetings = mergeMeetingPages(",
+    "Meeting schedule must prepare merged metadata before selecting a bounded render list."
   );
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setMeetings(selection.pages);",
-    "Meeting calendar bulk metadata publishes must stay low-priority so create/import clicks remain responsive."
+    "const nextMeetings = selection.pages",
+    "Meeting schedule must publish only the capped render selection to the calendar."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setMeetings(nextMeetings);",
+    "Meeting calendar bulk metadata publishes must stay low-priority and render-bounded so create/import clicks remain responsive."
   );
   assertIncludes(
     files.meetingScheduleShell,

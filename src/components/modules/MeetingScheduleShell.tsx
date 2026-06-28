@@ -336,23 +336,24 @@ export default function MeetingScheduleShell() {
     const cachedPages = cachedHotSnapshot.pages.map(
       meetingHotCacheSnapshotPageToPage
     );
-    const nextMeetings = mergeMeetingPages(
+    const mergedMeetings = mergeMeetingPages(
       cachedPages,
       [],
       deletedTombstoneRef.current
     );
-    if (nextMeetings.length === 0) return;
+    if (mergedMeetings.length === 0) return;
     const selection = selectMeetingPagesForCalendarRender(
-      nextMeetings,
+      mergedMeetings,
       startDate,
       endDate
     );
+    const nextMeetings = selection.pages;
 
     if (cachedHotSnapshot.root_id) {
       setRootId(cachedHotSnapshot.root_id);
     }
     startTransition(() => {
-      setMeetings(selection.pages);
+      setMeetings(nextMeetings);
       setMeetingCountByDate(selection.countsByDate);
     });
   }, [deletedTombstoneRef, viewMonth]);
@@ -641,16 +642,17 @@ export default function MeetingScheduleShell() {
               !localPageIds.has(page.id) &&
               !deletedTombstoneRef.current.has(page.id)
           );
-      const nextMeetings = mergeMeetingPages(
+      const mergedMeetings = mergeMeetingPages(
         localPages,
         [...retainedCloudPages, ...cloudPages],
         deletedTombstoneRef.current
       );
       const selection = selectMeetingPagesForCalendarRender(
-        nextMeetings,
+        mergedMeetings,
         startDate,
         endDate
       );
+      const nextMeetings = selection.pages;
       renderedMeetingCount = selection.pages.length;
       totalMeetingCount = sumMeetingDateCounts(selection.countsByDate);
       if (firstVisibleMs === null && selection.pages.length > 0) {
@@ -659,7 +661,7 @@ export default function MeetingScheduleShell() {
       }
       startTransition(() => {
         if (loadRequestRef.current !== requestId) return;
-        setMeetings(selection.pages);
+        setMeetings(nextMeetings);
         setMeetingCountByDate(selection.countsByDate);
       });
     };
@@ -2358,7 +2360,8 @@ export default function MeetingScheduleShell() {
                         <MeetingHoverCard entry={entry} />
                       </button>
                     ))}
-                    {dayTotalCount > MEETING_CALENDAR_VISIBLE_LIMIT && (
+                    {(dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT ||
+                      dayTotalCount > MEETING_CALENDAR_VISIBLE_LIMIT) && (
                       <button
                         type="button"
                         onClick={() => {
