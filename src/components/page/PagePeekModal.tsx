@@ -51,7 +51,7 @@ const PEEK_METADATA_ONLY_CONTENT_DELAY_MS = 260;
 const PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS = 700;
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
-interface PagePeekModalProps {
+export interface PagePeekModalProps {
   pageId: string;
   initialPage?: Page | null;
   onClose: () => void;

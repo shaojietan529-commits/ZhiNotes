@@ -1440,6 +1440,11 @@ check(
     lazyPagePeekModal.includes("warmPagePeekEditor();") &&
     lazyPagePeekModal.includes('import("@/components/page/PagePeekModal")') &&
     lazyPagePeekModal.includes("dynamic(loadPagePeekModal") &&
+    lazyPagePeekModal.includes("LocalFirstPeekLoadingShell") &&
+    lazyPagePeekModal.includes("readLocalFirstLoadingSeed") &&
+    lazyPagePeekModal.includes("readPendingPageDraft(pageId)") &&
+    lazyPagePeekModal.includes("readPageRouteHandoff(pageId)") &&
+    lazyPagePeekModal.includes("已先显示本地页面信息") &&
     dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
     dailyNotesShell.includes("warmPagePeekModal();") &&
     dailyNotesShell.includes("const warmDailyPeekOpen = useCallback") &&

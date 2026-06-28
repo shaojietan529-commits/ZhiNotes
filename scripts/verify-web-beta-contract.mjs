@@ -3466,6 +3466,35 @@ function run() {
     "warmPagePeekEditor();",
     "warmPagePeekModal must also warm the editor chunk for immediate draft editing."
   );
+  for (const [snippet, message] of [
+    [
+      "LocalFirstPeekLoadingShell",
+      "Lazy peek modal fallback must render a local-first shell while the editor modal chunk loads.",
+    ],
+    [
+      "readLocalFirstLoadingSeed",
+      "Lazy peek modal fallback must seed itself from local page metadata before waiting on the full modal.",
+    ],
+    [
+      "readPendingPageDraft(pageId)",
+      "Lazy peek modal fallback must reuse optimistic drafts during cold chunk loads.",
+    ],
+    [
+      "readPageRouteHandoff(pageId)",
+      "Lazy peek modal fallback must reuse route handoff metadata during cold chunk loads.",
+    ],
+    [
+      "已先显示本地页面信息",
+      "Lazy peek modal fallback must visibly confirm local metadata is already shown.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.lazyPagePeekModal,
+      lazyPagePeekModal,
+      snippet,
+      message
+    );
+  }
   assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,

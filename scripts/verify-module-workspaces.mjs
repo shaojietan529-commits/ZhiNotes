@@ -835,6 +835,11 @@ check(
     lazyPagePeekModal.includes("function warmPagePeekEditor()") &&
     lazyPagePeekModal.includes('import("@/components/editor/Editor")') &&
     lazyPagePeekModal.includes("warmPagePeekEditor();") &&
+    lazyPagePeekModal.includes("LocalFirstPeekLoadingShell") &&
+    lazyPagePeekModal.includes("readLocalFirstLoadingSeed") &&
+    lazyPagePeekModal.includes("readPendingPageDraft(pageId)") &&
+    lazyPagePeekModal.includes("readPageRouteHandoff(pageId)") &&
+    lazyPagePeekModal.includes("已先显示本地页面信息") &&
     pagePeekModal.includes("onReady?: (pageId: string) => void") &&
     pagePeekModal.includes("onReady?.(pageId)") &&
     shells.daily.includes("const handlePeekReady = useCallback") &&
