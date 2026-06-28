@@ -14488,6 +14488,30 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      "CHART_BUCKET_PREVIEW_ROW_LIMIT",
+      "Database chart view must keep bucket preview rows bounded for large imports.",
+    ],
+    [
+      "count: number;",
+      "Database chart buckets must store counts instead of full row arrays.",
+    ],
+    [
+      "previewRows: (DatabaseRow & { page: Page })[];",
+      "Database chart buckets must keep only a small row preview list.",
+    ],
+    [
+      "bucket.previewRows.map",
+      "Database chart view must render preview rows, not every row in a bucket.",
+    ],
+    [
+      "bucket.count > bucket.previewRows.length",
+      "Database chart view must disclose hidden bucket rows from counts.",
+    ],
+  ]) {
+    assertSourceIncludes(files.databaseChartView, databaseChartView, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "DATABASE_CALENDAR_RENDER_DAY_LIMIT",
       "Database calendar view must cap per-day rendered rows for large imports.",
     ],

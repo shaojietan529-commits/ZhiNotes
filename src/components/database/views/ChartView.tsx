@@ -26,10 +26,12 @@ interface ChartViewProps {
 
 interface ChartBucket {
   label: string;
-  rows: (DatabaseRow & { page: Page })[];
+  count: number;
+  previewRows: (DatabaseRow & { page: Page })[];
 }
 
 const MAX_BUCKETS = 12;
+const CHART_BUCKET_PREVIEW_ROW_LIMIT = 4;
 
 export default function ChartView({
   fields,
@@ -53,7 +55,7 @@ export default function ChartView({
     });
   }, [fields, rows, groupField, relationPages]);
 
-  const maxCount = Math.max(...buckets.map((bucket) => bucket.rows.length), 1);
+  const maxCount = Math.max(...buckets.map((bucket) => bucket.count), 1);
 
   if (rows.length === 0) {
     return <p className="py-8 text-center text-sm text-zinc-400">还没有行。</p>;
@@ -90,10 +92,10 @@ export default function ChartView({
 
       <div className="space-y-3">
         {buckets.map((bucket) => {
-          const percent = Math.round((bucket.rows.length / rows.length) * 100);
+          const percent = Math.round((bucket.count / rows.length) * 100);
           const width = `${Math.max(
             5,
-            Math.round((bucket.rows.length / maxCount) * 100)
+            Math.round((bucket.count / maxCount) * 100)
           )}%`;
 
           return (
@@ -103,7 +105,7 @@ export default function ChartView({
                   {bucket.label}
                 </span>
                 <span className="shrink-0 text-zinc-400">
-                  {bucket.rows.length} 行 · {percent}%
+                  {bucket.count} 行 · {percent}%
                 </span>
               </div>
               <div className="h-8 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
@@ -111,11 +113,11 @@ export default function ChartView({
                   className="flex h-full items-center rounded bg-blue-500/80 px-2 text-[11px] font-medium text-white"
                   style={{ width }}
                 >
-                  {bucket.rows.length}
+                  {bucket.count}
                 </div>
               </div>
               <div className="flex flex-wrap gap-1">
-                {bucket.rows.slice(0, 4).map((row) => (
+                {bucket.previewRows.map((row) => (
                   <button
                     key={row.id}
                     type="button"
@@ -128,9 +130,9 @@ export default function ChartView({
                     {row.page?.title || "未命名页面"}
                   </button>
                 ))}
-                {bucket.rows.length > 4 && (
+                {bucket.count > bucket.previewRows.length && (
                   <span className="px-1 py-0.5 text-[11px] text-zinc-400">
-                    +{bucket.rows.length - 4}
+                    +{bucket.count - bucket.previewRows.length}
                   </span>
                 )}
               </div>
@@ -177,7 +179,7 @@ function buildBuckets({
 }) {
   if (!field) return [];
 
-  const groups = new Map<string, (DatabaseRow & { page: Page })[]>();
+  const groups = new Map<string, ChartBucket>();
 
   for (const row of rows) {
     const values = parseFieldValues(row.field_values);
@@ -191,31 +193,43 @@ function buildBuckets({
           : values[field.id];
     const labels = getBucketLabels(value, field, relationPages);
     for (const label of labels) {
-      const group = groups.get(label) ?? [];
-      group.push(row);
-      groups.set(label, group);
+      let bucket = groups.get(label);
+      if (!bucket) {
+        bucket = { label, count: 0, previewRows: [] };
+        groups.set(label, bucket);
+      }
+      bucket.count += 1;
+      if (bucket.previewRows.length < CHART_BUCKET_PREVIEW_ROW_LIMIT) {
+        bucket.previewRows.push(row);
+      }
     }
   }
 
-  const buckets = Array.from(groups.entries())
-    .map(([label, groupRows]): ChartBucket => ({ label, rows: groupRows }))
-    .sort((left, right) => {
-      if (right.rows.length !== left.rows.length) {
-        return right.rows.length - left.rows.length;
-      }
-      return left.label.localeCompare(right.label, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      });
+  const buckets = Array.from(groups.values()).sort((left, right) => {
+    if (right.count !== left.count) {
+      return right.count - left.count;
+    }
+    return left.label.localeCompare(right.label, undefined, {
+      numeric: true,
+      sensitivity: "base",
     });
+  });
 
   if (buckets.length <= MAX_BUCKETS) return buckets;
 
   const visible = buckets.slice(0, MAX_BUCKETS - 1);
-  const otherRows = buckets
-    .slice(MAX_BUCKETS - 1)
-    .flatMap((bucket) => bucket.rows);
-  return [...visible, { label: "其他", rows: otherRows }];
+  const hiddenBuckets = buckets.slice(MAX_BUCKETS - 1);
+  const otherCount = hiddenBuckets.reduce(
+    (total, bucket) => total + bucket.count,
+    0
+  );
+  const otherPreviewRows = hiddenBuckets
+    .flatMap((bucket) => bucket.previewRows)
+    .slice(0, CHART_BUCKET_PREVIEW_ROW_LIMIT);
+  return [
+    ...visible,
+    { label: "其他", count: otherCount, previewRows: otherPreviewRows },
+  ];
 }
 
 function getBucketLabels(
