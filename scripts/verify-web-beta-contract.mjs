@@ -14133,6 +14133,12 @@ function run() {
       "Sidebar page tree create/move actions must lazy-load page mutation code only after tree intent.",
     ],
     [
+      files.dailyNotesShell,
+      dailyNotesShell,
+      'await import(\n        "@/lib/pages/cloudPageMutations"',
+      "Daily drag-to-reschedule mutations must lazy-load page mutation code only after drag/drop intent.",
+    ],
+    [
       files.knowledgeBaseShell,
       knowledgeBaseShell,
       "const pagesById = useWorkspaceStore((s) => s.pagesById)",
@@ -15070,6 +15076,12 @@ function run() {
       pageTree,
       'from "@/lib/pages/cloudPageMutations"',
       "Sidebar page tree mutation code must load only after add-child or drag/drop intent.",
+    ],
+    [
+      files.dailyNotesShell,
+      dailyNotesShell,
+      'from "@/lib/pages/cloudPageMutations"',
+      "Daily note reschedule mutation code must stay out of the calendar first paint bundle.",
     ],
   ]) {
     assertSourceExcludes(sourceLabel, source, forbiddenSnippet, message);

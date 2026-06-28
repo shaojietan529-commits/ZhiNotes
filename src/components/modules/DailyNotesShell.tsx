@@ -24,9 +24,6 @@ import {
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
 import {
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
-import {
   findLocalModuleRootId,
   getModuleRootId,
   getModuleRootIdSync,
@@ -1013,6 +1010,9 @@ export default function DailyNotesShell() {
       if (DATE_KEY_PATTERN.test((note.title || "").trim())) {
         updates.title = dateKey;
       }
+      const { updatePageWithCloud } = await import(
+        "@/lib/pages/cloudPageMutations"
+      );
       const updated = await updatePageWithCloud(noteId, updates);
       if (updated) {
         const nextNote: DailyNote = {
