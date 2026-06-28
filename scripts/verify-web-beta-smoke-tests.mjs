@@ -4815,6 +4815,18 @@ function run() {
       "initialOpen = false",
       "Quick search must support opening immediately when loaded through Cmd+K or the trigger.",
     ],
+    [
+      files.sidebar,
+      sidebar,
+      'await import(\n        "@/lib/export/workspaceBackup"',
+      "Sidebar export buttons must lazy-load workspace export code only after export intent.",
+    ],
+    [
+      files.quickSearch,
+      quickSearch,
+      'await import(\n        "@/lib/export/workspaceBackup"',
+      "Quick search export commands must lazy-load workspace export code only after command intent.",
+    ],
   ]) {
     assertIncludes(sourceLabel, source, snippet, message);
   }
@@ -4824,6 +4836,17 @@ function run() {
     'import QuickSearch from "./QuickSearch"',
     "Sidebar must not direct-import the heavy quick search bundle during first paint."
   );
+  for (const [sourceLabel, source] of [
+    [files.sidebar, sidebar],
+    [files.quickSearch, quickSearch],
+  ]) {
+    assertExcludes(
+      sourceLabel,
+      source,
+      'from "@/lib/export/workspaceBackup"',
+      "Workspace export/backup code must not be part of sidebar/search first paint bundles."
+    );
+  }
   assertIncludes(
     files.quickSearch,
     quickSearch,

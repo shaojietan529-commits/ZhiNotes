@@ -15,11 +15,6 @@ import { useDatabases } from "@/hooks/useDatabases";
 import { usePages } from "@/hooks/usePages";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
 import {
-  exportWorkspaceBackup,
-  exportWorkspaceMarkdown,
-  exportWorkspaceZip,
-} from "@/lib/export/workspaceBackup";
-import {
   dispatchPageLocalCommand,
   type PageLocalCommand,
 } from "@/lib/pageLocalCommands";
@@ -465,6 +460,9 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
 
   const handleExportMarkdown = async () => {
     try {
+      const { exportWorkspaceMarkdown } = await import(
+        "@/lib/export/workspaceBackup"
+      );
       await exportWorkspaceMarkdown();
       setOpen(false);
     } catch (err) {
@@ -475,6 +473,9 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
 
   const handleExportBackup = async () => {
     try {
+      const { exportWorkspaceBackup } = await import(
+        "@/lib/export/workspaceBackup"
+      );
       await exportWorkspaceBackup();
       setOpen(false);
     } catch (err) {
@@ -485,6 +486,9 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
 
   const handleExportZip = async () => {
     try {
+      const { exportWorkspaceZip } = await import(
+        "@/lib/export/workspaceBackup"
+      );
       await exportWorkspaceZip();
       setOpen(false);
     } catch (err) {

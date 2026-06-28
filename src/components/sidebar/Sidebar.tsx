@@ -20,11 +20,6 @@ import LazyQuickSearch from "./LazyQuickSearch";
 import PageTree from "./PageTree";
 import TrashPages from "./TrashPages";
 import FavoritePages from "./FavoritePages";
-import {
-  exportWorkspaceBackup,
-  exportWorkspaceMarkdown,
-  exportWorkspaceZip,
-} from "@/lib/export/workspaceBackup";
 import { PLATFORM_MODULES } from "@/lib/modules/registry";
 import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
 import { ZhiNoteLogo, ZhiNoteMark } from "@/components/brand/ZhiNoteLogo";
@@ -480,6 +475,9 @@ export default function Sidebar() {
   const handleExportBackup = async () => {
     setBackupRunning(true);
     try {
+      const { exportWorkspaceBackup } = await import(
+        "@/lib/export/workspaceBackup"
+      );
       await exportWorkspaceBackup();
     } catch (err) {
       console.error("[Zhinote] Failed to export workspace backup:", err);
@@ -492,6 +490,9 @@ export default function Sidebar() {
   const handleExportWorkspaceMarkdown = async () => {
     setMarkdownExportRunning(true);
     try {
+      const { exportWorkspaceMarkdown } = await import(
+        "@/lib/export/workspaceBackup"
+      );
       await exportWorkspaceMarkdown();
     } catch (err) {
       console.error("[Zhinote] Failed to export workspace Markdown:", err);
@@ -504,6 +505,9 @@ export default function Sidebar() {
   const handleExportWorkspaceZip = async () => {
     setZipExportRunning(true);
     try {
+      const { exportWorkspaceZip } = await import(
+        "@/lib/export/workspaceBackup"
+      );
       await exportWorkspaceZip();
     } catch (err) {
       console.error("[Zhinote] Failed to export workspace ZIP:", err);

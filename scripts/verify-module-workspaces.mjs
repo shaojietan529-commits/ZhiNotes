@@ -466,6 +466,10 @@ check(
     lazyQuickSearchSource.includes('event.key.toLowerCase() !== "k"') &&
     lazyQuickSearchSource.includes("isEditorTarget(event.target)") &&
     lazyQuickSearchSource.includes("initialOpen={initialOpen}") &&
+    sidebarSource.includes('await import(\n        "@/lib/export/workspaceBackup"') &&
+    quickSearchSource.includes('await import(\n        "@/lib/export/workspaceBackup"') &&
+    !sidebarSource.includes('from "@/lib/export/workspaceBackup"') &&
+    !quickSearchSource.includes('from "@/lib/export/workspaceBackup"') &&
     sidebarSource.includes('openPage(page, { source: "sidebar-create" })') &&
     !quickSearchSource.includes("const { pages, refresh } = usePages()") &&
     quickSearchSource.includes("const pages = useWorkspaceStore((s) => s.pages)") &&
