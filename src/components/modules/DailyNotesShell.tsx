@@ -120,6 +120,9 @@ const DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT = 160;
 const DAILY_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT = 14;
 const DAILY_CALENDAR_HYDRATION_BATCH = 7;
 const DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS = 24;
+const DAILY_VISIBLE_CONTENT_WARMUP_LIMIT = 18;
+const DAILY_VISIBLE_CONTENT_WARMUP_BATCH = 4;
+const DAILY_VISIBLE_CONTENT_WARMUP_DELAY_MS = 420;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
 const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
 const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
@@ -814,6 +817,43 @@ export default function DailyNotesShell() {
   const notesById = calendarIndexes.notesById;
   // Each day can hold multiple note pages (Notion-style), grouped by 日期.
   const notesByDate = calendarIndexes.notesByDate;
+
+  useEffect(() => {
+    if (!dbReady) return;
+    const candidates = collectVisibleDailyContentWarmupCandidates(
+      notesByDate,
+      grid,
+      todayKey,
+      DAILY_VISIBLE_CONTENT_WARMUP_LIMIT
+    );
+    if (candidates.length === 0) return;
+
+    let cancelled = false;
+    let cancelScheduledBatch: (() => void) | null = null;
+    const queue = [...candidates];
+
+    const runNextBatch = () => {
+      cancelScheduledBatch = null;
+      if (cancelled || queue.length === 0) return;
+      const batch = queue.splice(0, DAILY_VISIBLE_CONTENT_WARMUP_BATCH);
+      for (const note of batch) warmDailyNoteContent(note);
+      if (queue.length > 0) {
+        cancelScheduledBatch = scheduleDailyIdleTask(
+          runNextBatch,
+          DAILY_VISIBLE_CONTENT_WARMUP_DELAY_MS
+        );
+      }
+    };
+
+    cancelScheduledBatch = scheduleDailyIdleTask(
+      runNextBatch,
+      DAILY_VISIBLE_CONTENT_WARMUP_DELAY_MS
+    );
+    return () => {
+      cancelled = true;
+      cancelScheduledBatch?.();
+    };
+  }, [dbReady, grid, notesByDate, todayKey, warmDailyNoteContent]);
 
   // Add a new note page on the given day, then open it for editing.
   const addNote = useCallback(
@@ -1972,6 +2012,35 @@ function collectVisibleDailyNotesForHotCache(
     visibleNotes.push(...dayNotes);
   }
   return visibleNotes;
+}
+
+function collectVisibleDailyContentWarmupCandidates(
+  notesByDate: Map<string, DailyNote[]>,
+  grid: MonthCell[],
+  todayKey: string,
+  limit: number
+): DailyNote[] {
+  const candidates: DailyNote[] = [];
+  const visitedDateKeys = new Set<string>();
+  const pushDate = (dateKey: string) => {
+    if (visitedDateKeys.has(dateKey) || candidates.length >= limit) return;
+    visitedDateKeys.add(dateKey);
+    const dayNotes = notesByDate.get(dateKey) ?? [];
+    for (const note of dayNotes.slice(0, DAILY_CALENDAR_VISIBLE_LIMIT)) {
+      if (note.content_text != null) continue;
+      candidates.push(note);
+      if (candidates.length >= limit) break;
+    }
+  };
+
+  const initialDateKeys = buildInitialDailyCalendarHydrationKeys(
+    grid,
+    todayKey
+  );
+  for (const dateKey of initialDateKeys) pushDate(dateKey);
+  for (const cell of grid) pushDate(toDateKey(cell.date));
+
+  return candidates;
 }
 
 function buildInitialDailyCalendarHydrationKeys(

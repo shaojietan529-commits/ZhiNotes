@@ -111,6 +111,9 @@ const MEETING_CALENDAR_RENDER_DAY_LIMIT =
 const MEETING_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT = 14;
 const MEETING_CALENDAR_HYDRATION_BATCH = 7;
 const MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS = 32;
+const MEETING_VISIBLE_CONTENT_WARMUP_LIMIT = 16;
+const MEETING_VISIBLE_CONTENT_WARMUP_BATCH = 4;
+const MEETING_VISIBLE_CONTENT_WARMUP_DELAY_MS = 480;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
@@ -1734,6 +1737,43 @@ export default function MeetingScheduleShell() {
       cancelScheduledBatch?.();
     };
   }, [grid, todayKey]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    const candidates = collectVisibleMeetingContentWarmupCandidates(
+      entriesByDate,
+      grid,
+      todayKey,
+      MEETING_VISIBLE_CONTENT_WARMUP_LIMIT
+    );
+    if (candidates.length === 0) return;
+
+    let cancelled = false;
+    let cancelScheduledBatch: (() => void) | null = null;
+    const queue = [...candidates];
+
+    const runNextBatch = () => {
+      cancelScheduledBatch = null;
+      if (cancelled || queue.length === 0) return;
+      const batch = queue.splice(0, MEETING_VISIBLE_CONTENT_WARMUP_BATCH);
+      for (const page of batch) warmMeetingPageContent(page);
+      if (queue.length > 0) {
+        cancelScheduledBatch = scheduleMeetingIdleTask(
+          runNextBatch,
+          MEETING_VISIBLE_CONTENT_WARMUP_DELAY_MS
+        );
+      }
+    };
+
+    cancelScheduledBatch = scheduleMeetingIdleTask(
+      runNextBatch,
+      MEETING_VISIBLE_CONTENT_WARMUP_DELAY_MS
+    );
+    return () => {
+      cancelled = true;
+      cancelScheduledBatch?.();
+    };
+  }, [dbReady, entriesByDate, grid, todayKey, warmMeetingPageContent]);
 
   const traceReviewEntries = useMemo(
     () =>
@@ -3839,6 +3879,39 @@ function buildMonthGrid(monthStart: Date): MonthCell[] {
     cells.push({ date, inMonth: date.getMonth() === month });
   }
   return cells;
+}
+
+function collectVisibleMeetingContentWarmupCandidates(
+  entriesByDate: Map<string, MeetingEntry[]>,
+  grid: MonthCell[],
+  todayKey: string,
+  limit: number
+): Page[] {
+  const candidates: Page[] = [];
+  const visitedDateKeys = new Set<string>();
+  const visitedPageIds = new Set<string>();
+  const pushDate = (dateKey: string) => {
+    if (visitedDateKeys.has(dateKey) || candidates.length >= limit) return;
+    visitedDateKeys.add(dateKey);
+    const dayEntries = entriesByDate.get(dateKey) ?? [];
+    for (const entry of dayEntries.slice(0, MEETING_CALENDAR_VISIBLE_LIMIT)) {
+      if (entry.page.content_text != null || visitedPageIds.has(entry.page.id)) {
+        continue;
+      }
+      visitedPageIds.add(entry.page.id);
+      candidates.push(entry.page);
+      if (candidates.length >= limit) break;
+    }
+  };
+
+  const initialDateKeys = buildInitialMeetingCalendarHydrationKeys(
+    grid,
+    todayKey
+  );
+  for (const dateKey of initialDateKeys) pushDate(dateKey);
+  for (const cell of grid) pushDate(toDateKey(cell.date));
+
+  return candidates;
 }
 
 function buildInitialMeetingCalendarHydrationKeys(

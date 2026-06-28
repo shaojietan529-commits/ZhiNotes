@@ -2297,6 +2297,22 @@ function run() {
       "Meeting calendar idle hydration must use the shared idle scheduler instead of fixed synchronous rendering.",
     ],
     [
+      "MEETING_VISIBLE_CONTENT_WARMUP_LIMIT",
+      "Meeting calendar must cap local content warmup to a small visible subset.",
+    ],
+    [
+      "MEETING_VISIBLE_CONTENT_WARMUP_BATCH",
+      "Meeting calendar content warmup must run in small idle batches.",
+    ],
+    [
+      "collectVisibleMeetingContentWarmupCandidates",
+      "Meeting calendar must collect content warmup candidates from visible date cells, not the whole import corpus.",
+    ],
+    [
+      "warmMeetingPageContent(page)",
+      "Meeting calendar must prewarm visible meeting page bodies before a direct click when local cache is available.",
+    ],
+    [
       "为保持日历流畅",
       "Meeting calendar must explain why additional high-volume entries are not rendered inline.",
     ],
@@ -3390,6 +3406,22 @@ function run() {
     [
       "cancelScheduledBatch = scheduleDailyIdleTask(",
       "Daily calendar automatic date hydration must run through idle scheduling instead of fixed timer pressure.",
+    ],
+    [
+      "DAILY_VISIBLE_CONTENT_WARMUP_LIMIT",
+      "Daily calendar must cap local content warmup to a small visible subset.",
+    ],
+    [
+      "DAILY_VISIBLE_CONTENT_WARMUP_BATCH",
+      "Daily calendar content warmup must run in small idle batches.",
+    ],
+    [
+      "collectVisibleDailyContentWarmupCandidates",
+      "Daily calendar must collect content warmup candidates from visible date cells, not the whole import corpus.",
+    ],
+    [
+      "warmDailyNoteContent(note)",
+      "Daily calendar must prewarm visible note bodies before a direct click when local cache is available.",
     ],
     [
       "const [dailyNoteCountByDate, setDailyNoteCountByDate]",
