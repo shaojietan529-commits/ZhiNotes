@@ -251,9 +251,13 @@ export function useDatabaseCloudSync() {
     }, SYNC_INTERVAL_MS);
     const handleConfig = () => void runSync({ forceLease: true, quick: true });
     const handleVisible = () => {
-      if (document.visibilityState === "visible") void runSync({ quick: true });
+      if (document.visibilityState === "visible") {
+        void runSync({ forceLease: true, quick: true });
+      }
     };
-    const handleForeground = () => void runSync({ quick: true });
+    const handleForeground = () => {
+      void runSync({ forceLease: true, quick: true });
+    };
     const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
     const handleLocalCacheRecoveryStorage = (event: StorageEvent) => {
       if (event.key === LOCAL_CACHE_RECOVERY_SIGNAL_KEY && event.newValue) {

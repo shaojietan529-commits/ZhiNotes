@@ -243,13 +243,16 @@ export function usePageCloudSync() {
     }, SYNC_INTERVAL_MS);
     const handleConfig = () => void runSync({ quick: true, forceLease: true });
     // Switching back to a tab (the user's two-domain workflow) pulls the
-    // latest immediately, so edits made on the other domain show up at once.
+    // latest immediately. The visible tab takes over the short lease instead
+    // of waiting for a hidden tab's lease to expire.
     const handleVisible = () => {
       if (document.visibilityState === "visible") {
-        void runSync({ quick: true });
+        void runSync({ quick: true, forceLease: true });
       }
     };
-    const handleForeground = () => void runSync({ quick: true });
+    const handleForeground = () => {
+      void runSync({ quick: true, forceLease: true });
+    };
     const handleLocalPageUpdate = (event: Event) => {
       const message = (event as CustomEvent<PageUpdateMessage>).detail;
       if (

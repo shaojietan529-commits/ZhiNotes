@@ -2700,6 +2700,24 @@ function run() {
   assertSourceIncludes(
     files.pageCloudSync,
     pageCloudSync,
+    "void runSync({ quick: true, forceLease: true });",
+    "Page foreground and online sync must let the visible tab take over the cloud sync lease."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'window.addEventListener("online", handleForeground)',
+    "Page cloud sync must retry immediately when the network comes back online."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'document.addEventListener("visibilitychange", handleVisible)',
+    "Page cloud sync must retry immediately when a tab becomes visible."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
     "window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate)",
     "Page cloud sync must listen for same-tab local page updates."
   );
@@ -6296,6 +6314,18 @@ function run() {
     [
       'DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")',
       "Database cross-tab pending storage changes must trigger quick sync without waiting for the normal poll.",
+    ],
+    [
+      "void runSync({ forceLease: true, quick: true });",
+      "Database foreground and online sync must let the visible tab take over the cloud sync lease.",
+    ],
+    [
+      'window.addEventListener("online", handleForeground)',
+      "Database cloud sync must retry immediately when the network comes back online.",
+    ],
+    [
+      'document.addEventListener("visibilitychange", handleVisible)',
+      "Database cloud sync must retry immediately when a tab becomes visible.",
     ],
     [
       "window.clearTimeout(quickSyncTimer)",
