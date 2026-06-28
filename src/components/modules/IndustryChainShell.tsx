@@ -79,6 +79,12 @@ const SECTOR_THEMES = [
 
 type SectorTheme = (typeof SECTOR_THEMES)[number];
 
+type IndustryParentOption = {
+  page: Page;
+  path: string;
+  childCount: number;
+};
+
 export default function IndustryChainShell() {
   const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
@@ -95,6 +101,9 @@ export default function IndustryChainShell() {
   const [companyLinkParentId, setCompanyLinkParentId] = useState<string | null>(
     null
   );
+  const [companyLinkPickerCompanyId, setCompanyLinkPickerCompanyId] = useState<
+    string | null
+  >(null);
   const [linkNotice, setLinkNotice] = useState<string | null>(null);
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
   const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
@@ -165,12 +174,43 @@ export default function IndustryChainShell() {
     [pages, knowledgeRootId]
   );
 
+  const linkedCompanyIds = useMemo(() => {
+    return new Set(
+      pages
+        .map(getLinkedKnowledgeCompanyPageId)
+        .filter((id): id is string => Boolean(id))
+    );
+  }, [pages]);
+
+  const linkedCompanyCount = useMemo(
+    () => companyCandidates.filter((page) => linkedCompanyIds.has(page.id)).length,
+    [companyCandidates, linkedCompanyIds]
+  );
+
+  const unlinkedCompanyCandidates = useMemo(
+    () => companyCandidates.filter((page) => !linkedCompanyIds.has(page.id)),
+    [companyCandidates, linkedCompanyIds]
+  );
+
+  const industryParentOptions = useMemo(
+    () => (rootId ? buildIndustryParentOptions(pages, rootId) : []),
+    [pages, rootId]
+  );
+
   const companyLinkParent = useMemo(
     () =>
       companyLinkParentId
         ? pagesById.get(companyLinkParentId) ?? null
         : null,
     [companyLinkParentId, pagesById]
+  );
+
+  const companyLinkPickerCompany = useMemo(
+    () =>
+      companyLinkPickerCompanyId
+        ? pagesById.get(companyLinkPickerCompanyId) ?? null
+        : null,
+    [companyLinkPickerCompanyId, pagesById]
   );
 
   const addChild = useCallback(
@@ -202,20 +242,20 @@ export default function IndustryChainShell() {
     [mergeScopedPages]
   );
 
-  const linkCompanyToParent = useCallback(
-    async (companyPageId: string) => {
-      if (!companyLinkParentId) return;
+  const createCompanyLinkUnderParent = useCallback(
+    async (parentId: string, companyPageId: string) => {
       const companyPage = pagesById.get(companyPageId);
       if (!companyPage) return;
 
       const existing = pages.find(
         (page) =>
-          page.parent_id === companyLinkParentId &&
+          page.parent_id === parentId &&
           getLinkedKnowledgeCompanyPageId(page) === companyPageId
       );
 
       if (existing) {
         setCompanyLinkParentId(null);
+        setCompanyLinkPickerCompanyId(null);
         setLinkNotice("这个层级已经链接过这家公司。");
         window.setTimeout(() => setLinkNotice(null), 2600);
         return;
@@ -224,7 +264,7 @@ export default function IndustryChainShell() {
       const { createPageWithCloud, updatePageWithCloud } =
         await loadPageMutationModule();
       const linkPage = await createPageWithCloud({
-        parentId: companyLinkParentId,
+        parentId,
         title: displayPageTitle(companyPage.title),
         icon: companyPage.icon ?? "🏢",
       });
@@ -235,10 +275,27 @@ export default function IndustryChainShell() {
       await updateWikiLinks(linkPage.id, [companyPage.id]);
       mergeScopedPages([updatedLinkPage ?? linkPage]);
       setCompanyLinkParentId(null);
+      setCompanyLinkPickerCompanyId(null);
       setLinkNotice(`已把「${displayPageTitle(companyPage.title)}」链接到产业链层级。`);
       window.setTimeout(() => setLinkNotice(null), 2600);
     },
-    [companyLinkParentId, mergeScopedPages, pages, pagesById]
+    [mergeScopedPages, pages, pagesById]
+  );
+
+  const linkCompanyToParent = useCallback(
+    async (companyPageId: string) => {
+      if (!companyLinkParentId) return;
+      await createCompanyLinkUnderParent(companyLinkParentId, companyPageId);
+    },
+    [companyLinkParentId, createCompanyLinkUnderParent]
+  );
+
+  const linkPickedCompanyToParent = useCallback(
+    async (parentId: string) => {
+      if (!companyLinkPickerCompanyId) return;
+      await createCompanyLinkUnderParent(parentId, companyLinkPickerCompanyId);
+    },
+    [companyLinkPickerCompanyId, createCompanyLinkUnderParent]
   );
 
   const openIndustryNode = useCallback(
@@ -298,6 +355,19 @@ export default function IndustryChainShell() {
             <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
               {linkNotice}
             </p>
+          )}
+
+          {rootId && (
+            <CompanyChainCoveragePanel
+              totalCompanies={companyCandidates.length}
+              linkedCompanies={linkedCompanyCount}
+              unlinkedCompanies={unlinkedCompanyCandidates}
+              industryParentCount={industryParentOptions.length}
+              onOpenCompany={openIndustryNode}
+              onPickCompany={(companyPageId) =>
+                setCompanyLinkPickerCompanyId(companyPageId)
+              }
+            />
           )}
 
           {!rootId ? (
@@ -368,6 +438,15 @@ export default function IndustryChainShell() {
         />
       )}
 
+      {companyLinkPickerCompany && (
+        <IndustryParentPickerDialog
+          companyPage={companyLinkPickerCompany}
+          options={industryParentOptions}
+          onChoose={(parentId) => void linkPickedCompanyToParent(parentId)}
+          onClose={() => setCompanyLinkPickerCompanyId(null)}
+        />
+      )}
+
       {peekPageId && (
         <PagePeekModal
           pageId={peekPageId}
@@ -393,6 +472,243 @@ function countDescendants(pages: Page[], id: string): number {
   return children.reduce(
     (sum, child) => sum + 1 + countDescendants(pages, child.id),
     0
+  );
+}
+
+function CompanyChainCoveragePanel({
+  totalCompanies,
+  linkedCompanies,
+  unlinkedCompanies,
+  industryParentCount,
+  onOpenCompany,
+  onPickCompany,
+}: {
+  totalCompanies: number;
+  linkedCompanies: number;
+  unlinkedCompanies: Page[];
+  industryParentCount: number;
+  onOpenCompany: (companyPageId: string) => void;
+  onPickCompany: (companyPageId: string) => void;
+}) {
+  const visibleUnlinkedCompanies = unlinkedCompanies.slice(0, 6);
+  const linkedRate =
+    totalCompanies > 0 ? Math.round((linkedCompanies / totalCompanies) * 100) : 0;
+
+  return (
+    <section className="mb-6 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            公司链入状态
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            知识库公司页 → 产业链层级
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这里只创建轻量引用节点，原始公司研究仍保留在知识库公司页。
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <MiniMetric label="公司页" value={totalCompanies} />
+          <MiniMetric label="已链入" value={linkedCompanies} />
+          <MiniMetric label="覆盖率" value={`${linkedRate}%`} />
+        </div>
+      </div>
+
+      {industryParentCount === 0 ? (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+          先创建至少一个产业链分类，再把公司页链入对应层级。
+        </p>
+      ) : visibleUnlinkedCompanies.length === 0 ? (
+        <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+          当前知识库公司页都已经至少链入一个产业链层级。
+        </p>
+      ) : (
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              待链入公司
+            </p>
+            <span className="text-xs text-zinc-400">
+              {unlinkedCompanies.length} 个未链入
+            </span>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            {visibleUnlinkedCompanies.map((company) => (
+              <div
+                key={company.id}
+                className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-800"
+              >
+                <span className="shrink-0 text-base">{company.icon || "🏢"}</span>
+                <button
+                  type="button"
+                  onClick={() => onOpenCompany(company.id)}
+                  className="min-w-0 flex-1 truncate text-left text-sm font-medium text-zinc-800 transition-colors hover:text-blue-600 dark:text-zinc-100 dark:hover:text-blue-400"
+                  title="打开知识库公司页"
+                >
+                  {displayPageTitle(company.title)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onPickCompany(company.id)}
+                  className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  选层级
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="min-w-20 rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-800">
+      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function buildIndustryParentOptions(
+  pages: Page[],
+  rootId: string
+): IndustryParentOption[] {
+  const childrenByParent = new Map<string, Page[]>();
+  for (const page of pages) {
+    if (!page.parent_id || isKnowledgeCompanyLinkPage(page)) continue;
+    const bucket = childrenByParent.get(page.parent_id) ?? [];
+    bucket.push(page);
+    childrenByParent.set(page.parent_id, bucket);
+  }
+  for (const bucket of childrenByParent.values()) {
+    bucket.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  }
+
+  const options: IndustryParentOption[] = [];
+  const walk = (parentId: string, pathParts: string[]) => {
+    for (const child of childrenByParent.get(parentId) ?? []) {
+      const title = displayPageTitle(child.title);
+      const nextPath = [...pathParts, title];
+      const childCount = (childrenByParent.get(child.id) ?? []).length;
+      options.push({
+        page: child,
+        path: nextPath.join(" / "),
+        childCount,
+      });
+      walk(child.id, nextPath);
+    }
+  };
+
+  walk(rootId, []);
+  return options;
+}
+
+function IndustryParentPickerDialog({
+  companyPage,
+  options,
+  onChoose,
+  onClose,
+}: {
+  companyPage: Page;
+  options: IndustryParentOption[];
+  onChoose: (parentId: string) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleOptions = options.filter(
+    (option) =>
+      !normalizedQuery ||
+      option.path.toLowerCase().includes(normalizedQuery) ||
+      displayPageTitle(option.page.title).toLowerCase().includes(normalizedQuery)
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/35 px-4 pt-[12vh] backdrop-blur-sm"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-xl overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                选择产业链层级
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                把「{displayPageTitle(companyPage.title)}」链入一个产业链层级。
+                这里只创建引用节点，不复制公司页正文。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md px-2 py-1 text-sm text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              title="关闭"
+            >
+              ×
+            </button>
+          </div>
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索产业链层级…"
+            className="mt-3 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 outline-none transition-colors placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-blue-500 dark:focus:bg-zinc-950"
+          />
+        </div>
+
+        <div className="max-h-[46vh] overflow-y-auto p-2">
+          {options.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              还没有可选择的产业链层级。先创建一级分类。
+            </div>
+          ) : visibleOptions.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              没有匹配的层级。
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {visibleOptions.map((option) => (
+                <button
+                  key={option.page.id}
+                  type="button"
+                  disabled={Boolean(busyId)}
+                  onClick={() => {
+                    setBusyId(option.page.id);
+                    onChoose(option.page.id);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-55 dark:hover:bg-zinc-900"
+                >
+                  <span className="text-lg">{option.page.icon || "📂"}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                      {option.path}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-zinc-400">
+                      产业链层级
+                      {option.childCount > 0 ? ` · ${option.childCount} 个下级` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                    {busyId === option.page.id ? "链接中…" : "链入"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

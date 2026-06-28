@@ -782,6 +782,14 @@ check(
     shells.chain.includes("includeDescendants: false") &&
     shells.chain.includes("mergeScopedPages([child])") &&
     shells.chain.includes("mergeScopedPages([updatedLinkPage ?? linkPage])") &&
+    shells.chain.includes("CompanyChainCoveragePanel") &&
+    shells.chain.includes("unlinkedCompanyCandidates") &&
+    shells.chain.includes("linkedCompanyCount") &&
+    shells.chain.includes("buildIndustryParentOptions") &&
+    shells.chain.includes("IndustryParentPickerDialog") &&
+    shells.chain.includes("createCompanyLinkUnderParent") &&
+    shells.chain.includes("知识库公司页 → 产业链层级") &&
+    shells.chain.includes("这里只创建引用节点，不复制公司页正文") &&
     shells.chain.includes("onChanged={() => void loadScopedPages()}") &&
     shells.chain.includes(
       'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")'
