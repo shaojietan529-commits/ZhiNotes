@@ -19,9 +19,7 @@ import {
   getPageModuleCounts,
   type PageModuleCounts,
 } from "@/lib/db/local/queries";
-import { createPageWithCloud } from "@/lib/pages/cloudPageMutations";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
-import { executeModuleStarter } from "@/lib/modules/actions";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
@@ -41,6 +39,10 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
 const NOTE_TEMPLATE_STARTERS = getResearchTemplateStarters("notes");
+const loadPageMutationModule = () =>
+  import("@/lib/pages/cloudPageMutations");
+const loadModuleStarterActions = () => import("@/lib/modules/actions");
+
 const NOTES_FORMAT_ENTRIES: NotesFormatEntry[] = [
   {
     id: "markdown-notes",
@@ -316,6 +318,7 @@ function NotesDashboard() {
     setBusyAction("blank-page");
     warmPagePeekModal();
     try {
+      const { createPageWithCloud } = await loadPageMutationModule();
       const page = await createPageWithCloud({
         title: "未命名研究笔记",
         icon: "NOTE",
@@ -337,6 +340,7 @@ function NotesDashboard() {
     setBusyAction(starter.label);
     warmPagePeekModal();
     try {
+      const { executeModuleStarter } = await loadModuleStarterActions();
       const result = await executeModuleStarter({
         type: "page",
         label: starter.label,

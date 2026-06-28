@@ -15222,14 +15222,38 @@ function run() {
     "await refresh()",
     "Notes module create/open flow must not wait for a full page-list refresh."
   );
-  assertSourceExcludes(
-    files.notesShell,
-    notesShell,
-    "void refresh()",
-    "Notes module repeated content scans must not fire a global page refresh after large imports."
-  );
-  assertSourceIncludes(
-    files.breadcrumbBlockNode,
+	  assertSourceExcludes(
+	    files.notesShell,
+	    notesShell,
+	    "void refresh()",
+	    "Notes module repeated content scans must not fire a global page refresh after large imports."
+	  );
+	  for (const [snippet, message] of [
+	    [
+	      'import("@/lib/pages/cloudPageMutations")',
+	      "Notes module must lazy-load page creation mutations after create-note intent.",
+	    ],
+	    [
+	      'import("@/lib/modules/actions")',
+	      "Notes module must lazy-load template starter actions after template intent.",
+	    ],
+	  ]) {
+	    assertSourceIncludes(files.notesShell, notesShell, snippet, message);
+	  }
+	  for (const [snippet, message] of [
+	    [
+	      'from "@/lib/pages/cloudPageMutations"',
+	      "Notes module page creation code must stay out of the notes first paint bundle.",
+	    ],
+	    [
+	      'from "@/lib/modules/actions"',
+	      "Notes module starter actions must stay out of the notes first paint bundle.",
+	    ],
+	  ]) {
+	    assertSourceExcludes(files.notesShell, notesShell, snippet, message);
+	  }
+	  assertSourceIncludes(
+	    files.breadcrumbBlockNode,
     breadcrumbBlockNode,
     "getPageMetadata(cursor)",
     "Breadcrumb editor blocks must resolve page paths through bounded metadata reads."

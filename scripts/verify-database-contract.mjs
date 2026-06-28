@@ -668,24 +668,37 @@ function run() {
     "await refreshDatabases()",
     "Module center must not block starter flows on full database list refreshes."
   );
-  for (const snippet of [
-    "syncCloudDatabaseMetadataDelta",
-    "cloudDatabaseMetadataToDatabases",
-    "subscribeDatabasesUpdated",
-    "const localSnapshots = await loadSnapshots()",
-    "cloud.records.length",
-    "!cloud.cacheWriteFailed",
-    "本机缓存暂时不可写",
-    "restoreLocalCursor: localSnapshots.length > 0",
-  ]) {
-    assertIncludes(
+	  for (const snippet of [
+	    "syncCloudDatabaseMetadataDelta",
+	    "cloudDatabaseMetadataToDatabases",
+	    "subscribeDatabasesUpdated",
+	    "const localSnapshots = await loadSnapshots()",
+	    "cloud.records.length",
+	    "!cloud.cacheWriteFailed",
+	    "本机缓存暂时不可写",
+	    "restoreLocalCursor: localSnapshots.length > 0",
+	    'import("@/lib/database/cloudDatabaseMutations")',
+	    'import("@/lib/modules/actions")',
+	  ]) {
+	    assertIncludes(
       files.databaseModuleShell,
       databaseModuleShell,
       snippet,
-      "Database module dashboard must prewarm cloud database metadata and reload on database update broadcasts."
-    );
-  }
-  for (const [sourceLabel, source] of [
+	      "Database module dashboard must prewarm cloud database metadata and reload on database update broadcasts."
+	    );
+	  }
+	  for (const snippet of [
+	    'from "@/lib/database/cloudDatabaseMutations"',
+	    'from "@/lib/modules/actions"',
+	  ]) {
+	    assertNotIncludes(
+	      files.databaseModuleShell,
+	      databaseModuleShell,
+	      snippet,
+	      "Database module creation and starter code must stay out of first paint and load only after user intent."
+	    );
+	  }
+	  for (const [sourceLabel, source] of [
     [files.databaseShell, databaseShell],
     [files.inlineDatabaseNode, inlineDatabaseNode],
     [files.spreadsheet, spreadsheet],

@@ -6513,18 +6513,42 @@ function run() {
         "openDatabase(res.first_database_id)",
       ],
     ],
-  ]) {
-    for (const snippet of snippets) {
-      assertIncludes(
-        sourceLabel,
-        source,
+	  ]) {
+	    for (const snippet of snippets) {
+	      assertIncludes(
+	        sourceLabel,
+	        source,
         snippet,
         "Common database opens must warm and prefetch the database route through the shared local-first database navigation helper."
-      );
-    }
-  }
-  assertIncludes(
-    files.localFirstModuleNavigation,
+	      );
+	    }
+	  }
+	  for (const [snippet, message] of [
+	    [
+	      'import("@/lib/database/cloudDatabaseMutations")',
+	      "Databases module must lazy-load database creation mutations after create intent.",
+	    ],
+	    [
+	      'import("@/lib/modules/actions")',
+	      "Databases module must lazy-load starter actions after template intent.",
+	    ],
+	  ]) {
+	    assertIncludes(files.databasesShell, databasesShell, snippet, message);
+	  }
+	  for (const [snippet, message] of [
+	    [
+	      'from "@/lib/database/cloudDatabaseMutations"',
+	      "Databases module creation code must stay out of first paint.",
+	    ],
+	    [
+	      'from "@/lib/modules/actions"',
+	      "Databases module starter actions must stay out of first paint.",
+	    ],
+	  ]) {
+	    assertExcludes(files.databasesShell, databasesShell, snippet, message);
+	  }
+	  assertIncludes(
+	    files.localFirstModuleNavigation,
     localFirstModuleNavigation,
     "warmModuleRoute(route);",
     "Shared module navigation must warm the module shell before route navigation."
@@ -7455,13 +7479,37 @@ function run() {
     "await refresh()",
     "Notes module create/open flow must not wait for a full page-list refresh."
   );
-  assertExcludes(
-    files.notesShell,
-    notesShell,
-    "void refresh()",
-    "Notes module repeated content scans must not fire a global page refresh after large imports."
-  );
-  for (const [sourceLabel, source, moduleLabel] of [
+	  assertExcludes(
+	    files.notesShell,
+	    notesShell,
+	    "void refresh()",
+	    "Notes module repeated content scans must not fire a global page refresh after large imports."
+	  );
+	  for (const [snippet, message] of [
+	    [
+	      'import("@/lib/pages/cloudPageMutations")',
+	      "Notes module must lazy-load page creation mutations after create-note intent.",
+	    ],
+	    [
+	      'import("@/lib/modules/actions")',
+	      "Notes module must lazy-load template starter actions after template intent.",
+	    ],
+	  ]) {
+	    assertIncludes(files.notesShell, notesShell, snippet, message);
+	  }
+	  for (const [snippet, message] of [
+	    [
+	      'from "@/lib/pages/cloudPageMutations"',
+	      "Notes module page creation code must stay out of the notes first paint bundle.",
+	    ],
+	    [
+	      'from "@/lib/modules/actions"',
+	      "Notes module starter actions must stay out of the notes first paint bundle.",
+	    ],
+	  ]) {
+	    assertExcludes(files.notesShell, notesShell, snippet, message);
+	  }
+	  for (const [sourceLabel, source, moduleLabel] of [
     [files.companyResearchShell, companyResearchShell, "Company research"],
     [files.meetingsShell, meetingsShell, "Meetings"],
     [files.reportsShell, reportsShell, "Reports"],

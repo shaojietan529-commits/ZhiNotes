@@ -706,10 +706,14 @@ function run() {
     "scanEnabled: contentScanEnabled",
     "setContentScanEnabled(true)",
     "upsertPages([page])",
-    "upsertPages([result.page])",
-    "void loadCounts()",
-    "扫描正文结构",
-  ]) {
+	    "upsertPages([result.page])",
+	    "void loadCounts()",
+	    "const loadPageMutationModule = () =>",
+	    'import("@/lib/pages/cloudPageMutations")',
+	    "const loadModuleStarterActions = () =>",
+	    'import("@/lib/modules/actions")',
+	    "扫描正文结构",
+	  ]) {
     assertIncludes(
       files.notesShell,
       notesShell,
@@ -717,10 +721,12 @@ function run() {
       "Notes module must keep first paint metadata-only, make body scans explicit, and update newly created pages optimistically."
     );
   }
-  for (const snippet of [
-    "includeContent: true",
-    "await refresh()",
-  ]) {
+	  for (const snippet of [
+	    "includeContent: true",
+	    "await refresh()",
+	    'from "@/lib/pages/cloudPageMutations"',
+	    'from "@/lib/modules/actions"',
+	  ]) {
     assertExcludes(
       files.notesShell,
       notesShell,

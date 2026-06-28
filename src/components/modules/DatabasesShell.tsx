@@ -11,7 +11,6 @@ import {
   getFields,
   getViews,
 } from "@/lib/db/local/queries";
-import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
 import {
   cloudDatabaseMetadataToDatabases,
   syncCloudDatabaseMetadataDelta,
@@ -57,10 +56,13 @@ import {
 import {
   getDatabaseViewTypeLabel,
 } from "@/lib/database/display";
-import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { subscribeDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
+
+const loadDatabaseMutationModule = () =>
+  import("@/lib/database/cloudDatabaseMutations");
+const loadModuleStarterActions = () => import("@/lib/modules/actions");
 
 const DATABASE_STARTER_MODULE_IDS = [
   "company-research",
@@ -265,6 +267,7 @@ function DatabasesDashboard() {
   const handleCreateDatabase = async () => {
     setBusyAction("new-database");
     try {
+      const { createDatabase } = await loadDatabaseMutationModule();
       const database = await createDatabase({
         title: "未命名投研数据库",
         icon: "DB",
@@ -282,6 +285,7 @@ function DatabasesDashboard() {
   const handleRunStarter = async (starter: ModuleStarter) => {
     setBusyAction(starter.label);
     try {
+      const { executeModuleStarter } = await loadModuleStarterActions();
       const result = await executeModuleStarter(starter);
       await loadDashboard();
       router.push(result.route);
