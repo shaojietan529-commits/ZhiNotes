@@ -152,6 +152,7 @@ function MeetingsDashboard() {
   const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
+    autoHydrateContent: false,
   });
   const transcriptFileInputRef = useRef<HTMLInputElement | null>(null);
   const { databases, refresh: refreshDatabases } = useDatabases();

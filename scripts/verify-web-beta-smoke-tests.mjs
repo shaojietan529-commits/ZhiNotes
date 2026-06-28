@@ -6253,6 +6253,18 @@ function run() {
   assertIncludes(
     files.usePages,
     usePages,
+    "autoHydrateContent?: boolean",
+    "Content-heavy modules must be able to opt out of automatic full-body hydration after large imports."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "metadataFirstContent && autoHydrateContent",
+    "Deferred body hydration must be explicit for large-workspace dashboards."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
     "scheduleDeferredContentHydration",
     "Content-heavy modules must hydrate full page bodies in a background idle task."
   );
@@ -6984,6 +6996,20 @@ function run() {
     "void refresh()",
     "Notes module repeated content scans must not fire a global page refresh after large imports."
   );
+  for (const [sourceLabel, source, moduleLabel] of [
+    [files.companyResearchShell, companyResearchShell, "Company research"],
+    [files.meetingsShell, meetingsShell, "Meetings"],
+    [files.reportsShell, reportsShell, "Reports"],
+    [files.portfolioShell, portfolioShell, "Portfolio"],
+    [files.researchGraphShell, researchGraphShell, "Research graph"],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "autoHydrateContent: false",
+      `${moduleLabel} dashboard must not auto-hydrate every imported note body on first paint.`
+    );
+  }
   assertIncludes(
     files.usePage,
     usePage,

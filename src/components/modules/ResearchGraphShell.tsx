@@ -95,6 +95,7 @@ function ResearchGraphDashboard() {
   const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
+    autoHydrateContent: false,
   });
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);

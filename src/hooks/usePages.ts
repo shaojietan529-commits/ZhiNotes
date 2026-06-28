@@ -22,6 +22,7 @@ import type { Page } from "@/lib/utils/types";
 interface UsePagesOptions {
   includeContent?: boolean;
   deferContent?: boolean;
+  autoHydrateContent?: boolean;
   autoLoad?: boolean;
 }
 
@@ -167,6 +168,7 @@ export function usePages(options: UsePagesOptions = {}) {
   const includeContent = options.includeContent ?? false;
   const deferContent = options.deferContent ?? false;
   const metadataFirstContent = includeContent && deferContent;
+  const autoHydrateContent = options.autoHydrateContent ?? true;
   const autoLoad = options.autoLoad ?? true;
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const pages = useWorkspaceStore((s) => s.pages);
@@ -284,10 +286,16 @@ export function usePages(options: UsePagesOptions = {}) {
       emitPagesUpdated(options.reason ?? "local-refresh", all.length);
     }
 
-    if (metadataFirstContent) {
+    if (metadataFirstContent && autoHydrateContent) {
       scheduleDeferredContentHydration();
     }
-  }, [dbReady, includeContent, metadataFirstContent, setPages]);
+  }, [
+    autoHydrateContent,
+    dbReady,
+    includeContent,
+    metadataFirstContent,
+    setPages,
+  ]);
 
   useEffect(() => {
     if (!autoLoad) return;

@@ -75,7 +75,6 @@ const pageBodyHydrationStatus = read(
   "src/lib/pages/pageBodyHydrationStatus.ts"
 );
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
-const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
 const pendingPageDrafts = read("src/lib/pages/pendingPageDrafts.ts");
 const sidebarSource = read("src/components/sidebar/Sidebar.tsx");
@@ -126,7 +125,8 @@ for (const token of [
   'router.prefetch("/page/zhinote-route-prefetch")',
   "const pageRoute = `/page/${optimisticNote.id}`",
   "router.prefetch(pageRoute)",
-  'openPage(optimisticNote, { source: "daily-create" })',
+  "setPeekInitialPage(optimisticNote)",
+  "setPeekPageId(optimisticNote.id)",
   "<PagePeekModal",
   "onReady={handlePeekReady}",
   "rememberPendingPageDraft(optimisticNote)",
@@ -454,7 +454,9 @@ check(
       usePagesHook.indexOf("const cloud = await syncCloudPageMetadataDelta") &&
     !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
     !usePagesHook.includes("applyRemotePageMetadata") &&
-    usePagesHook.includes("autoLoad?: boolean"),
+    usePagesHook.includes("autoLoad?: boolean") &&
+    usePagesHook.includes("autoHydrateContent?: boolean") &&
+    usePagesHook.includes("metadataFirstContent && autoHydrateContent"),
   "usePages 必须先显示本地热缓存，再用云端 metadata delta 校正；includeContent 模块只在本地缓存不可读时用云端 metadata 兜底"
 );
 check(
@@ -572,8 +574,9 @@ for (const token of [
   "onMouseEnter={() => warmDailyNoteContent(note)}",
   "setPeekInitialPage(toDailyNoteSeed(seededNote, note));",
   'import("@/components/providers/PageShell")',
-  'openPage(optimisticNote, { source: "daily-create" })',
-  "每日纪要已打开",
+  "setPeekInitialPage(optimisticNote)",
+  "setPeekPageId(optimisticNote.id)",
+  "每日纪要已弹出",
   "openPage(note, { source })",
   'openPage(pageId, { source: "daily-open" })',
   "rememberPendingPageDraft(optimisticNote)",
@@ -594,14 +597,16 @@ check(
   shells.daily.indexOf("rememberPendingPageDraft(optimisticNote)") <
     shells.daily.indexOf("upsertPages([optimisticNote])") &&
     shells.daily.indexOf("upsertPages([optimisticNote])") <
+      shells.daily.indexOf("setPeekInitialPage(optimisticNote)") &&
+    shells.daily.indexOf("setPeekInitialPage(optimisticNote)") <
+      shells.daily.indexOf("setPeekPageId(optimisticNote.id)") &&
+    shells.daily.indexOf("setPeekPageId(optimisticNote.id)") <
       shells.daily.indexOf("writeOptimisticDailyHotCache") &&
     shells.daily.indexOf("writeOptimisticDailyHotCache") <
       shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
-    shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
-      shells.daily.indexOf('openPage(optimisticNote, { source: "daily-create" })') &&
     shells.daily.includes("window.setTimeout(() =>") &&
     shells.daily.includes("current === dateKey ? null : current") &&
-    shells.daily.indexOf('openPage(optimisticNote, { source: "daily-create" })') <
+    shells.daily.indexOf("setPeekPageId(optimisticNote.id)") <
       shells.daily.indexOf("persistOptimisticDailyNote"),
   "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再直接进入完整页面，快速释放 + 按钮并后台持久化"
 );
@@ -613,26 +618,24 @@ check(
   "DailyNotesShell 后台保存每日纪要必须先写本地可重建缓存和 pending queue 记录，再让账号同步后台上传"
 );
 check(
-  shells.daily.includes("@/components/page/LazyPagePeekModal") &&
-    lazyPagePeekModal.includes("function loadPagePeekModal()") &&
-    lazyPagePeekModal.includes("export function warmPagePeekModal()") &&
-    lazyPagePeekModal.includes('import("@/components/page/PagePeekModal")') &&
-    lazyPagePeekModal.includes("dynamic(loadPagePeekModal") &&
+  shells.daily.includes("@/components/page/PagePeekModal") &&
+    pagePeekModal.includes('dynamic(() => import("@/components/editor/Editor")') &&
+    pagePeekModal.includes("readPendingPageDraft(pageId)") &&
+    pagePeekModal.includes("readPageRouteHandoff(pageId)") &&
+    pagePeekModal.includes("PEEK_METADATA_ONLY_CONTENT_DELAY_MS") &&
     pagePeekModal.includes("onReady?: (pageId: string) => void") &&
     pagePeekModal.includes("onReady?.(pageId)") &&
     shells.daily.includes("const handlePeekReady = useCallback") &&
     shells.daily.includes("onReady={handlePeekReady}") &&
-    shells.daily.includes("warmPagePeekModal();") &&
     shells.daily.indexOf('primeDailyNoteOpen(note, "daily-open");') <
       shells.daily.indexOf("setOpeningNoteId(note.id);") &&
     shells.daily.includes('onPointerDown={() =>') &&
     shells.daily.includes('primeDailyNoteOpen(note, "daily-open")') &&
     shells.daily.includes('onFocus={() => primeDailyNoteOpen(note, "daily-open")}') &&
-    lazyPagePeekModal.includes("正在打开页面…") &&
     !shells.daily.includes("fetchCloudPageById") &&
     !shells.daily.includes("scheduleDailyPeekPreload") &&
     !shells.daily.includes('import("@/components/editor/Editor")'),
-  "DailyNotesShell 应懒加载已有纪要 peek 弹窗并提供本地壳，保证日历首屏不捆绑重编辑器，也不在日历打开路径预拉正文"
+  "DailyNotesShell 应通过 PagePeekModal 的动态编辑器和本地壳打开纪要，保证日历打开路径不预拉正文"
 );
 check(
   shells.daily.includes("const visibleLimit = isExpanded") &&
@@ -777,10 +780,11 @@ check(
     shells.schedule.includes("openCreatedMeetingPage") &&
     meetingScheduleOpensCreatedPageRoute &&
     shells.schedule.includes("router.prefetch(pageRoute)") &&
-    shells.schedule.includes('openPage(page, { source: "meeting-create" })') &&
     shells.schedule.includes("openPage(page, { source })") &&
     shells.schedule.includes("prepareMeetingPageOpen(page, source)") &&
     shells.schedule.includes('prepareMeetingPageOpen(page, "meeting-create")') &&
+    shells.schedule.includes("setPeekInitialPage(page)") &&
+    shells.schedule.includes("setPeekPageId(page.id)") &&
     shells.schedule.includes("const seededPage = getMeetingPageOpenSeed(page)") &&
     shells.schedule.includes("rememberPendingPageDraft(seededPage)") &&
     shells.schedule.includes("rememberPageRouteHandoff(seededPage, source)") &&

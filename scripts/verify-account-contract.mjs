@@ -597,6 +597,8 @@ check(
 );
 check(
   usePagesHook.includes("autoLoad?: boolean") &&
+    usePagesHook.includes("autoHydrateContent?: boolean") &&
+    usePagesHook.includes("metadataFirstContent && autoHydrateContent") &&
     usePagesHook.includes("const autoLoad = options.autoLoad ?? true") &&
     usePagesHook.includes("if (!autoLoad) return;") &&
     usePagesHook.includes("}, [autoLoad, refresh]") &&

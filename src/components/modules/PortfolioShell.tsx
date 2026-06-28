@@ -97,6 +97,7 @@ function PortfolioDashboard() {
   const { pages, upsertPages } = usePages({
     includeContent: true,
     deferContent: true,
+    autoHydrateContent: false,
   });
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [busyAction, setBusyAction] = useState<string | null>(null);

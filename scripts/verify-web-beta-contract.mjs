@@ -13702,6 +13702,18 @@ function run() {
     [
       files.usePages,
       usePages,
+      "autoHydrateContent?: boolean",
+      "Content-heavy modules must be able to opt out of automatic full-body hydration after large imports.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "metadataFirstContent && autoHydrateContent",
+      "Deferred body hydration must be explicit for large-workspace dashboards.",
+    ],
+    [
+      files.usePages,
+      usePages,
       "scheduleDeferredContentHydration",
       "Content-heavy modules must hydrate full page bodies in a background idle task.",
     ],
@@ -14002,6 +14014,12 @@ function run() {
     [
       files.companyResearchShell,
       companyResearchShell,
+      "autoHydrateContent: false",
+      "Company research module must not auto-hydrate every imported note body on first paint.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
       "@/components/page/LazyPagePeekModal",
       "Company research module must lazy-load the page peek editor instead of adding it to first paint.",
     ],
@@ -14062,6 +14080,12 @@ function run() {
     [
       files.meetingsShell,
       meetingsShell,
+      "autoHydrateContent: false",
+      "Meetings module must not auto-hydrate every imported note body on first paint.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
       "@/components/page/LazyPagePeekModal",
       "Meetings module must lazy-load the page peek editor instead of adding it to first paint.",
     ],
@@ -14118,6 +14142,12 @@ function run() {
       reportsShell,
       "deferContent: true",
       "Reports module must render page metadata before deferred body hydration.",
+    ],
+    [
+      files.reportsShell,
+      reportsShell,
+      "autoHydrateContent: false",
+      "Reports module must not auto-hydrate every imported note body on first paint.",
     ],
     [
       files.reportsShell,
@@ -14348,10 +14378,22 @@ function run() {
       "Portfolio module must render page metadata before deferred body hydration.",
     ],
     [
+      files.portfolioShell,
+      portfolioShell,
+      "autoHydrateContent: false",
+      "Portfolio module must not auto-hydrate every imported note body on first paint.",
+    ],
+    [
       files.researchGraphShell,
       researchGraphShell,
       "deferContent: true",
       "Research graph module must render page metadata before deferred body hydration.",
+    ],
+    [
+      files.researchGraphShell,
+      researchGraphShell,
+      "autoHydrateContent: false",
+      "Research graph module must not auto-hydrate every imported note body on first paint.",
     ],
     [
       files.usePage,
