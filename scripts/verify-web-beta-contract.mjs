@@ -14472,6 +14472,22 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      "DATABASE_KANBAN_RENDER_COLUMN_LIMIT",
+      "Database kanban view must cap per-column rendered cards for large imports.",
+    ],
+    [
+      ".slice(0, DATABASE_KANBAN_RENDER_COLUMN_LIMIT)",
+      "Database kanban view must render a bounded subset of each column.",
+    ],
+    [
+      "为保持看板流畅",
+      "Database kanban view must explain capped high-volume rendering to the user.",
+    ],
+  ]) {
+    assertSourceIncludes(files.databaseKanbanView, databaseKanbanView, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "DATABASE_CALENDAR_RENDER_DAY_LIMIT",
       "Database calendar view must cap per-day rendered rows for large imports.",
     ],

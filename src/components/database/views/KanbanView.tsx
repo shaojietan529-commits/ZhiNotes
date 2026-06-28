@@ -16,6 +16,8 @@ import {
 } from "@/lib/database/systemFields";
 import { formatRelativeDate } from "@/lib/utils/dates";
 
+const DATABASE_KANBAN_RENDER_COLUMN_LIMIT = 24;
+
 interface KanbanViewProps {
   fields: DatabaseField[];
   rows: (DatabaseRow & { page: Page })[];
@@ -111,74 +113,83 @@ export default function KanbanView({
 
           {/* Cards */}
           <div className="p-2 space-y-2 min-h-[100px]">
-            {(groupedRows[col] || []).map((row) => {
-              const fieldValues = parseKanbanFieldValues(row.field_values);
-              const cardFields = getKanbanCardFields(
-                fields,
-                groupField,
-                row,
-                fieldValues,
-                relationPages
-              );
+            {(groupedRows[col] || [])
+              .slice(0, DATABASE_KANBAN_RENDER_COLUMN_LIMIT)
+              .map((row) => {
+                const fieldValues = parseKanbanFieldValues(row.field_values);
+                const cardFields = getKanbanCardFields(
+                  fields,
+                  groupField,
+                  row,
+                  fieldValues,
+                  relationPages
+                );
 
-              return (
-                <div
-                  key={row.id}
-                  className="bg-white dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 p-3 hover:shadow-sm transition-shadow group"
-                >
-                  <button
-                    type="button"
-                    onPointerEnter={() => onPrimeRow?.(row.page_id)}
-                    onPointerDown={() => onPrimeRow?.(row.page_id)}
-                    onFocus={() => onPrimeRow?.(row.page_id)}
-                    onClick={() => onOpenRow(row.page_id)}
-                    className="text-sm font-medium text-zinc-900 dark:text-zinc-100 text-left w-full hover:text-blue-600 dark:hover:text-blue-400"
+                return (
+                  <div
+                    key={row.id}
+                    className="bg-white dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 p-3 hover:shadow-sm transition-shadow group"
                   >
-                    {row.page?.title || "未命名页面"}
-                  </button>
-                  {cardFields.length > 0 && (
-                    <dl className="mt-2 space-y-1">
-                      {cardFields.map(({ field, label }) => (
-                        <div key={field.id} className="flex gap-2 text-[11px]">
-                          <dt className="w-16 shrink-0 truncate text-zinc-400">
-                            {getDatabaseFieldDisplayName(field)}
-                          </dt>
-                          <dd
-                            className="min-w-0 flex-1 truncate text-zinc-600 dark:text-zinc-300"
-                            title={label}
-                          >
-                            {label}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  )}
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] text-zinc-400">
-                      {row.page?.icon || "📄"}
-                    </span>
-                    <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                      <button
-                        type="button"
-                        onClick={() => onDuplicateRow(row.id)}
-                        className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                        title="复制行：只复制本地字段值，不复制页面正文"
-                      >
-                        复制
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDeleteRow(row.id)}
-                        className="text-[10px] text-zinc-400 hover:text-red-500"
-                        title="删除行"
-                      >
-                        删除
-                      </button>
+                    <button
+                      type="button"
+                      onPointerEnter={() => onPrimeRow?.(row.page_id)}
+                      onPointerDown={() => onPrimeRow?.(row.page_id)}
+                      onFocus={() => onPrimeRow?.(row.page_id)}
+                      onClick={() => onOpenRow(row.page_id)}
+                      className="text-sm font-medium text-zinc-900 dark:text-zinc-100 text-left w-full hover:text-blue-600 dark:hover:text-blue-400"
+                    >
+                      {row.page?.title || "未命名页面"}
+                    </button>
+                    {cardFields.length > 0 && (
+                      <dl className="mt-2 space-y-1">
+                        {cardFields.map(({ field, label }) => (
+                          <div key={field.id} className="flex gap-2 text-[11px]">
+                            <dt className="w-16 shrink-0 truncate text-zinc-400">
+                              {getDatabaseFieldDisplayName(field)}
+                            </dt>
+                            <dd
+                              className="min-w-0 flex-1 truncate text-zinc-600 dark:text-zinc-300"
+                              title={label}
+                            >
+                              {label}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-[10px] text-zinc-400">
+                        {row.page?.icon || "📄"}
+                      </span>
+                      <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => onDuplicateRow(row.id)}
+                          className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                          title="复制行：只复制本地字段值，不复制页面正文"
+                        >
+                          复制
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteRow(row.id)}
+                          className="text-[10px] text-zinc-400 hover:text-red-500"
+                          title="删除行"
+                        >
+                          删除
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            {(groupedRows[col]?.length || 0) > DATABASE_KANBAN_RENDER_COLUMN_LIMIT && (
+              <div className="rounded-md border border-dashed border-zinc-200 bg-white/60 px-3 py-2 text-[11px] text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-500">
+                为保持看板流畅，已折叠{" "}
+                {(groupedRows[col]?.length || 0) - DATABASE_KANBAN_RENDER_COLUMN_LIMIT}{" "}
+                张卡片；切换到表格视图查看全部。
+              </div>
+            )}
           </div>
         </div>
       ))}
