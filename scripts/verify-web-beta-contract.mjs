@@ -2799,6 +2799,10 @@ function run() {
       "Page shell must cap the text shown in large-body previews.",
     ],
     [
+      "PAGE_LARGE_BODY_PREVIEW_HEADINGS = 8",
+      "Page shell must cap the number of headings shown in large-body previews.",
+    ],
+    [
       "PAGE_LARGE_BODY_EDITOR_WARMUP_DELAY_MS = 900",
       "Page shell must warm the large-body editor chunk without mounting it immediately.",
     ],
@@ -2837,6 +2841,18 @@ function run() {
     [
       "buildLargePageBodyPreview",
       "Page shell must build a lightweight text preview for large page bodies.",
+    ],
+    [
+      'data-testid="large-page-body-preview-outline"',
+      "Large page previews must expose a stable lightweight outline surface.",
+    ],
+    [
+      "extractLargePagePreviewHeadings",
+      "Large page previews must extract a bounded heading outline without mounting the full editor.",
+    ],
+    [
+      "doc.body.querySelectorAll(\"h1,h2,h3,h4\")",
+      "Large page preview outlines must be derived from safe heading text only.",
     ],
     [
       "script, style, iframe, object, embed, svg, canvas",

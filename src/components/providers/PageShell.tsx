@@ -90,6 +90,7 @@ const PAGE_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600;
 const PAGE_LARGE_BODY_PREVIEW_HTML_CHARS = 120 * 1024;
 const PAGE_LARGE_BODY_PREVIEW_TEXT_CHARS = 6000;
 const PAGE_LARGE_BODY_PREVIEW_BLOCKS = 18;
+const PAGE_LARGE_BODY_PREVIEW_HEADINGS = 8;
 const PAGE_LARGE_BODY_EDITOR_WARMUP_DELAY_MS = 900;
 const PAGE_LARGE_BODY_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2600;
 const PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700;
@@ -1588,11 +1589,39 @@ function LargePageBodyPreview({
           {buttonLabel}
         </button>
       </div>
-      {preview.blocks.length > 0 ? (
-        <div className="space-y-3 text-sm leading-7 text-zinc-700 dark:text-zinc-200">
-          {preview.blocks.map((block, index) => (
-            <p key={`${index}-${block.slice(0, 16)}`}>{block}</p>
-          ))}
+      {preview.blocks.length > 0 || preview.headings.length > 0 ? (
+        <div className="space-y-5">
+          {preview.headings.length > 0 && (
+            <div
+              data-testid="large-page-body-preview-outline"
+              className="rounded border border-zinc-100 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/50"
+            >
+              <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                页面结构
+              </p>
+              <div className="space-y-1">
+                {preview.headings.map((heading, index) => (
+                  <p
+                    key={`${index}-${heading.text.slice(0, 16)}`}
+                    className="truncate text-xs text-zinc-600 dark:text-zinc-300"
+                    style={{
+                      paddingLeft: `${Math.max(0, heading.level - 1) * 10}px`,
+                    }}
+                    title={heading.text}
+                  >
+                    {heading.text}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+          {preview.blocks.length > 0 && (
+            <div className="space-y-3 text-sm leading-7 text-zinc-700 dark:text-zinc-200">
+              {preview.blocks.map((block, index) => (
+                <p key={`${index}-${block.slice(0, 16)}`}>{block}</p>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -1646,6 +1675,7 @@ function PageBodySkeleton({
 
 function buildLargePageBodyPreview(html: string): {
   blocks: string[];
+  headings: Array<{ level: number; text: string }>;
   truncated: boolean;
 } {
   const slicedHtml = html.slice(0, PAGE_LARGE_BODY_PREVIEW_HTML_CHARS);
@@ -1653,6 +1683,7 @@ function buildLargePageBodyPreview(html: string): {
     const text = normalizePreviewText(slicedHtml.replace(/<[^>]*>/g, " "));
     return {
       blocks: splitPreviewText(text),
+      headings: [],
       truncated:
         html.length > slicedHtml.length ||
         text.length > PAGE_LARGE_BODY_PREVIEW_TEXT_CHARS,
@@ -1663,6 +1694,7 @@ function buildLargePageBodyPreview(html: string): {
   doc
     .querySelectorAll("script, style, iframe, object, embed, svg, canvas")
     .forEach((element) => element.remove());
+  const headings = extractLargePagePreviewHeadings(doc);
   const blockElements = Array.from(
     doc.body.querySelectorAll(
       "h1,h2,h3,h4,p,li,blockquote,pre,td,th,figcaption"
@@ -1693,11 +1725,29 @@ function buildLargePageBodyPreview(html: string): {
 
   return {
     blocks,
+    headings,
     truncated:
       html.length > slicedHtml.length ||
       rawBlocks.length > blocks.length ||
       usedChars >= PAGE_LARGE_BODY_PREVIEW_TEXT_CHARS,
   };
+}
+
+function extractLargePagePreviewHeadings(doc: Document): Array<{
+  level: number;
+  text: string;
+}> {
+  const headings: Array<{ level: number; text: string }> = [];
+  const seen = new Set<string>();
+  for (const element of Array.from(doc.body.querySelectorAll("h1,h2,h3,h4"))) {
+    const text = normalizePreviewText(element.textContent ?? "");
+    if (!text || seen.has(text)) continue;
+    const level = Number(element.tagName.replace(/^H/i, "")) || 1;
+    headings.push({ level: Math.min(Math.max(level, 1), 4), text });
+    seen.add(text);
+    if (headings.length >= PAGE_LARGE_BODY_PREVIEW_HEADINGS) break;
+  }
+  return headings;
 }
 
 function splitPreviewText(text: string): string[] {
