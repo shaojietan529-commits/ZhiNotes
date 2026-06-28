@@ -4977,6 +4977,30 @@ function run() {
       "Daily drag-to-reschedule mutations must lazy-load page mutation code only after drag/drop intent.",
     ],
     [
+      files.databaseShell,
+      databaseShell,
+      "const loadDatabaseMutationModule = () =>",
+      "Database detail page writes must lazy-load database mutation code only after edit intent.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      'import("@/lib/database/cloudDatabaseMutations")',
+      "Database detail page writes must keep database mutation code out of first paint.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "const loadAccountDatabaseSyncModule = () =>",
+      "Database detail page cloud hydrate must lazy-load account database sync after local first paint.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "const loadDatabaseImportModule = () =>",
+      "Database detail page spreadsheet import must lazy-load the import engine after file intent.",
+    ],
+    [
       files.meetingScheduleShell,
       meetingScheduleShell,
       'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
@@ -5159,6 +5183,24 @@ function run() {
       dailyNotesShell,
       'from "@/lib/pages/cloudPageMutations"',
       "Daily note reschedule mutation code must stay out of the calendar first paint bundle.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      'from "@/lib/database/cloudDatabaseMutations"',
+      "Database detail mutation code must stay out of the database first paint bundle.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "import {\n  syncCloudDatabaseById",
+      "Database detail account sync runtime code must stay out of the database first paint bundle.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "applyDatabaseImportPreview,\n  buildDatabaseImportPreview",
+      "Database detail import engine must stay out of the database first paint bundle.",
     ],
     [
       files.meetingScheduleShell,
@@ -6665,8 +6707,8 @@ function run() {
   assertIncludes(
     files.databaseShell,
     databaseShell,
-    "persistDatabaseRowInBackground(updateRow(rowId, { fieldValues }))",
-    "Database cell edits must persist through the pending-aware database mutation helper in the background."
+    "persistDatabaseRowInBackground(\n        loadDatabaseMutationModule().then(({ updateRow }) =>",
+    "Database cell edits must lazy-load and persist through the pending-aware database mutation helper in the background."
   );
   assertIncludes(
     files.databaseShell,

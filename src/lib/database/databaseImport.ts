@@ -1,12 +1,13 @@
 "use client";
 
 import { addField, addRow } from "@/lib/database/cloudDatabaseMutations";
+import {
+  DATABASE_DIRECT_IMPORT_COLUMN_LIMIT,
+  DATABASE_DIRECT_IMPORT_ROW_LIMIT,
+} from "@/lib/database/databaseImportLimits";
 import { isDatabaseSystemFieldType } from "@/lib/database/systemFields";
 import { formatFileSize } from "@/lib/files/localStore";
 import type { DatabaseField } from "@/lib/utils/types";
-
-export const DATABASE_DIRECT_IMPORT_ROW_LIMIT = 500;
-export const DATABASE_DIRECT_IMPORT_COLUMN_LIMIT = 50;
 
 export type DatabaseImportFieldType =
   | "text"

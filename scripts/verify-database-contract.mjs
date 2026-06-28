@@ -36,6 +36,7 @@ const files = {
   queries: "src/lib/db/local/queries.ts",
   databaseExport: "src/lib/export/databaseExport.ts",
   databaseImport: "src/lib/database/databaseImport.ts",
+  databaseImportLimits: "src/lib/database/databaseImportLimits.ts",
   databaseFields: "src/lib/database/fields.ts",
   databaseFormula: "src/lib/database/formula.ts",
   databaseRollup: "src/lib/database/rollup.ts",
@@ -192,6 +193,7 @@ function run() {
   const queries = readProjectFile(files.queries);
   const databaseExport = readProjectFile(files.databaseExport);
   const databaseImport = readProjectFile(files.databaseImport);
+  const databaseImportLimits = readProjectFile(files.databaseImportLimits);
   const databaseFields = readProjectFile(files.databaseFields);
   const databaseFormula = readProjectFile(files.databaseFormula);
   const databaseRollup = readProjectFile(files.databaseRollup);
@@ -723,6 +725,56 @@ function run() {
       "Database writes must go through cloud-aware mutation wrappers."
     );
     assertNoLocalDatabaseMutationImport(sourceLabel, source);
+  }
+  for (const snippet of [
+    'const loadDatabaseMutationModule = () =>',
+    'import("@/lib/database/cloudDatabaseMutations")',
+    'const loadAccountDatabaseSyncModule = () =>',
+    'import("@/lib/database/accountDatabaseSync")',
+    'const loadDatabaseImportModule = () =>',
+    'import("@/lib/database/databaseImport")',
+  ]) {
+    assertIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database detail page must lazy-load cloud/database import runtime code after local first paint."
+    );
+  }
+  for (const snippet of [
+    'from "@/lib/database/cloudDatabaseMutations"',
+    "import {\n  syncCloudDatabaseById",
+    "applyDatabaseImportPreview,\n  buildDatabaseImportPreview",
+  ]) {
+    assertNotIncludes(
+      files.databaseShell,
+      databaseShell,
+      snippet,
+      "Database detail page must keep runtime mutation, sync, and import engines out of the first paint bundle."
+    );
+  }
+  for (const snippet of [
+    'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+    'const loadDatabaseMutationModule = () =>',
+    'import("@/lib/database/cloudDatabaseMutations")',
+  ]) {
+    assertIncludes(
+      files.slashCommandSuggestion,
+      slashCommandSuggestion,
+      snippet,
+      "Editor slash commands must lazy-load page/database mutation code only after command intent."
+    );
+  }
+  for (const snippet of [
+    'from "@/lib/pages/cloudPageMutations"',
+    'from "@/lib/database/cloudDatabaseMutations"',
+  ]) {
+    assertNotIncludes(
+      files.slashCommandSuggestion,
+      slashCommandSuggestion,
+      snippet,
+      "Editor slash commands must not put page/database mutation code in the editor first paint bundle."
+    );
   }
   for (const snippet of [
     "getAllDatabaseRecordsForSync",
@@ -1760,6 +1812,15 @@ function run() {
   for (const snippet of [
     "DATABASE_DIRECT_IMPORT_ROW_LIMIT = 500",
     "DATABASE_DIRECT_IMPORT_COLUMN_LIMIT = 50",
+  ]) {
+    assertIncludes(
+      files.databaseImportLimits,
+      databaseImportLimits,
+      snippet,
+      "Database direct import limits must live in a lightweight module so the page can display limits without loading the import engine."
+    );
+  }
+  for (const snippet of [
     "buildDatabaseImportPreview",
     "applyDatabaseImportPreview",
     "local_preview_only: true",

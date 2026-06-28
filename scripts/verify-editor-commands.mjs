@@ -140,6 +140,29 @@ function run() {
     "KeyboardShortcuts",
     "Editor must load the local keyboard shortcut extension."
   );
+  for (const snippet of [
+    'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+    "const loadDatabaseMutationModule = () =>",
+    'import("@/lib/database/cloudDatabaseMutations")',
+  ]) {
+    assertIncludes(
+      files.slashSuggestion,
+      slashSuggestion,
+      snippet,
+      "Slash commands must lazy-load page/database mutation code only after command intent."
+    );
+  }
+  for (const snippet of [
+    'from "@/lib/pages/cloudPageMutations"',
+    'from "@/lib/database/cloudDatabaseMutations"',
+  ]) {
+    assertNotIncludes(
+      files.slashSuggestion,
+      slashSuggestion,
+      snippet,
+      "Slash commands must keep page/database mutation code out of the editor first paint bundle."
+    );
+  }
   assertIncludes(
     files.editor,
     editor,

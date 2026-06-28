@@ -11,11 +11,6 @@ import {
   getPageMetadata,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
-import { createDatabase } from "@/lib/database/cloudDatabaseMutations";
-import {
-  createPageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
 import {
   promptAndInsertHtmlReportPreview,
   promptAndInsertMarkdownFilePreview,
@@ -32,6 +27,10 @@ import {
   prepareLocalFirstPageNavigation,
   warmPageShellModule,
 } from "@/lib/pages/localFirstPageNavigation";
+
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
+const loadDatabaseMutationModule = () =>
+  import("@/lib/database/cloudDatabaseMutations");
 
 function getSlashCommands(): SlashCommandItem[] {
   const templateCommands: SlashCommandItem[] = NOTE_TEMPLATES.map((template) => ({
@@ -113,6 +112,8 @@ function getSlashCommands(): SlashCommandItem[] {
       command: async ({ editor, range }) => {
         const currentPageId = useWorkspaceStore.getState().currentPageId;
         const parentPageId = currentPageId ?? null;
+        const { createPageWithCloud, updatePageWithCloud } =
+          await loadPageMutationModule();
         const page = await createPageWithCloud({
           parentId: parentPageId,
         });
@@ -624,6 +625,7 @@ function getSlashCommands(): SlashCommandItem[] {
       command: async ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).run();
         try {
+          const { createDatabase } = await loadDatabaseMutationModule();
           const db = await createDatabase({ title: "未命名数据库" });
           editor.chain().focus().insertInlineDatabase(db.id).run();
         } catch (err) {
@@ -640,6 +642,7 @@ function getSlashCommands(): SlashCommandItem[] {
       command: async ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).run();
         try {
+          const { createDatabase } = await loadDatabaseMutationModule();
           const db = await createDatabase({ title: "未命名数据库" });
           // Navigate to the full database page
           window.location.href = `/database/${db.id}`;

@@ -1,0 +1,4 @@
+"use client";
+
+export const DATABASE_DIRECT_IMPORT_ROW_LIMIT = 500;
+export const DATABASE_DIRECT_IMPORT_COLUMN_LIMIT = 50;

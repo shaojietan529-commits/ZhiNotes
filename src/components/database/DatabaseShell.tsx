@@ -24,22 +24,7 @@ import {
   getRows,
   getViews,
 } from "@/lib/db/local/queries";
-import {
-  addField,
-  addRow,
-  addView,
-  deleteField,
-  deleteRow,
-  deleteView,
-  updateField,
-  updateDatabase,
-  updateRow,
-  updateView,
-} from "@/lib/database/cloudDatabaseMutations";
-import {
-  syncCloudDatabaseById,
-  type CloudDatabaseRecord,
-} from "@/lib/database/accountDatabaseSync";
+import type { CloudDatabaseRecord } from "@/lib/database/accountDatabaseSync";
 import type { Database, DatabaseField, DatabaseRow, DatabaseView } from "@/lib/utils/types";
 import type { Page } from "@/lib/utils/types";
 import {
@@ -156,13 +141,13 @@ import {
   isDatabaseSystemTimeField,
 } from "@/lib/database/systemFields";
 import {
-  applyDatabaseImportPreview,
-  buildDatabaseImportPreview,
   DATABASE_DIRECT_IMPORT_COLUMN_LIMIT,
   DATABASE_DIRECT_IMPORT_ROW_LIMIT,
-  type DatabaseImportColumnPlan,
-  type DatabaseImportPreview,
-  type DatabaseImportReceipt,
+} from "@/lib/database/databaseImportLimits";
+import type {
+  DatabaseImportColumnPlan,
+  DatabaseImportPreview,
+  DatabaseImportReceipt,
 } from "@/lib/database/databaseImport";
 import {
   appendDatabaseTemplateRowReceipt,
@@ -190,6 +175,13 @@ const DATABASE_VIEW_RENDER_CAPPED_TYPES = new Set([
   "gallery",
   "feed",
 ]);
+
+const loadDatabaseMutationModule = () =>
+  import("@/lib/database/cloudDatabaseMutations");
+const loadAccountDatabaseSyncModule = () =>
+  import("@/lib/database/accountDatabaseSync");
+const loadDatabaseImportModule = () =>
+  import("@/lib/database/databaseImport");
 
 type RowWithPage = DatabaseRow & { page: Page };
 type DatabaseSnapshot = [
@@ -376,6 +368,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       if (renderedLocalSnapshot) {
         applyDatabaseSnapshot(localSnapshot);
       }
+      const { syncCloudDatabaseById } = await loadAccountDatabaseSyncModule();
       const cloud = await syncCloudDatabaseById(databaseId, { maxBatches: 1 });
       if (cloud.status === "ok" && cloud.records.length > 0) {
         const cloudSnapshot = buildDatabaseSnapshotFromCloudRecords(
@@ -478,6 +471,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const handleTitleChange = useCallback(
     async (newTitle: string) => {
       setTitle(newTitle);
+      const { updateDatabase } = await loadDatabaseMutationModule();
       await updateDatabase(databaseId, { title: newTitle });
     },
     [databaseId]
@@ -485,6 +479,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
   const handleAddField = useCallback(
     async (name: string, fieldType: string, config?: string) => {
+      const { addField } = await loadDatabaseMutationModule();
       await addField(databaseId, { name, fieldType, config });
       reload({ preferLocalCache: true });
     },
@@ -499,6 +494,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         `要删除字段「${fieldName}」吗？这会从当前数据库视图中移除字段配置，但不会删除页面正文、文件、云端数据或 AI 内容。`
       );
       if (!ok) return;
+      const { deleteField } = await loadDatabaseMutationModule();
       await deleteField(fieldId);
       reload({ preferLocalCache: true });
     },
@@ -507,6 +503,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
   const handleDuplicateField = useCallback(
     async (field: DatabaseField) => {
+      const { addField } = await loadDatabaseMutationModule();
       await addField(databaseId, {
         name: `${getDatabaseFieldDisplayName(field)} 副本`,
         fieldType: field.field_type,
@@ -524,6 +521,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         Pick<DatabaseField, "name" | "field_type" | "config">
       >
     ) => {
+      const { updateField } = await loadDatabaseMutationModule();
       await updateField(fieldId, updates);
       reload({ preferLocalCache: true });
     },
@@ -545,6 +543,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       const targetField = orderedFields[targetIndex];
       if (!currentField || !targetField || targetField.position === 0) return;
 
+      const { updateField } = await loadDatabaseMutationModule();
       await Promise.all([
         updateField(currentField.id, { position: targetField.position }),
         updateField(targetField.id, { position: currentField.position }),
@@ -667,6 +666,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
   const handleAddRow = useCallback(async () => {
     try {
+      const { addRow } = await loadDatabaseMutationModule();
       const row = await addRow(databaseId);
       await appendLocalRow(row);
     } catch (error) {
@@ -678,6 +678,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
   const handleAddAndOpenRow = useCallback(async () => {
     try {
+      const { addRow } = await loadDatabaseMutationModule();
       const row = await addRow(databaseId);
       const rowWithPage = await appendLocalRow(row);
       openDatabaseRowFullPage(rowWithPage, "database-row-create");
@@ -691,6 +692,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const handleCreateRow = useCallback(
     async (rowTitle: string, fieldValues: Record<string, unknown>) => {
       try {
+        const { addRow } = await loadDatabaseMutationModule();
         const row = await addRow(databaseId, {
           title: rowTitle,
           fieldValues,
@@ -709,6 +711,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     async (template: NoteTemplate) => {
       try {
         const draft = buildDatabaseTemplateRowDraft(template, fields);
+        const { addRow } = await loadDatabaseMutationModule();
         const row = await addRow(databaseId, {
           title: template.title,
           fieldValues: draft.field_values,
@@ -738,7 +741,11 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       setRows((current) =>
         updateLocalRowFieldValues(current, rowId, fieldValues)
       );
-      persistDatabaseRowInBackground(updateRow(rowId, { fieldValues }));
+      persistDatabaseRowInBackground(
+        loadDatabaseMutationModule().then(({ updateRow }) =>
+          updateRow(rowId, { fieldValues })
+        )
+      );
     },
     [markOptimisticDatabaseMutation, persistDatabaseRowInBackground]
   );
@@ -753,7 +760,9 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       if (!ok) return;
       markOptimisticDatabaseMutation();
       setRows((current) => current.filter((item) => item.id !== rowId));
-      persistDatabaseRowInBackground(deleteRow(rowId));
+      persistDatabaseRowInBackground(
+        loadDatabaseMutationModule().then(({ deleteRow }) => deleteRow(rowId))
+      );
     },
     [markOptimisticDatabaseMutation, persistDatabaseRowInBackground, rows]
   );
@@ -778,10 +787,12 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         })
       );
       persistDatabaseRowInBackground(
-        Promise.all([
-          updateRow(currentRow.id, { position: targetRow.position }),
-          updateRow(targetRow.id, { position: currentRow.position }),
-        ])
+        loadDatabaseMutationModule().then(({ updateRow }) =>
+          Promise.all([
+            updateRow(currentRow.id, { position: targetRow.position }),
+            updateRow(targetRow.id, { position: currentRow.position }),
+          ])
+        )
       );
     },
     [markOptimisticDatabaseMutation, persistDatabaseRowInBackground, rows]
@@ -793,6 +804,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       if (!sourceRow) return;
       const fieldValues = parseFieldValues(sourceRow.field_values);
       try {
+        const { addRow } = await loadDatabaseMutationModule();
         const row = await addRow(databaseId, {
           title: `${sourceRow.page?.title || "未命名页面"} 副本`,
           fieldValues,
@@ -809,6 +821,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
   const handleAddView = useCallback(
     async (name: string, viewType: DatabaseView["view_type"]) => {
+      const { addView } = await loadDatabaseMutationModule();
       const view = await addView(databaseId, { name, viewType });
       setActiveViewId(view.id);
       reload({ preferLocalCache: true });
@@ -820,6 +833,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     async (view: DatabaseView, name: string) => {
       const nextName = name.trim();
       if (!nextName) return;
+      const { updateView } = await loadDatabaseMutationModule();
       await updateView(view.id, { name: nextName });
       reload({ preferLocalCache: true });
     },
@@ -829,6 +843,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const handleUpdateViewDescription = useCallback(
     async (view: DatabaseView, description: string) => {
       const config = parseDatabaseViewConfig(view.config);
+      const { updateView } = await loadDatabaseMutationModule();
       await updateView(view.id, {
         config: JSON.stringify({
           ...config,
@@ -843,6 +858,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const handleUpdateViewOpenMode = useCallback(
     async (view: DatabaseView, openMode: DatabaseRowOpenMode) => {
       const config = parseDatabaseViewConfig(view.config);
+      const { updateView } = await loadDatabaseMutationModule();
       await updateView(view.id, {
         config: JSON.stringify({
           ...config,
@@ -857,6 +873,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const handleDuplicateView = useCallback(
     async (view: DatabaseView) => {
       const sourceName = getDatabaseViewDisplayName(view);
+      const { addView, updateView } = await loadDatabaseMutationModule();
       const copiedView = await addView(databaseId, {
         name: `${sourceName} 副本`,
         viewType: view.view_type,
@@ -892,6 +909,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       const targetView = orderedViews[targetIndex];
       if (currentIndex < 0 || !targetView) return;
 
+      const { updateView } = await loadDatabaseMutationModule();
       await Promise.all([
         updateView(view.id, { position: targetView.position }),
         updateView(targetView.id, { position: view.position }),
@@ -913,6 +931,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       if (!ok) return;
 
       const nextView = views.find((item) => item.id !== view.id) ?? null;
+      const { deleteView } = await loadDatabaseMutationModule();
       await deleteView(view.id);
       if (activeViewId === view.id) {
         setActiveViewId(nextView?.id ?? null);
@@ -1104,6 +1123,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       setDatabaseImportBusy(true);
       setDatabaseImportReceipt(null);
       try {
+        const { buildDatabaseImportPreview } = await loadDatabaseImportModule();
         const preview = await buildDatabaseImportPreview(file, fields);
         setDatabaseImportPreview(preview);
         setDatabaseImportPhrase("");
@@ -1138,6 +1158,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
 
     setDatabaseImportBusy(true);
     try {
+      const { applyDatabaseImportPreview } = await loadDatabaseImportModule();
       const receipt = await applyDatabaseImportPreview(
         databaseId,
         databaseImportPreview,
@@ -1223,9 +1244,11 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
             updateLocalRowFieldValues(current, row.id, nextFieldValues)
           );
           persistDatabaseRowInBackground(
-            updateRow(row.id, {
-              fieldValues: nextFieldValues,
-            })
+            loadDatabaseMutationModule().then(({ updateRow }) =>
+              updateRow(row.id, {
+                fieldValues: nextFieldValues,
+              })
+            )
           );
         }
       } finally {
@@ -1454,6 +1477,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         onDateFieldChange={setDateFieldId}
         onSaveView={async () => {
           if (!activeView) return;
+          const { updateView } = await loadDatabaseMutationModule();
           await updateView(activeView.id, {
             config: JSON.stringify({
               rowSearch,
