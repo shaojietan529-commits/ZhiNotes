@@ -1801,6 +1801,26 @@ function run() {
       "Daily hot cache snapshot must remain metadata-only.",
     ],
     [
+      'format: "zhinote-daily-hot-cache-snapshot-index"',
+      "Daily hot cache must keep a metadata-only index for overlapping range lookups.",
+    ],
+    [
+      "DAILY_HOT_CACHE_INDEX_KEY",
+      "Daily hot cache overlap reads must use a dedicated local index key.",
+    ],
+    [
+      "scans_local_storage_keys: false",
+      "Daily hot cache index must prove it avoids broad localStorage scans.",
+    ],
+    [
+      "readDailyHotCacheSnapshotIndex(storage)",
+      "Daily hot cache overlap reads must consult the metadata index before opening snapshots.",
+    ],
+    [
+      "writeDailyHotCacheSnapshotIndex(window.localStorage, snapshot, key)",
+      "Daily hot cache writes must refresh the metadata index.",
+    ],
+    [
       "isDailyHotCacheSnapshotPageInRange(page, input.startDate, input.endDate)",
       "Daily hot cache snapshot writes must keep only the requested calendar range.",
     ],
@@ -1820,6 +1840,12 @@ function run() {
       message
     );
   }
+  assertSourceExcludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "storage.key(",
+    "Daily hot cache overlap reads must use the local snapshot index instead of scanning every localStorage key."
+  );
   for (const [snippet, message] of [
     [
       "page.content_text",

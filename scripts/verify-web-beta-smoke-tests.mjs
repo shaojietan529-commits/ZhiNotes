@@ -2111,6 +2111,24 @@ function run() {
   assertIncludes(
     files.dailyHotCacheSnapshot,
     dailyHotCacheSnapshot,
+    'format: "zhinote-daily-hot-cache-snapshot-index"',
+    "Daily hot cache must keep a metadata-only index for overlapping range lookups."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "DAILY_HOT_CACHE_INDEX_KEY",
+    "Daily hot cache overlap reads must use a dedicated local index key."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "scans_local_storage_keys: false",
+    "Daily hot cache index must prove it avoids broad localStorage scans."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
     "enters_sync_log: false",
     "Daily hot cache snapshot must not enter the upload queue."
   );
@@ -2239,6 +2257,23 @@ function run() {
     "readDailyHotCacheSnapshotsForRange",
     "Daily hot cache must expose an overlapping-range reader for faster refresh first paint."
   );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "readDailyHotCacheSnapshotIndex(storage)",
+    "Daily hot cache overlap reads must consult the metadata index before opening snapshots."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "writeDailyHotCacheSnapshotIndex(window.localStorage, snapshot, key)",
+    "Daily hot cache writes must refresh the metadata index."
+  );
+  if (dailyHotCacheSnapshot.includes("storage.key(")) {
+    failures.push(
+      `${files.dailyHotCacheSnapshot} must not call storage.key(: overlapping daily hot-cache reads should use the local snapshot index instead of scanning every localStorage key.`
+    );
+  }
   assertIncludes(
     files.dailyHotCacheSnapshot,
     dailyHotCacheSnapshot,

@@ -2,9 +2,11 @@ import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import type { Page } from "@/lib/utils/types";
 
 const DAILY_HOT_CACHE_PREFIX = "zhinote.daily.hotCacheSnapshot.";
+const DAILY_HOT_CACHE_INDEX_KEY = "zhinote.daily.hotCacheSnapshot.index.v1";
 const DAILY_HOT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const DAILY_HOT_CACHE_MAX_PAGES = 500;
 const DAILY_HOT_CACHE_OVERLAP_MAX_SNAPSHOTS = 6;
+const DAILY_HOT_CACHE_INDEX_MAX_ENTRIES = 120;
 
 type DailyHotCacheSnapshotInputPage = Page & { dailyDateKey?: string };
 
@@ -58,6 +60,34 @@ export interface DailyHotCacheSnapshot {
   pages: DailyHotCacheSnapshotPage[];
 }
 
+interface DailyHotCacheSnapshotIndexEntry {
+  key: string;
+  start_date: string;
+  end_date: string;
+  cached_at: string;
+  source: DailyHotCacheSnapshot["source"];
+  root_id: string | null;
+  pages: number;
+  range_pages: number;
+}
+
+interface DailyHotCacheSnapshotIndex {
+  format: "zhinote-daily-hot-cache-snapshot-index";
+  format_version: 1;
+  route_target: "/daily";
+  architecture_target: "cloud-master-local-hot-cache";
+  updated_at: string;
+  privacy_boundary: string;
+  boundary: DailyHotCacheSnapshot["boundary"] & {
+    scans_local_storage_keys: false;
+  };
+  summary: {
+    entries: number;
+    overlapping_range_lookup: true;
+  };
+  entries: DailyHotCacheSnapshotIndexEntry[];
+}
+
 export function readDailyHotCacheSnapshot(
   startDate: string,
   endDate: string
@@ -84,18 +114,21 @@ export function readDailyHotCacheSnapshotsForRange(
   endDate: string
 ): DailyHotCacheSnapshot[] {
   if (typeof window === "undefined") return [];
-  const snapshots: DailyHotCacheSnapshot[] = [];
   try {
     const storage = window.localStorage;
-    for (let index = 0; index < storage.length; index += 1) {
-      const key = storage.key(index);
-      if (!key?.startsWith(DAILY_HOT_CACHE_PREFIX)) continue;
-      const raw = storage.getItem(key);
+    const index = readDailyHotCacheSnapshotIndex(storage);
+    if (!index) return [];
+
+    const snapshots: DailyHotCacheSnapshot[] = [];
+    for (const entry of index.entries) {
+      if (!rangesOverlap(entry.start_date, entry.end_date, startDate, endDate)) {
+        continue;
+      }
+      const raw = storage.getItem(entry.key);
       if (!raw) continue;
       const parsed = JSON.parse(raw) as Partial<DailyHotCacheSnapshot>;
       if (!isDailyHotCacheSnapshotShape(parsed)) continue;
       if (isExpiredDailyHotCacheSnapshot(parsed)) {
-        storage.removeItem(key);
         continue;
       }
       if (!rangesOverlap(parsed.start_date, parsed.end_date, startDate, endDate)) {
@@ -103,13 +136,13 @@ export function readDailyHotCacheSnapshotsForRange(
       }
       snapshots.push(parsed);
     }
-  } catch {
-    return snapshots;
-  }
 
-  return snapshots
-    .sort((a, b) => b.cached_at.localeCompare(a.cached_at))
-    .slice(0, DAILY_HOT_CACHE_OVERLAP_MAX_SNAPSHOTS);
+    return snapshots
+      .sort((a, b) => b.cached_at.localeCompare(a.cached_at))
+      .slice(0, DAILY_HOT_CACHE_OVERLAP_MAX_SNAPSHOTS);
+  } catch {
+    return [];
+  }
 }
 
 export function writeDailyHotCacheSnapshot(input: {
@@ -169,10 +202,9 @@ export function writeDailyHotCacheSnapshot(input: {
   };
 
   try {
-    window.localStorage.setItem(
-      dailyHotCacheSnapshotKey(input.startDate, input.endDate),
-      JSON.stringify(snapshot)
-    );
+    const key = dailyHotCacheSnapshotKey(input.startDate, input.endDate);
+    window.localStorage.setItem(key, JSON.stringify(snapshot));
+    writeDailyHotCacheSnapshotIndex(window.localStorage, snapshot, key);
     return snapshot;
   } catch {
     return null;
@@ -204,6 +236,97 @@ export function dailyHotCacheSnapshotPageToPage(
 
 function dailyHotCacheSnapshotKey(startDate: string, endDate: string): string {
   return `${DAILY_HOT_CACHE_PREFIX}${startDate}:${endDate}:v1`;
+}
+
+function readDailyHotCacheSnapshotIndex(
+  storage: Storage
+): DailyHotCacheSnapshotIndex | null {
+  try {
+    const raw = storage.getItem(DAILY_HOT_CACHE_INDEX_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<DailyHotCacheSnapshotIndex>;
+    if (!isDailyHotCacheSnapshotIndexShape(parsed)) return null;
+    const entries = parsed.entries
+      .filter(isDailyHotCacheSnapshotIndexEntry)
+      .filter((entry) => !isExpiredDailyHotCacheEntry(entry))
+      .slice(0, DAILY_HOT_CACHE_INDEX_MAX_ENTRIES);
+    return {
+      ...parsed,
+      entries,
+      summary: {
+        entries: entries.length,
+        overlapping_range_lookup: true,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeDailyHotCacheSnapshotIndex(
+  storage: Storage,
+  snapshot: DailyHotCacheSnapshot,
+  key: string
+): void {
+  try {
+    const current = readDailyHotCacheSnapshotIndex(storage);
+    const entries = [
+      toDailyHotCacheSnapshotIndexEntry(snapshot, key),
+      ...(current?.entries ?? []).filter((entry) => entry.key !== key),
+    ]
+      .filter((entry) => !isExpiredDailyHotCacheEntry(entry))
+      .sort((a, b) => b.cached_at.localeCompare(a.cached_at))
+      .slice(0, DAILY_HOT_CACHE_INDEX_MAX_ENTRIES);
+
+    const index: DailyHotCacheSnapshotIndex = {
+      format: "zhinote-daily-hot-cache-snapshot-index",
+      format_version: 1,
+      route_target: "/daily",
+      architecture_target: "cloud-master-local-hot-cache",
+      updated_at: new Date().toISOString(),
+      privacy_boundary:
+        "This index stores only daily hot-cache snapshot keys, date ranges, counts, timestamps, and source labels so /daily can find overlapping browser cache snapshots without scanning every localStorage key. It does not store page bodies, editor state, database row values, comments, files, tokens, or raw cache dumps. It does not enter sync_log and is not a cloud source of truth.",
+      boundary: {
+        reads_page_body_text: false,
+        reads_page_yjs: false,
+        reads_database_row_values: false,
+        reads_comment_bodies: false,
+        reads_file_bytes: false,
+        reads_file_text: false,
+        writes_server_data: false,
+        uploads_workspace_data: false,
+        enters_sync_log: false,
+        stores_source_of_truth: false,
+        records_metadata_only: true,
+        scans_local_storage_keys: false,
+      },
+      summary: {
+        entries: entries.length,
+        overlapping_range_lookup: true,
+      },
+      entries,
+    };
+    storage.setItem(DAILY_HOT_CACHE_INDEX_KEY, JSON.stringify(index));
+  } catch {
+    // The snapshot itself remains usable via its exact key; the index is only a
+    // speed hint for overlapping-range cache lookups.
+  }
+}
+
+function toDailyHotCacheSnapshotIndexEntry(
+  snapshot: DailyHotCacheSnapshot,
+  key: string
+): DailyHotCacheSnapshotIndexEntry {
+  return {
+    key,
+    start_date: snapshot.start_date,
+    end_date: snapshot.end_date,
+    cached_at: snapshot.cached_at,
+    source: snapshot.source,
+    root_id: snapshot.root_id,
+    pages: snapshot.summary.pages,
+    range_pages: snapshot.summary.range_pages,
+  };
 }
 
 function toSnapshotPage(
@@ -292,8 +415,46 @@ function isDailyHotCacheSnapshotShape(
   );
 }
 
+function isDailyHotCacheSnapshotIndexShape(
+  value: Partial<DailyHotCacheSnapshotIndex>
+): value is DailyHotCacheSnapshotIndex {
+  return (
+    value.format === "zhinote-daily-hot-cache-snapshot-index" &&
+    value.format_version === 1 &&
+    value.route_target === "/daily" &&
+    value.architecture_target === "cloud-master-local-hot-cache" &&
+    typeof value.updated_at === "string" &&
+    Array.isArray(value.entries)
+  );
+}
+
+function isDailyHotCacheSnapshotIndexEntry(
+  value: Partial<DailyHotCacheSnapshotIndexEntry>
+): value is DailyHotCacheSnapshotIndexEntry {
+  return (
+    typeof value.key === "string" &&
+    value.key.startsWith(DAILY_HOT_CACHE_PREFIX) &&
+    typeof value.start_date === "string" &&
+    typeof value.end_date === "string" &&
+    typeof value.cached_at === "string" &&
+    typeof value.pages === "number" &&
+    typeof value.range_pages === "number" &&
+    (value.source === "local-metadata" ||
+      value.source === "local-fallback-metadata" ||
+      value.source === "cloud-metadata" ||
+      value.source === "optimistic-local") &&
+    (typeof value.root_id === "string" || value.root_id === null)
+  );
+}
+
 function isExpiredDailyHotCacheSnapshot(
   value: DailyHotCacheSnapshot
+): boolean {
+  return Date.now() - Date.parse(value.cached_at) > DAILY_HOT_CACHE_TTL_MS;
+}
+
+function isExpiredDailyHotCacheEntry(
+  value: Pick<DailyHotCacheSnapshotIndexEntry, "cached_at">
 ): boolean {
   return Date.now() - Date.parse(value.cached_at) > DAILY_HOT_CACHE_TTL_MS;
 }
