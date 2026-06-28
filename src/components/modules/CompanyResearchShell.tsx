@@ -6,11 +6,16 @@ import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import { addRow } from "@/lib/database/cloudDatabaseMutations";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
   buildCompanyCoverageReport,
   getCoverageAreaLabel,
@@ -135,6 +140,8 @@ function CompanyResearchDashboard() {
   const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
     null
   );
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
 
   const openModulePage = useCallback(
     (pageId: string) => {
@@ -228,8 +235,31 @@ function CompanyResearchDashboard() {
     router.push(decision.route);
   };
 
+  const openCreatedCompanyPage = useCallback((page: Page) => {
+    rememberPendingPageDraft(page);
+    rememberPageRouteHandoff(page, "module-create");
+    warmPagePeekModal();
+    setPeekInitialPage(page);
+    setPeekPageId(page.id);
+  }, []);
+
+  const openCompanyFullPageById = useCallback(
+    (pageId: string) => {
+      const page =
+        (peekInitialPage?.id === pageId ? peekInitialPage : null) ??
+        pagesById.get(pageId);
+      if (page) {
+        openPage(page, { source: "module-open" });
+        return;
+      }
+      openPage(pageId, { source: "module-open" });
+    },
+    [openPage, pagesById, peekInitialPage]
+  );
+
   const runStarter = async (starter: ModuleStarter) => {
     setBusyAction(starter.label);
+    warmPagePeekModal();
     try {
       const result = await executeModuleStarter(starter);
       if (result.page) {
@@ -239,7 +269,7 @@ function CompanyResearchDashboard() {
         await refreshDatabases();
       }
       if (result.page) {
-        openPage(result.page, { source: "module-create" });
+        openCreatedCompanyPage(result.page);
       } else {
         router.push(result.route);
       }
@@ -384,8 +414,9 @@ function CompanyResearchDashboard() {
   };
 
   return (
-    <div className="w-full px-6 py-6 lg:px-10">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <>
+      <div className="w-full px-6 py-6 lg:px-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="border-b border-zinc-200 pb-5 dark:border-zinc-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -1034,8 +1065,24 @@ function CompanyResearchDashboard() {
             }))}
           />
         </section>
+        </div>
       </div>
-    </div>
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            openCompanyFullPageById(id);
+          }}
+        />
+      )}
+    </>
   );
 }
 

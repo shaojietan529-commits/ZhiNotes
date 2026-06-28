@@ -13946,6 +13946,60 @@ function run() {
       "Company research module must render page metadata before deferred body hydration.",
     ],
     [
+      files.companyResearchShell,
+      companyResearchShell,
+      "@/components/page/LazyPagePeekModal",
+      "Company research module must lazy-load the page peek editor instead of adding it to first paint.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      "warmPagePeekModal();",
+      "Company research starter actions must warm the peek editor while creating local research assets.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      "const [peekPageId, setPeekPageId] = useState<string | null>(null);",
+      "Company research module must hold a page peek target for same-view editing.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      "const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);",
+      "Company research module must seed newly created pages into the peek before slower hydration.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      "rememberPendingPageDraft(page);",
+      "Company research created pages must keep a short-lived local draft before opening.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      'rememberPageRouteHandoff(page, "module-create");',
+      "Company research created pages must hand off local-first metadata with a module-create source.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      "setPeekInitialPage(page);",
+      "Company research created pages must seed peek metadata before first paint.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      "setPeekPageId(page.id);",
+      "Company research created pages must open in the current-view peek instead of forcing a full route.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      "<PagePeekModal",
+      "Company research module must render the page peek modal for created research pages.",
+    ],
+    [
       files.meetingsShell,
       meetingsShell,
       "deferContent: true",
@@ -14457,7 +14511,7 @@ function run() {
     [files.reportsShell, reportsShell, ['source: "module-create"', 'source: "module-open"']],
     [files.projectsShell, projectsShell, ['source: "module-create"']],
     [files.moduleDashboard, moduleDashboard, ['source: "module-create"']],
-    [files.companyResearchShell, companyResearchShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.companyResearchShell, companyResearchShell, ['"module-create"', 'source: "module-open"']],
     [files.portfolioShell, portfolioShell, ['source: "module-create"', 'source: "module-open"']],
     [files.researchConnectionsPanel, researchConnectionsPanel, ['source: "module-open"']],
     [files.researchGraphShell, researchGraphShell, ['source: "module-create"', 'source: "module-open"']],
@@ -14501,6 +14555,12 @@ function run() {
       );
     }
   }
+  assertSourceExcludes(
+    files.companyResearchShell,
+    companyResearchShell,
+    'openPage(result.page, { source: "module-create" })',
+    "Company research starter-created pages must open in peek immediately, not force a full page route."
+  );
   assertSourceExcludes(
     files.usePage,
     usePage,
