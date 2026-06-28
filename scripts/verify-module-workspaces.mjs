@@ -1072,7 +1072,9 @@ check(
     !shells.schedule.includes("const warmMeetingPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     shells.schedule.includes("prepareMeetingPageOpen") &&
     shells.schedule.includes('import("@/components/providers/PageShell")') &&
-    shells.schedule.includes("onPointerDown={warmMeetingPageRoute}") &&
+    shells.schedule.includes("const primeMeetingEntryPage = useCallback") &&
+    shells.schedule.includes("primeMeetingEntryPage(entry.page)") &&
+    shells.schedule.includes("onPrimeOpen={() => primeMeetingEntryPage(selectedMeeting.page)}") &&
     shells.schedule.includes('importSource: "手动创建"') &&
     shells.schedule.includes("openCreatedMeetingPage") &&
     meetingScheduleOpensCreatedPageRoute &&

@@ -1460,6 +1460,14 @@ export default function MeetingScheduleShell() {
     [prepareMeetingPageOpen]
   );
 
+  const primeMeetingEntryPage = useCallback(
+    (page: Page) => {
+      warmMeetingPeekOpen();
+      warmMeetingPageContent(page);
+    },
+    [warmMeetingPageContent, warmMeetingPeekOpen]
+  );
+
   const handleCreate = useCallback(() => {
     if (creatingMeetingDateKey !== null) return;
     const targetDateKey = form.date || toDateKey(new Date());
@@ -1851,11 +1859,10 @@ export default function MeetingScheduleShell() {
 
   const openMeetingDetail = useCallback(
     (entry: MeetingEntry) => {
-      warmMeetingPageRoute();
-      warmMeetingPageContent(entry.page);
+      primeMeetingEntryPage(entry.page);
       setSelectedMeeting(entry);
     },
-    [warmMeetingPageContent, warmMeetingPageRoute]
+    [primeMeetingEntryPage]
   );
 
   const openMeetingFullPageById = useCallback(
@@ -1938,9 +1945,9 @@ export default function MeetingScheduleShell() {
             <button
               type="button"
               disabled={creatingMeetingDateKey !== null}
-              onPointerEnter={warmMeetingPageRoute}
-              onPointerDown={warmMeetingPageRoute}
-              onFocus={warmMeetingPageRoute}
+              onPointerEnter={warmMeetingPeekOpen}
+              onPointerDown={warmMeetingPeekOpen}
+              onFocus={warmMeetingPeekOpen}
               onClick={() => openForm(toDateKey(new Date()))}
               className="shrink-0 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
@@ -2102,12 +2109,9 @@ export default function MeetingScheduleShell() {
                           });
                         }}
                         className="flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                        onPointerEnter={warmMeetingPageRoute}
+                        onPointerEnter={() => primeMeetingEntryPage(entry.page)}
                         onMouseEnter={() => warmMeetingPageContent(entry.page)}
-                        onFocus={() => {
-                          warmMeetingPageRoute();
-                          warmMeetingPageContent(entry.page);
-                        }}
+                        onFocus={() => primeMeetingEntryPage(entry.page)}
                       >
                         <MeetingStatusBar entry={entry} size="list" />
                         <div className="min-w-0 flex-1">
@@ -2160,8 +2164,9 @@ export default function MeetingScheduleShell() {
                           type="button"
                           onClick={() => openMeetingDetail(entry)}
                           className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-1 text-left"
+                          onPointerEnter={() => primeMeetingEntryPage(entry.page)}
                           onMouseEnter={() => warmMeetingPageContent(entry.page)}
-                          onFocus={() => warmMeetingPageContent(entry.page)}
+                          onFocus={() => primeMeetingEntryPage(entry.page)}
                         >
                           <MeetingStatusBar entry={entry} size="compact" />
                           <span className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">
@@ -2464,12 +2469,9 @@ export default function MeetingScheduleShell() {
                         key={entry.page.id}
                         type="button"
                         data-testid={`meeting-calendar-entry-${entry.page.id}`}
-                        onPointerEnter={warmMeetingPageRoute}
+                        onPointerEnter={() => primeMeetingEntryPage(entry.page)}
                         onMouseEnter={() => warmMeetingPageContent(entry.page)}
-                        onFocus={() => {
-                          warmMeetingPageRoute();
-                          warmMeetingPageContent(entry.page);
-                        }}
+                        onFocus={() => primeMeetingEntryPage(entry.page)}
                         onClick={() => openMeetingDetail(entry)}
                         onContextMenu={(e) => {
                           e.preventDefault();
@@ -2542,12 +2544,9 @@ export default function MeetingScheduleShell() {
                   <li key={entry.page.id}>
                     <button
                       type="button"
-                      onPointerEnter={warmMeetingPageRoute}
+                      onPointerEnter={() => primeMeetingEntryPage(entry.page)}
                       onMouseEnter={() => warmMeetingPageContent(entry.page)}
-                      onFocus={() => {
-                        warmMeetingPageRoute();
-                        warmMeetingPageContent(entry.page);
-                      }}
+                      onFocus={() => primeMeetingEntryPage(entry.page)}
                       onClick={() => openMeetingDetail(entry)}
                       onContextMenu={(e) => {
                         e.preventDefault();
@@ -2601,6 +2600,7 @@ export default function MeetingScheduleShell() {
             setRunNowMessage("");
             setSelectedMeeting(null);
           }}
+          onPrimeOpen={() => primeMeetingEntryPage(selectedMeeting.page)}
           onOpenFull={openMeetingFullPageById}
           onDelete={(id) => void handleDeleteMeeting(id)}
           onStartNow={handleStartRecordingNow}
@@ -3661,6 +3661,7 @@ function MeetingDetailWindow({
   entry,
   runNowMessage,
   onClose,
+  onPrimeOpen,
   onOpenFull,
   onDelete,
   onStartNow,
@@ -3668,6 +3669,7 @@ function MeetingDetailWindow({
   entry: MeetingEntry;
   runNowMessage: string;
   onClose: () => void;
+  onPrimeOpen: () => void;
   onOpenFull: (pageId: string) => void;
   onDelete: (pageId: string) => void;
   onStartNow: (entry: MeetingEntry) => Promise<void>;
@@ -3768,6 +3770,9 @@ function MeetingDetailWindow({
           </button>
           <button
             type="button"
+            onPointerEnter={onPrimeOpen}
+            onPointerDown={onPrimeOpen}
+            onFocus={onPrimeOpen}
             onClick={() => onOpenFull(entry.page.id)}
             className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >

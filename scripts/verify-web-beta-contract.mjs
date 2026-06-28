@@ -3945,16 +3945,28 @@ function run() {
       "Meeting schedule must preload the page shell without importing the heavy editor bundle during first paint.",
     ],
     [
-      "onPointerEnter={warmMeetingPageRoute}",
-      "Meeting schedule controls must warm the page shell on pointer intent before navigation.",
+      "onPointerEnter={warmMeetingPeekOpen}",
+      "Meeting schedule controls must warm the page shell and peek editor on pointer intent before navigation.",
     ],
     [
-      "onPointerDown={warmMeetingPageRoute}",
-      "Meeting schedule creation/import controls must warm the page shell even on fast clicks.",
+      "onPointerDown={warmMeetingPeekOpen}",
+      "Meeting schedule creation/import controls must warm the page shell and peek editor even on fast clicks.",
     ],
     [
-      "onFocus={warmMeetingPageRoute}",
-      "Meeting schedule controls must warm the page shell for keyboard users before navigation.",
+      "onFocus={warmMeetingPeekOpen}",
+      "Meeting schedule controls must warm the page shell and peek editor for keyboard users before navigation.",
+    ],
+    [
+      "const primeMeetingEntryPage = useCallback",
+      "Meeting schedule must reuse a single meeting-entry open warmup helper.",
+    ],
+    [
+      "primeMeetingEntryPage(entry.page)",
+      "Meeting entry buttons must prime the selected page body and peek editor before opening details.",
+    ],
+    [
+      "onPrimeOpen={() => primeMeetingEntryPage(selectedMeeting.page)}",
+      "Meeting detail window must prime the selected page before opening the full page.",
     ],
     [
       "openCreatedMeetingPage(result.page)",

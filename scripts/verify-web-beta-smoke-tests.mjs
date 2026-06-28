@@ -4392,8 +4392,26 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "onPointerDown={warmMeetingPageRoute}",
-    "Meeting create/import controls must warm the page shell even on fast clicks."
+    "onPointerDown={warmMeetingPeekOpen}",
+    "Meeting create/import controls must warm the page shell and peek editor even on fast clicks."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "const primeMeetingEntryPage = useCallback",
+    "Meeting schedule must reuse one meeting-entry page warmup helper."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "primeMeetingEntryPage(entry.page)",
+    "Meeting entry clicks must prime page metadata/body and the peek editor before opening details."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "onPrimeOpen={() => primeMeetingEntryPage(selectedMeeting.page)}",
+    "Meeting detail full-page open must prime the selected page before navigation."
   );
   assertIncludes(
     files.meetingScheduleShell,
