@@ -2855,8 +2855,12 @@ function run() {
   );
   for (const [snippet, message] of [
     [
-      "@/components/page/PagePeekModal",
-      "Daily calendar must keep the peek modal ready so + opens the new page without waiting for a lazy modal chunk.",
+      "@/components/page/LazyPagePeekModal",
+      "Daily calendar must lazy-load the peek modal so the first paint does not include the page editor shell.",
+    ],
+    [
+      "warmPagePeekModal();",
+      "Daily calendar must warm the lazy peek modal on pointer or keyboard intent so + still opens quickly.",
     ],
     [
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",

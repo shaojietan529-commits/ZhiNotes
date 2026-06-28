@@ -125,6 +125,8 @@ for (const token of [
   'router.prefetch("/page/zhinote-route-prefetch")',
   "const pageRoute = `/page/${optimisticNote.id}`",
   "router.prefetch(pageRoute)",
+  "@/components/page/LazyPagePeekModal",
+  "warmPagePeekModal();",
   "setPeekInitialPage(optimisticNote)",
   "setPeekPageId(optimisticNote.id)",
   "<PagePeekModal",
@@ -618,7 +620,9 @@ check(
   "DailyNotesShell 后台保存每日纪要必须先写本地可重建缓存和 pending queue 记录，再让账号同步后台上传"
 );
 check(
-  shells.daily.includes("@/components/page/PagePeekModal") &&
+  shells.daily.includes("@/components/page/LazyPagePeekModal") &&
+    shells.daily.includes("warmPagePeekModal();") &&
+    !shells.daily.includes("@/components/page/PagePeekModal") &&
     pagePeekModal.includes('dynamic(() => import("@/components/editor/Editor")') &&
     pagePeekModal.includes("readPendingPageDraft(pageId)") &&
     pagePeekModal.includes("readPageRouteHandoff(pageId)") &&
@@ -635,7 +639,7 @@ check(
     !shells.daily.includes("fetchCloudPageById") &&
     !shells.daily.includes("scheduleDailyPeekPreload") &&
     !shells.daily.includes('import("@/components/editor/Editor")'),
-  "DailyNotesShell 应通过 PagePeekModal 的动态编辑器和本地壳打开纪要，保证日历打开路径不预拉正文"
+  "DailyNotesShell 应通过懒加载 PagePeekModal、动态编辑器和本地壳打开纪要，保证日历打开路径不预拉正文"
 );
 check(
   shells.daily.includes("const visibleLimit = isExpanded") &&

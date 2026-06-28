@@ -77,7 +77,9 @@ import {
   type PageProperty,
 } from "@/lib/pages/pageProperties";
 import PageContextMenu from "@/components/page/PageContextMenu";
-import PagePeekModal from "@/components/page/PagePeekModal";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import type { Page } from "@/lib/utils/types";
 
@@ -409,6 +411,7 @@ export default function MeetingScheduleShell() {
   }, [dbReady]);
 
   const warmMeetingPageRoute = useCallback(() => {
+    warmPagePeekModal();
     try {
       router.prefetch("/page/zhinote-route-prefetch");
     } catch {

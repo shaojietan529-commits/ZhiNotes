@@ -799,6 +799,9 @@ check(
 );
 check(
   meetingScheduleShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
+    meetingScheduleShell.includes("@/components/page/LazyPagePeekModal") &&
+    meetingScheduleShell.includes("warmPagePeekModal();") &&
+    !meetingScheduleShell.includes("@/components/page/PagePeekModal") &&
     meetingScheduleShell.includes("creatingMeetingDateKey") &&
     meetingScheduleShell.includes('importSource: "手动创建"') &&
     meetingScheduleOpensCreatedPageRoute &&
@@ -1344,8 +1347,9 @@ check(
     lazyPagePeekModal.includes("export function warmPagePeekModal()") &&
     lazyPagePeekModal.includes('import("@/components/page/PagePeekModal")') &&
     lazyPagePeekModal.includes("dynamic(loadPagePeekModal") &&
-    dailyNotesShell.includes('@/components/page/PagePeekModal') &&
-    !dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
+    dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
+    dailyNotesShell.includes("warmPagePeekModal();") &&
+    !dailyNotesShell.includes('@/components/page/PagePeekModal') &&
     dailyNotesShell.includes("setPeekPageId(note.id)") &&
     dailyNotesShell.includes("const [openingNoteId, setOpeningNoteId]") &&
     dailyNotesShell.includes("setOpeningNoteId(note.id);") &&
@@ -1374,7 +1378,7 @@ check(
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal') &&
     knowledgeBaseShell.includes("warmPagePeekModal();") &&
     knowledgeBaseShell.includes("onPrimeOpen={warmPagePeekModal}"),
-  "每日纪要 + 应直接弹出新页面并快速释放按钮；已有纪要仍可直接加载页面弹窗壳预览；知识库仍可懒加载弹窗"
+  "每日纪要 + 应直接弹出新页面并快速释放按钮；已有纪要和知识库都必须懒加载页面弹窗，避免拖慢日历首屏"
 );
 
 const localQueries = read("src/lib/db/local/queries.ts");
