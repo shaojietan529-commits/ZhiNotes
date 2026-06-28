@@ -1467,6 +1467,10 @@ check(
     lazyPagePeekModal.includes("readLocalFirstLoadingSeed") &&
     lazyPagePeekModal.includes("readPendingPageDraft(pageId)") &&
     lazyPagePeekModal.includes("readPageRouteHandoff(pageId)") &&
+    lazyPagePeekModal.includes("onReady?.(pageId)") &&
+    lazyPagePeekModal.includes('status: seed ? "local-shell-ready" : "local-shell-loading"') &&
+    lazyPagePeekModal.includes("新纪要已在本机创建，完整编辑器正在载入。") &&
+    lazyPagePeekModal.includes("打开完整页面继续编辑 ↗") &&
     lazyPagePeekModal.includes("已先显示本地页面信息") &&
     dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
     dailyNotesShell.includes("warmPagePeekModal();") &&

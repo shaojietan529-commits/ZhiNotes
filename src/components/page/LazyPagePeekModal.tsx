@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { PagePeekModalProps } from "@/components/page/PagePeekModal";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import {
+  getLocalPerformanceNow,
+  recordLocalPerformanceSnapshot,
+} from "@/lib/performance/localPerformance";
 import { readPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { readPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { parsePageProperties } from "@/lib/pages/pageProperties";
@@ -85,13 +89,47 @@ function LocalFirstPeekLoadingShell({
   initialPage,
   onClose,
   onOpenFull,
+  onReady,
 }: PagePeekModalProps) {
+  const openedAtRef = useRef(getLocalPerformanceNow());
+  const openedAtIsoRef = useRef(new Date().toISOString());
+  const readyNotifiedRef = useRef<string | null>(null);
   const seed = useMemo(
     () => readLocalFirstLoadingSeed(pageId, initialPage),
     [initialPage, pageId]
   );
   const title = seed ? displayPageTitle(seed.title) : "正在打开页面";
   const propertyCount = seed ? parsePageProperties(seed.properties).length : 0;
+  const isOptimisticDraft = seed?.content_text === "";
+
+  useEffect(() => {
+    openedAtRef.current = getLocalPerformanceNow();
+    openedAtIsoRef.current = new Date().toISOString();
+    readyNotifiedRef.current = null;
+  }, [pageId]);
+
+  useEffect(() => {
+    if (readyNotifiedRef.current === pageId) return;
+    readyNotifiedRef.current = pageId;
+    onReady?.(pageId);
+    const durationMs = getLocalPerformanceNow() - openedAtRef.current;
+    recordLocalPerformanceSnapshot({
+      kind: "page-peek",
+      label: "页面预览本地壳",
+      route: "/page/[pageId]#peek",
+      status: seed ? "local-shell-ready" : "local-shell-loading",
+      startedAt: openedAtIsoRef.current,
+      durationMs,
+      localFirstMs: durationMs,
+      backgroundMs: 0,
+      counts: {
+        local_shell: 1,
+        has_seed: seed ? 1 : 0,
+        optimistic_draft: isOptimisticDraft ? 1 : 0,
+        property_count: propertyCount,
+      },
+    });
+  }, [isOptimisticDraft, onReady, pageId, propertyCount, seed]);
 
   return (
     <div
@@ -141,8 +179,24 @@ function LocalFirstPeekLoadingShell({
               </div>
             </div>
             <div className="mb-8 rounded border border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/40">
-              完整编辑器正在载入，页面标题和属性会先保持可见。
+              {isOptimisticDraft
+                ? "新纪要已在本机创建，完整编辑器正在载入。"
+                : "完整编辑器正在载入，页面标题和属性会先保持可见。"}
             </div>
+            {isOptimisticDraft ? (
+              <div className="mb-6 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenFull(pageId)}
+                  className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                >
+                  打开完整页面继续编辑 ↗
+                </button>
+                <span className="text-xs text-zinc-400">
+                  弹窗编辑器会继续在后台准备。
+                </span>
+              </div>
+            ) : null}
             <div className="space-y-3">
               <div className="h-3 w-full max-w-2xl rounded bg-zinc-100 dark:bg-zinc-800" />
               <div className="h-3 w-10/12 max-w-2xl rounded bg-zinc-100 dark:bg-zinc-800" />

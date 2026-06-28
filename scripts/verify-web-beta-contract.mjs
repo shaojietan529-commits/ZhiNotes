@@ -3639,6 +3639,22 @@ function run() {
       "已先显示本地页面信息",
       "Lazy peek modal fallback must visibly confirm local metadata is already shown.",
     ],
+    [
+      "onReady?.(pageId)",
+      "Lazy peek modal fallback must clear parent opening state as soon as the local shell is visible.",
+    ],
+    [
+      'status: seed ? "local-shell-ready" : "local-shell-loading"',
+      "Lazy peek modal fallback must record local-shell readiness for fluency diagnosis.",
+    ],
+    [
+      "新纪要已在本机创建，完整编辑器正在载入。",
+      "Lazy peek modal fallback must reassure users that a new daily draft exists locally while the editor loads.",
+    ],
+    [
+      "打开完整页面继续编辑 ↗",
+      "Lazy peek modal fallback must provide a clear full-page escape hatch for slow editor chunk loads.",
+    ],
   ]) {
     assertSourceIncludes(
       files.lazyPagePeekModal,
