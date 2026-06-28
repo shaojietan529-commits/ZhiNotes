@@ -521,6 +521,12 @@ check(
     quickSearchSource.includes('await import("@/lib/database/cloudDatabaseMutations")') &&
     pageTreeSource.includes('await import("@/lib/pages/cloudPageMutations")') &&
     shells.daily.includes('await import(\n        "@/lib/pages/cloudPageMutations"') &&
+    shells.knowledge.includes(
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")'
+    ) &&
+    shells.chain.includes(
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")'
+    ) &&
     shells.schedule.includes(
       'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")'
     ) &&
@@ -533,6 +539,8 @@ check(
     !quickSearchSource.includes('from "@/lib/database/cloudDatabaseMutations"') &&
     !pageTreeSource.includes('from "@/lib/pages/cloudPageMutations"') &&
     !shells.daily.includes('from "@/lib/pages/cloudPageMutations"') &&
+    !shells.knowledge.includes('from "@/lib/pages/cloudPageMutations"') &&
+    !shells.chain.includes('from "@/lib/pages/cloudPageMutations"') &&
     !shells.schedule.includes('from "@/lib/pages/cloudPageMutations"') &&
     !shells.schedule.includes('from "@/lib/pages/accountPageSync"') &&
     sidebarSource.includes('openPage(page, { source: "sidebar-create" })') &&
@@ -698,6 +706,10 @@ check(
     shells.knowledge.includes("mergeScopedPages([page])") &&
     shells.knowledge.includes("mergeScopedPages([updatedLinkPage ?? linkPage])") &&
     shells.knowledge.includes("onChanged={() => void loadScopedPages()}") &&
+    shells.knowledge.includes(
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")'
+    ) &&
+    !shells.knowledge.includes('from "@/lib/pages/cloudPageMutations"') &&
     !shells.knowledge.includes('from "@/hooks/usePages"') &&
     !shells.knowledge.includes("usePages(") &&
     !shells.knowledge.includes("await refresh()"),
@@ -719,6 +731,10 @@ check(
     shells.chain.includes("mergeScopedPages([child])") &&
     shells.chain.includes("mergeScopedPages([updatedLinkPage ?? linkPage])") &&
     shells.chain.includes("onChanged={() => void loadScopedPages()}") &&
+    shells.chain.includes(
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")'
+    ) &&
+    !shells.chain.includes('from "@/lib/pages/cloudPageMutations"') &&
     !shells.chain.includes('from "@/hooks/usePages"') &&
     !shells.chain.includes("usePages(") &&
     !shells.chain.includes("await refresh()"),

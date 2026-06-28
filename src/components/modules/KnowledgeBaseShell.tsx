@@ -15,11 +15,6 @@ import {
   getNextPosition,
   updateWikiLinks,
 } from "@/lib/db/local/queries";
-import {
-  createPageWithCloud,
-  movePageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
 import { getModuleRootId } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
@@ -42,6 +37,8 @@ import {
   mergePageMetadata,
 } from "@/lib/pages/scopedPageMetadata";
 import type { Page } from "@/lib/utils/types";
+
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 
 const IMPORT_ACCEPT = [
   ".html",
@@ -197,6 +194,7 @@ export default function KnowledgeBaseShell() {
   // in the peek modal shows a 新页面 placeholder to type straight into.
   const addCard = useCallback(async () => {
     if (!rootId) return;
+    const { createPageWithCloud } = await loadPageMutationModule();
     const page = await createPageWithCloud({ parentId: rootId });
     mergeScopedPages([page]);
     warmPagePeekModal();
@@ -205,6 +203,7 @@ export default function KnowledgeBaseShell() {
 
   const renameCard = useCallback(
     async (id: string, title: string) => {
+      const { updatePageWithCloud } = await loadPageMutationModule();
       const updated = await updatePageWithCloud(id, { title });
       if (updated) mergeScopedPages([updated]);
     },
@@ -228,6 +227,8 @@ export default function KnowledgeBaseShell() {
         return;
       }
 
+      const { createPageWithCloud, updatePageWithCloud } =
+        await loadPageMutationModule();
       const linkPage = await createPageWithCloud({
         parentId,
         title: displayPageTitle(industryLinkCard.title),
@@ -260,6 +261,8 @@ export default function KnowledgeBaseShell() {
       let imported = 0;
       const importedPages: Page[] = [];
       try {
+        const { createPageWithCloud, updatePageWithCloud } =
+          await loadPageMutationModule();
         for (const file of Array.from(fileList)) {
           const stored = await savePageFile(file);
           const page = await createPageWithCloud({
@@ -310,6 +313,7 @@ export default function KnowledgeBaseShell() {
     const prevPosition = draggedPage?.position ?? 0;
 
     try {
+      const { movePageWithCloud } = await loadPageMutationModule();
       let newParentId: string;
       let newPosition: number;
       if (spot.position === "inside") {
@@ -351,6 +355,7 @@ export default function KnowledgeBaseShell() {
     const record = popPageMove();
     if (!record) return;
     try {
+      const { movePageWithCloud } = await loadPageMutationModule();
       const moved = await movePageWithCloud(
         record.pageId,
         record.fromParentId!,

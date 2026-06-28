@@ -18,10 +18,6 @@ import PageImportPlanPanel from "@/components/modules/PageImportPlanPanel";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import {
-  createPageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
-import {
   appendFilePreviewActionReceipt,
   buildFilePreviewActionReceipt,
 } from "@/lib/files/filePreviewActionReceipts";
@@ -78,6 +74,8 @@ import {
 import { buildReportReviewQueue } from "@/lib/reports/reportReviewQueue";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
+
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 
 export default function FilesShell() {
   return (
@@ -458,6 +456,8 @@ function FilesDashboard() {
   };
 
   const createFileLibraryPageFromStoredFile = async (storedFile: StoredPageFile) => {
+    const { createPageWithCloud, updatePageWithCloud } =
+      await loadPageMutationModule();
     const page = await createPageWithCloud({
       title: buildFileLibraryPageTitle(storedFile),
       icon: "FILE",

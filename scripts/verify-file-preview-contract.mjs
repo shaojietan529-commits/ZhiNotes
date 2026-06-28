@@ -1652,6 +1652,17 @@ function run() {
     "Files module must load full file payload only for a specific local-file action."
   );
   assertIncludes(
+    files.filesShell,
+    filesShell,
+    'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+    "Files module must lazy-load page mutation code only after local-file page creation intent."
+  );
+  if (filesShell.includes('from "@/lib/pages/cloudPageMutations"')) {
+    fail(
+      `${files.filesShell} must not include static cloudPageMutations imports: Files module page mutation code must stay out of the file workbench first paint bundle.`
+    );
+  }
+  assertIncludes(
     files.fileLibrary,
     fileLibrary,
     "type StoredPageFileMetadata",

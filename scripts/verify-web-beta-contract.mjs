@@ -14199,6 +14199,24 @@ function run() {
       "Meeting schedule cloud sync helpers must lazy-load after local/hot-cache first paint.",
     ],
     [
+      files.filesShell,
+      filesShell,
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+      "Files module page creation must lazy-load page mutations only after file-page creation intent.",
+    ],
+    [
+      files.knowledgeBaseShell,
+      knowledgeBaseShell,
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+      "Knowledge base page mutations must lazy-load after board create/move/import intent.",
+    ],
+    [
+      files.industryChainShell,
+      industryChainShell,
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+      "Industry chain page mutations must lazy-load after tree create/link intent.",
+    ],
+    [
       files.knowledgeBaseShell,
       knowledgeBaseShell,
       "const pagesById = useWorkspaceStore((s) => s.pagesById)",
@@ -15166,6 +15184,24 @@ function run() {
       meetingScheduleShell,
       'from "@/lib/pages/accountPageSync"',
       "Meeting schedule account sync code must stay out of the calendar first paint bundle.",
+    ],
+    [
+      files.filesShell,
+      filesShell,
+      'from "@/lib/pages/cloudPageMutations"',
+      "Files module page mutation code must stay out of the file workbench first paint bundle.",
+    ],
+    [
+      files.knowledgeBaseShell,
+      knowledgeBaseShell,
+      'from "@/lib/pages/cloudPageMutations"',
+      "Knowledge base page mutation code must stay out of the board first paint bundle.",
+    ],
+    [
+      files.industryChainShell,
+      industryChainShell,
+      'from "@/lib/pages/cloudPageMutations"',
+      "Industry chain page mutation code must stay out of the tree first paint bundle.",
     ],
   ]) {
     assertSourceExcludes(sourceLabel, source, forbiddenSnippet, message);

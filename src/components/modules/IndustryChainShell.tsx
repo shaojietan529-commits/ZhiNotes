@@ -8,10 +8,6 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { updateWikiLinks } from "@/lib/db/local/queries";
-import {
-  createPageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
 import { getModuleRootId } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
@@ -30,6 +26,8 @@ import {
   mergePageMetadata,
 } from "@/lib/pages/scopedPageMetadata";
 import type { Page } from "@/lib/utils/types";
+
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 
 // A rotating palette so each top-level sector reads as its own color family.
 // The same hue cascades down its descendants, so the eye can trace a branch
@@ -178,6 +176,7 @@ export default function IndustryChainShell() {
   const addChild = useCallback(
     async (parentId: string, navigate: boolean) => {
       if (navigate) warmPagePeekModal();
+      const { createPageWithCloud } = await loadPageMutationModule();
       const child = await createPageWithCloud({
         parentId,
         title: "未命名分类",
@@ -196,6 +195,7 @@ export default function IndustryChainShell() {
 
   const renameNode = useCallback(
     async (id: string, title: string) => {
+      const { updatePageWithCloud } = await loadPageMutationModule();
       const updated = await updatePageWithCloud(id, { title });
       if (updated) mergeScopedPages([updated]);
     },
@@ -221,6 +221,8 @@ export default function IndustryChainShell() {
         return;
       }
 
+      const { createPageWithCloud, updatePageWithCloud } =
+        await loadPageMutationModule();
       const linkPage = await createPageWithCloud({
         parentId: companyLinkParentId,
         title: displayPageTitle(companyPage.title),
