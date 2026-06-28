@@ -74,9 +74,7 @@ import {
 import { useCalendarViewMonthPreference } from "@/hooks/useCalendarViewMonthPreference";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import PageContextMenu from "@/components/page/PageContextMenu";
-import PagePeekModal, {
-  warmPagePeekModal,
-} from "@/components/page/LazyPagePeekModal";
+import PagePeekModal from "@/components/page/PagePeekModal";
 import type { Page } from "@/lib/utils/types";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -238,7 +236,6 @@ export default function DailyNotesShell() {
     } catch {
       // Prefetch only improves perceived speed; it should never block the page.
     }
-    warmPagePeekModal();
     if (!pageShellWarmupRef.current) {
       pageShellWarmupRef.current = import("@/components/providers/PageShell").catch(
         () => {
@@ -779,6 +776,9 @@ export default function DailyNotesShell() {
         ...current.filter((item) => item.id !== optimisticNote.id),
       ]);
       upsertPages([optimisticNote]);
+      setPeekInitialPage(optimisticNote);
+      setOpeningNoteId(optimisticNote.id);
+      setPeekPageId(optimisticNote.id);
       writeOptimisticDailyHotCache({
         note: optimisticNote,
         currentNotes: collectVisibleDailyNotesForHotCache(notesByDate),
@@ -800,8 +800,7 @@ export default function DailyNotesShell() {
         // Route prefetch is best-effort. The local draft and route handoff
         // already give the full page enough metadata for immediate first paint.
       }
-      setCloudNotice(`${dateKey} 的每日纪要已打开，后台会加入账号云端上传队列…`);
-      openPage(optimisticNote, { source: "daily-create" });
+      setCloudNotice(`${dateKey} 的每日纪要已弹出，后台会加入账号云端上传队列…`);
       scheduleDailyIdleTask(() => {
         void (async () => {
           try {
@@ -854,7 +853,6 @@ export default function DailyNotesShell() {
       creatingDateKey,
       notesByDate,
       rootId,
-      openPage,
       router,
       upsertPages,
       viewMonth,
@@ -865,7 +863,6 @@ export default function DailyNotesShell() {
   const primeDailyNoteOpen = useCallback(
     (note: DailyNote, source: "daily-create" | "daily-open" = "daily-open") => {
       warmPageRoute();
-      warmPagePeekModal();
       upsertPages([note]);
       rememberPendingPageDraft(note);
       rememberPageRouteHandoff(note, source);

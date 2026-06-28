@@ -554,8 +554,12 @@ function run() {
       "Daily notes must keep a local-first opener ready before create/open actions.",
     ],
     [
-      'openPage(optimisticNote, { source: "daily-create" });',
-      "Daily note creation must open the optimistic page immediately, before cloud persistence finishes.",
+      "setPeekInitialPage(optimisticNote);",
+      "Daily note creation must seed the optimistic page into the peek modal before cloud persistence finishes.",
+    ],
+    [
+      "setPeekPageId(optimisticNote.id);",
+      "Daily note creation must open the optimistic page in the same-page peek modal immediately.",
     ],
     [
       "openPage(note, { source });",
@@ -569,6 +573,10 @@ function run() {
     assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }
   for (const [snippet, message] of [
+    [
+      'openPage(optimisticNote, { source: "daily-create" });',
+      "Daily note creation must not route to the full page before the peek editor can appear.",
+    ],
     [
       "router.push(pageRoute);",
       "Daily note creation must not wait on a page route push path after optimistic create.",
@@ -3549,14 +3557,8 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "@/components/page/LazyPagePeekModal",
-    "Daily calendar must lazy-load the heavy page peek modal instead of bundling it into first paint."
-  );
-  assertIncludes(
-    files.dailyNotesShell,
-    dailyNotesShell,
-    "warmPagePeekModal();",
-    "Daily calendar must prewarm the lazy peek modal on pointer/open intent."
+    "@/components/page/PagePeekModal",
+    "Daily calendar must keep the peek modal ready so + opens the new page without waiting for a lazy modal chunk."
   );
   assertIncludes(
     files.dailyNotesShell,
@@ -3643,21 +3645,22 @@ function run() {
     );
   }
   for (const snippet of [
-    'openPage(optimisticNote, { source: "daily-create" })',
-    "每日纪要已打开",
+    "setPeekInitialPage(optimisticNote);",
+    "setPeekPageId(optimisticNote.id);",
+    "每日纪要已弹出",
   ]) {
     assertIncludes(
       files.dailyNotesShell,
       dailyNotesShell,
       snippet,
-      "Daily + creation must enter the full page immediately after optimistic local seeding."
+      "Daily + creation must open the same-page peek editor immediately after optimistic local seeding."
     );
   }
-  assertIncludes(
+  assertExcludes(
     files.dailyNotesShell,
     dailyNotesShell,
     'openPage(optimisticNote, { source: "daily-create" })',
-    "Daily + creation must route directly into the new page."
+    "Daily + creation must not route directly into the full page before the peek editor opens."
   );
   assertIncludes(
     files.dailyNotesShell,
