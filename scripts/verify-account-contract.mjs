@@ -679,14 +679,16 @@ check(
     ) &&
     dailyNotesShell.indexOf("writeOptimisticDailyHotCache") <
       dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
-    dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
-      dailyNotesShell.indexOf('openPage(optimisticNote, { source: "daily-create" })') &&
-    dailyNotesShell.indexOf('openPage(optimisticNote, { source: "daily-create" })') <
+    dailyNotesShell.indexOf("setPeekInitialPage(optimisticNote);") <
+      dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id);") &&
+    dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id);") <
       dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
     dailyNotesShell.includes("useLocalFirstPageNavigation") &&
     dailyNotesShell.includes("const pageRoute = `/page/${optimisticNote.id}`") &&
     dailyNotesShell.includes("router.prefetch(pageRoute)") &&
-    dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
+    dailyNotesShell.includes("setPeekInitialPage(optimisticNote);") &&
+    dailyNotesShell.includes("setPeekPageId(optimisticNote.id);") &&
+    !dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
     dailyNotesShell.includes("setOpeningDraft({ pageId: optimisticNote.id, dateKey })") &&
     dailyNotesShell.includes("data-testid={`daily-opening-note-${key}`}") &&
     dailyNotesShell.includes("title: dateKey") &&
@@ -702,7 +704,7 @@ check(
     dailyNotesShell.includes("return queueDailyCloudRecords(records)") &&
     dailyNotesShell.includes("queueCloudPagePush(record)") &&
     !dailyNotesShell.includes("createPageWithCloud"),
-  "DailyNotesShell 点击 + 应立即进入乐观草稿完整页面，后台加入云端上传队列；已有纪要仍可用 peek 预览，完整页打开仍走本地优先"
+  "DailyNotesShell 点击 + 应立即弹出乐观草稿 peek 页面，后台加入云端上传队列；已有纪要仍可用 peek 预览，完整页打开仍走本地优先"
 );
 check(
   dailyNotesShell.includes("expandedDateKeys") &&
@@ -801,7 +803,11 @@ check(
     meetingScheduleShell.includes("router.prefetch(pageRoute)") &&
     meetingScheduleShell.includes("useLocalFirstPageNavigation") &&
     meetingScheduleShell.includes("prepareMeetingPageOpen") &&
-    meetingScheduleShell.includes('openPage(page, { source: "meeting-create" })') &&
+    meetingScheduleShell.includes("setPeekInitialPage(page)") &&
+    meetingScheduleShell.includes("setPeekPageId(page.id)") &&
+    meetingScheduleShell.includes("<PagePeekModal") &&
+    meetingScheduleShell.includes("initialPage={peekInitialPage}") &&
+    !meetingScheduleShell.includes('openPage(page, { source: "meeting-create" })') &&
     meetingScheduleShell.includes('prepareMeetingPageOpen(page, "meeting-create")') &&
     meetingScheduleShell.includes("prepareMeetingPageOpen(page, source)") &&
     meetingScheduleShell.includes("const seededPage = getMeetingPageOpenSeed(page)") &&
@@ -810,12 +816,10 @@ check(
     meetingScheduleShell.includes("const warmMeetingPageContent = useCallback") &&
     meetingScheduleShell.includes("onMouseEnter={() => warmMeetingPageContent(entry.page)}") &&
     meetingScheduleShell.includes("const openMeetingDetail = useCallback") &&
-    meetingScheduleShell.indexOf("const pageRoute = `/page/${") <
-      meetingScheduleShell.indexOf(
-        'openPage(page, { source: "meeting-create" })'
-      ) &&
+    meetingScheduleShell.indexOf("prepareMeetingPageOpen(page, \"meeting-create\")") <
+      meetingScheduleShell.indexOf("setPeekPageId(page.id)") &&
     meetingScheduleShell.includes("后台会继续保存到账号云端"),
-  "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后直接进入完整会议页面并后台同步"
+  "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后弹出同页会议页面并后台同步；完整页入口仍走本地优先"
 );
 check(
   meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&
@@ -1329,7 +1333,7 @@ check(
     pagePeekModal.includes("setMountedEditorPageId(pageId)") &&
     pagePeekModal.includes("childPagesEnabled") &&
     pagePeekModal.includes("PeekEditorSkeleton"),
-  "PagePeekModal 应动态加载、让新建空白草稿即时进入编辑器，并推迟子页面查询，避免点击 + 时被编辑器初始化或本地索引查询阻塞"
+  "PagePeekModal 应让新建空白草稿即时进入编辑器，并推迟子页面查询，避免点击 + 时被编辑器初始化或本地索引查询阻塞"
 );
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");
@@ -1338,8 +1342,8 @@ check(
     lazyPagePeekModal.includes("export function warmPagePeekModal()") &&
     lazyPagePeekModal.includes('import("@/components/page/PagePeekModal")') &&
     lazyPagePeekModal.includes("dynamic(loadPagePeekModal") &&
-    dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
-    dailyNotesShell.includes("warmPagePeekModal();") &&
+    dailyNotesShell.includes('@/components/page/PagePeekModal') &&
+    !dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
     dailyNotesShell.includes("setPeekPageId(note.id)") &&
     dailyNotesShell.includes("const [openingNoteId, setOpeningNoteId]") &&
     dailyNotesShell.includes("setOpeningNoteId(note.id);") &&
@@ -1361,13 +1365,14 @@ check(
     dailyNotesShell.includes("window.setTimeout(() =>") &&
     dailyNotesShell.includes("current === dateKey ? null : current") &&
     !dailyNotesShell.includes("fetchCloudPageById") &&
-    dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
+    dailyNotesShell.includes("setPeekPageId(optimisticNote.id);") &&
+    !dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
     dailyNotesShell.includes("openDailyNoteFullPageById") &&
     dailyNotesShell.includes("openDailyNoteFullPage(note, \"daily-open\")") &&
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal') &&
     knowledgeBaseShell.includes("warmPagePeekModal();") &&
     knowledgeBaseShell.includes("onPrimeOpen={warmPagePeekModal}"),
-  "每日纪要 + 应直接进入新页面并快速释放按钮；已有纪要仍可直接加载页面弹窗壳预览；知识库仍可懒加载弹窗"
+  "每日纪要 + 应直接弹出新页面并快速释放按钮；已有纪要仍可直接加载页面弹窗壳预览；知识库仍可懒加载弹窗"
 );
 
 const localQueries = read("src/lib/db/local/queries.ts");

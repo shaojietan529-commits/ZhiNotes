@@ -3192,7 +3192,7 @@ function run() {
     ],
     [
       "openCreatedMeetingPage",
-      "Meeting manual create and invite import must share the same local-first page opening path.",
+      "Meeting manual create and invite import must share the same same-page peek opening path.",
     ],
     [
       "prepareMeetingPageOpen",
@@ -3203,8 +3203,20 @@ function run() {
       "Meeting full-page openings must use the shared local-first page navigation path.",
     ],
     [
-      'openPage(page, { source: "meeting-create" })',
-      "Meeting creation must open through local-first navigation after handing off the optimistic page.",
+      "setPeekInitialPage(page)",
+      "Meeting creation must seed the optimistic page into the same-page peek modal.",
+    ],
+    [
+      "setPeekPageId(page.id)",
+      "Meeting creation must open the same-page peek editor after handing off the optimistic page.",
+    ],
+    [
+      "<PagePeekModal",
+      "Meeting schedule must render a same-page peek editor for newly created meetings.",
+    ],
+    [
+      "initialPage={peekInitialPage}",
+      "Meeting schedule must pass the optimistic page into the peek editor for immediate first paint.",
     ],
     [
       "openPage(page, { source })",
@@ -3308,7 +3320,7 @@ function run() {
     ],
     [
       "openCreatedMeetingPage(result.page)",
-      "Meeting invite imports must open the newly created page immediately after the optimistic local create.",
+      "Meeting invite imports must pop the newly created page immediately after the optimistic local create.",
     ],
     [
       "): CreateMeetingResult =>",
@@ -3323,8 +3335,8 @@ function run() {
       "Invite import must open from a synchronous optimistic result after parsing completes.",
     ],
     [
-      "会议页面正在打开；",
-      "Meeting invite import success must tell the owner that the created page is opening now.",
+      "会议页面已弹出；",
+      "Meeting invite import success must tell the owner that the created page has popped open.",
     ],
     [
       "rememberPageRouteHandoff(optimisticPage, \"meeting-create\")",
@@ -3390,6 +3402,12 @@ function run() {
       message
     );
   }
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'openPage(page, { source: "meeting-create" })',
+    "Meeting creation must not route directly to the full page before the same-page peek editor appears."
+  );
   assertSourceExcludes(
     files.meetingScheduleShell,
     meetingScheduleShell,

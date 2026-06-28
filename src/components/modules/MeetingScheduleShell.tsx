@@ -77,6 +77,7 @@ import {
   type PageProperty,
 } from "@/lib/pages/pageProperties";
 import PageContextMenu from "@/components/page/PageContextMenu";
+import PagePeekModal from "@/components/page/PagePeekModal";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import type { Page } from "@/lib/utils/types";
 
@@ -287,6 +288,8 @@ export default function MeetingScheduleShell() {
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingEntry | null>(
     null
   );
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
   const [runNowMessage, setRunNowMessage] = useState("");
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
@@ -1427,9 +1430,12 @@ export default function MeetingScheduleShell() {
   const openCreatedMeetingPage = useCallback(
     (page: Page) => {
       page = prepareMeetingPageOpen(page, "meeting-create");
-      openPage(page, { source: "meeting-create" });
+      setSelectedMeeting(null);
+      setRunNowMessage("");
+      setPeekInitialPage(page);
+      setPeekPageId(page.id);
     },
-    [openPage, prepareMeetingPageOpen]
+    [prepareMeetingPageOpen]
   );
 
   const handleCreate = useCallback(() => {
@@ -1445,7 +1451,7 @@ export default function MeetingScheduleShell() {
       setFormOpen(false);
       focusCalendarDate(targetDateKey);
       setIntakeMessage(
-        `${formatImportDateMessage(targetDateKey)}会议页面正在打开，后台会继续保存到账号云端。${
+        `${formatImportDateMessage(targetDateKey)}会议页面已弹出，后台会继续保存到账号云端。${
           result.cloudOnly ? "本地缓存暂不可写，已先保存在账号云端。" : ""
         }`
       );
@@ -1526,10 +1532,10 @@ export default function MeetingScheduleShell() {
       setIntakeText("");
       setIntakeMessage(
         hasExecutableTime
-          ? `${formatImportDateMessage(draft.date)}会议页面正在打开；${result?.cloudOnly ? " Edge 本地数据库写入失败，已改存到账号云端。" : ""} 入会链接、会议号和会议密码已保存到会议页面。${formatQueueResultForMessage(
+          ? `${formatImportDateMessage(draft.date)}会议页面已弹出；${result?.cloudOnly ? " Edge 本地数据库写入失败，已改存到账号云端。" : ""} 入会链接、会议号和会议密码已保存到会议页面。${formatQueueResultForMessage(
               result?.queueResult
             )}`
-          : "已保留会议痕迹并正在打开会议页，但还缺明确开始时间；请在页面里补齐。"
+          : "已保留会议痕迹并已弹出会议页，但还缺明确开始时间；请在页面里补齐。"
       );
       openCreatedMeetingPage(result.page);
     } catch (error) {
@@ -1555,7 +1561,7 @@ export default function MeetingScheduleShell() {
           traceNote: `解析接口失败，但已保留会议痕迹。失败原因：${message}`,
         });
         focusCalendarDate(fallback.draft.date);
-        setIntakeError(`解析失败但已保留痕迹，并正在打开会议页：${message}`);
+        setIntakeError(`解析失败但已保留痕迹，并已弹出会议页：${message}`);
         openCreatedMeetingPage(result.page);
       } catch (fallbackError) {
         const fallbackMessage =
@@ -1770,7 +1776,7 @@ export default function MeetingScheduleShell() {
       if (creatingMeetingDateKey !== null) return;
       setCreatingMeetingDateKey(dateKey);
       setIntakeError("");
-      setIntakeMessage(`${dateKey} 的会议页面正在打开，后台会继续保存到账号云端…`);
+      setIntakeMessage(`${dateKey} 的会议页面正在弹出，后台会继续保存到账号云端…`);
       try {
         const result = createMeetingPage(
           {
@@ -1790,7 +1796,7 @@ export default function MeetingScheduleShell() {
         );
         setFormOpen(false);
         focusCalendarDate(dateKey);
-        setIntakeMessage(`${dateKey} 的会议页面已先加入日历，正在打开…`);
+        setIntakeMessage(`${dateKey} 的会议页面已先加入日历，正在弹出…`);
         openCreatedMeetingPage(result.page);
       } catch (error) {
         const message = error instanceof Error ? error.message : "创建会议失败。";
@@ -2471,6 +2477,22 @@ export default function MeetingScheduleShell() {
           onOpenFull={openMeetingFullPageById}
           onDelete={(id) => void handleDeleteMeeting(id)}
           onStartNow={handleStartRecordingNow}
+        />
+      )}
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            openMeetingFullPageById(id);
+          }}
+          onChanged={() => void load({ includeCloud: false })}
         />
       )}
     </div>

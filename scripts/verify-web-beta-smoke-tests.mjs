@@ -3726,7 +3726,7 @@ function run() {
     files.meetingScheduleShell,
     meetingScheduleShell,
     "openCreatedMeetingPage",
-    "Meeting manual create and invite import must share the same local-first page opening path."
+    "Meeting manual create and invite import must share the same same-page peek opening path."
   );
   assertIncludes(
     files.meetingScheduleShell,
@@ -3736,7 +3736,10 @@ function run() {
   );
   for (const snippet of [
     "useLocalFirstPageNavigation",
-    'openPage(page, { source: "meeting-create" })',
+    "setPeekInitialPage(page)",
+    "setPeekPageId(page.id)",
+    "<PagePeekModal",
+    "initialPage={peekInitialPage}",
     "openPage(page, { source })",
     "prepareMeetingPageOpen(page, source)",
     'prepareMeetingPageOpen(page, "meeting-create")',
@@ -3767,6 +3770,12 @@ function run() {
   assertExcludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    'openPage(page, { source: "meeting-create" })',
+    "Meeting creation must not route directly to the full page before the same-page peek editor appears."
+  );
+  assertExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "primeMeetingPageOpen",
     "Meeting schedule must not keep the old meeting page prime helper after moving note links to local-first navigation."
   );
@@ -3792,7 +3801,7 @@ function run() {
     files.meetingScheduleShell,
     meetingScheduleShell,
     "openCreatedMeetingPage(result.page)",
-    "Meeting invite imports must open the newly created page immediately after optimistic local create."
+    "Meeting invite imports must pop the newly created page immediately after optimistic local create."
   );
   assertIncludes(
     files.meetingScheduleShell,
