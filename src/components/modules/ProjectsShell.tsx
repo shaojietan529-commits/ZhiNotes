@@ -11,11 +11,6 @@ import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
-import { addRow } from "@/lib/database/cloudDatabaseMutations";
-import {
-  createPageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
@@ -43,6 +38,10 @@ import { isResearchProjectPageRelationField } from "@/lib/modules/researchProjec
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
+
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
+const loadDatabaseMutationModule = () =>
+  import("@/lib/database/cloudDatabaseMutations");
 
 const PROJECT_DATABASE_STATUS_LIMIT = 12;
 
@@ -170,6 +169,8 @@ function ProjectsDashboard() {
     setTrackerIntakeMessage(null);
     warmPagePeekModal();
     try {
+      const { createPageWithCloud, updatePageWithCloud } =
+        await loadPageMutationModule();
       const page = await createPageWithCloud({
         title: buildResearchProjectPageTitle(projectBrief),
         icon: "PRJ",
@@ -209,6 +210,8 @@ function ProjectsDashboard() {
         return;
       }
 
+      const { createPageWithCloud, updatePageWithCloud } =
+        await loadPageMutationModule();
       const page = await createPageWithCloud({
         title: buildResearchProjectPageTitle(projectBrief),
         icon: "PRJ",
@@ -244,6 +247,7 @@ function ProjectsDashboard() {
         },
         trackerFields
       );
+      const { addRow } = await loadDatabaseMutationModule();
       await addRow(tracker.id, {
         title: draft.row_title,
         fieldValues: draft.field_values,

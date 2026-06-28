@@ -13,7 +13,6 @@ import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
-import { addRow } from "@/lib/database/cloudDatabaseMutations";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
@@ -49,6 +48,9 @@ import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
+
+const loadDatabaseMutationModule = () =>
+  import("@/lib/database/cloudDatabaseMutations");
 
 const COMPANY_TEMPLATE_STARTERS = getResearchTemplateStarters("company");
 
@@ -393,6 +395,7 @@ function CompanyResearchDashboard() {
         return;
       }
 
+      const { addRow } = await loadDatabaseMutationModule();
       await addRow(tracker.id, {
         title: draft.row_title,
         fieldValues: draft.field_values,

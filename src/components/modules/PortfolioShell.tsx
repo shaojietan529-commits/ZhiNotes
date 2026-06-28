@@ -13,7 +13,6 @@ import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
-import { addRow } from "@/lib/database/cloudDatabaseMutations";
 import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
@@ -39,6 +38,9 @@ import {
 } from "@/lib/portfolio/portfolioWorkbench";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
+
+const loadDatabaseMutationModule = () =>
+  import("@/lib/database/cloudDatabaseMutations");
 
 const PORTFOLIO_TEMPLATE_STARTERS = getResearchTemplateStarters("portfolio");
 
@@ -297,6 +299,7 @@ function PortfolioDashboard() {
         return;
       }
 
+      const { addRow } = await loadDatabaseMutationModule();
       await addRow(tracker.id, {
         title: draft.row_title,
         fieldValues: draft.field_values,

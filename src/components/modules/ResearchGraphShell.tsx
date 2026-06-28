@@ -11,11 +11,6 @@ import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
-import { addField } from "@/lib/database/cloudDatabaseMutations";
-import {
-  createPageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
 import {
   buildResearchGraph,
   buildResearchGraphReport,
@@ -52,6 +47,10 @@ import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database, Page } from "@/lib/utils/types";
+
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
+const loadDatabaseMutationModule = () =>
+  import("@/lib/database/cloudDatabaseMutations");
 
 interface SchemaFieldCreationResult {
   id: string;
@@ -277,6 +276,8 @@ function ResearchGraphDashboard() {
     setCreatingProjectPage(true);
     warmPagePeekModal();
     try {
+      const { createPageWithCloud, updatePageWithCloud } =
+        await loadPageMutationModule();
       const page = await createPageWithCloud({
         title: buildResearchProjectPageTitle(projectBrief),
         icon: "🧭",
@@ -326,6 +327,7 @@ function ResearchGraphDashboard() {
       const alreadyCovered = Boolean(coveringField);
 
       if (!alreadyCovered) {
+        const { addField } = await loadDatabaseMutationModule();
         await addField(gap.database_id, {
           name: gap.suggested_field_name,
           fieldType: "relation",
