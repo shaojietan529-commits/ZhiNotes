@@ -544,6 +544,8 @@ function run() {
     "queueCloudDatabaseRecords",
     "queueCloudDatabaseRecordsForKeys",
     "queueCloudPagePush",
+    "queueDatabasePageCloudPush",
+    'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")',
     "emitDatabasesUpdated",
   ]) {
     assertIncludes(
@@ -553,6 +555,12 @@ function run() {
       "Database local mutations must immediately queue cloud writes and notify active UI."
     );
   }
+  assertNotIncludes(
+    files.databaseCloudMutations,
+    databaseCloudMutations,
+    'from "@/lib/pages/accountPageSync"',
+    "Database local mutations must lazy-load page account sync helpers so database entry points stay lightweight."
+  );
   for (const snippet of [
     "getAllDatabases",
     "syncCloudDatabaseMetadataDelta",

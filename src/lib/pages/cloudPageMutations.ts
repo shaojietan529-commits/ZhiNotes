@@ -9,20 +9,18 @@ import {
   movePage as moveLocalPage,
   updatePage as updateLocalPage,
 } from "@/lib/db/local/queries";
-import {
-  queueCloudPageDelete,
-  queueCloudPagePush,
-} from "@/lib/pages/accountPageSync";
 import type { Page } from "@/lib/utils/types";
 
 type CreatePageOptions = Parameters<typeof createLocalPage>[0];
 type UpdatePageOptions = Parameters<typeof updateLocalPage>[1];
 
+const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
+
 export async function createPageWithCloud(
   opts?: CreatePageOptions
 ): Promise<Page> {
   const page = await createLocalPage(opts);
-  queueCloudPagePush(page);
+  void queuePageCloudPush(page).catch(() => undefined);
   return page;
 }
 
@@ -31,7 +29,7 @@ export async function updatePageWithCloud(
   updates: UpdatePageOptions
 ): Promise<Page | null> {
   const page = await updateLocalPage(id, updates);
-  if (page) queueCloudPagePush(page);
+  if (page) void queuePageCloudPush(page).catch(() => undefined);
   return page;
 }
 
@@ -65,8 +63,23 @@ export async function deletePageWithCloud(id: string): Promise<void> {
   try {
     await deleteLocalPage(id);
   } finally {
-    if (snapshot) queueCloudPageDelete(snapshot, deletedAt);
+    if (snapshot) {
+      void queuePageCloudDelete(snapshot, deletedAt).catch(() => undefined);
+    }
   }
+}
+
+async function queuePageCloudPush(page: Page): Promise<void> {
+  const { queueCloudPagePush } = await loadPageAccountSyncModule();
+  queueCloudPagePush(page);
+}
+
+async function queuePageCloudDelete(
+  page: Page,
+  deletedAt: string
+): Promise<void> {
+  const { queueCloudPageDelete } = await loadPageAccountSyncModule();
+  queueCloudPageDelete(page, deletedAt);
 }
 
 async function queuePageSubtreePush(rootId: string): Promise<void> {
@@ -80,6 +93,7 @@ async function queuePageSubtreePush(rootId: string): Promise<void> {
 
   const root = all.find((page) => page.id === rootId);
   if (!root) return;
+  const { queueCloudPagePush } = await loadPageAccountSyncModule();
 
   const stack = [root];
   while (stack.length > 0) {

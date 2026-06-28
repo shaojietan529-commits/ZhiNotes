@@ -13,7 +13,6 @@ import {
   duplicatePageDeepWithCloud,
   movePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
-import { queueCloudPageDelete } from "@/lib/pages/accountPageSync";
 import { collectMovedPageSnapshots } from "@/lib/pages/pageSnapshotUpdates";
 import { usePages } from "@/hooks/usePages";
 import type { Page } from "@/lib/utils/types";
@@ -27,6 +26,8 @@ export interface PageContextMenuProps {
   onOpenFull: (pageId: string) => void;
   onChanged?: () => void;
 }
+
+const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
 export default function PageContextMenu({
   pageId,
@@ -143,7 +144,11 @@ export default function PageContextMenu({
     try {
       await deletePage(pageId);
     } finally {
-      if (snapshot) queueCloudPageDelete(snapshot, deletedAt);
+      if (snapshot) {
+        void queuePageContextMenuCloudDelete(snapshot, deletedAt).catch(
+          () => undefined
+        );
+      }
       if (snapshot) {
         upsertPages([
           {
@@ -273,6 +278,14 @@ export default function PageContextMenu({
 function run(onClose: () => void, action: () => void) {
   onClose();
   action();
+}
+
+async function queuePageContextMenuCloudDelete(
+  page: Page,
+  deletedAt: string
+): Promise<void> {
+  const { queueCloudPageDelete } = await loadPageAccountSyncModule();
+  queueCloudPageDelete(page, deletedAt);
 }
 
 function Item({

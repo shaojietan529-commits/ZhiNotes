@@ -22,12 +22,12 @@ import {
   queueCloudDatabaseRecordsForKeys,
 } from "@/lib/database/accountDatabaseSync";
 import { emitDatabasesUpdated } from "@/lib/database/databaseUpdateBus";
-import { queueCloudPagePush } from "@/lib/pages/accountPageSync";
 import type {
   Database,
   DatabaseField,
   DatabaseRow,
   DatabaseView,
+  Page,
 } from "@/lib/utils/types";
 
 type CreateDatabaseOptions = Parameters<typeof createLocalDatabase>[0];
@@ -38,6 +38,8 @@ type AddRowOptions = Parameters<typeof addLocalRow>[1];
 type UpdateRowOptions = Parameters<typeof updateLocalRow>[1];
 type AddViewOptions = Parameters<typeof addLocalView>[1];
 type UpdateViewOptions = Parameters<typeof updateLocalView>[1];
+
+const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
 function databaseRecord(database: Database): RemoteDatabaseRecord {
   return {
@@ -205,9 +207,14 @@ export async function addRowWithCloud(
   const row = await addLocalRow(databaseId, opts);
   queueCloudDatabaseRecords([rowRecord(row)]);
   const page = await getPage(row.page_id);
-  if (page) queueCloudPagePush(page);
+  if (page) void queueDatabasePageCloudPush(page).catch(() => undefined);
   notifyDatabaseMutation();
   return row;
+}
+
+async function queueDatabasePageCloudPush(page: Page): Promise<void> {
+  const { queueCloudPagePush } = await loadPageAccountSyncModule();
+  queueCloudPagePush(page);
 }
 
 export async function updateRowWithCloud(

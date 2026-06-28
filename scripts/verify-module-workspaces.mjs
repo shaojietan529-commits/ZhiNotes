@@ -98,6 +98,10 @@ const lazyPageContextMenuSource = read(
 );
 const pageUpdateBus = read("src/lib/pages/pageUpdateBus.ts");
 const accountPageSync = read("src/lib/pages/accountPageSync.ts");
+const cloudPageMutationsSource = read("src/lib/pages/cloudPageMutations.ts");
+const databaseCloudMutationsSource = read(
+  "src/lib/database/cloudDatabaseMutations.ts"
+);
 const scopedPageMetadata = read("src/lib/pages/scopedPageMetadata.ts");
 const forbidden = ["XMLHttpRequest", "enables_ai", "getUserMedia"];
 for (const [name, source] of Object.entries(shells)) {
@@ -451,6 +455,31 @@ check(
     pageContextMenuSource.includes("deleted_at: deletedAt") &&
     !pageContextMenuSource.includes("await refresh()"),
   "PageContextMenu 复制/粘贴/移动/删除必须局部 upsert，不能依赖调用方全量刷新"
+);
+check(
+  cloudPageMutationsSource.includes(
+    'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+  ) &&
+    cloudPageMutationsSource.includes(
+      "void queuePageCloudPush(page).catch(() => undefined)"
+    ) &&
+    cloudPageMutationsSource.includes("queuePageCloudDelete") &&
+    pageContextMenuSource.includes(
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+    ) &&
+    pageContextMenuSource.includes("queuePageContextMenuCloudDelete") &&
+    databaseCloudMutationsSource.includes(
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+    ) &&
+    databaseCloudMutationsSource.includes("queueDatabasePageCloudPush") &&
+    !cloudPageMutationsSource.includes(
+      'from "@/lib/pages/accountPageSync"'
+    ) &&
+    !pageContextMenuSource.includes('from "@/lib/pages/accountPageSync"') &&
+    !databaseCloudMutationsSource.includes(
+      'from "@/lib/pages/accountPageSync"'
+    ),
+  "页面/数据库 mutation 和右键菜单必须按需加载账号页面同步队列，不能拖慢模块首屏和右键菜单打开"
 );
 check(
   pageContextMenuSource.includes("export interface PageContextMenuProps") &&
