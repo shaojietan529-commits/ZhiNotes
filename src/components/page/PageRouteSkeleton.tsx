@@ -1,10 +1,3 @@
-import {
-  getPagePropertyTypeIcon,
-  parsePageProperties,
-  parseTagsValue,
-  type PageProperty,
-} from "@/lib/pages/pageProperties";
-
 type PageRouteSkeletonProps = {
   message?: string;
   preview?: {
@@ -12,6 +5,18 @@ type PageRouteSkeletonProps = {
     icon?: string | null;
     properties?: string | null;
   };
+};
+
+const PAGE_ROUTE_PREVIEW_PROPERTY_LIMIT = 2;
+
+const PAGE_ROUTE_PREVIEW_PROPERTY_ICONS: Record<string, string> = {
+  text: "≡",
+  number: "#",
+  date: "📅",
+  select: "⛓",
+  checkbox: "✓",
+  url: "🔗",
+  tags: "🏷️",
 };
 
 export default function PageRouteSkeleton({
@@ -120,24 +125,84 @@ export default function PageRouteSkeleton({
   );
 }
 
-function getPreviewProperties(raw: string | null | undefined) {
-  return parsePageProperties(raw)
-    .map((property) => ({
-      id: property.id,
-      name: property.name.trim() || "属性",
-      icon: getPagePropertyTypeIcon(property.type),
-      value: formatPreviewPropertyValue(property),
-    }))
-    .filter((property) => property.value.length > 0)
-    .slice(0, 2);
+function parsePreviewProperties(raw: string | null | undefined) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((entry, index) => toPreviewProperty(entry, index))
+      .filter((property): property is PreviewProperty => Boolean(property))
+      .slice(0, PAGE_ROUTE_PREVIEW_PROPERTY_LIMIT);
+  } catch {
+    return [];
+  }
 }
 
-function formatPreviewPropertyValue(property: PageProperty): string {
-  if (property.type === "checkbox") {
-    return property.value === "true" ? "已勾选" : "未勾选";
-  }
-  if (property.type === "tags") {
-    return parseTagsValue(property.value).slice(0, 3).join("、");
-  }
-  return property.value.trim();
+function getPreviewProperties(raw: string | null | undefined) {
+  return parsePreviewProperties(raw)
+    .map((property) => ({
+      id: property.id,
+      name: property.name,
+      icon: PAGE_ROUTE_PREVIEW_PROPERTY_ICONS[property.type] ?? "≡",
+      value: property.value,
+    }))
+    .filter((property) => property.value.length > 0)
 }
+
+function toPreviewProperty(
+  entry: unknown,
+  index: number
+): PreviewProperty | null {
+  if (!entry || typeof entry !== "object") return null;
+  const record = entry as Record<string, unknown>;
+  const type = getPreviewPropertyType(record.type);
+  const name =
+    typeof record.name === "string" && record.name.trim()
+      ? record.name.trim()
+      : "属性";
+  const rawValue = typeof record.value === "string" ? record.value : "";
+  const value = formatPreviewPropertyValue(type, rawValue);
+  if (!value) return null;
+  return {
+    id:
+      typeof record.id === "string" && record.id
+        ? record.id
+        : `${name}-${index}`,
+    name,
+    type,
+    value,
+  };
+}
+
+function getPreviewPropertyType(value: unknown): PreviewProperty["type"] {
+  return typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(PAGE_ROUTE_PREVIEW_PROPERTY_ICONS, value)
+    ? (value as PreviewProperty["type"])
+    : "text";
+}
+
+function formatPreviewPropertyValue(
+  type: PreviewProperty["type"],
+  value: string
+): string {
+  if (type === "checkbox") {
+    return value === "true" ? "已勾选" : "未勾选";
+  }
+  if (type === "tags") {
+    return value
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .join("、");
+  }
+  return value.trim();
+}
+
+type PreviewProperty = {
+  id: string;
+  name: string;
+  type: "text" | "number" | "date" | "select" | "checkbox" | "url" | "tags";
+  value: string;
+};

@@ -704,8 +704,9 @@ function run() {
     'data-testid="page-route-preview-title"',
     'data-testid="page-route-preview-properties"',
     "getPreviewProperties(preview?.properties)",
-    "parsePageProperties(raw)",
-    "slice(0, 2)",
+    "PAGE_ROUTE_PREVIEW_PROPERTY_LIMIT = 2",
+    "function parsePreviewProperties",
+    "PAGE_ROUTE_PREVIEW_PROPERTY_ICONS",
     "已接收页面，正在加载编辑器",
   ]) {
     assertIncludes(
@@ -715,6 +716,12 @@ function run() {
       "Page route skeleton must render local-first handoff metadata during chunk loading."
     );
   }
+  assertExcludes(
+    files.pageRouteSkeleton,
+    pageRouteSkeleton,
+    'from "@/lib/pages/pageProperties"',
+    "Page route skeleton property preview must stay lightweight and avoid importing the full page property editor helpers."
+  );
   for (const [sourceLabel, source] of [
     [files.databaseDetailRoute, databaseDetailRoute],
     [files.databaseDetailRouteLoading, databaseDetailRouteLoading],

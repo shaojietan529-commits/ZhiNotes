@@ -872,16 +872,26 @@ function run() {
       "Page route skeleton must derive property previews from the local metadata payload.",
     ],
     [
-      "parsePageProperties(raw)",
-      "Page route skeleton must parse metadata-only page properties without loading page body.",
+      "PAGE_ROUTE_PREVIEW_PROPERTY_LIMIT = 2",
+      "Page route skeleton property preview must stay bounded for fast first paint.",
     ],
     [
-      "slice(0, 2)",
-      "Page route skeleton property preview must stay bounded for fast first paint.",
+      "function parsePreviewProperties",
+      "Page route skeleton must parse metadata-only page properties locally.",
+    ],
+    [
+      "PAGE_ROUTE_PREVIEW_PROPERTY_ICONS",
+      "Page route skeleton must keep lightweight local property icons without loading the property editor helpers.",
     ],
   ]) {
     assertSourceIncludes(files.pageRouteSkeleton, pageRouteSkeleton, snippet, message);
   }
+  assertSourceExcludes(
+    files.pageRouteSkeleton,
+    pageRouteSkeleton,
+    'from "@/lib/pages/pageProperties"',
+    "Page route skeleton property preview must stay lightweight and avoid importing the full page property editor helpers."
+  );
   for (const [sourceLabel, source] of [
     [files.databaseDetailRoute, databaseDetailRoute],
     [files.databaseDetailRouteLoading, databaseDetailRouteLoading],
