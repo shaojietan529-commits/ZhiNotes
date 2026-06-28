@@ -13,7 +13,6 @@ import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
-import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
@@ -41,6 +40,7 @@ import type { Database, Page } from "@/lib/utils/types";
 
 const loadDatabaseMutationModule = () =>
   import("@/lib/database/cloudDatabaseMutations");
+const loadModuleStarterActions = () => import("@/lib/modules/actions");
 
 const PORTFOLIO_TEMPLATE_STARTERS = getResearchTemplateStarters("portfolio");
 
@@ -204,6 +204,7 @@ function PortfolioDashboard() {
     setBusyAction(starter.label);
     warmPagePeekModal();
     try {
+      const { executeModuleStarter } = await loadModuleStarterActions();
       const result = await executeModuleStarter(starter);
       if (result.page) {
         upsertPages([result.page]);

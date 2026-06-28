@@ -20,7 +20,6 @@ import {
   dispatchEditorLocalCommand,
   type EditorLocalCommand,
 } from "@/lib/editorLocalCommands";
-import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { RESEARCH_TEMPLATE_QUICK_ACTIONS } from "@/lib/modules/researchTemplateStarters";
 import {
@@ -37,6 +36,7 @@ const QUICK_SEARCH_RESULT_LIMIT = 20;
 const QUICK_SEARCH_ACTIVITY_LIMIT = 8;
 const QUICK_SEARCH_FULL_TEXT_DELAY_MS = 180;
 const QUICK_SEARCH_DATABASE_REFRESH_TTL_MS = 30_000;
+const loadModuleStarterActions = () => import("@/lib/modules/actions");
 
 type CommandCategory = "Page" | "Editor" | "Database" | "Workspace";
 
@@ -395,6 +395,7 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
 
   const handleModuleStarter = async (starter: ModuleStarter) => {
     try {
+      const { executeModuleStarter } = await loadModuleStarterActions();
       const result = await executeModuleStarter(starter);
       if (result.database) {
         await refreshDatabases();

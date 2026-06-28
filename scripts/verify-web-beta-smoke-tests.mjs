@@ -7909,6 +7909,30 @@ function run() {
 	    assertExcludes(files.notesShell, notesShell, snippet, message);
 	  }
 	  for (const [sourceLabel, source, moduleLabel] of [
+	    [files.quickSearch, quickSearch, "Quick search"],
+	    [files.companyResearchShell, companyResearchShell, "Company research"],
+	    [files.meetingsShell, meetingsShell, "Meetings"],
+	    [files.reportsShell, reportsShell, "Reports"],
+	    [files.portfolioShell, portfolioShell, "Portfolio"],
+	    [files.projectsShell, projectsShell, "Projects"],
+	    [files.notesShell, notesShell, "Notes"],
+	    [files.databasesShell, databasesShell, "Databases"],
+	    [files.moduleDashboard, moduleDashboard, "Module center"],
+	  ]) {
+	    assertIncludes(
+	      sourceLabel,
+	      source,
+	      'import("@/lib/modules/actions")',
+	      `${moduleLabel} starter actions must lazy-load only after starter intent.`
+	    );
+	    assertExcludes(
+	      sourceLabel,
+	      source,
+	      'from "@/lib/modules/actions"',
+	      `${moduleLabel} starter actions must stay out of the first paint bundle.`
+	    );
+	  }
+	  for (const [sourceLabel, source, moduleLabel] of [
     [files.companyResearchShell, companyResearchShell, "Company research"],
     [files.meetingsShell, meetingsShell, "Meetings"],
     [files.reportsShell, reportsShell, "Reports"],

@@ -60,7 +60,6 @@ import {
 import { createFilePreviewBlockHtml } from "@/lib/files/filePreviewBlock";
 import { savePageFile, type StoredPageFile } from "@/lib/files/localStore";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
-import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
 import {
@@ -113,6 +112,7 @@ import type { Database, Page } from "@/lib/utils/types";
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 const loadDatabaseMutationModule = () =>
   import("@/lib/database/cloudDatabaseMutations");
+const loadModuleStarterActions = () => import("@/lib/modules/actions");
 
 const REPORT_FILE_ACTION_LABEL = "上传报告文件";
 const MARKDOWN_EDITABLE_IMPORT_LABEL = "导入 Markdown 笔记";
@@ -375,6 +375,7 @@ function ReportsDashboard() {
     setBusyAction(starter.label);
     warmPagePeekModal();
     try {
+      const { executeModuleStarter } = await loadModuleStarterActions();
       const result = await executeModuleStarter(starter);
       if (result.page) {
         upsertPages([result.page]);

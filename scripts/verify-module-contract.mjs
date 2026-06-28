@@ -27,6 +27,7 @@ const files = {
   projectsShell: "src/components/modules/ProjectsShell.tsx",
   databaseProvider: "src/components/providers/DatabaseProvider.tsx",
   databaseShell: "src/components/database/DatabaseShell.tsx",
+  databasesShell: "src/components/modules/DatabasesShell.tsx",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   readme: "README.md",
@@ -258,6 +259,7 @@ function run() {
   const projectsShell = readProjectFile(files.projectsShell);
   const databaseProvider = readProjectFile(files.databaseProvider);
   const databaseShell = readProjectFile(files.databaseShell);
+  const databasesShell = readProjectFile(files.databasesShell);
   const sidebar = readProjectFile(files.sidebar);
   const quickSearch = readProjectFile(files.quickSearch);
   const readme = readProjectFile(files.readme);
@@ -721,17 +723,41 @@ function run() {
       "Notes module must keep first paint metadata-only, make body scans explicit, and update newly created pages optimistically."
     );
   }
-	  for (const snippet of [
-	    "includeContent: true",
-	    "await refresh()",
-	    'from "@/lib/pages/cloudPageMutations"',
-	    'from "@/lib/modules/actions"',
+  for (const snippet of [
+    "includeContent: true",
+    "await refresh()",
+    'from "@/lib/pages/cloudPageMutations"',
+    'from "@/lib/modules/actions"',
 	  ]) {
     assertExcludes(
       files.notesShell,
       notesShell,
       snippet,
       "Notes module must not auto-hydrate every page body or block create/open on full page refresh."
+    );
+  }
+  for (const [sourceLabel, source, moduleLabel] of [
+    [files.quickSearch, quickSearch, "Quick search"],
+    [files.companyResearchShell, companyResearchShell, "Company research"],
+    [files.meetingsShell, meetingsShell, "Meetings"],
+    [files.reportsShell, reportsShell, "Reports"],
+    [files.portfolioShell, portfolioShell, "Portfolio"],
+    [files.projectsShell, projectsShell, "Projects"],
+    [files.notesShell, notesShell, "Notes"],
+    [files.databasesShell, databasesShell, "Databases"],
+    [files.dashboard, dashboard, "Module center"],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      'import("@/lib/modules/actions")',
+      `${moduleLabel} starter actions must lazy-load only after starter intent.`
+    );
+    assertExcludes(
+      sourceLabel,
+      source,
+      'from "@/lib/modules/actions"',
+      `${moduleLabel} starter actions must stay out of the first paint bundle.`
     );
   }
   for (const snippet of [

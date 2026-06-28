@@ -11,7 +11,6 @@ import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
-import { executeModuleStarter } from "@/lib/modules/actions";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
@@ -42,6 +41,7 @@ import type { Database, Page } from "@/lib/utils/types";
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 const loadDatabaseMutationModule = () =>
   import("@/lib/database/cloudDatabaseMutations");
+const loadModuleStarterActions = () => import("@/lib/modules/actions");
 
 const PROJECT_DATABASE_STATUS_LIMIT = 12;
 
@@ -274,6 +274,7 @@ function ProjectsDashboard() {
     setTrackerIntakeMessage(null);
     warmPagePeekModal();
     try {
+      const { executeModuleStarter } = await loadModuleStarterActions();
       const result = await executeModuleStarter(starter);
       if (result.database) {
         await refreshDatabases();

@@ -15645,6 +15645,29 @@ function run() {
 	  ]) {
 	    assertSourceExcludes(files.notesShell, notesShell, snippet, message);
 	  }
+	  for (const [sourceLabel, source, moduleLabel] of [
+	    [files.quickSearch, quickSearch, "Quick search"],
+	    [files.companyResearchShell, companyResearchShell, "Company research"],
+	    [files.meetingsShell, meetingsShell, "Meetings"],
+	    [files.reportsShell, reportsShell, "Reports"],
+	    [files.portfolioShell, portfolioShell, "Portfolio"],
+	    [files.projectsShell, projectsShell, "Projects"],
+	    [files.notesShell, notesShell, "Notes"],
+	    [files.moduleDashboard, moduleDashboard, "Module center"],
+	  ]) {
+	    assertSourceIncludes(
+	      sourceLabel,
+	      source,
+	      'import("@/lib/modules/actions")',
+	      `${moduleLabel} starter actions must lazy-load only after starter intent.`
+	    );
+	    assertSourceExcludes(
+	      sourceLabel,
+	      source,
+	      'from "@/lib/modules/actions"',
+	      `${moduleLabel} starter actions must stay out of the first paint bundle.`
+	    );
+	  }
 	  assertSourceIncludes(
 	    files.breadcrumbBlockNode,
     breadcrumbBlockNode,

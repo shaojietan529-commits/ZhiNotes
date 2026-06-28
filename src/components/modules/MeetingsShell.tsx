@@ -77,7 +77,6 @@ import {
   type MeetingWorkbenchPriority,
   type MeetingWorkbenchStatus,
 } from "@/lib/meetings/meetingWorkbench";
-import { executeModuleStarter } from "@/lib/modules/actions";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
@@ -88,6 +87,7 @@ import type { Database, Page } from "@/lib/utils/types";
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 const loadDatabaseMutationModule = () =>
   import("@/lib/database/cloudDatabaseMutations");
+const loadModuleStarterActions = () => import("@/lib/modules/actions");
 
 const MEETING_TEMPLATE_STARTERS = getResearchTemplateStarters("meeting");
 
@@ -275,6 +275,7 @@ function MeetingsDashboard() {
     setBusyAction(starter.label);
     warmPagePeekModal();
     try {
+      const { executeModuleStarter } = await loadModuleStarterActions();
       const result = await executeModuleStarter(starter);
       if (result.page) {
         upsertPages([result.page]);
