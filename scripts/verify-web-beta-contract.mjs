@@ -14502,8 +14502,24 @@ function run() {
       "Database kanban view must cap per-column rendered cards for large imports.",
     ],
     [
-      ".slice(0, DATABASE_KANBAN_RENDER_COLUMN_LIMIT)",
-      "Database kanban view must render a bounded subset of each column.",
+      "interface KanbanColumnGroup",
+      "Database kanban view must use lightweight column groups instead of full row arrays.",
+    ],
+    [
+      "count: number;",
+      "Database kanban column groups must retain true counts without storing every row.",
+    ],
+    [
+      "previewRows: (DatabaseRow & { page: Page })[];",
+      "Database kanban column groups must keep only bounded preview rows.",
+    ],
+    [
+      "columnGroup.previewRows.map",
+      "Database kanban view must render preview rows, not every row in a column.",
+    ],
+    [
+      "foldedCardCount",
+      "Database kanban view must compute hidden cards from true counts.",
     ],
     [
       "为保持看板流畅",

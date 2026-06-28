@@ -18,6 +18,11 @@ import { formatRelativeDate } from "@/lib/utils/dates";
 
 const DATABASE_KANBAN_RENDER_COLUMN_LIMIT = 24;
 
+interface KanbanColumnGroup {
+  count: number;
+  previewRows: (DatabaseRow & { page: Page })[];
+}
+
 interface KanbanViewProps {
   fields: DatabaseField[];
   rows: (DatabaseRow & { page: Page })[];
@@ -62,21 +67,21 @@ export default function KanbanView({
     return ["", ...options];
   }, [groupField]);
 
-  const groupedRows = useMemo(() => {
-    const groups: Record<string, (DatabaseRow & { page: Page })[]> = {};
+  const groupedColumns = useMemo(() => {
+    const groups: Record<string, KanbanColumnGroup> = {};
     for (const col of columns) {
-      groups[col] = [];
+      groups[col] = createKanbanColumnGroup();
     }
     for (const row of rows) {
-      const fieldValues: Record<string, unknown> =
-        typeof row.field_values === "string"
-          ? JSON.parse(row.field_values || "{}")
-          : row.field_values || {};
+      const fieldValues = parseKanbanFieldValues(row.field_values);
       const val = groupField
         ? getKanbanGroupValue(fieldValues[groupField.id], groupField)
         : "";
-      if (!groups[val]) groups[val] = [];
-      groups[val].push(row);
+      if (!groups[val]) groups[val] = createKanbanColumnGroup();
+      groups[val].count += 1;
+      if (groups[val].previewRows.length < DATABASE_KANBAN_RENDER_COLUMN_LIMIT) {
+        groups[val].previewRows.push(row);
+      }
     }
     return groups;
   }, [rows, columns, groupField]);
@@ -96,26 +101,31 @@ export default function KanbanView({
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-4">
-      {columns.map((col) => (
-        <div
-          key={col}
-          className="shrink-0 w-64 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700"
-        >
-          {/* Column header */}
-          <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              {getKanbanColumnLabel(col, groupField)}
-            </span>
-            <span className="text-xs text-zinc-400">
-              {groupedRows[col]?.length || 0}
-            </span>
-          </div>
+      {columns.map((col) => {
+        const columnGroup = groupedColumns[col] ?? createKanbanColumnGroup();
+        const foldedCardCount = Math.max(
+          columnGroup.count - columnGroup.previewRows.length,
+          0
+        );
 
-          {/* Cards */}
-          <div className="p-2 space-y-2 min-h-[100px]">
-            {(groupedRows[col] || [])
-              .slice(0, DATABASE_KANBAN_RENDER_COLUMN_LIMIT)
-              .map((row) => {
+        return (
+          <div
+            key={col}
+            className="shrink-0 w-64 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700"
+          >
+            {/* Column header */}
+            <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                {getKanbanColumnLabel(col, groupField)}
+              </span>
+              <span className="text-xs text-zinc-400">
+                {columnGroup.count}
+              </span>
+            </div>
+
+            {/* Cards */}
+            <div className="p-2 space-y-2 min-h-[100px]">
+              {columnGroup.previewRows.map((row) => {
                 const fieldValues = parseKanbanFieldValues(row.field_values);
                 const cardFields = getKanbanCardFields(
                   fields,
@@ -183,18 +193,22 @@ export default function KanbanView({
                   </div>
                 );
               })}
-            {(groupedRows[col]?.length || 0) > DATABASE_KANBAN_RENDER_COLUMN_LIMIT && (
-              <div className="rounded-md border border-dashed border-zinc-200 bg-white/60 px-3 py-2 text-[11px] text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-500">
-                为保持看板流畅，已折叠{" "}
-                {(groupedRows[col]?.length || 0) - DATABASE_KANBAN_RENDER_COLUMN_LIMIT}{" "}
-                张卡片；切换到表格视图查看全部。
-              </div>
-            )}
+              {foldedCardCount > 0 && (
+                <div className="rounded-md border border-dashed border-zinc-200 bg-white/60 px-3 py-2 text-[11px] text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-500">
+                  为保持看板流畅，已折叠 {foldedCardCount}{" "}
+                  张卡片；切换到表格视图查看全部。
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
+}
+
+function createKanbanColumnGroup(): KanbanColumnGroup {
+  return { count: 0, previewRows: [] };
 }
 
 function isKanbanGroupField(field: DatabaseField) {
