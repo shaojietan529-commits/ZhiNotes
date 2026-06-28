@@ -1,0 +1,4 @@
+"use client";
+
+export const SPREADSHEET_DATABASE_ROW_LIMIT = 500;
+export const SPREADSHEET_DATABASE_COLUMN_LIMIT = 50;

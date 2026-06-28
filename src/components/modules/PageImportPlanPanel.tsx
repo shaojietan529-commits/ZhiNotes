@@ -16,13 +16,11 @@ import {
   type PageImportPreviewRoute,
   type PageImportSourceFile,
 } from "@/lib/files/pageImportPlan";
-import {
-  executePageImportPlan,
-  countExecutableItems,
-  type PageImportExecutionResult,
-  type PageImportFailureMode,
-  type PageImportItemExecutionResult,
-  type PageImportItemExecutionStatus,
+import type {
+  PageImportExecutionResult,
+  PageImportFailureMode,
+  PageImportItemExecutionResult,
+  PageImportItemExecutionStatus,
 } from "@/lib/files/pageImportExecutor";
 import {
   appendPageImportExecutionReceipt,
@@ -32,6 +30,18 @@ import {
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import type { Page } from "@/lib/utils/types";
+
+const loadPageImportExecutorModule = () =>
+  import("@/lib/files/pageImportExecutor");
+
+function countLocalExecutableItems(plan: PageImportPlan): number {
+  return plan.items.filter(
+    (item) =>
+      item.lane === "page-import" ||
+      item.lane === "local-retain" ||
+      item.lane === "database-import"
+  ).length;
+}
 
 const LANE_BADGE: Record<
   PageImportLaneId,
@@ -304,6 +314,7 @@ export default function PageImportPlanPanel() {
     });
     if (opts?.navigateOnFullSuccess) warmPagePeekModal();
     try {
+      const { executePageImportPlan } = await loadPageImportExecutorModule();
       const res = await executePageImportPlan(files, activePlan, {
         failureMode: mode,
         onProgress: (done, total) => {
@@ -406,7 +417,7 @@ export default function PageImportPlanPanel() {
   };
 
   const executableCount = useMemo(
-    () => (plan ? countExecutableItems(plan) : 0),
+    () => (plan ? countLocalExecutableItems(plan) : 0),
     [plan]
   );
 

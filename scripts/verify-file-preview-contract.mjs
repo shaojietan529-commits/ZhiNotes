@@ -30,6 +30,7 @@ const files = {
   fileLibrary: "src/lib/files/fileLibraryWorkbench.ts",
   previewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
   spreadsheet: "src/lib/files/spreadsheet.ts",
+  spreadsheetLimits: "src/lib/files/spreadsheetLimits.ts",
   word: "src/lib/files/word.ts",
   presentationImport: "src/lib/files/presentationImport.ts",
   reportsShell: "src/components/modules/ReportsShell.tsx",
@@ -234,6 +235,7 @@ function run() {
   const fileLibrary = readProjectFile(files.fileLibrary);
   const previewNode = readProjectFile(files.previewNode);
   const spreadsheet = readProjectFile(files.spreadsheet);
+  const spreadsheetLimits = readProjectFile(files.spreadsheetLimits);
   const word = readProjectFile(files.word);
   const presentationImport = readProjectFile(files.presentationImport);
   const previewImplementation = [
@@ -249,6 +251,99 @@ function run() {
   const filesShell = readProjectFile(files.filesShell);
   const filesRoute = readProjectFile(files.filesRoute);
   const registry = readProjectFile(files.registry);
+
+  for (const [snippet, message] of [
+    [
+      'const loadFilePreviewStructureModule = () =>\n  import("@/lib/files/filePreviewStructure")',
+      "File preview structure analysis must load only after the user opens the structure panel.",
+    ],
+    [
+      'const loadCodeHighlightModule = () => import("@/lib/codeHighlight")',
+      "Code highlighting must stay out of the editor first paint bundle.",
+    ],
+    [
+      'const loadArchiveModule = () => import("@/lib/files/archive")',
+      "ZIP conversion must stay out of the editor first paint bundle.",
+    ],
+    [
+      'const loadEpubModule = () => import("@/lib/files/epub")',
+      "EPUB conversion must stay out of the editor first paint bundle.",
+    ],
+    [
+      'const loadPresentationModule = () =>\n  import("@/lib/files/presentationImport")',
+      "Presentation conversion must stay out of the editor first paint bundle.",
+    ],
+    [
+      'const loadSpreadsheetModule = () => import("@/lib/files/spreadsheet")',
+      "Spreadsheet parsing and database import must load only after spreadsheet preview/import intent.",
+    ],
+    [
+      'const loadWordModule = () => import("@/lib/files/word")',
+      "Word conversion must stay out of the editor first paint bundle.",
+    ],
+    [
+      'from "@/lib/files/spreadsheetLimits"',
+      "File preview should import only lightweight spreadsheet row/column limits at first paint.",
+    ],
+  ]) {
+    assertIncludes(files.previewNode, previewNode, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      "buildFilePreviewStructure,",
+      "File preview must not statically import the structure analyzer runtime.",
+    ],
+    [
+      'import { highlightCodeToHtml } from "@/lib/codeHighlight"',
+      "File preview must not statically import the code highlighter runtime.",
+    ],
+    [
+      'import { convertZipToHtml } from "@/lib/files/archive"',
+      "File preview must not statically import ZIP conversion runtime.",
+    ],
+    [
+      'import { convertEpubToHtml } from "@/lib/files/epub"',
+      "File preview must not statically import EPUB conversion runtime.",
+    ],
+    [
+      "convertPresentationToHtml,",
+      "File preview must not statically import presentation conversion runtime.",
+    ],
+    [
+      "convertSpreadsheetToHtml,",
+      "File preview must not statically import spreadsheet conversion runtime.",
+    ],
+    [
+      "importSpreadsheetAsDatabase,",
+      "File preview must not statically import spreadsheet database import runtime.",
+    ],
+    [
+      'import { convertWordToHtml } from "@/lib/files/word"',
+      "File preview must not statically import Word conversion runtime.",
+    ],
+  ]) {
+    if (previewNode.includes(snippet)) {
+      fail(`${files.previewNode} must not include ${snippet}: ${message}`);
+    }
+  }
+
+  for (const snippet of [
+    "export const SPREADSHEET_DATABASE_ROW_LIMIT = 500",
+    "export const SPREADSHEET_DATABASE_COLUMN_LIMIT = 50",
+  ]) {
+    assertIncludes(
+      files.spreadsheetLimits,
+      spreadsheetLimits,
+      snippet,
+      "Spreadsheet row/column limits must live in a tiny constants module so file preview can avoid importing the spreadsheet engine."
+    );
+    if (spreadsheet.includes(snippet)) {
+      fail(
+        `${files.spreadsheet} must not include ${snippet}: spreadsheet limits should stay in ${files.spreadsheetLimits}`
+      );
+    }
+  }
 
   assertIncludes(
     files.upload,

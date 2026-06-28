@@ -10,10 +10,11 @@ import {
 } from "@/lib/database/cloudDatabaseMutations";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import { dataUrlToArrayBuffer } from "@/lib/files/dataUrl";
+import {
+  SPREADSHEET_DATABASE_COLUMN_LIMIT,
+  SPREADSHEET_DATABASE_ROW_LIMIT,
+} from "@/lib/files/spreadsheetLimits";
 import type { StoredPageFile } from "@/lib/files/localStore";
-
-export const SPREADSHEET_DATABASE_ROW_LIMIT = 500;
-export const SPREADSHEET_DATABASE_COLUMN_LIMIT = 50;
 
 type SpreadsheetCell = string | number | boolean | null;
 type SpreadsheetFieldType = "text" | "number" | "date" | "checkbox" | "url";

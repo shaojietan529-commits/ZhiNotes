@@ -335,9 +335,30 @@ check(
 check(
   panelSource.includes("const { upsertPages } = usePages({ autoLoad: false })") &&
     panelSource.includes("upsertPages(res.created_page_metadata)") &&
-    panelSource.includes('openPage(firstPage, { source: "module-create" })') &&
+    panelSource.includes("openImportedPageInPeek(firstPage)") &&
+    panelSource.includes("openImportedPageIdInPeek(res.first_page_id)") &&
     !panelSource.includes("refreshPages()"),
-  "PageImportPlanPanel 执行导入后必须乐观合并页面 metadata，不能刷新全局页面列表"
+  "PageImportPlanPanel 执行导入后必须乐观合并页面 metadata，用 peek 打开首个页面，不能刷新全局页面列表"
+);
+check(
+  panelSource.includes("const loadPageImportExecutorModule = () =>") &&
+    panelSource.includes('import("@/lib/files/pageImportExecutor")') &&
+    panelSource.includes(
+      "const { executePageImportPlan } = await loadPageImportExecutorModule()"
+    ),
+  "PageImportPlanPanel 必须把批量导入执行器按需加载，避免进入页面时就加载所有文件转换/数据库导入逻辑"
+);
+check(
+  panelSource.includes("function countLocalExecutableItems") &&
+    panelSource.includes('item.lane === "database-import"') &&
+    panelSource.includes("countLocalExecutableItems(plan)") &&
+    !panelSource.includes("countExecutableItems(plan)"),
+  "PageImportPlanPanel 的首屏数量计算必须使用轻量本地 helper，不能为了计数静态加载执行器"
+);
+check(
+  !panelSource.includes("executePageImportPlan,\n  countExecutableItems") &&
+    !panelSource.includes('import {\n  executePageImportPlan'),
+  "PageImportPlanPanel 不得静态导入批量导入执行器运行时代码"
 );
 check(
   panelSource.includes("result.editable_page_imports") &&

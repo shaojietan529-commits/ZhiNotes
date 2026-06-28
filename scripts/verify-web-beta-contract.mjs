@@ -145,6 +145,7 @@ const files = {
   databaseShell: "src/components/database/DatabaseShell.tsx",
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
+  filePreviewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
   breadcrumbBlockNode:
     "src/components/editor/extensions/BreadcrumbBlockNode.tsx",
   compareShell: "src/components/comparison/CompareShell.tsx",
@@ -539,6 +540,7 @@ function run() {
   const databaseShell = readProjectFile(files.databaseShell);
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
+  const filePreviewNode = readProjectFile(files.filePreviewNode);
   const breadcrumbBlockNode = readProjectFile(files.breadcrumbBlockNode);
   const compareShell = readProjectFile(files.compareShell);
   const pageProperties = readProjectFile(files.pageProperties);
@@ -14247,6 +14249,36 @@ function run() {
       "Inline database blocks must keep database mutation code out of editor first paint.",
     ],
     [
+      files.filePreviewNode,
+      filePreviewNode,
+      'const loadSpreadsheetModule = () => import("@/lib/files/spreadsheet")',
+      "File previews must lazy-load spreadsheet parsing and database import after file intent.",
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      'const loadWordModule = () => import("@/lib/files/word")',
+      "File previews must lazy-load Word conversion after file intent.",
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      'const loadPresentationModule = () =>\n  import("@/lib/files/presentationImport")',
+      "File previews must lazy-load presentation conversion after file intent.",
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      'const loadCodeHighlightModule = () => import("@/lib/codeHighlight")',
+      "Text file code highlighting must stay out of the editor first paint bundle.",
+    ],
+    [
+      files.pageImportPlanPanel,
+      pageImportPlanPanel,
+      "const loadPageImportExecutorModule = () =>",
+      "Batch page imports must lazy-load the heavy execution engine only after import intent.",
+    ],
+    [
       files.meetingScheduleShell,
       meetingScheduleShell,
       'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
@@ -15353,6 +15385,54 @@ function run() {
       inlineDatabaseNode,
       'from "@/lib/database/cloudDatabaseMutations"',
       "Inline database mutation code must stay out of the editor first paint bundle.",
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      'import { highlightCodeToHtml } from "@/lib/codeHighlight"',
+      "File preview code highlighting must stay out of the editor first paint bundle.",
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      'import { convertZipToHtml } from "@/lib/files/archive"',
+      "File preview ZIP conversion must stay out of the editor first paint bundle.",
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      'import { convertEpubToHtml } from "@/lib/files/epub"',
+      "File preview EPUB conversion must stay out of the editor first paint bundle.",
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      "convertSpreadsheetToHtml,\n  importSpreadsheetAsDatabase",
+      "File preview spreadsheet parsing/import runtime must stay out of the editor first paint bundle.",
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      'import { convertPresentationToHtml } from "@/lib/files/presentationImport"',
+      "File preview presentation conversion runtime must stay out of the editor first paint bundle.",
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      'import { convertWordToHtml } from "@/lib/files/word"',
+      "File preview Word conversion runtime must stay out of the editor first paint bundle.",
+    ],
+    [
+      files.pageImportPlanPanel,
+      pageImportPlanPanel,
+      "executePageImportPlan,\n  countExecutableItems",
+      "Page import execution runtime must stay out of the page import panel first paint bundle.",
+    ],
+    [
+      files.pageImportPlanPanel,
+      pageImportPlanPanel,
+      'import {\n  executePageImportPlan',
+      "Page import panel must lazy-load the import executor instead of statically importing it.",
     ],
     [
       files.meetingScheduleShell,

@@ -18,26 +18,18 @@ import {
   type FilePreviewCapability,
   type FilePreviewSupportLevel,
 } from "@/lib/files/filePreviewCapabilities";
-import {
-  buildFilePreviewStructure,
-  type FilePreviewStructureReport,
-  type FilePreviewStructureSignal,
-  type FilePreviewStructureStatus,
+import type {
+  FilePreviewStructureReport,
+  FilePreviewStructureSignal,
+  FilePreviewStructureStatus,
 } from "@/lib/files/filePreviewStructure";
-import { highlightCodeToHtml } from "@/lib/codeHighlight";
-import { convertZipToHtml } from "@/lib/files/archive";
 import { dataUrlToArrayBuffer } from "@/lib/files/dataUrl";
-import { convertEpubToHtml } from "@/lib/files/epub";
 import { convertNotebookToHtml } from "@/lib/files/notebook";
-import { convertPresentationToHtml } from "@/lib/files/presentationImport";
 import { convertRtfToHtml } from "@/lib/files/rtf";
 import {
-  convertSpreadsheetToHtml,
-  importSpreadsheetAsDatabase,
   SPREADSHEET_DATABASE_COLUMN_LIMIT,
   SPREADSHEET_DATABASE_ROW_LIMIT,
-} from "@/lib/files/spreadsheet";
-import { convertWordToHtml } from "@/lib/files/word";
+} from "@/lib/files/spreadsheetLimits";
 import { markdownToHtml } from "@/lib/markdown/markdownToHtml";
 import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
 import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
@@ -71,6 +63,16 @@ const CONVERTED_PREVIEW_CACHE_VERSION = "v1";
 const CONVERTED_PREVIEW_CACHE_LIMIT = 12;
 const AUTO_LOAD_TEXT_PREVIEW_BYTES = 256 * 1024;
 const AUTO_LOAD_NATIVE_PREVIEW_BYTES = 512 * 1024;
+
+const loadFilePreviewStructureModule = () =>
+  import("@/lib/files/filePreviewStructure");
+const loadCodeHighlightModule = () => import("@/lib/codeHighlight");
+const loadArchiveModule = () => import("@/lib/files/archive");
+const loadEpubModule = () => import("@/lib/files/epub");
+const loadPresentationModule = () =>
+  import("@/lib/files/presentationImport");
+const loadSpreadsheetModule = () => import("@/lib/files/spreadsheet");
+const loadWordModule = () => import("@/lib/files/word");
 const convertedPreviewCache = new Map<string, CachedConvertedPreview>();
 const convertedPreviewWorkCache = new Map<
   string,
@@ -135,6 +137,8 @@ function FilePreviewComponent({
   const [convertedPreviewRequested, setConvertedPreviewRequested] =
     useState(false);
   const [fileStructureRequested, setFileStructureRequested] = useState(false);
+  const [fileStructure, setFileStructure] =
+    useState<FilePreviewStructureReport | null>(null);
   const capability = useMemo(
     () => getFilePreviewCapabilityByKind(attrs.kind),
     [attrs.kind]
@@ -332,14 +336,33 @@ function FilePreviewComponent({
       !isLegacyOfficeFile(file) &&
       (convertedPreview.status === "idle" || convertedPreview.status === "loading")
   );
-  const fileStructure = useMemo(() => {
+  useEffect(() => {
+    let active = true;
     if (!file || !fileStructureRequested || waitingForConvertedStructure) {
-      return null;
+      setFileStructure(null);
+      return () => {
+        active = false;
+      };
     }
-    return buildFilePreviewStructure({
-      file,
-      previewHtml: getStructurePreviewHtml(file, srcDoc, convertedPreview),
-    });
+
+    void loadFilePreviewStructureModule()
+      .then(({ buildFilePreviewStructure }) => {
+        if (!active) return;
+        setFileStructure(
+          buildFilePreviewStructure({
+            file,
+            previewHtml: getStructurePreviewHtml(file, srcDoc, convertedPreview),
+          })
+        );
+      })
+      .catch((err) => {
+        console.error("[Zhinote] Failed to build file structure:", err);
+        if (active) setFileStructure(null);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [
     convertedPreview,
     file,
@@ -554,6 +577,7 @@ function FilePreviewComponent({
       );
       if (!ok) return;
 
+      const { importSpreadsheetAsDatabase } = await loadSpreadsheetModule();
       const importResult = await importSpreadsheetAsDatabase(file);
       if (importResult.truncated_rows) {
         window.alert(
@@ -1463,16 +1487,25 @@ async function buildConvertedPreview(
   file: StoredPageFile
 ): Promise<CachedConvertedPreview> {
   try {
-    const editableHtml =
-      file.kind === "spreadsheet"
-        ? await convertSpreadsheetToHtml(file)
-        : file.kind === "word"
-          ? await convertWordToHtml(file)
-          : file.kind === "presentation"
-            ? await convertPresentationToHtml(file)
-            : file.kind === "epub"
-              ? await convertEpubToHtml(await dataUrlToArrayBuffer(file.dataUrl))
-              : convertZipToHtml(await dataUrlToArrayBuffer(file.dataUrl));
+    let editableHtml: string;
+    if (file.kind === "spreadsheet") {
+      const { convertSpreadsheetToHtml } = await loadSpreadsheetModule();
+      editableHtml = await convertSpreadsheetToHtml(file);
+    } else if (file.kind === "word") {
+      const { convertWordToHtml } = await loadWordModule();
+      editableHtml = await convertWordToHtml(file);
+    } else if (file.kind === "presentation") {
+      const { convertPresentationToHtml } = await loadPresentationModule();
+      editableHtml = await convertPresentationToHtml(file);
+    } else if (file.kind === "epub") {
+      const { convertEpubToHtml } = await loadEpubModule();
+      editableHtml = await convertEpubToHtml(
+        await dataUrlToArrayBuffer(file.dataUrl)
+      );
+    } else {
+      const { convertZipToHtml } = await loadArchiveModule();
+      editableHtml = convertZipToHtml(await dataUrlToArrayBuffer(file.dataUrl));
+    }
     return {
       status: "ready",
       editableHtml,
@@ -1752,10 +1785,23 @@ function FilePreviewLoadPrompt({
 
 function TextFilePreview({ file }: { file: StoredPageFile }) {
   const language = getTextFileLanguage(file.name);
-  const highlightedHtml = useMemo(
-    () => highlightCodeToHtml(file.textContent ?? "", language),
-    [file.textContent, language]
-  );
+  const [highlightedHtml, setHighlightedHtml] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void loadCodeHighlightModule()
+      .then(({ highlightCodeToHtml }) => {
+        if (!active) return;
+        setHighlightedHtml(highlightCodeToHtml(file.textContent ?? "", language));
+      })
+      .catch((err) => {
+        console.error("[Zhinote] Failed to highlight text file:", err);
+        if (active) setHighlightedHtml(escapeHtml(file.textContent ?? ""));
+      });
+    return () => {
+      active = false;
+    };
+  }, [file.textContent, language]);
 
   return (
     <pre className="max-h-[520px] overflow-auto bg-zinc-50 p-4 text-sm leading-6 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
