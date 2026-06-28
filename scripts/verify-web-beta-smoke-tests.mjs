@@ -6643,6 +6643,99 @@ function run() {
       "Meetings-created pages must open in peek immediately, not force a full page route."
     );
   }
+  for (const [snippet, message] of [
+    [
+      "@/components/page/LazyPagePeekModal",
+      "Projects module must lazy-load the page peek editor instead of adding it to first paint.",
+    ],
+    [
+      "warmPagePeekModal();",
+      "Projects module create actions must warm the peek editor while creating local project pages.",
+    ],
+    [
+      "const [peekPageId, setPeekPageId] = useState<string | null>(null);",
+      "Projects module must hold a page peek target for same-view editing.",
+    ],
+    [
+      "const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);",
+      "Projects module must seed newly created project pages into the peek before slower hydration.",
+    ],
+    [
+      "rememberPendingPageDraft(page);",
+      "Projects created pages must keep a short-lived local draft before opening.",
+    ],
+    [
+      'rememberPageRouteHandoff(page, "module-create");',
+      "Projects created pages must hand off local-first metadata with a module-create source.",
+    ],
+    [
+      "openCreatedProjectPage(createdPage);",
+      "Project brief pages must open in peek immediately.",
+    ],
+    [
+      "openCreatedProjectPage(result.page);",
+      "Project starter pages must open in peek immediately.",
+    ],
+    [
+      "<PagePeekModal",
+      "Projects module must render the page peek modal for created project pages.",
+    ],
+  ]) {
+    assertIncludes(files.projectsShell, projectsShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "@/components/page/LazyPagePeekModal",
+      "Portfolio module must lazy-load the page peek editor instead of adding it to first paint.",
+    ],
+    [
+      "warmPagePeekModal();",
+      "Portfolio module create actions must warm the peek editor while creating local portfolio pages.",
+    ],
+    [
+      "const [peekPageId, setPeekPageId] = useState<string | null>(null);",
+      "Portfolio module must hold a page peek target for same-view editing.",
+    ],
+    [
+      "const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);",
+      "Portfolio module must seed newly created portfolio pages into the peek before slower hydration.",
+    ],
+    [
+      "rememberPendingPageDraft(page);",
+      "Portfolio created pages must keep a short-lived local draft before opening.",
+    ],
+    [
+      'rememberPageRouteHandoff(page, "module-create");',
+      "Portfolio created pages must hand off local-first metadata with a module-create source.",
+    ],
+    [
+      "openCreatedPortfolioPage(result.page);",
+      "Portfolio starter pages must open in peek immediately.",
+    ],
+    [
+      "<PagePeekModal",
+      "Portfolio module must render the page peek modal for created portfolio pages.",
+    ],
+  ]) {
+    assertIncludes(files.portfolioShell, portfolioShell, snippet, message);
+  }
+  for (const snippet of [
+    'openPage(createdPage, { source: "module-create" })',
+    'openPage(result.page, { source: "module-create" })',
+  ]) {
+    assertExcludes(
+      files.projectsShell,
+      projectsShell,
+      snippet,
+      "Projects-created pages must open in peek immediately, not force a full page route."
+    );
+  }
+  assertExcludes(
+    files.portfolioShell,
+    portfolioShell,
+    'openPage(result.page, { source: "module-create" })',
+    "Portfolio-created pages must open in peek immediately, not force a full page route."
+  );
   assertIncludes(
     files.projectsShell,
     projectsShell,
@@ -7114,10 +7207,10 @@ function run() {
     [files.filesShell, filesShell, ['"module-create"', 'source: "module-open"']],
     [files.meetingsShell, meetingsShell, ['"module-create"', 'source: "module-open"']],
     [files.reportsShell, reportsShell, ['"module-create"', 'source: "module-open"']],
-    [files.projectsShell, projectsShell, ['source: "module-create"']],
+    [files.projectsShell, projectsShell, ['"module-create"', 'source: "module-open"']],
     [files.moduleDashboard, moduleDashboard, ['source: "module-create"']],
     [files.companyResearchShell, companyResearchShell, ['"module-create"', 'source: "module-open"']],
-    [files.portfolioShell, portfolioShell, ['source: "module-create"', 'source: "module-open"']],
+    [files.portfolioShell, portfolioShell, ['"module-create"', 'source: "module-open"']],
     [files.researchConnectionsPanel, researchConnectionsPanel, ['source: "module-open"']],
     [files.researchGraphShell, researchGraphShell, ['source: "module-create"', 'source: "module-open"']],
     [files.industryChainShell, industryChainShell, ['source: "module-create"', 'source: "module-open"']],

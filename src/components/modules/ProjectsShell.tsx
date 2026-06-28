@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useDatabases } from "@/hooks/useDatabases";
@@ -14,6 +17,8 @@ import {
   updatePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
 import { executeModuleStarter } from "@/lib/modules/actions";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
   buildResearchGraph,
   buildResearchGraphReport,
@@ -37,7 +42,7 @@ import {
 import { isResearchProjectPageRelationField } from "@/lib/modules/researchProjectFields";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import type { Database } from "@/lib/utils/types";
+import type { Database, Page } from "@/lib/utils/types";
 
 const PROJECT_DATABASE_STATUS_LIMIT = 12;
 
@@ -69,6 +74,7 @@ function ProjectsContent() {
 function ProjectsDashboard() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
+  const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { pages, upsertPages } = usePages();
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
@@ -80,6 +86,8 @@ function ProjectsDashboard() {
   const [trackerIntakeMessage, setTrackerIntakeMessage] = useState<string | null>(
     null
   );
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
 
   const researchDatabases = useMemo(
     () => databases.filter((database) => classifyResearchDatabase(database)),
@@ -135,9 +143,32 @@ function ProjectsDashboard() {
   );
   const trackerStarter = projectsModule?.starter ?? null;
 
+  const openCreatedProjectPage = useCallback((page: Page) => {
+    rememberPendingPageDraft(page);
+    rememberPageRouteHandoff(page, "module-create");
+    warmPagePeekModal();
+    setPeekInitialPage(page);
+    setPeekPageId(page.id);
+  }, []);
+
+  const openProjectFullPageById = useCallback(
+    (pageId: string) => {
+      const page =
+        (peekInitialPage?.id === pageId ? peekInitialPage : null) ??
+        pagesById.get(pageId);
+      if (page) {
+        openPage(page, { source: "module-open" });
+        return;
+      }
+      openPage(pageId, { source: "module-open" });
+    },
+    [openPage, pagesById, peekInitialPage]
+  );
+
   const handleCreateProjectPage = async () => {
     setBusyAction("project-page");
     setTrackerIntakeMessage(null);
+    warmPagePeekModal();
     try {
       const page = await createPageWithCloud({
         title: buildResearchProjectPageTitle(projectBrief),
@@ -148,7 +179,7 @@ function ProjectsDashboard() {
       });
       const createdPage = updatedPage ?? page;
       upsertPages([createdPage]);
-      openPage(createdPage, { source: "module-create" });
+      openCreatedProjectPage(createdPage);
     } catch (err) {
       console.error("[Zhinote] Failed to create project page:", err);
       window.alert("投研项目页创建失败，请查看控制台。");
@@ -237,6 +268,7 @@ function ProjectsDashboard() {
   const handleRunStarter = async (starter: ModuleStarter) => {
     setBusyAction(starter.label);
     setTrackerIntakeMessage(null);
+    warmPagePeekModal();
     try {
       const result = await executeModuleStarter(starter);
       if (result.database) {
@@ -244,7 +276,7 @@ function ProjectsDashboard() {
       }
       if (result.page) {
         upsertPages([result.page]);
-        openPage(result.page, { source: "module-create" });
+        openCreatedProjectPage(result.page);
       } else {
         router.push(result.route);
       }
@@ -264,8 +296,9 @@ function ProjectsDashboard() {
   };
 
   return (
-    <div className="w-full px-6 py-6 lg:px-10">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <>
+      <div className="w-full px-6 py-6 lg:px-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="border-b border-zinc-200 pb-5 dark:border-zinc-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -447,8 +480,24 @@ function ProjectsDashboard() {
           onRunStarter={handleRunStarter}
           onOpenDatabase={(databaseId) => router.push(`/database/${databaseId}`)}
         />
+        </div>
       </div>
-    </div>
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            openProjectFullPageById(id);
+          }}
+        />
+      )}
+    </>
   );
 }
 
