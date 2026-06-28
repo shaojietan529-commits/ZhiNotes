@@ -297,9 +297,11 @@ check(
 );
 check(
   pageShell.includes("const loadEditorModule = () => import(\"@/components/editor/Editor\")") &&
+    pageShell.includes("const loadPageMutationModule = () =>\n  import(\"@/lib/pages/cloudPageMutations\")") &&
     pageShell.includes("const Editor = dynamic(loadEditorModule") &&
     pageShell.includes("loading: () => <PageBodySkeleton />") &&
     !pageShell.includes("import Editor from \"@/components/editor/Editor\"") &&
+    !pageShell.includes('from "@/lib/pages/cloudPageMutations"') &&
     pageShell.includes("return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);") &&
     pageShell.includes("PAGE_EDITOR_IDLE_TIMEOUT_MS = 120") &&
     pageShell.includes("PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420") &&

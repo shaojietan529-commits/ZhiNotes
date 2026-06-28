@@ -2472,6 +2472,24 @@ function run() {
   assertSourceIncludes(
     files.pageShell,
     pageShell,
+    "const loadPageMutationModule = () =>\n  import(\"@/lib/pages/cloudPageMutations\")",
+    "Page shell must keep page mutation code behind a dynamic import instead of blocking route first paint."
+  );
+  assertSourceIncludes(
+    files.pageShell,
+    pageShell,
+    "await loadPageMutationModule()",
+    "Page shell must load page mutation code only after create/move/duplicate intent."
+  );
+  assertSourceExcludes(
+    files.pageShell,
+    pageShell,
+    'from "@/lib/pages/cloudPageMutations"',
+    "Page shell page mutation code must stay out of the full-page first paint bundle."
+  );
+  assertSourceIncludes(
+    files.pageShell,
+    pageShell,
     "return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);",
     "Page shell must defer warming the editor module until after page metadata is visible."
   );

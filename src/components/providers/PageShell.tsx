@@ -37,12 +37,6 @@ import {
   getBlockComments,
 } from "@/lib/db/local/queries";
 import {
-  createPageWithCloud,
-  duplicatePageDeepWithCloud,
-  movePageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
-import {
   getPendingCloudPageSyncStatus,
   isCloudPagePendingSync,
   PAGE_SYNC_CONFIG_EVENT,
@@ -83,6 +77,8 @@ import {
 } from "@/lib/performance/localPerformance";
 
 const loadEditorModule = () => import("@/components/editor/Editor");
+const loadPageMutationModule = () =>
+  import("@/lib/pages/cloudPageMutations");
 const PAGE_EDITOR_IDLE_TIMEOUT_MS = 120;
 const PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420;
 const PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS = 900;
@@ -703,6 +699,7 @@ function PageContent({ pageId }: { pageId: string }) {
     if (!pageClipboard) return;
     if (pageClipboard.mode === "cut") {
       const pos = await getNextPosition(pageId);
+      const { movePageWithCloud } = await loadPageMutationModule();
       const moved = await movePageWithCloud(pageClipboard.pageId, pageId, pos);
       if (moved) {
         upsertPages(
@@ -711,6 +708,7 @@ function PageContent({ pageId }: { pageId: string }) {
       }
       setPageClipboard(null);
     } else {
+      const { duplicatePageDeepWithCloud } = await loadPageMutationModule();
       const duplicate = await duplicatePageDeepWithCloud(
         pageClipboard.pageId,
         pageId
@@ -722,6 +720,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const handleMoveTo = useCallback(
     async (targetId: string | null) => {
       const pos = await getNextPosition(targetId);
+      const { movePageWithCloud } = await loadPageMutationModule();
       const moved = await movePageWithCloud(pageId, targetId, pos);
       if (moved) {
         upsertPages(
@@ -746,6 +745,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const handleAddSubPage = useCallback(async () => {
     if (locked) return;
     try {
+      const { createPageWithCloud } = await loadPageMutationModule();
       const child = await createPageWithCloud({ parentId: pageId });
       upsertPages([child]);
       // Insert a link to the sub-page in the parent editor
@@ -763,6 +763,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const handleDuplicatePage = useCallback(async () => {
     if (!page) return;
     const html = editorRef.current?.getHTML() ?? page.content_text ?? "";
+    const { createPageWithCloud, updatePageWithCloud } =
+      await loadPageMutationModule();
     const duplicate = await createPageWithCloud({
       title: `${title || page.title || "未命名页面"} 副本`,
       parentId: page.parent_id,
