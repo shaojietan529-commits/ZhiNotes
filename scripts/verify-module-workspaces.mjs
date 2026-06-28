@@ -690,10 +690,18 @@ check(
     pagePeekModal.includes("schedulePeekContentLoad") &&
     pagePeekModal.includes("PEEK_METADATA_ONLY_CONTENT_DELAY_MS = 260") &&
     pagePeekModal.includes("PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS = 700") &&
+    pagePeekModal.includes("PEEK_LARGE_BODY_HTML_CHARS = 180 * 1024") &&
+    pagePeekModal.includes("PEEK_LARGE_BODY_EDITOR_DELAY_MS = 260") &&
+    pagePeekModal.includes("PEEK_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600") &&
     pagePeekModal.includes("const isMetadataOnlyPeek =") &&
+    pagePeekModal.includes("const hasLargeBodyForPeek = isLargePeekBodyForEditor(") &&
     pagePeekModal.includes("schedulePeekContentLoad(() => {\n        setEditorLoadRequested(true);\n      }, isMetadataOnlyPeek)") &&
+    pagePeekModal.includes("schedulePeekEditorMount(() => {\n        setMountedEditorPageId(pageId);\n      }, hasLargeBodyForPeek)") &&
     pagePeekModal.includes("标题和属性已先显示，正在从本地缓存补齐正文") &&
     pagePeekModal.includes("标题和属性已先显示，正在排队补齐正文和编辑器") &&
+    pagePeekModal.includes("弹窗已先显示标题和属性，编辑器正在空闲时段准备") &&
+    pagePeekModal.includes("large_body_editor_deferred") &&
+    pagePeekModal.includes("isLargePeekBodyForEditor(content") &&
     pagePeekModal.includes("enabled: editorLoadRequested") &&
     pagePeekModal.includes('surface: "peek"') &&
     pagePeekModal.includes("subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)") &&

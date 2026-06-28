@@ -2621,12 +2621,32 @@ function run() {
       "PagePeekModal metadata-only body loading must stay bounded so content still arrives quickly.",
     ],
     [
+      "PEEK_LARGE_BODY_HTML_CHARS = 180 * 1024",
+      "PagePeekModal must define an explicit large-body threshold before deferring expensive editor parsing.",
+    ],
+    [
+      "PEEK_LARGE_BODY_EDITOR_DELAY_MS = 260",
+      "PagePeekModal must briefly delay editor mounting for large imported notes so title/properties paint first.",
+    ],
+    [
+      "PEEK_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600",
+      "PagePeekModal large-body editor fallback must stay bounded so long previews still become editable.",
+    ],
+    [
       "const isMetadataOnlyPeek =",
       "PagePeekModal must explicitly distinguish metadata-only previews from optimistic empty drafts.",
     ],
     [
+      "const hasLargeBodyForPeek = isLargePeekBodyForEditor(",
+      "PagePeekModal must distinguish ordinary previews from large HTML bodies before mounting the editor.",
+    ],
+    [
       "schedulePeekContentLoad(() => {\n        setEditorLoadRequested(true);\n      }, isMetadataOnlyPeek)",
       "PagePeekModal must use the metadata-only delay only when the preview has no body yet.",
+    ],
+    [
+      "schedulePeekEditorMount(() => {\n        setMountedEditorPageId(pageId);\n      }, hasLargeBodyForPeek)",
+      "PagePeekModal must defer editor mounting for large imported page bodies.",
     ],
     [
       "标题和属性已先显示，正在从本地缓存补齐正文",
@@ -2635,6 +2655,18 @@ function run() {
     [
       "标题和属性已先显示，正在排队补齐正文和编辑器",
       "PagePeekModal skeleton must keep a clear metadata-first loading state before editor hydration.",
+    ],
+    [
+      "弹窗已先显示标题和属性，编辑器正在空闲时段准备",
+      "PagePeekModal skeleton must explain long body editor preparation without blocking the visible shell.",
+    ],
+    [
+      "large_body_editor_deferred",
+      "PagePeekModal performance snapshots must mark long-body deferred editor opens.",
+    ],
+    [
+      "isLargePeekBodyForEditor(content",
+      "PagePeekModal must keep long-body detection centralized.",
     ],
     [
       'surface: "peek"',

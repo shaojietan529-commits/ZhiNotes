@@ -49,6 +49,9 @@ const PageProperties = dynamic<PagePropertiesProps>(
 
 const PEEK_METADATA_ONLY_CONTENT_DELAY_MS = 260;
 const PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS = 700;
+const PEEK_LARGE_BODY_HTML_CHARS = 180 * 1024;
+const PEEK_LARGE_BODY_EDITOR_DELAY_MS = 260;
+const PEEK_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600;
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
 export interface PagePeekModalProps {
@@ -132,6 +135,10 @@ export default function PagePeekModal({
   const currentInitialPage = initialPage?.id === pageId ? initialPage : null;
   const effectivePage =
     currentLoadedPage ?? currentFallbackPage ?? currentInitialPage ?? null;
+  const pageBodyHtmlLength = effectivePage?.content_text?.length ?? 0;
+  const hasLargeBodyForPeek = isLargePeekBodyForEditor(
+    effectivePage?.content_text
+  );
   const isMetadataOnlyPeek =
     Boolean(effectivePage) &&
     effectivePage?.content_text == null &&
@@ -284,6 +291,12 @@ export default function PagePeekModal({
           effectivePage.content_text.length > 0
             ? 1
             : 0,
+        body_html_chars: effectivePage.content_text?.length ?? 0,
+        large_body_editor_deferred: isLargePeekBodyForEditor(
+          effectivePage.content_text
+        )
+          ? 1
+          : 0,
         has_cover: effectivePage.cover_url ? 1 : 0,
         optimistic_draft: isOptimisticDraft ? 1 : 0,
         property_count: parsePageProperties(effectivePage.properties).length,
@@ -318,7 +331,7 @@ export default function PagePeekModal({
     ) {
       return schedulePeekEditorMount(() => {
         setMountedEditorPageId(pageId);
-      });
+      }, hasLargeBodyForPeek);
     }
     if (!editorLoadRequested) {
       return schedulePeekContentLoad(() => {
@@ -329,6 +342,7 @@ export default function PagePeekModal({
     editorLoadRequested,
     editorMounted,
     effectivePage?.content_text,
+    hasLargeBodyForPeek,
     hasEffectivePage,
     isOptimisticDraft,
     isMetadataOnlyPeek,
@@ -494,7 +508,9 @@ export default function PagePeekModal({
                     isMetadataOnlyPeek
                       ? bodyHydrationLabel ??
                         "标题和属性已先显示，正在排队补齐正文和编辑器…"
-                      : "正在准备编辑器…"
+                      : hasLargeBodyForPeek
+                        ? `正文较长（约 ${formatApproxPeekBodySize(pageBodyHtmlLength)}），弹窗已先显示标题和属性，编辑器正在空闲时段准备…`
+                        : "正在准备编辑器…"
                   }
                 />
               )}
@@ -510,8 +526,14 @@ export default function PagePeekModal({
   );
 }
 
-function schedulePeekEditorMount(callback: () => void): () => void {
-  return schedulePeekIdleTask(callback, 40);
+function schedulePeekEditorMount(
+  callback: () => void,
+  largeBody = false
+): () => void {
+  if (!largeBody) return schedulePeekIdleTask(callback, 40);
+  return schedulePeekIdleTask(callback, PEEK_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS, {
+    delay: PEEK_LARGE_BODY_EDITOR_DELAY_MS,
+  });
 }
 
 function schedulePeekContentLoad(
@@ -574,6 +596,17 @@ function PeekEditorSkeleton({ label }: { label: string }) {
       <p className="mt-5 text-xs text-zinc-400">{label}</p>
     </div>
   );
+}
+
+function isLargePeekBodyForEditor(content: string | null | undefined): boolean {
+  return (content?.length ?? 0) > PEEK_LARGE_BODY_HTML_CHARS;
+}
+
+function formatApproxPeekBodySize(length: number): string {
+  if (length <= 0) return "0 KB";
+  const kilobytes = Math.max(1, Math.round(length / 1024));
+  if (kilobytes < 1024) return `${kilobytes} KB`;
+  return `${(kilobytes / 1024).toFixed(1)} MB`;
 }
 
 function PeekIconPickerSkeleton() {
