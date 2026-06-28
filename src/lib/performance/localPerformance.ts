@@ -7,6 +7,7 @@ const MAX_LOCAL_PERFORMANCE_SNAPSHOTS = 24;
 export type LocalPerformanceKind =
   | "daily-calendar"
   | "meeting-calendar"
+  | "database-row-open"
   | "page-open"
   | "page-peek";
 
@@ -164,6 +165,7 @@ function isLocalPerformanceSnapshot(
     record.format_version === 1 &&
     (record.kind === "daily-calendar" ||
       record.kind === "meeting-calendar" ||
+      record.kind === "database-row-open" ||
       record.kind === "page-open" ||
       record.kind === "page-peek") &&
     typeof record.label === "string" &&

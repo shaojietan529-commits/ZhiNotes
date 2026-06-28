@@ -136,6 +136,22 @@ export function readPageRouteHandoff(pageId: string): Page | null {
   }
 }
 
+export function readPageRouteHandoffSource(
+  pageId: string
+): PageRouteHandoffSource | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(pageRouteHandoffKey(pageId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PageRouteHandoff>;
+    if (!isValidPageRouteHandoff(parsed, pageId)) return null;
+    if (Date.parse(parsed.expires_at) < Date.now()) return null;
+    return parsed.source ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function clearPageRouteHandoff(pageId: string): void {
   if (typeof window === "undefined") return;
   try {

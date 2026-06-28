@@ -93,6 +93,7 @@ export interface CloudNativeFluidityReport {
     performance_samples: number;
     average_local_first_ms: number | null;
     average_page_open_ms: number | null;
+    average_database_row_open_ms: number | null;
     web_beta_sync_gate_status: CloudNativeFluidityGateStatus;
     web_beta_sync_blockers: number;
     web_beta_sync_warnings: number;
@@ -106,6 +107,7 @@ export interface CloudNativeFluidityReport {
 
 const LOCAL_FIRST_TARGET_MS = 800;
 const PAGE_OPEN_TARGET_MS = 1200;
+const DATABASE_ROW_OPEN_TARGET_MS = 1200;
 const MIN_PERFORMANCE_SAMPLES = 3;
 
 export function buildCloudNativeFluidityReport(
@@ -129,6 +131,10 @@ export function buildCloudNativeFluidityReport(
   const averagePageOpenMs = averageDurationMs(
     input.performanceSnapshots,
     "page-open"
+  );
+  const averageDatabaseRowOpenMs = averageDurationMs(
+    input.performanceSnapshots,
+    "database-row-open"
   );
 
   const gates: CloudNativeFluidityGate[] = [
@@ -254,6 +260,26 @@ export function buildCloudNativeFluidityReport(
             : "检查页面正文加载是否等待云端，必要时增加本地页面正文热缓存策略。",
     },
     {
+      id: "database-row-open-target",
+      title: "数据库行打开耗时达标",
+      status: getTimingGateStatus(
+        averageDatabaseRowOpenMs,
+        DATABASE_ROW_OPEN_TARGET_MS
+      ),
+      evidence:
+        averageDatabaseRowOpenMs === null
+          ? "还没有数据库行打开耗时样本。"
+          : `数据库行打开平均 ${Math.round(averageDatabaseRowOpenMs)}ms，目标 ${DATABASE_ROW_OPEN_TARGET_MS}ms 以内。`,
+      target:
+        "从数据库、日历、看板或 relation 助手打开 row 页面时先显示本地 metadata，再后台补齐正文。",
+      next_action:
+        averageDatabaseRowOpenMs === null
+          ? "从真实数据库视图打开几条 row 页面，让系统记录数据库行打开耗时。"
+          : averageDatabaseRowOpenMs <= DATABASE_ROW_OPEN_TARGET_MS
+            ? "数据库行打开达标，继续扩大数据库热缓存和云端 row 同步覆盖。"
+            : "优先检查数据库 row route handoff、页面草稿预热和 row 正文 hydration。",
+    },
+    {
       id: "cache-rebuild-safe",
       title: "本地缓存重建有安全门",
       status:
@@ -329,6 +355,7 @@ export function buildCloudNativeFluidityReport(
       performance_samples: input.performanceSnapshots.length,
       average_local_first_ms: roundMetric(localFirstAverageMs),
       average_page_open_ms: roundMetric(averagePageOpenMs),
+      average_database_row_open_ms: roundMetric(averageDatabaseRowOpenMs),
       web_beta_sync_gate_status: webBetaSyncGate.status,
       web_beta_sync_blockers: webBetaSyncGate.blocking_reasons.length,
       web_beta_sync_warnings: webBetaSyncGate.warning_reasons.length,
@@ -353,6 +380,7 @@ export function buildCloudNativeFluidityReport(
         getTimingGateStatus(localFirstAverageMs, LOCAL_FIRST_TARGET_MS)
       ),
       metric("page-open", "页面打开", roundMetric(averagePageOpenMs), "ms", `<=${PAGE_OPEN_TARGET_MS}ms`, getTimingGateStatus(averagePageOpenMs, PAGE_OPEN_TARGET_MS)),
+      metric("database-row-open", "数据库行打开", roundMetric(averageDatabaseRowOpenMs), "ms", `<=${DATABASE_ROW_OPEN_TARGET_MS}ms`, getTimingGateStatus(averageDatabaseRowOpenMs, DATABASE_ROW_OPEN_TARGET_MS)),
       metric("ready-jobs", "Ready jobs", hotCacheReadyJobs, "jobs", "越多代表可预热范围越明确", hotCacheReadyJobs > 0 ? "pass" : "warn"),
     ],
     web_beta_sync_gate: webBetaSyncGate,

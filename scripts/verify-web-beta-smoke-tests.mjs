@@ -1178,14 +1178,38 @@ function run() {
   assertIncludes(
     files.pageShell,
     pageShell,
-    'kind: "page-open"',
-    "Page opens must record metadata-only local performance snapshots."
+    ': "page-open";',
+    "Page opens must still record ordinary metadata-only local performance snapshots."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "readPageRouteHandoffSource(pageId)",
+    "Page shell must classify page-open performance from route handoff metadata before it is cleared."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    'kind === "database-row-open" ? "数据库行打开" : "页面打开"',
+    "Page shell must label database row page opens separately from ordinary page opens."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    'performanceKind === "database-row-open" ? 1 : 0',
+    "Database row page-open performance snapshots must stay metadata-only and avoid row values."
   );
   assertIncludes(
     files.pageShell,
     pageShell,
     'route: "/page/[pageId]"',
     "Page performance snapshots must not include the raw page id."
+  );
+  assertIncludes(
+    files.localPerformance,
+    localPerformance,
+    '"database-row-open"',
+    "Local performance snapshots must accept database row page-open timing records."
   );
   assertIncludes(
     files.localPerformance,
@@ -1264,6 +1288,12 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "数据库行平均",
+    "Sync UI must show database row page-open performance averages."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "local-performance-snapshots",
     "Sync UI must provide a stable local performance panel anchor."
   );
@@ -1277,7 +1307,13 @@ function run() {
     files.syncShell,
     syncShell,
     "LOCAL_PERFORMANCE_DIAGNOSIS_TARGETS",
-    "Sync UI must define local fluency targets for daily, meeting, page, and peek paths."
+    "Sync UI must define local fluency targets for daily, meeting, database row, page, and peek paths."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'kind: "database-row-open"',
+    "Sync local fluency diagnosis must cover database row page opening."
   );
   assertIncludes(
     files.syncShell,
@@ -1589,6 +1625,24 @@ function run() {
     cloudNativeFluidityReport,
     "blocking_reasons",
     "Web Beta sync gate must explain blocking reasons."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    "DATABASE_ROW_OPEN_TARGET_MS",
+    "Smoke verifier must keep a database row page-open timing target in the cloud-native report."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    "database-row-open-target",
+    "Smoke verifier must keep the database row page-open gate in the cloud-native report."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    'metric("database-row-open"',
+    "Smoke verifier must keep database row page-open timing as a cloud-native metric."
   );
   assertIncludes(
     files.syncShell,

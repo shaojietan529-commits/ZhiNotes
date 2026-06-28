@@ -26,7 +26,11 @@ import {
   stringifyPageProperties,
   type PageProperty,
 } from "@/lib/pages/pageProperties";
-import { readPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import {
+  readPageRouteHandoff,
+  readPageRouteHandoffSource,
+  type PageRouteHandoffSource,
+} from "@/lib/pages/pageRouteHandoff";
 import { readPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePage } from "@/hooks/usePage";
@@ -61,6 +65,7 @@ import {
 import {
   getLocalPerformanceNow,
   recordLocalPerformanceSnapshot,
+  type LocalPerformanceKind,
 } from "@/lib/performance/localPerformance";
 
 const loadEditorModule = () => import("@/components/editor/Editor");
@@ -223,6 +228,12 @@ function PageContent({ pageId }: { pageId: string }) {
   const pageOpenStartedAtRef = useRef(getLocalPerformanceNow());
   const pageOpenStartedAtIsoRef = useRef(new Date().toISOString());
   const reportedPageOpenRef = useRef<string | null>(null);
+  const pageOpenSourcePageIdRef = useRef<string | null>(null);
+  const pageOpenSourceRef = useRef<PageRouteHandoffSource | null>(null);
+  if (pageOpenSourcePageIdRef.current !== pageId) {
+    pageOpenSourcePageIdRef.current = pageId;
+    pageOpenSourceRef.current = readPageRouteHandoffSource(pageId);
+  }
   const editorSideEffectTimerRef = useRef<number | null>(null);
   const editorSideEffectRunningRef = useRef(false);
   const pendingEditorSideEffectsRef = useRef<{
@@ -329,9 +340,11 @@ function PageContent({ pageId }: { pageId: string }) {
     reportedPageOpenRef.current = pageId;
     const durationMs = getLocalPerformanceNow() - pageOpenStartedAtRef.current;
     const propertyCount = parsePageProperties(page.properties).length;
+    const performanceSource = pageOpenSourceRef.current;
+    const performanceKind = getPageOpenPerformanceKind(performanceSource);
     recordLocalPerformanceSnapshot({
-      kind: "page-open",
-      label: "页面打开",
+      kind: performanceKind,
+      label: getPageOpenPerformanceLabel(performanceKind),
       route: "/page/[pageId]",
       status: getPageOpenPerformanceStatus(page),
       startedAt: pageOpenStartedAtIsoRef.current,
@@ -343,6 +356,8 @@ function PageContent({ pageId }: { pageId: string }) {
         body_html_chars: page.content_text?.length ?? 0,
         optimistic_draft: page.content_text === "" ? 1 : 0,
         metadata_only: page.content_text == null ? 1 : 0,
+        database_row_handoff:
+          performanceKind === "database-row-open" ? 1 : 0,
         large_body_editor_deferred: isLargePageBodyForEditor(page.content_text)
           ? 1
           : 0,
@@ -1492,6 +1507,20 @@ function getPageOpenPerformanceStatus(
   if (page.content_text === "") return "local-draft-ready";
   if (page.content_text == null) return "metadata-ready";
   return "content-ready";
+}
+
+function getPageOpenPerformanceKind(
+  source: PageRouteHandoffSource | null
+): LocalPerformanceKind {
+  return source === "database-row-open" ||
+    source === "database-row-create" ||
+    source === "inline-database-open"
+    ? "database-row-open"
+    : "page-open";
+}
+
+function getPageOpenPerformanceLabel(kind: LocalPerformanceKind): string {
+  return kind === "database-row-open" ? "数据库行打开" : "页面打开";
 }
 
 function formatApproxBodySize(length: number): string {

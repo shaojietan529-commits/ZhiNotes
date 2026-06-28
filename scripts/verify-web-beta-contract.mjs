@@ -160,6 +160,7 @@ const files = {
   compareShell: "src/components/comparison/CompareShell.tsx",
   pageProperties: "src/components/page/PageProperties.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
+  localPerformance: "src/lib/performance/localPerformance.ts",
   blockComments: "src/components/shared/BlockComments.tsx",
   commentSidePanel: "src/components/shared/CommentSidePanel.tsx",
   blockCommentEvents: "src/components/shared/blockCommentEvents.ts",
@@ -563,6 +564,7 @@ function run() {
   const compareShell = readProjectFile(files.compareShell);
   const pageProperties = readProjectFile(files.pageProperties);
   const pageShell = readProjectFile(files.pageShell);
+  const localPerformance = readProjectFile(files.localPerformance);
   const blockComments = readProjectFile(files.blockComments);
   const commentSidePanel = readProjectFile(files.commentSidePanel);
   const blockCommentEvents = readProjectFile(files.blockCommentEvents);
@@ -2737,6 +2739,28 @@ function run() {
   ]) {
     assertSourceIncludes(files.pageShell, pageShell, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      "readPageRouteHandoffSource(pageId)",
+      "Page shell must classify page-open performance from route handoff metadata before it is cleared.",
+    ],
+    [
+      'kind === "database-row-open" ? "数据库行打开" : "页面打开"',
+      "Page shell must label database row page opens separately from ordinary page opens.",
+    ],
+    [
+      'performanceKind === "database-row-open" ? 1 : 0',
+      "Database row page-open performance snapshots must stay metadata-only and avoid row values.",
+    ],
+  ]) {
+    assertSourceIncludes(files.pageShell, pageShell, snippet, message);
+  }
+  assertSourceIncludes(
+    files.localPerformance,
+    localPerformance,
+    '"database-row-open"',
+    "Local performance snapshots must accept database row page-open timing records."
+  );
   for (const [snippet, message] of [
     [
       "PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700",
@@ -7318,6 +7342,22 @@ function run() {
       "Cloud-native fluidity report must define a page-open timing target.",
     ],
     [
+      "DATABASE_ROW_OPEN_TARGET_MS",
+      "Cloud-native fluidity report must define a database row page-open timing target.",
+    ],
+    [
+      "database-row-open-target",
+      "Cloud-native fluidity report must include a database row page-open gate.",
+    ],
+    [
+      "average_database_row_open_ms",
+      "Cloud-native fluidity report must summarize database row page-open timing separately.",
+    ],
+    [
+      'metric("database-row-open"',
+      "Cloud-native fluidity report must expose database row page-open timing as a metric.",
+    ],
+    [
       "hot_cache_index_rows",
       "Cloud-native fluidity report must include hot cache index evidence.",
     ],
@@ -7381,6 +7421,14 @@ function run() {
     [
       'kind: "page-open"',
       "Sync local fluency diagnosis must cover page opening.",
+    ],
+    [
+      'kind: "database-row-open"',
+      "Sync local fluency diagnosis must cover database row page opening.",
+    ],
+    [
+      "数据库行平均",
+      "Sync UI must show database row page-open performance averages.",
     ],
     [
       'kind: "page-peek"',

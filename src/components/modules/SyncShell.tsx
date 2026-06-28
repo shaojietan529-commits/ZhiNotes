@@ -17288,6 +17288,13 @@ const LOCAL_PERFORMANCE_DIAGNOSIS_TARGETS: Array<{
       "优先检查页面 route handoff、本地草稿和正文 hydration，确保云端补齐不阻塞首屏。",
   },
   {
+    kind: "database-row-open",
+    label: "数据库行",
+    targetMs: 1200,
+    slowNextAction:
+      "优先检查数据库 row route handoff、页面草稿预热和 row 正文 hydration，避免大数据库点击后才准备页面。",
+  },
+  {
     kind: "page-peek",
     label: "页面预览",
     targetMs: 700,
@@ -17327,6 +17334,10 @@ function LocalPerformancePanel({
   const dailyAverage = averagePerformanceMs(snapshots, "daily-calendar");
   const meetingAverage = averagePerformanceMs(snapshots, "meeting-calendar");
   const pageAverage = averagePerformanceMs(snapshots, "page-open");
+  const databaseRowAverage = averagePerformanceMs(
+    snapshots,
+    "database-row-open"
+  );
   const peekAverage = averagePerformanceMs(snapshots, "page-peek");
   const diagnosis = buildLocalPerformanceDiagnosis(snapshots);
   const recentSnapshots = snapshots.slice(0, 6);
@@ -17359,7 +17370,7 @@ function LocalPerformancePanel({
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <CacheRebuildFact
           label="最近一次"
           value={latest ? formatPerformanceMs(latest.duration_ms) : "暂无"}
@@ -17383,6 +17394,11 @@ function LocalPerformancePanel({
           label="页面打开平均"
           value={formatPerformanceMs(pageAverage)}
           detail="不包含页面标题、正文或原始页面 ID"
+        />
+        <CacheRebuildFact
+          label="数据库行平均"
+          value={formatPerformanceMs(databaseRowAverage)}
+          detail="只记录 row 页面打开耗时，不含 row values"
         />
         <CacheRebuildFact
           label="页面预览平均"
