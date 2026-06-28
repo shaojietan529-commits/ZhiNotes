@@ -2843,6 +2843,26 @@ function run() {
       "Page shell must build a lightweight text preview for large page bodies.",
     ],
     [
+      "PAGE_LARGE_BODY_PREVIEW_IDLE_TIMEOUT_MS = 1200",
+      "Page shell must keep large-body preview parsing on a bounded idle schedule.",
+    ],
+    [
+      "function scheduleLargePagePreviewBuild",
+      "Page shell must defer large-body preview parsing outside React render.",
+    ],
+    [
+      "requestIdleCallback(callback",
+      "Page shell must prefer browser idle time for large-body preview parsing.",
+    ],
+    [
+      "setPreview(null)",
+      "Page shell must reset large-body preview state when the opened HTML changes.",
+    ],
+    [
+      'data-testid="large-page-body-preview-pending"',
+      "Large page previews must show a stable pending state while parsing is deferred.",
+    ],
+    [
       'data-testid="large-page-body-preview-outline"',
       "Large page previews must expose a stable lightweight outline surface.",
     ],

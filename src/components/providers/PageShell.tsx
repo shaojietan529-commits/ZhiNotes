@@ -91,6 +91,7 @@ const PAGE_LARGE_BODY_PREVIEW_HTML_CHARS = 120 * 1024;
 const PAGE_LARGE_BODY_PREVIEW_TEXT_CHARS = 6000;
 const PAGE_LARGE_BODY_PREVIEW_BLOCKS = 18;
 const PAGE_LARGE_BODY_PREVIEW_HEADINGS = 8;
+const PAGE_LARGE_BODY_PREVIEW_IDLE_TIMEOUT_MS = 1200;
 const PAGE_LARGE_BODY_EDITOR_WARMUP_DELAY_MS = 900;
 const PAGE_LARGE_BODY_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2600;
 const PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700;
@@ -1554,6 +1555,36 @@ function scheduleDeferredMount(callback: () => void, timeout = 450): () => void 
   return () => window.clearTimeout(timer);
 }
 
+type LargePageBodyPreviewModel = {
+  blocks: string[];
+  headings: Array<{ level: number; text: string }>;
+  truncated: boolean;
+};
+
+type LargePageBodyPreviewState = {
+  html: string;
+  model: LargePageBodyPreviewModel;
+} | null;
+
+function scheduleLargePagePreviewBuild(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
+    const idleId = maybeWindow.requestIdleCallback(callback, {
+      timeout: PAGE_LARGE_BODY_PREVIEW_IDLE_TIMEOUT_MS,
+    });
+    return () => maybeWindow.cancelIdleCallback?.(idleId);
+  }
+  const timer = window.setTimeout(callback, 80);
+  return () => window.clearTimeout(timer);
+}
+
 function LargePageBodyPreview({
   contentLength,
   html,
@@ -1565,8 +1596,24 @@ function LargePageBodyPreview({
   locked: boolean;
   onOpenEditor: () => void;
 }) {
-  const preview = useMemo(() => buildLargePageBodyPreview(html), [html]);
+  const [preview, setPreview] = useState<LargePageBodyPreviewState>(null);
+  const activePreview = preview?.html === html ? preview.model : null;
   const buttonLabel = locked ? "打开完整正文" : "打开完整编辑器";
+
+  useEffect(() => {
+    let cancelled = false;
+    const cancel = scheduleLargePagePreviewBuild(() => {
+      if (cancelled) return;
+      setPreview(null);
+      const nextPreview = buildLargePageBodyPreview(html);
+      if (!cancelled) setPreview({ html, model: nextPreview });
+    });
+    return () => {
+      cancelled = true;
+      cancel();
+    };
+  }, [html]);
+
   return (
     <div
       data-testid="large-page-body-preview"
@@ -1589,9 +1636,23 @@ function LargePageBodyPreview({
           {buttonLabel}
         </button>
       </div>
-      {preview.blocks.length > 0 || preview.headings.length > 0 ? (
+      {activePreview === null ? (
+        <div
+          data-testid="large-page-body-preview-pending"
+          className="rounded border border-zinc-100 bg-zinc-50 px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900/50"
+        >
+          <div className="mb-3 h-3 w-32 rounded bg-zinc-200/80 dark:bg-zinc-800" />
+          <div className="space-y-2">
+            <div className="h-3 w-full max-w-xl rounded bg-zinc-200/70 dark:bg-zinc-800/80" />
+            <div className="h-3 w-10/12 max-w-xl rounded bg-zinc-200/60 dark:bg-zinc-800/70" />
+            <div className="h-3 w-7/12 max-w-xl rounded bg-zinc-200/50 dark:bg-zinc-800/60" />
+          </div>
+          <p className="mt-3 text-xs text-zinc-400">正在生成轻量预览…</p>
+        </div>
+      ) : activePreview.blocks.length > 0 ||
+        activePreview.headings.length > 0 ? (
         <div className="space-y-5">
-          {preview.headings.length > 0 && (
+          {activePreview.headings.length > 0 && (
             <div
               data-testid="large-page-body-preview-outline"
               className="rounded border border-zinc-100 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/50"
@@ -1600,7 +1661,7 @@ function LargePageBodyPreview({
                 页面结构
               </p>
               <div className="space-y-1">
-                {preview.headings.map((heading, index) => (
+                {activePreview.headings.map((heading, index) => (
                   <p
                     key={`${index}-${heading.text.slice(0, 16)}`}
                     className="truncate text-xs text-zinc-600 dark:text-zinc-300"
@@ -1615,9 +1676,9 @@ function LargePageBodyPreview({
               </div>
             </div>
           )}
-          {preview.blocks.length > 0 && (
+          {activePreview.blocks.length > 0 && (
             <div className="space-y-3 text-sm leading-7 text-zinc-700 dark:text-zinc-200">
-              {preview.blocks.map((block, index) => (
+              {activePreview.blocks.map((block, index) => (
                 <p key={`${index}-${block.slice(0, 16)}`}>{block}</p>
               ))}
             </div>
@@ -1628,7 +1689,7 @@ function LargePageBodyPreview({
           预览暂时没有可显示的纯文本内容，请打开完整编辑器查看页面。
         </p>
       )}
-      {preview.truncated && (
+      {activePreview?.truncated && (
         <p className="mt-4 text-xs text-zinc-400">
           这里只显示前 {formatApproxBodySize(PAGE_LARGE_BODY_PREVIEW_HTML_CHARS)} 的安全文本预览。
         </p>
@@ -1673,11 +1734,7 @@ function PageBodySkeleton({
   );
 }
 
-function buildLargePageBodyPreview(html: string): {
-  blocks: string[];
-  headings: Array<{ level: number; text: string }>;
-  truncated: boolean;
-} {
+function buildLargePageBodyPreview(html: string): LargePageBodyPreviewModel {
   const slicedHtml = html.slice(0, PAGE_LARGE_BODY_PREVIEW_HTML_CHARS);
   if (typeof DOMParser === "undefined") {
     const text = normalizePreviewText(slicedHtml.replace(/<[^>]*>/g, " "));
