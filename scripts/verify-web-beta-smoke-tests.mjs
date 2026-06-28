@@ -4946,6 +4946,18 @@ function run() {
       'await import(\n        "@/lib/pages/cloudPageMutations"',
       "Daily drag-to-reschedule mutations must lazy-load page mutation code only after drag/drop intent.",
     ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
+      "Meeting schedule write mutations must lazy-load page mutation code only after create/update intent.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")',
+      "Meeting schedule cloud sync helpers must lazy-load after local/hot-cache first paint.",
+    ],
   ]) {
     assertIncludes(sourceLabel, source, snippet, message);
   }
@@ -5002,6 +5014,18 @@ function run() {
       dailyNotesShell,
       'from "@/lib/pages/cloudPageMutations"',
       "Daily note reschedule mutation code must stay out of the calendar first paint bundle.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      'from "@/lib/pages/cloudPageMutations"',
+      "Meeting schedule page mutation code must stay out of the calendar first paint bundle.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      'from "@/lib/pages/accountPageSync"',
+      "Meeting schedule account sync code must stay out of the calendar first paint bundle.",
     ],
   ]) {
     assertExcludes(sourceLabel, source, forbiddenSnippet, message);

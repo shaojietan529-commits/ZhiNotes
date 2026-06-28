@@ -761,7 +761,16 @@ check(
     meetingScheduleShell.includes('recordMeetingPerformance(\n        localLoadFailed ? "local-refresh-error" : "local-refresh"') &&
     meetingScheduleShell.includes("scheduleMetadataCacheWarmup") &&
     meetingScheduleShell.includes("requestIdleCallback") &&
-    meetingScheduleShell.includes("syncCloudPageMetadataDelta().catch") &&
+    meetingScheduleShell.includes(
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+    ) &&
+    meetingScheduleShell.includes(
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")'
+    ) &&
+    meetingScheduleShell.includes(".then(({ syncCloudPageMetadataDelta }) =>") &&
+    meetingScheduleShell.includes("syncCloudPageMetadataDelta()") &&
+    !meetingScheduleShell.includes('from "@/lib/pages/accountPageSync"') &&
+    !meetingScheduleShell.includes('from "@/lib/pages/cloudPageMutations"') &&
     !meetingScheduleShell.includes("syncCloudPageMetadataDelta({ force: true })") &&
     !meetingScheduleShell.includes("reconcilePageSync") &&
     meetingScheduleShell.includes("loadMeetingCloudMetadata({") &&

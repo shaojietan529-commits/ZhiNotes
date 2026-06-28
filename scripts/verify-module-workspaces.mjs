@@ -521,12 +521,20 @@ check(
     quickSearchSource.includes('await import("@/lib/database/cloudDatabaseMutations")') &&
     pageTreeSource.includes('await import("@/lib/pages/cloudPageMutations")') &&
     shells.daily.includes('await import(\n        "@/lib/pages/cloudPageMutations"') &&
+    shells.schedule.includes(
+      'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")'
+    ) &&
+    shells.schedule.includes(
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+    ) &&
     !sidebarSource.includes('from "@/lib/pages/cloudPageMutations"') &&
     !sidebarSource.includes('from "@/lib/database/cloudDatabaseMutations"') &&
     !quickSearchSource.includes('from "@/lib/pages/cloudPageMutations"') &&
     !quickSearchSource.includes('from "@/lib/database/cloudDatabaseMutations"') &&
     !pageTreeSource.includes('from "@/lib/pages/cloudPageMutations"') &&
     !shells.daily.includes('from "@/lib/pages/cloudPageMutations"') &&
+    !shells.schedule.includes('from "@/lib/pages/cloudPageMutations"') &&
+    !shells.schedule.includes('from "@/lib/pages/accountPageSync"') &&
     sidebarSource.includes('openPage(page, { source: "sidebar-create" })') &&
     !quickSearchSource.includes("const { pages, refresh } = usePages()") &&
     quickSearchSource.includes("const pages = useWorkspaceStore((s) => s.pages)") &&

@@ -25,18 +25,6 @@ import {
   restorePage,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
-import {
-  createPageWithCloud,
-  updatePageWithCloud,
-} from "@/lib/pages/cloudPageMutations";
-import {
-  fetchMeetingCloudMetadata,
-  pageToRemoteRecord,
-  pushCloudPages,
-  queueCloudPagePush,
-  syncCloudPageMetadataDelta,
-  type MeetingCloudMetadataResult,
-} from "@/lib/pages/accountPageSync";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
@@ -121,6 +109,8 @@ const MEETING_CALENDAR_REVEAL_BUFFER = 2;
 const MEETING_CALENDAR_RENDER_DAY_LIMIT =
   MEETING_CALENDAR_VISIBLE_LIMIT + MEETING_CALENDAR_EXPAND_BATCH;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
+const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
 interface MeetingEntry {
   page: Page;
@@ -220,7 +210,7 @@ interface CreateMeetingResult {
 
 interface MeetingCloudMetadataSnapshot {
   ok: boolean;
-  status?: MeetingCloudMetadataResult["status"];
+  status?: string;
   rootId: string | null;
   pages: Page[];
   count?: number;
@@ -485,7 +475,11 @@ export default function MeetingScheduleShell() {
     if (metadataWarmupScheduledRef.current) return;
     metadataWarmupScheduledRef.current = true;
     const run = () => {
-      void syncCloudPageMetadataDelta().catch(() => undefined);
+      void loadPageAccountSyncModule()
+        .then(({ syncCloudPageMetadataDelta }) =>
+          syncCloudPageMetadataDelta()
+        )
+        .catch(() => undefined);
     };
     const maybeWindow = window as Window & {
       requestIdleCallback?: (
@@ -1399,6 +1393,8 @@ export default function MeetingScheduleShell() {
             }
           } catch (error) {
             console.warn("Meeting background persistence failed", error);
+            const { pageToRemoteRecord, queueCloudPagePush } =
+              await loadPageAccountSyncModule();
             queueCloudPagePush(pageToRemoteRecord(finalPage));
           }
         })();
@@ -1645,6 +1641,7 @@ export default function MeetingScheduleShell() {
           changed = true;
         }
         if (changed) {
+          const { updatePageWithCloud } = await loadPageMutationModule();
           const updatedPage = await updatePageWithCloud(entry.page.id, {
             properties: stringifyPageProperties(props),
           });
@@ -1721,6 +1718,7 @@ export default function MeetingScheduleShell() {
       upsertPageProperty(props, "录制任务错误", queueResult.ok ? "" : queueResult.message, {
         type: "text",
       });
+      const { updatePageWithCloud } = await loadPageMutationModule();
       const updatedPage = await updatePageWithCloud(entry.page.id, {
         properties: stringifyPageProperties(props),
       });
@@ -2608,6 +2606,8 @@ async function pushMeetingPageCloudSnapshot(rootId: string, meetingPage: Page) {
   try {
     const rootPage = await getPage(rootId);
     if (!rootPage) return;
+    const { pageToRemoteRecord, pushCloudPages } =
+      await loadPageAccountSyncModule();
     await pushCloudPages([
       pageToRemoteRecord(rootPage),
       pageToRemoteRecord(meetingPage),
@@ -2620,6 +2620,7 @@ async function pushMeetingPageCloudSnapshot(rootId: string, meetingPage: Page) {
 async function loadMeetingCloudMetadata(
   options: MeetingCloudMetadataOptions = {}
 ): Promise<MeetingCloudMetadataSnapshot> {
+  const { fetchMeetingCloudMetadata } = await loadPageAccountSyncModule();
   const data = await fetchMeetingCloudMetadata(options);
   if (data.status !== "ok") {
     return {
@@ -2711,6 +2712,7 @@ async function persistMeetingCloudMetadata(
   upsertPages: (pages: Page[]) => void
 ): Promise<void> {
   if (!cloud.ok || !cloud.rootId) return;
+  const { pageToRemoteRecord } = await loadPageAccountSyncModule();
   const updatedAt = latestMeetingUpdatedAt(cloud.pages);
   const rootRecord: RemotePageRecord = {
     id: cloud.rootId,
@@ -2922,6 +2924,7 @@ function sumMeetingDateCounts(countsByDate: Map<string, number>): number {
 
 async function seedMeetingPageForImmediateOpen(page: Page): Promise<void> {
   try {
+    const { pageToRemoteRecord } = await loadPageAccountSyncModule();
     await applyRemotePages([pageToRemoteRecord(page)]);
   } catch {
     // The in-memory store and pending draft already let the page open. Local
@@ -2956,6 +2959,7 @@ async function persistOptimisticMeetingPage(
   page: Page,
   upsertPages: (pages: Page[]) => void
 ): Promise<"queued" | "local-only"> {
+  const { pageToRemoteRecord } = await loadPageAccountSyncModule();
   const rootRecord = await makeMeetingRootRecord(rootId, page.updated_at);
   const pageRecord = pageToRemoteRecord(page);
   const records = [rootRecord, pageRecord];
@@ -2977,9 +2981,13 @@ function queueMeetingCloudRecords(
   records: RemotePageRecord[]
 ): "queued" | "local-only" {
   if (typeof window === "undefined") return "local-only";
-  for (const record of records) {
-    queueCloudPagePush(record);
-  }
+  void loadPageAccountSyncModule()
+    .then(({ queueCloudPagePush }) => {
+      for (const record of records) {
+        queueCloudPagePush(record);
+      }
+    })
+    .catch(() => undefined);
   return "queued";
 }
 
@@ -2987,6 +2995,7 @@ async function makeMeetingRootRecord(
   rootId: string,
   updatedAt: string
 ): Promise<RemotePageRecord> {
+  const { pageToRemoteRecord } = await loadPageAccountSyncModule();
   const rootPage = await getPage(rootId).catch(() => null);
   if (rootPage) {
     return pageToRemoteRecord({
@@ -3780,6 +3789,8 @@ function scheduleMeetingIdleTask(
 
 async function linkCompletedMeetingsToDaily(completed: MeetingEntry[]) {
   const dailyRootId = await getModuleRootId("daily");
+  const { createPageWithCloud, updatePageWithCloud } =
+    await loadPageMutationModule();
   const dateKeys = completed
     .map((entry) => entry.dateKey)
     .filter((dateKey) => DATE_KEY_PATTERN.test(dateKey))
