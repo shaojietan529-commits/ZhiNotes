@@ -15813,8 +15813,145 @@ function BetaStatusPill({ status }: { status: WebBetaReadinessStatus }) {
 type SyncUploadSafetyVerdict =
   | "ready"
   | "pending"
+  | "stale"
   | "retry"
   | "disabled";
+
+type SyncQueueHealthLevel =
+  | "clear"
+  | "queued"
+  | "watch"
+  | "stale"
+  | "failed"
+  | "disabled";
+
+type SyncQueueHealth = {
+  domain: string;
+  level: SyncQueueHealthLevel;
+  label: string;
+  detail: string;
+  ageMs: number | null;
+  ageLabel: string;
+};
+
+const SYNC_QUEUE_STALE_PENDING_MS = 30 * 60 * 1000;
+const SYNC_QUEUE_CRITICAL_PENDING_MS = 6 * 60 * 60 * 1000;
+
+function getSyncQueueHealth({
+  domain,
+  enabled,
+  waiting,
+  failed,
+  oldestPendingQueuedAt,
+}: {
+  domain: string;
+  enabled: boolean;
+  waiting: number;
+  failed: number;
+  oldestPendingQueuedAt: string | null;
+}): SyncQueueHealth {
+  const ageMs = getQueuePendingAgeMs(oldestPendingQueuedAt);
+  const ageLabel = formatQueuePendingAge(ageMs);
+  if (!enabled) {
+    return {
+      domain,
+      level: "disabled",
+      label: "同步关闭",
+      detail: `${domain}同步未开启，这一类内容不会自动上传。`,
+      ageMs,
+      ageLabel,
+    };
+  }
+  if (failed > 0) {
+    return {
+      domain,
+      level: "failed",
+      label: "失败待处理",
+      detail: `${domain}有 ${failed} 条失败回执，先补传并查看最近失败原因。`,
+      ageMs,
+      ageLabel,
+    };
+  }
+  if (waiting <= 0) {
+    return {
+      domain,
+      level: "clear",
+      label: "队列清空",
+      detail: `${domain}没有 pending queue 或内存批次。`,
+      ageMs,
+      ageLabel,
+    };
+  }
+  if (ageMs !== null && ageMs >= SYNC_QUEUE_CRITICAL_PENDING_MS) {
+    return {
+      domain,
+      level: "stale",
+      label: "长时间未上传",
+      detail: `${domain}最早 pending 已等待 ${ageLabel}，超过 6 小时，建议人工排查样本 id/key 和失败原因。`,
+      ageMs,
+      ageLabel,
+    };
+  }
+  if (ageMs !== null && ageMs >= SYNC_QUEUE_STALE_PENDING_MS) {
+    return {
+      domain,
+      level: "watch",
+      label: "滞留风险",
+      detail: `${domain}最早 pending 已等待 ${ageLabel}，超过 30 分钟，建议先手动补传。`,
+      ageMs,
+      ageLabel,
+    };
+  }
+  return {
+    domain,
+    level: "queued",
+    label: "正常排队",
+    detail: `${domain}有 ${waiting} 条待补传，最早等待 ${ageLabel}。`,
+    ageMs,
+    ageLabel,
+  };
+}
+
+function getQueuePendingAgeMs(value: string | null) {
+  if (!value) return null;
+  const queuedAt = Date.parse(value);
+  if (Number.isNaN(queuedAt)) return null;
+  return Math.max(0, Date.now() - queuedAt);
+}
+
+function formatQueuePendingAge(ageMs: number | null) {
+  if (ageMs === null) return "暂无排队时间";
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  if (ageMs < minute) return "小于 1 分钟";
+  if (ageMs < hour) return `${Math.floor(ageMs / minute)} 分钟`;
+  if (ageMs < day) return `${(ageMs / hour).toFixed(1)} 小时`;
+  return `${(ageMs / day).toFixed(1)} 天`;
+}
+
+function getLongestWaitingQueue(queues: SyncQueueHealth[]) {
+  return queues.reduce<SyncQueueHealth | null>((longest, queue) => {
+    if (queue.ageMs === null) return longest;
+    if (!longest || longest.ageMs === null || queue.ageMs > longest.ageMs) {
+      return queue;
+    }
+    return longest;
+  }, null);
+}
+
+function syncQueueHealthClass(level: SyncQueueHealthLevel) {
+  if (level === "failed" || level === "stale") {
+    return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+  }
+  if (level === "watch" || level === "queued") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  }
+  if (level === "clear") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  }
+  return "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
+}
 
 function SyncUploadSafetyPanel({
   pageStatus,
@@ -15837,6 +15974,24 @@ function SyncUploadSafetyPanel({
     databaseStatus.queued +
     databaseStatus.syncLogPending;
   const failed = pageStatus.failed + databaseStatus.failed;
+  const pageHealth = getSyncQueueHealth({
+    domain: "页面",
+    enabled: pageStatus.enabled,
+    waiting: pageWaiting,
+    failed: pageStatus.failed,
+    oldestPendingQueuedAt: pageStatus.oldestPendingQueuedAt,
+  });
+  const databaseHealth = getSyncQueueHealth({
+    domain: "数据库",
+    enabled: databaseStatus.enabled,
+    waiting: databaseWaiting,
+    failed: databaseStatus.failed,
+    oldestPendingQueuedAt: databaseStatus.oldestPendingQueuedAt,
+  });
+  const longestWaitingQueue = getLongestWaitingQueue([pageHealth, databaseHealth]);
+  const hasStaleQueue = [pageHealth, databaseHealth].some((queue) =>
+    ["watch", "stale"].includes(queue.level)
+  );
   const disabledDomains = [
     pageStatus.enabled ? null : "页面",
     databaseStatus.enabled ? null : "数据库",
@@ -15844,6 +15999,8 @@ function SyncUploadSafetyPanel({
   const verdict: SyncUploadSafetyVerdict =
     failed > 0
       ? "retry"
+      : hasStaleQueue
+        ? "stale"
       : pageWaiting + databaseWaiting + totalSyncPending > 0
         ? "pending"
         : disabledDomains.length > 0
@@ -15852,6 +16009,7 @@ function SyncUploadSafetyPanel({
   const label: Record<SyncUploadSafetyVerdict, string> = {
     ready: "队列清空",
     pending: "待补传",
+    stale: "滞留风险",
     retry: "需处理失败",
     disabled: "同步未全开",
   };
@@ -15860,12 +16018,16 @@ function SyncUploadSafetyPanel({
       "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
     pending:
       "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    stale:
+      "bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
     retry: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
     disabled: "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300",
   };
   const nextAction =
     verdict === "retry"
       ? "先补传失败队列；如果仍失败，查看最近失败原因，避免本地输入长期停在待上传状态。"
+      : verdict === "stale"
+        ? "先补传页面和数据库 pending queue；如果同一批内容仍显示长时间未上传，保留样本 id/key 和最近失败原因进入人工排查，不要重建缓存。"
       : verdict === "pending"
         ? "先补传页面和数据库 pending queue，确认 counts 清零后再做缓存重建或跨设备切换。"
         : verdict === "disabled"
@@ -15904,6 +16066,19 @@ function SyncUploadSafetyPanel({
         pageStatus.lastFailureMessage ||
         databaseStatus.lastFailureMessage ||
         "暂无最近失败原因",
+    },
+    {
+      label: "队列健康",
+      value: `${pageHealth.label} / ${databaseHealth.label}`,
+      detail:
+        "基于 oldestPendingQueuedAt、lastFailureAt 和 counts 判断滞留风险。",
+    },
+    {
+      label: "最早滞留",
+      value: longestWaitingQueue
+        ? `${longestWaitingQueue.domain} ${longestWaitingQueue.ageLabel}`
+        : "暂无滞留",
+      detail: "超过 30 分钟标记滞留风险，超过 6 小时标记长时间未上传。",
     },
   ];
 
@@ -15951,7 +16126,7 @@ function SyncUploadSafetyPanel({
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {facts.map((fact) => (
           <div
             key={fact.label}
@@ -15971,6 +16146,17 @@ function SyncUploadSafetyPanel({
         ))}
       </div>
 
+      {hasStaleQueue ? (
+        <div
+          data-testid="sync-upload-stale-queue-warning"
+          className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-xs leading-5 text-orange-800 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-200"
+        >
+          <span className="font-semibold">滞留风险：</span>
+          {pageHealth.detail} {databaseHealth.detail} 这里只基于
+          oldestPendingQueuedAt / lastFailureAt / counts 判断，不读取页面正文或 row value。
+        </div>
+      ) : null}
+
       <p className="rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
         下一步：{nextAction}
       </p>
@@ -15984,22 +16170,16 @@ function PagePendingQueueDetails({
   status: PendingCloudPageSyncStatus;
 }) {
   const totalWaiting = status.pending + status.queued;
+  const queueHealth = getSyncQueueHealth({
+    domain: "页面",
+    enabled: status.enabled,
+    waiting: totalWaiting,
+    failed: status.failed,
+    oldestPendingQueuedAt: status.oldestPendingQueuedAt,
+  });
   const stateLabel =
-    status.failed > 0
-      ? "待重试"
-      : totalWaiting > 0
-        ? "待补传"
-        : status.enabled
-          ? "队列清空"
-          : "同步关闭";
-  const stateClass =
-    status.failed > 0
-      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
-      : totalWaiting > 0
-      ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-      : status.enabled
-        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
+    queueHealth.level === "failed" ? "待重试" : queueHealth.label;
+  const stateClass = syncQueueHealthClass(queueHealth.level);
   const queueFacts = [
     {
       label: "待上传页面",
@@ -16031,6 +16211,11 @@ function PagePendingQueueDetails({
         ? formatDate(status.oldestPendingQueuedAt)
         : "暂无 pending",
       detail: "用于判断是否有长时间未补传页面。",
+    },
+    {
+      label: "滞留判断",
+      value: queueHealth.label,
+      detail: queueHealth.detail,
     },
     {
       label: "最后同步",
@@ -16071,6 +16256,16 @@ function PagePendingQueueDetails({
           </div>
         ))}
       </div>
+
+      {["watch", "stale"].includes(queueHealth.level) ? (
+        <p
+          data-testid="page-pending-queue-health-warning"
+          className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-xs leading-5 text-orange-800 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-200"
+        >
+          页面队列存在滞留风险。这里用 oldestPendingQueuedAt 和 counts
+          做长时间未上传判断，只显示 page id，不读取页面正文。
+        </p>
+      ) : null}
 
       <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -16147,22 +16342,16 @@ function DatabasePendingQueueDetails({
   status: PendingCloudDatabaseSyncStatus;
 }) {
   const totalWaiting = status.pending + status.queued + status.syncLogPending;
+  const queueHealth = getSyncQueueHealth({
+    domain: "数据库",
+    enabled: status.enabled,
+    waiting: totalWaiting,
+    failed: status.failed,
+    oldestPendingQueuedAt: status.oldestPendingQueuedAt,
+  });
   const stateLabel =
-    status.failed > 0
-      ? "待重试"
-      : totalWaiting > 0
-        ? "待补传"
-        : status.enabled
-          ? "队列清空"
-          : "同步关闭";
-  const stateClass =
-    status.failed > 0
-      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
-      : totalWaiting > 0
-      ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-      : status.enabled
-        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
+    queueHealth.level === "failed" ? "待重试" : queueHealth.label;
+  const stateClass = syncQueueHealthClass(queueHealth.level);
   const queueFacts = [
     {
       label: "Cloud key 队列",
@@ -16199,6 +16388,11 @@ function DatabasePendingQueueDetails({
         ? formatDate(status.oldestPendingQueuedAt)
         : "暂无 pending",
       detail: "用于判断是否有长时间未补传数据库变更。",
+    },
+    {
+      label: "滞留判断",
+      value: queueHealth.label,
+      detail: queueHealth.detail,
     },
     {
       label: "最后同步",
@@ -16240,6 +16434,17 @@ function DatabasePendingQueueDetails({
           </div>
         ))}
       </div>
+
+      {["watch", "stale"].includes(queueHealth.level) ? (
+        <p
+          data-testid="database-pending-queue-health-warning"
+          className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-xs leading-5 text-orange-800 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-200"
+        >
+          数据库队列存在滞留风险。这里用 oldestPendingQueuedAt、lastFailureAt
+          和 counts 做长时间未上传判断，只显示 database/field/row/view
+          key，不读取 row value。
+        </p>
+      ) : null}
 
       <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

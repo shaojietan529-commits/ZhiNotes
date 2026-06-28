@@ -5460,6 +5460,30 @@ function run() {
       "Upload safety overview must preserve the page privacy boundary.",
     ],
     [
+      "SYNC_QUEUE_STALE_PENDING_MS",
+      "Upload safety overview must define a stale pending queue threshold.",
+    ],
+    [
+      "SYNC_QUEUE_CRITICAL_PENDING_MS",
+      "Upload safety overview must define a critical long-pending queue threshold.",
+    ],
+    [
+      "滞留风险",
+      "Upload safety overview must surface stale queue risk before cloud rollout.",
+    ],
+    [
+      "长时间未上传",
+      "Upload safety overview must identify queues that have been stuck for too long.",
+    ],
+    [
+      "oldestPendingQueuedAt、lastFailureAt 和 counts",
+      "Upload safety overview must classify queue health from metadata only.",
+    ],
+    [
+      'data-testid="sync-upload-stale-queue-warning"',
+      "Upload safety overview must expose a stable stale queue warning hook.",
+    ],
+    [
       "数据库行值、评论正文、文件字节或密钥",
       "Upload safety overview must preserve database, comment, file, and secret boundaries.",
     ],

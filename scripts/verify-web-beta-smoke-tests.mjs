@@ -3482,6 +3482,30 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "SYNC_QUEUE_STALE_PENDING_MS",
+    "Sync upload safety panel must define a queue-age threshold for stale pending uploads."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "滞留风险",
+    "Sync upload safety panel must surface stale queue risk in plain language."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "长时间未上传",
+    "Sync upload safety panel must tell the owner when a queue has been stuck for a long time."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "oldestPendingQueuedAt、lastFailureAt 和 counts",
+    "Sync upload safety panel must base stale-queue health on metadata, not private content."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "补传页面",
     "Sync upload safety panel must expose the page pending retry action."
   );
