@@ -36,13 +36,7 @@ import {
   getNextPosition,
   getBlockComments,
 } from "@/lib/db/local/queries";
-import {
-  getPendingCloudPageSyncStatus,
-  isCloudPagePendingSync,
-  PAGE_SYNC_CONFIG_EVENT,
-  PAGE_SYNC_STATUS_EVENT,
-  type PendingCloudPageSyncStatus,
-} from "@/lib/pages/accountPageSync";
+import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 import { maybeSnapshot, manualSnapshot } from "@/lib/comparison/versioning";
 import type { PageVersion } from "@/lib/utils/types";
 import {
@@ -79,6 +73,9 @@ import {
 const loadEditorModule = () => import("@/components/editor/Editor");
 const loadPageMutationModule = () =>
   import("@/lib/pages/cloudPageMutations");
+const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
+const PAGE_SYNC_CONFIG_EVENT = "zhinote:pagesync-config";
+const PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status";
 const PAGE_EDITOR_IDLE_TIMEOUT_MS = 120;
 const PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420;
 const PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS = 900;
@@ -88,6 +85,26 @@ const PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800;
 const PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500;
 const PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000;
 const PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000;
+const EMPTY_PAGE_SYNC_STATUS: PendingCloudPageSyncStatus = {
+  enabled: true,
+  pending: 0,
+  queued: 0,
+  failed: 0,
+  failureCountTotal: 0,
+  maxFailureCount: 0,
+  manualReviewCount: 0,
+  manualReviewFailureThreshold: 3,
+  manualReviewSampleIds: [],
+  oldestPendingQueuedAt: null,
+  lastAttemptAt: null,
+  lastFailureAt: null,
+  lastFailureMessage: null,
+  pendingSampleIds: [],
+  failedSampleIds: [],
+  authRetryStatus: null,
+  authRetryUntil: null,
+  lastSyncAt: null,
+};
 
 const Editor = dynamic(loadEditorModule, {
   ssr: false,
@@ -180,10 +197,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const [applyingResearchActionId, setApplyingResearchActionId] =
     useState<string | null>(null);
   const [pageSyncStatus, setPageSyncStatus] =
-    useState<PendingCloudPageSyncStatus>(() => getPendingCloudPageSyncStatus());
-  const [currentPagePendingSync, setCurrentPagePendingSync] = useState(() =>
-    isCloudPagePendingSync(pageId)
-  );
+    useState<PendingCloudPageSyncStatus>(EMPTY_PAGE_SYNC_STATUS);
+  const [currentPagePendingSync, setCurrentPagePendingSync] = useState(false);
   const [bodyHydrationStatus, setBodyHydrationStatus] = useState(() =>
     getPageBodyHydrationStatus(pageId)
   );
@@ -222,16 +237,23 @@ function PageContent({ pageId }: { pageId: string }) {
 
   useEffect(() => {
     let timer: number | null = null;
-    const refreshStatus = (event?: Event) => {
+    let cancelled = false;
+    const refreshStatus = async (event?: Event) => {
       const next = (event as CustomEvent<PendingCloudPageSyncStatus> | undefined)
         ?.detail;
+      const { getPendingCloudPageSyncStatus, isCloudPagePendingSync } =
+        await loadPageAccountSyncModule();
+      if (cancelled) return null;
       const status = next ?? getPendingCloudPageSyncStatus();
       setPageSyncStatus(status);
       const pagePending = isCloudPagePendingSync(pageId);
       setCurrentPagePendingSync(pagePending);
       return { status, pagePending };
     };
-    const scheduleStatusRefresh = (snapshot = refreshStatus()) => {
+    const scheduleStatusRefresh = (snapshot: {
+      status: PendingCloudPageSyncStatus;
+      pagePending: boolean;
+    }) => {
       if (timer !== null) window.clearTimeout(timer);
       const totalPending = snapshot.status.pending + snapshot.status.queued;
       const delay =
@@ -244,11 +266,22 @@ function PageContent({ pageId }: { pageId: string }) {
           scheduleStatusRefresh(snapshot);
           return;
         }
-        scheduleStatusRefresh(refreshStatus());
+        handleStatusRefresh();
       }, delay);
     };
     const handleStatusRefresh = (event?: Event) => {
-      scheduleStatusRefresh(refreshStatus(event));
+      void refreshStatus(event)
+        .then((snapshot) => {
+          if (snapshot && !cancelled) scheduleStatusRefresh(snapshot);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            scheduleStatusRefresh({
+              status: EMPTY_PAGE_SYNC_STATUS,
+              pagePending: false,
+            });
+          }
+        });
     };
     const handleVisibleRefresh = () => {
       if (document.visibilityState === "visible") {
@@ -265,6 +298,7 @@ function PageContent({ pageId }: { pageId: string }) {
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleStatusRefresh);
       window.removeEventListener("storage", handleStatusRefresh);
       document.removeEventListener("visibilitychange", handleVisibleRefresh);
+      cancelled = true;
       if (timer !== null) window.clearTimeout(timer);
     };
   }, [pageId]);

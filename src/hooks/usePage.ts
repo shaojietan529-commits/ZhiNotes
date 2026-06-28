@@ -14,13 +14,7 @@ import {
   deletePage,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
-import {
-  fetchCloudPageById,
-  pageToRemoteRecord,
-  queueCloudPageDelete,
-  queueCloudPagePush,
-  type CloudPageLookupResult,
-} from "@/lib/pages/accountPageSync";
+import type { CloudPageLookupResult } from "@/lib/pages/accountPageSync";
 import {
   clearPendingPageDraft,
   rememberPendingPageDraft,
@@ -46,6 +40,8 @@ import { usePageRecordRevision } from "@/hooks/usePageRevision";
 import type { Page } from "@/lib/utils/types";
 
 const PAGE_CLOUD_HYDRATION_IDLE_MS = 700;
+const MAX_REMOTE_COVER_CHARS = 300 * 1024;
+const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
 interface OptimisticPageLocalCachePersistState {
   latest: RemotePageRecord;
@@ -189,7 +185,7 @@ export function usePage(
         surface,
         metadataOnly: true,
       });
-      const cloud = await fetchCloudPageById(pageId);
+      const cloud = await fetchCloudPageByIdWithAccountSync(pageId);
       if (!isCurrentLoad()) return;
       const cloudApplied = await applyCloudPageLookup(
         cloud,
@@ -315,7 +311,7 @@ export function usePage(
         );
       }
 
-      queueCloudPagePush(record);
+      void queueCloudPagePushWithAccountSync(record);
       queueOptimisticPageLocalCachePersist(record, upsertPages);
       return optimistic;
     },
@@ -336,7 +332,7 @@ export function usePage(
     try {
       await deletePage(pageId);
     } finally {
-      if (snapshot) queueCloudPageDelete(snapshot, deletedAt);
+      if (snapshot) void queueCloudPageDeleteWithAccountSync(snapshot, deletedAt);
       if (snapshot) {
         const deletedSnapshot = {
           ...snapshot,
@@ -381,7 +377,7 @@ async function deletePageWithCloud(id: string): Promise<void> {
   try {
     await deletePage(id);
   } finally {
-    if (snapshot) queueCloudPageDelete(snapshot, deletedAt);
+    if (snapshot) void queueCloudPageDeleteWithAccountSync(snapshot, deletedAt);
   }
 }
 
@@ -527,7 +523,7 @@ async function refreshPageFromCloud(
     metadataOnly: getLocalPage()?.content_text == null,
   });
   try {
-    const cloud = await fetchCloudPageById(pageId);
+    const cloud = await fetchCloudPageByIdWithAccountSync(pageId);
     const latestLocalPage = getLocalPage();
     const cloudApplied = await applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages);
     const latest = getLocalPage();
@@ -628,10 +624,53 @@ async function applyCloudPageLookup(
     return true;
   }
   if (localPage) {
-    queueCloudPagePush(localPage);
+    void queueCloudPagePushWithAccountSync(localPage);
     return true;
   }
   return false;
+}
+
+function pageToRemoteRecord(page: Page): RemotePageRecord {
+  const coverUrl =
+    page.cover_url && page.cover_url.length > MAX_REMOTE_COVER_CHARS
+      ? null
+      : (page.cover_url ?? null);
+  return {
+    id: page.id,
+    parent_id: page.parent_id ?? null,
+    title: page.title ?? "",
+    icon: page.icon ?? null,
+    cover_url: coverUrl,
+    content_text: page.content_text ?? null,
+    properties: page.properties ?? null,
+    position: page.position ?? 0,
+    depth: page.depth ?? 0,
+    created_at: page.created_at,
+    updated_at: page.updated_at,
+    deleted_at: page.deleted_at ?? null,
+  };
+}
+
+async function fetchCloudPageByIdWithAccountSync(
+  pageId: string
+): Promise<CloudPageLookupResult | null> {
+  const { fetchCloudPageById } = await loadPageAccountSyncModule();
+  return fetchCloudPageById(pageId);
+}
+
+async function queueCloudPagePushWithAccountSync(
+  page: RemotePageRecord | Page
+): Promise<void> {
+  const { queueCloudPagePush } = await loadPageAccountSyncModule();
+  queueCloudPagePush(page);
+}
+
+async function queueCloudPageDeleteWithAccountSync(
+  page: Page,
+  deletedAt: string
+): Promise<void> {
+  const { queueCloudPageDelete } = await loadPageAccountSyncModule();
+  queueCloudPageDelete(page, deletedAt);
 }
 
 function remoteIsAtLeastAsFresh(

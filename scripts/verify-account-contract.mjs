@@ -878,7 +878,13 @@ const pageBodyHydrationStatus = read(
   "src/lib/pages/pageBodyHydrationStatus.ts"
 );
 check(
-  usePageHook.includes("const cloud = await fetchCloudPageById(pageId)") &&
+  usePageHook.includes(
+    "const cloud = await fetchCloudPageByIdWithAccountSync(pageId)"
+  ) &&
+    usePageHook.includes(
+      "const { fetchCloudPageById } = await loadPageAccountSyncModule();"
+    ) &&
+    usePageHook.includes("return fetchCloudPageById(pageId);") &&
     usePageHook.includes("remoteIsAtLeastAsFresh(remoteRecord, localPage)") &&
     usePageHook.includes("hydrateRemotePageIntoLocalCache(remoteRecord)"),
   "usePage 打开页面时应拉取云端正文快照，并在云端不旧于本地时回填本地缓存"
@@ -920,16 +926,26 @@ check(
     usePageHook.includes("requestIdleCallback(run") &&
     usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
     !usePageHook.includes("cloudPagePromise") &&
-    usePageHook.includes("queueCloudPagePush(localPage)"),
+    usePageHook.includes("void queueCloudPagePushWithAccountSync(localPage)") &&
+    usePageHook.includes(
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+    ) &&
+    !usePageHook.includes("import {\n  fetchCloudPageById") &&
+    !usePageHook.includes("import {\n  pageToRemoteRecord"),
   "usePage 应先显示当前页本地缓存；云端正文只做 idle 后台回填，回填前必须用当前可见页面快照比较，避免覆盖刚输入的本地内容"
 );
 check(
-  usePageHook.includes("pageToRemoteRecord(optimistic)") &&
+    usePageHook.includes("pageToRemoteRecord(optimistic)") &&
+    usePageHook.includes("MAX_REMOTE_COVER_CHARS = 300 * 1024") &&
+    usePageHook.includes("page.cover_url.length > MAX_REMOTE_COVER_CHARS") &&
     usePageHook.includes("setPage(optimistic)") &&
     usePageHook.includes("upsertPages([optimistic])") &&
     usePageHook.includes('emitPageSnapshotsUpdated("cloud-push", [optimistic])') &&
     usePageHook.includes("rememberPendingPageDraft(optimistic)") &&
-    usePageHook.includes("queueCloudPagePush(record)") &&
+    usePageHook.includes("void queueCloudPagePushWithAccountSync(record)") &&
+    usePageHook.includes(
+      "const { queueCloudPagePush } = await loadPageAccountSyncModule();"
+    ) &&
     usePageHook.includes("queueOptimisticPageLocalCachePersist(record, upsertPages)") &&
     usePageHook.includes("optimisticPageLocalCachePersistQueue") &&
     usePageHook.includes("drainOptimisticPageLocalCachePersistQueue") &&
@@ -1329,10 +1345,18 @@ check(
 check(
   pageShell.includes("PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000") &&
     pageShell.includes("PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000") &&
+    pageShell.includes(
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+    ) &&
+    pageShell.includes("EMPTY_PAGE_SYNC_STATUS") &&
+    pageShell.includes(
+      "const { getPendingCloudPageSyncStatus, isCloudPagePendingSync } ="
+    ) &&
     pageShell.includes("scheduleStatusRefresh") &&
     pageShell.includes(
       'document.addEventListener("visibilitychange", handleVisibleRefresh)'
     ) &&
+    !pageShell.includes("import {\n  getPendingCloudPageSyncStatus") &&
     !pageShell.includes("window.setInterval(refreshStatus, 5000)"),
   "PageShell 同步状态应在 pending 时保持 5 秒反馈、空闲时降到 30 秒，并在标签页恢复可见时刷新，避免固定 5 秒轮询拖慢页面打开"
 );

@@ -3675,6 +3675,24 @@ function run() {
     "Page shell must read the local page sync queue status without triggering upload."
   );
   assertIncludes(
+    files.pageShell,
+    pageShell,
+    'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")',
+    "Page shell must load page-sync status helpers after the first page shell paint."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "EMPTY_PAGE_SYNC_STATUS",
+    "Page shell must render a lightweight local-saved sync badge before the sync helper chunk loads."
+  );
+  assertExcludes(
+    files.pageShell,
+    pageShell,
+    "import {\n  getPendingCloudPageSyncStatus",
+    "Page shell must not pull the full account page sync module into the initial page route chunk."
+  );
+  assertIncludes(
     files.accountPageSync,
     accountPageSync,
     "export function isCloudPagePendingSync",
@@ -7428,8 +7446,20 @@ function run() {
   assertIncludes(
     files.usePage,
     usePage,
-    "queueCloudPagePush(record)",
+    "void queueCloudPagePushWithAccountSync(record)",
     "Page editing must enqueue cloud upload instead of blocking on the cloud."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "MAX_REMOTE_COVER_CHARS = 300 * 1024",
+    "Page editing must keep the cloud queue cover-size guard when using the lightweight local record converter."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")',
+    "Page editing must load cloud queue helpers only after the page shell has opened."
   );
   assertIncludes(
     files.usePage,

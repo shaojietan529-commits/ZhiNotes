@@ -260,6 +260,12 @@ check(
     usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)") &&
     usePageHook.includes("requestIdleCallback(run") &&
     usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
+    usePageHook.includes(
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+    ) &&
+    usePageHook.includes("fetchCloudPageByIdWithAccountSync") &&
+    usePageHook.includes("queueCloudPagePushWithAccountSync") &&
+    !usePageHook.includes("import {\n  fetchCloudPageById") &&
     usePageHook.includes("publishPageBodyHydrationStatus") &&
     usePageHook.includes('phase: "local-body-requested"') &&
     usePageHook.includes('phase: "cloud-body-requested"') &&
@@ -391,6 +397,14 @@ check(
     accountPageSync.includes("export function isCloudPagePendingSync") &&
     accountPageSync.includes("emitPageSyncStatusChanged();") &&
     pageShell.includes("PAGE_SYNC_STATUS_EVENT") &&
+    pageShell.includes(
+      'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
+    ) &&
+    pageShell.includes("EMPTY_PAGE_SYNC_STATUS") &&
+    pageShell.includes(
+      "const { getPendingCloudPageSyncStatus, isCloudPagePendingSync } ="
+    ) &&
+    !pageShell.includes("import {\n  getPendingCloudPageSyncStatus") &&
     pageShell.includes("getPendingCloudPageSyncStatus") &&
     pageShell.includes("isCloudPagePendingSync(pageId)") &&
     pageShell.includes("currentPagePendingSync") &&
