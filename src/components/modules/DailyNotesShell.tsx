@@ -122,9 +122,16 @@ const DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS = 24;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
 const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
 const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
+const DAILY_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000;
+const DAILY_CLOUD_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const DAILY_DATE_INDEX_BACKFILL_KEY = "zhinote.daily.dateIndex.backfilled.v2";
 let dailyDateIndexBackfillRunning = false;
 let dailyDateIndexBackfillDoneInMemory = false;
+
+type CachedDailyCloudMetadataResult = DailyCloudMetadataResult & {
+  cachedAt: string;
+  stale: boolean;
+};
 
 export default function DailyNotesShell() {
   const router = useRouter();
@@ -445,6 +452,7 @@ export default function DailyNotesShell() {
           local_notes: localNoteCount,
           first_visible_notes: firstVisibleCount,
           cloud_enabled: includeCloud ? 1 : 0,
+          cached_cloud_stale: cachedCloud?.stale ? 1 : 0,
           ...counts,
         },
       });
@@ -499,7 +507,9 @@ export default function DailyNotesShell() {
         publishNotes(Array.from(byId.values()));
       }
       publishNotice(
-        `已先显示缓存的云端每日纪要 ${cachedCloud.pages.length} 条，正在后台更新…`
+        cachedCloud.stale
+          ? `已先显示较早缓存的云端每日纪要目录 ${cachedCloud.pages.length} 条，正在后台更新到最新…`
+          : `已先显示缓存的云端每日纪要 ${cachedCloud.pages.length} 条，正在后台更新…`
       );
     }
 
@@ -607,7 +617,9 @@ export default function DailyNotesShell() {
     if (includeCloud) {
       setCloudLoading(true);
       if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
-        void persistDailyCloudMetadata(cachedCloud, upsertPages);
+        if (!cachedCloud.stale) {
+          void persistDailyCloudMetadata(cachedCloud, upsertPages);
+        }
       } else {
         publishNotice("本地每日纪要已显示，正在后台检查云端更新…");
       }
@@ -1929,7 +1941,7 @@ function dailyCloudCacheKey(startDate: string, endDate: string): string {
 function readCachedDailyCloudMetadata(
   startDate: string,
   endDate: string
-): DailyCloudMetadataResult | null {
+): CachedDailyCloudMetadataResult | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(
@@ -1940,7 +1952,10 @@ function readCachedDailyCloudMetadata(
       cachedAt?: string;
     };
     const cachedAt = parsed.cachedAt ? Date.parse(parsed.cachedAt) : 0;
-    if (!cachedAt || Date.now() - cachedAt > 24 * 60 * 60 * 1000) return null;
+    const cacheAgeMs = cachedAt
+      ? Date.now() - cachedAt
+      : Number.POSITIVE_INFINITY;
+    if (!cachedAt || cacheAgeMs > DAILY_CLOUD_CACHE_STALE_MS) return null;
     if (
       parsed.status !== "ok" ||
       !Array.isArray(parsed.pages) ||
@@ -1953,12 +1968,17 @@ function readCachedDailyCloudMetadata(
       pages: parsed.pages,
       total: parsed.total,
       rootId: typeof parsed.rootId === "string" ? parsed.rootId : null,
+      cachedAt: new Date(cachedAt).toISOString(),
+      cached: true,
+      stale: cacheAgeMs > DAILY_CLOUD_CACHE_FRESH_MS,
       matched: typeof parsed.matched === "number" ? parsed.matched : undefined,
       rangeCount:
         typeof parsed.rangeCount === "number" ? parsed.rangeCount : undefined,
       recentCount:
         typeof parsed.recentCount === "number" ? parsed.recentCount : undefined,
       scanned: typeof parsed.scanned === "number" ? parsed.scanned : undefined,
+      watermark:
+        typeof parsed.watermark === "string" ? parsed.watermark : undefined,
     };
   } catch {
     return null;

@@ -621,6 +621,13 @@ const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
 check(
   dailyNotesShell.includes("const storedDailyRootId = getModuleRootIdSync(\"daily\")") &&
     dailyNotesShell.includes("const cachedCloud = includeCloud") &&
+    dailyNotesShell.includes("DAILY_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000") &&
+    dailyNotesShell.includes("DAILY_CLOUD_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000") &&
+    dailyNotesShell.includes("type CachedDailyCloudMetadataResult") &&
+    dailyNotesShell.includes("stale: cacheAgeMs > DAILY_CLOUD_CACHE_FRESH_MS") &&
+    dailyNotesShell.includes("较早缓存的云端每日纪要目录") &&
+    dailyNotesShell.includes("cached_cloud_stale") &&
+    dailyNotesShell.includes("if (!cachedCloud.stale)") &&
     dailyNotesShell.includes("cachedHotSnapshot,\n        startDate,\n        endDate") &&
     dailyNotesShell.includes("let cloudMetadataPromise: Promise<DailyCloudMetadataResult> | null = null;") &&
     dailyNotesShell.includes("const startDailyCloudMetadataFetch = () => {") &&
@@ -1345,11 +1352,19 @@ check(
 check(
   pageShell.includes("PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420") &&
     pageShell.includes("PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS = 900") &&
+    pageShell.includes("PAGE_LARGE_BODY_HTML_CHARS = 180 * 1024") &&
+    pageShell.includes("PAGE_LARGE_BODY_EDITOR_DELAY_MS = 260") &&
+    pageShell.includes("PAGE_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600") &&
     pageShell.includes("const hasContentForEditor = page?.content_text != null") &&
+    pageShell.includes("const hasLargeBodyForEditor = isLargePageBodyForEditor(page?.content_text)") &&
     pageShell.includes("mountedEditorPageIdRef.current = pageId") &&
     pageShell.includes("if (editorMounted && mountedEditorPageIdRef.current === pageId) return") &&
-    pageShell.includes("delay: metadataOnly ? PAGE_METADATA_ONLY_EDITOR_DELAY_MS : 0") &&
-    pageShell.includes("metadataOnly\n        ? PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS\n        : PAGE_EDITOR_IDLE_TIMEOUT_MS") &&
+    pageShell.includes("hasLargeBodyForEditor\n        ? PAGE_LARGE_BODY_EDITOR_DELAY_MS") &&
+    pageShell.includes("hasLargeBodyForEditor\n        ? PAGE_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS") &&
+    pageShell.includes("delay,\n      timeout,") &&
+    pageShell.includes("largeBody={hasLargeBodyForEditor}") &&
+    pageShell.includes("正文较长（约 ${formatApproxBodySize(contentLength)}）") &&
+    pageShell.includes("isLargePageBodyForEditor(content") &&
     pageShell.includes("标题和属性已先显示，正在从本地缓存补齐正文和编辑器") &&
     pageShell.includes('data-testid="page-body-hydration-status"') &&
     pageShell.includes("subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)") &&

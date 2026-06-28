@@ -1937,6 +1937,34 @@ function run() {
       "Daily notes must refresh the local hot cache snapshot after metadata loads.",
     ],
     [
+      "DAILY_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000",
+      "Daily notes must define a fresh cloud-metadata cache window for immediate directory first paint.",
+    ],
+    [
+      "DAILY_CLOUD_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000",
+      "Daily notes must keep a bounded stale cloud-metadata cache fallback for large workspaces.",
+    ],
+    [
+      "type CachedDailyCloudMetadataResult",
+      "Daily notes must type cached cloud metadata separately so stale entries are explicit.",
+    ],
+    [
+      "stale: cacheAgeMs > DAILY_CLOUD_CACHE_FRESH_MS",
+      "Daily notes must mark old cloud directory cache as stale instead of treating it as fresh.",
+    ],
+    [
+      "较早缓存的云端每日纪要目录",
+      "Daily notes must visibly label stale cloud directory cache while background refresh continues.",
+    ],
+    [
+      "cached_cloud_stale",
+      "Daily calendar performance snapshots must record when first paint used stale cloud metadata.",
+    ],
+    [
+      "if (!cachedCloud.stale)",
+      "Daily notes must not persist stale cloud directory cache back into the local database.",
+    ],
+    [
       "HOT_CACHE_PREFERENCES_SETTING_KEY",
       "Daily notes must read the user hot-cache preference setting.",
     ],
