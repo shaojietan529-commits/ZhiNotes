@@ -13,6 +13,9 @@ import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
+import PagePeekModal, {
+  warmPagePeekModal,
+} from "@/components/page/LazyPagePeekModal";
 import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
@@ -26,6 +29,8 @@ import {
   createPageWithCloud,
   updatePageWithCloud,
 } from "@/lib/pages/cloudPageMutations";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
   FILE_PREVIEW_CAPABILITIES,
   getFilePreviewCapabilityByKind,
@@ -222,6 +227,8 @@ function ReportsDashboard() {
   );
   const [reportFileBatchMessage, setReportFileBatchMessage] =
     useState<ReportFileBatchMessage | null>(null);
+  const [peekPageId, setPeekPageId] = useState<string | null>(null);
+  const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
   const reportFileInputRef = useRef<HTMLInputElement | null>(null);
   const markdownImportInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -342,8 +349,31 @@ function ReportsDashboard() {
     router.push(`${decision.route}#${decision.target_section_id}`);
   };
 
+  const openCreatedReportPage = useCallback((page: Page) => {
+    rememberPendingPageDraft(page);
+    rememberPageRouteHandoff(page, "module-create");
+    warmPagePeekModal();
+    setPeekInitialPage(page);
+    setPeekPageId(page.id);
+  }, []);
+
+  const openReportFullPageById = useCallback(
+    (pageId: string) => {
+      const page =
+        (peekInitialPage?.id === pageId ? peekInitialPage : null) ??
+        pagesById.get(pageId);
+      if (page) {
+        openPage(page, { source: "module-open" });
+        return;
+      }
+      openPage(pageId, { source: "module-open" });
+    },
+    [openPage, pagesById, peekInitialPage]
+  );
+
   const runStarter = async (starter: ModuleStarter) => {
     setBusyAction(starter.label);
+    warmPagePeekModal();
     try {
       const result = await executeModuleStarter(starter);
       if (result.page) {
@@ -353,7 +383,7 @@ function ReportsDashboard() {
         await refreshDatabases();
       }
       if (result.page) {
-        openPage(result.page, { source: "module-create" });
+        openCreatedReportPage(result.page);
       } else {
         router.push(result.route);
       }
@@ -381,6 +411,7 @@ function ReportsDashboard() {
     if (selectedFiles.length === 0) return;
 
     setBusyAction(REPORT_FILE_ACTION_LABEL);
+    if (selectedFiles.length === 1) warmPagePeekModal();
     setReportFileBatchMessage(null);
     try {
       const createdPages: Page[] = [];
@@ -399,7 +430,7 @@ function ReportsDashboard() {
 
       upsertPages(createdPages);
       if (selectedFiles.length === 1 && createdPages[0]) {
-        openPage(createdPages[0], { source: "module-create" });
+        openCreatedReportPage(createdPages[0]);
         return;
       }
 
@@ -457,6 +488,7 @@ function ReportsDashboard() {
     if (!file) return;
 
     setBusyAction(MARKDOWN_EDITABLE_IMPORT_LABEL);
+    warmPagePeekModal();
     try {
       const storedFile = await savePageFile(file);
       if (storedFile.kind !== "markdown") {
@@ -491,7 +523,7 @@ function ReportsDashboard() {
       );
       const createdPage = updatedPage ?? page;
       upsertPages([createdPage]);
-      openPage(createdPage, { source: "module-create" });
+      openCreatedReportPage(createdPage);
     } catch (err) {
       console.error("[Zhinote] Failed to import markdown note:", err);
       window.alert(
@@ -762,8 +794,9 @@ function ReportsDashboard() {
   };
 
   return (
-    <div className="w-full px-6 py-6 lg:px-10">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <>
+      <div className="w-full px-6 py-6 lg:px-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="border-b border-zinc-200 pb-5 dark:border-zinc-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -1910,8 +1943,24 @@ function ReportsDashboard() {
             }))}
           />
         </section>
+        </div>
       </div>
-    </div>
+      {peekPageId && (
+        <PagePeekModal
+          pageId={peekPageId}
+          initialPage={peekInitialPage}
+          onClose={() => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+          }}
+          onOpenFull={(id) => {
+            setPeekPageId(null);
+            setPeekInitialPage(null);
+            openReportFullPageById(id);
+          }}
+        />
+      )}
+    </>
   );
 }
 
