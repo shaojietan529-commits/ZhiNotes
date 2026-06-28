@@ -571,7 +571,10 @@ for (const token of [
   "title: dateKey",
   "data-testid={`daily-opening-note-${key}`}",
   "onPointerEnter={warmPageRoute}",
-  "onFocus={warmPageRoute}",
+  "const warmDailyPeekOpen = useCallback",
+  "onPointerEnter={warmDailyPeekOpen}",
+  "onPointerDown={warmDailyPeekOpen}",
+  "onFocus={warmDailyPeekOpen}",
   "const warmDailyNoteContent = useCallback",
   "onMouseEnter={() => warmDailyNoteContent(note)}",
   "setPeekInitialPage(toDailyNoteSeed(seededNote, note));",
@@ -622,6 +625,12 @@ check(
 check(
   shells.daily.includes("@/components/page/LazyPagePeekModal") &&
     shells.daily.includes("warmPagePeekModal();") &&
+    shells.daily.includes("const warmDailyPeekOpen = useCallback") &&
+    shells.daily.includes("warmDailyPeekOpen();") &&
+    shells.daily.includes("onPointerEnter={warmDailyPeekOpen}") &&
+    shells.daily.includes("onPointerDown={warmDailyPeekOpen}") &&
+    shells.daily.includes("onFocus={warmDailyPeekOpen}") &&
+    !shells.daily.includes("const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     !shells.daily.includes("@/components/page/PagePeekModal") &&
     pagePeekModal.includes('dynamic(() => import("@/components/editor/Editor")') &&
     pagePeekModal.includes("readPendingPageDraft(pageId)") &&
@@ -777,6 +786,12 @@ check(
     shells.schedule.includes("pageShellWarmupRef") &&
     shells.schedule.includes("useLocalFirstPageNavigation") &&
     shells.schedule.includes("warmMeetingPageRoute") &&
+    shells.schedule.includes("const warmMeetingPeekOpen = useCallback") &&
+    shells.schedule.includes("warmMeetingPeekOpen();") &&
+    shells.schedule.includes("onPointerEnter={warmMeetingPeekOpen}") &&
+    shells.schedule.includes("onPointerDown={warmMeetingPeekOpen}") &&
+    shells.schedule.includes("onFocus={warmMeetingPeekOpen}") &&
+    !shells.schedule.includes("const warmMeetingPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     shells.schedule.includes("prepareMeetingPageOpen") &&
     shells.schedule.includes('import("@/components/providers/PageShell")') &&
     shells.schedule.includes("onPointerDown={warmMeetingPageRoute}") &&

@@ -233,7 +233,6 @@ export default function DailyNotesShell() {
   }, [viewMonth]);
 
   const warmPageRoute = useCallback(() => {
-    warmPagePeekModal();
     try {
       router.prefetch("/page/zhinote-route-prefetch");
     } catch {
@@ -247,6 +246,11 @@ export default function DailyNotesShell() {
       );
     }
   }, [router]);
+
+  const warmDailyPeekOpen = useCallback(() => {
+    warmPagePeekModal();
+    warmPageRoute();
+  }, [warmPageRoute]);
 
   const warmDailyNoteContent = useCallback(
     (note: DailyNote) => {
@@ -796,7 +800,7 @@ export default function DailyNotesShell() {
       }, 250);
 
       const pageRoute = `/page/${optimisticNote.id}`;
-      warmPageRoute();
+      warmDailyPeekOpen();
       try {
         router.prefetch(pageRoute);
       } catch {
@@ -859,13 +863,13 @@ export default function DailyNotesShell() {
       router,
       upsertPages,
       viewMonth,
-      warmPageRoute,
+      warmDailyPeekOpen,
     ]
   );
 
   const primeDailyNoteOpen = useCallback(
     (note: DailyNote, source: "daily-create" | "daily-open" = "daily-open") => {
-      warmPageRoute();
+      warmDailyPeekOpen();
       upsertPages([note]);
       rememberPendingPageDraft(note);
       rememberPageRouteHandoff(note, source);
@@ -877,7 +881,7 @@ export default function DailyNotesShell() {
         // the metadata needed for immediate first paint.
       }
     },
-    [router, upsertPages, warmDailyNoteContent, warmPageRoute]
+    [router, upsertPages, warmDailyNoteContent, warmDailyPeekOpen]
   );
 
   const openDailyNoteFullPage = useCallback(
@@ -1065,9 +1069,9 @@ export default function DailyNotesShell() {
             <button
               type="button"
               disabled={creatingDateKey !== null}
-              onPointerEnter={warmPageRoute}
-              onPointerDown={warmPageRoute}
-              onFocus={warmPageRoute}
+              onPointerEnter={warmDailyPeekOpen}
+              onPointerDown={warmDailyPeekOpen}
+              onFocus={warmDailyPeekOpen}
               onClick={() => void addNote(todayKey)}
               className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
@@ -1184,9 +1188,9 @@ export default function DailyNotesShell() {
                       aria-label={`在 ${key} 新增每日纪要`}
                       data-testid={`daily-add-note-${key}`}
                       disabled={creatingDateKey !== null}
-                      onPointerEnter={warmPageRoute}
-                      onPointerDown={warmPageRoute}
-                      onFocus={warmPageRoute}
+                      onPointerEnter={warmDailyPeekOpen}
+                      onPointerDown={warmDailyPeekOpen}
+                      onFocus={warmDailyPeekOpen}
                       onClick={() => void addNote(key)}
                       className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                       title="在这天新增纪要"
@@ -1238,7 +1242,7 @@ export default function DailyNotesShell() {
                           setDraggedNoteId(null);
                           setDragOverDateKey(null);
                         }}
-                        onPointerEnter={warmPageRoute}
+                        onPointerEnter={warmDailyPeekOpen}
                         onMouseEnter={() => warmDailyNoteContent(note)}
                         onPointerDown={() =>
                           primeDailyNoteOpen(note, "daily-open")
@@ -1333,7 +1337,7 @@ export default function DailyNotesShell() {
                         setDraggedNoteId(null);
                         setDragOverDateKey(null);
                       }}
-                      onPointerEnter={warmPageRoute}
+                      onPointerEnter={warmDailyPeekOpen}
                       onMouseEnter={() => warmDailyNoteContent(note)}
                       onPointerDown={() =>
                         primeDailyNoteOpen(note, "daily-open")

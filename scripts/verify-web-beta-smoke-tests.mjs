@@ -3563,8 +3563,20 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "warmPagePeekModal();",
-    "Daily calendar must warm the lazy peek modal on pointer or keyboard intent so + still opens quickly."
+    "const warmDailyPeekOpen = useCallback",
+    "Daily calendar must split route-shell warmup from lazy peek-modal warmup."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "warmDailyPeekOpen();",
+    "Daily calendar must warm the lazy peek modal only on page-open intent."
+  );
+  assertExcludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();",
+    "Daily calendar idle route warmup must not download the lazy peek modal chunk."
   );
   assertIncludes(
     files.dailyNotesShell,
@@ -3593,20 +3605,20 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "onPointerEnter={warmPageRoute}",
-    "Daily calendar + controls must warm the page shell on pointer intent before navigation."
+    "onPointerEnter={warmDailyPeekOpen}",
+    "Daily calendar + controls must warm the lazy peek modal on pointer intent before opening."
   );
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "onPointerDown={warmPageRoute}",
-    "Daily calendar + creation controls must warm the page shell even on fast clicks."
+    "onPointerDown={warmDailyPeekOpen}",
+    "Daily calendar + creation controls must warm the lazy peek modal even on fast clicks."
   );
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "onFocus={warmPageRoute}",
-    "Daily calendar + controls must warm the page shell on keyboard focus before navigation."
+    "onFocus={warmDailyPeekOpen}",
+    "Daily calendar + controls must warm the lazy peek modal on keyboard focus before opening."
   );
   assertIncludes(
     files.dailyNotesShell,

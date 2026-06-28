@@ -411,7 +411,6 @@ export default function MeetingScheduleShell() {
   }, [dbReady]);
 
   const warmMeetingPageRoute = useCallback(() => {
-    warmPagePeekModal();
     try {
       router.prefetch("/page/zhinote-route-prefetch");
     } catch {
@@ -425,6 +424,11 @@ export default function MeetingScheduleShell() {
       );
     }
   }, [router]);
+
+  const warmMeetingPeekOpen = useCallback(() => {
+    warmPagePeekModal();
+    warmMeetingPageRoute();
+  }, [warmMeetingPageRoute]);
 
   const warmMeetingPageContent = useCallback(
     (page: Page) => {
@@ -1414,7 +1418,7 @@ export default function MeetingScheduleShell() {
   const prepareMeetingPageOpen = useCallback(
     (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
       const seededPage = getMeetingPageOpenSeed(page);
-      warmMeetingPageRoute();
+      warmMeetingPeekOpen();
       upsertPages([seededPage]);
       rememberPendingPageDraft(seededPage);
       rememberPageRouteHandoff(seededPage, source);
@@ -1427,7 +1431,7 @@ export default function MeetingScheduleShell() {
       }
       return seededPage;
     },
-    [router, upsertPages, warmMeetingPageContent, warmMeetingPageRoute]
+    [router, upsertPages, warmMeetingPageContent, warmMeetingPeekOpen]
   );
 
   const openCreatedMeetingPage = useCallback(
@@ -1865,9 +1869,9 @@ export default function MeetingScheduleShell() {
                   type="button"
                   data-testid="meeting-intake-import-button"
                   aria-label="导入会议信息到日历"
-                  onPointerEnter={warmMeetingPageRoute}
-                  onPointerDown={warmMeetingPageRoute}
-                  onFocus={warmMeetingPageRoute}
+                  onPointerEnter={warmMeetingPeekOpen}
+                  onPointerDown={warmMeetingPeekOpen}
+                  onFocus={warmMeetingPeekOpen}
                   onClick={() => void handleImportInvite()}
                   disabled={intakeLoading || !intakeText.trim()}
                   className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
@@ -2222,6 +2226,9 @@ export default function MeetingScheduleShell() {
                 <button
                   type="button"
                   disabled={creatingMeetingDateKey !== null}
+                  onPointerEnter={warmMeetingPeekOpen}
+                  onPointerDown={warmMeetingPeekOpen}
+                  onFocus={warmMeetingPeekOpen}
                   onClick={() => void handleCreate()}
                   className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
                 >
@@ -2325,9 +2332,9 @@ export default function MeetingScheduleShell() {
                       data-testid={`meeting-add-${key}`}
                       aria-label={`创建 ${key} 的会议页面`}
                       disabled={creatingMeetingDateKey !== null}
-                      onPointerEnter={warmMeetingPageRoute}
-                      onPointerDown={warmMeetingPageRoute}
-                      onFocus={warmMeetingPageRoute}
+                      onPointerEnter={warmMeetingPeekOpen}
+                      onPointerDown={warmMeetingPeekOpen}
+                      onFocus={warmMeetingPeekOpen}
                       onClick={() => void quickCreateMeetingForDate(key)}
                       className="text-zinc-300 opacity-0 transition-opacity hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:text-zinc-200"
                       title="在这天加会议"

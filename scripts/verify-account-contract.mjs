@@ -692,6 +692,12 @@ check(
     dailyNotesShell.includes("setPeekPageId(optimisticNote.id);") &&
     !dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
     dailyNotesShell.includes("setOpeningDraft({ pageId: optimisticNote.id, dateKey })") &&
+    dailyNotesShell.includes("const warmDailyPeekOpen = useCallback") &&
+    dailyNotesShell.includes("warmDailyPeekOpen();") &&
+    dailyNotesShell.includes("onPointerEnter={warmDailyPeekOpen}") &&
+    dailyNotesShell.includes("onPointerDown={warmDailyPeekOpen}") &&
+    dailyNotesShell.includes("onFocus={warmDailyPeekOpen}") &&
+    !dailyNotesShell.includes("const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     dailyNotesShell.includes("data-testid={`daily-opening-note-${key}`}") &&
     dailyNotesShell.includes("title: dateKey") &&
     dailyNotesShell.includes("<PagePeekModal") &&
@@ -801,6 +807,12 @@ check(
   meetingScheduleShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
     meetingScheduleShell.includes("@/components/page/LazyPagePeekModal") &&
     meetingScheduleShell.includes("warmPagePeekModal();") &&
+    meetingScheduleShell.includes("const warmMeetingPeekOpen = useCallback") &&
+    meetingScheduleShell.includes("warmMeetingPeekOpen();") &&
+    meetingScheduleShell.includes("onPointerEnter={warmMeetingPeekOpen}") &&
+    meetingScheduleShell.includes("onPointerDown={warmMeetingPeekOpen}") &&
+    meetingScheduleShell.includes("onFocus={warmMeetingPeekOpen}") &&
+    !meetingScheduleShell.includes("const warmMeetingPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     !meetingScheduleShell.includes("@/components/page/PagePeekModal") &&
     meetingScheduleShell.includes("creatingMeetingDateKey") &&
     meetingScheduleShell.includes('importSource: "手动创建"') &&
@@ -1349,6 +1361,9 @@ check(
     lazyPagePeekModal.includes("dynamic(loadPagePeekModal") &&
     dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
     dailyNotesShell.includes("warmPagePeekModal();") &&
+    dailyNotesShell.includes("const warmDailyPeekOpen = useCallback") &&
+    dailyNotesShell.includes("onPointerEnter={warmDailyPeekOpen}") &&
+    !dailyNotesShell.includes("const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     !dailyNotesShell.includes('@/components/page/PagePeekModal') &&
     dailyNotesShell.includes("setPeekPageId(note.id)") &&
     dailyNotesShell.includes("const [openingNoteId, setOpeningNoteId]") &&
