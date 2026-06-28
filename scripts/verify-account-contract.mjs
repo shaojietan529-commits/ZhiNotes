@@ -735,6 +735,14 @@ check(
     dailyNotesShell.includes("visibleNoteLimitByDate") &&
     dailyNotesShell.includes("toggleDateExpansion") &&
     dailyNotesShell.includes("showMoreNotesForDate") &&
+    dailyNotesShell.includes("DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT") &&
+    dailyNotesShell.includes("const [loadingMoreDateKey, setLoadingMoreDateKey]") &&
+    dailyNotesShell.includes("const loadMoreNotesForDate = useCallback") &&
+    dailyNotesShell.includes("const targetRangeLimit = Math.min") &&
+    dailyNotesShell.includes("currentLoadedCount + DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT") &&
+    dailyNotesShell.includes("rangeLimit: targetRangeLimit") &&
+    dailyNotesShell.includes("正在补齐…") &&
+    dailyNotesShell.includes("点击补齐") &&
     dailyNotesShell.includes("DAILY_CALENDAR_EXPAND_BATCH") &&
     dailyNotesShell.includes("DAILY_CALENDAR_RENDER_DAY_LIMIT") &&
     dailyNotesShell.includes("const dayTotalCount =") &&
@@ -748,7 +756,7 @@ check(
     dailyNotesShell.includes("已显示 ${visibleNotes.length}/${dayTotalCount} 条") &&
     dailyNotesShell.includes("为保持日历流畅") &&
     !dailyNotesShell.includes("hiddenNotes.map"),
-  "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开；超大单日导入只能保留渲染上限和总数提示，不能把全部 metadata 塞进 DOM"
+  "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开；超大单日导入只能按当天补齐 metadata，不能把全部 metadata 塞进 DOM"
 );
 
 const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");

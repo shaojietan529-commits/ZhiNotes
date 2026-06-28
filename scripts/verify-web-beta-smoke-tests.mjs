@@ -2370,6 +2370,18 @@ function run() {
       "if (!cachedCloud.stale)",
       "Daily notes must not persist stale cloud directory cache back into the local database.",
     ],
+    [
+      "const loadMoreNotesForDate = useCallback",
+      "Daily high-volume days must offer date-level metadata backfill instead of search-only fallback.",
+    ],
+    [
+      "rangeLimit: targetRangeLimit",
+      "Daily date-level metadata backfill must stay bounded.",
+    ],
+    [
+      "点击补齐",
+      "Daily capped-day controls must expose an explicit backfill action.",
+    ],
   ]) {
     assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }

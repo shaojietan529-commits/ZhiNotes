@@ -116,6 +116,7 @@ const DAILY_RENDER_RECENT_BUFFER_LIMIT = 80;
 const DAILY_CALENDAR_EXPAND_BATCH = 24;
 const DAILY_CALENDAR_RENDER_DAY_LIMIT =
   DAILY_CALENDAR_VISIBLE_LIMIT + DAILY_CALENDAR_EXPAND_BATCH;
+const DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT = 160;
 const DAILY_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT = 14;
 const DAILY_CALENDAR_HYDRATION_BATCH = 7;
 const DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS = 24;
@@ -158,6 +159,9 @@ export default function DailyNotesShell() {
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
   const [peekInitialPage, setPeekInitialPage] = useState<DailyNote | null>(null);
   const [openingNoteId, setOpeningNoteId] = useState<string | null>(null);
+  const [loadingMoreDateKey, setLoadingMoreDateKey] = useState<string | null>(
+    null
+  );
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [dragOverDateKey, setDragOverDateKey] = useState<string | null>(null);
   const [expandedDateKeys, setExpandedDateKeys] = useState<Set<string>>(
@@ -1075,6 +1079,110 @@ export default function DailyNotesShell() {
     []
   );
 
+  const loadMoreNotesForDate = useCallback(
+    async (dateKey: string, totalCount: number) => {
+      if (!dbReady) {
+        showMoreNotesForDate(dateKey, totalCount);
+        return;
+      }
+      if (loadingMoreDateKey) return;
+      hydrateDailyDateKey(dateKey);
+      showMoreNotesForDate(dateKey, totalCount);
+      setLoadingMoreDateKey(dateKey);
+
+      try {
+        const dailyRootId =
+          rootId ??
+          getModuleRootIdSync("daily") ??
+          (await getModuleRootId("daily"));
+        if (!rootId) setRootId(dailyRootId);
+        const currentLoadedCount = notesRef.current.filter(
+          (note) => dailyNoteDateKey(note) === dateKey
+        ).length;
+        const targetRangeLimit = Math.min(
+          Math.max(totalCount, DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT),
+          currentLoadedCount + DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT
+        );
+        const metadata = await listDailyPageMetadataForCalendar({
+          rootId: dailyRootId,
+          startDate: dateKey,
+          endDate: dateKey,
+          recentLimit: 0,
+          includeUnindexedFallback: true,
+          rangeLimit: targetRangeLimit,
+        });
+        const loadedDayNotes = collectDailyNotes(metadata, dailyRootId)
+          .filter((note) => dailyNoteDateKey(note) === dateKey)
+          .slice(0, targetRangeLimit);
+
+        if (loadedDayNotes.length === 0) {
+          setCloudNotice(
+            `${dateKey} 这一天暂时只能看到已加载的 ${Math.min(
+              totalCount,
+              DAILY_CALENDAR_RENDER_DAY_LIMIT
+            )}/${totalCount} 条纪要；后台索引完成后会继续出现。`
+          );
+          return;
+        }
+
+        startTransition(() => {
+          setNotes((current) => {
+            const byId = new Map(current.map((note) => [note.id, note]));
+            for (const note of loadedDayNotes) byId.set(note.id, note);
+            return Array.from(byId.values());
+          });
+          setDailyNoteCountByDate((current) => {
+            const next = new Map(current);
+            next.set(
+              dateKey,
+              Math.max(
+                current.get(dateKey) ?? 0,
+                totalCount,
+                loadedDayNotes.length
+              )
+            );
+            return next;
+          });
+        });
+        setVisibleNoteLimitByDate((limits) => {
+          const currentLimit =
+            limits.get(dateKey) ??
+            DAILY_CALENDAR_VISIBLE_LIMIT + DAILY_CALENDAR_EXPAND_BATCH;
+          const nextLimits = new Map(limits);
+          nextLimits.set(
+            dateKey,
+            Math.min(
+              Math.max(totalCount, loadedDayNotes.length),
+              currentLimit + DAILY_CALENDAR_EXPAND_BATCH
+            )
+          );
+          return nextLimits;
+        });
+        setCloudNotice(
+          `已按 ${dateKey} 补齐本机每日纪要目录 ${loadedDayNotes.length}/${Math.max(
+            totalCount,
+            loadedDayNotes.length
+          )} 条；为保持日历流畅，日历仍会分批显示，避免卡顿。`
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "本机每日纪要目录读取失败";
+        setCloudNotice(`${dateKey} 的每日纪要补齐失败：${message}`);
+      } finally {
+        setLoadingMoreDateKey((current) =>
+          current === dateKey ? null : current
+        );
+      }
+    },
+    [
+      dbReady,
+      hydrateDailyDateKey,
+      loadingMoreDateKey,
+      rootId,
+      showMoreNotesForDate,
+    ]
+  );
+
   // Drag a note chip onto another day: rewrite its 日期 property (and the
   // title too when the note is still date-titled) so it moves on the calendar.
   const moveNoteToDate = useCallback(
@@ -1234,6 +1342,7 @@ export default function DailyNotesShell() {
               const isToday = key === todayKey;
               const isDropTarget = draggedNoteId !== null && dragOverDateKey === key;
               const isOpeningDraft = openingDraft?.dateKey === key;
+              const isLoadingMore = loadingMoreDateKey === key;
               const isDateHydrated =
                 hydratedDateKeys.has(key) ||
                 isExpanded ||
@@ -1389,11 +1498,10 @@ export default function DailyNotesShell() {
                     {isDateHydrated && dayTotalCount > DAILY_CALENDAR_VISIBLE_LIMIT && (
                       <button
                         type="button"
+                        disabled={isLoadingMore}
                         onClick={() => {
                           if (isRenderCapped) {
-                            setCloudNotice(
-                              `为保持日历流畅，${key} 当前先显示 ${visibleNotes.length}/${dayTotalCount} 条纪要；可用搜索打开其余纪要。`
-                            );
+                            void loadMoreNotesForDate(key, dayTotalCount);
                             return;
                           }
                           if (isExpanded && loadedHiddenCount === 0) {
@@ -1407,13 +1515,15 @@ export default function DailyNotesShell() {
                           toggleDateExpansion(key);
                         }}
                         aria-expanded={isExpanded}
-                        className="rounded-md px-2 py-1 text-left text-xs leading-4 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                        className="rounded-md px-2 py-1 text-left text-xs leading-4 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-progress disabled:opacity-70 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                       >
-                        {isExpanded
+                        {isLoadingMore
+                          ? "正在补齐…"
+                          : isExpanded
                           ? loadedHiddenCount > 0
                             ? `再显示 ${nextBatchCount} 条（剩余 ${hiddenCount}）`
                             : isRenderCapped
-                              ? `已显示 ${visibleNotes.length}/${dayTotalCount} 条`
+                              ? `已显示 ${visibleNotes.length}/${dayTotalCount} 条，点击补齐`
                             : `收起到 ${DAILY_CALENDAR_VISIBLE_LIMIT} 条`
                           : `+${hiddenCount} 条，点击展开`}
                       </button>

@@ -3360,6 +3360,38 @@ function run() {
       "Daily calendar cells must detect when a high-volume day hit the render cap.",
     ],
     [
+      "DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT",
+      "Daily high-volume day expansion must cap user-triggered date-level metadata backfills.",
+    ],
+    [
+      "const [loadingMoreDateKey, setLoadingMoreDateKey]",
+      "Daily high-volume day expansion must expose loading feedback for date-level metadata backfills.",
+    ],
+    [
+      "const loadMoreNotesForDate = useCallback",
+      "Daily high-volume day expansion must load extra metadata by date instead of sending users to search.",
+    ],
+    [
+      "const targetRangeLimit = Math.min",
+      "Daily date-level backfills must compute a bounded incremental metadata target.",
+    ],
+    [
+      "currentLoadedCount + DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT",
+      "Daily date-level backfills must advance in bounded batches rather than loading everything.",
+    ],
+    [
+      "rangeLimit: targetRangeLimit",
+      "Daily date-level backfills must pass the bounded metadata target to the local query.",
+    ],
+    [
+      "点击补齐",
+      "Daily high-volume day expansion must make the capped-day backfill action visible.",
+    ],
+    [
+      "正在补齐…",
+      "Daily high-volume day expansion must show progress while metadata is being backfilled.",
+    ],
+    [
       "为保持日历流畅",
       "Daily calendar must explain capped high-volume day rendering to the user.",
     ],

@@ -1358,17 +1358,23 @@ export async function listDailyPageMetadataForCalendar({
   endDate,
   recentLimit = 8,
   includeUnindexedFallback = true,
+  rangeLimit,
 }: {
   rootId: string;
   startDate: string;
   endDate: string;
   recentLimit?: number;
   includeUnindexedFallback?: boolean;
+  rangeLimit?: number;
 }): Promise<Page[]> {
   const db = await getDb();
   const byId = new Map<string, Page>();
   const readRows = (sql: string, bind: unknown[]) =>
     db.query(sql, bind) as unknown as Page[];
+  const boundedRangeLimit =
+    typeof rangeLimit === "number" && Number.isFinite(rangeLimit)
+      ? Math.max(1, Math.floor(rangeLimit))
+      : null;
   const parentIdCache = new Map<string, string | null>();
   const dateParentIdsForChildren = new Set<string>();
   const isDailyScopePage = (page: Page): boolean => {
@@ -1411,8 +1417,11 @@ export async function listDailyPageMetadataForCalendar({
      WHERE p.deleted_at IS NULL
        AND p.daily_date_key >= ?
        AND p.daily_date_key <= ?
-     ORDER BY p.daily_date_key ASC, p.updated_at DESC`,
-    [startDate, endDate]
+     ORDER BY p.daily_date_key ASC, p.updated_at DESC
+     ${boundedRangeLimit === null ? "" : "LIMIT ?"}`,
+    boundedRangeLimit === null
+      ? [startDate, endDate]
+      : [startDate, endDate, boundedRangeLimit]
   );
   for (const row of rangeRows) addIfDailyScope(row);
 

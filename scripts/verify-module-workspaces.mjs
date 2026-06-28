@@ -885,9 +885,17 @@ check(
   shells.daily.includes("const visibleLimit = isExpanded") &&
     shells.daily.includes("const visibleNotes = dayNotes.slice(0, visibleLimit)") &&
     shells.daily.includes("Math.min(totalCount, currentLimit + DAILY_CALENDAR_EXPAND_BATCH)") &&
+    shells.daily.includes("DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT") &&
+    shells.daily.includes("const [loadingMoreDateKey, setLoadingMoreDateKey]") &&
+    shells.daily.includes("const loadMoreNotesForDate = useCallback") &&
+    shells.daily.includes("const targetRangeLimit = Math.min") &&
+    shells.daily.includes("currentLoadedCount + DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT") &&
+    shells.daily.includes("rangeLimit: targetRangeLimit") &&
+    shells.daily.includes("正在补齐…") &&
+    shells.daily.includes("点击补齐") &&
     shells.daily.includes("再显示 ${nextBatchCount} 条") &&
     !shells.daily.includes("? dayNotes\n                : dayNotes.slice"),
-  "DailyNotesShell 展开某一天时也必须分批渲染，不能一次性把大批量导入纪要全部挂到 DOM"
+  "DailyNotesShell 展开某一天时也必须分批渲染；超大单日只能按当天补齐 metadata，不能一次性把大批量导入纪要全部挂到 DOM"
 );
 check(
   shells.daily.includes("DAILY_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT") &&
