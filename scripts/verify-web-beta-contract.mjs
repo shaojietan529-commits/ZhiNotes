@@ -18,6 +18,8 @@ const files = {
     "src/lib/sync/webAlphaLaunchDecisionReceipt.ts",
   webBetaOwnerReviewPacket: "src/lib/sync/webBetaOwnerReviewPacket.ts",
   syncManualReviewPacket: "src/lib/sync/syncManualReviewPacket.ts",
+  syncHandoffReadinessReceipt:
+    "src/lib/sync/syncHandoffReadinessReceipt.ts",
   privateFileStoragePolicy: "src/lib/sync/privateFileStoragePolicy.ts",
   filePresignApiStub: "src/lib/sync/filePresignApiStub.ts",
   filePresignRoute: "src/app/api/files/presign/route.ts",
@@ -344,6 +346,9 @@ function run() {
     files.webBetaOwnerReviewPacket
   );
   const syncManualReviewPacket = readProjectFile(files.syncManualReviewPacket);
+  const syncHandoffReadinessReceipt = readProjectFile(
+    files.syncHandoffReadinessReceipt
+  );
   const privateFileStoragePolicy = readProjectFile(files.privateFileStoragePolicy);
   const filePresignApiStub = readProjectFile(files.filePresignApiStub);
   const filePresignRoute = readProjectFile(files.filePresignRoute);
@@ -589,6 +594,7 @@ function run() {
     [files.webAlphaLaunchDecisionReceipt, webAlphaLaunchDecisionReceipt],
     [files.webBetaOwnerReviewPacket, webBetaOwnerReviewPacket],
     [files.syncManualReviewPacket, syncManualReviewPacket],
+    [files.syncHandoffReadinessReceipt, syncHandoffReadinessReceipt],
     [files.replayHarnessVerifier, replayHarnessVerifier],
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
@@ -5722,8 +5728,202 @@ function run() {
       "导出处理包",
       "Sync UI must render the manual review packet export action.",
     ],
+    [
+      "handleExportSyncHandoffReadinessReceipt",
+      "Sync UI must expose a local cross-device handoff readiness export handler.",
+    ],
+    [
+      "buildSyncHandoffReadinessReceipt",
+      "Sync UI must build handoff readiness receipts from queue metadata.",
+    ],
+    [
+      "handoff-readiness",
+      "Sync UI must track handoff readiness export as its own busy state.",
+    ],
+    [
+      "zhinote-sync-handoff-readiness",
+      "Sync UI must download handoff readiness under a stable filename.",
+    ],
+    [
+      "导出接力收据",
+      "Sync UI must render the cross-device handoff readiness export action.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-sync-handoff-readiness-receipt"',
+      "Handoff readiness receipt must declare a stable export format.",
+    ],
+    [
+      'receipt_status: "metadata-only-local-check"',
+      "Handoff readiness receipt must stay local and metadata-only.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Handoff readiness receipt must target cloud master plus local hot cache.",
+    ],
+    [
+      "buildSyncHandoffReadinessReceipt",
+      "Handoff readiness receipt must have a single builder entrypoint.",
+    ],
+    [
+      "ready_for_cross_device_handoff",
+      "Handoff readiness receipt must explicitly mark cross-device handoff readiness.",
+    ],
+    [
+      "safe_to_open_other_device",
+      "Handoff readiness receipt must tell whether another device can safely open the workspace.",
+    ],
+    [
+      "ready_for_cloud_cache_read",
+      "Handoff readiness receipt must tell whether cloud cache reads are safe.",
+    ],
+    [
+      "cloud_workspace_linked",
+      "Handoff readiness receipt must block local-only workspaces.",
+    ],
+    [
+      "local_receipt_only: true",
+      "Handoff readiness receipt must declare it is local only.",
+    ],
+    [
+      "reads_queue_counts: true",
+      "Handoff readiness receipt may read queue counts.",
+    ],
+    [
+      "reads_sync_enabled_flags: true",
+      "Handoff readiness receipt may read sync enabled flags.",
+    ],
+    [
+      "reads_workspace_link_metadata: true",
+      "Handoff readiness receipt may read workspace link metadata.",
+    ],
+    [
+      "reads_failure_counts: true",
+      "Handoff readiness receipt may read failure counts.",
+    ],
+    [
+      "reads_queue_timestamps: true",
+      "Handoff readiness receipt may read queue timestamps.",
+    ],
+    [
+      "reads_page_ids: false",
+      "Handoff readiness receipt must not export page ids.",
+    ],
+    [
+      "reads_database_keys: false",
+      "Handoff readiness receipt must not export database keys.",
+    ],
+    [
+      "reads_failure_messages: false",
+      "Handoff readiness receipt must not export failure messages.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Handoff readiness receipt must not read page body text.",
+    ],
+    [
+      "reads_page_yjs: false",
+      "Handoff readiness receipt must not read page Yjs payloads.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Handoff readiness receipt must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Handoff readiness receipt must not read comment bodies.",
+    ],
+    [
+      "reads_file_names: false",
+      "Handoff readiness receipt must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Handoff readiness receipt must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Handoff readiness receipt must not read secret values.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Handoff readiness receipt must not send network requests.",
+    ],
+    [
+      "writes_server_data: false",
+      "Handoff readiness receipt must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Handoff readiness receipt must not upload workspace data.",
+    ],
+    [
+      "clears_local_cache: false",
+      "Handoff readiness receipt must not clear local cache.",
+    ],
+    [
+      "mutates_local_cache_records: false",
+      "Handoff readiness receipt must not mutate local cache records.",
+    ],
+    [
+      "enables_sync: false",
+      "Handoff readiness receipt must not enable sync.",
+    ],
+    [
+      "enables_ai: false",
+      "Handoff readiness receipt must not enable AI.",
+    ],
+    [
+      "exports_raw_workspace_ids: false",
+      "Handoff readiness receipt must not export raw workspace ids.",
+    ],
+    [
+      "includes_raw_workspace_content: false",
+      "Handoff readiness receipt must not include raw workspace content.",
+    ],
+    [
+      "includes_only_counts_booleans_hashes_timestamps_and_gates: true",
+      "Handoff readiness receipt must only include counts, booleans, hashes, timestamps, and gates.",
+    ],
+    [
+      "blocked-local-only",
+      "Handoff readiness receipt must block local-only workspaces.",
+    ],
+    [
+      "blocked-sync-disabled",
+      "Handoff readiness receipt must block disabled sync domains.",
+    ],
+    [
+      "blocked-pending",
+      "Handoff readiness receipt must block while pending queues exist.",
+    ],
+    [
+      "blocked-stale-pending",
+      "Handoff readiness receipt must block stale pending queues.",
+    ],
+    [
+      "blocked-failed",
+      "Handoff readiness receipt must block failed uploads.",
+    ],
+    [
+      "blocked-manual-review",
+      "Handoff readiness receipt must block repeated failures that need owner review.",
+    ],
+    [
+      "owner_actions",
+      "Handoff readiness receipt must include owner-facing next actions.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.syncHandoffReadinessReceipt,
+      syncHandoffReadinessReceipt,
+      snippet,
+      message
+    );
   }
 
   for (const [snippet, message] of [

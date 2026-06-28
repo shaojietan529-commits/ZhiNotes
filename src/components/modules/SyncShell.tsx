@@ -298,6 +298,7 @@ import {
   type CacheRebuildPreflightGateStatus,
   type CacheRebuildPreflightStatus,
 } from "@/lib/sync/cacheRebuildPreflightReceipt";
+import { buildSyncHandoffReadinessReceipt } from "@/lib/sync/syncHandoffReadinessReceipt";
 import { buildSyncManualReviewPacket } from "@/lib/sync/syncManualReviewPacket";
 import {
   buildCloudNativeFluidityReport,
@@ -461,6 +462,7 @@ import type { Database, Page } from "@/lib/utils/types";
 type ExportAction = "backup" | "zip" | "markdown";
 type SyncQueueAction =
   | "queue"
+  | "handoff-readiness"
   | "manual-review-packet"
   | "page-pending"
   | "database-pending"
@@ -3879,6 +3881,31 @@ function SyncDashboard() {
       console.error("[Zhinote] Failed to export sync manual review packet:", err);
       window.alert(
         "Sync manual review packet export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportSyncHandoffReadinessReceipt = () => {
+    setBusyQueueAction("handoff-readiness");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-handoff-readiness-${fileSafeTimestamp()}.json`,
+        buildSyncHandoffReadinessReceipt({
+          pageStatus: pagePendingStatus,
+          databaseStatus: databasePendingStatus,
+          totalSyncPending: syncSummary?.pending ?? 0,
+          workspaceIdentity,
+        })
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export sync handoff readiness receipt:",
+        err
+      );
+      window.alert(
+        "Sync handoff readiness export failed. Please check the console."
       );
     } finally {
       setBusyQueueAction(null);
@@ -9637,6 +9664,9 @@ function SyncDashboard() {
                 databaseStatus={databasePendingStatus}
                 totalSyncPending={syncSummary?.pending ?? 0}
                 busyQueueAction={busyQueueAction}
+                onExportHandoffReadiness={
+                  handleExportSyncHandoffReadinessReceipt
+                }
                 onExportManualReview={handleExportSyncManualReviewPacket}
                 onRetryPage={() => void handleRetryPagePendingPush()}
                 onRetryDatabase={() => void handleRetryDatabasePendingPush()}
@@ -16003,6 +16033,7 @@ function SyncUploadSafetyPanel({
   databaseStatus,
   totalSyncPending,
   busyQueueAction,
+  onExportHandoffReadiness,
   onExportManualReview,
   onRetryPage,
   onRetryDatabase,
@@ -16011,6 +16042,7 @@ function SyncUploadSafetyPanel({
   databaseStatus: PendingCloudDatabaseSyncStatus;
   totalSyncPending: number;
   busyQueueAction: SyncQueueAction | null;
+  onExportHandoffReadiness: () => void;
   onExportManualReview: () => void;
   onRetryPage: () => void;
   onRetryDatabase: () => void;
@@ -16171,6 +16203,16 @@ function SyncUploadSafetyPanel({
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onExportHandoffReadiness}
+            disabled={busyQueueAction === "handoff-readiness"}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {busyQueueAction === "handoff-readiness"
+              ? "导出中..."
+              : "导出接力收据"}
+          </button>
           <button
             type="button"
             onClick={onExportManualReview}

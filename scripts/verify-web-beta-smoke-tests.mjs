@@ -18,6 +18,8 @@ const files = {
   cacheRebuildPreflightReceipt:
     "src/lib/sync/cacheRebuildPreflightReceipt.ts",
   syncManualReviewPacket: "src/lib/sync/syncManualReviewPacket.ts",
+  syncHandoffReadinessReceipt:
+    "src/lib/sync/syncHandoffReadinessReceipt.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
@@ -313,6 +315,9 @@ function run() {
     files.cacheRebuildPreflightReceipt
   );
   const syncManualReviewPacket = readProjectFile(files.syncManualReviewPacket);
+  const syncHandoffReadinessReceipt = readProjectFile(
+    files.syncHandoffReadinessReceipt
+  );
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
@@ -5328,6 +5333,102 @@ function run() {
     syncShell,
     "导出处理包",
     "Sync UI must render the manual review packet export action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportSyncHandoffReadinessReceipt",
+    "Sync UI must expose a local cross-device handoff readiness export handler."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildSyncHandoffReadinessReceipt",
+    "Sync UI must build handoff readiness receipts from queue metadata."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handoff-readiness",
+    "Sync UI must track handoff readiness export as its own busy state."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "zhinote-sync-handoff-readiness",
+    "Sync UI must download handoff readiness under a stable filename."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出接力收据",
+    "Sync UI must render the cross-device handoff readiness export action."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    'format: "zhinote-sync-handoff-readiness-receipt"',
+    "Handoff readiness receipt must declare a stable export format."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    'receipt_status: "metadata-only-local-check"',
+    "Handoff readiness receipt must stay local and metadata-only."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "ready_for_cross_device_handoff",
+    "Handoff readiness receipt must explicitly mark cross-device handoff readiness."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "safe_to_open_other_device",
+    "Handoff readiness receipt must tell whether another device can safely open the workspace."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "reads_page_ids: false",
+    "Handoff readiness receipt must not export page ids."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "reads_database_keys: false",
+    "Handoff readiness receipt must not export database keys."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "reads_failure_messages: false",
+    "Handoff readiness receipt must not export failure messages."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "exports_raw_workspace_ids: false",
+    "Handoff readiness receipt must not export raw workspace ids."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "includes_only_counts_booleans_hashes_timestamps_and_gates: true",
+    "Handoff readiness receipt must only include counts, booleans, hashes, timestamps, and gates."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "uploads_workspace_data: false",
+    "Handoff readiness receipt must not upload workspace data."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "blocked-pending",
+    "Handoff readiness receipt must block cross-device handoff while pending queues exist."
   );
   assertIncludes(
     files.syncManualReviewPacket,
