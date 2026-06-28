@@ -9604,6 +9604,16 @@ function SyncDashboard() {
               </button>
             </div>
             <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+              <SyncUploadSafetyPanel
+                pageStatus={pagePendingStatus}
+                databaseStatus={databasePendingStatus}
+                totalSyncPending={syncSummary?.pending ?? 0}
+                busyQueueAction={busyQueueAction}
+                onRetryPage={() => void handleRetryPagePendingPush()}
+                onRetryDatabase={() => void handleRetryDatabasePendingPush()}
+              />
+            </div>
+            <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
@@ -15797,6 +15807,174 @@ function BetaStatusPill({ status }: { status: WebBetaReadinessStatus }) {
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[status]}
     </span>
+  );
+}
+
+type SyncUploadSafetyVerdict =
+  | "ready"
+  | "pending"
+  | "retry"
+  | "disabled";
+
+function SyncUploadSafetyPanel({
+  pageStatus,
+  databaseStatus,
+  totalSyncPending,
+  busyQueueAction,
+  onRetryPage,
+  onRetryDatabase,
+}: {
+  pageStatus: PendingCloudPageSyncStatus;
+  databaseStatus: PendingCloudDatabaseSyncStatus;
+  totalSyncPending: number;
+  busyQueueAction: SyncQueueAction | null;
+  onRetryPage: () => void;
+  onRetryDatabase: () => void;
+}) {
+  const pageWaiting = pageStatus.pending + pageStatus.queued;
+  const databaseWaiting =
+    databaseStatus.pending +
+    databaseStatus.queued +
+    databaseStatus.syncLogPending;
+  const failed = pageStatus.failed + databaseStatus.failed;
+  const disabledDomains = [
+    pageStatus.enabled ? null : "页面",
+    databaseStatus.enabled ? null : "数据库",
+  ].filter(Boolean) as string[];
+  const verdict: SyncUploadSafetyVerdict =
+    failed > 0
+      ? "retry"
+      : pageWaiting + databaseWaiting + totalSyncPending > 0
+        ? "pending"
+        : disabledDomains.length > 0
+          ? "disabled"
+          : "ready";
+  const label: Record<SyncUploadSafetyVerdict, string> = {
+    ready: "队列清空",
+    pending: "待补传",
+    retry: "需处理失败",
+    disabled: "同步未全开",
+  };
+  const className: Record<SyncUploadSafetyVerdict, string> = {
+    ready:
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    pending:
+      "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    retry: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+    disabled: "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300",
+  };
+  const nextAction =
+    verdict === "retry"
+      ? "先补传失败队列；如果仍失败，查看最近失败原因，避免本地输入长期停在待上传状态。"
+      : verdict === "pending"
+        ? "先补传页面和数据库 pending queue，确认 counts 清零后再做缓存重建或跨设备切换。"
+        : verdict === "disabled"
+          ? `先到账号页开启${disabledDomains.join("、")}同步；未开启的域不会自动上传。`
+          : "当前没有待上传或失败队列，可以继续推进云端主库、热缓存和冲突处理。";
+  const facts = [
+    {
+      label: "页面队列",
+      value: `${pageWaiting} 条`,
+      detail:
+        pageStatus.failed > 0
+          ? `${pageStatus.failed} 条失败待重试`
+          : pageStatus.enabled
+            ? "pending + 内存批次"
+            : "页面同步关闭",
+    },
+    {
+      label: "数据库队列",
+      value: `${databaseWaiting} 条`,
+      detail:
+        databaseStatus.failed > 0
+          ? `${databaseStatus.failed} 条失败待重试`
+          : databaseStatus.enabled
+            ? "cloud key + sync_log + 内存批次"
+            : "数据库同步关闭",
+    },
+    {
+      label: "全域 sync_log",
+      value: `${totalSyncPending} 条`,
+      detail: "只统计表名、row id 和时间戳",
+    },
+    {
+      label: "失败回执",
+      value: `${failed} 条`,
+      detail:
+        pageStatus.lastFailureMessage ||
+        databaseStatus.lastFailureMessage ||
+        "暂无最近失败原因",
+    },
+  ];
+
+  return (
+    <div
+      id="sync-upload-safety-panel"
+      data-testid="sync-upload-safety-panel"
+      className="space-y-3"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+              上传安全总览
+            </h3>
+            <span
+              className={`rounded-md px-2 py-1 text-[10px] ${className[verdict]}`}
+            >
+              {label[verdict]}
+            </span>
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            用于判断本机新输入是否已经进入可补传队列。这里只看 counts、page id、
+            database/field/row/view key、sync_log 元数据和失败原因，不读取页面正文、
+            数据库行值、评论正文、文件字节或密钥。
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onRetryPage}
+            disabled={busyQueueAction === "page-pending"}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {busyQueueAction === "page-pending" ? "补传中..." : "补传页面"}
+          </button>
+          <button
+            type="button"
+            onClick={onRetryDatabase}
+            disabled={busyQueueAction === "database-pending"}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {busyQueueAction === "database-pending" ? "补传中..." : "补传数据库"}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {facts.map((fact) => (
+          <div
+            key={fact.label}
+            data-testid="sync-upload-safety-fact"
+            className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
+          >
+            <div className="text-[11px] uppercase text-zinc-400">
+              {fact.label}
+            </div>
+            <div className="mt-1 break-words text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {fact.value}
+            </div>
+            <p className="mt-1 text-[11px] leading-4 text-zinc-400">
+              {fact.detail}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <p className="rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        下一步：{nextAction}
+      </p>
+    </div>
   );
 }
 

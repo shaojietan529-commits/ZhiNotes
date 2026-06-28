@@ -5428,6 +5428,54 @@ function run() {
       "Sync UI must render the workspace settings cloud restore button.",
     ],
     [
+      'data-testid="sync-upload-safety-panel"',
+      "Sync UI must expose a stable upload safety overview test hook.",
+    ],
+    [
+      "上传安全总览",
+      "Sync UI must render a plain-language upload safety overview.",
+    ],
+    [
+      "pageStatus.pending + pageStatus.queued",
+      "Upload safety overview must include page durable and in-memory queues.",
+    ],
+    [
+      "databaseStatus.syncLogPending",
+      "Upload safety overview must include database sync_log pending rows.",
+    ],
+    [
+      "totalSyncPending",
+      "Upload safety overview must include full-domain sync_log pending rows.",
+    ],
+    [
+      "需处理失败",
+      "Upload safety overview must surface failed page or database uploads.",
+    ],
+    [
+      "队列清空",
+      "Upload safety overview must tell the owner when queues are empty.",
+    ],
+    [
+      "不读取页面正文",
+      "Upload safety overview must preserve the page privacy boundary.",
+    ],
+    [
+      "数据库行值、评论正文、文件字节或密钥",
+      "Upload safety overview must preserve database, comment, file, and secret boundaries.",
+    ],
+    [
+      'data-testid="sync-upload-safety-fact"',
+      "Upload safety overview must expose stable metadata-only fact cards.",
+    ],
+    [
+      "补传页面",
+      "Upload safety overview must expose the manual page retry action.",
+    ],
+    [
+      "补传数据库",
+      "Upload safety overview must expose the manual database retry action.",
+    ],
+    [
       "页面 pending 上传队列",
       "Sync UI must render page pending upload queue status.",
     ],

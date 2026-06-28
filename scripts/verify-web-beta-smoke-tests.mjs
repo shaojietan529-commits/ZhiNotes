@@ -3449,6 +3449,48 @@ function run() {
     'router.push("/modules/sync")',
     "Page sync status badge must open the Sync module where pending queues can be reviewed and retried."
   );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "sync-upload-safety-panel",
+    "Sync UI must provide a stable upload safety panel for local-first queue review."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "上传安全总览",
+    "Sync UI must show a plain-language upload safety summary."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "pageStatus.pending + pageStatus.queued",
+    "Sync upload safety panel must include page pending and in-memory queues."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "databaseStatus.pending +",
+    "Sync upload safety panel must include database cloud-key, sync_log, and in-memory queues."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "不读取页面正文",
+    "Sync upload safety panel must disclose that it does not read private page text."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "补传页面",
+    "Sync upload safety panel must expose the page pending retry action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "补传数据库",
+    "Sync upload safety panel must expose the database pending retry action."
+  );
   assertExcludes(
     files.pagePeekModal,
     pagePeekModal,
