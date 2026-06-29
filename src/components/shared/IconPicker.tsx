@@ -12,6 +12,7 @@ export interface IconPickerProps {
   // Optional: clears the icon back to none (Notion-style "Remove" action).
   onRemove?: () => void;
   disabled?: boolean;
+  initialOpen?: boolean;
 }
 
 export default function IconPicker({
@@ -19,8 +20,9 @@ export default function IconPicker({
   onSelect,
   onRemove,
   disabled = false,
+  initialOpen = false,
 }: IconPickerProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => initialOpen && !disabled);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState(ICON_CATEGORIES[0]!.id);
   const ref = useRef<HTMLDivElement>(null);

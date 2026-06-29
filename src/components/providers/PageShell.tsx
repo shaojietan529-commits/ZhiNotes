@@ -108,6 +108,8 @@ const PAGE_VERSION_COUNT_IDLE_TIMEOUT_MS = 1100;
 const PAGE_LARGE_BODY_COMMENTS_IDLE_TIMEOUT_MS = 2200;
 const PAGE_LARGE_BODY_CHILD_TREE_IDLE_TIMEOUT_MS = 3000;
 const PAGE_LARGE_BODY_REFERENCES_IDLE_TIMEOUT_MS = 3800;
+const PAGE_HEADER_ICON_PICKER_IDLE_TIMEOUT_MS = 650;
+const PAGE_ACTIONS_MENU_IDLE_TIMEOUT_MS = 900;
 const PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500;
 const PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000;
 const PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000;
@@ -251,6 +253,10 @@ function PageContent({ pageId }: { pageId: string }) {
   const [editorMounted, setEditorMounted] = useState(false);
   const [largeBodyEditorRequested, setLargeBodyEditorRequested] =
     useState(false);
+  const [iconPickerMounted, setIconPickerMounted] = useState(false);
+  const [iconPickerInitialOpen, setIconPickerInitialOpen] = useState(false);
+  const [actionsMenuMounted, setActionsMenuMounted] = useState(false);
+  const [actionsMenuInitialOpen, setActionsMenuInitialOpen] = useState(false);
   const [pageCommentsMounted, setPageCommentsMounted] = useState(false);
   const [childTreeMounted, setChildTreeMounted] = useState(false);
   const [pageReferencesMounted, setPageReferencesMounted] = useState(false);
@@ -312,6 +318,10 @@ function PageContent({ pageId }: { pageId: string }) {
     reportedPageOpenRef.current = null;
     bodyHydrationPerformanceRef.current = null;
     setLargeBodyEditorRequested(false);
+    setIconPickerMounted(false);
+    setIconPickerInitialOpen(false);
+    setActionsMenuMounted(false);
+    setActionsMenuInitialOpen(false);
   }, [pageId]);
 
   useEffect(() => {
@@ -572,6 +582,30 @@ function PageContent({ pageId }: { pageId: string }) {
     setEditorMounted(true);
     mountedEditorPageIdRef.current = pageId;
   }, [pageId]);
+
+  const handleActivateIconPicker = useCallback(() => {
+    setIconPickerInitialOpen(true);
+    setIconPickerMounted(true);
+  }, []);
+
+  const handleActivateActionsMenu = useCallback(() => {
+    setActionsMenuInitialOpen(true);
+    setActionsMenuMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasPage || iconPickerMounted) return;
+    return scheduleDeferredMount(() => {
+      setIconPickerMounted(true);
+    }, PAGE_HEADER_ICON_PICKER_IDLE_TIMEOUT_MS);
+  }, [hasPage, iconPickerMounted, pageId]);
+
+  useEffect(() => {
+    if (!hasPage || actionsMenuMounted) return;
+    return scheduleDeferredMount(() => {
+      setActionsMenuMounted(true);
+    }, PAGE_ACTIONS_MENU_IDLE_TIMEOUT_MS);
+  }, [actionsMenuMounted, hasPage, pageId]);
 
   useEffect(() => {
     setPageCommentsMounted(false);
@@ -1402,42 +1436,58 @@ function PageContent({ pageId }: { pageId: string }) {
                   </span>
                 )}
               </button>
-              <PageActionsMenu
-                locked={locked}
-                widePage={widePage}
-                versionsCount={versionCountForDisplay}
-                onAddSubPage={handleAddSubPage}
-                onAddCover={() => coverInputRef.current?.click()}
-                onToggleLock={handleToggleLock}
-                onToggleWidth={handleToggleWidth}
-                onSaveVersion={handleSaveVersion}
-                onToggleHistory={() => setShowHistory((s) => !s)}
-                onToggleInfo={() => setShowInfo((current) => !current)}
-                onDuplicate={handleDuplicatePage}
-                onCopyLink={() => void handleCopyPageLink()}
-                onMoveTo={() => setShowMoveDialog(true)}
-                onCut={handleCutPage}
-                onCopy={handleCopyPage}
-                onPaste={pageClipboard ? () => void handlePastePage() : undefined}
-                onExportHtml={handleExportHtml}
-                onExportMarkdown={handleExportMarkdown}
-                onCopyMarkdown={() => void handleCopyPageMarkdown()}
-                onCopyHtml={() => void handleCopyPageHtml()}
-                onPrintPdf={handlePrintPdf}
-                onDelete={handleDelete}
-              />
+              {actionsMenuMounted ? (
+                <PageActionsMenu
+                  locked={locked}
+                  widePage={widePage}
+                  versionsCount={versionCountForDisplay}
+                  initialOpen={actionsMenuInitialOpen}
+                  onAddSubPage={handleAddSubPage}
+                  onAddCover={() => coverInputRef.current?.click()}
+                  onToggleLock={handleToggleLock}
+                  onToggleWidth={handleToggleWidth}
+                  onSaveVersion={handleSaveVersion}
+                  onToggleHistory={() => setShowHistory((s) => !s)}
+                  onToggleInfo={() => setShowInfo((current) => !current)}
+                  onDuplicate={handleDuplicatePage}
+                  onCopyLink={() => void handleCopyPageLink()}
+                  onMoveTo={() => setShowMoveDialog(true)}
+                  onCut={handleCutPage}
+                  onCopy={handleCopyPage}
+                  onPaste={pageClipboard ? () => void handlePastePage() : undefined}
+                  onExportHtml={handleExportHtml}
+                  onExportMarkdown={handleExportMarkdown}
+                  onCopyMarkdown={() => void handleCopyPageMarkdown()}
+                  onCopyHtml={() => void handleCopyPageHtml()}
+                  onPrintPdf={handlePrintPdf}
+                  onDelete={handleDelete}
+                />
+              ) : (
+                <PageActionsMenuDeferredTrigger
+                  onActivate={handleActivateActionsMenu}
+                />
+              )}
             </div>
           </div>
 
           {/* Page header: icon + title */}
           <div className="mb-3">
             <div className="flex items-start gap-2">
-              <IconPicker
-                currentIcon={page.icon}
-                onSelect={handleIconChange}
-                onRemove={handleIconRemove}
-                disabled={locked}
-              />
+              {iconPickerMounted ? (
+                <IconPicker
+                  currentIcon={page.icon}
+                  onSelect={handleIconChange}
+                  onRemove={handleIconRemove}
+                  disabled={locked}
+                  initialOpen={iconPickerInitialOpen}
+                />
+              ) : (
+                <PageIconPickerDeferredTrigger
+                  currentIcon={page.icon}
+                  disabled={locked}
+                  onActivate={handleActivateIconPicker}
+                />
+              )}
               <h1 className="zhinote-print-title">
                 {title || page.title || "未命名页面"}
               </h1>
@@ -2020,6 +2070,55 @@ function PageIconPickerSkeleton() {
   );
 }
 
+function PageIconPickerDeferredTrigger({
+  currentIcon,
+  disabled,
+  onActivate,
+}: {
+  currentIcon: string | null;
+  disabled: boolean;
+  onActivate: () => void;
+}) {
+  if (currentIcon) {
+    return (
+      <button
+        type="button"
+        onClick={onActivate}
+        disabled={disabled}
+        className="rounded-md p-1 text-3xl transition-colors hover:bg-zinc-100 disabled:cursor-default disabled:hover:bg-transparent dark:hover:bg-zinc-800 dark:disabled:hover:bg-transparent"
+        title={disabled ? undefined : "更换图标"}
+      >
+        {currentIcon}
+      </button>
+    );
+  }
+  if (disabled) return <div className="h-8 w-0 shrink-0" aria-hidden="true" />;
+  return (
+    <button
+      type="button"
+      onClick={onActivate}
+      className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-zinc-300 transition-all hover:bg-zinc-100 hover:text-zinc-500 dark:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+      title="添加图标"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9 10h.01M15 10h.01M9 15c.8.7 1.9 1 3 1s2.2-.3 3-1" />
+      </svg>
+      添加图标
+    </button>
+  );
+}
+
 function PagePropertiesSkeleton() {
   return (
     <div
@@ -2045,6 +2144,33 @@ function PageActionsMenuSkeleton() {
       className="h-7 w-7 rounded-md bg-zinc-100 dark:bg-zinc-800"
       aria-hidden="true"
     />
+  );
+}
+
+function PageActionsMenuDeferredTrigger({
+  onActivate,
+}: {
+  onActivate: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onActivate}
+      className="flex h-7 w-7 items-center justify-center rounded text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+      title="更多操作"
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <circle cx="5" cy="12" r="1.6" />
+        <circle cx="12" cy="12" r="1.6" />
+        <circle cx="19" cy="12" r="1.6" />
+      </svg>
+    </button>
   );
 }
 

@@ -186,8 +186,10 @@ const files = {
     "src/components/editor/extensions/BreadcrumbBlockNode.tsx",
   compareShell: "src/components/comparison/CompareShell.tsx",
   pageProperties: "src/components/page/PageProperties.tsx",
+  pageActionsMenu: "src/components/page/PageActionsMenu.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
   localPerformance: "src/lib/performance/localPerformance.ts",
+  iconPicker: "src/components/shared/IconPicker.tsx",
   blockComments: "src/components/shared/BlockComments.tsx",
   commentSidePanel: "src/components/shared/CommentSidePanel.tsx",
   blockCommentEvents: "src/components/shared/blockCommentEvents.ts",
@@ -646,8 +648,10 @@ function run() {
   const breadcrumbBlockNode = readProjectFile(files.breadcrumbBlockNode);
   const compareShell = readProjectFile(files.compareShell);
   const pageProperties = readProjectFile(files.pageProperties);
+  const pageActionsMenu = readProjectFile(files.pageActionsMenu);
   const pageShell = readProjectFile(files.pageShell);
   const localPerformance = readProjectFile(files.localPerformance);
+  const iconPicker = readProjectFile(files.iconPicker);
   const blockComments = readProjectFile(files.blockComments);
   const commentSidePanel = readProjectFile(files.commentSidePanel);
   const blockCommentEvents = readProjectFile(files.blockCommentEvents);
@@ -3508,8 +3512,60 @@ function run() {
       "@/components/shared/blockCommentEvents",
       "Page shell must import comment event names from a lightweight constants module.",
     ],
+    [
+      "PAGE_HEADER_ICON_PICKER_IDLE_TIMEOUT_MS",
+      "Page shell must defer the icon picker chunk until after the title has painted.",
+    ],
+    [
+      "PAGE_ACTIONS_MENU_IDLE_TIMEOUT_MS",
+      "Page shell must defer the actions menu chunk until after the title has painted.",
+    ],
+    [
+      "PageIconPickerDeferredTrigger",
+      "Page shell must keep a lightweight icon trigger before the full picker chunk mounts.",
+    ],
+    [
+      "PageActionsMenuDeferredTrigger",
+      "Page shell must keep a lightweight actions trigger before the full menu chunk mounts.",
+    ],
+    [
+      "handleActivateIconPicker",
+      "Page shell must let an immediate icon click mount and open the picker instead of waiting for idle time.",
+    ],
+    [
+      "handleActivateActionsMenu",
+      "Page shell must let an immediate actions click mount and open the menu instead of waiting for idle time.",
+    ],
   ]) {
     assertSourceIncludes(files.pageShell, pageShell, snippet, message);
+  }
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.iconPicker,
+      iconPicker,
+      "initialOpen?: boolean",
+      "Icon picker must accept an initial-open flag for deferred user activation.",
+    ],
+    [
+      files.iconPicker,
+      iconPicker,
+      "useState(() => initialOpen && !disabled)",
+      "Icon picker must open on first mount when the deferred trigger was clicked.",
+    ],
+    [
+      files.pageActionsMenu,
+      pageActionsMenu,
+      "initialOpen?: boolean",
+      "Page actions menu must accept an initial-open flag for deferred user activation.",
+    ],
+    [
+      files.pageActionsMenu,
+      pageActionsMenu,
+      "useState(() => Boolean(props.initialOpen))",
+      "Page actions menu must open on first mount when the deferred trigger was clicked.",
+    ],
+  ]) {
+    assertSourceIncludes(sourceLabel, source, snippet, message);
   }
   for (const [snippet, message] of [
     [

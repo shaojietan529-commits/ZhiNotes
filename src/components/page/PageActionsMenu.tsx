@@ -6,6 +6,7 @@ export interface PageActionsMenuProps {
   locked: boolean;
   widePage: boolean;
   versionsCount: number;
+  initialOpen?: boolean;
   onAddSubPage: () => void;
   onAddCover: () => void;
   onToggleLock: () => void;
@@ -28,7 +29,7 @@ export interface PageActionsMenuProps {
 }
 
 export default function PageActionsMenu(props: PageActionsMenuProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => Boolean(props.initialOpen));
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
