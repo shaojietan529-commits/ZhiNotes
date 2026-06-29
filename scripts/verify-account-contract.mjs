@@ -92,6 +92,21 @@ check(
   "AccountShell 应通过共享账号状态 helper 检查会话，并在登录/改名/退出后清缓存"
 );
 check(
+  shell.includes("buildCloudUploadReliabilityReport") &&
+    shell.includes("AccountCloudUploadReliabilityCard") &&
+    shell.includes('data-testid="account-cloud-upload-reliability"') &&
+    shell.includes("getSyncLogSummary().catch(() => null)") &&
+    shell.includes("readLocalWorkspaceIdentity()") &&
+    shell.includes("PAGE_SYNC_STATUS_EVENT") &&
+    shell.includes("DATABASE_SYNC_STATUS_EVENT") &&
+    shell.includes("safe_to_switch_device_now") &&
+    shell.includes("只读队列账本") &&
+    shell.includes("不触发上传") &&
+    shell.includes("pending 清零后最稳") &&
+    shell.includes("refreshCloudUploadReliability"),
+  "AccountShell 应在账号页显示本地输入上云健康卡，只读 pending/sync_log/workspace metadata，不触发上传"
+);
+check(
   accountClientSession.includes("/api/account/me") &&
     accountClientSession.includes("accountSessionInFlight") &&
     accountClientSession.includes("cachedAccountSession") &&

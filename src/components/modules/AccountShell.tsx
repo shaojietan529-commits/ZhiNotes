@@ -4,7 +4,7 @@
 // "not configured" state until the owner enables Resend + the allowlist,
 // so this page is safe to ship ahead of the cloud rollout.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import {
   addShareEmail,
@@ -12,6 +12,7 @@ import {
   removeShareEmail,
 } from "@/lib/portfolio/accountSync";
 import {
+  PAGE_SYNC_STATUS_EVENT,
   forcePullDailyCloudPages,
   getLastPageSyncAt,
   getPendingCloudPageSyncStatus,
@@ -19,6 +20,7 @@ import {
   reconcilePageSync,
   rebuildPageCacheFromCloud,
   setPageSyncEnabled,
+  type PendingCloudPageSyncStatus,
 } from "@/lib/pages/accountPageSync";
 import {
   notifyAccountProfileUpdated,
@@ -29,6 +31,7 @@ import {
   fetchAccountSession,
 } from "@/lib/account/clientSession";
 import {
+  DATABASE_SYNC_STATUS_EVENT,
   getLastDatabaseSyncAt,
   getPendingCloudDatabaseSyncStatus,
   isDatabaseSyncEnabled,
@@ -36,7 +39,19 @@ import {
   rebuildDatabaseCacheFromCloud,
   reconcileDatabaseSync,
   setDatabaseSyncEnabled,
+  type PendingCloudDatabaseSyncStatus,
 } from "@/lib/database/accountDatabaseSync";
+import {
+  buildCloudUploadReliabilityReport,
+  type CloudUploadReliabilityGateStatus,
+  type CloudUploadReliabilityReport,
+  type CloudUploadReliabilityStatus,
+} from "@/lib/sync/cloudUploadReliabilityReport";
+import { getSyncLogSummary, type SyncLogSummary } from "@/lib/db/local/queries";
+import {
+  readLocalWorkspaceIdentity,
+  type LocalWorkspaceIdentity,
+} from "@/lib/sync/workspaceIdentity";
 import { usePages } from "@/hooks/usePages";
 
 type Phase =
@@ -93,6 +108,13 @@ export default function AccountShell() {
   const [databaseCacheRebuildBusy, setDatabaseCacheRebuildBusy] = useState(false);
   const [databaseSyncNotice, setDatabaseSyncNotice] = useState<string | null>(null);
   const [databaseSyncLastAt, setDatabaseSyncLastAt] = useState<string | null>(null);
+  const [pagePendingStatus, setPagePendingStatus] =
+    useState<PendingCloudPageSyncStatus | null>(null);
+  const [databasePendingStatus, setDatabasePendingStatus] =
+    useState<PendingCloudDatabaseSyncStatus | null>(null);
+  const [syncSummary, setSyncSummary] = useState<SyncLogSummary | null>(null);
+  const [workspaceIdentity, setWorkspaceIdentity] =
+    useState<LocalWorkspaceIdentity | null>(null);
   // API Key for external tools (Claude, web clipper extension)
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiKeyBusy, setApiKeyBusy] = useState(false);
@@ -104,6 +126,50 @@ export default function AccountShell() {
     setDatabaseSyncOn(isDatabaseSyncEnabled());
     setDatabaseSyncLastAt(getLastDatabaseSyncAt());
   }, []);
+
+  const refreshCloudUploadReliability = useCallback(async () => {
+    const [databaseStatus, localSyncSummary] = await Promise.all([
+      getPendingCloudDatabaseSyncStatus(),
+      getSyncLogSummary().catch(() => null),
+    ]);
+    setPagePendingStatus(getPendingCloudPageSyncStatus());
+    setDatabasePendingStatus(databaseStatus);
+    setSyncSummary(localSyncSummary);
+    setWorkspaceIdentity(readLocalWorkspaceIdentity());
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "signed-in") return;
+    void refreshCloudUploadReliability();
+    const interval = window.setInterval(() => {
+      void refreshCloudUploadReliability();
+    }, 5000);
+    const handleSyncStatus = () => {
+      void refreshCloudUploadReliability();
+    };
+    window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleSyncStatus);
+    window.addEventListener(DATABASE_SYNC_STATUS_EVENT, handleSyncStatus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener(PAGE_SYNC_STATUS_EVENT, handleSyncStatus);
+      window.removeEventListener(DATABASE_SYNC_STATUS_EVENT, handleSyncStatus);
+    };
+  }, [phase, refreshCloudUploadReliability]);
+
+  const cloudUploadReliabilityReport = useMemo(() => {
+    if (!pagePendingStatus || !databasePendingStatus) return null;
+    return buildCloudUploadReliabilityReport({
+      pageStatus: pagePendingStatus,
+      databaseStatus: databasePendingStatus,
+      syncSummary,
+      workspaceIdentity,
+    });
+  }, [
+    databasePendingStatus,
+    pagePendingStatus,
+    syncSummary,
+    workspaceIdentity,
+  ]);
 
   const setSignedInAccount = useCallback((nextAccount: ClientAccountInfo) => {
     setAccount(nextAccount);
@@ -202,6 +268,7 @@ export default function AccountShell() {
       setPageSyncNotice(result.message ?? "同步失败，请稍后重试。");
     }
     setPageSyncBusy(false);
+    void refreshCloudUploadReliability();
   }
 
   async function handleDailyRepairRun() {
@@ -239,6 +306,7 @@ export default function AccountShell() {
       setPageSyncNotice("网络错误，未能修复每日纪要归档。");
     } finally {
       setDailyRepairBusy(false);
+      void refreshCloudUploadReliability();
     }
   }
 
@@ -268,6 +336,7 @@ export default function AccountShell() {
       setPageSyncNotice("本机写入失败，未能完成每日纪要拉取。");
     } finally {
       setDailyPullBusy(false);
+      void refreshCloudUploadReliability();
     }
   }
 
@@ -275,6 +344,7 @@ export default function AccountShell() {
     const pendingBlocker = getPageCacheRebuildPendingBlocker();
     if (pendingBlocker) {
       setPageSyncNotice(pendingBlocker);
+      void refreshCloudUploadReliability();
       return;
     }
     const ok = window.confirm(
@@ -307,6 +377,7 @@ export default function AccountShell() {
       setPageSyncNotice("本机写入失败，未能完成页面缓存重建。");
     } finally {
       setPageCacheRebuildBusy(false);
+      void refreshCloudUploadReliability();
     }
   }
 
@@ -323,6 +394,7 @@ export default function AccountShell() {
     setPageSyncNotice(
       next ? "已开启。首次同步会在后台自动进行。" : "已关闭。云端已有数据保留，不再继续同步。"
     );
+    void refreshCloudUploadReliability();
     if (next) {
       void handlePageSyncRun();
     }
@@ -349,6 +421,7 @@ export default function AccountShell() {
       setDatabaseSyncNotice("本机数据库读写失败，未能完成同步。");
     } finally {
       setDatabaseSyncBusy(false);
+      void refreshCloudUploadReliability();
     }
   }
 
@@ -373,6 +446,7 @@ export default function AccountShell() {
       setDatabaseSyncNotice("本机数据库读取失败，未能上传。");
     } finally {
       setDatabasePushBusy(false);
+      void refreshCloudUploadReliability();
     }
   }
 
@@ -380,6 +454,7 @@ export default function AccountShell() {
     const pendingBlocker = await getDatabaseCacheRebuildPendingBlocker();
     if (pendingBlocker) {
       setDatabaseSyncNotice(pendingBlocker);
+      void refreshCloudUploadReliability();
       return;
     }
     const ok = window.confirm(
@@ -407,6 +482,7 @@ export default function AccountShell() {
       setDatabaseSyncNotice("本机数据库写入失败，未能完成缓存重建。");
     } finally {
       setDatabaseCacheRebuildBusy(false);
+      void refreshCloudUploadReliability();
     }
   }
 
@@ -425,6 +501,7 @@ export default function AccountShell() {
         ? "已开启。正在按云端主库同步，并上传本机待同步变更。"
         : "已关闭。云端已有数据库数据保留，不再继续同步。"
     );
+    void refreshCloudUploadReliability();
     if (next) {
       void handleDatabaseSyncRun();
     }
@@ -813,6 +890,13 @@ export default function AccountShell() {
             </div>
           )}
 
+          {phase === "signed-in" && cloudUploadReliabilityReport && (
+            <AccountCloudUploadReliabilityCard
+              report={cloudUploadReliabilityReport}
+              onRefresh={() => void refreshCloudUploadReliability()}
+            />
+          )}
+
           {phase === "signed-in" && (
             <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex items-center justify-between gap-3">
@@ -1080,5 +1164,172 @@ export default function AccountShell() {
         </div>
       </main>
     </div>
+  );
+}
+
+function AccountCloudUploadReliabilityCard({
+  report,
+  onRefresh,
+}: {
+  report: CloudUploadReliabilityReport;
+  onRefresh: () => void;
+}) {
+  const primaryBlocker = report.gates.find((gate) => gate.status === "block");
+  const primaryWarning = report.gates.find((gate) => gate.status === "warn");
+  const primaryGate = primaryBlocker ?? primaryWarning ?? report.gates[0] ?? null;
+
+  return (
+    <section
+      data-testid="account-cloud-upload-reliability"
+      data-cloud-upload-status={report.status}
+      className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
+      title={report.privacy_boundary}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              本地输入上云健康
+            </p>
+            <AccountCloudUploadReliabilityStatusPill status={report.status} />
+          </div>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">
+            只读队列账本 · 不触发上传 · safe_to_switch_device_now:{" "}
+            {report.summary.safe_to_switch_device_now ? "true" : "false"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="w-fit rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          刷新状态
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <AccountCloudUploadReliabilityFact
+          label="待上传"
+          value={String(report.summary.total_waiting_rows)}
+          detail={`${report.summary.page_waiting_rows} 页面 · ${report.summary.database_waiting_rows} 数据库 · ${report.summary.sync_log_pending_rows} sync_log`}
+        />
+        <AccountCloudUploadReliabilityFact
+          label="失败"
+          value={String(report.summary.failed_rows)}
+          detail={`${report.summary.manual_review_rows} 条需要人工复核`}
+        />
+        <AccountCloudUploadReliabilityFact
+          label="最早排队"
+          value={report.summary.oldest_pending_age_label}
+          detail={report.summary.oldest_pending_queued_at ?? "暂无待上传"}
+        />
+        <AccountCloudUploadReliabilityFact
+          label="继续输入"
+          value={report.summary.safe_to_keep_typing ? "可以" : "先处理"}
+          detail={report.summary.local_input_buffered ? "本机仍先保存" : "本机缓冲异常"}
+        />
+        <AccountCloudUploadReliabilityFact
+          label="切换设备"
+          value={report.summary.safe_to_switch_device_now ? "可以" : "等待"}
+          detail="pending 清零后最稳"
+        />
+      </div>
+
+      {primaryGate ? (
+        <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-950/50">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-medium text-zinc-900 dark:text-zinc-100">
+              当前重点：{primaryGate.title}
+            </span>
+            <AccountCloudUploadReliabilityGatePill status={primaryGate.status} />
+          </div>
+          <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+            {primaryGate.evidence}
+          </p>
+          <p className="mt-1 leading-5 text-zinc-400">
+            下一步：{primaryGate.next_action}
+          </p>
+        </div>
+      ) : null}
+
+      <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+        {report.next_action}
+      </p>
+    </section>
+  );
+}
+
+function AccountCloudUploadReliabilityFact({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/40">
+      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+        {label}
+      </p>
+      <p className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        {value}
+      </p>
+      <p className="mt-1 truncate text-[11px] text-zinc-400" title={detail}>
+        {detail}
+      </p>
+    </div>
+  );
+}
+
+function AccountCloudUploadReliabilityStatusPill({
+  status,
+}: {
+  status: CloudUploadReliabilityStatus;
+}) {
+  const labels: Record<CloudUploadReliabilityStatus, string> = {
+    ready: "可靠",
+    watch: "观察中",
+    "needs-attention": "需处理",
+    blocked: "阻断",
+  };
+  const className =
+    status === "ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "watch"
+        ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+        : status === "needs-attention"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function AccountCloudUploadReliabilityGatePill({
+  status,
+}: {
+  status: CloudUploadReliabilityGateStatus;
+}) {
+  const labels: Record<CloudUploadReliabilityGateStatus, string> = {
+    pass: "通过",
+    warn: "提醒",
+    block: "阻断",
+  };
+  const className =
+    status === "pass"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "warn"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
