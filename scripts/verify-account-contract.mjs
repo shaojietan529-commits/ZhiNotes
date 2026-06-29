@@ -1540,8 +1540,11 @@ check(
 check(
   pageShell.includes("useVersions(pageId, {") &&
     pageShell.includes("enabled: shouldLoadVersions") &&
-    pageShell.includes("showHistory || showInfo"),
-  "PageShell 不应在打开页面时默认加载全部版本正文，历史/信息面板应按需加载"
+    pageShell.includes("const shouldLoadVersions = showHistory;") &&
+    pageShell.includes("getPageVersionCount") &&
+    pageShell.includes("versionCountForDisplay") &&
+    !pageShell.includes("const shouldLoadVersions = showHistory || showInfo;"),
+  "PageShell 不应在打开页面或打开信息面板时加载全部版本正文；只有历史面板读取版本列表，菜单/信息面板只读轻量数量"
 );
 check(
   pageShell.includes("if (!showInfo || !page) {\n      setPageStructure(null)") &&

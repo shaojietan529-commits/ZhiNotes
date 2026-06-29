@@ -47,6 +47,7 @@ import {
   updateWikiLinks,
   getNextPosition,
   getBlockComments,
+  getPageVersionCount,
 } from "@/lib/db/local/queries";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 import type { Page, PageVersion } from "@/lib/utils/types";
@@ -103,6 +104,7 @@ const PAGE_LARGE_BODY_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2600;
 const PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700;
 const PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200;
 const PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800;
+const PAGE_VERSION_COUNT_IDLE_TIMEOUT_MS = 1100;
 const PAGE_LARGE_BODY_COMMENTS_IDLE_TIMEOUT_MS = 2200;
 const PAGE_LARGE_BODY_CHILD_TREE_IDLE_TIMEOUT_MS = 3000;
 const PAGE_LARGE_BODY_REFERENCES_IDLE_TIMEOUT_MS = 3800;
@@ -198,6 +200,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const copyNoticeTimeoutRef = useRef<number | null>(null);
   const { page, loading, update, remove } = usePage(pageId);
+  const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const setCurrentPageId = useWorkspaceStore((s) => s.setCurrentPageId);
   const [title, setTitle] = useState(
@@ -235,10 +238,16 @@ function PageContent({ pageId }: { pageId: string }) {
   const [bodyHydrationStatus, setBodyHydrationStatus] = useState(() =>
     getPageBodyHydrationStatus(pageId)
   );
-  const shouldLoadVersions = showHistory || showInfo;
-  const { versions, refresh: refreshVersions } = useVersions(pageId, {
+  const [versionCount, setVersionCount] = useState(0);
+  const shouldLoadVersions = showHistory;
+  const {
+    versions,
+    loading: versionsLoading,
+    refresh: refreshVersions,
+  } = useVersions(pageId, {
     enabled: shouldLoadVersions,
   });
+  const versionCountForDisplay = Math.max(versionCount, versions.length);
   const [editorMounted, setEditorMounted] = useState(false);
   const [largeBodyEditorRequested, setLargeBodyEditorRequested] =
     useState(false);
@@ -643,6 +652,38 @@ function PageContent({ pageId }: { pageId: string }) {
     };
   }, [pageId, pageCommentsMounted]);
 
+  const refreshVersionCount = useCallback(async () => {
+    if (!pageId || !dbReady) return;
+    const count = await getPageVersionCount(pageId);
+    setVersionCount(count);
+  }, [dbReady, pageId]);
+
+  useEffect(() => {
+    setVersionCount(0);
+    if (!pageId || !dbReady) return;
+
+    let cancelled = false;
+    const cancel = scheduleDeferredMount(() => {
+      void getPageVersionCount(pageId)
+        .then((count) => {
+          if (!cancelled) setVersionCount(count);
+        })
+        .catch(() => {
+          if (!cancelled) setVersionCount(0);
+        });
+    }, PAGE_VERSION_COUNT_IDLE_TIMEOUT_MS);
+
+    return () => {
+      cancelled = true;
+      cancel();
+    };
+  }, [dbReady, pageId]);
+
+  useEffect(() => {
+    if (!showHistory || versionsLoading) return;
+    setVersionCount(versions.length);
+  }, [showHistory, versions.length, versionsLoading]);
+
   // Clicking commented text should reveal the panel so the comment is visible.
   useEffect(() => {
     const handleSelected = () => {
@@ -668,7 +709,10 @@ function PageContent({ pageId }: { pageId: string }) {
         pending.title || "未命名页面",
         pending.html
       );
-      if (created) await refreshVersions();
+      if (created) {
+        await refreshVersionCount();
+        if (shouldLoadVersions) await refreshVersions({ force: true });
+      }
     } finally {
       editorSideEffectRunningRef.current = false;
       if (
@@ -681,7 +725,7 @@ function PageContent({ pageId }: { pageId: string }) {
         }, PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS);
       }
     }
-  }, [pageId, refreshVersions]);
+  }, [pageId, refreshVersionCount, refreshVersions, shouldLoadVersions]);
 
   const scheduleEditorSideEffects = useCallback(() => {
     if (editorSideEffectTimerRef.current !== null) {
@@ -751,9 +795,10 @@ function PageContent({ pageId }: { pageId: string }) {
     if (label === null) return;
     const { manualSnapshot } = await loadPageVersioningModule();
     await manualSnapshot(pageId, title || "未命名页面", html, label);
+    await refreshVersionCount();
     await refreshVersions({ force: true });
     setShowHistory(true);
-  }, [pageId, title, page, refreshVersions]);
+  }, [pageId, title, page, refreshVersionCount, refreshVersions]);
 
   const handleExportHtml = useCallback(async () => {
     const html = editorRef.current?.getHTML() ?? page?.content_text ?? "";
@@ -892,9 +937,10 @@ function PageContent({ pageId }: { pageId: string }) {
         restored,
         `从 v${version.version_num} 恢复`
       );
+      await refreshVersionCount();
       await refreshVersions({ force: true });
     },
-    [pageId, title, page, update, refreshVersions]
+    [pageId, title, page, update, refreshVersionCount, refreshVersions]
   );
 
   const handleIconChange = useCallback(
@@ -1077,7 +1123,7 @@ function PageContent({ pageId }: { pageId: string }) {
               favorite,
               hasCover: Boolean(page.cover_url),
               locked,
-              versionsCount: versions.length,
+              versionsCount: versionCountForDisplay,
               widePage,
             },
           })
@@ -1095,7 +1141,7 @@ function PageContent({ pageId }: { pageId: string }) {
     page,
     showInfo,
     title,
-    versions.length,
+    versionCountForDisplay,
     widePage,
   ]);
   const pageInfo = useMemo(
@@ -1359,7 +1405,7 @@ function PageContent({ pageId }: { pageId: string }) {
               <PageActionsMenu
                 locked={locked}
                 widePage={widePage}
-                versionsCount={versions.length}
+                versionsCount={versionCountForDisplay}
                 onAddSubPage={handleAddSubPage}
                 onAddCover={() => coverInputRef.current?.click()}
                 onToggleLock={handleToggleLock}
@@ -1435,7 +1481,7 @@ function PageContent({ pageId }: { pageId: string }) {
               stats={pageInfo}
               title={title || page.title || "未命名页面"}
               updatedAt={page.updated_at}
-              versionsCount={versions.length}
+              versionsCount={versionCountForDisplay}
               widePage={widePage}
             />
           )}

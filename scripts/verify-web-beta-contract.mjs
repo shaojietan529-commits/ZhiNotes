@@ -19980,6 +19980,46 @@ function run() {
     "SELECT *",
     "Single-page local body hydration must not read content_yjs blobs through SELECT *."
   );
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.localQueries,
+      localQueries,
+      "export async function getPageVersionCount",
+      "Page shell version badges must expose a lightweight count query instead of loading version bodies.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "SELECT COUNT(*) as count FROM page_versions",
+      "Page shell version badges must count page_versions without selecting full snapshots.",
+    ],
+    [
+      files.pageShell,
+      pageShell,
+      "const shouldLoadVersions = showHistory;",
+      "PageShell must load full version snapshots only when the history panel opens.",
+    ],
+    [
+      files.pageShell,
+      pageShell,
+      "versionsCount={versionCountForDisplay}",
+      "PageShell menus and info panels must use the lightweight version count display value.",
+    ],
+    [
+      files.pageShell,
+      pageShell,
+      "PAGE_VERSION_COUNT_IDLE_TIMEOUT_MS",
+      "PageShell must defer version count refresh until after the first page shell paint.",
+    ],
+  ]) {
+    assertSourceIncludes(sourceLabel, source, snippet, message);
+  }
+  assertSourceExcludes(
+    files.pageShell,
+    pageShell,
+    "const shouldLoadVersions = showHistory || showInfo;",
+    "Page info must not trigger full version snapshot loading during page open."
+  );
   if (
     !(
       usePages.indexOf("const priorityPageIds = getPriorityContentHydrationPageIds()") <

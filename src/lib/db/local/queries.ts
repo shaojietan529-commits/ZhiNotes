@@ -4939,6 +4939,15 @@ export async function getVersions(pageId: string): Promise<PageVersion[]> {
   ) as unknown as PageVersion[];
 }
 
+export async function getPageVersionCount(pageId: string): Promise<number> {
+  const db = await getDb();
+  const rows = db.query(
+    "SELECT COUNT(*) as count FROM page_versions WHERE page_id = ? AND deleted_at IS NULL",
+    [pageId]
+  ) as Array<{ count?: number | bigint | null }>;
+  return Number(rows[0]?.count ?? 0);
+}
+
 export async function getVersion(id: string): Promise<PageVersion | null> {
   const db = await getDb();
   const rows = db.query(
