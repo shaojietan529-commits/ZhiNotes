@@ -33,6 +33,11 @@ import {
   type PageRouteHandoffSource,
 } from "@/lib/pages/pageRouteHandoff";
 import { readPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import {
+  buildPageCloudSaveStatus,
+  type PageCloudSaveStatusView,
+  type PageCloudSaveStatusTone,
+} from "@/lib/pages/pageCloudSaveStatus";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePage } from "@/hooks/usePage";
 import { useVersions } from "@/hooks/useVersions";
@@ -1099,6 +1104,15 @@ function PageContent({ pageId }: { pageId: string }) {
   );
   const bodyHydrationLabel =
     describePageBodyHydrationStatus(bodyHydrationStatus);
+  const pageCloudSaveStatus = useMemo(
+    () =>
+      buildPageCloudSaveStatus({
+        currentPagePending: currentPagePendingSync,
+        pageId,
+        status: pageSyncStatus,
+      }),
+    [currentPagePendingSync, pageId, pageSyncStatus]
+  );
   const showBodyHydrationHint = Boolean(
     page &&
       page.content_text == null &&
@@ -1288,8 +1302,7 @@ function PageContent({ pageId }: { pageId: string }) {
             </div>
             <div className="flex items-center gap-1">
               <PageSyncStatusBadge
-                currentPagePending={currentPagePendingSync}
-                status={pageSyncStatus}
+                status={pageCloudSaveStatus}
                 onOpenSync={() => router.push("/modules/sync")}
               />
               <button
@@ -1514,61 +1527,42 @@ function PageContent({ pageId }: { pageId: string }) {
 }
 
 function PageSyncStatusBadge({
-  currentPagePending,
   onOpenSync,
   status,
 }: {
-  currentPagePending: boolean;
   onOpenSync: () => void;
-  status: PendingCloudPageSyncStatus;
+  status: PageCloudSaveStatusView;
 }) {
-  const totalPending = status.pending + status.queued;
-  const syncedAt = status.lastSyncAt ? new Date(status.lastSyncAt) : null;
-  const syncedAtLabel =
-    syncedAt && !Number.isNaN(syncedAt.getTime())
-      ? syncedAt.toLocaleTimeString("zh-CN", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : null;
-  let label = "本地已保存";
-  let tone =
-    "border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400";
-  let title = "页面已在本机保存；点击打开同步中心查看队列。";
-
-  if (!status.enabled) {
-    label = "本地已保存";
-    title = "页面同步已关闭；点击打开同步中心查看设置。";
-  } else if (currentPagePending) {
-    label = "当前页待云同步";
-    tone =
-      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300";
-    title =
-      "当前页面已经在本机保存，并进入云端待上传队列；点击打开同步中心查看补传状态。";
-  } else if (totalPending > 0) {
-    label = status.queued > 0 ? `同步排队 ${totalPending}` : `等待云同步 ${totalPending}`;
-    tone =
-      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300";
-    title = `已有 ${totalPending} 个其他页面变更进入本地待上传队列；点击打开同步中心处理补传。`;
-  } else if (syncedAtLabel) {
-    label = `云端已同步 ${syncedAtLabel}`;
-    tone =
-      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300";
-    title = `最近一次页面云同步时间：${syncedAt?.toLocaleString("zh-CN") ?? syncedAtLabel}；点击打开同步中心。`;
-  }
-
   return (
     <button
       type="button"
       data-testid="page-sync-status-badge"
-      aria-label={`${label}，打开同步中心`}
+      aria-label={status.aria_label}
       onClick={onOpenSync}
-      title={title}
-      className={`hidden h-7 items-center rounded border px-2 text-[11px] font-medium transition-colors hover:border-zinc-300 hover:bg-zinc-100 dark:hover:border-zinc-700 dark:hover:bg-zinc-800 md:inline-flex ${tone}`}
+      title={status.title}
+      data-sync-status={status.id}
+      data-blocks-cache-rebuild={String(status.blocks_cache_rebuild)}
+      className={`hidden h-7 items-center rounded border px-2 text-[11px] font-medium transition-colors hover:border-zinc-300 hover:bg-zinc-100 dark:hover:border-zinc-700 dark:hover:bg-zinc-800 md:inline-flex ${pageCloudSaveStatusToneClass(
+        status.tone
+      )}`}
     >
-      {label}
+      {status.label}
     </button>
   );
+}
+
+function pageCloudSaveStatusToneClass(tone: PageCloudSaveStatusTone) {
+  const classes: Record<PageCloudSaveStatusTone, string> = {
+    neutral:
+      "border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400",
+    warning:
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300",
+    danger:
+      "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-300",
+    success:
+      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300",
+  };
+  return classes[tone];
 }
 
 function schedulePageSyncStatusInitialRefresh(callback: () => void): () => void {

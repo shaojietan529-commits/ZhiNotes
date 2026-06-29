@@ -77,6 +77,7 @@ const pageBodyHydrationStatus = read(
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
+const pageCloudSaveStatus = read("src/lib/pages/pageCloudSaveStatus.ts");
 const editorSource = read("src/components/editor/Editor.tsx");
 const blockCommentsSource = read("src/components/shared/BlockComments.tsx");
 const commentSidePanelSource = read(
@@ -476,11 +477,20 @@ check(
     pageShell.includes("isCloudPagePendingSync(pageId)") &&
     pageShell.includes("currentPagePendingSync") &&
     pageShell.includes("PageSyncStatusBadge") &&
-    pageShell.includes("当前页待云同步") &&
+    pageShell.includes("buildPageCloudSaveStatus") &&
+    pageShell.includes("data-sync-status") &&
+    pageShell.includes("data-blocks-cache-rebuild") &&
     pageShell.includes('router.push("/modules/sync")') &&
     pageShell.includes('data-testid="page-sync-status-badge"') &&
-    pageShell.includes('aria-label={`${label}，打开同步中心`}') &&
-    pageShell.includes("等待云同步"),
+    pageShell.includes("aria-label={status.aria_label}") &&
+    pageCloudSaveStatus.includes("current-page-needs-review") &&
+    pageCloudSaveStatus.includes("current-page-failed") &&
+    pageCloudSaveStatus.includes("global-page-failed") &&
+    pageCloudSaveStatus.includes("当前页待云同步") &&
+    pageCloudSaveStatus.includes("cloud-confirmed") &&
+    pageCloudSaveStatus.includes("blocks_cache_rebuild") &&
+    pageCloudSaveStatus.includes("does not read page body text") &&
+    pageCloudSaveStatus.includes("等待云同步"),
   "PageShell 必须显示当前页/全局只读页面同步状态 badge，并提供到同步中心的队列查看入口"
 );
 check(

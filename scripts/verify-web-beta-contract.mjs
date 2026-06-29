@@ -138,6 +138,7 @@ const files = {
   accountCloudSyncGate: "src/lib/account/accountCloudSyncGate.ts",
   accountClientSession: "src/lib/account/clientSession.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
   pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
   pendingPageDrafts: "src/lib/pages/pendingPageDrafts.ts",
@@ -581,6 +582,7 @@ function run() {
   const accountCloudSyncGate = readProjectFile(files.accountCloudSyncGate);
   const accountClientSession = readProjectFile(files.accountClientSession);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
   const pageBodyHydrationStatus = readProjectFile(
     files.pageBodyHydrationStatus
   );
@@ -3862,6 +3864,112 @@ function run() {
     "export function isCloudPagePendingSync",
     "Page sync client must expose a read-only current-page pending check without reading page bodies."
   );
+  for (const [snippet, message] of [
+    [
+      "buildPageCloudSaveStatus",
+      "Page save status model must expose a reusable builder.",
+    ],
+    [
+      "current-page-needs-review",
+      "Page save status model must prioritize current page manual review.",
+    ],
+    [
+      "current-page-failed",
+      "Page save status model must prioritize current page sync failure.",
+    ],
+    [
+      "global-page-needs-review",
+      "Page save status model must show manual review rows before cloud confirmation.",
+    ],
+    [
+      "global-page-failed",
+      "Page save status model must show failed rows before cloud confirmation.",
+    ],
+    [
+      "current-page-pending",
+      "Page save status model must distinguish current page pending sync.",
+    ],
+    [
+      "cloud-confirmed",
+      "Page save status model must distinguish cloud confirmation from local save.",
+    ],
+    [
+      "can_claim_cloud_confirmed",
+      "Page save status model must expose whether cloud confirmation can be claimed.",
+    ],
+    [
+      "blocks_cache_rebuild",
+      "Page save status model must expose whether cache rebuild is blocked.",
+    ],
+    [
+      "does not read page body text",
+      "Page save status model privacy boundary must exclude page body text.",
+    ],
+    [
+      "does not send network requests",
+      "Page save status model must not send network requests.",
+    ],
+    [
+      "does not upload data",
+      "Page save status model must not upload data.",
+    ],
+    [
+      "does not write server data",
+      "Page save status model must not write server data.",
+    ],
+    [
+      "does not clear cache",
+      "Page save status model must not clear cache.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.pageCloudSaveStatus,
+      pageCloudSaveStatus,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Page save status model must not access page content text.",
+    ],
+    [
+      "content_text",
+      "Page save status model must not access raw page content fields.",
+    ],
+    [
+      "field_values",
+      "Page save status model must not access database row values.",
+    ],
+    [
+      "comment.body",
+      "Page save status model must not access comment bodies.",
+    ],
+    [
+      "file.dataUrl",
+      "Page save status model must not access file bytes.",
+    ],
+    [
+      "fetch(",
+      "Page save status model must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Page save status model must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Page save status model must not mutate the local database.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.pageCloudSaveStatus,
+      pageCloudSaveStatus,
+      snippet,
+      message
+    );
+  }
   assertSourceIncludes(
     files.pageShell,
     pageShell,
@@ -3869,10 +3977,28 @@ function run() {
     "Page shell sync badge must distinguish the currently open page from unrelated pending uploads."
   );
   assertSourceIncludes(
+    files.pageCloudSaveStatus,
+    pageCloudSaveStatus,
+    "当前页待云同步",
+    "Page save status model must tell the owner when the current page is waiting for cloud upload."
+  );
+  assertSourceIncludes(
     files.pageShell,
     pageShell,
-    "当前页待云同步",
-    "Page shell sync badge must tell the owner when the current page is waiting for cloud upload."
+    "buildPageCloudSaveStatus",
+    "Page shell sync badge must use the reusable page save status model."
+  );
+  assertSourceIncludes(
+    files.pageShell,
+    pageShell,
+    "data-sync-status",
+    "Page shell sync badge must expose a machine-readable save status.",
+  );
+  assertSourceIncludes(
+    files.pageShell,
+    pageShell,
+    "data-blocks-cache-rebuild",
+    "Page shell sync badge must expose cache rebuild blocking state.",
   );
   assertSourceIncludes(
     files.pageShell,

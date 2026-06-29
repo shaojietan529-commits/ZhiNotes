@@ -67,6 +67,7 @@ const files = {
   accountCloudSyncGate: "src/lib/account/accountCloudSyncGate.ts",
   accountClientSession: "src/lib/account/clientSession.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
   pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
   pendingPageDrafts: "src/lib/pages/pendingPageDrafts.ts",
@@ -429,6 +430,7 @@ function run() {
   const accountCloudSyncGate = readProjectFile(files.accountCloudSyncGate);
   const accountClientSession = readProjectFile(files.accountClientSession);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
   const pendingPageDrafts = readProjectFile(files.pendingPageDrafts);
   const pageUpdateBus = readProjectFile(files.pageUpdateBus);
@@ -6004,6 +6006,38 @@ function run() {
     "export function isCloudPagePendingSync",
     "Page sync client must expose a read-only current-page pending check."
   );
+  for (const [snippet, message] of [
+    [
+      "buildPageCloudSaveStatus",
+      "Page save status model must expose a reusable builder.",
+    ],
+    [
+      "current-page-needs-review",
+      "Page save status model must prioritize current page manual review.",
+    ],
+    [
+      "current-page-failed",
+      "Page save status model must prioritize current page sync failure.",
+    ],
+    [
+      "global-page-failed",
+      "Page save status model must show global page sync failures before cloud confirmation.",
+    ],
+    [
+      "cloud-confirmed",
+      "Page save status model must distinguish cloud confirmation from local save.",
+    ],
+    [
+      "reads page body text",
+      "Page save status privacy boundary must mention page body access is excluded.",
+    ],
+    [
+      "does not send network requests",
+      "Page save status model must not send network requests.",
+    ],
+  ]) {
+    assertIncludes(files.pageCloudSaveStatus, pageCloudSaveStatus, snippet, message);
+  }
   assertIncludes(
     files.pageShell,
     pageShell,
@@ -6011,10 +6045,28 @@ function run() {
     "Page shell sync badge must distinguish the currently open page from unrelated pending uploads."
   );
   assertIncludes(
+    files.pageCloudSaveStatus,
+    pageCloudSaveStatus,
+    "当前页待云同步",
+    "Page save status model must tell the owner when the current page is waiting for cloud upload."
+  );
+  assertIncludes(
     files.pageShell,
     pageShell,
-    "当前页待云同步",
-    "Page shell sync badge must tell the owner when the current page is waiting for cloud upload."
+    "buildPageCloudSaveStatus",
+    "Page shell sync badge must use the reusable page save status model."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "data-sync-status",
+    "Page shell sync badge must expose a stable machine-readable save status."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "data-blocks-cache-rebuild",
+    "Page shell sync badge must expose whether cache rebuild is blocked."
   );
   assertIncludes(
     files.pageShell,
