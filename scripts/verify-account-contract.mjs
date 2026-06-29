@@ -1517,12 +1517,16 @@ check(
     pageShell.includes("scheduleTitleSave(newTitle)") &&
     pageShell.includes("onBlur={() => void flushTitleSave()}") &&
     pageSimpleUpdateBody.includes("await update({ properties: stringifyPageProperties(next) })") &&
-    pageSimpleUpdateBody.includes("await update({ content_text: html })") &&
+    pageShell.includes("pendingEditorContentPersistRef") &&
+    pageShell.includes("editorContentPersistRunningRef") &&
+    pageShell.includes("while (pendingEditorContentPersistRef.current)") &&
+    pageShell.includes("await pageUpdateRef.current({ content_text: pending.html })") &&
+    pageSimpleUpdateBody.includes("void drainEditorContentPersistQueue();") &&
     !pageSimpleUpdateBody.includes("refresh()") &&
     pageVisualUpdateBody.includes("await update({ icon })") &&
     pageVisualUpdateBody.includes("await update({ cover_url: dataUrl })") &&
     !pageVisualUpdateBody.includes("refresh()"),
-  "PageShell 标题输入必须本地即时显示并防抖保存；属性/正文/图标/封面更新仍依赖 usePage 的单页 upsert，不能触发全量页面 metadata 刷新"
+  "PageShell 标题输入必须本地即时显示并防抖保存；正文保存必须合并到后台队列；属性/正文/图标/封面更新仍依赖 usePage 的单页 upsert，不能触发全量页面 metadata 刷新"
 );
 const pageStructureMutationBody = pageShell.slice(
   pageShell.indexOf("const handlePastePage"),
@@ -1642,12 +1646,17 @@ check(
 check(
   pageShell.includes("PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500") &&
     pageShell.includes("pendingEditorSideEffectsRef") &&
+    pageShell.includes("pendingEditorContentPersistRef") &&
+    pageShell.includes("editorContentPersistRunningRef") &&
+    pageShell.includes("while (pendingEditorContentPersistRef.current)") &&
+    pageShell.includes("await pageUpdateRef.current({ content_text: pending.html })") &&
+    pageShell.includes("void drainEditorContentPersistQueue();") &&
     pageShell.includes("flushEditorSideEffects") &&
     pageShell.includes("scheduleEditorSideEffects();") &&
     pageShell.includes("await updateWikiLinks(pageId, pending.linkedPageIds)") &&
     pageShell.includes("await maybeSnapshot(\n        pageId,\n        pending.title") &&
     pageShell.includes("cancelEditorSideEffects();"),
-  "PageShell 正文保存后应延迟重建 wiki 链接和自动版本快照，避免编辑输入路径被关系索引和版本比较拖慢"
+  "PageShell 正文保存后应合并最新正文并延迟重建 wiki 链接和自动版本快照，避免编辑输入路径被关系索引和版本比较拖慢"
 );
 check(
   pageShell.includes("PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000") &&

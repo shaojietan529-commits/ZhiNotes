@@ -3714,6 +3714,26 @@ function run() {
       "Page shell must keep only the latest pending editor side effect payload.",
     ],
     [
+      "pendingEditorContentPersistRef",
+      "Page shell must keep only the latest pending editor content payload while a save is running.",
+    ],
+    [
+      "editorContentPersistRunningRef",
+      "Page shell must avoid concurrent editor content persistence jobs.",
+    ],
+    [
+      "while (pendingEditorContentPersistRef.current)",
+      "Page shell must drain the editor content queue by coalescing to the latest pending payload.",
+    ],
+    [
+      "await pageUpdateRef.current({ content_text: pending.html })",
+      "Page shell must persist editor content through the latest page update function.",
+    ],
+    [
+      "void drainEditorContentPersistQueue();",
+      "Page shell must push editor content persistence to a background queue from the typing path.",
+    ],
+    [
       "scheduleEditorSideEffects();",
       "Page shell must schedule wiki link and version work after the editor settles.",
     ],

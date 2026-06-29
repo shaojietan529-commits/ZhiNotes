@@ -457,12 +457,17 @@ check(
 check(
   pageShell.includes("PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500") &&
     pageShell.includes("pendingEditorSideEffectsRef") &&
+    pageShell.includes("pendingEditorContentPersistRef") &&
+    pageShell.includes("editorContentPersistRunningRef") &&
+    pageShell.includes("while (pendingEditorContentPersistRef.current)") &&
+    pageShell.includes("await pageUpdateRef.current({ content_text: pending.html })") &&
+    pageShell.includes("void drainEditorContentPersistQueue();") &&
     pageShell.includes("flushEditorSideEffects") &&
     pageShell.includes("scheduleEditorSideEffects();") &&
     pageShell.includes("await updateWikiLinks(pageId, pending.linkedPageIds)") &&
     pageShell.includes("await maybeSnapshot(\n        pageId,\n        pending.title") &&
     pageShell.includes("cancelEditorSideEffects();"),
-  "PageShell 正文输入应先保存正文，wiki 链接重建和自动版本快照应延迟到编辑停顿后执行"
+  "PageShell 正文输入应先合并保存最新正文，wiki 链接重建和自动版本快照应延迟到编辑停顿后执行"
 );
 check(
   pageShell.includes(

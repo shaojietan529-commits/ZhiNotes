@@ -209,6 +209,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const titleSaveTimerRef = useRef<number | null>(null);
   const pendingTitleRef = useRef<string | null>(null);
   const { page, loading, update, remove } = usePage(pageId);
+  const pageUpdateRef = useRef(update);
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const setCurrentPageId = useWorkspaceStore((s) => s.setCurrentPageId);
@@ -318,6 +319,16 @@ function PageContent({ pageId }: { pageId: string }) {
     linkedPageIds: string[];
     title: string;
   } | null>(null);
+  const editorContentPersistRunningRef = useRef(false);
+  const pendingEditorContentPersistRef = useRef<{
+    html: string;
+    linkedPageIds: string[];
+    title: string;
+  } | null>(null);
+
+  useEffect(() => {
+    pageUpdateRef.current = update;
+  }, [update]);
 
   useEffect(() => {
     setCurrentPageId(pageId);
@@ -814,12 +825,34 @@ function PageContent({ pageId }: { pageId: string }) {
     }, PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS);
   }, [flushEditorSideEffects]);
 
+  const drainEditorContentPersistQueue = useCallback(async () => {
+    if (editorContentPersistRunningRef.current) return;
+
+    editorContentPersistRunningRef.current = true;
+    try {
+      while (pendingEditorContentPersistRef.current) {
+        const pending = pendingEditorContentPersistRef.current;
+        pendingEditorContentPersistRef.current = null;
+        await pageUpdateRef.current({ content_text: pending.html });
+        pendingEditorSideEffectsRef.current = {
+          html: pending.html,
+          linkedPageIds: [...pending.linkedPageIds],
+          title: pending.title,
+        };
+        scheduleEditorSideEffects();
+      }
+    } finally {
+      editorContentPersistRunningRef.current = false;
+    }
+  }, [scheduleEditorSideEffects]);
+
   const cancelEditorSideEffects = useCallback(() => {
     if (editorSideEffectTimerRef.current !== null) {
       window.clearTimeout(editorSideEffectTimerRef.current);
       editorSideEffectTimerRef.current = null;
     }
     pendingEditorSideEffectsRef.current = null;
+    pendingEditorContentPersistRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -895,16 +928,15 @@ function PageContent({ pageId }: { pageId: string }) {
   );
 
   const handleContentUpdate = useCallback(
-    async (html: string, text: string, linkedPageIds: string[]) => {
-      await update({ content_text: html });
-      pendingEditorSideEffectsRef.current = {
+    (html: string, _text: string, linkedPageIds: string[]) => {
+      pendingEditorContentPersistRef.current = {
         html,
         linkedPageIds: [...linkedPageIds],
         title: title || "未命名页面",
       };
-      scheduleEditorSideEffects();
+      void drainEditorContentPersistQueue();
     },
-    [scheduleEditorSideEffects, update, title]
+    [drainEditorContentPersistQueue, title]
   );
 
   const handleSaveVersion = useCallback(async () => {
