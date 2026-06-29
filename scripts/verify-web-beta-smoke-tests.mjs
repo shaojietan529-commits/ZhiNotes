@@ -5769,6 +5769,30 @@ function run() {
       "Page shell must keep a stable properties placeholder while the property editor chunk loads.",
     ],
     [
+      "PAGE_COVER_IMAGE_IDLE_TIMEOUT_MS",
+      "Page shell must defer cover image decoding so page title/body can paint first.",
+    ],
+    [
+      "PageCoverDeferredPlaceholder",
+      "Page shell must keep a stable cover placeholder before the image is mounted.",
+    ],
+    [
+      "coverImageMountedPageId",
+      "Page shell must scope deferred cover image mounting to the active page.",
+    ],
+    [
+      "handleActivateCoverImage",
+      "Page shell must let user hover/click request immediate cover image mounting.",
+    ],
+    [
+      'loading="lazy"',
+      "Page cover images must use browser-native lazy loading.",
+    ],
+    [
+      'decoding="async"',
+      "Page cover images must use async decoding so they do not block interaction.",
+    ],
+    [
       "PAGE_PROPERTIES_EDITOR_IDLE_TIMEOUT_MS",
       "Page shell must defer the full property editor until after the title/body path can paint.",
     ],

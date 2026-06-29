@@ -110,6 +110,7 @@ const PAGE_VERSION_COUNT_IDLE_TIMEOUT_MS = 1100;
 const PAGE_LARGE_BODY_COMMENTS_IDLE_TIMEOUT_MS = 2200;
 const PAGE_LARGE_BODY_CHILD_TREE_IDLE_TIMEOUT_MS = 3000;
 const PAGE_LARGE_BODY_REFERENCES_IDLE_TIMEOUT_MS = 3800;
+const PAGE_COVER_IMAGE_IDLE_TIMEOUT_MS = 580;
 const PAGE_PROPERTIES_EDITOR_IDLE_TIMEOUT_MS = 520;
 const PAGE_HEADER_ICON_PICKER_IDLE_TIMEOUT_MS = 650;
 const PAGE_ACTIONS_MENU_IDLE_TIMEOUT_MS = 900;
@@ -256,6 +257,9 @@ function PageContent({ pageId }: { pageId: string }) {
   const [editorMounted, setEditorMounted] = useState(false);
   const [largeBodyEditorRequested, setLargeBodyEditorRequested] =
     useState(false);
+  const [coverImageMountedPageId, setCoverImageMountedPageId] = useState<
+    string | null
+  >(null);
   const [pagePropertiesMounted, setPagePropertiesMounted] = useState(false);
   const [iconPickerMounted, setIconPickerMounted] = useState(false);
   const [iconPickerInitialOpen, setIconPickerInitialOpen] = useState(false);
@@ -271,6 +275,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const hasLargeBodyForEditor = isLargePageBodyForEditor(page?.content_text);
   const pageRelationshipSurfacesReady =
     editorMounted || (hasContentForEditor && hasLargeBodyForEditor);
+  const coverImageMounted = coverImageMountedPageId === pageId;
   const largeBodyPreviewMode =
     hasLargeBodyForEditor && !editorMounted && !largeBodyEditorRequested;
   const pageCommentsMountTimeout = showComments
@@ -322,6 +327,7 @@ function PageContent({ pageId }: { pageId: string }) {
     reportedPageOpenRef.current = null;
     bodyHydrationPerformanceRef.current = null;
     setLargeBodyEditorRequested(false);
+    setCoverImageMountedPageId(null);
     setPagePropertiesMounted(false);
     setIconPickerMounted(false);
     setIconPickerInitialOpen(false);
@@ -588,6 +594,10 @@ function PageContent({ pageId }: { pageId: string }) {
     mountedEditorPageIdRef.current = pageId;
   }, [pageId]);
 
+  const handleActivateCoverImage = useCallback(() => {
+    setCoverImageMountedPageId(pageId);
+  }, [pageId]);
+
   const handleActivatePageProperties = useCallback(() => {
     setPagePropertiesMounted(true);
   }, []);
@@ -608,6 +618,13 @@ function PageContent({ pageId }: { pageId: string }) {
       setIconPickerMounted(true);
     }, PAGE_HEADER_ICON_PICKER_IDLE_TIMEOUT_MS);
   }, [hasPage, iconPickerMounted, pageId]);
+
+  useEffect(() => {
+    if (!page?.cover_url || coverImageMounted) return;
+    return scheduleDeferredMount(() => {
+      setCoverImageMountedPageId(pageId);
+    }, PAGE_COVER_IMAGE_IDLE_TIMEOUT_MS);
+  }, [coverImageMounted, page?.cover_url, pageId]);
 
   useEffect(() => {
     if (!hasPage || pagePropertiesMounted) return;
@@ -1337,13 +1354,25 @@ function PageContent({ pageId }: { pageId: string }) {
           {/* Page cover */}
           {page.cover_url ? (
             <div className="-mx-2 mb-6 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900">
-              <div className="group relative h-44">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={page.cover_url}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
+              <div
+                className="group relative h-44"
+                onPointerEnter={handleActivateCoverImage}
+                onFocus={handleActivateCoverImage}
+              >
+                {coverImageMounted ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={page.cover_url}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <PageCoverDeferredPlaceholder
+                    onActivate={handleActivateCoverImage}
+                  />
+                )}
                 <div className="absolute right-3 top-3 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                   {!locked && (
                     <>
@@ -2139,6 +2168,24 @@ function PageIconPickerDeferredTrigger({
         <path d="M9 10h.01M15 10h.01M9 15c.8.7 1.9 1 3 1s2.2-.3 3-1" />
       </svg>
       添加图标
+    </button>
+  );
+}
+
+function PageCoverDeferredPlaceholder({
+  onActivate,
+}: {
+  onActivate: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onActivate}
+      className="flex h-full w-full items-center justify-center bg-zinc-100 text-xs text-zinc-400 transition-colors hover:bg-zinc-200/70 hover:text-zinc-500 dark:bg-zinc-900 dark:text-zinc-600 dark:hover:bg-zinc-800"
+      title="加载封面"
+      aria-label="加载封面"
+    >
+      封面准备中
     </button>
   );
 }
