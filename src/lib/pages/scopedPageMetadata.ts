@@ -2,7 +2,7 @@
 
 import {
   getPageMetadata,
-  listPageMetadata,
+  listPageMetadataByParentIds,
 } from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 
@@ -24,17 +24,16 @@ export async function listScopedPageMetadata(
     if (root) pages.push(root);
   }
 
-  const directChildren = await listPageMetadata(rootId);
+  const directChildren = await listPageMetadataByParentIds([rootId]);
   pages.push(...directChildren);
   if (!includeDescendants) return pages;
 
-  const queue = [...directChildren];
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) continue;
-    const children = await listPageMetadata(current.id);
+  let currentLevelParentIds = directChildren.map((page) => page.id);
+  while (currentLevelParentIds.length > 0) {
+    const children = await listPageMetadataByParentIds(currentLevelParentIds);
+    if (children.length === 0) break;
     pages.push(...children);
-    queue.push(...children);
+    currentLevelParentIds = children.map((page) => page.id);
   }
 
   return dedupePages(pages);

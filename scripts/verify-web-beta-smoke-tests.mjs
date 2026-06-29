@@ -7808,12 +7808,16 @@ function run() {
       "Smoke verifier must keep knowledge and industry modules using a shared scoped metadata helper.",
     ],
     [
-      "listPageMetadata(rootId)",
-      "Smoke verifier must keep scoped page metadata rooted at one module root.",
+      "listPageMetadataByParentIds([rootId])",
+      "Smoke verifier must keep scoped page metadata rooted at one module root with a batched child query.",
     ],
     [
-      "listPageMetadata(current.id)",
-      "Smoke verifier must keep scoped page metadata walking scoped descendants.",
+      "currentLevelParentIds",
+      "Smoke verifier must keep scoped page metadata walking descendants level-by-level.",
+    ],
+    [
+      "listPageMetadataByParentIds(currentLevelParentIds)",
+      "Smoke verifier must keep scoped descendant reads batched by parent level.",
     ],
     [
       "mergePageMetadata",
@@ -7821,6 +7825,22 @@ function run() {
     ],
   ]) {
     assertIncludes(files.scopedPageMetadata, scopedPageMetadata, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "export async function listPageMetadataByParentIds",
+      "Smoke verifier must keep batched parent metadata reads available for scoped modules.",
+    ],
+    [
+      "const batchSize = 80",
+      "Smoke verifier must keep parent metadata batches bounded.",
+    ],
+    [
+      "WHERE parent_id IN (${placeholders}) AND deleted_at IS NULL",
+      "Smoke verifier must keep batched parent metadata reads using parent_id IN.",
+    ],
+  ]) {
+    assertIncludes(files.localQueries, localQueries, snippet, message);
   }
   for (const [sourceLabel, source, expectedSnippets] of [
     [

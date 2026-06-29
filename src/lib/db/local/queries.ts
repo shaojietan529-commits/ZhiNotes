@@ -1071,6 +1071,29 @@ export async function listPageMetadata(
   ) as unknown as Page[];
 }
 
+export async function listPageMetadataByParentIds(
+  parentIds: string[]
+): Promise<Page[]> {
+  const uniqueParentIds = Array.from(new Set(parentIds.filter(Boolean)));
+  if (uniqueParentIds.length === 0) return [];
+  const db = await getDb();
+  const batches: Page[] = [];
+  const batchSize = 80;
+  for (let start = 0; start < uniqueParentIds.length; start += batchSize) {
+    const batch = uniqueParentIds.slice(start, start + batchSize);
+    const placeholders = batch.map(() => "?").join(", ");
+    const rows = db.query(
+      `SELECT ${PAGE_METADATA_SELECT}
+       FROM pages
+       WHERE parent_id IN (${placeholders}) AND deleted_at IS NULL
+       ORDER BY parent_id ASC, position ASC, updated_at DESC`,
+      batch
+    ) as unknown as Page[];
+    batches.push(...rows);
+  }
+  return batches;
+}
+
 export async function getPageMetadata(id: string): Promise<Page | null> {
   const db = await getDb();
   const rows = db.query(

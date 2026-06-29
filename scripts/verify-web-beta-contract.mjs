@@ -6683,12 +6683,16 @@ function run() {
       "Knowledge and industry modules must share a root-scoped page metadata helper.",
     ],
     [
-      "listPageMetadata(rootId)",
-      "Scoped page metadata must start from a specific module root instead of all pages.",
+      "listPageMetadataByParentIds([rootId])",
+      "Scoped page metadata must start from a specific module root with a batched child query.",
     ],
     [
-      "listPageMetadata(current.id)",
-      "Scoped page metadata must walk descendants from already-scoped children.",
+      "currentLevelParentIds",
+      "Scoped page metadata must walk descendants level-by-level instead of one parent at a time.",
+    ],
+    [
+      "listPageMetadataByParentIds(currentLevelParentIds)",
+      "Scoped page metadata must batch descendant metadata reads by parent level.",
     ],
     [
       "mergePageMetadata",
@@ -6696,6 +6700,22 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.scopedPageMetadata, scopedPageMetadata, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "export async function listPageMetadataByParentIds",
+      "Local queries must expose batched parent metadata reads for scoped modules.",
+    ],
+    [
+      "const batchSize = 80",
+      "Batched parent metadata reads must chunk parent ids to keep SQL parameter counts bounded.",
+    ],
+    [
+      "WHERE parent_id IN (${placeholders}) AND deleted_at IS NULL",
+      "Batched parent metadata reads must use a single parent_id IN query per chunk.",
+    ],
+  ]) {
+    assertSourceIncludes(files.localQueries, localQueries, snippet, message);
   }
   for (const [sourceLabel, source, expectedSnippets] of [
     [

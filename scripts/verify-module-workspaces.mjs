@@ -840,10 +840,19 @@ check(
 );
 check(
   scopedPageMetadata.includes("listScopedPageMetadata") &&
-    scopedPageMetadata.includes("listPageMetadata(rootId)") &&
-    scopedPageMetadata.includes("listPageMetadata(current.id)") &&
+    scopedPageMetadata.includes("listPageMetadataByParentIds([rootId])") &&
+    scopedPageMetadata.includes("currentLevelParentIds") &&
+    scopedPageMetadata.includes(
+      "listPageMetadataByParentIds(currentLevelParentIds)"
+    ) &&
     scopedPageMetadata.includes("mergePageMetadata"),
-  "scopedPageMetadata 必须提供 root-scoped 页面元数据读取，避免模块入口扫全局页面"
+  "scopedPageMetadata 必须按层批量读取 root-scoped 页面元数据，避免模块入口逐节点或全局扫页面"
+);
+check(
+  localQueries.includes("export async function listPageMetadataByParentIds") &&
+    localQueries.includes("const batchSize = 80") &&
+    localQueries.includes("WHERE parent_id IN (${placeholders}) AND deleted_at IS NULL"),
+  "local queries 必须提供按 parentId 批量读取 page metadata 的接口，减少知识库/产业链多层级加载往返"
 );
 check(
   shells.knowledge.includes("listScopedPageMetadata") &&
