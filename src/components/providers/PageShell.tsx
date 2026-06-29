@@ -62,6 +62,7 @@ import {
   describePageBodyHydrationStatus,
   getPageBodyHydrationStatus,
   subscribePageBodyHydrationStatus,
+  type PageBodyHydrationPhase,
 } from "@/lib/pages/pageBodyHydrationStatus";
 import {
   getLocalPerformanceNow,
@@ -102,6 +103,7 @@ const PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000;
 const PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000;
 const PAGE_SYNC_STATUS_FIRST_REFRESH_DELAY_MS = 900;
 const PAGE_SYNC_STATUS_FIRST_REFRESH_IDLE_TIMEOUT_MS = 2500;
+const PAGE_BODY_HYDRATION_PERFORMANCE_THRESHOLD_MS = 500;
 const EMPTY_PAGE_SYNC_STATUS: PendingCloudPageSyncStatus = {
   enabled: true,
   pending: 0,
@@ -246,6 +248,15 @@ function PageContent({ pageId }: { pageId: string }) {
   const pageOpenStartedAtRef = useRef(getLocalPerformanceNow());
   const pageOpenStartedAtIsoRef = useRef(new Date().toISOString());
   const reportedPageOpenRef = useRef<string | null>(null);
+  const bodyHydrationPerformanceRef = useRef<{
+    pageId: string;
+    startedAt: number;
+    startedAtIso: string;
+    sawMetadataReady: boolean;
+    sawLocalRequest: boolean;
+    sawCloudRequest: boolean;
+    reportedKeys: Set<string>;
+  } | null>(null);
   const pageOpenSourcePageIdRef = useRef<string | null>(null);
   const pageOpenSourceRef = useRef<PageRouteHandoffSource | null>(null);
   if (pageOpenSourcePageIdRef.current !== pageId) {
@@ -269,6 +280,7 @@ function PageContent({ pageId }: { pageId: string }) {
     pageOpenStartedAtRef.current = getLocalPerformanceNow();
     pageOpenStartedAtIsoRef.current = new Date().toISOString();
     reportedPageOpenRef.current = null;
+    bodyHydrationPerformanceRef.current = null;
     setLargeBodyEditorRequested(false);
   }, [pageId]);
 
@@ -364,6 +376,74 @@ function PageContent({ pageId }: { pageId: string }) {
       unsubscribe();
     };
   }, [pageId]);
+
+  useEffect(() => {
+    if (!page || !bodyHydrationStatus?.phase) return;
+    let tracker = bodyHydrationPerformanceRef.current;
+    if (!tracker || tracker.pageId !== pageId) {
+      tracker = {
+        pageId,
+        startedAt: pageOpenStartedAtRef.current,
+        startedAtIso: pageOpenStartedAtIsoRef.current,
+        sawMetadataReady: false,
+        sawLocalRequest: false,
+        sawCloudRequest: false,
+        reportedKeys: new Set<string>(),
+      };
+      bodyHydrationPerformanceRef.current = tracker;
+    }
+
+    if (bodyHydrationStatus.phase === "metadata-ready") {
+      tracker.sawMetadataReady = true;
+    }
+    if (bodyHydrationStatus.phase === "local-body-requested") {
+      tracker.sawLocalRequest = true;
+    }
+    if (
+      bodyHydrationStatus.phase === "cloud-body-requested" ||
+      bodyHydrationStatus.phase === "cloud-body-ready"
+    ) {
+      tracker.sawCloudRequest = true;
+    }
+    if (!isTerminalPageBodyHydrationPhase(bodyHydrationStatus.phase)) return;
+
+    const reportKey = `${bodyHydrationStatus.phase}:${bodyHydrationStatus.updated_at}`;
+    if (tracker.reportedKeys.has(reportKey)) return;
+    tracker.reportedKeys.add(reportKey);
+
+    const durationMs = getLocalPerformanceNow() - tracker.startedAt;
+    const shouldRecord =
+      bodyHydrationStatus.phase === "unavailable" ||
+      tracker.sawCloudRequest ||
+      durationMs >= PAGE_BODY_HYDRATION_PERFORMANCE_THRESHOLD_MS;
+    if (!shouldRecord) return;
+
+    recordLocalPerformanceSnapshot({
+      kind: "page-body-hydration",
+      label: "页面正文补齐",
+      route: "/page/[pageId]",
+      status: bodyHydrationStatus.phase,
+      startedAt: tracker.startedAtIso,
+      durationMs,
+      localFirstMs:
+        bodyHydrationStatus.phase === "local-body-ready" ? durationMs : null,
+      backgroundMs: tracker.sawCloudRequest ? durationMs : null,
+      counts: {
+        metadata_ready_seen: tracker.sawMetadataReady ? 1 : 0,
+        local_body_requested: tracker.sawLocalRequest ? 1 : 0,
+        cloud_body_requested: tracker.sawCloudRequest ? 1 : 0,
+        metadata_only: page.content_text == null ? 1 : 0,
+        body_html_chars: pageBodyHtmlLength,
+        large_body: hasLargeBodyForEditor ? 1 : 0,
+      },
+    });
+  }, [
+    bodyHydrationStatus,
+    hasLargeBodyForEditor,
+    page,
+    pageBodyHtmlLength,
+    pageId,
+  ]);
 
   useEffect(() => {
     if (!page || loading || reportedPageOpenRef.current === pageId) return;
@@ -1831,6 +1911,17 @@ function getPageOpenPerformanceStatus(
   if (page.content_text === "") return "local-draft-ready";
   if (page.content_text == null) return "metadata-ready";
   return "content-ready";
+}
+
+function isTerminalPageBodyHydrationPhase(
+  phase: PageBodyHydrationPhase
+): boolean {
+  return (
+    phase === "local-body-ready" ||
+    phase === "cloud-body-ready" ||
+    phase === "empty-ready" ||
+    phase === "unavailable"
+  );
 }
 
 function getPageOpenPerformanceKind(

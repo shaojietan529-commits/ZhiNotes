@@ -3013,6 +3013,26 @@ function run() {
       'performanceKind === "database-row-open" ? 1 : 0',
       "Database row page-open performance snapshots must stay metadata-only and avoid row values.",
     ],
+    [
+      "PAGE_BODY_HYDRATION_PERFORMANCE_THRESHOLD_MS = 500",
+      "Page body hydration timing must ignore trivial local cache hits and focus on slow paths.",
+    ],
+    [
+      'kind: "page-body-hydration"',
+      "Page shell must record metadata-only page body hydration timing snapshots.",
+    ],
+    [
+      "isTerminalPageBodyHydrationPhase",
+      "Page body hydration timing must only record completed hydration states.",
+    ],
+    [
+      "cloud_body_requested",
+      "Page body hydration snapshots must expose whether the slow path reached cloud fallback.",
+    ],
+    [
+      "body_html_chars",
+      "Page body hydration snapshots must only record body size, not body content.",
+    ],
   ]) {
     assertSourceIncludes(files.pageShell, pageShell, snippet, message);
   }
@@ -3021,6 +3041,12 @@ function run() {
     localPerformance,
     '"database-row-open"',
     "Local performance snapshots must accept database row page-open timing records."
+  );
+  assertSourceIncludes(
+    files.localPerformance,
+    localPerformance,
+    '"page-body-hydration"',
+    "Local performance snapshots must accept page body hydration timing records."
   );
   for (const [snippet, message] of [
     [
@@ -7659,16 +7685,32 @@ function run() {
       "Cloud-native fluidity report must define a database row page-open timing target.",
     ],
     [
+      "PAGE_BODY_HYDRATION_TARGET_MS",
+      "Cloud-native fluidity report must define a page body hydration timing target.",
+    ],
+    [
       "database-row-open-target",
       "Cloud-native fluidity report must include a database row page-open gate.",
+    ],
+    [
+      "page-body-hydration-target",
+      "Cloud-native fluidity report must include a page body hydration gate.",
     ],
     [
       "average_database_row_open_ms",
       "Cloud-native fluidity report must summarize database row page-open timing separately.",
     ],
     [
+      "average_page_body_hydration_ms",
+      "Cloud-native fluidity report must summarize page body hydration timing separately.",
+    ],
+    [
       'metric("database-row-open"',
       "Cloud-native fluidity report must expose database row page-open timing as a metric.",
+    ],
+    [
+      'metric("page-body-hydration"',
+      "Cloud-native fluidity report must expose page body hydration timing as a metric.",
     ],
     [
       "hot_cache_index_rows",
@@ -7740,8 +7782,16 @@ function run() {
       "Sync local fluency diagnosis must cover database row page opening.",
     ],
     [
+      'kind: "page-body-hydration"',
+      "Sync local fluency diagnosis must cover page body hydration.",
+    ],
+    [
       "数据库行平均",
       "Sync UI must show database row page-open performance averages.",
+    ],
+    [
+      "正文补齐平均",
+      "Sync UI must show page body hydration performance averages.",
     ],
     [
       'kind: "page-peek"',

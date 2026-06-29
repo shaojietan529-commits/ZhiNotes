@@ -94,6 +94,7 @@ export interface CloudNativeFluidityReport {
     average_local_first_ms: number | null;
     average_page_open_ms: number | null;
     average_database_row_open_ms: number | null;
+    average_page_body_hydration_ms: number | null;
     web_beta_sync_gate_status: CloudNativeFluidityGateStatus;
     web_beta_sync_blockers: number;
     web_beta_sync_warnings: number;
@@ -108,6 +109,7 @@ export interface CloudNativeFluidityReport {
 const LOCAL_FIRST_TARGET_MS = 800;
 const PAGE_OPEN_TARGET_MS = 1200;
 const DATABASE_ROW_OPEN_TARGET_MS = 1200;
+const PAGE_BODY_HYDRATION_TARGET_MS = 1500;
 const MIN_PERFORMANCE_SAMPLES = 3;
 
 export function buildCloudNativeFluidityReport(
@@ -135,6 +137,10 @@ export function buildCloudNativeFluidityReport(
   const averageDatabaseRowOpenMs = averageDurationMs(
     input.performanceSnapshots,
     "database-row-open"
+  );
+  const averagePageBodyHydrationMs = averageDurationMs(
+    input.performanceSnapshots,
+    "page-body-hydration"
   );
 
   const gates: CloudNativeFluidityGate[] = [
@@ -280,6 +286,26 @@ export function buildCloudNativeFluidityReport(
             : "优先检查数据库 row route handoff、页面草稿预热和 row 正文 hydration。",
     },
     {
+      id: "page-body-hydration-target",
+      title: "页面正文补齐耗时达标",
+      status: getTimingGateStatus(
+        averagePageBodyHydrationMs,
+        PAGE_BODY_HYDRATION_TARGET_MS
+      ),
+      evidence:
+        averagePageBodyHydrationMs === null
+          ? "还没有页面正文补齐耗时样本。"
+          : `页面正文补齐平均 ${Math.round(averagePageBodyHydrationMs)}ms，目标 ${PAGE_BODY_HYDRATION_TARGET_MS}ms 以内。`,
+      target:
+        "页面标题和属性应先显示；正文从本地热缓存或云端补齐时，过程要可见且不能阻塞基础交互。",
+      next_action:
+        averagePageBodyHydrationMs === null
+          ? "打开几个真实页面，尤其是导入纪要后的长页面，让系统记录正文补齐耗时。"
+          : averagePageBodyHydrationMs <= PAGE_BODY_HYDRATION_TARGET_MS
+            ? "正文补齐达标，下一步继续优化长文编辑器和日历大量条目渲染。"
+            : "优先检查页面正文是否频繁落到云端补齐；常用页面应进入本地正文热缓存或在打开前预热。",
+    },
+    {
       id: "cache-rebuild-safe",
       title: "本地缓存重建有安全门",
       status:
@@ -311,6 +337,7 @@ export function buildCloudNativeFluidityReport(
     performanceSamples: input.performanceSnapshots.length,
     averageLocalFirstMs: localFirstAverageMs,
     averagePageOpenMs,
+    averagePageBodyHydrationMs,
     cacheRebuildBlockers: input.cacheRebuildPreflightReceipt.summary.blockers,
   });
 
@@ -356,6 +383,7 @@ export function buildCloudNativeFluidityReport(
       average_local_first_ms: roundMetric(localFirstAverageMs),
       average_page_open_ms: roundMetric(averagePageOpenMs),
       average_database_row_open_ms: roundMetric(averageDatabaseRowOpenMs),
+      average_page_body_hydration_ms: roundMetric(averagePageBodyHydrationMs),
       web_beta_sync_gate_status: webBetaSyncGate.status,
       web_beta_sync_blockers: webBetaSyncGate.blocking_reasons.length,
       web_beta_sync_warnings: webBetaSyncGate.warning_reasons.length,
@@ -381,6 +409,7 @@ export function buildCloudNativeFluidityReport(
       ),
       metric("page-open", "页面打开", roundMetric(averagePageOpenMs), "ms", `<=${PAGE_OPEN_TARGET_MS}ms`, getTimingGateStatus(averagePageOpenMs, PAGE_OPEN_TARGET_MS)),
       metric("database-row-open", "数据库行打开", roundMetric(averageDatabaseRowOpenMs), "ms", `<=${DATABASE_ROW_OPEN_TARGET_MS}ms`, getTimingGateStatus(averageDatabaseRowOpenMs, DATABASE_ROW_OPEN_TARGET_MS)),
+      metric("page-body-hydration", "页面正文补齐", roundMetric(averagePageBodyHydrationMs), "ms", `<=${PAGE_BODY_HYDRATION_TARGET_MS}ms`, getTimingGateStatus(averagePageBodyHydrationMs, PAGE_BODY_HYDRATION_TARGET_MS)),
       metric("ready-jobs", "Ready jobs", hotCacheReadyJobs, "jobs", "越多代表可预热范围越明确", hotCacheReadyJobs > 0 ? "pass" : "warn"),
     ],
     web_beta_sync_gate: webBetaSyncGate,
@@ -400,6 +429,7 @@ function buildWebBetaSyncGate(input: {
   performanceSamples: number;
   averageLocalFirstMs: number | null;
   averagePageOpenMs: number | null;
+  averagePageBodyHydrationMs: number | null;
   cacheRebuildBlockers: number;
 }): CloudNativeFluidityWebBetaSyncGate {
   const failedRows = input.pageFailedRows + input.databaseFailedRows;
@@ -452,13 +482,13 @@ function buildWebBetaSyncGate(input: {
       `数据库 pending ${input.databasePendingRows} / failed ${input.databaseFailedRows}`,
       `sync_log pending ${input.syncLogPendingRows}`,
       `热缓存索引 ${input.hotCacheIndexRows} 行 / ${input.hotCacheRouteTargets} 个可预热入口`,
-      `本机耗时样本 ${input.performanceSamples} 条，首屏 ${formatGateMs(input.averageLocalFirstMs)}，页面打开 ${formatGateMs(input.averagePageOpenMs)}`,
+      `本机耗时样本 ${input.performanceSamples} 条，首屏 ${formatGateMs(input.averageLocalFirstMs)}，页面打开 ${formatGateMs(input.averagePageOpenMs)}，正文补齐 ${formatGateMs(input.averagePageBodyHydrationMs)}`,
     ],
     required_before_owner_review: [
       "云 workspace 已绑定，页面和数据库同步都开启。",
       "页面/数据库失败回执为 0，pending 队列能稳定收到 ACK。",
       "常用入口热缓存索引已建立，刷新后先显示 metadata。",
-      "本机首屏和页面打开耗时达到目标，或有清楚的优化剩余项。",
+      "本机首屏、页面打开和正文补齐耗时达到目标，或有清楚的优化剩余项。",
       "缓存重建预检没有 blocker，真实启用仍需 owner 二次确认。",
     ],
     next_action:

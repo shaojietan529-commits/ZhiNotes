@@ -17295,6 +17295,13 @@ const LOCAL_PERFORMANCE_DIAGNOSIS_TARGETS: Array<{
       "优先检查数据库 row route handoff、页面草稿预热和 row 正文 hydration，避免大数据库点击后才准备页面。",
   },
   {
+    kind: "page-body-hydration",
+    label: "正文补齐",
+    targetMs: 1500,
+    slowNextAction:
+      "优先检查页面正文是否频繁落到云端补齐；常用页面应进入本地正文热缓存或在打开前预热。",
+  },
+  {
     kind: "page-peek",
     label: "页面预览",
     targetMs: 700,
@@ -17338,6 +17345,10 @@ function LocalPerformancePanel({
     snapshots,
     "database-row-open"
   );
+  const bodyHydrationAverage = averagePerformanceMs(
+    snapshots,
+    "page-body-hydration"
+  );
   const peekAverage = averagePerformanceMs(snapshots, "page-peek");
   const diagnosis = buildLocalPerformanceDiagnosis(snapshots);
   const recentSnapshots = snapshots.slice(0, 6);
@@ -17370,7 +17381,7 @@ function LocalPerformancePanel({
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
         <CacheRebuildFact
           label="最近一次"
           value={latest ? formatPerformanceMs(latest.duration_ms) : "暂无"}
@@ -17399,6 +17410,11 @@ function LocalPerformancePanel({
           label="数据库行平均"
           value={formatPerformanceMs(databaseRowAverage)}
           detail="只记录 row 页面打开耗时，不含 row values"
+        />
+        <CacheRebuildFact
+          label="正文补齐平均"
+          value={formatPerformanceMs(bodyHydrationAverage)}
+          detail="只记录本地/云端补齐耗时，不含正文"
         />
         <CacheRebuildFact
           label="页面预览平均"
@@ -20565,6 +20581,10 @@ function formatPerformanceStatus(status: string) {
     "local-refresh": "本地刷新",
     "content-ready": "正文可用",
     "metadata-ready": "metadata 可用",
+    "local-body-ready": "本地正文补齐",
+    "cloud-body-ready": "云端正文补齐",
+    "empty-ready": "空正文可编辑",
+    unavailable: "正文暂不可用",
   };
   return labels[status] ?? status;
 }

@@ -1266,10 +1266,46 @@ function run() {
     "Page performance snapshots must not include the raw page id."
   );
   assertIncludes(
+    files.pageShell,
+    pageShell,
+    "PAGE_BODY_HYDRATION_PERFORMANCE_THRESHOLD_MS = 500",
+    "Page body hydration timing must ignore trivial local cache hits and focus on slow paths."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    'kind: "page-body-hydration"',
+    "Page shell must record metadata-only page body hydration timing snapshots."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "isTerminalPageBodyHydrationPhase",
+    "Page body hydration timing must only record completed hydration states."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "cloud_body_requested",
+    "Page body hydration snapshots must expose whether the slow path reached cloud fallback."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "body_html_chars",
+    "Page body hydration snapshots must only record body size, not body content."
+  );
+  assertIncludes(
     files.localPerformance,
     localPerformance,
     '"database-row-open"',
     "Local performance snapshots must accept database row page-open timing records."
+  );
+  assertIncludes(
+    files.localPerformance,
+    localPerformance,
+    '"page-body-hydration"',
+    "Local performance snapshots must accept page body hydration timing records."
   );
   assertIncludes(
     files.localPerformance,
@@ -1354,6 +1390,12 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "正文补齐平均",
+    "Sync UI must show page body hydration performance averages."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "local-performance-snapshots",
     "Sync UI must provide a stable local performance panel anchor."
   );
@@ -1374,6 +1416,12 @@ function run() {
     syncShell,
     'kind: "database-row-open"',
     "Sync local fluency diagnosis must cover database row page opening."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'kind: "page-body-hydration"',
+    "Sync local fluency diagnosis must cover page body hydration."
   );
   assertIncludes(
     files.syncShell,
@@ -1695,14 +1743,38 @@ function run() {
   assertIncludes(
     files.cloudNativeFluidityReport,
     cloudNativeFluidityReport,
+    "PAGE_BODY_HYDRATION_TARGET_MS",
+    "Smoke verifier must keep a page body hydration timing target in the cloud-native report."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
     "database-row-open-target",
     "Smoke verifier must keep the database row page-open gate in the cloud-native report."
   );
   assertIncludes(
     files.cloudNativeFluidityReport,
     cloudNativeFluidityReport,
+    "page-body-hydration-target",
+    "Smoke verifier must keep the page body hydration gate in the cloud-native report."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    "average_page_body_hydration_ms",
+    "Smoke verifier must keep page body hydration timing in the cloud-native summary."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
     'metric("database-row-open"',
     "Smoke verifier must keep database row page-open timing as a cloud-native metric."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    'metric("page-body-hydration"',
+    "Smoke verifier must keep page body hydration timing as a cloud-native metric."
   );
   assertIncludes(
     files.syncShell,

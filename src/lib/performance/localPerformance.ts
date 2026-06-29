@@ -9,6 +9,7 @@ export type LocalPerformanceKind =
   | "meeting-calendar"
   | "database-row-open"
   | "page-open"
+  | "page-body-hydration"
   | "page-peek";
 
 export interface LocalPerformanceBoundary {
@@ -167,6 +168,7 @@ function isLocalPerformanceSnapshot(
       record.kind === "meeting-calendar" ||
       record.kind === "database-row-open" ||
       record.kind === "page-open" ||
+      record.kind === "page-body-hydration" ||
       record.kind === "page-peek") &&
     typeof record.label === "string" &&
     typeof record.route === "string" &&
