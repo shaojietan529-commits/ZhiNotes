@@ -132,6 +132,8 @@ const DAILY_VISIBLE_CONTENT_WARMUP_LIMIT = 18;
 const DAILY_VISIBLE_CONTENT_WARMUP_BATCH = 2;
 const DAILY_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS = 2200;
 const DAILY_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS = 900;
+const DAILY_PEEK_EDITOR_WARMUP_DELAY_MS = 1400;
+const DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 1800;
 const DAILY_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
@@ -343,8 +345,16 @@ export default function DailyNotesShell() {
     const cancelPageShellPreload = scheduleDailyIdleTask(() => {
       warmPageRoute();
     }, 500);
+    let cancelPeekEditorWarmup: (() => void) | null = null;
+    const peekEditorWarmupTimer = window.setTimeout(() => {
+      cancelPeekEditorWarmup = scheduleDailyIdleTask(() => {
+        warmPagePeekModal();
+      }, DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS);
+    }, DAILY_PEEK_EDITOR_WARMUP_DELAY_MS);
     return () => {
       cancelPageShellPreload();
+      window.clearTimeout(peekEditorWarmupTimer);
+      cancelPeekEditorWarmup?.();
     };
   }, [warmPageRoute]);
 

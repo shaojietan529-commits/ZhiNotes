@@ -3764,7 +3764,27 @@ function run() {
     ],
     [
       "warmDailyPeekOpen();",
-      "Daily calendar must warm the lazy peek modal only on page-open intent.",
+      "Daily calendar must warm the lazy peek modal on page-open intent while keeping first paint light.",
+    ],
+    [
+      "DAILY_PEEK_EDITOR_WARMUP_DELAY_MS",
+      "Daily calendar must delay background peek-editor warmup until after the calendar shell paints.",
+    ],
+    [
+      "DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS",
+      "Daily calendar delayed peek-editor warmup must remain idle-bounded.",
+    ],
+    [
+      "cancelPeekEditorWarmup = scheduleDailyIdleTask(() => {\n        warmPagePeekModal();",
+      "Daily calendar must warm the peek editor in an idle task after the first-paint route shell.",
+    ],
+    [
+      "window.clearTimeout(peekEditorWarmupTimer)",
+      "Daily calendar must cancel delayed peek-editor warmup when the route unmounts.",
+    ],
+    [
+      "cancelPeekEditorWarmup?.();",
+      "Daily calendar must cancel the idle peek-editor warmup task on unmount.",
     ],
     [
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\")",
@@ -4276,6 +4296,24 @@ function run() {
     "pageShellWarmupRef",
     "Daily calendar must warm the full-page shell once without repeatedly importing it."
   );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "DAILY_PEEK_EDITOR_WARMUP_DELAY_MS",
+    "Daily calendar must delay background peek-editor warmup until after first paint."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "cancelPeekEditorWarmup = scheduleDailyIdleTask(() => {\n        warmPagePeekModal();",
+    "Daily calendar must warm the peek editor in an idle task, not inside the route-shell warmup."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "cancelPeekEditorWarmup?.();",
+    "Daily calendar must clean up delayed peek-editor warmup."
+  );
   assertSourceExcludes(
     files.dailyNotesShell,
     dailyNotesShell,
@@ -4454,6 +4492,26 @@ function run() {
     [
       "pageShellWarmupRef",
       "Meeting schedule must warm the full-page shell once instead of loading it only after a meeting opens.",
+    ],
+    [
+      "MEETING_PEEK_EDITOR_WARMUP_DELAY_MS",
+      "Meeting schedule must delay background peek-editor warmup until after the calendar shell paints.",
+    ],
+    [
+      "MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS",
+      "Meeting schedule delayed peek-editor warmup must remain idle-bounded.",
+    ],
+    [
+      "cancelPeekEditorWarmup = scheduleMeetingIdleTask(() => {\n        warmPagePeekModal();",
+      "Meeting schedule must warm the peek editor in an idle task after first paint.",
+    ],
+    [
+      "window.clearTimeout(peekEditorWarmupTimer)",
+      "Meeting schedule must cancel delayed peek-editor warmup when the route unmounts.",
+    ],
+    [
+      "cancelPeekEditorWarmup?.();",
+      "Meeting schedule must cancel the idle peek-editor warmup task on unmount.",
     ],
     [
       "warmMeetingPageRoute",

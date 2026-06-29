@@ -4759,7 +4759,25 @@ function run() {
     files.dailyNotesShell,
     dailyNotesShell,
     "warmDailyPeekOpen();",
-    "Daily calendar must warm the lazy peek modal only on page-open intent."
+    "Daily calendar must warm the lazy peek modal on page-open intent while keeping first paint light."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "DAILY_PEEK_EDITOR_WARMUP_DELAY_MS",
+    "Daily calendar must delay background peek-editor warmup until after first paint."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "cancelPeekEditorWarmup = scheduleDailyIdleTask(() => {\n        warmPagePeekModal();",
+    "Daily calendar must warm the peek editor in an idle task after the route shell."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "cancelPeekEditorWarmup?.();",
+    "Daily calendar must cancel delayed peek-editor warmup on unmount."
   );
   assertExcludes(
     files.dailyNotesShell,
@@ -5045,6 +5063,24 @@ function run() {
     meetingScheduleShell,
     "onPointerDown={warmMeetingPeekOpen}",
     "Meeting create/import controls must warm the page shell and peek editor even on fast clicks."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "MEETING_PEEK_EDITOR_WARMUP_DELAY_MS",
+    "Meeting schedule must delay background peek-editor warmup until after first paint."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "cancelPeekEditorWarmup = scheduleMeetingIdleTask(() => {\n        warmPagePeekModal();",
+    "Meeting schedule must warm the peek editor in an idle task after the route shell."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "cancelPeekEditorWarmup?.();",
+    "Meeting schedule must cancel delayed peek-editor warmup on unmount."
   );
   for (const [snippet, message] of [
     [

@@ -123,6 +123,8 @@ const MEETING_VISIBLE_CONTENT_WARMUP_LIMIT = 16;
 const MEETING_VISIBLE_CONTENT_WARMUP_BATCH = 2;
 const MEETING_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS = 2400;
 const MEETING_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS = 1000;
+const MEETING_PEEK_EDITOR_WARMUP_DELAY_MS = 1600;
+const MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2000;
 const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const MEETING_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
@@ -510,8 +512,16 @@ export default function MeetingScheduleShell() {
     const cancelPageShellPreload = scheduleMeetingIdleTask(() => {
       warmMeetingPageRoute();
     }, 700);
+    let cancelPeekEditorWarmup: (() => void) | null = null;
+    const peekEditorWarmupTimer = window.setTimeout(() => {
+      cancelPeekEditorWarmup = scheduleMeetingIdleTask(() => {
+        warmPagePeekModal();
+      }, MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS);
+    }, MEETING_PEEK_EDITOR_WARMUP_DELAY_MS);
     return () => {
       cancelPageShellPreload();
+      window.clearTimeout(peekEditorWarmupTimer);
+      cancelPeekEditorWarmup?.();
     };
   }, [warmMeetingPageRoute]);
 

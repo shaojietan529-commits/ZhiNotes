@@ -723,6 +723,14 @@ check(
     dailyNotesShell.includes("setOpeningDraft({ pageId: optimisticNote.id, dateKey })") &&
     dailyNotesShell.includes("const warmDailyPeekOpen = useCallback") &&
     dailyNotesShell.includes("warmDailyPeekOpen();") &&
+    dailyNotesShell.includes("DAILY_PEEK_EDITOR_WARMUP_DELAY_MS") &&
+    dailyNotesShell.includes("DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS") &&
+    dailyNotesShell.includes("const peekEditorWarmupTimer = window.setTimeout(() => {") &&
+    dailyNotesShell.includes("cancelPeekEditorWarmup = scheduleDailyIdleTask(() => {") &&
+    dailyNotesShell.includes("}, DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS)") &&
+    dailyNotesShell.includes("}, DAILY_PEEK_EDITOR_WARMUP_DELAY_MS)") &&
+    dailyNotesShell.includes("window.clearTimeout(peekEditorWarmupTimer)") &&
+    dailyNotesShell.includes("cancelPeekEditorWarmup?.();") &&
     dailyNotesShell.includes("onPointerEnter={warmDailyPeekOpen}") &&
     dailyNotesShell.includes("onPointerDown={warmDailyPeekOpen}") &&
     dailyNotesShell.includes("onFocus={warmDailyPeekOpen}") &&
@@ -871,6 +879,14 @@ check(
   meetingScheduleShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
     meetingScheduleShell.includes("@/components/page/LazyPagePeekModal") &&
     meetingScheduleShell.includes("warmPagePeekModal();") &&
+    meetingScheduleShell.includes("MEETING_PEEK_EDITOR_WARMUP_DELAY_MS") &&
+    meetingScheduleShell.includes("MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS") &&
+    meetingScheduleShell.includes("const peekEditorWarmupTimer = window.setTimeout(() => {") &&
+    meetingScheduleShell.includes("cancelPeekEditorWarmup = scheduleMeetingIdleTask(() => {") &&
+    meetingScheduleShell.includes("}, MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS)") &&
+    meetingScheduleShell.includes("}, MEETING_PEEK_EDITOR_WARMUP_DELAY_MS)") &&
+    meetingScheduleShell.includes("window.clearTimeout(peekEditorWarmupTimer)") &&
+    meetingScheduleShell.includes("cancelPeekEditorWarmup?.();") &&
     meetingScheduleShell.includes("const warmMeetingPeekOpen = useCallback") &&
     meetingScheduleShell.includes("warmMeetingPeekOpen();") &&
     meetingScheduleShell.includes("onPointerEnter={warmMeetingPeekOpen}") &&
@@ -1572,6 +1588,9 @@ check(
     lazyPagePeekModal.includes("已先显示本地页面信息") &&
     dailyNotesShell.includes('@/components/page/LazyPagePeekModal') &&
     dailyNotesShell.includes("warmPagePeekModal();") &&
+    dailyNotesShell.includes("DAILY_PEEK_EDITOR_WARMUP_DELAY_MS") &&
+    dailyNotesShell.includes("DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS") &&
+    dailyNotesShell.includes("cancelPeekEditorWarmup = scheduleDailyIdleTask(() => {") &&
     dailyNotesShell.includes("const warmDailyPeekOpen = useCallback") &&
     dailyNotesShell.includes("onPointerEnter={warmDailyPeekOpen}") &&
     !dailyNotesShell.includes("const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
