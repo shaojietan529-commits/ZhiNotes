@@ -862,6 +862,14 @@ check(
     meetingScheduleShell.includes("onPointerEnter={warmMeetingPeekOpen}") &&
     meetingScheduleShell.includes("onPointerDown={warmMeetingPeekOpen}") &&
     meetingScheduleShell.includes("onFocus={warmMeetingPeekOpen}") &&
+    meetingScheduleShell.includes("const [openingDraft, setOpeningDraft]") &&
+    meetingScheduleShell.includes("const [openingMeetingId, setOpeningMeetingId]") &&
+    meetingScheduleShell.includes("setOpeningDraft({") &&
+    meetingScheduleShell.includes("setOpeningMeetingId(optimisticPage.id);") &&
+    meetingScheduleShell.includes("void seedMeetingPageForImmediateOpen(optimisticPage);") &&
+    meetingScheduleShell.includes("data-testid={`meeting-opening-page-${key}`}") &&
+    meetingScheduleShell.includes("openingMeetingId === entry.page.id") &&
+    meetingScheduleShell.includes("onReady={handlePeekReady}") &&
     !meetingScheduleShell.includes("const warmMeetingPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     !meetingScheduleShell.includes("@/components/page/PagePeekModal") &&
     meetingScheduleShell.includes("creatingMeetingDateKey") &&

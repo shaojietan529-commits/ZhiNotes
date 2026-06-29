@@ -4900,6 +4900,43 @@ function run() {
     "onPointerDown={warmMeetingPeekOpen}",
     "Meeting create/import controls must warm the page shell and peek editor even on fast clicks."
   );
+  for (const [snippet, message] of [
+    [
+      "const [openingDraft, setOpeningDraft]",
+      "Meeting schedule must keep an opening draft marker so the calendar shows immediate feedback after + is clicked.",
+    ],
+    [
+      "const [openingMeetingId, setOpeningMeetingId]",
+      "Meeting schedule must track the meeting page currently opening until the peek modal is ready.",
+    ],
+    [
+      "setOpeningDraft({",
+      "Meeting creation must publish the opening draft before background persistence starts.",
+    ],
+    [
+      "setOpeningMeetingId(optimisticPage.id);",
+      "Meeting creation must mark the optimistic page as opening immediately.",
+    ],
+    [
+      "data-testid={`meeting-opening-page-${key}`}",
+      "Meeting calendar must show an immediate opening chip after + is clicked.",
+    ],
+    [
+      "openingMeetingId === entry.page.id",
+      "Meeting calendar must visibly highlight the meeting chip while its page is opening.",
+    ],
+    [
+      "onReady={handlePeekReady}",
+      "Meeting peek modal must clear opening feedback when the local-first shell is ready.",
+    ],
+  ]) {
+    assertIncludes(
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      snippet,
+      message
+    );
+  }
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
@@ -4963,8 +5000,8 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "scheduleMeetingIdleTask(() => {\n        void seedMeetingPageForImmediateOpen(optimisticPage);",
-    "Meeting creation must defer local cache persistence until after the page is already opening."
+    "void seedMeetingPageForImmediateOpen(optimisticPage);",
+    "Meeting creation must start local cache seeding immediately after the optimistic page is available."
   );
   assertIncludes(
     files.meetingScheduleShell,

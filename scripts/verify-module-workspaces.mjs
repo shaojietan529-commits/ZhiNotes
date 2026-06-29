@@ -1080,6 +1080,14 @@ check(
     shells.schedule.includes("onPointerEnter={warmMeetingPeekOpen}") &&
     shells.schedule.includes("onPointerDown={warmMeetingPeekOpen}") &&
     shells.schedule.includes("onFocus={warmMeetingPeekOpen}") &&
+    shells.schedule.includes("const [openingDraft, setOpeningDraft]") &&
+    shells.schedule.includes("const [openingMeetingId, setOpeningMeetingId]") &&
+    shells.schedule.includes("setOpeningDraft({") &&
+    shells.schedule.includes("setOpeningMeetingId(optimisticPage.id);") &&
+    shells.schedule.includes("void seedMeetingPageForImmediateOpen(optimisticPage);") &&
+    shells.schedule.includes("data-testid={`meeting-opening-page-${key}`}") &&
+    shells.schedule.includes("openingMeetingId === entry.page.id") &&
+    shells.schedule.includes("onReady={handlePeekReady}") &&
     !shells.schedule.includes("const warmMeetingPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     shells.schedule.includes("prepareMeetingPageOpen") &&
     shells.schedule.includes('import("@/components/providers/PageShell")') &&

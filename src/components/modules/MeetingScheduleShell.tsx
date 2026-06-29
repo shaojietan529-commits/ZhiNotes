@@ -246,6 +246,11 @@ interface MeetingCalendarRenderSelection {
   countsByDate: Map<string, number>;
 }
 
+type OpeningMeetingDraft = {
+  pageId: string;
+  dateKey: string;
+};
+
 const MEETING_CLOUD_CACHE_PREFIX = "zhinote.zhihui.cloudMetadata.";
 
 export default function MeetingScheduleShell() {
@@ -262,6 +267,8 @@ export default function MeetingScheduleShell() {
   const [creatingMeetingDateKey, setCreatingMeetingDateKey] = useState<
     string | null
   >(null);
+  const [openingDraft, setOpeningDraft] =
+    useState<OpeningMeetingDraft | null>(null);
   const { viewMonth, setViewMonth } =
     useCalendarViewMonthPreference("meeting");
   const {
@@ -295,6 +302,7 @@ export default function MeetingScheduleShell() {
   );
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
   const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
+  const [openingMeetingId, setOpeningMeetingId] = useState<string | null>(null);
   const [runNowMessage, setRunNowMessage] = useState("");
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
@@ -1342,13 +1350,16 @@ export default function MeetingScheduleShell() {
 
       upsertMeetingInView(optimisticPage);
       upsertPages([optimisticPage]);
+      setOpeningDraft({
+        pageId: optimisticPage.id,
+        dateKey: toMeetingEntry(optimisticPage).dateKey || draft.date,
+      });
+      setOpeningMeetingId(optimisticPage.id);
       rememberPendingPageDraft(optimisticPage);
       rememberPageRouteHandoff(optimisticPage, "meeting-create");
       writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);
       revealMeetingOnCalendar(optimisticPage);
-      scheduleMeetingIdleTask(() => {
-        void seedMeetingPageForImmediateOpen(optimisticPage);
-      }, 320);
+      void seedMeetingPageForImmediateOpen(optimisticPage);
 
       scheduleMeetingIdleTask(() => {
         void (async () => {
@@ -1434,6 +1445,10 @@ export default function MeetingScheduleShell() {
             const { pageToRemoteRecord, queueCloudPagePush } =
               await loadPageAccountSyncModule();
             queueCloudPagePush(pageToRemoteRecord(finalPage));
+          } finally {
+            setOpeningDraft((current) =>
+              current?.pageId === optimisticPage.id ? null : current
+            );
           }
         })();
       }, 420);
@@ -1474,10 +1489,25 @@ export default function MeetingScheduleShell() {
       setSelectedMeeting(null);
       setRunNowMessage("");
       setPeekInitialPage(page);
+      setOpeningMeetingId(page.id);
       setPeekPageId(page.id);
     },
     [prepareMeetingPageOpen]
   );
+
+  const handlePeekReady = useCallback((pageId: string) => {
+    setOpeningMeetingId((current) => (current === pageId ? null : current));
+  }, []);
+
+  useEffect(() => {
+    if (peekPageId) return;
+    if (!openingMeetingId) return;
+    queueMicrotask(() => {
+      setOpeningMeetingId((current) =>
+        current === openingMeetingId ? null : current
+      );
+    });
+  }, [openingMeetingId, peekPageId]);
 
   const primeMeetingEntryPage = useCallback(
     (page: Page) => {
@@ -2462,10 +2492,12 @@ export default function MeetingScheduleShell() {
                 dayTotalCount > dayMeetings.length && loadedHiddenCount === 0;
               const isToday = key === todayKey;
               const isHighlighted = key === highlightedDateKey;
+              const isOpeningDraft = openingDraft?.dateKey === key;
               const isMeetingDateHydrated =
                 hydratedMeetingDateKeys.has(key) ||
                 isExpanded ||
                 isHighlighted ||
+                isOpeningDraft ||
                 creatingMeetingDateKey === key;
               return (
                 <div
@@ -2514,10 +2546,30 @@ export default function MeetingScheduleShell() {
                       className="text-zinc-300 opacity-0 transition-opacity hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:text-zinc-200"
                       title="在这天加会议"
                     >
-                      {creatingMeetingDateKey === key ? "…" : "+"}
+                      {creatingMeetingDateKey === key || isOpeningDraft
+                        ? "…"
+                        : "+"}
                     </button>
                   </div>
                   <div className="mt-0.5 flex flex-col gap-0.5 overflow-visible">
+                    {isOpeningDraft && (
+                      <button
+                        type="button"
+                        data-testid={`meeting-opening-page-${key}`}
+                        onClick={() => {
+                          if (openingDraft) {
+                            openMeetingFullPageById(openingDraft.pageId);
+                          }
+                        }}
+                        className="flex items-center gap-1.5 rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-left text-xs text-amber-700 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
+                        title={`${key} 的新会议正在打开`}
+                      >
+                        <span className="shrink-0">↗</span>
+                        <span className="min-w-0 flex-1 truncate">
+                          正在打开新会议…
+                        </span>
+                      </button>
+                    )}
                     {!isMeetingDateHydrated && dayTotalCount > 0 && (
                       <button
                         type="button"
@@ -2546,14 +2598,25 @@ export default function MeetingScheduleShell() {
                             y: e.clientY,
                           });
                         }}
-                        className="group/meeting relative rounded bg-blue-50 px-1.5 py-0.5 text-left text-xs text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300"
+                        className={`group/meeting relative rounded px-1.5 py-0.5 text-left text-xs transition-colors ${
+                          openingMeetingId === entry.page.id
+                            ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900/60"
+                            : "bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300"
+                        }`}
                         title={buildMeetingSummary(entry)}
                       >
                         <span className="flex min-w-0 items-center gap-1">
-                          <MeetingStatusBar entry={entry} size="compact" />
+                          {openingMeetingId === entry.page.id ? (
+                            <span className="shrink-0 leading-4">↗</span>
+                          ) : (
+                            <MeetingStatusBar entry={entry} size="compact" />
+                          )}
                           <span className="block min-w-0 truncate">
-                            {entry.time ? `${entry.time} ` : ""}
-                            {entry.topic}
+                            {openingMeetingId === entry.page.id
+                              ? "正在打开会议…"
+                              : `${entry.time ? `${entry.time} ` : ""}${
+                                  entry.topic
+                                }`}
                           </span>
                         </span>
                         <MeetingHoverCard entry={entry} />
@@ -2684,6 +2747,7 @@ export default function MeetingScheduleShell() {
             setPeekInitialPage(null);
             openMeetingFullPageById(id);
           }}
+          onReady={handlePeekReady}
           onChanged={() => void load({ includeCloud: false })}
         />
       )}

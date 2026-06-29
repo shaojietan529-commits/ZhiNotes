@@ -4360,6 +4360,34 @@ function run() {
       "Meeting schedule controls must warm the page shell and peek editor for keyboard users before navigation.",
     ],
     [
+      "const [openingDraft, setOpeningDraft]",
+      "Meeting schedule must keep an opening draft marker so the calendar shows immediate feedback after + is clicked.",
+    ],
+    [
+      "const [openingMeetingId, setOpeningMeetingId]",
+      "Meeting schedule must track the meeting page currently opening so the chip can stay highlighted until the peek modal is ready.",
+    ],
+    [
+      "setOpeningDraft({",
+      "Meeting creation must publish the opening draft before background persistence starts.",
+    ],
+    [
+      "setOpeningMeetingId(optimisticPage.id);",
+      "Meeting creation must mark the optimistic page as opening immediately.",
+    ],
+    [
+      "data-testid={`meeting-opening-page-${key}`}",
+      "Meeting calendar must show an immediate opening chip after + is clicked.",
+    ],
+    [
+      "openingMeetingId === entry.page.id",
+      "Meeting calendar must visibly highlight the meeting chip while its page is opening.",
+    ],
+    [
+      "onReady={handlePeekReady}",
+      "Meeting peek modal must clear opening feedback when the local-first shell is ready.",
+    ],
+    [
       "const primeMeetingEntryPage = useCallback",
       "Meeting schedule must reuse a single meeting-entry open warmup helper.",
     ],
@@ -4400,8 +4428,8 @@ function run() {
       "Meeting creation must keep an in-memory draft for immediate page opening.",
     ],
     [
-      "scheduleMeetingIdleTask(() => {\n        void seedMeetingPageForImmediateOpen(optimisticPage);",
-      "Meeting creation must defer local cache persistence until after the page is already opening.",
+      "void seedMeetingPageForImmediateOpen(optimisticPage);",
+      "Meeting creation must start local cache seeding immediately after the optimistic page is available.",
     ],
     [
       "scheduleMeetingIdleTask(() => {\n        void (async () => {",
