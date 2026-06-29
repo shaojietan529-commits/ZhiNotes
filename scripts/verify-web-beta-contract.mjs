@@ -3614,6 +3614,24 @@ function run() {
     "Meeting calendar must apply lightweight page metadata before its local hot-cache retry completes."
   );
   assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "MEETING_CLOUD_METADATA_RECHECK_DELAY_MS",
+    "Meeting calendar local page updates must schedule a delayed cloud metadata recheck after the fast local refresh."
+  );
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({ includeCloud: true });",
+    "Meeting calendar delayed recheck must run cloud-enabled metadata loading, not only local hot-cache refresh."
+  );
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "window.clearTimeout(cloudRecheckTimer)",
+    "Meeting calendar delayed cloud recheck must be cleaned up with other local refresh timers."
+  );
+  assertSourceIncludes(
     files.pageShell,
     pageShell,
     "getPendingCloudPageSyncStatus",

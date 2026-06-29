@@ -3277,6 +3277,18 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "MEETING_CLOUD_METADATA_RECHECK_DELAY_MS",
+    "Meeting schedule local updates must schedule a delayed cloud metadata recheck after the fast local refresh."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({ includeCloud: true });",
+    "Meeting schedule delayed recheck must run cloud-enabled metadata loading."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "HOT_CACHE_PREFERENCES_SETTING_KEY",
     "Meeting schedule must read the user hot-cache preference setting."
   );

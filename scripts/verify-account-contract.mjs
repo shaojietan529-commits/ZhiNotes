@@ -837,6 +837,13 @@ check(
     meetingScheduleShell.includes("void load({ includeCloud: true })") &&
     meetingScheduleShell.includes("void load({ includeCloud: false })") &&
     meetingScheduleShell.includes("await load({ includeCloud: false })") &&
+    meetingScheduleShell.includes("MEETING_LOCAL_METADATA_REFRESH_DELAY_MS") &&
+    meetingScheduleShell.includes("MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS") &&
+    meetingScheduleShell.includes("MEETING_CLOUD_METADATA_RECHECK_DELAY_MS") &&
+    meetingScheduleShell.includes("let cloudRecheckTimer: number | null = null") &&
+    meetingScheduleShell.includes("cloudRecheckTimer = window.setTimeout(() => {") &&
+    meetingScheduleShell.includes("}, MEETING_CLOUD_METADATA_RECHECK_DELAY_MS)") &&
+    meetingScheduleShell.includes("window.clearTimeout(cloudRecheckTimer)") &&
     meetingScheduleShell.includes("return queueMeetingCloudRecords(records)") &&
     meetingScheduleShell.includes("function queueMeetingCloudRecords") &&
     meetingScheduleShell.includes("queueCloudPagePush(record)") &&

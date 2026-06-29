@@ -123,6 +123,9 @@ const MEETING_VISIBLE_CONTENT_WARMUP_LIMIT = 16;
 const MEETING_VISIBLE_CONTENT_WARMUP_BATCH = 2;
 const MEETING_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS = 2400;
 const MEETING_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS = 1000;
+const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
+const MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
+const MEETING_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
@@ -941,16 +944,21 @@ export default function MeetingScheduleShell() {
     if (!dbReady) return;
     let localReloadTimer: number | null = null;
     let fallbackReloadTimer: number | null = null;
+    let cloudRecheckTimer: number | null = null;
 
     const scheduleLocalMetadataRefresh = () => {
       if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
       if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
       localReloadTimer = window.setTimeout(() => {
         void load({ includeCloud: false });
-      }, 120);
+      }, MEETING_LOCAL_METADATA_REFRESH_DELAY_MS);
       fallbackReloadTimer = window.setTimeout(() => {
         void load({ includeCloud: false });
-      }, 900);
+      }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
+      cloudRecheckTimer = window.setTimeout(() => {
+        void load({ includeCloud: true });
+      }, MEETING_CLOUD_METADATA_RECHECK_DELAY_MS);
     };
 
     const unsubscribe = subscribePagesUpdated((message) => {
@@ -982,6 +990,7 @@ export default function MeetingScheduleShell() {
     return () => {
       if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
       if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
       unsubscribe();
     };
   }, [dbReady, deletedTombstoneRef, load, rootId, viewMonth]);
