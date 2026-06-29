@@ -4268,6 +4268,22 @@ function run() {
       "Daily calendar grouping must be scoped to the visible month grid.",
     ],
     [
+      "pruneDailyCalendarDateKeySet(current, calendarDateKeys)",
+      "Daily calendar must prune expanded date state to the visible month grid.",
+    ],
+    [
+      "pruneDailyCalendarDateLimitMap(current, calendarDateKeys)",
+      "Daily calendar must prune per-day visible limits to the visible month grid.",
+    ],
+    [
+      "function pruneDailyCalendarDateKeySet(",
+      "Daily calendar date-state pruning helper must stay explicit and reviewable.",
+    ],
+    [
+      "function pruneDailyCalendarDateLimitMap(",
+      "Daily calendar limit-state pruning helper must stay explicit and reviewable.",
+    ],
+    [
       "if (!calendarDateKeys.has(dateKey)) continue;",
       "Daily calendar must avoid grouping recent notes outside the visible grid during first paint.",
     ],

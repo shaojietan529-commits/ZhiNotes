@@ -985,6 +985,14 @@ export default function DailyNotesShell() {
     () => new Set(grid.map((cell) => toDateKey(cell.date))),
     [grid]
   );
+  useEffect(() => {
+    setExpandedDateKeys((current) =>
+      pruneDailyCalendarDateKeySet(current, calendarDateKeys)
+    );
+    setVisibleNoteLimitByDate((current) =>
+      pruneDailyCalendarDateLimitMap(current, calendarDateKeys)
+    );
+  }, [calendarDateKeys]);
   const hydrateDailyDateKey = useCallback((dateKey: string) => {
     setHydratedDateKeys((current) => {
       if (current.has(dateKey)) return current;
@@ -2524,6 +2532,38 @@ function buildOccupiedDailyCalendarHydrationKeys(
     }
   }
   return [...inMonth, ...adjacentMonth];
+}
+
+function pruneDailyCalendarDateKeySet(
+  current: Set<string>,
+  visibleDateKeys: Set<string>
+): Set<string> {
+  let changed = false;
+  const next = new Set<string>();
+  for (const dateKey of current) {
+    if (!visibleDateKeys.has(dateKey)) {
+      changed = true;
+      continue;
+    }
+    next.add(dateKey);
+  }
+  return changed ? next : current;
+}
+
+function pruneDailyCalendarDateLimitMap(
+  current: Map<string, number>,
+  visibleDateKeys: Set<string>
+): Map<string, number> {
+  let changed = false;
+  const next = new Map<string, number>();
+  for (const [dateKey, limit] of current.entries()) {
+    if (!visibleDateKeys.has(dateKey)) {
+      changed = true;
+      continue;
+    }
+    next.set(dateKey, limit);
+  }
+  return changed ? next : current;
 }
 
 function mergeCloudDailyNotes(

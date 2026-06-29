@@ -4080,6 +4080,22 @@ function run() {
       "点击补齐",
       "Daily capped-day controls must expose an explicit backfill action.",
     ],
+    [
+      "pruneDailyCalendarDateKeySet(current, calendarDateKeys)",
+      "Daily calendar must prune expanded date state to the visible month grid.",
+    ],
+    [
+      "pruneDailyCalendarDateLimitMap(current, calendarDateKeys)",
+      "Daily calendar must prune per-day visible limits to the visible month grid.",
+    ],
+    [
+      "function pruneDailyCalendarDateKeySet(",
+      "Daily calendar date-state pruning helper must stay explicit and reviewable.",
+    ],
+    [
+      "function pruneDailyCalendarDateLimitMap(",
+      "Daily calendar limit-state pruning helper must stay explicit and reviewable.",
+    ],
   ]) {
     assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }

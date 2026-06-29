@@ -758,6 +758,10 @@ check(
     dailyNotesShell.includes("const deferredRecentNotes = useDeferredValue(calendarIndexes.recentNotes)") &&
     dailyNotesShell.includes("deferredRecentNotes.slice(0, DAILY_RECENT_VISIBLE_LIMIT)") &&
     dailyNotesShell.includes("function addRecentDailyNoteCandidate(") &&
+    dailyNotesShell.includes("pruneDailyCalendarDateKeySet(current, calendarDateKeys)") &&
+    dailyNotesShell.includes("pruneDailyCalendarDateLimitMap(current, calendarDateKeys)") &&
+    dailyNotesShell.includes("function pruneDailyCalendarDateKeySet(") &&
+    dailyNotesShell.includes("function pruneDailyCalendarDateLimitMap(") &&
     dailyNotesShell.includes("rebuildPageDateKeyIndex") &&
     dailyNotesShell.includes("includeUnindexedFallback: false") &&
     dailyNotesShell.includes("includeUnindexedFallback: true") &&
