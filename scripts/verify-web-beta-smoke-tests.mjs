@@ -3284,12 +3284,32 @@ function run() {
       "Meeting calendar must hydrate date cells in idle batches instead of rendering every meeting chip at first paint.",
     ],
     [
+      "MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH",
+      "Meeting calendar must prioritize occupied date cells so imported meetings appear before full-month idle hydration completes.",
+    ],
+    [
+      "MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS",
+      "Meeting calendar occupied-date hydration must remain idle-batched instead of synchronously rendering every occupied day.",
+    ],
+    [
       "hydratedMeetingDateKeys",
       "Meeting calendar must track which date cells are hydrated for chip rendering.",
     ],
     [
       "buildInitialMeetingCalendarHydrationKeys",
       "Meeting calendar must choose a small initial visible date window before idle hydration.",
+    ],
+    [
+      "buildOccupiedMeetingCalendarHydrationKeys",
+      "Meeting calendar must derive occupied date cells from rendered entries and true date counts.",
+    ],
+    [
+      "const occupiedDateKeys = buildOccupiedMeetingCalendarHydrationKeys",
+      "Meeting calendar must run a dedicated occupied-date hydration pass after metadata arrives.",
+    ],
+    [
+      "const revealNextOccupiedBatch = () =>",
+      "Meeting calendar occupied-date hydration must reveal occupied days in bounded batches.",
     ],
     [
       "const [meetingCountByDate, setMeetingCountByDate]",
@@ -3314,6 +3334,10 @@ function run() {
     [
       "场会议，点开查看",
       "Meeting calendar must show count-only placeholders before a deferred date cell is hydrated.",
+    ],
+    [
+      "data-testid={`meeting-calendar-day-${key}`}",
+      "Meeting calendar date cells must expose a stable selector for browser smoke checks.",
     ],
     [
       "isMeetingDateHydrated && visibleMeetings.map",

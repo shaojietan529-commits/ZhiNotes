@@ -116,6 +116,8 @@ const MEETING_CALENDAR_RENDER_DAY_LIMIT =
 const MEETING_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT = 14;
 const MEETING_CALENDAR_HYDRATION_BATCH = 7;
 const MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS = 32;
+const MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH = 10;
+const MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS = 32;
 const MEETING_VISIBLE_CONTENT_WARMUP_LIMIT = 16;
 const MEETING_VISIBLE_CONTENT_WARMUP_BATCH = 4;
 const MEETING_VISIBLE_CONTENT_WARMUP_DELAY_MS = 480;
@@ -1764,6 +1766,51 @@ export default function MeetingScheduleShell() {
   }, [grid, todayKey]);
 
   useEffect(() => {
+    const occupiedDateKeys = buildOccupiedMeetingCalendarHydrationKeys(
+      grid,
+      entriesByDate,
+      meetingCountByDate
+    );
+    if (occupiedDateKeys.length === 0) return;
+
+    let cancelled = false;
+    let cancelScheduledBatch: (() => void) | null = null;
+    const queue = [...occupiedDateKeys];
+
+    const revealNextOccupiedBatch = () => {
+      cancelScheduledBatch = null;
+      if (cancelled || queue.length === 0) return;
+      const nextBatch = queue.splice(
+        0,
+        MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH
+      );
+      setHydratedMeetingDateKeys((current) => {
+        let changed = false;
+        const next = new Set(current);
+        for (const dateKey of nextBatch) {
+          if (next.has(dateKey)) continue;
+          next.add(dateKey);
+          changed = true;
+        }
+        return changed ? next : current;
+      });
+      if (queue.length > 0) {
+        cancelScheduledBatch = scheduleMeetingIdleTask(
+          revealNextOccupiedBatch,
+          MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS
+        );
+      }
+    };
+
+    revealNextOccupiedBatch();
+
+    return () => {
+      cancelled = true;
+      cancelScheduledBatch?.();
+    };
+  }, [entriesByDate, grid, meetingCountByDate]);
+
+  useEffect(() => {
     if (!dbReady) return;
     const candidates = collectVisibleMeetingContentWarmupCandidates(
       entriesByDate,
@@ -2423,6 +2470,7 @@ export default function MeetingScheduleShell() {
               return (
                 <div
                   key={key}
+                  data-testid={`meeting-calendar-day-${key}`}
                   ref={(node) => {
                     if (node) {
                       calendarCellRefs.current.set(key, node);
@@ -3937,6 +3985,29 @@ function buildInitialMeetingCalendarHydrationKeys(
   }
 
   return initialKeys;
+}
+
+function buildOccupiedMeetingCalendarHydrationKeys(
+  grid: MonthCell[],
+  entriesByDate: Map<string, MeetingEntry[]>,
+  countsByDate: Map<string, number>
+): string[] {
+  const inMonthDateKeys: string[] = [];
+  const adjacentMonthDateKeys: string[] = [];
+
+  for (const cell of grid) {
+    const dateKey = toDateKey(cell.date);
+    const dayCount =
+      countsByDate.get(dateKey) ?? entriesByDate.get(dateKey)?.length ?? 0;
+    if (dayCount <= 0) continue;
+    if (cell.inMonth) {
+      inMonthDateKeys.push(dateKey);
+    } else {
+      adjacentMonthDateKeys.push(dateKey);
+    }
+  }
+
+  return [...inMonthDateKeys, ...adjacentMonthDateKeys];
 }
 
 function scheduleMeetingIdleTask(

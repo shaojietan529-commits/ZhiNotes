@@ -893,8 +893,13 @@ check(
     meetingScheduleShell.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_RENDER_DAY_LIMIT") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_HYDRATION_BATCH") &&
+    meetingScheduleShell.includes("MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
+    meetingScheduleShell.includes("MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS") &&
     meetingScheduleShell.includes("hydratedMeetingDateKeys") &&
     meetingScheduleShell.includes("buildInitialMeetingCalendarHydrationKeys") &&
+    meetingScheduleShell.includes("buildOccupiedMeetingCalendarHydrationKeys") &&
+    meetingScheduleShell.includes("const occupiedDateKeys = buildOccupiedMeetingCalendarHydrationKeys") &&
+    meetingScheduleShell.includes("const revealNextOccupiedBatch = () =>") &&
     meetingScheduleShell.includes("const [meetingCountByDate, setMeetingCountByDate]") &&
     meetingScheduleShell.includes("function selectMeetingPagesForCalendarRender(") &&
     meetingScheduleShell.includes("setMeetingCountByDate(selection.countsByDate)") &&
@@ -918,6 +923,7 @@ check(
     meetingScheduleShell.includes("dayTotalCount > MEETING_CALENDAR_VISIBLE_LIMIT") &&
     meetingScheduleShell.includes("已显示 ${visibleMeetings.length}/${dayTotalCount} 场") &&
     meetingScheduleShell.includes("场会议，点开查看") &&
+    meetingScheduleShell.includes("data-testid={`meeting-calendar-day-${key}`}") &&
     meetingScheduleShell.includes("isMeetingDateHydrated && visibleMeetings.map") &&
     meetingScheduleShell.includes("cancelScheduledBatch = scheduleMeetingIdleTask(") &&
     meetingScheduleShell.includes("MEETING_VISIBLE_CONTENT_WARMUP_LIMIT") &&
