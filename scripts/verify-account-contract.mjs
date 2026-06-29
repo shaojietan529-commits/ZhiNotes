@@ -1769,6 +1769,13 @@ check(
 const localQueries = read("src/lib/db/local/queries.ts");
 const localSchema = read("src/lib/db/local/schema.ts");
 const localClient = read("src/lib/db/local/client.ts");
+check(
+  localQueries.includes("export async function getBlockCommentCount") &&
+    localQueries.includes("SELECT COUNT(*) as count FROM block_comments") &&
+    pageShell.includes("getBlockCommentCount(pageId)") &&
+    !pageShell.includes("getBlockComments(pageId)"),
+  "PageShell 评论徽标应使用 block_comments 轻量 COUNT 查询，不能为了显示数量读取全部评论正文"
+);
 const localPageSyncSummaryBody = localQueries.slice(
   localQueries.indexOf("export async function getLocalPageSyncSummary"),
   localQueries.indexOf("export async function clearLocalPageCacheForIds")

@@ -20006,10 +20006,28 @@ function run() {
       "Page shell version badges must count page_versions without selecting full snapshots.",
     ],
     [
+      files.localQueries,
+      localQueries,
+      "export async function getBlockCommentCount",
+      "Page shell comment badges must expose a lightweight count query instead of loading comment bodies.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "SELECT COUNT(*) as count FROM block_comments",
+      "Page shell comment badges must count block_comments without selecting full comment rows.",
+    ],
+    [
       files.pageShell,
       pageShell,
       "const shouldLoadVersions = showHistory;",
       "PageShell must load full version snapshots only when the history panel opens.",
+    ],
+    [
+      files.pageShell,
+      pageShell,
+      "getBlockCommentCount(pageId)",
+      "PageShell comment badge must use the lightweight block comment count query.",
     ],
     [
       files.pageShell,
@@ -20031,6 +20049,12 @@ function run() {
     pageShell,
     "const shouldLoadVersions = showHistory || showInfo;",
     "Page info must not trigger full version snapshot loading during page open."
+  );
+  assertSourceExcludes(
+    files.pageShell,
+    pageShell,
+    "getBlockComments(pageId)",
+    "PageShell comment badge must not load full comment rows during page open."
   );
   if (
     !(

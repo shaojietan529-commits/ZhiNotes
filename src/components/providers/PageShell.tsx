@@ -46,7 +46,7 @@ import { useRouter } from "next/navigation";
 import {
   updateWikiLinks,
   getNextPosition,
-  getBlockComments,
+  getBlockCommentCount,
   getPageVersionCount,
 } from "@/lib/db/local/queries";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
@@ -640,8 +640,8 @@ function PageContent({ pageId }: { pageId: string }) {
     if (!pageCommentsMounted) return;
     let cancelled = false;
     const refreshCount = async () => {
-      const rows = await getBlockComments(pageId);
-      if (!cancelled) setCommentCount(rows.length);
+      const count = await getBlockCommentCount(pageId);
+      if (!cancelled) setCommentCount(count);
     };
     queueMicrotask(() => void refreshCount());
     const handleChanged = () => void refreshCount();

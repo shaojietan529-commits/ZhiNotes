@@ -2921,6 +2921,15 @@ export async function getBlockComments(pageId: string): Promise<BlockComment[]> 
   ) as unknown as BlockComment[];
 }
 
+export async function getBlockCommentCount(pageId: string): Promise<number> {
+  const db = await getDb();
+  const rows = db.query(
+    "SELECT COUNT(*) as count FROM block_comments WHERE page_id = ? AND deleted_at IS NULL",
+    [pageId]
+  ) as Array<{ count?: number | bigint | null }>;
+  return Number(rows[0]?.count ?? 0);
+}
+
 export async function addBlockComment(opts: {
   pageId: string;
   blockRef: string;
