@@ -132,6 +132,9 @@ const DAILY_VISIBLE_CONTENT_WARMUP_LIMIT = 18;
 const DAILY_VISIBLE_CONTENT_WARMUP_BATCH = 2;
 const DAILY_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS = 2200;
 const DAILY_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS = 900;
+const DAILY_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
+const DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
+const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
 const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
 const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
@@ -743,16 +746,21 @@ export default function DailyNotesShell() {
     if (!dbReady) return;
     let localReloadTimer: number | null = null;
     let fallbackReloadTimer: number | null = null;
+    let cloudRecheckTimer: number | null = null;
 
     const scheduleLocalMetadataRefresh = () => {
       if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
       if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
       localReloadTimer = window.setTimeout(() => {
         void load({ includeCloud: false });
-      }, 120);
+      }, DAILY_LOCAL_METADATA_REFRESH_DELAY_MS);
       fallbackReloadTimer = window.setTimeout(() => {
         void load({ includeCloud: false });
-      }, 900);
+      }, DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS);
+      cloudRecheckTimer = window.setTimeout(() => {
+        void load({ includeCloud: true });
+      }, DAILY_CLOUD_METADATA_RECHECK_DELAY_MS);
     };
 
     const unsubscribe = subscribePagesUpdated((message) => {
@@ -781,6 +789,7 @@ export default function DailyNotesShell() {
     return () => {
       if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
       if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
       unsubscribe();
     };
   }, [dbReady, load, rootId, viewMonth]);

@@ -679,6 +679,13 @@ check(
     dailyNotesShell.includes("includeUnindexedFallback: false") &&
     dailyNotesShell.includes("includeUnindexedFallback: true") &&
     dailyNotesShell.includes('source: "local-fallback-metadata"') &&
+    dailyNotesShell.includes("DAILY_LOCAL_METADATA_REFRESH_DELAY_MS") &&
+    dailyNotesShell.includes("DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS") &&
+    dailyNotesShell.includes("DAILY_CLOUD_METADATA_RECHECK_DELAY_MS") &&
+    dailyNotesShell.includes("let cloudRecheckTimer: number | null = null") &&
+    dailyNotesShell.includes("cloudRecheckTimer = window.setTimeout(() => {") &&
+    dailyNotesShell.includes("}, DAILY_CLOUD_METADATA_RECHECK_DELAY_MS)") &&
+    dailyNotesShell.includes("window.clearTimeout(cloudRecheckTimer)") &&
     dailyNotesShell.indexOf("includeUnindexedFallback: false") <
       dailyNotesShell.indexOf("const fallbackMetadata = await listDailyPageMetadataForCalendar") &&
     dailyNotesShell.indexOf("const fallbackMetadata = await listDailyPageMetadataForCalendar") <

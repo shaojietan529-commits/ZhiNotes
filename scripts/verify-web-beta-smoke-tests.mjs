@@ -2749,6 +2749,18 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "DAILY_CLOUD_METADATA_RECHECK_DELAY_MS",
+    "Daily notes local updates must schedule a delayed cloud metadata recheck after the fast local refresh."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({ includeCloud: true });",
+    "Daily notes delayed recheck must run cloud-enabled metadata loading."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "const calendarIndexes = useMemo(",
     "Daily notes must build calendar indexes in one memoized pass to keep large imports responsive."
   );

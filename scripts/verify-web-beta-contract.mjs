@@ -3596,6 +3596,24 @@ function run() {
     "Daily calendar cross-tab metadata must preserve any existing page body in memory."
   );
   assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "DAILY_CLOUD_METADATA_RECHECK_DELAY_MS",
+    "Daily calendar local page updates must schedule a delayed cloud metadata recheck after the fast local refresh."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({ includeCloud: true });",
+    "Daily calendar delayed recheck must run cloud-enabled metadata loading, not only local hot-cache refresh."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "window.clearTimeout(cloudRecheckTimer)",
+    "Daily calendar delayed cloud recheck must be cleaned up with other local refresh timers."
+  );
+  assertSourceIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
     "subscribePagesUpdated((message) => {",
