@@ -732,7 +732,9 @@ check(
     dailyNotesShell.includes("window.clearTimeout(peekEditorWarmupTimer)") &&
     dailyNotesShell.includes("cancelPeekEditorWarmup?.();") &&
     dailyNotesShell.includes("onPointerEnter={warmDailyPeekOpen}") &&
-    dailyNotesShell.includes("onPointerDown={warmDailyPeekOpen}") &&
+    dailyNotesShell.includes("const addNoteOnPointerDown = useCallback") &&
+    dailyNotesShell.includes("onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}") &&
+    dailyNotesShell.includes("onPointerDown={(event) => addNoteOnPointerDown(event, key)}") &&
     dailyNotesShell.includes("onFocus={warmDailyPeekOpen}") &&
     !dailyNotesShell.includes("const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     dailyNotesShell.includes("data-testid={`daily-opening-note-${key}`}") &&
@@ -1557,6 +1559,9 @@ check(
     pagePeekModal.includes("schedulePeekContentLoad(() => {\n        setEditorLoadRequested(true);\n      }, isMetadataOnlyPeek)") &&
     pagePeekModal.includes("标题和属性已先显示，正在从本地缓存补齐正文") &&
     pagePeekModal.includes("标题和属性已先显示，正在排队补齐正文和编辑器") &&
+    pagePeekModal.includes("PeekMetadataRecoveryShell") &&
+    pagePeekModal.includes("打开完整页面继续编辑 ↗") &&
+    pagePeekModal.includes("避免大批量导入后的页面打开被长正文拖慢") &&
     pagePeekModal.includes('surface: "peek"') &&
     pagePeekModal.includes("subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)") &&
     pagePeekModal.includes("bodyHydrationLabel ??") &&
@@ -1611,6 +1616,9 @@ check(
       dailyNotesShell.indexOf("setOpeningNoteId(note.id);") &&
     dailyNotesShell.includes("const creatingDateKeyRef = useRef<string | null>(null)") &&
     dailyNotesShell.includes("const addNoteOnMouseDown = useCallback") &&
+    dailyNotesShell.includes("const addNoteOnPointerDown = useCallback") &&
+    dailyNotesShell.includes("onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}") &&
+    dailyNotesShell.includes("onPointerDown={(event) => addNoteOnPointerDown(event, key)}") &&
     dailyNotesShell.includes("onMouseDown={(event) => addNoteOnMouseDown(event, todayKey)}") &&
     dailyNotesShell.includes("onMouseDown={(event) => addNoteOnMouseDown(event, key)}") &&
     dailyNotesShell.includes('onPointerDown={() =>') &&

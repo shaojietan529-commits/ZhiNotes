@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type MouseEvent,
+  type PointerEvent,
 } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -1197,6 +1198,18 @@ export default function DailyNotesShell() {
     [addNote]
   );
 
+  const addNoteOnPointerDown = useCallback(
+    (event: PointerEvent<HTMLButtonElement>, dateKey: string) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      if (creatingDateKeyRef.current) return;
+      event.preventDefault();
+      warmDailyPeekOpen();
+      hydrateDailyDateKey(dateKey);
+      void addNote(dateKey);
+    },
+    [addNote, hydrateDailyDateKey, warmDailyPeekOpen]
+  );
+
   const primeDailyNoteOpen = useCallback(
     (note: DailyNote, source: "daily-create" | "daily-open" = "daily-open") => {
       warmDailyPeekOpen();
@@ -1506,7 +1519,7 @@ export default function DailyNotesShell() {
               type="button"
               disabled={creatingDateKey !== null}
               onPointerEnter={warmDailyPeekOpen}
-              onPointerDown={warmDailyPeekOpen}
+              onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}
               onMouseDown={(event) => addNoteOnMouseDown(event, todayKey)}
               onFocus={warmDailyPeekOpen}
               onClick={() => void addNote(todayKey)}
@@ -1647,7 +1660,7 @@ export default function DailyNotesShell() {
                       data-testid={`daily-add-note-${key}`}
                       disabled={creatingDateKey !== null}
                       onPointerEnter={warmDailyPeekOpen}
-                      onPointerDown={warmDailyPeekOpen}
+                      onPointerDown={(event) => addNoteOnPointerDown(event, key)}
                       onMouseDown={(event) => addNoteOnMouseDown(event, key)}
                       onFocus={warmDailyPeekOpen}
                       onClick={() => void addNote(key)}

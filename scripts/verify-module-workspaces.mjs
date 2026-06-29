@@ -862,7 +862,9 @@ for (const token of [
   "hydrateDailyDateKey(key);\n                    warmPageRoute();",
   "const warmDailyPeekOpen = useCallback",
   "onPointerEnter={warmDailyPeekOpen}",
-  "onPointerDown={warmDailyPeekOpen}",
+  "const addNoteOnPointerDown = useCallback",
+  "onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}",
+  "onPointerDown={(event) => addNoteOnPointerDown(event, key)}",
   "onFocus={warmDailyPeekOpen}",
   "const warmDailyNoteContent = useCallback",
   "onMouseEnter={() => warmDailyNoteContent(note)}",
@@ -918,7 +920,9 @@ check(
     shells.daily.includes("const warmDailyPeekOpen = useCallback") &&
     shells.daily.includes("warmDailyPeekOpen();") &&
     shells.daily.includes("onPointerEnter={warmDailyPeekOpen}") &&
-    shells.daily.includes("onPointerDown={warmDailyPeekOpen}") &&
+    shells.daily.includes("const addNoteOnPointerDown = useCallback") &&
+    shells.daily.includes("onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}") &&
+    shells.daily.includes("onPointerDown={(event) => addNoteOnPointerDown(event, key)}") &&
     shells.daily.includes("onFocus={warmDailyPeekOpen}") &&
     !shells.daily.includes("const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     !shells.daily.includes("@/components/page/PagePeekModal") &&
@@ -940,6 +944,9 @@ check(
     lazyPagePeekModal.includes("已先显示本地页面信息") &&
     pagePeekModal.includes("onReady?: (pageId: string) => void") &&
     pagePeekModal.includes("onReady?.(pageId)") &&
+    pagePeekModal.includes("PeekMetadataRecoveryShell") &&
+    pagePeekModal.includes("打开完整页面继续编辑 ↗") &&
+    pagePeekModal.includes("避免大批量导入后的页面打开被长正文拖慢") &&
     shells.daily.includes("const handlePeekReady = useCallback") &&
     shells.daily.includes("onReady={handlePeekReady}") &&
     shells.daily.includes("const creatingDateKeyRef = useRef<string | null>(null)") &&

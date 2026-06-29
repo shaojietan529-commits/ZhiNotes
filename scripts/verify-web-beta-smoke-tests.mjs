@@ -4330,6 +4330,18 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      "PeekMetadataRecoveryShell",
+      "PagePeekModal must show an actionable recovery shell when metadata is still loading.",
+    ],
+    [
+      "打开完整页面继续编辑 ↗",
+      "PagePeekModal loading recovery must offer a direct full-page escape hatch.",
+    ],
+    [
+      "避免大批量导入后的页面打开被长正文拖慢",
+      "PagePeekModal loading recovery must explain the large-import performance boundary.",
+    ],
+    [
       "PEEK_METADATA_ONLY_CONTENT_DELAY_MS = 260",
       "PagePeekModal must briefly defer metadata-only body loading so the peek title/properties can paint first.",
     ],
@@ -6320,8 +6332,20 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "onPointerDown={warmDailyPeekOpen}",
-    "Daily calendar + creation controls must warm the lazy peek modal even on fast clicks."
+    "const addNoteOnPointerDown = useCallback",
+    "Daily calendar + creation controls must start the local draft from pointer-down for immediate feedback."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}",
+    "The today + control must create and open the local draft on pointer-down."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "onPointerDown={(event) => addNoteOnPointerDown(event, key)}",
+    "Each calendar-cell + control must create and open the local draft on pointer-down."
   );
   assertIncludes(
     files.dailyNotesShell,
