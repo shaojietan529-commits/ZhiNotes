@@ -2788,6 +2788,38 @@ function run() {
       "PAGE_CLOUD_HYDRATION_IDLE_MS",
       "usePage must keep the cloud hydration idle timeout explicit and bounded.",
     ],
+    [
+      "const pageCloudHydrationQueue = new Map<string, PageCloudHydrationState>()",
+      "usePage must coalesce duplicate page cloud hydration requests by page and surface.",
+    ],
+    [
+      "queuePageCloudHydration({",
+      "usePage scheduled cloud hydration must enter the coalesced page hydration queue.",
+    ],
+    [
+      "const existing = pageCloudHydrationQueue.get(key);",
+      "usePage cloud hydration queue must detect an in-flight page/surface hydration.",
+    ],
+    [
+      "existing.rerun = true;",
+      "usePage cloud hydration queue must mark one follow-up correction instead of spawning duplicate cloud reads.",
+    ],
+    [
+      "while (pageCloudHydrationQueue.get(key) === state)",
+      "usePage cloud hydration queue must drain a stable coalesced state for the page/surface.",
+    ],
+    [
+      "if (!state.rerun) break;",
+      "usePage cloud hydration queue must stop after the latest cloud correction is complete.",
+    ],
+    [
+      "pageCloudHydrationQueue.delete(key);",
+      "usePage cloud hydration queue must clear completed page/surface entries.",
+    ],
+    [
+      "function pageCloudHydrationQueueKey(",
+      "usePage cloud hydration queue must keep page/surface keys explicit and reviewable.",
+    ],
   ]) {
     assertSourceIncludes(files.usePage, usePage, snippet, message);
   }

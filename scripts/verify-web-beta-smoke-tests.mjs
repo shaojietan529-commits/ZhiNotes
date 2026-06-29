@@ -3844,6 +3844,36 @@ function run() {
     "Page opening must keep the cloud hydration idle timeout explicit and bounded."
   );
   assertIncludes(
+    files.usePage,
+    usePage,
+    "const pageCloudHydrationQueue = new Map<string, PageCloudHydrationState>()",
+    "Page opening must coalesce duplicate page cloud hydration requests by page and surface."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "queuePageCloudHydration({",
+    "Page opening scheduled cloud hydration must enter the coalesced page hydration queue."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "existing.rerun = true;",
+    "Page opening duplicate cloud hydration must mark one follow-up correction instead of starting another parallel cloud read."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "if (!state.rerun) break;",
+    "Page opening cloud hydration queue must stop after the latest cloud correction is complete."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "pageCloudHydrationQueue.delete(key);",
+    "Page opening cloud hydration queue must clear completed page/surface entries."
+  );
+  assertIncludes(
     files.pagePeekModal,
     pagePeekModal,
     "upsertPages([metadata])",

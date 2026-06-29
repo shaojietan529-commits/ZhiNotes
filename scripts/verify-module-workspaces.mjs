@@ -277,6 +277,15 @@ check(
     usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)") &&
     usePageHook.includes("requestIdleCallback(run") &&
     usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
+    usePageHook.includes("const pageCloudHydrationQueue = new Map<string, PageCloudHydrationState>()") &&
+    usePageHook.includes("queuePageCloudHydration({") &&
+    usePageHook.includes("const existing = pageCloudHydrationQueue.get(key);") &&
+    usePageHook.includes("existing.rerun = true;") &&
+    usePageHook.includes("void drainPageCloudHydrationQueue(key, state);") &&
+    usePageHook.includes("while (pageCloudHydrationQueue.get(key) === state)") &&
+    usePageHook.includes("if (!state.rerun) break;") &&
+    usePageHook.includes("pageCloudHydrationQueue.delete(key);") &&
+    usePageHook.includes("function pageCloudHydrationQueueKey(") &&
     usePageHook.includes(
       'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
     ) &&

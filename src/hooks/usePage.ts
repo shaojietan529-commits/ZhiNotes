@@ -61,6 +61,21 @@ const optimisticPageLocalCachePersistQueue = new Map<
   OptimisticPageLocalCachePersistState
 >();
 
+interface PageCloudHydrationJob {
+  pageId: string;
+  getLocalPage: () => Page | null;
+  setPage: (page: Page | null) => void;
+  upsertPages: (pages: Page[]) => void;
+  surface: PageBodyHydrationSurface;
+}
+
+interface PageCloudHydrationState {
+  latest: PageCloudHydrationJob;
+  rerun: boolean;
+}
+
+const pageCloudHydrationQueue = new Map<string, PageCloudHydrationState>();
+
 type PageUpdates = Partial<
   Pick<
     Page,
@@ -685,13 +700,13 @@ function schedulePageCloudHydration(
   surface: PageBodyHydrationSurface
 ): void {
   const run = () => {
-    void refreshPageFromCloud(
+    queuePageCloudHydration({
       pageId,
       getLocalPage,
       setPage,
       upsertPages,
-      surface
-    );
+      surface,
+    });
   };
   if (typeof window === "undefined") {
     run();
@@ -710,6 +725,54 @@ function schedulePageCloudHydration(
     return;
   }
   window.setTimeout(run, Math.min(PAGE_CLOUD_HYDRATION_IDLE_MS, 160));
+}
+
+function queuePageCloudHydration(job: PageCloudHydrationJob): void {
+  const key = pageCloudHydrationQueueKey(job.pageId, job.surface);
+  const existing = pageCloudHydrationQueue.get(key);
+  if (existing) {
+    existing.latest = job;
+    existing.rerun = true;
+    return;
+  }
+
+  const state: PageCloudHydrationState = {
+    latest: job,
+    rerun: false,
+  };
+  pageCloudHydrationQueue.set(key, state);
+  void drainPageCloudHydrationQueue(key, state);
+}
+
+async function drainPageCloudHydrationQueue(
+  key: string,
+  state: PageCloudHydrationState
+): Promise<void> {
+  try {
+    while (pageCloudHydrationQueue.get(key) === state) {
+      const job = state.latest;
+      state.rerun = false;
+      await refreshPageFromCloud(
+        job.pageId,
+        job.getLocalPage,
+        job.setPage,
+        job.upsertPages,
+        job.surface
+      );
+      if (!state.rerun) break;
+    }
+  } finally {
+    if (pageCloudHydrationQueue.get(key) === state) {
+      pageCloudHydrationQueue.delete(key);
+    }
+  }
+}
+
+function pageCloudHydrationQueueKey(
+  pageId: string,
+  surface: PageBodyHydrationSurface
+): string {
+  return `${surface}:${pageId}`;
 }
 
 function publishPageBodyHydrationForSnapshot(
