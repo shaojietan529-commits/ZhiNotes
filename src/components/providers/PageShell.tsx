@@ -23,7 +23,9 @@ import type { PagePropertiesProps } from "@/components/page/PageProperties";
 import type { PageActionsMenuProps } from "@/components/page/PageActionsMenu";
 import PageRouteSkeleton from "@/components/page/PageRouteSkeleton";
 import {
+  getPagePropertyTypeIcon,
   parsePageProperties,
+  parseTagsValue,
   stringifyPageProperties,
   type PageProperty,
 } from "@/lib/pages/pageProperties";
@@ -108,6 +110,7 @@ const PAGE_VERSION_COUNT_IDLE_TIMEOUT_MS = 1100;
 const PAGE_LARGE_BODY_COMMENTS_IDLE_TIMEOUT_MS = 2200;
 const PAGE_LARGE_BODY_CHILD_TREE_IDLE_TIMEOUT_MS = 3000;
 const PAGE_LARGE_BODY_REFERENCES_IDLE_TIMEOUT_MS = 3800;
+const PAGE_PROPERTIES_EDITOR_IDLE_TIMEOUT_MS = 520;
 const PAGE_HEADER_ICON_PICKER_IDLE_TIMEOUT_MS = 650;
 const PAGE_ACTIONS_MENU_IDLE_TIMEOUT_MS = 900;
 const PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500;
@@ -253,6 +256,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const [editorMounted, setEditorMounted] = useState(false);
   const [largeBodyEditorRequested, setLargeBodyEditorRequested] =
     useState(false);
+  const [pagePropertiesMounted, setPagePropertiesMounted] = useState(false);
   const [iconPickerMounted, setIconPickerMounted] = useState(false);
   const [iconPickerInitialOpen, setIconPickerInitialOpen] = useState(false);
   const [actionsMenuMounted, setActionsMenuMounted] = useState(false);
@@ -318,6 +322,7 @@ function PageContent({ pageId }: { pageId: string }) {
     reportedPageOpenRef.current = null;
     bodyHydrationPerformanceRef.current = null;
     setLargeBodyEditorRequested(false);
+    setPagePropertiesMounted(false);
     setIconPickerMounted(false);
     setIconPickerInitialOpen(false);
     setActionsMenuMounted(false);
@@ -583,6 +588,10 @@ function PageContent({ pageId }: { pageId: string }) {
     mountedEditorPageIdRef.current = pageId;
   }, [pageId]);
 
+  const handleActivatePageProperties = useCallback(() => {
+    setPagePropertiesMounted(true);
+  }, []);
+
   const handleActivateIconPicker = useCallback(() => {
     setIconPickerInitialOpen(true);
     setIconPickerMounted(true);
@@ -599,6 +608,13 @@ function PageContent({ pageId }: { pageId: string }) {
       setIconPickerMounted(true);
     }, PAGE_HEADER_ICON_PICKER_IDLE_TIMEOUT_MS);
   }, [hasPage, iconPickerMounted, pageId]);
+
+  useEffect(() => {
+    if (!hasPage || pagePropertiesMounted) return;
+    return scheduleDeferredMount(() => {
+      setPagePropertiesMounted(true);
+    }, PAGE_PROPERTIES_EDITOR_IDLE_TIMEOUT_MS);
+  }, [hasPage, pageId, pagePropertiesMounted]);
 
   useEffect(() => {
     if (!hasPage || actionsMenuMounted) return;
@@ -1508,12 +1524,20 @@ function PageContent({ pageId }: { pageId: string }) {
           </div>
 
           {/* Properties (Notion-style, directly under the title) */}
-          <PageProperties
-            properties={properties}
-            disabled={locked}
-            pageId={pageId}
-            onChange={handlePropertiesChange}
-          />
+          {pagePropertiesMounted ? (
+            <PageProperties
+              properties={properties}
+              disabled={locked}
+              pageId={pageId}
+              onChange={handlePropertiesChange}
+            />
+          ) : (
+            <PagePropertiesDeferredPreview
+              properties={properties}
+              disabled={locked}
+              onActivate={handleActivatePageProperties}
+            />
+          )}
 
           {showInfo && pageStructure && pageInfo && (
             <PageInfoPanel
@@ -2116,6 +2140,113 @@ function PageIconPickerDeferredTrigger({
       </svg>
       添加图标
     </button>
+  );
+}
+
+function PagePropertiesDeferredPreview({
+  properties,
+  disabled,
+  onActivate,
+}: {
+  properties: PageProperty[];
+  disabled: boolean;
+  onActivate: () => void;
+}) {
+  if (properties.length === 0 && disabled) return null;
+  return (
+    <div className="mb-6">
+      <div className="flex flex-col">
+        {properties.map((property) => (
+          <button
+            key={property.id}
+            type="button"
+            onClick={onActivate}
+            className="group flex items-start gap-2 rounded py-1 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/70"
+            title="点击编辑属性"
+          >
+            <div className="flex w-40 shrink-0 items-center gap-1.5 pt-1.5 text-sm text-zinc-400">
+              <span className="w-4 shrink-0 text-center text-xs">
+                {getPagePropertyTypeIcon(property.type)}
+              </span>
+              <span className="min-w-0 flex-1 truncate px-1 py-0.5">
+                {property.name}
+              </span>
+            </div>
+            <PagePropertyPreviewValue property={property} />
+          </button>
+        ))}
+      </div>
+
+      {!disabled && (
+        <button
+          type="button"
+          onClick={onActivate}
+          className="mt-1 flex items-center gap-1.5 rounded px-1.5 py-1 text-sm text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+        >
+          <span className="text-base leading-none">+</span> 添加属性
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PagePropertyPreviewValue({ property }: { property: PageProperty }) {
+  const empty = !property.value;
+  if (property.type === "checkbox") {
+    return (
+      <div className="min-w-0 flex-1 pt-1.5 text-sm text-zinc-400">
+        {property.value === "true" ? "已选中" : "未选"}
+      </div>
+    );
+  }
+  if (property.type === "tags") {
+    const tags = parseTagsValue(property.value);
+    if (tags.length === 0) return <EmptyPagePropertyPreviewValue />;
+    return (
+      <div className="min-w-0 flex-1 py-1">
+        <div className="flex flex-wrap gap-1.5">
+          {tags.slice(0, 8).map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+            >
+              {tag}
+            </span>
+          ))}
+          {tags.length > 8 && (
+            <span className="text-xs text-zinc-400">+{tags.length - 8}</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+  if (property.type === "select" && property.value) {
+    return (
+      <div className="min-w-0 flex-1 py-1">
+        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+          {property.value}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div
+      className={`min-w-0 flex-1 truncate px-1.5 py-1 text-sm ${
+        empty
+          ? "text-zinc-300 dark:text-zinc-600"
+          : "text-zinc-700 dark:text-zinc-200"
+      }`}
+    >
+      {empty ? "空" : property.value}
+    </div>
+  );
+}
+
+function EmptyPagePropertyPreviewValue() {
+  return (
+    <div className="min-w-0 flex-1 px-1.5 py-1 text-sm text-zinc-300 dark:text-zinc-600">
+      空
+    </div>
   );
 }
 

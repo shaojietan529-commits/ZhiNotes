@@ -3489,6 +3489,22 @@ function run() {
       "Page shell must keep a stable properties placeholder while the property editor chunk loads.",
     ],
     [
+      "PAGE_PROPERTIES_EDITOR_IDLE_TIMEOUT_MS",
+      "Page shell must defer the full property editor until after the title/body path can paint.",
+    ],
+    [
+      "PagePropertiesDeferredPreview",
+      "Page shell must show a lightweight property preview before the full property editor chunk mounts.",
+    ],
+    [
+      "handleActivatePageProperties",
+      "Page shell must let an immediate property click mount the full property editor.",
+    ],
+    [
+      "setPagePropertiesMounted(false)",
+      "Page shell must reset deferred property editor mounting when switching pages.",
+    ],
+    [
       "dynamic<PageActionsMenuProps>(",
       "Page shell must lazy-load page actions so export/history menus do not block page opening.",
     ],
