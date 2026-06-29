@@ -302,6 +302,12 @@ import {
   type CloudNativeFluidityVerdict,
 } from "@/lib/sync/cloudNativeFluidityReport";
 import {
+  buildCloudUploadReliabilityReport,
+  type CloudUploadReliabilityGateStatus,
+  type CloudUploadReliabilityReport,
+  type CloudUploadReliabilityStatus,
+} from "@/lib/sync/cloudUploadReliabilityReport";
+import {
   buildLocalMetadataManifest,
   type LocalMetadataManifestDomain,
   type LocalMetadataManifestDomainStatus,
@@ -1789,6 +1795,16 @@ function SyncDashboard() {
       syncSummary,
     ]
   );
+  const cloudUploadReliabilityReport = useMemo(
+    () =>
+      buildCloudUploadReliabilityReport({
+        pageStatus: pagePendingStatus,
+        databaseStatus: databasePendingStatus,
+        syncSummary,
+        workspaceIdentity,
+      }),
+    [databasePendingStatus, pagePendingStatus, syncSummary, workspaceIdentity]
+  );
   const syncPayloadPreview = useMemo(
     () =>
       buildSyncPayloadPreview({
@@ -3067,6 +3083,16 @@ function SyncDashboard() {
       `zhinote-cloud-native-fluidity-report-${fileSafeTimestamp()}.json`,
       {
         ...cloudNativeFluidityReport,
+        exported_at: new Date().toISOString(),
+      }
+    );
+  };
+
+  const handleExportCloudUploadReliabilityReport = () => {
+    downloadJsonFile(
+      `zhinote-cloud-upload-reliability-report-${fileSafeTimestamp()}.json`,
+      {
+        ...cloudUploadReliabilityReport,
         exported_at: new Date().toISOString(),
       }
     );
@@ -5387,6 +5413,12 @@ function SyncDashboard() {
           report={cloudNativeFluidityReport}
           onExport={handleExportCloudNativeFluidityReport}
           onRunWarmup={() => void handleRunHotCacheWarmup()}
+          onOpenAccount={() => router.push("/account")}
+        />
+
+        <CloudUploadReliabilityPanel
+          report={cloudUploadReliabilityReport}
+          onExport={handleExportCloudUploadReliabilityReport}
           onOpenAccount={() => router.push("/account")}
         />
 
@@ -16976,6 +17008,210 @@ function CacheRebuildFact({
       <p className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</p>
     </div>
   );
+}
+
+function CloudUploadReliabilityPanel({
+  report,
+  onExport,
+  onOpenAccount,
+}: {
+  report: CloudUploadReliabilityReport;
+  onExport: () => void;
+  onOpenAccount: () => void;
+}) {
+  const primaryBlocker = report.gates.find((gate) => gate.status === "block");
+  const primaryWarning = report.gates.find((gate) => gate.status === "warn");
+  const primaryGate = primaryBlocker ?? primaryWarning ?? report.gates[0] ?? null;
+
+  return (
+    <section
+      id="cloud-upload-reliability-report"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Cloud Upload Assurance
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              本地输入上云可靠性
+            </h2>
+            <CloudUploadReliabilityStatusPill status={report.status} />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            用来回答“我刚输入的内容是否已经安全进入上云链路”。只读队列数量、
+            时间戳和失败原因；不读取正文、数据库行值、文件内容，也不触发上传。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onOpenAccount}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            打开账号页
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            导出可靠性报告
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <CacheRebuildFact
+          label="结论"
+          value={formatCloudUploadReliabilityStatus(report.status)}
+          detail={report.next_action}
+        />
+        <CacheRebuildFact
+          label="待上传"
+          value={String(report.summary.total_waiting_rows)}
+          detail={`${report.summary.page_waiting_rows} 页面 · ${report.summary.database_waiting_rows} 数据库`}
+        />
+        <CacheRebuildFact
+          label="失败"
+          value={String(report.summary.failed_rows)}
+          detail={`${report.summary.manual_review_rows} 条需要人工复核`}
+        />
+        <CacheRebuildFact
+          label="最早排队"
+          value={report.summary.oldest_pending_age_label}
+          detail={report.summary.oldest_pending_queued_at ?? "暂无待上传"}
+        />
+        <CacheRebuildFact
+          label="跨设备"
+          value={report.summary.safe_to_switch_device_now ? "安全" : "等待"}
+          detail="pending 清零后再交接最稳"
+        />
+        <CacheRebuildFact
+          label="Gates"
+          value={`${report.summary.blockers} 阻断`}
+          detail={`${report.summary.warnings} 提醒`}
+        />
+      </div>
+
+      {primaryGate ? (
+        <div className="mt-4 rounded-md border border-zinc-200 px-3 py-3 text-xs dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+              当前最该处理：{primaryGate.title}
+            </div>
+            <CloudUploadReliabilityGatePill status={primaryGate.status} />
+          </div>
+          <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+            {primaryGate.evidence}
+          </p>
+          <p className="mt-1 leading-5 text-zinc-400">
+            原因：{primaryGate.owner_visible_reason}
+          </p>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            下一步：{primaryGate.next_action}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-2 lg:grid-cols-2">
+        {report.gates.map((gate) => (
+          <article
+            key={gate.id}
+            className="rounded-md border border-zinc-200 px-3 py-2 text-xs dark:border-zinc-800"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                {gate.title}
+              </div>
+              <CloudUploadReliabilityGatePill status={gate.status} />
+            </div>
+            <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+              {gate.evidence}
+            </p>
+            <p className="mt-1 leading-5 text-zinc-400">
+              下一步：{gate.next_action}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+        边界：{report.privacy_boundary}
+      </p>
+    </section>
+  );
+}
+
+function CloudUploadReliabilityStatusPill({
+  status,
+}: {
+  status: CloudUploadReliabilityStatus;
+}) {
+  const labels: Record<CloudUploadReliabilityStatus, string> = {
+    ready: "可靠",
+    watch: "观察中",
+    "needs-attention": "需处理",
+    blocked: "阻断",
+  };
+  const className =
+    status === "ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "watch"
+        ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+        : status === "needs-attention"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function CloudUploadReliabilityGatePill({
+  status,
+}: {
+  status: CloudUploadReliabilityGateStatus;
+}) {
+  return (
+    <span
+      className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${cloudUploadReliabilityGateStatusClass(
+        status
+      )}`}
+    >
+      {formatCloudUploadReliabilityGateStatus(status)}
+    </span>
+  );
+}
+
+function formatCloudUploadReliabilityStatus(
+  status: CloudUploadReliabilityStatus
+) {
+  if (status === "ready") return "可靠";
+  if (status === "watch") return "观察中";
+  if (status === "needs-attention") return "需处理";
+  return "阻断";
+}
+
+function formatCloudUploadReliabilityGateStatus(
+  status: CloudUploadReliabilityGateStatus
+) {
+  if (status === "pass") return "通过";
+  if (status === "warn") return "提醒";
+  return "阻断";
+}
+
+function cloudUploadReliabilityGateStatusClass(
+  status: CloudUploadReliabilityGateStatus
+) {
+  const classes: Record<CloudUploadReliabilityGateStatus, string> = {
+    pass: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    warn: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    block: "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+  };
+  return classes[status];
 }
 
 function CloudNativeFluidityPanel({

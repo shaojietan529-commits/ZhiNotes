@@ -13,6 +13,8 @@ const files = {
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   cloudNativeFluidityReport: "src/lib/sync/cloudNativeFluidityReport.ts",
+  cloudUploadReliabilityReport:
+    "src/lib/sync/cloudUploadReliabilityReport.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
@@ -324,6 +326,9 @@ function run() {
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const cloudNativeFluidityReport = readProjectFile(
     files.cloudNativeFluidityReport
+  );
+  const cloudUploadReliabilityReport = readProjectFile(
+    files.cloudUploadReliabilityReport
   );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
@@ -1811,6 +1816,138 @@ function run() {
     syncShell,
     "真实云端主库启用：仍关闭",
     "Sync UI must keep real cloud source-of-truth enablement visibly disabled."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    'format: "zhinote-cloud-upload-reliability-report"',
+    "Smoke verifier must keep a stable cloud upload reliability report format."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    'report_status: "metadata-only-local-sync-assurance"',
+    "Cloud upload reliability report must stay metadata-only."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    'architecture_target: "cloud-master-local-hot-cache"',
+    "Cloud upload reliability report must align with the cloud-master/local-hot-cache target."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "reads_queue_counts: true",
+    "Cloud upload reliability report must read queue counts."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "reads_queue_timestamps: true",
+    "Cloud upload reliability report must read queue timestamps."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "reads_failure_messages: true",
+    "Cloud upload reliability report must surface recent failure reasons."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "reads_page_ids: false",
+    "Cloud upload reliability report must not read page ids."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "reads_database_keys: false",
+    "Cloud upload reliability report must not read database keys."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "reads_page_body_text: false",
+    "Cloud upload reliability report must not read page body text."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "reads_database_row_values: false",
+    "Cloud upload reliability report must not read database row values."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "reads_file_bytes: false",
+    "Cloud upload reliability report must not read file bytes."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "sends_network_requests: false",
+    "Cloud upload reliability report must not send network requests."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "uploads_workspace_data: false",
+    "Cloud upload reliability report must not upload workspace data."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "safe_to_switch_device_now",
+    "Cloud upload reliability report must tell the user whether cross-device switching is safe."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "cloud-workspace-linked",
+    "Cloud upload reliability report must gate on cloud workspace linkage."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "pending-queue-durable",
+    "Cloud upload reliability report must gate on durable pending queues."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "failure-reasons-visible",
+    "Cloud upload reliability report must keep failure reasons visible."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildCloudUploadReliabilityReport",
+    "Sync UI must build the cloud upload reliability report."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "CloudUploadReliabilityPanel",
+    "Sync UI must render the cloud upload reliability panel."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "本地输入上云可靠性",
+    "Sync UI must expose the cloud upload reliability section."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出可靠性报告",
+    "Sync UI must expose the cloud upload reliability export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "只读队列数量",
+    "Sync UI must explain that the cloud upload reliability panel only reads queue metadata."
   );
   assertIncludes(
     files.localMetadataManifest,

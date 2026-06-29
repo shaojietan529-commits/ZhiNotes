@@ -79,6 +79,8 @@ const files = {
   webBetaAutonomyQueue: "src/lib/sync/webBetaAutonomyQueue.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   cloudNativeFluidityReport: "src/lib/sync/cloudNativeFluidityReport.ts",
+  cloudUploadReliabilityReport:
+    "src/lib/sync/cloudUploadReliabilityReport.ts",
   commentVersionCloudReplayContract:
     "src/lib/sync/commentVersionCloudReplayContract.ts",
   commentVersionReplayReceipt:
@@ -455,6 +457,9 @@ function run() {
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const cloudNativeFluidityReport = readProjectFile(
     files.cloudNativeFluidityReport
+  );
+  const cloudUploadReliabilityReport = readProjectFile(
+    files.cloudUploadReliabilityReport
   );
   const commentVersionCloudReplayContract = readProjectFile(
     files.commentVersionCloudReplayContract
@@ -8138,6 +8143,111 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-cloud-upload-reliability-report"',
+      "Cloud upload reliability report must have a stable report format.",
+    ],
+    [
+      'report_status: "metadata-only-local-sync-assurance"',
+      "Cloud upload reliability report must stay metadata-only.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Cloud upload reliability report must align with the cloud-master/local-hot-cache architecture target.",
+    ],
+    [
+      "reads_queue_counts: true",
+      "Cloud upload reliability report must read queue counts.",
+    ],
+    [
+      "reads_queue_timestamps: true",
+      "Cloud upload reliability report must read queue timestamps.",
+    ],
+    [
+      "reads_failure_counts: true",
+      "Cloud upload reliability report must read failure counts.",
+    ],
+    [
+      "reads_failure_messages: true",
+      "Cloud upload reliability report must surface recent failure messages.",
+    ],
+    [
+      "reads_workspace_link_metadata: true",
+      "Cloud upload reliability report must read only workspace link metadata.",
+    ],
+    [
+      "reads_page_ids: false",
+      "Cloud upload reliability report must not read page ids.",
+    ],
+    [
+      "reads_database_keys: false",
+      "Cloud upload reliability report must not read database keys.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud upload reliability report must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cloud upload reliability report must not read database row values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cloud upload reliability report must not read file bytes.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Cloud upload reliability report must not send network requests.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cloud upload reliability report must not upload workspace data.",
+    ],
+    [
+      "buildCloudUploadReliabilityReport",
+      "Cloud upload reliability report builder must be exported.",
+    ],
+    [
+      "safe_to_switch_device_now",
+      "Cloud upload reliability report must tell the user whether cross-device switching is safe.",
+    ],
+    [
+      "cloud-workspace-linked",
+      "Cloud upload reliability report must gate on cloud workspace linkage.",
+    ],
+    [
+      "page-sync-enabled",
+      "Cloud upload reliability report must gate on page sync enablement.",
+    ],
+    [
+      "database-sync-enabled",
+      "Cloud upload reliability report must gate on database sync enablement.",
+    ],
+    [
+      "pending-queue-durable",
+      "Cloud upload reliability report must gate on durable pending queues.",
+    ],
+    [
+      "failure-reasons-visible",
+      "Cloud upload reliability report must keep failure reasons visible.",
+    ],
+    [
+      "STALE_PENDING_MS",
+      "Cloud upload reliability report must define stale pending queue timing.",
+    ],
+    [
+      "CRITICAL_PENDING_MS",
+      "Cloud upload reliability report must define critical pending queue timing.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.cloudUploadReliabilityReport,
+      cloudUploadReliabilityReport,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "local-performance-diagnosis",
       "Sync UI must render a stable local fluency diagnosis panel.",
     ],
@@ -8267,6 +8377,63 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      "page.content_text",
+      "Cloud upload reliability report must not access page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Cloud upload reliability report must not access page Yjs content.",
+    ],
+    [
+      "field_values",
+      "Cloud upload reliability report must not access database row values.",
+    ],
+    [
+      "comment.body",
+      "Cloud upload reliability report must not access comment bodies.",
+    ],
+    [
+      "file.dataUrl",
+      "Cloud upload reliability report must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Cloud upload reliability report must not access file text.",
+    ],
+    [
+      "fetch(",
+      "Cloud upload reliability report must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Cloud upload reliability report must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Cloud upload reliability report must not mutate the local database.",
+    ],
+    [
+      "INSERT INTO",
+      "Cloud upload reliability report must not insert rows.",
+    ],
+    [
+      "UPDATE ",
+      "Cloud upload reliability report must not update rows.",
+    ],
+    [
+      "DELETE FROM",
+      "Cloud upload reliability report must not delete rows.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.cloudUploadReliabilityReport,
+      cloudUploadReliabilityReport,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildCloudMasterReconcileReport",
       "Sync UI must build the cloud master reconcile report.",
     ],
@@ -8329,6 +8496,42 @@ function run() {
     [
       "真实云端主库启用：仍关闭",
       "Sync UI must keep real cloud source-of-truth enablement visibly disabled.",
+    ],
+    [
+      "buildCloudUploadReliabilityReport",
+      "Sync UI must build the cloud upload reliability report.",
+    ],
+    [
+      "CloudUploadReliabilityPanel",
+      "Sync UI must render the cloud upload reliability panel.",
+    ],
+    [
+      "cloud-upload-reliability-report",
+      "Sync UI must provide a stable cloud upload reliability panel anchor.",
+    ],
+    [
+      "Cloud Upload Assurance",
+      "Sync UI must label the cloud upload reliability panel for handoff.",
+    ],
+    [
+      "本地输入上云可靠性",
+      "Sync UI must expose the cloud upload reliability section.",
+    ],
+    [
+      "导出可靠性报告",
+      "Sync UI must expose the cloud upload reliability export.",
+    ],
+    [
+      "只读队列数量",
+      "Sync UI must explain that the cloud upload reliability panel only reads queue metadata.",
+    ],
+    [
+      "不读取正文、数据库行值、文件内容，也不触发上传",
+      "Sync UI must explain that the cloud upload reliability panel does not read raw content or upload.",
+    ],
+    [
+      "safe_to_switch_device_now",
+      "Sync UI must surface cross-device switch safety from the cloud upload reliability report.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
