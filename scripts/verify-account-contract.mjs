@@ -1773,6 +1773,17 @@ check(
     localQueries.includes("NULL AS content_yjs, NULL AS content_text"),
   "local queries 应提供每日纪要和会议的本地 metadata-only summary，不能读取正文做对账"
 );
+const localPageContentHydrationBody = localQueries.slice(
+  localQueries.indexOf("export async function listPagesForContentHydration"),
+  localQueries.indexOf("export async function getAllPageMetadata")
+);
+check(
+  localQueries.includes("PAGE_CONTENT_HYDRATION_SELECT") &&
+    localQueries.includes("NULL AS content_yjs, ${prefix}content_text") &&
+    localPageContentHydrationBody.includes("PAGE_CONTENT_HYDRATION_SELECT") &&
+    !localPageContentHydrationBody.includes("SELECT *"),
+  "后台正文补齐应只读取 content_text，不能通过 SELECT * 把 content_yjs 二进制内容一起读入内存"
+);
 check(
   localPageSyncSummaryBody.includes("SELECT id, updated_at, deleted_at") &&
     localPageSyncSummaryBody.includes("WHERE sync_version != -1") &&

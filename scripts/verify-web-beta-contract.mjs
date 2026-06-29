@@ -18495,6 +18495,18 @@ function run() {
       "Local page content hydration batches must be limit/offset bounded.",
     ],
     [
+      files.localQueries,
+      localQueries,
+      "PAGE_CONTENT_HYDRATION_SELECT",
+      "Deferred page body hydration must use an explicit projection instead of SELECT *.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "NULL AS content_yjs, ${prefix}content_text",
+      "Deferred page body hydration must load HTML body text without reading content_yjs blobs.",
+    ],
+    [
       files.usePages,
       usePages,
       "useWorkspaceStore.getState().upsertPages(contentPages)",
@@ -19901,6 +19913,15 @@ function run() {
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
+  assertSourceExcludes(
+    files.localQueries,
+    localQueries.slice(
+      localQueries.indexOf("export async function listPagesForContentHydration"),
+      localQueries.indexOf("export async function getAllPageMetadata")
+    ),
+    "SELECT *",
+    "Deferred page body hydration must not read content_yjs blobs through SELECT *."
+  );
   assertSourceExcludes(
     files.hotCacheRouteWarmup,
     hotCacheRouteWarmup,

@@ -450,6 +450,15 @@ function pageMetadataSelect(alias = "") {
 
 const PAGE_METADATA_SELECT = pageMetadataSelect();
 
+function pageContentHydrationSelect(alias = "") {
+  const prefix = alias ? `${alias}.` : "";
+  return `${prefix}id, ${prefix}owner_id, ${prefix}parent_id, ${prefix}database_id, ${prefix}title, ${prefix}icon, ${prefix}cover_url,
+            NULL AS content_yjs, ${prefix}content_text, ${prefix}properties,
+            ${prefix}position, ${prefix}depth, ${prefix}created_at, ${prefix}updated_at, ${prefix}deleted_at, ${prefix}sync_version`;
+}
+
+const PAGE_CONTENT_HYDRATION_SELECT = pageContentHydrationSelect();
+
 export interface PageModuleCounts {
   pageId: string;
   versions: number;
@@ -1091,7 +1100,7 @@ export async function listPagesForContentHydration({
   const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
   const safeOffset = Math.max(0, Math.floor(offset));
   return db.query(
-    `SELECT *
+    `SELECT ${PAGE_CONTENT_HYDRATION_SELECT}
      FROM pages
      WHERE deleted_at IS NULL
      ORDER BY updated_at DESC

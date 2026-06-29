@@ -10156,6 +10156,8 @@ function run() {
   for (const snippet of [
     "export async function listPagesForContentHydration",
     "LIMIT ? OFFSET ?",
+    "PAGE_CONTENT_HYDRATION_SELECT",
+    "NULL AS content_yjs, ${prefix}content_text",
   ]) {
     assertIncludes(
       files.localQueries,
@@ -10164,6 +10166,15 @@ function run() {
       "Local page content hydration must expose a bounded batch query."
     );
   }
+  assertExcludes(
+    files.localQueries,
+    localQueries.slice(
+      localQueries.indexOf("export async function listPagesForContentHydration"),
+      localQueries.indexOf("export async function getAllPageMetadata")
+    ),
+    "SELECT *",
+    "Deferred page body hydration must not read content_yjs blobs through SELECT *."
+  );
   assertIncludes(
     files.usePages,
     usePages,
