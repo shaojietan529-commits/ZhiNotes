@@ -219,6 +219,12 @@ interface CreateMeetingOptions {
   warnings?: string[];
 }
 
+type MeetingCalendarLoadOptions = {
+  includeCloud?: boolean;
+  interruptCloud?: boolean;
+  preserveVisibleMeetings?: boolean;
+};
+
 interface QueueResult {
   ok: boolean;
   status: "queued" | "skipped" | "failed" | "pending";
@@ -699,9 +705,15 @@ export default function MeetingScheduleShell() {
     dismissTrace(pageId);
   }, [dismissTrace]);
 
-  const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
+  const load = useCallback(async (opts?: MeetingCalendarLoadOptions) => {
     const includeCloud = opts?.includeCloud !== false;
-    const requestId = loadRequestRef.current + 1;
+    const interruptCloud = opts?.interruptCloud ?? includeCloud;
+    const preserveVisibleMeetings =
+      opts?.preserveVisibleMeetings ?? (!includeCloud && !interruptCloud);
+    const requestId =
+      !interruptCloud && loadRequestRef.current > 0
+        ? loadRequestRef.current
+        : loadRequestRef.current + 1;
     loadRequestRef.current = requestId;
     const performanceStartedAt = new Date().toISOString();
     const performanceStart = getLocalPerformanceNow();
@@ -739,16 +751,18 @@ export default function MeetingScheduleShell() {
     const publishMeetings = (localPages: Page[], cloudPages: Page[] = []) => {
       if (loadRequestRef.current !== requestId) return;
       const localPageIds = new Set(localPages.map((page) => page.id));
-      const retainedCloudPages = includeCloud
-        ? []
-        : meetingsRef.current.filter(
-            (page) =>
-              !localPageIds.has(page.id) &&
-              !deletedTombstoneRef.current.has(page.id)
-          );
+      const shouldRetainVisibleMeetings =
+        preserveVisibleMeetings || !includeCloud;
+      const retainedVisiblePages = shouldRetainVisibleMeetings
+        ? retainVisibleMeetingPagesForBackgroundRefresh(
+            meetingsRef.current,
+            localPageIds,
+            deletedTombstoneRef.current
+          )
+        : [];
       const mergedMeetings = mergeMeetingPages(
         localPages,
-        [...retainedCloudPages, ...cloudPages],
+        [...retainedVisiblePages, ...cloudPages],
         deletedTombstoneRef.current
       );
       const selection = selectMeetingPagesForCalendarRender(
@@ -957,7 +971,11 @@ export default function MeetingScheduleShell() {
       if (deleted.some((p) => p.id === pageId)) {
         addTombstone(pageId);
       }
-      await load({ includeCloud: false });
+      await load({
+        includeCloud: false,
+        interruptCloud: false,
+        preserveVisibleMeetings: true,
+      });
     },
     [addTombstone, load]
   );
@@ -978,7 +996,11 @@ export default function MeetingScheduleShell() {
     if (observedPageRevisionRef.current === pageRevision) return;
     observedPageRevisionRef.current = pageRevision;
     const timer = window.setTimeout(() => {
-      void load({ includeCloud: false });
+      void load({
+        includeCloud: false,
+        interruptCloud: false,
+        preserveVisibleMeetings: true,
+      });
     }, 120);
     return () => window.clearTimeout(timer);
   }, [dbReady, pageRevision, load]);
@@ -994,10 +1016,18 @@ export default function MeetingScheduleShell() {
       if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
       if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
       localReloadTimer = window.setTimeout(() => {
-        void load({ includeCloud: false });
+        void load({
+          includeCloud: false,
+          interruptCloud: false,
+          preserveVisibleMeetings: true,
+        });
       }, MEETING_LOCAL_METADATA_REFRESH_DELAY_MS);
       fallbackReloadTimer = window.setTimeout(() => {
-        void load({ includeCloud: false });
+        void load({
+          includeCloud: false,
+          interruptCloud: false,
+          preserveVisibleMeetings: true,
+        });
       }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
       cloudRecheckTimer = window.setTimeout(() => {
         void load({ includeCloud: true });
@@ -1894,7 +1924,11 @@ export default function MeetingScheduleShell() {
         // skip individual failures
       }
     }
-    await load({ includeCloud: false });
+    await load({
+      includeCloud: false,
+      interruptCloud: false,
+      preserveVisibleMeetings: true,
+    });
     setRetryLoading(false);
     setRetryResult(
       fixed > 0
@@ -2090,7 +2124,11 @@ export default function MeetingScheduleShell() {
         writeOptimisticMeetingHotCache(updatedPage, rootId);
         revealMeetingOnCalendar(updatedPage);
       }
-      await load({ includeCloud: false });
+      await load({
+        includeCloud: false,
+        interruptCloud: false,
+        preserveVisibleMeetings: true,
+      });
       setRunNowMessage(queueResult.message);
     },
     [
@@ -2911,7 +2949,13 @@ export default function MeetingScheduleShell() {
             openMeetingFullPageById(id);
           }}
           onReady={handlePeekReady}
-          onChanged={() => void load({ includeCloud: false })}
+          onChanged={() =>
+            void load({
+              includeCloud: false,
+              interruptCloud: false,
+              preserveVisibleMeetings: true,
+            })
+          }
         />
       )}
     </div>
@@ -3293,6 +3337,16 @@ function mergeMeetingPages(
     }
   }
   return [...byId.values()];
+}
+
+function retainVisibleMeetingPagesForBackgroundRefresh(
+  currentMeetings: Page[],
+  localPageIds: Set<string>,
+  tombstone: Set<string>
+): Page[] {
+  return currentMeetings.filter(
+    (page) => !localPageIds.has(page.id) && !tombstone.has(page.id)
+  );
 }
 
 function selectMeetingPagesForCalendarRender(

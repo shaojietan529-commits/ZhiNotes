@@ -2624,6 +2624,26 @@ function run() {
       "Meeting schedule must update the hot cache as soon as a local meeting draft is created.",
     ],
     [
+      "type MeetingCalendarLoadOptions",
+      "Meeting schedule must expose explicit load options for non-interrupting local refreshes.",
+    ],
+    [
+      "const interruptCloud = opts?.interruptCloud ?? includeCloud",
+      "Meeting schedule local refreshes must choose whether they interrupt cloud hydration.",
+    ],
+    [
+      "!interruptCloud && loadRequestRef.current > 0",
+      "Meeting schedule non-interrupting local refreshes must reuse the active request id.",
+    ],
+    [
+      "preserveVisibleMeetings",
+      "Meeting schedule background refreshes must preserve already visible meetings.",
+    ],
+    [
+      "retainVisibleMeetingPagesForBackgroundRefresh",
+      "Meeting schedule must retain visible pages while background metadata catches up.",
+    ],
+    [
       "MEETING_CALENDAR_RENDER_DAY_LIMIT",
       "Meeting calendar must cap per-day rendered entries so high-volume imports do not block the UI.",
     ],
@@ -18012,8 +18032,8 @@ function run() {
     [
       files.meetingScheduleShell,
       meetingScheduleShell,
-      "void load({ includeCloud: false })",
-      "Meeting calendar page-revision refresh must avoid repeating cloud hydration.",
+      "void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,",
+      "Meeting calendar page-revision refresh must avoid repeating cloud hydration and preserve visible meetings.",
     ],
     [
       files.meetingScheduleShell,

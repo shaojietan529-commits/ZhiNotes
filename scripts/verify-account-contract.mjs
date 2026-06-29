@@ -963,7 +963,10 @@ check(
 check(
   meetingScheduleShell.includes("MEETING_CLOUD_CACHE_PREFIX") &&
     meetingScheduleShell.includes("writeCachedMeetingCloudMetadata") &&
-    meetingScheduleShell.includes("retainedCloudPages") &&
+    meetingScheduleShell.includes("retainedVisiblePages") &&
+    meetingScheduleShell.includes(
+      "retainVisibleMeetingPagesForBackgroundRefresh"
+    ) &&
     meetingScheduleShell.includes("const localPageIds = new Set") &&
     meetingScheduleShell.includes("Meeting schedule local cache load failed"),
   "MeetingScheduleShell 云端会议 metadata 应只把轻量窗口结果作为本机可重建缓存"
@@ -975,8 +978,15 @@ check(
       meetingScheduleShell.includes("resolvedRootId,\n              finalPage,\n              upsertPages")) &&
     meetingScheduleShell.includes("observedPageRevisionRef") &&
     meetingScheduleShell.includes("void load({ includeCloud: true })") &&
-    meetingScheduleShell.includes("void load({ includeCloud: false })") &&
-    meetingScheduleShell.includes("await load({ includeCloud: false })") &&
+    meetingScheduleShell.includes("type MeetingCalendarLoadOptions") &&
+    meetingScheduleShell.includes(
+      "const interruptCloud = opts?.interruptCloud ?? includeCloud"
+    ) &&
+    meetingScheduleShell.includes("!interruptCloud && loadRequestRef.current > 0") &&
+    meetingScheduleShell.includes("interruptCloud: false") &&
+    meetingScheduleShell.includes("preserveVisibleMeetings: true") &&
+    meetingScheduleShell.includes("await load({\n        includeCloud: false,") &&
+    meetingScheduleShell.includes("void load({\n        includeCloud: false,") &&
     meetingScheduleShell.includes("MEETING_LOCAL_METADATA_REFRESH_DELAY_MS") &&
     meetingScheduleShell.includes("MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS") &&
     meetingScheduleShell.includes("MEETING_CLOUD_METADATA_RECHECK_DELAY_MS") &&

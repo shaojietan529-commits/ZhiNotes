@@ -1059,6 +1059,15 @@ check(
     shells.schedule.includes("revealMeetingOnCalendar") &&
     shells.schedule.includes("pendingCalendarFocusDateKeyRef") &&
     shells.schedule.includes("requestAnimationFrame") &&
+    shells.schedule.includes("type MeetingCalendarLoadOptions") &&
+    shells.schedule.includes(
+      "const interruptCloud = opts?.interruptCloud ?? includeCloud"
+    ) &&
+    shells.schedule.includes("!interruptCloud && loadRequestRef.current > 0") &&
+    shells.schedule.includes("preserveVisibleMeetings") &&
+    shells.schedule.includes(
+      "retainVisibleMeetingPagesForBackgroundRefresh"
+    ) &&
     shells.schedule.includes("const mergedMeetings = mergeMeetingPages(") &&
     shells.schedule.includes("const nextMeetings = selection.pages") &&
     shells.schedule.includes("startTransition(() =>") &&
