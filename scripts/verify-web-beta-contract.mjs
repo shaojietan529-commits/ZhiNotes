@@ -7696,6 +7696,34 @@ function run() {
       "Database pending status must expose the latest failure reason without reading row values.",
     ],
     [
+      "size > PUSH_BATCH_BYTES",
+      "Database sync must explicitly detect oversized single-record uploads instead of silently leaving them pending.",
+    ],
+    [
+      "单条数据库记录",
+      "Database sync oversized-record failures must leave a reader-facing reason.",
+    ],
+    [
+      "已保留在 pending queue 并标记失败原因",
+      "Database sync oversized records must remain visible in the pending queue with failure metadata.",
+    ],
+    [
+      "formatSyncBytes(size)",
+      "Database sync oversized-record messages must include a human-readable payload size.",
+    ],
+    [
+      "acceptedKeys",
+      "Database sync partial acknowledgements must be carried through failure returns.",
+    ],
+    [
+      "acknowledgedLogIds",
+      "Database sync must mark already acknowledged sync_log rows as synced even if later records fail.",
+    ],
+    [
+      "failedLogIds",
+      "Database sync must mark only unacknowledged sync_log rows failed after a partial batch failure.",
+    ],
+    [
       "authRetryStatus: authRetry.status",
       "Database pending status must expose auth retry status metadata.",
     ],
@@ -14753,6 +14781,30 @@ function run() {
       accountPageSync,
       "lastFailureMessage",
       "Account page sync pending status must expose the latest failure reason without reading page bodies.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "size > PUSH_BATCH_BYTES",
+      "Account page sync must explicitly detect oversized single-record uploads instead of silently leaving them pending.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "单条页面记录",
+      "Account page sync oversized-record failures must leave a reader-facing reason.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "已保留在 pending queue 并标记失败原因",
+      "Account page sync oversized records must remain visible in the pending queue with failure metadata.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "formatSyncBytes(size)",
+      "Account page sync oversized-record messages must include a human-readable payload size.",
     ],
     [
       files.accountPageSync,

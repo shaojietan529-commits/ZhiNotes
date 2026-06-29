@@ -7311,6 +7311,24 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "size > PUSH_BATCH_BYTES",
+    "Page pending upload smoke coverage must catch oversized single-record detection."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "单条页面记录",
+    "Page pending upload smoke coverage must keep an owner-readable oversized-record failure reason."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "已保留在 pending queue 并标记失败原因",
+    "Page oversized records must remain in the pending queue with failure metadata instead of disappearing."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "if (acknowledgedIds.length > 0) setLastPageSyncAtNow();",
     "Page push ACKs must refresh the last cloud sync timestamp immediately."
   );
@@ -7793,6 +7811,30 @@ function run() {
     accountDatabaseSync,
     "lastFailureMessage",
     "Database pending status must expose the latest failure reason without reading row values."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "size > PUSH_BATCH_BYTES",
+    "Database pending upload smoke coverage must catch oversized single-record detection."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "单条数据库记录",
+    "Database pending upload smoke coverage must keep an owner-readable oversized-record failure reason."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "acknowledgedLogIds",
+    "Database partial ACK handling must preserve already-synced rows when a later record fails."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "failedLogIds",
+    "Database partial ACK handling must fail only unacknowledged sync_log rows."
   );
   assertIncludes(
     files.accountDatabaseSync,

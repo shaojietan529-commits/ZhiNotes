@@ -1502,6 +1502,7 @@ async function pushCloudDatabaseRecordsInBatches(
   let skipped = 0;
   const acceptedKeys: string[] = [];
   const skippedKeys: string[] = [];
+  const oversizedKeys: string[] = [];
   let batch: CloudDatabaseRecord[] = [];
   let batchBytes = 0;
 
@@ -1526,6 +1527,8 @@ async function pushCloudDatabaseRecordsInBatches(
           pushed,
           skipped,
           total: records.length,
+          acceptedKeys,
+          skippedKeys,
           message: result.message,
         };
       }
@@ -1536,7 +1539,19 @@ async function pushCloudDatabaseRecordsInBatches(
         skippedKeys.push(...result.skipped);
       }
     }
-    if (size > PUSH_BATCH_BYTES) continue;
+    if (size > PUSH_BATCH_BYTES) {
+      const key = getRemoteDatabaseRecordKey(record);
+      oversizedKeys.push(key);
+      markPendingCloudDatabasePushFailedRecords(
+        [record],
+        "error",
+        `单条数据库记录 ${formatSyncBytes(size)} 超过本地云同步单批上限 ${formatSyncBytes(
+          PUSH_BATCH_BYTES
+        )}；请拆分字段/行值或减少过大的本地记录后重试。`
+      );
+      emitDatabaseSyncStatusChanged();
+      continue;
+    }
     batch.push(record);
     batchBytes += size;
   }
@@ -1548,6 +1563,8 @@ async function pushCloudDatabaseRecordsInBatches(
       pushed,
       skipped,
       total: records.length,
+      acceptedKeys,
+      skippedKeys,
       message: result.message,
     };
   }
@@ -1558,6 +1575,17 @@ async function pushCloudDatabaseRecordsInBatches(
     skippedKeys.push(...result.skipped);
   }
   await markAcknowledgedDatabaseSyncKeys([...acceptedKeys, ...skippedKeys]);
+  if (oversizedKeys.length > 0) {
+    return {
+      status: "error",
+      pushed,
+      skipped,
+      total: records.length,
+      acceptedKeys,
+      skippedKeys,
+      message: `${oversizedKeys.length} 条数据库记录超过云同步单批上限，已保留在 pending queue 并标记失败原因。`,
+    };
+  }
   return {
     status: "ok",
     pushed,
@@ -1581,12 +1609,23 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
   emitDatabaseSyncStatusChanged();
   const result = await pushCloudDatabaseRecordsInBatches(pending.records);
   if (result.status !== "ok") {
+    const acknowledged = new Set([
+      ...(result.acceptedKeys ?? []),
+      ...(result.skippedKeys ?? []),
+    ]);
+    const acknowledgedLogIds = pending.entries
+      .filter((entry) => acknowledged.has(entry.key))
+      .map((entry) => entry.logId);
+    const marked = await markDatabaseSyncLogEntriesSynced(acknowledgedLogIds);
+    const failedLogIds = pending.entries
+      .filter((entry) => !acknowledged.has(entry.key))
+      .map((entry) => entry.logId);
     await markDatabaseSyncLogEntriesFailed(
-      pendingLogIds,
+      failedLogIds,
       result.message ?? result.status
     );
     emitDatabaseSyncStatusChanged();
-    return result;
+    return { ...result, marked };
   }
   const acknowledged = new Set([
     ...(result.acceptedKeys ?? []),
@@ -1854,6 +1893,16 @@ function normalizePendingCloudDatabasePushError(
   const detail = message?.trim();
   const raw = detail ? `${status}: ${detail}` : status;
   return raw.slice(0, 220);
+}
+
+function formatSyncBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+  return `${bytes} B`;
 }
 
 function newestIso(values: Array<string | null | undefined>): string | null {

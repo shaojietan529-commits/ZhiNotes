@@ -1009,6 +1009,7 @@ async function pushCloudRecordsInBatches(
 }> {
   let accepted = 0;
   let skipped = 0;
+  let oversized = 0;
   let batch: RemotePageRecord[] = [];
   let batchBytes = 0;
 
@@ -1041,7 +1042,18 @@ async function pushCloudRecordsInBatches(
         skipped += result.skipped.length;
       }
     }
-    if (size > PUSH_BATCH_BYTES) continue;
+    if (size > PUSH_BATCH_BYTES) {
+      oversized += 1;
+      markPendingCloudPushFailedRecords(
+        [record],
+        "error",
+        `单条页面记录 ${formatSyncBytes(size)} 超过本地云同步单批上限 ${formatSyncBytes(
+          PUSH_BATCH_BYTES
+        )}；请拆分页面内容或移除过大的内嵌资源后重试。`
+      );
+      emitPageSyncStatusChanged();
+      continue;
+    }
     batch.push(record);
     batchBytes += size;
   }
@@ -1059,6 +1071,14 @@ async function pushCloudRecordsInBatches(
     clearPendingCloudPushIds([...result.accepted, ...result.skipped]);
     accepted += result.accepted.length;
     skipped += result.skipped.length;
+  }
+  if (oversized > 0) {
+    return {
+      status: "error",
+      accepted,
+      skipped,
+      message: `${oversized} 条页面记录超过云同步单批上限，已保留在 pending queue 并标记失败原因。`,
+    };
   }
   return { status: "ok", accepted, skipped };
 }
@@ -1859,6 +1879,16 @@ function normalizePendingCloudPushError(
   const detail = message?.trim();
   const raw = detail ? `${status}: ${detail}` : status;
   return raw.slice(0, 220);
+}
+
+function formatSyncBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+  return `${bytes} B`;
 }
 
 function newestIso(values: Array<string | null | undefined>): string | null {
