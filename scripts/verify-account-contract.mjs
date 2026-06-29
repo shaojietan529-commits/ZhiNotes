@@ -1707,10 +1707,16 @@ check(
     pagePeekModal.includes(
       'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
     ) &&
+    pagePeekModal.includes("const PEEK_TITLE_SAVE_DEBOUNCE_MS = 420") &&
+    pagePeekModal.includes("const titleSaveTimerRef = useRef<number | null>(null)") &&
+    pagePeekModal.includes("const pendingTitleRef = useRef<string | null>(null)") &&
+    pagePeekModal.includes("const persistPeekTitleNow = useCallback") &&
+    pagePeekModal.includes("schedulePeekTitleSave(next)") &&
+    pagePeekModal.includes("onBlur={() => void flushPeekTitleSave()}") &&
     pagePeekModal.includes("void pushPeekCloudPage(nextPage).catch(() => undefined)") &&
     pagePeekModal.includes("{childPagesEnabled ? (") &&
     pagePeekModal.includes("PeekEditorSkeleton"),
-  "PagePeekModal 应让新建空白草稿即时进入编辑器，并推迟子页面查询、图标选择器和属性编辑器，避免点击 + 时被编辑器初始化或本地索引查询阻塞"
+  "PagePeekModal 应让新建空白草稿即时进入编辑器，并推迟子页面查询、图标选择器和属性编辑器；标题输入必须本地即时显示并防抖保存，避免点击 + 和输入时被编辑器初始化、本地索引查询或云端队列拖慢"
 );
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const knowledgeBaseShell = read("src/components/modules/KnowledgeBaseShell.tsx");

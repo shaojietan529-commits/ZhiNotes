@@ -4744,6 +4744,30 @@ function run() {
       "PagePeekModal must load account-cloud queue helpers only when fallback persistence needs them.",
     ],
     [
+      "const PEEK_TITLE_SAVE_DEBOUNCE_MS = 420",
+      "PagePeekModal title input must debounce persistence so peek typing stays local-first.",
+    ],
+    [
+      "const titleSaveTimerRef = useRef<number | null>(null)",
+      "PagePeekModal title persistence must be timer-coalesced instead of saving each keystroke.",
+    ],
+    [
+      "const pendingTitleRef = useRef<string | null>(null)",
+      "PagePeekModal must retain the latest pending title until blur, route change, or debounce flush.",
+    ],
+    [
+      "const persistPeekTitleNow = useCallback",
+      "PagePeekModal title save must use the same fallback persistence path as other peek updates.",
+    ],
+    [
+      "schedulePeekTitleSave(next)",
+      "PagePeekModal title changes must update the UI immediately and queue persistence in the background.",
+    ],
+    [
+      "onBlur={() => void flushPeekTitleSave()}",
+      "PagePeekModal must flush the final title when the title input loses focus.",
+    ],
+    [
       "void pushPeekCloudPage(nextPage).catch(() => undefined)",
       "PagePeekModal fallback cloud queueing must remain fire-and-forget so editing never waits on sync code.",
     ],

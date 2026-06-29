@@ -52,6 +52,7 @@ const PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS = 700;
 const PEEK_LARGE_BODY_HTML_CHARS = 180 * 1024;
 const PEEK_LARGE_BODY_EDITOR_DELAY_MS = 260;
 const PEEK_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600;
+const PEEK_TITLE_SAVE_DEBOUNCE_MS = 420;
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
 export interface PagePeekModalProps {
@@ -126,6 +127,8 @@ export default function PagePeekModal({
   const peekOpenStartedAtIsoRef = useRef(new Date().toISOString());
   const recordedPeekPerformancePageIdRef = useRef<string | null>(null);
   const readyNotifiedPageIdRef = useRef<string | null>(null);
+  const titleSaveTimerRef = useRef<number | null>(null);
+  const pendingTitleRef = useRef<string | null>(null);
   const hasInitialEditableBody =
     initialPage?.id === pageId && initialPage.content_text != null;
   const isOptimisticDraft =
@@ -160,6 +163,21 @@ export default function PagePeekModal({
   const childPagesEnabled = editorMounted && childPagesReadyPageId === pageId;
   const bodyHydrationLabel =
     describePageBodyHydrationStatus(bodyHydrationStatus);
+  const latestPeekSaveRef = useRef({
+    basePage: effectivePage,
+    update,
+    upsertPages,
+    onChanged,
+  });
+
+  useEffect(() => {
+    latestPeekSaveRef.current = {
+      basePage: effectivePage,
+      update,
+      upsertPages,
+      onChanged,
+    };
+  }, [effectivePage, onChanged, update, upsertPages]);
 
   useEffect(() => {
     if (previousPageIdRef.current === pageId) return;
@@ -356,19 +374,64 @@ export default function PagePeekModal({
     }, 900);
   }, [editorMounted, pageId]);
 
-  const handleTitleChange = useCallback(
+  const persistPeekTitleNow = useCallback(
     async (next: string) => {
-      setTitle(next);
+      const latest = latestPeekSaveRef.current;
       await persistPeekUpdate({
-        basePage: effectivePage,
+        basePage: latest.basePage,
         updates: { title: next },
-        update,
+        update: latest.update,
         setFallbackPage,
-        upsertPages,
+        upsertPages: latest.upsertPages,
       });
-      onChanged?.();
+      latest.onChanged?.();
     },
-    [effectivePage, update, upsertPages, onChanged]
+    []
+  );
+
+  const flushPeekTitleSave = useCallback(async () => {
+    if (titleSaveTimerRef.current !== null) {
+      window.clearTimeout(titleSaveTimerRef.current);
+      titleSaveTimerRef.current = null;
+    }
+    const next = pendingTitleRef.current;
+    pendingTitleRef.current = null;
+    if (next === null) return;
+    await persistPeekTitleNow(next);
+  }, [persistPeekTitleNow]);
+
+  const schedulePeekTitleSave = useCallback(
+    (next: string) => {
+      pendingTitleRef.current = next;
+      if (titleSaveTimerRef.current !== null) {
+        window.clearTimeout(titleSaveTimerRef.current);
+      }
+      titleSaveTimerRef.current = window.setTimeout(() => {
+        titleSaveTimerRef.current = null;
+        void flushPeekTitleSave();
+      }, PEEK_TITLE_SAVE_DEBOUNCE_MS);
+    },
+    [flushPeekTitleSave]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (titleSaveTimerRef.current !== null) {
+        window.clearTimeout(titleSaveTimerRef.current);
+        titleSaveTimerRef.current = null;
+      }
+      const next = pendingTitleRef.current;
+      pendingTitleRef.current = null;
+      if (next !== null) void persistPeekTitleNow(next);
+    };
+  }, [pageId, persistPeekTitleNow]);
+
+  const handleTitleChange = useCallback(
+    (next: string) => {
+      setTitle(next);
+      schedulePeekTitleSave(next);
+    },
+    [schedulePeekTitleSave]
   );
 
   const handlePropertiesChange = useCallback(
@@ -474,6 +537,7 @@ export default function PagePeekModal({
                   type="text"
                   value={title}
                   onChange={(e) => handleTitleChange(e.target.value)}
+                  onBlur={() => void flushPeekTitleSave()}
                   placeholder="新页面"
                   autoFocus={!effectivePage?.title}
                   className="mt-1 w-full border-none bg-transparent text-2xl font-bold text-zinc-900 outline-none placeholder-zinc-300 dark:text-zinc-100 dark:placeholder-zinc-600"
