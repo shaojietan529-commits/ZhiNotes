@@ -11405,6 +11405,11 @@ function run() {
   );
   for (const snippet of [
     "SIDEBAR_TRASH_VISIBLE_LIMIT",
+    "getDeletedPageCount",
+    "const refreshCount = useCallback",
+    "const loadPages = useCallback",
+    "if (!open || pageCount === 0) return;",
+    "正在读取回收站页面",
     "visibleTrashPages.map((page)",
     "已折叠 {hiddenTrashCount} 个回收站页面",
   ]) {
@@ -11415,6 +11420,24 @@ function run() {
       "Sidebar trash pages must cap rendered rows while preserving restore opens."
     );
   }
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "export async function getDeletedPageCount",
+    "Sidebar trash first paint must expose a lightweight deleted-page count query."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "SELECT COUNT(*) as count FROM pages WHERE deleted_at IS NOT NULL",
+    "Sidebar trash first paint must count deleted pages without selecting full rows."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "`SELECT ${PAGE_METADATA_SELECT}",
+    "Sidebar trash expanded list must read deleted-page metadata without page bodies."
+  );
   assertIncludes(
     files.quickSearch,
     quickSearch,

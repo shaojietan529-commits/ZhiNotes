@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
-import { getDeletedPages, restorePage } from "@/lib/db/local/queries";
+import {
+  getDeletedPageCount,
+  getDeletedPages,
+  restorePage,
+} from "@/lib/db/local/queries";
 import type { Page } from "@/lib/utils/types";
 import { formatRelativeDate } from "@/lib/utils/dates";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -14,37 +18,65 @@ export default function TrashPages() {
   const activePageCount = useWorkspaceStore((s) => s.pages.length);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const [pages, setPages] = useState<Page[]>([]);
+  const [pageCount, setPageCount] = useState(0);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [countLoading, setCountLoading] = useState(true);
+  const [pagesLoading, setPagesLoading] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const refreshCount = useCallback(async () => {
+    setCountLoading(true);
+    const count = await getDeletedPageCount();
+    setPageCount(count);
+    setCountLoading(false);
+    if (count === 0) {
+      setPages([]);
+      setOpen(false);
+    }
+  }, []);
+
+  const loadPages = useCallback(async () => {
+    setPagesLoading(true);
     const rows = await getDeletedPages();
     setPages(rows);
-    setLoading(false);
+    setPageCount(rows.length);
+    setPagesLoading(false);
   }, []);
 
   useEffect(() => {
     queueMicrotask(() => {
-      void load();
+      void refreshCount();
     });
-  }, [activePageCount, load]);
+  }, [activePageCount, refreshCount]);
+
+  useEffect(() => {
+    if (!open || pageCount === 0) return;
+    queueMicrotask(() => {
+      void loadPages();
+    });
+  }, [activePageCount, loadPages, open, pageCount]);
 
   const handleRestore = useCallback(
     async (pageId: string) => {
       const restored = await restorePage(pageId);
       if (restored) upsertPages([restored]);
-      await load();
+      if (open) {
+        await loadPages();
+      } else {
+        await refreshCount();
+      }
       if (restored) openPage(restored, { source: "trash-restore-open" });
     },
-    [load, openPage, upsertPages]
+    [loadPages, open, openPage, refreshCount, upsertPages]
   );
 
-  if (loading || pages.length === 0) return null;
+  if (countLoading || pageCount === 0) return null;
   const visibleTrashPages = open
     ? pages.slice(0, SIDEBAR_TRASH_VISIBLE_LIMIT)
     : [];
-  const hiddenTrashCount = Math.max(0, pages.length - visibleTrashPages.length);
+  const hiddenTrashCount = Math.max(
+    0,
+    Math.max(pageCount, pages.length) - visibleTrashPages.length
+  );
 
   return (
     <div className="mt-3 border-t border-zinc-200 pt-2 dark:border-zinc-800">
@@ -55,11 +87,17 @@ export default function TrashPages() {
       >
         <span>回收站</span>
         <span className="rounded-full bg-zinc-200 px-1.5 text-[10px] text-zinc-500 dark:bg-zinc-800">
-          {pages.length}
+          {pageCount}
         </span>
       </button>
 
-      {open && (
+      {open && pagesLoading && pages.length === 0 && (
+        <p className="px-3 py-1.5 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+          正在读取回收站页面…
+        </p>
+      )}
+
+      {open && pages.length > 0 && (
         <ul className="mt-1 space-y-0.5">
           {visibleTrashPages.map((page) => (
             <li key={page.id} className="px-2">

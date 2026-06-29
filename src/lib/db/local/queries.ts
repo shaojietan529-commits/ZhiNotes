@@ -1777,8 +1777,19 @@ export async function getLocalMeetingSyncSummary(): Promise<LocalPageDomainSyncS
 export async function getDeletedPages(): Promise<Page[]> {
   const db = await getDb();
   return db.query(
-    "SELECT * FROM pages WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC"
+    `SELECT ${PAGE_METADATA_SELECT}
+     FROM pages
+     WHERE deleted_at IS NOT NULL
+     ORDER BY deleted_at DESC`
   ) as unknown as Page[];
+}
+
+export async function getDeletedPageCount(): Promise<number> {
+  const db = await getDb();
+  const rows = db.query(
+    "SELECT COUNT(*) as count FROM pages WHERE deleted_at IS NOT NULL"
+  ) as Array<{ count?: number | bigint | null }>;
+  return Number(rows[0]?.count ?? 0);
 }
 
 export async function getPageModuleCounts(): Promise<

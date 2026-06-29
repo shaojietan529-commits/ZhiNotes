@@ -19894,6 +19894,36 @@ function run() {
     [
       files.trashPages,
       trashPages,
+      "getDeletedPageCount",
+      "Sidebar trash first paint must use a lightweight deleted-page count query.",
+    ],
+    [
+      files.trashPages,
+      trashPages,
+      "const refreshCount = useCallback",
+      "Sidebar trash must separate count refresh from full deleted-page loading.",
+    ],
+    [
+      files.trashPages,
+      trashPages,
+      "const loadPages = useCallback",
+      "Sidebar trash must only load full deleted-page rows after the section is opened.",
+    ],
+    [
+      files.trashPages,
+      trashPages,
+      "if (!open || pageCount === 0) return;",
+      "Sidebar trash must not load full deleted-page rows while collapsed.",
+    ],
+    [
+      files.trashPages,
+      trashPages,
+      "正在读取回收站页面",
+      "Sidebar trash must show an explicit lightweight loading state after expansion.",
+    ],
+    [
+      files.trashPages,
+      trashPages,
       "SIDEBAR_TRASH_VISIBLE_LIMIT",
       "Sidebar trash pages must cap rendered rows for large deleted-page sets.",
     ],
@@ -19908,6 +19938,24 @@ function run() {
       trashPages,
       "已折叠 {hiddenTrashCount} 个回收站页面",
       "Sidebar trash pages must tell the owner when trash rows are folded for performance.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "export async function getDeletedPageCount",
+      "Sidebar trash first paint must expose a lightweight deleted-page count query.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "SELECT COUNT(*) as count FROM pages WHERE deleted_at IS NOT NULL",
+      "Sidebar trash first paint must count deleted pages without selecting full rows.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "`SELECT ${PAGE_METADATA_SELECT}",
+      "Sidebar trash expanded list must read deleted-page metadata without page bodies.",
     ],
     [
       files.quickSearch,
