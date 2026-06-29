@@ -5,6 +5,7 @@
 // so this page is safe to ship ahead of the cloud rollout.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import {
   addShareEmail,
@@ -47,7 +48,21 @@ import {
   type CloudUploadReliabilityReport,
   type CloudUploadReliabilityStatus,
 } from "@/lib/sync/cloudUploadReliabilityReport";
-import { getSyncLogSummary, type SyncLogSummary } from "@/lib/db/local/queries";
+import {
+  getSyncLogSummary,
+  getWorkspaceSetting,
+  upsertWorkspaceSetting,
+  type SyncLogSummary,
+} from "@/lib/db/local/queries";
+import {
+  DEFAULT_HOT_CACHE_PREFERENCES,
+  HOT_CACHE_PREFERENCES_SETTING_KEY,
+  metadataRecentLimitForHotCachePreferences,
+  normalizeHotCachePreferences,
+  notifyHotCachePreferencesChanged,
+  parseHotCachePreferences,
+  type HotCachePreferences,
+} from "@/lib/sync/hotCacheSelectionSettings";
 import {
   readLocalWorkspaceIdentity,
   type LocalWorkspaceIdentity,
@@ -115,6 +130,13 @@ export default function AccountShell() {
   const [syncSummary, setSyncSummary] = useState<SyncLogSummary | null>(null);
   const [workspaceIdentity, setWorkspaceIdentity] =
     useState<LocalWorkspaceIdentity | null>(null);
+  const [hotCachePreferences, setHotCachePreferences] =
+    useState<HotCachePreferences>(DEFAULT_HOT_CACHE_PREFERENCES);
+  const [hotCacheSettingSaved, setHotCacheSettingSaved] = useState(false);
+  const [hotCachePreferenceBusy, setHotCachePreferenceBusy] = useState(false);
+  const [hotCachePreferenceNotice, setHotCachePreferenceNotice] = useState<
+    string | null
+  >(null);
   // API Key for external tools (Claude, web clipper extension)
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiKeyBusy, setApiKeyBusy] = useState(false);
@@ -170,6 +192,17 @@ export default function AccountShell() {
     syncSummary,
     workspaceIdentity,
   ]);
+
+  const refreshHotCachePreferences = useCallback(async () => {
+    const setting = await getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY);
+    setHotCacheSettingSaved(Boolean(setting));
+    setHotCachePreferences(parseHotCachePreferences(setting));
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "signed-in") return;
+    void refreshHotCachePreferences();
+  }, [phase, refreshHotCachePreferences]);
 
   const setSignedInAccount = useCallback((nextAccount: ClientAccountInfo) => {
     setAccount(nextAccount);
@@ -584,6 +617,37 @@ export default function AccountShell() {
     }
   }
 
+  async function handleHotCachePreferencesChange(
+    patch: Partial<HotCachePreferences>
+  ) {
+    const previous = hotCachePreferences;
+    const next = normalizeHotCachePreferences({
+      ...hotCachePreferences,
+      ...patch,
+    });
+    setHotCachePreferences(next);
+    setHotCachePreferenceBusy(true);
+    setHotCachePreferenceNotice(null);
+    try {
+      await upsertWorkspaceSetting(
+        HOT_CACHE_PREFERENCES_SETTING_KEY,
+        next,
+        "account-hot-cache-preferences"
+      );
+      setHotCacheSettingSaved(true);
+      notifyHotCachePreferencesChanged(next);
+      setHotCachePreferenceNotice(
+        "已保存。本机入口会按这个选择保持热缓存；设置会进入待同步队列。"
+      );
+      void refreshCloudUploadReliability();
+    } catch {
+      setHotCachePreferences(previous);
+      setHotCachePreferenceNotice("保存失败，本机缓存策略未改变。");
+    } finally {
+      setHotCachePreferenceBusy(false);
+    }
+  }
+
   async function handleGenerateApiKey() {
     setApiKeyBusy(true);
     setApiKeyNotice(null);
@@ -894,6 +958,16 @@ export default function AccountShell() {
             <AccountCloudUploadReliabilityCard
               report={cloudUploadReliabilityReport}
               onRefresh={() => void refreshCloudUploadReliability()}
+            />
+          )}
+
+          {phase === "signed-in" && (
+            <AccountHotCachePreferenceCard
+              preferences={hotCachePreferences}
+              hasSavedSetting={hotCacheSettingSaved}
+              busy={hotCachePreferenceBusy}
+              notice={hotCachePreferenceNotice}
+              onChange={(patch) => void handleHotCachePreferencesChange(patch)}
             />
           )}
 
@@ -1257,6 +1331,176 @@ function AccountCloudUploadReliabilityCard({
       </p>
     </section>
   );
+}
+
+function AccountHotCachePreferenceCard({
+  preferences,
+  hasSavedSetting,
+  busy,
+  notice,
+  onChange,
+}: {
+  preferences: HotCachePreferences;
+  hasSavedSetting: boolean;
+  busy: boolean;
+  notice: string | null;
+  onChange: (patch: Partial<HotCachePreferences>) => void;
+}) {
+  const metadataWindow = metadataRecentLimitForHotCachePreferences(preferences);
+  const enabledCount = countEnabledHotCachePreferences(preferences);
+  const handleRecentDaysChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    onChange({ recentDays: event.target.value === "90" ? 90 : 30 });
+  };
+
+  return (
+    <section
+      data-testid="account-hot-cache-preferences"
+      data-hot-cache-recent-days={preferences.recentDays}
+      data-hot-cache-metadata-window={metadataWindow}
+      data-hot-cache-saved-setting={hasSavedSetting ? "true" : "false"}
+      className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            选择性本地缓存
+          </p>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">
+            云端是主库，本机只保留你选中的常用入口副本。这里只保存偏好
+            metadata，不读取正文、文件或行值，不清理本地缓存。
+          </p>
+        </div>
+        <span className="w-fit rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          {hasSavedSetting ? "已自定义" : "默认策略"}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <AccountCloudUploadReliabilityFact
+          label="最近范围"
+          value={`${preferences.recentDays} 天`}
+          detail="影响常用入口优先级"
+        />
+        <AccountCloudUploadReliabilityFact
+          label="Metadata 窗口"
+          value={`${metadataWindow} 条`}
+          detail="只拉轻量列表，不拉全文"
+        />
+        <AccountCloudUploadReliabilityFact
+          label="开启项目"
+          value={`${enabledCount}/7`}
+          detail={`指定数据库 ${preferences.pinnedDatabaseIds.length} 个`}
+        />
+      </div>
+
+      <label className="mt-4 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+        最近内容范围
+        <select
+          value={String(preferences.recentDays)}
+          onChange={handleRecentDaysChange}
+          disabled={busy}
+          className="mt-2 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+        >
+          <option value="30">最近 30 天</option>
+          <option value="90">最近 90 天</option>
+        </select>
+      </label>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <AccountHotCachePreferenceCheckbox
+          label="当前月每日纪要"
+          checked={preferences.keepCurrentMonthDailyNotes}
+          disabled={busy}
+          onChange={(checked) =>
+            onChange({ keepCurrentMonthDailyNotes: checked })
+          }
+        />
+        <AccountHotCachePreferenceCheckbox
+          label="当前月会议"
+          checked={preferences.keepCurrentMonthMeetings}
+          disabled={busy}
+          onChange={(checked) =>
+            onChange({ keepCurrentMonthMeetings: checked })
+          }
+        />
+        <AccountHotCachePreferenceCheckbox
+          label="打开过的数据库"
+          checked={preferences.keepActiveDatabases}
+          disabled={busy}
+          onChange={(checked) => onChange({ keepActiveDatabases: checked })}
+        />
+        <AccountHotCachePreferenceCheckbox
+          label="最近文件预览 metadata"
+          checked={preferences.keepRecentFilePreviews}
+          disabled={busy}
+          onChange={(checked) =>
+            onChange({ keepRecentFilePreviews: checked })
+          }
+        />
+        <AccountHotCachePreferenceCheckbox
+          label="收藏页面"
+          checked={preferences.keepFavoritePages}
+          disabled={busy}
+          onChange={(checked) => onChange({ keepFavoritePages: checked })}
+        />
+        <AccountHotCachePreferenceCheckbox
+          label="当前项目"
+          checked={preferences.keepCurrentProjects}
+          disabled={busy}
+          onChange={(checked) => onChange({ keepCurrentProjects: checked })}
+        />
+      </div>
+
+      <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+        指定数据库仍在同步中心管理。账号页只放最常用的缓存选择，避免把低频高级设置挤进主流程。
+      </p>
+
+      {notice ? (
+        <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-amber-600 dark:bg-zinc-950 dark:text-amber-400">
+          {notice}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function AccountHotCachePreferenceCheckbox({
+  label,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 py-2 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
+      <span>{label}</span>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-4 w-4 rounded border-zinc-300 text-zinc-900 disabled:opacity-50 dark:border-zinc-700"
+      />
+    </label>
+  );
+}
+
+function countEnabledHotCachePreferences(
+  preferences: HotCachePreferences
+): number {
+  return [
+    preferences.keepCurrentMonthDailyNotes,
+    preferences.keepCurrentMonthMeetings,
+    preferences.keepActiveDatabases,
+    preferences.keepRecentFilePreviews,
+    preferences.keepFavoritePages,
+    preferences.keepCurrentProjects,
+    preferences.pinnedDatabaseIds.length > 0,
+  ].filter(Boolean).length;
 }
 
 function AccountCloudUploadReliabilityFact({

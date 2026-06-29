@@ -107,6 +107,23 @@ check(
   "AccountShell 应在账号页显示本地输入上云健康卡，只读 pending/sync_log/workspace metadata，不触发上传"
 );
 check(
+  shell.includes("AccountHotCachePreferenceCard") &&
+    shell.includes('data-testid="account-hot-cache-preferences"') &&
+    shell.includes("HOT_CACHE_PREFERENCES_SETTING_KEY") &&
+    shell.includes("DEFAULT_HOT_CACHE_PREFERENCES") &&
+    shell.includes("parseHotCachePreferences") &&
+    shell.includes("normalizeHotCachePreferences") &&
+    shell.includes("notifyHotCachePreferencesChanged") &&
+    shell.includes("metadataRecentLimitForHotCachePreferences") &&
+    shell.includes("getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)") &&
+    shell.includes("upsertWorkspaceSetting(") &&
+    shell.includes('"account-hot-cache-preferences"') &&
+    shell.includes("这里只保存偏好") &&
+    shell.includes("不读取正文、文件或行值") &&
+    shell.includes("不清理本地缓存"),
+  "AccountShell 应在账号页提供选择性本地热缓存偏好入口，只保存 workspace_settings metadata，不读取正文/文件/行值"
+);
+check(
   accountClientSession.includes("/api/account/me") &&
     accountClientSession.includes("accountSessionInFlight") &&
     accountClientSession.includes("cachedAccountSession") &&
