@@ -10348,6 +10348,22 @@ function run() {
       "Database detail page must refresh from local cache after background cloud hydration completes.",
     ],
     [
+      "DATABASE_FIRST_PAINT_ROW_LIMIT",
+      "Database detail page must bound first-paint local row reads before full hydration.",
+    ],
+    [
+      "limit: readOptions.rowLimit",
+      "Database detail first paint must pass a bounded row limit into local SQLite reads.",
+    ],
+    [
+      "localSnapshotNeedsFullHydration",
+      "Database detail page must schedule full local row hydration after a truncated first paint.",
+    ],
+    [
+      "reloadRequestRef",
+      "Database detail page must avoid applying stale reload snapshots after navigation or newer reloads.",
+    ],
+    [
       "DATABASE_VIEW_INITIAL_RENDER_LIMIT",
       "Database views must keep an explicit first-render row cap for large imports.",
     ],
@@ -10408,7 +10424,7 @@ function run() {
       "Database CSV export must still use the full visible row set, not the render-capped subset.",
     ],
     [
-      "getRows(databaseId, { includePageContent: false })",
+      "includePageContent: false",
       "Database detail first paint must read row page metadata without page bodies.",
     ],
     [

@@ -168,6 +168,7 @@ const DATABASE_IMPORT_CONFIRMATION_PHRASE =
   getHighRiskRequiredPhrase("bulk-import");
 const DATABASE_TABLE_FROZEN_FIELD_LIMIT = 3;
 const DATABASE_VIEW_INITIAL_RENDER_LIMIT = 80;
+const DATABASE_FIRST_PAINT_ROW_LIMIT = DATABASE_VIEW_INITIAL_RENDER_LIMIT * 3;
 const DATABASE_ROW_PAGE_PRIME_DEDUPE_MS = 2500;
 const DATABASE_VIEW_RENDER_BATCH = 80;
 const DATABASE_VIEW_RENDER_CAPPED_TYPES = new Set([
@@ -298,6 +299,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     useState(false);
   const databaseImportInputRef = useRef<HTMLInputElement | null>(null);
   const initialCloudHydrateRef = useRef<string | null>(null);
+  const reloadRequestRef = useRef(0);
   const optimisticDatabaseMutationBlockUntilRef = useRef(0);
   const databaseRowPagePrimeIdsRef = useRef<Set<string>>(new Set());
   const databaseRowPageWarmupIdsRef = useRef<Set<string>>(new Set());
@@ -324,24 +326,35 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   }, [initialRowSearch]);
 
   const reload = useCallback(async (options: ReloadDatabaseOptions = {}) => {
-    const readLocalDatabase = async (): Promise<DatabaseSnapshot> => {
+    const reloadRequestId = reloadRequestRef.current + 1;
+    reloadRequestRef.current = reloadRequestId;
+    const isCurrentReload = () => reloadRequestRef.current === reloadRequestId;
+    const readLocalDatabase = async (readOptions: {
+      rowLimit?: number;
+    } = {}): Promise<DatabaseSnapshot> => {
       const [db, f, r, v] = await Promise.all([
         getDatabase(databaseId),
         getFields(databaseId),
-        getRows(databaseId, { includePageContent: false }),
+        getRows(databaseId, {
+          includePageContent: false,
+          limit: readOptions.rowLimit,
+        }),
         getViews(databaseId),
       ]);
       return [db, f, r, v];
     };
-    const readLocalDatabaseSafe = async (): Promise<DatabaseSnapshot> => {
+    const readLocalDatabaseSafe = async (readOptions: {
+      rowLimit?: number;
+    } = {}): Promise<DatabaseSnapshot> => {
       try {
-        return await readLocalDatabase();
+        return await readLocalDatabase(readOptions);
       } catch {
         return [null, [], [], []];
       }
     };
 
     const applyDatabaseSnapshot = ([db, f, r, v]: DatabaseSnapshot) => {
+      if (!isCurrentReload()) return;
       setDatabase(db);
       setFields(f);
       setRows(r);
@@ -355,6 +368,11 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       }
       setLoading(false);
     };
+    const hydrateFullLocalRows = () => {
+      scheduleDatabaseIdleTask(() => {
+        void readLocalDatabaseSafe().then(applyDatabaseSnapshot);
+      }, 180);
+    };
 
     if (options.preferLocalCache) {
       cloudFallbackSnapshotRef.current = null;
@@ -367,13 +385,20 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       initialCloudHydrateRef.current = databaseId;
       // Keep the UI local-speed: render the rebuildable cache first, then let
       // the account cloud ledger refresh it in the background.
-      const localSnapshot = await readLocalDatabaseSafe();
+      const localSnapshot = await readLocalDatabaseSafe({
+        rowLimit: DATABASE_FIRST_PAINT_ROW_LIMIT,
+      });
       const renderedLocalSnapshot = Boolean(localSnapshot[0]);
+      const localSnapshotNeedsFullHydration =
+        renderedLocalSnapshot &&
+        localSnapshot[2].length >= DATABASE_FIRST_PAINT_ROW_LIMIT;
       if (renderedLocalSnapshot) {
         applyDatabaseSnapshot(localSnapshot);
       }
       const { syncCloudDatabaseById } = await loadAccountDatabaseSyncModule();
+      if (!isCurrentReload()) return;
       const cloud = await syncCloudDatabaseById(databaseId, { maxBatches: 1 });
+      if (!isCurrentReload()) return;
       if (cloud.status === "ok" && cloud.records.length > 0) {
         const cloudSnapshot = buildDatabaseSnapshotFromCloudRecords(
           databaseId,
@@ -399,6 +424,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
             startOffset: cloud.nextOffset,
             collectRecords: false,
           }).then((backgroundCloud) => {
+            if (!isCurrentReload()) return;
             if (backgroundCloud.status !== "ok") {
               setCacheNotice(
                 backgroundCloud.message ??
@@ -426,6 +452,9 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           );
         } else {
           setCacheNotice(null);
+        }
+        if (localSnapshotNeedsFullHydration) {
+          hydrateFullLocalRows();
         }
         return;
       }

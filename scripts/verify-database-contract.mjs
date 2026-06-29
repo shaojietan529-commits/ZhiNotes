@@ -515,6 +515,11 @@ function run() {
     "cloudFallbackSnapshotRef",
     "ReloadDatabaseOptions",
     "readLocalDatabaseSafe",
+    "DATABASE_FIRST_PAINT_ROW_LIMIT",
+    "limit: readOptions.rowLimit",
+    "localSnapshotNeedsFullHydration",
+    "hydrateFullLocalRows",
+    "reloadRequestRef",
     "cloud.status === \"ok\" && cloud.records.length > 0",
     "cloud.cacheWriteFailed",
     "applyDatabaseSnapshot(cloudSnapshot)",
@@ -528,6 +533,19 @@ function run() {
       databaseShell,
       snippet,
       "DatabaseShell must open databases from the cloud record set first, keep local SQLite as an editable/cache fallback, and avoid reapplying stale cloud snapshots after local edits."
+    );
+  }
+  for (const snippet of [
+    "limit?: number;",
+    "offset?: number;",
+    "normalizeDatabaseRowQueryLimit",
+    "ORDER BY dr.position ASC${limitClause}",
+  ]) {
+    assertIncludes(
+      files.queries,
+      queries,
+      snippet,
+      "Local database row reads must support bounded first-paint queries before full background hydration."
     );
   }
   for (const snippet of [

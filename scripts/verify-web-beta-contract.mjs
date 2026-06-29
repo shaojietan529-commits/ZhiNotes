@@ -18480,6 +18480,30 @@ function run() {
     [
       files.databaseShell,
       databaseShell,
+      "DATABASE_FIRST_PAINT_ROW_LIMIT",
+      "Database detail pages must keep local row reads bounded for first paint before full hydration.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "limit: readOptions.rowLimit",
+      "Database detail first paint must pass a bounded row limit into local SQLite reads.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "localSnapshotNeedsFullHydration",
+      "Database detail pages must explicitly schedule full local row hydration after a truncated first paint.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "reloadRequestRef",
+      "Database detail pages must avoid applying stale reload snapshots after navigation or newer reloads.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
       "optimisticDatabaseMutationBlockUntilRef",
       "Database row edits must suppress self-triggered reloads while optimistic local state is active.",
     ],
@@ -18600,7 +18624,7 @@ function run() {
     [
       files.databaseShell,
       databaseShell,
-      "getRows(databaseId, { includePageContent: false })",
+      "includePageContent: false",
       "Database detail first paint must read row page metadata without page bodies.",
     ],
     [

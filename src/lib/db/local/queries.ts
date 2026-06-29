@@ -3337,6 +3337,20 @@ export async function deleteField(id: string): Promise<void> {
 
 export interface GetRowsOptions {
   includePageContent?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+function normalizeDatabaseRowQueryLimit(value: number | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const normalized = Math.floor(value);
+  return normalized > 0 ? normalized : null;
+}
+
+function normalizeDatabaseRowQueryOffset(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  const normalized = Math.floor(value);
+  return normalized > 0 ? normalized : 0;
 }
 
 export async function getRows(
@@ -3348,13 +3362,18 @@ export async function getRows(
     options.includePageContent === false
       ? "NULL as page_content_text"
       : "p.content_text as page_content_text";
+  const rowLimit = normalizeDatabaseRowQueryLimit(options.limit);
+  const rowOffset = normalizeDatabaseRowQueryOffset(options.offset);
+  const limitClause = rowLimit === null ? "" : " LIMIT ? OFFSET ?";
+  const params =
+    rowLimit === null ? [databaseId] : [databaseId, rowLimit, rowOffset];
   const rows = db.query(
     `SELECT dr.*, p.title as page_title, p.icon as page_icon, p.cover_url as page_cover_url, ${pageContentSelect}, p.created_at as page_created_at, p.updated_at as page_updated_at
      FROM database_rows dr
      INNER JOIN pages p ON p.id = dr.page_id
      WHERE dr.database_id = ? AND dr.deleted_at IS NULL AND p.deleted_at IS NULL
-     ORDER BY dr.position ASC`,
-    [databaseId]
+     ORDER BY dr.position ASC${limitClause}`,
+    params
   ) as unknown as (DatabaseRow & { page_title: string; page_icon: string; page_cover_url: string | null; page_content_text: string | null; page_created_at: string; page_updated_at: string })[];
 
   return rows.map((r) => ({
