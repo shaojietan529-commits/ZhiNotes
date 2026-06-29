@@ -383,6 +383,13 @@ check(
     pageShell.includes("PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700") &&
     pageShell.includes("PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200") &&
     pageShell.includes("PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800") &&
+    pageShell.includes("PAGE_LARGE_BODY_COMMENTS_IDLE_TIMEOUT_MS = 2200") &&
+    pageShell.includes("PAGE_LARGE_BODY_CHILD_TREE_IDLE_TIMEOUT_MS = 3000") &&
+    pageShell.includes("PAGE_LARGE_BODY_REFERENCES_IDLE_TIMEOUT_MS = 3800") &&
+    pageShell.includes("const largeBodyPreviewMode =") &&
+    pageShell.includes("const pageCommentsMountTimeout = showComments") &&
+    pageShell.includes("const childTreeMountTimeout = largeBodyPreviewMode") &&
+    pageShell.includes("const pageReferencesMountTimeout = largeBodyPreviewMode") &&
     pageShell.includes("pageCommentsMounted") &&
     pageShell.includes("childTreeMounted") &&
     pageShell.includes("pageReferencesMounted") &&

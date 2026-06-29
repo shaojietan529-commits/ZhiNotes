@@ -4186,6 +4186,34 @@ function run() {
       "Page shell backlinks must mount last so relationship queries do not slow page opening.",
     ],
     [
+      "PAGE_LARGE_BODY_COMMENTS_IDLE_TIMEOUT_MS = 2200",
+      "Large page previews must delay comments until the preview and body hydration have room to settle.",
+    ],
+    [
+      "PAGE_LARGE_BODY_CHILD_TREE_IDLE_TIMEOUT_MS = 3000",
+      "Large page previews must delay child tree queries behind comments.",
+    ],
+    [
+      "PAGE_LARGE_BODY_REFERENCES_IDLE_TIMEOUT_MS = 3800",
+      "Large page previews must delay backlink queries behind other relationship panels.",
+    ],
+    [
+      "const largeBodyPreviewMode =",
+      "Page shell must explicitly detect large-body preview mode before stretching peripheral timeouts.",
+    ],
+    [
+      "const pageCommentsMountTimeout = showComments",
+      "Page shell comments must stay quick when the user explicitly opens the comment panel.",
+    ],
+    [
+      "const childTreeMountTimeout = largeBodyPreviewMode",
+      "Page shell child tree timeout must stretch only during large-body preview mode.",
+    ],
+    [
+      "const pageReferencesMountTimeout = largeBodyPreviewMode",
+      "Page shell backlink timeout must stretch only during large-body preview mode.",
+    ],
+    [
       "pageCommentsMounted",
       "Page shell must track comment surfaces separately from slower relationship panels.",
     ],

@@ -98,6 +98,9 @@ const PAGE_LARGE_BODY_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2600;
 const PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700;
 const PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200;
 const PAGE_REFERENCES_IDLE_TIMEOUT_MS = 1800;
+const PAGE_LARGE_BODY_COMMENTS_IDLE_TIMEOUT_MS = 2200;
+const PAGE_LARGE_BODY_CHILD_TREE_IDLE_TIMEOUT_MS = 3000;
+const PAGE_LARGE_BODY_REFERENCES_IDLE_TIMEOUT_MS = 3800;
 const PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500;
 const PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000;
 const PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000;
@@ -244,6 +247,19 @@ function PageContent({ pageId }: { pageId: string }) {
   const hasLargeBodyForEditor = isLargePageBodyForEditor(page?.content_text);
   const pageRelationshipSurfacesReady =
     editorMounted || (hasContentForEditor && hasLargeBodyForEditor);
+  const largeBodyPreviewMode =
+    hasLargeBodyForEditor && !editorMounted && !largeBodyEditorRequested;
+  const pageCommentsMountTimeout = showComments
+    ? PAGE_EDITOR_IDLE_TIMEOUT_MS
+    : largeBodyPreviewMode
+      ? PAGE_LARGE_BODY_COMMENTS_IDLE_TIMEOUT_MS
+      : PAGE_COMMENTS_IDLE_TIMEOUT_MS;
+  const childTreeMountTimeout = largeBodyPreviewMode
+    ? PAGE_LARGE_BODY_CHILD_TREE_IDLE_TIMEOUT_MS
+    : PAGE_CHILD_TREE_IDLE_TIMEOUT_MS;
+  const pageReferencesMountTimeout = largeBodyPreviewMode
+    ? PAGE_LARGE_BODY_REFERENCES_IDLE_TIMEOUT_MS
+    : PAGE_REFERENCES_IDLE_TIMEOUT_MS;
   const mountedEditorPageIdRef = useRef<string | null>(null);
   const pageOpenStartedAtRef = useRef(getLocalPerformanceNow());
   const pageOpenStartedAtIsoRef = useRef(new Date().toISOString());
@@ -554,31 +570,41 @@ function PageContent({ pageId }: { pageId: string }) {
       return;
     return scheduleDeferredMount(() => {
       setPageCommentsMounted(true);
-    }, showComments
-      ? PAGE_EDITOR_IDLE_TIMEOUT_MS
-      : PAGE_COMMENTS_IDLE_TIMEOUT_MS);
+    }, pageCommentsMountTimeout);
   }, [
     hasPage,
     pageCommentsMounted,
     pageId,
+    pageCommentsMountTimeout,
     pageRelationshipSurfacesReady,
-    showComments,
   ]);
 
   useEffect(() => {
     if (!hasPage || !pageRelationshipSurfacesReady || childTreeMounted) return;
     return scheduleDeferredMount(() => {
       setChildTreeMounted(true);
-    }, PAGE_CHILD_TREE_IDLE_TIMEOUT_MS);
-  }, [childTreeMounted, hasPage, pageId, pageRelationshipSurfacesReady]);
+    }, childTreeMountTimeout);
+  }, [
+    childTreeMountTimeout,
+    childTreeMounted,
+    hasPage,
+    pageId,
+    pageRelationshipSurfacesReady,
+  ]);
 
   useEffect(() => {
     if (!hasPage || !pageRelationshipSurfacesReady || pageReferencesMounted)
       return;
     return scheduleDeferredMount(() => {
       setPageReferencesMounted(true);
-    }, PAGE_REFERENCES_IDLE_TIMEOUT_MS);
-  }, [hasPage, pageId, pageReferencesMounted, pageRelationshipSurfacesReady]);
+    }, pageReferencesMountTimeout);
+  }, [
+    hasPage,
+    pageId,
+    pageReferencesMountTimeout,
+    pageReferencesMounted,
+    pageRelationshipSurfacesReady,
+  ]);
 
   useLayoutEffect(() => {
     const editableHeaderPage = page ?? readPageShellRoutePreviewSeed(pageId);
