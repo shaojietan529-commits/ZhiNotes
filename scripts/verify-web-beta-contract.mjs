@@ -88,6 +88,7 @@ const files = {
     "src/lib/sync/syncAckRetryLedgerContract.ts",
   syncAckLedgerReplayPreflight:
     "src/lib/sync/syncAckLedgerReplayPreflight.ts",
+  syncAckLedgerReplayProof: "src/lib/sync/syncAckLedgerReplayProof.ts",
   commentVersionCloudReplayContract:
     "src/lib/sync/commentVersionCloudReplayContract.ts",
   commentVersionReplayReceipt:
@@ -491,6 +492,9 @@ function run() {
   const syncAckLedgerReplayPreflight = readProjectFile(
     files.syncAckLedgerReplayPreflight
   );
+  const syncAckLedgerReplayProof = readProjectFile(
+    files.syncAckLedgerReplayProof
+  );
   const commentVersionCloudReplayContract = readProjectFile(
     files.commentVersionCloudReplayContract
   );
@@ -719,6 +723,7 @@ function run() {
     [files.cloudMasterReconcile, cloudMasterReconcile],
     [files.syncAckRetryLedgerContract, syncAckRetryLedgerContract],
     [files.syncAckLedgerReplayPreflight, syncAckLedgerReplayPreflight],
+    [files.syncAckLedgerReplayProof, syncAckLedgerReplayProof],
     [
       files.commentVersionCloudReplayContract,
       commentVersionCloudReplayContract,
@@ -8669,6 +8674,135 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-sync-ack-ledger-replay-proof"',
+      "Sync ack ledger replay proof must expose a stable format.",
+    ],
+    [
+      'proof_status: "local-synthetic-proof-only"',
+      "Sync ack ledger replay proof must stay local synthetic only.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Sync ack ledger replay proof must align with cloud-master/local-hot-cache.",
+    ],
+    [
+      "local_synthetic_proof_only: true",
+      "Sync ack ledger replay proof must be local synthetic proof only.",
+    ],
+    [
+      "in_memory_only: true",
+      "Sync ack ledger replay proof must be in-memory only.",
+    ],
+    [
+      "uses_preflight_fixture_identity: true",
+      "Sync ack ledger replay proof must reuse preflight fixture identity.",
+    ],
+    [
+      "can_run_cloud_replay_now: false",
+      "Sync ack ledger replay proof must not run cloud replay.",
+    ],
+    [
+      "can_enable_sync_push_now: false",
+      "Sync ack ledger replay proof must not enable sync push.",
+    ],
+    [
+      "can_mark_local_rows_synced_now: false",
+      "Sync ack ledger replay proof must not allow marking local rows synced.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Sync ack ledger replay proof must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Sync ack ledger replay proof must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Sync ack ledger replay proof must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Sync ack ledger replay proof must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Sync ack ledger replay proof must not read secrets.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Sync ack ledger replay proof must not send network requests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Sync ack ledger replay proof must not connect cloud services.",
+    ],
+    [
+      "reads_environment_values: false",
+      "Sync ack ledger replay proof must not read environment values.",
+    ],
+    [
+      "writes_server_data: false",
+      "Sync ack ledger replay proof must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Sync ack ledger replay proof must not upload workspace data.",
+    ],
+    [
+      "writes_workspace_data: false",
+      "Sync ack ledger replay proof must not write workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Sync ack ledger replay proof must not mutate sync_log.",
+    ],
+    [
+      "marks_local_rows_synced: false",
+      "Sync ack ledger replay proof must not mark rows synced.",
+    ],
+    [
+      "duplicate_batches_created: 0",
+      "Sync ack ledger replay proof must prove duplicate replay creates no batches.",
+    ],
+    [
+      "proof-idempotent-batch",
+      "Sync ack ledger replay proof must assert idempotent batch replay.",
+    ],
+    [
+      "proof-row-ack-before-local-apply",
+      "Sync ack ledger replay proof must assert ack before local apply.",
+    ],
+    [
+      "proof-retry-cap-dead-letter",
+      "Sync ack ledger replay proof must assert retry cap to dead-letter.",
+    ],
+    [
+      "proof-ack-cursor-after-count-match",
+      "Sync ack ledger replay proof must assert ack cursor count matching.",
+    ],
+    [
+      "proof-metadata-only-boundary",
+      "Sync ack ledger replay proof must assert metadata-only proof boundaries.",
+    ],
+    [
+      "proof-rollback-zeroes-fixture",
+      "Sync ack ledger replay proof must assert rollback clears fixtures.",
+    ],
+    [
+      "proof-cloud-runner-still-blocked",
+      "Sync ack ledger replay proof must keep real cloud runner blocked.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.syncAckLedgerReplayProof,
+      syncAckLedgerReplayProof,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildSyncAckRetryLedgerContract",
       "Sync UI must build the ack/retry ledger contract.",
     ],
@@ -8715,6 +8849,30 @@ function run() {
     [
       "不能把本地 sync_log 标成 synced",
       "Sync UI must state the preflight cannot mark local sync_log rows synced.",
+    ],
+    [
+      "buildSyncAckLedgerReplayProof",
+      "Sync UI must build the sync ack ledger replay proof.",
+    ],
+    [
+      "sync-ack-ledger-replay-proof",
+      "Sync UI must render the sync ack ledger replay proof panel.",
+    ],
+    [
+      "ack/retry 本地回放证明",
+      "Sync UI must expose the ack/retry local replay proof section.",
+    ],
+    [
+      "导出 ack/retry 回放证明",
+      "Sync UI must expose the ack/retry replay proof export.",
+    ],
+    [
+      "纯内存合成证明",
+      "Sync UI must explain the proof is pure in-memory synthetic proof.",
+    ],
+    [
+      "不会修改本地 sync_log",
+      "Sync UI must explain the proof cannot mutate local sync_log.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
@@ -9196,6 +9354,63 @@ function run() {
     assertSourceExcludes(
       files.syncAckLedgerReplayPreflight,
       syncAckLedgerReplayPreflight,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Sync ack ledger replay proof must not access page content text.",
+    ],
+    [
+      "field_values",
+      "Sync ack ledger replay proof must not access database row values.",
+    ],
+    [
+      "comment.body",
+      "Sync ack ledger replay proof must not access comment bodies.",
+    ],
+    [
+      "file.dataUrl",
+      "Sync ack ledger replay proof must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Sync ack ledger replay proof must not access file text.",
+    ],
+    [
+      "fetch(",
+      "Sync ack ledger replay proof must not call network APIs.",
+    ],
+    [
+      "process.env",
+      "Sync ack ledger replay proof must not read environment variables.",
+    ],
+    [
+      "localStorage.setItem",
+      "Sync ack ledger replay proof must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Sync ack ledger replay proof must not mutate the local database.",
+    ],
+    [
+      "INSERT INTO",
+      "Sync ack ledger replay proof must not insert rows.",
+    ],
+    [
+      "UPDATE ",
+      "Sync ack ledger replay proof must not update rows.",
+    ],
+    [
+      "DELETE FROM",
+      "Sync ack ledger replay proof must not delete rows.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.syncAckLedgerReplayProof,
+      syncAckLedgerReplayProof,
       snippet,
       message
     );

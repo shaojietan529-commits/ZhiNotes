@@ -437,6 +437,13 @@ import {
   type SyncAckLedgerReplayRefusal,
 } from "@/lib/sync/syncAckLedgerReplayPreflight";
 import {
+  buildSyncAckLedgerReplayProof,
+  type SyncAckLedgerReplayProof,
+  type SyncAckLedgerReplayProofAssertion,
+  type SyncAckLedgerReplayProofEvent,
+  type SyncAckLedgerReplayProofStatus,
+} from "@/lib/sync/syncAckLedgerReplayProof";
+import {
   buildCommentVersionReplayApiDisabledResponse,
 } from "@/lib/sync/commentVersionReplayApiStub";
 import {
@@ -506,6 +513,7 @@ type SyncQueueAction =
   | "sync-pull-api-guard"
   | "sync-ack-retry-ledger"
   | "sync-ack-ledger-replay-preflight"
+  | "sync-ack-ledger-replay-proof"
   | "comment-version-replay-api-guard"
   | "comment-version-replay-receipt"
   | "rollback-plan"
@@ -2006,6 +2014,14 @@ function SyncDashboard() {
         replayTestPlan: syncReplayTestPlan,
       }),
     [syncAckRetryLedgerContract, syncReplayTestPlan]
+  );
+  const syncAckLedgerReplayProof = useMemo(
+    () =>
+      buildSyncAckLedgerReplayProof({
+        ackLedgerContract: syncAckRetryLedgerContract,
+        preflight: syncAckLedgerReplayPreflight,
+      }),
+    [syncAckLedgerReplayPreflight, syncAckRetryLedgerContract]
   );
   const syncConflictResolution = useMemo(
     () =>
@@ -4674,6 +4690,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncAckLedgerReplayProof = () => {
+    setBusyQueueAction("sync-ack-ledger-replay-proof");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-ack-ledger-replay-proof-${fileSafeTimestamp()}.json`,
+        {
+          ...syncAckLedgerReplayProof,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export sync ack ledger replay proof:",
+        err
+      );
+      window.alert("ack/retry 本地回放证明导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportCommentVersionReplayApiGuard = () => {
     setBusyQueueAction("comment-version-replay-api-guard");
     try {
@@ -6341,6 +6378,12 @@ function SyncDashboard() {
           preflight={syncAckLedgerReplayPreflight}
           busy={busyQueueAction === "sync-ack-ledger-replay-preflight"}
           onExport={handleExportSyncAckLedgerReplayPreflight}
+        />
+
+        <SyncAckLedgerReplayProofPanel
+          proof={syncAckLedgerReplayProof}
+          busy={busyQueueAction === "sync-ack-ledger-replay-proof"}
+          onExport={handleExportSyncAckLedgerReplayProof}
         />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -12851,6 +12894,212 @@ function SyncAckLedgerReplayPreflightStatusPill({
   const className =
     status === "local-fixture-ready"
       ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function SyncAckLedgerReplayProofPanel({
+  proof,
+  busy,
+  onExport,
+}: {
+  proof: SyncAckLedgerReplayProof;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="sync-ack-ledger-replay-proof"
+      data-testid="sync-ack-ledger-replay-proof"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              ack/retry 本地回放证明
+            </h2>
+            <SyncAckLedgerReplayProofStatusPill status="blocked" />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这是纯内存合成证明：先模拟第一次 replay、重复 replay、row ack、retry、
+            dead-letter 和 rollback，再把每条验收规则标成 pass / blocked。它不连接云端、
+            不读取环境变量、不写 server、不上传数据，也不会修改本地 sync_log。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出 ack/retry 回放证明"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <PayloadSummaryCard
+          label="状态"
+          value={proof.proof_status}
+          detail="本地合成证明"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="Pass"
+          value={proof.summary.passed}
+          detail="断言通过"
+          tone="low"
+        />
+        <PayloadSummaryCard
+          label="Blocked"
+          value={proof.summary.blocked}
+          detail="仍需真实云 proof"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="重复 batch"
+          value={proof.summary.duplicate_batches_created}
+          detail="idempotency"
+          tone="low"
+        />
+        <PayloadSummaryCard
+          label="Dead-letter"
+          value={proof.summary.dead_letter_rows}
+          detail="失败转人工"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="本地修改"
+          value={proof.local_apply_preview.applied_now ? "已修改" : "未修改"}
+          detail="sync_log 不动"
+          tone="high"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-[0.8fr_1.2fr]">
+        <ContractPanel title="合成账本行数">
+          <div className="grid gap-2 md:grid-cols-2">
+            {Object.entries(proof.synthetic_tables).map(([table, count]) => (
+              <div
+                key={table}
+                className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900"
+              >
+                <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  {table}
+                </div>
+                <div className="mt-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+                  {count}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            rollback: {proof.rollback_proof.before_rows} rows -&gt;{" "}
+            {proof.rollback_proof.after_rows} rows；{proof.rollback_proof.evidence}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="本地回放事件">
+          <div className="grid gap-2 md:grid-cols-2">
+            {proof.events.map((event) => (
+              <SyncAckLedgerReplayProofEventRow key={event.id} event={event} />
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <div className="mt-4">
+        <ContractPanel title="证明断言">
+          <div className="grid gap-2 xl:grid-cols-2">
+            {proof.assertions.map((assertion) => (
+              <SyncAckLedgerReplayProofAssertionRow
+                key={assertion.id}
+                assertion={assertion}
+              />
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        下一步：{proof.summary.next_action}
+      </p>
+    </section>
+  );
+}
+
+function SyncAckLedgerReplayProofEventRow({
+  event,
+}: {
+  event: SyncAckLedgerReplayProofEvent;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {event.phase}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {event.table}
+          </div>
+        </div>
+        <SyncAckLedgerReplayProofStatusPill status={event.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {event.evidence}
+      </p>
+    </article>
+  );
+}
+
+function SyncAckLedgerReplayProofAssertionRow({
+  assertion,
+}: {
+  assertion: SyncAckLedgerReplayProofAssertion;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {assertion.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {assertion.id}
+          </div>
+        </div>
+        <SyncAckLedgerReplayProofStatusPill status={assertion.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {assertion.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        expected: {assertion.expected}
+      </p>
+    </article>
+  );
+}
+
+function SyncAckLedgerReplayProofStatusPill({
+  status,
+}: {
+  status: SyncAckLedgerReplayProofStatus;
+}) {
+  const labels: Record<SyncAckLedgerReplayProofStatus, string> = {
+    pass: "pass",
+    "manual-confirmation": "待确认",
+    blocked: "blocked",
+  };
+  const className =
+    status === "pass"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : status === "manual-confirmation"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
