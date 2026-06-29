@@ -13,6 +13,8 @@ const files = {
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   cloudNativeFluidityReport: "src/lib/sync/cloudNativeFluidityReport.ts",
+  localFirstCloudInputPlan:
+    "src/lib/sync/localFirstCloudInputPlan.ts",
   cloudUploadReliabilityReport:
     "src/lib/sync/cloudUploadReliabilityReport.ts",
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
@@ -340,6 +342,9 @@ function run() {
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const cloudNativeFluidityReport = readProjectFile(
     files.cloudNativeFluidityReport
+  );
+  const localFirstCloudInputPlan = readProjectFile(
+    files.localFirstCloudInputPlan
   );
   const cloudUploadReliabilityReport = readProjectFile(
     files.cloudUploadReliabilityReport
@@ -1854,6 +1859,99 @@ function run() {
     "真实云端主库启用：仍关闭",
     "Sync UI must keep real cloud source-of-truth enablement visibly disabled."
   );
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-local-first-cloud-input-plan"',
+      "Local-first cloud input plan must expose a stable format.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-optimistic-input"',
+      "Local-first cloud input plan must align with cloud-master/local optimistic input.",
+    ],
+    [
+      "can_confirm_local_save_immediately: true",
+      "Local-first cloud input plan must preserve instant local acknowledgement.",
+    ],
+    [
+      "can_enable_full_realtime_cloud_now: false",
+      "Local-first cloud input plan must not claim full realtime cloud enablement.",
+    ],
+    [
+      "can_write_server_data_now: false",
+      "Local-first cloud input plan must not write server data.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Local-first cloud input plan must not upload workspace data.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Local-first cloud input plan must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Local-first cloud input plan must not read database row values.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Local-first cloud input plan must not send network requests.",
+    ],
+    [
+      "marks_local_rows_synced: false",
+      "Local-first cloud input plan must not mark local rows synced.",
+    ],
+    [
+      "local-ack-first",
+      "Local-first cloud input plan must gate instant local acknowledgement.",
+    ],
+    [
+      "pending-queue-preserved",
+      "Local-first cloud input plan must protect the pending queue.",
+    ],
+    [
+      "云端已确认",
+      "Local-first cloud input plan must define a cloud-confirmed user state.",
+    ],
+  ]) {
+    assertIncludes(
+      files.localFirstCloudInputPlan,
+      localFirstCloudInputPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildLocalFirstCloudInputPlan",
+      "Sync UI must build the local-first cloud input plan.",
+    ],
+    [
+      "local-first-cloud-input-plan",
+      "Sync UI must render the local-first cloud input plan panel.",
+    ],
+    [
+      "本地优先云输入计划",
+      "Sync UI must expose the local-first cloud input plan section.",
+    ],
+    [
+      "导出输入计划",
+      "Sync UI must expose the local-first cloud input plan export.",
+    ],
+    [
+      "本地已保存",
+      "Sync UI must expose the local saved state.",
+    ],
+    [
+      "等待云端同步",
+      "Sync UI must expose the waiting cloud state.",
+    ],
+    [
+      "等待 durable ack",
+      "Sync UI must distinguish local save from durable cloud acknowledgement.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
+  }
   assertIncludes(
     files.cloudUploadReliabilityReport,
     cloudUploadReliabilityReport,

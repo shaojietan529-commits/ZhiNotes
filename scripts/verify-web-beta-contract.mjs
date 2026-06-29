@@ -81,6 +81,8 @@ const files = {
   webBetaAutonomyQueue: "src/lib/sync/webBetaAutonomyQueue.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   cloudNativeFluidityReport: "src/lib/sync/cloudNativeFluidityReport.ts",
+  localFirstCloudInputPlan:
+    "src/lib/sync/localFirstCloudInputPlan.ts",
   cloudUploadReliabilityReport:
     "src/lib/sync/cloudUploadReliabilityReport.ts",
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
@@ -488,6 +490,9 @@ function run() {
   const cloudNativeFluidityReport = readProjectFile(
     files.cloudNativeFluidityReport
   );
+  const localFirstCloudInputPlan = readProjectFile(
+    files.localFirstCloudInputPlan
+  );
   const cloudUploadReliabilityReport = readProjectFile(
     files.cloudUploadReliabilityReport
   );
@@ -740,6 +745,7 @@ function run() {
     [files.webLaunchWorkbench, webLaunchWorkbench],
     [files.webBetaAutonomyQueue, webBetaAutonomyQueue],
     [files.cloudMasterReconcile, cloudMasterReconcile],
+    [files.localFirstCloudInputPlan, localFirstCloudInputPlan],
     [files.syncAckRetryLedgerContract, syncAckRetryLedgerContract],
     [files.syncAckLedgerReplayPreflight, syncAckLedgerReplayPreflight],
     [files.syncAckLedgerReplayProof, syncAckLedgerReplayProof],
@@ -8237,6 +8243,175 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-local-first-cloud-input-plan"',
+      "Local-first cloud input plan must have a stable report format.",
+    ],
+    [
+      'report_status: "metadata-only-local-input-plan"',
+      "Local-first cloud input plan must stay metadata-only.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-optimistic-input"',
+      "Local-first cloud input plan must align with cloud-master/local optimistic input.",
+    ],
+    [
+      "buildLocalFirstCloudInputPlan",
+      "Local-first cloud input plan builder must be exported.",
+    ],
+    [
+      "can_confirm_local_save_immediately: true",
+      "Local-first cloud input plan must preserve instant local save acknowledgement.",
+    ],
+    [
+      "can_queue_background_upload",
+      "Local-first cloud input plan must expose background upload queue readiness.",
+    ],
+    [
+      "can_claim_cloud_confirmed_now",
+      "Local-first cloud input plan must distinguish cloud confirmation from local save.",
+    ],
+    [
+      "can_enable_full_realtime_cloud_now: false",
+      "Local-first cloud input plan must not claim full realtime cloud enablement.",
+    ],
+    [
+      "can_write_server_data_now: false",
+      "Local-first cloud input plan must not write server data.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Local-first cloud input plan must not upload workspace data.",
+    ],
+    [
+      "local_planning_only: true",
+      "Local-first cloud input plan must remain local planning only.",
+    ],
+    [
+      "reads_queue_counts: true",
+      "Local-first cloud input plan must read queue counts.",
+    ],
+    [
+      "reads_queue_timestamps: true",
+      "Local-first cloud input plan must read queue timestamps.",
+    ],
+    [
+      "reads_failure_counts: true",
+      "Local-first cloud input plan must read failure counts.",
+    ],
+    [
+      "reads_last_sync_timestamps: true",
+      "Local-first cloud input plan must read last sync timestamps.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Local-first cloud input plan must not read page body text.",
+    ],
+    [
+      "reads_page_yjs: false",
+      "Local-first cloud input plan must not read page editor state.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Local-first cloud input plan must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Local-first cloud input plan must not read comments.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Local-first cloud input plan must not read file bytes.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Local-first cloud input plan must not send network requests.",
+    ],
+    [
+      "writes_server_data: false",
+      "Local-first cloud input plan must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Local-first cloud input plan must not upload workspace data.",
+    ],
+    [
+      "acknowledges_remote_rows: false",
+      "Local-first cloud input plan must not acknowledge remote rows.",
+    ],
+    [
+      "marks_local_rows_synced: false",
+      "Local-first cloud input plan must not mark local rows synced.",
+    ],
+    [
+      "clears_local_cache: false",
+      "Local-first cloud input plan must not clear local cache.",
+    ],
+    [
+      "enables_sync_push_api: false",
+      "Local-first cloud input plan must not enable sync push API.",
+    ],
+    [
+      "local-ack-first",
+      "Local-first cloud input plan must gate local acknowledgement first.",
+    ],
+    [
+      "page-cloud-queue-enabled",
+      "Local-first cloud input plan must gate on page cloud queue enablement.",
+    ],
+    [
+      "database-cloud-queue-enabled",
+      "Local-first cloud input plan must gate on database cloud queue enablement.",
+    ],
+    [
+      "pending-queue-preserved",
+      "Local-first cloud input plan must protect pending queue state.",
+    ],
+    [
+      "failed-rows-empty",
+      "Local-first cloud input plan must block on failed rows.",
+    ],
+    [
+      "manual-review-empty",
+      "Local-first cloud input plan must block on manual review rows.",
+    ],
+    [
+      "generic-push-api-disabled",
+      "Local-first cloud input plan must surface disabled generic push API.",
+    ],
+    [
+      "fluidity-gate-visible",
+      "Local-first cloud input plan must incorporate the fluidity gate.",
+    ],
+    [
+      "latest-drain-receipt",
+      "Local-first cloud input plan must incorporate the latest upload drain receipt.",
+    ],
+    [
+      "local-saved",
+      "Local-first cloud input plan must define the local saved UI state.",
+    ],
+    [
+      "waiting-cloud",
+      "Local-first cloud input plan must define the waiting cloud UI state.",
+    ],
+    [
+      "cloud-confirmed",
+      "Local-first cloud input plan must define the cloud confirmed UI state.",
+    ],
+    [
+      "offline-buffer",
+      "Local-first cloud input plan must define the offline buffer UI state.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.localFirstCloudInputPlan,
+      localFirstCloudInputPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       'format: "zhinote-cloud-upload-reliability-report"',
       "Cloud upload reliability report must have a stable report format.",
     ],
@@ -9740,6 +9915,38 @@ function run() {
       "当前仍禁止",
       "Sync UI must state replay is still forbidden.",
     ],
+    [
+      "buildLocalFirstCloudInputPlan",
+      "Sync UI must build the local-first cloud input plan.",
+    ],
+    [
+      "local-first-cloud-input-plan",
+      "Sync UI must render the local-first cloud input plan panel.",
+    ],
+    [
+      "本地优先云输入计划",
+      "Sync UI must expose the local-first cloud input plan section.",
+    ],
+    [
+      "导出输入计划",
+      "Sync UI must expose the local-first cloud input plan export.",
+    ],
+    [
+      "本地已保存",
+      "Sync UI must expose the local saved state.",
+    ],
+    [
+      "等待云端同步",
+      "Sync UI must expose the waiting cloud state.",
+    ],
+    [
+      "云端已确认",
+      "Sync UI must expose the cloud confirmed state.",
+    ],
+    [
+      "等待 durable ack",
+      "Sync UI must distinguish local save from durable cloud acknowledgement.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
@@ -10511,6 +10718,63 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      "page.content_text",
+      "Local-first cloud input plan must not access page content text.",
+    ],
+    [
+      "field_values",
+      "Local-first cloud input plan must not access database row values.",
+    ],
+    [
+      "comment.body",
+      "Local-first cloud input plan must not access comment bodies.",
+    ],
+    [
+      "file.dataUrl",
+      "Local-first cloud input plan must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Local-first cloud input plan must not access file text.",
+    ],
+    [
+      "fetch(",
+      "Local-first cloud input plan must not call network APIs.",
+    ],
+    [
+      "process.env",
+      "Local-first cloud input plan must not read environment variables.",
+    ],
+    [
+      "localStorage.setItem",
+      "Local-first cloud input plan must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Local-first cloud input plan must not mutate the local database.",
+    ],
+    [
+      "INSERT INTO",
+      "Local-first cloud input plan must not insert rows.",
+    ],
+    [
+      "UPDATE ",
+      "Local-first cloud input plan must not update rows.",
+    ],
+    [
+      "DELETE FROM",
+      "Local-first cloud input plan must not delete rows.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.localFirstCloudInputPlan,
+      localFirstCloudInputPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildCloudMasterReconcileReport",
       "Sync UI must build the cloud master reconcile report.",
     ],
@@ -10573,6 +10837,42 @@ function run() {
     [
       "真实云端主库启用：仍关闭",
       "Sync UI must keep real cloud source-of-truth enablement visibly disabled.",
+    ],
+    [
+      "buildLocalFirstCloudInputPlan",
+      "Sync UI must build the local-first cloud input plan.",
+    ],
+    [
+      "LocalFirstCloudInputPlanPanel",
+      "Sync UI must render the local-first cloud input plan panel.",
+    ],
+    [
+      "local-first-cloud-input-plan",
+      "Sync UI must provide a stable local-first cloud input panel anchor.",
+    ],
+    [
+      "Local-first Cloud Input",
+      "Sync UI must label the local-first cloud input panel for handoff.",
+    ],
+    [
+      "本地优先云输入计划",
+      "Sync UI must expose the local-first cloud input section.",
+    ],
+    [
+      "导出输入计划",
+      "Sync UI must expose the local-first cloud input export.",
+    ],
+    [
+      "本地已保存",
+      "Sync UI must expose the local saved state.",
+    ],
+    [
+      "等待云端同步",
+      "Sync UI must expose the waiting cloud state.",
+    ],
+    [
+      "等待 durable ack",
+      "Sync UI must distinguish local save from cloud acknowledgement.",
     ],
     [
       "buildCloudUploadReliabilityReport",

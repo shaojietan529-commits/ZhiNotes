@@ -305,6 +305,12 @@ import {
   type CloudNativeFluidityVerdict,
 } from "@/lib/sync/cloudNativeFluidityReport";
 import {
+  buildLocalFirstCloudInputPlan,
+  type LocalFirstCloudInputGateStatus,
+  type LocalFirstCloudInputPlan,
+  type LocalFirstCloudInputVerdict,
+} from "@/lib/sync/localFirstCloudInputPlan";
+import {
   buildCloudUploadReliabilityReport,
   type CloudUploadReliabilityGateStatus,
   type CloudUploadReliabilityReport,
@@ -550,6 +556,7 @@ type SyncQueueAction =
   | "restore-preview-api-guard"
   | "restore-apply-api-guard"
   | "restore-confirmation"
+  | "local-first-cloud-input-plan"
   | "replay-test-plan";
 type PendingDomainId =
   | "pages"
@@ -1906,6 +1913,25 @@ function SyncDashboard() {
     () => buildSyncPushApiDisabledResponse(),
     []
   );
+  const localFirstCloudInputPlan = useMemo(
+    () =>
+      buildLocalFirstCloudInputPlan({
+        pageStatus: pagePendingStatus,
+        databaseStatus: databasePendingStatus,
+        syncSummary,
+        cloudNativeFluidityReport,
+        syncPushApiGuard,
+        lastDrainReceipt: syncDrainReceipt,
+      }),
+    [
+      cloudNativeFluidityReport,
+      databasePendingStatus,
+      pagePendingStatus,
+      syncDrainReceipt,
+      syncPushApiGuard,
+      syncSummary,
+    ]
+  );
   const syncPullApiGuard = useMemo(
     () => buildSyncPullApiDisabledResponse(),
     []
@@ -3222,6 +3248,27 @@ function SyncDashboard() {
         exported_at: new Date().toISOString(),
       }
     );
+  };
+
+  const handleExportLocalFirstCloudInputPlan = () => {
+    setBusyQueueAction("local-first-cloud-input-plan");
+    try {
+      downloadJsonFile(
+        `zhinote-local-first-cloud-input-plan-${fileSafeTimestamp()}.json`,
+        {
+          ...localFirstCloudInputPlan,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export local-first cloud input plan:",
+        err
+      );
+      window.alert("本地优先云输入计划导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
   };
 
   const handleExportCloudUploadReliabilityReport = () => {
@@ -5805,6 +5852,13 @@ function SyncDashboard() {
           report={cloudNativeFluidityReport}
           onExport={handleExportCloudNativeFluidityReport}
           onRunWarmup={() => void handleRunHotCacheWarmup()}
+          onOpenAccount={() => router.push("/account")}
+        />
+
+        <LocalFirstCloudInputPlanPanel
+          plan={localFirstCloudInputPlan}
+          busy={busyQueueAction === "local-first-cloud-input-plan"}
+          onExport={handleExportLocalFirstCloudInputPlan}
           onOpenAccount={() => router.push("/account")}
         />
 
@@ -19211,6 +19265,207 @@ function cloudUploadReliabilityGateStatusClass(
   status: CloudUploadReliabilityGateStatus
 ) {
   const classes: Record<CloudUploadReliabilityGateStatus, string> = {
+    pass: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    warn: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    block: "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+  };
+  return classes[status];
+}
+
+function LocalFirstCloudInputPlanPanel({
+  plan,
+  busy,
+  onExport,
+  onOpenAccount,
+}: {
+  plan: LocalFirstCloudInputPlan;
+  busy: boolean;
+  onExport: () => void;
+  onOpenAccount: () => void;
+}) {
+  const primaryBlocker = plan.gates.find((gate) => gate.status === "block");
+  const primaryWarning = plan.gates.find((gate) => gate.status === "warn");
+  const primaryGate = primaryBlocker ?? primaryWarning ?? plan.gates[0] ?? null;
+
+  return (
+    <section
+      id="local-first-cloud-input-plan"
+      data-testid="local-first-cloud-input-plan"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Local-first Cloud Input
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              本地优先云输入计划
+            </h2>
+            <LocalFirstCloudInputVerdictPill verdict={plan.verdict} />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            把“本地已保存”和“云端已确认”拆开：输入先本地响应，
+            后台排队上传；云端没有 durable ack 前，不把记录标成多端已同步。
+            这个计划只读队列计数、失败数和时间戳，不读取正文、数据库值或文件。
+          </p>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            状态覆盖：本地已保存、等待云端同步、云端已确认、需要处理、离线缓冲。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onOpenAccount}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            打开账号页
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={busy}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {busy ? "导出中..." : "导出输入计划"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <CacheRebuildFact
+          label="结论"
+          value={formatLocalFirstCloudInputVerdict(plan.verdict)}
+          detail={plan.next_action}
+        />
+        <CacheRebuildFact
+          label="云域"
+          value={`${plan.summary.cloud_domains_enabled}/${plan.summary.cloud_domains_required}`}
+          detail={`${plan.summary.cloud_confirmed_domains} 个已确认`}
+        />
+        <CacheRebuildFact
+          label="等待"
+          value={String(plan.summary.total_waiting_rows)}
+          detail={`${plan.summary.page_waiting_rows} 页面 · ${plan.summary.database_waiting_rows} 数据库`}
+        />
+        <CacheRebuildFact
+          label="失败"
+          value={String(plan.summary.failed_rows)}
+          detail={`${plan.summary.manual_review_rows} 需人工处理`}
+        />
+        <CacheRebuildFact
+          label="本地确认"
+          value="立即"
+          detail="输入不等云端"
+        />
+        <CacheRebuildFact
+          label="云确认"
+          value={plan.can_claim_cloud_confirmed_now ? "可显示" : "不可显示"}
+          detail={
+            plan.can_claim_cloud_confirmed_now
+              ? "云端已确认"
+              : "等待 durable ack"
+          }
+        />
+      </div>
+
+      {primaryGate ? (
+        <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/60">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-2 py-1 text-[10px] font-medium ${localFirstCloudInputGateStatusClass(
+                primaryGate.status
+              )}`}
+            >
+              {formatLocalFirstCloudInputGateStatus(primaryGate.status)}
+            </span>
+            <span className="font-medium text-zinc-800 dark:text-zinc-100">
+              {primaryGate.title}
+            </span>
+          </div>
+          <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+            {primaryGate.evidence}
+          </p>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            UI 状态：{primaryGate.user_visible_state}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+        {plan.ui_states.map((state) => (
+          <div
+            key={state.id}
+            className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-800"
+          >
+            <div className="font-medium text-zinc-800 dark:text-zinc-100">
+              {state.label}
+            </div>
+            <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+              {state.copy}
+            </p>
+            <p className="mt-2 text-[10px] text-zinc-400">
+              {state.blocks_cache_rebuild ? "禁止清缓存" : "允许清缓存"}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LocalFirstCloudInputVerdictPill({
+  verdict,
+}: {
+  verdict: LocalFirstCloudInputVerdict;
+}) {
+  return (
+    <span
+      className={`rounded-full px-2 py-1 text-[10px] font-medium ${localFirstCloudInputVerdictClass(
+        verdict
+      )}`}
+    >
+      {formatLocalFirstCloudInputVerdict(verdict)}
+    </span>
+  );
+}
+
+function formatLocalFirstCloudInputVerdict(
+  verdict: LocalFirstCloudInputVerdict
+) {
+  if (verdict === "ready-to-buffer") return "可本地流畅输入";
+  if (verdict === "needs-account-cloud") return "需开启云同步";
+  if (verdict === "needs-drain") return "等待补传";
+  return "需处理";
+}
+
+function localFirstCloudInputVerdictClass(
+  verdict: LocalFirstCloudInputVerdict
+) {
+  const classes: Record<LocalFirstCloudInputVerdict, string> = {
+    "ready-to-buffer":
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    "needs-account-cloud":
+      "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+    "needs-drain":
+      "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    blocked: "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+  };
+  return classes[verdict];
+}
+
+function formatLocalFirstCloudInputGateStatus(
+  status: LocalFirstCloudInputGateStatus
+) {
+  if (status === "pass") return "通过";
+  if (status === "warn") return "提醒";
+  return "阻断";
+}
+
+function localFirstCloudInputGateStatusClass(
+  status: LocalFirstCloudInputGateStatus
+) {
+  const classes: Record<LocalFirstCloudInputGateStatus, string> = {
     pass: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
     warn: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
     block: "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
