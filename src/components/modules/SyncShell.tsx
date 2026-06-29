@@ -456,6 +456,11 @@ import {
   type SyncReplayTestApiField,
 } from "@/lib/sync/syncReplayTestApiStub";
 import {
+  buildSyncReplayOwnerReviewPacket,
+  type SyncReplayOwnerReviewPacket,
+  type SyncReplayOwnerReviewStatus,
+} from "@/lib/sync/syncReplayOwnerReviewPacket";
+import {
   buildCommentVersionReplayApiDisabledResponse,
 } from "@/lib/sync/commentVersionReplayApiStub";
 import {
@@ -528,6 +533,7 @@ type SyncQueueAction =
   | "sync-ack-ledger-replay-proof"
   | "sync-ack-ledger-replay-enablement"
   | "sync-replay-test-api-guard"
+  | "sync-replay-owner-review-packet"
   | "comment-version-replay-api-guard"
   | "comment-version-replay-receipt"
   | "rollback-plan"
@@ -2053,6 +2059,19 @@ function SyncDashboard() {
   const syncReplayTestApiGuard = useMemo(
     () => buildSyncReplayTestApiDisabledResponse(),
     []
+  );
+  const syncReplayOwnerReviewPacket = useMemo(
+    () =>
+      buildSyncReplayOwnerReviewPacket({
+        replayTestPlan: syncReplayTestPlan,
+        replayApiGuard: syncReplayTestApiGuard,
+        ackReplayEnablement: syncAckLedgerReplayEnablement,
+      }),
+    [
+      syncAckLedgerReplayEnablement,
+      syncReplayTestApiGuard,
+      syncReplayTestPlan,
+    ]
   );
   const syncConflictResolution = useMemo(
     () =>
@@ -4781,6 +4800,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncReplayOwnerReviewPacket = () => {
+    setBusyQueueAction("sync-replay-owner-review-packet");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-replay-owner-review-packet-${fileSafeTimestamp()}.json`,
+        {
+          ...syncReplayOwnerReviewPacket,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export sync replay owner review packet:",
+        err
+      );
+      window.alert("同步回放 owner review packet 导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportCommentVersionReplayApiGuard = () => {
     setBusyQueueAction("comment-version-replay-api-guard");
     try {
@@ -6466,6 +6506,12 @@ function SyncDashboard() {
           guard={syncReplayTestApiGuard}
           busy={busyQueueAction === "sync-replay-test-api-guard"}
           onExport={handleExportSyncReplayTestApiGuard}
+        />
+
+        <SyncReplayOwnerReviewPacketPanel
+          packet={syncReplayOwnerReviewPacket}
+          busy={busyQueueAction === "sync-replay-owner-review-packet"}
+          onExport={handleExportSyncReplayOwnerReviewPacket}
         />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -13537,6 +13583,227 @@ function SyncReplayTestApiFieldList({
         </article>
       ))}
     </div>
+  );
+}
+
+function SyncReplayOwnerReviewPacketPanel({
+  packet,
+  busy,
+  onExport,
+}: {
+  packet: SyncReplayOwnerReviewPacket;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="sync-replay-owner-review-packet"
+      data-testid="sync-replay-owner-review-packet"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              同步回放 Owner Review Packet
+            </h2>
+            <SyncReplayOwnerReviewStatusPill status="blocked" />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这是一次性云端同步回放前的本地审批包。它只汇总回放计划、API 门卫和
+            ack/retry 启用包的元数据；不会连接云端、不会创建一次性工作区、不会读取正文或文件、
+            不会上传数据，也不会启用同步。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出 Owner Review Packet"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <PayloadSummaryCard
+          label="结论"
+          value={packet.replay_verdict}
+          detail="不能运行"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="决策"
+          value={packet.summary.decisions}
+          detail={`${packet.summary.no} 个 no`}
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="Checklist"
+          value={packet.summary.checklist_items}
+          detail={`${packet.summary.blocked} blocked`}
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="Owner"
+          value={packet.summary.owner_decision}
+          detail="需要确认"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="禁止动作"
+          value={packet.summary.forbidden_actions}
+          detail="审批前禁止"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="可运行"
+          value={packet.can_run_disposable_cloud_replay_now ? "是" : "否"}
+          detail="仍然关闭"
+          tone="high"
+        />
+      </div>
+
+      <div className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        <div className="font-semibold text-zinc-700 dark:text-zinc-200">
+          必需确认短语
+        </div>
+        <div className="mt-1 font-mono text-[11px] text-zinc-800 dark:text-zinc-100">
+          {packet.required_confirmation_phrase}
+        </div>
+        <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+          这个 packet 只列出短语，不会因为导出而批准或运行回放；真正启用仍需要单独的确认收据、
+          权限检查、审计事件、RLS 和回滚证明。
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="Owner 决策">
+          <div className="space-y-2">
+            {packet.decisions.map((decision) => (
+              <SyncReplayOwnerReviewDecisionRow
+                key={decision.id}
+                decision={decision}
+              />
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="回放前 checklist">
+          <div className="space-y-2">
+            {packet.checklist.map((item) => (
+              <SyncReplayOwnerReviewChecklistRow key={item.id} item={item} />
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="必须验证">
+          <div className="flex flex-wrap gap-2">
+            {packet.required_verification_commands.map((command) => (
+              <span
+                key={command}
+                className="rounded-md bg-zinc-100 px-2 py-1 font-mono text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                {command}
+              </span>
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="审批前禁止动作">
+          <div className="flex flex-wrap gap-2">
+            {packet.forbidden_actions_before_owner_approval.map((action) => (
+              <span
+                key={action}
+                className="rounded-md bg-red-50 px-2 py-1 font-mono text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300"
+              >
+                {action}
+              </span>
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+    </section>
+  );
+}
+
+function SyncReplayOwnerReviewDecisionRow({
+  decision,
+}: {
+  decision: SyncReplayOwnerReviewPacket["decisions"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {decision.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {decision.id}
+          </div>
+        </div>
+        <SyncReplayOwnerReviewStatusPill status={decision.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {decision.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {decision.required_before_replay}
+      </p>
+    </article>
+  );
+}
+
+function SyncReplayOwnerReviewChecklistRow({
+  item,
+}: {
+  item: SyncReplayOwnerReviewPacket["checklist"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {item.id} · {item.source}
+          </div>
+        </div>
+        <SyncReplayOwnerReviewStatusPill status={item.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {item.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {item.required_before_replay}
+      </p>
+    </article>
+  );
+}
+
+function SyncReplayOwnerReviewStatusPill({
+  status,
+}: {
+  status: SyncReplayOwnerReviewStatus;
+}) {
+  const labels: Record<SyncReplayOwnerReviewStatus, string> = {
+    "local-ready": "local ready",
+    "owner-decision": "owner",
+    blocked: "blocked",
+  };
+  const className =
+    status === "local-ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "owner-decision"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

@@ -93,6 +93,8 @@ const files = {
     "src/lib/sync/syncAckLedgerReplayEnablement.ts",
   syncReplayTestApiStub: "src/lib/sync/syncReplayTestApiStub.ts",
   syncReplayTestRoute: "src/app/api/sync/replay-test/route.ts",
+  syncReplayOwnerReviewPacket:
+    "src/lib/sync/syncReplayOwnerReviewPacket.ts",
   commentVersionCloudReplayContract:
     "src/lib/sync/commentVersionCloudReplayContract.ts",
   commentVersionReplayReceipt:
@@ -504,6 +506,9 @@ function run() {
   );
   const syncReplayTestApiStub = readProjectFile(files.syncReplayTestApiStub);
   const syncReplayTestRoute = readProjectFile(files.syncReplayTestRoute);
+  const syncReplayOwnerReviewPacket = readProjectFile(
+    files.syncReplayOwnerReviewPacket
+  );
   const commentVersionCloudReplayContract = readProjectFile(
     files.commentVersionCloudReplayContract
   );
@@ -735,6 +740,7 @@ function run() {
     [files.syncAckLedgerReplayProof, syncAckLedgerReplayProof],
     [files.syncAckLedgerReplayEnablement, syncAckLedgerReplayEnablement],
     [files.syncReplayTestApiStub, syncReplayTestApiStub],
+    [files.syncReplayOwnerReviewPacket, syncReplayOwnerReviewPacket],
     [
       files.commentVersionCloudReplayContract,
       commentVersionCloudReplayContract,
@@ -9142,6 +9148,211 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      'format: "zhinote-sync-replay-owner-review-packet"',
+      "Sync replay owner review packet must expose a stable format.",
+    ],
+    [
+      'packet_status: "local-owner-review-only"',
+      "Sync replay owner review packet must stay local owner review only.",
+    ],
+    [
+      'replay_verdict: "not-ready"',
+      "Sync replay owner review packet must keep replay not ready.",
+    ],
+    [
+      'decision: "continue-local-prep-no-cloud-replay"',
+      "Sync replay owner review packet must continue local prep only.",
+    ],
+    [
+      'required_confirmation_phrase: "APPROVE DISPOSABLE SYNC REPLAY ONLY"',
+      "Sync replay owner review packet must expose the required confirmation phrase.",
+    ],
+    [
+      "buildSyncReplayOwnerReviewPacket",
+      "Sync replay owner review packet must expose a builder.",
+    ],
+    [
+      "decisions: SyncReplayOwnerReviewDecision[]",
+      "Sync replay owner review packet must type owner decisions.",
+    ],
+    [
+      "checklist: SyncReplayOwnerReviewChecklistItem[]",
+      "Sync replay owner review packet must type replay checklist items.",
+    ],
+    [
+      "required_verification_commands: string[]",
+      "Sync replay owner review packet must include required verification commands.",
+    ],
+    [
+      "forbidden_actions_before_owner_approval: string[]",
+      "Sync replay owner review packet must include forbidden actions.",
+    ],
+    [
+      "excluded_payload_classes: string[]",
+      "Sync replay owner review packet must include excluded payload classes.",
+    ],
+    [
+      "can_export_packet_now: true",
+      "Sync replay owner review packet must be exportable locally.",
+    ],
+    [
+      "can_request_owner_review_now: true",
+      "Sync replay owner review packet must allow owner review request metadata.",
+    ],
+    [
+      "can_run_disposable_cloud_replay_now: false",
+      "Sync replay owner review packet must not run disposable cloud replay.",
+    ],
+    [
+      "can_run_production_replay_now: false",
+      "Sync replay owner review packet must refuse production replay.",
+    ],
+    [
+      "can_enable_sync_push_now: false",
+      "Sync replay owner review packet must not enable sync push.",
+    ],
+    [
+      "can_mark_local_rows_synced_now: false",
+      "Sync replay owner review packet must not mark rows synced.",
+    ],
+    [
+      "local_packet_only: true",
+      "Sync replay owner review packet must be local packet only.",
+    ],
+    [
+      "reads_replay_plan_metadata: true",
+      "Sync replay owner review packet must read replay plan metadata only.",
+    ],
+    [
+      "reads_api_guard_metadata: true",
+      "Sync replay owner review packet must read API guard metadata only.",
+    ],
+    [
+      "reads_ack_enablement_metadata: true",
+      "Sync replay owner review packet must read ack enablement metadata only.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Sync replay owner review packet must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Sync replay owner review packet must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Sync replay owner review packet must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Sync replay owner review packet must not read file bytes.",
+    ],
+    [
+      "reads_backup_payload: false",
+      "Sync replay owner review packet must not read backup payloads.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Sync replay owner review packet must not read secrets.",
+    ],
+    [
+      "reads_environment_values: false",
+      "Sync replay owner review packet must not read environment values.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Sync replay owner review packet must not send network requests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Sync replay owner review packet must not connect cloud services.",
+    ],
+    [
+      "creates_disposable_workspace: false",
+      "Sync replay owner review packet must not create disposable workspace.",
+    ],
+    [
+      "writes_server_data: false",
+      "Sync replay owner review packet must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Sync replay owner review packet must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Sync replay owner review packet must not mutate sync_log.",
+    ],
+    [
+      "marks_local_rows_synced: false",
+      "Sync replay owner review packet must not mark rows synced.",
+    ],
+    [
+      "enables_sync_push: false",
+      "Sync replay owner review packet must not enable sync push.",
+    ],
+    [
+      "touches_production_workspace: false",
+      "Sync replay owner review packet must not touch production workspace.",
+    ],
+    [
+      "requires_owner_confirmation_before_replay: true",
+      "Sync replay owner review packet must require owner confirmation.",
+    ],
+    [
+      "requires_separate_enabled_runner: true",
+      "Sync replay owner review packet must require separate enabled runner.",
+    ],
+    [
+      "run_disposable_cloud_replay",
+      "Sync replay owner review packet must forbid disposable replay before approval.",
+    ],
+    [
+      "run_production_replay",
+      "Sync replay owner review packet must forbid production replay.",
+    ],
+    [
+      "touch_production_workspace",
+      "Sync replay owner review packet must forbid touching production workspace.",
+    ],
+    [
+      "page_body_text",
+      "Sync replay owner review packet must exclude page body text.",
+    ],
+    [
+      "cloud_connection_strings",
+      "Sync replay owner review packet must exclude cloud connection strings.",
+    ],
+    [
+      "npm run verify:web-beta:smoke",
+      "Sync replay owner review packet must require smoke verification.",
+    ],
+    [
+      "npm run verify:web-beta",
+      "Sync replay owner review packet must require contract verification.",
+    ],
+    [
+      "npm run verify:route-smoke",
+      "Sync replay owner review packet must require route smoke verification.",
+    ],
+    [
+      "npm run lint",
+      "Sync replay owner review packet must require lint verification.",
+    ],
+    [
+      "npm run build",
+      "Sync replay owner review packet must require build verification.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.syncReplayOwnerReviewPacket,
+      syncReplayOwnerReviewPacket,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "NextRequest",
       "Sync replay test route must not accept a request object while disabled.",
     ],
@@ -9281,6 +9492,30 @@ function run() {
     [
       "不能碰生产工作区",
       "Sync UI must state the replay API guard cannot touch production workspace.",
+    ],
+    [
+      "buildSyncReplayOwnerReviewPacket",
+      "Sync UI must build the sync replay owner review packet.",
+    ],
+    [
+      "sync-replay-owner-review-packet",
+      "Sync UI must render the sync replay owner review packet panel.",
+    ],
+    [
+      "同步回放 Owner Review Packet",
+      "Sync UI must expose the sync replay owner review section.",
+    ],
+    [
+      "导出 Owner Review Packet",
+      "Sync UI must expose the sync replay owner review export.",
+    ],
+    [
+      "必需确认短语",
+      "Sync UI must expose the required confirmation phrase.",
+    ],
+    [
+      "不会因为导出而批准或运行回放",
+      "Sync UI must state export does not approve or run replay.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
@@ -9933,6 +10168,63 @@ function run() {
     assertSourceExcludes(
       files.syncReplayTestApiStub,
       syncReplayTestApiStub,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Sync replay owner review packet must not access page content text.",
+    ],
+    [
+      "field_values",
+      "Sync replay owner review packet must not access database row values.",
+    ],
+    [
+      "comment.body",
+      "Sync replay owner review packet must not access comment bodies.",
+    ],
+    [
+      "file.dataUrl",
+      "Sync replay owner review packet must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Sync replay owner review packet must not access file text.",
+    ],
+    [
+      "fetch(",
+      "Sync replay owner review packet must not call network APIs.",
+    ],
+    [
+      "process.env",
+      "Sync replay owner review packet must not read environment variables.",
+    ],
+    [
+      "localStorage.setItem",
+      "Sync replay owner review packet must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Sync replay owner review packet must not mutate the local database.",
+    ],
+    [
+      "INSERT INTO",
+      "Sync replay owner review packet must not insert rows.",
+    ],
+    [
+      "UPDATE ",
+      "Sync replay owner review packet must not update rows.",
+    ],
+    [
+      "DELETE FROM",
+      "Sync replay owner review packet must not delete rows.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.syncReplayOwnerReviewPacket,
+      syncReplayOwnerReviewPacket,
       snippet,
       message
     );
