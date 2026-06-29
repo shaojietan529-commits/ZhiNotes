@@ -101,7 +101,7 @@ const PAGE_LARGE_BODY_PREVIEW_TEXT_CHARS = 6000;
 const PAGE_LARGE_BODY_PREVIEW_BLOCKS = 18;
 const PAGE_LARGE_BODY_PREVIEW_HEADINGS = 8;
 const PAGE_LARGE_BODY_PREVIEW_IDLE_TIMEOUT_MS = 1200;
-const PAGE_LARGE_BODY_EDITOR_WARMUP_DELAY_MS = 900;
+const PAGE_LARGE_BODY_EDITOR_WARMUP_DELAY_MS = 4800;
 const PAGE_LARGE_BODY_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2600;
 const PAGE_COMMENTS_IDLE_TIMEOUT_MS = 700;
 const PAGE_CHILD_TREE_IDLE_TIMEOUT_MS = 1200;
@@ -596,6 +596,13 @@ function PageContent({ pageId }: { pageId: string }) {
     setEditorMounted(true);
     mountedEditorPageIdRef.current = pageId;
   }, [pageId]);
+
+  const handlePrimeLargeBodyEditor = useCallback(() => {
+    if (!hasLargeBodyForEditor || editorMounted || largeBodyEditorRequested) {
+      return;
+    }
+    void loadEditorModule();
+  }, [editorMounted, hasLargeBodyForEditor, largeBodyEditorRequested]);
 
   const handleActivateCoverImage = useCallback(() => {
     setCoverImageMountedPageId(pageId);
@@ -1682,6 +1689,7 @@ function PageContent({ pageId }: { pageId: string }) {
               html={page.content_text}
               locked={locked}
               onOpenEditor={handleOpenLargeBodyEditor}
+              onPrimeEditor={handlePrimeLargeBodyEditor}
             />
           ) : (
             <PageBodySkeleton
@@ -1887,11 +1895,13 @@ function LargePageBodyPreview({
   html,
   locked,
   onOpenEditor,
+  onPrimeEditor,
 }: {
   contentLength: number;
   html: string;
   locked: boolean;
   onOpenEditor: () => void;
+  onPrimeEditor: () => void;
 }) {
   const [preview, setPreview] = useState<LargePageBodyPreviewState>(null);
   const activePreview = preview?.html === html ? preview.model : null;
@@ -1927,7 +1937,9 @@ function LargePageBodyPreview({
         </div>
         <button
           type="button"
+          onFocus={onPrimeEditor}
           onClick={onOpenEditor}
+          onPointerEnter={onPrimeEditor}
           className="h-8 shrink-0 rounded-md border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
           {buttonLabel}

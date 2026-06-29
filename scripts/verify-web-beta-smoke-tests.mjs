@@ -5631,8 +5631,20 @@ function run() {
       "Page shell must cap the number of headings shown in large-body previews.",
     ],
     [
-      "PAGE_LARGE_BODY_EDITOR_WARMUP_DELAY_MS = 900",
-      "Page shell must warm the large-body editor chunk without mounting it immediately.",
+      "PAGE_LARGE_BODY_EDITOR_WARMUP_DELAY_MS = 4800",
+      "Page shell must delay automatic large-body editor warmup so reading stays responsive after first paint.",
+    ],
+    [
+      "const handlePrimeLargeBodyEditor = useCallback",
+      "Page shell must offer intent-based large-body editor prewarm before mounting the full editor.",
+    ],
+    [
+      "onPointerEnter={onPrimeEditor}",
+      "Large-body preview should prewarm the editor when the user moves toward the edit button.",
+    ],
+    [
+      "onFocus={onPrimeEditor}",
+      "Large-body preview should prewarm the editor for keyboard users before click.",
     ],
     [
       "const hasContentForEditor = page?.content_text != null",
