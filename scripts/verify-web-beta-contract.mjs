@@ -6157,8 +6157,16 @@ function run() {
       "Quick search UI must migrate legacy saved searches into workspace_settings.",
     ],
     [
-      "searchPageMetadata(pages, trimmedValue)",
-      "Quick search UI must return metadata matches before scanning page body text.",
+      "searchPageMetadataSnapshot(pages, trimmedValue)",
+      "Quick search UI must return bounded in-memory metadata matches before scanning page body text.",
+    ],
+    [
+      "QUICK_SEARCH_METADATA_SCAN_LIMIT",
+      "Quick search UI must cap synchronous page metadata scans for large imported workspaces.",
+    ],
+    [
+      "searchPageMetadataFromLocalDb(",
+      "Quick search UI must defer full metadata search through the local database instead of scanning every page in React.",
     ],
     [
       "QUICK_SEARCH_FULL_TEXT_DELAY_MS",

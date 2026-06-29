@@ -620,6 +620,9 @@ check(
     quickSearchSource.includes("primeQuickSearchPageOpen(entry.page)") &&
     quickSearchSource.includes("handleEntryPrewarm(selectedEntry)") &&
     quickSearchSource.includes("onPointerDown={onPrewarm}") &&
+    quickSearchSource.includes("QUICK_SEARCH_METADATA_SCAN_LIMIT") &&
+    quickSearchSource.includes("searchPageMetadataSnapshot(pages, trimmedValue)") &&
+    quickSearchSource.includes("searchPageMetadataFromLocalDb(") &&
     !quickSearchSource.includes("await refresh()") &&
     !favoritePagesSource.includes("usePages") &&
     favoritePagesSource.includes("useWorkspaceStore((s) => s.pagesById)") &&

@@ -7,6 +7,7 @@ import { useLocalFirstModuleNavigation } from "@/hooks/useLocalFirstModuleNaviga
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import {
   getWorkspaceSetting,
+  searchPageMetadata as searchPageMetadataFromLocalDb,
   searchPages,
   upsertWorkspaceSetting,
 } from "@/lib/db/local/queries";
@@ -39,6 +40,8 @@ const SAVED_SEARCHES_KEY = "zhinote:saved-searches";
 const MAX_SAVED_SEARCHES = 10;
 const QUICK_SEARCH_RESULT_LIMIT = 20;
 const QUICK_SEARCH_ACTIVITY_LIMIT = 8;
+const QUICK_SEARCH_METADATA_SCAN_LIMIT = 600;
+const QUICK_SEARCH_METADATA_DELAY_MS = 50;
 const QUICK_SEARCH_FULL_TEXT_DELAY_MS = 180;
 const QUICK_SEARCH_DATABASE_REFRESH_TTL_MS = 30_000;
 const loadModuleStarterActions = () => import("@/lib/modules/actions");
@@ -107,6 +110,7 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRequestRef = useRef(0);
+  const deferredMetadataSearchTimerRef = useRef<number | null>(null);
   const deferredFullTextSearchTimerRef = useRef<number | null>(null);
   const databaseRefreshInFlightRef = useRef<Promise<Database[]> | null>(null);
   const lastDatabaseRefreshAtRef = useRef(0);
@@ -134,6 +138,12 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
     if (deferredFullTextSearchTimerRef.current === null) return;
     window.clearTimeout(deferredFullTextSearchTimerRef.current);
     deferredFullTextSearchTimerRef.current = null;
+  }, []);
+
+  const clearDeferredMetadataSearch = useCallback(() => {
+    if (deferredMetadataSearchTimerRef.current === null) return;
+    window.clearTimeout(deferredMetadataSearchTimerRef.current);
+    deferredMetadataSearchTimerRef.current = null;
   }, []);
 
   const refreshDatabasesForPalette = useCallback(() => {
@@ -199,14 +209,16 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
   useEffect(() => {
     if (open) return;
     searchRequestRef.current += 1;
+    clearDeferredMetadataSearch();
     clearDeferredFullTextSearch();
-  }, [open, clearDeferredFullTextSearch]);
+  }, [open, clearDeferredFullTextSearch, clearDeferredMetadataSearch]);
 
   useEffect(() => {
     return () => {
+      clearDeferredMetadataSearch();
       clearDeferredFullTextSearch();
     };
-  }, [clearDeferredFullTextSearch]);
+  }, [clearDeferredFullTextSearch, clearDeferredMetadataSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -250,6 +262,7 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
       const requestId = searchRequestRef.current + 1;
       const trimmedValue = value.trim();
       searchRequestRef.current = requestId;
+      clearDeferredMetadataSearch();
       clearDeferredFullTextSearch();
       setQuery(value);
       setSelectedIndex(0);
@@ -258,8 +271,33 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
         return;
       }
 
-      const metadataResults = searchPageMetadata(pages, trimmedValue);
+      const metadataResults = searchPageMetadataSnapshot(pages, trimmedValue);
       setResults(metadataResults);
+
+      if (
+        pages.length === 0 ||
+        pages.length > QUICK_SEARCH_METADATA_SCAN_LIMIT
+      ) {
+        deferredMetadataSearchTimerRef.current = window.setTimeout(() => {
+          deferredMetadataSearchTimerRef.current = null;
+          void searchPageMetadataFromLocalDb(
+            trimmedValue,
+            QUICK_SEARCH_RESULT_LIMIT
+          )
+            .then((databaseMetadataResults) => {
+              if (requestId !== searchRequestRef.current) return;
+              setResults((currentResults) =>
+                mergeSearchResults(currentResults, databaseMetadataResults)
+              );
+            })
+            .catch((error) => {
+              console.error(
+                "[Zhinote] Failed to run metadata search:",
+                error
+              );
+            });
+        }, QUICK_SEARCH_METADATA_DELAY_MS);
+      }
 
       deferredFullTextSearchTimerRef.current = window.setTimeout(() => {
         deferredFullTextSearchTimerRef.current = null;
@@ -275,7 +313,7 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
           });
       }, QUICK_SEARCH_FULL_TEXT_DELAY_MS);
     },
-    [clearDeferredFullTextSearch, pages]
+    [clearDeferredFullTextSearch, clearDeferredMetadataSearch, pages]
   );
 
   const handleSaveSearch = () => {
@@ -1942,11 +1980,16 @@ function getFilterEmptyLabel(filter: ResultFilter) {
   return "结果";
 }
 
-function searchPageMetadata(pages: Page[], query: string) {
+function searchPageMetadataSnapshot(
+  pages: Page[],
+  query: string,
+  scanLimit = QUICK_SEARCH_METADATA_SCAN_LIMIT
+) {
   const normalizedQuery = normalizeSearchQuery(query);
   if (!normalizedQuery) return [];
 
   return pages
+    .slice(0, scanLimit)
     .filter((page) => !page.deleted_at)
     .map((page) => ({
       page,

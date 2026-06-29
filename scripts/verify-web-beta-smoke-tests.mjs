@@ -6549,8 +6549,20 @@ function run() {
   assertIncludes(
     files.quickSearch,
     quickSearch,
-    "searchPageMetadata(pages, trimmedValue)",
-    "Smoke verifier must keep quick search returning page metadata matches before full-text scans."
+    "searchPageMetadataSnapshot(pages, trimmedValue)",
+    "Smoke verifier must keep quick search returning bounded page metadata matches before full-text scans."
+  );
+  assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "QUICK_SEARCH_METADATA_SCAN_LIMIT",
+    "Smoke verifier must keep quick search synchronous metadata scans capped."
+  );
+  assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "searchPageMetadataFromLocalDb(",
+    "Smoke verifier must keep complete quick search metadata lookup deferred through local database."
   );
   assertIncludes(
     files.quickSearch,
