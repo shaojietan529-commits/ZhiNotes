@@ -8277,8 +8277,13 @@ function run() {
     "void refreshDatabases({ broadcast: false });",
     "Quick search must not refresh databases unconditionally every time the palette opens."
   );
+  const searchPagesQueryBlock = localQueries.slice(
+    localQueries.indexOf("export async function searchPages"),
+    localQueries.indexOf("export async function searchPageMetadata")
+  );
   for (const snippet of [
     "export async function searchPages(query: string, limit = 20)",
+    "SELECT ${PAGE_CONTENT_HYDRATION_SELECT}",
     "content_text LIKE ?",
     "const candidateLimit = Math.max(limit * 8, limit)",
   ]) {
@@ -8289,6 +8294,12 @@ function run() {
       "Smoke verifier must keep local full-text page search candidate-bounded."
     );
   }
+  assertExcludes(
+    files.localQueries,
+    searchPagesQueryBlock,
+    "SELECT * FROM pages",
+    "Smoke verifier must keep local full-text page search from hydrating content_yjs or unrelated heavy page fields."
+  );
   assertIncludes(
     files.wikiSuggestion,
     wikiSuggestion,

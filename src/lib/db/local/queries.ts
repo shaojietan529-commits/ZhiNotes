@@ -2584,7 +2584,8 @@ export async function searchPages(query: string, limit = 20): Promise<Page[]> {
   ]);
   const candidateLimit = Math.max(limit * 8, limit);
   const pages = db.query(
-    `SELECT * FROM pages
+    `SELECT ${PAGE_CONTENT_HYDRATION_SELECT}
+     FROM pages
      WHERE deleted_at IS NULL AND (${where})
      ORDER BY updated_at DESC
      LIMIT ?`,

@@ -6636,10 +6636,18 @@ function run() {
   ]) {
     assertSourceIncludes(files.quickSearch, quickSearch, snippet, message);
   }
+  const searchPagesQueryBlock = localQueries.slice(
+    localQueries.indexOf("export async function searchPages"),
+    localQueries.indexOf("export async function searchPageMetadata")
+  );
   for (const [snippet, message] of [
     [
       "export async function searchPages(query: string, limit = 20)",
       "Local full-text page search must expose a bounded result limit.",
+    ],
+    [
+      "SELECT ${PAGE_CONTENT_HYDRATION_SELECT}",
+      "Local full-text page search must return page body text without hydrating content_yjs or unrelated heavy page fields.",
     ],
     [
       "content_text LIKE ?",
@@ -6652,6 +6660,12 @@ function run() {
   ]) {
     assertSourceIncludes(files.localQueries, localQueries, snippet, message);
   }
+  assertSourceExcludes(
+    files.localQueries,
+    searchPagesQueryBlock,
+    "SELECT * FROM pages",
+    "Local full-text page search must not hydrate content_yjs or unrelated heavy page fields."
+  );
   assertSourceIncludes(
     files.wikiSuggestion,
     wikiSuggestion,
