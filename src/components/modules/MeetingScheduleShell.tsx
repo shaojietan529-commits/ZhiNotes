@@ -336,13 +336,14 @@ export default function MeetingScheduleShell() {
     hotCacheBootstrapKeyRef.current = bootstrapKey;
 
     const cachedHotSnapshot = readMeetingHotCacheSnapshot(startDate, endDate);
-    if (!cachedHotSnapshot) return;
-    const cachedPages = cachedHotSnapshot.pages.map(
-      meetingHotCacheSnapshotPageToPage
-    );
+    const cachedCloud = readCachedMeetingCloudMetadata(startDate, endDate);
+    if (!cachedHotSnapshot && !cachedCloud?.ok) return;
+    const cachedHotPages =
+      cachedHotSnapshot?.pages.map(meetingHotCacheSnapshotPageToPage) ?? [];
+    const cachedCloudPages = cachedCloud?.ok ? cachedCloud.pages : [];
     const mergedMeetings = mergeMeetingPages(
-      cachedPages,
-      [],
+      cachedHotPages,
+      cachedCloudPages,
       deletedTombstoneRef.current
     );
     if (mergedMeetings.length === 0) return;
@@ -352,14 +353,24 @@ export default function MeetingScheduleShell() {
       endDate
     );
     const nextMeetings = selection.pages;
+    const rootHint = cachedHotSnapshot?.root_id ?? cachedCloud?.rootId ?? null;
 
-    if (cachedHotSnapshot.root_id) {
-      setRootId(cachedHotSnapshot.root_id);
+    if (rootHint) {
+      setRootId(rootHint);
     }
     startTransition(() => {
       setMeetings(nextMeetings);
       setMeetingCountByDate(selection.countsByDate);
     });
+    if (cachedCloudPages.length > 0) {
+      writeMeetingHotCacheSnapshot({
+        startDate,
+        endDate,
+        rootId: rootHint,
+        pages: nextMeetings,
+        source: "cloud-metadata",
+      });
+    }
   }, [deletedTombstoneRef, viewMonth]);
 
   useEffect(() => {

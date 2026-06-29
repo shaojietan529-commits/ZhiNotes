@@ -3059,6 +3059,24 @@ function run() {
     "hotCacheBootstrapKeyRef",
     "Meeting schedule must bootstrap visible-month hot cache before IndexedDB readiness."
   );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "readCachedMeetingCloudMetadata(startDate, endDate)",
+    "Meeting schedule must also use cached cloud directory metadata before IndexedDB readiness."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "const cachedCloudPages = cachedCloud?.ok ? cachedCloud.pages : []",
+    "Meeting schedule must merge cached cloud directory metadata into first paint."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'source: "cloud-metadata"',
+    "Meeting schedule must convert cached cloud directory metadata into the safe local hot cache."
+  );
   if (
     !(
       meetingScheduleShell.indexOf(
