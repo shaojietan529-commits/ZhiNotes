@@ -115,6 +115,7 @@ const files = {
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   calendarFirstPaintRange: "src/lib/sync/calendarFirstPaintRange.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
+  dailyCalendarLoadStatus: "src/lib/sync/dailyCalendarLoadStatus.ts",
   meetingHotCacheSnapshot: "src/lib/sync/meetingHotCacheSnapshot.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
@@ -544,6 +545,9 @@ function run() {
     files.calendarFirstPaintRange
   );
   const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
+  const dailyCalendarLoadStatus = readProjectFile(
+    files.dailyCalendarLoadStatus
+  );
   const meetingHotCacheSnapshot = readProjectFile(
     files.meetingHotCacheSnapshot
   );
@@ -2090,6 +2094,81 @@ function run() {
     assertSourceExcludes(
       files.dailyHotCacheSnapshot,
       dailyHotCacheSnapshot,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "DailyCalendarLoadPhase",
+      "Daily calendar load status must expose explicit phase ids for UI diagnostics.",
+    ],
+    [
+      "buildDailyCalendarLoadStatusView",
+      "Daily calendar load status must be built through a reusable view model.",
+    ],
+    [
+      "visibleNotes",
+      "Daily calendar status must show visible note counts without reading note bodies.",
+    ],
+    [
+      "visibleDays",
+      "Daily calendar status must show active day counts without reading note bodies.",
+    ],
+    [
+      "热缓存",
+      "Daily calendar status must make hot-cache first paint visible to the user.",
+    ],
+    [
+      "本地索引",
+      "Daily calendar status must distinguish local index readiness.",
+    ],
+    [
+      "后台补齐",
+      "Daily calendar status must distinguish background metadata fill.",
+    ],
+    [
+      "云端校正",
+      "Daily calendar status must distinguish cloud metadata correction.",
+    ],
+    [
+      "Daily calendar load status is metadata-only",
+      "Daily calendar status must document its privacy boundary.",
+    ],
+    [
+      "does not read page body text",
+      "Daily calendar status privacy boundary must explicitly exclude page bodies.",
+    ],
+    [
+      "does not send network requests",
+      "Daily calendar status privacy boundary must explicitly exclude network requests.",
+    ],
+    [
+      "does not write server data",
+      "Daily calendar status privacy boundary must explicitly exclude server writes.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.dailyCalendarLoadStatus,
+      dailyCalendarLoadStatus,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    ["content_text", "Daily calendar status must not read page content text."],
+    ["content_yjs", "Daily calendar status must not read page Yjs content."],
+    ["field_values", "Daily calendar status must not read database row values."],
+    ["comment.body", "Daily calendar status must not read comment bodies."],
+    ["file.dataUrl", "Daily calendar status must not read file bytes."],
+    ["fetch(", "Daily calendar status must not call network APIs."],
+    ["localStorage", "Daily calendar status must not touch browser storage."],
+    ["recordSyncChange", "Daily calendar status must not enter the upload queue."],
+    ["INSERT INTO sync_log", "Daily calendar status must not write sync rows."],
+  ]) {
+    assertSourceExcludes(
+      files.dailyCalendarLoadStatus,
+      dailyCalendarLoadStatus,
       snippet,
       message
     );

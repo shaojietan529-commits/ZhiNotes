@@ -44,6 +44,7 @@ const files = {
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   calendarFirstPaintRange: "src/lib/sync/calendarFirstPaintRange.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
+  dailyCalendarLoadStatus: "src/lib/sync/dailyCalendarLoadStatus.ts",
   meetingHotCacheSnapshot: "src/lib/sync/meetingHotCacheSnapshot.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
@@ -392,6 +393,9 @@ function run() {
     files.calendarFirstPaintRange
   );
   const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
+  const dailyCalendarLoadStatus = readProjectFile(
+    files.dailyCalendarLoadStatus
+  );
   const meetingHotCacheSnapshot = readProjectFile(
     files.meetingHotCacheSnapshot
   );
@@ -3698,6 +3702,63 @@ function run() {
     if (dailyHotCacheSnapshot.includes(forbiddenDailySnapshotSnippet)) {
       failures.push(
         `${files.dailyHotCacheSnapshot} must not include ${forbiddenDailySnapshotSnippet}: daily hot cache snapshot must stay metadata-only and local-only.`
+      );
+    }
+  }
+  for (const [snippet, message] of [
+    [
+      "DailyCalendarLoadPhase",
+      "Daily calendar load status must expose explicit phase ids for UI diagnostics.",
+    ],
+    [
+      "buildDailyCalendarLoadStatusView",
+      "Daily calendar load status must be built through a reusable view model.",
+    ],
+    [
+      "visibleNotes",
+      "Daily calendar status must show visible note counts without reading note bodies.",
+    ],
+    [
+      "visibleDays",
+      "Daily calendar status must show active day counts without reading note bodies.",
+    ],
+    [
+      "热缓存",
+      "Daily calendar status must make hot-cache first paint visible to the user.",
+    ],
+    [
+      "本地索引",
+      "Daily calendar status must distinguish local index readiness.",
+    ],
+    [
+      "后台补齐",
+      "Daily calendar status must distinguish background metadata fill.",
+    ],
+    [
+      "云端校正",
+      "Daily calendar status must distinguish cloud metadata correction.",
+    ],
+    [
+      "Daily calendar load status is metadata-only",
+      "Daily calendar status must document its privacy boundary.",
+    ],
+  ]) {
+    assertIncludes(files.dailyCalendarLoadStatus, dailyCalendarLoadStatus, snippet, message);
+  }
+  for (const forbiddenDailyStatusSnippet of [
+    "content_text",
+    "content_yjs",
+    "field_values",
+    "comment.body",
+    "file.dataUrl",
+    "fetch(",
+    "localStorage",
+    "recordSyncChange",
+    "INSERT INTO sync_log",
+  ]) {
+    if (dailyCalendarLoadStatus.includes(forbiddenDailyStatusSnippet)) {
+      failures.push(
+        `${files.dailyCalendarLoadStatus} must not include ${forbiddenDailyStatusSnippet}: daily load status must stay metadata-only and side-effect-free.`
       );
     }
   }

@@ -625,6 +625,7 @@ check(
 );
 
 const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
+const dailyCalendarLoadStatus = read("src/lib/sync/dailyCalendarLoadStatus.ts");
 check(
   dailyNotesShell.includes("const storedDailyRootId = getModuleRootIdSync(\"daily\")") &&
     dailyNotesShell.includes("const cachedCloud = includeCloud") &&
@@ -642,9 +643,9 @@ check(
       dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") &&
     dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") <
       dailyNotesShell.indexOf("const cloudMetadata = startDailyCloudMetadataFetch()") &&
-    dailyNotesShell.indexOf("publishNotes(Array.from(byId.values()))") <
+    dailyNotesShell.indexOf("publishNotes(Array.from(byId.values()), {") <
       dailyNotesShell.indexOf("const cloudMetadata = startDailyCloudMetadataFetch()") &&
-    dailyNotesShell.includes("publishNotes(Array.from(byId.values()))") &&
+    dailyNotesShell.includes("publishNotes(Array.from(byId.values()), {") &&
     dailyNotesShell.includes("void ensureDailyDateIndexBackfilled()") &&
     dailyNotesShell.includes(
       'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
@@ -672,6 +673,13 @@ check(
     dailyNotesShell.includes("notesRenderFingerprintRef.current === nextFingerprint") &&
     dailyNotesShell.includes("setNotes(renderableNotes)") &&
     dailyNotesShell.includes("setDailyNoteCountByDate(selection.countsByDate)") &&
+    dailyNotesShell.includes("buildDailyCalendarLoadStatusView") &&
+    dailyNotesShell.includes("createDailyCalendarLoadStatus") &&
+    dailyNotesShell.includes("DailyCalendarLoadStatusStrip") &&
+    dailyNotesShell.includes('data-testid="daily-calendar-load-status"') &&
+    dailyNotesShell.includes('publishCalendarStatus("cloud-checking"') &&
+    dailyNotesShell.includes('phase: "cloud-ready"') &&
+    dailyNotesShell.includes('phase: "optimistic-draft"') &&
     dailyNotesShell.includes("const deferredRecentNotes = useDeferredValue(calendarIndexes.recentNotes)") &&
     dailyNotesShell.includes("deferredRecentNotes.slice(0, DAILY_RECENT_VISIBLE_LIMIT)") &&
     dailyNotesShell.includes("function addRecentDailyNoteCandidate(") &&
@@ -694,6 +702,30 @@ check(
       dailyNotesShell.indexOf("await ensureDailyDateIndexBackfilled()") &&
     !dailyNotesShell.includes("getAllPageMetadata"),
   "DailyNotesShell 首屏应本地/缓存优先，recent metadata 窗口按热缓存偏好有界扩大；首屏只能走日期索引，未索引 Notion 导入 fallback 必须后台补齐"
+);
+check(
+  dailyCalendarLoadStatus.includes("DailyCalendarLoadPhase") &&
+    dailyCalendarLoadStatus.includes("buildDailyCalendarLoadStatusView") &&
+    dailyCalendarLoadStatus.includes("visibleNotes") &&
+    dailyCalendarLoadStatus.includes("visibleDays") &&
+    dailyCalendarLoadStatus.includes("热缓存") &&
+    dailyCalendarLoadStatus.includes("本地索引") &&
+    dailyCalendarLoadStatus.includes("后台补齐") &&
+    dailyCalendarLoadStatus.includes("云端校正") &&
+    dailyCalendarLoadStatus.includes("Daily calendar load status is metadata-only") &&
+    dailyCalendarLoadStatus.includes("does not read page body text") &&
+    dailyCalendarLoadStatus.includes("does not send network requests") &&
+    dailyCalendarLoadStatus.includes("does not write server data") &&
+    !dailyCalendarLoadStatus.includes("content_text") &&
+    !dailyCalendarLoadStatus.includes("content_yjs") &&
+    !dailyCalendarLoadStatus.includes("field_values") &&
+    !dailyCalendarLoadStatus.includes("comment.body") &&
+    !dailyCalendarLoadStatus.includes("file.dataUrl") &&
+    !dailyCalendarLoadStatus.includes("fetch(") &&
+    !dailyCalendarLoadStatus.includes("localStorage") &&
+    !dailyCalendarLoadStatus.includes("recordSyncChange") &&
+    !dailyCalendarLoadStatus.includes("INSERT INTO sync_log"),
+  "每日纪要加载状态条必须只使用阶段、计数和来源 metadata，不能读取正文、访问浏览器缓存、请求网络或写同步队列"
 );
 check(
   dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <

@@ -78,6 +78,7 @@ const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
 const pageCloudSaveStatus = read("src/lib/pages/pageCloudSaveStatus.ts");
+const dailyCalendarLoadStatus = read("src/lib/sync/dailyCalendarLoadStatus.ts");
 const editorSource = read("src/components/editor/Editor.tsx");
 const blockCommentsSource = read("src/components/shared/BlockComments.tsx");
 const commentSidePanelSource = read(
@@ -186,9 +187,36 @@ for (const token of [
   "includeUnindexedFallback: false",
   "includeUnindexedFallback: true",
   'source: "local-fallback-metadata"',
+  "buildDailyCalendarLoadStatusView",
+  "createDailyCalendarLoadStatus",
+  "DailyCalendarLoadStatusStrip",
+  'data-testid="daily-calendar-load-status"',
+  "data-load-phase={view.phase}",
+  "data-load-step={step.id}",
+  'publishCalendarStatus("cloud-checking"',
+  'phase: "cloud-ready"',
+  'phase: "optimistic-draft"',
 ]) {
   check(shells.daily.includes(token), `DailyNotesShell 缺少每日纪要性能护栏 ${token}`);
 }
+check(
+  dailyCalendarLoadStatus.includes("DailyCalendarLoadPhase") &&
+    dailyCalendarLoadStatus.includes("buildDailyCalendarLoadStatusView") &&
+    dailyCalendarLoadStatus.includes("visibleNotes") &&
+    dailyCalendarLoadStatus.includes("visibleDays") &&
+    dailyCalendarLoadStatus.includes("热缓存") &&
+    dailyCalendarLoadStatus.includes("本地索引") &&
+    dailyCalendarLoadStatus.includes("后台补齐") &&
+    dailyCalendarLoadStatus.includes("云端校正") &&
+    dailyCalendarLoadStatus.includes("Daily calendar load status is metadata-only") &&
+    dailyCalendarLoadStatus.includes("does not read page body text") &&
+    dailyCalendarLoadStatus.includes("does not send network requests") &&
+    dailyCalendarLoadStatus.includes("does not write server data") &&
+    !dailyCalendarLoadStatus.includes("content_text") &&
+    !dailyCalendarLoadStatus.includes("fetch(") &&
+    !dailyCalendarLoadStatus.includes("localStorage"),
+  "每日纪要加载状态条必须只使用阶段和计数 metadata，不能读取正文、请求网络或写缓存"
+);
 check(
   shells.daily.includes('await findLocalModuleRootId("daily")') &&
     shells.daily.includes(

@@ -62,6 +62,14 @@ import {
   type CalendarMonthCell as MonthCell,
 } from "@/lib/sync/calendarFirstPaintRange";
 import {
+  buildDailyCalendarLoadStatusView,
+  createDailyCalendarLoadStatus,
+  type DailyCalendarLoadPhase,
+  type DailyCalendarLoadStatusState,
+  type DailyCalendarLoadStatusView,
+  type DailyCalendarLoadTone,
+} from "@/lib/sync/dailyCalendarLoadStatus";
+import {
   DEFAULT_HOT_CACHE_PREFERENCES,
   HOT_CACHE_PREFERENCES_CHANGED_EVENT,
   HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY,
@@ -165,6 +173,14 @@ export default function DailyNotesShell() {
   >(() => new Map());
   const [cloudNotice, setCloudNotice] = useState<string | null>(null);
   const [cloudLoading, setCloudLoading] = useState(false);
+  const [calendarLoadStatus, setCalendarLoadStatus] =
+    useState<DailyCalendarLoadStatusState>(() =>
+      createDailyCalendarLoadStatus({
+        phase: "booting",
+        backgroundActive: true,
+        message: "正在启动每日纪要日历，先准备本地壳和热缓存。",
+      })
+    );
   const [creatingDateKey, setCreatingDateKey] = useState<string | null>(null);
   const [openingDraft, setOpeningDraft] = useState<OpeningDailyDraft | null>(
     null
@@ -284,6 +300,19 @@ export default function DailyNotesShell() {
       cachedCloudMerged > 0
         ? `已先显示浏览器缓存的云端每日纪要目录 ${renderableNotes.length} 条，正在启动本地数据库和云端校正…`
         : `已先显示本机热缓存 ${renderableNotes.length} 条每日纪要 metadata，正在启动本地数据库和云端校正…`
+    );
+    setCalendarLoadStatus(
+      createDailyCalendarLoadStatus({
+        phase: cachedCloudMerged > 0 ? "cached-cloud" : "hot-cache",
+        visibleNotes: renderableNotes.length,
+        visibleDays: selection.countsByDate.size,
+        backgroundActive: true,
+        staleCloud: Boolean(cachedCloud?.stale),
+        message:
+          cachedCloudMerged > 0
+            ? "已先显示浏览器缓存的云端目录，正在启动本地数据库和云端校正。"
+            : "已先显示本机热缓存，正在启动本地数据库和云端校正。",
+      })
     );
   }, [viewMonth]);
 
@@ -419,6 +448,18 @@ export default function DailyNotesShell() {
     const visibleRange = buildMonthGrid(viewMonth);
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
+    setCalendarLoadStatus(
+      createDailyCalendarLoadStatus({
+        phase: "booting",
+        visibleNotes: notesRef.current.length,
+        visibleDays: countDailyVisibleDays(notesRef.current, startDate, endDate),
+        cloudLoading: includeCloud,
+        backgroundActive: true,
+        message: includeCloud
+          ? "正在读取热缓存、本地索引，并准备云端 metadata 校正。"
+          : "正在刷新本地每日纪要索引。",
+      })
+    );
     const byId = new Map<string, DailyNote>();
     const cachedHotSnapshot = readDailyHotCacheSnapshot(startDate, endDate);
     const overlappingHotSnapshots = readDailyHotCacheSnapshotsForRange(
@@ -462,7 +503,16 @@ export default function DailyNotesShell() {
         Math.max(DAILY_RECENT_VISIBLE_LIMIT, DAILY_RENDER_RECENT_BUFFER_LIMIT)
       );
 
-    const publishNotes = (nextNotes: DailyNote[]) => {
+    const publishNotes = (
+      nextNotes: DailyNote[],
+      status?: {
+        phase: DailyCalendarLoadPhase;
+        backgroundActive?: boolean;
+        cloudLoading?: boolean;
+        staleCloud?: boolean;
+        message?: string | null;
+      }
+    ) => {
       if (loadRequestRef.current !== requestId) return;
       const selection = selectRenderableNotes(nextNotes);
       const renderableNotes = selection.notes;
@@ -481,6 +531,44 @@ export default function DailyNotesShell() {
         setNotes(renderableNotes);
         setDailyNoteCountByDate(selection.countsByDate);
       });
+      if (status) {
+        setCalendarLoadStatus(
+          createDailyCalendarLoadStatus({
+            phase: status.phase,
+            visibleNotes: renderableNotes.length,
+            visibleDays: selection.countsByDate.size,
+            cloudLoading: Boolean(status.cloudLoading),
+            backgroundActive: Boolean(status.backgroundActive),
+            staleCloud: Boolean(status.staleCloud),
+            message: status.message ?? null,
+          })
+        );
+      }
+    };
+
+    const publishCalendarStatus = (
+      phase: DailyCalendarLoadPhase,
+      nextNotes: DailyNote[] = Array.from(byId.values()),
+      status?: {
+        backgroundActive?: boolean;
+        cloudLoading?: boolean;
+        staleCloud?: boolean;
+        message?: string | null;
+      }
+    ) => {
+      if (loadRequestRef.current !== requestId) return;
+      const selection = selectRenderableNotes(nextNotes);
+      setCalendarLoadStatus(
+        createDailyCalendarLoadStatus({
+          phase,
+          visibleNotes: selection.notes.length,
+          visibleDays: selection.countsByDate.size,
+          cloudLoading: Boolean(status?.cloudLoading),
+          backgroundActive: Boolean(status?.backgroundActive),
+          staleCloud: Boolean(status?.staleCloud),
+          message: status?.message ?? null,
+        })
+      );
     };
 
     const recordDailyPerformance = (
@@ -529,7 +617,12 @@ export default function DailyNotesShell() {
         endDate
       );
       if (merged > 0) {
-        publishNotes(Array.from(byId.values()));
+        publishNotes(Array.from(byId.values()), {
+          phase: "hot-cache",
+          backgroundActive: true,
+          cloudLoading: includeCloud,
+          message: `已先显示本机热缓存 ${merged} 条，后台继续校正本地和云端主库。`,
+        });
         publishNotice(
           `已先显示本机热缓存 ${merged} 条每日纪要 metadata，正在后台校正本地和云端主库…`
         );
@@ -546,7 +639,12 @@ export default function DailyNotesShell() {
       );
     }
     if (overlappingHotMerged > 0) {
-      publishNotes(Array.from(byId.values()));
+      publishNotes(Array.from(byId.values()), {
+        phase: "hot-cache",
+        backgroundActive: true,
+        cloudLoading: includeCloud,
+        message: `已先显示本机重叠热缓存 ${overlappingHotMerged} 条，后台继续校正。`,
+      });
       publishNotice(
         `已先显示本机重叠热缓存 ${overlappingHotMerged} 条每日纪要 metadata，后台继续校正本地和云端主库…`
       );
@@ -557,7 +655,15 @@ export default function DailyNotesShell() {
       publishRootId(cachedCloud.rootId);
       const merged = mergeCloudDailyNotes(byId, cachedCloud);
       if (merged > 0) {
-        publishNotes(Array.from(byId.values()));
+        publishNotes(Array.from(byId.values()), {
+          phase: "cached-cloud",
+          backgroundActive: true,
+          cloudLoading: includeCloud,
+          staleCloud: cachedCloud.stale,
+          message: cachedCloud.stale
+            ? "已先显示较早缓存的云端目录，后台刷新到最新。"
+            : "已先显示浏览器缓存的云端目录，后台继续校正。",
+        });
       }
       publishNotice(
         cachedCloud.stale
@@ -597,7 +703,12 @@ export default function DailyNotesShell() {
           for (const note of collectDailyNotes(confirmedMetadata, confirmedRootId)) {
             nextById.set(note.id, note);
           }
-          publishNotes(Array.from(nextById.values()));
+          publishNotes(Array.from(nextById.values()), {
+            phase: "local-index",
+            backgroundActive: includeCloud,
+            cloudLoading: includeCloud,
+            message: "已切换到确认后的每日纪要根目录，本地索引已刷新。",
+          });
         })
         .catch(() => undefined);
     }
@@ -611,7 +722,14 @@ export default function DailyNotesShell() {
     const dailyNotes = collectDailyNotes(localMetadata, dailyRootId);
     localNoteCount = dailyNotes.length;
     for (const note of dailyNotes) byId.set(note.id, note);
-    publishNotes(Array.from(byId.values()));
+    publishNotes(Array.from(byId.values()), {
+      phase: "local-index",
+      backgroundActive: includeCloud,
+      cloudLoading: includeCloud,
+      message: includeCloud
+        ? "本地日期索引已显示，正在后台校正云端 metadata。"
+        : "本地日期索引已刷新。",
+    });
     writeDailyHotCacheSnapshot({
       startDate,
       endDate,
@@ -639,7 +757,12 @@ export default function DailyNotesShell() {
           fallbackById.set(note.id, note);
           byId.set(note.id, note);
         }
-        publishNotes(Array.from(fallbackById.values()));
+        publishNotes(Array.from(fallbackById.values()), {
+          phase: "local-fallback",
+          backgroundActive: true,
+          cloudLoading: includeCloud,
+          message: "后台已补齐旧导入/未索引 metadata，正在分批校正日期索引。",
+        });
         writeDailyHotCacheSnapshot({
           startDate,
           endDate,
@@ -650,6 +773,11 @@ export default function DailyNotesShell() {
 
         await ensureDailyDateIndexBackfilled();
         if (loadRequestRef.current !== requestId) return;
+        publishCalendarStatus("index-backfill", Array.from(byId.values()), {
+          backgroundActive: true,
+          cloudLoading: includeCloud,
+          message: "日期索引已完成一轮分批校正，正在复查当前月目录。",
+        });
         const refreshed = await listDailyPageMetadataForCalendar({
           rootId: dailyRootId,
           startDate,
@@ -662,13 +790,26 @@ export default function DailyNotesShell() {
         for (const note of collectDailyNotes(refreshed, dailyRootId)) {
           nextById.set(note.id, note);
         }
-        publishNotes(Array.from(nextById.values()));
+        publishNotes(Array.from(nextById.values()), {
+          phase: includeCloud ? "cloud-checking" : "local-index",
+          backgroundActive: includeCloud,
+          cloudLoading: includeCloud,
+          message: includeCloud
+            ? "本地补齐完成，正在等待云端 metadata 校正。"
+            : "本地补齐完成，当前月目录已稳定。",
+        });
       })()
         .catch(() => undefined);
     }, 450);
 
     if (includeCloud) {
       setCloudLoading(true);
+      publishCalendarStatus("cloud-checking", Array.from(byId.values()), {
+        backgroundActive: true,
+        cloudLoading: true,
+        staleCloud: Boolean(cachedCloud?.stale),
+        message: "本地目录已可用，正在读取云端 metadata 校正。",
+      });
       if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
         if (!cachedCloud.stale) {
           void persistDailyCloudMetadata(cachedCloud, upsertPages);
@@ -685,7 +826,15 @@ export default function DailyNotesShell() {
           rememberModuleRootId("daily", cloud.rootId);
           publishRootId(cloud.rootId);
           const merged = mergeCloudDailyNotes(byId, cloud);
-          publishNotes(Array.from(byId.values()));
+          publishNotes(Array.from(byId.values()), {
+            phase: "cloud-ready",
+            backgroundActive: false,
+            cloudLoading: false,
+            message:
+              cloud.pages.length > 0
+                ? `云端 metadata 已校正，当前范围 ${cloud.rangeCount ?? 0} 条。`
+                : "云端 metadata 已校正，当前月份没有返回更多纪要。",
+          });
           writeCachedDailyCloudMetadata(startDate, endDate, cloud);
           writeDailyHotCacheSnapshot({
             startDate,
@@ -711,19 +860,44 @@ export default function DailyNotesShell() {
           return;
         }
         if (cloud.status === "disabled") {
+          publishCalendarStatus("local-only", Array.from(byId.values()), {
+            backgroundActive: false,
+            cloudLoading: false,
+            message: "页面同步已关闭，只显示本机每日纪要。",
+          });
           publishNotice("页面同步已关闭，只显示本机每日纪要。");
           recordDailyPerformance("cloud-disabled");
         } else if (cloud.status === "unauthenticated") {
+          publishCalendarStatus("local-only", Array.from(byId.values()), {
+            backgroundActive: false,
+            cloudLoading: false,
+            message: "当前浏览器未登录账号，只显示本机每日纪要。",
+          });
           publishNotice("当前浏览器未登录账号，只显示本机每日纪要。");
           recordDailyPerformance("cloud-unauthenticated");
         } else if (cloud.status === "unconfigured") {
+          publishCalendarStatus("local-only", Array.from(byId.values()), {
+            backgroundActive: false,
+            cloudLoading: false,
+            message: "云端账号系统未配置，只显示本机每日纪要。",
+          });
           publishNotice("云端账号系统未配置，只显示本机每日纪要。");
           recordDailyPerformance("cloud-unconfigured");
         } else {
+          publishCalendarStatus("cloud-error", Array.from(byId.values()), {
+            backgroundActive: false,
+            cloudLoading: false,
+            message: cloud.message ?? "云端每日纪要索引读取失败。",
+          });
           publishNotice(cloud.message ?? "云端每日纪要索引读取失败。");
           recordDailyPerformance("cloud-error");
         }
       } catch {
+        publishCalendarStatus("cloud-error", Array.from(byId.values()), {
+          backgroundActive: false,
+          cloudLoading: false,
+          message: "云端每日纪要索引读取失败。",
+        });
         publishNotice("云端每日纪要索引读取失败。");
         recordDailyPerformance("cloud-error");
       } finally {
@@ -969,6 +1143,10 @@ export default function DailyNotesShell() {
   const notesById = calendarIndexes.notesById;
   // Each day can hold multiple note pages (Notion-style), grouped by 日期.
   const notesByDate = calendarIndexes.notesByDate;
+  const calendarLoadStatusView = useMemo(
+    () => buildDailyCalendarLoadStatusView(calendarLoadStatus),
+    [calendarLoadStatus]
+  );
 
   useEffect(() => {
     const occupiedDateKeys = buildOccupiedDailyCalendarHydrationKeys(
@@ -1130,6 +1308,24 @@ export default function DailyNotesShell() {
         // already give the full page enough metadata for immediate first paint.
       }
       setCloudNotice(`${dateKey} 的每日纪要已弹出，后台会加入账号云端上传队列…`);
+      const optimisticRange = buildMonthGrid(viewMonth);
+      setCalendarLoadStatus(
+        createDailyCalendarLoadStatus({
+          phase: "optimistic-draft",
+          visibleNotes: notesRef.current.length + 1,
+          visibleDays: Math.max(
+            1,
+            countDailyVisibleDays(
+              [optimisticNote, ...notesRef.current],
+              toDateKey(optimisticRange[0].date),
+              toDateKey(optimisticRange[optimisticRange.length - 1].date)
+            )
+          ),
+          backgroundActive: true,
+          cloudLoading: false,
+          message: `${dateKey} 的每日纪要已在本机创建，后台继续保存并排队同步。`,
+        })
+      );
       scheduleDailyIdleTask(() => {
         void (async () => {
           try {
@@ -1514,6 +1710,7 @@ export default function DailyNotesShell() {
                   {cloudNotice}
                 </p>
               )}
+              <DailyCalendarLoadStatusStrip view={calendarLoadStatusView} />
             </div>
             <button
               type="button"
@@ -2210,6 +2407,20 @@ function dailyNoteCountsFingerprint(countsByDate: Map<string, number>): string {
     .join("|");
 }
 
+function countDailyVisibleDays(
+  notes: DailyNote[],
+  startDate: string,
+  endDate: string
+): number {
+  const dateKeys = new Set<string>();
+  for (const note of notes) {
+    const dateKey = dailyNoteDateKey(note);
+    if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
+    dateKeys.add(dateKey);
+  }
+  return dateKeys.size;
+}
+
 function addRecentDailyNoteCandidate(
   recent: IndexedDailyNote[],
   candidate: IndexedDailyNote,
@@ -2726,6 +2937,85 @@ function remoteRecordToPage(record: RemotePageRecord): Page {
     deleted_at: record.deleted_at,
     sync_version: 0,
   };
+}
+
+function DailyCalendarLoadStatusStrip({
+  view,
+}: {
+  view: DailyCalendarLoadStatusView;
+}) {
+  return (
+    <div
+      data-testid="daily-calendar-load-status"
+      data-load-phase={view.phase}
+      aria-label={view.ariaLabel}
+      title={view.privacyBoundary}
+      className={`mt-3 border-y px-0 py-2 text-xs ${dailyCalendarLoadToneClass(
+        view.tone
+      )}`}
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-zinc-700 dark:text-zinc-200">
+              {view.label}
+            </span>
+            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+          </div>
+          <p className="mt-1 truncate text-zinc-500 dark:text-zinc-400">
+            {view.detail}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {view.chips.map((chip) => (
+            <span
+              key={`${chip.label}:${chip.value}`}
+              className="rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400"
+            >
+              {chip.label} {chip.value}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {view.steps.map((step) => (
+          <span
+            key={step.id}
+            data-load-step={step.id}
+            data-load-step-state={step.state}
+            className={`inline-flex items-center gap-1 ${dailyCalendarLoadStepClass(
+              step.state
+            )}`}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            {step.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function dailyCalendarLoadToneClass(tone: DailyCalendarLoadTone): string {
+  if (tone === "success") {
+    return "border-emerald-200 text-emerald-700 dark:border-emerald-900/70 dark:text-emerald-300";
+  }
+  if (tone === "warning") {
+    return "border-amber-200 text-amber-700 dark:border-amber-900/70 dark:text-amber-300";
+  }
+  if (tone === "working") {
+    return "border-blue-200 text-blue-700 dark:border-blue-900/70 dark:text-blue-300";
+  }
+  return "border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400";
+}
+
+function dailyCalendarLoadStepClass(
+  state: DailyCalendarLoadStatusView["steps"][number]["state"]
+): string {
+  if (state === "done") return "text-emerald-600 dark:text-emerald-300";
+  if (state === "active") return "text-blue-600 dark:text-blue-300";
+  if (state === "warning") return "text-amber-600 dark:text-amber-300";
+  return "text-zinc-400 dark:text-zinc-600";
 }
 
 function CalNavButton({
