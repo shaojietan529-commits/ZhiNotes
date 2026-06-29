@@ -2408,6 +2408,10 @@ function run() {
       "Meeting calendar must cap per-day rendered entries so high-volume imports do not block the UI.",
     ],
     [
+      "MEETING_CALENDAR_MANUAL_DAY_LOAD_LIMIT",
+      "Meeting calendar must support bounded single-day metadata refill for high-volume imported days.",
+    ],
+    [
       "MEETING_CALENDAR_HYDRATION_BATCH",
       "Meeting calendar must hydrate date cells in idle batches instead of rendering every meeting chip at first paint.",
     ],
@@ -2444,6 +2448,18 @@ function run() {
       "Meeting calendar must keep total counts separately from the rendered entry list.",
     ],
     [
+      "const [loadingMoreMeetingDateKey, setLoadingMoreMeetingDateKey]",
+      "Meeting calendar must show an in-progress state while a high-volume day is being refilled.",
+    ],
+    [
+      "loadMoreMeetingsForDate",
+      "Meeting calendar must provide an explicit day-level refill path instead of only telling the user to search.",
+    ],
+    [
+      "rangeLimit: targetRangeLimit",
+      "Meeting calendar day-level refill must keep local metadata reads bounded.",
+    ],
+    [
       "function selectMeetingPagesForCalendarRender(",
       "Meeting calendar must route merged metadata through a render selection step before publishing.",
     ],
@@ -2456,8 +2472,12 @@ function run() {
       "Meeting calendar expansion controls must use true per-day totals, not only the capped render list.",
     ],
     [
-      "已显示 ${visibleMeetings.length}/${dayTotalCount} 场",
-      "Meeting calendar must tell the user when a high-volume day has reached the render cap.",
+      "点击补齐 ${visibleMeetings.length}/${dayTotalCount} 场",
+      "Meeting calendar must let the user refill a high-volume day directly from the calendar.",
+    ],
+    [
+      "正在补齐…",
+      "Meeting calendar must show immediate feedback while it refills a high-volume day.",
     ],
     [
       "场会议，点开查看",
@@ -14606,6 +14626,24 @@ function run() {
     meetingScheduleShell,
     "localPagesForMerge = await listMeetingPageMetadataForCalendar({",
     "Meeting calendar local hot-cache render must use bounded date-range metadata reads."
+  );
+  assertSourceIncludes(
+    files.localQueries,
+    localQueries,
+    "rangeLimit?: number",
+    "Meeting local metadata query must expose a rangeLimit so single-day refill stays bounded."
+  );
+  assertSourceIncludes(
+    files.localQueries,
+    localQueries,
+    "${boundedRangeLimit === null ? \"\" : \"LIMIT ?\"}",
+    "Meeting local metadata query must push bounded refill limits down to SQLite."
+  );
+  assertSourceIncludes(
+    files.localQueries,
+    localQueries,
+    ": [startDate, endDate, rootId, boundedRangeLimit]",
+    "Meeting local metadata query must bind the refill limit with the date-range query."
   );
   assertSourceIncludes(
     files.meetingScheduleShell,

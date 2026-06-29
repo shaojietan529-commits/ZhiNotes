@@ -900,6 +900,7 @@ check(
     meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_RENDER_DAY_LIMIT") &&
+    meetingScheduleShell.includes("MEETING_CALENDAR_MANUAL_DAY_LOAD_LIMIT") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_HYDRATION_BATCH") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS") &&
@@ -909,12 +910,15 @@ check(
     meetingScheduleShell.includes("const occupiedDateKeys = buildOccupiedMeetingCalendarHydrationKeys") &&
     meetingScheduleShell.includes("const revealNextOccupiedBatch = () =>") &&
     meetingScheduleShell.includes("const [meetingCountByDate, setMeetingCountByDate]") &&
+    meetingScheduleShell.includes("const [loadingMoreMeetingDateKey, setLoadingMoreMeetingDateKey]") &&
     meetingScheduleShell.includes("function selectMeetingPagesForCalendarRender(") &&
     meetingScheduleShell.includes("setMeetingCountByDate(selection.countsByDate)") &&
     meetingScheduleShell.includes("expandedMeetingDateKeys") &&
     meetingScheduleShell.includes("visibleMeetingLimitByDate") &&
     meetingScheduleShell.includes("toggleMeetingDateExpansion") &&
     meetingScheduleShell.includes("showMoreMeetingsForDate") &&
+    meetingScheduleShell.includes("loadMoreMeetingsForDate") &&
+    meetingScheduleShell.includes("rangeLimit: targetRangeLimit") &&
     meetingScheduleShell.includes("revealMeetingOnCalendar") &&
     meetingScheduleShell.includes("pendingCalendarFocusDateKeyRef") &&
     meetingScheduleShell.includes("requestAnimationFrame") &&
@@ -929,7 +933,8 @@ check(
     meetingScheduleShell.includes("Math.min(totalCount, currentLimit + MEETING_CALENDAR_EXPAND_BATCH)") &&
     meetingScheduleShell.includes("再显示 ${nextBatchCount} 场") &&
     meetingScheduleShell.includes("dayTotalCount > MEETING_CALENDAR_VISIBLE_LIMIT") &&
-    meetingScheduleShell.includes("已显示 ${visibleMeetings.length}/${dayTotalCount} 场") &&
+    meetingScheduleShell.includes("点击补齐 ${visibleMeetings.length}/${dayTotalCount} 场") &&
+    meetingScheduleShell.includes("正在补齐…") &&
     meetingScheduleShell.includes("场会议，点开查看") &&
     meetingScheduleShell.includes("data-testid={`meeting-calendar-day-${key}`}") &&
     meetingScheduleShell.includes("isMeetingDateHydrated && visibleMeetings.map") &&
@@ -940,7 +945,7 @@ check(
     meetingScheduleShell.includes("warmMeetingPageContent(page)") &&
     meetingScheduleShell.includes("为保持日历流畅") &&
     !meetingScheduleShell.includes("{dayMeetings.map"),
-  "MeetingScheduleShell 月历单元格应按日期空闲 hydration，只渲染用户已关注日期的可见会议，更多会议必须点击后分批展开；可见会议正文预热必须小批量本地 idle 执行；单日高 volume 会议应限量渲染并提示真实总数"
+  "MeetingScheduleShell 月历单元格应按日期空闲 hydration，只渲染用户已关注日期的可见会议，更多会议必须点击后分批展开；可见会议正文预热必须小批量本地 idle 执行；单日高 volume 会议应限量渲染并可按天补齐"
 );
 
 const usePageHook = read("src/hooks/usePage.ts");

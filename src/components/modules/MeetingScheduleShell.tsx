@@ -113,6 +113,7 @@ const MEETING_CALENDAR_EXPAND_BATCH = 24;
 const MEETING_CALENDAR_REVEAL_BUFFER = 2;
 const MEETING_CALENDAR_RENDER_DAY_LIMIT =
   MEETING_CALENDAR_VISIBLE_LIMIT + MEETING_CALENDAR_EXPAND_BATCH;
+const MEETING_CALENDAR_MANUAL_DAY_LOAD_LIMIT = 160;
 const MEETING_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT = 14;
 const MEETING_CALENDAR_HYDRATION_BATCH = 7;
 const MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS = 32;
@@ -316,6 +317,9 @@ export default function MeetingScheduleShell() {
   const [visibleMeetingLimitByDate, setVisibleMeetingLimitByDate] = useState<
     Map<string, number>
   >(() => new Map());
+  const [loadingMoreMeetingDateKey, setLoadingMoreMeetingDateKey] = useState<
+    string | null
+  >(null);
   const [hydratedMeetingDateKeys, setHydratedMeetingDateKeys] = useState<
     Set<string>
   >(() => new Set());
@@ -1162,6 +1166,109 @@ export default function MeetingScheduleShell() {
       });
     },
     []
+  );
+
+  const loadMoreMeetingsForDate = useCallback(
+    async (dateKey: string, totalCount: number) => {
+      if (!dbReady) {
+        showMoreMeetingsForDate(dateKey, totalCount);
+        return;
+      }
+      if (loadingMoreMeetingDateKey) return;
+      hydrateMeetingDateKey(dateKey);
+      showMoreMeetingsForDate(dateKey, totalCount);
+      setLoadingMoreMeetingDateKey(dateKey);
+
+      try {
+        const meetingRootId =
+          rootId ??
+          getModuleRootIdSync("meeting-schedule") ??
+          (await getModuleRootId("meeting-schedule"));
+        if (!rootId) setRootId(meetingRootId);
+        const currentLoadedCount = meetingsRef.current
+          .map(toMeetingEntry)
+          .filter((entry) => entry.dateKey === dateKey).length;
+        const targetRangeLimit = Math.min(
+          Math.max(totalCount, MEETING_CALENDAR_MANUAL_DAY_LOAD_LIMIT),
+          currentLoadedCount + MEETING_CALENDAR_MANUAL_DAY_LOAD_LIMIT
+        );
+        const metadata = await listMeetingPageMetadataForCalendar({
+          rootId: meetingRootId,
+          startDate: dateKey,
+          endDate: dateKey,
+          recentLimit: 0,
+          rangeLimit: targetRangeLimit,
+        });
+        const loadedDayMeetings = metadata
+          .filter((page) => toMeetingEntry(page).dateKey === dateKey)
+          .slice(0, targetRangeLimit);
+
+        if (loadedDayMeetings.length === 0) {
+          setIntakeMessage(
+            `${dateKey} 这一天暂时只能看到已加载的 ${Math.min(
+              totalCount,
+              MEETING_CALENDAR_RENDER_DAY_LIMIT
+            )}/${totalCount} 场会议；后台索引完成后会继续出现。`
+          );
+          return;
+        }
+
+        startTransition(() => {
+          setMeetings((current) => {
+            const byId = new Map(current.map((page) => [page.id, page]));
+            for (const page of loadedDayMeetings) byId.set(page.id, page);
+            return Array.from(byId.values());
+          });
+          setMeetingCountByDate((current) => {
+            const next = new Map(current);
+            next.set(
+              dateKey,
+              Math.max(
+                current.get(dateKey) ?? 0,
+                totalCount,
+                loadedDayMeetings.length
+              )
+            );
+            return next;
+          });
+        });
+        setVisibleMeetingLimitByDate((limits) => {
+          const currentLimit =
+            limits.get(dateKey) ??
+            MEETING_CALENDAR_VISIBLE_LIMIT + MEETING_CALENDAR_EXPAND_BATCH;
+          const nextLimits = new Map(limits);
+          nextLimits.set(
+            dateKey,
+            Math.min(
+              Math.max(totalCount, loadedDayMeetings.length),
+              currentLimit + MEETING_CALENDAR_EXPAND_BATCH
+            )
+          );
+          return nextLimits;
+        });
+        setIntakeMessage(
+          `已按 ${dateKey} 补齐本机会议目录 ${loadedDayMeetings.length}/${Math.max(
+            totalCount,
+            loadedDayMeetings.length
+          )} 场；为保持日历流畅，日历仍会分批显示，避免卡顿。`
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "本机会议目录读取失败";
+        setIntakeMessage(`${dateKey} 的会议补齐失败：${message}`);
+      } finally {
+        setLoadingMoreMeetingDateKey((current) =>
+          current === dateKey ? null : current
+        );
+      }
+    },
+    [
+      dbReady,
+      hydrateMeetingDateKey,
+      loadingMoreMeetingDateKey,
+      rootId,
+      showMoreMeetingsForDate,
+    ]
   );
 
   const createMeetingPage = useCallback(
@@ -2491,6 +2598,7 @@ export default function MeetingScheduleShell() {
               );
               const isRenderCapped =
                 dayTotalCount > dayMeetings.length && loadedHiddenCount === 0;
+              const isLoadingMoreMeetings = loadingMoreMeetingDateKey === key;
               const isToday = key === todayKey;
               const isHighlighted = key === highlightedDateKey;
               const isOpeningDraft = openingDraft?.dateKey === key;
@@ -2628,11 +2736,11 @@ export default function MeetingScheduleShell() {
                       dayTotalCount > MEETING_CALENDAR_VISIBLE_LIMIT) && (
                       <button
                         type="button"
+                        disabled={isLoadingMoreMeetings}
                         onClick={() => {
+                          if (isLoadingMoreMeetings) return;
                           if (isRenderCapped) {
-                            setIntakeMessage(
-                              `为保持日历流畅，${key} 当前先显示 ${visibleMeetings.length}/${dayTotalCount} 场会议；可用搜索打开其余会议。`
-                            );
+                            void loadMoreMeetingsForDate(key, dayTotalCount);
                             return;
                           }
                           if (isExpanded && hiddenCount === 0) {
@@ -2646,11 +2754,13 @@ export default function MeetingScheduleShell() {
                           toggleMeetingDateExpansion(key);
                         }}
                         aria-expanded={isExpanded}
-                        className="rounded bg-zinc-50 px-1.5 py-0.5 text-left text-xs text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                        className="rounded bg-zinc-50 px-1.5 py-0.5 text-left text-xs text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-wait disabled:opacity-70 dark:bg-zinc-900/40 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                       >
-                        {isExpanded
+                        {isLoadingMoreMeetings
+                          ? "正在补齐…"
+                          : isExpanded
                           ? isRenderCapped
-                            ? `已显示 ${visibleMeetings.length}/${dayTotalCount} 场`
+                            ? `点击补齐 ${visibleMeetings.length}/${dayTotalCount} 场`
                             : hiddenCount > 0
                             ? `再显示 ${nextBatchCount} 场（剩余 ${hiddenCount}）`
                             : `收起到 ${MEETING_CALENDAR_VISIBLE_LIMIT} 场`

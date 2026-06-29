@@ -1530,16 +1530,22 @@ export async function listMeetingPageMetadataForCalendar({
   startDate,
   endDate,
   recentLimit = 8,
+  rangeLimit,
 }: {
   rootId: string;
   startDate: string;
   endDate: string;
   recentLimit?: number;
+  rangeLimit?: number;
 }): Promise<Page[]> {
   const db = await getDb();
   const byId = new Map<string, Page>();
   const readRows = (sql: string, bind: unknown[]) =>
     db.query(sql, bind) as unknown as Page[];
+  const boundedRangeLimit =
+    typeof rangeLimit === "number" && Number.isFinite(rangeLimit)
+      ? Math.max(1, Math.floor(rangeLimit))
+      : null;
   const isMeetingScopePage = (page: Page): boolean =>
     page.parent_id === rootId || isMeetingMetadataPage(page);
   const addIfMeetingScope = (row: Page) => {
@@ -1553,8 +1559,11 @@ export async function listMeetingPageMetadataForCalendar({
        AND p.daily_date_key >= ?
        AND p.daily_date_key <= ?
        AND ${meetingCalendarScopeWhere("p")}
-     ORDER BY p.daily_date_key ASC, p.updated_at DESC`,
-    [startDate, endDate, rootId]
+     ORDER BY p.daily_date_key ASC, p.updated_at DESC
+     ${boundedRangeLimit === null ? "" : "LIMIT ?"}`,
+    boundedRangeLimit === null
+      ? [startDate, endDate, rootId]
+      : [startDate, endDate, rootId, boundedRangeLimit]
   );
   for (const row of rangeRows) addIfMeetingScope(row);
 

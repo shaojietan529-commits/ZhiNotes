@@ -949,6 +949,7 @@ check(
 );
 check(
   shells.schedule.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
+    shells.schedule.includes("MEETING_CALENDAR_MANUAL_DAY_LOAD_LIMIT") &&
     shells.schedule.includes("MEETING_UPCOMING_VISIBLE_LIMIT") &&
     shells.schedule.includes("MEETING_NOTES_VISIBLE_LIMIT") &&
     shells.schedule.includes("getUpcomingMeetingEntries(") &&
@@ -956,7 +957,10 @@ check(
     shells.schedule.includes("function getRecentCompletedMeetingEntries(") &&
     shells.schedule.includes("MEETING_CALENDAR_REVEAL_BUFFER") &&
     shells.schedule.includes("visibleMeetingLimitByDate") &&
+    shells.schedule.includes("const [loadingMoreMeetingDateKey, setLoadingMoreMeetingDateKey]") &&
     shells.schedule.includes("showMoreMeetingsForDate") &&
+    shells.schedule.includes("loadMoreMeetingsForDate") &&
+    shells.schedule.includes("rangeLimit: targetRangeLimit") &&
     shells.schedule.includes("revealMeetingOnCalendar") &&
     shells.schedule.includes("pendingCalendarFocusDateKeyRef") &&
     shells.schedule.includes("requestAnimationFrame") &&
@@ -972,6 +976,8 @@ check(
     shells.schedule.includes("const visibleMeetings = dayMeetings.slice(0, visibleLimit)") &&
     shells.schedule.includes("Math.min(totalCount, currentLimit + MEETING_CALENDAR_EXPAND_BATCH)") &&
     shells.schedule.includes("再显示 ${nextBatchCount} 场") &&
+    shells.schedule.includes("点击补齐 ${visibleMeetings.length}/${dayTotalCount} 场") &&
+    shells.schedule.includes("正在补齐…") &&
     shells.schedule.includes("dayMeetings.length > MEETING_CALENDAR_VISIBLE_LIMIT") &&
     !shells.schedule.includes(".sort((a, b) => a.dateKey.localeCompare(b.dateKey))\n      .slice(0, 8)") &&
     !shells.schedule.includes(".sort((a, b) =>\n          (b.page.updated_at || \"\").localeCompare(a.page.updated_at || \"\")\n        )\n        .slice(0, 20)") &&
@@ -1016,6 +1022,14 @@ check(
     localQueries.includes("dateParentIdsForChildren") &&
     localQueries.includes("SELECT parent_id FROM pages WHERE id = ?"),
   "每日纪要月历首屏应先按日期索引取候选，再用当前月份 token 和日期父页子节点做 bounded metadata fallback，不能递归展开整棵每日纪要树"
+);
+check(
+  localQueries.includes("listMeetingPageMetadataForCalendar({") &&
+    localQueries.includes("rangeLimit?: number") &&
+    localQueries.includes("const boundedRangeLimit =") &&
+    localQueries.includes("${boundedRangeLimit === null ? \"\" : \"LIMIT ?\"}") &&
+    localQueries.includes(": [startDate, endDate, rootId, boundedRangeLimit]"),
+  "会议日历单日补齐应支持 rangeLimit 下推到本地 metadata 查询，不能为某一天补齐而扫描完整会议目录"
 );
 for (const token of [
   "installLocalSchema(db)",
